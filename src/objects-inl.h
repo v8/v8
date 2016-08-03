@@ -5424,13 +5424,13 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 
 
 LayoutDescriptor* Map::layout_descriptor_gc_safe() {
-  Object* layout_desc = READ_FIELD(this, kLayoutDecriptorOffset);
+  Object* layout_desc = READ_FIELD(this, kLayoutDescriptorOffset);
   return LayoutDescriptor::cast_gc_safe(layout_desc);
 }
 
 
 bool Map::HasFastPointerLayout() const {
-  Object* layout_desc = READ_FIELD(this, kLayoutDecriptorOffset);
+  Object* layout_desc = READ_FIELD(this, kLayoutDescriptorOffset);
   return LayoutDescriptor::IsFastPointerLayout(layout_desc);
 }
 
@@ -5478,8 +5478,7 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors,
 
 
 ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
-ACCESSORS(Map, layout_descriptor, LayoutDescriptor, kLayoutDecriptorOffset)
-
+ACCESSORS(Map, layout_descriptor, LayoutDescriptor, kLayoutDescriptorOffset)
 
 void Map::set_bit_field3(uint32_t bits) {
   if (kInt32Size != kPointerSize) {

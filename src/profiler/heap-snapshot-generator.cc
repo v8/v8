@@ -1289,16 +1289,19 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
   }
   DescriptorArray* descriptors = map->instance_descriptors();
   TagObject(descriptors, "(map descriptors)");
-  SetInternalReference(map, entry,
-                       "descriptors", descriptors,
+  SetInternalReference(map, entry, "descriptors", descriptors,
                        Map::kDescriptorsOffset);
-
-  MarkAsWeakContainer(map->code_cache());
-  SetInternalReference(map, entry,
-                       "code_cache", map->code_cache(),
+  SetInternalReference(map, entry, "code_cache", map->code_cache(),
                        Map::kCodeCacheOffset);
-  SetInternalReference(map, entry,
-                       "prototype", map->prototype(), Map::kPrototypeOffset);
+  SetInternalReference(map, entry, "prototype", map->prototype(),
+                       Map::kPrototypeOffset);
+#if V8_DOUBLE_FIELDS_UNBOXING
+  if (FLAG_unbox_double_fields) {
+    SetInternalReference(map, entry, "layout_descriptor",
+                         map->layout_descriptor(),
+                         Map::kLayoutDescriptorOffset);
+  }
+#endif
   Object* constructor_or_backpointer = map->constructor_or_backpointer();
   if (constructor_or_backpointer->IsMap()) {
     TagObject(constructor_or_backpointer, "(back pointer)");

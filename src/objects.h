@@ -6260,10 +6260,10 @@ class Map: public HeapObject {
   static const int kDescriptorsOffset =
       kTransitionsOrPrototypeInfoOffset + kPointerSize;
 #if V8_DOUBLE_FIELDS_UNBOXING
-  static const int kLayoutDecriptorOffset = kDescriptorsOffset + kPointerSize;
-  static const int kCodeCacheOffset = kLayoutDecriptorOffset + kPointerSize;
+  static const int kLayoutDescriptorOffset = kDescriptorsOffset + kPointerSize;
+  static const int kCodeCacheOffset = kLayoutDescriptorOffset + kPointerSize;
 #else
-  static const int kLayoutDecriptorOffset = 1;  // Must not be ever accessed.
+  static const int kLayoutDescriptorOffset = 1;  // Must not be ever accessed.
   static const int kCodeCacheOffset = kDescriptorsOffset + kPointerSize;
 #endif
   static const int kDependentCodeOffset = kCodeCacheOffset + kPointerSize;
