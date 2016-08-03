@@ -57,7 +57,7 @@ class JSCallAccessor {
 
   Node* frame_state() {
     // Both, {JSCallFunction} and {JSCallConstruct}, have frame state.
-    return NodeProperties::GetFrameStateInput(call_, 0);
+    return NodeProperties::GetFrameStateInput(call_);
   }
 
   int formal_arguments() {
@@ -212,11 +212,11 @@ Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
 
   // If we are inlining a tail call drop caller's frame state and an
   // arguments adaptor if it exists.
-  frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
+  frame_state = NodeProperties::GetFrameStateInput(frame_state);
   if (frame_state->opcode() == IrOpcode::kFrameState) {
     FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
     if (frame_info.type() == FrameStateType::kArgumentsAdaptor) {
-      frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
+      frame_state = NodeProperties::GetFrameStateInput(frame_state);
     }
   }
 

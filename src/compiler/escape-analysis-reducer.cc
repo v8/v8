@@ -268,7 +268,7 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
     }
   }
   if (node->opcode() == IrOpcode::kFrameState) {
-    Node* outer_frame_state = NodeProperties::GetFrameStateInput(node, 0);
+    Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
     if (outer_frame_state->opcode() == IrOpcode::kFrameState) {
       if (Node* ret =
               ReduceDeoptState(outer_frame_state, effect, multiple_users_rec)) {
@@ -277,7 +277,7 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
           node = clone = jsgraph()->graph()->CloneNode(node);
           TRACE(" to #%d\n", node->id());
         }
-        NodeProperties::ReplaceFrameStateInput(node, 0, ret);
+        NodeProperties::ReplaceFrameStateInput(node, ret);
       }
     }
   }

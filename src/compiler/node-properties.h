@@ -41,7 +41,7 @@ class NodeProperties final {
 
   static Node* GetValueInput(Node* node, int index);
   static Node* GetContextInput(Node* node);
-  static Node* GetFrameStateInput(Node* node, int index);
+  static Node* GetFrameStateInput(Node* node);
   static Node* GetEffectInput(Node* node, int index = 0);
   static Node* GetControlInput(Node* node, int index = 0);
 
@@ -83,7 +83,7 @@ class NodeProperties final {
   static void ReplaceContextInput(Node* node, Node* context);
   static void ReplaceControlInput(Node* node, Node* control, int index = 0);
   static void ReplaceEffectInput(Node* node, Node* effect, int index = 0);
-  static void ReplaceFrameStateInput(Node* node, int index, Node* frame_state);
+  static void ReplaceFrameStateInput(Node* node, Node* frame_state);
   static void RemoveNonValueInputs(Node* node);
   static void RemoveValueInputs(Node* node);
 

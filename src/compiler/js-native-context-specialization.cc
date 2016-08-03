@@ -112,7 +112,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state_eager = NodeProperties::FindFrameStateBefore(node);
-  Node* frame_state_lazy = NodeProperties::GetFrameStateInput(node, 0);
+  Node* frame_state_lazy = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 

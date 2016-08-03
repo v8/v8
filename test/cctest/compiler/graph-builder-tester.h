@@ -239,7 +239,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     CHECK_EQ(op->ValueInputCount(), value_input_count);
 
     CHECK(!OperatorProperties::HasContextInput(op));
-    CHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(op));
+    CHECK(!OperatorProperties::HasFrameStateInput(op));
     bool has_control = op->ControlInputCount() == 1;
     bool has_effect = op->EffectInputCount() == 1;
 

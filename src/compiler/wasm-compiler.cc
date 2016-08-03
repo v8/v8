@@ -2432,7 +2432,7 @@ Node* WasmGraphBuilder::BuildChangeTaggedToFloat64(Node* value) {
     //     else BuildLoadHeapNumberValue(y)
     Node* object = NodeProperties::GetValueInput(value, 0);
     Node* context = NodeProperties::GetContextInput(value);
-    Node* frame_state = NodeProperties::GetFrameStateInput(value, 0);
+    Node* frame_state = NodeProperties::GetFrameStateInput(value);
     Node* effect = NodeProperties::GetEffectInput(value);
     Node* control = NodeProperties::GetControlInput(value);
 

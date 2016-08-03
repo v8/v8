@@ -531,7 +531,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
     // Unlink the check point; effect uses will be updated to the incoming
     // effect that is passed. The frame state is preserved for lowering.
     DCHECK_EQ(RegionObservability::kObservable, region_observability_);
-    *frame_state = NodeProperties::GetFrameStateInput(node, 0);
+    *frame_state = NodeProperties::GetFrameStateInput(node);
     return;
   }
 

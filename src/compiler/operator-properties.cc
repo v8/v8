@@ -20,20 +20,20 @@ bool OperatorProperties::HasContextInput(const Operator* op) {
 
 
 // static
-int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
+bool OperatorProperties::HasFrameStateInput(const Operator* op) {
   switch (op->opcode()) {
     case IrOpcode::kCheckpoint:
     case IrOpcode::kFrameState:
-      return 1;
+      return true;
     case IrOpcode::kJSCallRuntime: {
       const CallRuntimeParameters& p = CallRuntimeParametersOf(op);
-      return Linkage::NeedsFrameStateInput(p.id()) ? 1 : 0;
+      return Linkage::NeedsFrameStateInput(p.id());
     }
 
     // Strict equality cannot lazily deoptimize.
     case IrOpcode::kJSStrictEqual:
     case IrOpcode::kJSStrictNotEqual:
-      return 0;
+      return false;
 
     // Binary operations
     case IrOpcode::kJSAdd:
@@ -99,10 +99,10 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:
-      return 1;
+      return true;
 
     default:
-      return 0;
+      return false;
   }
 }
 

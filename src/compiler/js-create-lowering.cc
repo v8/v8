@@ -102,7 +102,7 @@ class AllocationBuilder final {
 
 // Retrieves the frame state holding actual argument values.
 Node* GetArgumentsFrameState(Node* frame_state) {
-  Node* const outer_state = NodeProperties::GetFrameStateInput(frame_state, 0);
+  Node* const outer_state = NodeProperties::GetFrameStateInput(frame_state);
   FrameStateInfo outer_state_info = OpParameter<FrameStateInfo>(outer_state);
   return outer_state_info.type() == FrameStateType::kArgumentsAdaptor
              ? outer_state
@@ -279,7 +279,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArguments, node->opcode());
   CreateArgumentsType type = CreateArgumentsTypeOf(node->op());
-  Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* const frame_state = NodeProperties::GetFrameStateInput(node);
   Node* const outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   Node* const control = graph()->start();
   FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
@@ -565,7 +565,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
     Node* if_success_packed;
     Node* if_success_holey;
     Node* context = NodeProperties::GetContextInput(node);
-    Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+    Node* frame_state = NodeProperties::GetFrameStateInput(node);
     Node* if_equal = graph()->NewNode(common()->IfTrue(), branch);
     {
       ArraySingleArgumentConstructorStub stub(isolate(), elements_kind,

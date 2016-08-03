@@ -99,7 +99,7 @@ Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
   if (mode() != kDeoptimizationEnabled) return NoChange();
-  Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* const frame_state = NodeProperties::GetFrameStateInput(node);
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
 

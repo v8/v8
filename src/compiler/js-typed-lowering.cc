@@ -31,7 +31,7 @@ class JSBinopReduction final {
     if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
       DCHECK_NE(0, node_->op()->ControlOutputCount());
       DCHECK_EQ(1, node_->op()->EffectOutputCount());
-      DCHECK_LE(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
+      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
       BinaryOperationHints hints = BinaryOperationHintsOf(node_->op());
       BinaryOperationHints::Hint combined = hints.combined();
       if (combined == BinaryOperationHints::kSignedSmall ||
@@ -151,7 +151,7 @@ class JSBinopReduction final {
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
     DCHECK_EQ(1, node_->op()->ControlInputCount());
     DCHECK_LT(1, node_->op()->ControlOutputCount());
-    DCHECK_LE(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
+    DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
     DCHECK_EQ(2, node_->op()->ValueInputCount());
 
     // Reconnect the control output to bypass the IfSuccess node and
@@ -170,10 +170,7 @@ class JSBinopReduction final {
       }
     }
 
-    // Remove both bailout frame states and the context.
-    if (OperatorProperties::GetFrameStateInputCount(node_->op()) == 2) {
-      node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_) + 1);
-    }
+    // Remove the frame state and the context.
     node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_));
     node_->RemoveInput(NodeProperties::FirstContextIndex(node_));
 
@@ -227,88 +224,17 @@ class JSBinopReduction final {
   Node* node_;                 // The original node.
 
   Node* CreateFrameStateForLeftInput() {
-    if (OperatorProperties::GetFrameStateInputCount(node_->op()) < 2) {
-      // Deoptimization is disabled => return dummy frame state instead.
-      Node* dummy_state = NodeProperties::GetFrameStateInput(node_, 0);
-      DCHECK(OpParameter<FrameStateInfo>(dummy_state).bailout_id().IsNone());
-      return dummy_state;
-    }
-
-    Node* frame_state = NodeProperties::GetFrameStateInput(node_, 1);
-    FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
-
-    if (state_info.bailout_id() == BailoutId::None()) {
-      // Dummy frame state => just leave it as is.
-      return frame_state;
-    }
-
-    // If the frame state is already the right one, just return it.
-    if (state_info.state_combine().kind() == OutputFrameStateCombine::kPokeAt &&
-        state_info.state_combine().GetOffsetToPokeAt() == 1) {
-      return frame_state;
-    }
-
-    // Here, we smash the result of the conversion into the slot just below
-    // the stack top. This is the slot that full code uses to store the
-    // left operand.
-    const Operator* op = jsgraph()->common()->FrameState(
-        state_info.bailout_id(), OutputFrameStateCombine::PokeAt(1),
-        state_info.function_info());
-
-    return graph()->NewNode(op,
-                            frame_state->InputAt(kFrameStateParametersInput),
-                            frame_state->InputAt(kFrameStateLocalsInput),
-                            frame_state->InputAt(kFrameStateStackInput),
-                            frame_state->InputAt(kFrameStateContextInput),
-                            frame_state->InputAt(kFrameStateFunctionInput),
-                            frame_state->InputAt(kFrameStateOuterStateInput));
+    // Deoptimization is disabled => return dummy frame state instead.
+    Node* dummy_state = NodeProperties::GetFrameStateInput(node_);
+    DCHECK(OpParameter<FrameStateInfo>(dummy_state).bailout_id().IsNone());
+    return dummy_state;
   }
 
   Node* CreateFrameStateForRightInput(Node* converted_left) {
-    if (OperatorProperties::GetFrameStateInputCount(node_->op()) < 2) {
-      // Deoptimization is disabled => return dummy frame state instead.
-      Node* dummy_state = NodeProperties::GetFrameStateInput(node_, 0);
-      DCHECK(OpParameter<FrameStateInfo>(dummy_state).bailout_id().IsNone());
-      return dummy_state;
-    }
-
-    Node* frame_state = NodeProperties::GetFrameStateInput(node_, 1);
-    FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
-
-    if (state_info.bailout_id() == BailoutId::None()) {
-      // Dummy frame state => just leave it as is.
-      return frame_state;
-    }
-
-    // Create a frame state that stores the result of the operation to the
-    // top of the stack (i.e., the slot used for the right operand).
-    const Operator* op = jsgraph()->common()->FrameState(
-        state_info.bailout_id(), OutputFrameStateCombine::PokeAt(0),
-        state_info.function_info());
-
-    // Change the left operand {converted_left} on the expression stack.
-    Node* stack = frame_state->InputAt(2);
-    DCHECK_EQ(stack->opcode(), IrOpcode::kStateValues);
-    DCHECK_GE(stack->InputCount(), 2);
-
-    // TODO(jarin) Allocate in a local zone or a reusable buffer.
-    NodeVector new_values(stack->InputCount(), zone());
-    for (int i = 0; i < stack->InputCount(); i++) {
-      if (i == stack->InputCount() - 2) {
-        new_values[i] = converted_left;
-      } else {
-        new_values[i] = stack->InputAt(i);
-      }
-    }
-    Node* new_stack =
-        graph()->NewNode(stack->op(), stack->InputCount(), &new_values.front());
-
-    return graph()->NewNode(
-        op, frame_state->InputAt(kFrameStateParametersInput),
-        frame_state->InputAt(kFrameStateLocalsInput), new_stack,
-        frame_state->InputAt(kFrameStateContextInput),
-        frame_state->InputAt(kFrameStateFunctionInput),
-        frame_state->InputAt(kFrameStateOuterStateInput));
+    // Deoptimization is disabled => return dummy frame state instead.
+    Node* dummy_state = NodeProperties::GetFrameStateInput(node_);
+    DCHECK(OpParameter<FrameStateInfo>(dummy_state).bailout_id().IsNone());
+    return dummy_state;
   }
 
   Node* ConvertPlainPrimitiveToNumber(Node* node) {
@@ -1034,7 +960,7 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Type* receiver_type = NodeProperties::GetType(receiver);
   Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   if (receiver_type->Is(Type::Receiver())) {
@@ -1236,7 +1162,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
 Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
   Node* const context = NodeProperties::GetContextInput(node);
-  Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* const frame_state = NodeProperties::GetFrameStateInput(node);
 
   // If deoptimization is disabled, we cannot optimize.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
@@ -1457,7 +1383,7 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   Type* receiver_type = NodeProperties::GetType(receiver);
   Node* context = NodeProperties::GetContextInput(node);
   Type* context_type = NodeProperties::GetType(context);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   if (!receiver_type->Is(Type::Receiver())) {
@@ -1731,7 +1657,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   Node* cache_type = NodeProperties::GetValueInput(node, 2);
   Node* index = NodeProperties::GetValueInput(node, 3);
   Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 

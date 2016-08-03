@@ -129,7 +129,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     // we can only optimize this in case the {node} was already inlined into
     // some other function (and same for the {arg_array}).
     CreateArgumentsType type = CreateArgumentsTypeOf(arg_array->op());
-    Node* frame_state = NodeProperties::GetFrameStateInput(arg_array, 0);
+    Node* frame_state = NodeProperties::GetFrameStateInput(arg_array);
     Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
     if (outer_state->opcode() != IrOpcode::kFrameState) return NoChange();
     FrameStateInfo outer_info = OpParameter<FrameStateInfo>(outer_state);

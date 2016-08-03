@@ -637,7 +637,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     // all the frames on top of it that are either an arguments adaptor frame
     // or a tail caller frame.
     if (buffer->descriptor->SupportsTailCalls()) {
-      frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
+      frame_state = NodeProperties::GetFrameStateInput(frame_state);
       buffer->frame_state_descriptor =
           buffer->frame_state_descriptor->outer_state();
       while (buffer->frame_state_descriptor != nullptr &&
@@ -645,7 +645,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                   FrameStateType::kArgumentsAdaptor ||
               buffer->frame_state_descriptor->type() ==
                   FrameStateType::kTailCallerFunction)) {
-        frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
+        frame_state = NodeProperties::GetFrameStateInput(frame_state);
         buffer->frame_state_descriptor =
             buffer->frame_state_descriptor->outer_state();
       }

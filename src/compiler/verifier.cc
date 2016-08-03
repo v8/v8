@@ -112,7 +112,7 @@ void Verifier::Visitor::Check(Node* node) {
 
   // Verify that frame state has been inserted for the nodes that need it.
   for (int i = 0; i < frame_state_count; i++) {
-    Node* frame_state = NodeProperties::GetFrameStateInput(node, i);
+    Node* frame_state = NodeProperties::GetFrameStateInput(node);
     CHECK(frame_state->opcode() == IrOpcode::kFrameState ||
           // kFrameState uses Start as a sentinel.
           (node->opcode() == IrOpcode::kFrameState &&
@@ -1531,10 +1531,9 @@ void Verifier::VerifyNode(Node* node) {
       }
     }
   }
-  // Frame state inputs should be frame states (or sentinels).
-  for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(node->op());
-       i++) {
-    Node* input = NodeProperties::GetFrameStateInput(node, i);
+  // Frame state input should be a frame state (or sentinel).
+  if (OperatorProperties::GetFrameStateInputCount(node->op()) > 0) {
+    Node* input = NodeProperties::GetFrameStateInput(node);
     CHECK(input->opcode() == IrOpcode::kFrameState ||
           input->opcode() == IrOpcode::kStart ||
           input->opcode() == IrOpcode::kDead);
