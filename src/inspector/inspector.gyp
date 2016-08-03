@@ -73,6 +73,14 @@
       'defines': [
         'V8_INSPECTOR_USE_STL',
       ],
+      'msvs_disabled_warnings': [
+        4267,  # Truncation from size_t to int.
+        4305,  # Truncation from 'type1' to 'type2'.
+        4324,  # Struct padded due to declspec(align).
+        4714,  # Function marked forceinline not inlined.
+        4800,  # Value forced to bool.
+        4996,  # Deprecated function call.
+      ],
       'sources': [
         '<@(protocol_sources)',
         '<(protocol_path)/Allocator.h',
