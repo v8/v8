@@ -67,7 +67,6 @@ namespace internal {
   V(StoreICTrampoline)                        \
   /* --- HydrogenCodeStubs --- */             \
   V(ElementsTransitionAndStore)               \
-  V(FastCloneRegExp)                          \
   V(FastCloneShallowArray)                    \
   V(GrowArrayElements)                        \
   V(NumberToString)                           \
@@ -138,6 +137,7 @@ namespace internal {
   V(InternalArraySingleArgumentConstructor)   \
   V(Dec)                                      \
   V(FastCloneShallowObject)                   \
+  V(FastCloneRegExp)                          \
   V(FastNewClosure)                           \
   V(FastNewFunctionContext)                   \
   V(InstanceOf)                               \
@@ -1165,14 +1165,13 @@ class FastNewStrictArgumentsStub final : public PlatformCodeStub {
   class SkipStubFrameBits : public BitField<bool, 0, 1> {};
 };
 
-
-class FastCloneRegExpStub final : public HydrogenCodeStub {
+class FastCloneRegExpStub final : public TurboFanCodeStub {
  public:
-  explicit FastCloneRegExpStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+  explicit FastCloneRegExpStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneRegExp);
-  DEFINE_HYDROGEN_CODE_STUB(FastCloneRegExp, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(FastCloneRegExp, TurboFanCodeStub);
 };
 
 

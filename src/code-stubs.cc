@@ -4157,14 +4157,6 @@ void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 }
 
 
-void FastCloneRegExpStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  FastCloneRegExpDescriptor call_descriptor(isolate());
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kCreateRegExpLiteral)->entry);
-  descriptor->SetMissHandler(Runtime::kCreateRegExpLiteral);
-}
-
-
 void FastCloneShallowArrayStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   FastCloneShallowArrayDescriptor call_descriptor(isolate());
@@ -4629,6 +4621,45 @@ void FastNewFunctionContextStub::GenerateAssembly(
   Node* context = assembler->Parameter(Descriptor::kContext);
 
   assembler->Return(Generate(assembler, function, slots, context));
+}
+
+void FastCloneRegExpStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Label call_runtime(assembler, Label::kDeferred);
+
+  Node* closure = assembler->Parameter(Descriptor::kClosure);
+  Node* literal_index = assembler->Parameter(Descriptor::kLiteralIndex);
+
+  Node* undefined = assembler->UndefinedConstant();
+  Node* literals_array =
+      assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* boilerplate = assembler->LoadFixedArrayElement(
+      literals_array, literal_index,
+      LiteralsArray::kFirstLiteralIndex * kPointerSize,
+      CodeStubAssembler::SMI_PARAMETERS);
+  assembler->GotoIf(assembler->WordEqual(boilerplate, undefined),
+                    &call_runtime);
+
+  {
+    int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+    Node* copy = assembler->Allocate(size);
+    for (int offset = 0; offset < size; offset += kPointerSize) {
+      Node* value = assembler->LoadObjectField(boilerplate, offset);
+      assembler->StoreObjectFieldNoWriteBarrier(copy, offset, value);
+    }
+    assembler->Return(copy);
+  }
+
+  assembler->Bind(&call_runtime);
+  {
+    Node* context = assembler->Parameter(Descriptor::kContext);
+    Node* pattern = assembler->Parameter(Descriptor::kPattern);
+    Node* flags = assembler->Parameter(Descriptor::kFlags);
+    assembler->TailCallRuntime(Runtime::kCreateRegExpLiteral, context, closure,
+                               literal_index, pattern, flags);
+  }
 }
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {

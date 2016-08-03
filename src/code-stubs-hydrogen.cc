@@ -344,63 +344,6 @@ Handle<Code> NumberToStringStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<FastCloneRegExpStub>::BuildCodeStub() {
-  HValue* closure = GetParameter(Descriptor::kClosure);
-  HValue* literal_index = GetParameter(Descriptor::kLiteralIndex);
-
-  // This stub is very performance sensitive, the generated code must be tuned
-  // so that it doesn't build and eager frame.
-  info()->MarkMustNotHaveEagerFrame();
-
-  HValue* literals_array = Add<HLoadNamedField>(
-      closure, nullptr, HObjectAccess::ForLiteralsPointer());
-  HInstruction* boilerplate = Add<HLoadKeyed>(
-      literals_array, literal_index, nullptr, nullptr, FAST_ELEMENTS,
-      NEVER_RETURN_HOLE, LiteralsArray::kOffsetToFirstLiteral - kHeapObjectTag);
-
-  IfBuilder if_notundefined(this);
-  if_notundefined.IfNot<HCompareObjectEqAndBranch>(
-      boilerplate, graph()->GetConstantUndefined());
-  if_notundefined.Then();
-  {
-    int result_size =
-        JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
-    HValue* result =
-        Add<HAllocate>(Add<HConstant>(result_size), HType::JSObject(),
-                       NOT_TENURED, JS_REGEXP_TYPE, graph()->GetConstant0());
-    Add<HStoreNamedField>(
-        result, HObjectAccess::ForMap(),
-        Add<HLoadNamedField>(boilerplate, nullptr, HObjectAccess::ForMap()));
-    Add<HStoreNamedField>(
-        result, HObjectAccess::ForPropertiesPointer(),
-        Add<HLoadNamedField>(boilerplate, nullptr,
-                             HObjectAccess::ForPropertiesPointer()));
-    Add<HStoreNamedField>(
-        result, HObjectAccess::ForElementsPointer(),
-        Add<HLoadNamedField>(boilerplate, nullptr,
-                             HObjectAccess::ForElementsPointer()));
-    for (int offset = JSObject::kHeaderSize; offset < result_size;
-         offset += kPointerSize) {
-      HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(offset);
-      Add<HStoreNamedField>(result, access,
-                            Add<HLoadNamedField>(boilerplate, nullptr, access));
-    }
-    Push(result);
-  }
-  if_notundefined.ElseDeopt(
-      DeoptimizeReason::kUninitializedBoilerplateInFastClone);
-  if_notundefined.End();
-
-  return Pop();
-}
-
-
-Handle<Code> FastCloneRegExpStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
   HValue* undefined = graph()->GetConstantUndefined();

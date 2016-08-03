@@ -1495,6 +1495,11 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ Move(descriptor.GetRegisterParameter(2), expr->pattern());
   __ Move(descriptor.GetRegisterParameter(3), Smi::FromInt(expr->flags()));
   __ Call(callable.code(), RelocInfo::CODE_TARGET);
+
+  // Reload the context register after the call as i.e. TurboFan code stubs
+  // won't preserve the context register.
+  LoadFromFrameField(StandardFrameConstants::kContextOffset,
+                     context_register());
   context()->Plug(result_register());
 }
 
