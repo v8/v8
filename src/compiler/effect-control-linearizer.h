@@ -145,7 +145,8 @@ class EffectControlLinearizer {
 
   ValueEffectControl AllocateHeapNumberWithValue(Node* node, Node* effect,
                                                  Node* control);
-  ValueEffectControl BuildCheckedFloat64ToInt32(Node* value, Node* frame_state,
+  ValueEffectControl BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
+                                                Node* value, Node* frame_state,
                                                 Node* effect, Node* control);
   ValueEffectControl BuildCheckedHeapNumberOrOddballToFloat64(Node* value,
                                                               Node* frame_state,

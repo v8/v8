@@ -208,7 +208,9 @@ CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator* op) {
 }
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kCheckedInt32Mul, op->opcode());
+  DCHECK(op->opcode() == IrOpcode::kCheckedInt32Mul ||
+         op->opcode() == IrOpcode::kCheckedFloat64ToInt32 ||
+         op->opcode() == IrOpcode::kCheckedTaggedToInt32);
   return OpParameter<CheckForMinusZeroMode>(op);
 }
 
@@ -395,9 +397,7 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(CheckedUint32Div, 2, 1)           \
   V(CheckedUint32Mod, 2, 1)           \
   V(CheckedUint32ToInt32, 1, 1)       \
-  V(CheckedFloat64ToInt32, 1, 1)      \
   V(CheckedTaggedSignedToInt32, 1, 1) \
-  V(CheckedTaggedToInt32, 1, 1)       \
   V(CheckedTaggedToFloat64, 1, 1)     \
   V(CheckedTruncateTaggedToWord32, 1, 1)
 
@@ -436,6 +436,34 @@ struct SimplifiedOperatorGlobalCache final {
       kCheckedInt32MulCheckForMinusZeroOperator;
   CheckedInt32MulOperator<CheckForMinusZeroMode::kDontCheckForMinusZero>
       kCheckedInt32MulDontCheckForMinusZeroOperator;
+
+  template <CheckForMinusZeroMode kMode>
+  struct CheckedFloat64ToInt32Operator final
+      : public Operator1<CheckForMinusZeroMode> {
+    CheckedFloat64ToInt32Operator()
+        : Operator1<CheckForMinusZeroMode>(
+              IrOpcode::kCheckedFloat64ToInt32,
+              Operator::kFoldable | Operator::kNoThrow, "CheckedFloat64ToInt32",
+              1, 1, 1, 1, 1, 0, kMode) {}
+  };
+  CheckedFloat64ToInt32Operator<CheckForMinusZeroMode::kCheckForMinusZero>
+      kCheckedFloat64ToInt32CheckForMinusZeroOperator;
+  CheckedFloat64ToInt32Operator<CheckForMinusZeroMode::kDontCheckForMinusZero>
+      kCheckedFloat64ToInt32DontCheckForMinusZeroOperator;
+
+  template <CheckForMinusZeroMode kMode>
+  struct CheckedTaggedToInt32Operator final
+      : public Operator1<CheckForMinusZeroMode> {
+    CheckedTaggedToInt32Operator()
+        : Operator1<CheckForMinusZeroMode>(
+              IrOpcode::kCheckedTaggedToInt32,
+              Operator::kFoldable | Operator::kNoThrow, "CheckedTaggedToInt32",
+              1, 1, 1, 1, 1, 0, kMode) {}
+  };
+  CheckedTaggedToInt32Operator<CheckForMinusZeroMode::kCheckForMinusZero>
+      kCheckedTaggedToInt32CheckForMinusZeroOperator;
+  CheckedTaggedToInt32Operator<CheckForMinusZeroMode::kDontCheckForMinusZero>
+      kCheckedTaggedToInt32DontCheckForMinusZeroOperator;
 
   template <CheckFloat64HoleMode kMode>
   struct CheckFloat64HoleNaNOperator final
@@ -519,6 +547,30 @@ const Operator* SimplifiedOperatorBuilder::CheckedInt32Mul(
       return &cache_.kCheckedInt32MulCheckForMinusZeroOperator;
     case CheckForMinusZeroMode::kDontCheckForMinusZero:
       return &cache_.kCheckedInt32MulDontCheckForMinusZeroOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* SimplifiedOperatorBuilder::CheckedFloat64ToInt32(
+    CheckForMinusZeroMode mode) {
+  switch (mode) {
+    case CheckForMinusZeroMode::kCheckForMinusZero:
+      return &cache_.kCheckedFloat64ToInt32CheckForMinusZeroOperator;
+    case CheckForMinusZeroMode::kDontCheckForMinusZero:
+      return &cache_.kCheckedFloat64ToInt32DontCheckForMinusZeroOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* SimplifiedOperatorBuilder::CheckedTaggedToInt32(
+    CheckForMinusZeroMode mode) {
+  switch (mode) {
+    case CheckForMinusZeroMode::kCheckForMinusZero:
+      return &cache_.kCheckedTaggedToInt32CheckForMinusZeroOperator;
+    case CheckForMinusZeroMode::kDontCheckForMinusZero:
+      return &cache_.kCheckedTaggedToInt32DontCheckForMinusZeroOperator;
   }
   UNREACHABLE();
   return nullptr;

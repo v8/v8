@@ -439,7 +439,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->TruncateFloat64ToWord32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
                use_info.type_check() == TypeCheckKind::kSigned32) {
-      op = simplified()->CheckedFloat64ToInt32();
+      op = simplified()->CheckedFloat64ToInt32(
+          output_type->Maybe(Type::MinusZero())
+              ? CheckForMinusZeroMode::kCheckForMinusZero
+              : CheckForMinusZeroMode::kDontCheckForMinusZero);
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
@@ -451,7 +454,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->TruncateFloat64ToWord32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
                use_info.type_check() == TypeCheckKind::kSigned32) {
-      op = simplified()->CheckedFloat64ToInt32();
+      op = simplified()->CheckedFloat64ToInt32(
+          output_type->Maybe(Type::MinusZero())
+              ? CheckForMinusZeroMode::kCheckForMinusZero
+              : CheckForMinusZeroMode::kDontCheckForMinusZero);
     }
   } else if (output_rep == MachineRepresentation::kTagged) {
     if (output_type->Is(Type::TaggedSigned())) {
@@ -469,7 +475,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
       op = simplified()->CheckedTaggedSignedToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
-      op = simplified()->CheckedTaggedToInt32();
+      op = simplified()->CheckedTaggedToInt32(
+          output_type->Maybe(Type::MinusZero())
+              ? CheckForMinusZeroMode::kCheckForMinusZero
+              : CheckForMinusZeroMode::kDontCheckForMinusZero);
     }
   } else if (output_rep == MachineRepresentation::kWord32) {
     // Only the checked case should get here, the non-checked case is

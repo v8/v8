@@ -1532,7 +1532,8 @@ EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node,
 }
 
 EffectControlLinearizer::ValueEffectControl
-EffectControlLinearizer::BuildCheckedFloat64ToInt32(Node* value,
+EffectControlLinearizer::BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
+                                                    Node* value,
                                                     Node* frame_state,
                                                     Node* effect,
                                                     Node* control) {
@@ -1544,32 +1545,33 @@ EffectControlLinearizer::BuildCheckedFloat64ToInt32(Node* value,
       common()->DeoptimizeUnless(DeoptimizeReason::kLostPrecisionOrNaN),
       check_same, frame_state, effect, control);
 
-  // Check if {value} is -0.
-  Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
-                                      jsgraph()->Int32Constant(0));
-  Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                       check_zero, control);
+  if (mode == CheckForMinusZeroMode::kCheckForMinusZero) {
+    // Check if {value} is -0.
+    Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
+                                        jsgraph()->Int32Constant(0));
+    Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                         check_zero, control);
 
-  Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
-  Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
+    Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
+    Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
 
-  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-  Node* check_negative = graph()->NewNode(
-      machine()->Int32LessThan(),
-      graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
-      jsgraph()->Int32Constant(0));
+    // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+    Node* check_negative = graph()->NewNode(
+        machine()->Int32LessThan(),
+        graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
+        jsgraph()->Int32Constant(0));
 
-  Node* deopt_minus_zero =
-      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
-                       check_negative, frame_state, effect, if_zero);
+    Node* deopt_minus_zero =
+        graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
+                         check_negative, frame_state, effect, if_zero);
 
-  Node* merge =
-      graph()->NewNode(common()->Merge(2), deopt_minus_zero, if_notzero);
+    control =
+        graph()->NewNode(common()->Merge(2), deopt_minus_zero, if_notzero);
+    effect = graph()->NewNode(common()->EffectPhi(2), deopt_minus_zero, effect,
+                              control);
+  }
 
-  effect =
-      graph()->NewNode(common()->EffectPhi(2), deopt_minus_zero, effect, merge);
-
-  return ValueEffectControl(value32, effect, merge);
+  return ValueEffectControl(value32, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl
@@ -1577,9 +1579,10 @@ EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node,
                                                     Node* frame_state,
                                                     Node* effect,
                                                     Node* control) {
+  CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
   Node* value = node->InputAt(0);
 
-  return BuildCheckedFloat64ToInt32(value, frame_state, effect, control);
+  return BuildCheckedFloat64ToInt32(mode, value, frame_state, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl
@@ -1603,6 +1606,7 @@ EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
                                                    Node* frame_state,
                                                    Node* effect,
                                                    Node* control) {
+  CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
   Node* value = node->InputAt(0);
 
   Node* check = ObjectIsSmi(value);
@@ -1632,7 +1636,7 @@ EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
         simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
         efalse, if_false);
     ValueEffectControl state =
-        BuildCheckedFloat64ToInt32(vfalse, frame_state, efalse, if_false);
+        BuildCheckedFloat64ToInt32(mode, vfalse, frame_state, efalse, if_false);
     if_false = state.control;
     efalse = state.effect;
     vfalse = state.value;
