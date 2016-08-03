@@ -11676,6 +11676,9 @@ THREADED_TEST(EvalInDetachedGlobal) {
 
   v8::Local<Context> context0 = Context::New(isolate);
   v8::Local<Context> context1 = Context::New(isolate);
+  Local<String> token = v8_str("<security token>");
+  context0->SetSecurityToken(token);
+  context1->SetSecurityToken(token);
 
   // Set up function in context0 that uses eval from context0.
   context0->Enter();
@@ -11689,15 +11692,14 @@ THREADED_TEST(EvalInDetachedGlobal) {
 
   // Put the function into context1 and call it before and after
   // detaching the global.  Before detaching, the call succeeds and
-  // after detaching and exception is thrown.
+  // after detaching undefined is returned.
   context1->Enter();
   CHECK(context1->Global()->Set(context1, v8_str("fun"), fun).FromJust());
   v8::Local<v8::Value> x_value = CompileRun("fun('x')");
   CHECK_EQ(42, x_value->Int32Value(context1).FromJust());
   context0->DetachGlobal();
-  v8::TryCatch catcher(isolate);
   x_value = CompileRun("fun('x')");
-  CHECK_EQ(42, x_value->Int32Value(context1).FromJust());
+  CHECK(x_value->IsUndefined());
   context1->Exit();
 }
 

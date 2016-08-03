@@ -13,22 +13,6 @@ namespace internal {
 
 namespace {
 
-bool AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
-                          Handle<JSObject> target_global_proxy) {
-  if (FLAG_allow_unsafe_function_constructor) return true;
-  HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  Handle<Context> responsible_context = impl->LastEnteredContext();
-  if (responsible_context.is_null()) {
-    responsible_context = impl->MicrotaskContext();
-    // TODO(jochen): Remove this.
-    if (responsible_context.is_null()) {
-      return true;
-    }
-  }
-  if (*responsible_context == target->context()) return true;
-  return isolate->MayAccess(responsible_context, target_global_proxy);
-}
-
 // ES6 section 19.2.1.1.1 CreateDynamicFunction
 MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
                                           BuiltinArguments args,
@@ -40,7 +24,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
 
-  if (!AllowDynamicFunction(isolate, target, target_global_proxy)) {
+  if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {
     isolate->CountUsage(v8::Isolate::kFunctionConstructorReturnedUndefined);
     return isolate->factory()->undefined_value();
   }

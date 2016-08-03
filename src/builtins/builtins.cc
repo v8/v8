@@ -206,5 +206,22 @@ const char* Builtins::name(int index) {
 BUILTIN_LIST_ALL(DEFINE_BUILTIN_ACCESSOR)
 #undef DEFINE_BUILTIN_ACCESSOR
 
+// static
+bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
+                                    Handle<JSObject> target_global_proxy) {
+  if (FLAG_allow_unsafe_function_constructor) return true;
+  HandleScopeImplementer* impl = isolate->handle_scope_implementer();
+  Handle<Context> responsible_context = impl->LastEnteredContext();
+  if (responsible_context.is_null()) {
+    responsible_context = impl->MicrotaskContext();
+    // TODO(jochen): Remove this.
+    if (responsible_context.is_null()) {
+      return true;
+    }
+  }
+  if (*responsible_context == target->context()) return true;
+  return isolate->MayAccess(responsible_context, target_global_proxy);
+}
+
 }  // namespace internal
 }  // namespace v8

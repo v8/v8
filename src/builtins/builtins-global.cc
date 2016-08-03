@@ -85,6 +85,10 @@ BUILTIN(GlobalEval) {
   Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
   if (!x->IsString()) return *x;
+  if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {
+    isolate->CountUsage(v8::Isolate::kFunctionConstructorReturnedUndefined);
+    return isolate->heap()->undefined_value();
+  }
   Handle<JSFunction> function;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, function, Compiler::GetFunctionFromString(
