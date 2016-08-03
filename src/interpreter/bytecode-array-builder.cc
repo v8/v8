@@ -329,9 +329,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
-    Handle<SharedFunctionInfo> shared_info, int flags) {
-  size_t entry = GetConstantPoolEntry(shared_info);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(size_t entry,
+                                                          int flags) {
   Output(Bytecode::kCreateClosure, UnsignedOperand(entry),
          UnsignedOperand(flags));
   return *this;

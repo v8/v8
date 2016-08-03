@@ -99,10 +99,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreLookupSlot(name, LanguageMode::STRICT);
 
   // Emit closure operations.
-  Handle<SharedFunctionInfo> shared_info = factory->NewSharedFunctionInfo(
-      factory->NewStringFromStaticChars("function_a"), MaybeHandle<Code>(),
-      false);
-  builder.CreateClosure(shared_info, NOT_TENURED);
+  builder.CreateClosure(0, NOT_TENURED);
 
   // Emit create context operation.
   builder.CreateFunctionContext(1);
@@ -328,10 +325,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(reg);
 
   // CreateClosureWide
-  Handle<SharedFunctionInfo> shared_info2 = factory->NewSharedFunctionInfo(
-      factory->NewStringFromStaticChars("function_b"), MaybeHandle<Code>(),
-      false);
-  builder.CreateClosure(shared_info2, NOT_TENURED);
+  builder.CreateClosure(1000, NOT_TENURED);
 
   // Emit wide variant of literal creation operations.
   builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("wide_literal"),

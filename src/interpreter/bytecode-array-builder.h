@@ -131,9 +131,9 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& StoreLookupSlot(const Handle<String> name,
                                         LanguageMode language_mode);
 
-  // Create a new closure for the SharedFunctionInfo.
-  BytecodeArrayBuilder& CreateClosure(Handle<SharedFunctionInfo> shared_info,
-                                      int flags);
+  // Create a new closure for a SharedFunctionInfo which will be inserted at
+  // constant pool index |entry|.
+  BytecodeArrayBuilder& CreateClosure(size_t entry, int flags);
 
   // Create a new context with size |slots|.
   BytecodeArrayBuilder& CreateFunctionContext(int slots);

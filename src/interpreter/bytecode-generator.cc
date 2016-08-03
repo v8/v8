@@ -540,25 +540,44 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
  public:
   GlobalDeclarationsBuilder(Isolate* isolate, Zone* zone)
       : isolate_(isolate),
-        declaration_pairs_(0, zone),
+        declarations_(0, zone),
         constant_pool_entry_(0),
         has_constant_pool_entry_(false) {}
 
-  void AddDeclaration(FeedbackVectorSlot slot, Handle<Object> initial_value) {
+  void AddFunctionDeclaration(FeedbackVectorSlot slot, FunctionLiteral* func) {
     DCHECK(!slot.IsInvalid());
-    declaration_pairs_.push_back(handle(Smi::FromInt(slot.ToInt()), isolate_));
-    declaration_pairs_.push_back(initial_value);
+    declarations_.push_back(std::make_pair(slot, func));
   }
 
-  Handle<FixedArray> AllocateDeclarationPairs() {
+  void AddUndefinedDeclaration(FeedbackVectorSlot slot) {
+    DCHECK(!slot.IsInvalid());
+    declarations_.push_back(std::make_pair(slot, nullptr));
+  }
+
+  Handle<FixedArray> AllocateDeclarationPairs(CompilationInfo* info) {
     DCHECK(has_constant_pool_entry_);
     int array_index = 0;
-    Handle<FixedArray> data = isolate_->factory()->NewFixedArray(
-        static_cast<int>(declaration_pairs_.size()), TENURED);
-    for (Handle<Object> obj : declaration_pairs_) {
-      data->set(array_index++, *obj);
+    Handle<FixedArray> pairs = isolate_->factory()->NewFixedArray(
+        static_cast<int>(declarations_.size() * 2), TENURED);
+    for (std::pair<FeedbackVectorSlot, FunctionLiteral*> declaration :
+         declarations_) {
+      FunctionLiteral* func = declaration.second;
+      Handle<Object> initial_value;
+      if (func == nullptr) {
+        initial_value = isolate_->factory()->undefined_value();
+      } else {
+        initial_value =
+            Compiler::GetSharedFunctionInfo(func, info->script(), info);
+      }
+
+      // Return a null handle if any initial values can't be created. Caller
+      // will set stack overflow.
+      if (initial_value.is_null()) return Handle<FixedArray>();
+
+      pairs->set(array_index++, Smi::FromInt(declaration.first.ToInt()));
+      pairs->set(array_index++, *initial_value);
     }
-    return data;
+    return pairs;
   }
 
   size_t constant_pool_entry() {
@@ -573,11 +592,11 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
     has_constant_pool_entry_ = true;
   }
 
-  bool empty() { return declaration_pairs_.empty(); }
+  bool empty() { return declarations_.empty(); }
 
  private:
   Isolate* isolate_;
-  ZoneVector<Handle<Object>> declaration_pairs_;
+  ZoneVector<std::pair<FeedbackVectorSlot, FunctionLiteral*>> declarations_;
   size_t constant_pool_entry_;
   bool has_constant_pool_entry_;
 };
@@ -595,6 +614,8 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       globals_builder_(new (zone()) GlobalDeclarationsBuilder(info->isolate(),
                                                               info->zone())),
       global_declarations_(0, info->zone()),
+      function_literals_(0, info->zone()),
+      native_function_literals_(0, info->zone()),
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
@@ -607,16 +628,39 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
 
 Handle<BytecodeArray> BytecodeGenerator::MakeBytecode() {
   GenerateBytecode();
+  FinalizeBytecode();
+  return builder()->ToBytecodeArray();
+}
 
+void BytecodeGenerator::FinalizeBytecode() {
   // Build global declaration pair arrays.
   for (GlobalDeclarationsBuilder* globals_builder : global_declarations_) {
     Handle<FixedArray> declarations =
-        globals_builder->AllocateDeclarationPairs();
+        globals_builder->AllocateDeclarationPairs(info());
+    if (declarations.is_null()) return SetStackOverflow();
     builder()->InsertConstantPoolEntryAt(globals_builder->constant_pool_entry(),
                                          declarations);
   }
 
-  return builder()->ToBytecodeArray();
+  // Find or build shared function infos.
+  for (std::pair<FunctionLiteral*, size_t> literal : function_literals_) {
+    FunctionLiteral* expr = literal.first;
+    Handle<SharedFunctionInfo> shared_info =
+        Compiler::GetSharedFunctionInfo(expr, info()->script(), info());
+    if (shared_info.is_null()) return SetStackOverflow();
+    builder()->InsertConstantPoolEntryAt(literal.second, shared_info);
+  }
+
+  // Find or build shared function infos for the native function templates.
+  for (std::pair<NativeFunctionLiteral*, size_t> literal :
+       native_function_literals_) {
+    NativeFunctionLiteral* expr = literal.first;
+    Handle<SharedFunctionInfo> shared_info =
+        Compiler::GetSharedFunctionInfoForNative(expr->extension(),
+                                                 expr->name());
+    if (shared_info.is_null()) return SetStackOverflow();
+    builder()->InsertConstantPoolEntryAt(literal.second, shared_info);
+  }
 }
 
 void BytecodeGenerator::GenerateBytecode() {
@@ -797,8 +841,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
-      globals_builder()->AddDeclaration(
-          slot, isolate()->factory()->undefined_value());
+      globals_builder()->AddUndefinedDeclaration(slot);
       break;
     }
     case VariableLocation::LOCAL:
@@ -841,12 +884,8 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
-      Handle<SharedFunctionInfo> function = Compiler::GetSharedFunctionInfo(
-          decl->fun(), info()->script(), info());
-      // Check for stack-overflow exception.
-      if (function.is_null()) return SetStackOverflow();
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
-      globals_builder()->AddDeclaration(slot, function);
+      globals_builder()->AddFunctionDeclaration(slot, decl->fun());
       break;
     }
     case VariableLocation::PARAMETER:
@@ -1359,15 +1398,11 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  // Find or build a shared function info.
-  Handle<SharedFunctionInfo> shared_info =
-      Compiler::GetSharedFunctionInfo(expr, info()->script(), info());
-  if (shared_info.is_null()) {
-    return SetStackOverflow();
-  }
   uint8_t flags = CreateClosureFlags::Encode(expr->pretenure(),
                                              scope()->is_function_scope());
-  builder()->CreateClosure(shared_info, flags);
+  size_t entry = builder()->AllocateConstantPoolEntry();
+  builder()->CreateClosure(entry, flags);
+  function_literals_.push_back(std::make_pair(expr, entry));
   execution_result()->SetResultInAccumulator();
 }
 
@@ -1509,10 +1544,9 @@ void BytecodeGenerator::VisitClassLiteralStaticPrototypeWithComputedName(
 
 void BytecodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
-  // Find or build a shared function info for the native function template.
-  Handle<SharedFunctionInfo> shared_info =
-      Compiler::GetSharedFunctionInfoForNative(expr->extension(), expr->name());
-  builder()->CreateClosure(shared_info, NOT_TENURED);
+  size_t entry = builder()->AllocateConstantPoolEntry();
+  builder()->CreateClosure(entry, NOT_TENURED);
+  native_function_literals_.push_back(std::make_pair(expr, entry));
   execution_result()->SetResultInAccumulator();
 }
 
