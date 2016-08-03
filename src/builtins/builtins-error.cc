@@ -60,7 +60,7 @@ BUILTIN(ErrorCaptureStackTrace) {
   Handle<Object> formatted_stack_trace;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, formatted_stack_trace,
-      FormatStackTrace(isolate, object, stack_trace));
+      ErrorUtils::FormatStackTrace(isolate, object, stack_trace));
 
   PropertyDescriptor desc;
   desc.set_configurable(true);

@@ -586,8 +586,10 @@ class PrepareStackTraceScope {
 
 }  // namespace
 
-MaybeHandle<Object> FormatStackTrace(Isolate* isolate, Handle<JSObject> error,
-                                     Handle<Object> raw_stack) {
+// static
+MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
+                                                 Handle<JSObject> error,
+                                                 Handle<Object> raw_stack) {
   // Create JS CallSite objects from the raw stack frame array.
 
   Handle<FixedArray> frames;

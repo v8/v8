@@ -1171,7 +1171,7 @@ void Accessors::ErrorStackGetter(
   // property.
 
   Handle<Object> formatted_stack_trace;
-  if (!FormatStackTrace(isolate, holder, stack_trace)
+  if (!ErrorUtils::FormatStackTrace(isolate, holder, stack_trace)
            .ToHandle(&formatted_stack_trace)) {
     isolate->OptionalRescheduleException(false);
     return;
