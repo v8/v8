@@ -54,7 +54,7 @@ MaybeHandle<String> GetWasmFunctionNameFromTable(
   uint32_t num_funcs = static_cast<uint32_t>(func_names_array->get_int(0));
   DCHECK(static_cast<int>(num_funcs) >= 0);
   Factory* factory = func_names_array->GetIsolate()->factory();
-  DCHECK(func_index < num_funcs);
+  if (func_index >= num_funcs) return {};
   int offset = func_names_array->get_int(func_index + 1);
   if (offset < 0) return {};
   int next_offset = func_index == num_funcs - 1
