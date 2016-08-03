@@ -335,7 +335,7 @@ THREADED_TEST(Access) {
 
   CHECK(obj->Set(env.local(), v8_str("foo"), bar_str).ToChecked());
   bool result;
-  CHECK(obj->Set(env.local(), v8_str("foo"), bar_str).To(result));
+  CHECK(obj->Set(env.local(), v8_str("foo"), bar_str).To(&result));
   CHECK(result);
 }
 

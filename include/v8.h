@@ -6916,8 +6916,8 @@ class Maybe {
   // Will crash if the Maybe<> is nothing.
   V8_INLINE T ToChecked() const { return FromJust(); }
 
-  V8_WARN_UNUSED_RESULT V8_INLINE bool To(T& out) const {
-    if (V8_LIKELY(IsJust())) out = value_;
+  V8_WARN_UNUSED_RESULT V8_INLINE bool To(T* out) const {
+    if (V8_LIKELY(IsJust())) *out = value_;
     return IsJust();
   }
 
