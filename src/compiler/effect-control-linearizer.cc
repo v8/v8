@@ -667,6 +667,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedFloat64ToInt32:
       state = LowerCheckedFloat64ToInt32(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckedTaggedSignedToInt32:
+      state =
+          LowerCheckedTaggedSignedToInt32(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckedTaggedToInt32:
       state = LowerCheckedTaggedToInt32(node, frame_state, *effect, *control);
       break;
@@ -1576,6 +1580,22 @@ EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node,
   Node* value = node->InputAt(0);
 
   return BuildCheckedFloat64ToInt32(value, frame_state, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedTaggedSignedToInt32(Node* node,
+                                                         Node* frame_state,
+                                                         Node* effect,
+                                                         Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = ObjectIsSmi(value);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeUnless(DeoptimizeReason::kNotASmi),
+                       check, frame_state, effect, control);
+  value = ChangeSmiToInt32(value);
+
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

@@ -103,6 +103,7 @@
   'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
 
   # TurboFan cpu profiler result is different.
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, NO_VARIANTS],
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [PASS, NO_VARIANTS],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [PASS, NO_VARIANTS],
 
@@ -147,7 +148,6 @@
   'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [PASS, NO_IGNITION],
 
   # BUG(4680): Missing type feedback makes optimistic optimizations fail.
-  'test-cpu-profiler/CollectDeoptEvents': [PASS, NO_IGNITION],
   'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_IGNITION],
 
   # BUG(4680): Ignition doesn't support allocation sites currently.

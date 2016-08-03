@@ -381,23 +381,24 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(SpeculativeNumberBitwiseOr)         \
   V(SpeculativeNumberBitwiseXor)
 
-#define CHECKED_OP_LIST(V)        \
-  V(CheckBounds, 2, 1)            \
-  V(CheckIf, 1, 0)                \
-  V(CheckNumber, 1, 1)            \
-  V(CheckString, 1, 1)            \
-  V(CheckTaggedPointer, 1, 1)     \
-  V(CheckTaggedSigned, 1, 1)      \
-  V(CheckedInt32Add, 2, 1)        \
-  V(CheckedInt32Sub, 2, 1)        \
-  V(CheckedInt32Div, 2, 1)        \
-  V(CheckedInt32Mod, 2, 1)        \
-  V(CheckedUint32Div, 2, 1)       \
-  V(CheckedUint32Mod, 2, 1)       \
-  V(CheckedUint32ToInt32, 1, 1)   \
-  V(CheckedFloat64ToInt32, 1, 1)  \
-  V(CheckedTaggedToInt32, 1, 1)   \
-  V(CheckedTaggedToFloat64, 1, 1) \
+#define CHECKED_OP_LIST(V)            \
+  V(CheckBounds, 2, 1)                \
+  V(CheckIf, 1, 0)                    \
+  V(CheckNumber, 1, 1)                \
+  V(CheckString, 1, 1)                \
+  V(CheckTaggedPointer, 1, 1)         \
+  V(CheckTaggedSigned, 1, 1)          \
+  V(CheckedInt32Add, 2, 1)            \
+  V(CheckedInt32Sub, 2, 1)            \
+  V(CheckedInt32Div, 2, 1)            \
+  V(CheckedInt32Mod, 2, 1)            \
+  V(CheckedUint32Div, 2, 1)           \
+  V(CheckedUint32Mod, 2, 1)           \
+  V(CheckedUint32ToInt32, 1, 1)       \
+  V(CheckedFloat64ToInt32, 1, 1)      \
+  V(CheckedTaggedSignedToInt32, 1, 1) \
+  V(CheckedTaggedToInt32, 1, 1)       \
+  V(CheckedTaggedToFloat64, 1, 1)     \
   V(CheckedTruncateTaggedToWord32, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {

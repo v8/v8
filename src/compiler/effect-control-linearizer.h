@@ -93,6 +93,10 @@ class EffectControlLinearizer {
                                                Node* effect, Node* control);
   ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* frame_state,
                                                 Node* effect, Node* control);
+  ValueEffectControl LowerCheckedTaggedSignedToInt32(Node* node,
+                                                     Node* frame_state,
+                                                     Node* effect,
+                                                     Node* control);
   ValueEffectControl LowerCheckedTaggedToInt32(Node* node, Node* frame_state,
                                                Node* effect, Node* control);
   ValueEffectControl LowerCheckedTaggedToFloat64(Node* node, Node* frame_state,

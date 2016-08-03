@@ -400,7 +400,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     case IrOpcode::kFloat32Constant: {
       float const fv = OpParameter<float>(node);
       if (use_info.type_check() == TypeCheckKind::kNone ||
-          (use_info.type_check() == TypeCheckKind::kSigned32 &&
+          ((use_info.type_check() == TypeCheckKind::kSignedSmall ||
+            use_info.type_check() == TypeCheckKind::kSigned32) &&
            IsInt32Double(fv))) {
         return MakeTruncatedInt32Constant(fv);
       }
@@ -410,7 +411,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     case IrOpcode::kFloat64Constant: {
       double const fv = OpParameter<double>(node);
       if (use_info.type_check() == TypeCheckKind::kNone ||
-          (use_info.type_check() == TypeCheckKind::kSigned32 &&
+          ((use_info.type_check() == TypeCheckKind::kSignedSmall ||
+            use_info.type_check() == TypeCheckKind::kSigned32) &&
            IsInt32Double(fv))) {
         return MakeTruncatedInt32Constant(fv);
       }
@@ -435,7 +437,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToInt32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
-    } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
+    } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
+               use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedFloat64ToInt32();
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
@@ -446,7 +449,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToInt32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
-    } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
+    } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
+               use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedFloat64ToInt32();
     }
   } else if (output_rep == MachineRepresentation::kTagged) {
@@ -462,13 +466,16 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       } else {
         op = simplified()->TruncateTaggedToWord32();
       }
+    } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      op = simplified()->CheckedTaggedSignedToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedTaggedToInt32();
     }
   } else if (output_rep == MachineRepresentation::kWord32) {
     // Only the checked case should get here, the non-checked case is
     // handled in GetRepresentationFor.
-    if (use_info.type_check() == TypeCheckKind::kSigned32) {
+    if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
+        use_info.type_check() == TypeCheckKind::kSigned32) {
       if (output_type->Is(Type::Signed32())) {
         return node;
       } else if (output_type->Is(Type::Unsigned32())) {
@@ -481,7 +488,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
   } else if (output_rep == MachineRepresentation::kWord8 ||
              output_rep == MachineRepresentation::kWord16) {
     DCHECK(use_info.representation() == MachineRepresentation::kWord32);
-    DCHECK(use_info.type_check() == TypeCheckKind::kSigned32);
+    DCHECK(use_info.type_check() == TypeCheckKind::kSignedSmall ||
+           use_info.type_check() == TypeCheckKind::kSigned32);
     return node;
   }
 

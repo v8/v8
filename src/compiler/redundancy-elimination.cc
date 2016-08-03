@@ -32,6 +32,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckedInt32Mod:
     case IrOpcode::kCheckedInt32Mul:
     case IrOpcode::kCheckedTaggedToFloat64:
+    case IrOpcode::kCheckedTaggedSignedToInt32:
     case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedUint32ToInt32:
       return ReduceCheckNode(node);
