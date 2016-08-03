@@ -148,7 +148,16 @@ HeapObject* LiveObjectIterator<T>::Next() {
         second_bit_index = 0x1;
         // The overlapping case; there has to exist a cell after the current
         // cell.
-        DCHECK(!it_.Done());
+        // However, if there is a black area at the end of the page, and the
+        // last word is a one word filler, we are not allowed to advance. In
+        // that case we can return immediately.
+        if (it_.Done()) {
+          DCHECK(HeapObject::FromAddress(addr)->map() ==
+                 HeapObject::FromAddress(addr)
+                     ->GetHeap()
+                     ->one_pointer_filler_map());
+          return nullptr;
+        }
         it_.Advance();
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
@@ -160,19 +169,25 @@ HeapObject* LiveObjectIterator<T>::Next() {
         // object ends.
         HeapObject* black_object = HeapObject::FromAddress(addr);
         Address end = addr + black_object->Size() - kPointerSize;
-        DCHECK_EQ(chunk_, MemoryChunk::FromAddress(end));
-        uint32_t end_mark_bit_index = chunk_->AddressToMarkbitIndex(end);
-        unsigned int end_cell_index =
-            end_mark_bit_index >> Bitmap::kBitsPerCellLog2;
-        MarkBit::CellType end_index_mask =
-            1u << Bitmap::IndexInCell(end_mark_bit_index);
-        if (it_.Advance(end_cell_index)) {
-          cell_base_ = it_.CurrentCellBase();
-          current_cell_ = *it_.CurrentCell();
-        }
+        // One word filler objects do not borrow the second mark bit. We have
+        // to jump over the advancing and clearing part.
+        // Note that we know that we are at a one word filler when
+        // object_start + object_size - kPointerSize == object_start.
+        if (addr != end) {
+          DCHECK_EQ(chunk_, MemoryChunk::FromAddress(end));
+          uint32_t end_mark_bit_index = chunk_->AddressToMarkbitIndex(end);
+          unsigned int end_cell_index =
+              end_mark_bit_index >> Bitmap::kBitsPerCellLog2;
+          MarkBit::CellType end_index_mask =
+              1u << Bitmap::IndexInCell(end_mark_bit_index);
+          if (it_.Advance(end_cell_index)) {
+            cell_base_ = it_.CurrentCellBase();
+            current_cell_ = *it_.CurrentCell();
+          }
 
-        // Clear all bits in current_cell, including the end index.
-        current_cell_ &= ~(end_index_mask + end_index_mask - 1);
+          // Clear all bits in current_cell, including the end index.
+          current_cell_ &= ~(end_index_mask + end_index_mask - 1);
+        }
 
         if (T == kBlackObjects || T == kAllLiveObjects) {
           object = black_object;
