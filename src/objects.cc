@@ -9782,7 +9782,7 @@ Handle<FixedArray> FixedArray::SetAndGrow(Handle<FixedArray> array, int index,
   int capacity = array->length();
   do {
     capacity = JSObject::NewElementsCapacity(capacity);
-  } while (capacity < index);
+  } while (capacity <= index);
   Handle<FixedArray> new_array =
       array->GetIsolate()->factory()->NewUninitializedFixedArray(capacity);
   array->CopyTo(0, *new_array, 0, array->length());
