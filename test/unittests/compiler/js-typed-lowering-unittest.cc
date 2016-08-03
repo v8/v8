@@ -1019,9 +1019,9 @@ TEST_F(JSTypedLoweringTest, JSBitwiseAndWithTypeFeedback) {
     Node* rhs = Parameter(Type::Number(), 3);
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->BitwiseAnd(hints), lhs, rhs, UndefinedConstant(),
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseAnd(hints), lhs,
+                                          rhs, UndefinedConstant(),
+                                          EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsSpeculativeNumberBitwiseAnd(
                                      feedback, lhs, rhs, effect, control));
@@ -1041,9 +1041,9 @@ TEST_F(JSTypedLoweringTest, JSBitwiseOrWithTypeFeedback) {
     Node* rhs = Parameter(Type::Number(), 3);
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->BitwiseOr(hints), lhs, rhs, UndefinedConstant(),
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseOr(hints), lhs,
+                                          rhs, UndefinedConstant(),
+                                          EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsSpeculativeNumberBitwiseOr(
                                      feedback, lhs, rhs, effect, control));
@@ -1063,9 +1063,9 @@ TEST_F(JSTypedLoweringTest, JSBitwiseXorWithTypeFeedback) {
     Node* rhs = Parameter(Type::Number(), 3);
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->BitwiseXor(hints), lhs, rhs, UndefinedConstant(),
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseXor(hints), lhs,
+                                          rhs, UndefinedConstant(),
+                                          EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsSpeculativeNumberBitwiseXor(
                                      feedback, lhs, rhs, effect, control));

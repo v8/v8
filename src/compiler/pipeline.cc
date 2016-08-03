@@ -909,9 +909,6 @@ struct TypedLoweringPhase {
     if (data->info()->is_deoptimization_enabled()) {
       typed_lowering_flags |= JSTypedLowering::kDeoptimizationEnabled;
     }
-    if (data->info()->is_optimizing_from_bytecode()) {
-      typed_lowering_flags |= JSTypedLowering::kDisableIntegerBinaryOpReduction;
-    }
     JSTypedLowering typed_lowering(&graph_reducer, data->info()->dependencies(),
                                    typed_lowering_flags, data->jsgraph(),
                                    temp_zone);

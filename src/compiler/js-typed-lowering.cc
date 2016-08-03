@@ -582,7 +582,6 @@ Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
 
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node,
                                             const Operator* int_op) {
-  if (flags() & kDisableIntegerBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
   if (feedback != BinaryOperationHints::kAny) {
@@ -597,9 +596,15 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node,
     }
     return r.ChangeToSpeculativeOperator(speculative_op, Type::Signed32());
   }
-  r.ConvertInputsToNumber();
-  r.ConvertInputsToUI32(kSigned, kSigned);
-  return r.ChangeToPureOperator(int_op, Type::Signed32());
+
+  // If deoptimization is enabled we rely on type feedback.
+  if (r.BothInputsAre(Type::PlainPrimitive()) ||
+      !(flags() & kDeoptimizationEnabled)) {
+    r.ConvertInputsToNumber();
+    r.ConvertInputsToUI32(kSigned, kSigned);
+    return r.ChangeToPureOperator(int_op, Type::Signed32());
+  }
+  return NoChange();
 }
 
 Reduction JSTypedLowering::ReduceUI32Shift(Node* node,

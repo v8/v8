@@ -1044,7 +1044,8 @@ TEST(Int32BinopEffects) {
   JSBitwiseTypedLoweringTester R;
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], I32Type(signed_left), I32Type(signed_right));
+    BinopEffectsTester B(R.ops[j], I32Type(signed_left), I32Type(signed_right),
+                         JSTypedLowering::kNoFlags);
     CHECK_EQ(R.ops[j + 1]->opcode(), B.result->op()->opcode());
 
     B.R.CheckBinop(B.result->opcode(), B.result);
@@ -1057,7 +1058,8 @@ TEST(Int32BinopEffects) {
 
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], Type::Number(), Type::Number());
+    BinopEffectsTester B(R.ops[j], Type::Number(), Type::Number(),
+                         JSTypedLowering::kNoFlags);
     CHECK_EQ(R.ops[j + 1]->opcode(), B.result->op()->opcode());
 
     B.R.CheckBinop(B.result->opcode(), B.result);
@@ -1070,7 +1072,8 @@ TEST(Int32BinopEffects) {
 
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], Type::Number(), Type::Primitive());
+    BinopEffectsTester B(R.ops[j], Type::Number(), Type::Primitive(),
+                         JSTypedLowering::kNoFlags);
 
     B.R.CheckBinop(B.result->opcode(), B.result);
 
@@ -1087,7 +1090,8 @@ TEST(Int32BinopEffects) {
 
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Number());
+    BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Number(),
+                         JSTypedLowering::kNoFlags);
 
     B.R.CheckBinop(B.result->opcode(), B.result);
 
@@ -1104,7 +1108,8 @@ TEST(Int32BinopEffects) {
 
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Primitive());
+    BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Primitive(),
+                         JSTypedLowering::kNoFlags);
 
     B.R.CheckBinop(B.result->opcode(), B.result);
 
