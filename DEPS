@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "a3a00fec14304015b590b283ba8ef6227aad4f53",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "957253ade4c8b5125afa41102ca41a0b19985e4e",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -16,19 +16,19 @@ deps = {
   "v8/third_party/instrumented_libraries":
     Var("git_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "f15768d7fdf68c0748d20738184120c8ab2e6db7",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "1b96e1a41d3d22b24ee8da769c20849e9a002ed2",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "c3a780dcb63ff053439315f761190ffab0480ad4",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "315bf1e2d45be7d53346c31cfcc37424a32c30c8",
   "v8/third_party/WebKit/Source/platform/inspector_protocol":
-    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "716c2c8b57dacbe6c8c9232cb651d0e6e69e3113",
+    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "7d2a29d289d54b8ff9c330efc5145158f1191af2",
   "v8/third_party/jinja2":
     Var("git_url") + "/chromium/src/third_party/jinja2.git" + "@" + "2222b31554f03e62600cd7e383376a7c187967a1",
   "v8/third_party/markupsafe":
     Var("git_url") + "/chromium/src/third_party/markupsafe.git" + "@" + "484a5661041cac13bfc688a26ec5434b05d18961",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "65caad70eb36f22f3fcac6daa2f82365c0521657",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "e100ad0410f9de1e859a143fe20a9b58f8f8d420",
   "v8/tools/swarming_client":
-    Var('git_url') + '/external/swarming.client.git' + '@' + "7f63a272f7d9785ce41b6d10bb3106c49a968e57",
+    Var('git_url') + '/external/swarming.client.git' + '@' + "e4288c3040a32f2e7ad92f957668f2ee3d36e5a6",
   "v8/testing/gtest":
     Var("git_url") + "/external/github.com/google/googletest.git" + "@" + "6f8a66431cb592dad629028a50b3dd418a408c87",
   "v8/testing/gmock":
