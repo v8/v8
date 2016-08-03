@@ -1517,7 +1517,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
           assembler->LoadFixedArrayElement(elements, index_var.value());
       assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
       assembler->GotoUnless(assembler->Int32LessThan(
-                                assembler->LoadMapInstanceType(element_k),
+                                assembler->LoadInstanceType(element_k),
                                 assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
                             &continue_loop);
 
