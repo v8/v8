@@ -74,7 +74,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   class ControlScopeForCatch;
   class ControlScopeForFinally;
   class Environment;
-  class FrameStateBeforeAndAfter;
   friend class ControlBuilder;
 
   Isolate* isolate_;

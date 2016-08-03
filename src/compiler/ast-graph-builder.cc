@@ -412,48 +412,6 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
 };
 
 
-// Helper for generating before and after frame states.
-class AstGraphBuilder::FrameStateBeforeAndAfter {
- public:
-  FrameStateBeforeAndAfter(AstGraphBuilder* builder, BailoutId id_before)
-      : builder_(builder), frame_state_before_(nullptr) {
-    frame_state_before_ = id_before == BailoutId::None()
-                              ? builder_->GetEmptyFrameState()
-                              : builder_->environment()->Checkpoint(id_before);
-    if (id_before != BailoutId::None()) {
-      // Create an explicit checkpoint node for before the operation.
-      Node* node = builder_->NewNode(builder_->common()->Checkpoint());
-      DCHECK_EQ(IrOpcode::kDead,
-                NodeProperties::GetFrameStateInput(node)->opcode());
-      NodeProperties::ReplaceFrameStateInput(node, frame_state_before_);
-    }
-  }
-
-  void AddToNode(
-      Node* node, BailoutId id_after,
-      OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore()) {
-    if (OperatorProperties::HasFrameStateInput(node->op())) {
-      // Add the frame state for after the operation.
-      DCHECK_EQ(IrOpcode::kDead,
-                NodeProperties::GetFrameStateInput(node)->opcode());
-
-      bool node_has_exception = NodeProperties::IsExceptionalCall(node);
-
-      Node* frame_state_after =
-          id_after == BailoutId::None()
-              ? builder_->GetEmptyFrameState()
-              : builder_->environment()->Checkpoint(id_after, combine,
-                                                    node_has_exception);
-
-      NodeProperties::ReplaceFrameStateInput(node, frame_state_after);
-    }
-  }
-
- private:
-  AstGraphBuilder* builder_;
-  Node* frame_state_before_;
-};
-
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
                                  JSGraph* jsgraph, LoopAssignmentAnalysis* loop,
                                  TypeHintAnalysis* type_hint_analysis)
@@ -2184,17 +2142,13 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     }
     environment()->Push(old_value);
     VisitForValue(expr->value());
-    Node* value;
-    {
-      FrameStateBeforeAndAfter states(this, expr->value()->id());
-      Node* right = environment()->Pop();
-      Node* left = environment()->Pop();
-      value =
-          BuildBinaryOp(left, right, expr->binary_op(),
-                        expr->binary_operation()->BinaryOperationFeedbackId());
-      states.AddToNode(value, expr->binary_operation()->id(),
-                       OutputFrameStateCombine::Push());
-    }
+    Node* right = environment()->Pop();
+    Node* left = environment()->Pop();
+    Node* value =
+        BuildBinaryOp(left, right, expr->binary_op(),
+                      expr->binary_operation()->BinaryOperationFeedbackId());
+    PrepareFrameState(value, expr->binary_operation()->id(),
+                      OutputFrameStateCombine::Push());
     environment()->Push(value);
     if (needs_frame_state_before) {
       PrepareEagerCheckpoint(expr->binary_operation()->id());
@@ -2782,12 +2736,11 @@ void AstGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
     default: {
       VisitForValue(expr->left());
       VisitForValue(expr->right());
-      FrameStateBeforeAndAfter states(this, expr->right()->id());
       Node* right = environment()->Pop();
       Node* left = environment()->Pop();
       Node* value = BuildBinaryOp(left, right, expr->op(),
                                   expr->BinaryOperationFeedbackId());
-      states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
+      PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
       ast_context()->ProduceValue(expr, value);
     }
   }
