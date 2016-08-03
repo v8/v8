@@ -201,39 +201,43 @@ namespace internal {
   V(Function,            1u << 19 | REPRESENTATION(kTaggedPointer)) \
   V(Internal,            1u << 20 | REPRESENTATION(kTagged | kUntagged)) \
   \
-  V(Signed31,                 kUnsigned30 | kNegative31) \
-  V(Signed32,                 kSigned31 | kOtherUnsigned31 | kOtherSigned32) \
-  V(Negative32,               kNegative31 | kOtherSigned32) \
-  V(Unsigned31,               kUnsigned30 | kOtherUnsigned31) \
-  V(Unsigned32,               kUnsigned30 | kOtherUnsigned31 | \
-                              kOtherUnsigned32) \
-  V(Integral32,               kSigned32 | kUnsigned32) \
-  V(PlainNumber,              kIntegral32 | kOtherNumber) \
-  V(OrderedNumber,            kPlainNumber | kMinusZero) \
-  V(MinusZeroOrNaN,           kMinusZero | kNaN) \
-  V(Number,                   kOrderedNumber | kNaN) \
-  V(String,                   kInternalizedString | kOtherString) \
-  V(UniqueName,               kSymbol | kInternalizedString) \
-  V(Name,                     kSymbol | kString) \
-  V(BooleanOrNumber,          kBoolean | kNumber) \
-  V(BooleanOrNullOrUndefined, kBoolean | kNull | kUndefined) \
-  V(NullOrUndefined,          kNull | kUndefined) \
-  V(Undetectable,             kNullOrUndefined | kOtherUndetectable) \
-  V(NumberOrOddball,          kNumber | kNullOrUndefined | kBoolean) \
-  V(NumberOrSimdOrString,     kNumber | kSimd | kString) \
-  V(NumberOrString,           kNumber | kString) \
-  V(NumberOrUndefined,        kNumber | kUndefined) \
-  V(PlainPrimitive,           kNumberOrString | kBoolean | kNullOrUndefined) \
-  V(Primitive,                kSymbol | kSimd | kPlainPrimitive) \
-  V(DetectableReceiver,       kFunction | kOtherObject | kProxy) \
-  V(Object,                   kFunction | kOtherObject | kOtherUndetectable) \
-  V(Receiver,                 kObject | kProxy) \
-  V(StringOrReceiver,         kString | kReceiver) \
-  V(Unique,                   kBoolean | kUniqueName | kNull | kUndefined | \
-                              kReceiver) \
-  V(NonInternal,              kPrimitive | kReceiver) \
-  V(NonNumber,                kUnique | kString | kInternal) \
-  V(Any,                      0xfffffffeu)
+  V(Signed31,                   kUnsigned30 | kNegative31) \
+  V(Signed32,                   kSigned31 | kOtherUnsigned31 | kOtherSigned32) \
+  V(Signed32OrMinusZero,        kSigned32 | kMinusZero) \
+  V(Signed32OrMinusZeroOrNaN,   kSigned32 | kMinusZero | kNaN) \
+  V(Negative32,                 kNegative31 | kOtherSigned32) \
+  V(Unsigned31,                 kUnsigned30 | kOtherUnsigned31) \
+  V(Unsigned32,                 kUnsigned30 | kOtherUnsigned31 | \
+                                kOtherUnsigned32) \
+  V(Unsigned32OrMinusZero,      kUnsigned32 | kMinusZero) \
+  V(Unsigned32OrMinusZeroOrNaN, kUnsigned32 | kMinusZero | kNaN) \
+  V(Integral32,                 kSigned32 | kUnsigned32) \
+  V(PlainNumber,                kIntegral32 | kOtherNumber) \
+  V(OrderedNumber,              kPlainNumber | kMinusZero) \
+  V(MinusZeroOrNaN,             kMinusZero | kNaN) \
+  V(Number,                     kOrderedNumber | kNaN) \
+  V(String,                     kInternalizedString | kOtherString) \
+  V(UniqueName,                 kSymbol | kInternalizedString) \
+  V(Name,                       kSymbol | kString) \
+  V(BooleanOrNumber,            kBoolean | kNumber) \
+  V(BooleanOrNullOrUndefined,   kBoolean | kNull | kUndefined) \
+  V(NullOrUndefined,            kNull | kUndefined) \
+  V(Undetectable,               kNullOrUndefined | kOtherUndetectable) \
+  V(NumberOrOddball,            kNumber | kNullOrUndefined | kBoolean) \
+  V(NumberOrSimdOrString,       kNumber | kSimd | kString) \
+  V(NumberOrString,             kNumber | kString) \
+  V(NumberOrUndefined,          kNumber | kUndefined) \
+  V(PlainPrimitive,             kNumberOrString | kBoolean | kNullOrUndefined) \
+  V(Primitive,                  kSymbol | kSimd | kPlainPrimitive) \
+  V(DetectableReceiver,         kFunction | kOtherObject | kProxy) \
+  V(Object,                     kFunction | kOtherObject | kOtherUndetectable) \
+  V(Receiver,                   kObject | kProxy) \
+  V(StringOrReceiver,           kString | kReceiver) \
+  V(Unique,                     kBoolean | kUniqueName | kNull | kUndefined | \
+                                kReceiver) \
+  V(NonInternal,                kPrimitive | kReceiver) \
+  V(NonNumber,                  kUnique | kString | kInternal) \
+  V(Any,                        0xfffffffeu)
 
 // clang-format on
 

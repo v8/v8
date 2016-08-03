@@ -67,7 +67,6 @@ class OperationTyper {
                   double rhs_max);
   Type* SubtractRanger(RangeType* lhs, RangeType* rhs);
   Type* MultiplyRanger(Type* lhs, Type* rhs);
-  Type* ModulusRanger(RangeType* lhs, RangeType* rhs);
 
   Zone* zone() { return zone_; }
 

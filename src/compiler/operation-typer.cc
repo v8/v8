@@ -204,36 +204,6 @@ Type* OperationTyper::SubtractRanger(RangeType* lhs, RangeType* rhs) {
   //   [m, +inf] - [-inf, n] = [-inf, +inf] \/ NaN
 }
 
-Type* OperationTyper::ModulusRanger(RangeType* lhs, RangeType* rhs) {
-  double lmin = lhs->Min();
-  double lmax = lhs->Max();
-  double rmin = rhs->Min();
-  double rmax = rhs->Max();
-
-  double labs = std::max(std::abs(lmin), std::abs(lmax));
-  double rabs = std::max(std::abs(rmin), std::abs(rmax)) - 1;
-  double abs = std::min(labs, rabs);
-  bool maybe_minus_zero = false;
-  double omin = 0;
-  double omax = 0;
-  if (lmin >= 0) {  // {lhs} positive.
-    omin = 0;
-    omax = abs;
-  } else if (lmax <= 0) {  // {lhs} negative.
-    omin = 0 - abs;
-    omax = 0;
-    maybe_minus_zero = true;
-  } else {
-    omin = 0 - abs;
-    omax = abs;
-    maybe_minus_zero = true;
-  }
-
-  Type* result = Type::Range(omin, omax, zone());
-  if (maybe_minus_zero) result = Type::Union(result, Type::MinusZero(), zone());
-  return result;
-}
-
 Type* OperationTyper::MultiplyRanger(Type* lhs, Type* rhs) {
   double results[4];
   double lmin = lhs->AsRange()->Min();
@@ -373,24 +343,67 @@ Type* OperationTyper::NumberModulus(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
-    return Type::None();
+  // Modulus can yield NaN if either {lhs} or {rhs} are NaN, or
+  // {lhs} is not finite, or the {rhs} is a zero value.
+  bool maybe_nan = lhs->Maybe(Type::NaN()) || rhs->Maybe(cache_.kZeroish) ||
+                   lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY;
+
+  // Deal with -0 inputs, only the signbit of {lhs} matters for the result.
+  bool maybe_minuszero = false;
+  if (lhs->Maybe(Type::MinusZero())) {
+    maybe_minuszero = true;
+    lhs = Type::Union(lhs, cache_.kSingletonZero, zone());
+  }
+  if (rhs->Maybe(Type::MinusZero())) {
+    rhs = Type::Union(rhs, cache_.kSingletonZero, zone());
   }
 
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
+  // Rule out NaN and -0, and check what we can do with the remaining type info.
+  Type* type = Type::None();
+  lhs = Type::Intersect(lhs, Type::PlainNumber(), zone());
+  rhs = Type::Intersect(rhs, Type::PlainNumber(), zone());
 
-  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(cache_.kZeroish) ||
-      lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) {
-    // Result maybe NaN.
-    return Type::Number();
+  // We can only derive a meaningful type if both {lhs} and {rhs} are inhabited,
+  // and the {rhs} is not 0, otherwise the result is NaN independent of {lhs}.
+  if (lhs->IsInhabited() && !rhs->Is(cache_.kSingletonZero)) {
+    // Determine the bounds of {lhs} and {rhs}.
+    double const lmin = lhs->Min();
+    double const lmax = lhs->Max();
+    double const rmin = rhs->Min();
+    double const rmax = rhs->Max();
+
+    // The sign of the result is the sign of the {lhs}.
+    if (lmin < 0.0) maybe_minuszero = true;
+
+    // For integer inputs {lhs} and {rhs} we can infer a precise type.
+    if (lhs->Is(cache_.kInteger) && rhs->Is(cache_.kInteger)) {
+      double labs = std::max(std::abs(lmin), std::abs(lmax));
+      double rabs = std::max(std::abs(rmin), std::abs(rmax)) - 1;
+      double abs = std::min(labs, rabs);
+      double min = 0.0, max = 0.0;
+      if (lmin >= 0.0) {
+        // {lhs} positive.
+        min = 0.0;
+        max = abs;
+      } else if (lmax <= 0.0) {
+        // {lhs} negative.
+        min = 0.0 - abs;
+        max = 0.0;
+      } else {
+        // {lhs} positive or negative.
+        min = 0.0 - abs;
+        max = abs;
+      }
+      type = Type::Range(min, max, zone());
+    } else {
+      type = Type::PlainNumber();
+    }
   }
 
-  lhs = Rangify(lhs);
-  rhs = Rangify(rhs);
-  if (lhs->IsRange() && rhs->IsRange()) {
-    return ModulusRanger(lhs->AsRange(), rhs->AsRange());
-  }
-  return Type::OrderedNumber();
+  // Take into account the -0 and NaN information computed earlier.
+  if (maybe_minuszero) type = Type::Union(type, Type::MinusZero(), zone());
+  if (maybe_nan) type = Type::Union(type, Type::NaN(), zone());
+  return type;
 }
 
 Type* OperationTyper::NumberAbs(Type* type) {

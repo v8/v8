@@ -76,8 +76,6 @@ class TypeCache final {
 
   Type* const kUntaggedUndefined =
       Type::Intersect(Type::Undefined(), Type::Untagged(), zone());
-  Type* const kSigned32OrMinusZero =
-      Type::Union(Type::Signed32(), Type::MinusZero(), zone());
 
   // Asm.js related types.
   Type* const kAsmSigned = kInt32;
