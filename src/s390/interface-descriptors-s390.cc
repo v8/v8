@@ -20,6 +20,11 @@ void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
                                    default_stub_registers);
 }
 
+const Register FastNewFunctionContextDescriptor::FunctionRegister() {
+  return r3;
+}
+const Register FastNewFunctionContextDescriptor::SlotsRegister() { return r2; }
+
 const Register LoadDescriptor::ReceiverRegister() { return r3; }
 const Register LoadDescriptor::NameRegister() { return r4; }
 const Register LoadDescriptor::SlotRegister() { return r2; }
@@ -60,12 +65,6 @@ const Register GrowArrayElementsDescriptor::KeyRegister() { return r5; }
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {r4};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void FastNewFunctionContextDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {r3};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

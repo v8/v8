@@ -172,14 +172,12 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ Push(info()->scope()->GetScopeInfo(info()->isolate()));
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
-    } else if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
-      FastNewFunctionContextStub stub(isolate(), slots);
+    } else {
+      FastNewFunctionContextStub stub(isolate());
+      __ mov(FastNewFunctionContextDescriptor::SlotsRegister(), Operand(slots));
       __ CallStub(&stub);
       // Result of FastNewFunctionContextStub is always in new space.
       need_write_barrier = false;
-    } else {
-      __ push(r4);
-      __ CallRuntime(Runtime::kNewFunctionContext);
     }
     RecordSafepoint(deopt_mode);
 
@@ -5447,8 +5445,8 @@ void LCodeGen::DoTypeof(LTypeof* instr) {
   __ mov(r3, Operand(isolate()->factory()->number_string()));
   __ b(&end);
   __ bind(&do_call);
-  Callable callable = CodeFactory::Typeof(isolate());
-  CallCode(callable.code(), RelocInfo::CODE_TARGET, instr);
+  TypeofStub stub(isolate());
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ bind(&end);
 }
 

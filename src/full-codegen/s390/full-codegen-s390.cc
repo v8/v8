@@ -195,15 +195,11 @@ void FullCodeGenerator::Generate() {
       if (info->scope()->new_target_var() != nullptr) {
         __ push(r5);  // Preserve new target.
       }
-      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
-        FastNewFunctionContextStub stub(isolate(), slots);
-        __ CallStub(&stub);
-        // Result of FastNewFunctionContextStub is always in new space.
-        need_write_barrier = false;
-      } else {
-        __ push(r3);
-        __ CallRuntime(Runtime::kNewFunctionContext);
-      }
+      FastNewFunctionContextStub stub(isolate());
+      __ mov(FastNewFunctionContextDescriptor::SlotsRegister(), Operand(slots));
+      __ CallStub(&stub);
+      // Result of FastNewFunctionContextStub is always in new space.
+      need_write_barrier = false;
       if (info->scope()->new_target_var() != nullptr) {
         __ pop(r5);  // Preserve new target.
       }
