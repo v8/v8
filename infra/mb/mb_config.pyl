@@ -438,7 +438,8 @@
     },
 
     'debug': {
-      'gn_args': 'is_debug=true',
+      'gn_args': 'is_debug=true v8_enable_backtrace=true',
+      'gyp_defines': 'v8_enable_backtrace=1',
     },
 
     'debug_bot': {
