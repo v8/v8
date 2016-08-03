@@ -2235,7 +2235,6 @@ void CallIC::HandleMiss(Handle<Object> function) {
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_CallIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
   Handle<Object> function = args.at<Object>(0);
@@ -2252,7 +2251,6 @@ RUNTIME_FUNCTION(Runtime_CallIC_Miss) {
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
 
@@ -2316,7 +2314,6 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
 // Used from ic-<arch>.cc
 RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
@@ -2334,7 +2331,6 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
 
 RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   typedef LoadWithVectorDescriptor Descriptor;
@@ -2354,7 +2350,6 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
@@ -2382,7 +2377,6 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
 
 RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   typedef StoreWithVectorDescriptor Descriptor;
@@ -2411,7 +2405,6 @@ RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
 
 RUNTIME_FUNCTION(Runtime_TransitionStoreIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
@@ -2457,7 +2450,6 @@ RUNTIME_FUNCTION(Runtime_TransitionStoreIC_MissFromStubFailure) {
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Handle<Object> receiver = args.at<Object>(0);
@@ -2475,7 +2467,6 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
 
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   typedef StoreWithVectorDescriptor Descriptor;
@@ -2511,7 +2502,6 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
 
 RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   // Length == 5 or 6, depending on whether the vector slot
   // is passed in a virtual register or not.
@@ -2653,7 +2643,6 @@ MaybeHandle<Object> BinaryOpIC::Transition(
 
 RUNTIME_FUNCTION(Runtime_BinaryOpIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   typedef BinaryOpDescriptor Descriptor;
@@ -2667,7 +2656,6 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_Miss) {
 
 RUNTIME_FUNCTION(Runtime_BinaryOpIC_MissWithAllocationSite) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   typedef BinaryOpWithAllocationSiteDescriptor Descriptor;
@@ -2732,7 +2720,6 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 // Used from CompareICStub::GenerateMiss in code-stubs-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_CompareIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
@@ -2758,7 +2745,6 @@ Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
 
 RUNTIME_FUNCTION(Runtime_ToBooleanIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
   Handle<Object> object = args.at<Object>(0);
@@ -2969,7 +2955,6 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
 
 RUNTIME_FUNCTION(Runtime_LoadIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   typedef LoadWithVectorDescriptor Descriptor;

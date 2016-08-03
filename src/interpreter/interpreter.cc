@@ -136,7 +136,8 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   RuntimeCallTimerScope runtimeTimer(info->isolate(),
                                      &RuntimeCallStats::CompileIgnition);
   TimerEventScope<TimerEventCompileIgnition> timer(info->isolate());
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      info->isolate(), &tracing::TraceEventStatsTable::CompileIgnition);
 
   if (FLAG_print_bytecode || FLAG_print_ast) {
     OFStream os(stdout);
