@@ -449,6 +449,13 @@ function PromiseResolve(x) {
   }
   if (IsPromise(x) && x.constructor === this) return x;
 
+  // Avoid creating resolving functions.
+  if (this === GlobalPromise) {
+    var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+    var resolveResult = ResolvePromise(promise, x);
+    return promise;
+  }
+
   var promiseCapability = NewPromiseCapability(this);
   var resolveResult = %_Call(promiseCapability.resolve, UNDEFINED, x);
   return promiseCapability.promise;
