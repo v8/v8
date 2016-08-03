@@ -198,6 +198,8 @@ namespace internal {
   F(GetWasmFunctionOffsetTable, 1, 1)           \
   F(DisassembleWasmFunction, 1, 1)
 
+#define FOR_EACH_INTRINSIC_ERROR(F) F(ErrorToString, 1, 1)
+
 #define FOR_EACH_INTRINSIC_FORIN(F) \
   F(ForInDone, 2, 1)                \
   F(ForInEnumerate, 1, 1)           \
@@ -958,6 +960,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_COMPILER(F)            \
   FOR_EACH_INTRINSIC_DATE(F)                \
   FOR_EACH_INTRINSIC_DEBUG(F)               \
+  FOR_EACH_INTRINSIC_ERROR(F)               \
   FOR_EACH_INTRINSIC_FORIN(F)               \
   FOR_EACH_INTRINSIC_INTERPRETER(F)         \
   FOR_EACH_INTRINSIC_FUNCTION(F)            \

@@ -1134,6 +1134,7 @@
         'runtime/runtime-debug.cc',
         'runtime/runtime-forin.cc',
         'runtime/runtime-function.cc',
+        'runtime/runtime-error.cc',
         'runtime/runtime-futex.cc',
         'runtime/runtime-generator.cc',
         'runtime/runtime-i18n.cc',

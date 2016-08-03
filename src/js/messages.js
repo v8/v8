@@ -115,22 +115,6 @@ utils.SetUpLockedPrototype(Script, [
 // ----------------------------------------------------------------------------
 // Error implementation
 
-function ErrorToString() {
-  if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kCalledOnNonObject, "Error.prototype.toString");
-  }
-
-  var name = this.name;
-  name = IS_UNDEFINED(name) ? "Error" : TO_STRING(name);
-
-  var message = this.message;
-  message = IS_UNDEFINED(message) ? "" : TO_STRING(message);
-
-  if (name == "") return message;
-  if (message == "") return name;
-  return `${name}: ${message}`
-}
-
 function MakeError(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalError, type, arg0, arg1, arg2);
 }
@@ -160,7 +144,6 @@ function MakeURIError() {
 ]);
 
 utils.Export(function(to) {
-  to.ErrorToString = ErrorToString;
   to.MakeError = MakeError;
   to.MakeRangeError = MakeRangeError;
   to.MakeSyntaxError = MakeSyntaxError;

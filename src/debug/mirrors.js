@@ -8,7 +8,6 @@
 // ----------------------------------------------------------------------------
 // Imports
 
-var ErrorToString;
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
@@ -21,7 +20,6 @@ var SetIteratorNext;
 var SetValues;
 
 utils.Import(function(from) {
-  ErrorToString = from.ErrorToString;
   MakeError = from.MakeError;
   MapEntries = from.MapEntries;
   MapIteratorNext = from.MapIteratorNext;
@@ -1255,7 +1253,7 @@ ErrorMirror.prototype.toText = function() {
   // Use the same text representation as in messages.js.
   var text;
   try {
-    text = %_Call(ErrorToString, this.value_);
+    text = %ErrorToString(this.value_);
   } catch (e) {
     text = '#<Error>';
   }
