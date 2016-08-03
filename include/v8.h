@@ -2892,6 +2892,8 @@ class V8_EXPORT Object : public Value {
    * leads to undefined behavior.
    */
   void SetAlignedPointerInInternalField(int index, void* value);
+  void SetAlignedPointerInInternalFields(int argc, int indices[],
+                                         void* values[]);
 
   // Testers for local properties.
   V8_DEPRECATED("Use maybe version", bool HasOwnProperty(Local<String> key));
@@ -8245,7 +8247,6 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
 #endif
   return SlowGetAlignedPointerFromInternalField(index);
 }
-
 
 String* String::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS

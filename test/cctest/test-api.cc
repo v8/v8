@@ -2688,6 +2688,40 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   CHECK_EQ(huge, Object::GetAlignedPointerFromInternalField(persistent, 0));
 }
 
+THREADED_TEST(SetAlignedPointerInInternalFields) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetInternalFieldCount(2);
+  Local<v8::Object> obj = templ->GetFunction(env.local())
+                              .ToLocalChecked()
+                              ->NewInstance(env.local())
+                              .ToLocalChecked();
+  CHECK_EQ(2, obj->InternalFieldCount());
+
+  int* heap_allocated_1 = new int[100];
+  int* heap_allocated_2 = new int[100];
+  int indices[] = {0, 1};
+  void* values[] = {heap_allocated_1, heap_allocated_2};
+
+  obj->SetAlignedPointerInInternalFields(2, indices, values);
+  CcTest::heap()->CollectAllGarbage();
+  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(0));
+  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(1));
+
+  indices[0] = 1;
+  indices[1] = 0;
+  obj->SetAlignedPointerInInternalFields(2, indices, values);
+  CcTest::heap()->CollectAllGarbage();
+  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(0));
+  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(1));
+
+  delete[] heap_allocated_1;
+  delete[] heap_allocated_2;
+}
 
 static void CheckAlignedPointerInEmbedderData(LocalContext* env, int index,
                                               void* value) {
@@ -2728,7 +2762,6 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
     CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(i));
   }
 }
-
 
 static void CheckEmbedderData(LocalContext* env, int index,
                               v8::Local<Value> data) {
