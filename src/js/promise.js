@@ -146,7 +146,6 @@ function FulfillPromise(promise, status, value, promiseQueue) {
   if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
     var tasks = GET_PRIVATE(promise, promiseQueue);
     if (!IS_UNDEFINED(tasks)) {
-      var tasks = GET_PRIVATE(promise, promiseQueue);
       var deferreds = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
       PromiseEnqueue(value, tasks, deferreds, status);
     }
