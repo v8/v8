@@ -76,9 +76,9 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 21
+bytecode array length: 18
 bytecodes: [
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
                 B(StaContextSlot), R(context), U8(4),
@@ -101,9 +101,9 @@ snippet: "
 "
 frame size: 2
 parameter count: 4
-bytecode array length: 28
+bytecode array length: 25
 bytecodes: [
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
                 B(StaContextSlot), R(context), U8(6),

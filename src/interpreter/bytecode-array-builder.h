@@ -135,6 +135,9 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                       int flags);
 
+  // Create a new context with size |slots|.
+  BytecodeArrayBuilder& CreateFunctionContext(int slots);
+
   // Create a new arguments object in the accumulator.
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);
 

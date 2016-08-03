@@ -3010,8 +3010,8 @@ void BytecodeGenerator::VisitNewLocalFunctionContext() {
         .StoreAccumulatorInRegister(scope_info)
         .CallRuntime(Runtime::kNewScriptContext, closure, 2);
   } else {
-    builder()->CallRuntime(Runtime::kNewFunctionContext,
-                           Register::function_closure(), 1);
+    int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    builder()->CreateFunctionContext(slot_count);
   }
   execution_result()->SetResultInAccumulator();
 }

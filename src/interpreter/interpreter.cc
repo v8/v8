@@ -1717,6 +1717,18 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
   }
 }
 
+// CreateFunctionContext <slots>
+//
+// Creates a new context with number of |slots| for the function closure.
+void Interpreter::DoCreateFunctionContext(InterpreterAssembler* assembler) {
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* slots = __ BytecodeOperandIdx(0);
+  Node* context = __ GetContext();
+  __ SetAccumulator(
+      FastNewFunctionContextStub::Generate(assembler, closure, slots, context));
+  __ Dispatch();
+}
+
 // CreateMappedArguments
 //
 // Creates a new mapped arguments object.

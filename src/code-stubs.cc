@@ -4553,15 +4553,13 @@ void FastNewClosureStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       Generate(assembler, assembler->Parameter(0), assembler->Parameter(1)));
 }
 
-void FastNewFunctionContextStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+// static
+compiler::Node* FastNewFunctionContextStub::Generate(
+    CodeStubAssembler* assembler, compiler::Node* function,
+    compiler::Node* slots, compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
-
-  Node* function = assembler->Parameter(Descriptor::kFunction);
-  Node* slots = assembler->Parameter(FastNewFunctionContextDescriptor::kSlots);
-  Node* context = assembler->Parameter(Descriptor::kContext);
 
   Node* min_context_slots =
       assembler->Int32Constant(Context::MIN_CONTEXT_SLOTS);
@@ -4573,9 +4571,10 @@ void FastNewFunctionContextStub::GenerateAssembly(
   // Create a new closure from the given function info in new space
   Node* function_context = assembler->Allocate(size);
 
+  Isolate* isolate = assembler->isolate();
   assembler->StoreMapNoWriteBarrier(
       function_context,
-      assembler->HeapConstant(isolate()->factory()->function_context_map()));
+      assembler->HeapConstant(isolate->factory()->function_context_map()));
   assembler->StoreObjectFieldNoWriteBarrier(function_context,
                                             Context::kLengthOffset,
                                             assembler->SmiFromWord32(length));
@@ -4619,7 +4618,17 @@ void FastNewFunctionContextStub::GenerateAssembly(
   }
   assembler->Bind(&after_loop);
 
-  assembler->Return(function_context);
+  return function_context;
+}
+
+void FastNewFunctionContextStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* function = assembler->Parameter(Descriptor::kFunction);
+  Node* slots = assembler->Parameter(FastNewFunctionContextDescriptor::kSlots);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(Generate(assembler, function, slots, context));
 }
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {

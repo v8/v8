@@ -227,6 +227,10 @@ namespace interpreter {
   V(CreateClosure, AccumulatorUse::kWrite, OperandType::kIdx,                  \
     OperandType::kFlag8)                                                       \
                                                                                \
+  /* Context allocation */                                                     \
+  /* TODO(klaasb) rename Idx or add unsigned Imm OperandType? */               \
+  V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kIdx)          \
+                                                                               \
   /* Arguments allocation */                                                   \
   V(CreateMappedArguments, AccumulatorUse::kWrite)                             \
   V(CreateUnmappedArguments, AccumulatorUse::kWrite)                           \

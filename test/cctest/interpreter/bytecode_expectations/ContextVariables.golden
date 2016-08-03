@@ -13,9 +13,9 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 9
 bytecodes: [
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   41 S> */ B(CreateClosure), U8(0), U8(2),
@@ -33,9 +33,9 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 14
 bytecodes: [
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
@@ -55,9 +55,9 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 19
 bytecodes: [
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(2),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
@@ -79,9 +79,9 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 21
 bytecodes: [
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   41 S> */ B(LdrUndefined), R(2),
@@ -105,9 +105,9 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 43
 bytecodes: [
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
@@ -392,9 +392,9 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 1043
+bytecode array length: 1040
 bytecodes: [
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(253),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
                 B(StaContextSlot), R(context), U8(4),

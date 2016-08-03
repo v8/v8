@@ -337,6 +337,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
+  Output(Bytecode::kCreateFunctionContext, UnsignedOperand(slots));
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArguments(
     CreateArgumentsType type) {
   // TODO(rmcilroy): Consider passing the type as a bytecode operand rather

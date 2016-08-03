@@ -104,6 +104,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       false);
   builder.CreateClosure(shared_info, NOT_TENURED);
 
+  // Emit create context operation.
+  builder.CreateFunctionContext(1);
+
   // Emit literal creation operations.
   builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0)
       .CreateArrayLiteral(factory->NewFixedArray(1), 0, 0)

@@ -1082,6 +1082,11 @@ class FastNewFunctionContextStub final : public TurboFanCodeStub {
   explicit FastNewFunctionContextStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
+  static compiler::Node* Generate(CodeStubAssembler* assembler,
+                                  compiler::Node* function,
+                                  compiler::Node* slots,
+                                  compiler::Node* context);
+
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewFunctionContext);
   DEFINE_TURBOFAN_CODE_STUB(FastNewFunctionContext, TurboFanCodeStub);
