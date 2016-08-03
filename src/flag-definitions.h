@@ -767,6 +767,10 @@ DEFINE_BOOL(scavenge_reclaim_unmodified_objects, true,
 DEFINE_INT(heap_growing_percent, 0,
            "specifies heap growing factor as (1 + heap_growing_percent/100)")
 
+// execution.cc, messages.cc
+DEFINE_BOOL(clear_exceptions_on_js_entry, true,
+            "clear pending exceptions when entering JavaScript")
+
 // counters.cc
 DEFINE_INT(histogram_interval, 600000,
            "time interval in ms for aggregating memory histograms")

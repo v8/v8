@@ -99,6 +99,8 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
     SealHandleScope shs(isolate);
     JSEntryFunction stub_entry = FUNCTION_CAST<JSEntryFunction>(code->entry());
 
+    if (FLAG_clear_exceptions_on_js_entry) isolate->clear_pending_exception();
+
     // Call the function through the right JS entry stub.
     Object* orig_func = *new_target;
     Object* func = *target;

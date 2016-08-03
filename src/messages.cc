@@ -884,10 +884,13 @@ MaybeHandle<Object> ErrorUtils::MakeGenericError(
     Isolate* isolate, Handle<JSFunction> constructor, int template_index,
     Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
     FrameSkipMode mode) {
-  // This function used to be implemented in JavaScript, and JSEntryStub clears
-  // any pending exceptions - so whenever we'd call this from C++, pending
-  // exceptions would be cleared. Preserve this behavior.
-  isolate->clear_pending_exception();
+  if (FLAG_clear_exceptions_on_js_entry) {
+    // This function used to be implemented in JavaScript, and JSEntryStub
+    // clears
+    // any pending exceptions - so whenever we'd call this from C++, pending
+    // exceptions would be cleared. Preserve this behavior.
+    isolate->clear_pending_exception();
+  }
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
