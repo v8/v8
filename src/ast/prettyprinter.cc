@@ -897,6 +897,9 @@ void AstPrinter::PrintTryStatement(TryStatement* node) {
     case HandlerTable::PROMISE:
       prediction = "PROMISE";
       break;
+    case HandlerTable::DESUGARING:
+      prediction = "DESUGARING";
+      break;
   }
   Print(" %s\n", prediction);
 }

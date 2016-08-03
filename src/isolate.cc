@@ -1142,8 +1142,9 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
       // embedder didn't specify a custom uncaught exception callback,
       // or if the custom callback determined that V8 should abort, then
       // abort.
+      CatchType prediction = PredictExceptionCatcher();
       if (FLAG_abort_on_uncaught_exception &&
-          PredictExceptionCatcher() != CAUGHT_BY_JAVASCRIPT &&
+          (prediction == NOT_CAUGHT || prediction == CAUGHT_BY_EXTERNAL) &&
           (!abort_on_uncaught_exception_callback_ ||
            abort_on_uncaught_exception_callback_(
                reinterpret_cast<v8::Isolate*>(this)))) {
@@ -1339,9 +1340,9 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
     // For JavaScript frames we perform a lookup in the handler table.
     if (frame->is_java_script()) {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
-      if (PredictException(js_frame) != HandlerTable::UNCAUGHT) {
-        return CAUGHT_BY_JAVASCRIPT;
-      }
+      HandlerTable::CatchPrediction prediction = PredictException(js_frame);
+      if (prediction == HandlerTable::DESUGARING) return CAUGHT_BY_DESUGARING;
+      if (prediction != HandlerTable::UNCAUGHT) return CAUGHT_BY_JAVASCRIPT;
     }
 
     // The exception has been externally caught if and only if there is an
@@ -1750,12 +1751,16 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   ThreadLocalTop* tltop = thread_local_top();
   if (tltop->promise_on_stack_ == NULL) return undefined;
   // Find the top-most try-catch or try-finally handler.
-  if (PredictExceptionCatcher() != CAUGHT_BY_JAVASCRIPT) return undefined;
+  CatchType prediction = PredictExceptionCatcher();
+  if (prediction == NOT_CAUGHT || prediction == CAUGHT_BY_EXTERNAL) {
+    return undefined;
+  }
   for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
     switch (PredictException(it.frame())) {
       case HandlerTable::UNCAUGHT:
         break;
       case HandlerTable::CAUGHT:
+      case HandlerTable::DESUGARING:
         return undefined;
       case HandlerTable::PROMISE:
         return tltop->promise_on_stack_->promise();

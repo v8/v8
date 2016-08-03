@@ -3166,6 +3166,16 @@ class AstNodeFactory final BASE_EMBEDDED {
                           HandlerTable::PROMISE, pos);
   }
 
+  TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,
+                                                       Scope* scope,
+                                                       Variable* variable,
+                                                       Block* catch_block,
+                                                       int pos) {
+    return new (local_zone_)
+        TryCatchStatement(local_zone_, try_block, scope, variable, catch_block,
+                          HandlerTable::DESUGARING, pos);
+  }
+
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,
                                               Block* finally_block, int pos) {
     return new (local_zone_)

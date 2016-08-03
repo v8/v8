@@ -4466,9 +4466,13 @@ class HandlerTable : public FixedArray {
   // exception or cause a re-throw to outside the code boundary. Since this is
   // undecidable it is merely an approximation (e.g. useful for debugger).
   enum CatchPrediction {
-    UNCAUGHT,  // the handler will (likely) rethrow the exception.
-    CAUGHT,    // the exception will be caught by the handler.
-    PROMISE    // the exception will be caught and cause a promise rejection.
+    UNCAUGHT,    // The handler will (likely) rethrow the exception.
+    CAUGHT,      // The exception will be caught by the handler.
+    PROMISE,     // The exception will be caught and cause a promise rejection.
+    DESUGARING,  // The exception will be caught, but both the exception and the
+                 // catching are part of a desugaring and should therefore not
+                 // be visible to the user (we won't notify the debugger of such
+                 // exceptions).
   };
 
   // Getters for handler table based on ranges.

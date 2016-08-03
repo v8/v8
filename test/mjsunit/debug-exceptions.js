@@ -67,4 +67,22 @@ assertCaught(() => {
 });
 
 
+// Check that an internal exception in our yield* desugaring is not observable.
+{
+  uncaught = null;
+
+  let iter = {
+    next() {return {value:42, done:false}},
+    throw() {return {done:true}}
+  };
+  let iterable = {[Symbol.iterator]() {return iter}};
+  function* f() { yield* iterable }
+
+  let g = f();
+  g.next();
+  assertEquals({value: undefined, done: true}, g.throw());
+  assertNull(uncaught);  // No exception event was generated.
+}
+
+
 assertFalse(error);
