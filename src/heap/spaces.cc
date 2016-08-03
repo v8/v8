@@ -2516,8 +2516,6 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
                               new_node->address() + new_node_size);
   }
 
-  owner_->AllocationStep(new_node->address(), size_in_bytes);
-
   return new_node;
 }
 
