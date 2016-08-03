@@ -220,7 +220,9 @@ namespace internal {
   V(UniqueName,                 kSymbol | kInternalizedString) \
   V(Name,                       kSymbol | kString) \
   V(BooleanOrNumber,            kBoolean | kNumber) \
+  V(BooleanOrNullOrNumber,      kBooleanOrNumber | kNull) \
   V(BooleanOrNullOrUndefined,   kBoolean | kNull | kUndefined) \
+  V(NullOrNumber,               kNull | kNumber) \
   V(NullOrUndefined,            kNull | kUndefined) \
   V(Undetectable,               kNullOrUndefined | kOtherUndetectable) \
   V(NumberOrOddball,            kNumber | kNullOrUndefined | kBoolean) \

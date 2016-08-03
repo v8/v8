@@ -48,8 +48,6 @@ class Typer {
   Type* singleton_false_;
   Type* singleton_true_;
   Type* singleton_the_hole_;
-  Type* signed32ish_;
-  Type* unsigned32ish_;
   Type* falsish_;
   Type* truish_;
 

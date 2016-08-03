@@ -358,84 +358,37 @@ class RepresentationSelector {
     }
 
     switch (node->opcode()) {
-      case IrOpcode::kNumberAdd:
-      case IrOpcode::kSpeculativeNumberAdd: {
-        // TODO(jarin) The ToNumber conversion is too conservative here,
-        // e.g. it will treat true as 1 even though the number check will
-        // fail on a boolean. OperationTyper should have a function that
-        // computes a more precise type.
-        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
-        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* computed_type = op_typer_.NumberAdd(lhs, rhs);
-        new_type = Type::Intersect(computed_type, info->restriction_type(),
-                                   graph_zone());
-        break;
-      }
+#define DECLARE_CASE(Name)                                       \
+  case IrOpcode::k##Name: {                                      \
+    new_type = op_typer_.Name(FeedbackTypeOf(node->InputAt(0)),  \
+                              FeedbackTypeOf(node->InputAt(1))); \
+    break;                                                       \
+  }
+      SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_CASE)
+#undef DECLARE_CASE
 
-      case IrOpcode::kNumberSubtract:
-      case IrOpcode::kSpeculativeNumberSubtract: {
-        // TODO(jarin) The ToNumber conversion is too conservative here,
-        // e.g. it will treat true as 1 even though the number check will
-        // fail on a boolean. OperationTyper should have a function that
-        // computes a more precise type.
-        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
-        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* computed_type = op_typer_.NumberSubtract(lhs, rhs);
-        new_type = Type::Intersect(computed_type, info->restriction_type(),
-                                   graph_zone());
-        break;
-      }
+#define DECLARE_CASE(Name)                                                \
+  case IrOpcode::k##Name: {                                               \
+    new_type =                                                            \
+        Type::Intersect(op_typer_.Name(FeedbackTypeOf(node->InputAt(0)),  \
+                                       FeedbackTypeOf(node->InputAt(1))), \
+                        info->restriction_type(), graph_zone());          \
+    break;                                                                \
+  }
+      SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_CASE)
+#undef DECLARE_CASE
 
-      case IrOpcode::kNumberMultiply:
-      case IrOpcode::kSpeculativeNumberMultiply: {
-        // TODO(jarin) The ToNumber conversion is too conservative here,
-        // e.g. it will treat true as 1 even though the number check will
-        // fail on a boolean. OperationTyper should have a function that
-        // computes a more precise type.
-        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
-        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* computed_type = op_typer_.NumberMultiply(lhs, rhs);
-        new_type = Type::Intersect(computed_type, info->restriction_type(),
-                                   graph_zone());
-        break;
-      }
-
-      case IrOpcode::kNumberDivide:
-      case IrOpcode::kSpeculativeNumberDivide: {
-        // TODO(jarin) The ToNumber conversion is too conservative here,
-        // e.g. it will treat true as 1 even though the number check will
-        // fail on a boolean. OperationTyper should have a function that
-        // computes a more precise type.
-        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
-        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* computed_type = op_typer_.NumberDivide(lhs, rhs);
-        new_type = Type::Intersect(computed_type, info->restriction_type(),
-                                   graph_zone());
-        break;
-      }
-
-      case IrOpcode::kNumberModulus:
-      case IrOpcode::kSpeculativeNumberModulus: {
-        // TODO(jarin) The ToNumber conversion is too conservative here,
-        // e.g. it will treat true as 1 even though the number check will
-        // fail on a boolean. OperationTyper should have a function that
-        // computes a more precise type.
-        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
-        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* computed_type = op_typer_.NumberModulus(lhs, rhs);
-        new_type = Type::Intersect(computed_type, info->restriction_type(),
-                                   graph_zone());
-        break;
-      }
+#define DECLARE_CASE(Name)                                       \
+  case IrOpcode::k##Name: {                                      \
+    new_type = op_typer_.Name(FeedbackTypeOf(node->InputAt(0))); \
+    break;                                                       \
+  }
+      SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
+#undef DECLARE_CASE
 
       case IrOpcode::kPlainPrimitiveToNumber:
         new_type = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         break;
-
-      case IrOpcode::kNumberAbs: {
-        new_type = op_typer_.NumberAbs(FeedbackTypeOf(node->InputAt(0)));
-        break;
-      }
 
       case IrOpcode::kPhi: {
         new_type = TypePhi(node);

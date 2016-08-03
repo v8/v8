@@ -50,6 +50,7 @@ class TypeCache final {
       Type::Union(kSingletonTen, Type::Undefined(), zone());
   Type* const kMinusOneOrZero = CreateRange(-1.0, 0.0);
   Type* const kZeroOrOne = CreateRange(0.0, 1.0);
+  Type* const kZeroOrOneOrNaN = Type::Union(kZeroOrOne, Type::NaN(), zone());
   Type* const kZeroToThirtyOne = CreateRange(0.0, 31.0);
   Type* const kZeroToThirtyTwo = CreateRange(0.0, 32.0);
   Type* const kZeroish =
