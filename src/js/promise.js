@@ -390,6 +390,35 @@ function PromiseCreateResolved(x) {
   return %_Call(PromiseResolve, GlobalPromise, x);
 }
 
+function PerformPromiseThen(promise, onResolve, onReject, resultCapability) {
+  if (!IS_CALLABLE(onResolve)) onResolve = PromiseIdResolveHandler;
+  if (!IS_CALLABLE(onReject)) onReject = PromiseIdRejectHandler;
+
+  var status = GET_PRIVATE(promise, promiseStateSymbol);
+  switch (status) {
+    case kPending:
+      PromiseAttachCallbacks(promise, resultCapability, onResolve, onReject);
+      break;
+    case kFulfilled:
+      PromiseEnqueue(GET_PRIVATE(promise, promiseResultSymbol),
+                     onResolve, resultCapability, kFulfilled);
+      break;
+    case kRejected:
+      if (!HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
+        // Promise has already been rejected, but had no handler.
+        // Revoke previously triggered reject event.
+        %PromiseRevokeReject(promise);
+      }
+      PromiseEnqueue(GET_PRIVATE(promise, promiseResultSymbol),
+                     onReject, resultCapability, kRejected);
+      break;
+  }
+
+  // Mark this promise as having handler.
+  SET_PRIVATE(promise, promiseHasHandlerSymbol, true);
+  return resultCapability.promise;
+}
+
 // ES#sec-promise.prototype.then
 // Promise.prototype.then ( onFulfilled, onRejected )
 // Multi-unwrapped chaining with thenable coercion.
@@ -400,30 +429,8 @@ function PromiseThen(onResolve, onReject) {
   }
 
   var constructor = SpeciesConstructor(this, GlobalPromise);
-  onResolve = IS_CALLABLE(onResolve) ? onResolve : PromiseIdResolveHandler;
-  onReject = IS_CALLABLE(onReject) ? onReject : PromiseIdRejectHandler;
-  var deferred = NewPromiseCapability(constructor);
-  switch (status) {
-    case kPending:
-      PromiseAttachCallbacks(this, deferred, onResolve, onReject);
-      break;
-    case kFulfilled:
-      PromiseEnqueue(GET_PRIVATE(this, promiseResultSymbol),
-                     onResolve, deferred, kFulfilled);
-      break;
-    case kRejected:
-      if (!HAS_DEFINED_PRIVATE(this, promiseHasHandlerSymbol)) {
-        // Promise has already been rejected, but had no handler.
-        // Revoke previously triggered reject event.
-        %PromiseRevokeReject(this);
-      }
-      PromiseEnqueue(GET_PRIVATE(this, promiseResultSymbol),
-                     onReject, deferred, kRejected);
-      break;
-  }
-  // Mark this promise as having handler.
-  SET_PRIVATE(this, promiseHasHandlerSymbol, true);
-  return deferred.promise;
+  var resultCapability = NewPromiseCapability(constructor);
+  return PerformPromiseThen(this, onResolve, onReject, resultCapability);
 }
 
 // Unspecified V8-specific legacy function
@@ -622,6 +629,8 @@ utils.InstallFunctions(extrasUtils, 0, [
     fn => %FunctionRemovePrototype(fn));
 
 utils.Export(function(to) {
+  to.IsPromise = IsPromise;
+
   to.PromiseChain = PromiseChain;
   to.PromiseDefer = PromiseDefer;
   to.PromiseAccept = PromiseAccept;
@@ -629,6 +638,10 @@ utils.Export(function(to) {
   to.PromiseCreateRejected = PromiseCreateRejected;
   to.PromiseCreateResolved = PromiseCreateResolved;
   to.PromiseThen = PromiseThen;
+
+  to.GlobalPromise = GlobalPromise;
+  to.NewPromiseCapability = NewPromiseCapability;
+  to.PerformPromiseThen = PerformPromiseThen;
 });
 
 })
