@@ -1647,6 +1647,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Handle<i::String> message_string = i::Handle<i::String>::cast(
         i::JSReceiver::GetProperty(isolate, exception_handle, "message")
             .ToHandleChecked());
+    isolate->clear_pending_exception();
 
     if (result == kSuccess) {
       v8::base::OS::Print(
@@ -5617,6 +5618,7 @@ TEST(BasicImportExportParsing) {
         i::Handle<i::String> message_string = i::Handle<i::String>::cast(
             i::JSReceiver::GetProperty(isolate, exception_handle, "message")
                 .ToHandleChecked());
+        isolate->clear_pending_exception();
 
         v8::base::OS::Print(
             "Parser failed on:\n"
@@ -5637,6 +5639,7 @@ TEST(BasicImportExportParsing) {
       i::Parser parser(&info);
       info.set_global();
       CHECK(!parser.Parse(&info));
+      isolate->clear_pending_exception();
     }
   }
 }
@@ -5729,6 +5732,7 @@ TEST(ImportExportParsingErrors) {
     i::Parser parser(&info);
     info.set_module();
     CHECK(!parser.Parse(&info));
+    isolate->clear_pending_exception();
   }
 }
 
@@ -5766,6 +5770,7 @@ TEST(ModuleTopLevelFunctionDecl) {
     i::Parser parser(&info);
     info.set_module();
     CHECK(!parser.Parse(&info));
+    isolate->clear_pending_exception();
   }
 }
 
