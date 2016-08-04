@@ -1519,7 +1519,7 @@ class DictionaryElementsAccessor
         continue;
       }
 
-      PropertyDetails details = GetDetailsImpl(receiver->elements(), entry);
+      PropertyDetails details = GetDetailsImpl(*dictionary, entry);
       switch (details.kind()) {
         case kData: {
           Object* element_k = dictionary->ValueAt(entry);
@@ -1539,12 +1539,28 @@ class DictionaryElementsAccessor
 
           if (value->SameValueZero(*element_k)) return Just(true);
 
-          // Some mutation to the prototype elements may have occurred in
-          // accessor.
+          // Bailout to slow path if elements on prototype changed
           if (!JSObject::PrototypeHasNoElements(isolate, *receiver)) {
             return IncludesValueSlowPath(isolate, receiver, value, k + 1,
                                          length);
           }
+
+          // Continue if elements unchanged
+          if (*dictionary == receiver->elements()) continue;
+
+          // Otherwise, bailout or update elements
+          if (receiver->GetElementsKind() != DICTIONARY_ELEMENTS) {
+            if (receiver->map()->GetInitialElements() == receiver->elements()) {
+              // If switched to initial elements, return true if searching for
+              // undefined, and false otherwise.
+              return Just(search_for_hole);
+            }
+            // Otherwise, switch to slow path.
+            return IncludesValueSlowPath(isolate, receiver, value, k + 1,
+                                         length);
+          }
+          dictionary = handle(
+              SeededNumberDictionary::cast(receiver->elements()), isolate);
           break;
         }
       }
