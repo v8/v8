@@ -1193,15 +1193,15 @@ void V8HeapExplorer::ExtractJSCollectionReferences(int entry,
                        JSCollection::kTableOffset);
 }
 
-
-void V8HeapExplorer::ExtractJSWeakCollectionReferences(
-    int entry, JSWeakCollection* collection) {
-  MarkAsWeakContainer(collection->table());
-  SetInternalReference(collection, entry,
-                       "table", collection->table(),
+void V8HeapExplorer::ExtractJSWeakCollectionReferences(int entry,
+                                                       JSWeakCollection* obj) {
+  if (obj->table()->IsHashTable()) {
+    ObjectHashTable* table = ObjectHashTable::cast(obj->table());
+    TagFixedArraySubType(table, JS_WEAK_COLLECTION_SUB_TYPE);
+  }
+  SetInternalReference(obj, entry, "table", obj->table(),
                        JSWeakCollection::kTableOffset);
 }
-
 
 void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
   if (context == context->declaration_context()) {
@@ -1529,20 +1529,33 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(
                              entry, "backing_store", data_entry);
 }
 
-
 void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
-  bool is_weak = weak_containers_.Contains(array);
-  for (int i = 0, l = array->length(); i < l; ++i) {
-    if (is_weak) {
-      SetWeakReference(array, entry,
-                       i, array->get(i), array->OffsetOfElementAt(i));
-    } else {
-      SetInternalReference(array, entry,
-                           i, array->get(i), array->OffsetOfElementAt(i));
+  auto it = array_types_.find(array);
+  if (it == array_types_.end()) {
+    for (int i = 0, l = array->length(); i < l; ++i) {
+      SetInternalReference(array, entry, i, array->get(i),
+                           array->OffsetOfElementAt(i));
     }
+    return;
+  }
+  switch (it->second) {
+    case JS_WEAK_COLLECTION_SUB_TYPE:
+      for (int i = 0, l = array->length(); i < l; ++i) {
+        SetWeakReference(array, entry, i, array->get(i),
+                         array->OffsetOfElementAt(i));
+      }
+      break;
+
+    // TODO(alph): Add special processing for other types of FixedArrays.
+
+    default:
+      for (int i = 0, l = array->length(); i < l; ++i) {
+        SetInternalReference(array, entry, i, array->get(i),
+                             array->OffsetOfElementAt(i));
+      }
+      break;
   }
 }
-
 
 void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
   Isolate* isolate = js_obj->GetIsolate();
@@ -2128,13 +2141,11 @@ void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
   }
 }
 
-
-void V8HeapExplorer::MarkAsWeakContainer(Object* object) {
-  if (IsEssentialObject(object) && object->IsFixedArray()) {
-    weak_containers_.Insert(object);
-  }
+void V8HeapExplorer::TagFixedArraySubType(const FixedArray* array,
+                                          FixedArraySubInstanceType type) {
+  DCHECK(array_types_.find(array) == array_types_.end());
+  array_types_[array] = type;
 }
-
 
 class GlobalObjectsEnumerator : public ObjectVisitor {
  public:

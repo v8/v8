@@ -5,6 +5,8 @@
 #ifndef V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 
+#include <unordered_map>
+
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
@@ -453,7 +455,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
       VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
   const char* GetStrongGcSubrootName(Object* object);
   void TagObject(Object* obj, const char* tag);
-  void MarkAsWeakContainer(Object* object);
+  void TagFixedArraySubType(const FixedArray* array,
+                            FixedArraySubInstanceType type);
 
   HeapEntry* GetEntry(Object* obj);
 
@@ -466,7 +469,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
   HeapObjectsSet user_roots_;
-  HeapObjectsSet weak_containers_;
+  std::unordered_map<const FixedArray*, FixedArraySubInstanceType> array_types_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> marks_;
