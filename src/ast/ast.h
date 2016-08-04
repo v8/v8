@@ -1451,9 +1451,10 @@ class ObjectLiteral final : public MaterializedLiteral {
   };
 
   struct Accessors: public ZoneObject {
-    Accessors() : getter(NULL), setter(NULL) {}
+    Accessors() : getter(NULL), setter(NULL), bailout_id(BailoutId::None()) {}
     ObjectLiteralProperty* getter;
     ObjectLiteralProperty* setter;
+    BailoutId bailout_id;
   };
 
   BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
