@@ -233,6 +233,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
           }
           *index = r.slot_index;
           *variable_mode = r.mode;
+          *init_flag = r.init_flag;
           *attributes = GetAttributesForMode(r.mode);
           return ScriptContextTable::GetContext(script_contexts,
                                                 r.context_index);
