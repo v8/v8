@@ -29,7 +29,7 @@
 from . import output
 
 class TestCase(object):
-  def __init__(self, suite, path, variant='default', flags=None,
+  def __init__(self, suite, path, variant=None, flags=None,
                override_shell=None):
     self.suite = suite        # TestSuite object
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
@@ -108,3 +108,6 @@ class TestCase(object):
         (self.suite.name, self.path, self.flags),
         (other.suite.name, other.path, other.flags),
     )
+
+  def __str__(self):
+    return "[%s/%s  %s]" % (self.suite.name, self.path, self.flags)

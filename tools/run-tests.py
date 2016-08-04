@@ -45,7 +45,7 @@ import time
 from testrunner.local import execution
 from testrunner.local import progress
 from testrunner.local import testsuite
-from testrunner.local.testsuite import ALL_VARIANTS
+from testrunner.local.variants import ALL_VARIANTS
 from testrunner.local import utils
 from testrunner.local import verbose
 from testrunner.network import network_execution
@@ -258,8 +258,9 @@ def BuildOptions():
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
+  # TODO(machenbach): Remove this flag when not reference by infrastructure.
   result.add_option("--ignition-turbofan",
-                    help="Skip tests which don't run in ignition_turbofan",
+                    help="Deprecated",
                     default=False, action="store_true")
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
@@ -752,7 +753,6 @@ def Execute(arch, mode, args, options, suites):
     "deopt_fuzzer": False,
     "gc_stress": options.gc_stress,
     "gcov_coverage": options.gcov_coverage,
-    "ignition_turbofan": options.ignition_turbofan,
     "isolates": options.isolates,
     "mode": MODES[mode]["status_mode"],
     "no_i18n": options.no_i18n,
@@ -775,8 +775,12 @@ def Execute(arch, mode, args, options, suites):
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
     all_tests += s.tests
+
+    # First filtering by status applying the generic rules (independent of
+    # variants).
     s.FilterTestCasesByStatus(options.warn_unused, options.slow_tests,
                               options.pass_fail_tests)
+
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue
@@ -803,6 +807,10 @@ def Execute(arch, mode, args, options, suites):
       ]
     else:
       s.tests = variant_tests
+
+    # Second filtering by status applying the variant-dependent rules.
+    s.FilterTestCasesByStatus(options.warn_unused, options.slow_tests,
+                              options.pass_fail_tests, variants=True)
 
     s.tests = ShardTests(s.tests, options)
     num_tests += len(s.tests)

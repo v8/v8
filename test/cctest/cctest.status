@@ -389,7 +389,7 @@
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ##############################################################################
-['ignition_turbofan', {
+['variant == ignition_turbofan', {
   # TODO(5251): Inlining is currently disabled for the BytecodeGraphBuilder.
   'test-run-inlining/InlineLoopGuardedTwice': [FAIL],
   'test-run-inlining/InlineSurplusArgumentsDeopt': [FAIL],
@@ -457,6 +457,6 @@
 
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-}],  # ignition_turbofan
+}],  # variant == ignition_turbofan
 
 ]

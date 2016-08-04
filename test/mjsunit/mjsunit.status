@@ -698,7 +698,7 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
-['ignition_turbofan', {
+['variant == ignition_turbofan', {
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
   'regress/regress-4121': [FAIL],
@@ -723,25 +723,25 @@
 
   # TODO(rmcilroy): Flaky OOM.
   'unicodelctest-no-optimization': [SKIP],
-}],  # ignition_turbofan
+}],  # variant == ignition_turbofan
 
-['ignition_turbofan and arch == arm64', {
+['variant == ignition_turbofan and arch == arm64', {
   # TODO(rmcilroy,4680): Arm64 specific timeouts.
   'asm/construct-double': [SKIP],
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
   'wasm/asm-wasm-i32': [SKIP],
   'wasm/asm-wasm-u32': [SKIP],
-}],  # ignition_turbofan and arch == arm64
+}],  # variant == ignition_turbofan and arch == arm64
 
 ['ignition_turbofan and arch == arm', {
   # TODO(rmcilroy,4680): Arm specific timeouts.
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
   'regress/regress-1257': [SKIP],
-}],  # ignition_turbofan and arch == arm
+}],  # variant == ignition_turbofan and arch == arm
 
-['ignition_turbofan and msan', {
+['variant == ignition_turbofan and msan', {
   # TODO(mythria,4680): All of these tests have large loops and hence slow
   # and timeout.
   'compiler/osr-big': [SKIP],
@@ -752,7 +752,7 @@
   'try': [SKIP],
   # Too slow for interpreter and msan.
   'es6/tail-call-megatest*': [SKIP],
-}],  # ignition_turbofan and msan
+}],  # variant == ignition_turbofan and msan
 
 ##############################################################################
 ['gcov_coverage', {

@@ -112,11 +112,11 @@
 }],  # msan
 
 ##############################################################################
-['ignition_turbofan and msan', {
+['variant == ignition_turbofan and msan', {
   # TODO(mythria,4680): Too slow and timeout on ignition.
   'dfg-double-vote-fuzz': [SKIP],
   'dfg-int-overflow-in-loop': [SKIP],
-}],  # ignition_turbofan and msan
+}],  # variant == ignition_turbofan and msan
 
 ##############################################################################
 ['gcov_coverage', {
