@@ -768,7 +768,7 @@ DEFINE_INT(heap_growing_percent, 0,
            "specifies heap growing factor as (1 + heap_growing_percent/100)")
 
 // execution.cc, messages.cc
-DEFINE_BOOL(clear_exceptions_on_js_entry, true,
+DEFINE_BOOL(clear_exceptions_on_js_entry, false,
             "clear pending exceptions when entering JavaScript")
 
 // counters.cc
