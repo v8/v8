@@ -204,6 +204,7 @@ class Scope: public ZoneObject {
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
     DCHECK(!already_resolved());
+    DCHECK_EQ(factory->zone(), zone());
     VariableProxy* proxy =
         factory->NewVariableProxy(name, kind, start_position, end_position);
     proxy->set_next_unresolved(unresolved_);
@@ -612,6 +613,13 @@ class Scope: public ZoneObject {
     return &sloppy_block_function_map_;
   }
 
+  // To be called during parsing. Do just enough scope analysis that we can
+  // discard the Scope for lazily compiled functions. In particular, this
+  // records variables which cannot be resolved inside the Scope (we don't yet
+  // know what they will resolve to since the outer Scopes are incomplete) and
+  // migrates them into migrate_to.
+  void AnalyzePartially(Scope* migrate_to, AstNodeFactory* ast_node_factory);
+
   // ---------------------------------------------------------------------------
   // Debugging.
 
@@ -620,6 +628,9 @@ class Scope: public ZoneObject {
 
   // Check that the scope has positions assigned.
   void CheckScopePositions();
+
+  // Check that all Scopes in the scope tree use the same Zone.
+  void CheckZones();
 #endif
 
   // ---------------------------------------------------------------------------
@@ -780,15 +791,23 @@ class Scope: public ZoneObject {
   };
 
   // Lookup a variable reference given by name recursively starting with this
-  // scope. If the code is executed because of a call to 'eval', the context
-  // parameter should be set to the calling context of 'eval'.
+  // scope, but only until max_outer_scope (if not nullptr). If the code is
+  // executed because of a call to 'eval', the context parameter should be set
+  // to the calling context of 'eval'.
   Variable* LookupRecursive(VariableProxy* proxy, BindingKind* binding_kind,
-                            AstNodeFactory* factory);
+                            AstNodeFactory* factory,
+                            Scope* max_outer_scope = nullptr);
   MUST_USE_RESULT
   bool ResolveVariable(ParseInfo* info, VariableProxy* proxy,
                        AstNodeFactory* factory);
   MUST_USE_RESULT
   bool ResolveVariablesRecursively(ParseInfo* info, AstNodeFactory* factory);
+
+  // Tries to resolve local variables inside max_outer_scope; migrates those
+  // which cannot be resolved into migrate_to.
+  void MigrateUnresolvableLocals(Scope* migrate_to,
+                                 AstNodeFactory* ast_node_factory,
+                                 Scope* max_outer_scope);
 
   // Scope analysis.
   void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);

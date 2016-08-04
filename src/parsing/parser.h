@@ -755,7 +755,6 @@ class Parser : public ParserBase<ParserTraits> {
 
  private:
   friend class ParserTraits;
-  friend class DiscardableZoneScope;
 
   // Runtime encoding of different completion modes.
   enum CompletionKind {

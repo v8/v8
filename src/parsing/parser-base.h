@@ -464,7 +464,11 @@ class ParserBase : public Traits {
       return &non_patterns_to_rewrite_;
     }
 
-    void next_function_is_parenthesized(bool parenthesized) {
+    bool next_function_is_parenthesized() const {
+      return next_function_is_parenthesized_;
+    }
+
+    void set_next_function_is_parenthesized(bool parenthesized) {
       next_function_is_parenthesized_ = parenthesized;
     }
 
@@ -1237,6 +1241,8 @@ class ParserBase : public Traits {
   bool allow_harmony_async_await_;
   bool allow_harmony_restrictive_generators_;
   bool allow_harmony_trailing_commas_;
+
+  friend class DiscardableZoneScope;
 };
 
 template <class Traits>
@@ -1630,8 +1636,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       }
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
-      function_state_->next_function_is_parenthesized(peek() ==
-                                                      Token::FUNCTION);
+      function_state_->set_next_function_is_parenthesized(peek() ==
+                                                          Token::FUNCTION);
       ExpressionT expr = this->ParseExpression(true, classifier, CHECK_OK);
       Expect(Token::RPAREN, CHECK_OK);
       return expr;
