@@ -252,11 +252,14 @@ function testTraceNativeConversion(nativeFunc) {
 
 
 function testOmittedBuiltin(throwing, omitted) {
+  var reached = false;
   try {
     throwing();
-    assertUnreachable(omitted);
+    reached = true;
   } catch (e) {
     assertTrue(e.stack.indexOf(omitted) < 0, omitted);
+  } finally {
+    assertFalse(reached);
   }
 }
 
@@ -305,19 +308,18 @@ testOmittedBuiltin(function(){ [thrower, 2].sort(function (a,b) {
 // Omitted because ADD from runtime.js is non-native builtin.
 testOmittedBuiltin(function(){ thrower + 2; }, "ADD");
 
+var reached = false;
 var error = new Error();
-error.toString = function() { assertUnreachable(); };
+error.toString = function() { reached = true; };
 error.stack;
+assertFalse(reached);
 
+reached = false;
 error = new Error();
-error.name = { toString: function() { assertUnreachable(); }};
-error.message = { toString: function() {  assertUnreachable(); }};
+Array.prototype.push = function(x) { reached = true; };
+Array.prototype.join = function(x) { reached = true; };
 error.stack;
-
-error = new Error();
-Array.prototype.push = function(x) { assertUnreachable(); };
-Array.prototype.join = function(x) { assertUnreachable(); };
-error.stack;
+assertFalse(reached);
 
 var fired = false;
 error = new Error({ toString: function() { fired = true; } });
