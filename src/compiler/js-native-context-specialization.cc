@@ -427,7 +427,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
   // TODO(bmeurer): Add support for non-standard stores.
-  if (store_mode != STANDARD_STORE) return NoChange();
+  if (store_mode != STANDARD_STORE &&
+      store_mode != STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+    return NoChange();
+  }
 
   // Retrieve the native context from the given {node}.
   Handle<Context> native_context;
@@ -482,9 +485,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         BuildCheckMaps(receiver, effect, control, access_info.receiver_maps());
 
     // Access the actual element.
-    ValueEffectControl continuation =
-        BuildElementAccess(receiver, index, value, effect, control,
-                           native_context, access_info, access_mode);
+    ValueEffectControl continuation = BuildElementAccess(
+        receiver, index, value, effect, control, native_context, access_info,
+        access_mode, store_mode);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -589,7 +592,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       // Access the actual element.
       ValueEffectControl continuation = BuildElementAccess(
           this_receiver, this_index, this_value, this_effect, this_control,
-          native_context, access_info, access_mode);
+          native_context, access_info, access_mode, store_mode);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -952,7 +955,7 @@ JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
     Handle<Context> native_context, ElementAccessInfo const& access_info,
-    AccessMode access_mode) {
+    AccessMode access_mode, KeyedAccessStoreMode store_mode) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
@@ -1002,9 +1005,19 @@ JSNativeContextSpecialization::BuildElementAccess(
         common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
         check, length, jsgraph()->ZeroConstant());
 
-    // Check that the {index} is in the valid range for the {receiver}.
-    index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                      length, effect, control);
+    if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+      // Check that the {index} is a valid array index, we do the actual
+      // bounds check below and just skip the store below if it's out of
+      // bounds for the {receiver}.
+      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                        jsgraph()->Constant(Smi::kMaxValue),
+                                        effect, control);
+    } else {
+      // Check that the {index} is in the valid range for the {receiver}.
+      DCHECK_EQ(STANDARD_STORE, store_mode);
+      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                        length, effect, control);
+    }
 
     // Load the base and external pointer for the {receiver}.
     Node* base_pointer = effect = graph()->NewNode(
@@ -1030,13 +1043,46 @@ JSNativeContextSpecialization::BuildElementAccess(
         // Ensure that the {value} is actually a Number.
         value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
                                           effect, control);
-        effect = graph()->NewNode(
-            simplified()->StoreTypedElement(external_array_type), buffer,
-            base_pointer, external_pointer, index, value, effect, control);
+
+        // Check if we can skip the out-of-bounds store.
+        if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+          Node* check =
+              graph()->NewNode(simplified()->NumberLessThan(), index, length);
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                          check, control);
+
+          Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+          Node* etrue = effect;
+          {
+            // Perform the actual store.
+            etrue = graph()->NewNode(
+                simplified()->StoreTypedElement(external_array_type), buffer,
+                base_pointer, external_pointer, index, value, etrue, if_true);
+          }
+
+          Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+          Node* efalse = effect;
+          {
+            // Just ignore the out-of-bounds write.
+          }
+
+          control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+          effect =
+              graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+        } else {
+          // Perform the actual store
+          DCHECK_EQ(STANDARD_STORE, store_mode);
+          effect = graph()->NewNode(
+              simplified()->StoreTypedElement(external_array_type), buffer,
+              base_pointer, external_pointer, index, value, effect, control);
+        }
         break;
       }
     }
   } else {
+    // TODO(turbofan): Add support for additional store modes.
+    DCHECK_EQ(STANDARD_STORE, store_mode);
+
     // Load the length of the {receiver}.
     Node* length = effect =
         HasOnlyJSArrayMaps(receiver_maps)
@@ -1066,8 +1112,6 @@ JSNativeContextSpecialization::BuildElementAccess(
                                     kFullWriteBarrier};
 
     // Access the actual element.
-    // TODO(bmeurer): Refactor this into separate methods or even a separate
-    // class that deals with the elements access.
     if (access_mode == AccessMode::kLoad) {
       // Compute the real element access type, which includes the hole in case
       // of holey backing stores.

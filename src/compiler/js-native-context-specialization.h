@@ -109,12 +109,10 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                          AccessMode access_mode);
 
   // Construct the appropriate subgraph for element access.
-  ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
-                                        Node* value, Node* effect,
-                                        Node* control,
-                                        Handle<Context> native_context,
-                                        ElementAccessInfo const& access_info,
-                                        AccessMode access_mode);
+  ValueEffectControl BuildElementAccess(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      Handle<Context> native_context, ElementAccessInfo const& access_info,
+      AccessMode access_mode, KeyedAccessStoreMode store_mode);
 
   // Construct an appropriate map check.
   Node* BuildCheckMaps(Node* receiver, Node* effect, Node* control,
