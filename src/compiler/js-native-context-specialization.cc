@@ -972,13 +972,9 @@ JSNativeContextSpecialization::BuildElementAccess(
   // Don't try to store to a copy-on-write backing store.
   if (access_mode == AccessMode::kStore &&
       IsFastSmiOrObjectElementsKind(elements_kind)) {
-    Node* elements_map = effect =
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                         elements, effect, control);
-    Node* check = graph()->NewNode(
-        simplified()->ReferenceEqual(Type::Any()), elements_map,
-        jsgraph()->HeapConstant(factory()->fixed_array_map()));
-    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+    effect = graph()->NewNode(
+        simplified()->CheckMaps(1), elements,
+        jsgraph()->HeapConstant(factory()->fixed_array_map()), effect, control);
   }
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
