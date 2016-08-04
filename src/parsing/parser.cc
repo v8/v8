@@ -52,6 +52,9 @@ ParseInfo::ParseInfo(Zone* zone)
       unicode_cache_(nullptr),
       stack_limit_(0),
       hash_seed_(0),
+      compiler_hints_(0),
+      start_position_(0),
+      end_position_(0),
       isolate_(nullptr),
       cached_data_(nullptr),
       ast_value_factory_(nullptr),
@@ -70,6 +73,11 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
 
   set_lazy();
   set_hash_seed(isolate_->heap()->HashSeed());
+  set_is_named_expression(shared->is_named_expression());
+  set_calls_eval(shared->scope_info()->CallsEval());
+  set_compiler_hints(shared->compiler_hints());
+  set_start_position(shared->start_position());
+  set_end_position(shared->end_position());
   set_stack_limit(isolate_->stack_guard()->real_climit());
   set_unicode_cache(isolate_->unicode_cache());
   set_language_mode(shared->language_mode());
@@ -96,6 +104,26 @@ ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
   }
 }
 
+bool ParseInfo::is_declaration() const {
+  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsDeclaration)) != 0;
+}
+
+bool ParseInfo::is_arrow() const {
+  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsArrow)) != 0;
+}
+
+bool ParseInfo::is_async() const {
+  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsAsyncFunction)) != 0;
+}
+
+bool ParseInfo::is_default_constructor() const {
+  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsDefaultConstructor)) !=
+         0;
+}
+
+FunctionKind ParseInfo::function_kind() const {
+  return SharedFunctionInfo::FunctionKindBits::decode(compiler_hints_);
+}
 
 FunctionEntry ParseData::GetFunctionEntry(int start) {
   // The current pre-data entry must be a FunctionEntry with the given
@@ -1080,7 +1108,13 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
       stream.reset(new GenericStringUtf16CharacterStream(
           source, shared_info->start_position(), shared_info->end_position()));
     }
-    result = DoParseLazy(isolate, info, stream.get());
+    Handle<String> name(String::cast(shared_info->name()));
+    result = DoParseLazy(isolate, info, ast_value_factory()->GetString(name),
+                         stream.get());
+    if (result != nullptr) {
+      Handle<String> inferred_name(shared_info->inferred_name());
+      result->set_inferred_name(inferred_name);
+    }
   }
 
   if (FLAG_trace_parse && result != NULL) {
@@ -1091,30 +1125,27 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
   return result;
 }
 
-static FunctionLiteral::FunctionType ComputeFunctionType(
-    Handle<SharedFunctionInfo> shared_info) {
-  if (shared_info->is_declaration()) {
+static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
+  if (info->is_declaration()) {
     return FunctionLiteral::kDeclaration;
-  } else if (shared_info->is_named_expression()) {
+  } else if (info->is_named_expression()) {
     return FunctionLiteral::kNamedExpression;
-  } else if (IsConciseMethod(shared_info->kind()) ||
-             IsAccessorFunction(shared_info->kind())) {
+  } else if (IsConciseMethod(info->function_kind()) ||
+             IsAccessorFunction(info->function_kind())) {
     return FunctionLiteral::kAccessorOrMethod;
   }
   return FunctionLiteral::kAnonymousExpression;
 }
 
 FunctionLiteral* Parser::DoParseLazy(Isolate* isolate, ParseInfo* info,
+                                     const AstRawString* raw_name,
                                      Utf16CharacterStream* source) {
-  Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
   DCHECK_NULL(scope_state_);
   DCHECK_NULL(target_stack_);
 
-  Handle<String> name(String::cast(shared_info->name()));
   DCHECK(ast_value_factory());
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
-  const AstRawString* raw_name = ast_value_factory()->GetString(name);
   fni_->PushEnclosingName(raw_name);
 
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
@@ -1127,16 +1158,14 @@ FunctionLiteral* Parser::DoParseLazy(Isolate* isolate, ParseInfo* info,
     Scope* scope = original_scope_;
     DCHECK(scope);
     FunctionState function_state(&function_state_, &scope_state_, scope,
-                                 shared_info->kind());
+                                 info->function_kind());
     DCHECK(is_sloppy(scope->language_mode()) ||
            is_strict(info->language_mode()));
-    DCHECK(info->language_mode() == shared_info->language_mode());
-    FunctionLiteral::FunctionType function_type =
-        ComputeFunctionType(shared_info);
+    FunctionLiteral::FunctionType function_type = ComputeFunctionType(info);
     bool ok = true;
 
-    if (shared_info->is_arrow()) {
-      bool is_async = allow_harmony_async_await() && shared_info->is_async();
+    if (info->is_arrow()) {
+      bool is_async = allow_harmony_async_await() && info->is_async();
       if (is_async) {
         DCHECK(!scanner()->HasAnyLineTerminatorAfterNext());
         if (!Check(Token::ASYNC)) {
@@ -1156,12 +1185,12 @@ FunctionLiteral* Parser::DoParseLazy(Isolate* isolate, ParseInfo* info,
       // not passing the ScopeInfo to the Scope constructor.
       // TODO(adamk): Remove these calls once the above NewScope call
       // passes the ScopeInfo.
-      if (shared_info->scope_info()->CallsEval()) {
+      if (info->calls_eval()) {
         scope->RecordEvalCall();
       }
-      SetLanguageMode(scope, shared_info->language_mode());
+      SetLanguageMode(scope, info->language_mode());
 
-      scope->set_start_position(shared_info->start_position());
+      scope->set_start_position(info->start_position());
       ExpressionClassifier formals_classifier(this);
       ParserFormalParameters formals(scope);
       Checkpoint checkpoint(this);
@@ -1197,7 +1226,7 @@ FunctionLiteral* Parser::DoParseLazy(Isolate* isolate, ParseInfo* info,
           // concise body happens to be a valid expression. This is a problem
           // only for arrow functions with single expression bodies, since there
           // is no end token such as "}" for normal functions.
-          if (scanner()->location().end_pos == shared_info->end_position()) {
+          if (scanner()->location().end_pos == info->end_position()) {
             // The pre-parser saw an arrow function here, so the full parser
             // must produce a FunctionLiteral.
             DCHECK(expression->IsFunctionLiteral());
@@ -1207,17 +1236,16 @@ FunctionLiteral* Parser::DoParseLazy(Isolate* isolate, ParseInfo* info,
           }
         }
       }
-    } else if (shared_info->is_default_constructor()) {
+    } else if (info->is_default_constructor()) {
       DCHECK_EQ(this->scope(), scope);
       result = DefaultConstructor(
-          raw_name, IsSubclassConstructor(shared_info->kind()),
-          shared_info->start_position(), shared_info->end_position(),
-          shared_info->language_mode());
+          raw_name, IsSubclassConstructor(info->function_kind()),
+          info->start_position(), info->end_position(), info->language_mode());
     } else {
       result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
-                                    kSkipFunctionNameCheck, shared_info->kind(),
-                                    kNoSourcePosition, function_type,
-                                    shared_info->language_mode(), &ok);
+                                    kSkipFunctionNameCheck,
+                                    info->function_kind(), kNoSourcePosition,
+                                    function_type, info->language_mode(), &ok);
     }
     // Make sure the results agree.
     DCHECK(ok == (result != nullptr));
@@ -1225,11 +1253,6 @@ FunctionLiteral* Parser::DoParseLazy(Isolate* isolate, ParseInfo* info,
 
   // Make sure the target stack is empty.
   DCHECK_NULL(target_stack_);
-
-  if (result != nullptr) {
-    Handle<String> inferred_name(shared_info->inferred_name());
-    result->set_inferred_name(inferred_name);
-  }
   return result;
 }
 
