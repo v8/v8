@@ -228,21 +228,22 @@ bool IsErrorObject(Isolate* isolate, Handle<Object> object) {
       .FromMaybe(false);
 }
 
+Handle<String> AsStringOrEmpty(Isolate* isolate, Handle<Object> object) {
+  return object->IsString() ? Handle<String>::cast(object)
+                            : isolate->factory()->empty_string();
+}
+
 Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
                                           Handle<Object> input) {
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(input);
 
   Handle<Name> name_key = isolate->factory()->name_string();
   Handle<Object> name = JSReceiver::GetDataProperty(receiver, name_key);
-  Handle<String> name_str = (name->IsUndefined(isolate))
-                                ? isolate->factory()->Error_string()
-                                : Object::NoSideEffectsToString(isolate, name);
+  Handle<String> name_str = AsStringOrEmpty(isolate, name);
 
   Handle<Name> msg_key = isolate->factory()->message_string();
   Handle<Object> msg = JSReceiver::GetDataProperty(receiver, msg_key);
-  Handle<String> msg_str = (msg->IsUndefined(isolate))
-                               ? isolate->factory()->empty_string()
-                               : Object::NoSideEffectsToString(isolate, msg);
+  Handle<String> msg_str = AsStringOrEmpty(isolate, msg);
 
   if (name_str->length() == 0) return msg_str;
   if (msg_str->length() == 0) return name_str;
@@ -321,7 +322,7 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
         } else if (ctor->IsJSFunction()) {
           Handle<Object> ctor_name_obj =
               JSFunction::GetName(isolate, Handle<JSFunction>::cast(ctor));
-          ctor_name = NoSideEffectsToString(isolate, ctor_name_obj);
+          ctor_name = AsStringOrEmpty(isolate, ctor_name_obj);
         }
 
         if (ctor_name->length() != 0) {
