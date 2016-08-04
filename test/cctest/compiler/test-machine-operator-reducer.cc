@@ -26,6 +26,12 @@ const Operator* NewConstantOperator<int32_t>(CommonOperatorBuilder* common,
 }
 
 template <>
+const Operator* NewConstantOperator<int64_t>(CommonOperatorBuilder* common,
+                                             volatile int64_t value) {
+  return common->Int64Constant(value);
+}
+
+template <>
 const Operator* NewConstantOperator<double>(CommonOperatorBuilder* common,
                                             volatile double value) {
   return common->Float64Constant(value);
@@ -39,6 +45,12 @@ template <>
 int32_t ValueOfOperator<int32_t>(const Operator* op) {
   CHECK_EQ(IrOpcode::kInt32Constant, op->opcode());
   return OpParameter<int32_t>(op);
+}
+
+template <>
+int64_t ValueOfOperator<int64_t>(const Operator* op) {
+  CHECK_EQ(IrOpcode::kInt64Constant, op->opcode());
+  return OpParameter<int64_t>(op);
 }
 
 template <>
@@ -315,6 +327,24 @@ TEST(ReduceWord32Shl) {
   R.CheckBinop(x, x, zero);  // x << 0  => x
 }
 
+TEST(ReduceWord64Shl) {
+  ReducerTester R;
+  R.binop = R.machine.Word64Shl();
+
+  FOR_INT64_INPUTS(i) {
+    for (int64_t y = 0; y < 64; y++) {
+      int64_t x = *i;
+      R.CheckFoldBinop<int64_t>(x << y, x, y);
+    }
+  }
+
+  R.CheckDontPutConstantOnRight(44);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+
+  R.CheckBinop(x, x, zero);  // x << 0  => x
+}
 
 TEST(ReduceWord32Shr) {
   ReducerTester R;
@@ -336,6 +366,24 @@ TEST(ReduceWord32Shr) {
   R.CheckBinop(x, x, zero);  // x >>> 0  => x
 }
 
+TEST(ReduceWord64Shr) {
+  ReducerTester R;
+  R.binop = R.machine.Word64Shr();
+
+  FOR_UINT64_INPUTS(i) {
+    for (uint64_t y = 0; y < 64; y++) {
+      uint64_t x = *i;
+      R.CheckFoldBinop<int64_t>(x >> y, x, y);
+    }
+  }
+
+  R.CheckDontPutConstantOnRight(44);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+
+  R.CheckBinop(x, x, zero);  // x >>> 0  => x
+}
 
 TEST(ReduceWord32Sar) {
   ReducerTester R;
@@ -357,6 +405,24 @@ TEST(ReduceWord32Sar) {
   R.CheckBinop(x, x, zero);  // x >> 0  => x
 }
 
+TEST(ReduceWord64Sar) {
+  ReducerTester R;
+  R.binop = R.machine.Word64Sar();
+
+  FOR_INT64_INPUTS(i) {
+    for (int64_t y = 0; y < 64; y++) {
+      int64_t x = *i;
+      R.CheckFoldBinop<int64_t>(x >> y, x, y);
+    }
+  }
+
+  R.CheckDontPutConstantOnRight(44);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+
+  R.CheckBinop(x, x, zero);  // x >> 0  => x
+}
 
 static void CheckJsShift(ReducerTester* R) {
   CHECK(R->machine.Word32ShiftIsSafe());
@@ -433,6 +499,24 @@ TEST(ReduceInt32Add) {
   R.CheckBinop(x, zero, x);  // 0 + x  => x
 }
 
+TEST(ReduceInt64Add) {
+  ReducerTester R;
+  R.binop = R.machine.Int64Add();
+
+  FOR_INT64_INPUTS(pl) {
+    FOR_INT64_INPUTS(pr) {
+      int64_t x = *pl, y = *pr;
+      R.CheckFoldBinop<int64_t>(x + y, x, y);
+    }
+  }
+
+  R.CheckPutConstantOnRight(41);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+  R.CheckBinop(x, x, zero);  // x + 0 => x
+  R.CheckBinop(x, zero, x);  // 0 + x => x
+}
 
 TEST(ReduceInt32Sub) {
   ReducerTester R;
@@ -453,6 +537,30 @@ TEST(ReduceInt32Sub) {
   R.CheckBinop(x, x, zero);  // x - 0  => x
 }
 
+TEST(ReduceInt64Sub) {
+  ReducerTester R;
+  R.binop = R.machine.Int64Sub();
+
+  FOR_INT64_INPUTS(pl) {
+    FOR_INT64_INPUTS(pr) {
+      int64_t x = *pl, y = *pr;
+      R.CheckFoldBinop<int64_t>(x - y, x, y);
+    }
+  }
+
+  R.CheckDontPutConstantOnRight(42);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+
+  R.CheckBinop(x, x, zero);            // x - 0 => x
+  R.CheckFoldBinop<int64_t>(0, x, x);  // x - x => 0
+
+  Node* k = R.Constant<int64_t>(6);
+
+  R.CheckFoldBinop<int64_t>(x, R.machine.Int64Add(), -6, x,
+                            k);  // x - K => x + -K
+}
 
 TEST(ReduceInt32Mul) {
   ReducerTester R;
@@ -717,13 +825,8 @@ TEST(ReduceLoadStore) {
 // TODO(titzer): test MachineOperatorReducer for Word64And
 // TODO(titzer): test MachineOperatorReducer for Word64Or
 // TODO(titzer): test MachineOperatorReducer for Word64Xor
-// TODO(titzer): test MachineOperatorReducer for Word64Shl
-// TODO(titzer): test MachineOperatorReducer for Word64Shr
-// TODO(titzer): test MachineOperatorReducer for Word64Sar
 // TODO(titzer): test MachineOperatorReducer for Word64Equal
 // TODO(titzer): test MachineOperatorReducer for Word64Not
-// TODO(titzer): test MachineOperatorReducer for Int64Add
-// TODO(titzer): test MachineOperatorReducer for Int64Sub
 // TODO(titzer): test MachineOperatorReducer for Int64Mul
 // TODO(titzer): test MachineOperatorReducer for Int64UMul
 // TODO(titzer): test MachineOperatorReducer for Int64Div
