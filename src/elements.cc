@@ -2551,6 +2551,12 @@ class TypedElementsAccessor
       return Just(false);
     }
 
+    // Prototype has no elements, and not searching for the hole --- limit
+    // search to backing store length.
+    if (static_cast<uint32_t>(elements->length()) < length) {
+      length = elements->length();
+    }
+
     if (!std::isnan(search_value)) {
       for (uint32_t k = start_from; k < length; ++k) {
         double element_k = elements->get_scalar(k);
