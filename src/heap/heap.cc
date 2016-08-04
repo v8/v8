@@ -3373,6 +3373,8 @@ AllocationResult Heap::CopyCode(Code* code) {
   // We have to iterate over the object and process its pointers when black
   // allocation is on.
   incremental_marking()->IterateBlackObject(new_code);
+  // Record all references to embedded objects in the new code object.
+  RecordWritesIntoCode(new_code);
   return new_code;
 }
 
@@ -5788,6 +5790,13 @@ void Heap::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
       source_page, reinterpret_cast<Address>(host), slot_type, addr);
 }
 
+void Heap::RecordWritesIntoCode(Code* code) {
+  for (RelocIterator it(code, RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
+       !it.done(); it.next()) {
+    RecordWriteIntoCode(code, it.rinfo(), it.rinfo()->target_object());
+  }
+}
+
 Space* AllSpaces::next() {
   switch (counter_++) {
     case NEW_SPACE:
@@ -5804,7 +5813,6 @@ Space* AllSpaces::next() {
       return NULL;
   }
 }
-
 
 PagedSpace* PagedSpaces::next() {
   switch (counter_++) {

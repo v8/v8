@@ -1129,6 +1129,7 @@ class Heap {
   inline void RecordWrite(Object* object, int offset, Object* o);
   inline void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* target);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* target);
+  void RecordWritesIntoCode(Code* code);
   inline void RecordFixedArrayElements(FixedArray* array, int offset,
                                        int length);
 

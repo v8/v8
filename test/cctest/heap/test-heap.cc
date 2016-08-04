@@ -99,6 +99,48 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   CHECK(String::cast(*print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
+void CheckEmbeddedObjectsAreEqual(Handle<Code> lhs, Handle<Code> rhs) {
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  RelocIterator lhs_it(*lhs, mode_mask);
+  RelocIterator rhs_it(*rhs, mode_mask);
+  while (!lhs_it.done() && !rhs_it.done()) {
+    CHECK(lhs_it.rinfo()->target_object() == rhs_it.rinfo()->target_object());
+
+    lhs_it.next();
+    rhs_it.next();
+  }
+  CHECK(lhs_it.done() == rhs_it.done());
+}
+
+HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  HandleScope sc(isolate);
+
+  Handle<Object> value = factory->NewNumber(1.000123);
+  CHECK(heap->InNewSpace(*value));
+
+  i::byte buffer[i::Assembler::kMinimalBufferSize];
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
+  // Add a new-space reference to the code.
+  masm.Push(value);
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  Code* tmp = nullptr;
+  heap->CopyCode(*code).To(&tmp);
+  Handle<Code> copy(tmp);
+
+  CheckEmbeddedObjectsAreEqual(code, copy);
+  heap->CollectAllAvailableGarbage();
+  CheckEmbeddedObjectsAreEqual(code, copy);
+}
 
 static void CheckFindCodeObject(Isolate* isolate) {
   // Test FindCodeObject
