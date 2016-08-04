@@ -2003,6 +2003,7 @@
       ],
       'include_dirs+': [
         '..',
+        '<(DEPTH)',
         '../include',
       ],
       'sources': [
