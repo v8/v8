@@ -89,7 +89,7 @@ class Deserializer : public SerializerDeserializer {
   void DeserializeDeferredObjects();
 
   void FlushICacheForNewIsolate();
-  void FlushICacheForNewCodeObjects();
+  void FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
 
   void CommitPostProcessedObjects(Isolate* isolate);
 

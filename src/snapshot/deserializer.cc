@@ -37,9 +37,12 @@ void Deserializer::FlushICacheForNewIsolate() {
   }
 }
 
-void Deserializer::FlushICacheForNewCodeObjects() {
+void Deserializer::FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects() {
   DCHECK(deserializing_user_code_);
   for (Code* code : new_code_objects_) {
+    // Record all references to embedded objects in the new code object.
+    isolate_->heap()->RecordWritesIntoCode(code);
+
     if (FLAG_serialize_age_code) code->PreAge(isolate_);
     Assembler::FlushICache(isolate_, code->instruction_start(),
                            code->instruction_size());
@@ -147,7 +150,7 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
       Object* root;
       VisitPointer(&root);
       DeserializeDeferredObjects();
-      FlushICacheForNewCodeObjects();
+      FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
       result = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
       isolate->heap()->RegisterReservationsForBlackAllocation(reservations_);
     }
