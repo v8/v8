@@ -327,12 +327,10 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
   // check the type of the imported exported function, it should be also a WASM
   // function in our case
   Handle<Code> imported_fct;
-  Code::Kind target_kind;
-  if (type->value() == 0) {
-    target_kind = Code::WASM_FUNCTION;
-  } else if (type->value() == 1) {
-    target_kind = Code::WASM_TO_JS_FUNCTION;
-  }
+  CHECK(type->value() == 0 || type->value() == 1);
+
+  Code::Kind target_kind =
+      type->value() == 0 ? Code::WASM_FUNCTION : Code::WASM_TO_JS_FUNCTION;
   count = 0;
   for (RelocIterator it(*intermediate_fct, mask); !it.done(); it.next()) {
     RelocInfo* rinfo = it.rinfo();
