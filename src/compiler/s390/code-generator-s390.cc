@@ -989,16 +989,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_And:
       ASSEMBLE_BINOP(AndP, AndP);
       break;
-    case kS390_AndComplement:
-      __ NotP(i.InputRegister(1));
-      __ AndP(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      break;
     case kS390_Or:
       ASSEMBLE_BINOP(OrP, OrP);
-      break;
-    case kS390_OrComplement:
-      __ NotP(i.InputRegister(1));
-      __ OrP(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kS390_Xor:
       ASSEMBLE_BINOP(XorP, XorP);

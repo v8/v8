@@ -422,52 +422,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
        g.UseOperand(length, kInt16Imm_Unsigned), g.UseRegister(value));
 }
 
-template <typename Matcher>
-static void VisitLogical(InstructionSelector* selector, Node* node, Matcher* m,
-                         ArchOpcode opcode, bool left_can_cover,
-                         bool right_can_cover, ImmediateMode imm_mode) {
-  S390OperandGenerator g(selector);
-
-  // Map instruction to equivalent operation with inverted right input.
-  ArchOpcode inv_opcode = opcode;
-  switch (opcode) {
-    case kS390_And:
-      inv_opcode = kS390_AndComplement;
-      break;
-    case kS390_Or:
-      inv_opcode = kS390_OrComplement;
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  // Select Logical(y, ~x) for Logical(Xor(x, -1), y).
-  if ((m->left().IsWord32Xor() || m->left().IsWord64Xor()) && left_can_cover) {
-    Matcher mleft(m->left().node());
-    if (mleft.right().Is(-1)) {
-      selector->Emit(inv_opcode, g.DefineAsRegister(node),
-                     g.UseRegister(m->right().node()),
-                     g.UseRegister(mleft.left().node()));
-      return;
-    }
-  }
-
-  // Select Logical(x, ~y) for Logical(x, Xor(y, -1)).
-  if ((m->right().IsWord32Xor() || m->right().IsWord64Xor()) &&
-      right_can_cover) {
-    Matcher mright(m->right().node());
-    if (mright.right().Is(-1)) {
-      // TODO(all): support shifted operand on right.
-      selector->Emit(inv_opcode, g.DefineAsRegister(node),
-                     g.UseRegister(m->left().node()),
-                     g.UseRegister(mright.left().node()));
-      return;
-    }
-  }
-
-  VisitBinop<Matcher>(selector, node, opcode, imm_mode);
-}
-
 static inline bool IsContiguousMask32(uint32_t value, int* mb, int* me) {
   int mask_width = base::bits::CountPopulation32(value);
   int mask_msb = base::bits::CountLeadingZeros32(value);
@@ -523,9 +477,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
       return;
     }
   }
-  VisitLogical<Int32BinopMatcher>(
-      this, node, &m, kS390_And, CanCover(node, m.left().node()),
-      CanCover(node, m.right().node()), kInt16Imm_Unsigned);
+  VisitBinop<Int32BinopMatcher>(this, node, kS390_And, kInt16Imm_Unsigned);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -577,25 +529,19 @@ void InstructionSelector::VisitWord64And(Node* node) {
       }
     }
   }
-  VisitLogical<Int64BinopMatcher>(
-      this, node, &m, kS390_And, CanCover(node, m.left().node()),
-      CanCover(node, m.right().node()), kInt16Imm_Unsigned);
+  VisitBinop<Int64BinopMatcher>(this, node, kS390_And, kInt16Imm_Unsigned);
 }
 #endif
 
 void InstructionSelector::VisitWord32Or(Node* node) {
   Int32BinopMatcher m(node);
-  VisitLogical<Int32BinopMatcher>(
-      this, node, &m, kS390_Or, CanCover(node, m.left().node()),
-      CanCover(node, m.right().node()), kInt16Imm_Unsigned);
+  VisitBinop<Int32BinopMatcher>(this, node, kS390_Or, kInt16Imm_Unsigned);
 }
 
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitWord64Or(Node* node) {
   Int64BinopMatcher m(node);
-  VisitLogical<Int64BinopMatcher>(
-      this, node, &m, kS390_Or, CanCover(node, m.left().node()),
-      CanCover(node, m.right().node()), kInt16Imm_Unsigned);
+  VisitBinop<Int64BinopMatcher>(this, node, kS390_Or, kInt16Imm_Unsigned);
 }
 #endif
 

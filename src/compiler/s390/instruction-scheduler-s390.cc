@@ -14,9 +14,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   switch (instr->arch_opcode()) {
     case kS390_And:
-    case kS390_AndComplement:
     case kS390_Or:
-    case kS390_OrComplement:
     case kS390_Xor:
     case kS390_ShiftLeft32:
     case kS390_ShiftLeft64:

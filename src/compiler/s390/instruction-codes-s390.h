@@ -13,9 +13,7 @@ namespace compiler {
 // Most opcodes specify a single instruction.
 #define TARGET_ARCH_OPCODE_LIST(V) \
   V(S390_And)                      \
-  V(S390_AndComplement)            \
   V(S390_Or)                       \
-  V(S390_OrComplement)             \
   V(S390_Xor)                      \
   V(S390_ShiftLeft32)              \
   V(S390_ShiftLeft64)              \
