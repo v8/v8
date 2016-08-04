@@ -689,8 +689,6 @@ class MarkCompactCollector {
   bool VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
                         IterationMode mode);
 
-  void VisitLiveObjectsBody(Page* page, ObjectVisitor* visitor);
-
   void RecomputeLiveBytes(MemoryChunk* page);
 
   void ReleaseEvacuationCandidates();

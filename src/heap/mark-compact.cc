@@ -3522,23 +3522,6 @@ void MarkCompactCollector::RecomputeLiveBytes(MemoryChunk* page) {
   page->SetLiveBytes(new_live_size);
 }
 
-
-void MarkCompactCollector::VisitLiveObjectsBody(Page* page,
-                                                ObjectVisitor* visitor) {
-#ifdef VERIFY_HEAP
-  VerifyAllBlackObjects(page);
-#endif  // VERIFY_HEAP
-
-  LiveObjectIterator<kBlackObjects> it(page);
-  HeapObject* object = NULL;
-  while ((object = it.Next()) != NULL) {
-    DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
-    Map* map = object->synchronized_map();
-    int size = object->SizeFromMap(map);
-    object->IterateBody(map->instance_type(), size, visitor);
-  }
-}
-
 void MarkCompactCollector::Sweeper::AddSweptPageSafe(PagedSpace* space,
                                                      Page* page) {
   base::LockGuard<base::Mutex> guard(&mutex_);
