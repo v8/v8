@@ -107,7 +107,8 @@ void JSONTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
       stream_ << ",\"scope\":\"" << trace_event->scope() << "\"";
     }
     // So as not to lose bits from a 64-bit integer, output as a hex string.
-    stream_ << ",\"id\":\"0x" << std::hex << trace_event->id() << "\"";
+    stream_ << ",\"id\":\"0x" << std::hex << trace_event->id() << "\""
+            << std::dec;
   }
   stream_ << ",\"args\":{";
   const char** arg_names = trace_event->arg_names();
