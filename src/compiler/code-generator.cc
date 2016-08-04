@@ -228,10 +228,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
             HandlerTable::LengthForReturn(static_cast<int>(handlers_.size())),
             TENURED));
     for (size_t i = 0; i < handlers_.size(); ++i) {
-      int position = handlers_[i].handler->pos();
-      HandlerTable::CatchPrediction prediction = HandlerTable::UNCAUGHT;
       table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
-      table->SetReturnHandler(static_cast<int>(i), position, prediction);
+      table->SetReturnHandler(static_cast<int>(i), handlers_[i].handler->pos());
     }
     result->set_handler_table(*table);
   }
