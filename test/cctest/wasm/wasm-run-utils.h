@@ -211,10 +211,16 @@ class TestingModule : public ModuleEnv {
     WasmJs::InstallWasmFunctionMap(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
         compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
+    FunctionSig* funcSig = this->module->functions[index].sig;
+    Handle<ByteArray> exportedSig = isolate_->factory()->NewByteArray(
+        static_cast<int>(funcSig->parameter_count() + funcSig->return_count()),
+        TENURED);
+    exportedSig->copy_in(0, reinterpret_cast<const byte*>(funcSig->raw_data()),
+                         exportedSig->length());
     Handle<JSFunction> ret = WrapExportCodeAsJSFunction(
         isolate_, ret_code, name,
         static_cast<int>(this->module->functions[index].sig->parameter_count()),
-        module_object);
+        exportedSig, module_object);
     return ret;
   }
 

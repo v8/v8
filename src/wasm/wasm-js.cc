@@ -546,9 +546,12 @@ void WasmJs::InstallWasmFunctionMap(Isolate* isolate, Handle<Context> context) {
     CHECK_EQ(0, internal_fields);
     int pre_allocated =
         prev_map->GetInObjectProperties() - prev_map->unused_property_fields();
-    int instance_size;
-    int in_object_properties;
-    JSFunction::CalculateInstanceSizeHelper(instance_type, internal_fields + 1,
+    int instance_size = 0;
+    int in_object_properties = 0;
+    int wasm_internal_fields = internal_fields + 1  // module instance object
+                               + 1                  // function arity
+                               + 1;                 // function signature
+    JSFunction::CalculateInstanceSizeHelper(instance_type, wasm_internal_fields,
                                             0, &instance_size,
                                             &in_object_properties);
 

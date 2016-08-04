@@ -371,6 +371,7 @@ int GetNumberOfFunctions(JSObject* wasm);
 Handle<JSFunction> WrapExportCodeAsJSFunction(Isolate* isolate,
                                               Handle<Code> export_code,
                                               Handle<String> name, int arity,
+                                              MaybeHandle<ByteArray> signature,
                                               Handle<JSObject> module_instance);
 
 // Check whether the given object is a wasm object.

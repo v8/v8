@@ -282,6 +282,70 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionTypeFeedback) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
+  // This only supports the case where the function being exported
+  // calls an intermediate function, and the intermediate function
+  // calls exactly one imported function
+  HandleScope scope(isolate);
+  CHECK(args.length() == 2);
+  // It takes two parameters, the first one is the JSFunction,
+  // The second one is the type
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  // If type is 0, it means that it is supposed to be a direct call into a WASM
+  // function
+  // If type is 1, it means that it is supposed to have wrappers
+  CONVERT_ARG_HANDLE_CHECKED(Smi, type, 1);
+  Handle<Code> export_code = handle(function->code());
+  CHECK(export_code->kind() == Code::JS_TO_WASM_FUNCTION);
+  int const mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+  // check the type of the $export_fct
+  Handle<Code> export_fct;
+  int count = 0;
+  for (RelocIterator it(*export_code, mask); !it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    Address target_address = rinfo->target_address();
+    Code* target = Code::GetCodeFromTargetAddress(target_address);
+    if (target->kind() == Code::WASM_FUNCTION) {
+      ++count;
+      export_fct = handle(target);
+    }
+  }
+  CHECK(count == 1);
+  // check the type of the intermediate_fct
+  Handle<Code> intermediate_fct;
+  count = 0;
+  for (RelocIterator it(*export_fct, mask); !it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    Address target_address = rinfo->target_address();
+    Code* target = Code::GetCodeFromTargetAddress(target_address);
+    if (target->kind() == Code::WASM_FUNCTION) {
+      ++count;
+      intermediate_fct = handle(target);
+    }
+  }
+  CHECK(count == 1);
+  // check the type of the imported exported function, it should be also a WASM
+  // function in our case
+  Handle<Code> imported_fct;
+  Code::Kind target_kind;
+  if (type->value() == 0) {
+    target_kind = Code::WASM_FUNCTION;
+  } else if (type->value() == 1) {
+    target_kind = Code::WASM_TO_JS_FUNCTION;
+  }
+  count = 0;
+  for (RelocIterator it(*intermediate_fct, mask); !it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    Address target_address = rinfo->target_address();
+    Code* target = Code::GetCodeFromTargetAddress(target_address);
+    if (target->kind() == target_kind) {
+      ++count;
+      imported_fct = handle(target);
+    }
+  }
+  CHECK_LE(count, 1);
+  return isolate->heap()->ToBoolean(count == 1);
+}
 
 RUNTIME_FUNCTION(Runtime_NotifyContextDisposed) {
   HandleScope scope(isolate);

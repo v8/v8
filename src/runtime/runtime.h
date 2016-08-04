@@ -845,6 +845,7 @@ namespace internal {
   F(GetOptimizationCount, 1, 1)               \
   F(GetUndetectable, 0, 1)                    \
   F(ClearFunctionTypeFeedback, 1, 1)          \
+  F(CheckWasmWrapperElision, 2, 1)            \
   F(NotifyContextDisposed, 0, 1)              \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
   F(DebugPrint, 1, 1)                         \

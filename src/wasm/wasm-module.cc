@@ -25,6 +25,12 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+enum JSFunctionExportInternalField {
+  kInternalModuleInstance,
+  kInternalArity,
+  kInternalSignature
+};
+
 static const int kPlaceholderMarker = 1000000000;
 
 static const char* wasmSections[] = {
@@ -116,7 +122,7 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& pair) {
 
 Handle<JSFunction> WrapExportCodeAsJSFunction(
     Isolate* isolate, Handle<Code> export_code, Handle<String> name, int arity,
-    Handle<JSObject> module_instance) {
+    MaybeHandle<ByteArray> maybe_signature, Handle<JSObject> module_instance) {
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfo(name, export_code, false);
   shared->set_length(arity);
@@ -125,7 +131,14 @@ Handle<JSFunction> WrapExportCodeAsJSFunction(
       isolate->wasm_function_map(), name, export_code);
   function->set_shared(*shared);
 
-  function->SetInternalField(0, *module_instance);
+  function->SetInternalField(kInternalModuleInstance, *module_instance);
+  // add another Internal Field as the function arity
+  function->SetInternalField(kInternalArity, Smi::FromInt(arity));
+  // add another Internal Field as the signature of the foreign function
+  Handle<ByteArray> signature;
+  if (maybe_signature.ToHandle(&signature)) {
+    function->SetInternalField(kInternalSignature, *signature);
+  }
   return function;
 }
 
@@ -183,6 +196,7 @@ enum WasmExportMetadata {
   kExportName,                  // String
   kExportArity,                 // Smi, an int
   kExportedFunctionIndex,       // Smi, an uint32_t
+  kExportedSignature,           // ByteArray. A copy of the data in FunctionSig
   kWasmExportMetadataTableSize  // Sentinel value.
 };
 
@@ -648,8 +662,37 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate,
       MaybeHandle<JSFunction> function = LookupFunction(
           *thrower, isolate->factory(), ffi, index, module_name, function_name);
       if (function.is_null()) return false;
-
-      {
+      Handle<Code> code;
+      Handle<JSFunction> func = function.ToHandleChecked();
+      Handle<Code> export_wrapper_code = handle(func->code());
+      bool isMatch = false;
+      if (export_wrapper_code->kind() == Code::JS_TO_WASM_FUNCTION) {
+        int exported_param_count =
+            Smi::cast(func->GetInternalField(kInternalArity))->value();
+        Handle<ByteArray> exportedSig = Handle<ByteArray>(
+            ByteArray::cast(func->GetInternalField(kInternalSignature)));
+        if (exported_param_count == param_count &&
+            exportedSig->length() == sig_data->length() &&
+            memcmp(exportedSig->data(), sig_data->data(),
+                   exportedSig->length()) == 0) {
+          isMatch = true;
+        }
+      }
+      if (isMatch) {
+        int wasm_count = 0;
+        int const mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+        for (RelocIterator it(*export_wrapper_code, mask); !it.done();
+             it.next()) {
+          RelocInfo* rinfo = it.rinfo();
+          Address target_address = rinfo->target_address();
+          Code* target = Code::GetCodeFromTargetAddress(target_address);
+          if (target->kind() == Code::WASM_FUNCTION) {
+            ++wasm_count;
+            code = handle(target);
+          }
+        }
+        DCHECK(wasm_count == 1);
+      } else {
         // Copy the signature to avoid a raw pointer into a heap object when
         // GC can happen.
         Zone zone(isolate->allocator());
@@ -659,12 +702,10 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate,
                sizeof(MachineRepresentation) * sig_data_size);
         FunctionSig sig(ret_count, param_count, reps);
 
-        Handle<Code> code = compiler::CompileWasmToJSWrapper(
-            isolate, function.ToHandleChecked(), &sig, index, module_name,
-            function_name);
-
-        imports.push_back(code);
+        code = compiler::CompileWasmToJSWrapper(isolate, func, &sig, index,
+                                                module_name, function_name);
       }
+      imports.push_back(code);
     }
   }
   return true;
@@ -969,8 +1010,10 @@ bool SetupExportsObject(Handle<FixedArray> compiled_module, Isolate* isolate,
         Handle<String> name =
             export_metadata->GetValueChecked<String>(isolate, kExportName);
         int arity = Smi::cast(export_metadata->get(kExportArity))->value();
+        MaybeHandle<ByteArray> signature =
+            export_metadata->GetValue<ByteArray>(isolate, kExportedSignature);
         Handle<JSFunction> function = WrapExportCodeAsJSFunction(
-            isolate, export_code, name, arity, instance);
+            isolate, export_code, name, arity, signature, instance);
         desc.set_value(function);
         Maybe<bool> status = JSReceiver::DefineOwnProperty(
             isolate, exports_object, name, &desc, Object::THROW_ON_ERROR);
@@ -1081,6 +1124,15 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(
       Handle<FixedArray> export_metadata =
           factory->NewFixedArray(kWasmExportMetadataTableSize, TENURED);
       const WasmExport& exp = export_table[i];
+      FunctionSig* funcSig = functions[exp.func_index].sig;
+      Handle<ByteArray> exportedSig =
+          factory->NewByteArray(static_cast<int>(funcSig->parameter_count() +
+                                                 funcSig->return_count()),
+                                TENURED);
+      exportedSig->copy_in(0,
+                           reinterpret_cast<const byte*>(funcSig->raw_data()),
+                           exportedSig->length());
+      export_metadata->set(kExportedSignature, *exportedSig);
       WasmName str = GetName(exp.name_offset, exp.name_length);
       Handle<String> name = factory->InternalizeUtf8String(str);
       Handle<Code> code =
@@ -1333,9 +1385,11 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
     Handle<Code> startup_code =
         metadata->GetValueChecked<Code>(isolate, kExportCode);
     int arity = Smi::cast(metadata->get(kExportArity))->value();
+    MaybeHandle<ByteArray> startup_signature =
+        metadata->GetValue<ByteArray>(isolate, kExportedSignature);
     Handle<JSFunction> startup_fct = WrapExportCodeAsJSFunction(
         isolate, startup_code, factory->InternalizeUtf8String("start"), arity,
-        js_object);
+        startup_signature, js_object);
     RecordStats(isolate, *startup_code);
     // Call the JS function.
     Handle<Object> undefined = isolate->factory()->undefined_value();
