@@ -321,8 +321,7 @@ var kTrapRemByZero            = 4;
 var kTrapFloatUnrepresentable = 5;
 var kTrapFuncInvalid          = 6;
 var kTrapFuncSigMismatch      = 7;
-var kTrapMemAllocationFail    = 8;
-var kTrapInvalidIndex         = 9;
+var kTrapInvalidIndex         = 8;
 
 var kTrapMsgs = [
   "unreachable",
@@ -333,7 +332,6 @@ var kTrapMsgs = [
   "integer result unrepresentable",
   "invalid function",
   "function signature mismatch",
-  "failed to allocate memory",
   "invalid index into function table"
 ];
 

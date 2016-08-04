@@ -58,15 +58,13 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
     // TODO(gdeepti): Fix bounds check to take into account size of memtype.
     new_size = delta_pages * wasm::WasmModule::kPageSize;
     if (delta_pages > wasm::WasmModule::kMaxMemPages) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewRangeError(MessageTemplate::kWasmTrapMemOutOfBounds));
+      return *isolate->factory()->NewNumberFromInt(-1);
     }
     new_mem_start =
         static_cast<Address>(isolate->array_buffer_allocator()->Allocate(
             static_cast<uint32_t>(new_size)));
     if (new_mem_start == NULL) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewRangeError(MessageTemplate::kWasmTrapMemAllocationFail));
+      return *isolate->factory()->NewNumberFromInt(-1);
     }
 #if DEBUG
     // Double check the API allocator actually zero-initialized the memory.
@@ -86,13 +84,11 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
     new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
     if (new_size >
         wasm::WasmModule::kMaxMemPages * wasm::WasmModule::kPageSize) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewRangeError(MessageTemplate::kWasmTrapMemOutOfBounds));
+      return *isolate->factory()->NewNumberFromInt(-1);
     }
     new_mem_start = static_cast<Address>(realloc(old_mem_start, new_size));
     if (new_mem_start == NULL) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewRangeError(MessageTemplate::kWasmTrapMemAllocationFail));
+      return *isolate->factory()->NewNumberFromInt(-1);
     }
     old_buffer->set_is_external(true);
     isolate->heap()->UnregisterArrayBuffer(*old_buffer);
@@ -110,8 +106,8 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   CHECK(wasm::UpdateWasmModuleMemory(module_object, old_mem_start,
                                      new_mem_start, old_size, new_size));
 
-  return *isolate->factory()->NewNumberFromUint(old_size /
-                                                wasm::WasmModule::kPageSize);
+  return *isolate->factory()->NewNumberFromInt(old_size /
+                                               wasm::WasmModule::kPageSize);
 }
 
 RUNTIME_FUNCTION(Runtime_JITSingleFunction) {

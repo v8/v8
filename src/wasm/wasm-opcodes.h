@@ -472,7 +472,6 @@ enum WasmOpcode {
   V(TrapFloatUnrepresentable)      \
   V(TrapFuncInvalid)               \
   V(TrapFuncSigMismatch)           \
-  V(TrapMemAllocationFail)         \
   V(TrapInvalidIndex)
 
 enum TrapReason {
