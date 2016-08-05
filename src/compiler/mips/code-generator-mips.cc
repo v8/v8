@@ -1156,6 +1156,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMipsAbsD:
       __ abs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
+    case kMipsNegS:
+      __ neg_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
+      break;
+    case kMipsNegD:
+      __ neg_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kMipsSqrtD: {
       __ sqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;

@@ -894,9 +894,13 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
   VisitRR(this, kMipsFloat64RoundTiesEven, node);
 }
 
-void InstructionSelector::VisitFloat32Neg(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat32Neg(Node* node) {
+  VisitRR(this, kMipsNegS, node);
+}
 
-void InstructionSelector::VisitFloat64Neg(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Neg(Node* node) {
+  VisitRR(this, kMipsNegD, node);
+}
 
 void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
                                                    InstructionCode opcode) {

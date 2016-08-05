@@ -4273,7 +4273,7 @@ TEST_F(InstructionSelectorTest, Float32Neg) {
   StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
   Node* const p0 = m.Parameter(0);
   // Don't use m.Float32Neg() as that generates an explicit sub.
-  Node* const n = m.AddNode(m.machine()->Float32Neg().op(), m.Parameter(0));
+  Node* const n = m.AddNode(m.machine()->Float32Neg(), m.Parameter(0));
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -4288,7 +4288,7 @@ TEST_F(InstructionSelectorTest, Float64Neg) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
   Node* const p0 = m.Parameter(0);
   // Don't use m.Float64Neg() as that generates an explicit sub.
-  Node* const n = m.AddNode(m.machine()->Float64Neg().op(), m.Parameter(0));
+  Node* const n = m.AddNode(m.machine()->Float64Neg(), m.Parameter(0));
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());

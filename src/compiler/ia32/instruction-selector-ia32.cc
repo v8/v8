@@ -1705,8 +1705,7 @@ MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kWord32ShiftIsSafe |
-      MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kFloat32Neg |
-      MachineOperatorBuilder::kFloat64Neg;
+      MachineOperatorBuilder::kWord32Ctz;
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt;
   }

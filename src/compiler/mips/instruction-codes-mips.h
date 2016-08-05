@@ -66,6 +66,8 @@ namespace compiler {
   V(MipsSqrtD)                     \
   V(MipsMaxD)                      \
   V(MipsMinD)                      \
+  V(MipsNegS)                      \
+  V(MipsNegD)                      \
   V(MipsAddPair)                   \
   V(MipsSubPair)                   \
   V(MipsMulPair)                   \

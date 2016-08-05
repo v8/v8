@@ -653,12 +653,8 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       op = m->Float32Abs();
       break;
     case wasm::kExprF32Neg: {
-      if (m->Float32Neg().IsSupported()) {
-        op = m->Float32Neg().op();
-        break;
-      } else {
-        return BuildF32Neg(input);
-      }
+      op = m->Float32Neg();
+      break;
     }
     case wasm::kExprF32Sqrt:
       op = m->Float32Sqrt();
@@ -667,12 +663,8 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       op = m->Float64Abs();
       break;
     case wasm::kExprF64Neg: {
-      if (m->Float64Neg().IsSupported()) {
-        op = m->Float64Neg().op();
-        break;
-      } else {
-        return BuildF64Neg(input);
-      }
+      op = m->Float64Neg();
+      break;
     }
     case wasm::kExprF64Sqrt:
       op = m->Float64Sqrt();
@@ -1156,34 +1148,6 @@ Node* WasmGraphBuilder::BuildChangeEndianness(Node* node, MachineType memtype,
   }
 
   return result;
-}
-
-Node* WasmGraphBuilder::BuildF32Neg(Node* input) {
-  Node* result =
-      Unop(wasm::kExprF32ReinterpretI32,
-           Binop(wasm::kExprI32Xor, Unop(wasm::kExprI32ReinterpretF32, input),
-                 jsgraph()->Int32Constant(0x80000000)));
-
-  return result;
-}
-
-Node* WasmGraphBuilder::BuildF64Neg(Node* input) {
-#if WASM_64
-  Node* result =
-      Unop(wasm::kExprF64ReinterpretI64,
-           Binop(wasm::kExprI64Xor, Unop(wasm::kExprI64ReinterpretF64, input),
-                 jsgraph()->Int64Constant(0x8000000000000000)));
-
-  return result;
-#else
-  MachineOperatorBuilder* m = jsgraph()->machine();
-
-  Node* old_high_word = graph()->NewNode(m->Float64ExtractHighWord32(), input);
-  Node* new_high_word = Binop(wasm::kExprI32Xor, old_high_word,
-                              jsgraph()->Int32Constant(0x80000000));
-
-  return graph()->NewNode(m->Float64InsertHighWord32(), input, new_high_word);
-#endif
 }
 
 Node* WasmGraphBuilder::BuildF32CopySign(Node* left, Node* right) {

@@ -71,6 +71,7 @@ namespace compiler {
   V(Mips64DivS)                     \
   V(Mips64ModS)                     \
   V(Mips64AbsS)                     \
+  V(Mips64NegS)                     \
   V(Mips64SqrtS)                    \
   V(Mips64MaxS)                     \
   V(Mips64MinS)                     \
@@ -82,6 +83,7 @@ namespace compiler {
   V(Mips64DivD)                     \
   V(Mips64ModD)                     \
   V(Mips64AbsD)                     \
+  V(Mips64NegD)                     \
   V(Mips64SqrtD)                    \
   V(Mips64MaxD)                     \
   V(Mips64MinD)                     \

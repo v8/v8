@@ -247,6 +247,7 @@ const PureOperator kPureOperators[] = {
     PURE(Float32Equal, 2, 0, 1),              // --
     PURE(Float32LessThan, 2, 0, 1),           // --
     PURE(Float32LessThanOrEqual, 2, 0, 1),    // --
+    PURE(Float32Neg, 1, 0, 1),                // --
     PURE(Float64Abs, 1, 0, 1),                // --
     PURE(Float64Add, 2, 0, 1),                // --
     PURE(Float64Sub, 2, 0, 1),                // --
@@ -264,6 +265,7 @@ const PureOperator kPureOperators[] = {
     PURE(Float64ExtractHighWord32, 1, 0, 1),  // --
     PURE(Float64InsertLowWord32, 2, 0, 1),    // --
     PURE(Float64InsertHighWord32, 2, 0, 1),   // --
+    PURE(Float64Neg, 1, 0, 1),                // --
 #undef PURE
 };
 
@@ -323,8 +325,6 @@ const OptionalOperatorEntry kOptionalOperators[] = {
     OPTIONAL_ENTRY(Float64RoundDown, 1, 0, 1),      // --
     OPTIONAL_ENTRY(Float64RoundTruncate, 1, 0, 1),  // --
     OPTIONAL_ENTRY(Float64RoundTiesAway, 1, 0, 1),  // --
-    OPTIONAL_ENTRY(Float32Neg, 1, 0, 1),            // --
-    OPTIONAL_ENTRY(Float64Neg, 1, 0, 1),            // --
 #undef OPTIONAL_ENTRY
 };
 }  // namespace

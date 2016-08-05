@@ -163,6 +163,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32SubPreserveNan, Operator::kNoProperties, 2, 0, 1)                 \
   V(Float32Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(Float32Div, Operator::kNoProperties, 2, 0, 1)                            \
+  V(Float32Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
   V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float64Acos, Operator::kNoProperties, 1, 0, 1)                           \
@@ -183,6 +184,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float64Log10, Operator::kNoProperties, 1, 0, 1)                          \
   V(Float64Max, Operator::kNoProperties, 2, 0, 1)                            \
   V(Float64Min, Operator::kNoProperties, 2, 0, 1)                            \
+  V(Float64Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float64Add, Operator::kCommutative, 2, 0, 1)                             \
   V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                            \
   V(Float64SubPreserveNan, Operator::kNoProperties, 2, 0, 1)                 \
@@ -404,9 +406,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float64RoundTruncate, Operator::kNoProperties, 1, 0, 1) \
   V(Float64RoundTiesAway, Operator::kNoProperties, 1, 0, 1) \
   V(Float32RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
-  V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
-  V(Float32Neg, Operator::kNoProperties, 1, 0, 1)           \
-  V(Float64Neg, Operator::kNoProperties, 1, 0, 1)
+  V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1)
 
 #define OVERFLOW_OP_LIST(V)                                                \
   V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \

@@ -248,8 +248,6 @@ class WasmGraphBuilder {
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args,
                       wasm::WasmCodePosition position);
 
-  Node* BuildF32Neg(Node* input);
-  Node* BuildF64Neg(Node* input);
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
   Node* BuildF32Min(Node* left, Node* right);

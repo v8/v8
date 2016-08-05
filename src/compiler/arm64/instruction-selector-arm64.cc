@@ -2743,9 +2743,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kWord32ReverseBits |
-         MachineOperatorBuilder::kWord64ReverseBits |
-         MachineOperatorBuilder::kFloat32Neg |
-         MachineOperatorBuilder::kFloat64Neg;
+         MachineOperatorBuilder::kWord64ReverseBits;
 }
 
 // static

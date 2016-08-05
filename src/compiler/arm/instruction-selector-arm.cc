@@ -2285,9 +2285,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesAway |
              MachineOperatorBuilder::kFloat32RoundTiesEven |
-             MachineOperatorBuilder::kFloat64RoundTiesEven |
-             MachineOperatorBuilder::kFloat32Neg |
-             MachineOperatorBuilder::kFloat64Neg;
+             MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   return flags;
 }

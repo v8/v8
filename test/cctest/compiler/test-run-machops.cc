@@ -3604,8 +3604,7 @@ TEST(RunFloat32Sub) {
 
 TEST(RunFloat32Neg) {
   BufferedRawMachineAssemblerTester<float> m(MachineType::Float32());
-  if (!m.machine()->Float32Neg().IsSupported()) return;
-  m.Return(m.AddNode(m.machine()->Float32Neg().op(), m.Parameter(0)));
+  m.Return(m.AddNode(m.machine()->Float32Neg(), m.Parameter(0)));
   FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(-0.0f - *i, m.Call(*i)); }
 }
 
@@ -3654,8 +3653,7 @@ TEST(RunFloat64Sub) {
 
 TEST(RunFloat64Neg) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
-  if (!m.machine()->Float64Neg().IsSupported()) return;
-  m.Return(m.AddNode(m.machine()->Float64Neg().op(), m.Parameter(0)));
+  m.Return(m.AddNode(m.machine()->Float64Neg(), m.Parameter(0)));
   FOR_FLOAT64_INPUTS(i) { CHECK_FLOAT_EQ(-0.0 - *i, m.Call(*i)); }
 }
 
