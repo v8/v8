@@ -11,4 +11,4 @@ Object.defineProperty(array, 1, {
     array[0] = -2147483648;
   }
 });
-result = array.includes(new Intl.Collator());
+result = array.includes(new Array());
