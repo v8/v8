@@ -191,7 +191,7 @@ DEFINE_OPERATORS_FOR_FLAGS(AstProperties::Flags)
 class AstNode: public ZoneObject {
  public:
 #define DECLARE_TYPE_ENUM(type) k##type,
-  enum NodeType : uint8_t { kModule = 0, AST_NODE_LIST(DECLARE_TYPE_ENUM) };
+  enum NodeType : uint8_t { AST_NODE_LIST(DECLARE_TYPE_ENUM) };
 #undef DECLARE_TYPE_ENUM
 
   void* operator new(size_t size, Zone* zone) { return zone->New(size); }
@@ -2932,8 +2932,6 @@ class AstVisitor BASE_EMBEDDED {
 #define GENERATE_AST_VISITOR_SWITCH()  \
   switch (node->node_type()) {         \
     AST_NODE_LIST(GENERATE_VISIT_CASE) \
-    case AstNode::kModule:             \
-      UNREACHABLE();                   \
   }
 
 #define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()               \
