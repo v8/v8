@@ -13,11 +13,12 @@ namespace compiler {
 
 // Foward declarations.
 struct FieldAccess;
+class JSGraph;
 
 class LoadElimination final : public AdvancedReducer {
  public:
-  LoadElimination(Editor* editor, Zone* zone)
-      : AdvancedReducer(editor), node_states_(zone) {}
+  LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
+      : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
   ~LoadElimination() final {}
 
   Reduction Reduce(Node* node) final;
@@ -150,6 +151,7 @@ class LoadElimination final : public AdvancedReducer {
   };
 
   Reduction ReduceCheckMaps(Node* node);
+  Reduction ReduceEnsureWritableFastElements(Node* node);
   Reduction ReduceTransitionElementsKind(Node* node);
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceStoreField(Node* node);
@@ -168,10 +170,12 @@ class LoadElimination final : public AdvancedReducer {
   static int FieldIndexOf(FieldAccess const& access);
 
   AbstractState const* empty_state() const { return &empty_state_; }
+  JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return node_states_.zone(); }
 
   AbstractState const empty_state_;
   AbstractStateForEffectNodes node_states_;
+  JSGraph* const jsgraph_;
 
   DISALLOW_COPY_AND_ASSIGN(LoadElimination);
 };

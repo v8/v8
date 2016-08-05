@@ -510,6 +510,12 @@ Callable CodeFactory::FastNewStrictArguments(Isolate* isolate,
 }
 
 // static
+Callable CodeFactory::CopyFixedArray(Isolate* isolate) {
+  return Callable(isolate->builtins()->CopyFixedArray(),
+                  CopyFixedArrayDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
   AllocateHeapNumberStub stub(isolate);
   return make_callable(stub);

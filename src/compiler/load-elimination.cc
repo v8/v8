@@ -4,6 +4,7 @@
 
 #include "src/compiler/load-elimination.h"
 
+#include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 
@@ -53,6 +54,8 @@ Reduction LoadElimination::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kCheckMaps:
       return ReduceCheckMaps(node);
+    case IrOpcode::kEnsureWritableFastElements:
+      return ReduceEnsureWritableFastElements(node);
     case IrOpcode::kTransitionElementsKind:
       return ReduceTransitionElementsKind(node);
     case IrOpcode::kLoadField:
@@ -326,6 +329,29 @@ Reduction LoadElimination::ReduceCheckMaps(Node* node) {
   return UpdateState(node, state);
 }
 
+Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Node* const elements = NodeProperties::GetValueInput(node, 1);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  Node* fixed_array_map = jsgraph()->FixedArrayMapConstant();
+  if (Node* const elements_map = state->LookupField(elements, 0)) {
+    // Check if the {elements} already have the fixed array map.
+    if (elements_map == fixed_array_map) {
+      ReplaceWithValue(node, elements, effect);
+      return Replace(elements);
+    }
+  }
+  // We know that the resulting elements have the fixed array map.
+  state = state->AddField(node, 0, fixed_array_map, zone());
+  // Kill the previous elements on {object}.
+  state = state->KillField(object, 2, zone());
+  // Add the new elements on {object}.
+  state = state->AddField(object, 2, node, zone());
+  return UpdateState(node, state);
+}
+
 Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const source_map = NodeProperties::GetValueInput(node, 1);
@@ -552,6 +578,19 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
       visited.insert(current);
       if (!current->op()->HasProperty(Operator::kNoWrite)) {
         switch (current->opcode()) {
+          case IrOpcode::kEnsureWritableFastElements: {
+            Node* const object = NodeProperties::GetValueInput(current, 0);
+            Node* const elements = NodeProperties::GetValueInput(current, 1);
+            state = state->KillField(elements, 0, zone());
+            state = state->KillField(object, 2, zone());
+            break;
+          }
+          case IrOpcode::kTransitionElementsKind: {
+            Node* const object = NodeProperties::GetValueInput(current, 0);
+            state = state->KillField(object, 0, zone());
+            state = state->KillField(object, 2, zone());
+            break;
+          }
           case IrOpcode::kStoreField: {
             FieldAccess const& access = FieldAccessOf(current->op());
             Node* const object = NodeProperties::GetValueInput(current, 0);
@@ -564,6 +603,11 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             Node* const object = NodeProperties::GetValueInput(current, 0);
             Node* const index = NodeProperties::GetValueInput(current, 1);
             state = state->KillElement(object, index, zone());
+            break;
+          }
+          case IrOpcode::kStoreBuffer:
+          case IrOpcode::kStoreTypedElement: {
+            // Doesn't affect anything we track with the state currently.
             break;
           }
           default:

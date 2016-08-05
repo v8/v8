@@ -428,6 +428,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
   // TODO(bmeurer): Add support for non-standard stores.
   if (store_mode != STANDARD_STORE &&
+      store_mode != STORE_NO_TRANSITION_HANDLE_COW &&
       store_mode != STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
     return NoChange();
   }
@@ -960,10 +961,11 @@ JSNativeContextSpecialization::BuildElementAccess(
 
   // Don't try to store to a copy-on-write backing store.
   if (access_mode == AccessMode::kStore &&
-      IsFastSmiOrObjectElementsKind(elements_kind)) {
-    effect = graph()->NewNode(
-        simplified()->CheckMaps(1), elements,
-        jsgraph()->HeapConstant(factory()->fixed_array_map()), effect, control);
+      IsFastSmiOrObjectElementsKind(elements_kind) &&
+      store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(1), elements,
+                         jsgraph()->FixedArrayMapConstant(), effect, control);
   }
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
@@ -1067,7 +1069,8 @@ JSNativeContextSpecialization::BuildElementAccess(
     }
   } else {
     // TODO(turbofan): Add support for additional store modes.
-    DCHECK_EQ(STANDARD_STORE, store_mode);
+    DCHECK(store_mode == STANDARD_STORE ||
+           store_mode == STORE_NO_TRANSITION_HANDLE_COW);
 
     // Load the length of the {receiver}.
     Node* length = effect =
@@ -1147,6 +1150,16 @@ JSNativeContextSpecialization::BuildElementAccess(
         // Make sure we do not store signalling NaNs into double arrays.
         value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
       }
+
+      // Ensure that copy-on-write backing store is writable.
+      if (IsFastSmiOrObjectElementsKind(elements_kind) &&
+          store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
+        elements = effect =
+            graph()->NewNode(simplified()->EnsureWritableFastElements(),
+                             receiver, elements, effect, control);
+      }
+
+      // Perform the actual element access.
       effect = graph()->NewNode(simplified()->StoreElement(element_access),
                                 elements, index, value, effect, control);
     }

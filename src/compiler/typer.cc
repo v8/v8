@@ -719,6 +719,10 @@ Type* Typer::Visitor::TypeLoopExitEffect(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeEnsureWritableFastElements(Node* node) {
+  return Operand(node, 1);
+}
+
 Type* Typer::Visitor::TypeTransitionElementsKind(Node* node) {
   UNREACHABLE();
   return nullptr;

@@ -723,6 +723,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kPlainPrimitiveToFloat64:
       state = LowerPlainPrimitiveToFloat64(node, *effect, *control);
       break;
+    case IrOpcode::kEnsureWritableFastElements:
+      state = LowerEnsureWritableFastElements(node, *effect, *control);
+      break;
     case IrOpcode::kTransitionElementsKind:
       state = LowerTransitionElementsKind(node, *effect, *control);
       break;
@@ -2596,6 +2599,59 @@ EffectControlLinearizer::LowerPlainPrimitiveToFloat64(Node* node, Node* effect,
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
   value = graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
                            vtrue0, vfalse0, control);
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node,
+                                                         Node* effect,
+                                                         Node* control) {
+  Node* object = node->InputAt(0);
+  Node* elements = node->InputAt(1);
+
+  // Load the current map of {elements}.
+  Node* elements_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       elements, effect, control);
+
+  // Check if {elements} is not a copy-on-write FixedArray.
+  Node* check = graph()->NewNode(machine()->WordEqual(), elements_map,
+                                 jsgraph()->FixedArrayMapConstant());
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  // Nothing to do if the {elements} are not copy-on-write.
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue = elements;
+
+  // We need to take a copy of the {elements} and set them up for {object}.
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    // We need to create a copy of the {elements} for {object}.
+    Operator::Properties properties = Operator::kEliminatable;
+    Callable callable = CodeFactory::CopyFixedArray(isolate());
+    CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0, flags,
+        properties);
+    vfalse = efalse = graph()->NewNode(
+        common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
+        elements, jsgraph()->NoContextConstant(), efalse);
+
+    // Store the new {elements} into {object}.
+    efalse = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSObjectElements()), object,
+        vfalse, efalse, if_false);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  Node* value = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
+
   return ValueEffectControl(value, effect, control);
 }
 

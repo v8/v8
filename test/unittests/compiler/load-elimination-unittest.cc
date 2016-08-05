@@ -4,6 +4,7 @@
 
 #include "src/compiler/load-elimination.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
@@ -20,14 +21,20 @@ namespace compiler {
 
 class LoadEliminationTest : public TypedGraphTest {
  public:
-  LoadEliminationTest() : TypedGraphTest(3), simplified_(zone()) {}
+  LoadEliminationTest()
+      : TypedGraphTest(3),
+        simplified_(zone()),
+        jsgraph_(isolate(), graph(), common(), nullptr, simplified(), nullptr) {
+  }
   ~LoadEliminationTest() override {}
 
  protected:
+  JSGraph* jsgraph() { return &jsgraph_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
  private:
   SimplifiedOperatorBuilder simplified_;
+  JSGraph jsgraph_;
 };
 
 TEST_F(LoadEliminationTest, LoadElementAndLoadElement) {
@@ -39,7 +46,7 @@ TEST_F(LoadEliminationTest, LoadElementAndLoadElement) {
                                 MachineType::AnyTagged(), kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
-  LoadElimination load_elimination(&editor, zone());
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
 
   load_elimination.Reduce(graph()->start());
 
@@ -65,7 +72,7 @@ TEST_F(LoadEliminationTest, StoreElementAndLoadElement) {
                                 MachineType::AnyTagged(), kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
-  LoadElimination load_elimination(&editor, zone());
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
 
   load_elimination.Reduce(graph()->start());
 
@@ -92,7 +99,7 @@ TEST_F(LoadEliminationTest, StoreElementAndStoreFieldAndLoadElement) {
                                 MachineType::AnyTagged(), kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
-  LoadElimination load_elimination(&editor, zone());
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
 
   load_elimination.Reduce(graph()->start());
 
@@ -126,7 +133,7 @@ TEST_F(LoadEliminationTest, LoadFieldAndLoadField) {
                               kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
-  LoadElimination load_elimination(&editor, zone());
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
 
   load_elimination.Reduce(graph()->start());
 
@@ -155,7 +162,7 @@ TEST_F(LoadEliminationTest, StoreFieldAndLoadField) {
                         kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
-  LoadElimination load_elimination(&editor, zone());
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
 
   load_elimination.Reduce(graph()->start());
 
@@ -185,7 +192,7 @@ TEST_F(LoadEliminationTest, StoreFieldAndStoreElementAndLoadField) {
                         kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
-  LoadElimination load_elimination(&editor, zone());
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
 
   load_elimination.Reduce(graph()->start());
 

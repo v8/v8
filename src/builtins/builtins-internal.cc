@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
-
+#include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -48,6 +48,125 @@ void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
 
 void Builtins::Generate_StackCheck(MacroAssembler* masm) {
   masm->TailCallRuntime(Runtime::kStackGuard);
+}
+
+// -----------------------------------------------------------------------------
+// FixedArray helpers.
+
+void Builtins::Generate_CopyFixedArray(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+  typedef CopyFixedArrayDescriptor Descriptor;
+
+  Node* source = assembler->Parameter(Descriptor::kSource);
+
+  // Load the {source} length.
+  Node* source_length_tagged =
+      assembler->LoadObjectField(source, FixedArray::kLengthOffset);
+  Node* source_length = assembler->SmiToWord(source_length_tagged);
+
+  // Compute the size of {source} in bytes.
+  Node* source_size = assembler->IntPtrAdd(
+      assembler->WordShl(source_length,
+                         assembler->IntPtrConstant(kPointerSizeLog2)),
+      assembler->IntPtrConstant(FixedArray::kHeaderSize));
+
+  // Check if we can allocate in new space.
+  Label if_newspace(assembler), if_oldspace(assembler);
+  assembler->Branch(assembler->UintPtrLessThan(
+                        source_size, assembler->IntPtrConstant(
+                                         Page::kMaxRegularHeapObjectSize)),
+                    &if_newspace, &if_oldspace);
+
+  assembler->Bind(&if_newspace);
+  {
+    // Allocate the targeting FixedArray in new space.
+    Node* target = assembler->Allocate(source_size);
+    assembler->StoreMapNoWriteBarrier(
+        target, assembler->LoadRoot(Heap::kFixedArrayMapRootIndex));
+    assembler->StoreObjectFieldNoWriteBarrier(target, FixedArray::kLengthOffset,
+                                              source_length_tagged);
+
+    // Copy the {source} to the {target}.
+    Variable var_index(assembler, MachineType::PointerRepresentation());
+    Label loop(assembler, &var_index), done_loop(assembler);
+    var_index.Bind(
+        assembler->IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
+    assembler->Goto(&loop);
+    assembler->Bind(&loop);
+    {
+      // Determine the current {index}.
+      Node* index = var_index.value();
+
+      // Check if we are done.
+      assembler->GotoUnless(assembler->UintPtrLessThan(index, source_size),
+                            &done_loop);
+
+      // Load the value from {source}.
+      Node* value = assembler->Load(MachineType::AnyTagged(), source, index);
+
+      // Store the {value} to the {target} without a write barrier, since we
+      // know that the {target} is allocated in new space.
+      assembler->StoreNoWriteBarrier(MachineRepresentation::kTagged, target,
+                                     index, value);
+
+      // Increment {index} and continue.
+      var_index.Bind(
+          assembler->IntPtrAdd(index, assembler->IntPtrConstant(kPointerSize)));
+      assembler->Goto(&loop);
+    }
+
+    assembler->Bind(&done_loop);
+    assembler->Return(target);
+  }
+
+  assembler->Bind(&if_oldspace);
+  {
+    // Allocate the targeting FixedArray in old space
+    // (maybe even in large object space).
+    Node* flags = assembler->SmiConstant(
+        Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
+                     AllocateTargetSpace::encode(AllocationSpace::OLD_SPACE)));
+    Node* source_size_tagged = assembler->SmiFromWord(source_size);
+    Node* target = assembler->CallRuntime(Runtime::kAllocateInTargetSpace,
+                                          assembler->NoContextConstant(),
+                                          source_size_tagged, flags);
+    assembler->StoreMapNoWriteBarrier(
+        target, assembler->LoadRoot(Heap::kFixedArrayMapRootIndex));
+    assembler->StoreObjectFieldNoWriteBarrier(target, FixedArray::kLengthOffset,
+                                              source_length_tagged);
+
+    // Copy the {source} to the {target}.
+    Variable var_index(assembler, MachineType::PointerRepresentation());
+    Label loop(assembler, &var_index), done_loop(assembler);
+    var_index.Bind(
+        assembler->IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
+    assembler->Goto(&loop);
+    assembler->Bind(&loop);
+    {
+      // Determine the current {index}.
+      Node* index = var_index.value();
+
+      // Check if we are done.
+      assembler->GotoUnless(assembler->UintPtrLessThan(index, source_size),
+                            &done_loop);
+
+      // Load the value from {source}.
+      Node* value = assembler->Load(MachineType::AnyTagged(), source, index);
+
+      // Store the {value} to the {target} with a proper write barrier.
+      assembler->Store(MachineRepresentation::kTagged, target, index, value);
+
+      // Increment {index} and continue.
+      var_index.Bind(
+          assembler->IntPtrAdd(index, assembler->IntPtrConstant(kPointerSize)));
+      assembler->Goto(&loop);
+    }
+
+    assembler->Bind(&done_loop);
+    assembler->Return(target);
+  }
 }
 
 }  // namespace internal
