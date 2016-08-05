@@ -68,7 +68,6 @@ namespace internal {
   /* --- HydrogenCodeStubs --- */             \
   V(ElementsTransitionAndStore)               \
   V(FastCloneShallowArray)                    \
-  V(GrowArrayElements)                        \
   V(NumberToString)                           \
   V(StringAdd)                                \
   V(ToObject)                                 \
@@ -165,6 +164,7 @@ namespace internal {
   V(StoreInterceptor)                         \
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
+  V(GrowArrayElements)                        \
   /* These are only called from FGC and */    \
   /* can be removed when we use ignition */   \
   /* only */                                  \
@@ -1243,26 +1243,22 @@ class CreateWeakCellStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(CreateWeakCell, TurboFanCodeStub);
 };
 
-class GrowArrayElementsStub : public HydrogenCodeStub {
+class GrowArrayElementsStub : public TurboFanCodeStub {
  public:
-  GrowArrayElementsStub(Isolate* isolate, bool is_js_array, ElementsKind kind)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(ElementsKindBits::encode(kind) |
-                      IsJsArrayBits::encode(is_js_array));
+  GrowArrayElementsStub(Isolate* isolate, ElementsKind kind)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = ElementsKindBits::encode(GetHoleyElementsKind(kind));
   }
 
   ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(sub_minor_key());
+    return ElementsKindBits::decode(minor_key_);
   }
-
-  bool is_js_array() const { return IsJsArrayBits::decode(sub_minor_key()); }
 
  private:
   class ElementsKindBits : public BitField<ElementsKind, 0, 8> {};
-  class IsJsArrayBits : public BitField<bool, ElementsKindBits::kNext, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(GrowArrayElements);
-  DEFINE_HYDROGEN_CODE_STUB(GrowArrayElements, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(GrowArrayElements, TurboFanCodeStub);
 };
 
 class FastArrayPushStub : public HydrogenCodeStub {

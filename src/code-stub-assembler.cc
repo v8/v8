@@ -81,6 +81,15 @@ Node* CodeStubAssembler::StaleRegisterConstant() {
   return LoadRoot(Heap::kStaleRegisterRootIndex);
 }
 
+Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
+  if (mode == SMI_PARAMETERS) {
+    return SmiConstant(Smi::FromInt(value));
+  } else {
+    DCHECK_EQ(INTEGER_PARAMETERS, mode);
+    return IntPtrConstant(value);
+  }
+}
+
 Node* CodeStubAssembler::Float64Round(Node* x) {
   Node* one = Float64Constant(1.0);
   Node* one_half = Float64Constant(0.5);
@@ -994,6 +1003,10 @@ Node* CodeStubAssembler::LoadElements(Node* object) {
   return LoadObjectField(object, JSObject::kElementsOffset);
 }
 
+Node* CodeStubAssembler::LoadFixedArrayBaseLength(compiler::Node* array) {
+  return LoadObjectField(array, FixedArrayBase::kLengthOffset);
+}
+
 Node* CodeStubAssembler::LoadAndUntagFixedArrayBaseLength(Node* array) {
   return LoadAndUntagObjectField(array, FixedArrayBase::kLengthOffset);
 }
@@ -1342,8 +1355,6 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
     elements_offset += AllocationMemento::kSize;
   }
 
-  int32_t capacity;
-  bool constant_capacity = ToInt32Constant(capacity_node, capacity);
   Node* total_size =
       ElementOffsetFromIndex(capacity_node, kind, mode, base_size);
 
@@ -1372,13 +1383,50 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
       elements, FixedArray::kLengthOffset,
       mode == SMI_PARAMETERS ? capacity_node : SmiTag(capacity_node));
 
+  FillFixedArrayWithHole(kind, elements, IntPtrConstant(0), capacity_node,
+                         mode);
+
+  return array;
+}
+
+Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
+                                            Node* capacity_node,
+                                            ParameterMode mode) {
+  Node* total_size = ElementOffsetFromIndex(capacity_node, kind, mode,
+                                            FixedArray::kHeaderSize);
+
+  // Allocate both array and elements object, and initialize the JSArray.
+  Node* array = Allocate(total_size);
+  Heap* heap = isolate()->heap();
+  Handle<Map> map(IsFastDoubleElementsKind(kind)
+                      ? heap->fixed_double_array_map()
+                      : heap->fixed_array_map());
+  StoreMapNoWriteBarrier(array, HeapConstant(map));
+  StoreObjectFieldNoWriteBarrier(
+      array, FixedArray::kLengthOffset,
+      mode == INTEGER_PARAMETERS ? SmiTag(capacity_node) : capacity_node);
+  return array;
+}
+
+void CodeStubAssembler::FillFixedArrayWithHole(ElementsKind kind,
+                                               compiler::Node* array,
+                                               compiler::Node* from_node,
+                                               compiler::Node* to_node,
+                                               ParameterMode mode) {
   int const first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  Heap* heap = isolate()->heap();
   Node* hole = HeapConstant(Handle<HeapObject>(heap->the_hole_value()));
   Node* double_hole =
       Is64() ? Int64Constant(kHoleNanInt64) : Int32Constant(kHoleNanLower32);
   DCHECK_EQ(kHoleNanLower32, kHoleNanUpper32);
-  if (constant_capacity && capacity <= kElementLoopUnrollThreshold) {
-    for (int i = 0; i < capacity; ++i) {
+  bool is_double = IsFastDoubleElementsKind(kind);
+  int32_t to;
+  bool constant_to = ToInt32Constant(to_node, to);
+  int32_t from;
+  bool constant_from = ToInt32Constant(from_node, from);
+  if (constant_to && constant_from &&
+      (to - from) <= kElementLoopUnrollThreshold) {
+    for (int i = from; i < to; ++i) {
       if (is_double) {
         Node* offset = ElementOffsetFromIndex(Int32Constant(i), kind, mode,
                                               first_element_offset);
@@ -1391,18 +1439,18 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
         // preserves double bits during manipulation, remove this code/change
         // this to an indexed Float64 store.
         if (Is64()) {
-          StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
+          StoreNoWriteBarrier(MachineRepresentation::kWord64, array, offset,
                               double_hole);
         } else {
-          StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
+          StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
                               double_hole);
           offset = ElementOffsetFromIndex(Int32Constant(i), kind, mode,
                                           first_element_offset + kPointerSize);
-          StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
+          StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
                               double_hole);
         }
       } else {
-        StoreFixedArrayElement(elements, Int32Constant(i), hole,
+        StoreFixedArrayElement(array, Int32Constant(i), hole,
                                SKIP_WRITE_BARRIER);
       }
     }
@@ -1411,9 +1459,9 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
     Label test(this);
     Label decrement(this, &current);
     Label done(this);
-    Node* limit = IntPtrAdd(elements, IntPtrConstant(first_element_offset));
-    current.Bind(
-        IntPtrAdd(limit, ElementOffsetFromIndex(capacity_node, kind, mode, 0)));
+    Node* limit =
+        IntPtrAdd(array, ElementOffsetFromIndex(from_node, kind, mode));
+    current.Bind(IntPtrAdd(array, ElementOffsetFromIndex(to_node, kind, mode)));
 
     Branch(WordEqual(current.value(), limit), &done, &decrement);
 
@@ -1433,26 +1481,134 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
       // this to an indexed Float64 store.
       if (Is64()) {
         StoreNoWriteBarrier(MachineRepresentation::kWord64, current.value(),
-                            double_hole);
+                            Int64Constant(first_element_offset), double_hole);
       } else {
         StoreNoWriteBarrier(MachineRepresentation::kWord32, current.value(),
-                            double_hole);
+                            Int32Constant(first_element_offset), double_hole);
         StoreNoWriteBarrier(
             MachineRepresentation::kWord32,
-            IntPtrAdd(current.value(), Int32Constant(kPointerSize)),
+            IntPtrAdd(current.value(),
+                      Int32Constant(kPointerSize + first_element_offset)),
             double_hole);
       }
     } else {
       StoreNoWriteBarrier(MachineRepresentation::kTagged, current.value(),
-                          hole);
+                          IntPtrConstant(first_element_offset), hole);
     }
     Node* compare = WordNotEqual(current.value(), limit);
     Branch(compare, &decrement, &done);
 
     Bind(&done);
   }
+}
 
-  return array;
+void CodeStubAssembler::CopyFixedArrayElements(ElementsKind kind,
+                                               compiler::Node* from_array,
+                                               compiler::Node* to_array,
+                                               compiler::Node* element_count,
+                                               WriteBarrierMode barrier_mode,
+                                               ParameterMode mode) {
+  Label test(this);
+  Label done(this);
+  bool double_elements = IsFastDoubleElementsKind(kind);
+  bool needs_write_barrier =
+      barrier_mode == UPDATE_WRITE_BARRIER && !IsFastObjectElementsKind(kind);
+  Node* limit_offset = ElementOffsetFromIndex(
+      IntPtrConstant(0), kind, mode, FixedArray::kHeaderSize - kHeapObjectTag);
+  Variable current_offset(this, MachineType::PointerRepresentation());
+  current_offset.Bind(ElementOffsetFromIndex(
+      element_count, kind, mode, FixedArray::kHeaderSize - kHeapObjectTag));
+  Label decrement(this, &current_offset);
+
+  Branch(WordEqual(current_offset.value(), limit_offset), &done, &decrement);
+
+  Bind(&decrement);
+  {
+    current_offset.Bind(IntPtrSub(
+        current_offset.value(),
+        IntPtrConstant(double_elements ? kDoubleSize : kPointerSize)));
+
+    Node* value =
+        Load(double_elements ? MachineType::Float64() : MachineType::Pointer(),
+             from_array, current_offset.value());
+    if (needs_write_barrier) {
+      Store(MachineType::PointerRepresentation(), to_array,
+            current_offset.value(), value);
+    } else if (double_elements) {
+      StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array,
+                          current_offset.value(), value);
+    } else {
+      StoreNoWriteBarrier(MachineType::PointerRepresentation(), to_array,
+                          current_offset.value(), value);
+    }
+    Node* compare = WordNotEqual(current_offset.value(), limit_offset);
+    Branch(compare, &decrement, &done);
+  }
+
+  Bind(&done);
+}
+
+Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
+                                                      ParameterMode mode) {
+  Node* half_old_capacity = WordShr(old_capacity, IntPtrConstant(1));
+  Node* new_capacity = IntPtrAdd(half_old_capacity, old_capacity);
+  Node* unconditioned_result =
+      IntPtrAdd(new_capacity, IntPtrOrSmiConstant(16, mode));
+  if (mode == INTEGER_PARAMETERS) {
+    return unconditioned_result;
+  } else {
+    int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
+    return WordAnd(unconditioned_result,
+                   IntPtrConstant(static_cast<size_t>(-1) << kSmiShiftBits));
+  }
+}
+
+Node* CodeStubAssembler::CheckAndGrowElementsCapacity(Node* context,
+                                                      Node* elements,
+                                                      ElementsKind kind,
+                                                      Node* key, Label* fail) {
+  Node* capacity = LoadFixedArrayBaseLength(elements);
+
+  // On 32-bit platforms, there is a slight performance advantage to doing all
+  // of the arithmetic for the new backing store with SMIs, since it's possible
+  // to save a few tag/untag operations without paying an extra expense when
+  // calculating array offset (the smi math can be folded away) and there are
+  // fewer live ranges. Thus only convert |capacity| and |key| to untagged value
+  // on 64-bit platforms.
+  ParameterMode mode = Is64() ? INTEGER_PARAMETERS : SMI_PARAMETERS;
+  if (mode == INTEGER_PARAMETERS) {
+    capacity = SmiUntag(capacity);
+    key = SmiUntag(key);
+  }
+
+  // If the gap growth is too big, fall back to the runtime.
+  Node* max_gap = IntPtrOrSmiConstant(JSObject::kMaxGap, mode);
+  Node* max_capacity = IntPtrAdd(capacity, max_gap);
+  GotoIf(UintPtrGreaterThanOrEqual(key, max_capacity), fail);
+
+  // Calculate the capacity of the new backing tore
+  Node* new_capacity = CalculateNewElementsCapacity(
+      IntPtrAdd(key, IntPtrOrSmiConstant(1, mode)), mode);
+
+  // If size of the allocation for the new capacity doesn't fit in a page
+  // that we can bump-pointer allocate from, fall back to the runtime,
+  int max_size = ((Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
+                  ElementsKindToShiftSize(kind));
+  GotoIf(UintPtrGreaterThanOrEqual(new_capacity,
+                                   IntPtrOrSmiConstant(max_size, mode)),
+         fail);
+
+  // Allocate the new backing store.
+  Node* new_elements = AllocateFixedArray(kind, new_capacity, mode);
+
+  // Fill in the added capacity in the new store with holes.
+  FillFixedArrayWithHole(kind, new_elements, capacity, new_capacity, mode);
+
+  // Copy the elements from the old elements store to the new.
+  CopyFixedArrayElements(kind, elements, new_elements, capacity,
+                         SKIP_WRITE_BARRIER, mode);
+
+  return new_elements;
 }
 
 void CodeStubAssembler::InitializeAllocationMemento(

@@ -52,6 +52,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* HashSeed();
   compiler::Node* StaleRegisterConstant();
 
+  compiler::Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
+
   // Float64 operations.
   compiler::Node* Float64Ceil(compiler::Node* x);
   compiler::Node* Float64Floor(compiler::Node* x);
@@ -179,6 +181,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Load the elements backing store of a JSObject.
   compiler::Node* LoadElements(compiler::Node* object);
   // Load the length of a fixed array base instance.
+  compiler::Node* LoadFixedArrayBaseLength(compiler::Node* array);
+  // Load the length of a fixed array base instance.
   compiler::Node* LoadAndUntagFixedArrayBaseLength(compiler::Node* array);
   // Load the bit field of a Map.
   compiler::Node* LoadMapBitField(compiler::Node* map);
@@ -280,6 +284,30 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                   compiler::Node* length,
                                   compiler::Node* allocation_site = nullptr,
                                   ParameterMode mode = INTEGER_PARAMETERS);
+
+  compiler::Node* AllocateFixedArray(ElementsKind kind,
+                                     compiler::Node* capacity,
+                                     ParameterMode mode = INTEGER_PARAMETERS);
+
+  void FillFixedArrayWithHole(ElementsKind kind, compiler::Node* array,
+                              compiler::Node* from_index,
+                              compiler::Node* to_index,
+                              ParameterMode mode = INTEGER_PARAMETERS);
+
+  void CopyFixedArrayElements(
+      ElementsKind kind, compiler::Node* from_array, compiler::Node* to_array,
+      compiler::Node* element_count,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode mode = INTEGER_PARAMETERS);
+
+  compiler::Node* CalculateNewElementsCapacity(
+      compiler::Node* old_capacity, ParameterMode mode = INTEGER_PARAMETERS);
+
+  compiler::Node* CheckAndGrowElementsCapacity(compiler::Node* context,
+                                               compiler::Node* elements,
+                                               ElementsKind kind,
+                                               compiler::Node* key,
+                                               Label* fail);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(compiler::Node* base_allocation,
