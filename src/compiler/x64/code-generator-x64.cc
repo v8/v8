@@ -1737,6 +1737,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_MOVX(movzxbl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
+    case kX64Movsxbq:
+      ASSEMBLE_MOVX(movsxbq);
+      __ AssertZeroExtended(i.OutputRegister());
+      break;
+    case kX64Movzxbq:
+      ASSEMBLE_MOVX(movzxbq);
+      __ AssertZeroExtended(i.OutputRegister());
+      break;
     case kX64Movb: {
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -1753,6 +1761,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX64Movzxwl:
       ASSEMBLE_MOVX(movzxwl);
+      __ AssertZeroExtended(i.OutputRegister());
+      break;
+    case kX64Movsxwq:
+      ASSEMBLE_MOVX(movsxwq);
+      __ AssertZeroExtended(i.OutputRegister());
+      break;
+    case kX64Movzxwq:
+      ASSEMBLE_MOVX(movzxwq);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movw: {

@@ -131,8 +131,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
     case kX64Movsxbl:
     case kX64Movzxbl:
+    case kX64Movsxbq:
+    case kX64Movzxbq:
     case kX64Movsxwl:
     case kX64Movzxwl:
+    case kX64Movsxwq:
+    case kX64Movzxwq:
     case kX64Movsxlq:
       DCHECK(instr->InputCount() >= 1);
       return instr->InputAt(0)->IsRegister() ? kNoOpcodeFlags

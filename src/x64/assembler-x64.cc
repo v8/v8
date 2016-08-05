@@ -1586,6 +1586,13 @@ void Assembler::movsxbq(Register dst, const Operand& src) {
   emit_operand(dst, src);
 }
 
+void Assembler::movsxbq(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0xBE);
+  emit_modrm(dst, src);
+}
 
 void Assembler::movsxwl(Register dst, Register src) {
   EnsureSpace ensure_space(this);
@@ -1613,6 +1620,13 @@ void Assembler::movsxwq(Register dst, const Operand& src) {
   emit_operand(dst, src);
 }
 
+void Assembler::movsxwq(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0xBF);
+  emit_modrm(dst, src);
+}
 
 void Assembler::movsxlq(Register dst, Register src) {
   EnsureSpace ensure_space(this);

@@ -708,9 +708,11 @@ class Assembler : public AssemblerBase {
 
   void movsxbl(Register dst, Register src);
   void movsxbl(Register dst, const Operand& src);
+  void movsxbq(Register dst, Register src);
   void movsxbq(Register dst, const Operand& src);
   void movsxwl(Register dst, Register src);
   void movsxwl(Register dst, const Operand& src);
+  void movsxwq(Register dst, Register src);
   void movsxwq(Register dst, const Operand& src);
   void movsxlq(Register dst, Register src);
   void movsxlq(Register dst, const Operand& src);

@@ -1112,7 +1112,36 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64Movsxlq, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  Node* const value = node->InputAt(0);
+  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+    LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+    MachineRepresentation rep = load_rep.representation();
+    InstructionCode opcode = kArchNop;
+    switch (rep) {
+      case MachineRepresentation::kBit:  // Fall through.
+      case MachineRepresentation::kWord8:
+        opcode = load_rep.IsSigned() ? kX64Movsxbq : kX64Movzxbq;
+        break;
+      case MachineRepresentation::kWord16:
+        opcode = load_rep.IsSigned() ? kX64Movsxwq : kX64Movzxwq;
+        break;
+      case MachineRepresentation::kWord32:
+        opcode = kX64Movsxlq;
+        break;
+      default:
+        UNREACHABLE();
+        return;
+    }
+    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+    size_t input_count = 0;
+    InstructionOperand inputs[3];
+    AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+        node->InputAt(0), inputs, &input_count);
+    opcode |= AddressingModeField::encode(mode);
+    Emit(opcode, 1, outputs, input_count, inputs);
+  } else {
+    Emit(kX64Movsxlq, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  }
 }
 
 
