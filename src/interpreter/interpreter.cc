@@ -1305,11 +1305,9 @@ void Interpreter::DoCallConstruct(InterpreterAssembler* assembler) {
   Node* first_arg_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(first_arg_reg);
   Node* args_count = __ BytecodeOperandCount(2);
-  Node* slot_id = __ BytecodeOperandIdx(3);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  Node* result = __ CallConstruct(constructor, context, new_target, first_arg,
-                                  args_count, slot_id, type_feedback_vector);
+  Node* result =
+      __ CallConstruct(constructor, context, new_target, first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
 }

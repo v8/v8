@@ -130,6 +130,12 @@
   # TODO(mythria,4780): Related to type feedback support for Array function.
   'test-feedback-vector/VectorCallFeedbackForArray': [PASS, NO_IGNITION],
 
+  # TODO(mythria,4780): Related to type feedback support for constructor.
+  'test-feedback-vector/VectorConstructCounts': [PASS, NO_IGNITION],
+  'test-heap/WeakFunctionInConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [PASS, NO_IGNITION],
+
   # TODO(mythria,4680): Lack of code-ageing in interpreter.
   'test-heap/Regress169209': [PASS, NO_IGNITION],
 
@@ -144,8 +150,8 @@
   # BUG(4680): Missing type feedback makes optimistic optimizations fail.
   'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_IGNITION],
 
-  # TODO(mythria, 4780): In interpreter we disable mementos when creating array
-  # literals.
+  # BUG(4680): Ignition doesn't support allocation sites currently.
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringNestedDoubleLiterals': [PASS, NO_IGNITION],
@@ -423,6 +429,12 @@
   # TODO(mythria,4780): Related to type feedback support for Array function.
   'test-feedback-vector/VectorCallFeedbackForArray': [FAIL],
 
+  # TODO(mythria,4780): Related to type feedback support for constructor.
+  'test-feedback-vector/VectorConstructCounts': [FAIL],
+  'test-heap/WeakFunctionInConstructor': [FAIL],
+  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [FAIL],
+  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [FAIL],
+
   # TODO(mythria,4680): Lack of code-ageing in interpreter.
   'test-heap/Regress169209': [FAIL],
 
@@ -434,8 +446,8 @@
   'test-cpu-profiler/CollectDeoptEvents': [FAIL],
   'test-cpu-profiler/DeoptUntrackedFunction': [FAIL],
 
-  # TODO(mythria, 4780): In interpreter we disable mementos when creating array
-  # literals.
+  # BUG(4680): Ignition doesn't support allocation sites currently.
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],
   'test-heap/OptimizedPretenuringAllocationFolding': [FAIL],
   'test-heap/OptimizedPretenuringdoubleArrayLiterals': [FAIL],
   'test-heap/OptimizedPretenuringNestedDoubleLiterals': [FAIL],

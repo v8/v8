@@ -576,11 +576,9 @@ Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::InterpreterPushArgsAndConstruct(
-    Isolate* isolate, CallableType function_type) {
-  return Callable(
-      isolate->builtins()->InterpreterPushArgsAndConstruct(function_type),
-      InterpreterPushArgsAndConstructDescriptor(isolate));
+Callable CodeFactory::InterpreterPushArgsAndConstruct(Isolate* isolate) {
+  return Callable(isolate->builtins()->InterpreterPushArgsAndConstruct(),
+                  InterpreterPushArgsAndConstructDescriptor(isolate));
 }
 
 // static

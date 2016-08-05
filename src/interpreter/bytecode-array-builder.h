@@ -176,7 +176,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // consecutive arguments starting at |first_arg| for the constuctor
   // invocation.
   BytecodeArrayBuilder& New(Register constructor, Register first_arg,
-                            size_t arg_count, int feedback_slot);
+                            size_t arg_count);
 
   // Call the runtime function with |function_id|. The first argument should be
   // in |first_arg| and all subsequent arguments should be in registers

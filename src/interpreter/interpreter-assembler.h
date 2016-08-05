@@ -120,9 +120,7 @@ class InterpreterAssembler : public CodeStubAssembler {
                                 compiler::Node* context,
                                 compiler::Node* new_target,
                                 compiler::Node* first_arg,
-                                compiler::Node* arg_count,
-                                compiler::Node* slot_id,
-                                compiler::Node* type_feedback_vector);
+                                compiler::Node* arg_count);
 
   // Call runtime function with |arg_count| arguments and the first argument
   // located at |first_arg|.
