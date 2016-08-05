@@ -1085,8 +1085,6 @@ void AstGraphBuilder::Visit(Expression* expr) {
 
 void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
-  VariableMode mode = decl->mode();
-  bool hole_init = mode == CONST || mode == LET;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
@@ -1099,20 +1097,20 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
     }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
-      if (hole_init) {
+      if (variable->binding_needs_init()) {
         Node* value = jsgraph()->TheHoleConstant();
         environment()->Bind(variable, value);
       }
       break;
     case VariableLocation::CONTEXT:
-      if (hole_init) {
+      if (variable->binding_needs_init()) {
         Node* value = jsgraph()->TheHoleConstant();
         const Operator* op = javascript()->StoreContext(0, variable->index());
         NewNode(op, current_context(), value);
       }
       break;
     case VariableLocation::LOOKUP: {
-      DCHECK(!hole_init);
+      DCHECK(!variable->binding_needs_init());
       Node* name = jsgraph()->Constant(variable->name());
       const Operator* op = javascript()->CallRuntime(Runtime::kDeclareEvalVar);
       Node* store = NewNode(op, name);
@@ -3325,7 +3323,6 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                                          OutputFrameStateCombine combine,
                                          TypeofMode typeof_mode) {
   Node* the_hole = jsgraph()->TheHoleConstant();
-  VariableMode mode = variable->mode();
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
@@ -3340,7 +3337,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
     case VariableLocation::LOCAL: {
       // Local var, const, or let variable.
       Node* value = environment()->Lookup(variable);
-      if (mode == LET || mode == CONST) {
+      if (variable->binding_needs_init()) {
         // Perform check for uninitialized let/const variables.
         if (value->op() == the_hole->op()) {
           value = BuildThrowReferenceError(variable, bailout_id);
@@ -3360,7 +3357,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       // TODO(titzer): initialization checks are redundant for already
       // initialized immutable context loads, but only specialization knows.
       // Maybe specializer should be a parameter to the graph builder?
-      if (mode == LET || mode == CONST) {
+      if (variable->binding_needs_init()) {
         // Perform check for uninitialized let/const variables.
         value = BuildHoleCheckThenThrow(value, variable, value, bailout_id);
       }
@@ -3449,14 +3446,6 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         // baseline code might contain debug code that inspects the variable.
         Node* current = environment()->Lookup(variable);
         CHECK_NOT_NULL(current);
-      } else if (mode == LET && op != Token::INIT) {
-        // Perform an initialization check for let declared variables.
-        Node* current = environment()->Lookup(variable);
-        if (current->op() == the_hole->op()) {
-          return BuildThrowReferenceError(variable, bailout_id);
-        } else if (current->opcode() == IrOpcode::kPhi) {
-          BuildHoleCheckThenThrow(current, variable, value, bailout_id);
-        }
       } else if (mode == CONST && op == Token::INIT) {
         // Perform an initialization check for const {this} variables.
         // Note that the {this} variable is the only const variable being able
@@ -3465,15 +3454,19 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         if (current->op() != the_hole->op() && variable->is_this()) {
           value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
         }
-      } else if (mode == CONST && op != Token::INIT) {
-        // Assignment to const is exception in all modes.
+      } else if (IsLexicalVariableMode(mode) && op != Token::INIT) {
+        // Perform an initialization check for lexically declared variables.
         Node* current = environment()->Lookup(variable);
-        if (current->op() == the_hole->op()) {
-          return BuildThrowReferenceError(variable, bailout_id);
-        } else if (current->opcode() == IrOpcode::kPhi) {
-          BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+        if (variable->binding_needs_init()) {
+          if (current->op() == the_hole->op()) {
+            return BuildThrowReferenceError(variable, bailout_id);
+          } else if (current->opcode() == IrOpcode::kPhi) {
+            BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+          }
         }
-        return BuildThrowConstAssignError(bailout_id);
+        if (mode == CONST) {
+          return BuildThrowConstAssignError(bailout_id);
+        }
       }
       environment()->Bind(variable, value);
       return value;
@@ -3488,12 +3481,6 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           return BuildThrowConstAssignError(bailout_id);
         }
         return value;
-      } else if (mode == LET && op != Token::INIT) {
-        // Perform an initialization check for let declared variables.
-        const Operator* op =
-            javascript()->LoadContext(depth, variable->index(), false);
-        Node* current = NewNode(op, current_context());
-        value = BuildHoleCheckThenThrow(current, variable, value, bailout_id);
       } else if (mode == CONST && op == Token::INIT) {
         // Perform an initialization check for const {this} variables.
         // Note that the {this} variable is the only const variable being able
@@ -3504,13 +3491,18 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           Node* current = NewNode(op, current_context());
           value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
         }
-      } else if (mode == CONST && op != Token::INIT) {
-        // Assignment to const is exception in all modes.
-        const Operator* op =
-            javascript()->LoadContext(depth, variable->index(), false);
-        Node* current = NewNode(op, current_context());
-        BuildHoleCheckThenThrow(current, variable, value, bailout_id);
-        return BuildThrowConstAssignError(bailout_id);
+      } else if (IsLexicalVariableMode(mode) && op != Token::INIT) {
+        // Perform an initialization check for lexically declared variables.
+        if (variable->binding_needs_init()) {
+          const Operator* op =
+              javascript()->LoadContext(depth, variable->index(), false);
+          Node* current = NewNode(op, current_context());
+          value = BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+        }
+        if (mode == CONST) {
+          // Assignment to const is exception in all modes.
+          return BuildThrowConstAssignError(bailout_id);
+        }
       }
       const Operator* op = javascript()->StoreContext(depth, variable->index());
       return NewNode(op, current_context(), value);

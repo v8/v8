@@ -12161,9 +12161,7 @@ void HOptimizedGraphBuilder::VisitDeclarations(
 void HOptimizedGraphBuilder::VisitVariableDeclaration(
     VariableDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
-  VariableMode mode = declaration->mode();
   Variable* variable = proxy->var();
-  bool hole_init = mode == LET || mode == CONST;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
@@ -12176,13 +12174,13 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
     }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
-      if (hole_init) {
+      if (variable->binding_needs_init()) {
         HValue* value = graph()->GetConstantHole();
         environment()->Bind(variable, value);
       }
       break;
     case VariableLocation::CONTEXT:
-      if (hole_init) {
+      if (variable->binding_needs_init()) {
         HValue* value = graph()->GetConstantHole();
         HValue* context = environment()->context();
         HStoreContextSlot* store = Add<HStoreContextSlot>(

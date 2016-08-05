@@ -681,13 +681,13 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 116
+bytecode array length: 104
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(1),
   /*   52 S> */ B(Ldar), R(1),
-                B(JumpIfToBooleanFalse), U8(108),
+                B(JumpIfToBooleanFalse), U8(96),
   /*   45 E> */ B(StackCheck),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -700,15 +700,10 @@ bytecodes: [
                 B(Star), R(0),
   /*   73 S> */ B(LdaSmi), U8(1),
   /*   73 E> */ B(StaContextSlot), R(context), U8(4),
-                B(Ldar), R(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
-                B(Star), R(2),
+                B(Mov), R(0), R(2),
   /*  106 S> */ B(LdaContextSlot), R(context), U8(4),
                 B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(3),
+                B(LdaConstant), U8(2),
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
                 B(JumpIfToBooleanFalse), U8(8),
@@ -717,27 +712,26 @@ bytecodes: [
                 B(Jump), U8(40),
   /*  126 S> */ B(LdaContextSlot), R(context), U8(4),
                 B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(3),
+                B(LdaConstant), U8(2),
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
                 B(Inc),
                 B(Star), R(4),
   /*  127 E> */ B(LdaContextSlot), R(context), U8(4),
                 B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(3),
+                B(LdaConstant), U8(2),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),
                 B(Ldar), R(4),
                 B(StaContextSlot), R(context), U8(4),
                 B(PopContext), R(3),
-                B(Jump), U8(-108),
+                B(Jump), U8(-96),
                 B(LdaUndefined),
   /*  137 S> */ B(Return),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,
   InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [

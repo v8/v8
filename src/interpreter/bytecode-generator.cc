@@ -832,10 +832,6 @@ void BytecodeGenerator::VisitBlockDeclarationsAndStatements(Block* stmt) {
 
 void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
-  VariableMode mode = decl->mode();
-  // Const and let variables are initialized with the hole so that we can
-  // check that they are only assigned once.
-  bool hole_init = mode == CONST || mode == LET;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
@@ -845,13 +841,13 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       break;
     }
     case VariableLocation::LOCAL:
-      if (hole_init) {
+      if (variable->binding_needs_init()) {
         Register destination(variable->index());
         builder()->LoadTheHole().StoreAccumulatorInRegister(destination);
       }
       break;
     case VariableLocation::PARAMETER:
-      if (hole_init) {
+      if (variable->binding_needs_init()) {
         // The parameter indices are shifted by 1 (receiver is variable
         // index -1 but is parameter index 0 in BytecodeArrayBuilder).
         Register destination(builder()->Parameter(variable->index() + 1));
@@ -859,14 +855,14 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       }
       break;
     case VariableLocation::CONTEXT:
-      if (hole_init) {
+      if (variable->binding_needs_init()) {
         builder()->LoadTheHole().StoreContextSlot(execution_context()->reg(),
                                                   variable->index());
       }
       break;
     case VariableLocation::LOOKUP: {
-      DCHECK_EQ(VAR, mode);
-      DCHECK(!hole_init);
+      DCHECK_EQ(VAR, variable->mode());
+      DCHECK(!variable->binding_needs_init());
 
       Register name = register_allocator()->NewRegister();
 
@@ -1843,22 +1839,20 @@ void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
   VisitVariableLoad(proxy->var(), proxy->VariableFeedbackSlot());
 }
 
-void BytecodeGenerator::BuildHoleCheckForVariableLoad(VariableMode mode,
-                                                      Handle<String> name) {
-  if (mode == LET || mode == CONST) {
-    BuildThrowIfHole(name);
+void BytecodeGenerator::BuildHoleCheckForVariableLoad(Variable* variable) {
+  if (variable->binding_needs_init()) {
+    BuildThrowIfHole(variable->name());
   }
 }
 
 void BytecodeGenerator::VisitVariableLoad(Variable* variable,
                                           FeedbackVectorSlot slot,
                                           TypeofMode typeof_mode) {
-  VariableMode mode = variable->mode();
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
       Register source(Register(variable->index()));
       builder()->LoadAccumulatorWithRegister(source);
-      BuildHoleCheckForVariableLoad(mode, variable->name());
+      BuildHoleCheckForVariableLoad(variable);
       execution_result()->SetResultInAccumulator();
       break;
     }
@@ -1867,7 +1861,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       // index -1 but is parameter index 0 in BytecodeArrayBuilder).
       Register source = builder()->Parameter(variable->index() + 1);
       builder()->LoadAccumulatorWithRegister(source);
-      BuildHoleCheckForVariableLoad(mode, variable->name());
+      BuildHoleCheckForVariableLoad(variable);
       execution_result()->SetResultInAccumulator();
       break;
     }
@@ -1901,7 +1895,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       }
 
       builder()->LoadContextSlot(context_reg, variable->index());
-      BuildHoleCheckForVariableLoad(mode, variable->name());
+      BuildHoleCheckForVariableLoad(variable);
       execution_result()->SetResultInAccumulator();
       break;
     }

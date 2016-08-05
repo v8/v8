@@ -757,14 +757,8 @@ void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
 
 void FullCodeGenerator::VisitVariableDeclaration(
     VariableDeclaration* declaration) {
-  // If it was not possible to allocate the variable at compile time, we
-  // need to "declare" it at runtime to make sure it actually exists in the
-  // local context.
   VariableProxy* proxy = declaration->proxy();
-  VariableMode mode = declaration->mode();
   Variable* variable = proxy->var();
-  bool hole_init = mode == LET || mode == CONST;
-
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
@@ -777,7 +771,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
     }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
-      if (hole_init) {
+      if (variable->binding_needs_init()) {
         Comment cmnt(masm_, "[ VariableDeclaration");
         __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
         __ Str(x10, StackOperand(variable));
@@ -785,7 +779,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
       break;
 
     case VariableLocation::CONTEXT:
-      if (hole_init) {
+      if (variable->binding_needs_init()) {
         Comment cmnt(masm_, "[ VariableDeclaration");
         EmitDebugCheckDeclarationContext(variable);
         __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
@@ -797,8 +791,8 @@ void FullCodeGenerator::VisitVariableDeclaration(
 
     case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ VariableDeclaration");
-      DCHECK_EQ(VAR, mode);
-      DCHECK(!hole_init);
+      DCHECK_EQ(VAR, variable->mode());
+      DCHECK(!variable->binding_needs_init());
       __ Mov(x2, Operand(variable->name()));
       __ Push(x2);
       __ CallRuntime(Runtime::kDeclareEvalVar);
@@ -1258,13 +1252,14 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
   } else if (var->mode() == DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ Ldr(x0, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == LET || local->mode() == CONST) {
+    if (local->binding_needs_init()) {
       __ JumpIfNotRoot(x0, Heap::kTheHoleValueRootIndex, done);
       __ Mov(x0, Operand(var->name()));
       __ Push(x0);
       __ CallRuntime(Runtime::kThrowReferenceError);
+    } else {
+      __ B(done);
     }
-    __ B(done);
   }
 }
 
@@ -1308,18 +1303,15 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
                               ? "Context variable"
                               : "Stack variable");
       if (NeedsHoleCheckForLoad(proxy)) {
-        // Let and const need a read barrier.
-        GetVar(x0, var);
+        // Throw a reference error when using an uninitialized let/const
+        // binding in harmony mode.
         Label done;
+        GetVar(x0, var);
         __ JumpIfNotRoot(x0, Heap::kTheHoleValueRootIndex, &done);
-        if (var->mode() == LET || var->mode() == CONST) {
-          // Throw a reference error when using an uninitialized let/const
-          // binding in harmony mode.
-          __ Mov(x0, Operand(var->name()));
-          __ Push(x0);
-          __ CallRuntime(Runtime::kThrowReferenceError);
-          __ Bind(&done);
-        }
+        __ Mov(x0, Operand(var->name()));
+        __ Push(x0);
+        __ CallRuntime(Runtime::kThrowReferenceError);
+        __ Bind(&done);
         context()->Plug(x0);
         break;
       }
@@ -2064,35 +2056,25 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     EmitLoadStoreICSlot(slot);
     CallStoreIC();
 
-  } else if (var->mode() == LET && op != Token::INIT) {
-    // Non-initializing assignment to let variable needs a write barrier.
+  } else if (IsLexicalVariableMode(var->mode()) && op != Token::INIT) {
     DCHECK(!var->IsLookupSlot());
     DCHECK(var->IsStackAllocated() || var->IsContextSlot());
-    Label assign;
     MemOperand location = VarOperand(var, x1);
-    __ Ldr(x10, location);
-    __ JumpIfNotRoot(x10, Heap::kTheHoleValueRootIndex, &assign);
-    __ Mov(x10, Operand(var->name()));
-    __ Push(x10);
-    __ CallRuntime(Runtime::kThrowReferenceError);
-    // Perform the assignment.
-    __ Bind(&assign);
-    EmitStoreToStackLocalOrContextSlot(var, location);
-
-  } else if (var->mode() == CONST && op != Token::INIT) {
-    // Assignment to const variable needs a write barrier.
-    DCHECK(!var->IsLookupSlot());
-    DCHECK(var->IsStackAllocated() || var->IsContextSlot());
-    Label const_error;
-    MemOperand location = VarOperand(var, x1);
-    __ Ldr(x10, location);
-    __ JumpIfNotRoot(x10, Heap::kTheHoleValueRootIndex, &const_error);
-    __ Mov(x10, Operand(var->name()));
-    __ Push(x10);
-    __ CallRuntime(Runtime::kThrowReferenceError);
-    __ Bind(&const_error);
-    __ CallRuntime(Runtime::kThrowConstAssignError);
-
+    // Perform an initialization check for lexically declared variables.
+    if (var->binding_needs_init()) {
+      Label assign;
+      __ Ldr(x10, location);
+      __ JumpIfNotRoot(x10, Heap::kTheHoleValueRootIndex, &assign);
+      __ Mov(x10, Operand(var->name()));
+      __ Push(x10);
+      __ CallRuntime(Runtime::kThrowReferenceError);
+      __ Bind(&assign);
+    }
+    if (var->mode() == CONST) {
+      __ CallRuntime(Runtime::kThrowConstAssignError);
+    } else {
+      EmitStoreToStackLocalOrContextSlot(var, location);
+    }
   } else if (var->is_this() && var->mode() == CONST && op == Token::INIT) {
     // Initializing assignment to const {this} needs a write barrier.
     DCHECK(var->IsStackAllocated() || var->IsContextSlot());

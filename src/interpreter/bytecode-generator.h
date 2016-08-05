@@ -115,7 +115,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReassignConstant(Handle<String> name);
   void BuildThrowReferenceError(Handle<String> name);
-  void BuildHoleCheckForVariableLoad(VariableMode mode, Handle<String> name);
+  void BuildHoleCheckForVariableLoad(Variable* variable);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
   // Build jump to targets[value], where
