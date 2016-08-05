@@ -2478,8 +2478,7 @@ THREADED_TEST(UndefinedIsNotEnumerable) {
 
 
 v8::Local<Script> call_recursively_script;
-static const int kTargetRecursionDepth = 150;  // near maximum
-
+static const int kTargetRecursionDepth = 100;  // near maximum
 
 static void CallScriptRecursivelyCall(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -13807,6 +13806,16 @@ void ApiTestFuzzer::TearDown() {
   }
 }
 
+void ApiTestFuzzer::CallTest() {
+  v8::Isolate::Scope scope(CcTest::isolate());
+  if (kLogThreading)
+    printf("Start test %s #%d\n",
+           RegisterThreadedTest::nth(test_number_)->name(), test_number_);
+  CallTestNumber(test_number_);
+  if (kLogThreading)
+    printf("End test %s #%d\n", RegisterThreadedTest::nth(test_number_)->name(),
+           test_number_);
+}
 
 // Lets not be needlessly self-referential.
 TEST(Threading1) {
@@ -13834,16 +13843,6 @@ TEST(Threading4) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FOURTH_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
-}
-
-
-void ApiTestFuzzer::CallTest() {
-  v8::Isolate::Scope scope(CcTest::isolate());
-  if (kLogThreading)
-    printf("Start test %d\n", test_number_);
-  CallTestNumber(test_number_);
-  if (kLogThreading)
-    printf("End test %d\n", test_number_);
 }
 
 
