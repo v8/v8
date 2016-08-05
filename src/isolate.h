@@ -1473,8 +1473,8 @@ class PromiseOnStack {
 // versions of GCC. See V8 issue 122 for details.
 class SaveContext BASE_EMBEDDED {
  public:
-  explicit inline SaveContext(Isolate* isolate);
-  inline ~SaveContext();
+  explicit SaveContext(Isolate* isolate);
+  ~SaveContext();
 
   Handle<Context> context() { return context_; }
   SaveContext* prev() { return prev_; }
@@ -1483,8 +1483,6 @@ class SaveContext BASE_EMBEDDED {
   bool IsBelowFrame(StandardFrame* frame) {
     return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
   }
-
-  Isolate* isolate() { return isolate_; }
 
  private:
   Isolate* isolate_;
