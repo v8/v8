@@ -2386,6 +2386,9 @@ class RepresentationSelector {
         VisitInputs(node);
         return SetOutput(node, MachineRepresentation::kNone);
       }
+      case IrOpcode::kEnsureWritableFastElements:
+        return VisitBinop(node, UseInfo::AnyTagged(),
+                          MachineRepresentation::kTagged);
 
       //------------------------------------------------------------------
       // Machine-level operators.

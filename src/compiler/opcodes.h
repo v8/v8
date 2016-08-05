@@ -305,6 +305,7 @@
   V(ObjectIsSmi)                    \
   V(ObjectIsString)                 \
   V(ObjectIsUndetectable)           \
+  V(EnsureWritableFastElements)     \
   V(TransitionElementsKind)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
