@@ -112,6 +112,11 @@ class ParseInfo {
     ast_value_factory_ = ast_value_factory;
   }
 
+  const AstRawString* function_name() const { return function_name_; }
+  void set_function_name(const AstRawString* function_name) {
+    function_name_ = function_name;
+  }
+
   FunctionLiteral* literal() { return literal_; }
   void set_literal(FunctionLiteral* literal) { literal_ = literal; }
 
@@ -225,6 +230,7 @@ class ParseInfo {
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   ScriptData** cached_data_;  // used if available, populated if requested.
   AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
+  const AstRawString* function_name_;
 
   //----------- Outputs of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;  // produced by full parser.
@@ -776,8 +782,7 @@ class Parser : public ParserBase<ParserTraits> {
   FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
   FunctionLiteral* ParseLazy(Isolate* isolate, ParseInfo* info);
-  FunctionLiteral* DoParseLazy(Isolate* isolate, ParseInfo* info,
-                               const AstRawString* raw_name,
+  FunctionLiteral* DoParseLazy(ParseInfo* info, const AstRawString* raw_name,
                                Utf16CharacterStream* source);
 
   // Called by ParseProgram after setting up the scanner.

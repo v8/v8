@@ -4,9 +4,13 @@
 
 #include <memory>
 
+#include "include/v8.h"
+#include "src/api.h"
+#include "src/ast/scopes.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/flags.h"
 #include "src/isolate-inl.h"
+#include "src/parsing/parser.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -17,7 +21,7 @@ typedef TestWithContext CompilerDispatcherJobTest;
 
 namespace {
 
-const char test_script[] = "x*x";
+const char test_script[] = "(x) { x*x; }";
 
 class ScriptResource : public v8::String::ExternalOneByteStringResource {
  public:
@@ -108,6 +112,44 @@ TEST_F(CompilerDispatcherJobTest, SyntaxError) {
   job->ReportErrorsOnMainThread();
   ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
   ASSERT_TRUE(i_isolate()->has_pending_exception());
+  i_isolate()->clear_pending_exception();
+}
+
+TEST_F(CompilerDispatcherJobTest, ScopeChain) {
+  const char script[] =
+      "function g() { var g = 1; function f(x) { return x * g }; return f; } "
+      "g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(Utils::OpenHandle(
+      *v8::Script::Compile(isolate()->GetCurrentContext(),
+                           v8::String::NewFromUtf8(isolate(), script,
+                                                   v8::NewStringType::kNormal)
+                               .ToLocalChecked())
+           .ToLocalChecked()
+           ->Run(isolate()->GetCurrentContext())
+           .ToLocalChecked()));
+
+  std::unique_ptr<CompilerDispatcherJob> job(
+      new CompilerDispatcherJob(i_isolate(), f, FLAG_stack_size));
+
+  job->PrepareToParseOnMainThread();
+  job->Parse();
+  job->FinalizeParsingOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToCompile);
+
+  const AstRawString* var_x =
+      job->parse_info_->ast_value_factory()->GetOneByteString("x");
+  Variable* var = job->parse_info_->literal()->scope()->Lookup(var_x);
+  ASSERT_TRUE(var);
+  ASSERT_TRUE(var->IsUnallocated());
+
+  const AstRawString* var_g =
+      job->parse_info_->ast_value_factory()->GetOneByteString("g");
+  var = job->parse_info_->literal()->scope()->Lookup(var_g);
+  ASSERT_TRUE(var);
+  ASSERT_TRUE(var->IsContextSlot());
+
+  job->ResetOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
 }
 
 }  // namespace internal
