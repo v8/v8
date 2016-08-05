@@ -68,7 +68,7 @@ class LoopVariableOptimizer {
   }
 
   void ChangeToInductionVariablePhis();
-  void ChangeFromInductionVariablePhis();
+  void ChangeToPhisAndInsertGuards();
 
  private:
   const int kAssumedLoopEntryIndex = 0;

@@ -415,6 +415,12 @@ class RepresentationSelector {
         break;
       }
 
+      case IrOpcode::kTypeGuard: {
+        new_type = op_typer_.TypeTypeGuard(node->op(),
+                                           FeedbackTypeOf(node->InputAt(0)));
+        break;
+      }
+
       case IrOpcode::kSelect: {
         new_type = TypeSelect(node);
         break;
@@ -819,9 +825,12 @@ class RepresentationSelector {
   }
 
   // Infer representation for phi-like nodes.
-  MachineRepresentation GetOutputInfoForPhi(Node* node, Truncation use) {
+  // The {node} parameter is only used to decide on the int64 representation.
+  // Once the type system supports an external pointer type, the {node}
+  // parameter can be removed.
+  MachineRepresentation GetOutputInfoForPhi(Node* node, Type* type,
+                                            Truncation use) {
     // Compute the representation.
-    Type* type = TypeOf(node);
     if (type->Is(Type::None())) {
       return MachineRepresentation::kNone;
     } else if (type->Is(Type::Signed32()) || type->Is(Type::Unsigned32())) {
@@ -868,7 +877,8 @@ class RepresentationSelector {
                    SimplifiedLowering* lowering) {
     ProcessInput(node, 0, UseInfo::Bool());
 
-    MachineRepresentation output = GetOutputInfoForPhi(node, truncation);
+    MachineRepresentation output =
+        GetOutputInfoForPhi(node, TypeOf(node), truncation);
     SetOutput(node, output);
 
     if (lower()) {
@@ -889,7 +899,8 @@ class RepresentationSelector {
   // Helper for handling phis.
   void VisitPhi(Node* node, Truncation truncation,
                 SimplifiedLowering* lowering) {
-    MachineRepresentation output = GetOutputInfoForPhi(node, truncation);
+    MachineRepresentation output =
+        GetOutputInfoForPhi(node, TypeOf(node), truncation);
     // Only set the output representation if not running with type
     // feedback. (Feedback typing will set the representation.)
     SetOutput(node, output);
@@ -903,7 +914,7 @@ class RepresentationSelector {
     }
 
     // Convert inputs to the output representation of this phi, pass the
-    // truncation truncation along.
+    // truncation along.
     UseInfo input_use(output, truncation);
     for (int i = 0; i < node->InputCount(); i++) {
       ProcessInput(node, i, i < values ? input_use : UseInfo::None());
@@ -2530,6 +2541,17 @@ class RepresentationSelector {
         return VisitLeaf(node, MachineType::PointerRepresentation());
       case IrOpcode::kStateValues:
         return VisitStateValues(node);
+      case IrOpcode::kTypeGuard: {
+        // We just get rid of the sigma here. In principle, it should be
+        // possible to refine the truncation and representation based on
+        // the sigma's type.
+        MachineRepresentation output =
+            GetOutputInfoForPhi(node, TypeOf(node->InputAt(0)), truncation);
+
+        VisitUnop(node, UseInfo(output, truncation), output);
+        if (lower()) DeferReplacement(node, node->InputAt(0));
+        return;
+      }
 
       // The following opcodes are not produced before representation
       // inference runs, so we do not have any real test coverage.
@@ -2572,8 +2594,6 @@ class RepresentationSelector {
       Node* control = NodeProperties::GetControlInput(node);
       Node* effect = NodeProperties::GetEffectInput(node);
       ReplaceEffectControlUses(node, effect, control);
-    } else {
-      DCHECK_EQ(0, node->op()->ControlInputCount());
     }
 
     replacements_.push_back(node);

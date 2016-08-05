@@ -19,6 +19,8 @@ class Zone;
 
 namespace compiler {
 
+class Operator;
+
 class OperationTyper {
  public:
   OperationTyper(Isolate* isolate, Zone* zone);
@@ -42,6 +44,8 @@ class OperationTyper {
   SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
+
+  Type* TypeTypeGuard(const Operator* sigma_op, Type* input);
 
   enum ComparisonOutcomeFlags {
     kComparisonTrue = 1,

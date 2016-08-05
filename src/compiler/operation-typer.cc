@@ -4,6 +4,7 @@
 
 #include "src/compiler/operation-typer.h"
 
+#include "src/compiler/common-operator.h"
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/type-cache.h"
@@ -909,6 +910,10 @@ Type* OperationTyper::FalsifyUndefined(ComparisonOutcome outcome) {
   // Type should be non empty, so we know it should be true.
   DCHECK((outcome & kComparisonTrue) != 0);
   return singleton_true();
+}
+
+Type* OperationTyper::TypeTypeGuard(const Operator* sigma_op, Type* input) {
+  return Type::Intersect(input, TypeGuardTypeOf(sigma_op), zone());
 }
 
 }  // namespace compiler

@@ -4,6 +4,8 @@
 
 #include "src/compiler/typer.h"
 
+#include <iomanip>
+
 #include "src/base/flags.h"
 #include "src/bootstrapper.h"
 #include "src/compiler/common-operator.h"
@@ -337,7 +339,7 @@ void Typer::Run(const NodeVector& roots,
   graph_reducer.ReduceGraph();
 
   if (induction_vars != nullptr) {
-    induction_vars->ChangeFromInductionVariablePhis();
+    induction_vars->ChangeToPhisAndInsertGuards();
   }
 }
 
@@ -695,6 +697,7 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
   }
   if (FLAG_trace_turbo_loop) {
     OFStream os(stdout);
+    os << std::setprecision(10);
     os << "Loop (" << NodeProperties::GetControlInput(node)->id()
        << ") variable bounds for phi " << node->id() << ": (" << min << ", "
        << max << ")\n";
@@ -763,6 +766,11 @@ Type* Typer::Visitor::TypeProjection(Node* node) {
     return type->AsTuple()->Element(index);
   }
   return Type::Any();
+}
+
+Type* Typer::Visitor::TypeTypeGuard(Node* node) {
+  Type* const type = Operand(node, 0);
+  return typer_->operation_typer()->TypeTypeGuard(node->op(), type);
 }
 
 Type* Typer::Visitor::TypeDead(Node* node) { return Type::None(); }

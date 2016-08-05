@@ -369,10 +369,11 @@ void LoopVariableOptimizer::ChangeToInductionVariablePhis() {
   }
 }
 
-void LoopVariableOptimizer::ChangeFromInductionVariablePhis() {
+void LoopVariableOptimizer::ChangeToPhisAndInsertGuards() {
   for (auto entry : induction_vars_) {
     InductionVariable* induction_var = entry.second;
     if (induction_var->phi()->opcode() == IrOpcode::kInductionVariablePhi) {
+      // Turn the induction variable phi back to normal phi.
       int value_count = 2;
       Node* control = NodeProperties::GetControlInput(induction_var->phi());
       DCHECK_EQ(value_count, control->op()->ControlInputCount());
@@ -381,6 +382,19 @@ void LoopVariableOptimizer::ChangeFromInductionVariablePhis() {
       NodeProperties::ChangeOp(
           induction_var->phi(),
           common()->Phi(MachineRepresentation::kTagged, value_count));
+
+      // If the backedge is not a subtype of the phi's type, we insert a sigma
+      // to get the typing right.
+      Node* backedge_value = induction_var->phi()->InputAt(1);
+      Type* backedge_type = NodeProperties::GetType(backedge_value);
+      Type* phi_type = NodeProperties::GetType(induction_var->phi());
+      if (!backedge_type->Is(phi_type)) {
+        Node* backedge_control =
+            NodeProperties::GetControlInput(induction_var->phi())->InputAt(1);
+        Node* rename = graph()->NewNode(common()->TypeGuard(phi_type),
+                                        backedge_value, backedge_control);
+        induction_var->phi()->ReplaceInput(1, rename);
+      }
     }
   }
 }

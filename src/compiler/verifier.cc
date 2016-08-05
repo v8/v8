@@ -1072,6 +1072,9 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckUpperIs(node, Type::Number());
       break;
+    case IrOpcode::kTypeGuard:
+      CheckUpperIs(node, TypeGuardTypeOf(node->op()));
+      break;
 
     // Machine operators
     // -----------------------

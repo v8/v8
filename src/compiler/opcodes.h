@@ -62,7 +62,8 @@
   V(LoopExitValue)        \
   V(LoopExitEffect)       \
   V(Projection)           \
-  V(Retain)
+  V(Retain)               \
+  V(TypeGuard)
 
 #define COMMON_OP_LIST(V) \
   CONSTANT_OP_LIST(V)     \
