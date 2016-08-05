@@ -168,25 +168,20 @@ HeapObject* LiveObjectIterator<T>::Next() {
         // make sure that we skip all set bits in the black area until the
         // object ends.
         HeapObject* black_object = HeapObject::FromAddress(addr);
-        Address end = addr + black_object->Size() - kPointerSize;
+        Address end = addr + black_object->Size();
         // One word filler objects do not borrow the second mark bit. We have
         // to jump over the advancing and clearing part.
         // Note that we know that we are at a one word filler when
         // object_start + object_size - kPointerSize == object_start.
         if (addr != end) {
-          DCHECK_EQ(chunk_, MemoryChunk::FromAddress(end));
-          uint32_t end_mark_bit_index = chunk_->AddressToMarkbitIndex(end);
-          unsigned int end_cell_index =
-              end_mark_bit_index >> Bitmap::kBitsPerCellLog2;
-          MarkBit::CellType end_index_mask =
-              1u << Bitmap::IndexInCell(end_mark_bit_index);
-          if (it_.Advance(end_cell_index)) {
-            cell_base_ = it_.CurrentCellBase();
-            current_cell_ = *it_.CurrentCell();
-          }
+          // Clear all bits from second_bit_index.
+          current_cell_ &= ~(second_bit_index | (second_bit_index - 1));
 
-          // Clear all bits in current_cell, including the end index.
-          current_cell_ &= ~(end_index_mask | (end_index_mask - 1));
+          // Check that all bits corresponding to in object fields after the
+          // two cleared bits in the beginning are indeed zero.
+          CHECK(chunk_->markbits()->AllBitsClearInRange(
+              chunk_->AddressToMarkbitIndex(addr + 2 * kPointerSize),
+              chunk_->AddressToMarkbitIndex(end)));
         }
 
         if (T == kBlackObjects || T == kAllLiveObjects) {
