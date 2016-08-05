@@ -264,7 +264,8 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
   }
 }
 
-void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function) {
+void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function,
+                                            bool frame_optimized) {
   if (function->IsInOptimizationQueue()) return;
 
   SharedFunctionInfo* shared = function->shared();
@@ -276,10 +277,11 @@ void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function) {
   if (FLAG_ignition_osr && FLAG_always_osr) {
     AttemptOnStackReplacement(function, AbstractCode::kMaxLoopNestingMarker);
     // Fall through and do a normal baseline compile as well.
-  } else if (function->IsMarkedForBaseline() ||
-             function->IsMarkedForOptimization() ||
-             function->IsMarkedForConcurrentOptimization() ||
-             function->IsOptimized()) {
+  } else if (!frame_optimized &&
+             (function->IsMarkedForBaseline() ||
+              function->IsMarkedForOptimization() ||
+              function->IsMarkedForConcurrentOptimization() ||
+              function->IsOptimized())) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
     int64_t allowance =
@@ -304,7 +306,8 @@ void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function) {
   }
 }
 
-void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function) {
+void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
+                                            bool frame_optimized) {
   if (function->IsInOptimizationQueue()) return;
 
   SharedFunctionInfo* shared = function->shared();
@@ -316,10 +319,11 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function) {
   if (FLAG_ignition_osr && FLAG_always_osr) {
     AttemptOnStackReplacement(function, AbstractCode::kMaxLoopNestingMarker);
     // Fall through and do a normal optimized compile as well.
-  } else if (function->IsMarkedForBaseline() ||
-             function->IsMarkedForOptimization() ||
-             function->IsMarkedForConcurrentOptimization() ||
-             function->IsOptimized()) {
+  } else if (!frame_optimized &&
+             (function->IsMarkedForBaseline() ||
+              function->IsMarkedForOptimization() ||
+              function->IsMarkedForConcurrentOptimization() ||
+              function->IsOptimized())) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
     int64_t allowance =
@@ -399,13 +403,12 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
 
     Compiler::CompilationTier next_tier =
         Compiler::NextCompilationTier(function);
-    if (frame->is_interpreted()) {
+    if (function->shared()->HasBytecodeArray()) {
       if (next_tier == Compiler::BASELINE) {
-        DCHECK(!frame->is_optimized());
-        MaybeBaselineIgnition(function);
+        MaybeBaselineIgnition(function, frame->is_optimized());
       } else {
         DCHECK_EQ(next_tier, Compiler::OPTIMIZED);
-        MaybeOptimizeIgnition(function);
+        MaybeOptimizeIgnition(function, frame->is_optimized());
       }
     } else {
       DCHECK_EQ(next_tier, Compiler::OPTIMIZED);

@@ -26,15 +26,12 @@ class RuntimeProfiler {
  private:
   void MaybeOptimizeFullCodegen(JSFunction* function, int frame_count,
                                 bool frame_optimized);
-  void MaybeBaselineIgnition(JSFunction* function);
-  void MaybeOptimizeIgnition(JSFunction* function);
+  void MaybeBaselineIgnition(JSFunction* function, bool frame_optimized);
+  void MaybeOptimizeIgnition(JSFunction* function, bool frame_optimized);
   void Optimize(JSFunction* function, const char* reason);
   void Baseline(JSFunction* function, const char* reason);
 
-  bool CodeSizeOKForOSR(Code* shared_code);
-
   Isolate* isolate_;
-
   bool any_ic_changed_;
 };
 
