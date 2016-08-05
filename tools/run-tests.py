@@ -98,8 +98,7 @@ TEST_MAP = {
 
 TIMEOUT_DEFAULT = 60
 
-# TODO(machenbach): Add ignition_staging variant.
-VARIANTS = ["default", "turbofan"]
+VARIANTS = ["default", "turbofan", "ignition_staging"]
 
 MORE_VARIANTS = [
   "ignition",

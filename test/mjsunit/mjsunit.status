@@ -701,6 +701,52 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
+['variant == ignition_staging', {
+  'allocation-site-info': [FAIL],
+  'array-constructor-feedback': [FAIL],
+  'array-feedback': [FAIL],
+  'array-literal-feedback': [FAIL],
+  'assert-opt-and-deopt': [FAIL],
+  'compiler/deopt-inlined-from-call': [FAIL],
+  'compiler/increment-typefeedback': [FAIL],
+  'compiler/manual-concurrent-recompile': [FAIL],
+  'constant-folding-2': [FAIL],
+  'debug-is-active': [FAIL],
+  'deopt-with-fp-regs': [FAIL],
+  'deserialize-optimize-inner': [FAIL],
+  'div-mul-minus-one': [FAIL],
+  'elements-transition-hoisting': [FAIL],
+  'es6/block-let-crankshaft': [FAIL],
+  'es6/block-let-crankshaft-sloppy': [FAIL],
+  'getters-on-elements': [FAIL],
+  'harmony/do-expressions': [FAIL],
+  'math-floor-of-div-minus-zero': [FAIL],
+  'regress/regress-2132': [FAIL],
+  'regress/regress-2339': [FAIL],
+  'regress/regress-3176': [FAIL],
+  'regress/regress-3709': [FAIL],
+  'regress/regress-385565': [FAIL],
+  'regress/regress-4121': [FAIL],
+  'regress/regress-crbug-594183': [FAIL],
+  'regress/regress-embedded-cons-string': [FAIL],
+  'regress/regress-map-invalidation-2': [FAIL],
+  'regress/regress-param-local-type': [FAIL],
+  'regress/regress-prepare-break-while-recompile': [FAIL],
+  'shift-for-integer-div': [FAIL],
+  'sin-cos': [FAIL],
+  'smi-mul-const': [FAIL],
+  'smi-mul': [FAIL],
+  'unary-minus-deopt': [FAIL],
+
+  # Flaky.
+  'asm/int32div': [SKIP],
+  'asm/int32mod': [SKIP],
+  'compiler/uint32': [SKIP],
+  'regress/regress-454725': [SKIP],
+
+}],  # variant == ignition_staging
+
+##############################################################################
 ['variant == ignition_turbofan', {
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
