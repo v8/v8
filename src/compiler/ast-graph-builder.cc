@@ -441,7 +441,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
 
 
 Node* AstGraphBuilder::GetFunctionClosureForContext() {
-  Scope* closure_scope = current_scope()->ClosureScope();
+  DeclarationScope* closure_scope = current_scope()->GetClosureScope();
   if (closure_scope->is_script_scope() ||
       closure_scope->is_module_scope()) {
     // Contexts nested in the native context have a canonical empty function as
@@ -508,7 +508,7 @@ Node* AstGraphBuilder::GetEmptyFrameState() {
 }
 
 bool AstGraphBuilder::CreateGraph(bool stack_check) {
-  Scope* scope = info()->scope();
+  DeclarationScope* scope = info()->scope();
   DCHECK_NOT_NULL(graph());
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
@@ -568,7 +568,7 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
 
 
 void AstGraphBuilder::CreateGraphBody(bool stack_check) {
-  Scope* scope = info()->scope();
+  DeclarationScope* scope = info()->scope();
 
   // Build the arguments object if it is used.
   BuildArgumentsObject(scope->arguments());
@@ -634,8 +634,8 @@ static BailoutId BeforeId(VariableProxy* proxy) {
                                                    : BailoutId::None();
 }
 
-
-static const char* GetDebugParameterName(Zone* zone, Scope* scope, int index) {
+static const char* GetDebugParameterName(Zone* zone, DeclarationScope* scope,
+                                         int index) {
 #if DEBUG
   const AstRawString* name = scope->parameter(index)->raw_name();
   if (name && name->length() > 0) {
@@ -648,9 +648,8 @@ static const char* GetDebugParameterName(Zone* zone, Scope* scope, int index) {
   return nullptr;
 }
 
-
 AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
-                                          Scope* scope,
+                                          DeclarationScope* scope,
                                           Node* control_dependency)
     : builder_(builder),
       parameters_count_(scope->num_parameters() + 1),
@@ -3129,7 +3128,7 @@ Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {
 
 
 Node* AstGraphBuilder::BuildLocalActivationContext(Node* context) {
-  Scope* scope = info()->scope();
+  DeclarationScope* scope = info()->scope();
 
   // Allocate a new local context.
   Node* local_context = scope->is_script_scope()

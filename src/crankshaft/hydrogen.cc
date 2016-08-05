@@ -4399,7 +4399,7 @@ bool HOptimizedGraphBuilder::BuildGraph() {
     return false;
   }
 
-  Scope* scope = current_info()->scope();
+  DeclarationScope* scope = current_info()->scope();
   SetUpScope(scope);
 
   // Add an edge to the body entry.  This is warty: the graph's start
@@ -4604,8 +4604,7 @@ HInstruction* HOptimizedGraphBuilder::PreProcessCall(Instruction* call) {
   return call;
 }
 
-
-void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
+void HOptimizedGraphBuilder::SetUpScope(DeclarationScope* scope) {
   HEnvironment* prolog_env = environment();
   int parameter_count = environment()->parameter_count();
   ZoneList<HValue*> parameters(parameter_count, zone());
@@ -4691,7 +4690,7 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
     if (scope != NULL) {
       if (scope->NeedsContext()) {
         // Load the function object.
-        Scope* declaration_scope = scope->DeclarationScope();
+        DeclarationScope* declaration_scope = scope->GetDeclarationScope();
         HInstruction* function;
         HValue* outer_context = environment()->context();
         if (declaration_scope->is_script_scope() ||
@@ -12781,7 +12780,7 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       push_count_(0),
       ast_id_(BailoutId::None()),
       zone_(zone) {
-  Scope* declaration_scope = scope->DeclarationScope();
+  DeclarationScope* declaration_scope = scope->GetDeclarationScope();
   Initialize(declaration_scope->num_parameters() + 1,
              declaration_scope->num_stack_slots(), 0);
 }

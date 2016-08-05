@@ -559,7 +559,7 @@ void AstNumberingVisitor::VisitRewritableExpression(
 
 
 bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
-  Scope* scope = node->scope();
+  DeclarationScope* scope = node->scope();
   if (scope->new_target_var()) DisableCrankshaft(kSuperReference);
   if (scope->calls_eval()) DisableOptimization(kFunctionCallsEval);
   if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {

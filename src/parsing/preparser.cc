@@ -131,11 +131,11 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   use_counts_ = use_counts;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   DCHECK_NULL(scope_state_);
-  Scope* top_scope = NewScriptScope();
+  DeclarationScope* top_scope = NewScriptScope();
   FunctionState top_state(&function_state_, &scope_state_, top_scope,
                           kNormalFunction);
   scope()->SetLanguageMode(language_mode);
-  Scope* function_scope = NewFunctionScope(kind);
+  DeclarationScope* function_scope = NewFunctionScope(kind);
   if (!has_simple_parameters) function_scope->SetHasNonSimpleParameters();
   FunctionState function_state(&function_state_, &scope_state_, function_scope,
                                kind);
@@ -1103,7 +1103,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Parse function body.
   bool outer_is_script_scope = scope()->is_script_scope();
-  Scope* function_scope = NewFunctionScope(kind);
+  DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
   FunctionState function_state(&function_state_, &scope_state_, function_scope,
                                kind);

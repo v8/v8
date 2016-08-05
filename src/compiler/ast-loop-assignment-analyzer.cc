@@ -297,17 +297,15 @@ void ALAA::AnalyzeAssignment(Variable* var) {
   }
 }
 
-
-int ALAA::GetVariableIndex(Scope* scope, Variable* var) {
+int ALAA::GetVariableIndex(DeclarationScope* scope, Variable* var) {
   CHECK(var->IsStackAllocated());
   if (var->is_this()) return 0;
   if (var->IsParameter()) return 1 + var->index();
   return 1 + scope->num_parameters() + var->index();
 }
 
-
-int LoopAssignmentAnalysis::GetAssignmentCountForTesting(Scope* scope,
-                                                         Variable* var) {
+int LoopAssignmentAnalysis::GetAssignmentCountForTesting(
+    DeclarationScope* scope, Variable* var) {
   int count = 0;
   int var_index = AstLoopAssignmentAnalyzer::GetVariableIndex(scope, var);
   for (size_t i = 0; i < list_.size(); i++) {

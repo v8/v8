@@ -15,8 +15,8 @@ namespace v8 {
 namespace internal {
 
 AstTyper::AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
-                   Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root,
-                   AstTypeBounds* bounds)
+                   DeclarationScope* scope, BailoutId osr_ast_id,
+                   FunctionLiteral* root, AstTypeBounds* bounds)
     : isolate_(isolate),
       zone_(zone),
       closure_(closure),

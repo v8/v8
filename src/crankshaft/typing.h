@@ -20,7 +20,7 @@ namespace internal {
 class AstTyper final : public AstVisitor<AstTyper> {
  public:
   AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
-           Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root,
+           DeclarationScope* scope, BailoutId osr_ast_id, FunctionLiteral* root,
            AstTypeBounds* bounds);
   void Run();
 
@@ -37,7 +37,7 @@ class AstTyper final : public AstVisitor<AstTyper> {
   Isolate* isolate_;
   Zone* zone_;
   Handle<JSFunction> closure_;
-  Scope* scope_;
+  DeclarationScope* scope_;
   BailoutId osr_ast_id_;
   FunctionLiteral* root_;
   TypeFeedbackOracle oracle_;

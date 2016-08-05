@@ -32,8 +32,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   // Determine use and location of the "this" binding if it is present.
   VariableAllocationInfo receiver_info;
-  if (scope->has_this_declaration()) {
-    Variable* var = scope->receiver();
+  if (scope->is_declaration_scope() &&
+      scope->AsDeclarationScope()->has_this_declaration()) {
+    Variable* var = scope->AsDeclarationScope()->receiver();
     if (!var->is_used()) {
       receiver_info = UNUSED;
     } else if (var->IsContextSlot()) {
@@ -46,13 +47,16 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
     receiver_info = NONE;
   }
 
-  bool has_new_target = scope->new_target_var() != nullptr;
+  bool has_new_target =
+      scope->is_declaration_scope() &&
+      scope->AsDeclarationScope()->new_target_var() != nullptr;
 
   // Determine use and location of the function variable if it is present.
   VariableAllocationInfo function_name_info;
   VariableMode function_variable_mode;
-  if (scope->is_function_scope() && scope->function() != NULL) {
-    Variable* var = scope->function()->proxy()->var();
+  if (scope->is_function_scope() &&
+      scope->AsDeclarationScope()->function() != nullptr) {
+    Variable* var = scope->AsDeclarationScope()->function()->proxy()->var();
     if (!var->is_used()) {
       function_name_info = UNUSED;
     } else if (var->IsContextSlot()) {
@@ -80,7 +84,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   bool has_simple_parameters =
-      scope->is_function_scope() && scope->has_simple_parameters();
+      scope->is_function_scope() &&
+      scope->AsDeclarationScope()->has_simple_parameters();
+  FunctionKind function_kind =
+      scope->is_declaration_scope()
+          ? scope->AsDeclarationScope()->function_kind()
+          : kNormalFunction;
 
   // Encode the flags.
   int flags = ScopeTypeField::encode(scope->scope_type()) |
@@ -94,7 +103,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               AsmModuleField::encode(scope->asm_module()) |
               AsmFunctionField::encode(scope->asm_function()) |
               HasSimpleParametersField::encode(has_simple_parameters) |
-              FunctionKindField::encode(scope->function_kind());
+              FunctionKindField::encode(function_kind);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
@@ -104,8 +113,11 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   int index = kVariablePartIndex;
   // Add parameters.
   DCHECK(index == scope_info->ParameterEntriesIndex());
-  for (int i = 0; i < parameter_count; ++i) {
-    scope_info->set(index++, *scope->parameter(i)->name());
+  if (scope->is_declaration_scope()) {
+    for (int i = 0; i < parameter_count; ++i) {
+      scope_info->set(index++,
+                      *scope->AsDeclarationScope()->parameter(i)->name());
+    }
   }
 
   // Add stack locals' names. We are assuming that the stack locals'
@@ -171,7 +183,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   // If the receiver is allocated, add its index.
   DCHECK(index == scope_info->ReceiverEntryIndex());
   if (has_receiver) {
-    int var_index = scope->receiver()->index();
+    int var_index = scope->AsDeclarationScope()->receiver()->index();
     scope_info->set(index++, Smi::FromInt(var_index));
     // ?? DCHECK(receiver_info != CONTEXT || var_index ==
     // scope_info->ContextLength() - 1);
@@ -180,8 +192,10 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   // If present, add the function variable name and its index.
   DCHECK(index == scope_info->FunctionNameEntryIndex());
   if (has_function_name) {
-    int var_index = scope->function()->proxy()->var()->index();
-    scope_info->set(index++, *scope->function()->proxy()->name());
+    int var_index =
+        scope->AsDeclarationScope()->function()->proxy()->var()->index();
+    scope_info->set(index++,
+                    *scope->AsDeclarationScope()->function()->proxy()->name());
     scope_info->set(index++, Smi::FromInt(var_index));
     DCHECK(function_name_info != CONTEXT ||
            var_index == scope_info->ContextLength() - 1);
