@@ -581,14 +581,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         }
       }
 
-      // Certain stores need a prototype chain check because shape changes
-      // could allow callbacks on elements in the prototype chain that are
-      // not compatible with (monomorphic) keyed stores.
-      Handle<JSObject> holder;
-      if (access_info.holder().ToHandle(&holder)) {
-        AssumePrototypesStable(receiver_maps, native_context, holder);
-      }
-
       // Access the actual element.
       ValueEffectControl continuation = BuildElementAccess(
           this_receiver, this_index, this_value, this_effect, this_control,
@@ -956,12 +948,6 @@ JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
     Handle<Context> native_context, ElementAccessInfo const& access_info,
     AccessMode access_mode, KeyedAccessStoreMode store_mode) {
-  // Determine actual holder and perform prototype chain checks.
-  Handle<JSObject> holder;
-  if (access_info.holder().ToHandle(&holder)) {
-    AssumePrototypesStable(access_info.receiver_maps(), native_context, holder);
-  }
-
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
@@ -1133,16 +1119,7 @@ JSNativeContextSpecialization::BuildElementAccess(
         // Perform the hole check on the result.
         CheckTaggedHoleMode mode = CheckTaggedHoleMode::kNeverReturnHole;
         // Check if we are allowed to turn the hole into undefined.
-        // TODO(bmeurer): We might check the JSArray map from a different
-        // context here; may need reinvestigation.
-        if (receiver_maps.size() == 1 &&
-            receiver_maps[0].is_identical_to(
-                handle(isolate()->get_initial_js_array_map(elements_kind))) &&
-            isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
-          // Add a code dependency on the array protector cell.
-          dependencies()->AssumePrototypeMapsStable(
-              receiver_maps[0], isolate()->initial_object_prototype());
-          dependencies()->AssumePropertyCell(factory()->array_protector());
+        if (CanTreatHoleAsUndefined(receiver_maps, native_context)) {
           // Turn the hole into undefined.
           mode = CheckTaggedHoleMode::kConvertHoleToUndefined;
         }
@@ -1152,16 +1129,7 @@ JSNativeContextSpecialization::BuildElementAccess(
         // Perform the hole check on the result.
         CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
         // Check if we are allowed to return the hole directly.
-        // TODO(bmeurer): We might check the JSArray map from a different
-        // context here; may need reinvestigation.
-        if (receiver_maps.size() == 1 &&
-            receiver_maps[0].is_identical_to(
-                handle(isolate()->get_initial_js_array_map(elements_kind))) &&
-            isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
-          // Add a code dependency on the array protector cell.
-          dependencies()->AssumePrototypeMapsStable(
-              receiver_maps[0], isolate()->initial_object_prototype());
-          dependencies()->AssumePropertyCell(factory()->array_protector());
+        if (CanTreatHoleAsUndefined(receiver_maps, native_context)) {
           // Return the signaling NaN hole directly if all uses are truncating.
           mode = CheckFloat64HoleMode::kAllowReturnHole;
         }
@@ -1256,6 +1224,42 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
     }
     dependencies()->AssumePrototypeMapsStable(map, holder);
   }
+}
+
+bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
+    std::vector<Handle<Map>> const& receiver_maps,
+    Handle<Context> native_context) {
+  // Check if the array prototype chain is intact.
+  if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) return false;
+
+  // Make sure both the initial Array and Object prototypes are stable.
+  Handle<JSObject> initial_array_prototype(
+      native_context->initial_array_prototype(), isolate());
+  Handle<JSObject> initial_object_prototype(
+      native_context->initial_object_prototype(), isolate());
+  if (!initial_array_prototype->map()->is_stable() ||
+      !initial_object_prototype->map()->is_stable()) {
+    return false;
+  }
+
+  // Check if all {receiver_maps} either have the initial Array.prototype
+  // or the initial Object.prototype as their prototype, as those are
+  // guarded by the array protector cell.
+  for (Handle<Map> map : receiver_maps) {
+    if (map->prototype() != *initial_array_prototype &&
+        map->prototype() != *initial_object_prototype) {
+      return false;
+    }
+  }
+
+  // Install code dependencies on the prototype maps.
+  for (Handle<Map> map : receiver_maps) {
+    dependencies()->AssumePrototypeMapsStable(map, initial_object_prototype);
+  }
+
+  // Install code dependency on the array protector cell.
+  dependencies()->AssumePropertyCell(factory()->array_protector());
+  return true;
 }
 
 bool JSNativeContextSpecialization::ExtractReceiverMaps(

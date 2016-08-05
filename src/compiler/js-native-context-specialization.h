@@ -127,6 +127,12 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               Handle<Context> native_context,
                               Handle<JSObject> holder);
 
+  // Checks if we can turn the hole into undefined when loading an element
+  // from an object with one of the {receiver_maps}; sets up appropriate
+  // code dependencies and might use the array protector cell.
+  bool CanTreatHoleAsUndefined(std::vector<Handle<Map>> const& receiver_maps,
+                               Handle<Context> native_context);
+
   // Extract receiver maps from {nexus} and filter based on {receiver} if
   // possible.
   bool ExtractReceiverMaps(Node* receiver, Node* effect,

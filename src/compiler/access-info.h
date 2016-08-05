@@ -35,10 +35,8 @@ typedef std::vector<std::pair<Handle<Map>, Handle<Map>>> MapTransitionList;
 class ElementAccessInfo final {
  public:
   ElementAccessInfo();
-  ElementAccessInfo(MapList const& receiver_maps, ElementsKind elements_kind,
-                    MaybeHandle<JSObject> holder);
+  ElementAccessInfo(MapList const& receiver_maps, ElementsKind elements_kind);
 
-  MaybeHandle<JSObject> holder() const { return holder_; }
   ElementsKind elements_kind() const { return elements_kind_; }
   MapList const& receiver_maps() const { return receiver_maps_; }
   MapTransitionList& transitions() { return transitions_; }
@@ -46,7 +44,6 @@ class ElementAccessInfo final {
 
  private:
   ElementsKind elements_kind_;
-  MaybeHandle<JSObject> holder_;
   MapList receiver_maps_;
   MapTransitionList transitions_;
 };

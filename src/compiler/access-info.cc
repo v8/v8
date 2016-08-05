@@ -61,11 +61,8 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
 ElementAccessInfo::ElementAccessInfo() {}
 
 ElementAccessInfo::ElementAccessInfo(MapList const& receiver_maps,
-                                     ElementsKind elements_kind,
-                                     MaybeHandle<JSObject> holder)
-    : elements_kind_(elements_kind),
-      holder_(holder),
-      receiver_maps_(receiver_maps) {}
+                                     ElementsKind elements_kind)
+    : elements_kind_(elements_kind), receiver_maps_(receiver_maps) {}
 
 // static
 PropertyAccessInfo PropertyAccessInfo::NotFound(MapList const& receiver_maps,
@@ -182,29 +179,8 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
     Handle<Map> map, AccessMode access_mode, ElementAccessInfo* access_info) {
   // Check if it is safe to inline element access for the {map}.
   if (!CanInlineElementAccess(map)) return false;
-
   ElementsKind const elements_kind = map->elements_kind();
-
-  // Certain (monomorphic) stores need a prototype chain check because shape
-  // changes could allow callbacks on elements in the chain that are not
-  // compatible with monomorphic keyed stores.
-  MaybeHandle<JSObject> holder;
-  if (access_mode == AccessMode::kStore && map->prototype()->IsJSObject()) {
-    for (PrototypeIterator i(map); !i.IsAtEnd(); i.Advance()) {
-      Handle<JSReceiver> prototype =
-          PrototypeIterator::GetCurrent<JSReceiver>(i);
-      if (!prototype->IsJSObject()) return false;
-      // TODO(bmeurer): We do not currently support unstable prototypes.
-      // We might want to revisit the way we handle certain keyed stores
-      // because this whole prototype chain check is essential a hack,
-      // and I'm not sure that it is correct at all with dictionaries in
-      // the prototype chain.
-      if (!prototype->map()->is_stable()) return false;
-      holder = Handle<JSObject>::cast(prototype);
-    }
-  }
-
-  *access_info = ElementAccessInfo(MapList{map}, elements_kind, holder);
+  *access_info = ElementAccessInfo(MapList{map}, elements_kind);
   return true;
 }
 
