@@ -179,7 +179,7 @@ class TestSuite(object):
         used_rules.add((testname, variant))
         # Even for skipped tests, as the TestCase object stays around and
         # PrintReport() uses it.
-        t.outcomes |= rules[testname]
+        t.outcomes = t.outcomes | rules[testname]
         if statusfile.DoSkip(t.outcomes):
           continue  # Don't add skipped tests to |filtered|.
         for outcome in t.outcomes:
@@ -192,7 +192,7 @@ class TestSuite(object):
         assert rule[-1] == '*'
         if testname.startswith(rule[:-1]):
           used_rules.add((rule, variant))
-          t.outcomes |= wildcards[rule]
+          t.outcomes = t.outcomes | wildcards[rule]
           if statusfile.DoSkip(t.outcomes):
             skip = True
             break  # "for rule in wildcards"
