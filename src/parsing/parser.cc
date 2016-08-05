@@ -59,8 +59,7 @@ ParseInfo::ParseInfo(Zone* zone)
       cached_data_(nullptr),
       ast_value_factory_(nullptr),
       function_name_(nullptr),
-      literal_(nullptr),
-      scope_(nullptr) {}
+      literal_(nullptr) {}
 
 ParseInfo::ParseInfo(Zone* zone, Handle<JSFunction> function)
     : ParseInfo(zone, Handle<SharedFunctionInfo>(function->shared())) {

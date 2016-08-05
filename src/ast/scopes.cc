@@ -375,7 +375,6 @@ int Scope::num_parameters() const {
 
 bool Scope::Analyze(ParseInfo* info) {
   DCHECK(info->literal() != NULL);
-  DCHECK(info->scope() == NULL);
   DeclarationScope* scope = info->literal()->scope();
   DeclarationScope* top = scope;
 
@@ -403,7 +402,6 @@ bool Scope::Analyze(ParseInfo* info) {
   scope->CheckZones();
 #endif
 
-  info->set_scope(scope);
   return true;
 }
 
