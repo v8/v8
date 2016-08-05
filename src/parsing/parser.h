@@ -40,7 +40,7 @@ class ParseInfo {
     ast_value_factory_ = nullptr;
   }
 
-  Zone* zone() const { return zone_; }
+  Zone* zone() { return zone_; }
 
 // Convenience accessor methods for flags.
 #define FLAG_ACCESSOR(flag, getter, setter)     \
@@ -73,14 +73,14 @@ class ParseInfo {
                                       : NO_PARSE_RESTRICTION;
   }
 
-  ScriptCompiler::ExternalSourceStream* source_stream() const {
+  ScriptCompiler::ExternalSourceStream* source_stream() {
     return source_stream_;
   }
   void set_source_stream(ScriptCompiler::ExternalSourceStream* source_stream) {
     source_stream_ = source_stream;
   }
 
-  ScriptCompiler::StreamedSource::Encoding source_stream_encoding() const {
+  ScriptCompiler::StreamedSource::Encoding source_stream_encoding() {
     return source_stream_encoding_;
   }
   void set_source_stream_encoding(
@@ -93,43 +93,42 @@ class ParseInfo {
     character_stream_ = character_stream;
   }
 
-  v8::Extension* extension() const { return extension_; }
+  v8::Extension* extension() { return extension_; }
   void set_extension(v8::Extension* extension) { extension_ = extension; }
 
-  ScriptData** cached_data() const { return cached_data_; }
+  ScriptData** cached_data() { return cached_data_; }
   void set_cached_data(ScriptData** cached_data) { cached_data_ = cached_data; }
 
-  ScriptCompiler::CompileOptions compile_options() const {
-    return compile_options_;
-  }
+  ScriptCompiler::CompileOptions compile_options() { return compile_options_; }
   void set_compile_options(ScriptCompiler::CompileOptions compile_options) {
     compile_options_ = compile_options;
   }
 
-  DeclarationScope* script_scope() const { return script_scope_; }
+  DeclarationScope* script_scope() { return script_scope_; }
   void set_script_scope(DeclarationScope* script_scope) {
     script_scope_ = script_scope;
   }
 
-  AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
+  AstValueFactory* ast_value_factory() { return ast_value_factory_; }
   void set_ast_value_factory(AstValueFactory* ast_value_factory) {
     ast_value_factory_ = ast_value_factory;
   }
 
-  FunctionLiteral* literal() const { return literal_; }
+  FunctionLiteral* literal() { return literal_; }
   void set_literal(FunctionLiteral* literal) { literal_ = literal; }
 
-  DeclarationScope* scope() const { return literal()->scope(); }
+  DeclarationScope* scope() { return scope_; }
+  void set_scope(DeclarationScope* scope) { scope_ = scope; }
 
-  UnicodeCache* unicode_cache() const { return unicode_cache_; }
+  UnicodeCache* unicode_cache() { return unicode_cache_; }
   void set_unicode_cache(UnicodeCache* unicode_cache) {
     unicode_cache_ = unicode_cache;
   }
 
-  uintptr_t stack_limit() const { return stack_limit_; }
+  uintptr_t stack_limit() { return stack_limit_; }
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
 
-  uint32_t hash_seed() const { return hash_seed_; }
+  uint32_t hash_seed() { return hash_seed_; }
   void set_hash_seed(uint32_t hash_seed) { hash_seed_ = hash_seed; }
 
   int compiler_hints() const { return compiler_hints_; }
@@ -155,10 +154,10 @@ class ParseInfo {
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
-  Isolate* isolate() const { return isolate_; }
-  Handle<SharedFunctionInfo> shared_info() const { return shared_; }
-  Handle<Script> script() const { return script_; }
-  Handle<Context> context() const { return context_; }
+  Isolate* isolate() { return isolate_; }
+  Handle<SharedFunctionInfo> shared_info() { return shared_; }
+  Handle<Script> script() { return script_; }
+  Handle<Context> context() { return context_; }
   void clear_script() { script_ = Handle<Script>::null(); }
   void set_isolate(Isolate* isolate) { isolate_ = isolate; }
   void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
@@ -166,7 +165,7 @@ class ParseInfo {
   void set_script(Handle<Script> script) { script_ = script; }
   //--------------------------------------------------------------------------
 
-  LanguageMode language_mode() const {
+  LanguageMode language_mode() {
     return construct_language_mode(is_strict_mode());
   }
   void set_language_mode(LanguageMode language_mode) {
@@ -181,9 +180,7 @@ class ParseInfo {
   }
 
 #ifdef DEBUG
-  bool script_is_native() const {
-    return script_->type() == Script::TYPE_NATIVE;
-  }
+  bool script_is_native() { return script_->type() == Script::TYPE_NATIVE; }
 #endif  // DEBUG
 
  private:
@@ -231,8 +228,9 @@ class ParseInfo {
   ScriptData** cached_data_;  // used if available, populated if requested.
   AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
 
-  //----------- Output of parsing and scope analysis ------------------------
-  FunctionLiteral* literal_;
+  //----------- Outputs of parsing and scope analysis ------------------------
+  FunctionLiteral* literal_;  // produced by full parser.
+  DeclarationScope* scope_;   // produced by scope analysis.
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }
