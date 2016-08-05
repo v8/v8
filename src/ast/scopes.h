@@ -8,7 +8,6 @@
 #include "src/ast/ast.h"
 #include "src/base/hashmap.h"
 #include "src/globals.h"
-#include "src/pending-compilation-error-handler.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -127,7 +126,7 @@ class Scope: public ZoneObject {
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
-  static bool Analyze(ParseInfo* info);
+  static void Analyze(ParseInfo* info);
 
   enum class DeserializationMode { kDeserializeOffHeap, kKeepScopeInfo };
 
@@ -596,11 +595,9 @@ class Scope: public ZoneObject {
   Variable* LookupRecursive(VariableProxy* proxy, BindingKind* binding_kind,
                             AstNodeFactory* factory,
                             Scope* max_outer_scope = nullptr);
-  MUST_USE_RESULT
-  bool ResolveVariable(ParseInfo* info, VariableProxy* proxy,
+  void ResolveVariable(ParseInfo* info, VariableProxy* proxy,
                        AstNodeFactory* factory);
-  MUST_USE_RESULT
-  bool ResolveVariablesRecursively(ParseInfo* info, AstNodeFactory* factory);
+  void ResolveVariablesRecursively(ParseInfo* info, AstNodeFactory* factory);
 
   // Tries to resolve local variables inside max_outer_scope; migrates those
   // which cannot be resolved into migrate_to.
@@ -850,8 +847,7 @@ class DeclarationScope : public Scope {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  MUST_USE_RESULT
-  bool AllocateVariables(ParseInfo* info, AstNodeFactory* factory);
+  void AllocateVariables(ParseInfo* info, AstNodeFactory* factory);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope for lazily compiled functions. In particular, this
@@ -903,7 +899,6 @@ class DeclarationScope : public Scope {
   Variable* this_function_;
   // Module descriptor; module scopes only.
   ModuleDescriptor* module_descriptor_;
-  PendingCompilationErrorHandler pending_error_handler_;
 };
 
 }  // namespace internal

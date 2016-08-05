@@ -373,7 +373,7 @@ int Scope::num_parameters() const {
   return is_declaration_scope() ? AsDeclarationScope()->num_parameters() : 0;
 }
 
-bool Scope::Analyze(ParseInfo* info) {
+void Scope::Analyze(ParseInfo* info) {
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();
   DeclarationScope* top = scope;
@@ -390,7 +390,7 @@ bool Scope::Analyze(ParseInfo* info) {
   // Allocate the variables.
   {
     AstNodeFactory ast_node_factory(info->ast_value_factory());
-    if (!top->AllocateVariables(info, &ast_node_factory)) return false;
+    top->AllocateVariables(info, &ast_node_factory);
   }
 
 #ifdef DEBUG
@@ -401,8 +401,6 @@ bool Scope::Analyze(ParseInfo* info) {
   scope->CheckScopePositions();
   scope->CheckZones();
 #endif
-
-  return true;
 }
 
 void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
@@ -871,7 +869,7 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
   }
 }
 
-bool DeclarationScope::AllocateVariables(ParseInfo* info,
+void DeclarationScope::AllocateVariables(ParseInfo* info,
                                          AstNodeFactory* factory) {
   // 1) Propagate scope information.
   bool outer_scope_calls_sloppy_eval = false;
@@ -883,16 +881,10 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info,
   PropagateScopeInfo(outer_scope_calls_sloppy_eval);
 
   // 2) Resolve variables.
-  if (!ResolveVariablesRecursively(info, factory)) {
-    DCHECK(pending_error_handler_.has_pending_error());
-    pending_error_handler_.ThrowPendingError(info->isolate(), info->script());
-    return false;
-  }
+  ResolveVariablesRecursively(info, factory);
 
   // 3) Allocate variables.
   AllocateVariablesRecursively(info->ast_value_factory());
-
-  return true;
 }
 
 
@@ -1362,14 +1354,13 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
   return var;
 }
 
-
-bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
+void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
                             AstNodeFactory* factory) {
   DCHECK(info->script_scope()->is_script_scope());
 
   // If the proxy is already resolved there's nothing to do
   // (functions and consts may be resolved by the parser).
-  if (proxy->is_resolved()) return true;
+  if (proxy->is_resolved()) return;
 
   // Otherwise, try to resolve the variable.
   BindingKind binding_kind;
@@ -1436,27 +1427,22 @@ bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
   if (proxy->is_assigned()) var->set_maybe_assigned();
 
   proxy->BindTo(var);
-
-  return true;
 }
 
-
-bool Scope::ResolveVariablesRecursively(ParseInfo* info,
+void Scope::ResolveVariablesRecursively(ParseInfo* info,
                                         AstNodeFactory* factory) {
   DCHECK(info->script_scope()->is_script_scope());
 
   // Resolve unresolved variables for this scope.
   for (VariableProxy* proxy = unresolved_; proxy != nullptr;
        proxy = proxy->next_unresolved()) {
-    if (!ResolveVariable(info, proxy, factory)) return false;
+    ResolveVariable(info, proxy, factory);
   }
 
   // Resolve unresolved variables for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    if (!scope->ResolveVariablesRecursively(info, factory)) return false;
+    scope->ResolveVariablesRecursively(info, factory);
   }
-
-  return true;
 }
 
 void Scope::MigrateUnresolvableLocals(DeclarationScope* migrate_to,
