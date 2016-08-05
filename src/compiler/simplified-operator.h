@@ -148,8 +148,6 @@ enum class ElementsTransition : uint8_t {
   kSlowTransition   // full transition, round-trip to the runtime.
 };
 
-size_t hash_value(ElementsTransition);
-
 std::ostream& operator<<(std::ostream&, ElementsTransition);
 
 ElementsTransition ElementsTransitionOf(const Operator* op) WARN_UNUSED_RESULT;
@@ -312,9 +310,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ObjectIsSmi();
   const Operator* ObjectIsString();
   const Operator* ObjectIsUndetectable();
-
-  // ensure-writable-fast-elements object, elements
-  const Operator* EnsureWritableFastElements();
 
   // transition-elements-kind object, from-map, to-map
   const Operator* TransitionElementsKind(ElementsTransition transition);

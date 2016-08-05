@@ -503,16 +503,6 @@ struct SimplifiedOperatorGlobalCache final {
   AllocateOperator<NOT_TENURED> kAllocateNotTenuredOperator;
   AllocateOperator<TENURED> kAllocateTenuredOperator;
 
-  struct EnsureWritableFastElementsOperator final : public Operator {
-    EnsureWritableFastElementsOperator()
-        : Operator(                                     // --
-              IrOpcode::kEnsureWritableFastElements,    // opcode
-              Operator::kNoDeopt | Operator::kNoThrow,  // flags
-              "EnsureWritableFastElements",             // name
-              2, 1, 1, 1, 1, 0) {}                      // counts
-  };
-  EnsureWritableFastElementsOperator kEnsureWritableFastElements;
-
 #define BUFFER_ACCESS(Type, type, TYPE, ctype, size)                          \
   struct LoadBuffer##Type##Operator final : public Operator1<BufferAccess> {  \
     LoadBuffer##Type##Operator()                                              \
@@ -626,10 +616,6 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
   return new (zone()) Operator(IrOpcode::kReferenceEqual,
                                Operator::kCommutative | Operator::kPure,
                                "ReferenceEqual", 2, 0, 0, 1, 0, 0);
-}
-
-const Operator* SimplifiedOperatorBuilder::EnsureWritableFastElements() {
-  return &cache_.kEnsureWritableFastElements;
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(

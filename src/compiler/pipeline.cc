@@ -615,10 +615,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
 
-  // TODO(mstarzinger): Hack to ensure that certain call descriptors are
+  // TODO(mstarzinger): Hack to ensure that the ToNumber call descriptor is
   // initialized on the main thread, since it is needed off-thread by the
   // effect control linearizer.
-  CodeFactory::CopyFixedArray(info()->isolate());
   CodeFactory::ToNumber(info()->isolate());
 
   linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
@@ -1075,8 +1074,7 @@ struct LoadEliminationPhase {
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
-    LoadElimination load_elimination(&graph_reducer, data->jsgraph(),
-                                     temp_zone);
+    LoadElimination load_elimination(&graph_reducer, temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());

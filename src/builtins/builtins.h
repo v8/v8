@@ -159,9 +159,6 @@ namespace internal {
   ASM(AllocateInNewSpace)                                                    \
   ASM(AllocateInOldSpace)                                                    \
                                                                              \
-  /* FixedArray helpers */                                                   \
-  TFS(CopyFixedArray, BUILTIN, kNoExtraICState, CopyFixedArray)              \
-                                                                             \
   /* Debugger */                                                             \
   DBG(FrameDropper_LiveEdit)                                                 \
   DBG(Return_DebugBreak)                                                     \

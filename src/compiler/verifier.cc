@@ -851,11 +851,6 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::PlainNumber());
       CheckUpperIs(node, Type::TaggedPointer());
       break;
-    case IrOpcode::kEnsureWritableFastElements:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckValueInputIs(node, 1, Type::Internal());
-      CheckUpperIs(node, Type::Internal());
-      break;
     case IrOpcode::kTransitionElementsKind:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Internal());

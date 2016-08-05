@@ -55,7 +55,6 @@ class PlatformInterfaceDescriptor;
   V(ConstructStub)                     \
   V(ConstructTrampoline)               \
   V(RegExpConstructResult)             \
-  V(CopyFixedArray)                    \
   V(TransitionElementsKind)            \
   V(AllocateHeapNumber)                \
   V(AllocateFloat32x4)                 \
@@ -649,12 +648,6 @@ class StoreGlobalViaContextDescriptor : public CallInterfaceDescriptor {
   static const Register ValueRegister();
 };
 
-class CopyFixedArrayDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kSource)
-  DECLARE_DEFAULT_DESCRIPTOR(CopyFixedArrayDescriptor, CallInterfaceDescriptor,
-                             kParameterCount)
-};
 
 class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {
  public:
