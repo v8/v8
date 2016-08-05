@@ -43,18 +43,20 @@ class TestSuiteTest(unittest.TestCase):
 
   def test_filter_testcases_by_status_second_pass(self):
     suite = TestSuite('foo', 'bar')
-    suite.tests = [
-      TestCase(suite, 'foo/bar', variant='default'),
-      TestCase(suite, 'foo/bar', variant='stress', flags=['-v']),
-      TestCase(suite, 'baz/bar', variant='default'),
-      TestCase(suite, 'baz/bar', variant='stress', flags=['-v']),
-    ]
+
+    test1 = TestCase(suite, 'foo/bar')
+    test2 = TestCase(suite, 'baz/bar')
 
     # Contrived outcomes from filtering by variant-independent rules.
-    suite.tests[0].outcomes = set(['PREV'])
-    suite.tests[1].outcomes = set(['PREV'])
-    suite.tests[2].outcomes = set(['PREV'])
-    suite.tests[3].outcomes = set(['PREV'])
+    test1.outcomes = set(['PREV'])
+    test2.outcomes = set(['PREV'])
+
+    suite.tests = [
+      test1.CopyAddingFlags(variant='default', flags=[]),
+      test1.CopyAddingFlags(variant='stress', flags=['-v']),
+      test2.CopyAddingFlags(variant='default', flags=[]),
+      test2.CopyAddingFlags(variant='stress', flags=['-v']),
+    ]
 
     suite.rules = {
       'default': {

@@ -45,7 +45,7 @@ class TestCase(object):
   def CopyAddingFlags(self, variant, flags):
     copy = TestCase(self.suite, self.path, variant, self.flags + flags,
                     self.override_shell)
-    copy.outcomes = self.outcomes
+    copy.outcomes = set(self.outcomes)
     return copy
 
   def PackTask(self):
