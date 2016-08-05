@@ -1902,67 +1902,45 @@ void Interpreter::BuildForInPrepareResult(Node* output_register,
   __ StoreRegister(cache_length, output_register);
 }
 
-// ForInPrepare <cache_info_triple>
+// ForInPrepare <receiver> <cache_info_triple>
 //
-// Returns state for for..in loop execution based on the object in the
-// accumulator. The result is output in registers |cache_info_triple| to
+// Returns state for for..in loop execution based on the object in the register
+// |receiver|. The object must not be null or undefined and must have been
+// converted to a receiver already.
+// The result is output in registers |cache_info_triple| to
 // |cache_info_triple + 2|, with the registers holding cache_type, cache_array,
 // and cache_length respectively.
 void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
   Node* object_reg = __ BytecodeOperandReg(0);
-  Node* object = __ LoadRegister(object_reg);
+  Node* receiver = __ LoadRegister(object_reg);
   Node* context = __ GetContext();
   Node* const zero_smi = __ SmiConstant(Smi::FromInt(0));
 
-  Label test_if_null(assembler), test_if_undefined(assembler),
-      nothing_to_iterate(assembler, Label::kDeferred),
-      convert_to_receiver(assembler, Label::kDeferred),
-      already_receiver(assembler), check_enum_cache(assembler);
+  Label nothing_to_iterate(assembler, Label::kDeferred),
+      use_enum_cache(assembler), use_runtime(assembler, Label::kDeferred);
 
-  Variable receiver(assembler, MachineRepresentation::kTagged);
-
-  // Test if object is already a receiver, no conversion necessary if so.
-  Node* instance_type = __ LoadInstanceType(object);
-  Node* first_receiver_type = __ Int32Constant(FIRST_JS_RECEIVER_TYPE);
-  __ BranchIfInt32GreaterThanOrEqual(instance_type, first_receiver_type,
-                                     &already_receiver, &test_if_null);
-
-  __ Bind(&test_if_null);
-  {
-    __ BranchIfWordEqual(object, assembler->NullConstant(), &nothing_to_iterate,
-                         &test_if_undefined);
+  if (FLAG_debug_code) {
+    Label already_receiver(assembler), abort(assembler);
+    Node* instance_type = __ LoadInstanceType(receiver);
+    Node* first_receiver_type = __ Int32Constant(FIRST_JS_RECEIVER_TYPE);
+    __ BranchIfInt32GreaterThanOrEqual(instance_type, first_receiver_type,
+                                       &already_receiver, &abort);
+    __ Bind(&abort);
+    {
+      __ Abort(kExpectedJSReceiver);
+      // TODO(klaasb) remove this unreachable Goto once Abort ends the block
+      __ Goto(&already_receiver);
+    }
+    __ Bind(&already_receiver);
   }
 
-  __ Bind(&test_if_undefined);
-  {
-    __ BranchIfWordEqual(object, assembler->UndefinedConstant(),
-                         &nothing_to_iterate, &convert_to_receiver);
-  }
-
-  __ Bind(&convert_to_receiver);
-  {
-    Callable callable = CodeFactory::ToObject(assembler->isolate());
-    Node* target = __ HeapConstant(callable.code());
-    Node* result = __ CallStub(callable.descriptor(), target, context, object);
-    receiver.Bind(result);
-    __ Goto(&check_enum_cache);
-  }
-
-  __ Bind(&already_receiver);
-  {
-    receiver.Bind(object);
-    __ Goto(&check_enum_cache);
-  }
-
-  Label use_enum_cache(assembler), use_runtime(assembler, Label::kDeferred);
-  __ Bind(&check_enum_cache);
-  { __ CheckEnumCache(receiver.value(), &use_enum_cache, &use_runtime); }
+  __ CheckEnumCache(receiver, &use_enum_cache, &use_runtime);
 
   __ Bind(&use_enum_cache);
   {
     // The enum cache is valid.  Load the map of the object being
     // iterated over and use the cache for the iteration.
-    Node* cache_type = __ LoadMap(receiver.value());
+    Node* cache_type = __ LoadMap(receiver);
     Node* cache_length = __ EnumLength(cache_type);
     __ GotoIf(assembler->WordEqual(cache_length, zero_smi),
               &nothing_to_iterate);
@@ -1980,7 +1958,7 @@ void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
   __ Bind(&use_runtime);
   {
     Node* result_triple =
-        __ CallRuntime(Runtime::kForInPrepare, context, object);
+        __ CallRuntime(Runtime::kForInPrepare, context, receiver);
     Node* cache_type = __ Projection(0, result_triple);
     Node* cache_array = __ Projection(1, result_triple);
     Node* cache_length = __ Projection(2, result_triple);

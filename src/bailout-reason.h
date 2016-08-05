@@ -66,6 +66,7 @@ namespace internal {
   V(kExpectedBooleanValue, "Expected boolean value")                           \
   V(kExpectedFunctionObject, "Expected function object in register")           \
   V(kExpectedHeapNumber, "Expected HeapNumber")                                \
+  V(kExpectedJSReceiver, "Expected object to have receiver type")              \
   V(kExpectedNativeContext, "Expected native context")                         \
   V(kExpectedNonIdenticalObjects, "Expected non-identical objects")            \
   V(kExpectedNonNullContext, "Expected non-null context")                      \
