@@ -2360,7 +2360,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
   void PushArgumentsFromEnvironment(int count);
 
-  void SetUpScope(DeclarationScope* scope);
+  void SetUpScope(Scope* scope);
   void VisitStatements(ZoneList<Statement*>* statements);
 
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);

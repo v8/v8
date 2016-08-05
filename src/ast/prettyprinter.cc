@@ -687,7 +687,8 @@ void AstPrinter::PrintDeclarations(ZoneList<Declaration*>* declarations) {
   }
 }
 
-void AstPrinter::PrintParameters(DeclarationScope* scope) {
+
+void AstPrinter::PrintParameters(Scope* scope) {
   if (scope->num_parameters() > 0) {
     IndentedScope indent(this, "PARAMS");
     for (int i = 0; i < scope->num_parameters(); i++) {

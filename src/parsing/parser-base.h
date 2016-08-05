@@ -111,8 +111,8 @@ inline bool IsGeneratorMethod(MethodKind kind) {
 inline bool IsAsyncMethod(MethodKind kind) { return kind & MethodKind::Async; }
 
 struct FormalParametersBase {
-  explicit FormalParametersBase(DeclarationScope* scope) : scope(scope) {}
-  DeclarationScope* scope;
+  explicit FormalParametersBase(Scope* scope) : scope(scope) {}
+  Scope* scope;
   bool has_rest = false;
   bool is_simple = true;
   int materialized_literals_count = 0;
@@ -287,7 +287,7 @@ class ParserBase : public Traits {
    private:
     ScopeState** const scope_stack_;
     ScopeState* const outer_scope_;
-    Scope* const scope_;
+    Scope* scope_;
   };
 
   class BlockState final : public ScopeState {
@@ -317,7 +317,7 @@ class ParserBase : public Traits {
     Scope* NewScope(ScopeState* outer_state) {
       Scope* parent = outer_state->scope();
       Zone* zone = outer_state->zone();
-      return new (zone) Scope(zone, parent, BLOCK_SCOPE);
+      return new (zone) Scope(zone, parent, BLOCK_SCOPE, kNormalFunction);
     }
   };
 
@@ -611,24 +611,8 @@ class ParserBase : public Traits {
     Mode old_mode_;
   };
 
-  DeclarationScope* NewScriptScope() {
-    return new (zone()) DeclarationScope(zone(), nullptr, SCRIPT_SCOPE);
-  }
-
-  DeclarationScope* NewVarblockScope() {
-    return new (zone()) DeclarationScope(zone(), scope(), BLOCK_SCOPE);
-  }
-
-  DeclarationScope* NewModuleScope(Scope* parent) {
-    DeclarationScope* result =
-        new (zone()) DeclarationScope(zone(), parent, MODULE_SCOPE);
-    // TODO(verwaest): Move into the DeclarationScope constructor.
-    result->DeclareThis(ast_value_factory());
-    return result;
-  }
-
-  DeclarationScope* NewEvalScope(Scope* parent) {
-    return new (zone()) DeclarationScope(zone(), parent, EVAL_SCOPE);
+  Scope* NewScriptScope() {
+    return new (zone()) Scope(zone(), nullptr, SCRIPT_SCOPE, kNormalFunction);
   }
 
   Scope* NewScope(ScopeType scope_type) {
@@ -643,16 +627,16 @@ class ParserBase : public Traits {
     // types.
     DCHECK_NE(FUNCTION_SCOPE, scope_type);
     DCHECK_NE(SCRIPT_SCOPE, scope_type);
-    DCHECK_NE(MODULE_SCOPE, scope_type);
     DCHECK_NOT_NULL(parent);
-    return new (zone()) Scope(zone(), parent, scope_type);
+    Scope* result =
+        new (zone()) Scope(zone(), parent, scope_type, kNormalFunction);
+    if (scope_type == MODULE_SCOPE) result->DeclareThis(ast_value_factory());
+    return result;
   }
 
-  DeclarationScope* NewFunctionScope(FunctionKind kind) {
+  Scope* NewFunctionScope(FunctionKind kind) {
     DCHECK(ast_value_factory());
-    DeclarationScope* result =
-        new (zone()) DeclarationScope(zone(), scope(), FUNCTION_SCOPE, kind);
-    // TODO(verwaest): Move into the DeclarationScope constructor.
+    Scope* result = new (zone()) Scope(zone(), scope(), FUNCTION_SCOPE, kind);
     if (!IsArrowFunction(kind)) {
       result->DeclareThis(ast_value_factory());
       result->DeclareDefaultFunctionVariables(ast_value_factory());
@@ -1163,7 +1147,7 @@ class ParserBase : public Traits {
       if (is_sloppy(scope->language_mode())) {
         // For sloppy scopes we also have to record the call at function level,
         // in case it includes declarations that will be hoisted.
-        scope->GetDeclarationScope()->RecordEvalCall();
+        scope->DeclarationScope()->RecordEvalCall();
       }
     }
   }
@@ -1227,9 +1211,7 @@ class ParserBase : public Traits {
     bool has_seen_constructor_;
   };
 
-  ModuleDescriptor* module() const {
-    return scope()->AsDeclarationScope()->module();
-  }
+  ModuleDescriptor* module() const { return scope()->module(); }
   Scope* scope() const { return scope_state_->scope(); }
 
   ScopeState* scope_state_;        // Scope stack.
@@ -2331,7 +2313,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     ValidateFormalParameterInitializer(&arrow_formals_classifier, ok);
 
     Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
-    DeclarationScope* scope =
+    Scope* scope =
         this->NewFunctionScope(is_async ? FunctionKind::kAsyncArrowFunction
                                         : FunctionKind::kArrowFunction);
     // Because the arrow's parameters were parsed in the outer scope, any
@@ -3096,7 +3078,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
   Expect(Token::SUPER, CHECK_OK);
   int pos = position();
 
-  DeclarationScope* scope = this->scope()->GetReceiverScope();
+  Scope* scope = this->scope()->ReceiverScope();
   FunctionKind kind = scope->function_kind();
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
       IsClassConstructor(kind)) {
@@ -3138,7 +3120,7 @@ ParserBase<Traits>::ParseNewTargetExpression(bool* ok) {
   int pos = position();
   ExpectMetaProperty(CStrVector("target"), "new.target", pos, CHECK_OK);
 
-  if (!scope()->GetReceiverScope()->is_function_scope()) {
+  if (!scope()->ReceiverScope()->is_function_scope()) {
     ReportMessageAt(scanner()->location(),
                     MessageTemplate::kUnexpectedNewTarget);
     *ok = false;

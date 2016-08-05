@@ -558,7 +558,7 @@ class SourceLayoutTracker {
 AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   SourceLayoutTracker source_layout;
 
-  DeclarationScope* scope = fun->scope();
+  Scope* scope = fun->scope();
   if (!scope->is_function_scope()) FAIL(fun, "Not at function scope.");
   if (!ValidAsmIdentifier(fun->name()))
     FAIL(fun, "Invalid asm.js identifier in module name.");

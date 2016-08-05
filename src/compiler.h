@@ -177,7 +177,7 @@ class CompilationInfo final {
   // -----------------------------------------------------------
   Handle<Script> script() const;
   FunctionLiteral* literal() const;
-  DeclarationScope* scope() const;
+  Scope* scope() const;
   Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;

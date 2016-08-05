@@ -1120,7 +1120,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       CHECK(i::Scope::Analyze(&info));
       CHECK(info.literal() != NULL);
 
-      i::DeclarationScope* script_scope = info.literal()->scope();
+      i::Scope* script_scope = info.literal()->scope();
       CHECK(script_scope->is_script_scope());
 
       i::Scope* scope = script_scope->inner_scope();
@@ -1134,8 +1134,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
       }
       // Arrows themselves never get an arguments object.
       if ((source_data[i].expected & ARGUMENTS) != 0 &&
-          !scope->AsDeclarationScope()->is_arrow_scope()) {
-        CHECK_NOT_NULL(scope->AsDeclarationScope()->arguments());
+          !scope->is_arrow_scope()) {
+        CHECK_NOT_NULL(scope->arguments());
       }
       CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
                scope->uses_super_property());
@@ -5942,7 +5942,7 @@ TEST(ModuleParsingInternals) {
   CHECK(parser.Parse(&info));
   CHECK(i::Compiler::Analyze(&info));
   i::FunctionLiteral* func = info.literal();
-  i::DeclarationScope* module_scope = func->scope();
+  i::Scope* module_scope = func->scope();
   i::Scope* outer_scope = module_scope->outer_scope();
   CHECK(outer_scope->is_script_scope());
   CHECK_NULL(outer_scope->outer_scope());

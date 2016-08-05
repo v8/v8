@@ -12,7 +12,6 @@ class AstValueFactory;
 class DoExpression;
 class ParseInfo;
 class Parser;
-class DeclarationScope;
 class Scope;
 
 class Rewriter {
@@ -31,8 +30,8 @@ class Rewriter {
   // of the outer scope (the do-expression itself runs in a block scope, not a
   // closure scope). This closure scope needs to be passed in since the
   // do-expression could have dropped its own block scope.
-  static bool Rewrite(Parser* parser, DeclarationScope* closure_scope,
-                      DoExpression* expr, AstValueFactory* factory);
+  static bool Rewrite(Parser* parser, Scope* closure_scope, DoExpression* expr,
+                      AstValueFactory* factory);
 };
 
 

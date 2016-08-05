@@ -2544,7 +2544,7 @@ class FunctionLiteral final : public Expression {
   Handle<String> name() const { return raw_name_->string(); }
   const AstString* raw_name() const { return raw_name_; }
   void set_raw_name(const AstString* name) { raw_name_ = name; }
-  DeclarationScope* scope() const { return scope_; }
+  Scope* scope() const { return scope_; }
   ZoneList<Statement*>* body() const { return body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
   int function_token_position() const { return function_token_position_; }
@@ -2661,7 +2661,7 @@ class FunctionLiteral final : public Expression {
 
  protected:
   FunctionLiteral(Zone* zone, const AstString* name,
-                  AstValueFactory* ast_value_factory, DeclarationScope* scope,
+                  AstValueFactory* ast_value_factory, Scope* scope,
                   ZoneList<Statement*>* body, int materialized_literal_count,
                   int expected_property_count, int parameter_count,
                   FunctionType function_type,
@@ -2712,7 +2712,7 @@ class FunctionLiteral final : public Expression {
   int yield_count_;
 
   const AstString* raw_name_;
-  DeclarationScope* scope_;
+  Scope* scope_;
   ZoneList<Statement*>* body_;
   const AstString* raw_inferred_name_;
   Handle<String> inferred_name_;
@@ -3392,9 +3392,9 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   FunctionLiteral* NewFunctionLiteral(
-      const AstRawString* name, DeclarationScope* scope,
-      ZoneList<Statement*>* body, int materialized_literal_count,
-      int expected_property_count, int parameter_count,
+      const AstRawString* name, Scope* scope, ZoneList<Statement*>* body,
+      int materialized_literal_count, int expected_property_count,
+      int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, FunctionKind kind,
@@ -3410,8 +3410,8 @@ class AstNodeFactory final BASE_EMBEDDED {
   // result of an eval (top-level or otherwise), or the result of calling
   // the Function constructor.
   FunctionLiteral* NewScriptOrEvalFunctionLiteral(
-      DeclarationScope* scope, ZoneList<Statement*>* body,
-      int materialized_literal_count, int expected_property_count) {
+      Scope* scope, ZoneList<Statement*>* body, int materialized_literal_count,
+      int expected_property_count) {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
         body, materialized_literal_count, expected_property_count, 0,

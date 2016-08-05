@@ -104,10 +104,8 @@ class ParseInfo {
     compile_options_ = compile_options;
   }
 
-  DeclarationScope* script_scope() { return script_scope_; }
-  void set_script_scope(DeclarationScope* script_scope) {
-    script_scope_ = script_scope;
-  }
+  Scope* script_scope() { return script_scope_; }
+  void set_script_scope(Scope* script_scope) { script_scope_ = script_scope; }
 
   AstValueFactory* ast_value_factory() { return ast_value_factory_; }
   void set_ast_value_factory(AstValueFactory* ast_value_factory) {
@@ -117,8 +115,8 @@ class ParseInfo {
   FunctionLiteral* literal() { return literal_; }
   void set_literal(FunctionLiteral* literal) { literal_ = literal; }
 
-  DeclarationScope* scope() { return scope_; }
-  void set_scope(DeclarationScope* scope) { scope_ = scope; }
+  Scope* scope() { return scope_; }
+  void set_scope(Scope* scope) { scope_ = scope; }
 
   UnicodeCache* unicode_cache() { return unicode_cache_; }
   void set_unicode_cache(UnicodeCache* unicode_cache) {
@@ -210,7 +208,7 @@ class ParseInfo {
   Utf16CharacterStream* character_stream_;
   v8::Extension* extension_;
   ScriptCompiler::CompileOptions compile_options_;
-  DeclarationScope* script_scope_;
+  Scope* script_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint32_t hash_seed_;
@@ -230,7 +228,7 @@ class ParseInfo {
 
   //----------- Outputs of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;  // produced by full parser.
-  DeclarationScope* scope_;   // produced by scope analysis.
+  Scope* scope_;              // produced by scope analysis.
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }
@@ -343,7 +341,7 @@ struct ParserFormalParameters : FormalParametersBase {
     }
   };
 
-  explicit ParserFormalParameters(DeclarationScope* scope)
+  explicit ParserFormalParameters(Scope* scope)
       : FormalParametersBase(scope), params(4, scope->zone()) {}
   ZoneList<Parameter> params;
 
@@ -579,7 +577,7 @@ class ParserTraits {
       Type::ExpressionClassifier* classifier, int pos, bool* ok);
 
   V8_INLINE Scope* NewScope(ScopeType scope_type);
-  V8_INLINE DeclarationScope* NewFunctionScope(FunctionKind kind);
+  V8_INLINE Scope* NewFunctionScope(FunctionKind kind);
   V8_INLINE Scope* NewScopeWithParent(Scope* parent, ScopeType scope_type);
 
   V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
@@ -587,8 +585,7 @@ class ParserTraits {
                                     Expression* initializer,
                                     int initializer_end_position, bool is_rest);
   V8_INLINE void DeclareFormalParameter(
-      DeclarationScope* scope,
-      const ParserFormalParameters::Parameter& parameter,
+      Scope* scope, const ParserFormalParameters::Parameter& parameter,
       Type::ExpressionClassifier* classifier);
   void ParseArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                           Expression* params, int end_pos,
@@ -1068,7 +1065,7 @@ class Parser : public ParserBase<ParserTraits> {
   void InsertShadowingVarBindingInitializers(Block* block);
 
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
-  void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
+  void InsertSloppyBlockFunctionVarBindings(Scope* scope,
                                             Scope* complex_params_scope,
                                             bool* ok);
 
@@ -1190,7 +1187,7 @@ Scope* ParserTraits::NewScope(ScopeType scope_type) {
   return parser_->NewScope(scope_type);
 }
 
-DeclarationScope* ParserTraits::NewFunctionScope(FunctionKind kind) {
+Scope* ParserTraits::NewFunctionScope(FunctionKind kind) {
   return parser_->NewFunctionScope(kind);
 }
 
@@ -1306,8 +1303,9 @@ void ParserTraits::AddFormalParameter(ParserFormalParameters* parameters,
       parameters->scope->zone());
 }
 
+
 void ParserTraits::DeclareFormalParameter(
-    DeclarationScope* scope, const ParserFormalParameters::Parameter& parameter,
+    Scope* scope, const ParserFormalParameters::Parameter& parameter,
     Type::ExpressionClassifier* classifier) {
   bool is_duplicate = false;
   bool is_simple = classifier->is_simple_parameter_list();

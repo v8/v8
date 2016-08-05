@@ -54,7 +54,7 @@ namespace internal {
 
 PARSE_INFO_GETTER(Handle<Script>, script)
 PARSE_INFO_GETTER(FunctionLiteral*, literal)
-PARSE_INFO_GETTER_WITH_DEFAULT(DeclarationScope*, scope, nullptr)
+PARSE_INFO_GETTER_WITH_DEFAULT(Scope*, scope, nullptr)
 PARSE_INFO_GETTER_WITH_DEFAULT(Handle<Context>, context,
                                Handle<Context>::null())
 PARSE_INFO_GETTER(Handle<SharedFunctionInfo>, shared_info)

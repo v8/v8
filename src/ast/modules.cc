@@ -79,9 +79,10 @@ void ModuleDescriptor::AddStarExport(
   exports_.Add(entry, zone);
 }
 
-bool ModuleDescriptor::Validate(DeclarationScope* module_scope,
-                                PendingCompilationErrorHandler* error_handler,
-                                Zone* zone) const {
+
+bool ModuleDescriptor::Validate(
+    Scope* module_scope, PendingCompilationErrorHandler* error_handler,
+    Zone* zone) const {
   DCHECK(module_scope->is_module_scope());
   DCHECK_EQ(this, module_scope->module());
   DCHECK_NOT_NULL(error_handler);

@@ -574,7 +574,7 @@ class PreParserFactory {
 
 
 struct PreParserFormalParameters : FormalParametersBase {
-  explicit PreParserFormalParameters(DeclarationScope* scope)
+  explicit PreParserFormalParameters(Scope* scope)
       : FormalParametersBase(scope) {}
   int arity = 0;
 
@@ -920,8 +920,7 @@ class PreParserTraits {
                           int initializer_end_position, bool is_rest) {
     ++parameters->arity;
   }
-  void DeclareFormalParameter(DeclarationScope* scope,
-                              PreParserIdentifier parameter,
+  void DeclareFormalParameter(Scope* scope, PreParserIdentifier parameter,
                               Type::ExpressionClassifier* classifier) {
     if (!classifier->is_simple_parameter_list()) {
       scope->SetHasNonSimpleParameters();
@@ -1046,7 +1045,9 @@ class PreParser : public ParserBase<PreParserTraits> {
     // ModuleDeclarationInstantiation for Source Text Module Records creates a
     // new Module Environment Record whose outer lexical environment record is
     // the global scope.
-    if (is_module) scope = NewModuleScope(scope);
+    if (is_module) {
+      scope = NewScopeWithParent(scope, MODULE_SCOPE);
+    }
 
     FunctionState top_scope(&function_state_, &scope_state_, scope,
                             kNormalFunction);

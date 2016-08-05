@@ -1918,7 +1918,7 @@ bool FullCodeGenerator::NeedsHoleCheckForLoad(VariableProxy* proxy) {
   //   switch (1) { case 0: let x = 2; case 1: f(x); }
   // The scope of the variable needs to be checked, in case the use is
   // in a sub-block which may be linear.
-  if (var->scope()->GetDeclarationScope() != scope()->GetDeclarationScope()) {
+  if (var->scope()->DeclarationScope() != scope()->DeclarationScope()) {
     return true;
   }
 

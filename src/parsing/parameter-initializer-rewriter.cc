@@ -68,7 +68,7 @@ void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
   } else {
     // Ensure that temporaries we find are already in the correct scope.
     DCHECK(proxy->var()->mode() != TEMPORARY ||
-           proxy->var()->scope() == param_scope_->GetClosureScope());
+           proxy->var()->scope() == param_scope_->ClosureScope());
   }
 }
 

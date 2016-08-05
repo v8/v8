@@ -286,7 +286,7 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitFunctionLiteral(
     FunctionLiteral* expr) {
   PROCESS_EXPRESSION(expr);
-  DeclarationScope* scope = expr->scope();
+  Scope* scope = expr->scope();
   RECURSE_EXPRESSION(VisitDeclarations(scope->declarations()));
   RECURSE_EXPRESSION(VisitStatements(expr->body()));
 }

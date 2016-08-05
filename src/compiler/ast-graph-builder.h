@@ -468,8 +468,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 //
 class AstGraphBuilder::Environment : public ZoneObject {
  public:
-  Environment(AstGraphBuilder* builder, DeclarationScope* scope,
-              Node* control_dependency);
+  Environment(AstGraphBuilder* builder, Scope* scope, Node* control_dependency);
 
   int parameters_count() const { return parameters_count_; }
   int locals_count() const { return locals_count_; }

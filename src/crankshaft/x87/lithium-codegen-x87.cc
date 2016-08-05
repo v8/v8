@@ -164,11 +164,10 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
     __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), eax);
 
     // Copy parameters into context if necessary.
-    int num_parameters = info()->scope()->num_parameters();
-    int first_parameter = info()->scope()->has_this_declaration() ? -1 : 0;
+    int num_parameters = scope()->num_parameters();
+    int first_parameter = scope()->has_this_declaration() ? -1 : 0;
     for (int i = first_parameter; i < num_parameters; i++) {
-      Variable* var = (i == -1) ? info()->scope()->receiver()
-                                : info()->scope()->parameter(i);
+      Variable* var = (i == -1) ? scope()->receiver() : scope()->parameter(i);
       if (var->IsContextSlot()) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;

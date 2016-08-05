@@ -13,7 +13,7 @@ namespace internal {
 
 class Processor final : public AstVisitor<Processor> {
  public:
-  Processor(Isolate* isolate, DeclarationScope* closure_scope, Variable* result,
+  Processor(Isolate* isolate, Scope* closure_scope, Variable* result,
             AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
@@ -22,11 +22,11 @@ class Processor final : public AstVisitor<Processor> {
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
         factory_(ast_value_factory) {
-    DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
+    DCHECK_EQ(closure_scope, closure_scope->ClosureScope());
     InitializeAstVisitor(isolate);
   }
 
-  Processor(Parser* parser, DeclarationScope* closure_scope, Variable* result,
+  Processor(Parser* parser, Scope* closure_scope, Variable* result,
             AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
@@ -35,7 +35,7 @@ class Processor final : public AstVisitor<Processor> {
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
         factory_(ast_value_factory) {
-    DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
+    DCHECK_EQ(closure_scope, closure_scope->ClosureScope());
     InitializeAstVisitor(parser->stack_limit());
   }
 
@@ -43,7 +43,7 @@ class Processor final : public AstVisitor<Processor> {
   bool result_assigned() const { return result_assigned_; }
 
   Zone* zone() { return zone_; }
-  DeclarationScope* closure_scope() { return closure_scope_; }
+  Scope* closure_scope() { return closure_scope_; }
   AstNodeFactory* factory() { return &factory_; }
 
   // Returns ".result = value"
@@ -77,7 +77,7 @@ class Processor final : public AstVisitor<Processor> {
   bool is_set_;
 
   Zone* zone_;
-  DeclarationScope* closure_scope_;
+  Scope* closure_scope_;
   AstNodeFactory factory_;
 
   // Node visitors.
@@ -339,7 +339,7 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   Scope* scope = function->scope();
   DCHECK_NOT_NULL(scope);
   if (!scope->is_script_scope() && !scope->is_eval_scope()) return true;
-  DeclarationScope* closure_scope = scope->GetClosureScope();
+  Scope* closure_scope = scope->ClosureScope();
 
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {
@@ -365,12 +365,12 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   return true;
 }
 
-bool Rewriter::Rewrite(Parser* parser, DeclarationScope* closure_scope,
-                       DoExpression* expr, AstValueFactory* factory) {
+bool Rewriter::Rewrite(Parser* parser, Scope* closure_scope, DoExpression* expr,
+                       AstValueFactory* factory) {
   Block* block = expr->block();
-  DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
+  DCHECK_EQ(closure_scope, closure_scope->ClosureScope());
   DCHECK(block->scope() == nullptr ||
-         block->scope()->GetClosureScope() == closure_scope);
+         block->scope()->ClosureScope() == closure_scope);
   ZoneList<Statement*>* body = block->statements();
   VariableProxy* result = expr->result();
   Variable* result_var = result->var();
