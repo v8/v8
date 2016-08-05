@@ -778,7 +778,9 @@ void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
-                                         bool push_receiver) {
+                                         Register num_args,
+                                         Register start_address,
+                                         Register scratch, bool push_receiver) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
   //  -- rbx : the address of the first argument to be pushed. Subsequent
@@ -787,23 +789,23 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   // -----------------------------------
 
   // Find the address of the last argument.
-  __ movp(rcx, rax);
+  __ movp(scratch, num_args);
   if (push_receiver) {
-    __ addp(rcx, Immediate(1));  // Add one for receiver.
+    __ addp(scratch, Immediate(1));  // Add one for receiver.
   }
 
-  __ shlp(rcx, Immediate(kPointerSizeLog2));
-  __ negp(rcx);
-  __ addp(rcx, rbx);
+  __ shlp(scratch, Immediate(kPointerSizeLog2));
+  __ negp(scratch);
+  __ addp(scratch, start_address);
 
   // Push the arguments.
   Label loop_header, loop_check;
   __ j(always, &loop_check);
   __ bind(&loop_header);
-  __ Push(Operand(rbx, 0));
-  __ subp(rbx, Immediate(kPointerSize));
+  __ Push(Operand(start_address, 0));
+  __ subp(start_address, Immediate(kPointerSize));
   __ bind(&loop_check);
-  __ cmpp(rbx, rcx);
+  __ cmpp(start_address, scratch);
   __ j(greater, &loop_header, Label::kNear);
 }
 
@@ -822,7 +824,9 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   // Pop return address to allow tail-call after pushing arguments.
   __ PopReturnAddressTo(kScratchRegister);
 
-  Generate_InterpreterPushArgs(masm, true);
+  // TODO(mythria): Add a stack check before pushing arguments.
+  // rax is readonly rcx and r8 will be modified.
+  Generate_InterpreterPushArgs(masm, rax, rbx, rcx, true);
 
   // Call the target.
   __ PushReturnAddressFrom(kScratchRegister);  // Re-push return address.
@@ -840,13 +844,15 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
+    MacroAssembler* masm, CallableType construct_type) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
   //  -- rdx : the new target (either the same as the constructor or
   //           the JSFunction on which new was invoked initially)
   //  -- rdi : the constructor to call (can be any Object)
-  //  -- rbx : the address of the first argument to be pushed. Subsequent
+  //  -- rbx : the allocation site feedback if available, undefined otherwise
+  //  -- rcx : the address of the first argument to be pushed. Subsequent
   //           arguments should be consecutive above this, in the same order as
   //           they are to be pushed onto the stack.
   // -----------------------------------
@@ -857,13 +863,29 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // Push slot for the receiver to be constructed.
   __ Push(Immediate(0));
 
-  Generate_InterpreterPushArgs(masm, false);
+  // TODO(mythria): Add a stack check before pushing arguments.
+  // rax is readonly rcx and r8 will be modified.
+  Generate_InterpreterPushArgs(masm, rax, rcx, r8, false);
 
   // Push return address in preparation for the tail-call.
   __ PushReturnAddressFrom(kScratchRegister);
 
-  // Call the constructor (rax, rdx, rdi passed on).
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  __ AssertUndefinedOrAllocationSite(rbx);
+  if (construct_type == CallableType::kJSFunction) {
+    // Tail call to the function-specific construct stub (still in the caller
+    // context at this point).
+    __ AssertFunction(rdi);
+
+    __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kConstructStubOffset));
+    __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
+    // Jump to the constructor function (rax, rbx, rdx passed on).
+    __ jmp(rcx);
+  } else {
+    DCHECK_EQ(construct_type, CallableType::kAny);
+    // Call the constructor (rax, rdx, rdi passed on).
+    __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  }
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

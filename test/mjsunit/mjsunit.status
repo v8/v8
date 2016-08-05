@@ -223,9 +223,12 @@
   ############################################################################
   # Ignition
 
-  # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
-  'array-literal-feedback': [PASS, NO_IGNITION],
+  # TODO(mythria, 4780): Related to lack of allocation site feedback for calls.
   'regress/regress-4121': [PASS, NO_IGNITION],
+
+  # TODO(mythria, 4780): In interpreter we disable mementos when creating array
+  # literals.
+  'array-literal-feedback': [PASS, NO_IGNITION],
 
   # TODO(4680): Test doesn't know about three tier compiler pipeline.
   'assert-opt-and-deopt': [PASS, NO_IGNITION],
@@ -261,7 +264,6 @@
   'smi-mul-const': [PASS, NO_IGNITION],
   'smi-mul': [PASS, NO_IGNITION],
   'unary-minus-deopt': [PASS, NO_IGNITION],
-  'array-constructor-feedback': [PASS, NO_IGNITION],
   'array-feedback': [PASS, NO_IGNITION],
   'allocation-site-info': [PASS, NO_IGNITION],
 
@@ -702,11 +704,14 @@
 
 ##############################################################################
 ['variant == ignition_turbofan', {
-  # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
-  'array-literal-feedback': [FAIL],
+  # TODO(mythria, 4780): Related to lack of allocation site feedback for calls
+  # in interpreter.
   'regress/regress-4121': [FAIL],
-  'array-constructor-feedback': [FAIL],
   'array-feedback': [FAIL],
+
+  # TODO(mythria, 4780): In interpreter we disable mementos when creating array
+  # literals.
+  'array-literal-feedback': [FAIL],
   'allocation-site-info': [FAIL],
 
   'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],

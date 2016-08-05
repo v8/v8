@@ -1094,12 +1094,17 @@ void BytecodeGraphBuilder::VisitNew() {
   interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  // Slot index of 0 is used indicate no feedback slot is available. Assert
+  // the assumption that slot index 0 is never a valid feedback slot.
+  STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
+  VectorSlotPair feedback =
+      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
 
   Node* new_target = environment()->LookupAccumulator();
   Node* callee = environment()->LookupRegister(callee_reg);
-  // TODO(turbofan): Pass the feedback here.
-  const Operator* call = javascript()->CallConstruct(
-      static_cast<int>(arg_count) + 2, VectorSlotPair());
+
+  const Operator* call =
+      javascript()->CallConstruct(static_cast<int>(arg_count) + 2, feedback);
   Node* value = ProcessCallNewArguments(call, callee, new_target, first_arg,
                                         arg_count + 2);
   environment()->BindAccumulator(value, &states);

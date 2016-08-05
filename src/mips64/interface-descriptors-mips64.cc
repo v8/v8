@@ -380,7 +380,8 @@ void InterpreterPushArgsAndConstructDescriptor::InitializePlatformSpecific(
       a0,  // argument count (not including receiver)
       a3,  // new target
       a1,  // constructor to call
-      a2   // address of the first argument
+      a2,  // allocation site feedback if available, undefined otherwise.
+      a4   // address of the first argument
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
