@@ -1328,7 +1328,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
   TargetMaps(&target_receiver_maps);
 
   if (target_receiver_maps.length() == 0) {
-    Handle<Code> handler =
+    Handle<Object> handler =
         ElementHandlerCompiler::GetKeyedLoadHandler(receiver_map, isolate());
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
@@ -1357,7 +1357,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
       IsMoreGeneralElementsKindTransition(
           target_receiver_maps.at(0)->elements_kind(),
           Handle<JSObject>::cast(receiver)->GetElementsKind())) {
-    Handle<Code> handler =
+    Handle<Object> handler =
         ElementHandlerCompiler::GetKeyedLoadHandler(receiver_map, isolate());
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
