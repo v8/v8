@@ -94,12 +94,12 @@ class ElementsAccessor {
       Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
       PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  virtual Handle<FixedArray> PrependElementIndices(
+  virtual MaybeHandle<FixedArray> PrependElementIndices(
       Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
       Handle<FixedArray> keys, GetKeysConversion convert,
       PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  inline Handle<FixedArray> PrependElementIndices(
+  inline MaybeHandle<FixedArray> PrependElementIndices(
       Handle<JSObject> object, Handle<FixedArray> keys,
       GetKeysConversion convert, PropertyFilter filter = ALL_PROPERTIES) {
     return PrependElementIndices(object, handle(object->elements()), keys,

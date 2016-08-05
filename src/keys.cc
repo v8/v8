@@ -348,9 +348,9 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
 }
 
 template <bool fast_properties>
-Handle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
-                                          Handle<JSObject> object,
-                                          GetKeysConversion convert) {
+MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
+                                               Handle<JSObject> object,
+                                               GetKeysConversion convert) {
   Handle<FixedArray> keys;
   ElementsAccessor* accessor = object->GetElementsAccessor();
   if (fast_properties) {
@@ -359,12 +359,12 @@ Handle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
     // TODO(cbruni): preallocate big enough array to also hold elements.
     keys = KeyAccumulator::GetOwnEnumPropertyKeys(isolate, object);
   }
-  Handle<FixedArray> result =
+  MaybeHandle<FixedArray> result =
       accessor->PrependElementIndices(object, keys, convert, ONLY_ENUMERABLE);
 
   if (FLAG_trace_for_in_enumerate) {
     PrintF("| strings=%d symbols=0 elements=%u || prototypes>=1 ||\n",
-           keys->length(), result->length() - keys->length());
+           keys->length(), result.ToHandleChecked()->length() - keys->length());
   }
   return result;
 }
@@ -396,11 +396,14 @@ bool OnlyHasSimpleProperties(Map* map) {
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(
     GetKeysConversion keys_conversion) {
-  Handle<FixedArray> keys;
-  if (filter_ == ENUMERABLE_STRINGS &&
-      GetKeysFast(keys_conversion).ToHandle(&keys)) {
-    return keys;
+  if (filter_ == ENUMERABLE_STRINGS) {
+    Handle<FixedArray> keys;
+    if (GetKeysFast(keys_conversion).ToHandle(&keys)) {
+      return keys;
+    }
+    if (isolate_->has_pending_exception()) return MaybeHandle<FixedArray>();
   }
+
   return GetKeysSlow(keys_conversion);
 }
 

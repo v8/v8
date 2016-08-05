@@ -1030,16 +1030,15 @@ class ElementsAccessorBase : public ElementsAccessor {
     return list;
   }
 
-  Handle<FixedArray> PrependElementIndices(Handle<JSObject> object,
-                                           Handle<FixedArrayBase> backing_store,
-                                           Handle<FixedArray> keys,
-                                           GetKeysConversion convert,
-                                           PropertyFilter filter) final {
+  MaybeHandle<FixedArray> PrependElementIndices(
+      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
+      Handle<FixedArray> keys, GetKeysConversion convert,
+      PropertyFilter filter) final {
     return Subclass::PrependElementIndicesImpl(object, backing_store, keys,
                                                convert, filter);
   }
 
-  static Handle<FixedArray> PrependElementIndicesImpl(
+  static MaybeHandle<FixedArray> PrependElementIndicesImpl(
       Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
       Handle<FixedArray> keys, GetKeysConversion convert,
       PropertyFilter filter) {
@@ -1048,6 +1047,11 @@ class ElementsAccessorBase : public ElementsAccessor {
     uint32_t initial_list_length =
         Subclass::GetMaxNumberOfEntries(*object, *backing_store);
     initial_list_length += nof_property_keys;
+    if (initial_list_length > FixedArray::kMaxLength ||
+        initial_list_length < nof_property_keys) {
+      return isolate->Throw<FixedArray>(isolate->factory()->NewRangeError(
+          MessageTemplate::kInvalidArrayLength));
+    }
 
     bool needs_sorting =
         IsDictionaryElementsKind(kind()) || IsSloppyArgumentsElements(kind());
