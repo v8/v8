@@ -4585,12 +4585,22 @@ void MacroAssembler::XorP(Register dst, Register src, const Operand& opnd) {
   XorP(dst, opnd);
 }
 
-void MacroAssembler::NotP(Register dst) {
-#if V8_TARGET_ARCH_S390X
+void MacroAssembler::Not32(Register dst, Register src) {
+  if (!src.is(no_reg) && !src.is(dst)) lr(dst, src);
+  xilf(dst, Operand(0xFFFFFFFF));
+}
+
+void MacroAssembler::Not64(Register dst, Register src) {
+  if (!src.is(no_reg) && !src.is(dst)) lgr(dst, src);
   xihf(dst, Operand(0xFFFFFFFF));
   xilf(dst, Operand(0xFFFFFFFF));
+}
+
+void MacroAssembler::NotP(Register dst, Register src) {
+#if V8_TARGET_ARCH_S390X
+  Not64(dst, src);
 #else
-  XorP(dst, Operand(0xFFFFFFFF));
+  Not32(dst, src);
 #endif
 }
 

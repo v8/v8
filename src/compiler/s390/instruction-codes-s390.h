@@ -12,9 +12,12 @@ namespace compiler {
 // S390-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
 #define TARGET_ARCH_OPCODE_LIST(V) \
-  V(S390_And)                      \
-  V(S390_Or)                       \
-  V(S390_Xor)                      \
+  V(S390_And32)                    \
+  V(S390_And64)                    \
+  V(S390_Or32)                     \
+  V(S390_Or64)                     \
+  V(S390_Xor32)                    \
+  V(S390_Xor64)                    \
   V(S390_ShiftLeft32)              \
   V(S390_ShiftLeft64)              \
   V(S390_ShiftLeftPair)            \
@@ -26,7 +29,8 @@ namespace compiler {
   V(S390_ShiftRightArithPair)      \
   V(S390_RotRight32)               \
   V(S390_RotRight64)               \
-  V(S390_Not)                      \
+  V(S390_Not32)                    \
+  V(S390_Not64)                    \
   V(S390_RotLeftAndMask32)         \
   V(S390_RotLeftAndClear64)        \
   V(S390_RotLeftAndClearLeft64)    \

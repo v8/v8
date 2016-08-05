@@ -279,15 +279,15 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
                  i.InputDoubleRegister(1));                          \
   } while (0)
 
-#define ASSEMBLE_BINOP(asm_instr_reg, asm_instr_imm)           \
-  do {                                                         \
-    if (HasRegisterInput(instr, 1)) {                          \
-      __ asm_instr_reg(i.OutputRegister(), i.InputRegister(0), \
-                       i.InputRegister(1));                    \
-    } else {                                                   \
-      __ asm_instr_imm(i.OutputRegister(), i.InputRegister(0), \
-                       i.InputImmediate(1));                   \
-    }                                                          \
+#define ASSEMBLE_BINOP(asm_instr)                          \
+  do {                                                     \
+    if (HasRegisterInput(instr, 1)) {                      \
+      __ asm_instr(i.OutputRegister(), i.InputRegister(0), \
+                   i.InputRegister(1));                    \
+    } else {                                               \
+      __ asm_instr(i.OutputRegister(), i.InputRegister(0), \
+                   i.InputImmediate(1));                   \
+    }                                                      \
   } while (0)
 
 #define ASSEMBLE_BINOP_INT(asm_instr_reg, asm_instr_imm)       \
@@ -986,14 +986,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               Operand(offset.offset()));
       break;
     }
-    case kS390_And:
-      ASSEMBLE_BINOP(AndP, AndP);
+    case kS390_And32:
+      ASSEMBLE_BINOP(And);
       break;
-    case kS390_Or:
-      ASSEMBLE_BINOP(OrP, OrP);
+    case kS390_And64:
+      ASSEMBLE_BINOP(AndP);
       break;
-    case kS390_Xor:
-      ASSEMBLE_BINOP(XorP, XorP);
+    case kS390_Or32:
+      ASSEMBLE_BINOP(Or);
+    case kS390_Or64:
+      ASSEMBLE_BINOP(OrP);
+      break;
+    case kS390_Xor32:
+      ASSEMBLE_BINOP(Xor);
+      break;
+    case kS390_Xor64:
+      ASSEMBLE_BINOP(XorP);
       break;
     case kS390_ShiftLeft32:
       if (HasRegisterInput(instr, 1)) {
@@ -1002,16 +1010,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadRR(kScratchReg, i.InputRegister(1));
           __ ShiftLeft(i.OutputRegister(), i.InputRegister(0), kScratchReg);
         } else {
-          ASSEMBLE_BINOP(ShiftLeft, ShiftLeft);
+          ASSEMBLE_BINOP(ShiftLeft);
         }
       } else {
-        ASSEMBLE_BINOP(ShiftLeft, ShiftLeft);
+        ASSEMBLE_BINOP(ShiftLeft);
       }
       __ LoadlW(i.OutputRegister(0), i.OutputRegister(0));
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_ShiftLeft64:
-      ASSEMBLE_BINOP(sllg, sllg);
+      ASSEMBLE_BINOP(sllg);
       break;
 #endif
     case kS390_ShiftRight32:
@@ -1021,16 +1029,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadRR(kScratchReg, i.InputRegister(1));
           __ ShiftRight(i.OutputRegister(), i.InputRegister(0), kScratchReg);
         } else {
-          ASSEMBLE_BINOP(ShiftRight, ShiftRight);
+          ASSEMBLE_BINOP(ShiftRight);
         }
       } else {
-        ASSEMBLE_BINOP(ShiftRight, ShiftRight);
+        ASSEMBLE_BINOP(ShiftRight);
       }
       __ LoadlW(i.OutputRegister(0), i.OutputRegister(0));
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_ShiftRight64:
-      ASSEMBLE_BINOP(srlg, srlg);
+      ASSEMBLE_BINOP(srlg);
       break;
 #endif
     case kS390_ShiftRightArith32:
@@ -1041,16 +1049,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ ShiftRightArith(i.OutputRegister(), i.InputRegister(0),
                              kScratchReg);
         } else {
-          ASSEMBLE_BINOP(ShiftRightArith, ShiftRightArith);
+          ASSEMBLE_BINOP(ShiftRightArith);
         }
       } else {
-        ASSEMBLE_BINOP(ShiftRightArith, ShiftRightArith);
+        ASSEMBLE_BINOP(ShiftRightArith);
       }
       __ LoadlW(i.OutputRegister(), i.OutputRegister());
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_ShiftRightArith64:
-      ASSEMBLE_BINOP(srag, srag);
+      ASSEMBLE_BINOP(srag);
       break;
 #endif
 #if !V8_TARGET_ARCH_S390X
@@ -1141,9 +1149,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
 #endif
-    case kS390_Not:
-      __ LoadRR(i.OutputRegister(), i.InputRegister(0));
-      __ NotP(i.OutputRegister());
+    case kS390_Not32:
+      __ Not32(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kS390_Not64:
+      __ Not64(i.OutputRegister(), i.InputRegister(0));
       break;
     case kS390_RotLeftAndMask32:
       if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
@@ -1205,7 +1215,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         ASSEMBLE_ADD_WITH_OVERFLOW();
       } else {
 #endif
-        ASSEMBLE_BINOP(AddP, AddP);
+        ASSEMBLE_BINOP(AddP);
 #if V8_TARGET_ARCH_S390X
       }
 #endif
@@ -1239,7 +1249,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         ASSEMBLE_SUB_WITH_OVERFLOW();
       } else {
 #endif
-        ASSEMBLE_BINOP(SubP, SubP);
+        ASSEMBLE_BINOP(SubP);
 #if V8_TARGET_ARCH_S390X
       }
 #endif

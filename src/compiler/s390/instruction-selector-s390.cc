@@ -477,7 +477,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
       return;
     }
   }
-  VisitBinop<Int32BinopMatcher>(this, node, kS390_And, kInt16Imm_Unsigned);
+  VisitBinop<Int32BinopMatcher>(this, node, kS390_And32, kInt16Imm_Unsigned);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -529,19 +529,19 @@ void InstructionSelector::VisitWord64And(Node* node) {
       }
     }
   }
-  VisitBinop<Int64BinopMatcher>(this, node, kS390_And, kInt16Imm_Unsigned);
+  VisitBinop<Int64BinopMatcher>(this, node, kS390_And64, kInt16Imm_Unsigned);
 }
 #endif
 
 void InstructionSelector::VisitWord32Or(Node* node) {
   Int32BinopMatcher m(node);
-  VisitBinop<Int32BinopMatcher>(this, node, kS390_Or, kInt16Imm_Unsigned);
+  VisitBinop<Int32BinopMatcher>(this, node, kS390_Or32, kInt16Imm_Unsigned);
 }
 
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitWord64Or(Node* node) {
   Int64BinopMatcher m(node);
-  VisitBinop<Int64BinopMatcher>(this, node, kS390_Or, kInt16Imm_Unsigned);
+  VisitBinop<Int64BinopMatcher>(this, node, kS390_Or64, kInt16Imm_Unsigned);
 }
 #endif
 
@@ -549,9 +549,9 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   S390OperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.right().Is(-1)) {
-    Emit(kS390_Not, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
+    Emit(kS390_Not32, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
   } else {
-    VisitBinop<Int32BinopMatcher>(this, node, kS390_Xor, kInt16Imm_Unsigned);
+    VisitBinop<Int32BinopMatcher>(this, node, kS390_Xor32, kInt16Imm_Unsigned);
   }
 }
 
@@ -560,9 +560,9 @@ void InstructionSelector::VisitWord64Xor(Node* node) {
   S390OperandGenerator g(this);
   Int64BinopMatcher m(node);
   if (m.right().Is(-1)) {
-    Emit(kS390_Not, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
+    Emit(kS390_Not64, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
   } else {
-    VisitBinop<Int64BinopMatcher>(this, node, kS390_Xor, kInt16Imm_Unsigned);
+    VisitBinop<Int64BinopMatcher>(this, node, kS390_Xor64, kInt16Imm_Unsigned);
   }
 }
 #endif
