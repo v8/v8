@@ -4,6 +4,8 @@
 
 #include "src/interpreter/constant-array-builder.h"
 
+#include <set>
+
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 
@@ -53,6 +55,15 @@ void ConstantArrayBuilder::ConstantArraySlice::InsertAt(size_t index,
   constants_[index - start_index()] = object;
 }
 
+bool ConstantArrayBuilder::ConstantArraySlice::AllElementsAreUnique() const {
+  std::set<Object*> elements;
+  for (auto constant : constants_) {
+    if (elements.find(*constant) != elements.end()) return false;
+    elements.insert(*constant);
+  }
+  return true;
+}
+
 STATIC_CONST_MEMBER_DEFINITION const size_t ConstantArrayBuilder::k8BitCapacity;
 STATIC_CONST_MEMBER_DEFINITION const size_t
     ConstantArrayBuilder::k16BitCapacity;
@@ -60,7 +71,7 @@ STATIC_CONST_MEMBER_DEFINITION const size_t
     ConstantArrayBuilder::k32BitCapacity;
 
 ConstantArrayBuilder::ConstantArrayBuilder(Isolate* isolate, Zone* zone)
-    : isolate_(isolate), constants_map_(isolate->heap(), zone) {
+    : isolate_(isolate), constants_map_(zone) {
   idx_slice_[0] =
       new (zone) ConstantArraySlice(zone, 0, k8BitCapacity, OperandSize::kByte);
   idx_slice_[1] = new (zone) ConstantArraySlice(
@@ -111,6 +122,10 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray() {
     }
     DCHECK(array_index == 0 ||
            base::bits::IsPowerOfTwo32(static_cast<uint32_t>(array_index)));
+    // Different slices might contain the same element due to reservations, but
+    // all elements within a slice should be unique. If this DCHECK fails, then
+    // the AST nodes are not being internalized within a CanonicalHandleScope.
+    DCHECK(slice->AllElementsAreUnique());
     // Copy objects from slice into array.
     for (size_t i = 0; i < slice->size(); ++i) {
       fixed_array->set(array_index++, *slice->At(slice->start_index() + i));
@@ -124,21 +139,19 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray() {
     }
   }
   DCHECK_EQ(array_index, fixed_array->length());
-  constants_map()->Clear();
   return fixed_array;
 }
 
 size_t ConstantArrayBuilder::Insert(Handle<Object> object) {
-  index_t* entry = constants_map()->Find(object);
-  return (entry == nullptr) ? AllocateEntry(object) : *entry;
+  auto entry = constants_map_.find(object.address());
+  return (entry == constants_map_.end()) ? AllocateEntry(object)
+                                         : entry->second;
 }
 
 ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateEntry(
     Handle<Object> object) {
-  DCHECK(!object->IsOddball());
   index_t index = AllocateIndex(object);
-  index_t* entry = constants_map()->Get(object);
-  *entry = index;
+  constants_map_[object.address()] = index;
   return index;
 }
 
@@ -200,18 +213,19 @@ size_t ConstantArrayBuilder::CommitReservedEntry(OperandSize operand_size,
                                                  Handle<Object> object) {
   DiscardReservedEntry(operand_size);
   size_t index;
-  index_t* entry = constants_map()->Find(object);
-  if (nullptr == entry) {
+  auto entry = constants_map_.find(object.address());
+  if (entry == constants_map_.end()) {
     index = AllocateEntry(object);
   } else {
     ConstantArraySlice* slice = OperandSizeToSlice(operand_size);
-    if (*entry > slice->max_index()) {
+    index = entry->second;
+    if (index > slice->max_index()) {
       // The object is already in the constant array, but may have an
       // index too big for the reserved operand_size. So, duplicate
       // entry with the smaller operand size.
-      *entry = static_cast<index_t>(slice->Allocate(object));
+      index = slice->Allocate(object);
+      constants_map_[object.address()] = static_cast<index_t>(index);
     }
-    index = *entry;
   }
   return index;
 }

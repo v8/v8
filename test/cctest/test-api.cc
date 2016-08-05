@@ -23940,7 +23940,6 @@ void RunStreamingTest(const char** chunks,
   delete[] full_source;
 }
 
-
 TEST(StreamingSimpleScript) {
   // This script is unrealistically small, since no one chunk is enough to fill
   // the backing buffer of Scanner, let alone overflow it.
@@ -23949,6 +23948,17 @@ TEST(StreamingSimpleScript) {
   RunStreamingTest(chunks);
 }
 
+TEST(StreamingScriptConstantArray) {
+  // When run with Ignition, tests that the streaming parser canonicalizes
+  // handles so that they are only added to the constant pool array once.
+  const char* chunks[] = {"var a = {};",
+                          "var b = {};",
+                          "var c = 'testing';",
+                          "var d = 'testing';",
+                          "13;",
+                          NULL};
+  RunStreamingTest(chunks);
+}
 
 TEST(StreamingBiggerScript) {
   const char* chunk1 =

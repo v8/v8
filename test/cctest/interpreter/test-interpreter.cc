@@ -1262,19 +1262,21 @@ TEST(InterpreterHeapNumberComparisons) {
 
 
 TEST(InterpreterStringComparisons) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
   std::string inputs[] = {"A", "abc", "z", "", "Foo!", "Foo"};
 
   for (size_t c = 0; c < arraysize(kComparisonTypes); c++) {
     Token::Value comparison = kComparisonTypes[c];
     for (size_t i = 0; i < arraysize(inputs); i++) {
       for (size_t j = 0; j < arraysize(inputs); j++) {
+        CanonicalHandleScope canonical(isolate);
         const char* lhs = inputs[i].c_str();
         const char* rhs = inputs[j].c_str();
-        HandleAndZoneScope handles;
-        i::Factory* factory = handles.main_isolate()->factory();
         BytecodeArrayBuilder builder(handles.main_isolate(),
                                      handles.main_zone(), 0, 0, 1);
-
         Register r0(0);
         builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs))
             .StoreAccumulatorInRegister(r0)

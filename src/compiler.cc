@@ -540,6 +540,12 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
+  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // required by the constant array builder to de-duplicate common objects
+  // without dereferencing handles.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
+
   // Parse and update CompilationInfo with the results.
   if (!Parser::ParseStatic(info->parse_info())) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info->shared_info();
@@ -1068,6 +1074,12 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   ParseInfo* parse_info = info->parse_info();
   Handle<Script> script = parse_info->script();
 
+  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // required by the constant array builder to de-duplicate common objects
+  // without dereferencing handles.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate));
+
   // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
   FixedArray* array = isolate->native_context()->embedder_data();
   script->set_context_data(array->get(v8::Context::kDebugIdIndex));
@@ -1110,6 +1122,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         parse_info->set_cached_data(nullptr);
         parse_info->set_compile_options(ScriptCompiler::kNoCompileOptions);
       }
+
       if (!Parser::ParseStatic(parse_info)) {
         return Handle<SharedFunctionInfo>::null();
       }

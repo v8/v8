@@ -81,6 +81,7 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
     size_t Allocate(Handle<Object> object);
     Handle<Object> At(size_t index) const;
     void InsertAt(size_t index, Handle<Object> object);
+    bool AllElementsAreUnique() const;
 
     inline size_t available() const { return capacity() - reserved() - size(); }
     inline size_t reserved() const { return reserved_; }
@@ -103,11 +104,9 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   ConstantArraySlice* IndexToSlice(size_t index) const;
   ConstantArraySlice* OperandSizeToSlice(OperandSize operand_size) const;
 
-  IdentityMap<index_t>* constants_map() { return &constants_map_; }
-
   Isolate* isolate_;
   ConstantArraySlice* idx_slice_[3];
-  IdentityMap<index_t> constants_map_;
+  ZoneMap<Address, index_t> constants_map_;
 };
 
 }  // namespace interpreter

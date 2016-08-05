@@ -22,6 +22,7 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
+  CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 1, 131);
   Factory* factory = isolate()->factory();
 
@@ -438,6 +439,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
 
 TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
+  CanonicalHandleScope canonical(isolate());
   for (int locals = 0; locals < 5; locals++) {
     for (int contexts = 0; contexts < 4; contexts++) {
       for (int temps = 0; temps < 3; temps++) {
@@ -470,6 +472,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
 
 
 TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
+  CanonicalHandleScope canonical(isolate());
   int index = 1;
 
   Register the_register(index);
@@ -482,6 +485,7 @@ TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
 
 
 TEST_F(BytecodeArrayBuilderTest, Parameters) {
+  CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 10, 0, 0);
 
   Register param0(builder.Parameter(0));
@@ -491,6 +495,7 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
 
 
 TEST_F(BytecodeArrayBuilderTest, RegisterType) {
+  CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 10, 0, 3);
   BytecodeRegisterAllocator register_allocator(
       zone(), builder.temporary_register_allocator());
@@ -514,6 +519,7 @@ TEST_F(BytecodeArrayBuilderTest, RegisterType) {
 
 
 TEST_F(BytecodeArrayBuilderTest, Constants) {
+  CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 0);
 
   Factory* factory = isolate()->factory();
@@ -541,6 +547,7 @@ static Bytecode PeepholeToBoolean(Bytecode jump_bytecode) {
 }
 
 TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
+  CanonicalHandleScope canonical(isolate());
   static const int kFarJumpDistance = 256;
 
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 1);
@@ -662,6 +669,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
 
 TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
+  CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 1);
 
   Register reg(0);
@@ -779,6 +787,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
 
 
 TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
+  CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 0);
 
   // Labels can only have 1 forward reference, but
@@ -811,6 +820,7 @@ TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
 
 
 TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
+  CanonicalHandleScope canonical(isolate());
   static const int kRepeats = 3;
 
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 0);
