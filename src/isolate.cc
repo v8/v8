@@ -1310,9 +1310,16 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       List<FrameSummary> summaries;
       frame->Summarize(&summaries);
       for (const FrameSummary& summary : summaries) {
+        Handle<AbstractCode> code = summary.abstract_code();
+        if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
+          DCHECK(summary.function()->shared()->asm_function());
+          DCHECK(!FLAG_turbo_asm_deoptimization);
+          // asm code cannot contain try-catch.
+          continue;
+        }
         int code_offset = summary.code_offset();
-        int index = summary.abstract_code()->LookupRangeInHandlerTable(
-            code_offset, nullptr, &prediction);
+        int index =
+            code->LookupRangeInHandlerTable(code_offset, nullptr, &prediction);
         if (index <= 0) continue;
         if (prediction == HandlerTable::UNCAUGHT) continue;
         return prediction;
