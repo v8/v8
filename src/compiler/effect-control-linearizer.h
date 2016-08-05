@@ -143,6 +143,14 @@ class EffectControlLinearizer {
   ValueEffectControl LowerStoreTypedElement(Node* node, Node* effect,
                                             Node* control);
 
+  // Lowering of optional operators.
+  ValueEffectControl LowerFloat64RoundUp(Node* node, Node* effect,
+                                         Node* control);
+  ValueEffectControl LowerFloat64RoundDown(Node* node, Node* effect,
+                                           Node* control);
+  ValueEffectControl LowerFloat64RoundTruncate(Node* node, Node* effect,
+                                               Node* control);
+
   ValueEffectControl AllocateHeapNumberWithValue(Node* node, Node* effect,
                                                  Node* control);
   ValueEffectControl BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
