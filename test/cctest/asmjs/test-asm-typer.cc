@@ -324,7 +324,7 @@ class AsmTyperHarnessBuilder {
   Handle<String> source_code_;
   Handle<Script> script_;
 
-  Scope* outer_scope_;
+  DeclarationScope* outer_scope_;
   FunctionLiteral* module_;
   FunctionDeclaration* fun_decl_;
   std::unique_ptr<AsmTyper> typer_;

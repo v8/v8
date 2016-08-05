@@ -3058,7 +3058,7 @@ void BytecodeGenerator::VisitNewLocalFunctionContext() {
 }
 
 void BytecodeGenerator::VisitBuildLocalActivationContext() {
-  Scope* scope = this->scope();
+  DeclarationScope* scope = this->scope();
 
   if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
     Variable* variable = scope->receiver();
@@ -3207,7 +3207,8 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
 
 void BytecodeGenerator::VisitFunctionClosureForContext() {
   AccumulatorResultScope accumulator_execution_result(this);
-  Scope* closure_scope = execution_context()->scope()->ClosureScope();
+  DeclarationScope* closure_scope =
+      execution_context()->scope()->GetClosureScope();
   if (closure_scope->is_script_scope() ||
       closure_scope->is_module_scope()) {
     // Contexts nested in the native context have a canonical empty function as

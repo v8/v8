@@ -63,10 +63,9 @@ class ModuleDescriptor : public ZoneObject {
     Zone* zone);
 
   // Check if module is well-formed and report error if not.
-  bool Validate(
-      Scope* module_scope, PendingCompilationErrorHandler* error_handler,
-      Zone* zone) const;
-
+  bool Validate(DeclarationScope* module_scope,
+                PendingCompilationErrorHandler* error_handler,
+                Zone* zone) const;
 
  private:
   struct ModuleEntry : public ZoneObject {

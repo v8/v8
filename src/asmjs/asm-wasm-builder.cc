@@ -443,7 +443,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitDebuggerStatement(DebuggerStatement* stmt) { UNREACHABLE(); }
 
   void VisitFunctionLiteral(FunctionLiteral* expr) {
-    Scope* scope = expr->scope();
+    DeclarationScope* scope = expr->scope();
     if (scope_ == kFuncScope) {
       if (auto* func_type = typer_->TypeOf(expr)->AsFunctionType()) {
         // Build the signature for the function.

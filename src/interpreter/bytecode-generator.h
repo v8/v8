@@ -175,7 +175,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   inline BytecodeArrayBuilder* builder() const { return builder_; }
   inline Isolate* isolate() const { return isolate_; }
   inline Zone* zone() const { return zone_; }
-  inline Scope* scope() const { return scope_; }
+  inline DeclarationScope* scope() const { return scope_; }
   inline CompilationInfo* info() const { return info_; }
 
   inline ControlScope* execution_control() const { return execution_control_; }
@@ -206,7 +206,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
   CompilationInfo* info_;
-  Scope* scope_;
+  DeclarationScope* scope_;
   GlobalDeclarationsBuilder* globals_builder_;
   ZoneVector<GlobalDeclarationsBuilder*> global_declarations_;
   ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
