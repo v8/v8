@@ -46,8 +46,6 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   zone_.reset(new Zone(isolate_->allocator()));
   Handle<SharedFunctionInfo> shared(function_->shared(), isolate_);
   Handle<Script> script(Script::cast(shared->script()), isolate_);
-  DCHECK(script->type() != Script::TYPE_NATIVE);
-
   Handle<String> source(String::cast(script->source()), isolate_);
   if (source->IsExternalTwoByteString()) {
     character_stream_.reset(new ExternalTwoByteStringUtf16CharacterStream(
@@ -68,24 +66,12 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   parse_info_.reset(new ParseInfo(zone_.get()));
   parse_info_->set_isolate(isolate_);
   parse_info_->set_character_stream(character_stream_.get());
-  parse_info_->set_lazy();
   parse_info_->set_hash_seed(isolate_->heap()->HashSeed());
-  parse_info_->set_is_named_expression(shared->is_named_expression());
-  parse_info_->set_calls_eval(shared->scope_info()->CallsEval());
-  parse_info_->set_compiler_hints(shared->compiler_hints());
-  parse_info_->set_start_position(shared->start_position());
-  parse_info_->set_end_position(shared->end_position());
   parse_info_->set_unicode_cache(unicode_cache_.get());
-  parse_info_->set_language_mode(shared->language_mode());
-
   parser_.reset(new Parser(parse_info_.get()));
   parser_->DeserializeScopeChain(
       parse_info_.get(), handle(function_->context(), isolate_),
       Scope::DeserializationMode::kDeserializeOffHeap);
-
-  Handle<String> name(String::cast(shared->name()));
-  parse_info_->set_function_name(
-      parse_info_->ast_value_factory()->GetString(name));
   status_ = CompileJobStatus::kReadyToParse;
 }
 

@@ -58,7 +58,6 @@ ParseInfo::ParseInfo(Zone* zone)
       isolate_(nullptr),
       cached_data_(nullptr),
       ast_value_factory_(nullptr),
-      function_name_(nullptr),
       literal_(nullptr) {}
 
 ParseInfo::ParseInfo(Zone* zone, Handle<JSFunction> function)
@@ -1121,8 +1120,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
           source, shared_info->start_position(), shared_info->end_position()));
     }
     Handle<String> name(String::cast(shared_info->name()));
-    result =
-        DoParseLazy(info, ast_value_factory()->GetString(name), stream.get());
+    result = DoParseLazy(isolate, info, ast_value_factory()->GetString(name),
+                         stream.get());
     if (result != nullptr) {
       Handle<String> inferred_name(shared_info->inferred_name());
       result->set_inferred_name(inferred_name);
@@ -1149,7 +1148,7 @@ static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
   return FunctionLiteral::kAnonymousExpression;
 }
 
-FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
+FunctionLiteral* Parser::DoParseLazy(Isolate* isolate, ParseInfo* info,
                                      const AstRawString* raw_name,
                                      Utf16CharacterStream* source) {
   scanner_.Initialize(source);
@@ -5521,6 +5520,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
 
   DCHECK(info->literal() == NULL);
   FunctionLiteral* result = NULL;
+  fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 
   CompleteParserRecorder recorder;
   if (produce_cached_parse_data()) log_ = &recorder;
@@ -5536,6 +5536,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
                                              info->source_stream_encoding()));
     stream_ptr = stream.get();
   }
+  scanner_.Initialize(stream_ptr);
   DCHECK(info->context().is_null() || info->context()->IsNativeContext());
 
   DCHECK(original_scope_);
@@ -5546,13 +5547,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   // don't). We work around this by storing all the scopes which need their end
   // position set at the end of the script (the top scope and possible eval
   // scopes) and set their end position after we know the script length.
-  if (info->is_lazy()) {
-    result = DoParseLazy(info, info->function_name(), stream_ptr);
-  } else {
-    fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
-    scanner_.Initialize(stream_ptr);
-    result = DoParseProgram(info);
-  }
+  result = DoParseProgram(info);
 
   info->set_literal(result);
 
