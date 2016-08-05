@@ -495,7 +495,7 @@ class Scope: public ZoneObject {
   int start_position_;
   int end_position_;
 
-  // Computed via AllocateVariables; function, block and catch scopes only.
+  // Computed via AllocateVariables.
   int num_stack_slots_;
   int num_heap_slots_;
   int num_global_slots_;
