@@ -147,6 +147,7 @@ namespace compiler {
   V(Arm64Ldrh)                     \
   V(Arm64Ldrsh)                    \
   V(Arm64Strh)                     \
+  V(Arm64Ldrsw)                    \
   V(Arm64LdrW)                     \
   V(Arm64StrW)                     \
   V(Arm64Ldr)                      \

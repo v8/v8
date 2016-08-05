@@ -51,11 +51,8 @@ void Builtins::Generate_StringFromCharCode(CodeStubAssembler* assembler) {
   assembler->Bind(&if_notoneargument);
   {
     // Determine the resulting string length.
-    Node* parent_frame_length =
-        assembler->Load(MachineType::Pointer(), parent_frame_pointer,
-                        assembler->IntPtrConstant(
-                            ArgumentsAdaptorFrameConstants::kLengthOffset));
-    Node* length = assembler->SmiToWord(parent_frame_length);
+    Node* length = assembler->LoadAndUntagSmi(
+        parent_frame_pointer, ArgumentsAdaptorFrameConstants::kLengthOffset);
 
     // Assume that the resulting string contains only one-byte characters.
     Node* result = assembler->AllocateSeqOneByteString(context, length);

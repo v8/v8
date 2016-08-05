@@ -156,6 +156,15 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadObjectField(compiler::Node* object,
                                   compiler::Node* offset,
                                   MachineType rep = MachineType::AnyTagged());
+  // Load a SMI field and untag it.
+  compiler::Node* LoadAndUntagObjectField(compiler::Node* object, int offset);
+  // Load a SMI field, untag it, and convert to Word32.
+  compiler::Node* LoadAndUntagToWord32ObjectField(compiler::Node* object,
+                                                  int offset);
+  // Load a SMI and untag it.
+  compiler::Node* LoadAndUntagSmi(compiler::Node* base, int index);
+  // Load a SMI root, untag it, and convert to Word32.
+  compiler::Node* LoadAndUntagToWord32Root(Heap::RootListIndex root_index);
 
   // Load the floating point value of a HeapNumber.
   compiler::Node* LoadHeapNumberValue(compiler::Node* object);
@@ -170,7 +179,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Load the elements backing store of a JSObject.
   compiler::Node* LoadElements(compiler::Node* object);
   // Load the length of a fixed array base instance.
-  compiler::Node* LoadFixedArrayBaseLength(compiler::Node* array);
+  compiler::Node* LoadAndUntagFixedArrayBaseLength(compiler::Node* array);
   // Load the bit field of a Map.
   compiler::Node* LoadMapBitField(compiler::Node* map);
   // Load bit field 2 of a map.
@@ -209,6 +218,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Load an array element from a FixedArray.
   compiler::Node* LoadFixedArrayElement(
+      compiler::Node* object, compiler::Node* int32_index,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+  // Load an array element from a FixedArray, untag it and return it as Word32.
+  compiler::Node* LoadAndUntagToWord32FixedArrayElement(
       compiler::Node* object, compiler::Node* int32_index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);

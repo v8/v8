@@ -74,7 +74,7 @@ Node* CodeStubAssembler::TheHoleConstant() {
 }
 
 Node* CodeStubAssembler::HashSeed() {
-  return SmiToWord32(LoadRoot(Heap::kHashSeedRootIndex));
+  return LoadAndUntagToWord32Root(Heap::kHashSeedRootIndex);
 }
 
 Node* CodeStubAssembler::StaleRegisterConstant() {
@@ -914,6 +914,60 @@ Node* CodeStubAssembler::LoadObjectField(Node* object, Node* offset,
   return Load(rep, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)));
 }
 
+Node* CodeStubAssembler::LoadAndUntagObjectField(Node* object, int offset) {
+  if (Is64()) {
+#if V8_TARGET_LITTLE_ENDIAN
+    offset += kPointerSize / 2;
+#endif
+    return ChangeInt32ToInt64(
+        LoadObjectField(object, offset, MachineType::Int32()));
+  } else {
+    return SmiToWord(LoadObjectField(object, offset, MachineType::AnyTagged()));
+  }
+}
+
+Node* CodeStubAssembler::LoadAndUntagToWord32ObjectField(Node* object,
+                                                         int offset) {
+  if (Is64()) {
+#if V8_TARGET_LITTLE_ENDIAN
+    offset += kPointerSize / 2;
+#endif
+    return LoadObjectField(object, offset, MachineType::Int32());
+  } else {
+    return SmiToWord32(
+        LoadObjectField(object, offset, MachineType::AnyTagged()));
+  }
+}
+
+Node* CodeStubAssembler::LoadAndUntagSmi(Node* base, int index) {
+  if (Is64()) {
+#if V8_TARGET_LITTLE_ENDIAN
+    index += kPointerSize / 2;
+#endif
+    return ChangeInt32ToInt64(
+        Load(MachineType::Int32(), base, IntPtrConstant(index)));
+  } else {
+    return SmiToWord(
+        Load(MachineType::AnyTagged(), base, IntPtrConstant(index)));
+  }
+}
+
+Node* CodeStubAssembler::LoadAndUntagToWord32Root(
+    Heap::RootListIndex root_index) {
+  Node* roots_array_start =
+      ExternalConstant(ExternalReference::roots_array_start(isolate()));
+  int index = root_index * kPointerSize;
+  if (Is64()) {
+#if V8_TARGET_LITTLE_ENDIAN
+    index += kPointerSize / 2;
+#endif
+    return Load(MachineType::Int32(), roots_array_start, IntPtrConstant(index));
+  } else {
+    return SmiToWord32(Load(MachineType::AnyTagged(), roots_array_start,
+                            IntPtrConstant(index)));
+  }
+}
+
 Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
   return LoadObjectField(object, HeapNumber::kValueOffset,
                          MachineType::Float64());
@@ -940,8 +994,8 @@ Node* CodeStubAssembler::LoadElements(Node* object) {
   return LoadObjectField(object, JSObject::kElementsOffset);
 }
 
-Node* CodeStubAssembler::LoadFixedArrayBaseLength(Node* array) {
-  return LoadObjectField(array, FixedArrayBase::kLengthOffset);
+Node* CodeStubAssembler::LoadAndUntagFixedArrayBaseLength(Node* array) {
+  return LoadAndUntagObjectField(array, FixedArrayBase::kLengthOffset);
 }
 
 Node* CodeStubAssembler::LoadMapBitField(Node* map) {
@@ -1054,6 +1108,25 @@ Node* CodeStubAssembler::LoadFixedArrayElement(Node* object, Node* index_node,
   Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
   return Load(MachineType::AnyTagged(), object, offset);
+}
+
+Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
+    Node* object, Node* index_node, int additional_offset,
+    ParameterMode parameter_mode) {
+  int32_t header_size =
+      FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
+#if V8_TARGET_LITTLE_ENDIAN
+  if (Is64()) {
+    header_size += kPointerSize / 2;
+  }
+#endif
+  Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS,
+                                        parameter_mode, header_size);
+  if (Is64()) {
+    return Load(MachineType::Int32(), object, offset);
+  } else {
+    return SmiToWord32(Load(MachineType::AnyTagged(), object, offset));
+  }
 }
 
 Node* CodeStubAssembler::LoadFixedDoubleArrayElement(
@@ -1915,7 +1988,7 @@ Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index) {
         {
           // The {string} is a SlicedString, continue with its parent.
           Node* string_offset =
-              SmiToWord(LoadObjectField(string, SlicedString::kOffsetOffset));
+              LoadAndUntagObjectField(string, SlicedString::kOffsetOffset);
           Node* string_parent =
               LoadObjectField(string, SlicedString::kParentOffset);
           var_index.Bind(IntPtrAdd(index, string_offset));
@@ -2086,8 +2159,8 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
   DCHECK_EQ(MachineRepresentation::kWord32, var_name_index->rep());
   Comment("NameDictionaryLookup");
 
-  Node* capacity = SmiToWord32(LoadFixedArrayElement(
-      dictionary, Int32Constant(Dictionary::kCapacityIndex)));
+  Node* capacity = LoadAndUntagToWord32FixedArrayElement(
+      dictionary, Int32Constant(Dictionary::kCapacityIndex));
   Node* mask = Int32Sub(capacity, Int32Constant(1));
   Node* hash = LoadNameHash(unique_name);
 
@@ -2166,8 +2239,8 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary, Node* key,
   DCHECK_EQ(MachineRepresentation::kWord32, var_entry->rep());
   Comment("NumberDictionaryLookup");
 
-  Node* capacity = SmiToWord32(LoadFixedArrayElement(
-      dictionary, Int32Constant(Dictionary::kCapacityIndex)));
+  Node* capacity = LoadAndUntagToWord32FixedArrayElement(
+      dictionary, Int32Constant(Dictionary::kCapacityIndex));
   Node* mask = Int32Sub(capacity, Int32Constant(1));
 
   Node* seed;
@@ -2358,8 +2431,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
       (DescriptorArray::kDescriptorValue - DescriptorArray::kDescriptorKey) *
       kPointerSize;
 
-  Node* details = SmiToWord32(
-      LoadFixedArrayElement(descriptors, name_index, name_to_details_offset));
+  Node* details = LoadAndUntagToWord32FixedArrayElement(descriptors, name_index,
+                                                        name_to_details_offset);
   var_details->Bind(details);
 
   Node* location = BitFieldDecode<PropertyDetails::LocationField>(details);
@@ -2465,8 +2538,8 @@ void CodeStubAssembler::LoadPropertyFromNameDictionary(Node* dictionary,
       (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
       kPointerSize;
 
-  Node* details = SmiToWord32(
-      LoadFixedArrayElement(dictionary, name_index, name_to_details_offset));
+  Node* details = LoadAndUntagToWord32FixedArrayElement(dictionary, name_index,
+                                                        name_to_details_offset);
 
   var_details->Bind(details);
   var_value->Bind(
@@ -2494,8 +2567,8 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
 
   var_value->Bind(value);
 
-  Node* details =
-      SmiToWord32(LoadObjectField(property_cell, PropertyCell::kDetailsOffset));
+  Node* details = LoadAndUntagToWord32ObjectField(property_cell,
+                                                  PropertyCell::kDetailsOffset);
   var_details->Bind(details);
 
   Comment("] LoadPropertyFromGlobalDictionary");
@@ -2633,9 +2706,9 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   Bind(&if_isobjectorsmi);
   {
     Node* elements = LoadElements(object);
-    Node* length = LoadFixedArrayBaseLength(elements);
+    Node* length = LoadAndUntagFixedArrayBaseLength(elements);
 
-    GotoUnless(Uint32LessThan(index, SmiToWord32(length)), if_not_found);
+    GotoUnless(Uint32LessThan(index, length), if_not_found);
 
     Node* element = LoadFixedArrayElement(elements, index);
     Node* the_hole = TheHoleConstant();
@@ -2644,9 +2717,9 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   Bind(&if_isdouble);
   {
     Node* elements = LoadElements(object);
-    Node* length = LoadFixedArrayBaseLength(elements);
+    Node* length = LoadAndUntagFixedArrayBaseLength(elements);
 
-    GotoUnless(Uint32LessThan(index, SmiToWord32(length)), if_not_found);
+    GotoUnless(Uint32LessThan(index, length), if_not_found);
 
     if (kPointerSize == kDoubleSize) {
       Node* element =
@@ -3053,7 +3126,7 @@ void CodeStubAssembler::HandlePolymorphicCase(
 
     Bind(&next_entry);
   }
-  Node* length = SmiToWord32(LoadFixedArrayBaseLength(feedback));
+  Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
 
   // Loop from {unroll_count}*kEntrySize to {length}.
   Variable var_index(this, MachineRepresentation::kWord32);

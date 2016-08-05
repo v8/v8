@@ -161,7 +161,6 @@ void VisitRRO(InstructionSelector* selector, ArchOpcode opcode, Node* node,
                  g.UseOperand(node->InputAt(1), operand_mode));
 }
 
-
 bool TryMatchAnyShift(InstructionSelector* selector, Node* node,
                       Node* input_node, InstructionCode* opcode, bool try_ror) {
   Arm64OperandGenerator g(selector);
@@ -458,18 +457,43 @@ int32_t LeftShiftForReducedMultiply(Matcher* m) {
 
 }  // namespace
 
-
-void InstructionSelector::VisitLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  MachineRepresentation rep = load_rep.representation();
-  Arm64OperandGenerator g(this);
+void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
+              ImmediateMode immediate_mode, MachineRepresentation rep,
+              Node* output = nullptr) {
+  Arm64OperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
-  InstructionCode opcode = kArchNop;
-  ImmediateMode immediate_mode = kNoImmediate;
   InstructionOperand inputs[3];
   size_t input_count = 0;
   InstructionOperand outputs[1];
+
+  // If output is not nullptr, use that as the output register. This
+  // is used when we merge a conversion into the load.
+  outputs[0] = g.DefineAsRegister(output == nullptr ? node : output);
+  inputs[0] = g.UseRegister(base);
+
+  if (g.CanBeImmediate(index, immediate_mode)) {
+    input_count = 2;
+    inputs[1] = g.UseImmediate(index);
+    opcode |= AddressingModeField::encode(kMode_MRI);
+  } else if (TryMatchLoadStoreShift(&g, selector, rep, node, index, &inputs[1],
+                                    &inputs[2])) {
+    input_count = 3;
+    opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
+  } else {
+    input_count = 2;
+    inputs[1] = g.UseRegister(index);
+    opcode |= AddressingModeField::encode(kMode_MRR);
+  }
+
+  selector->Emit(opcode, arraysize(outputs), outputs, input_count, inputs);
+}
+
+void InstructionSelector::VisitLoad(Node* node) {
+  InstructionCode opcode = kArchNop;
+  ImmediateMode immediate_mode = kNoImmediate;
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  MachineRepresentation rep = load_rep.representation();
   switch (rep) {
     case MachineRepresentation::kFloat32:
       opcode = kArm64LdrS;
@@ -502,25 +526,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-
-  outputs[0] = g.DefineAsRegister(node);
-  inputs[0] = g.UseRegister(base);
-
-  if (g.CanBeImmediate(index, immediate_mode)) {
-    input_count = 2;
-    inputs[1] = g.UseImmediate(index);
-    opcode |= AddressingModeField::encode(kMode_MRI);
-  } else if (TryMatchLoadStoreShift(&g, this, rep, node, index, &inputs[1],
-                                    &inputs[2])) {
-    input_count = 3;
-    opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
-  } else {
-    input_count = 2;
-    inputs[1] = g.UseRegister(index);
-    opcode |= AddressingModeField::encode(kMode_MRR);
-  }
-
-  Emit(opcode, arraysize(outputs), outputs, input_count, inputs);
+  EmitLoad(this, node, opcode, immediate_mode, rep);
 }
 
 
@@ -959,7 +965,7 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
   Arm64OperandGenerator g(this);
   Int64BinopMatcher m(node);
   if ((m.left().IsChangeInt32ToInt64() || m.left().IsChangeUint32ToUint64()) &&
-      m.right().IsInRange(32, 63)) {
+      m.right().IsInRange(32, 63) && CanCover(node, m.left().node())) {
     // There's no need to sign/zero-extend to 64-bit if we shift out the upper
     // 32 bits anyway.
     Emit(kArm64Lsl, g.DefineAsRegister(node),
@@ -1563,7 +1569,35 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
 
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
-  VisitRR(this, kArm64Sxtw, node);
+  Node* value = node->InputAt(0);
+  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+    // Generate sign-extending load.
+    LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+    MachineRepresentation rep = load_rep.representation();
+    InstructionCode opcode = kArchNop;
+    ImmediateMode immediate_mode = kNoImmediate;
+    switch (rep) {
+      case MachineRepresentation::kBit:  // Fall through.
+      case MachineRepresentation::kWord8:
+        opcode = load_rep.IsSigned() ? kArm64Ldrsb : kArm64Ldrb;
+        immediate_mode = kLoadStoreImm8;
+        break;
+      case MachineRepresentation::kWord16:
+        opcode = load_rep.IsSigned() ? kArm64Ldrsh : kArm64Ldrh;
+        immediate_mode = kLoadStoreImm16;
+        break;
+      case MachineRepresentation::kWord32:
+        opcode = kArm64Ldrsw;
+        immediate_mode = kLoadStoreImm32;
+        break;
+      default:
+        UNREACHABLE();
+        return;
+    }
+    EmitLoad(this, value, opcode, immediate_mode, rep, node);
+  } else {
+    VisitRR(this, kArm64Sxtw, node);
+  }
 }
 
 

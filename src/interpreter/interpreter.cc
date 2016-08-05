@@ -1402,8 +1402,7 @@ void Interpreter::DoJump(InterpreterAssembler* assembler) {
 // Jump by number of bytes in the Smi in the |idx| entry in the constant pool.
 void Interpreter::DoJumpConstant(InterpreterAssembler* assembler) {
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   __ Jump(relative_jump);
 }
 
@@ -1425,8 +1424,7 @@ void Interpreter::DoJumpIfTrue(InterpreterAssembler* assembler) {
 void Interpreter::DoJumpIfTrueConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   Node* true_value = __ BooleanConstant(true);
   __ JumpIfWordEqual(accumulator, true_value, relative_jump);
 }
@@ -1449,8 +1447,7 @@ void Interpreter::DoJumpIfFalse(InterpreterAssembler* assembler) {
 void Interpreter::DoJumpIfFalseConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   Node* false_value = __ BooleanConstant(false);
   __ JumpIfWordEqual(accumulator, false_value, relative_jump);
 }
@@ -1479,8 +1476,7 @@ void Interpreter::DoJumpIfToBooleanTrueConstant(
     InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   Label if_true(assembler), if_false(assembler);
   __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   __ Bind(&if_true);
@@ -1513,8 +1509,7 @@ void Interpreter::DoJumpIfToBooleanFalseConstant(
     InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   Label if_true(assembler), if_false(assembler);
   __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   __ Bind(&if_true);
@@ -1542,8 +1537,7 @@ void Interpreter::DoJumpIfNullConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   __ JumpIfWordEqual(accumulator, null_value, relative_jump);
 }
 
@@ -1568,8 +1562,7 @@ void Interpreter::DoJumpIfUndefinedConstant(InterpreterAssembler* assembler) {
   Node* undefined_value =
       __ HeapConstant(isolate_->factory()->undefined_value());
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   __ JumpIfWordEqual(accumulator, undefined_value, relative_jump);
 }
 
@@ -1592,8 +1585,7 @@ void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* the_hole_value = __ HeapConstant(isolate_->factory()->the_hole_value());
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
 }
 

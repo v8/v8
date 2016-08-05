@@ -77,6 +77,9 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Load constant at |index| in the constant pool.
   compiler::Node* LoadConstantPoolEntry(compiler::Node* index);
 
+  // Load and untag constant at |index| in the constant pool.
+  compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
+
   // Load |slot_index| from |context|.
   compiler::Node* LoadContextSlot(compiler::Node* context, int slot_index);
   compiler::Node* LoadContextSlot(compiler::Node* context,

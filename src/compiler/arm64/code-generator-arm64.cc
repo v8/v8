@@ -1531,6 +1531,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Strh:
       __ Strh(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
+    case kArm64Ldrsw:
+      __ Ldrsw(i.OutputRegister(), i.MemoryOperand());
+      break;
     case kArm64LdrW:
       __ Ldr(i.OutputRegister32(), i.MemoryOperand());
       break;

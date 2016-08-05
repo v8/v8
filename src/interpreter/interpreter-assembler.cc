@@ -392,6 +392,26 @@ Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   return Load(MachineType::AnyTagged(), constant_pool, entry_offset);
 }
 
+Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
+  Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
+                                        BytecodeArray::kConstantPoolOffset);
+  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
+#if V8_TARGET_LITTLE_ENDIAN
+  if (Is64()) {
+    offset += kPointerSize / 2;
+  }
+#endif
+  Node* entry_offset =
+      IntPtrAdd(IntPtrConstant(offset), WordShl(index, kPointerSizeLog2));
+  if (Is64()) {
+    return ChangeInt32ToInt64(
+        Load(MachineType::Int32(), constant_pool, entry_offset));
+  } else {
+    return SmiUntag(
+        Load(MachineType::AnyTagged(), constant_pool, entry_offset));
+  }
+}
+
 Node* InterpreterAssembler::LoadContextSlot(Node* context, int slot_index) {
   return Load(MachineType::AnyTagged(), context,
               IntPtrConstant(Context::SlotOffset(slot_index)));
@@ -927,7 +947,7 @@ Node* InterpreterAssembler::RegisterCount() {
 
 Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
   if (FLAG_debug_code) {
-    Node* array_size = SmiUntag(LoadFixedArrayBaseLength(array));
+    Node* array_size = LoadAndUntagFixedArrayBaseLength(array);
     AbortIfWordNotEqual(
         array_size, RegisterCount(), kInvalidRegisterFileInGenerator);
   }
@@ -962,7 +982,7 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
 
 Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
   if (FLAG_debug_code) {
-    Node* array_size = SmiUntag(LoadFixedArrayBaseLength(array));
+    Node* array_size = LoadAndUntagFixedArrayBaseLength(array);
     AbortIfWordNotEqual(
         array_size, RegisterCount(), kInvalidRegisterFileInGenerator);
   }
