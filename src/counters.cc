@@ -276,6 +276,11 @@ void RuntimeCallCounter::Reset() {
   time = base::TimeDelta();
 }
 
+void RuntimeCallCounter::Dump(std::stringstream& out) {
+  out << "\"" << name << "\":[" << count << "," << time.InMicroseconds()
+      << "],";
+}
+
 // static
 void RuntimeCallStats::Enter(Isolate* isolate, RuntimeCallTimer* timer,
                              CounterId counter_id) {
