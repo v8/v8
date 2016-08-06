@@ -13,17 +13,17 @@
 
 var AsyncFunctionNext;
 var AsyncFunctionThrow;
-var IsPromise;
 var GlobalPromise;
 var NewPromiseCapability;
 var PerformPromiseThen;
+var PromiseCastResolved;
 
 utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
   AsyncFunctionThrow = from.AsyncFunctionThrow;
-  IsPromise = from.IsPromise;
   GlobalPromise = from.GlobalPromise;
   NewPromiseCapability = from.NewPromiseCapability;
+  PromiseCastResolved = from.PromiseCastResolved;
   PerformPromiseThen = from.PerformPromiseThen;
 });
 
@@ -34,14 +34,7 @@ function AsyncFunctionAwait(generator, value) {
   //     value => AsyncFunctionNext(value),
   //     error => AsyncFunctionThrow(error)
   // );
-  var promise;
-  if (IsPromise(value)) {
-    promise = value;
-  } else {
-    var promiseCapability = NewPromiseCapability(GlobalPromise);
-    %_Call(promiseCapability.resolve, UNDEFINED, value);
-    promise = promiseCapability.promise;
-  }
+  var promise = PromiseCastResolved(value);
 
   var onFulfilled =
       (sentValue) => %_Call(AsyncFunctionNext, generator, sentValue);

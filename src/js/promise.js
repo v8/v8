@@ -386,8 +386,20 @@ function PromiseCreateRejected(r) {
   return %_Call(PromiseReject, GlobalPromise, r);
 }
 
-function PromiseCreateResolved(x) {
-  return %_Call(PromiseResolve, GlobalPromise, x);
+function PromiseCreateResolved(value) {
+  var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+  var resolveResult = ResolvePromise(promise, value);
+  return promise;
+}
+
+function PromiseCastResolved(value) {
+  if (IsPromise(value)) {
+    return value;
+  } else {
+    var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+    var resolveResult = ResolvePromise(promise, value);
+    return promise;
+  }
 }
 
 function PerformPromiseThen(promise, onResolve, onReject, resultCapability) {
@@ -629,14 +641,11 @@ utils.InstallFunctions(extrasUtils, 0, [
     fn => %FunctionRemovePrototype(fn));
 
 utils.Export(function(to) {
-  to.IsPromise = IsPromise;
-
   to.PromiseChain = PromiseChain;
   to.PromiseDefer = PromiseDefer;
   to.PromiseAccept = PromiseAccept;
 
-  to.PromiseCreateRejected = PromiseCreateRejected;
-  to.PromiseCreateResolved = PromiseCreateResolved;
+  to.PromiseCastResolved = PromiseCastResolved;
   to.PromiseThen = PromiseThen;
 
   to.GlobalPromise = GlobalPromise;
