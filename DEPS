@@ -8,25 +8,25 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "f0243d787961584ac95a86e7dae897b9b60ea674",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "4f92210342e455123c37ad2040085b84a8ab6274",
   "v8/tools/gyp":
-    Var("git_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
+    Var("git_url") + "/external/gyp.git" + "@" + "93cc6e2c23e4d5ebd179f388e67aa907d0dfd43d",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "ef5c735307d0f86c7622f69620994c9468beba99",
   "v8/third_party/instrumented_libraries":
     Var("git_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "f15768d7fdf68c0748d20738184120c8ab2e6db7",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "9c6ad6f5cbc2f30989edc3504ec7f9d360542512",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "e4aa960cb9cd2c7dbaa69655efa85b3d7dff13dd",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "315bf1e2d45be7d53346c31cfcc37424a32c30c8",
   "v8/third_party/WebKit/Source/platform/inspector_protocol":
-    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "7d2a29d289d54b8ff9c330efc5145158f1191af2",
+    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "470265c2fd38206eb1ca36fbe8a50931c1b8f83d",
   "v8/third_party/jinja2":
     Var("git_url") + "/chromium/src/third_party/jinja2.git" + "@" + "2222b31554f03e62600cd7e383376a7c187967a1",
   "v8/third_party/markupsafe":
     Var("git_url") + "/chromium/src/third_party/markupsafe.git" + "@" + "484a5661041cac13bfc688a26ec5434b05d18961",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "60b89880ddfbccdc978f3c1562b2431119aea3d4",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "98a61eae883d6e59651c5a2af141cd45f754aa71",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "e4288c3040a32f2e7ad92f957668f2ee3d36e5a6",
   "v8/testing/gtest":
@@ -43,7 +43,7 @@ deps = {
   "v8/test/test262/harness":
     Var("git_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "0b06ba9e49a0cba97f6accd71a974c1623d69e16",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "36887a18177854dec069b5dc0e14b4274fc0c709",
 }
 
 deps_os = {
