@@ -58,6 +58,29 @@ TEST(AtomicNumber, Increment) {
   EXPECT_EQ(std::numeric_limits<size_t>::max(), c.Value());
 }
 
+TEST(AtomicNumber, Decrement) {
+  AtomicNumber<size_t> a(std::numeric_limits<size_t>::max());
+  a.Increment(1);
+  EXPECT_EQ(0, a.Value());
+  a.Decrement(1);
+  EXPECT_EQ(std::numeric_limits<size_t>::max(), a.Value());
+}
+
+TEST(AtomicNumber, OperatorAdditionAssignment) {
+  AtomicNumber<size_t> a(0u);
+  AtomicNumber<size_t> b(std::numeric_limits<size_t>::max());
+  a += b.Value();
+  EXPECT_EQ(a.Value(), b.Value());
+  EXPECT_EQ(b.Value(), std::numeric_limits<size_t>::max());
+}
+
+TEST(AtomicNumber, OperatorSubtractionAssignment) {
+  AtomicNumber<size_t> a(std::numeric_limits<size_t>::max());
+  AtomicNumber<size_t> b(std::numeric_limits<size_t>::max());
+  a -= b.Value();
+  EXPECT_EQ(a.Value(), 0u);
+  EXPECT_EQ(b.Value(), std::numeric_limits<size_t>::max());
+}
 
 namespace {
 
