@@ -7858,13 +7858,13 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
 
 void Isolate::IsolateInForegroundNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  return isolate->heap()->SetOptimizeForLatency();
+  return isolate->IsolateInForegroundNotification();
 }
 
 
 void Isolate::IsolateInBackgroundNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  return isolate->heap()->SetOptimizeForMemoryUsage();
+  return isolate->IsolateInBackgroundNotification();
 }
 
 void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {

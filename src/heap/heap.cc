@@ -112,7 +112,6 @@ Heap::Heap()
 #endif  // DEBUG
       old_generation_allocation_limit_(initial_old_generation_size_),
       old_gen_exhausted_(false),
-      optimize_for_memory_usage_(false),
       inline_allocation_disabled_(false),
       total_regexp_code_generated_(0),
       tracer_(nullptr),
@@ -4109,19 +4108,24 @@ bool Heap::HasHighFragmentation(intptr_t used, intptr_t committed) {
   return committed - used > used + kSlack;
 }
 
-void Heap::SetOptimizeForMemoryUsage() {
+bool Heap::ShouldOptimizeForMemoryUsage() {
+  return FLAG_optimize_for_size || isolate()->IsIsolateInBackground() ||
+         HighMemoryPressure() || IsLowMemoryDevice();
+}
+
+void Heap::ActivateMemoryReducerIfNeeded() {
   // Activate memory reducer when switching to background if
   // - there was no mark compact since the start.
   // - the committed memory can be potentially reduced.
   // 2 pages for the old, code, and map space + 1 page for new space.
   const int kMinCommittedMemory = 7 * Page::kPageSize;
-  if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory) {
+  if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory &&
+      isolate()->IsIsolateInBackground()) {
     MemoryReducer::Event event;
     event.type = MemoryReducer::kPossibleGarbage;
     event.time_ms = MonotonicallyIncreasingTimeInMs();
     memory_reducer_->NotifyPossibleGarbage(event);
   }
-  optimize_for_memory_usage_ = true;
 }
 
 void Heap::ReduceNewSpaceSize() {
@@ -5081,6 +5085,7 @@ const double Heap::kMinHeapGrowingFactor = 1.1;
 const double Heap::kMaxHeapGrowingFactor = 4.0;
 const double Heap::kMaxHeapGrowingFactorMemoryConstrained = 2.0;
 const double Heap::kMaxHeapGrowingFactorIdle = 1.5;
+const double Heap::kConservativeHeapGrowingFactor = 1.3;
 const double Heap::kTargetMutatorUtilization = 0.97;
 
 
@@ -5156,8 +5161,6 @@ intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
 void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
                                            double gc_speed,
                                            double mutator_speed) {
-  const double kConservativeHeapGrowingFactor = 1.3;
-
   double factor = HeapGrowingFactor(gc_speed, mutator_speed);
 
   if (FLAG_trace_gc_verbose) {
@@ -5168,14 +5171,12 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
                  gc_speed, mutator_speed);
   }
 
-  // We set the old generation growing factor to 2 to grow the heap slower on
-  // memory-constrained devices.
-  if (max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice ||
-      FLAG_optimize_for_size) {
+  if (IsMemoryConstrainedDevice()) {
     factor = Min(factor, kMaxHeapGrowingFactorMemoryConstrained);
   }
 
-  if (memory_reducer_->ShouldGrowHeapSlowly() || optimize_for_memory_usage_) {
+  if (memory_reducer_->ShouldGrowHeapSlowly() ||
+      ShouldOptimizeForMemoryUsage()) {
     factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 

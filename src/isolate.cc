@@ -1998,6 +1998,7 @@ Isolate::Isolate(bool enable_serializer)
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
       is_tail_call_elimination_enabled_(true),
+      is_isolate_in_background_(false),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
       code_event_dispatcher_(new CodeEventDispatcher()),
@@ -3170,6 +3171,15 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
   if (FLAG_trace_rail) {
     PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));
   }
+}
+
+void Isolate::IsolateInBackgroundNotification() {
+  is_isolate_in_background_ = false;
+  heap()->ActivateMemoryReducerIfNeeded();
+}
+
+void Isolate::IsolateInForegroundNotification() {
+  is_isolate_in_background_ = true;
 }
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {

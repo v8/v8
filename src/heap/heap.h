@@ -563,6 +563,7 @@ class Heap {
   static const double kMaxHeapGrowingFactor;
   static const double kMaxHeapGrowingFactorMemoryConstrained;
   static const double kMaxHeapGrowingFactorIdle;
+  static const double kConservativeHeapGrowingFactor;
   static const double kTargetMutatorUtilization;
 
   static const int kNoGCFlags = 0;
@@ -888,11 +889,18 @@ class Heap {
   bool HasHighFragmentation();
   bool HasHighFragmentation(intptr_t used, intptr_t committed);
 
-  void SetOptimizeForLatency() { optimize_for_memory_usage_ = false; }
-  void SetOptimizeForMemoryUsage();
-  bool ShouldOptimizeForMemoryUsage() {
-    return optimize_for_memory_usage_ || HighMemoryPressure();
+  void ActivateMemoryReducerIfNeeded();
+
+  bool ShouldOptimizeForMemoryUsage();
+
+  bool IsLowMemoryDevice() {
+    return max_old_generation_size_ <= kMaxOldSpaceSizeLowMemoryDevice;
   }
+
+  bool IsMemoryConstrainedDevice() {
+    return max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice;
+  }
+
   bool HighMemoryPressure() {
     return memory_pressure_level_.Value() != MemoryPressureLevel::kNone;
   }
@@ -2118,10 +2126,6 @@ class Heap {
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
   bool old_gen_exhausted_;
-
-  // Indicates that memory usage is more important than latency.
-  // TODO(ulan): Merge it with memory reducer once chromium:490559 is fixed.
-  bool optimize_for_memory_usage_;
 
   // Indicates that inline bump-pointer allocation has been globally disabled
   // for all spaces. This is used to disable allocations in generated code.

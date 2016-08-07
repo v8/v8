@@ -1162,6 +1162,12 @@ class Isolate {
 
   void SetRAILMode(RAILMode rail_mode);
 
+  void IsolateInForegroundNotification();
+
+  void IsolateInBackgroundNotification();
+
+  bool IsIsolateInBackground() { return is_isolate_in_background_; }
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectPrototype(Object* object);
@@ -1352,6 +1358,10 @@ class Isolate {
 
   // True if ES2015 tail call elimination feature is enabled.
   bool is_tail_call_elimination_enabled_;
+
+  // True if the isolate is in background. This flag is used
+  // to prioritize between memory usage and latency.
+  bool is_isolate_in_background_;
 
   // Time stamp at initialization.
   double time_millis_at_init_;
