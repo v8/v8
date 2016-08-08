@@ -120,14 +120,14 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 
 void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   Callable callable = CodeFactory::StrictEqual(isolate());
-  node->AppendInput(zone(), graph()->start());
+  node->RemoveInput(4);  // control
   ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
                       Operator::kEliminatable);
 }
 
 void JSGenericLowering::LowerJSStrictNotEqual(Node* node) {
   Callable callable = CodeFactory::StrictNotEqual(isolate());
-  node->AppendInput(zone(), graph()->start());
+  node->RemoveInput(4);  // control
   ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
                       Operator::kEliminatable);
 }

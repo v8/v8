@@ -55,9 +55,7 @@ class JSBinopReduction final {
 
   bool GetCompareNumberOperationHint(NumberOperationHint* hint) {
     if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
-      DCHECK_NE(0, node_->op()->ControlOutputCount());
       DCHECK_EQ(1, node_->op()->EffectOutputCount());
-      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
       CompareOperationHints hints = CompareOperationHintsOf(node_->op());
       switch (hints.combined()) {
         case CompareOperationHints::kSignedSmall:
@@ -175,8 +173,6 @@ class JSBinopReduction final {
     DCHECK_EQ(1, node_->op()->EffectInputCount());
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
     DCHECK_EQ(1, node_->op()->ControlInputCount());
-    DCHECK_LT(1, node_->op()->ControlOutputCount());
-    DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
     DCHECK_EQ(2, node_->op()->ValueInputCount());
 
     // Reconnect the control output to bypass the IfSuccess node and
@@ -196,7 +192,9 @@ class JSBinopReduction final {
     }
 
     // Remove the frame state and the context.
-    node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_));
+    if (OperatorProperties::HasFrameStateInput(node_->op())) {
+      node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_));
+    }
     node_->RemoveInput(NodeProperties::FirstContextIndex(node_));
 
     NodeProperties::ChangeOp(node_, op);
@@ -694,6 +692,7 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
     if (invert) {
       replacement = graph()->NewNode(simplified()->BooleanNot(), replacement);
     }
+    ReplaceWithValue(node, replacement);
     return Replace(replacement);
   }
   return NoChange();
@@ -701,10 +700,7 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
 
 Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
   Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
-  if (reduction.Changed()) {
-    ReplaceWithValue(node, reduction.replacement());
-    return reduction;
-  }
+  if (reduction.Changed()) return reduction;
 
   JSBinopReduction r(this, node);
 
@@ -769,10 +765,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
       return Replace(replacement);
     }
   }
+
   Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
-  if (reduction.Changed()) {
-    return reduction;
-  }
+  if (reduction.Changed()) return reduction;
+
   if (r.OneInputIs(the_hole_type_)) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(the_hole_type_),
                                   invert);
@@ -804,10 +800,17 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   if (r.BothInputsAre(Type::String())) {
     return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
-  if (r.BothInputsAre(Type::Number())) {
+
+  NumberOperationHint hint;
+  if (r.BothInputsAre(Type::Signed32()) ||
+      r.BothInputsAre(Type::Unsigned32())) {
+    return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+  } else if (r.GetCompareNumberOperationHint(&hint)) {
+    return r.ChangeToSpeculativeOperator(
+        simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
+  } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
   }
-  // TODO(turbofan): js-typed-lowering of StrictEqual(mixed types)
   return NoChange();
 }
 

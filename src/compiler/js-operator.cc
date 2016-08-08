@@ -579,7 +579,7 @@ const Operator* JSOperatorBuilder::StrictEqual(CompareOperationHints hints) {
   return new (zone()) Operator1<CompareOperationHints>(  //--
       IrOpcode::kJSStrictEqual, Operator::kPure,         // opcode
       "JSStrictEqual",                                   // name
-      2, 0, 0, 1, 0, 0,                                  // inputs/outputs
+      2, 1, 1, 1, 1, 0,                                  // inputs/outputs
       hints);                                            // parameter
 }
 
@@ -588,7 +588,7 @@ const Operator* JSOperatorBuilder::StrictNotEqual(CompareOperationHints hints) {
   return new (zone()) Operator1<CompareOperationHints>(  //--
       IrOpcode::kJSStrictNotEqual, Operator::kPure,      // opcode
       "JSStrictNotEqual",                                // name
-      2, 0, 0, 1, 0, 0,                                  // inputs/outputs
+      2, 1, 1, 1, 1, 0,                                  // inputs/outputs
       hints);                                            // parameter
 }
 
