@@ -117,9 +117,13 @@ namespace compiler {
   V(AVXFloat32Neg)                 \
   V(X64Movsxbl)                    \
   V(X64Movzxbl)                    \
+  V(X64Movsxbq)                    \
+  V(X64Movzxbq)                    \
   V(X64Movb)                       \
   V(X64Movsxwl)                    \
   V(X64Movzxwl)                    \
+  V(X64Movsxwq)                    \
+  V(X64Movzxwq)                    \
   V(X64Movw)                       \
   V(X64Movl)                       \
   V(X64Movsxlq)                    \
