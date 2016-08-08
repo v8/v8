@@ -1908,14 +1908,14 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       break;
     }
     case Token::ADD: {
-      __ AddAndCheckForOverflow(scratch1, left, right, scratch2, r0);
-      __ BranchOnOverflow(&stub_call);
+      __ AddP(scratch1, left, right);
+      __ b(overflow, &stub_call);
       __ LoadRR(right, scratch1);
       break;
     }
     case Token::SUB: {
-      __ SubAndCheckForOverflow(scratch1, left, right, scratch2, r0);
-      __ BranchOnOverflow(&stub_call);
+      __ SubP(scratch1, left, right);
+      __ b(overflow, &stub_call);
       __ LoadRR(right, scratch1);
       break;
     }
@@ -3204,10 +3204,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     Register scratch1 = r3;
     Register scratch2 = r4;
     __ LoadSmiLiteral(scratch1, Smi::FromInt(count_value));
-    __ AddAndCheckForOverflow(r2, r2, scratch1, scratch2, r0);
-    __ BranchOnNoOverflow(&done);
+    __ AddP(scratch2, r2, scratch1);
+    __ LoadOnConditionP(nooverflow, r2, scratch2);
+    __ b(nooverflow, &done);
     // Call stub. Undo operation first.
-    __ SubP(r2, r2, scratch1);
     __ b(&stub_call);
     __ bind(&slow);
   }

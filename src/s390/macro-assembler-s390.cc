@@ -2188,89 +2188,6 @@ void MacroAssembler::StoreNumberToDoubleElements(
                               FixedDoubleArray::kHeaderSize - elements_offset));
 }
 
-void MacroAssembler::AddAndCheckForOverflow(Register dst, Register left,
-                                            Register right,
-                                            Register overflow_dst,
-                                            Register scratch) {
-  DCHECK(!dst.is(overflow_dst));
-  DCHECK(!dst.is(scratch));
-  DCHECK(!overflow_dst.is(scratch));
-  DCHECK(!overflow_dst.is(left));
-  DCHECK(!overflow_dst.is(right));
-
-  // TODO(joransiu): Optimize paths for left == right.
-  bool left_is_right = left.is(right);
-
-  // C = A+B; C overflows if A/B have same sign and C has diff sign than A
-  if (dst.is(left)) {
-    LoadRR(scratch, left);             // Preserve left.
-    AddP(dst, left, right);            // Left is overwritten.
-    XorP(overflow_dst, scratch, dst);  // Original left.
-    if (!left_is_right) XorP(scratch, dst, right);
-  } else if (dst.is(right)) {
-    LoadRR(scratch, right);  // Preserve right.
-    AddP(dst, left, right);  // Right is overwritten.
-    XorP(overflow_dst, dst, left);
-    if (!left_is_right) XorP(scratch, dst, scratch);
-  } else {
-    AddP(dst, left, right);
-    XorP(overflow_dst, dst, left);
-    if (!left_is_right) XorP(scratch, dst, right);
-  }
-  if (!left_is_right) AndP(overflow_dst, scratch, overflow_dst);
-  LoadAndTestRR(overflow_dst, overflow_dst);
-}
-
-void MacroAssembler::AddAndCheckForOverflow(Register dst, Register left,
-                                            intptr_t right,
-                                            Register overflow_dst,
-                                            Register scratch) {
-  DCHECK(!dst.is(overflow_dst));
-  DCHECK(!dst.is(scratch));
-  DCHECK(!overflow_dst.is(scratch));
-  DCHECK(!overflow_dst.is(left));
-
-  mov(r1, Operand(right));
-  AddAndCheckForOverflow(dst, left, r1, overflow_dst, scratch);
-}
-
-void MacroAssembler::SubAndCheckForOverflow(Register dst, Register left,
-                                            Register right,
-                                            Register overflow_dst,
-                                            Register scratch) {
-  DCHECK(!dst.is(overflow_dst));
-  DCHECK(!dst.is(scratch));
-  DCHECK(!overflow_dst.is(scratch));
-  DCHECK(!overflow_dst.is(left));
-  DCHECK(!overflow_dst.is(right));
-
-  // C = A-B; C overflows if A/B have diff signs and C has diff sign than A
-  if (dst.is(left)) {
-    LoadRR(scratch, left);   // Preserve left.
-    SubP(dst, left, right);  // Left is overwritten.
-    XorP(overflow_dst, dst, scratch);
-    XorP(scratch, right);
-    AndP(overflow_dst, scratch /*, SetRC*/);
-    LoadAndTestRR(overflow_dst, overflow_dst);
-    // Should be okay to remove rc
-  } else if (dst.is(right)) {
-    LoadRR(scratch, right);  // Preserve right.
-    SubP(dst, left, right);  // Right is overwritten.
-    XorP(overflow_dst, dst, left);
-    XorP(scratch, left);
-    AndP(overflow_dst, scratch /*, SetRC*/);
-    LoadAndTestRR(overflow_dst, overflow_dst);
-    // Should be okay to remove rc
-  } else {
-    SubP(dst, left, right);
-    XorP(overflow_dst, dst, left);
-    XorP(scratch, left, right);
-    AndP(overflow_dst, scratch /*, SetRC*/);
-    LoadAndTestRR(overflow_dst, overflow_dst);
-    // Should be okay to remove rc
-  }
-}
-
 void MacroAssembler::CompareMap(Register obj, Register scratch, Handle<Map> map,
                                 Label* early_success) {
   LoadP(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
@@ -4159,15 +4076,18 @@ void MacroAssembler::SubP_ExtendSrc(Register dst, Register src) {
 // Subtract 32-bit (Register = Register - Register)
 void MacroAssembler::Sub32(Register dst, Register src1, Register src2) {
   // Use non-clobbering version if possible
-  if (CpuFeatures::IsSupported(DISTINCT_OPS) && !dst.is(src1)) {
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     srk(dst, src1, src2);
     return;
   }
   if (!dst.is(src1) && !dst.is(src2)) lr(dst, src1);
   // In scenario where we have dst = src - dst, we need to swap and negate
   if (!dst.is(src1) && dst.is(src2)) {
-    sr(dst, src1);  // dst = (dst - src)
+    Label done;
     lcr(dst, dst);  // dst = -dst
+    b(overflow, &done);
+    ar(dst, src1);  // dst = dst + src
+    bind(&done);
   } else {
     sr(dst, src2);
   }
@@ -4176,15 +4096,18 @@ void MacroAssembler::Sub32(Register dst, Register src1, Register src2) {
 // Subtract Pointer Sized (Register = Register - Register)
 void MacroAssembler::SubP(Register dst, Register src1, Register src2) {
   // Use non-clobbering version if possible
-  if (CpuFeatures::IsSupported(DISTINCT_OPS) && !dst.is(src1)) {
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     SubP_RRR(dst, src1, src2);
     return;
   }
   if (!dst.is(src1) && !dst.is(src2)) LoadRR(dst, src1);
   // In scenario where we have dst = src - dst, we need to swap and negate
   if (!dst.is(src1) && dst.is(src2)) {
-    SubP(dst, src1);             // dst = (dst - src)
+    Label done;
     LoadComplementRR(dst, dst);  // dst = -dst
+    b(overflow, &done);
+    AddP(dst, src1);  // dst = dst + src
+    bind(&done);
   } else {
     SubP(dst, src2);
   }
@@ -4202,8 +4125,8 @@ void MacroAssembler::SubP_ExtendSrc(Register dst, Register src1,
   // In scenario where we have dst = src - dst, we need to swap and negate
   if (!dst.is(src1) && dst.is(src2)) {
     lgfr(dst, dst);              // Sign extend this operand first.
-    SubP(dst, src1);             // dst = (dst - src)
     LoadComplementRR(dst, dst);  // dst = -dst
+    AddP(dst, src1);             // dst = -dst + src
   } else {
     sgfr(dst, src2);
   }
@@ -5179,6 +5102,16 @@ void MacroAssembler::LoadAndTestP(Register dst, const MemOperand& mem) {
   ltg(dst, mem);
 #else
   lt_z(dst, mem);
+#endif
+}
+
+// Load On Condition Pointer Sized (Reg <- Reg)
+void MacroAssembler::LoadOnConditionP(Condition cond, Register dst,
+                                      Register src) {
+#if V8_TARGET_ARCH_S390X
+  locgr(cond, dst, src);
+#else
+  locr(cond, dst, src);
 #endif
 }
 

@@ -35,13 +35,13 @@ namespace compiler {
   V(S390_RotLeftAndClear64)        \
   V(S390_RotLeftAndClearLeft64)    \
   V(S390_RotLeftAndClearRight64)   \
-  V(S390_Add)                      \
-  V(S390_AddWithOverflow32)        \
+  V(S390_Add32)                    \
+  V(S390_Add64)                    \
   V(S390_AddPair)                  \
   V(S390_AddFloat)                 \
   V(S390_AddDouble)                \
-  V(S390_Sub)                      \
-  V(S390_SubWithOverflow32)        \
+  V(S390_Sub32)                    \
+  V(S390_Sub64)                    \
   V(S390_SubFloat)                 \
   V(S390_SubDouble)                \
   V(S390_SubPair)                  \
@@ -64,7 +64,8 @@ namespace compiler {
   V(S390_ModU32)                   \
   V(S390_ModU64)                   \
   V(S390_ModDouble)                \
-  V(S390_Neg)                      \
+  V(S390_Neg32)                    \
+  V(S390_Neg64)                    \
   V(S390_NegDouble)                \
   V(S390_SqrtFloat)                \
   V(S390_FloorFloat)               \

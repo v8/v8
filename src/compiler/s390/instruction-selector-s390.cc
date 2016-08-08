@@ -874,12 +874,12 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
 }
 
 void InstructionSelector::VisitInt32Add(Node* node) {
-  VisitBinop<Int32BinopMatcher>(this, node, kS390_Add, kInt16Imm);
+  VisitBinop<Int32BinopMatcher>(this, node, kS390_Add32, kInt16Imm);
 }
 
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitInt64Add(Node* node) {
-  VisitBinop<Int64BinopMatcher>(this, node, kS390_Add, kInt16Imm);
+  VisitBinop<Int64BinopMatcher>(this, node, kS390_Add64, kInt16Imm);
 }
 #endif
 
@@ -887,9 +887,10 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   S390OperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.left().Is(0)) {
-    Emit(kS390_Neg, g.DefineAsRegister(node), g.UseRegister(m.right().node()));
+    Emit(kS390_Neg32, g.DefineAsRegister(node),
+         g.UseRegister(m.right().node()));
   } else {
-    VisitBinop<Int32BinopMatcher>(this, node, kS390_Sub, kInt16Imm_Negate);
+    VisitBinop<Int32BinopMatcher>(this, node, kS390_Sub32, kInt16Imm_Negate);
   }
 }
 
@@ -898,9 +899,10 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
   S390OperandGenerator g(this);
   Int64BinopMatcher m(node);
   if (m.left().Is(0)) {
-    Emit(kS390_Neg, g.DefineAsRegister(node), g.UseRegister(m.right().node()));
+    Emit(kS390_Neg64, g.DefineAsRegister(node),
+         g.UseRegister(m.right().node()));
   } else {
-    VisitBinop<Int64BinopMatcher>(this, node, kS390_Sub, kInt16Imm_Negate);
+    VisitBinop<Int64BinopMatcher>(this, node, kS390_Sub64, kInt16Imm_Negate);
   }
 }
 #endif
@@ -1284,44 +1286,44 @@ void InstructionSelector::VisitFloat64Neg(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop<Int32BinopMatcher>(this, node, kS390_AddWithOverflow32,
-                                         kInt16Imm, &cont);
+    return VisitBinop<Int32BinopMatcher>(this, node, kS390_Add32, kInt16Imm,
+                                         &cont);
   }
   FlagsContinuation cont;
-  VisitBinop<Int32BinopMatcher>(this, node, kS390_AddWithOverflow32, kInt16Imm,
-                                &cont);
+  VisitBinop<Int32BinopMatcher>(this, node, kS390_Add32, kInt16Imm, &cont);
 }
 
 void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop<Int32BinopMatcher>(this, node, kS390_SubWithOverflow32,
+    return VisitBinop<Int32BinopMatcher>(this, node, kS390_Sub32,
                                          kInt16Imm_Negate, &cont);
   }
   FlagsContinuation cont;
-  VisitBinop<Int32BinopMatcher>(this, node, kS390_SubWithOverflow32,
-                                kInt16Imm_Negate, &cont);
+  VisitBinop<Int32BinopMatcher>(this, node, kS390_Sub32, kInt16Imm_Negate,
+                                &cont);
 }
 
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop<Int64BinopMatcher>(this, node, kS390_Add, kInt16Imm,
+    return VisitBinop<Int64BinopMatcher>(this, node, kS390_Add64, kInt16Imm,
                                          &cont);
   }
   FlagsContinuation cont;
-  VisitBinop<Int64BinopMatcher>(this, node, kS390_Add, kInt16Imm, &cont);
+  VisitBinop<Int64BinopMatcher>(this, node, kS390_Add64, kInt16Imm, &cont);
 }
 
 void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop<Int64BinopMatcher>(this, node, kS390_Sub,
+    return VisitBinop<Int64BinopMatcher>(this, node, kS390_Sub64,
                                          kInt16Imm_Negate, &cont);
   }
   FlagsContinuation cont;
-  VisitBinop<Int64BinopMatcher>(this, node, kS390_Sub, kInt16Imm_Negate, &cont);
+  VisitBinop<Int64BinopMatcher>(this, node, kS390_Sub64, kInt16Imm_Negate,
+                                &cont);
 }
 #endif
 
@@ -1497,24 +1499,23 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
               case IrOpcode::kInt32AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop<Int32BinopMatcher>(
-                    selector, node, kS390_AddWithOverflow32, kInt16Imm, cont);
+                    selector, node, kS390_Add32, kInt16Imm, cont);
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Int32BinopMatcher>(selector, node,
-                                                     kS390_SubWithOverflow32,
-                                                     kInt16Imm_Negate, cont);
+                return VisitBinop<Int32BinopMatcher>(
+                    selector, node, kS390_Sub32, kInt16Imm_Negate, cont);
               case IrOpcode::kInt32MulWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kNotEqual);
                 return EmitInt32MulWithOverflow(selector, node, cont);
 #if V8_TARGET_ARCH_S390X
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Int64BinopMatcher>(selector, node, kS390_Add,
-                                                     kInt16Imm, cont);
+                return VisitBinop<Int64BinopMatcher>(
+                    selector, node, kS390_Add64, kInt16Imm, cont);
               case IrOpcode::kInt64SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Int64BinopMatcher>(selector, node, kS390_Sub,
-                                                     kInt16Imm_Negate, cont);
+                return VisitBinop<Int64BinopMatcher>(
+                    selector, node, kS390_Sub64, kInt16Imm_Negate, cont);
 #endif
               default:
                 break;
@@ -1610,7 +1611,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
     InstructionOperand index_operand = value_operand;
     if (sw.min_value) {
       index_operand = g.TempRegister();
-      Emit(kS390_Sub, index_operand, value_operand,
+      Emit(kS390_Sub32, index_operand, value_operand,
            g.TempImmediate(sw.min_value));
     }
     // Generate a table lookup.

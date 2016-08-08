@@ -235,26 +235,22 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     case kOverflow:
       // Overflow checked for AddP/SubP only.
       switch (op) {
-#if V8_TARGET_ARCH_S390X
-        case kS390_Add:
-        case kS390_Sub:
-#endif
-        case kS390_AddWithOverflow32:
-        case kS390_SubWithOverflow32:
-          return lt;
+        case kS390_Add32:
+        case kS390_Add64:
+        case kS390_Sub32:
+        case kS390_Sub64:
+          return overflow;
         default:
           break;
       }
       break;
     case kNotOverflow:
       switch (op) {
-#if V8_TARGET_ARCH_S390X
-        case kS390_Add:
-        case kS390_Sub:
-#endif
-        case kS390_AddWithOverflow32:
-        case kS390_SubWithOverflow32:
-          return ge;
+        case kS390_Add32:
+        case kS390_Add64:
+        case kS390_Sub32:
+        case kS390_Sub64:
+          return nooverflow;
         default:
           break;
       }
@@ -289,56 +285,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
                    i.InputImmediate(1));                   \
     }                                                      \
   } while (0)
-
-#define ASSEMBLE_BINOP_INT(asm_instr_reg, asm_instr_imm)       \
-  do {                                                         \
-    if (HasRegisterInput(instr, 1)) {                          \
-      __ asm_instr_reg(i.OutputRegister(), i.InputRegister(0), \
-                       i.InputRegister(1));                    \
-    } else {                                                   \
-      __ asm_instr_imm(i.OutputRegister(), i.InputRegister(0), \
-                       i.InputInt32(1));                       \
-    }                                                          \
-  } while (0)
-
-#define ASSEMBLE_ADD_WITH_OVERFLOW()                                    \
-  do {                                                                  \
-    if (HasRegisterInput(instr, 1)) {                                   \
-      __ AddAndCheckForOverflow(i.OutputRegister(), i.InputRegister(0), \
-                                i.InputRegister(1), kScratchReg, r0);   \
-    } else {                                                            \
-      __ AddAndCheckForOverflow(i.OutputRegister(), i.InputRegister(0), \
-                                i.InputInt32(1), kScratchReg, r0);      \
-    }                                                                   \
-  } while (0)
-
-#define ASSEMBLE_SUB_WITH_OVERFLOW()                                    \
-  do {                                                                  \
-    if (HasRegisterInput(instr, 1)) {                                   \
-      __ SubAndCheckForOverflow(i.OutputRegister(), i.InputRegister(0), \
-                                i.InputRegister(1), kScratchReg, r0);   \
-    } else {                                                            \
-      __ AddAndCheckForOverflow(i.OutputRegister(), i.InputRegister(0), \
-                                -i.InputInt32(1), kScratchReg, r0);     \
-    }                                                                   \
-  } while (0)
-
-#if V8_TARGET_ARCH_S390X
-#define ASSEMBLE_ADD_WITH_OVERFLOW32()                   \
-  do {                                                   \
-    ASSEMBLE_ADD_WITH_OVERFLOW();                        \
-    __ LoadAndTestP_ExtendSrc(kScratchReg, kScratchReg); \
-  } while (0)
-
-#define ASSEMBLE_SUB_WITH_OVERFLOW32()                   \
-  do {                                                   \
-    ASSEMBLE_SUB_WITH_OVERFLOW();                        \
-    __ LoadAndTestP_ExtendSrc(kScratchReg, kScratchReg); \
-  } while (0)
-#else
-#define ASSEMBLE_ADD_WITH_OVERFLOW32 ASSEMBLE_ADD_WITH_OVERFLOW
-#define ASSEMBLE_SUB_WITH_OVERFLOW32 ASSEMBLE_SUB_WITH_OVERFLOW
-#endif
 
 #define ASSEMBLE_COMPARE(cmp_instr, cmpl_instr)                 \
   do {                                                          \
@@ -1209,19 +1155,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
 #endif
-    case kS390_Add:
-#if V8_TARGET_ARCH_S390X
-      if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
-        ASSEMBLE_ADD_WITH_OVERFLOW();
-      } else {
-#endif
-        ASSEMBLE_BINOP(AddP);
-#if V8_TARGET_ARCH_S390X
-      }
-#endif
+    case kS390_Add32:
+      ASSEMBLE_BINOP(Add32);
+      __ LoadW(i.OutputRegister(), i.OutputRegister());
       break;
-    case kS390_AddWithOverflow32:
-      ASSEMBLE_ADD_WITH_OVERFLOW32();
+    case kS390_Add64:
+      ASSEMBLE_BINOP(AddP);
       break;
     case kS390_AddFloat:
       // Ensure we don't clobber right/InputReg(1)
@@ -1243,19 +1182,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ adbr(i.OutputDoubleRegister(), i.InputDoubleRegister(1));
       }
       break;
-    case kS390_Sub:
-#if V8_TARGET_ARCH_S390X
-      if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
-        ASSEMBLE_SUB_WITH_OVERFLOW();
-      } else {
-#endif
-        ASSEMBLE_BINOP(SubP);
-#if V8_TARGET_ARCH_S390X
-      }
-#endif
+    case kS390_Sub32:
+      ASSEMBLE_BINOP(Sub32);
+      __ LoadW(i.OutputRegister(), i.OutputRegister());
       break;
-    case kS390_SubWithOverflow32:
-      ASSEMBLE_SUB_WITH_OVERFLOW32();
+    case kS390_Sub64:
+      ASSEMBLE_BINOP(SubP);
       break;
     case kS390_SubFloat:
       // OutputDoubleReg() = i.InputDoubleRegister(0) - i.InputDoubleRegister(1)
@@ -1486,8 +1418,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Move(d1, d3);
       break;
     }
-    case kS390_Neg:
-      __ LoadComplementRR(i.OutputRegister(), i.InputRegister(0));
+    case kS390_Neg32:
+      __ lcr(i.OutputRegister(), i.InputRegister(0));
+      __ LoadW(i.OutputRegister(), i.OutputRegister());
+      break;
+    case kS390_Neg64:
+      __ lcgr(i.OutputRegister(), i.InputRegister(0));
       break;
     case kS390_MaxDouble:
       ASSEMBLE_FLOAT_MAX();
@@ -2020,63 +1956,29 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
   S390OperandConverter i(this, instr);
-  Label done;
   ArchOpcode op = instr->arch_opcode();
-  bool check_unordered = (op == kS390_CmpDouble || kS390_CmpFloat);
+  bool check_unordered = (op == kS390_CmpDouble || op == kS390_CmpFloat);
 
   // Overflow checked for add/sub only.
   DCHECK((condition != kOverflow && condition != kNotOverflow) ||
-         (op == kS390_AddWithOverflow32 || op == kS390_SubWithOverflow32) ||
-         (op == kS390_Add || op == kS390_Sub));
+         (op == kS390_Add32 || kS390_Add64 || op == kS390_Sub32 ||
+          op == kS390_Sub64));
 
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
   DCHECK_NE(0u, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cond = FlagsConditionToCondition(condition, op);
-  switch (cond) {
-    case ne:
-    case ge:
-    case gt:
-      if (check_unordered) {
-        __ LoadImmP(reg, Operand(1));
-        __ LoadImmP(kScratchReg, Operand::Zero());
-        __ bunordered(&done);
-        Label cond_true;
-        __ b(cond, &cond_true, Label::kNear);
-        __ LoadRR(reg, kScratchReg);
-        __ bind(&cond_true);
-      } else {
-        Label cond_true, done_here;
-        __ LoadImmP(reg, Operand(1));
-        __ b(cond, &cond_true, Label::kNear);
-        __ LoadImmP(reg, Operand::Zero());
-        __ bind(&cond_true);
-      }
-      break;
-    case eq:
-    case lt:
-    case le:
-      if (check_unordered) {
-        __ LoadImmP(reg, Operand::Zero());
-        __ LoadImmP(kScratchReg, Operand(1));
-        __ bunordered(&done);
-        Label cond_false;
-        __ b(NegateCondition(cond), &cond_false, Label::kNear);
-        __ LoadRR(reg, kScratchReg);
-        __ bind(&cond_false);
-      } else {
-        __ LoadImmP(reg, Operand::Zero());
-        Label cond_false;
-        __ b(NegateCondition(cond), &cond_false, Label::kNear);
-        __ LoadImmP(reg, Operand(1));
-        __ bind(&cond_false);
-      }
-      break;
-    default:
-      UNREACHABLE();
-      break;
+  Label done;
+  if (check_unordered) {
+    __ LoadImmP(reg, (cond == eq || cond == le || cond == lt) ? Operand::Zero()
+                                                              : Operand(1));
+    __ bunordered(&done);
   }
+  __ LoadImmP(reg, Operand::Zero());
+  __ LoadImmP(kScratchReg, Operand(1));
+  // locr is sufficient since reg's upper 32 is guarrantee to be 0
+  __ locr(cond, reg, kScratchReg);
   __ bind(&done);
 }
 

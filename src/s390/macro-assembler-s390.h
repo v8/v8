@@ -353,6 +353,9 @@ class MacroAssembler : public Assembler {
   void LoadFloat32(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32ConvertToDouble(DoubleRegister dst, const MemOperand& mem);
 
+  // Load On Condition
+  void LoadOnConditionP(Condition cond, Register dst, Register src);
+
   // Store Floating Point
   void StoreDouble(DoubleRegister dst, const MemOperand& opnd);
   void StoreFloat32(DoubleRegister dst, const MemOperand& opnd);
@@ -1225,44 +1228,6 @@ class MacroAssembler : public Assembler {
   void TruncateNumberToI(Register object, Register result,
                          Register heap_number_map, Register scratch1,
                          Label* not_int32);
-
-  // Overflow handling functions.
-  // Usage: call the appropriate arithmetic function and then call one of the
-  // flow control functions with the corresponding label.
-
-  // Compute dst = left + right, setting condition codes. dst may be same as
-  // either left or right (or a unique register). left and right must not be
-  // the same register.
-  void AddAndCheckForOverflow(Register dst, Register left, Register right,
-                              Register overflow_dst, Register scratch = r0);
-  void AddAndCheckForOverflow(Register dst, Register left, intptr_t right,
-                              Register overflow_dst, Register scratch = r0);
-
-  // Compute dst = left - right, setting condition codes. dst may be same as
-  // either left or right (or a unique register). left and right must not be
-  // the same register.
-  void SubAndCheckForOverflow(Register dst, Register left, Register right,
-                              Register overflow_dst, Register scratch = r0);
-
-  void BranchOnOverflow(Label* label) { blt(label /*, cr0*/); }
-
-  void BranchOnNoOverflow(Label* label) { bge(label /*, cr0*/); }
-
-  void RetOnOverflow(void) {
-    Label label;
-
-    blt(&label /*, cr0*/);
-    Ret();
-    bind(&label);
-  }
-
-  void RetOnNoOverflow(void) {
-    Label label;
-
-    bge(&label /*, cr0*/);
-    Ret();
-    bind(&label);
-  }
 
   // ---------------------------------------------------------------------------
   // Runtime calls

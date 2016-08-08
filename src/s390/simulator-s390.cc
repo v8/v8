@@ -5978,6 +5978,12 @@ uintptr_t Simulator::PopAddress() {
   int r3 = AS(RRFInstruction)->R3Value();    \
   int length = 4;
 
+#define DECODE_RRF_C_INSTRUCTION(r1, r2, m3)                            \
+  int r1 = AS(RRFInstruction)->R1Value();                               \
+  int r2 = AS(RRFInstruction)->R2Value();                               \
+  Condition m3 = static_cast<Condition>(AS(RRFInstruction)->M3Value()); \
+  int length = 4;
+
 #define DECODE_RR_INSTRUCTION(r1, r2)    \
   int r1 = AS(RRInstruction)->R1Value(); \
   int r2 = AS(RRInstruction)->R2Value(); \
@@ -10467,9 +10473,12 @@ EVALUATE(POPCNT_Z) {
 }
 
 EVALUATE(LOCGR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LOCR);
+  DECODE_RRF_C_INSTRUCTION(r1, r2, m3);
+  if (TestConditionCode(m3)) {
+    set_register(r1, get_register(r2));
+  }
+  return length;
 }
 
 EVALUATE(NGRK) {
@@ -10564,9 +10573,12 @@ EVALUATE(SLGRK) {
 }
 
 EVALUATE(LOCR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LOCR);
+  DECODE_RRF_C_INSTRUCTION(r1, r2, m3);
+  if (TestConditionCode(m3)) {
+    set_low_register(r1, get_low_register<int32_t>(r2));
+  }
+  return length;
 }
 
 EVALUATE(NRK) {
