@@ -18,7 +18,6 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/int64-lowering.h"
-#include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
