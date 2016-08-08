@@ -136,7 +136,9 @@ class CodeFactory final {
   static Callable FastNewStrictArguments(Isolate* isolate,
                                          bool skip_stub_frame = false);
 
-  static Callable CopyFixedArray(Isolate* isolate);
+  static Callable CopyFastSmiOrObjectElements(Isolate* isolate);
+  static Callable GrowFastDoubleElements(Isolate* isolate);
+  static Callable GrowFastSmiOrObjectElements(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
 #define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type) \

@@ -426,13 +426,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   // Not much we can do if deoptimization support is disabled.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
-  // TODO(bmeurer): Add support for non-standard stores.
-  if (store_mode != STANDARD_STORE &&
-      store_mode != STORE_NO_TRANSITION_HANDLE_COW &&
-      store_mode != STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
-    return NoChange();
-  }
-
   // Retrieve the native context from the given {node}.
   Handle<Context> native_context;
   if (!GetNativeContext(node).ToHandle(&native_context)) return NoChange();
@@ -1068,13 +1061,12 @@ JSNativeContextSpecialization::BuildElementAccess(
       }
     }
   } else {
-    // TODO(turbofan): Add support for additional store modes.
-    DCHECK(store_mode == STANDARD_STORE ||
-           store_mode == STORE_NO_TRANSITION_HANDLE_COW);
+    // Check if the {receiver} is a JSArray.
+    bool receiver_is_jsarray = HasOnlyJSArrayMaps(receiver_maps);
 
     // Load the length of the {receiver}.
     Node* length = effect =
-        HasOnlyJSArrayMaps(receiver_maps)
+        receiver_is_jsarray
             ? graph()->NewNode(
                   simplified()->LoadField(
                       AccessBuilder::ForJSArrayLength(elements_kind)),
@@ -1083,9 +1075,20 @@ JSNativeContextSpecialization::BuildElementAccess(
                   simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
                   elements, effect, control);
 
-    // Check that the {index} is in the valid range for the {receiver}.
-    index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                      length, effect, control);
+    // Check if we might need to grow the {elements} backing store.
+    if (IsGrowStoreMode(store_mode)) {
+      DCHECK_EQ(AccessMode::kStore, access_mode);
+
+      // Check that the {index} is a valid array index; the actual checking
+      // happens below right before the element store.
+      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                        jsgraph()->Constant(Smi::kMaxValue),
+                                        effect, control);
+    } else {
+      // Check that the {index} is in the valid range for the {receiver}.
+      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                        length, effect, control);
+    }
 
     // Compute the element access.
     Type* element_type = Type::Any();
@@ -1157,6 +1160,24 @@ JSNativeContextSpecialization::BuildElementAccess(
         elements = effect =
             graph()->NewNode(simplified()->EnsureWritableFastElements(),
                              receiver, elements, effect, control);
+      } else if (IsGrowStoreMode(store_mode)) {
+        // Grow {elements} backing store if necessary. Also updates the
+        // "length" property for JSArray {receiver}s, hence there must
+        // not be any other check after this operation, as the write
+        // to the "length" property is observable.
+        GrowFastElementsFlags flags = GrowFastElementsFlag::kNone;
+        if (receiver_is_jsarray) {
+          flags |= GrowFastElementsFlag::kArrayObject;
+        }
+        if (IsHoleyElementsKind(elements_kind)) {
+          flags |= GrowFastElementsFlag::kHoleyElements;
+        }
+        if (IsFastDoubleElementsKind(elements_kind)) {
+          flags |= GrowFastElementsFlag::kDoubleElements;
+        }
+        elements = effect = graph()->NewNode(
+            simplified()->MaybeGrowFastElements(flags), receiver, elements,
+            index, length, effect, control);
       }
 
       // Perform the actual element access.

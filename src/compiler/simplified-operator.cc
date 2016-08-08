@@ -249,6 +249,31 @@ CheckTaggedHoleMode CheckTaggedHoleModeOf(const Operator* op) {
   return OpParameter<CheckTaggedHoleMode>(op);
 }
 
+std::ostream& operator<<(std::ostream& os, GrowFastElementsFlags flags) {
+  bool empty = true;
+  if (flags & GrowFastElementsFlag::kArrayObject) {
+    os << "ArrayObject";
+    empty = false;
+  }
+  if (flags & GrowFastElementsFlag::kDoubleElements) {
+    if (!empty) os << "|";
+    os << "DoubleElements";
+    empty = false;
+  }
+  if (flags & GrowFastElementsFlag::kHoleyElements) {
+    if (!empty) os << "|";
+    os << "HoleyElements";
+    empty = false;
+  }
+  if (empty) os << "None";
+  return os;
+}
+
+GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kMaybeGrowFastElements, op->opcode());
+  return OpParameter<GrowFastElementsFlags>(op);
+}
+
 size_t hash_value(ElementsTransition transition) {
   return static_cast<uint8_t>(transition);
 }
@@ -652,6 +677,16 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
 
 const Operator* SimplifiedOperatorBuilder::EnsureWritableFastElements() {
   return &cache_.kEnsureWritableFastElements;
+}
+
+const Operator* SimplifiedOperatorBuilder::MaybeGrowFastElements(
+    GrowFastElementsFlags flags) {
+  return new (zone()) Operator1<GrowFastElementsFlags>(  // --
+      IrOpcode::kMaybeGrowFastElements,                  // opcode
+      Operator::kNoThrow,                                // flags
+      "MaybeGrowFastElements",                           // name
+      4, 1, 1, 1, 1, 0,                                  // counts
+      flags);                                            // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(

@@ -726,6 +726,10 @@ Type* Typer::Visitor::TypeEnsureWritableFastElements(Node* node) {
   return Operand(node, 1);
 }
 
+Type* Typer::Visitor::TypeMaybeGrowFastElements(Node* node) {
+  return Operand(node, 1);
+}
+
 Type* Typer::Visitor::TypeTransitionElementsKind(Node* node) {
   UNREACHABLE();
   return nullptr;

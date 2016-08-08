@@ -618,7 +618,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
   // TODO(mstarzinger): Hack to ensure that certain call descriptors are
   // initialized on the main thread, since it is needed off-thread by the
   // effect control linearizer.
-  CodeFactory::CopyFixedArray(info()->isolate());
+  CodeFactory::CopyFastSmiOrObjectElements(info()->isolate());
+  CodeFactory::GrowFastDoubleElements(info()->isolate());
+  CodeFactory::GrowFastSmiOrObjectElements(info()->isolate());
   CodeFactory::ToNumber(info()->isolate());
 
   linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));

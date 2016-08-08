@@ -159,8 +159,12 @@ namespace internal {
   ASM(AllocateInNewSpace)                                                    \
   ASM(AllocateInOldSpace)                                                    \
                                                                              \
-  /* FixedArray helpers */                                                   \
-  TFS(CopyFixedArray, BUILTIN, kNoExtraICState, CopyFixedArray)              \
+  /* TurboFan support builtins */                                            \
+  TFS(CopyFastSmiOrObjectElements, BUILTIN, kNoExtraICState,                 \
+      CopyFastSmiOrObjectElements)                                           \
+  TFS(GrowFastDoubleElements, BUILTIN, kNoExtraICState, GrowArrayElements)   \
+  TFS(GrowFastSmiOrObjectElements, BUILTIN, kNoExtraICState,                 \
+      GrowArrayElements)                                                     \
                                                                              \
   /* Debugger */                                                             \
   DBG(FrameDropper_LiveEdit)                                                 \

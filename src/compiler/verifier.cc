@@ -856,6 +856,13 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::Internal());
       CheckUpperIs(node, Type::Internal());
       break;
+    case IrOpcode::kMaybeGrowFastElements:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Internal());
+      CheckValueInputIs(node, 2, Type::Unsigned31());
+      CheckValueInputIs(node, 3, Type::Unsigned31());
+      CheckUpperIs(node, Type::Internal());
+      break;
     case IrOpcode::kTransitionElementsKind:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Internal());

@@ -141,6 +141,22 @@ std::ostream& operator<<(std::ostream&, CheckForMinusZeroMode);
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
 
+// A descriptor for growing elements backing stores.
+enum class GrowFastElementsFlag : uint8_t {
+  kNone = 0u,
+  kArrayObject = 1u << 0,     // Update JSArray::length field.
+  kHoleyElements = 1u << 1,   // Backing store is holey.
+  kDoubleElements = 1u << 2,  // Backing store contains doubles.
+};
+typedef base::Flags<GrowFastElementsFlag> GrowFastElementsFlags;
+
+DEFINE_OPERATORS_FOR_FLAGS(GrowFastElementsFlags)
+
+std::ostream& operator<<(std::ostream&, GrowFastElementsFlags);
+
+GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator*)
+    WARN_UNUSED_RESULT;
+
 // A descriptor for elements kind transitions.
 enum class ElementsTransition : uint8_t {
   kFastTransition,  // simple transition, just updating the map.
@@ -322,6 +338,9 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
 
   // ensure-writable-fast-elements object, elements
   const Operator* EnsureWritableFastElements();
+
+  // maybe-grow-fast-elements object, elements, index, length
+  const Operator* MaybeGrowFastElements(GrowFastElementsFlags flags);
 
   // transition-elements-kind object, from-map, to-map
   const Operator* TransitionElementsKind(ElementsTransition transition);

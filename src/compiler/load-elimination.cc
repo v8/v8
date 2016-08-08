@@ -56,6 +56,8 @@ Reduction LoadElimination::Reduce(Node* node) {
       return ReduceCheckMaps(node);
     case IrOpcode::kEnsureWritableFastElements:
       return ReduceEnsureWritableFastElements(node);
+    case IrOpcode::kMaybeGrowFastElements:
+      return ReduceMaybeGrowFastElements(node);
     case IrOpcode::kTransitionElementsKind:
       return ReduceTransitionElementsKind(node);
     case IrOpcode::kLoadField:
@@ -352,6 +354,32 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   return UpdateState(node, state);
 }
 
+Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
+  GrowFastElementsFlags flags = GrowFastElementsFlagsOf(node->op());
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  if (flags & GrowFastElementsFlag::kDoubleElements) {
+    // We know that the resulting elements have the fixed double array map.
+    Node* fixed_double_array_map = jsgraph()->FixedDoubleArrayMapConstant();
+    state = state->AddField(node, 0, fixed_double_array_map, zone());
+  } else {
+    // We know that the resulting elements have the fixed array map.
+    Node* fixed_array_map = jsgraph()->FixedArrayMapConstant();
+    state = state->AddField(node, 0, fixed_array_map, zone());
+  }
+  if (flags & GrowFastElementsFlag::kArrayObject) {
+    // Kill the previous Array::length on {object}.
+    state = state->KillField(object, 3, zone());
+  }
+  // Kill the previous elements on {object}.
+  state = state->KillField(object, 2, zone());
+  // Add the new elements on {object}.
+  state = state->AddField(object, 2, node, zone());
+  return UpdateState(node, state);
+}
+
 Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const source_map = NodeProperties::GetValueInput(node, 1);
@@ -580,9 +608,17 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
         switch (current->opcode()) {
           case IrOpcode::kEnsureWritableFastElements: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
-            Node* const elements = NodeProperties::GetValueInput(current, 1);
-            state = state->KillField(elements, 0, zone());
             state = state->KillField(object, 2, zone());
+            break;
+          }
+          case IrOpcode::kMaybeGrowFastElements: {
+            GrowFastElementsFlags flags =
+                GrowFastElementsFlagsOf(current->op());
+            Node* const object = NodeProperties::GetValueInput(current, 0);
+            state = state->KillField(object, 2, zone());
+            if (flags & GrowFastElementsFlag::kArrayObject) {
+              state = state->KillField(object, 3, zone());
+            }
             break;
           }
           case IrOpcode::kTransitionElementsKind: {

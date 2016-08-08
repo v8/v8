@@ -152,6 +152,7 @@ class LoadElimination final : public AdvancedReducer {
 
   Reduction ReduceCheckMaps(Node* node);
   Reduction ReduceEnsureWritableFastElements(Node* node);
+  Reduction ReduceMaybeGrowFastElements(Node* node);
   Reduction ReduceTransitionElementsKind(Node* node);
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceStoreField(Node* node);

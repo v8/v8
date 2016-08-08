@@ -138,6 +138,8 @@ class EffectControlLinearizer {
                                                   Node* control);
   ValueEffectControl LowerEnsureWritableFastElements(Node* node, Node* effect,
                                                      Node* control);
+  ValueEffectControl LowerMaybeGrowFastElements(Node* node, Node* frame_state,
+                                                Node* effect, Node* control);
   ValueEffectControl LowerTransitionElementsKind(Node* node, Node* effect,
                                                  Node* control);
   ValueEffectControl LowerLoadTypedElement(Node* node, Node* effect,

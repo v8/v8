@@ -2385,6 +2385,15 @@ class RepresentationSelector {
       case IrOpcode::kEnsureWritableFastElements:
         return VisitBinop(node, UseInfo::AnyTagged(),
                           MachineRepresentation::kTagged);
+      case IrOpcode::kMaybeGrowFastElements: {
+        ProcessInput(node, 0, UseInfo::AnyTagged());         // object
+        ProcessInput(node, 1, UseInfo::AnyTagged());         // elements
+        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
+        ProcessInput(node, 3, UseInfo::TruncatingWord32());  // length
+        ProcessRemainingInputs(node, 4);
+        SetOutput(node, MachineRepresentation::kTagged);
+        return;
+      }
 
       //------------------------------------------------------------------
       // Machine-level operators.

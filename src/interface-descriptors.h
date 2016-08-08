@@ -55,7 +55,7 @@ class PlatformInterfaceDescriptor;
   V(ConstructStub)                     \
   V(ConstructTrampoline)               \
   V(RegExpConstructResult)             \
-  V(CopyFixedArray)                    \
+  V(CopyFastSmiOrObjectElements)       \
   V(TransitionElementsKind)            \
   V(AllocateHeapNumber)                \
   V(AllocateFloat32x4)                 \
@@ -649,11 +649,11 @@ class StoreGlobalViaContextDescriptor : public CallInterfaceDescriptor {
   static const Register ValueRegister();
 };
 
-class CopyFixedArrayDescriptor : public CallInterfaceDescriptor {
+class CopyFastSmiOrObjectElementsDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kSource)
-  DECLARE_DEFAULT_DESCRIPTOR(CopyFixedArrayDescriptor, CallInterfaceDescriptor,
-                             kParameterCount)
+  DEFINE_PARAMETERS(kObject)
+  DECLARE_DEFAULT_DESCRIPTOR(CopyFastSmiOrObjectElementsDescriptor,
+                             CallInterfaceDescriptor, kParameterCount)
 };
 
 class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {
@@ -876,6 +876,7 @@ class VarArgFunctionDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
+// TODO(turbofan): We should probably rename this to GrowFastElementsDescriptor.
 class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject, kKey)

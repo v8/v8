@@ -486,7 +486,10 @@ Type* OperationTyper::NumberToUint32(Type* type) {
 
 Type* OperationTyper::NumberSilenceNaN(Type* type) {
   DCHECK(type->Is(Type::Number()));
-  // TODO(turbofan): We should have a dedicated type for the signaling NaN.
+  // TODO(jarin): This is a terrible hack; we definitely need a dedicated type
+  // for the hole (tagged and/or double). Otherwise if the input is the hole
+  // NaN constant, we'd just eliminate this node in JSTypedLowering.
+  if (type->Maybe(Type::NaN())) return Type::Number();
   return type;
 }
 

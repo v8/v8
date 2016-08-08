@@ -510,9 +510,21 @@ Callable CodeFactory::FastNewStrictArguments(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::CopyFixedArray(Isolate* isolate) {
-  return Callable(isolate->builtins()->CopyFixedArray(),
-                  CopyFixedArrayDescriptor(isolate));
+Callable CodeFactory::CopyFastSmiOrObjectElements(Isolate* isolate) {
+  return Callable(isolate->builtins()->CopyFastSmiOrObjectElements(),
+                  CopyFastSmiOrObjectElementsDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::GrowFastDoubleElements(Isolate* isolate) {
+  return Callable(isolate->builtins()->GrowFastDoubleElements(),
+                  GrowArrayElementsDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::GrowFastSmiOrObjectElements(Isolate* isolate) {
+  return Callable(isolate->builtins()->GrowFastSmiOrObjectElements(),
+                  GrowArrayElementsDescriptor(isolate));
 }
 
 // static

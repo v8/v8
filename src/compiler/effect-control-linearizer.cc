@@ -726,6 +726,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kEnsureWritableFastElements:
       state = LowerEnsureWritableFastElements(node, *effect, *control);
       break;
+    case IrOpcode::kMaybeGrowFastElements:
+      state = LowerMaybeGrowFastElements(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kTransitionElementsKind:
       state = LowerTransitionElementsKind(node, *effect, *control);
       break;
@@ -2632,25 +2635,129 @@ EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node,
   {
     // We need to create a copy of the {elements} for {object}.
     Operator::Properties properties = Operator::kEliminatable;
-    Callable callable = CodeFactory::CopyFixedArray(isolate());
+    Callable callable = CodeFactory::CopyFastSmiOrObjectElements(isolate());
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0, flags,
         properties);
     vfalse = efalse = graph()->NewNode(
-        common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
-        elements, jsgraph()->NoContextConstant(), efalse);
-
-    // Store the new {elements} into {object}.
-    efalse = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectElements()), object,
-        vfalse, efalse, if_false);
+        common()->Call(desc), jsgraph()->HeapConstant(callable.code()), object,
+        jsgraph()->NoContextConstant(), efalse);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
   Node* value = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
+                                                    Node* frame_state,
+                                                    Node* effect,
+                                                    Node* control) {
+  GrowFastElementsFlags flags = GrowFastElementsFlagsOf(node->op());
+  Node* object = node->InputAt(0);
+  Node* elements = node->InputAt(1);
+  Node* index = node->InputAt(2);
+  Node* length = node->InputAt(3);
+
+  Node* check0 = graph()->NewNode((flags & GrowFastElementsFlag::kHoleyElements)
+                                      ? machine()->Uint32LessThanOrEqual()
+                                      : machine()->Word32Equal(),
+                                  length, index);
+  Node* branch0 = graph()->NewNode(common()->Branch(), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0 = elements;
+  {
+    // Load the length of the {elements} backing store.
+    Node* elements_length = etrue0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForFixedArrayLength()), elements,
+        etrue0, if_true0);
+    elements_length = ChangeSmiToInt32(elements_length);
+
+    // Check if we need to grow the {elements} backing store.
+    Node* check1 =
+        graph()->NewNode(machine()->Uint32LessThan(), index, elements_length);
+    Node* branch1 =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check1, if_true0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* etrue1 = etrue0;
+    Node* vtrue1 = vtrue0;
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* efalse1 = etrue0;
+    Node* vfalse1 = vtrue0;
+    {
+      // We need to grow the {elements} for {object}.
+      Operator::Properties properties = Operator::kEliminatable;
+      Callable callable =
+          (flags & GrowFastElementsFlag::kDoubleElements)
+              ? CodeFactory::GrowFastDoubleElements(isolate())
+              : CodeFactory::GrowFastSmiOrObjectElements(isolate());
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), callable.descriptor(), 0, flags,
+          properties);
+      vfalse1 = efalse1 = graph()->NewNode(
+          common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
+          object, ChangeInt32ToSmi(index), jsgraph()->NoContextConstant(),
+          efalse1);
+
+      // Ensure that we were able to grow the {elements}.
+      // TODO(turbofan): We use kSmi as reason here similar to Crankshaft,
+      // but maybe we should just introduce a reason that makes sense.
+      efalse1 = if_false1 = graph()->NewNode(
+          common()->DeoptimizeIf(DeoptimizeReason::kSmi), ObjectIsSmi(vfalse1),
+          frame_state, efalse1, if_false1);
+    }
+
+    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    etrue0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_true0);
+    vtrue0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                              vtrue1, vfalse1, if_true0);
+
+    // For JSArray {object}s we also need to update the "length".
+    if (flags & GrowFastElementsFlag::kArrayObject) {
+      // Compute the new {length}.
+      Node* object_length = ChangeInt32ToSmi(graph()->NewNode(
+          machine()->Int32Add(), index, jsgraph()->Int32Constant(1)));
+
+      // Update the "length" property of the {object}.
+      etrue0 =
+          graph()->NewNode(simplified()->StoreField(
+                               AccessBuilder::ForJSArrayLength(FAST_ELEMENTS)),
+                           object, object_length, etrue0, if_true0);
+    }
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* efalse0 = effect;
+  Node* vfalse0 = elements;
+  {
+    // In case of non-holey {elements}, we need to verify that the {index} is
+    // in-bounds, otherwise for holey {elements}, the check above already
+    // guards the index (and the operator forces {index} to be unsigned).
+    if (!(flags & GrowFastElementsFlag::kHoleyElements)) {
+      Node* check1 =
+          graph()->NewNode(machine()->Uint32LessThan(), index, length);
+      efalse0 = if_false0 = graph()->NewNode(
+          common()->DeoptimizeUnless(DeoptimizeReason::kOutOfBounds), check1,
+          frame_state, efalse0, if_false0);
+    }
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2), vtrue0,
+                       vfalse0, control);
 
   return ValueEffectControl(value, effect, control);
 }

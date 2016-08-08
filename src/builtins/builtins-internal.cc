@@ -51,15 +51,19 @@ void Builtins::Generate_StackCheck(MacroAssembler* masm) {
 }
 
 // -----------------------------------------------------------------------------
-// FixedArray helpers.
+// TurboFan support builtins.
 
-void Builtins::Generate_CopyFixedArray(CodeStubAssembler* assembler) {
+void Builtins::Generate_CopyFastSmiOrObjectElements(
+    CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
-  typedef CopyFixedArrayDescriptor Descriptor;
+  typedef CopyFastSmiOrObjectElementsDescriptor Descriptor;
 
-  Node* source = assembler->Parameter(Descriptor::kSource);
+  Node* object = assembler->Parameter(Descriptor::kObject);
+
+  // Load the {object}s elements.
+  Node* source = assembler->LoadObjectField(object, JSObject::kElementsOffset);
 
   // Load the {source} length.
   Node* source_length_tagged =
@@ -122,7 +126,11 @@ void Builtins::Generate_CopyFixedArray(CodeStubAssembler* assembler) {
     }
 
     assembler->Bind(&done_loop);
-    assembler->Return(target);
+    {
+      // Update the {object}s element to {target}.
+      assembler->StoreObjectField(object, JSObject::kElementsOffset, target);
+      assembler->Return(target);
+    }
   }
 
   assembler->Bind(&if_oldspace);
@@ -173,8 +181,53 @@ void Builtins::Generate_CopyFixedArray(CodeStubAssembler* assembler) {
     }
 
     assembler->Bind(&done_loop);
-    assembler->Return(target);
+    {
+      // Update the {object}s element to {target}.
+      assembler->StoreObjectField(object, JSObject::kElementsOffset, target);
+      assembler->Return(target);
+    }
   }
+}
+
+void Builtins::Generate_GrowFastDoubleElements(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef GrowArrayElementsDescriptor Descriptor;
+
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label runtime(assembler, CodeStubAssembler::Label::kDeferred);
+  Node* elements = assembler->LoadElements(object);
+  elements = assembler->CheckAndGrowElementsCapacity(
+      context, elements, FAST_DOUBLE_ELEMENTS, key, &runtime);
+  assembler->StoreObjectField(object, JSObject::kElementsOffset, elements);
+  assembler->Return(elements);
+
+  assembler->Bind(&runtime);
+  assembler->TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
+}
+
+void Builtins::Generate_GrowFastSmiOrObjectElements(
+    CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef GrowArrayElementsDescriptor Descriptor;
+
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label runtime(assembler, CodeStubAssembler::Label::kDeferred);
+  Node* elements = assembler->LoadElements(object);
+  elements = assembler->CheckAndGrowElementsCapacity(
+      context, elements, FAST_ELEMENTS, key, &runtime);
+  assembler->StoreObjectField(object, JSObject::kElementsOffset, elements);
+  assembler->Return(elements);
+
+  assembler->Bind(&runtime);
+  assembler->TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
 }  // namespace internal
