@@ -508,8 +508,8 @@ class Declaration : public AstNode {
   InitializationFlag initialization() const;
 
  protected:
-  Declaration(Zone* zone, VariableProxy* proxy, VariableMode mode, Scope* scope,
-              int pos, NodeType type)
+  Declaration(VariableProxy* proxy, VariableMode mode, Scope* scope, int pos,
+              NodeType type)
       : AstNode(pos, type), mode_(mode), proxy_(proxy), scope_(scope) {
     DCHECK(IsDeclaredVariableMode(mode));
   }
@@ -532,9 +532,9 @@ class VariableDeclaration final : public Declaration {
   }
 
  protected:
-  VariableDeclaration(Zone* zone, VariableProxy* proxy, VariableMode mode,
-                      Scope* scope, int pos)
-      : Declaration(zone, proxy, mode, scope, pos, kVariableDeclaration) {}
+  VariableDeclaration(VariableProxy* proxy, VariableMode mode, Scope* scope,
+                      int pos)
+      : Declaration(proxy, mode, scope, pos, kVariableDeclaration) {}
 };
 
 
@@ -547,10 +547,9 @@ class FunctionDeclaration final : public Declaration {
   InitializationFlag initialization() const { return kCreatedInitialized; }
 
  protected:
-  FunctionDeclaration(Zone* zone, VariableProxy* proxy, VariableMode mode,
+  FunctionDeclaration(VariableProxy* proxy, VariableMode mode,
                       FunctionLiteral* fun, Scope* scope, int pos)
-      : Declaration(zone, proxy, mode, scope, pos, kFunctionDeclaration),
-        fun_(fun) {
+      : Declaration(proxy, mode, scope, pos, kFunctionDeclaration), fun_(fun) {
     DCHECK(mode == VAR || mode == LET || mode == CONST);
     DCHECK(fun != NULL);
   }
@@ -3075,7 +3074,7 @@ class AstNodeFactory final BASE_EMBEDDED {
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
                                               VariableMode mode, Scope* scope,
                                               int pos) {
-    return new (zone_) VariableDeclaration(zone_, proxy, mode, scope, pos);
+    return new (zone_) VariableDeclaration(proxy, mode, scope, pos);
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
@@ -3083,7 +3082,7 @@ class AstNodeFactory final BASE_EMBEDDED {
                                               FunctionLiteral* fun,
                                               Scope* scope,
                                               int pos) {
-    return new (zone_) FunctionDeclaration(zone_, proxy, mode, fun, scope, pos);
+    return new (zone_) FunctionDeclaration(proxy, mode, fun, scope, pos);
   }
 
   Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,
