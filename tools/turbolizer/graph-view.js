@@ -583,6 +583,20 @@ class GraphView extends View {
           (edge, index) => { return index == (d3.event.keyCode - 49); },
           false);
       break;
+    case 97:
+    case 98:
+    case 99:
+    case 100:
+    case 101:
+    case 102:
+    case 103:
+    case 104:
+    case 105:
+      // 'numpad 1'-'numpad 9'
+      showSelectionFrontierNodes(true,
+          (edge, index) => { return index == (d3.event.keyCode - 97); },
+          false);
+      break;
     case 67:
       // 'c'
       showSelectionFrontierNodes(true,
