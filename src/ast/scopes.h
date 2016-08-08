@@ -622,11 +622,9 @@ class Scope: public ZoneObject {
         const AstRawString* catch_variable_name);
 
   void AddInnerScope(Scope* inner_scope) {
-    if (inner_scope != nullptr) {
-      inner_scope->sibling_ = inner_scope_;
-      inner_scope_ = inner_scope;
-      inner_scope->outer_scope_ = this;
-    }
+    inner_scope->sibling_ = inner_scope_;
+    inner_scope_ = inner_scope;
+    inner_scope->outer_scope_ = this;
   }
 
   void RemoveInnerScope(Scope* inner_scope) {

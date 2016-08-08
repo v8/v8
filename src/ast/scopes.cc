@@ -140,7 +140,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
   // Ensure at least MIN_CONTEXT_SLOTS to indicate a materialized context.
   num_heap_slots_ = Max(num_heap_slots_,
                         static_cast<int>(Context::MIN_CONTEXT_SLOTS));
-  AddInnerScope(inner_scope);
+  if (inner_scope != nullptr) AddInnerScope(inner_scope);
 }
 
 DeclarationScope::DeclarationScope(Zone* zone, Scope* inner_scope,
@@ -165,7 +165,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       scope_type_(CATCH_SCOPE),
       already_resolved_(true) {
   SetDefaults();
-  AddInnerScope(inner_scope);
+  if (inner_scope != nullptr) AddInnerScope(inner_scope);
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   Variable* variable =
       variables_.Declare(zone, this, catch_variable_name, VAR, Variable::NORMAL,
@@ -232,8 +232,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
                                     AstValueFactory* ast_value_factory,
                                     DeserializationMode deserialization_mode) {
   // Reconstruct the outer scope chain from a closure's context chain.
-  Scope* current_scope = NULL;
-  Scope* innermost_scope = NULL;
+  Scope* current_scope = nullptr;
+  Scope* innermost_scope = nullptr;
   while (!context->IsNativeContext()) {
     if (context->IsWithContext() || context->IsDebugEvaluateContext()) {
       // For scope analysis, debug-evaluate is equivalent to a with scope.
@@ -241,7 +241,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
           Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>::null());
       current_scope = with_scope;
       // All the inner scopes are inside a with.
-      for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
+      for (Scope* s = innermost_scope; s != nullptr; s = s->outer_scope()) {
         s->scope_inside_with_ = true;
       }
     } else if (context->IsScriptContext()) {
@@ -273,7 +273,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     if (deserialization_mode == DeserializationMode::kDeserializeOffHeap) {
       current_scope->DeserializeScopeInfo(isolate, ast_value_factory);
     }
-    if (innermost_scope == NULL) innermost_scope = current_scope;
+    if (innermost_scope == nullptr) innermost_scope = current_scope;
     context = context->previous();
   }
 
