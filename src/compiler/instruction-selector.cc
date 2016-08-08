@@ -352,6 +352,7 @@ InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
                                    MachineRepresentation rep) {
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
+    case IrOpcode::kInt64Constant:
     case IrOpcode::kNumberConstant:
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:

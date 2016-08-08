@@ -62,6 +62,8 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   void Merge(Environment* other);
   void PrepareForOsr();
 
+  void PrepareForLoopExit(Node* loop);
+
  private:
   explicit Environment(const Environment* copy);
   void PrepareForLoop();
@@ -397,6 +399,30 @@ bool BytecodeGraphBuilder::Environment::StateValuesRequireUpdate(
   return false;
 }
 
+void BytecodeGraphBuilder::Environment::PrepareForLoopExit(Node* loop) {
+  DCHECK_EQ(loop->opcode(), IrOpcode::kLoop);
+
+  Node* control = GetControlDependency();
+
+  // Create the loop exit node.
+  Node* loop_exit = graph()->NewNode(common()->LoopExit(), control, loop);
+  UpdateControlDependency(loop_exit);
+
+  // Rename the effect.
+  Node* effect_rename = graph()->NewNode(common()->LoopExitEffect(),
+                                         GetEffectDependency(), loop_exit);
+  UpdateEffectDependency(effect_rename);
+
+  // Rename the current context.
+  context_ = graph()->NewNode(common()->LoopExitValue(), context_, loop_exit);
+
+  // Rename the environmnent values.
+  for (size_t i = 0; i < values_.size(); i++) {
+    Node* rename =
+        graph()->NewNode(common()->LoopExitValue(), values_[i], loop_exit);
+    values_[i] = rename;
+  }
+}
 
 void BytecodeGraphBuilder::Environment::UpdateStateValues(Node** state_values,
                                                           int offset,
@@ -562,8 +588,11 @@ bool BytecodeGraphBuilder::CreateGraph() {
 
 void BytecodeGraphBuilder::VisitBytecodes() {
   BytecodeBranchAnalysis analysis(bytecode_array(), local_zone());
+  BytecodeLoopAnalysis loop_analysis(bytecode_array(), &analysis, local_zone());
   analysis.Analyze();
+  loop_analysis.Analyze();
   set_branch_analysis(&analysis);
+  set_loop_analysis(&loop_analysis);
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
   set_bytecode_iterator(&iterator);
   while (!iterator.done()) {
@@ -1113,6 +1142,7 @@ void BytecodeGraphBuilder::BuildThrow() {
 }
 
 void BytecodeGraphBuilder::VisitThrow() {
+  BuildLoopExitsForFunctionExit();
   BuildThrow();
   Node* call = environment()->LookupAccumulator();
   Node* control = NewNode(common()->Throw(), call);
@@ -1120,6 +1150,7 @@ void BytecodeGraphBuilder::VisitThrow() {
 }
 
 void BytecodeGraphBuilder::VisitReThrow() {
+  BuildLoopExitsForFunctionExit();
   Node* value = environment()->LookupAccumulator();
   Node* call = NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
   Node* control = NewNode(common()->Throw(), call);
@@ -1432,6 +1463,7 @@ void BytecodeGraphBuilder::VisitOsrPoll() {
 }
 
 void BytecodeGraphBuilder::VisitReturn() {
+  BuildLoopExitsForFunctionExit();
   Node* control =
       NewNode(common()->Return(), environment()->LookupAccumulator());
   MergeControlToLeaveFunction(control);
@@ -1578,6 +1610,7 @@ void BytecodeGraphBuilder::BuildLoopHeaderEnvironment(int current_offset) {
 }
 
 void BytecodeGraphBuilder::MergeIntoSuccessorEnvironment(int target_offset) {
+  BuildLoopExitsForBranch(target_offset);
   if (merge_environments_[target_offset] == nullptr) {
     // Append merge nodes to the environment. We may merge here with another
     // environment. So add a place holder for merge nodes. We may add redundant
@@ -1594,6 +1627,28 @@ void BytecodeGraphBuilder::MergeIntoSuccessorEnvironment(int target_offset) {
 void BytecodeGraphBuilder::MergeControlToLeaveFunction(Node* exit) {
   exit_controls_.push_back(exit);
   set_environment(nullptr);
+}
+
+void BytecodeGraphBuilder::BuildLoopExitsForBranch(int target_offset) {
+  int origin_offset = bytecode_iterator().current_offset();
+  // Only build loop exits for forward edges.
+  if (target_offset > origin_offset) {
+    BuildLoopExitsUntilLoop(loop_analysis()->GetLoopOffsetFor(target_offset));
+  }
+}
+
+void BytecodeGraphBuilder::BuildLoopExitsUntilLoop(int loop_offset) {
+  int origin_offset = bytecode_iterator().current_offset();
+  int current_loop = loop_analysis()->GetLoopOffsetFor(origin_offset);
+  while (loop_offset < current_loop) {
+    Node* loop_node = merge_environments_[current_loop]->GetControlDependency();
+    environment()->PrepareForLoopExit(loop_node);
+    current_loop = loop_analysis()->GetParentLoopFor(current_loop);
+  }
+}
+
+void BytecodeGraphBuilder::BuildLoopExitsForFunctionExit() {
+  BuildLoopExitsUntilLoop(-1);
 }
 
 void BytecodeGraphBuilder::BuildJump() {

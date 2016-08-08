@@ -861,14 +861,33 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     Handle<Object> constant_object;
     switch (constant.type()) {
       case Constant::kInt32:
-        DCHECK(type == MachineType::Int32() || type == MachineType::Uint32() ||
-               type.representation() == MachineRepresentation::kBit ||
-               type.representation() == MachineRepresentation::kNone);
-        DCHECK(type.representation() != MachineRepresentation::kNone ||
-               constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
+        if (type.representation() == MachineRepresentation::kTagged) {
+          // When pointers are 4 bytes, we can use int32 constants to represent
+          // Smis.
+          DCHECK_EQ(4, kPointerSize);
+          constant_object =
+              handle(reinterpret_cast<Smi*>(constant.ToInt32()), isolate());
+          DCHECK(constant_object->IsSmi());
+        } else {
+          DCHECK(type == MachineType::Int32() ||
+                 type == MachineType::Uint32() ||
+                 type.representation() == MachineRepresentation::kBit ||
+                 type.representation() == MachineRepresentation::kNone);
+          DCHECK(type.representation() != MachineRepresentation::kNone ||
+                 constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
 
+          constant_object =
+              isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+        }
+        break;
+      case Constant::kInt64:
+        // When pointers are 8 bytes, we can use int64 constants to represent
+        // Smis.
+        DCHECK_EQ(type.representation(), MachineRepresentation::kTagged);
+        DCHECK_EQ(8, kPointerSize);
         constant_object =
-            isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+            handle(reinterpret_cast<Smi*>(constant.ToInt64()), isolate());
+        DCHECK(constant_object->IsSmi());
         break;
       case Constant::kFloat32:
         DCHECK(type.representation() == MachineRepresentation::kFloat32 ||

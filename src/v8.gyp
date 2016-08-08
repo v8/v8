@@ -560,6 +560,8 @@
         'compiler/bytecode-branch-analysis.h',
         'compiler/bytecode-graph-builder.cc',
         'compiler/bytecode-graph-builder.h',
+        'compiler/bytecode-loop-analysis.cc',
+        'compiler/bytecode-loop-analysis.h',
         'compiler/c-linkage.cc',
         'compiler/checkpoint-elimination.cc',
         'compiler/checkpoint-elimination.h',

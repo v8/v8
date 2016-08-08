@@ -967,6 +967,8 @@ v8_source_set("v8_base") {
     "src/compiler/bytecode-branch-analysis.h",
     "src/compiler/bytecode-graph-builder.cc",
     "src/compiler/bytecode-graph-builder.h",
+    "src/compiler/bytecode-loop-analysis.cc",
+    "src/compiler/bytecode-loop-analysis.h",
     "src/compiler/c-linkage.cc",
     "src/compiler/checkpoint-elimination.cc",
     "src/compiler/checkpoint-elimination.h",
