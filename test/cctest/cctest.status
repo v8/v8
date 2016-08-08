@@ -98,55 +98,6 @@
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
-
-  ############################################################################
-  # Ignition
-
-  # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
-  'test-heap/TestCodeFlushingPreAged': [PASS, NO_IGNITION],
-  'test-heap/TestCodeFlushingIncrementalScavenge': [PASS, NO_IGNITION],
-  'test-heap/TestCodeFlushing': [PASS, NO_IGNITION],
-  'test-heap/TestCodeFlushingIncremental': [PASS, NO_IGNITION],
-  'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', NO_IGNITION]],
-
-  # TODO(mythria,4780): Related to type feedback support for Array function.
-  'test-feedback-vector/VectorCallFeedbackForArray': [PASS, NO_IGNITION],
-
-  # TODO(mythria,4780): Related to type feedback support for constructor.
-  'test-feedback-vector/VectorConstructCounts': [PASS, NO_IGNITION],
-  'test-heap/WeakFunctionInConstructor': [PASS, NO_IGNITION],
-  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [PASS, NO_IGNITION],
-  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [PASS, NO_IGNITION],
-
-  # TODO(mythria,4680): Lack of code-ageing in interpreter.
-  'test-heap/Regress169209': [PASS, NO_IGNITION],
-
-  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
-  # in interpreter.
-  'test-heap/CompilationCacheCachingBehavior': [PASS, NO_IGNITION],
-
-  # BUG(rmcilroy,4680): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
-  'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [PASS, NO_IGNITION],
-  'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [PASS, NO_IGNITION],
-
-  # BUG(4680): Missing type feedback makes optimistic optimizations fail.
-  'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_IGNITION],
-
-  # BUG(4680): Ignition doesn't support allocation sites currently.
-  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_IGNITION],
-  'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_IGNITION],
-  'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_IGNITION],
-  'test-heap/OptimizedPretenuringNestedDoubleLiterals': [PASS, NO_IGNITION],
-  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [PASS, NO_IGNITION],
-  'test-heap/OptimizedPretenuringNestedObjectLiterals': [PASS, NO_IGNITION],
-  'test-heap/OptimizedPretenuringObjectArrayLiterals': [PASS, NO_IGNITION],
-
-  # BUG(4751). Flaky with ignition.
-  'test-cpu-profiler/JsNativeJsSample': [PASS, NO_IGNITION],
-
-  # TODO(ignition): Fails due to missing type info when optimizing from bytecode
-  # with crankshaft.
-  'test-cpu-profiler/TickLinesOptimized': [PASS, NO_IGNITION],
 }],  # ALWAYS
 
 ##############################################################################
@@ -403,10 +354,58 @@
 
 ##############################################################################
 ['variant == ignition', {
+  # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
+  'test-heap/TestCodeFlushingPreAged': [FAIL],
+  'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
+  'test-heap/TestCodeFlushing': [FAIL],
+  'test-heap/TestCodeFlushingIncremental': [FAIL],
+  'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
+
+  # TODO(mythria,4780): Related to type feedback support for Array function.
+  'test-feedback-vector/VectorCallFeedbackForArray': [FAIL],
+
+  # TODO(mythria,4780): Related to type feedback support for constructor.
+  'test-feedback-vector/VectorConstructCounts': [FAIL],
+  'test-heap/WeakFunctionInConstructor': [FAIL],
+  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [FAIL],
+
+  # TODO(mythria,4680): Lack of code-ageing in interpreter.
+  'test-heap/Regress169209': [FAIL],
+
+  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
+  # in interpreter.
+  'test-heap/CompilationCacheCachingBehavior': [FAIL],
+
+  # BUG(rmcilroy,4680): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
+  'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [FAIL],
+  'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [FAIL],
+
+  # BUG(4680): Missing type feedback makes optimistic optimizations fail.
   'test-cpu-profiler/CollectDeoptEvents': [FAIL],
+  'test-cpu-profiler/DeoptUntrackedFunction': [FAIL],
+
+  # BUG(4680): Ignition doesn't support allocation sites currently.
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],
+  'test-heap/OptimizedPretenuringAllocationFolding': [FAIL],
+  'test-heap/OptimizedPretenuringdoubleArrayLiterals': [FAIL],
+  'test-heap/OptimizedPretenuringNestedDoubleLiterals': [FAIL],
+  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [FAIL],
+  'test-heap/OptimizedPretenuringNestedObjectLiterals': [FAIL],
+  'test-heap/OptimizedPretenuringObjectArrayLiterals': [FAIL],
+
+  # BUG(4751). Flaky with ignition.
+  'test-cpu-profiler/JsNativeJsSample': [PASS, FAIL],
+
+  # TODO(ignition): Fails due to missing type info when optimizing from bytecode
+  # with crankshaft.
+  'test-cpu-profiler/TickLinesOptimized': [SKIP],
+
+  # TOOD(mstarzinger): Test expectation does not respect bytecode array.
+  'test-serialize/CodeSerializerLargeCodeObject': [FAIL],
+
+  # TurboFan cpu profiler result is different.
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
-  'test-serialize/CodeSerializerLargeCodeObject': [FAIL],
 }],  # variant == ignition
 
 ##############################################################################
@@ -505,7 +504,6 @@
   # TODO(mythria,4780): Related to type feedback support for constructor.
   'test-feedback-vector/VectorConstructCounts': [FAIL],
   'test-heap/WeakFunctionInConstructor': [FAIL],
-  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [FAIL],
   'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [FAIL],
 
   # TODO(mythria,4680): Lack of code-ageing in interpreter.
