@@ -376,21 +376,19 @@ int Scope::num_parameters() const {
 void Scope::Analyze(ParseInfo* info) {
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();
-  DeclarationScope* top = scope;
 
-  // Traverse the scope tree up to the first unresolved scope or the global
-  // scope and start scope resolution and variable allocation from that scope.
-  // Such a scope is always a closure-scope, so always skip to the next closure
-  // scope.
-  while (!top->is_script_scope() &&
-         !top->outer_scope()->already_resolved()) {
-    top = top->outer_scope()->GetClosureScope();
-  }
+  // We are compiling one of three cases:
+  // 1) top-level code,
+  // 2) a function/eval/module on the top-level
+  // 3) a function/eval in a scope that was already resolved.
+  DCHECK(scope->scope_type() == SCRIPT_SCOPE ||
+         scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
+         scope->outer_scope()->already_resolved());
 
   // Allocate the variables.
   {
     AstNodeFactory ast_node_factory(info->ast_value_factory());
-    top->AllocateVariables(info, &ast_node_factory);
+    scope->AllocateVariables(info, &ast_node_factory);
   }
 
 #ifdef DEBUG
