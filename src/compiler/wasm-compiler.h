@@ -158,9 +158,6 @@ class WasmGraphBuilder {
                    wasm::WasmCodePosition position);
   Node* CallIndirect(uint32_t index, Node** args,
                      wasm::WasmCodePosition position);
-  Node* JITSingleFunction(Node* base, Node* length, Node* index,
-                          uint32_t sig_index, wasm::FunctionSig* sig,
-                          wasm::WasmCodePosition position);
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSFunction> function,
                             wasm::FunctionSig* sig);

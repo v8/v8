@@ -311,8 +311,6 @@ var kExprSimdPrefix = 0xe5;
 var kExprI32x4Splat = 0x1b;
 var kExprI32x4ExtractLane = 0x1c;
 
-var kExprJITSingleFunction = 0xf0;
-
 var kTrapUnreachable          = 0;
 var kTrapMemOutOfBounds       = 1;
 var kTrapDivByZero            = 2;

@@ -524,8 +524,6 @@ DEFINE_STRING(dump_wasm_module_path, NULL, "directory to dump wasm modules to")
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")
 
-DEFINE_BOOL(wasm_jit_prototype, false,
-            "enable experimental wasm runtime dynamic code generation")
 DEFINE_BOOL(wasm_simd_prototype, false,
             "enable prototype simd opcodes for wasm")
 

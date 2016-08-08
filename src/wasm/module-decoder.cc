@@ -507,10 +507,9 @@ class ModuleDecoder : public Decoder {
   void DecodeFunctionTableInModule(WasmModule* module,
                                    WasmIndirectFunctionTable* table) {
     table->size = consume_u32v("function table entry count");
-    table->max_size = FLAG_wasm_jit_prototype ? consume_u32v() : table->size;
+    table->max_size = table->size;
 
-    if ((!FLAG_wasm_jit_prototype && table->max_size != table->size) ||
-        (FLAG_wasm_jit_prototype && table->max_size < table->size)) {
+    if (table->max_size != table->size) {
       error("invalid table maximum size");
     }
 
