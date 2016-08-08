@@ -352,13 +352,23 @@ static inline double ExecuteF64Sub(double a, double b, TrapReason* trap) {
 static inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
   if (std::isnan(a)) return quiet(a);
   if (std::isnan(b)) return quiet(b);
-  return std::min(a, b);
+  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
+    // a and b are zero, and the sign differs: return -0.0.
+    return -0.0;
+  } else {
+    return (a < b) ? a : b;
+  }
 }
 
 static inline double ExecuteF64Max(double a, double b, TrapReason* trap) {
   if (std::isnan(a)) return quiet(a);
   if (std::isnan(b)) return quiet(b);
-  return std::max(a, b);
+  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
+    // a and b are zero, and the sign differs: return 0.0.
+    return 0.0;
+  } else {
+    return (a > b) ? a : b;
+  }
 }
 
 static inline double ExecuteF64CopySign(double a, double b, TrapReason* trap) {

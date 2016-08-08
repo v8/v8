@@ -4400,7 +4400,8 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
       DeoptimizeIf(not_equal, instr,
                    DeoptimizeReason::kNotAHeapNumberUndefined);
 
-      __ pcmpeqd(result_reg, result_reg);
+      __ xorpd(result_reg, result_reg);
+      __ divsd(result_reg, result_reg);
       __ jmp(&done, Label::kNear);
     }
   } else {

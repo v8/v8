@@ -2571,19 +2571,19 @@ WASM_EXEC_TEST(F64Min) {
 
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
-      double expected;
-      if (*i < *j) {
-        expected = *i;
-      } else if (*j < *i) {
-        expected = *j;
-      } else if (*i != *i) {
-        // If *i or *j is NaN, then the result is NaN.
-        expected = *i;
+      double result = r.Call(*i, *j);
+      if (std::isnan(*i) || std::isnan(*j)) {
+        // If one of the inputs is nan, the result should be nan.
+        CHECK(std::isnan(result));
+      } else if ((*i == 0.0) && (*j == 0.0) &&
+                 (copysign(1.0, *i) != copysign(1.0, *j))) {
+        // If one input is +0.0 and the other input is -0.0, the result should
+        // be -0.0.
+        CHECK_EQ(bit_cast<uint64_t>(-0.0), bit_cast<uint64_t>(result));
       } else {
-        expected = *j;
+        double expected = *i < *j ? *i : *j;
+        CHECK_DOUBLE_EQ(expected, result);
       }
-
-      CHECK_DOUBLE_EQ(expected, r.Call(*i, *j));
     }
   }
 }
@@ -2619,91 +2619,22 @@ WASM_EXEC_TEST(F64Max) {
 
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
-      double expected;
-      if (*i > *j) {
-        expected = *i;
-      } else if (*j > *i) {
-        expected = *j;
-      } else if (*i != *i) {
-        // If *i or *j is NaN, then the result is NaN.
-        expected = *i;
+      double result = r.Call(*i, *j);
+      if (std::isnan(*i) || std::isnan(*j)) {
+        // If one of the inputs is nan, the result should be nan.
+        CHECK(std::isnan(result));
+      } else if ((*i == 0.0) && (*j == 0.0) &&
+                 (copysign(1.0, *i) != copysign(1.0, *j))) {
+        // If one input is +0.0 and the other input is -0.0, the result should
+        // be -0.0.
+        CHECK_EQ(bit_cast<uint64_t>(0.0), bit_cast<uint64_t>(result));
       } else {
-        expected = *j;
+        double expected = *i > *j ? *i : *j;
+        CHECK_DOUBLE_EQ(expected, result);
       }
-
-      CHECK_DOUBLE_EQ(expected, r.Call(*i, *j));
     }
   }
 }
-
-// TODO(ahaas): Fix on mips and reenable.
-#if !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
-
-WASM_EXEC_TEST(F32Min_Snan) {
-  // Test that the instruction does not return a signalling NaN.
-  {
-    WasmRunner<float> r(execution_mode);
-    BUILD(r,
-          WASM_F32_MIN(WASM_F32(bit_cast<float>(0xff80f1e2)), WASM_F32(57.67)));
-    CHECK_EQ(0xffc0f1e2, bit_cast<uint32_t>(r.Call()));
-  }
-  {
-    WasmRunner<float> r(execution_mode);
-    BUILD(r,
-          WASM_F32_MIN(WASM_F32(45.73), WASM_F32(bit_cast<float>(0x7f80f1e2))));
-    CHECK_EQ(0x7fc0f1e2, bit_cast<uint32_t>(r.Call()));
-  }
-}
-
-WASM_EXEC_TEST(F32Max_Snan) {
-  // Test that the instruction does not return a signalling NaN.
-  {
-    WasmRunner<float> r(execution_mode);
-    BUILD(r,
-          WASM_F32_MAX(WASM_F32(bit_cast<float>(0xff80f1e2)), WASM_F32(57.67)));
-    CHECK_EQ(0xffc0f1e2, bit_cast<uint32_t>(r.Call()));
-  }
-  {
-    WasmRunner<float> r(execution_mode);
-    BUILD(r,
-          WASM_F32_MAX(WASM_F32(45.73), WASM_F32(bit_cast<float>(0x7f80f1e2))));
-    CHECK_EQ(0x7fc0f1e2, bit_cast<uint32_t>(r.Call()));
-  }
-}
-
-WASM_EXEC_TEST(F64Min_Snan) {
-  // Test that the instruction does not return a signalling NaN.
-  {
-    WasmRunner<double> r(execution_mode);
-    BUILD(r, WASM_F64_MIN(WASM_F64(bit_cast<double>(0xfff000000000f1e2)),
-                          WASM_F64(57.67)));
-    CHECK_EQ(0xfff800000000f1e2, bit_cast<uint64_t>(r.Call()));
-  }
-  {
-    WasmRunner<double> r(execution_mode);
-    BUILD(r, WASM_F64_MIN(WASM_F64(45.73),
-                          WASM_F64(bit_cast<double>(0x7ff000000000f1e2))));
-    CHECK_EQ(0x7ff800000000f1e2, bit_cast<uint64_t>(r.Call()));
-  }
-}
-
-WASM_EXEC_TEST(F64Max_Snan) {
-  // Test that the instruction does not return a signalling NaN.
-  {
-    WasmRunner<double> r(execution_mode);
-    BUILD(r, WASM_F64_MAX(WASM_F64(bit_cast<double>(0xfff000000000f1e2)),
-                          WASM_F64(57.67)));
-    CHECK_EQ(0xfff800000000f1e2, bit_cast<uint64_t>(r.Call()));
-  }
-  {
-    WasmRunner<double> r(execution_mode);
-    BUILD(r, WASM_F64_MAX(WASM_F64(45.73),
-                          WASM_F64(bit_cast<double>(0x7ff000000000f1e2))));
-    CHECK_EQ(0x7ff800000000f1e2, bit_cast<uint64_t>(r.Call()));
-  }
-}
-
-#endif
 
 WASM_EXEC_TEST(I32SConvertF32) {
   WasmRunner<int32_t> r(execution_mode, MachineType::Float32());

@@ -252,8 +252,6 @@ class WasmGraphBuilder {
   Node* BuildF64CopySign(Node* left, Node* right);
   Node* BuildF32Min(Node* left, Node* right);
   Node* BuildF32Max(Node* left, Node* right);
-  Node* BuildF64Min(Node* left, Node* right);
-  Node* BuildF64Max(Node* left, Node* right);
   Node* BuildI32SConvertF32(Node* input, wasm::WasmCodePosition position);
   Node* BuildI32SConvertF64(Node* input, wasm::WasmCodePosition position);
   Node* BuildI32UConvertF32(Node* input, wasm::WasmCodePosition position);

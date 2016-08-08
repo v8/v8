@@ -4693,7 +4693,8 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
       DeoptimizeIf(not_equal, instr,
                    DeoptimizeReason::kNotAHeapNumberUndefined);
 
-      __ Pcmpeqd(result_reg, result_reg);
+      __ Xorpd(result_reg, result_reg);
+      __ Divsd(result_reg, result_reg);
       __ jmp(&done, Label::kNear);
     }
   } else {
