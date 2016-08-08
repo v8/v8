@@ -5958,67 +5958,80 @@ TEST(ModuleParsingInternals) {
 
   CHECK(declarations->at(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
   CHECK(declarations->at(0)->proxy()->var()->mode() == i::LET);
+  CHECK(declarations->at(0)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(0)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(1)->proxy()->raw_name()->IsOneByteEqualTo("z"));
   CHECK(declarations->at(1)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(1)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(1)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(2)->proxy()->raw_name()->IsOneByteEqualTo("n"));
   CHECK(declarations->at(2)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(2)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(2)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(3)->proxy()->raw_name()->IsOneByteEqualTo("foo"));
   CHECK(declarations->at(3)->proxy()->var()->mode() == i::VAR);
+  CHECK(!declarations->at(3)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(3)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(4)->proxy()->raw_name()->IsOneByteEqualTo("goo"));
   CHECK(declarations->at(4)->proxy()->var()->mode() == i::LET);
+  CHECK(!declarations->at(4)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(4)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(5)->proxy()->raw_name()->IsOneByteEqualTo("hoo"));
   CHECK(declarations->at(5)->proxy()->var()->mode() == i::LET);
+  CHECK(declarations->at(5)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(5)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(6)->proxy()->raw_name()->IsOneByteEqualTo("joo"));
   CHECK(declarations->at(6)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(6)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(6)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(
       declarations->at(7)->proxy()->raw_name()->IsOneByteEqualTo("*default*"));
   CHECK(declarations->at(7)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(7)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(7)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(
       declarations->at(8)->proxy()->raw_name()->IsOneByteEqualTo("nonexport"));
+  CHECK(declarations->at(8)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(8)->proxy()->var()->location() !=
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(9)->proxy()->raw_name()->IsOneByteEqualTo("mm"));
   CHECK(declarations->at(9)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(9)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(9)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(10)->proxy()->raw_name()->IsOneByteEqualTo("aa"));
   CHECK(declarations->at(10)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(10)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(10)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(11)->proxy()->raw_name()->IsOneByteEqualTo("loo"));
   CHECK(declarations->at(11)->proxy()->var()->mode() == i::CONST);
+  CHECK(!declarations->at(11)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(11)->proxy()->var()->location() !=
         i::VariableLocation::MODULE);
 
   CHECK(declarations->at(12)->proxy()->raw_name()->IsOneByteEqualTo("foob"));
   CHECK(declarations->at(12)->proxy()->var()->mode() == i::CONST);
+  CHECK(!declarations->at(12)->proxy()->var()->binding_needs_init());
   CHECK(declarations->at(12)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 

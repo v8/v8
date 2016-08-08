@@ -1084,7 +1084,8 @@ class Parser : public ParserBase<ParserTraits> {
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind, bool resolve,
                     bool* ok, Scope* declaration_scope = nullptr);
-  void DeclareImport(const AstRawString* local_name, int pos, bool* ok);
+  void DeclareConstVariable(const AstRawString* name, InitializationFlag init,
+                            int pos, bool* ok);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);

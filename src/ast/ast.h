@@ -517,16 +517,17 @@ class Declaration : public AstNode {
 
 class VariableDeclaration final : public Declaration {
  public:
-  InitializationFlag initialization() const {
-    return mode() == VAR ? kCreatedInitialized : kNeedsInitialization;
-  }
+  InitializationFlag initialization() const { return initialization_; }
 
  private:
   friend class AstNodeFactory;
 
   VariableDeclaration(VariableProxy* proxy, VariableMode mode, Scope* scope,
-                      int pos)
-      : Declaration(proxy, mode, scope, pos, kVariableDeclaration) {}
+                      InitializationFlag initialization, int pos)
+      : Declaration(proxy, mode, scope, pos, kVariableDeclaration),
+        initialization_(initialization) {}
+
+  InitializationFlag initialization_;
 };
 
 
@@ -3007,7 +3008,16 @@ class AstNodeFactory final BASE_EMBEDDED {
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
                                               VariableMode mode, Scope* scope,
                                               int pos) {
-    return new (zone_) VariableDeclaration(proxy, mode, scope, pos);
+    return NewVariableDeclaration(
+        proxy, mode, scope,
+        mode == VAR ? kCreatedInitialized : kNeedsInitialization, pos);
+  }
+
+  VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
+                                              VariableMode mode, Scope* scope,
+                                              InitializationFlag init,
+                                              int pos) {
+    return new (zone_) VariableDeclaration(proxy, mode, scope, init, pos);
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,

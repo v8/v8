@@ -1523,7 +1523,8 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
       return nullptr;
     }
 
-    DeclareImport(local_name, position(), CHECK_OK);
+    DeclareConstVariable(local_name, kNeedsInitialization, position(),
+                         CHECK_OK);
 
     NamedImport* import = new (zone()) NamedImport(
         import_name, local_name, scanner()->location());
@@ -1573,7 +1574,8 @@ void Parser::ParseImportDeclaration(bool* ok) {
     import_default_binding =
         ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK_VOID);
     import_default_binding_loc = scanner()->location();
-    DeclareImport(import_default_binding, pos, CHECK_OK_VOID);
+    DeclareConstVariable(import_default_binding, kNeedsInitialization, pos,
+                         CHECK_OK_VOID);
   }
 
   // Parse NameSpaceImport or NamedImports if present.
@@ -1588,7 +1590,8 @@ void Parser::ParseImportDeclaration(bool* ok) {
         module_namespace_binding =
             ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK_VOID);
         module_namespace_binding_loc = scanner()->location();
-        DeclareImport(module_namespace_binding, pos, CHECK_OK_VOID);
+        DeclareConstVariable(module_namespace_binding, kCreatedInitialized, pos,
+                             CHECK_OK_VOID);
         break;
       }
 
@@ -1610,22 +1613,20 @@ void Parser::ParseImportDeclaration(bool* ok) {
   // Now that we have all the information, we can make the appropriate
   // declarations.
 
-  // TODO(neis): Would prefer to call DeclareImport below rather than above and
-  // in ParseNamedImports, but then a possible error message would point to the
-  // wrong location.  Maybe have a DeclareAt version of Declare that takes a
-  // location?
+  // TODO(neis): Would prefer to call DeclareConstVariable for each case below
+  // rather than above and in ParseNamedImports, but then a possible error
+  // message would point to the wrong location.  Maybe have a DeclareAt version
+  // of Declare that takes a location?
 
   if (module_namespace_binding != nullptr) {
     module()->AddStarImport(module_namespace_binding, module_specifier,
                             module_namespace_binding_loc, zone());
-    // DeclareImport(module_namespace_binding, pos, CHECK_OK_VOID);
   }
 
   if (import_default_binding != nullptr) {
     module()->AddImport(ast_value_factory()->default_string(),
                         import_default_binding, module_specifier,
                         import_default_binding_loc, zone());
-    // DeclareImport(import_default_binding, pos, CHECK_OK_VOID);
   }
 
   if (named_imports != nullptr) {
@@ -1636,7 +1637,6 @@ void Parser::ParseImportDeclaration(bool* ok) {
         const NamedImport* import = named_imports->at(i);
         module()->AddImport(import->import_name, import->local_name,
                             module_specifier, import->location, zone());
-        // DeclareImport(import->local_name, pos, CHECK_OK_VOID);
       }
     }
   }
@@ -1974,12 +1974,12 @@ VariableProxy* Parser::NewUnresolved(const AstRawString* name,
                               scanner()->location().end_pos);
 }
 
-
-void Parser::DeclareImport(const AstRawString* local_name, int pos, bool* ok) {
-  DCHECK_NOT_NULL(local_name);
-  VariableProxy* proxy = NewUnresolved(local_name, CONST);
+void Parser::DeclareConstVariable(const AstRawString* name,
+                                  InitializationFlag init, int pos, bool* ok) {
+  DCHECK_NOT_NULL(name);
+  VariableProxy* proxy = NewUnresolved(name, CONST);
   Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, CONST, scope(), pos);
+      factory()->NewVariableDeclaration(proxy, CONST, scope(), init, pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK_VOID);
 }
 
