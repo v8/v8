@@ -37,6 +37,11 @@ const Operator* NewConstantOperator<double>(CommonOperatorBuilder* common,
   return common->Float64Constant(value);
 }
 
+template <>
+const Operator* NewConstantOperator<float>(CommonOperatorBuilder* common,
+                                           volatile float value) {
+  return common->Float32Constant(value);
+}
 
 template <typename T>
 T ValueOfOperator(const Operator* op);
@@ -54,6 +59,12 @@ int64_t ValueOfOperator<int64_t>(const Operator* op) {
 }
 
 template <>
+float ValueOfOperator<float>(const Operator* op) {
+  CHECK_EQ(IrOpcode::kFloat32Constant, op->opcode());
+  return OpParameter<float>(op);
+}
+
+template <>
 double ValueOfOperator<double>(const Operator* op) {
   CHECK_EQ(IrOpcode::kFloat64Constant, op->opcode());
   return OpParameter<double>(op);
@@ -62,9 +73,9 @@ double ValueOfOperator<double>(const Operator* op) {
 
 class ReducerTester : public HandleAndZoneScope {
  public:
-  explicit ReducerTester(
-      int num_parameters = 0,
-      MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags)
+  explicit ReducerTester(int num_parameters = 0,
+                         MachineOperatorBuilder::Flags flags =
+                             MachineOperatorBuilder::kAllOptionalOps)
       : isolate(main_isolate()),
         binop(NULL),
         unop(NULL),
@@ -117,7 +128,15 @@ class ReducerTester : public HandleAndZoneScope {
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_NE(n, reduction.replacement());
-    CHECK_EQ(expect, ValueOf<T>(reduction.replacement()->op()));
+    // Deal with NaNs.
+    if (expect == expect) {
+      // We do not expect a NaN, check for equality.
+      CHECK_EQ(expect, ValueOf<T>(reduction.replacement()->op()));
+    } else {
+      // Check for NaN.
+      T result = ValueOf<T>(reduction.replacement()->op());
+      CHECK_NE(result, result);
+    }
   }
 
   // Check that the reduction of this binop applied to {a} and {b} yields
@@ -821,6 +840,45 @@ TEST(ReduceLoadStore) {
   }
 }
 
+TEST(ReduceFloat32Sub) {
+  ReducerTester R;
+  R.binop = R.machine.Float32Sub();
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      float x = *pl, y = *pr;
+      R.CheckFoldBinop<float>(x - y, x, y);
+    }
+  }
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<float>(0.0);
+  Node* nan = R.Constant<float>(std::numeric_limits<float>::quiet_NaN());
+
+  R.CheckBinop(x, x, zero);   // x - 0 => x
+  R.CheckBinop(nan, nan, x);  // nan - x  => nan
+  R.CheckBinop(nan, x, nan);  // x - nan => nan
+}
+
+TEST(ReduceFloat64Sub) {
+  ReducerTester R;
+  R.binop = R.machine.Float64Sub();
+
+  FOR_FLOAT64_INPUTS(pl) {
+    FOR_FLOAT64_INPUTS(pr) {
+      double x = *pl, y = *pr;
+      R.CheckFoldBinop<double>(x - y, x, y);
+    }
+  }
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<double>(0.0);
+  Node* nan = R.Constant<double>(std::numeric_limits<double>::quiet_NaN());
+
+  R.CheckBinop(x, x, zero);   // x - 0 => x
+  R.CheckBinop(nan, nan, x);  // nan - x  => nan
+  R.CheckBinop(nan, x, nan);  // x - nan => nan
+}
 
 // TODO(titzer): test MachineOperatorReducer for Word64And
 // TODO(titzer): test MachineOperatorReducer for Word64Or

@@ -1594,6 +1594,26 @@ TEST_F(MachineOperatorReducerTest, Float64MulWithMinusOne) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Float64SubMinusZeroMinusX) {
+  Node* const p0 = Parameter(0);
+  {
+    Reduction r = Reduce(
+        graph()->NewNode(machine()->Float64Sub(), Float64Constant(-0.0), p0));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Neg(p0));
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Float32SubMinusZeroMinusX) {
+  Node* const p0 = Parameter(0);
+  {
+    Reduction r = Reduce(
+        graph()->NewNode(machine()->Float32Sub(), Float32Constant(-0.0), p0));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat32Neg(p0));
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Float64Acos
 
