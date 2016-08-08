@@ -252,7 +252,7 @@ def BuildOptions():
   result.add_option("--download-data", help="Download missing test suite data",
                     default=False, action="store_true")
   result.add_option("--download-data-only",
-                    help="Download missing test suite data and exit",
+                    help="Deprecated",
                     default=False, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
@@ -666,6 +666,9 @@ def Main():
 
   if options.download_data_only:
     return exit_code
+
+  for s in suites:
+    s.PrepareSources()
 
   for (arch, mode) in options.arch_and_mode:
     try:

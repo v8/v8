@@ -125,6 +125,14 @@ class TestSuite(object):
     """
     return self._VariantGeneratorFactory()(self, set(variants))
 
+  def PrepareSources(self):
+    """Called once before multiprocessing for doing file-system operations.
+
+    This should not access the network. For network access use the method
+    below.
+    """
+    pass
+
   def DownloadData(self):
     pass
 
