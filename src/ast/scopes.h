@@ -682,7 +682,11 @@ class DeclarationScope : public Scope {
 
   // The ModuleDescriptor for this scope; only for module scopes.
   // TODO(verwaest): Move to ModuleScope?
-  ModuleDescriptor* module() const { return module_descriptor_; }
+  ModuleDescriptor* module() const {
+    DCHECK(is_module_scope());
+    DCHECK_NOT_NULL(module_descriptor_);
+    return module_descriptor_;
+  }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
@@ -858,6 +862,9 @@ class DeclarationScope : public Scope {
   void AllocateLocals(AstValueFactory* ast_value_factory);
   void AllocateParameterLocals();
   void AllocateReceiver();
+  // Set MODULE as VariableLocation for all variables that will live in some
+  // module's export table.
+  void AllocateModuleVariables();
 
  private:
   void AllocateParameter(Variable* var, int index);

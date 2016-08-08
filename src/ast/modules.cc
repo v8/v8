@@ -121,5 +121,6 @@ bool ModuleDescriptor::Validate(DeclarationScope* module_scope,
 
   return true;
 }
+
 }  // namespace internal
 }  // namespace v8

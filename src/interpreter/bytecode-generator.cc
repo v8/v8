@@ -872,6 +872,8 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
           .CallRuntime(Runtime::kDeclareEvalVar, name, 1);
       break;
     }
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
 }
 
@@ -909,7 +911,10 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       VisitForAccumulatorValue(decl->fun());
       builder()->StoreAccumulatorInRegister(literal).CallRuntime(
           Runtime::kDeclareEvalFunction, name, 2);
+      break;
     }
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
 }
 
@@ -1904,6 +1909,8 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       execution_result()->SetResultInAccumulator();
       break;
     }
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
 }
 
@@ -2129,6 +2136,8 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
       builder()->StoreLookupSlot(variable->name(), language_mode());
       break;
     }
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
 }
 

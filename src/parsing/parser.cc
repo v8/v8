@@ -1588,6 +1588,7 @@ void Parser::ParseImportDeclaration(bool* ok) {
         module_namespace_binding =
             ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK_VOID);
         module_namespace_binding_loc = scanner()->location();
+        DeclareImport(module_namespace_binding, pos, CHECK_OK_VOID);
         break;
       }
 
@@ -1609,16 +1610,16 @@ void Parser::ParseImportDeclaration(bool* ok) {
   // Now that we have all the information, we can make the appropriate
   // declarations.
 
-  if (module_namespace_binding != nullptr) {
-    module()->AddStarImport(module_namespace_binding, module_specifier,
-                            module_namespace_binding_loc, zone());
-    // TODO(neis): Create special immutable binding for the namespace object.
-  }
-
   // TODO(neis): Would prefer to call DeclareImport below rather than above and
   // in ParseNamedImports, but then a possible error message would point to the
   // wrong location.  Maybe have a DeclareAt version of Declare that takes a
   // location?
+
+  if (module_namespace_binding != nullptr) {
+    module()->AddStarImport(module_namespace_binding, module_specifier,
+                            module_namespace_binding_loc, zone());
+    // DeclareImport(module_namespace_binding, pos, CHECK_OK_VOID);
+  }
 
   if (import_default_binding != nullptr) {
     module()->AddImport(ast_value_factory()->default_string(),
@@ -1976,9 +1977,9 @@ VariableProxy* Parser::NewUnresolved(const AstRawString* name,
 
 void Parser::DeclareImport(const AstRawString* local_name, int pos, bool* ok) {
   DCHECK_NOT_NULL(local_name);
-  VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
+  VariableProxy* proxy = NewUnresolved(local_name, CONST);
   Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, IMPORT, scope(), pos);
+      factory()->NewVariableDeclaration(proxy, CONST, scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK_VOID);
 }
 

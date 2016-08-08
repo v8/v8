@@ -1117,6 +1117,8 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
       PrepareFrameState(store, decl->proxy()->id());
       break;
     }
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
 }
 
@@ -1160,6 +1162,8 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       PrepareFrameState(store, decl->proxy()->id());
       break;
     }
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
 }
 
@@ -3374,6 +3378,8 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       PrepareFrameState(value, bailout_id, combine);
       return value;
     }
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
   UNREACHABLE();
   return nullptr;
@@ -3409,6 +3415,8 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
       PrepareFrameState(result, bailout_id, combine);
       return result;
     }
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
   UNREACHABLE();
   return nullptr;
@@ -3514,6 +3522,8 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       PrepareFrameState(store, bailout_id, combine);
       return store;
     }
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
   UNREACHABLE();
   return nullptr;

@@ -886,9 +886,6 @@ enum VariableMode {
 
   LET,  // declared via 'let' declarations (first lexical)
 
-  // TODO(neis): Is it correct to make this one of the lexical modes?
-  IMPORT,  // declared via 'import' declarations (except namespace imports)
-
   CONST,  // declared via 'const' declarations (last lexical)
 
   // Variables introduced by the compiler:
@@ -924,9 +921,8 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_LEGACY || mode == IMPORT;
+  return mode == CONST || mode == CONST_LEGACY;
 }
-
 
 enum class VariableLocation {
   // Before and during variable allocation, a variable whose location is
@@ -958,9 +954,11 @@ enum class VariableLocation {
   // A named slot in a heap context.  name() is the variable name in the
   // context object on the heap, with lookup starting at the current
   // context.  index() is invalid.
-  LOOKUP
-};
+  LOOKUP,
 
+  // A named slot in a module's export table.
+  MODULE
+};
 
 // ES6 Draft Rev3 10.2 specifies declarative environment records with mutable
 // and immutable bindings that can be in two states: initialized and

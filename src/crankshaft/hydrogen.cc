@@ -5765,6 +5765,9 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
 
     case VariableLocation::LOOKUP:
       return Bailout(kReferenceToAVariableWhichRequiresDynamicLookup);
+
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
 }
 
@@ -7007,6 +7010,9 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       case VariableLocation::LOOKUP:
         return Bailout(kCompoundAssignmentToLookupSlot);
+
+      case VariableLocation::MODULE:
+        UNREACHABLE();
     }
     return ast_context()->ReturnValue(Pop());
 
@@ -7155,6 +7161,9 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
 
       case VariableLocation::LOOKUP:
         return Bailout(kAssignmentToLOOKUPVariable);
+
+      case VariableLocation::MODULE:
+        UNREACHABLE();
     }
   } else {
     return Bailout(kInvalidLeftHandSideInAssignment);
@@ -10801,6 +10810,9 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
       case VariableLocation::LOOKUP:
         return Bailout(kLookupVariableInCountOperation);
+
+      case VariableLocation::MODULE:
+        UNREACHABLE();
     }
 
     Drop(returns_original_input ? 2 : 1);
@@ -12192,6 +12204,8 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
       break;
     case VariableLocation::LOOKUP:
       return Bailout(kUnsupportedLookupSlotInDeclaration);
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
 }
 
@@ -12233,6 +12247,8 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
     }
     case VariableLocation::LOOKUP:
       return Bailout(kUnsupportedLookupSlotInDeclaration);
+    case VariableLocation::MODULE:
+      UNREACHABLE();
   }
 }
 

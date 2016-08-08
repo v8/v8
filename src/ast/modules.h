@@ -67,7 +67,6 @@ class ModuleDescriptor : public ZoneObject {
                 PendingCompilationErrorHandler* error_handler,
                 Zone* zone) const;
 
- private:
   struct ModuleEntry : public ZoneObject {
     const Scanner::Location location;
     const AstRawString* export_name;
@@ -83,6 +82,10 @@ class ModuleDescriptor : public ZoneObject {
           module_request(nullptr) {}
   };
 
+  const ZoneList<const ModuleEntry*>& exports() { return exports_; }
+  const ZoneList<const ModuleEntry*>& imports() { return imports_; }
+
+ private:
   ZoneList<const ModuleEntry*> exports_;
   ZoneList<const ModuleEntry*> imports_;
 };

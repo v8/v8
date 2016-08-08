@@ -1077,6 +1077,9 @@ static void PrintLocation(Variable* var) {
     case VariableLocation::LOOKUP:
       PrintF("lookup");
       break;
+    case VariableLocation::MODULE:
+      PrintF("module");
+      break;
   }
 }
 
@@ -1481,6 +1484,7 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval) {
 
 
 bool Scope::MustAllocate(Variable* var) {
+  DCHECK(var->location() != VariableLocation::MODULE);
   // Give var a read/write use if there is a chance it might be accessed
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
@@ -1700,6 +1704,21 @@ void DeclarationScope::AllocateLocals(AstValueFactory* ast_value_factory) {
   }
 }
 
+void DeclarationScope::AllocateModuleVariables() {
+  for (auto entry : module()->imports()) {
+    if (entry->local_name == nullptr) continue;
+    if (entry->import_name == nullptr) continue;  // Namespace import.
+    Variable* var = LookupLocal(entry->local_name);
+    // TODO(neis): Use a meaningful index.
+    var->AllocateTo(VariableLocation::MODULE, 42);
+  }
+  for (auto entry : module()->exports()) {
+    if (entry->local_name == nullptr) continue;
+    Variable* var = LookupLocal(entry->local_name);
+    var->AllocateTo(VariableLocation::MODULE, 42);
+  }
+}
+
 void Scope::AllocateVariablesRecursively(AstValueFactory* ast_value_factory) {
   if (!already_resolved()) {
     num_stack_slots_ = 0;
@@ -1718,7 +1737,11 @@ void Scope::AllocateVariablesRecursively(AstValueFactory* ast_value_factory) {
   // Allocate variables for this scope.
   // Parameters must be allocated first, if any.
   if (is_declaration_scope()) {
-    if (is_function_scope()) AsDeclarationScope()->AllocateParameterLocals();
+    if (is_module_scope()) {
+      AsDeclarationScope()->AllocateModuleVariables();
+    } else if (is_function_scope()) {
+      AsDeclarationScope()->AllocateParameterLocals();
+    }
     AsDeclarationScope()->AllocateReceiver();
   }
   AllocateNonParameterLocalsAndDeclaredGlobals(ast_value_factory);

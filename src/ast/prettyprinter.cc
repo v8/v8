@@ -1063,6 +1063,9 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
       case VariableLocation::LOOKUP:
         SNPrintF(buf + pos, " lookup");
         break;
+      case VariableLocation::MODULE:
+        SNPrintF(buf + pos, " module");
+        break;
     }
     PrintLiteralWithModeIndented(buf.start(), var, node->name());
   }
