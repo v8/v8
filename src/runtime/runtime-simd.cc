@@ -894,47 +894,47 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
 
 // Common Load and Store Functions
 
-#define SIMD_LOAD(type, lane_type, lane_count, count, result)          \
-  static const int kLaneCount = lane_count;                            \
-  DCHECK(args.length() == 2);                                          \
-  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);              \
-  SIMD_COERCE_INDEX(index, 1);                                         \
-  size_t bpe = tarray->element_size();                                 \
-  uint32_t bytes = count * sizeof(lane_type);                          \
-  size_t byte_length = NumberToSize(isolate, tarray->byte_length());   \
-  if (index < 0 || index * bpe + bytes > byte_length) {                \
-    THROW_NEW_ERROR_RETURN_FAILURE(                                    \
-        isolate, NewRangeError(MessageTemplate::kInvalidSimdIndex));   \
-  }                                                                    \
-  size_t tarray_offset = NumberToSize(isolate, tarray->byte_offset()); \
-  uint8_t* tarray_base =                                               \
-      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +    \
-      tarray_offset;                                                   \
-  lane_type lanes[kLaneCount] = {0};                                   \
-  memcpy(lanes, tarray_base + index * bpe, bytes);                     \
+#define SIMD_LOAD(type, lane_type, lane_count, count, result)        \
+  static const int kLaneCount = lane_count;                          \
+  DCHECK(args.length() == 2);                                        \
+  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);            \
+  SIMD_COERCE_INDEX(index, 1);                                       \
+  size_t bpe = tarray->element_size();                               \
+  uint32_t bytes = count * sizeof(lane_type);                        \
+  size_t byte_length = NumberToSize(tarray->byte_length());          \
+  if (index < 0 || index * bpe + bytes > byte_length) {              \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                  \
+        isolate, NewRangeError(MessageTemplate::kInvalidSimdIndex)); \
+  }                                                                  \
+  size_t tarray_offset = NumberToSize(tarray->byte_offset());        \
+  uint8_t* tarray_base =                                             \
+      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +  \
+      tarray_offset;                                                 \
+  lane_type lanes[kLaneCount] = {0};                                 \
+  memcpy(lanes, tarray_base + index * bpe, bytes);                   \
   Handle<type> result = isolate->factory()->New##type(lanes);
 
-#define SIMD_STORE(type, lane_type, lane_count, count, a)              \
-  static const int kLaneCount = lane_count;                            \
-  DCHECK(args.length() == 3);                                          \
-  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);              \
-  CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 2);                           \
-  SIMD_COERCE_INDEX(index, 1);                                         \
-  size_t bpe = tarray->element_size();                                 \
-  uint32_t bytes = count * sizeof(lane_type);                          \
-  size_t byte_length = NumberToSize(isolate, tarray->byte_length());   \
-  if (index < 0 || byte_length < index * bpe + bytes) {                \
-    THROW_NEW_ERROR_RETURN_FAILURE(                                    \
-        isolate, NewRangeError(MessageTemplate::kInvalidSimdIndex));   \
-  }                                                                    \
-  size_t tarray_offset = NumberToSize(isolate, tarray->byte_offset()); \
-  uint8_t* tarray_base =                                               \
-      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +    \
-      tarray_offset;                                                   \
-  lane_type lanes[kLaneCount];                                         \
-  for (int i = 0; i < kLaneCount; i++) {                               \
-    lanes[i] = a->get_lane(i);                                         \
-  }                                                                    \
+#define SIMD_STORE(type, lane_type, lane_count, count, a)            \
+  static const int kLaneCount = lane_count;                          \
+  DCHECK(args.length() == 3);                                        \
+  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);            \
+  CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 2);                         \
+  SIMD_COERCE_INDEX(index, 1);                                       \
+  size_t bpe = tarray->element_size();                               \
+  uint32_t bytes = count * sizeof(lane_type);                        \
+  size_t byte_length = NumberToSize(tarray->byte_length());          \
+  if (index < 0 || byte_length < index * bpe + bytes) {              \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                  \
+        isolate, NewRangeError(MessageTemplate::kInvalidSimdIndex)); \
+  }                                                                  \
+  size_t tarray_offset = NumberToSize(tarray->byte_offset());        \
+  uint8_t* tarray_base =                                             \
+      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +  \
+      tarray_offset;                                                 \
+  lane_type lanes[kLaneCount];                                       \
+  for (int i = 0; i < kLaneCount; i++) {                             \
+    lanes[i] = a->get_lane(i);                                       \
+  }                                                                  \
   memcpy(tarray_base + index * bpe, lanes, bytes);
 
 #define SIMD_LOAD_FUNCTION(type, lane_type, lane_count)         \

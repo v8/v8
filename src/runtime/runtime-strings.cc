@@ -399,7 +399,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
 
   size_t actual_array_length = 0;
-  CHECK(TryNumberToSize(isolate, array->length(), &actual_array_length));
+  CHECK(TryNumberToSize(array->length(), &actual_array_length));
   CHECK(array_length >= 0);
   CHECK(static_cast<size_t>(array_length) <= actual_array_length);
 

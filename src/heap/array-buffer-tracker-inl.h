@@ -14,7 +14,7 @@ void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
   void* data = buffer->backing_store();
   if (!data) return;
 
-  size_t length = NumberToSize(heap->isolate(), buffer->byte_length());
+  size_t length = NumberToSize(buffer->byte_length());
   Page* page = Page::FromAddress(buffer->address());
   {
     base::LockGuard<base::Mutex> guard(page->mutex());

@@ -175,13 +175,10 @@ inline int64_t NumberToInt64(Object* number);
 double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
                       int flags, double empty_string_val = 0.0);
 
-
-inline bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result);
-
+inline bool TryNumberToSize(Object* number, size_t* result);
 
 // Converts a number into size_t.
-inline size_t NumberToSize(Isolate* isolate, Object* number);
-
+inline size_t NumberToSize(Object* number);
 
 // returns DoubleToString(StringToDouble(string)) == string
 bool IsSpecialIndex(UnicodeCache* unicode_cache, String* string);

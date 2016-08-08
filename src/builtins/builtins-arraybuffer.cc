@@ -41,7 +41,7 @@ BUILTIN(ArrayBufferConstructor_ConstructStub) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSObject::New(target, new_target));
   size_t byte_length;
-  if (!TryNumberToSize(isolate, *number_length, &byte_length)) {
+  if (!TryNumberToSize(*number_length, &byte_length)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }

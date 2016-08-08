@@ -139,7 +139,7 @@ int64_t NumberToInt64(Object* number) {
   return static_cast<int64_t>(number->Number());
 }
 
-bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result) {
+bool TryNumberToSize(Object* number, size_t* result) {
   // Do not create handles in this function! Don't use SealHandleScope because
   // the function can be used concurrently.
   if (number->IsSmi()) {
@@ -163,10 +163,9 @@ bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result) {
   }
 }
 
-
-size_t NumberToSize(Isolate* isolate, Object* number) {
+size_t NumberToSize(Object* number) {
   size_t result = 0;
-  bool is_valid = TryNumberToSize(isolate, number, &result);
+  bool is_valid = TryNumberToSize(number, &result);
   CHECK(is_valid);
   return result;
 }

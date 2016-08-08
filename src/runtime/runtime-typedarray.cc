@@ -38,13 +38,13 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
 
   CHECK(!source.is_identical_to(target));
   size_t start = 0, target_length = 0;
-  CHECK(TryNumberToSize(isolate, *first, &start));
-  CHECK(TryNumberToSize(isolate, *new_length, &target_length));
-  CHECK(NumberToSize(isolate, target->byte_length()) >= target_length);
+  CHECK(TryNumberToSize(*first, &start));
+  CHECK(TryNumberToSize(*new_length, &target_length));
+  CHECK(NumberToSize(target->byte_length()) >= target_length);
 
   if (target_length == 0) return isolate->heap()->undefined_value();
 
-  size_t source_byte_length = NumberToSize(isolate, source->byte_length());
+  size_t source_byte_length = NumberToSize(source->byte_length());
   CHECK(start <= source_byte_length);
   CHECK(source_byte_length - start >= target_length);
   uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
@@ -66,7 +66,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   CHECK(!array_buffer->is_shared());
   DCHECK(!array_buffer->is_external());
   void* backing_store = array_buffer->backing_store();
-  size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
+  size_t byte_length = NumberToSize(array_buffer->byte_length());
   array_buffer->set_is_external(true);
   isolate->heap()->UnregisterArrayBuffer(*array_buffer);
   array_buffer->Neuter();
@@ -117,13 +117,12 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
 
   size_t byte_offset = 0;
   size_t byte_length = 0;
-  CHECK(TryNumberToSize(isolate, *byte_offset_object, &byte_offset));
-  CHECK(TryNumberToSize(isolate, *byte_length_object, &byte_length));
+  CHECK(TryNumberToSize(*byte_offset_object, &byte_offset));
+  CHECK(TryNumberToSize(*byte_length_object, &byte_length));
 
   if (maybe_buffer->IsJSArrayBuffer()) {
     Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(maybe_buffer);
-    size_t array_buffer_byte_length =
-        NumberToSize(isolate, buffer->byte_length());
+    size_t array_buffer_byte_length = NumberToSize(buffer->byte_length());
     CHECK(byte_offset <= array_buffer_byte_length);
     CHECK(array_buffer_byte_length - byte_offset >= byte_length);
   } else {
@@ -204,7 +203,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
     length_obj = handle(JSTypedArray::cast(*source)->length(), isolate);
     length = JSTypedArray::cast(*source)->length_value();
   } else {
-    CHECK(TryNumberToSize(isolate, *length_obj, &length));
+    CHECK(TryNumberToSize(*length_obj, &length));
   }
 
   if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
@@ -261,8 +260,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
     if (typed_array->type() == holder->type()) {
       uint8_t* backing_store =
           static_cast<uint8_t*>(typed_array->GetBuffer()->backing_store());
-      size_t source_byte_offset =
-          NumberToSize(isolate, typed_array->byte_offset());
+      size_t source_byte_offset = NumberToSize(typed_array->byte_offset());
       memcpy(buffer->backing_store(), backing_store + source_byte_offset,
              byte_length);
       return isolate->heap()->true_value();
@@ -328,19 +326,19 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   Handle<JSTypedArray> target(JSTypedArray::cast(*target_obj));
   Handle<JSTypedArray> source(JSTypedArray::cast(*source_obj));
   size_t offset = 0;
-  CHECK(TryNumberToSize(isolate, *offset_obj, &offset));
+  CHECK(TryNumberToSize(*offset_obj, &offset));
   size_t target_length = target->length_value();
   size_t source_length = source->length_value();
-  size_t target_byte_length = NumberToSize(isolate, target->byte_length());
-  size_t source_byte_length = NumberToSize(isolate, source->byte_length());
+  size_t target_byte_length = NumberToSize(target->byte_length());
+  size_t source_byte_length = NumberToSize(source->byte_length());
   if (offset > target_length || offset + source_length > target_length ||
       offset + source_length < offset) {  // overflow
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
   }
 
-  size_t target_offset = NumberToSize(isolate, target->byte_offset());
-  size_t source_offset = NumberToSize(isolate, source->byte_offset());
+  size_t target_offset = NumberToSize(target->byte_offset());
+  size_t source_offset = NumberToSize(source->byte_offset());
   uint8_t* target_base =
       static_cast<uint8_t*>(target->GetBuffer()->backing_store()) +
       target_offset;
@@ -454,15 +452,13 @@ inline static bool DataViewGetValue(Isolate* isolate,
                                     Handle<Object> byte_offset_obj,
                                     bool is_little_endian, T* result) {
   size_t byte_offset = 0;
-  if (!TryNumberToSize(isolate, *byte_offset_obj, &byte_offset)) {
+  if (!TryNumberToSize(*byte_offset_obj, &byte_offset)) {
     return false;
   }
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()));
 
-  size_t data_view_byte_offset =
-      NumberToSize(isolate, data_view->byte_offset());
-  size_t data_view_byte_length =
-      NumberToSize(isolate, data_view->byte_length());
+  size_t data_view_byte_offset = NumberToSize(data_view->byte_offset());
+  size_t data_view_byte_length = NumberToSize(data_view->byte_length());
   if (byte_offset + sizeof(T) > data_view_byte_length ||
       byte_offset + sizeof(T) < byte_offset) {  // overflow
     return false;
@@ -475,8 +471,7 @@ inline static bool DataViewGetValue(Isolate* isolate,
 
   Value value;
   size_t buffer_offset = data_view_byte_offset + byte_offset;
-  DCHECK(NumberToSize(isolate, buffer->byte_length()) >=
-         buffer_offset + sizeof(T));
+  DCHECK(NumberToSize(buffer->byte_length()) >= buffer_offset + sizeof(T));
   uint8_t* source =
       static_cast<uint8_t*>(buffer->backing_store()) + buffer_offset;
   if (NeedToFlipBytes(is_little_endian)) {
@@ -494,15 +489,13 @@ static bool DataViewSetValue(Isolate* isolate, Handle<JSDataView> data_view,
                              Handle<Object> byte_offset_obj,
                              bool is_little_endian, T data) {
   size_t byte_offset = 0;
-  if (!TryNumberToSize(isolate, *byte_offset_obj, &byte_offset)) {
+  if (!TryNumberToSize(*byte_offset_obj, &byte_offset)) {
     return false;
   }
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()));
 
-  size_t data_view_byte_offset =
-      NumberToSize(isolate, data_view->byte_offset());
-  size_t data_view_byte_length =
-      NumberToSize(isolate, data_view->byte_length());
+  size_t data_view_byte_offset = NumberToSize(data_view->byte_offset());
+  size_t data_view_byte_length = NumberToSize(data_view->byte_length());
   if (byte_offset + sizeof(T) > data_view_byte_length ||
       byte_offset + sizeof(T) < byte_offset) {  // overflow
     return false;
@@ -516,8 +509,7 @@ static bool DataViewSetValue(Isolate* isolate, Handle<JSDataView> data_view,
   Value value;
   value.data = data;
   size_t buffer_offset = data_view_byte_offset + byte_offset;
-  DCHECK(NumberToSize(isolate, buffer->byte_length()) >=
-         buffer_offset + sizeof(T));
+  DCHECK(NumberToSize(buffer->byte_length()) >= buffer_offset + sizeof(T));
   uint8_t* target =
       static_cast<uint8_t*>(buffer->backing_store()) + buffer_offset;
   if (NeedToFlipBytes(is_little_endian)) {

@@ -6927,10 +6927,9 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
 
 size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   i::Handle<i::JSArrayBufferView> self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
-  size_t byte_offset = i::NumberToSize(isolate, self->byte_offset());
+  size_t byte_offset = i::NumberToSize(self->byte_offset());
   size_t bytes_to_copy =
-      i::Min(byte_length, i::NumberToSize(isolate, self->byte_length()));
+      i::Min(byte_length, i::NumberToSize(self->byte_length()));
   if (bytes_to_copy) {
     i::DisallowHeapAllocation no_gc;
     i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()));

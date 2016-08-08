@@ -25,12 +25,12 @@ RUNTIME_FUNCTION(Runtime_AtomicsWait) {
   CONVERT_INT32_ARG_CHECKED(value, 2);
   CONVERT_DOUBLE_ARG_CHECKED(timeout, 3);
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(isolate, sta->length()));
+  CHECK_LT(index, NumberToSize(sta->length()));
   CHECK_EQ(sta->type(), kExternalInt32Array);
   CHECK(timeout == V8_INFINITY || !std::isnan(timeout));
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = (index << 2) + NumberToSize(isolate, sta->byte_offset());
+  size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
 
   return FutexEmulation::Wait(isolate, array_buffer, addr, value, timeout);
 }
@@ -42,11 +42,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsWake) {
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_INT32_ARG_CHECKED(count, 2);
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(isolate, sta->length()));
+  CHECK_LT(index, NumberToSize(sta->length()));
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = (index << 2) + NumberToSize(isolate, sta->byte_offset());
+  size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
 
   return FutexEmulation::Wake(isolate, array_buffer, addr, count);
 }
@@ -57,11 +57,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(isolate, sta->length()));
+  CHECK_LT(index, NumberToSize(sta->length()));
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = (index << 2) + NumberToSize(isolate, sta->byte_offset());
+  size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
 
   return FutexEmulation::NumWaitersForTesting(isolate, array_buffer, addr);
 }
