@@ -4219,21 +4219,6 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
 }
 
 
-TEST_F(InstructionSelectorTest, Float64SubWithMinusZero) {
-  StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
-  Node* const p0 = m.Parameter(0);
-  Node* const n = m.Float64Sub(m.Float64Constant(-0.0), p0);
-  m.Return(n);
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Float64Neg, s[0]->arch_opcode());
-  ASSERT_EQ(1U, s[0]->InputCount());
-  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-}
-
-
 TEST_F(InstructionSelectorTest, Float64Max) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
                   MachineType::Float64());

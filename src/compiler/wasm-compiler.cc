@@ -544,7 +544,7 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
       op = m->Float32Add();
       break;
     case wasm::kExprF32Sub:
-      op = m->Float32SubPreserveNan();
+      op = m->Float32Sub();
       break;
     case wasm::kExprF32Mul:
       op = m->Float32Mul();
@@ -575,7 +575,7 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
       op = m->Float64Add();
       break;
     case wasm::kExprF64Sub:
-      op = m->Float64SubPreserveNan();
+      op = m->Float64Sub();
       break;
     case wasm::kExprF64Mul:
       op = m->Float64Mul();

@@ -18,19 +18,6 @@
 namespace v8 {
 namespace internal {
 
-// Floating point constants.
-const uint32_t kDoubleSignMask = HeapNumber::kSignMask;
-const uint32_t kDoubleExponentShift = HeapNumber::kExponentShift;
-const uint32_t kDoubleNaNShift = kDoubleExponentShift - 1;
-const uint32_t kDoubleNaNMask =
-    HeapNumber::kExponentMask | (1 << kDoubleNaNShift);
-
-const uint32_t kSingleSignMask = kBinary32SignMask;
-const uint32_t kSingleExponentMask = kBinary32ExponentMask;
-const uint32_t kSingleExponentShift = kBinary32ExponentShift;
-const uint32_t kSingleNaNShift = kSingleExponentShift - 1;
-const uint32_t kSingleNaNMask = kSingleExponentMask | (1 << kSingleNaNShift);
-
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
     : Assembler(arg_isolate, buffer, size),
@@ -4755,75 +4742,6 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   Lsa(scratch1, scratch1, key_reg, kDoubleSizeLog2 - kSmiTagSize);
   // scratch1 is now effective address of the double element
   sdc1(double_result, MemOperand(scratch1, 0));
-}
-
-void MacroAssembler::SubNanPreservePayloadAndSign_s(FloatRegister fd,
-                                                    FloatRegister fs,
-                                                    FloatRegister ft) {
-  FloatRegister dest = fd.is(fs) || fd.is(ft) ? kLithiumScratchDouble : fd;
-  Label check_nan, save_payload, done;
-  Register scratch1 = t8;
-  Register scratch2 = t9;
-
-  sub_s(dest, fs, ft);
-  // Check if the result of subtraction is NaN.
-  BranchF32(nullptr, &check_nan, eq, fs, ft);
-  Branch(USE_DELAY_SLOT, &done);
-  dest.is(fd) ? nop() : mov_s(fd, dest);
-
-  bind(&check_nan);
-  // Check if first operand is a NaN.
-  mfc1(scratch1, fs);
-  BranchF32(nullptr, &save_payload, eq, fs, fs);
-  // Second operand must be a NaN.
-  mfc1(scratch1, ft);
-
-  bind(&save_payload);
-  // Reserve payload.
-  And(scratch1, scratch1,
-      Operand(kSingleSignMask | ((1 << kSingleNaNShift) - 1)));
-  mfc1(scratch2, dest);
-  And(scratch2, scratch2, Operand(kSingleNaNMask));
-  Or(scratch2, scratch2, scratch1);
-  mtc1(scratch2, fd);
-
-  bind(&done);
-}
-
-void MacroAssembler::SubNanPreservePayloadAndSign_d(DoubleRegister fd,
-                                                    DoubleRegister fs,
-                                                    DoubleRegister ft) {
-  FloatRegister dest = fd.is(fs) || fd.is(ft) ? kLithiumScratchDouble : fd;
-  Label check_nan, save_payload, done;
-  Register scratch1 = t8;
-  Register scratch2 = t9;
-
-  sub_d(dest, fs, ft);
-  // Check if the result of subtraction is NaN.
-  BranchF64(nullptr, &check_nan, eq, fs, ft);
-  Branch(USE_DELAY_SLOT, &done);
-  dest.is(fd) ? nop() : mov_d(fd, dest);
-
-  bind(&check_nan);
-  // Check if first operand is a NaN.
-  Mfhc1(scratch1, fs);
-  mov_s(dest, fs);
-  BranchF64(nullptr, &save_payload, eq, fs, fs);
-  // Second operand must be a NaN.
-  Mfhc1(scratch1, ft);
-  mov_s(dest, ft);
-
-  bind(&save_payload);
-  // Reserve payload.
-  And(scratch1, scratch1,
-      Operand(kDoubleSignMask | ((1 << kDoubleNaNShift) - 1)));
-  Mfhc1(scratch2, dest);
-  And(scratch2, scratch2, Operand(kDoubleNaNMask));
-  Or(scratch2, scratch2, scratch1);
-  Move_s(fd, dest);
-  Mthc1(scratch2, fd);
-
-  bind(&done);
 }
 
 void MacroAssembler::CompareMapAndBranch(Register obj,
