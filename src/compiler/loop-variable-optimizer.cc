@@ -221,7 +221,7 @@ void LoopVariableOptimizer::VisitMerge(Node* node) {
   // Merge the limits of all incoming edges.
   VariableLimits* merged = limits_[node->InputAt(0)->id()]->Copy(zone());
   for (int i = 1; i < node->InputCount(); i++) {
-    merged->Merge(limits_[node->InputAt(0)->id()]);
+    merged->Merge(limits_[node->InputAt(i)->id()]);
   }
   limits_[node->id()] = merged;
 }
