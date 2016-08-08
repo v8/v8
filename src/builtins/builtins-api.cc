@@ -157,16 +157,17 @@ class RelocatableArguments : public BuiltinArguments, public Relocatable {
 }  // namespace
 
 MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
+                                                bool is_construct,
                                                 Handle<HeapObject> function,
                                                 Handle<Object> receiver,
-                                                int argc,
-                                                Handle<Object> args[]) {
+                                                int argc, Handle<Object> args[],
+                                                Handle<HeapObject> new_target) {
   DCHECK(function->IsFunctionTemplateInfo() ||
          (function->IsJSFunction() &&
           JSFunction::cast(*function)->shared()->IsApiFunction()));
 
   // Do proper receiver conversion for non-strict mode api functions.
-  if (!receiver->IsJSReceiver()) {
+  if (!is_construct && !receiver->IsJSReceiver()) {
     if (function->IsFunctionTemplateInfo() ||
         is_sloppy(JSFunction::cast(*function)->shared()->language_mode())) {
       ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
@@ -180,7 +181,6 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
           ? Handle<FunctionTemplateInfo>::cast(function)
           : handle(JSFunction::cast(*function)->shared()->get_api_func_data(),
                    isolate);
-  Handle<HeapObject> new_target = isolate->factory()->undefined_value();
   // Construct BuiltinArguments object:
   // new target, function, arguments reversed, receiver.
   const int kBufferSize = 32;
@@ -204,8 +204,13 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   MaybeHandle<Object> result;
   {
     RelocatableArguments arguments(isolate, frame_argc, &argv[frame_argc - 1]);
-    result = HandleApiCallHelper<false>(isolate, function, new_target, fun_data,
-                                        receiver, arguments);
+    if (is_construct) {
+      result = HandleApiCallHelper<true>(isolate, function, new_target,
+                                         fun_data, receiver, arguments);
+    } else {
+      result = HandleApiCallHelper<false>(isolate, function, new_target,
+                                          fun_data, receiver, arguments);
+    }
   }
   if (argv != small_argv) delete[] argv;
   return result;

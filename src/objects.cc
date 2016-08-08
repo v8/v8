@@ -1344,8 +1344,8 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   Handle<Object> getter(AccessorPair::cast(*structure)->getter(), isolate);
   if (getter->IsFunctionTemplateInfo()) {
     return Builtins::InvokeApiFunction(
-        isolate, Handle<FunctionTemplateInfo>::cast(getter), receiver, 0,
-        nullptr);
+        isolate, false, Handle<FunctionTemplateInfo>::cast(getter), receiver, 0,
+        nullptr, isolate->factory()->undefined_value());
   } else if (getter->IsCallable()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return Object::GetPropertyWithDefinedGetter(
@@ -1427,8 +1427,9 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
     Handle<Object> argv[] = {value};
     RETURN_ON_EXCEPTION_VALUE(
         isolate, Builtins::InvokeApiFunction(
-                     isolate, Handle<FunctionTemplateInfo>::cast(setter),
-                     receiver, arraysize(argv), argv),
+                     isolate, false, Handle<FunctionTemplateInfo>::cast(setter),
+                     receiver, arraysize(argv), argv,
+                     isolate->factory()->undefined_value()),
         Nothing<bool>());
     return Just(true);
   } else if (setter->IsCallable()) {
