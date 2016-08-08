@@ -75,6 +75,8 @@ class OperationTyper {
   Zone* const zone_;
   TypeCache const& cache_;
 
+  Type* infinity_;
+  Type* minus_infinity_;
   Type* singleton_false_;
   Type* singleton_true_;
   Type* singleton_the_hole_;
