@@ -160,10 +160,9 @@ class EffectControlLinearizer {
   ValueEffectControl BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
                                                 Node* value, Node* frame_state,
                                                 Node* effect, Node* control);
-  ValueEffectControl BuildCheckedHeapNumberOrOddballToFloat64(Node* value,
-                                                              Node* frame_state,
-                                                              Node* effect,
-                                                              Node* control);
+  ValueEffectControl BuildCheckedHeapNumberOrOddballToFloat64(
+      CheckTaggedInputMode mode, Node* value, Node* frame_state, Node* effect,
+      Node* control);
 
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeUint32ToSmi(Node* value);

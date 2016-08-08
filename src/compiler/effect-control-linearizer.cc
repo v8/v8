@@ -1667,41 +1667,54 @@ EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
 
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
-    Node* value, Node* frame_state, Node* effect, Node* control) {
+    CheckTaggedInputMode mode, Node* value, Node* frame_state, Node* effect,
+    Node* control) {
   Node* value_map = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
+
   Node* check_number = graph()->NewNode(machine()->WordEqual(), value_map,
                                         jsgraph()->HeapNumberMapConstant());
 
-  Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                  check_number, control);
+  switch (mode) {
+    case CheckTaggedInputMode::kNumber: {
+      control = effect = graph()->NewNode(
+          common()->DeoptimizeUnless(DeoptimizeReason::kNotAHeapNumber),
+          check_number, frame_state, effect, control);
+      break;
+    }
+    case CheckTaggedInputMode::kNumberOrOddball: {
+      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                      check_number, control);
 
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* etrue = effect;
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* etrue = effect;
 
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  // For oddballs also contain the numeric value, let us just check that
-  // we have an oddball here.
-  Node* efalse = effect;
-  Node* instance_type = efalse = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), value_map,
-      efalse, if_false);
-  Node* check_oddball =
-      graph()->NewNode(machine()->Word32Equal(), instance_type,
-                       jsgraph()->Int32Constant(ODDBALL_TYPE));
-  if_false = efalse =
-      graph()->NewNode(common()->DeoptimizeUnless(
-                           DeoptimizeReason::kNotAHeapNumberUndefinedBoolean),
-                       check_oddball, frame_state, efalse, if_false);
-  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      // For oddballs also contain the numeric value, let us just check that
+      // we have an oddball here.
+      Node* efalse = effect;
+      Node* instance_type = efalse = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+          value_map, efalse, if_false);
+      Node* check_oddball =
+          graph()->NewNode(machine()->Word32Equal(), instance_type,
+                           jsgraph()->Int32Constant(ODDBALL_TYPE));
+      if_false = efalse = graph()->NewNode(
+          common()->DeoptimizeUnless(
+              DeoptimizeReason::kNotAHeapNumberUndefinedBoolean),
+          check_oddball, frame_state, efalse, if_false);
+      STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
 
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+      control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+      effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+      break;
+    }
+  }
 
-  Node* result = effect = graph()->NewNode(
+  value = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
       effect, control);
-  return ValueEffectControl(result, effect, control);
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl
@@ -1709,6 +1722,7 @@ EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
                                                      Node* frame_state,
                                                      Node* effect,
                                                      Node* control) {
+  CheckTaggedInputMode mode = CheckTaggedInputModeOf(node->op());
   Node* value = node->InputAt(0);
 
   Node* check = ObjectIsSmi(value);
@@ -1724,7 +1738,7 @@ EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
   // Otherwise, check heap numberness and load the number.
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   ValueEffectControl number_state = BuildCheckedHeapNumberOrOddballToFloat64(
-      value, frame_state, effect, if_false);
+      mode, value, frame_state, effect, if_false);
 
   Node* merge =
       graph()->NewNode(common()->Merge(2), if_true, number_state.control);
@@ -1789,7 +1803,8 @@ EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(Node* node,
   // to int32.
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   ValueEffectControl false_state = BuildCheckedHeapNumberOrOddballToFloat64(
-      value, frame_state, effect, if_false);
+      CheckTaggedInputMode::kNumberOrOddball, value, frame_state, effect,
+      if_false);
   false_state.value =
       graph()->NewNode(machine()->TruncateFloat64ToWord32(), false_state.value);
 

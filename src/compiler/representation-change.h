@@ -78,6 +78,7 @@ enum class TypeCheckKind : uint8_t {
   kNone,
   kSignedSmall,
   kSigned32,
+  kNumber,
   kNumberOrOddball
 };
 
@@ -89,6 +90,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "SignedSmall";
     case TypeCheckKind::kSigned32:
       return os << "Signed32";
+    case TypeCheckKind::kNumber:
+      return os << "Number";
     case TypeCheckKind::kNumberOrOddball:
       return os << "NumberOrOddball";
   }
@@ -145,6 +148,14 @@ class UseInfo {
   static UseInfo CheckedSigned32AsWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
                    TypeCheckKind::kSigned32);
+  }
+  static UseInfo CheckedNumberAsFloat64() {
+    return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64(),
+                   TypeCheckKind::kNumber);
+  }
+  static UseInfo CheckedNumberAsWord32() {
+    return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
+                   TypeCheckKind::kNumber);
   }
   static UseInfo CheckedNumberOrOddballAsFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),

@@ -249,6 +249,26 @@ CheckTaggedHoleMode CheckTaggedHoleModeOf(const Operator* op) {
   return OpParameter<CheckTaggedHoleMode>(op);
 }
 
+size_t hash_value(CheckTaggedInputMode mode) {
+  return static_cast<size_t>(mode);
+}
+
+std::ostream& operator<<(std::ostream& os, CheckTaggedInputMode mode) {
+  switch (mode) {
+    case CheckTaggedInputMode::kNumber:
+      return os << "Number";
+    case CheckTaggedInputMode::kNumberOrOddball:
+      return os << "NumberOrOddball";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+CheckTaggedInputMode CheckTaggedInputModeOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kCheckedTaggedToFloat64, op->opcode());
+  return OpParameter<CheckTaggedInputMode>(op);
+}
+
 std::ostream& operator<<(std::ostream& os, GrowFastElementsFlags flags) {
   bool empty = true;
   if (flags & GrowFastElementsFlag::kArrayObject) {
@@ -300,6 +320,8 @@ std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
       return os << "SignedSmall";
     case NumberOperationHint::kSigned32:
       return os << "Signed32";
+    case NumberOperationHint::kNumber:
+      return os << "Number";
     case NumberOperationHint::kNumberOrOddball:
       return os << "NumberOrOddball";
   }
@@ -429,7 +451,6 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   V(CheckedUint32Mod, 2, 1)           \
   V(CheckedUint32ToInt32, 1, 1)       \
   V(CheckedTaggedSignedToInt32, 1, 1) \
-  V(CheckedTaggedToFloat64, 1, 1)     \
   V(CheckedTruncateTaggedToWord32, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {
@@ -496,6 +517,20 @@ struct SimplifiedOperatorGlobalCache final {
   CheckedTaggedToInt32Operator<CheckForMinusZeroMode::kDontCheckForMinusZero>
       kCheckedTaggedToInt32DontCheckForMinusZeroOperator;
 
+  template <CheckTaggedInputMode kMode>
+  struct CheckedTaggedToFloat64Operator final
+      : public Operator1<CheckTaggedInputMode> {
+    CheckedTaggedToFloat64Operator()
+        : Operator1<CheckTaggedInputMode>(
+              IrOpcode::kCheckedTaggedToFloat64,
+              Operator::kFoldable | Operator::kNoThrow,
+              "CheckedTaggedToFloat64", 1, 1, 1, 1, 1, 0, kMode) {}
+  };
+  CheckedTaggedToFloat64Operator<CheckTaggedInputMode::kNumber>
+      kCheckedTaggedToFloat64NumberOperator;
+  CheckedTaggedToFloat64Operator<CheckTaggedInputMode::kNumberOrOddball>
+      kCheckedTaggedToFloat64NumberOrOddballOperator;
+
   template <CheckFloat64HoleMode kMode>
   struct CheckFloat64HoleNaNOperator final
       : public Operator1<CheckFloat64HoleMode> {
@@ -555,6 +590,7 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator<NumberOperationHint::kSignedSmall>                         \
       k##Name##SignedSmallOperator;                                         \
   Name##Operator<NumberOperationHint::kSigned32> k##Name##Signed32Operator; \
+  Name##Operator<NumberOperationHint::kNumber> k##Name##NumberOperator;     \
   Name##Operator<NumberOperationHint::kNumberOrOddball>                     \
       k##Name##NumberOrOddballOperator;
   SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
@@ -628,6 +664,18 @@ const Operator* SimplifiedOperatorBuilder::CheckedTaggedToInt32(
       return &cache_.kCheckedTaggedToInt32CheckForMinusZeroOperator;
     case CheckForMinusZeroMode::kDontCheckForMinusZero:
       return &cache_.kCheckedTaggedToInt32DontCheckForMinusZeroOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* SimplifiedOperatorBuilder::CheckedTaggedToFloat64(
+    CheckTaggedInputMode mode) {
+  switch (mode) {
+    case CheckTaggedInputMode::kNumber:
+      return &cache_.kCheckedTaggedToFloat64NumberOperator;
+    case CheckTaggedInputMode::kNumberOrOddball:
+      return &cache_.kCheckedTaggedToFloat64NumberOrOddballOperator;
   }
   UNREACHABLE();
   return nullptr;
@@ -743,6 +791,8 @@ const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
         return &cache_.k##Name##SignedSmallOperator;                          \
       case NumberOperationHint::kSigned32:                                    \
         return &cache_.k##Name##Signed32Operator;                             \
+      case NumberOperationHint::kNumber:                                      \
+        return &cache_.k##Name##NumberOperator;                               \
       case NumberOperationHint::kNumberOrOddball:                             \
         return &cache_.k##Name##NumberOrOddballOperator;                      \
     }                                                                         \

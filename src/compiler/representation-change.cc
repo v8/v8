@@ -373,8 +373,13 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     } else if (output_type->Is(Type::NumberOrOddball())) {
       // TODO(jarin) Here we should check that truncation is Number.
       op = simplified()->TruncateTaggedToFloat64();
+    } else if (use_info.type_check() == TypeCheckKind::kNumber ||
+               (use_info.type_check() == TypeCheckKind::kNumberOrOddball &&
+                !output_type->Maybe(Type::BooleanOrNullOrNumber()))) {
+      op = simplified()->CheckedTaggedToFloat64(CheckTaggedInputMode::kNumber);
     } else if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
-      op = simplified()->CheckedTaggedToFloat64();
+      op = simplified()->CheckedTaggedToFloat64(
+          CheckTaggedInputMode::kNumberOrOddball);
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     op = machine()->ChangeFloat32ToFloat64();

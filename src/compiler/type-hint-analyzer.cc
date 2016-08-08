@@ -26,7 +26,7 @@ BinaryOperationHints::Hint ToBinaryOperationHint(Type* type) {
 }
 
 CompareOperationHints::Hint ToCompareOperationHint(
-    CompareICState::State state) {
+    Token::Value op, CompareICState::State state) {
   switch (state) {
     case CompareICState::UNINITIALIZED:
       return CompareOperationHints::kNone;
@@ -35,7 +35,9 @@ CompareOperationHints::Hint ToCompareOperationHint(
     case CompareICState::SMI:
       return CompareOperationHints::kSignedSmall;
     case CompareICState::NUMBER:
-      return CompareOperationHints::kNumberOrOddball;
+      return Token::IsOrderedRelationalCompareOp(op)
+                 ? CompareOperationHints::kNumberOrOddball
+                 : CompareOperationHints::kNumber;
     case CompareICState::STRING:
       return CompareOperationHints::kString;
     case CompareICState::INTERNALIZED_STRING:
@@ -79,9 +81,10 @@ bool TypeHintAnalysis::GetCompareOperationHints(
   if (raw_map != nullptr) Map::TryUpdate(handle(raw_map)).ToHandle(&map);
 
   CompareICStub stub(code->stub_key(), code->GetIsolate());
-  *hints = CompareOperationHints(ToCompareOperationHint(stub.left()),
-                                 ToCompareOperationHint(stub.right()),
-                                 ToCompareOperationHint(stub.state()));
+  *hints =
+      CompareOperationHints(ToCompareOperationHint(stub.op(), stub.left()),
+                            ToCompareOperationHint(stub.op(), stub.right()),
+                            ToCompareOperationHint(stub.op(), stub.state()));
   return true;
 }
 

@@ -64,6 +64,7 @@ class CompareOperationHints final {
     kNone,
     kBoolean,
     kSignedSmall,
+    kNumber,
     kNumberOrOddball,
     kString,
     kInternalizedString,

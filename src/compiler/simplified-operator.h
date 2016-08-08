@@ -130,6 +130,17 @@ std::ostream& operator<<(std::ostream&, CheckTaggedHoleMode);
 
 CheckTaggedHoleMode CheckTaggedHoleModeOf(const Operator*) WARN_UNUSED_RESULT;
 
+enum class CheckTaggedInputMode : uint8_t {
+  kNumber,
+  kNumberOrOddball,
+};
+
+size_t hash_value(CheckTaggedInputMode);
+
+std::ostream& operator<<(std::ostream&, CheckTaggedInputMode);
+
+CheckTaggedInputMode CheckTaggedInputModeOf(const Operator*) WARN_UNUSED_RESULT;
+
 enum class CheckForMinusZeroMode : uint8_t {
   kCheckForMinusZero,
   kDontCheckForMinusZero,
@@ -173,6 +184,7 @@ ElementsTransition ElementsTransitionOf(const Operator* op) WARN_UNUSED_RESULT;
 enum class NumberOperationHint : uint8_t {
   kSignedSmall,      // Inputs were always Smi so far, output was in Smi range.
   kSigned32,         // Inputs and output were Signed32 so far.
+  kNumber,           // Inputs were Number, output was Number.
   kNumberOrOddball,  // Inputs were Number or Oddball, output was Number.
 };
 
@@ -323,7 +335,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode);
   const Operator* CheckedTaggedSignedToInt32();
   const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode);
-  const Operator* CheckedTaggedToFloat64();
+  const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode);
   const Operator* CheckedTruncateTaggedToWord32();
 
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);

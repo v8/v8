@@ -93,8 +93,26 @@ UseInfo CheckedUseInfoAsWord32FromHint(NumberOperationHint hint) {
       return UseInfo::CheckedSignedSmallAsWord32();
     case NumberOperationHint::kSigned32:
       return UseInfo::CheckedSigned32AsWord32();
+    case NumberOperationHint::kNumber:
+      return UseInfo::CheckedNumberAsWord32();
     case NumberOperationHint::kNumberOrOddball:
       return UseInfo::CheckedNumberOrOddballAsWord32();
+  }
+  UNREACHABLE();
+  return UseInfo::None();
+}
+
+UseInfo CheckedUseInfoAsFloat64FromHint(NumberOperationHint hint) {
+  switch (hint) {
+    case NumberOperationHint::kSignedSmall:
+    case NumberOperationHint::kSigned32:
+      // Not used currently.
+      UNREACHABLE();
+      break;
+    case NumberOperationHint::kNumber:
+      return UseInfo::CheckedNumberAsFloat64();
+    case NumberOperationHint::kNumberOrOddball:
+      return UseInfo::CheckedNumberOrOddballAsFloat64();
   }
   UNREACHABLE();
   return UseInfo::None();
@@ -1347,18 +1365,21 @@ class RepresentationSelector {
         }
         // Try to use type feedback.
         NumberOperationHint hint = NumberOperationHintOf(node->op());
-
-        if (hint == NumberOperationHint::kSignedSmall) {
-          VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
-                     MachineRepresentation::kBit);
-          if (lower()) ChangeToPureOp(node, Int32Op(node));
-          return;
+        switch (hint) {
+          case NumberOperationHint::kSignedSmall:
+          case NumberOperationHint::kSigned32:
+            VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                       MachineRepresentation::kBit);
+            if (lower()) ChangeToPureOp(node, Int32Op(node));
+            return;
+          case NumberOperationHint::kNumber:
+          case NumberOperationHint::kNumberOrOddball:
+            VisitBinop(node, CheckedUseInfoAsFloat64FromHint(hint),
+                       MachineRepresentation::kBit);
+            if (lower()) ChangeToPureOp(node, Float64Op(node));
+            return;
         }
-        DCHECK_EQ(NumberOperationHint::kNumberOrOddball, hint);
-        // default case => Float64 comparison
-        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
-                   MachineRepresentation::kBit);
-        if (lower()) ChangeToPureOp(node, Float64Op(node));
+        UNREACHABLE();
         return;
       }
 
