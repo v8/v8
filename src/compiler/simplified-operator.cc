@@ -269,7 +269,24 @@ ElementsTransition ElementsTransitionOf(const Operator* op) {
   return OpParameter<ElementsTransition>(op);
 }
 
-BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
+std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
+  switch (hint) {
+    case NumberOperationHint::kSignedSmall:
+      return os << "SignedSmall";
+    case NumberOperationHint::kSigned32:
+      return os << "Signed32";
+    case NumberOperationHint::kNumberOrOddball:
+      return os << "NumberOrOddball";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+size_t hash_value(NumberOperationHint hint) {
+  return static_cast<uint8_t>(hint);
+}
+
+NumberOperationHint NumberOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kSpeculativeNumberAdd ||
          op->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
          op->opcode() == IrOpcode::kSpeculativeNumberMultiply ||
@@ -280,15 +297,11 @@ BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeNumberShiftRightLogical ||
          op->opcode() == IrOpcode::kSpeculativeNumberBitwiseAnd ||
          op->opcode() == IrOpcode::kSpeculativeNumberBitwiseOr ||
-         op->opcode() == IrOpcode::kSpeculativeNumberBitwiseXor);
-  return OpParameter<BinaryOperationHints::Hint>(op);
-}
-
-CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kSpeculativeNumberEqual ||
+         op->opcode() == IrOpcode::kSpeculativeNumberBitwiseXor ||
+         op->opcode() == IrOpcode::kSpeculativeNumberEqual ||
          op->opcode() == IrOpcode::kSpeculativeNumberLessThan ||
          op->opcode() == IrOpcode::kSpeculativeNumberLessThanOrEqual);
-  return OpParameter<CompareOperationHints::Hint>(op);
+  return OpParameter<NumberOperationHint>(op);
 }
 
 #define PURE_OP_LIST(V)                                       \
@@ -370,18 +383,11 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(StringLessThan, Operator::kNoProperties, 2, 0)            \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)
 
-#define SPECULATIVE_BINOP_LIST(V)       \
-  V(SpeculativeNumberAdd)               \
-  V(SpeculativeNumberSubtract)          \
-  V(SpeculativeNumberDivide)            \
-  V(SpeculativeNumberMultiply)          \
-  V(SpeculativeNumberModulus)           \
-  V(SpeculativeNumberShiftLeft)         \
-  V(SpeculativeNumberShiftRight)        \
-  V(SpeculativeNumberShiftRightLogical) \
-  V(SpeculativeNumberBitwiseAnd)        \
-  V(SpeculativeNumberBitwiseOr)         \
-  V(SpeculativeNumberBitwiseXor)
+#define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
+  SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
+  V(SpeculativeNumberEqual)                   \
+  V(SpeculativeNumberLessThan)                \
+  V(SpeculativeNumberLessThanOrEqual)
 
 #define CHECKED_OP_LIST(V)            \
   V(CheckBounds, 2, 1)                \
@@ -512,6 +518,22 @@ struct SimplifiedOperatorGlobalCache final {
               2, 1, 1, 1, 1, 0) {}                      // counts
   };
   EnsureWritableFastElementsOperator kEnsureWritableFastElements;
+
+#define SPECULATIVE_NUMBER_BINOP(Name)                                      \
+  template <NumberOperationHint kHint>                                      \
+  struct Name##Operator final : public Operator1<NumberOperationHint> {     \
+    Name##Operator()                                                        \
+        : Operator1<NumberOperationHint>(                                   \
+              IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow,  \
+              #Name, 2, 1, 1, 1, 1, 0, kHint) {}                            \
+  };                                                                        \
+  Name##Operator<NumberOperationHint::kSignedSmall>                         \
+      k##Name##SignedSmallOperator;                                         \
+  Name##Operator<NumberOperationHint::kSigned32> k##Name##Signed32Operator; \
+  Name##Operator<NumberOperationHint::kNumberOrOddball>                     \
+      k##Name##NumberOrOddballOperator;
+  SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
+#undef SPECULATIVE_NUMBER_BINOP
 
 #define BUFFER_ACCESS(Type, type, TYPE, ctype, size)                          \
   struct LoadBuffer##Type##Operator final : public Operator1<BufferAccess> {  \
@@ -679,39 +701,21 @@ const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
   return nullptr;
 }
 
-#define SPECULATIVE_BINOP_DEF(Name)                                            \
-  const Operator* SimplifiedOperatorBuilder::Name(                             \
-      BinaryOperationHints::Hint hint) {                                       \
-    return new (zone()) Operator1<BinaryOperationHints::Hint>(                 \
-        IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow, #Name, 2, \
-        1, 1, 1, 1, 0, hint);                                                  \
+#define SPECULATIVE_NUMBER_BINOP(Name)                                        \
+  const Operator* SimplifiedOperatorBuilder::Name(NumberOperationHint hint) { \
+    switch (hint) {                                                           \
+      case NumberOperationHint::kSignedSmall:                                 \
+        return &cache_.k##Name##SignedSmallOperator;                          \
+      case NumberOperationHint::kSigned32:                                    \
+        return &cache_.k##Name##Signed32Operator;                             \
+      case NumberOperationHint::kNumberOrOddball:                             \
+        return &cache_.k##Name##NumberOrOddballOperator;                      \
+    }                                                                         \
+    UNREACHABLE();                                                            \
+    return nullptr;                                                           \
   }
-SPECULATIVE_BINOP_LIST(SPECULATIVE_BINOP_DEF)
-#undef SPECULATIVE_BINOP_DEF
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
-    CompareOperationHints::Hint hint) {
-  return new (zone()) Operator1<CompareOperationHints::Hint>(
-      IrOpcode::kSpeculativeNumberEqual,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeNumberEqual", 2, 1,
-      1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeNumberLessThan(
-    CompareOperationHints::Hint hint) {
-  return new (zone()) Operator1<CompareOperationHints::Hint>(
-      IrOpcode::kSpeculativeNumberLessThan,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeNumberLessThan", 2,
-      1, 1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeNumberLessThanOrEqual(
-    CompareOperationHints::Hint hint) {
-  return new (zone()) Operator1<CompareOperationHints::Hint>(
-      IrOpcode::kSpeculativeNumberLessThanOrEqual,
-      Operator::kFoldable | Operator::kNoThrow,
-      "SpeculativeNumberLessThanOrEqual", 2, 1, 1, 1, 1, 0, hint);
-}
+SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
+#undef SPECULATIVE_NUMBER_BINOP
 
 #define ACCESS_OP_LIST(V)                                             \
   V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)              \

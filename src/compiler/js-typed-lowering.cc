@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/js-typed-lowering.h"
+
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -27,35 +28,55 @@ class JSBinopReduction final {
   JSBinopReduction(JSTypedLowering* lowering, Node* node)
       : lowering_(lowering), node_(node) {}
 
-  BinaryOperationHints::Hint GetNumberBinaryOperationFeedback() {
+  bool GetBinaryNumberOperationHint(NumberOperationHint* hint) {
     if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
       DCHECK_NE(0, node_->op()->ControlOutputCount());
       DCHECK_EQ(1, node_->op()->EffectOutputCount());
       DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
       BinaryOperationHints hints = BinaryOperationHintsOf(node_->op());
-      BinaryOperationHints::Hint combined = hints.combined();
-      if (combined == BinaryOperationHints::kSignedSmall ||
-          combined == BinaryOperationHints::kSigned32 ||
-          combined == BinaryOperationHints::kNumberOrOddball) {
-        return combined;
+      switch (hints.combined()) {
+        case BinaryOperationHints::kSignedSmall:
+          *hint = NumberOperationHint::kSignedSmall;
+          return true;
+        case BinaryOperationHints::kSigned32:
+          *hint = NumberOperationHint::kSigned32;
+          return true;
+        case BinaryOperationHints::kNumberOrOddball:
+          *hint = NumberOperationHint::kNumberOrOddball;
+          return true;
+        case BinaryOperationHints::kAny:
+        case BinaryOperationHints::kNone:
+        case BinaryOperationHints::kString:
+          break;
       }
     }
-    return BinaryOperationHints::kAny;
+    return false;
   }
 
-  CompareOperationHints::Hint GetNumberCompareOperationFeedback() {
+  bool GetCompareNumberOperationHint(NumberOperationHint* hint) {
     if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
       DCHECK_NE(0, node_->op()->ControlOutputCount());
       DCHECK_EQ(1, node_->op()->EffectOutputCount());
       DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
       CompareOperationHints hints = CompareOperationHintsOf(node_->op());
-      CompareOperationHints::Hint combined = hints.combined();
-      if (combined == CompareOperationHints::kSignedSmall ||
-          combined == CompareOperationHints::kNumberOrOddball) {
-        return combined;
+      switch (hints.combined()) {
+        case CompareOperationHints::kSignedSmall:
+          *hint = NumberOperationHint::kSignedSmall;
+          return true;
+        case CompareOperationHints::kNumberOrOddball:
+          *hint = NumberOperationHint::kNumberOrOddball;
+          return true;
+        case CompareOperationHints::kAny:
+        case CompareOperationHints::kNone:
+        case CompareOperationHints::kString:
+        case CompareOperationHints::kBoolean:
+        case CompareOperationHints::kUniqueName:
+        case CompareOperationHints::kInternalizedString:
+        case CompareOperationHints::kReceiver:
+          break;
       }
     }
-    return CompareOperationHints::kAny;
+    return false;
   }
 
   void ConvertInputsToNumber() {
@@ -354,18 +375,17 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
 
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
-  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kNumberOrOddball &&
-      r.BothInputsAre(Type::PlainPrimitive()) &&
-      r.NeitherInputCanBe(Type::StringOrReceiver())) {
-    // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
-    r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
-  }
-  if (feedback != BinaryOperationHints::kAny) {
-    // Lower to the optimistic number binop.
+  NumberOperationHint hint;
+  if (r.GetBinaryNumberOperationHint(&hint)) {
+    if (hint == NumberOperationHint::kNumberOrOddball &&
+        r.BothInputsAre(Type::PlainPrimitive()) &&
+        r.NeitherInputCanBe(Type::StringOrReceiver())) {
+      // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
+      r.ConvertInputsToNumber();
+      return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
+    }
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberAdd(feedback), Type::Number());
+        simplified()->SpeculativeNumberAdd(hint), Type::Number());
   }
   if (r.BothInputsAre(Type::Number())) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
@@ -402,75 +422,69 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   return NoChange();
 }
 
-
 Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
   JSBinopReduction r(this, node);
-  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kNumberOrOddball &&
-      r.BothInputsAre(Type::PlainPrimitive())) {
-    // JSSubtract(x:plain-primitive, y:plain-primitive)
-    //   => NumberSubtract(ToNumber(x), ToNumber(y))
-    r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(simplified()->NumberSubtract(),
-                                  Type::Number());
-  }
-  if (feedback != BinaryOperationHints::kAny) {
-    // Lower to the optimistic number binop.
+  NumberOperationHint hint;
+  if (r.GetBinaryNumberOperationHint(&hint)) {
+    if (hint == NumberOperationHint::kNumberOrOddball &&
+        r.BothInputsAre(Type::PlainPrimitive())) {
+      // JSSubtract(x:plain-primitive, y:plain-primitive)
+      //   => NumberSubtract(ToNumber(x), ToNumber(y))
+      r.ConvertInputsToNumber();
+      return r.ChangeToPureOperator(simplified()->NumberSubtract(),
+                                    Type::Number());
+    }
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberSubtract(feedback), Type::Number());
+        simplified()->SpeculativeNumberSubtract(hint), Type::Number());
   }
-
-  // If deoptimization is enabled we rely on type feedback.
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberSubtract(),
                                   Type::Number());
   }
-
   return NoChange();
 }
 
 Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
   JSBinopReduction r(this, node);
-  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kNumberOrOddball &&
-      r.BothInputsAre(Type::PlainPrimitive())) {
-    // JSMultiply(x:plain-primitive,
-    //            y:plain-primitive) => NumberMultiply(ToNumber(x), ToNumber(y))
-    r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(simplified()->NumberMultiply(),
-                                  Type::Number());
-  }
-  if (feedback != BinaryOperationHints::kAny) {
+  NumberOperationHint hint;
+  if (r.GetBinaryNumberOperationHint(&hint)) {
+    if (hint == NumberOperationHint::kNumberOrOddball &&
+        r.BothInputsAre(Type::PlainPrimitive())) {
+      // JSMultiply(x:plain-primitive,
+      //            y:plain-primitive) => NumberMultiply(ToNumber(x),
+      //            ToNumber(y))
+      r.ConvertInputsToNumber();
+      return r.ChangeToPureOperator(simplified()->NumberMultiply(),
+                                    Type::Number());
+    }
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberMultiply(feedback), Type::Number());
+        simplified()->SpeculativeNumberMultiply(hint), Type::Number());
   }
-
-  // If deoptimization is enabled we rely on type feedback.
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberMultiply(),
                                   Type::Number());
   }
-
   return NoChange();
 }
 
 Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
   JSBinopReduction r(this, node);
-  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kNumberOrOddball &&
-      r.BothInputsAre(Type::PlainPrimitive())) {
-    // JSDivide(x:plain-primitive,
-    //          y:plain-primitive) => NumberDivide(ToNumber(x), ToNumber(y))
-    r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(simplified()->NumberDivide(), Type::Number());
-  }
-  if (feedback != BinaryOperationHints::kAny) {
+  NumberOperationHint hint;
+  if (r.GetBinaryNumberOperationHint(&hint)) {
+    if (hint == NumberOperationHint::kNumberOrOddball &&
+        r.BothInputsAre(Type::PlainPrimitive())) {
+      // JSDivide(x:plain-primitive,
+      //          y:plain-primitive) => NumberDivide(ToNumber(x), ToNumber(y))
+      r.ConvertInputsToNumber();
+      return r.ChangeToPureOperator(simplified()->NumberDivide(),
+                                    Type::Number());
+    }
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberDivide(feedback), Type::Number());
+        simplified()->SpeculativeNumberDivide(hint), Type::Number());
   }
   if (r.BothInputsAre(Type::PlainPrimitive())) {
     // JSDivide(x:plain-primitive,
@@ -483,18 +497,18 @@ Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
   JSBinopReduction r(this, node);
-  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kNumberOrOddball &&
-      r.BothInputsAre(Type::PlainPrimitive())) {
-    // JSModulus(x:plain-primitive,
-    //           y:plain-primitive) => NumberModulus(ToNumber(x), ToNumber(y))
-    r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(simplified()->NumberModulus(),
-                                  Type::Number());
-  }
-  if (feedback != BinaryOperationHints::kAny) {
+  NumberOperationHint hint;
+  if (r.GetBinaryNumberOperationHint(&hint)) {
+    if (hint == NumberOperationHint::kNumberOrOddball &&
+        r.BothInputsAre(Type::PlainPrimitive())) {
+      // JSModulus(x:plain-primitive,
+      //           y:plain-primitive) => NumberModulus(ToNumber(x), ToNumber(y))
+      r.ConvertInputsToNumber();
+      return r.ChangeToPureOperator(simplified()->NumberModulus(),
+                                    Type::Number());
+    }
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberModulus(feedback), Type::Number());
+        simplified()->SpeculativeNumberModulus(hint), Type::Number());
   }
   if (r.BothInputsAre(Type::PlainPrimitive())) {
     // JSModulus(x:plain-primitive,
@@ -509,21 +523,19 @@ Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node,
                                             const Operator* int_op) {
   JSBinopReduction r(this, node);
-  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback != BinaryOperationHints::kAny) {
+  NumberOperationHint hint;
+  if (r.GetBinaryNumberOperationHint(&hint)) {
     Operator const* speculative_op;
     if (int_op->opcode() == IrOpcode::kNumberBitwiseAnd) {
-      speculative_op = simplified()->SpeculativeNumberBitwiseAnd(feedback);
+      speculative_op = simplified()->SpeculativeNumberBitwiseAnd(hint);
     } else if (int_op->opcode() == IrOpcode::kNumberBitwiseOr) {
-      speculative_op = simplified()->SpeculativeNumberBitwiseOr(feedback);
+      speculative_op = simplified()->SpeculativeNumberBitwiseOr(hint);
     } else {
       DCHECK_EQ(IrOpcode::kNumberBitwiseXor, int_op->opcode());
-      speculative_op = simplified()->SpeculativeNumberBitwiseXor(feedback);
+      speculative_op = simplified()->SpeculativeNumberBitwiseXor(hint);
     }
     return r.ChangeToSpeculativeOperator(speculative_op, Type::Signed32());
   }
-
-  // If deoptimization is enabled we rely on type feedback.
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
@@ -533,33 +545,28 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node,
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
-                                           Signedness left_signedness,
+Reduction JSTypedLowering::ReduceUI32Shift(Node* node, Signedness signedness,
                                            const Operator* shift_op) {
   JSBinopReduction r(this, node);
-  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback != BinaryOperationHints::kAny) {
+  NumberOperationHint hint;
+  if (r.GetBinaryNumberOperationHint(&hint)) {
     Operator const* speculative_op;
     if (shift_op->opcode() == IrOpcode::kNumberShiftLeft) {
-      speculative_op = simplified()->SpeculativeNumberShiftLeft(feedback);
+      speculative_op = simplified()->SpeculativeNumberShiftLeft(hint);
     } else if (shift_op->opcode() == IrOpcode::kNumberShiftRightLogical) {
-      speculative_op =
-          simplified()->SpeculativeNumberShiftRightLogical(feedback);
+      speculative_op = simplified()->SpeculativeNumberShiftRightLogical(hint);
     } else {
       DCHECK_EQ(IrOpcode::kNumberShiftRight, shift_op->opcode());
-      speculative_op = simplified()->SpeculativeNumberShiftRight(feedback);
+      speculative_op = simplified()->SpeculativeNumberShiftRight(hint);
     }
     return r.ChangeToSpeculativeOperator(
-        speculative_op, shift_op->opcode() == IrOpcode::kNumberShiftRightLogical
-                            ? Type::Unsigned32()
-                            : Type::Signed32());
+        speculative_op,
+        signedness == kUnsigned ? Type::Unsigned32() : Type::Signed32());
   }
-
-  // If deoptimization is enabled we rely on type feedback.
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
-    r.ConvertInputsToUI32(left_signedness, kUnsigned);
+    r.ConvertInputsToUI32(signedness, kUnsigned);
     return r.ChangeToPureOperator(shift_op);
   }
   return NoChange();
@@ -592,53 +599,49 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     return Changed(node);
   }
 
-  CompareOperationHints::Hint hint = r.GetNumberCompareOperationFeedback();
-  if (hint != CompareOperationHints::kAny ||
-      r.OneInputCannotBe(Type::StringOrReceiver())) {
-    const Operator* less_than;
-    const Operator* less_than_or_equal;
-    if (r.BothInputsAre(Type::Signed32()) ||
-        r.BothInputsAre(Type::Unsigned32())) {
-      less_than = simplified()->NumberLessThan();
-      less_than_or_equal = simplified()->NumberLessThanOrEqual();
-    } else if (hint != CompareOperationHints::kAny) {
-      less_than = simplified()->SpeculativeNumberLessThan(hint);
-      less_than_or_equal = simplified()->SpeculativeNumberLessThanOrEqual(hint);
-    } else if (r.BothInputsAre(Type::PlainPrimitive()) ||
-               !(flags() & kDeoptimizationEnabled)) {
-      r.ConvertInputsToNumber();
-      less_than = simplified()->NumberLessThan();
-      less_than_or_equal = simplified()->NumberLessThanOrEqual();
-    } else {
-      return NoChange();
-    }
-    const Operator* comparison;
-    switch (node->opcode()) {
-      case IrOpcode::kJSLessThan:
-        comparison = less_than;
-        break;
-      case IrOpcode::kJSGreaterThan:
-        comparison = less_than;
-        r.SwapInputs();  // a > b => b < a
-        break;
-      case IrOpcode::kJSLessThanOrEqual:
-        comparison = less_than_or_equal;
-        break;
-      case IrOpcode::kJSGreaterThanOrEqual:
-        comparison = less_than_or_equal;
-        r.SwapInputs();  // a >= b => b <= a
-        break;
-      default:
-        return NoChange();
-    }
-    if (comparison->EffectInputCount() > 0) {
-      return r.ChangeToSpeculativeOperator(comparison, Type::Boolean());
-    } else {
-      return r.ChangeToPureOperator(comparison);
-    }
+  NumberOperationHint hint;
+  const Operator* less_than;
+  const Operator* less_than_or_equal;
+  if (r.BothInputsAre(Type::Signed32()) ||
+      r.BothInputsAre(Type::Unsigned32())) {
+    less_than = simplified()->NumberLessThan();
+    less_than_or_equal = simplified()->NumberLessThanOrEqual();
+  } else if (r.GetCompareNumberOperationHint(&hint)) {
+    less_than = simplified()->SpeculativeNumberLessThan(hint);
+    less_than_or_equal = simplified()->SpeculativeNumberLessThanOrEqual(hint);
+  } else if (r.OneInputCannotBe(Type::StringOrReceiver()) &&
+             (r.BothInputsAre(Type::PlainPrimitive()) ||
+              !(flags() & kDeoptimizationEnabled))) {
+    r.ConvertInputsToNumber();
+    less_than = simplified()->NumberLessThan();
+    less_than_or_equal = simplified()->NumberLessThanOrEqual();
+  } else {
+    return NoChange();
   }
-  // TODO(turbofan): relax/remove effects of this operator in other cases.
-  return NoChange();  // Keep a generic comparison.
+  const Operator* comparison;
+  switch (node->opcode()) {
+    case IrOpcode::kJSLessThan:
+      comparison = less_than;
+      break;
+    case IrOpcode::kJSGreaterThan:
+      comparison = less_than;
+      r.SwapInputs();  // a > b => b < a
+      break;
+    case IrOpcode::kJSLessThanOrEqual:
+      comparison = less_than_or_equal;
+      break;
+    case IrOpcode::kJSGreaterThanOrEqual:
+      comparison = less_than_or_equal;
+      r.SwapInputs();  // a >= b => b <= a
+      break;
+    default:
+      return NoChange();
+  }
+  if (comparison->EffectInputCount() > 0) {
+    return r.ChangeToSpeculativeOperator(comparison, Type::Boolean());
+  } else {
+    return r.ChangeToPureOperator(comparison);
+  }
 }
 
 Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {

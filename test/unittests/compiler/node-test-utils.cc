@@ -802,12 +802,12 @@ class IsReferenceEqualMatcher final : public NodeMatcher {
 
 class IsSpeculativeBinopMatcher final : public NodeMatcher {
  public:
-  IsSpeculativeBinopMatcher(
-      IrOpcode::Value opcode,
-      const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-      const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-      const Matcher<Node*>& effect_matcher,
-      const Matcher<Node*>& control_matcher)
+  IsSpeculativeBinopMatcher(IrOpcode::Value opcode,
+                            const Matcher<NumberOperationHint>& hint_matcher,
+                            const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher,
+                            const Matcher<Node*>& effect_matcher,
+                            const Matcher<Node*>& control_matcher)
       : NodeMatcher(opcode),
         hint_matcher_(hint_matcher),
         lhs_matcher_(lhs_matcher),
@@ -818,9 +818,8 @@ class IsSpeculativeBinopMatcher final : public NodeMatcher {
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             // TODO(bmeurer): The type parameter is currently ignored.
-            PrintMatchAndExplain(
-                OpParameter<BinaryOperationHints::Hint>(node->op()), "hints",
-                hint_matcher_, listener) &&
+            PrintMatchAndExplain(OpParameter<NumberOperationHint>(node->op()),
+                                 "hints", hint_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
                                  lhs_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "rhs",
@@ -832,7 +831,7 @@ class IsSpeculativeBinopMatcher final : public NodeMatcher {
   }
 
  private:
-  const Matcher<BinaryOperationHints::Hint> hint_matcher_;
+  const Matcher<NumberOperationHint> hint_matcher_;
   const Matcher<Type*> type_matcher_;
   const Matcher<Node*> lhs_matcher_;
   const Matcher<Node*> rhs_matcher_;
@@ -2043,15 +2042,15 @@ Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
       new IsReferenceEqualMatcher(type_matcher, lhs_matcher, rhs_matcher));
 }
 
-#define DEFINE_SPECULATIVE_BINOP_MATCHER(opcode)                            \
-  Matcher<Node*> Is##opcode(                                                \
-      const Matcher<BinaryOperationHints::Hint>& hint_matcher,              \
-      const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher, \
-      const Matcher<Node*>& effect_matcher,                                 \
-      const Matcher<Node*>& control_matcher) {                              \
-    return MakeMatcher(new IsSpeculativeBinopMatcher(                       \
-        IrOpcode::k##opcode, hint_matcher, lhs_matcher, rhs_matcher,        \
-        effect_matcher, control_matcher));                                  \
+#define DEFINE_SPECULATIVE_BINOP_MATCHER(opcode)                              \
+  Matcher<Node*> Is##opcode(const Matcher<NumberOperationHint>& hint_matcher, \
+                            const Matcher<Node*>& lhs_matcher,                \
+                            const Matcher<Node*>& rhs_matcher,                \
+                            const Matcher<Node*>& effect_matcher,             \
+                            const Matcher<Node*>& control_matcher) {          \
+    return MakeMatcher(new IsSpeculativeBinopMatcher(                         \
+        IrOpcode::k##opcode, hint_matcher, lhs_matcher, rhs_matcher,          \
+        effect_matcher, control_matcher));                                    \
   }
 SPECULATIVE_BINOPS(DEFINE_SPECULATIVE_BINOP_MATCHER);
 #undef DEFINE_SPECULATIVE_BINOP_MATCHER

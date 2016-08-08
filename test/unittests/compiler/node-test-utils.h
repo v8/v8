@@ -6,7 +6,7 @@
 #define V8_UNITTESTS_COMPILER_NODE_TEST_UTILS_H_
 
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/type-hints.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/machine-type.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -212,12 +212,12 @@ Matcher<Node*> IsNumberLessThan(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsNumberAdd(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 
-#define DECLARE_SPECULATIVE_BINOP_MATCHER(opcode)                           \
-  Matcher<Node*> Is##opcode(                                                \
-      const Matcher<BinaryOperationHints::Hint>& hint_matcher,              \
-      const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher, \
-      const Matcher<Node*>& effect_matcher,                                 \
-      const Matcher<Node*>& control_matcher);
+#define DECLARE_SPECULATIVE_BINOP_MATCHER(opcode)                             \
+  Matcher<Node*> Is##opcode(const Matcher<NumberOperationHint>& hint_matcher, \
+                            const Matcher<Node*>& lhs_matcher,                \
+                            const Matcher<Node*>& rhs_matcher,                \
+                            const Matcher<Node*>& effect_matcher,             \
+                            const Matcher<Node*>& control_matcher);
 SPECULATIVE_BINOPS(DECLARE_SPECULATIVE_BINOP_MATCHER);
 #undef DECLARE_SPECULATIVE_BINOP_MATCHER
 

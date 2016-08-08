@@ -8,7 +8,6 @@
 #include <iosfwd>
 
 #include "src/compiler/operator.h"
-#include "src/compiler/type-hints.h"
 #include "src/handles.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
@@ -154,9 +153,19 @@ std::ostream& operator<<(std::ostream&, ElementsTransition);
 
 ElementsTransition ElementsTransitionOf(const Operator* op) WARN_UNUSED_RESULT;
 
-BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op);
+// A hint for speculative number operations.
+enum class NumberOperationHint : uint8_t {
+  kSignedSmall,      // Inputs were always Smi so far, output was in Smi range.
+  kSigned32,         // Inputs and output were Signed32 so far.
+  kNumberOrOddball,  // Inputs were Number or Oddball, output was Number.
+};
 
-CompareOperationHints::Hint CompareOperationHintOf(const Operator* op);
+size_t hash_value(NumberOperationHint);
+
+std::ostream& operator<<(std::ostream&, NumberOperationHint);
+
+NumberOperationHint NumberOperationHintOf(const Operator* op)
+    WARN_UNUSED_RESULT;
 
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
@@ -238,23 +247,21 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
 
   const Operator* NumberSilenceNaN();
 
-  const Operator* SpeculativeNumberAdd(BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberSubtract(BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberMultiply(BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberDivide(BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberModulus(BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberShiftLeft(BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberShiftRight(BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberShiftRightLogical(
-      BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberBitwiseAnd(BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberBitwiseOr(BinaryOperationHints::Hint hint);
-  const Operator* SpeculativeNumberBitwiseXor(BinaryOperationHints::Hint hint);
+  const Operator* SpeculativeNumberAdd(NumberOperationHint hint);
+  const Operator* SpeculativeNumberSubtract(NumberOperationHint hint);
+  const Operator* SpeculativeNumberMultiply(NumberOperationHint hint);
+  const Operator* SpeculativeNumberDivide(NumberOperationHint hint);
+  const Operator* SpeculativeNumberModulus(NumberOperationHint hint);
+  const Operator* SpeculativeNumberShiftLeft(NumberOperationHint hint);
+  const Operator* SpeculativeNumberShiftRight(NumberOperationHint hint);
+  const Operator* SpeculativeNumberShiftRightLogical(NumberOperationHint hint);
+  const Operator* SpeculativeNumberBitwiseAnd(NumberOperationHint hint);
+  const Operator* SpeculativeNumberBitwiseOr(NumberOperationHint hint);
+  const Operator* SpeculativeNumberBitwiseXor(NumberOperationHint hint);
 
-  const Operator* SpeculativeNumberLessThan(CompareOperationHints::Hint hint);
-  const Operator* SpeculativeNumberLessThanOrEqual(
-      CompareOperationHints::Hint hint);
-  const Operator* SpeculativeNumberEqual(CompareOperationHints::Hint hint);
+  const Operator* SpeculativeNumberLessThan(NumberOperationHint hint);
+  const Operator* SpeculativeNumberLessThanOrEqual(NumberOperationHint hint);
+  const Operator* SpeculativeNumberEqual(NumberOperationHint hint);
 
   const Operator* ReferenceEqual(Type* type);
 
