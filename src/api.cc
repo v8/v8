@@ -2958,6 +2958,9 @@ bool Value::IsNumber() const {
 
 bool Value::IsProxy() const { return Utils::OpenHandle(this)->IsJSProxy(); }
 
+bool Value::IsWebAssemblyCompiledModule() const {
+  return Utils::OpenHandle(this)->IsWebAssemblyCompiledModule();
+}
 
 #define VALUE_IS_SPECIFIC_TYPE(Type, Class)                            \
   bool Value::Is##Type() const {                                       \

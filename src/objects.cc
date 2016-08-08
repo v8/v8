@@ -58,6 +58,7 @@
 #include "src/string-search.h"
 #include "src/string-stream.h"
 #include "src/utils.h"
+#include "src/wasm/wasm-module.h"
 #include "src/zone.h"
 
 #ifdef ENABLE_DISASSEMBLER
@@ -19006,6 +19007,17 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   return MaterializeArrayBuffer(self);
 }
 
+std::pair<std::unique_ptr<const byte>, size_t>
+WebAssemblyCompiledModule::Serialize() {
+  // TODO(mtrofin): tie to the internal serialization API
+  return {std::unique_ptr<const byte>(), 0};
+}
+
+MaybeHandle<WebAssemblyCompiledModule> WebAssemblyCompiledModule::Deserialize(
+    Isolate* isolate, const byte* data, size_t size) {
+  // TODO(mtrofin): tie to the internal serialization API
+  return MaybeHandle<WebAssemblyCompiledModule>();
+}
 
 Handle<PropertyCell> PropertyCell::InvalidateEntry(
     Handle<GlobalDictionary> dictionary, int entry) {
