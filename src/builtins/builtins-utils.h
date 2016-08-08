@@ -85,16 +85,15 @@ class BuiltinArguments : public Arguments {
       int args_length, Object** args_object, Isolate* isolate) {             \
     BuiltinArguments args(args_length, args_object);                         \
     RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Builtin_##name); \
-    TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(                           \
-        isolate, &tracing::TraceEventStatsTable::Builtin_##name);            \
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                    \
+                 "V8.Builtin_" #name);                                       \
     return Builtin_Impl_##name(args, isolate);                               \
   }                                                                          \
                                                                              \
   MUST_USE_RESULT Object* Builtin_##name(                                    \
       int args_length, Object** args_object, Isolate* isolate) {             \
     CHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
-    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||      \
-                    FLAG_runtime_call_stats)) {                              \
+    if (FLAG_runtime_call_stats) {                                           \
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate);   \
     }                                                                        \
     BuiltinArguments args(args_length, args_object);                         \

@@ -482,7 +482,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
 struct RuntimeCallCounter {
   explicit RuntimeCallCounter(const char* name) : name(name) {}
   void Reset();
-  V8_NOINLINE void Dump(std::stringstream& out);
 
   const char* name;
   int64_t count = 0;
