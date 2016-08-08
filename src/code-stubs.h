@@ -1169,6 +1169,13 @@ class FastCloneRegExpStub final : public TurboFanCodeStub {
  public:
   explicit FastCloneRegExpStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
+  static compiler::Node* Generate(CodeStubAssembler* assembler,
+                                  compiler::Node* closure,
+                                  compiler::Node* literal_index,
+                                  compiler::Node* pattern,
+                                  compiler::Node* flags,
+                                  compiler::Node* context);
+
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneRegExp);
   DEFINE_TURBOFAN_CODE_STUB(FastCloneRegExp, TurboFanCodeStub);

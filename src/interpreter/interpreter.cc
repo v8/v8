@@ -1594,8 +1594,6 @@ void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
 // Creates a regular expression literal for literal index <literal_idx> with
 // <flags> and the pattern in <pattern_idx>.
 void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
-  Callable callable = CodeFactory::FastCloneRegExp(isolate_);
-  Node* target = __ HeapConstant(callable.code());
   Node* index = __ BytecodeOperandIdx(0);
   Node* pattern = __ LoadConstantPoolEntry(index);
   Node* literal_index_raw = __ BytecodeOperandIdx(1);
@@ -1604,8 +1602,8 @@ void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
   Node* flags = __ SmiTag(flags_raw);
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
-  Node* result = __ CallStub(callable.descriptor(), target, context, closure,
-                             literal_index, pattern, flags);
+  Node* result = FastCloneRegExpStub::Generate(
+      assembler, closure, literal_index, pattern, flags, context);
   __ SetAccumulator(result);
   __ Dispatch();
 }

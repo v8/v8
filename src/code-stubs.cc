@@ -4615,14 +4615,20 @@ void FastNewFunctionContextStub::GenerateAssembly(
   assembler->Return(Generate(assembler, function, slots, context));
 }
 
-void FastCloneRegExpStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+// static
+compiler::Node* FastCloneRegExpStub::Generate(CodeStubAssembler* assembler,
+                                              compiler::Node* closure,
+                                              compiler::Node* literal_index,
+                                              compiler::Node* pattern,
+                                              compiler::Node* flags,
+                                              compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
   typedef compiler::Node Node;
 
-  Label call_runtime(assembler, Label::kDeferred);
+  Label call_runtime(assembler, Label::kDeferred), end(assembler);
 
-  Node* closure = assembler->Parameter(Descriptor::kClosure);
-  Node* literal_index = assembler->Parameter(Descriptor::kLiteralIndex);
+  Variable result(assembler, MachineRepresentation::kTagged);
 
   Node* undefined = assembler->UndefinedConstant();
   Node* literals_array =
@@ -4641,17 +4647,31 @@ void FastCloneRegExpStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       Node* value = assembler->LoadObjectField(boilerplate, offset);
       assembler->StoreObjectFieldNoWriteBarrier(copy, offset, value);
     }
-    assembler->Return(copy);
+    result.Bind(copy);
+    assembler->Goto(&end);
   }
 
   assembler->Bind(&call_runtime);
   {
-    Node* context = assembler->Parameter(Descriptor::kContext);
-    Node* pattern = assembler->Parameter(Descriptor::kPattern);
-    Node* flags = assembler->Parameter(Descriptor::kFlags);
-    assembler->TailCallRuntime(Runtime::kCreateRegExpLiteral, context, closure,
-                               literal_index, pattern, flags);
+    result.Bind(assembler->CallRuntime(Runtime::kCreateRegExpLiteral, context,
+                                       closure, literal_index, pattern, flags));
+    assembler->Goto(&end);
   }
+
+  assembler->Bind(&end);
+  return result.value();
+}
+
+void FastCloneRegExpStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* closure = assembler->Parameter(Descriptor::kClosure);
+  Node* literal_index = assembler->Parameter(Descriptor::kLiteralIndex);
+  Node* pattern = assembler->Parameter(Descriptor::kPattern);
+  Node* flags = assembler->Parameter(Descriptor::kFlags);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(
+      Generate(assembler, closure, literal_index, pattern, flags, context));
 }
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
