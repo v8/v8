@@ -321,9 +321,6 @@ class Scope: public ZoneObject {
   bool asm_module() const { return asm_module_; }
   bool asm_function() const { return asm_function_; }
 
-  // Is this scope inside a with statement.
-  bool inside_with() const { return scope_inside_with_; }
-
   // Does this scope access "super" property (super.foo).
   bool uses_super_property() const { return scope_uses_super_property_; }
   // Does this scope have the potential to execute declarations non-linearly?
