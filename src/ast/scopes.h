@@ -20,18 +20,12 @@ class VariableMap: public ZoneHashMap {
  public:
   explicit VariableMap(Zone* zone);
 
-  virtual ~VariableMap();
-
-  Variable* Declare(Scope* scope, const AstRawString* name, VariableMode mode,
-                    Variable::Kind kind, InitializationFlag initialization_flag,
+  Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
+                    VariableMode mode, Variable::Kind kind,
+                    InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   Variable* Lookup(const AstRawString* name);
-
-  Zone* zone() const { return zone_; }
-
- private:
-  Zone* zone_;
 };
 
 
@@ -61,16 +55,9 @@ class DynamicScopePart : public ZoneObject {
 class SloppyBlockFunctionMap : public ZoneHashMap {
  public:
   explicit SloppyBlockFunctionMap(Zone* zone);
-
-  virtual ~SloppyBlockFunctionMap();
-
-  void Declare(const AstRawString* name,
+  void Declare(Zone* zone, const AstRawString* name,
                SloppyBlockFunctionStatement* statement);
-
   typedef ZoneVector<SloppyBlockFunctionStatement*> Vector;
-
- private:
-  Zone* zone_;
 };
 
 
@@ -150,7 +137,7 @@ class Scope: public ZoneObject {
   // to the passed-in scope.
   void PropagateUsageFlagsToScope(Scope* other);
 
-  Zone* zone() const { return variables_.zone(); }
+  Zone* zone() const { return zone_; }
 
   // ---------------------------------------------------------------------------
   // Declarations
@@ -464,6 +451,8 @@ class Scope: public ZoneObject {
   bool HasSimpleParameters();
 
  private:
+  Zone* zone_;
+
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
   Scope* inner_scope_;  // an inner scope of this scope
@@ -834,6 +823,11 @@ class DeclarationScope : public Scope {
   }
 
   ZoneList<Variable*>* temps() { return &temps_; }
+
+  void DeclareSloppyBlockFunction(const AstRawString* name,
+                                  SloppyBlockFunctionStatement* statement) {
+    sloppy_block_function_map_.Declare(zone(), name, statement);
+  }
 
   SloppyBlockFunctionMap* sloppy_block_function_map() {
     return &sloppy_block_function_map_;

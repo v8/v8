@@ -2274,8 +2274,8 @@ Statement* Parser::ParseHoistableDeclaration(
       !is_async && !(allow_harmony_restrictive_generators() && is_generator)) {
     SloppyBlockFunctionStatement* delegate =
         factory()->NewSloppyBlockFunctionStatement(empty, scope());
-    scope()->GetDeclarationScope()->sloppy_block_function_map()->Declare(
-        variable_name, delegate);
+    DeclarationScope* target_scope = scope()->GetDeclarationScope();
+    target_scope->DeclareSloppyBlockFunction(variable_name, delegate);
     return delegate;
   }
   return empty;
