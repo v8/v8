@@ -58,7 +58,7 @@ class AstRawStringInternalizationKey : public HashTableKey {
       : string_(string) {}
 
   bool IsMatch(Object* other) override {
-    if (string_->is_one_byte_)
+    if (string_->is_one_byte())
       return String::cast(other)->IsOneByteEqualTo(string_->literal_bytes_);
     return String::cast(other)->IsTwoByteEqualTo(
         Vector<const uint16_t>::cast(string_->literal_bytes_));
@@ -71,7 +71,7 @@ class AstRawStringInternalizationKey : public HashTableKey {
   }
 
   Handle<Object> AsHandle(Isolate* isolate) override {
-    if (string_->is_one_byte_)
+    if (string_->is_one_byte())
       return isolate->factory()->NewOneByteInternalizedString(
           string_->literal_bytes_, string_->hash());
     return isolate->factory()->NewTwoByteInternalizedString(
@@ -82,6 +82,19 @@ class AstRawStringInternalizationKey : public HashTableKey {
   const AstRawString* string_;
 };
 
+int AstString::length() const {
+  if (IsRawStringBits::decode(bit_field_)) {
+    return reinterpret_cast<const AstRawString*>(this)->length();
+  }
+  return reinterpret_cast<const AstConsString*>(this)->length();
+}
+
+void AstString::Internalize(Isolate* isolate) {
+  if (IsRawStringBits::decode(bit_field_)) {
+    return reinterpret_cast<AstRawString*>(this)->Internalize(isolate);
+  }
+  return reinterpret_cast<AstConsString*>(this)->Internalize(isolate);
+}
 
 void AstRawString::Internalize(Isolate* isolate) {
   if (!string_.is_null()) return;
@@ -97,7 +110,7 @@ void AstRawString::Internalize(Isolate* isolate) {
 bool AstRawString::AsArrayIndex(uint32_t* index) const {
   if (!string_.is_null())
     return string_->AsArrayIndex(index);
-  if (!is_one_byte_ || literal_bytes_.length() == 0 ||
+  if (!is_one_byte() || literal_bytes_.length() == 0 ||
       literal_bytes_.length() > String::kMaxArrayIndexSize)
     return false;
   OneByteStringStream stream(literal_bytes_);
@@ -107,7 +120,7 @@ bool AstRawString::AsArrayIndex(uint32_t* index) const {
 
 bool AstRawString::IsOneByteEqualTo(const char* data) const {
   int length = static_cast<int>(strlen(data));
-  if (is_one_byte_ && literal_bytes_.length() == length) {
+  if (is_one_byte() && literal_bytes_.length() == length) {
     const char* token = reinterpret_cast<const char*>(literal_bytes_.start());
     return !strncmp(token, data, length);
   }

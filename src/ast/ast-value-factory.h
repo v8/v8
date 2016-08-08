@@ -42,13 +42,16 @@ namespace internal {
 
 class AstString : public ZoneObject {
  public:
-  virtual ~AstString() {}
+  explicit AstString(bool is_raw)
+      : bit_field_(IsRawStringBits::encode(is_raw)) {}
 
-  virtual int length() const = 0;
+  ~AstString() {}
+
+  int length() const;
   bool IsEmpty() const { return length() == 0; }
 
   // Puts the string into the V8 heap.
-  virtual void Internalize(Isolate* isolate) = 0;
+  void Internalize(Isolate* isolate);
 
   // This function can be called after internalizing.
   V8_INLINE Handle<String> string() const {
@@ -59,20 +62,23 @@ class AstString : public ZoneObject {
  protected:
   // This is null until the string is internalized.
   Handle<String> string_;
+  // Poor-man's virtual dispatch to AstRawString / AstConsString. Takes less
+  // memory.
+  class IsRawStringBits : public BitField<bool, 0, 1> {};
+  int bit_field_;
 };
 
 
 class AstRawString final : public AstString {
  public:
-  int length() const override {
-    if (is_one_byte_)
-      return literal_bytes_.length();
+  int length() const {
+    if (is_one_byte()) return literal_bytes_.length();
     return literal_bytes_.length() / 2;
   }
 
   int byte_length() const { return literal_bytes_.length(); }
 
-  void Internalize(Isolate* isolate) override;
+  void Internalize(Isolate* isolate);
 
   bool AsArrayIndex(uint32_t* index) const;
 
@@ -80,11 +86,12 @@ class AstRawString final : public AstString {
   const unsigned char* raw_data() const {
     return literal_bytes_.start();
   }
-  bool is_one_byte() const { return is_one_byte_; }
+
+  bool is_one_byte() const { return IsOneByteBits::decode(bit_field_); }
+
   bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const {
-    if (is_one_byte_)
-      return literal_bytes_[0];
+    if (is_one_byte()) return literal_bytes_[0];
     const uint16_t* c =
         reinterpret_cast<const uint16_t*>(literal_bytes_.start());
     return *c;
@@ -100,29 +107,34 @@ class AstRawString final : public AstString {
   friend class AstRawStringInternalizationKey;
 
   AstRawString(bool is_one_byte, const Vector<const byte>& literal_bytes,
-            uint32_t hash)
-      : is_one_byte_(is_one_byte), literal_bytes_(literal_bytes), hash_(hash) {}
+               uint32_t hash)
+      : AstString(true), hash_(hash), literal_bytes_(literal_bytes) {
+    bit_field_ |= IsOneByteBits::encode(is_one_byte);
+  }
 
-  AstRawString()
-      : is_one_byte_(true),
-        hash_(0) {}
+  AstRawString() : AstString(true), hash_(0) {
+    bit_field_ |= IsOneByteBits::encode(true);
+  }
 
-  bool is_one_byte_;
+  class IsOneByteBits : public BitField<bool, IsRawStringBits::kNext, 1> {};
 
+  uint32_t hash_;
   // Points to memory owned by Zone.
   Vector<const byte> literal_bytes_;
-  uint32_t hash_;
 };
 
 
 class AstConsString final : public AstString {
  public:
   AstConsString(const AstString* left, const AstString* right)
-      : length_(left->length() + right->length()), left_(left), right_(right) {}
+      : AstString(false),
+        length_(left->length() + right->length()),
+        left_(left),
+        right_(right) {}
 
-  int length() const override { return length_; }
+  int length() const { return length_; }
 
-  void Internalize(Isolate* isolate) override;
+  void Internalize(Isolate* isolate);
 
  private:
   const int length_;
