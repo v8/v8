@@ -519,9 +519,6 @@ class Heap {
   };
   typedef List<Chunk> Reservation;
 
-  static const intptr_t kMinimumOldGenerationAllocationLimit =
-      8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
-
   static const int kInitalOldGenerationLimitFactor = 2;
 
 #if V8_OS_ANDROID
@@ -1802,6 +1799,15 @@ class Heap {
   // Sets the allocation limit to trigger the next full garbage collection.
   void SetOldGenerationAllocationLimit(intptr_t old_gen_size, double gc_speed,
                                        double mutator_speed);
+
+  intptr_t MinimumAllocationLimitGrowingStep() {
+    const double kRegularAllocationLimitGrowingStep = 8;
+    const double kLowMemoryAllocationLimitGrowingStep = 2;
+    intptr_t limit = (Page::kPageSize > MB ? Page::kPageSize : MB);
+    return limit * (ShouldOptimizeForMemoryUsage()
+                        ? kLowMemoryAllocationLimitGrowingStep
+                        : kRegularAllocationLimitGrowingStep);
+  }
 
   // ===========================================================================
   // Idle notification. ========================================================

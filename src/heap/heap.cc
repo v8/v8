@@ -2014,7 +2014,7 @@ void Heap::UnregisterArrayBuffer(JSArrayBuffer* buffer) {
 void Heap::ConfigureInitialOldGenerationSize() {
   if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
     old_generation_allocation_limit_ =
-        Max(kMinimumOldGenerationAllocationLimit,
+        Max(MinimumAllocationLimitGrowingStep(),
             static_cast<intptr_t>(
                 static_cast<double>(old_generation_allocation_limit_) *
                 (tracer()->AverageSurvivalRatio() / 100)));
@@ -5151,7 +5151,7 @@ intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
   CHECK(factor > 1.0);
   CHECK(old_gen_size > 0);
   intptr_t limit = static_cast<intptr_t>(old_gen_size * factor);
-  limit = Max(limit, old_gen_size + kMinimumOldGenerationAllocationLimit);
+  limit = Max(limit, old_gen_size + MinimumAllocationLimitGrowingStep());
   limit += new_space_.Capacity();
   intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
   return Min(limit, halfway_to_the_max);
