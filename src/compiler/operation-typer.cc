@@ -192,12 +192,13 @@ Type* OperationTyper::AddRanger(double lhs_min, double lhs_max, double rhs_min,
   return type;
 }
 
-Type* OperationTyper::SubtractRanger(RangeType* lhs, RangeType* rhs) {
+Type* OperationTyper::SubtractRanger(double lhs_min, double lhs_max,
+                                     double rhs_min, double rhs_max) {
   double results[4];
-  results[0] = lhs->Min() - rhs->Min();
-  results[1] = lhs->Min() - rhs->Max();
-  results[2] = lhs->Max() - rhs->Min();
-  results[3] = lhs->Max() - rhs->Max();
+  results[0] = lhs_min - rhs_min;
+  results[1] = lhs_min - rhs_max;
+  results[2] = lhs_max - rhs_min;
+  results[3] = lhs_max - rhs_max;
   // Since none of the inputs can be -0, the result cannot be -0.
   // However, it can be nan (the subtraction of two infinities of same sign).
   // On the other hand, if none of the "results" above is nan, then the actual
@@ -207,9 +208,9 @@ Type* OperationTyper::SubtractRanger(RangeType* lhs, RangeType* rhs) {
     if (std::isnan(results[i])) ++nans;
   }
   if (nans == 4) return Type::NaN();  // [inf..inf] - [inf..inf] (all same sign)
-  Type* range =
+  Type* type =
       Type::Range(array_min(results, 4), array_max(results, 4), zone());
-  return nans == 0 ? range : Type::Union(range, Type::NaN(), zone());
+  return nans == 0 ? type : Type::Union(type, Type::NaN(), zone());
   // Examples:
   //   [-inf, +inf] - [-inf, +inf] = [-inf, +inf] \/ NaN
   //   [-inf, -inf] - [-inf, -inf] = NaN
@@ -544,14 +545,41 @@ Type* OperationTyper::NumberSubtract(Type* lhs, Type* rhs) {
     return Type::None();
   }
 
-  lhs = Rangify(lhs);
-  rhs = Rangify(rhs);
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-  if (lhs->IsRange() && rhs->IsRange()) {
-    return SubtractRanger(lhs->AsRange(), rhs->AsRange());
+  // Subtraction can return NaN if either input can be NaN or we try to
+  // compute the sum of two infinities of opposite sign.
+  bool maybe_nan = lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN());
+
+  // Subtraction can yield minus zero if {lhs} can be minus zero and {rhs}
+  // can be zero.
+  bool maybe_minuszero = false;
+  if (lhs->Maybe(Type::MinusZero())) {
+    lhs = Type::Union(lhs, cache_.kSingletonZero, zone());
+    maybe_minuszero = rhs->Maybe(cache_.kSingletonZero);
   }
-  // TODO(neis): Deal with numeric bitsets here and elsewhere.
-  return Type::Number();
+  if (rhs->Maybe(Type::MinusZero())) {
+    rhs = Type::Union(rhs, cache_.kSingletonZero, zone());
+  }
+
+  // We can give more precise types for integers.
+  Type* type = Type::None();
+  lhs = Type::Intersect(lhs, Type::PlainNumber(), zone());
+  rhs = Type::Intersect(rhs, Type::PlainNumber(), zone());
+  if (lhs->IsInhabited() && rhs->IsInhabited()) {
+    if (lhs->Is(cache_.kInteger) && rhs->Is(cache_.kInteger)) {
+      type = SubtractRanger(lhs->Min(), lhs->Max(), rhs->Min(), rhs->Max());
+    } else {
+      if ((lhs->Maybe(infinity_) && rhs->Maybe(infinity_)) ||
+          (rhs->Maybe(minus_infinity_) && lhs->Maybe(minus_infinity_))) {
+        maybe_nan = true;
+      }
+      type = Type::PlainNumber();
+    }
+  }
+
+  // Take into account the -0 and NaN information computed earlier.
+  if (maybe_minuszero) type = Type::Union(type, Type::MinusZero(), zone());
+  if (maybe_nan) type = Type::Union(type, Type::NaN(), zone());
+  return type;
 }
 
 Type* OperationTyper::NumberMultiply(Type* lhs, Type* rhs) {
