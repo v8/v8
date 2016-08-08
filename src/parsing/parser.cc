@@ -5272,7 +5272,7 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
     bool var_created = false;
 
     // Write in assignments to var for each block-scoped function declaration
-    auto delegates = static_cast<SloppyBlockFunctionMap::Vector*>(p->value);
+    auto delegates = static_cast<SloppyBlockFunctionStatement*>(p->value);
 
     DeclarationScope* decl_scope = scope;
     while (decl_scope->is_eval_scope()) {
@@ -5280,7 +5280,8 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
     }
     Scope* outer_scope = decl_scope->outer_scope();
 
-    for (SloppyBlockFunctionStatement* delegate : *delegates) {
+    for (SloppyBlockFunctionStatement* delegate = delegates;
+         delegate != nullptr; delegate = delegate->next()) {
       // Check if there's a conflict with a lexical declaration
       Scope* query_scope = delegate->scope()->outer_scope();
       Variable* var = nullptr;

@@ -67,11 +67,8 @@ void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
   Entry* p =
       ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
                                   ZoneAllocationPolicy(zone));
-  if (p->value == nullptr) {
-    p->value = new (zone->New(sizeof(Vector))) Vector(zone);
-  }
-  Vector* delegates = static_cast<Vector*>(p->value);
-  delegates->push_back(stmt);
+  stmt->set_next(static_cast<SloppyBlockFunctionStatement*>(p->value));
+  p->value = stmt;
 }
 
 

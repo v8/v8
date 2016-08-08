@@ -57,7 +57,6 @@ class SloppyBlockFunctionMap : public ZoneHashMap {
   explicit SloppyBlockFunctionMap(Zone* zone);
   void Declare(Zone* zone, const AstRawString* name,
                SloppyBlockFunctionStatement* statement);
-  typedef ZoneVector<SloppyBlockFunctionStatement*> Vector;
 };
 
 

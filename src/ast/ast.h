@@ -1187,6 +1187,8 @@ class SloppyBlockFunctionStatement final : public Statement {
   Statement* statement() const { return statement_; }
   void set_statement(Statement* statement) { statement_ = statement; }
   Scope* scope() const { return scope_; }
+  SloppyBlockFunctionStatement* next() { return next_; }
+  void set_next(SloppyBlockFunctionStatement* next) { next_ = next; }
 
  private:
   friend class AstNodeFactory;
@@ -1194,10 +1196,12 @@ class SloppyBlockFunctionStatement final : public Statement {
   SloppyBlockFunctionStatement(Zone* zone, Statement* statement, Scope* scope)
       : Statement(zone, kNoSourcePosition, kSloppyBlockFunctionStatement),
         statement_(statement),
-        scope_(scope) {}
+        scope_(scope),
+        next_(nullptr) {}
 
   Statement* statement_;
   Scope* const scope_;
+  SloppyBlockFunctionStatement* next_;
 };
 
 
