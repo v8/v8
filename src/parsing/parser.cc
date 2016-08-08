@@ -4723,16 +4723,14 @@ Block* Parser::BuildParameterInitializationBlock(
                                        param_scope);
     }
 
-    {
-      BlockState block_state(&scope_state_, param_scope);
-      DeclarationParsingResult::Declaration decl(
-          parameter.pattern, initializer_position, initial_value);
-      PatternRewriter::DeclareAndInitializeVariables(param_block, &descriptor,
-                                                     &decl, nullptr, CHECK_OK);
-    }
+    BlockState block_state(&scope_state_, param_scope);
+    DeclarationParsingResult::Declaration decl(
+        parameter.pattern, initializer_position, initial_value);
+    PatternRewriter::DeclareAndInitializeVariables(param_block, &descriptor,
+                                                   &decl, nullptr, CHECK_OK);
 
-    if (!parameter.is_simple() && scope()->calls_sloppy_eval()) {
-      param_scope = param_scope->FinalizeBlockScope();
+    if (param_block != init_block) {
+      param_scope = block_state.FinalizedBlockScope();
       if (param_scope != nullptr) {
         CheckConflictingVarDeclarations(param_scope, CHECK_OK);
       }
