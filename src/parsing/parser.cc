@@ -1690,7 +1690,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       VariableProxy* proxy = NewUnresolved(local_name, CONST);
       Declaration* declaration =
           factory()->NewVariableDeclaration(proxy, CONST, scope(), pos);
-      Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+      Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
       proxy->var()->set_initializer_position(position());
 
       Assignment* assignment = factory()->NewAssignment(
@@ -1980,13 +1980,12 @@ void Parser::DeclareConstVariable(const AstRawString* name,
   VariableProxy* proxy = NewUnresolved(name, CONST);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, CONST, scope(), init, pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK_VOID);
+  Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK_VOID);
 }
-
 
 Variable* Parser::Declare(Declaration* declaration,
                           DeclarationDescriptor::Kind declaration_kind,
-                          bool resolve, bool* ok, Scope* scope) {
+                          bool* ok, Scope* scope) {
   VariableProxy* proxy = declaration->proxy();
   DCHECK(proxy->raw_name() != NULL);
   const AstRawString* name = proxy->raw_name();
@@ -1994,40 +1993,41 @@ Variable* Parser::Declare(Declaration* declaration,
   DCHECK(IsDeclaredVariableMode(mode) && mode != CONST_LEGACY);
   bool is_function_declaration = declaration->IsFunctionDeclaration();
   if (scope == nullptr) scope = this->scope();
-  Scope* declaration_scope =
-      IsLexicalVariableMode(mode) ? scope : scope->GetDeclarationScope();
-  Variable* var = NULL;
+  if (mode == VAR) scope = scope->GetDeclarationScope();
 
-  // If a suitable scope exists, then we can statically declare this
-  // variable and also set its mode. In any case, a Declaration node
-  // will be added to the scope so that the declaration can be added
-  // to the corresponding activation frame at runtime if necessary.
-  // For instance, var declarations inside a sloppy eval scope need
-  // to be added to the calling function context. Similarly, strict
-  // mode eval scope and lexical eval bindings do not leak variable
-  // declarations to the caller's scope so we declare all locals, too.
-  if (declaration_scope->is_function_scope() ||
-      declaration_scope->is_block_scope() ||
-      declaration_scope->is_module_scope() ||
-      declaration_scope->is_script_scope() ||
-      (declaration_scope->is_eval_scope() &&
-       (is_strict(declaration_scope->language_mode()) ||
-        IsLexicalVariableMode(mode)))) {
+  DCHECK(!scope->is_catch_scope());
+  DCHECK(!scope->is_with_scope());
+  DCHECK(scope->is_declaration_scope() ||
+         (IsLexicalVariableMode(mode) && scope->is_block_scope()));
+
+  Variable* var = NULL;
+  if (scope->is_eval_scope() && is_sloppy(scope->language_mode()) &&
+      mode == VAR) {
+    // In a var binding in a sloppy direct eval, pollute the enclosing scope
+    // with this new binding by doing the following:
+    // The proxy is bound to a lookup variable to force a dynamic declaration
+    // using the DeclareEvalVar or DeclareEvalFunction runtime functions.
+    Variable::Kind kind = Variable::NORMAL;
+    // TODO(sigurds) figure out if kNotAssigned is OK here
+    var = new (zone()) Variable(scope, name, mode, kind,
+                                declaration->initialization(), kNotAssigned);
+    var->AllocateTo(VariableLocation::LOOKUP, -1);
+  } else {
     // Declare the variable in the declaration scope.
-    var = declaration_scope->LookupLocal(name);
+    var = scope->LookupLocal(name);
     if (var == NULL) {
       // Declare the name.
       Variable::Kind kind = Variable::NORMAL;
       if (is_function_declaration) {
         kind = Variable::FUNCTION;
       }
-      var = declaration_scope->DeclareLocal(
-          name, mode, declaration->initialization(), kind, kNotAssigned);
+      var = scope->DeclareLocal(name, mode, declaration->initialization(), kind,
+                                kNotAssigned);
     } else if (IsLexicalVariableMode(mode) ||
                IsLexicalVariableMode(var->mode())) {
       // Allow duplicate function decls for web compat, see bug 4693.
       bool duplicate_allowed = false;
-      if (is_sloppy(language_mode()) && is_function_declaration &&
+      if (is_sloppy(scope->language_mode()) && is_function_declaration &&
           var->is_function()) {
         DCHECK(IsLexicalVariableMode(mode) &&
                IsLexicalVariableMode(var->mode()));
@@ -2073,67 +2073,20 @@ Variable* Parser::Declare(Declaration* declaration,
     } else if (mode == VAR) {
       var->set_maybe_assigned();
     }
-  } else if (declaration_scope->is_eval_scope() &&
-             is_sloppy(declaration_scope->language_mode()) &&
-             !IsLexicalVariableMode(mode)) {
-    // In a var binding in a sloppy direct eval, pollute the enclosing scope
-    // with this new binding by doing the following:
-    // The proxy is bound to a lookup variable to force a dynamic declaration
-    // using the DeclareEvalVar or DeclareEvalFunction runtime functions.
-    Variable::Kind kind = Variable::NORMAL;
-    // TODO(sigurds) figure out if kNotAssigned is OK here
-    var = new (zone()) Variable(declaration_scope, name, mode, kind,
-                                declaration->initialization(), kNotAssigned);
-    var->AllocateTo(VariableLocation::LOOKUP, -1);
-    resolve = true;
   }
-
+  DCHECK_NOT_NULL(var);
 
   // We add a declaration node for every declaration. The compiler
   // will only generate code if necessary. In particular, declarations
   // for inner local variables that do not represent functions won't
   // result in any generated code.
   //
-  // Note that we always add an unresolved proxy even if it's not
-  // used, simply because we don't know in this method (w/o extra
-  // parameters) if the proxy is needed or not. The proxy will be
-  // bound during variable resolution time unless it was pre-bound
-  // below.
-  //
-  // WARNING: This will lead to multiple declaration nodes for the
+  // This will lead to multiple declaration nodes for the
   // same variable if it is declared several times. This is not a
-  // semantic issue as long as we keep the source order, but it may be
-  // a performance issue since it may lead to repeated
-  // DeclareEvalVar or DeclareEvalFunction calls.
-  declaration_scope->AddDeclaration(declaration);
-
-  // If requested and we have a local variable, bind the proxy to the variable
-  // at parse-time. This is used for functions (and consts) declared inside
-  // statements: the corresponding function (or const) variable must be in the
-  // function scope and not a statement-local scope, e.g. as provided with a
-  // 'with' statement:
-  //
-  //   with (obj) {
-  //     function f() {}
-  //   }
-  //
-  // which is translated into:
-  //
-  //   with (obj) {
-  //     // in this case this is not: 'var f; f = function () {};'
-  //     var f = function () {};
-  //   }
-  //
-  // Note that if 'f' is accessed from inside the 'with' statement, it
-  // will be allocated in the context (because we must be able to look
-  // it up dynamically) but it will also be accessed statically, i.e.,
-  // with a context slot index and a context chain length for this
-  // initialization code. Thus, inside the 'with' statement, we need
-  // both access to the static and the dynamic context chain; the
-  // runtime needs to provide both.
-  if (resolve && var != NULL) {
-    proxy->BindTo(var);
-  }
+  // semantic issue, but it may be a performance issue since it may
+  // lead to repeated DeclareEvalVar or DeclareEvalFunction calls.
+  scope->AddDeclaration(declaration);
+  proxy->BindTo(var);
   return var;
 }
 
@@ -2173,7 +2126,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   VariableProxy* proxy = NewUnresolved(name, VAR);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, VAR, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+  Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
   NativeFunctionLiteral* lit =
       factory()->NewNativeFunctionLiteral(name, extension_, kNoSourcePosition);
   return factory()->NewExpressionStatement(
@@ -2263,7 +2216,7 @@ Statement* Parser::ParseHoistableDeclaration(
   VariableProxy* proxy = NewUnresolved(variable_name, mode);
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+  Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
   if (names) names->Add(variable_name, zone());
   EmptyStatement* empty = factory()->NewEmptyStatement(kNoSourcePosition);
   // Async functions don't undergo sloppy mode block scoped hoisting, and don't
@@ -2322,7 +2275,7 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   VariableProxy* proxy = NewUnresolved(variable_name, LET);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, LET, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+  Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
   proxy->var()->set_initializer_position(position());
   Assignment* assignment =
       factory()->NewAssignment(Token::INIT, proxy, value, pos);
@@ -3555,7 +3508,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       VariableProxy* proxy = NewUnresolved(names->at(i), mode);
       Declaration* declaration = factory()->NewVariableDeclaration(
           proxy, mode, scope(), kNoSourcePosition);
-      Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+      Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
       inner_vars.Add(declaration->proxy()->var(), zone());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
       Assignment* assignment = factory()->NewAssignment(
@@ -3906,8 +3859,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             VariableProxy* tdz_proxy = NewUnresolved(bound_names[i], LET);
             Declaration* tdz_decl = factory()->NewVariableDeclaration(
                 tdz_proxy, LET, scope(), kNoSourcePosition);
-            Variable* tdz_var = Declare(
-                tdz_decl, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+            Variable* tdz_var =
+                Declare(tdz_decl, DeclarationDescriptor::NORMAL, CHECK_OK);
             tdz_var->set_initializer_position(position());
           }
         }
@@ -5088,7 +5041,7 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     // TODO(verwaest): declare via block_state.
     Declaration* declaration = factory()->NewVariableDeclaration(
         proxy, CONST, block_state.scope(), pos);
-    Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+    Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
   }
 
   Expression* extends = nullptr;
@@ -5366,7 +5319,7 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
         VariableProxy* proxy = scope->NewUnresolved(factory(), name);
         Declaration* declaration = factory()->NewVariableDeclaration(
             proxy, VAR, scope, kNoSourcePosition);
-        Declare(declaration, DeclarationDescriptor::NORMAL, true, ok, scope);
+        Declare(declaration, DeclarationDescriptor::NORMAL, ok, scope);
         DCHECK(ok);  // Based on the preceding check, this should not fail
         if (!ok) return;
       }

@@ -151,9 +151,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   Declaration* declaration = factory()->NewVariableDeclaration(
       proxy, descriptor_->mode, descriptor_->scope,
       descriptor_->declaration_pos);
-  Variable* var =
-      parser_->Declare(declaration, descriptor_->declaration_kind,
-                       descriptor_->mode != VAR, ok_, descriptor_->hoist_scope);
+  Variable* var = parser_->Declare(declaration, descriptor_->declaration_kind,
+                                   ok_, descriptor_->hoist_scope);
   if (!*ok_) return;
   DCHECK_NOT_NULL(var);
   DCHECK(!proxy->is_resolved() || proxy->var() == var);
