@@ -148,61 +148,25 @@ HeapObject* LiveObjectIterator<T>::Next() {
         second_bit_index = 0x1;
         // The overlapping case; there has to exist a cell after the current
         // cell.
-        // However, if there is a black area at the end of the page, and the
-        // last word is a one word filler, we are not allowed to advance. In
-        // that case we can return immediately.
-        if (it_.Done()) {
-          DCHECK(HeapObject::FromAddress(addr)->map() ==
-                 HeapObject::FromAddress(addr)
-                     ->GetHeap()
-                     ->one_pointer_filler_map());
-          return nullptr;
-        }
+        DCHECK(!it_.Done());
         it_.Advance();
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
-
-      if (current_cell_ & second_bit_index) {
-        // We found a black object. If the black object is within a black area,
-        // make sure that we skip all set bits in the black area until the
-        // object ends.
-        HeapObject* black_object = HeapObject::FromAddress(addr);
-        Address end = addr + black_object->Size();
-        // One word filler objects do not borrow the second mark bit. We have
-        // to jump over the advancing and clearing part.
-        // Note that we know that we are at a one word filler when
-        // object_start + object_size - kPointerSize == object_start.
-        if (addr != end) {
-          // Clear all bits from second_bit_index.
-          current_cell_ &= ~(second_bit_index | (second_bit_index - 1));
-
-          // Check that all bits corresponding to in object fields after the
-          // two cleared bits in the beginning are indeed zero.
-          CHECK(chunk_->markbits()->AllBitsClearInRange(
-              chunk_->AddressToMarkbitIndex(addr + 2 * kPointerSize),
-              chunk_->AddressToMarkbitIndex(end)));
-        }
-
-        if (T == kBlackObjects || T == kAllLiveObjects) {
-          object = black_object;
-        }
-      } else if ((T == kGreyObjects || T == kAllLiveObjects)) {
+      if (T == kBlackObjects && (current_cell_ & second_bit_index)) {
+        object = HeapObject::FromAddress(addr);
+      } else if (T == kGreyObjects && !(current_cell_ & second_bit_index)) {
+        object = HeapObject::FromAddress(addr);
+      } else if (T == kAllLiveObjects) {
         object = HeapObject::FromAddress(addr);
       }
 
-      // We found a live object.
-      if (object != nullptr) {
-        if (object->IsFiller()) {
-          // Black areas together with slack tracking may result in black filler
-          // objects. We filter these objects out in the iterator.
-          object = nullptr;
-        } else {
-          break;
-        }
-      }
-    }
+      // Clear the second bit of the found object.
+      current_cell_ &= ~second_bit_index;
 
+      // We found a live object.
+      if (object != nullptr) break;
+    }
     if (current_cell_ == 0) {
       if (!it_.Done()) {
         it_.Advance();
