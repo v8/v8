@@ -338,9 +338,6 @@
   # BUG(v8:3097)
   'debug-references': [SKIP],
 
-  # BUG(v8:4754).
-  'debug-referenced-by': [PASS, NO_VARIANTS],
-
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
 
