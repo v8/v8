@@ -1491,7 +1491,7 @@ bool Scope::MustAllocate(Variable* var) {
   if ((var->is_this() || !var->raw_name()->IsEmpty()) &&
       (var->has_forced_context_allocation() || scope_calls_eval_ ||
        inner_scope_calls_eval_ || is_catch_scope() || is_block_scope() ||
-       is_module_scope() || is_script_scope())) {
+       is_script_scope())) {
     var->set_is_used();
     if (scope_calls_eval_ || inner_scope_calls_eval_) var->set_maybe_assigned();
   }
@@ -1512,7 +1512,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // always context-allocated.
   if (has_forced_context_allocation()) return true;
   if (var->mode() == TEMPORARY) return false;
-  if (is_catch_scope() || is_module_scope()) return true;
+  if (is_catch_scope()) return true;
   if (is_script_scope() && IsLexicalVariableMode(var->mode())) return true;
   return var->has_forced_context_allocation() || scope_calls_eval_ ||
          inner_scope_calls_eval_;

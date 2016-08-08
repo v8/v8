@@ -331,10 +331,9 @@ class Scope: public ZoneObject {
 
   // Whether this needs to be represented by a runtime context.
   bool NeedsContext() const {
-    // Catch and module scopes always have heap slots.
+    // Catch scopes always have heap slots.
     DCHECK(!is_catch_scope() || num_heap_slots() > 0);
-    DCHECK(!is_module_scope() || num_heap_slots() > 0);
-    return is_with_scope() || num_heap_slots() > 0;
+    return num_heap_slots() > 0;
   }
 
   // ---------------------------------------------------------------------------
