@@ -208,7 +208,7 @@ TEST(Regress3540) {
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   CodeRange* code_range = new CodeRange(isolate);
   size_t code_range_size =
-      kMinimumCodeRangeSize > 0 ? kMinimumCodeRangeSize : 3 * MB;
+      kMinimumCodeRangeSize > 0 ? kMinimumCodeRangeSize : 3 * Page::kPageSize;
   if (!code_range->SetUp(code_range_size)) {
     return;
   }
