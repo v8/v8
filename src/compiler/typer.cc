@@ -304,7 +304,8 @@ class Typer::Visitor : public Reducer {
     if (NodeProperties::IsTyped(node)) {
       // Widen the type of a previously typed node.
       Type* previous = NodeProperties::GetType(node);
-      if (node->opcode() == IrOpcode::kPhi) {
+      if (node->opcode() == IrOpcode::kPhi ||
+          node->opcode() == IrOpcode::kInductionVariablePhi) {
         // Speed up termination in the presence of range types:
         current = Weaken(node, current, previous);
       }
