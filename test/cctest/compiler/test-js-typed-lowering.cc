@@ -442,7 +442,7 @@ TEST(JSToNumber_replacement) {
         R.graph.NewNode(R.javascript.ToNumber(), n, R.context(),
                         R.EmptyFrameState(R.context()), R.start(), R.start());
     Node* effect_use = R.UseForEffect(c);
-    Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(Type::Any()), n, c);
+    Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(), n, c);
 
     R.CheckEffectInput(c, effect_use);
     Node* r = R.reduce(c);
@@ -554,7 +554,7 @@ TEST(JSToString_replacement) {
         R.graph.NewNode(R.javascript.ToString(), n, R.context(),
                         R.EmptyFrameState(R.context()), R.start(), R.start());
     Node* effect_use = R.UseForEffect(c);
-    Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(Type::Any()), n, c);
+    Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(), n, c);
 
     R.CheckEffectInput(c, effect_use);
     Node* r = R.reduce(c);

@@ -323,8 +323,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                   target, array_function);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                   array_function);
     effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
     // Turn the {node} into a {JSCreateArray} call.
@@ -338,8 +338,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                     target, target_function);
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                     target_function);
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
@@ -439,8 +439,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                   target, array_function);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                   array_function);
     effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
     // Turn the {node} into a {JSCreateArray} call.
@@ -459,8 +459,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                     target, target_function);
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                     target_function);
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 

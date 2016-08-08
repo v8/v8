@@ -291,7 +291,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* SpeculativeNumberLessThanOrEqual(NumberOperationHint hint);
   const Operator* SpeculativeNumberEqual(NumberOperationHint hint);
 
-  const Operator* ReferenceEqual(Type* type);
+  const Operator* ReferenceEqual();
 
   const Operator* StringEqual();
   const Operator* StringLessThan();

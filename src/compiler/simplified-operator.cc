@@ -426,6 +426,7 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   V(ObjectIsSmi, Operator::kNoProperties, 1, 0)               \
   V(ObjectIsString, Operator::kNoProperties, 1, 0)            \
   V(ObjectIsUndetectable, Operator::kNoProperties, 1, 0)      \
+  V(ReferenceEqual, Operator::kCommutative, 2, 0)             \
   V(StringEqual, Operator::kCommutative, 2, 0)                \
   V(StringLessThan, Operator::kNoProperties, 2, 0)            \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)
@@ -715,12 +716,6 @@ const Operator* SimplifiedOperatorBuilder::CheckTaggedHole(
   }
   UNREACHABLE();
   return nullptr;
-}
-
-const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
-  return new (zone()) Operator(IrOpcode::kReferenceEqual,
-                               Operator::kCommutative | Operator::kPure,
-                               "ReferenceEqual", 2, 0, 0, 1, 0, 0);
 }
 
 const Operator* SimplifiedOperatorBuilder::EnsureWritableFastElements() {

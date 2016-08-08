@@ -811,7 +811,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
       return graph()->NewNode(machine()->Word32Equal(), node,
                               jsgraph.Int32Constant(1));
     } else {
-      return graph()->NewNode(simplified()->ReferenceEqual(Type::Any()), node,
+      return graph()->NewNode(simplified()->ReferenceEqual(), node,
                               jsgraph.TrueConstant());
     }
   }
@@ -1088,7 +1088,7 @@ TEST(LowerReferenceEqual_to_wordeq) {
   TestingGraph t(Type::Any(), Type::Any());
   IrOpcode::Value opcode =
       static_cast<IrOpcode::Value>(t.machine()->WordEqual()->opcode());
-  t.CheckLoweringBinop(opcode, t.simplified()->ReferenceEqual(Type::Any()));
+  t.CheckLoweringBinop(opcode, t.simplified()->ReferenceEqual());
 }
 
 void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,

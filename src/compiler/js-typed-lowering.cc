@@ -666,13 +666,13 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
     Node* input = m.left().InputAt(0);
     Handle<String> value = Handle<String>::cast(m.right().Value());
     if (String::Equals(value, factory()->boolean_string())) {
-      replacement = graph()->NewNode(
-          common()->Select(MachineRepresentation::kTagged),
-          graph()->NewNode(simplified()->ReferenceEqual(Type::Any()), input,
-                           jsgraph()->TrueConstant()),
-          jsgraph()->TrueConstant(),
-          graph()->NewNode(simplified()->ReferenceEqual(Type::Any()), input,
-                           jsgraph()->FalseConstant()));
+      replacement =
+          graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                           graph()->NewNode(simplified()->ReferenceEqual(),
+                                            input, jsgraph()->TrueConstant()),
+                           jsgraph()->TrueConstant(),
+                           graph()->NewNode(simplified()->ReferenceEqual(),
+                                            input, jsgraph()->FalseConstant()));
     } else if (String::Equals(value, factory()->function_string())) {
       replacement = graph()->NewNode(simplified()->ObjectIsCallable(), input);
     } else if (String::Equals(value, factory()->number_string())) {
@@ -682,7 +682,7 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
     } else if (String::Equals(value, factory()->undefined_string())) {
       replacement = graph()->NewNode(
           common()->Select(MachineRepresentation::kTagged),
-          graph()->NewNode(simplified()->ReferenceEqual(Type::Any()), input,
+          graph()->NewNode(simplified()->ReferenceEqual(), input,
                            jsgraph()->NullConstant()),
           jsgraph()->FalseConstant(),
           graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
@@ -708,12 +708,10 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
     return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
   if (r.BothInputsAre(Type::Boolean())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(Type::Boolean()),
-                                  invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.BothInputsAre(Type::Receiver())) {
-    return r.ChangeToPureOperator(
-        simplified()->ReferenceEqual(Type::Receiver()), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.OneInputIs(Type::Undetectable())) {
     RelaxEffectsAndControls(node);
@@ -770,32 +768,25 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   if (reduction.Changed()) return reduction;
 
   if (r.OneInputIs(the_hole_type_)) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(the_hole_type_),
-                                  invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.OneInputIs(Type::Undefined())) {
-    return r.ChangeToPureOperator(
-        simplified()->ReferenceEqual(Type::Undefined()), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.OneInputIs(Type::Null())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(Type::Null()),
-                                  invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.OneInputIs(Type::Boolean())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(Type::Boolean()),
-                                  invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.OneInputIs(Type::Object())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(Type::Object()),
-                                  invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.OneInputIs(Type::Receiver())) {
-    return r.ChangeToPureOperator(
-        simplified()->ReferenceEqual(Type::Receiver()), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.BothInputsAre(Type::Unique())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(Type::Unique()),
-                                  invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.BothInputsAre(Type::String())) {
     return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
@@ -1311,8 +1302,8 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
 
   // If not, check if object prototype is the null prototype.
   Node* null_proto =
-      graph()->NewNode(simplified()->ReferenceEqual(r.right_type()),
-                       object_prototype, jsgraph()->NullConstant());
+      graph()->NewNode(simplified()->ReferenceEqual(), object_prototype,
+                       jsgraph()->NullConstant());
   Node* branch_null_proto = graph()->NewNode(
       common()->Branch(BranchHint::kFalse), null_proto, control);
   Node* if_null_proto = graph()->NewNode(common()->IfTrue(), branch_null_proto);
@@ -1321,9 +1312,8 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   control = graph()->NewNode(common()->IfFalse(), branch_null_proto);
 
   // Check if object prototype is equal to function prototype.
-  Node* eq_proto =
-      graph()->NewNode(simplified()->ReferenceEqual(r.right_type()),
-                       object_prototype, prototype);
+  Node* eq_proto = graph()->NewNode(simplified()->ReferenceEqual(),
+                                    object_prototype, prototype);
   Node* branch_eq_proto =
       graph()->NewNode(common()->Branch(BranchHint::kFalse), eq_proto, control);
   Node* if_eq_proto = graph()->NewNode(common()->IfTrue(), branch_eq_proto);
@@ -1440,18 +1430,16 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
                            frame_state, effect, control);
     } else {
       // Check {receiver} for undefined.
-      Node* check0 =
-          graph()->NewNode(simplified()->ReferenceEqual(receiver_type),
-                           receiver, jsgraph()->UndefinedConstant());
+      Node* check0 = graph()->NewNode(simplified()->ReferenceEqual(), receiver,
+                                      jsgraph()->UndefinedConstant());
       Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                        check0, control);
       Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
       Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
 
       // Check {receiver} for null.
-      Node* check1 =
-          graph()->NewNode(simplified()->ReferenceEqual(receiver_type),
-                           receiver, jsgraph()->NullConstant());
+      Node* check1 = graph()->NewNode(simplified()->ReferenceEqual(), receiver,
+                                      jsgraph()->NullConstant());
       Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                        check1, if_false0);
       Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
@@ -1702,8 +1690,8 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
                        receiver, effect, control);
 
   // Check if the expected map still matches that of the {receiver}.
-  Node* check0 = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                  receiver_map, cache_type);
+  Node* check0 = graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
+                                  cache_type);
   Node* branch0 =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
 

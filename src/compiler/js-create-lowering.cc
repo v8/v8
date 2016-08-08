@@ -555,8 +555,8 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
     Node* length = NodeProperties::GetValueInput(node, 2);
-    Node* equal = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                   length, jsgraph()->ZeroConstant());
+    Node* equal = graph()->NewNode(simplified()->ReferenceEqual(), length,
+                                   jsgraph()->ZeroConstant());
 
     Node* branch =
         graph()->NewNode(common()->Branch(BranchHint::kFalse), equal, control);

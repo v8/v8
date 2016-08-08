@@ -148,8 +148,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Ensure that {index} matches the specified {name} (if {index} is given).
   if (index != nullptr) {
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Name()),
-                                   index, jsgraph()->HeapConstant(name));
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), index,
+                                   jsgraph()->HeapConstant(name));
     effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
   }
 
@@ -233,8 +233,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         for (auto map : receiver_maps) {
           DCHECK_LT(0u, num_classes);
           Node* check =
-              graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
-                               receiver_map, jsgraph()->Constant(map));
+              graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
+                               jsgraph()->Constant(map));
           if (--num_classes == 0 && j == access_infos.size() - 1) {
             check = graph()->NewNode(simplified()->CheckIf(), check,
                                      this_effect, fallthrough_control);
@@ -531,8 +531,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         for (Handle<Map> map : receiver_maps) {
           DCHECK_LT(0u, num_classes);
           Node* check =
-              graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                               receiver_map, jsgraph()->Constant(map));
+              graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
+                               jsgraph()->Constant(map));
           if (--num_classes == 0 && j == access_infos.size() - 1) {
             // Last map check on the fallthrough control path, do a conditional
             // eager deoptimization exit here.
@@ -753,8 +753,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
   } else if (access_info.IsDataConstant()) {
     value = jsgraph()->Constant(access_info.constant());
     if (access_mode == AccessMode::kStore) {
-      Node* check = graph()->NewNode(
-          simplified()->ReferenceEqual(Type::Tagged()), value, value);
+      Node* check =
+          graph()->NewNode(simplified()->ReferenceEqual(), value, value);
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
     }

@@ -169,9 +169,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       // Record a code dependency on the cell, and just deoptimize if the new
       // value doesn't match the previous value stored inside the cell.
       dependencies()->AssumePropertyCell(property_cell);
-      Node* check =
-          graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()), value,
-                           jsgraph()->Constant(property_cell_value));
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), value,
+                                     jsgraph()->Constant(property_cell_value));
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
       break;
