@@ -70,7 +70,7 @@ class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
 TEST_F(BytecodePeepholeOptimizerTest, FlushOnJump) {
   CHECK_EQ(write_count(), 0);
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 0);
 
@@ -84,7 +84,7 @@ TEST_F(BytecodePeepholeOptimizerTest, FlushOnJump) {
 TEST_F(BytecodePeepholeOptimizerTest, FlushOnBind) {
   CHECK_EQ(write_count(), 0);
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 0);
 
@@ -99,7 +99,7 @@ TEST_F(BytecodePeepholeOptimizerTest, FlushOnBind) {
 TEST_F(BytecodePeepholeOptimizerTest, ElideEmptyNop) {
   BytecodeNode nop(Bytecode::kNop);
   optimizer()->Write(&nop);
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   Flush();
   CHECK_EQ(write_count(), 1);
@@ -110,7 +110,7 @@ TEST_F(BytecodePeepholeOptimizerTest, ElideExpressionNop) {
   BytecodeNode nop(Bytecode::kNop);
   nop.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&nop);
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   Flush();
   CHECK_EQ(write_count(), 1);
@@ -121,7 +121,7 @@ TEST_F(BytecodePeepholeOptimizerTest, KeepStatementNop) {
   BytecodeNode nop(Bytecode::kNop);
   nop.source_info().MakeStatementPosition(3);
   optimizer()->Write(&nop);
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   add.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&add);
   Flush();
@@ -494,7 +494,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaSmiWithBinaryOp) {
     BytecodeNode first(Bytecode::kLdaSmi, imm_operand);
     first.source_info().Clone({3, true});
     uint32_t reg_operand = Register(0).ToOperand();
-    BytecodeNode second(operator_replacement[0], reg_operand);
+    BytecodeNode second(operator_replacement[0], reg_operand, 1);
     optimizer()->Write(&first);
     optimizer()->Write(&second);
     Flush();
@@ -522,7 +522,7 @@ TEST_F(BytecodePeepholeOptimizerTest, NotMergingLdaSmiWithBinaryOp) {
     BytecodeNode first(Bytecode::kLdaSmi, imm_operand);
     first.source_info().Clone({3, true});
     uint32_t reg_operand = Register(0).ToOperand();
-    BytecodeNode second(operator_replacement[0], reg_operand);
+    BytecodeNode second(operator_replacement[0], reg_operand, 1);
     second.source_info().Clone({4, true});
     optimizer()->Write(&first);
     optimizer()->Write(&second);
@@ -545,7 +545,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaZeroWithBinaryOp) {
   for (auto operator_replacement : operator_replacement_pairs) {
     BytecodeNode first(Bytecode::kLdaZero);
     uint32_t reg_operand = Register(0).ToOperand();
-    BytecodeNode second(operator_replacement[0], reg_operand);
+    BytecodeNode second(operator_replacement[0], reg_operand, 1);
     optimizer()->Write(&first);
     optimizer()->Write(&second);
     Flush();

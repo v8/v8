@@ -75,13 +75,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 12
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(101),
                 B(Star), R(0),
   /*   47 S> */ B(LdaSmi), U8(3),
-                B(Mul), R(0),
+                B(Mul), R(0), U8(1),
                 B(LdaUndefined),
   /*   67 S> */ B(Return),
 ]
@@ -98,13 +98,13 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 22
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(Wide), B(LdaSmi), U16(1234),
                 B(Star), R(0),
   /*   56 S> */ B(Nop),
-  /*   66 E> */ B(Mul), R(0),
+  /*   66 E> */ B(Mul), R(0), U8(1),
                 B(Star), R(3),
                 B(SubSmi), U8(1), R(3),
                 B(LdrUndefined), R(1),
@@ -124,13 +124,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 11
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
   /*   46 S> */ B(LdaSmi), U8(-1),
-                B(BitwiseXor), R(0),
+                B(BitwiseXor), R(0), U8(1),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -145,13 +145,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 11
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
   /*   46 S> */ B(LdaConstant), U8(0),
-                B(Mul), R(0),
+                B(Mul), R(0), U8(1),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -167,13 +167,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 11
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
   /*   46 S> */ B(LdaSmi), U8(-1),
-                B(Mul), R(0),
+                B(Mul), R(0), U8(1),
   /*   57 S> */ B(Return),
 ]
 constant pool: [

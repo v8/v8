@@ -2238,7 +2238,10 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       }
     }
     VisitForAccumulatorValue(expr->value());
-    builder()->BinaryOperation(expr->binary_op(), old_value);
+    FeedbackVectorSlot slot =
+        expr->binary_operation()->BinaryOperationFeedbackSlot();
+    builder()->BinaryOperation(expr->binary_op(), old_value,
+                               feedback_index(slot));
   } else {
     VisitForAccumulatorValue(expr->value());
   }
@@ -2880,7 +2883,8 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Perform +1/-1 operation.
-  builder()->CountOperation(expr->binary_op());
+  FeedbackVectorSlot slot = expr->CountBinaryOpFeedbackSlot();
+  builder()->CountOperation(expr->binary_op(), feedback_index(slot));
 
   // Store the value.
   builder()->SetExpressionPosition(expr);
@@ -2951,7 +2955,8 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   // +x and -x by the parser.
   Register lhs = VisitForRegisterValue(expr->left());
   VisitForAccumulatorValue(expr->right());
-  builder()->BinaryOperation(expr->op(), lhs);
+  FeedbackVectorSlot slot = expr->BinaryOperationFeedbackSlot();
+  builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));
   execution_result()->SetResultInAccumulator();
 }
 

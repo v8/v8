@@ -365,8 +365,8 @@ TEST(VectorLoadICSlotSharing) {
   CompileRun(
       "o = 10;"
       "function f() {"
-      "  var x = o + 10;"
-      "  return o + x + o;"
+      "  var x = o || 10;"
+      "  return o , x , o;"
       "}"
       "f();");
   Handle<JSFunction> f = GetFunction("f");
@@ -544,13 +544,15 @@ TEST(ReferenceContextAllocatesNoSlots) {
     // of x.old and x.young.
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
-    CHECK_EQ(6, helper.slot_count());
+    CHECK_EQ(7, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
     CHECK_SLOT_KIND(helper, 5, FeedbackVectorSlotKind::LOAD_IC);
+    // Binary operation feedback is a general slot.
+    CHECK_SLOT_KIND(helper, 6, FeedbackVectorSlotKind::GENERAL);
   }
 }
 

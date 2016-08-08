@@ -152,13 +152,16 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode) {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
-                                                            Register reg) {
-  Output(BytecodeForBinaryOperation(op), RegisterOperand(reg));
+                                                            Register reg,
+                                                            int feedback_slot) {
+  Output(BytecodeForBinaryOperation(op), RegisterOperand(reg),
+         UnsignedOperand(feedback_slot));
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op) {
-  Output(BytecodeForCountOperation(op));
+BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op,
+                                                           int feedback_slot) {
+  Output(BytecodeForCountOperation(op), UnsignedOperand(feedback_slot));
   return *this;
 }
 

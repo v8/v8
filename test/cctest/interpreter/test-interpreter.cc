@@ -267,16 +267,24 @@ TEST(InterpreterShiftOpsSmi) {
     for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
       for (size_t o = 0; o < arraysize(kShiftOperators); o++) {
         HandleAndZoneScope handles;
-        i::Factory* factory = handles.main_isolate()->factory();
+        i::Isolate* isolate = handles.main_isolate();
+        i::Factory* factory = isolate->factory();
+        i::Zone zone(isolate->allocator());
         BytecodeArrayBuilder builder(handles.main_isolate(),
                                      handles.main_zone(), 1, 0, 1);
+
+        i::FeedbackVectorSpec feedback_spec(&zone);
+        i::FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        Handle<i::TypeFeedbackVector> vector =
+            i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
         Register reg(0);
         int lhs = lhs_inputs[l];
         int rhs = rhs_inputs[r];
         builder.LoadLiteral(Smi::FromInt(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
-            .BinaryOperation(kShiftOperators[o], reg)
+            .BinaryOperation(kShiftOperators[o], reg, vector->GetIndex(slot))
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -299,9 +307,16 @@ TEST(InterpreterBinaryOpsSmi) {
     for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
       for (size_t o = 0; o < arraysize(kArithmeticOperators); o++) {
         HandleAndZoneScope handles;
-        i::Factory* factory = handles.main_isolate()->factory();
+        i::Isolate* isolate = handles.main_isolate();
+        i::Factory* factory = isolate->factory();
+        i::Zone zone(isolate->allocator());
         BytecodeArrayBuilder builder(handles.main_isolate(),
                                      handles.main_zone(), 1, 0, 1);
+
+        i::FeedbackVectorSpec feedback_spec(&zone);
+        i::FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        Handle<i::TypeFeedbackVector> vector =
+            i::NewTypeFeedbackVector(isolate, &feedback_spec);
 
         Register reg(0);
         int lhs = lhs_inputs[l];
@@ -309,7 +324,8 @@ TEST(InterpreterBinaryOpsSmi) {
         builder.LoadLiteral(Smi::FromInt(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
-            .BinaryOperation(kArithmeticOperators[o], reg)
+            .BinaryOperation(kArithmeticOperators[o], reg,
+                             vector->GetIndex(slot))
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -333,16 +349,25 @@ TEST(InterpreterBinaryOpsHeapNumber) {
     for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
       for (size_t o = 0; o < arraysize(kArithmeticOperators); o++) {
         HandleAndZoneScope handles;
-        i::Factory* factory = handles.main_isolate()->factory();
+        i::Isolate* isolate = handles.main_isolate();
+        i::Factory* factory = isolate->factory();
+        i::Zone zone(isolate->allocator());
         BytecodeArrayBuilder builder(handles.main_isolate(),
                                      handles.main_zone(), 1, 0, 1);
+
+        i::FeedbackVectorSpec feedback_spec(&zone);
+        i::FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        Handle<i::TypeFeedbackVector> vector =
+            i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
         Register reg(0);
         double lhs = lhs_inputs[l];
         double rhs = rhs_inputs[r];
         builder.LoadLiteral(factory->NewNumber(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(factory->NewNumber(rhs))
-            .BinaryOperation(kArithmeticOperators[o], reg)
+            .BinaryOperation(kArithmeticOperators[o], reg,
+                             vector->GetIndex(slot))
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -360,7 +385,9 @@ TEST(InterpreterBinaryOpsHeapNumber) {
 
 TEST(InterpreterStringAdd) {
   HandleAndZoneScope handles;
-  i::Factory* factory = handles.main_isolate()->factory();
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+  i::Zone zone(isolate->allocator());
 
   struct TestCase {
     Handle<Object> lhs;
@@ -393,12 +420,16 @@ TEST(InterpreterStringAdd) {
   for (size_t i = 0; i < arraysize(test_cases); i++) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
                                  0, 1);
+    i::FeedbackVectorSpec feedback_spec(&zone);
+    i::FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+    Handle<i::TypeFeedbackVector> vector =
+        i::NewTypeFeedbackVector(isolate, &feedback_spec);
 
     Register reg(0);
     builder.LoadLiteral(test_cases[i].lhs)
         .StoreAccumulatorInRegister(reg)
         .LoadLiteral(test_cases[i].rhs)
-        .BinaryOperation(Token::Value::ADD, reg)
+        .BinaryOperation(Token::Value::ADD, reg, vector->GetIndex(slot))
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -435,17 +466,38 @@ TEST(InterpreterParameter1) {
 
 TEST(InterpreterParameter8) {
   HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 8,
                                0, 0);
 
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot5 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot6 = feedback_spec.AddGeneralSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
   builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(1))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(2))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(3))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(4))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(5))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(6))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(7))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(1),
+                       vector->GetIndex(slot))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(2),
+                       vector->GetIndex(slot1))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(3),
+                       vector->GetIndex(slot2))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(4),
+                       vector->GetIndex(slot3))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(5),
+                       vector->GetIndex(slot4))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(6),
+                       vector->GetIndex(slot5))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(7),
+                       vector->GetIndex(slot6))
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -953,13 +1005,13 @@ static BytecodeArrayBuilder& SetRegister(BytecodeArrayBuilder& builder,
       .LoadAccumulatorWithRegister(scratch);
 }
 
-
 static BytecodeArrayBuilder& IncrementRegister(BytecodeArrayBuilder& builder,
                                                Register reg, int value,
-                                               Register scratch) {
+                                               Register scratch,
+                                               int slot_index) {
   return builder.StoreAccumulatorInRegister(scratch)
       .LoadLiteral(Smi::FromInt(value))
-      .BinaryOperation(Token::Value::ADD, reg)
+      .BinaryOperation(Token::Value::ADD, reg, slot_index)
       .StoreAccumulatorInRegister(reg)
       .LoadAccumulatorWithRegister(scratch);
 }
@@ -967,8 +1019,18 @@ static BytecodeArrayBuilder& IncrementRegister(BytecodeArrayBuilder& builder,
 
 TEST(InterpreterJumps) {
   HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 0,
                                0, 2);
+
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Register reg(0), scratch(1);
   BytecodeLabel label[3];
@@ -977,11 +1039,13 @@ TEST(InterpreterJumps) {
       .StoreAccumulatorInRegister(reg)
       .Jump(&label[1]);
   SetRegister(builder, reg, 1024, scratch).Bind(&label[0]);
-  IncrementRegister(builder, reg, 1, scratch).Jump(&label[2]);
+  IncrementRegister(builder, reg, 1, scratch, vector->GetIndex(slot))
+      .Jump(&label[2]);
   SetRegister(builder, reg, 2048, scratch).Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch).Jump(&label[0]);
+  IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot1))
+      .Jump(&label[0]);
   SetRegister(builder, reg, 4096, scratch).Bind(&label[2]);
-  IncrementRegister(builder, reg, 4, scratch)
+  IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot2))
       .LoadAccumulatorWithRegister(reg)
       .Return();
 
@@ -995,8 +1059,20 @@ TEST(InterpreterJumps) {
 
 TEST(InterpreterConditionalJumps) {
   HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 0,
                                0, 2);
+
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Register reg(0), scratch(1);
   BytecodeLabel label[2];
@@ -1006,14 +1082,19 @@ TEST(InterpreterConditionalJumps) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(&label[0]);
-  IncrementRegister(builder, reg, 1024, scratch)
+  IncrementRegister(builder, reg, 1024, scratch, vector->GetIndex(slot))
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(&done);
-  IncrementRegister(builder, reg, 1, scratch).LoadTrue().JumpIfTrue(&label[1]);
-  IncrementRegister(builder, reg, 2048, scratch).Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch).LoadFalse().JumpIfTrue(&done1);
-  IncrementRegister(builder, reg, 4, scratch)
+  IncrementRegister(builder, reg, 1, scratch, vector->GetIndex(slot1))
+      .LoadTrue()
+      .JumpIfTrue(&label[1]);
+  IncrementRegister(builder, reg, 2048, scratch, vector->GetIndex(slot2))
+      .Bind(&label[1]);
+  IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot3))
+      .LoadFalse()
+      .JumpIfTrue(&done1);
+  IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot4))
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)
@@ -1029,8 +1110,20 @@ TEST(InterpreterConditionalJumps) {
 TEST(InterpreterConditionalJumps2) {
   // TODO(oth): Add tests for all conditional jumps near and far.
   HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 0,
                                0, 2);
+
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+  i::FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Register reg(0), scratch(1);
   BytecodeLabel label[2];
@@ -1040,14 +1133,19 @@ TEST(InterpreterConditionalJumps2) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(&label[0]);
-  IncrementRegister(builder, reg, 1024, scratch)
+  IncrementRegister(builder, reg, 1024, scratch, vector->GetIndex(slot))
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(&done);
-  IncrementRegister(builder, reg, 1, scratch).LoadTrue().JumpIfTrue(&label[1]);
-  IncrementRegister(builder, reg, 2048, scratch).Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch).LoadFalse().JumpIfTrue(&done1);
-  IncrementRegister(builder, reg, 4, scratch)
+  IncrementRegister(builder, reg, 1, scratch, vector->GetIndex(slot1))
+      .LoadTrue()
+      .JumpIfTrue(&label[1]);
+  IncrementRegister(builder, reg, 2048, scratch, vector->GetIndex(slot2))
+      .Bind(&label[1]);
+  IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot3))
+      .LoadFalse()
+      .JumpIfTrue(&done1);
+  IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot4))
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)
@@ -1065,6 +1163,14 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
                                0, 257);
 
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
+
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
   Register reg(0), scratch(256);
   BytecodeLabel done, fake;
 
@@ -1073,7 +1179,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   // Consume all 8-bit operands
   for (int i = 1; i <= 256; i++) {
     builder.LoadLiteral(handles.main_isolate()->factory()->NewNumber(i));
-    builder.BinaryOperation(Token::Value::ADD, reg);
+    builder.BinaryOperation(Token::Value::ADD, reg, vector->GetIndex(slot));
     builder.StoreAccumulatorInRegister(reg);
   }
   builder.Jump(&done);
@@ -1082,7 +1188,8 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   builder.Bind(&fake);
   for (int i = 0; i < 6600; i++) {
     builder.LoadLiteral(Smi::FromInt(0));                 // 1-byte
-    builder.BinaryOperation(Token::Value::ADD, scratch);  // 4-bytes
+    builder.BinaryOperation(Token::Value::ADD, scratch,
+                            vector->GetIndex(slot));      // 6-bytes
     builder.StoreAccumulatorInRegister(scratch);          // 4-bytes
     builder.MoveRegister(scratch, reg);                   // 6-bytes
   }

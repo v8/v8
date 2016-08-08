@@ -199,10 +199,13 @@ class BytecodeArrayBuilder final : public ZoneObject {
                                       size_t receiver_args_count);
 
   // Operators (register holds the lhs value, accumulator holds the rhs value).
-  BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg);
+  // Type feedback will be recorded in the |feedback_slot|
+  BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
+                                        int feedback_slot);
 
   // Count Operators (value stored in accumulator).
-  BytecodeArrayBuilder& CountOperation(Token::Value op);
+  // Type feedback will be recorded in the |feedback_slot|
+  BytecodeArrayBuilder& CountOperation(Token::Value op, int feedback_slot);
 
   // Unary Operators.
   BytecodeArrayBuilder& LogicalNot();

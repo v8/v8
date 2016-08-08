@@ -289,6 +289,9 @@ void CountOperation::AssignFeedbackVectorSlots(Isolate* isolate,
                                                FeedbackVectorSpec* spec,
                                                FeedbackVectorSlotCache* cache) {
   AssignVectorSlots(expression(), spec, &slot_);
+  // Assign a slot to collect feedback about binary operations. Used only in
+  // ignition. Fullcodegen uses AstId to record type feedback.
+  binary_operation_slot_ = spec->AddGeneralSlot();
 }
 
 
@@ -734,6 +737,22 @@ void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
   set_to_boolean_types(oracle->ToBooleanTypes(right()->test_id()));
 }
 
+void BinaryOperation::AssignFeedbackVectorSlots(
+    Isolate* isolate, FeedbackVectorSpec* spec,
+    FeedbackVectorSlotCache* cache) {
+  // Feedback vector slot is only used by interpreter for binary operations.
+  // Full-codegen uses AstId to record type feedback.
+  switch (op()) {
+    // Comma, logical_or and logical_and do not collect type feedback.
+    case Token::COMMA:
+    case Token::AND:
+    case Token::OR:
+      return;
+    default:
+      type_feedback_slot_ = spec->AddGeneralSlot();
+      return;
+  }
+}
 
 static bool IsTypeof(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();

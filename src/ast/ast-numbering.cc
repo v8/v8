@@ -353,6 +353,7 @@ void AstNumberingVisitor::VisitBinaryOperation(BinaryOperation* node) {
   node->set_base_id(ReserveIdRange(BinaryOperation::num_ids()));
   Visit(node->left());
   Visit(node->right());
+  ReserveFeedbackSlots(node);
 }
 
 

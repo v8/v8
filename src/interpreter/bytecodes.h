@@ -146,17 +146,23 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
                                                                                \
   /* Binary Operators */                                                       \
-  V(Add, AccumulatorUse::kReadWrite, OperandType::kReg)                        \
-  V(Sub, AccumulatorUse::kReadWrite, OperandType::kReg)                        \
-  V(Mul, AccumulatorUse::kReadWrite, OperandType::kReg)                        \
-  V(Div, AccumulatorUse::kReadWrite, OperandType::kReg)                        \
-  V(Mod, AccumulatorUse::kReadWrite, OperandType::kReg)                        \
-  V(BitwiseOr, AccumulatorUse::kReadWrite, OperandType::kReg)                  \
-  V(BitwiseXor, AccumulatorUse::kReadWrite, OperandType::kReg)                 \
-  V(BitwiseAnd, AccumulatorUse::kReadWrite, OperandType::kReg)                 \
-  V(ShiftLeft, AccumulatorUse::kReadWrite, OperandType::kReg)                  \
-  V(ShiftRight, AccumulatorUse::kReadWrite, OperandType::kReg)                 \
-  V(ShiftRightLogical, AccumulatorUse::kReadWrite, OperandType::kReg)          \
+  V(Add, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
+  V(Sub, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
+  V(Mul, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
+  V(Div, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
+  V(Mod, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
+  V(BitwiseOr, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
+    OperandType::kIdx)                                                         \
+  V(BitwiseXor, AccumulatorUse::kReadWrite, OperandType::kReg,                 \
+    OperandType::kIdx)                                                         \
+  V(BitwiseAnd, AccumulatorUse::kReadWrite, OperandType::kReg,                 \
+    OperandType::kIdx)                                                         \
+  V(ShiftLeft, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
+    OperandType::kIdx)                                                         \
+  V(ShiftRight, AccumulatorUse::kReadWrite, OperandType::kReg,                 \
+    OperandType::kIdx)                                                         \
+  V(ShiftRightLogical, AccumulatorUse::kReadWrite, OperandType::kReg,          \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Binary operators with immediate operands */                               \
   V(AddSmi, AccumulatorUse::kWrite, OperandType::kImm, OperandType::kReg)      \
@@ -171,8 +177,8 @@ namespace interpreter {
     OperandType::kReg)                                                         \
                                                                                \
   /* Unary Operators */                                                        \
-  V(Inc, AccumulatorUse::kReadWrite)                                           \
-  V(Dec, AccumulatorUse::kReadWrite)                                           \
+  V(Inc, AccumulatorUse::kReadWrite, OperandType::kIdx)                        \
+  V(Dec, AccumulatorUse::kReadWrite, OperandType::kIdx)                        \
   V(ToBooleanLogicalNot, AccumulatorUse::kReadWrite)                           \
   V(LogicalNot, AccumulatorUse::kReadWrite)                                    \
   V(TypeOf, AccumulatorUse::kReadWrite)                                        \

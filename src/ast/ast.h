@@ -2123,6 +2123,16 @@ class BinaryOperation final : public Expression {
   static int num_ids() { return parent_num_ids() + 2; }
   BailoutId RightId() const { return BailoutId(local_id(0)); }
 
+  // BinaryOperation will have both a slot in the feedback vector and the
+  // TypeFeedbackId to record the type information. TypeFeedbackId is used
+  // by full codegen and the feedback vector slot is used by interpreter.
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 FeedbackVectorSlotCache* cache);
+
+  FeedbackVectorSlot BinaryOperationFeedbackSlot() const {
+    return type_feedback_slot_;
+  }
+
   TypeFeedbackId BinaryOperationFeedbackId() const {
     return TypeFeedbackId(local_id(1));
   }
@@ -2160,6 +2170,7 @@ class BinaryOperation final : public Expression {
   Expression* left_;
   Expression* right_;
   Handle<AllocationSite> allocation_site_;
+  FeedbackVectorSlot type_feedback_slot_;
 };
 
 
@@ -2203,6 +2214,11 @@ class CountOperation final : public Expression {
     return TypeFeedbackId(local_id(3));
   }
 
+  // Feedback slot for binary operation is only used by ignition.
+  FeedbackVectorSlot CountBinaryOpFeedbackSlot() const {
+    return binary_operation_slot_;
+  }
+
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot CountSlot() const { return slot_; }
@@ -2230,6 +2246,7 @@ class CountOperation final : public Expression {
   // Expression's trailing 16-bit field.
   uint16_t bit_field_;
   FeedbackVectorSlot slot_;
+  FeedbackVectorSlot binary_operation_slot_;
   Type* type_;
   Expression* expression_;
   SmallMapList receiver_types_;

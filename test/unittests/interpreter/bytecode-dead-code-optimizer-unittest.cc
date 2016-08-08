@@ -50,7 +50,7 @@ class BytecodeDeadCodeOptimizerTest : public BytecodePipelineStage,
 };
 
 TEST_F(BytecodeDeadCodeOptimizerTest, LiveCodeKept) {
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(add, last_written());
@@ -68,7 +68,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeAfterReturnEliminated) {
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(ret, last_written());
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(ret, last_written());
@@ -80,7 +80,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeAfterThrowEliminated) {
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(thrw, last_written());
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(thrw, last_written());
@@ -92,7 +92,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeAfterReThrowEliminated) {
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(rethrow, last_written());
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(rethrow, last_written());
@@ -105,7 +105,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeAfterJumpEliminated) {
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(jump, last_written());
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(jump, last_written());
@@ -123,7 +123,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeStillDeadAfterConditinalJump) {
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(ret, last_written());
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(ret, last_written());
@@ -138,7 +138,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, CodeLiveAfterLabelBind) {
   BytecodeLabel target;
   optimizer()->BindLabel(&target);
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(add, last_written());
