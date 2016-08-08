@@ -257,10 +257,6 @@ def BuildOptions():
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
-  # TODO(machenbach): Remove this flag when not reference by infrastructure.
-  result.add_option("--ignition-turbofan",
-                    help="Deprecated",
-                    default=False, action="store_true")
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
