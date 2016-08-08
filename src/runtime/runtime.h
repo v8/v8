@@ -465,7 +465,6 @@ namespace internal {
   F(DeclareGlobals, 3, 1)               \
   F(DeclareGlobalsForInterpreter, 3, 1) \
   F(InitializeVarGlobal, 3, 1)          \
-  F(InitializeConstGlobal, 2, 1)        \
   F(DeclareEvalFunction, 2, 1)          \
   F(DeclareEvalVar, 1, 1)               \
   F(NewSloppyArguments_Generic, 1, 1)   \

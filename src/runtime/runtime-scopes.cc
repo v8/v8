@@ -209,42 +209,6 @@ RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
       isolate, Object::SetProperty(global, name, value, language_mode));
 }
 
-
-RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
-  HandleScope handle_scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-
-  Handle<JSGlobalObject> global(isolate->global_object());
-
-  // Lookup the property as own on the global object.
-  LookupIterator it(global, name, global, LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  DCHECK(maybe.IsJust());
-  PropertyAttributes old_attributes = maybe.FromJust();
-
-  PropertyAttributes attr =
-      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
-  // Set the value if the property is either missing, or the property attributes
-  // allow setting the value without invoking an accessor.
-  if (it.IsFound()) {
-    // Ignore if we can't reconfigure the value.
-    if ((old_attributes & DONT_DELETE) != 0) {
-      if ((old_attributes & READ_ONLY) != 0 ||
-          it.state() == LookupIterator::ACCESSOR) {
-        return *value;
-      }
-      attr = static_cast<PropertyAttributes>(old_attributes | READ_ONLY);
-    }
-  }
-
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
-
-  return *value;
-}
-
 namespace {
 
 Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
