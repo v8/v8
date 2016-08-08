@@ -690,19 +690,16 @@ const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) {
   return parser_->scanner()->NextSymbol(parser_->ast_value_factory());
 }
 
-
-Expression* ParserTraits::ThisExpression(Scope* scope, AstNodeFactory* factory,
-                                         int pos) {
-  return scope->NewUnresolved(factory,
-                              parser_->ast_value_factory()->this_string(),
-                              Variable::THIS, pos, pos + 4);
+Expression* ParserTraits::ThisExpression(AstNodeFactory* factory, int pos) {
+  return parser_->scope()->NewUnresolved(
+      factory, parser_->ast_value_factory()->this_string(), Variable::THIS, pos,
+      pos + 4);
 }
 
-Expression* ParserTraits::NewSuperPropertyReference(Scope* scope,
-                                                    AstNodeFactory* factory,
+Expression* ParserTraits::NewSuperPropertyReference(AstNodeFactory* factory,
                                                     int pos) {
   // this_function[home_object_symbol]
-  VariableProxy* this_function_proxy = scope->NewUnresolved(
+  VariableProxy* this_function_proxy = parser_->scope()->NewUnresolved(
       factory, parser_->ast_value_factory()->this_function_string(),
       Variable::NORMAL, pos);
   Expression* home_object_symbol_literal =
@@ -710,38 +707,33 @@ Expression* ParserTraits::NewSuperPropertyReference(Scope* scope,
   Expression* home_object = factory->NewProperty(
       this_function_proxy, home_object_symbol_literal, pos);
   return factory->NewSuperPropertyReference(
-      ThisExpression(scope, factory, pos)->AsVariableProxy(), home_object, pos);
+      ThisExpression(factory, pos)->AsVariableProxy(), home_object, pos);
 }
 
-Expression* ParserTraits::NewSuperCallReference(Scope* scope,
-                                                AstNodeFactory* factory,
+Expression* ParserTraits::NewSuperCallReference(AstNodeFactory* factory,
                                                 int pos) {
-  VariableProxy* new_target_proxy = scope->NewUnresolved(
+  VariableProxy* new_target_proxy = parser_->scope()->NewUnresolved(
       factory, parser_->ast_value_factory()->new_target_string(),
       Variable::NORMAL, pos);
-  VariableProxy* this_function_proxy = scope->NewUnresolved(
+  VariableProxy* this_function_proxy = parser_->scope()->NewUnresolved(
       factory, parser_->ast_value_factory()->this_function_string(),
       Variable::NORMAL, pos);
   return factory->NewSuperCallReference(
-      ThisExpression(scope, factory, pos)->AsVariableProxy(), new_target_proxy,
+      ThisExpression(factory, pos)->AsVariableProxy(), new_target_proxy,
       this_function_proxy, pos);
 }
 
-
-Expression* ParserTraits::NewTargetExpression(Scope* scope,
-                                              AstNodeFactory* factory,
+Expression* ParserTraits::NewTargetExpression(AstNodeFactory* factory,
                                               int pos) {
   static const int kNewTargetStringLength = 10;
-  auto proxy = scope->NewUnresolved(
+  auto proxy = parser_->scope()->NewUnresolved(
       factory, parser_->ast_value_factory()->new_target_string(),
       Variable::NORMAL, pos, pos + kNewTargetStringLength);
   proxy->set_is_new_target();
   return proxy;
 }
 
-
-Expression* ParserTraits::FunctionSentExpression(Scope* scope,
-                                                 AstNodeFactory* factory,
+Expression* ParserTraits::FunctionSentExpression(AstNodeFactory* factory,
                                                  int pos) {
   // We desugar function.sent into %_GeneratorGetInputOrDebugPos(generator).
   Zone* zone = parser_->zone();
@@ -783,11 +775,10 @@ Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
 Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
                                                    int start_position,
                                                    int end_position,
-                                                   Scope* scope,
                                                    AstNodeFactory* factory) {
   if (parser_->fni_ != NULL) parser_->fni_->PushVariableName(name);
-  return scope->NewUnresolved(factory, name, Variable::NORMAL, start_position,
-                              end_position);
+  return parser_->scope()->NewUnresolved(factory, name, Variable::NORMAL,
+                                         start_position, end_position);
 }
 
 
@@ -1310,7 +1301,7 @@ void Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
             token_loc.end_pos - token_loc.beg_pos ==
                 ast_value_factory()->use_strict_string()->length() + 2;
         if (use_strict_found) {
-          if (is_sloppy(this->scope()->language_mode())) {
+          if (is_sloppy(language_mode())) {
             RaiseLanguageMode(STRICT);
           }
 
@@ -2723,7 +2714,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       tok == Token::RBRACE ||
       tok == Token::EOS) {
     if (IsSubclassConstructor(function_state_->kind())) {
-      return_value = ThisExpression(scope(), factory(), loc.beg_pos);
+      return_value = ThisExpression(factory(), loc.beg_pos);
     } else {
       return_value = GetLiteralUndefined(position());
     }
@@ -2771,9 +2762,9 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           factory()->NewUndefinedLiteral(kNoSourcePosition), pos);
 
       // is_undefined ? this : is_object_conditional
-      return_value = factory()->NewConditional(
-          is_undefined, ThisExpression(scope(), factory(), pos),
-          is_object_conditional, pos);
+      return_value = factory()->NewConditional(is_undefined,
+                                               ThisExpression(factory(), pos),
+                                               is_object_conditional, pos);
     } else {
       ReturnExprScope maybe_allow_tail_calls(
           function_state_, ReturnExprContext::kInsideValidReturnStatement);
@@ -4606,7 +4597,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
     // Position right after terminal '}'.
     int body_end = scanner()->location().end_pos;
     log_->LogFunction(function_block_pos, body_end, *materialized_literal_count,
-                      *expected_property_count, scope()->language_mode(),
+                      *expected_property_count, language_mode(),
                       scope()->uses_super_property(), scope()->calls_eval());
   }
 }
@@ -4781,7 +4772,7 @@ Expression* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
   args->Add(factory()->NewThisFunction(pos), zone());
   args->Add(IsArrowFunction(kind)
                 ? GetLiteralUndefined(pos)
-                : ThisExpression(scope(), factory(), kNoSourcePosition),
+                : ThisExpression(factory(), kNoSourcePosition),
             zone());
   return factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args,
                                    pos);
@@ -4902,7 +4893,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
     if (IsSubclassConstructor(kind)) {
       body->Add(factory()->NewReturnStatement(
-                    this->ThisExpression(scope(), factory(), kNoSourcePosition),
+                    this->ThisExpression(factory(), kNoSourcePosition),
                     kNoSourcePosition),
                 zone());
     }
@@ -5720,8 +5711,7 @@ Expression* Parser::SpreadCall(Expression* function,
     if (function->IsProperty()) {
       // Method calls
       if (function->AsProperty()->IsSuperAccess()) {
-        Expression* home =
-            ThisExpression(scope(), factory(), kNoSourcePosition);
+        Expression* home = ThisExpression(factory(), kNoSourcePosition);
         args->InsertAt(0, function, zone());
         args->InsertAt(1, home, zone());
       } else {
@@ -5966,9 +5956,8 @@ Expression* Parser::RewriteAssignExponentiation(Expression* left,
 
     Expression* result;
     DCHECK_NOT_NULL(lhs->raw_name());
-    result =
-        this->ExpressionFromIdentifier(lhs->raw_name(), lhs->position(),
-                                       lhs->end_position(), scope(), factory());
+    result = this->ExpressionFromIdentifier(lhs->raw_name(), lhs->position(),
+                                            lhs->end_position(), factory());
     args->Add(left, zone());
     args->Add(right, zone());
     Expression* call =
@@ -6499,7 +6488,7 @@ Expression* ParserTraits::RewriteYieldStar(
   // input = function.sent;
   Statement* get_input;
   {
-    Expression* function_sent = FunctionSentExpression(scope, factory, nopos);
+    Expression* function_sent = FunctionSentExpression(factory, nopos);
     Expression* input_proxy = factory->NewVariableProxy(var_input);
     Expression* assignment = factory->NewAssignment(
         Token::ASSIGN, input_proxy, function_sent, nopos);

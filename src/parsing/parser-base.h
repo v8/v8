@@ -1547,7 +1547,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::THIS: {
       BindingPatternUnexpectedToken(classifier);
       Consume(Token::THIS);
-      return this->ThisExpression(scope(), factory(), beg_pos);
+      return this->ThisExpression(factory(), beg_pos);
     }
 
     case Token::NULL_LITERAL:
@@ -1580,7 +1580,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       // Using eval or arguments in this context is OK even in strict mode.
       IdentifierT name = ParseAndClassifyIdentifier(classifier, CHECK_OK);
       return this->ExpressionFromIdentifier(
-          name, beg_pos, scanner()->location().end_pos, scope(), factory());
+          name, beg_pos, scanner()->location().end_pos, factory());
     }
 
     case Token::STRING: {
@@ -2004,8 +2004,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
               MessageTemplate::kAwaitBindingIdentifier);
         }
       }
-      ExpressionT lhs = this->ExpressionFromIdentifier(
-          *name, next_beg_pos, next_end_pos, scope(), factory());
+      ExpressionT lhs = this->ExpressionFromIdentifier(*name, next_beg_pos,
+                                                       next_end_pos, factory());
       CheckDestructuringElement(lhs, classifier, next_beg_pos, next_end_pos);
 
       ExpressionT value;
@@ -2315,7 +2315,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     IdentifierT name =
         ParseAndClassifyIdentifier(&arrow_formals_classifier, CHECK_OK);
     expression = this->ExpressionFromIdentifier(
-        name, position(), scanner()->location().end_pos, scope(), factory());
+        name, position(), scanner()->location().end_pos, factory());
   }
 
   if (peek() == Token::ARROW) {
@@ -2760,7 +2760,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
             MessageTemplate::kAwaitBindingIdentifier);
 
         return this->ExpressionFromIdentifier(
-            name, beg_pos, scanner()->location().end_pos, scope(), factory());
+            name, beg_pos, scanner()->location().end_pos, factory());
       }
       default:
         break;
@@ -2918,7 +2918,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         // Explicit calls to the super constructor using super() perform an
         // implicit binding assignment to the 'this' variable.
         if (is_super_call) {
-          ExpressionT this_expr = this->ThisExpression(scope(), factory(), pos);
+          ExpressionT this_expr = this->ThisExpression(factory(), pos);
           result =
               factory()->NewAssignment(Token::INIT, this_expr, result, pos);
         }
@@ -3056,7 +3056,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
         return this->EmptyExpression();
       }
 
-      return this->FunctionSentExpression(scope(), factory(), pos);
+      return this->FunctionSentExpression(factory(), pos);
     }
 
     bool is_generator = Check(Token::MUL);
@@ -3102,14 +3102,14 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
       IsClassConstructor(kind)) {
     if (peek() == Token::PERIOD || peek() == Token::LBRACK) {
       scope->RecordSuperPropertyUsage();
-      return this->NewSuperPropertyReference(this->scope(), factory(), pos);
+      return this->NewSuperPropertyReference(factory(), pos);
     }
     // new super() is never allowed.
     // super() is only allowed in derived constructor
     if (!is_new && peek() == Token::LPAREN && IsSubclassConstructor(kind)) {
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
-      return this->NewSuperCallReference(this->scope(), factory(), pos);
+      return this->NewSuperCallReference(factory(), pos);
     }
   }
 
@@ -3145,7 +3145,7 @@ ParserBase<Traits>::ParseNewTargetExpression(bool* ok) {
     return this->EmptyExpression();
   }
 
-  return this->NewTargetExpression(scope(), factory(), pos);
+  return this->NewTargetExpression(factory(), pos);
 }
 
 template <class Traits>

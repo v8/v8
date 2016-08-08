@@ -549,21 +549,17 @@ class ParserTraits {
   const AstRawString* GetNextSymbol(Scanner* scanner);
   const AstRawString* GetNumberAsSymbol(Scanner* scanner);
 
-  Expression* ThisExpression(Scope* scope, AstNodeFactory* factory,
+  Expression* ThisExpression(AstNodeFactory* factory,
                              int pos = kNoSourcePosition);
-  Expression* NewSuperPropertyReference(Scope* scope, AstNodeFactory* factory,
-                                        int pos);
-  Expression* NewSuperCallReference(Scope* scope, AstNodeFactory* factory,
-                                    int pos);
-  Expression* NewTargetExpression(Scope* scope, AstNodeFactory* factory,
-                                  int pos);
-  Expression* FunctionSentExpression(Scope* scope, AstNodeFactory* factory,
-                                     int pos);
+  Expression* NewSuperPropertyReference(AstNodeFactory* factory, int pos);
+  Expression* NewSuperCallReference(AstNodeFactory* factory, int pos);
+  Expression* NewTargetExpression(AstNodeFactory* factory, int pos);
+  Expression* FunctionSentExpression(AstNodeFactory* factory, int pos);
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
                                  AstNodeFactory* factory);
   Expression* ExpressionFromIdentifier(const AstRawString* name,
                                        int start_position, int end_position,
-                                       Scope* scope, AstNodeFactory* factory);
+                                       AstNodeFactory* factory);
   Expression* ExpressionFromString(int pos, Scanner* scanner,
                                    AstNodeFactory* factory);
   Expression* GetIterator(Expression* iterable, AstNodeFactory* factory,
