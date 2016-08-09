@@ -1060,10 +1060,14 @@ TEST(CodeSerializerLargeCodeObject) {
 
   v8::HandleScope scope(CcTest::isolate());
 
+  // The serializer only tests the shared code, which is always the unoptimized
+  // code. Don't even bother generating optimized code to avoid timeouts.
+  FLAG_always_opt = false;
+
   Vector<const uint8_t> source =
-      ConstructSource(STATIC_CHAR_VECTOR("var j=1; try { if (j) throw 1;"),
-                      STATIC_CHAR_VECTOR("for(var i=0;i<1;i++)j++;"),
-                      STATIC_CHAR_VECTOR("} catch (e) { j=7; } j"), 10000);
+      ConstructSource(STATIC_CHAR_VECTOR("var j=1; if (!j) {"),
+                      STATIC_CHAR_VECTOR("for (let i of Object.prototype);"),
+                      STATIC_CHAR_VECTOR("} j=7; j"), 1500);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 
@@ -1074,7 +1078,7 @@ TEST(CodeSerializerLargeCodeObject) {
       CompileScript(isolate, source_str, Handle<String>(), &cache,
                     v8::ScriptCompiler::kProduceCodeCache);
 
-  CHECK(isolate->heap()->InSpace(orig->code(), LO_SPACE));
+  CHECK(isolate->heap()->InSpace(orig->abstract_code(), LO_SPACE));
 
   Handle<SharedFunctionInfo> copy;
   {

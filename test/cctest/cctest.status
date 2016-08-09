@@ -322,15 +322,7 @@
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ##############################################################################
-['variant == stress', {
-  'test-serialize/CodeSerializerLargeCodeObject': [SKIP],
-}],  # variant == stress
-
-##############################################################################
 ['variant == turbofan', {
-
-  # Too many inputs into the merge of the handler block. And slow!
-  'test-serialize/CodeSerializerLargeCodeObject': [SKIP],
 
   # TODO(bmeurer): TurboFan embeds strong references to all kinds of objects
   # via deoptimization data (Crankshaft also does this, but lack proper test
@@ -343,14 +335,6 @@
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
 
 }],  # variant == turbofan
-
-##############################################################################
-['variant == turbofan_opt', {
-
-  # Too many inputs into the merge of the handler block. And slow!
-  'test-serialize/CodeSerializerLargeCodeObject': [SKIP],
-
-}],  # variant == turbofan_opt
 
 ##############################################################################
 ['variant == ignition', {
@@ -399,9 +383,6 @@
   # TODO(ignition): Fails due to missing type info when optimizing from bytecode
   # with crankshaft.
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
-
-  # TOOD(mstarzinger): Test expectation does not respect bytecode array.
-  'test-serialize/CodeSerializerLargeCodeObject': [FAIL],
 
   # TurboFan cpu profiler result is different.
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
@@ -457,7 +438,6 @@
   'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
   'test-run-inlining/SimpleInliningContext': [FAIL],
   'test-run-inlining/SimpleInlining': [FAIL],
-  'test-serialize/CodeSerializerLargeCodeObject': [FAIL],
 }],  # variant == ignition_staging
 
 ##############################################################################
@@ -528,9 +508,6 @@
 
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-
-  # TOOD(mstarzinger): Test expectation does not respect bytecode array.
-  'test-serialize/CodeSerializerLargeCodeObject': [FAIL],
 
   # TODO(bmeurer): TurboFan embeds strong references to all kinds of objects
   # via deoptimization data (Crankshaft also does this, but lack proper test
