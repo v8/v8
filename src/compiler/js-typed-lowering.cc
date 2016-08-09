@@ -386,7 +386,6 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
   }
 }
 
-
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
   NumberOperationHint hint;
@@ -742,7 +741,6 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
   return NoChange();
 }
 
-
 Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   JSBinopReduction r(this, node);
   if (r.left() == r.right()) {
@@ -804,7 +802,6 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   }
   return NoChange();
 }
-
 
 Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
   Node* const input = node->InputAt(0);
@@ -916,7 +913,6 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   return NoChange();
 }
 
-
 Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   // Try to reduce the input first.
   Node* const input = node->InputAt(0);
@@ -934,7 +930,6 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
   if (input->opcode() == IrOpcode::kJSToString) {
@@ -963,7 +958,6 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
   return NoChange();
 }
 
-
 Reduction JSTypedLowering::ReduceJSToString(Node* node) {
   // Try to reduce the input first.
   Node* const input = node->InputAt(0);
@@ -974,7 +968,6 @@ Reduction JSTypedLowering::ReduceJSToString(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSToObject, node->opcode());
@@ -1053,7 +1046,6 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   return NoChange();
 }
 
-
 Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Node* key = NodeProperties::GetValueInput(node, 1);
   Node* base = NodeProperties::GetValueInput(node, 0);
@@ -1100,7 +1092,6 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   Node* key = NodeProperties::GetValueInput(node, 1);
@@ -1178,7 +1169,6 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
@@ -1282,7 +1272,6 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   Node* if_is_proxy = graph()->NewNode(common()->IfTrue(), branch_is_proxy);
   Node* e_is_proxy = effect;
 
-
   Node* runtime_has_in_proto_chain = control = graph()->NewNode(
       common()->Merge(2), if_is_access_check_needed, if_is_proxy);
   effect = graph()->NewNode(common()->EffectPhi(2), e_is_access_check_needed,
@@ -1353,7 +1342,6 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   return Changed(result);
 }
 
-
 Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
@@ -1373,7 +1361,6 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
       simplified()->LoadField(AccessBuilder::ForContextSlot(access.index())));
   return Changed(node);
 }
-
 
 Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
@@ -1395,7 +1382,6 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   return Changed(node);
 }
 
-
 Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConvertReceiver, node->opcode());
   ConvertReceiverMode mode = ConvertReceiverModeOf(node->op());
@@ -1406,89 +1392,153 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (!receiver_type->Is(Type::Receiver())) {
-    if (receiver_type->Is(Type::NullOrUndefined()) ||
-        mode == ConvertReceiverMode::kNullOrUndefined) {
-      if (context_type->IsConstant()) {
-        Handle<JSObject> global_proxy(
-            Handle<Context>::cast(context_type->AsConstant()->Value())
-                ->global_proxy(),
-            isolate());
-        receiver = jsgraph()->Constant(global_proxy);
-      } else {
-        Node* native_context = effect = graph()->NewNode(
-            javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-            context, context, effect);
-        receiver = effect = graph()->NewNode(
-            javascript()->LoadContext(0, Context::GLOBAL_PROXY_INDEX, true),
-            native_context, native_context, effect);
-      }
-    } else if (!receiver_type->Maybe(Type::NullOrUndefined()) ||
-               mode == ConvertReceiverMode::kNotNullOrUndefined) {
-      receiver = effect =
-          graph()->NewNode(javascript()->ToObject(), receiver, context,
-                           frame_state, effect, control);
+
+  // Check if {receiver} is known to be a receiver.
+  if (receiver_type->Is(Type::Receiver())) {
+    ReplaceWithValue(node, receiver, effect, control);
+    return Replace(receiver);
+  }
+
+  // If the {receiver} is known to be null or undefined, we can just replace it
+  // with the global proxy unconditionally.
+  if (receiver_type->Is(Type::NullOrUndefined()) ||
+      mode == ConvertReceiverMode::kNullOrUndefined) {
+    if (context_type->IsConstant()) {
+      Handle<JSObject> global_proxy(
+          Handle<Context>::cast(context_type->AsConstant()->Value())
+              ->global_proxy(),
+          isolate());
+      receiver = jsgraph()->Constant(global_proxy);
     } else {
-      // Check {receiver} for undefined.
-      Node* check0 = graph()->NewNode(simplified()->ReferenceEqual(), receiver,
-                                      jsgraph()->UndefinedConstant());
-      Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                       check0, control);
-      Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-      Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+      Node* native_context = effect = graph()->NewNode(
+          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+          context, context, effect);
+      receiver = effect = graph()->NewNode(
+          javascript()->LoadContext(0, Context::GLOBAL_PROXY_INDEX, true),
+          native_context, native_context, effect);
+    }
+    ReplaceWithValue(node, receiver, effect, control);
+    return Replace(receiver);
+  }
 
-      // Check {receiver} for null.
-      Node* check1 = graph()->NewNode(simplified()->ReferenceEqual(), receiver,
-                                      jsgraph()->NullConstant());
-      Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                       check1, if_false0);
-      Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-      Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+  // If {receiver} cannot be null or undefined we can skip a few checks.
+  if (!receiver_type->Maybe(Type::NullOrUndefined()) ||
+      mode == ConvertReceiverMode::kNotNullOrUndefined) {
+    Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), receiver);
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
-      // Convert {receiver} using ToObject.
-      Node* if_convert = if_false1;
-      Node* econvert = effect;
-      Node* rconvert;
-      {
-        rconvert = econvert =
-            graph()->NewNode(javascript()->ToObject(), receiver, context,
-                             frame_state, econvert, if_convert);
-      }
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* etrue = effect;
+    Node* rtrue = receiver;
 
-      // Replace {receiver} with global proxy of {context}.
-      Node* if_global =
-          graph()->NewNode(common()->Merge(2), if_true0, if_true1);
-      Node* eglobal = effect;
-      Node* rglobal;
-      {
-        if (context_type->IsConstant()) {
-          Handle<JSObject> global_proxy(
-              Handle<Context>::cast(context_type->AsConstant()->Value())
-                  ->global_proxy(),
-              isolate());
-          rglobal = jsgraph()->Constant(global_proxy);
-        } else {
-          Node* native_context = eglobal = graph()->NewNode(
-              javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-              context, context, eglobal);
-          rglobal = eglobal = graph()->NewNode(
-              javascript()->LoadContext(0, Context::GLOBAL_PROXY_INDEX, true),
-              native_context, native_context, eglobal);
-        }
-      }
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* efalse = effect;
+    Node* rfalse;
+    {
+      // Convert {receiver} using the ToObjectStub.
+      Callable callable = CodeFactory::ToObject(isolate());
+      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), callable.descriptor(), 0,
+          CallDescriptor::kNeedsFrameState, node->op()->properties());
+      rfalse = efalse = graph()->NewNode(
+          common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
+          receiver, context, frame_state, efalse);
+    }
 
-      control = graph()->NewNode(common()->Merge(2), if_convert, if_global);
-      effect =
-          graph()->NewNode(common()->EffectPhi(2), econvert, eglobal, control);
-      receiver =
-          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           rconvert, rglobal, control);
+    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+
+    // Morph the {node} into an appropriate Phi.
+    ReplaceWithValue(node, node, effect, control);
+    node->ReplaceInput(0, rtrue);
+    node->ReplaceInput(1, rfalse);
+    node->ReplaceInput(2, control);
+    node->TrimInputCount(3);
+    NodeProperties::ChangeOp(node,
+                             common()->Phi(MachineRepresentation::kTagged, 2));
+    return Changed(node);
+  }
+
+  // Check if {receiver} is already a JSReceiver.
+  Node* check0 = graph()->NewNode(simplified()->ObjectIsReceiver(), receiver);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+
+  // Check {receiver} for undefined.
+  Node* check1 = graph()->NewNode(simplified()->ReferenceEqual(), receiver,
+                                  jsgraph()->UndefinedConstant());
+  Node* branch1 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, if_false0);
+  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+
+  // Check {receiver} for null.
+  Node* check2 = graph()->NewNode(simplified()->ReferenceEqual(), receiver,
+                                  jsgraph()->NullConstant());
+  Node* branch2 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check2, if_false1);
+  Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+  Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+
+  // We just use {receiver} directly.
+  Node* if_noop = if_true0;
+  Node* enoop = effect;
+  Node* rnoop = receiver;
+
+  // Convert {receiver} using ToObject.
+  Node* if_convert = if_false2;
+  Node* econvert = effect;
+  Node* rconvert;
+  {
+    // Convert {receiver} using the ToObjectStub.
+    Callable callable = CodeFactory::ToObject(isolate());
+    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNeedsFrameState, node->op()->properties());
+    rconvert = econvert = graph()->NewNode(
+        common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
+        receiver, context, frame_state, econvert);
+  }
+
+  // Replace {receiver} with global proxy of {context}.
+  Node* if_global = graph()->NewNode(common()->Merge(2), if_true1, if_true2);
+  Node* eglobal = effect;
+  Node* rglobal;
+  {
+    if (context_type->IsConstant()) {
+      Handle<JSObject> global_proxy(
+          Handle<Context>::cast(context_type->AsConstant()->Value())
+              ->global_proxy(),
+          isolate());
+      rglobal = jsgraph()->Constant(global_proxy);
+    } else {
+      Node* native_context = eglobal = graph()->NewNode(
+          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+          context, context, eglobal);
+      rglobal = eglobal = graph()->NewNode(
+          javascript()->LoadContext(0, Context::GLOBAL_PROXY_INDEX, true),
+          native_context, native_context, eglobal);
     }
   }
-  ReplaceWithValue(node, receiver, effect, control);
-  return Changed(receiver);
-}
 
+  control =
+      graph()->NewNode(common()->Merge(3), if_noop, if_convert, if_global);
+  effect = graph()->NewNode(common()->EffectPhi(3), enoop, econvert, eglobal,
+                            control);
+  // Morph the {node} into an appropriate Phi.
+  ReplaceWithValue(node, node, effect, control);
+  node->ReplaceInput(0, rnoop);
+  node->ReplaceInput(1, rconvert);
+  node->ReplaceInput(2, rglobal);
+  node->ReplaceInput(3, control);
+  node->TrimInputCount(4);
+  NodeProperties::ChangeOp(node,
+                           common()->Phi(MachineRepresentation::kTagged, 3));
+  return Changed(node);
+}
 
 Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallConstruct, node->opcode());

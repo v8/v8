@@ -690,11 +690,11 @@ const Operator* JSOperatorBuilder::CallConstruct(
 
 const Operator* JSOperatorBuilder::ConvertReceiver(
     ConvertReceiverMode convert_mode) {
-  return new (zone()) Operator1<ConvertReceiverMode>(    // --
-      IrOpcode::kJSConvertReceiver, Operator::kNoThrow,  // opcode
-      "JSConvertReceiver",                               // name
-      1, 1, 1, 1, 1, 0,                                  // counts
-      convert_mode);                                     // parameter
+  return new (zone()) Operator1<ConvertReceiverMode>(         // --
+      IrOpcode::kJSConvertReceiver, Operator::kEliminatable,  // opcode
+      "JSConvertReceiver",                                    // name
+      1, 1, 1, 1, 1, 0,                                       // counts
+      convert_mode);                                          // parameter
 }
 
 const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
