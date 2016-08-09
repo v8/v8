@@ -139,6 +139,20 @@ TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
   return new (zone()) TypeHintAnalysis(infos, zone());
 }
 
+// Helper function to transform the feedback to BinaryOperationHints
+BinaryOperationHints::Hint BinaryOperationHintFromFeedback(int type_feedback) {
+  switch (type_feedback) {
+    case BinaryOperationFeedback::kSignedSmall:
+      return BinaryOperationHints::kSigned32;
+    case BinaryOperationFeedback::kNumber:
+      return BinaryOperationHints::kNumberOrOddball;
+    case BinaryOperationFeedback::kAny:
+    default:
+      return BinaryOperationHints::kAny;
+  }
+  return BinaryOperationHints::kAny;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

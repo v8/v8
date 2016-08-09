@@ -1166,14 +1166,27 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* js_op) {
   environment()->BindAccumulator(node, &states);
 }
 
+// Helper function to create binary operation hint from the recorded type
+// feedback.
+BinaryOperationHints BytecodeGraphBuilder::GetBinaryOperationHint() {
+  FeedbackVectorSlot slot =
+      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
+  DCHECK_EQ(FeedbackVectorSlotKind::GENERAL, feedback_vector()->GetKind(slot));
+  Object* feedback = feedback_vector()->Get(slot);
+  BinaryOperationHints::Hint hint = BinaryOperationHints::Hint::kAny;
+  if (feedback->IsSmi()) {
+    hint = BinaryOperationHintFromFeedback((Smi::cast(feedback))->value());
+  }
+  return BinaryOperationHints(hint, hint, hint);
+}
+
 void BytecodeGraphBuilder::VisitAdd() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
   BuildBinaryOp(javascript()->Add(hints));
 }
 
 void BytecodeGraphBuilder::VisitSub() {
-  BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->Subtract(hints));
+  BuildBinaryOp(javascript()->Subtract(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitMul() {

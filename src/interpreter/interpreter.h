@@ -79,6 +79,10 @@ class Interpreter {
   template <class Generator>
   void DoBinaryOp(InterpreterAssembler* assembler);
 
+  // Generates code to perform the binary operation via |Generator|.
+  template <class Generator>
+  void DoBinaryOpWithFeedback(InterpreterAssembler* assembler);
+
   // Generates code to perform the binary operation via |Generator| using
   // an immediate value rather the accumulator as the rhs operand.
   template <class Generator>

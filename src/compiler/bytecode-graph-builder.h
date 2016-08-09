@@ -9,6 +9,7 @@
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/bytecode-loop-analysis.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/type-hint-analyzer.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
@@ -133,6 +134,10 @@ class BytecodeGraphBuilder {
   void BuildForInPrepare();
   void BuildForInNext();
   void BuildInvokeIntrinsic();
+
+  // Helper function to create binary operation hint from the recorded
+  // type feedback.
+  BinaryOperationHints GetBinaryOperationHint();
 
   // Control flow plumbing.
   void BuildJump();

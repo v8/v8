@@ -749,6 +749,7 @@ void Interpreter::DoPopContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+// TODO(mythria): Remove this function once all BinaryOps record type feedback.
 template <class Generator>
 void Interpreter::DoBinaryOp(InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
@@ -756,6 +757,20 @@ void Interpreter::DoBinaryOp(InterpreterAssembler* assembler) {
   Node* rhs = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* result = Generator::Generate(assembler, lhs, rhs, context);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+template <class Generator>
+void Interpreter::DoBinaryOpWithFeedback(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* result = Generator::Generate(assembler, lhs, rhs, context,
+                                     type_feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -771,7 +786,7 @@ void Interpreter::DoAdd(InterpreterAssembler* assembler) {
 //
 // Subtract register <src> from accumulator.
 void Interpreter::DoSub(InterpreterAssembler* assembler) {
-  DoBinaryOp<SubtractStub>(assembler);
+  DoBinaryOpWithFeedback<SubtractWithFeedbackStub>(assembler);
 }
 
 // Mul <src>

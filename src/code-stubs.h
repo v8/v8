@@ -122,6 +122,7 @@ namespace internal {
   V(StringLength)                             \
   V(Add)                                      \
   V(Subtract)                                 \
+  V(SubtractWithFeedback)                     \
   V(Multiply)                                 \
   V(Divide)                                   \
   V(Modulus)                                  \
@@ -430,6 +431,20 @@ class CodeStub BASE_EMBEDDED {
                                assembler->Parameter(1),                        \
                                assembler->Parameter(2)));                      \
   }                                                                            \
+  DEFINE_CODE_STUB(NAME, SUPER)
+
+#define DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)        \
+ public:                                                                      \
+  static compiler::Node* Generate(                                            \
+      CodeStubAssembler* assembler, compiler::Node* left,                     \
+      compiler::Node* right, compiler::Node* context,                         \
+      compiler::Node* type_feedback_vector, compiler::Node* slot_id);         \
+  void GenerateAssembly(CodeStubAssembler* assembler) const override {        \
+    assembler->Return(                                                        \
+        Generate(assembler, assembler->Parameter(0), assembler->Parameter(1), \
+                 assembler->Parameter(2), assembler->Parameter(3),            \
+                 assembler->Parameter(4)));                                   \
+  }                                                                           \
   DEFINE_CODE_STUB(NAME, SUPER)
 
 #define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(NAME, SUPER)                \
@@ -747,6 +762,16 @@ class SubtractStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Subtract, TurboFanCodeStub);
+};
+
+class SubtractWithFeedbackStub final : public TurboFanCodeStub {
+ public:
+  explicit SubtractWithFeedbackStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(SubtractWithFeedback,
+                                                    TurboFanCodeStub);
 };
 
 class MultiplyStub final : public TurboFanCodeStub {

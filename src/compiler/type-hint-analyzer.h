@@ -50,6 +50,8 @@ class TypeHintAnalyzer final {
   DISALLOW_COPY_AND_ASSIGN(TypeHintAnalyzer);
 };
 
+BinaryOperationHints::Hint BinaryOperationHintFromFeedback(int type_feedback);
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
