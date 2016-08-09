@@ -4797,14 +4797,14 @@ compiler::Node* FastNewFunctionContextStub::Generate(
   assembler->Bind(&loop);
   {
     Node* slot_index = var_slot_index.value();
-    // check for < length later, there are at least Context::MIN_CONTEXT_SLOTS
+    assembler->GotoUnless(assembler->Int32LessThan(slot_index, length),
+                          &after_loop);
     assembler->StoreFixedArrayElement(function_context, slot_index, undefined,
                                       SKIP_WRITE_BARRIER);
     Node* one = assembler->Int32Constant(1);
     Node* next_index = assembler->Int32Add(slot_index, one);
     var_slot_index.Bind(next_index);
-    assembler->Branch(assembler->Int32LessThan(next_index, length), &loop,
-                      &after_loop);
+    assembler->Goto(&loop);
   }
   assembler->Bind(&after_loop);
 
