@@ -597,9 +597,12 @@ const char* AllocationSpaceName(AllocationSpace space) {
 void MarkCompactCollector::ComputeEvacuationHeuristics(
     int area_size, int* target_fragmentation_percent,
     int* max_evacuated_bytes) {
-  // For memory reducing mode we directly define both constants.
+  // For memory reducing and optimize for memory mode we directly define both
+  // constants.
   const int kTargetFragmentationPercentForReduceMemory = 20;
   const int kMaxEvacuatedBytesForReduceMemory = 12 * Page::kPageSize;
+  const int kTargetFragmentationPercentForOptimizeMemory = 20;
+  const int kMaxEvacuatedBytesForOptimizeMemory = 6 * MB;
 
   // For regular mode (which is latency critical) we define less aggressive
   // defaults to start and switch to a trace-based (using compaction speed)
@@ -613,6 +616,10 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
   if (heap()->ShouldReduceMemory()) {
     *target_fragmentation_percent = kTargetFragmentationPercentForReduceMemory;
     *max_evacuated_bytes = kMaxEvacuatedBytesForReduceMemory;
+  } else if (heap()->ShouldOptimizeForMemoryUsage()) {
+    *target_fragmentation_percent =
+        kTargetFragmentationPercentForOptimizeMemory;
+    *max_evacuated_bytes = kMaxEvacuatedBytesForOptimizeMemory;
   } else {
     const double estimated_compaction_speed =
         heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
