@@ -2083,6 +2083,78 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
   return result_var.value();
 }
 
+// ES6 section 7.1.13 ToObject (argument)
+void ToObjectStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label if_number(assembler, Label::kDeferred), if_notsmi(assembler),
+      if_jsreceiver(assembler), if_noconstructor(assembler, Label::kDeferred),
+      if_wrapjsvalue(assembler);
+
+  Node* object = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Variable constructor_function_index_var(assembler,
+                                          MachineRepresentation::kWord32);
+
+  assembler->Branch(assembler->WordIsSmi(object), &if_number, &if_notsmi);
+
+  assembler->Bind(&if_notsmi);
+  Node* map = assembler->LoadMap(object);
+
+  assembler->GotoIf(
+      assembler->WordEqual(map, assembler->HeapNumberMapConstant()),
+      &if_number);
+
+  Node* instance_type = assembler->LoadMapInstanceType(map);
+  assembler->GotoIf(
+      assembler->Int32GreaterThanOrEqual(
+          instance_type, assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
+      &if_jsreceiver);
+
+  Node* constructor_function_index = assembler->LoadObjectField(
+      map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
+      MachineType::Uint8());
+  assembler->GotoIf(
+      assembler->Word32Equal(
+          constructor_function_index,
+          assembler->Int32Constant(Map::kNoConstructorFunctionIndex)),
+      &if_noconstructor);
+  constructor_function_index_var.Bind(constructor_function_index);
+  assembler->Goto(&if_wrapjsvalue);
+
+  assembler->Bind(&if_number);
+  constructor_function_index_var.Bind(
+      assembler->Int32Constant(Context::NUMBER_FUNCTION_INDEX));
+  assembler->Goto(&if_wrapjsvalue);
+
+  assembler->Bind(&if_wrapjsvalue);
+  Node* native_context = assembler->LoadNativeContext(context);
+  Node* constructor = assembler->LoadFixedArrayElement(
+      native_context, constructor_function_index_var.value());
+  Node* initial_map = assembler->LoadObjectField(
+      constructor, JSFunction::kPrototypeOrInitialMapOffset);
+  Node* js_value = assembler->Allocate(JSValue::kSize);
+  assembler->StoreMapNoWriteBarrier(js_value, initial_map);
+  assembler->StoreObjectFieldRoot(js_value, JSValue::kPropertiesOffset,
+                                  Heap::kEmptyFixedArrayRootIndex);
+  assembler->StoreObjectFieldRoot(js_value, JSObject::kElementsOffset,
+                                  Heap::kEmptyFixedArrayRootIndex);
+  assembler->StoreObjectField(js_value, JSValue::kValueOffset, object);
+  assembler->Return(js_value);
+
+  assembler->Bind(&if_noconstructor);
+  assembler->TailCallRuntime(
+      Runtime::kThrowUndefinedOrNullToObject, context,
+      assembler->HeapConstant(assembler->factory()->NewStringFromAsciiChecked(
+          "ToObject", TENURED)));
+
+  assembler->Bind(&if_jsreceiver);
+  assembler->Return(object);
+}
+
 // static
 // ES6 section 12.5.5 typeof operator
 compiler::Node* TypeofStub::Generate(CodeStubAssembler* assembler,
@@ -2107,7 +2179,7 @@ compiler::Node* TypeofStub::Generate(CodeStubAssembler* assembler,
       assembler->WordEqual(map, assembler->HeapNumberMapConstant()),
       &return_number);
 
-  Node* instance_type = assembler->LoadInstanceType(value);
+  Node* instance_type = assembler->LoadMapInstanceType(map);
 
   assembler->GotoIf(assembler->Word32Equal(
                         instance_type, assembler->Int32Constant(ODDBALL_TYPE)),
@@ -4345,12 +4417,6 @@ void ElementsTransitionAndStoreStub::InitializeDescriptor(
       FUNCTION_ADDR(Runtime_ElementsTransitionAndStoreIC_Miss));
 }
 
-
-void ToObjectStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(Runtime::FunctionForId(Runtime::kToObject)->entry);
-  descriptor->SetMissHandler(Runtime::kToObject);
-}
-
 void StoreTransitionStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
       FUNCTION_ADDR(Runtime_TransitionStoreIC_MissFromStubFailure));
@@ -4781,8 +4847,7 @@ compiler::Node* FastNewFunctionContextStub::Generate(
       assembler->TheHoleConstant(), SKIP_WRITE_BARRIER);
 
   // Copy the native context from the previous context.
-  Node* native_context = assembler->LoadFixedArrayElement(
-      context, assembler->Int32Constant(Context::NATIVE_CONTEXT_INDEX));
+  Node* native_context = assembler->LoadNativeContext(context);
   assembler->StoreFixedArrayElement(
       function_context, assembler->Int32Constant(Context::NATIVE_CONTEXT_INDEX),
       native_context, SKIP_WRITE_BARRIER);

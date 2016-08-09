@@ -2563,8 +2563,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ Push(rax);
         __ Push(rdi);
         __ movp(rax, rcx);
+        __ Push(rsi);
         ToObjectStub stub(masm->isolate());
         __ CallStub(&stub);
+        __ Pop(rsi);
         __ movp(rcx, rax);
         __ Pop(rdi);
         __ Pop(rax);

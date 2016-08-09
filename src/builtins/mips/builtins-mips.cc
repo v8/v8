@@ -2413,8 +2413,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ sll(a0, a0, kSmiTagSize);  // Smi tagged.
         __ Push(a0, a1);
         __ mov(a0, a3);
+        __ Push(cp);
         ToObjectStub stub(masm->isolate());
         __ CallStub(&stub);
+        __ Pop(cp);
         __ mov(a3, v0);
         __ Pop(a0, a1);
         __ sra(a0, a0, kSmiTagSize);  // Un-tag.

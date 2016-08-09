@@ -2400,8 +2400,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ SmiTag(r0);
         __ Push(r0, r1);
         __ mov(r0, r3);
+        __ Push(cp);
         ToObjectStub stub(masm->isolate());
         __ CallStub(&stub);
+        __ Pop(cp);
         __ mov(r3, r0);
         __ Pop(r0, r1);
         __ SmiUntag(r0);

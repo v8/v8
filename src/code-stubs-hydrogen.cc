@@ -1659,15 +1659,6 @@ Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<ToObjectStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(Descriptor::kArgument);
-  return BuildToObject(receiver);
-}
-
-
-Handle<Code> ToObjectStub::GenerateCode() { return DoGenerateCode(this); }
-
-template <>
 HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
   HValue* receiver = GetParameter(Descriptor::kReceiver);
   HValue* key = GetParameter(Descriptor::kName);

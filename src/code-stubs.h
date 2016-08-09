@@ -3153,13 +3153,12 @@ class ToNameStub final : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(ToName, PlatformCodeStub);
 };
 
-
-class ToObjectStub final : public HydrogenCodeStub {
+class ToObjectStub final : public TurboFanCodeStub {
  public:
-  explicit ToObjectStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+  explicit ToObjectStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_HYDROGEN_CODE_STUB(ToObject, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(ToObject, TurboFanCodeStub);
 };
 
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
