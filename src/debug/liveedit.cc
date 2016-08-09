@@ -620,51 +620,19 @@ void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
   this->SetSmiValueField(kParentIndexOffset_, parent_index);
 }
 
-void FunctionInfoWrapper::SetFunctionCode(Handle<AbstractCode> function_code,
-                                          Handle<HeapObject> code_scope_info) {
-  // CompileForLiveEdit must deliver full-codegen code.
-  Handle<JSValue> code_wrapper = WrapInJSValue(function_code);
-  this->SetField(kCodeOffset_, code_wrapper);
-
-  Handle<JSValue> scope_wrapper = WrapInJSValue(code_scope_info);
-  this->SetField(kCodeScopeInfoOffset_, scope_wrapper);
-}
-
-
 void FunctionInfoWrapper::SetSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
   Handle<JSValue> info_holder = WrapInJSValue(info);
   this->SetField(kSharedFunctionInfoOffset_, info_holder);
 }
 
-Handle<AbstractCode> FunctionInfoWrapper::GetFunctionCode() {
-  Handle<Object> element = this->GetField(kCodeOffset_);
+Handle<SharedFunctionInfo> FunctionInfoWrapper::GetSharedFunctionInfo() {
+  Handle<Object> element = this->GetField(kSharedFunctionInfoOffset_);
   Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
   Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
-  CHECK(raw_result->IsAbstractCode());
-  return Handle<AbstractCode>::cast(raw_result);
+  CHECK(raw_result->IsSharedFunctionInfo());
+  return Handle<SharedFunctionInfo>::cast(raw_result);
 }
-
-MaybeHandle<TypeFeedbackMetadata> FunctionInfoWrapper::GetFeedbackMetadata() {
-  Handle<Object> element = this->GetField(kSharedFunctionInfoOffset_);
-  if (element->IsJSValue()) {
-    Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
-    Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
-    Handle<SharedFunctionInfo> shared =
-        Handle<SharedFunctionInfo>::cast(raw_result);
-    return Handle<TypeFeedbackMetadata>(shared->feedback_metadata(), isolate());
-  } else {
-    // Scripts may never have a SharedFunctionInfo created.
-    return MaybeHandle<TypeFeedbackMetadata>();
-  }
-}
-
-
-Handle<Object> FunctionInfoWrapper::GetCodeScopeInfo() {
-  Handle<Object> element = this->GetField(kCodeScopeInfoOffset_);
-  return UnwrapJSValue(Handle<JSValue>::cast(element));
-}
-
 
 void SharedInfoWrapper::SetProperties(Handle<String> name,
                                       int start_position,
@@ -1005,41 +973,57 @@ void LiveEdit::ReplaceFunctionCode(
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
+  Handle<SharedFunctionInfo> new_shared_info =
+      compile_info_wrapper.GetSharedFunctionInfo();
   bool feedback_metadata_changed = false;
 
   if (shared_info->is_compiled()) {
-    Handle<AbstractCode> new_code = compile_info_wrapper.GetFunctionCode();
-    if (shared_info->HasBytecodeArray()) {
-      DCHECK(new_code->IsBytecodeArray());
-      // The old code is interpreted, the new code must be interpreted as well.
-      shared_info->ClearBytecodeArray();
-      shared_info->set_bytecode_array(BytecodeArray::cast(*new_code));
+    // Take whatever code we can get from the new shared function info. We
+    // expect activations of neither the old bytecode nor old FCG code, since
+    // the lowest activation is going to be restarted.
+    Handle<Code> old_code(shared_info->code());
+    Handle<Code> new_code(new_shared_info->code());
+    // Clear old bytecode. This will trigger self-healing if we do not install
+    // new bytecode.
+    shared_info->ClearBytecodeArray();
+    if (old_code->is_interpreter_trampoline_builtin()) {
+      // Every function from this SFI is interpreted.
+      if (new_code->is_interpreter_trampoline_builtin()) {
+        // We have newly compiled bytecode. Simply replace the old one.
+        shared_info->set_bytecode_array(new_shared_info->bytecode_array());
+      } else {
+        // Rely on self-healing for places that used to run bytecode.
+        shared_info->ReplaceCode(*new_code);
+      }
     } else {
-      Handle<Code> old_code(shared_info->code());
+      // Functions from this SFI can be either interpreted or running FCG.
       DCHECK(old_code->kind() == Code::FUNCTION);
-      DCHECK(new_code->kind() == AbstractCode::FUNCTION);
-      ReplaceCodeObject(old_code, Handle<Code>::cast(new_code));
+      if (new_shared_info->HasBytecodeArray()) {
+        // Start using new bytecode everywhere.
+        shared_info->set_bytecode_array(new_shared_info->bytecode_array());
+        ReplaceCodeObject(old_code,
+                          isolate->builtins()->InterpreterEntryTrampoline());
+      } else {
+        // Start using new FCG code everywhere.
+        // Rely on self-healing for places that used to run bytecode.
+        DCHECK(new_code->kind() == Code::FUNCTION);
+        ReplaceCodeObject(old_code, new_code);
+      }
     }
+
     if (shared_info->HasDebugInfo()) {
       // Existing break points will be re-applied. Reset the debug info here.
       isolate->debug()->RemoveDebugInfoAndClearFromShared(
           handle(shared_info->GetDebugInfo()));
     }
-    Handle<Object> code_scope_info = compile_info_wrapper.GetCodeScopeInfo();
-    if (code_scope_info->IsFixedArray()) {
-      shared_info->set_scope_info(ScopeInfo::cast(*code_scope_info));
-    }
+    shared_info->set_scope_info(new_shared_info->scope_info());
     shared_info->DisableOptimization(kLiveEdit);
     // Update the type feedback vector, if needed.
-    MaybeHandle<TypeFeedbackMetadata> feedback_metadata =
-        compile_info_wrapper.GetFeedbackMetadata();
-    if (!feedback_metadata.is_null()) {
-      Handle<TypeFeedbackMetadata> checked_feedback_metadata =
-          feedback_metadata.ToHandleChecked();
-      feedback_metadata_changed = checked_feedback_metadata->DiffersFrom(
-          shared_info->feedback_metadata());
-      shared_info->set_feedback_metadata(*checked_feedback_metadata);
-    }
+    Handle<TypeFeedbackMetadata> new_feedback_metadata(
+        new_shared_info->feedback_metadata());
+    feedback_metadata_changed =
+        new_feedback_metadata->DiffersFrom(shared_info->feedback_metadata());
+    shared_info->set_feedback_metadata(*new_feedback_metadata);
   }
 
   int start_position = compile_info_wrapper.GetStartPosition();
@@ -1154,19 +1138,19 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_end_position(new_function_end);
   info->set_function_token_position(new_function_token_pos);
 
-  if (info->code()->kind() == Code::FUNCTION) {
-    Handle<ByteArray> new_source_position_table = TranslateSourcePositionTable(
-        Handle<ByteArray>(info->code()->source_position_table()),
-        position_change_array);
-    info->code()->set_source_position_table(*new_source_position_table);
-  } else if (info->HasBytecodeArray()) {
+  if (info->HasBytecodeArray()) {
     Handle<ByteArray> new_source_position_table = TranslateSourcePositionTable(
         Handle<ByteArray>(info->bytecode_array()->source_position_table()),
         position_change_array);
     info->bytecode_array()->set_source_position_table(
         *new_source_position_table);
   }
-
+  if (info->code()->kind() == Code::FUNCTION) {
+    Handle<ByteArray> new_source_position_table = TranslateSourcePositionTable(
+        Handle<ByteArray>(info->code()->source_position_table()),
+        position_change_array);
+    info->code()->set_source_position_table(*new_source_position_table);
+  }
   if (info->HasDebugInfo()) {
     // Existing break points will be re-applied. Reset the debug info here.
     info->GetIsolate()->debug()->RemoveDebugInfoAndClearFromShared(
@@ -1898,8 +1882,6 @@ void LiveEditFunctionTracker::FunctionDone(Handle<SharedFunctionInfo> shared,
   FunctionInfoWrapper info = FunctionInfoWrapper::cast(
       *JSReceiver::GetElement(isolate_, result_, current_parent_index_)
            .ToHandleChecked());
-  info.SetFunctionCode(Handle<AbstractCode>(shared->abstract_code()),
-                       Handle<HeapObject>(shared->scope_info()));
   info.SetSharedFunctionInfo(shared);
 
   Handle<Object> scope_info_list = SerializeFunctionScope(scope);

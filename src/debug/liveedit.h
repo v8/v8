@@ -295,14 +295,13 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
                             int end_position, int param_num, int literal_count,
                             int parent_index);
 
-  void SetFunctionCode(Handle<AbstractCode> function_code,
-                       Handle<HeapObject> code_scope_info);
-
   void SetFunctionScopeInfo(Handle<Object> scope_info_array) {
     this->SetField(kFunctionScopeInfoOffset_, scope_info_array);
   }
 
   void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info);
+
+  Handle<SharedFunctionInfo> GetSharedFunctionInfo();
 
   int GetLiteralCount() {
     return this->GetSmiValueField(kLiteralNumOffset_);
@@ -311,12 +310,6 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   int GetParentIndex() {
     return this->GetSmiValueField(kParentIndexOffset_);
   }
-
-  Handle<AbstractCode> GetFunctionCode();
-
-  MaybeHandle<TypeFeedbackMetadata> GetFeedbackMetadata();
-
-  Handle<Object> GetCodeScopeInfo();
 
   int GetStartPosition() {
     return this->GetSmiValueField(kStartPositionOffset_);
@@ -329,13 +322,11 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   static const int kStartPositionOffset_ = 1;
   static const int kEndPositionOffset_ = 2;
   static const int kParamNumOffset_ = 3;
-  static const int kCodeOffset_ = 4;
-  static const int kCodeScopeInfoOffset_ = 5;
-  static const int kFunctionScopeInfoOffset_ = 6;
-  static const int kParentIndexOffset_ = 7;
-  static const int kSharedFunctionInfoOffset_ = 8;
-  static const int kLiteralNumOffset_ = 9;
-  static const int kSize_ = 10;
+  static const int kFunctionScopeInfoOffset_ = 4;
+  static const int kParentIndexOffset_ = 5;
+  static const int kSharedFunctionInfoOffset_ = 6;
+  static const int kLiteralNumOffset_ = 7;
+  static const int kSize_ = 8;
 
   friend class JSArrayBasedStruct<FunctionInfoWrapper>;
 };
