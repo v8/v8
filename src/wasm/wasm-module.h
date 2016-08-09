@@ -9,6 +9,8 @@
 
 #include "src/api.h"
 #include "src/handles.h"
+#include "src/parsing/preparse-data.h"
+
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 
@@ -395,6 +397,9 @@ Handle<FixedArray> BuildFunctionTable(Isolate* isolate, uint32_t index,
 // the compiled code.
 void PopulateFunctionTable(Handle<FixedArray> table, uint32_t table_size,
                            const std::vector<Handle<Code>>* code_table);
+
+Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
+                                            Handle<FixedArray> compiled_module);
 
 namespace testing {
 

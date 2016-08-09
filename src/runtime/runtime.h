@@ -880,7 +880,9 @@ namespace internal {
   F(HasFixedFloat32Elements, 1, 1)            \
   F(HasFixedFloat64Elements, 1, 1)            \
   F(HasFixedUint8ClampedElements, 1, 1)       \
-  F(SpeciesProtector, 0, 1)
+  F(SpeciesProtector, 0, 1)                   \
+  F(SerializeWasmModule, 1, 1)                \
+  F(DeserializeWasmModule, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \

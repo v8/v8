@@ -11,7 +11,9 @@
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/isolate-inl.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -640,6 +642,43 @@ RUNTIME_FUNCTION(Runtime_SpeciesProtector) {
   return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
 }
 
+// Take a compiled wasm module, serialize it and copy the buffer into an array
+// buffer, which is then returned.
+RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, module_obj, 0);
+
+  Handle<FixedArray> orig =
+      handle(FixedArray::cast(module_obj->GetInternalField(0)));
+  std::unique_ptr<ScriptData> data =
+      WasmCompiledModuleSerializer::SerializeWasmModule(isolate, orig);
+  void* buff = isolate->array_buffer_allocator()->Allocate(data->length());
+  Handle<JSArrayBuffer> ret = isolate->factory()->NewJSArrayBuffer();
+  JSArrayBuffer::Setup(ret, isolate, false, buff, data->length());
+  memcpy(buff, data->data(), data->length());
+  return *ret;
+}
+
+// Take an array buffer and attempt to reconstruct a compiled wasm module.
+// Return undefined if unsuccessful.
+RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 0);
+
+  Address mem_start = static_cast<Address>(buffer->backing_store());
+  int mem_size = static_cast<int>(buffer->byte_length()->Number());
+
+  ScriptData sc(mem_start, mem_size);
+  MaybeHandle<FixedArray> maybe_compiled_module =
+      WasmCompiledModuleSerializer::DeserializeWasmModule(isolate, &sc);
+  Handle<FixedArray> compiled_module;
+  if (!maybe_compiled_module.ToHandle(&compiled_module)) {
+    return isolate->heap()->undefined_value();
+  }
+  return *wasm::CreateCompiledModuleObject(isolate, compiled_module);
+}
 
 }  // namespace internal
 }  // namespace v8

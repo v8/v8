@@ -136,22 +136,21 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   return Handle<Object>(root, isolate);
 }
 
-MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
-    Isolate* isolate) {
+MaybeHandle<HeapObject> Deserializer::DeserializeObject(Isolate* isolate) {
   Initialize(isolate);
   if (!ReserveSpace()) {
-    return Handle<SharedFunctionInfo>();
+    return MaybeHandle<HeapObject>();
   } else {
     deserializing_user_code_ = true;
     HandleScope scope(isolate);
-    Handle<SharedFunctionInfo> result;
+    Handle<HeapObject> result;
     {
       DisallowHeapAllocation no_gc;
       Object* root;
       VisitPointer(&root);
       DeserializeDeferredObjects();
       FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
-      result = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
+      result = Handle<HeapObject>(HeapObject::cast(root));
       isolate->heap()->RegisterReservationsForBlackAllocation(reservations_);
     }
     CommitPostProcessedObjects(isolate);

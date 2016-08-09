@@ -17,24 +17,29 @@ class CodeSerializer : public Serializer {
                                Handle<SharedFunctionInfo> info,
                                Handle<String> source);
 
+  ScriptData* Serialize(Handle<HeapObject> obj);
+
   MUST_USE_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, ScriptData* cached_data, Handle<String> source);
 
-  String* source() const {
-    DCHECK(!AllowHeapAllocation::IsAllowed());
-    return source_;
-  }
-
   const List<uint32_t>* stub_keys() const { return &stub_keys_; }
 
- private:
-  CodeSerializer(Isolate* isolate, String* source)
-      : Serializer(isolate), source_(source) {
-    reference_map_.AddAttachedReference(source);
-  }
+  uint32_t source_hash() const { return source_hash_; }
 
+ protected:
+  explicit CodeSerializer(Isolate* isolate, uint32_t source_hash)
+      : Serializer(isolate), source_hash_(source_hash) {}
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
+  virtual void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
+                                   WhereToPoint where_to_point) {
+    UNREACHABLE();
+  }
+
+  void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
+                        WhereToPoint where_to_point);
+
+ private:
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
@@ -42,22 +47,55 @@ class CodeSerializer : public Serializer {
                         WhereToPoint where_to_point);
   void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                          WhereToPoint where_to_point);
-  void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
-                        WhereToPoint where_to_point);
 
   DisallowHeapAllocation no_gc_;
-  String* source_;
+  uint32_t source_hash_;
   List<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
+};
+
+class WasmCompiledModuleSerializer : public CodeSerializer {
+ public:
+  static std::unique_ptr<ScriptData> SerializeWasmModule(
+      Isolate* isolate, Handle<FixedArray> compiled_module);
+  static MaybeHandle<FixedArray> DeserializeWasmModule(Isolate* isolate,
+                                                       ScriptData* data);
+
+ protected:
+  void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
+                           WhereToPoint where_to_point) override {
+    Code::Kind kind = code_object->kind();
+    if (kind == Code::WASM_FUNCTION || kind == Code::WASM_TO_JS_FUNCTION ||
+        kind == Code::JS_TO_WASM_FUNCTION) {
+      SerializeGeneric(code_object, how_to_code, where_to_point);
+    } else {
+      UNREACHABLE();
+    }
+  }
+
+ private:
+  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash)
+      : CodeSerializer(isolate, source_hash) {}
+  DISALLOW_COPY_AND_ASSIGN(WasmCompiledModuleSerializer);
 };
 
 // Wrapper around ScriptData to provide code-serializer-specific functionality.
 class SerializedCodeData : public SerializedData {
  public:
+  enum SanityCheckResult {
+    CHECK_SUCCESS = 0,
+    MAGIC_NUMBER_MISMATCH = 1,
+    VERSION_MISMATCH = 2,
+    SOURCE_MISMATCH = 3,
+    CPU_FEATURES_MISMATCH = 4,
+    FLAGS_MISMATCH = 5,
+    CHECKSUM_MISMATCH = 6
+  };
+
   // Used when consuming.
-  static SerializedCodeData* FromCachedData(Isolate* isolate,
-                                            ScriptData* cached_data,
-                                            String* source);
+  static const SerializedCodeData FromCachedData(
+      Isolate* isolate, ScriptData* cached_data, uint32_t expected_source_hash,
+      SanityCheckResult* rejection_result);
 
   // Used when producing.
   SerializedCodeData(const List<byte>* payload, const CodeSerializer* cs);
@@ -70,23 +108,15 @@ class SerializedCodeData : public SerializedData {
 
   Vector<const uint32_t> CodeStubKeys() const;
 
+  static uint32_t SourceHash(Handle<String> source);
+
  private:
   explicit SerializedCodeData(ScriptData* data);
+  SerializedCodeData(const byte* data, int size)
+      : SerializedData(const_cast<byte*>(data), size) {}
 
-  enum SanityCheckResult {
-    CHECK_SUCCESS = 0,
-    MAGIC_NUMBER_MISMATCH = 1,
-    VERSION_MISMATCH = 2,
-    SOURCE_MISMATCH = 3,
-    CPU_FEATURES_MISMATCH = 4,
-    FLAGS_MISMATCH = 5,
-    CHECKSUM_MISMATCH = 6
-  };
-
-  SanityCheckResult SanityCheck(Isolate* isolate, String* source) const;
-
-  uint32_t SourceHash(String* source) const;
-
+  SanityCheckResult SanityCheck(Isolate* isolate,
+                                uint32_t expected_source_hash) const;
   // The data header consists of uint32_t-sized entries:
   // [0] magic number and external reference count
   // [1] version hash

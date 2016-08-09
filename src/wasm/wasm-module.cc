@@ -5,12 +5,14 @@
 #include <memory>
 
 #include "src/base/atomic-utils.h"
+#include "src/code-stubs.h"
+
 #include "src/macro-assembler.h"
 #include "src/objects.h"
 #include "src/property-descriptor.h"
-#include "src/v8.h"
-
 #include "src/simulator.h"
+#include "src/snapshot/snapshot.h"
+#include "src/v8.h"
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/module-decoder.h"
@@ -1569,6 +1571,17 @@ int GetNumberOfFunctions(JSObject* wasm) {
   Object* func_names_obj = wasm->GetInternalField(kWasmFunctionNamesArray);
   // TODO(clemensh): this looks inside an array constructed elsewhere. Refactor.
   return ByteArray::cast(func_names_obj)->get_int(0);
+}
+
+Handle<JSObject> CreateCompiledModuleObject(
+    Isolate* isolate, Handle<FixedArray> compiled_module) {
+  Handle<JSFunction> module_cons(
+      isolate->native_context()->wasm_module_constructor());
+  Handle<JSObject> module_obj = isolate->factory()->NewJSObject(module_cons);
+  module_obj->SetInternalField(0, *compiled_module);
+  Handle<Symbol> module_sym(isolate->native_context()->wasm_module_sym());
+  Object::SetProperty(module_obj, module_sym, module_obj, STRICT).Check();
+  return module_obj;
 }
 
 namespace testing {

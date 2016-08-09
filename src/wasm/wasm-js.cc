@@ -318,17 +318,9 @@ static i::MaybeHandle<i::JSObject> CreateModuleObject(
   i::MaybeHandle<i::FixedArray> compiled_module =
       decoded_module->CompileFunctions(i_isolate, thrower);
   if (compiled_module.is_null()) return nothing;
-  Local<Context> context = isolate->GetCurrentContext();
-  i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  i::Handle<i::JSFunction> module_cons(i_context->wasm_module_constructor());
-  i::Handle<i::JSObject> module_obj =
-      i_isolate->factory()->NewJSObject(module_cons);
-  module_obj->SetInternalField(0, *compiled_module.ToHandleChecked());
-  i::Handle<i::Object> module_ref = Utils::OpenHandle(*source);
-  i::Handle<i::Symbol> module_sym(i_context->wasm_module_sym());
-  i::Object::SetProperty(module_obj, module_sym, module_ref, i::STRICT).Check();
 
-  return module_obj;
+  return i::wasm::CreateCompiledModuleObject(i_isolate,
+                                             compiled_module.ToHandleChecked());
 }
 
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
