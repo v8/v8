@@ -1575,8 +1575,7 @@ void DeclarationScope::AllocateParameterLocals() {
     if (var == rest_parameter_) continue;
 
     DCHECK(var->scope() == this);
-    if (uses_sloppy_arguments || has_forced_context_allocation()) {
-      // Force context allocation of the parameter.
+    if (uses_sloppy_arguments) {
       var->ForceContextAllocation();
     }
     AllocateParameter(var, i);
@@ -1605,11 +1604,6 @@ void DeclarationScope::AllocateReceiver() {
   if (!has_this_declaration()) return;
   DCHECK_NOT_NULL(receiver());
   DCHECK_EQ(receiver()->scope(), this);
-
-  if (has_forced_context_allocation()) {
-    // Force context allocation of the receiver.
-    receiver()->ForceContextAllocation();
-  }
   AllocateParameter(receiver(), -1);
 }
 
