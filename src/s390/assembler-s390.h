@@ -1181,6 +1181,7 @@ class Assembler : public AssemblerBase {
   void sqdb(DoubleRegister r1, const MemOperand& opnd);
   void sqdbr(DoubleRegister r1, DoubleRegister r2);
   void lcdbr(DoubleRegister r1, DoubleRegister r2);
+  void lcebr(DoubleRegister r1, DoubleRegister r2);
   void ldeb(DoubleRegister r1, const MemOperand& opnd);
 
   enum FIDBRA_MASK3 {

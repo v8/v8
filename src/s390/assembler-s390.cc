@@ -2781,6 +2781,12 @@ void Assembler::lcdbr(DoubleRegister r1, DoubleRegister r2) {
            Register::from_code(r2.code()));
 }
 
+// Load Complement Register-Register (LB)
+void Assembler::lcebr(DoubleRegister r1, DoubleRegister r2) {
+  rre_form(LCEBR, Register::from_code(r1.code()),
+           Register::from_code(r2.code()));
+}
+
 // Load Positive Register-Register (LB)
 void Assembler::lpebr(DoubleRegister r1, DoubleRegister r2) {
   rre_form(LPEBR, Register::from_code(r1.code()),

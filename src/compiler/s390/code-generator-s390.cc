@@ -1453,6 +1453,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                 v8::internal::Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0);
       break;
+    case kS390_NegFloat:
+      ASSEMBLE_FLOAT_UNOP(lcebr);
+      break;
     case kS390_NegDouble:
       ASSEMBLE_FLOAT_UNOP(lcdbr);
       break;

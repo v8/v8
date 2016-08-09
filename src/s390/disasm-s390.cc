@@ -1000,6 +1000,9 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
     case LCDBR:
       Format(instr, "lcdbr\t'f5,'f6");
       break;
+    case LCEBR:
+      Format(instr, "lcebr\t'f5,'f6");
+      break;
     case STH:
       Format(instr, "sth\t'r1,'d1('r2d,'r3)");
       break;

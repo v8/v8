@@ -68,6 +68,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_Neg32:
     case kS390_Neg64:
     case kS390_NegDouble:
+    case kS390_NegFloat:
     case kS390_SqrtFloat:
     case kS390_FloorFloat:
     case kS390_CeilFloat:

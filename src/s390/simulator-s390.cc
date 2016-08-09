@@ -4154,6 +4154,7 @@ bool Simulator::DecodeFourByteFloatingPoint(Instruction* instr) {
     case CFEBR:
     case CEFBR:
     case LCDBR:
+    case LCEBR:
     case LPDBR:
     case LPEBR: {
       RREInstruction* rreInstr = reinterpret_cast<RREInstruction*>(instr);
@@ -4258,6 +4259,18 @@ bool Simulator::DecodeFourByteFloatingPoint(Instruction* instr) {
         } else if (r2_val < 0) {
           condition_reg_ = CC_LT;
         } else if (r2_val > 0) {
+          condition_reg_ = CC_GT;
+        }
+      } else if (op == LCEBR) {
+        fr1_val = -fr2_val;
+        set_d_register_from_float32(r1, fr1_val);
+        if (fr2_val != fr2_val) {  // input is NaN
+          condition_reg_ = CC_OF;
+        } else if (fr2_val == 0) {
+          condition_reg_ = CC_EQ;
+        } else if (fr2_val < 0) {
+          condition_reg_ = CC_LT;
+        } else if (fr2_val > 0) {
           condition_reg_ = CC_GT;
         }
       } else if (op == LPDBR) {
@@ -8505,9 +8518,22 @@ EVALUATE(LTEBR) {
 }
 
 EVALUATE(LCEBR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LCEBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  float fr1_val = get_float32_from_d_register(r1);
+  float fr2_val = get_float32_from_d_register(r2);
+  fr1_val = -fr2_val;
+  set_d_register_from_float32(r1, fr1_val);
+  if (fr2_val != fr2_val) {  // input is NaN
+    condition_reg_ = CC_OF;
+  } else if (fr2_val == 0) {
+    condition_reg_ = CC_EQ;
+  } else if (fr2_val < 0) {
+    condition_reg_ = CC_LT;
+  } else if (fr2_val > 0) {
+    condition_reg_ = CC_GT;
+  }
+  return length;
 }
 
 EVALUATE(LDEBR) {
