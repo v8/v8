@@ -374,9 +374,9 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
-const BinaryOperationHints& BinaryOperationHintsOf(const Operator* op);
+const BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
-const CompareOperationHints& CompareOperationHintsOf(const Operator* op);
+const CompareOperationHint CompareOperationHintOf(const Operator* op);
 
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
@@ -385,25 +385,26 @@ class JSOperatorBuilder final : public ZoneObject {
  public:
   explicit JSOperatorBuilder(Zone* zone);
 
-  const Operator* Equal(CompareOperationHints hints);
-  const Operator* NotEqual(CompareOperationHints hints);
-  const Operator* StrictEqual(CompareOperationHints hints);
-  const Operator* StrictNotEqual(CompareOperationHints hints);
-  const Operator* LessThan(CompareOperationHints hints);
-  const Operator* GreaterThan(CompareOperationHints hints);
-  const Operator* LessThanOrEqual(CompareOperationHints hints);
-  const Operator* GreaterThanOrEqual(CompareOperationHints hints);
-  const Operator* BitwiseOr(BinaryOperationHints hints);
-  const Operator* BitwiseXor(BinaryOperationHints hints);
-  const Operator* BitwiseAnd(BinaryOperationHints hints);
-  const Operator* ShiftLeft(BinaryOperationHints hints);
-  const Operator* ShiftRight(BinaryOperationHints hints);
-  const Operator* ShiftRightLogical(BinaryOperationHints hints);
-  const Operator* Add(BinaryOperationHints hints);
-  const Operator* Subtract(BinaryOperationHints hints);
-  const Operator* Multiply(BinaryOperationHints hints);
-  const Operator* Divide(BinaryOperationHints hints);
-  const Operator* Modulus(BinaryOperationHints hints);
+  const Operator* Equal(CompareOperationHint hint);
+  const Operator* NotEqual(CompareOperationHint hint);
+  const Operator* StrictEqual(CompareOperationHint hint);
+  const Operator* StrictNotEqual(CompareOperationHint hint);
+  const Operator* LessThan(CompareOperationHint hint);
+  const Operator* GreaterThan(CompareOperationHint hint);
+  const Operator* LessThanOrEqual(CompareOperationHint hint);
+  const Operator* GreaterThanOrEqual(CompareOperationHint hint);
+
+  const Operator* BitwiseOr(BinaryOperationHint hint);
+  const Operator* BitwiseXor(BinaryOperationHint hint);
+  const Operator* BitwiseAnd(BinaryOperationHint hint);
+  const Operator* ShiftLeft(BinaryOperationHint hint);
+  const Operator* ShiftRight(BinaryOperationHint hint);
+  const Operator* ShiftRightLogical(BinaryOperationHint hint);
+  const Operator* Add(BinaryOperationHint hint);
+  const Operator* Subtract(BinaryOperationHint hint);
+  const Operator* Multiply(BinaryOperationHint hint);
+  const Operator* Divide(BinaryOperationHint hint);
+  const Operator* Modulus(BinaryOperationHint hint);
 
   const Operator* ToBoolean(ToBooleanHints hints);
   const Operator* ToInteger();

@@ -33,20 +33,18 @@ class JSBinopReduction final {
       DCHECK_NE(0, node_->op()->ControlOutputCount());
       DCHECK_EQ(1, node_->op()->EffectOutputCount());
       DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
-      BinaryOperationHints hints = BinaryOperationHintsOf(node_->op());
-      switch (hints.combined()) {
-        case BinaryOperationHints::kSignedSmall:
+      switch (BinaryOperationHintOf(node_->op())) {
+        case BinaryOperationHint::kSignedSmall:
           *hint = NumberOperationHint::kSignedSmall;
           return true;
-        case BinaryOperationHints::kSigned32:
+        case BinaryOperationHint::kSigned32:
           *hint = NumberOperationHint::kSigned32;
           return true;
-        case BinaryOperationHints::kNumberOrOddball:
+        case BinaryOperationHint::kNumberOrOddball:
           *hint = NumberOperationHint::kNumberOrOddball;
           return true;
-        case BinaryOperationHints::kAny:
-        case BinaryOperationHints::kNone:
-        case BinaryOperationHints::kString:
+        case BinaryOperationHint::kAny:
+        case BinaryOperationHint::kNone:
           break;
       }
     }
@@ -56,24 +54,18 @@ class JSBinopReduction final {
   bool GetCompareNumberOperationHint(NumberOperationHint* hint) {
     if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
       DCHECK_EQ(1, node_->op()->EffectOutputCount());
-      CompareOperationHints hints = CompareOperationHintsOf(node_->op());
-      switch (hints.combined()) {
-        case CompareOperationHints::kSignedSmall:
+      switch (CompareOperationHintOf(node_->op())) {
+        case CompareOperationHint::kSignedSmall:
           *hint = NumberOperationHint::kSignedSmall;
           return true;
-        case CompareOperationHints::kNumber:
+        case CompareOperationHint::kNumber:
           *hint = NumberOperationHint::kNumber;
           return true;
-        case CompareOperationHints::kNumberOrOddball:
+        case CompareOperationHint::kNumberOrOddball:
           *hint = NumberOperationHint::kNumberOrOddball;
           return true;
-        case CompareOperationHints::kAny:
-        case CompareOperationHints::kNone:
-        case CompareOperationHints::kString:
-        case CompareOperationHints::kBoolean:
-        case CompareOperationHints::kUniqueName:
-        case CompareOperationHints::kInternalizedString:
-        case CompareOperationHints::kReceiver:
+        case CompareOperationHint::kAny:
+        case CompareOperationHint::kNone:
           break;
       }
     }

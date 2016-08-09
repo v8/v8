@@ -137,7 +137,7 @@ class BytecodeGraphBuilder {
 
   // Helper function to create binary operation hint from the recorded
   // type feedback.
-  BinaryOperationHints GetBinaryOperationHint();
+  BinaryOperationHint GetBinaryOperationHint();
 
   // Control flow plumbing.
   void BuildJump();

@@ -8,59 +8,38 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-std::ostream& operator<<(std::ostream& os, BinaryOperationHints::Hint hint) {
+std::ostream& operator<<(std::ostream& os, BinaryOperationHint hint) {
   switch (hint) {
-    case BinaryOperationHints::kNone:
+    case BinaryOperationHint::kNone:
       return os << "None";
-    case BinaryOperationHints::kSignedSmall:
+    case BinaryOperationHint::kSignedSmall:
       return os << "SignedSmall";
-    case BinaryOperationHints::kSigned32:
+    case BinaryOperationHint::kSigned32:
       return os << "Signed32";
-    case BinaryOperationHints::kNumberOrOddball:
+    case BinaryOperationHint::kNumberOrOddball:
       return os << "NumberOrOddball";
-    case BinaryOperationHints::kString:
-      return os << "String";
-    case BinaryOperationHints::kAny:
+    case BinaryOperationHint::kAny:
       return os << "Any";
   }
   UNREACHABLE();
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, BinaryOperationHints hints) {
-  return os << hints.left() << "*" << hints.right() << "->" << hints.result();
-}
-
-std::ostream& operator<<(std::ostream& os, CompareOperationHints::Hint hint) {
+std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
   switch (hint) {
-    case CompareOperationHints::kNone:
+    case CompareOperationHint::kNone:
       return os << "None";
-    case CompareOperationHints::kBoolean:
-      return os << "Boolean";
-    case CompareOperationHints::kSignedSmall:
+    case CompareOperationHint::kSignedSmall:
       return os << "SignedSmall";
-    case CompareOperationHints::kNumber:
+    case CompareOperationHint::kNumber:
       return os << "Number";
-    case CompareOperationHints::kNumberOrOddball:
+    case CompareOperationHint::kNumberOrOddball:
       return os << "NumberOrOddball";
-    case CompareOperationHints::kString:
-      return os << "String";
-    case CompareOperationHints::kInternalizedString:
-      return os << "InternalizedString";
-    case CompareOperationHints::kUniqueName:
-      return os << "UniqueName";
-    case CompareOperationHints::kReceiver:
-      return os << "Receiver";
-    case CompareOperationHints::kAny:
+    case CompareOperationHint::kAny:
       return os << "Any";
   }
   UNREACHABLE();
   return os;
-}
-
-std::ostream& operator<<(std::ostream& os, CompareOperationHints hints) {
-  return os << hints.left() << "*" << hints.right() << " (" << hints.combined()
-            << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
@@ -96,7 +75,7 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
   if (hints == ToBooleanHint::kAny) return os << "Any";
   if (hints == ToBooleanHint::kNone) return os << "None";
   bool first = true;
-  for (ToBooleanHints::mask_type i = 0; i < sizeof(i) * CHAR_BIT; ++i) {
+  for (ToBooleanHints::mask_type i = 0; i < sizeof(i) * 8; ++i) {
     ToBooleanHint const hint = static_cast<ToBooleanHint>(1u << i);
     if (hints & hint) {
       if (!first) os << "|";
@@ -105,34 +84,6 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
     }
   }
   return os;
-}
-
-// static
-bool BinaryOperationHints::Is(Hint h1, Hint h2) {
-  if (h1 == h2) return true;
-  switch (h1) {
-    case kNone:
-      return true;
-    case kSignedSmall:
-      return h2 == kSigned32 || h2 == kNumberOrOddball || h2 == kAny;
-    case kSigned32:
-      return h2 == kNumberOrOddball || h2 == kAny;
-    case kNumberOrOddball:
-      return h2 == kAny;
-    case kString:
-      return h2 == kAny;
-    case kAny:
-      return false;
-  }
-  UNREACHABLE();
-  return false;
-}
-
-// static
-BinaryOperationHints::Hint BinaryOperationHints::Combine(Hint h1, Hint h2) {
-  if (Is(h1, h2)) return h2;
-  if (Is(h2, h1)) return h1;
-  return kAny;
 }
 
 }  // namespace compiler

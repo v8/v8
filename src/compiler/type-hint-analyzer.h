@@ -21,10 +21,10 @@ class TypeHintAnalysis final : public ZoneObject {
   explicit TypeHintAnalysis(Infos const& infos, Zone* zone)
       : infos_(infos), zone_(zone) {}
 
-  bool GetBinaryOperationHints(TypeFeedbackId id,
-                               BinaryOperationHints* hints) const;
-  bool GetCompareOperationHints(TypeFeedbackId id,
-                                CompareOperationHints* hints) const;
+  bool GetBinaryOperationHint(TypeFeedbackId id,
+                              BinaryOperationHint* hint) const;
+  bool GetCompareOperationHint(TypeFeedbackId id,
+                               CompareOperationHint* hint) const;
   bool GetToBooleanHints(TypeFeedbackId id, ToBooleanHints* hints) const;
 
  private:
@@ -50,7 +50,7 @@ class TypeHintAnalyzer final {
   DISALLOW_COPY_AND_ASSIGN(TypeHintAnalyzer);
 };
 
-BinaryOperationHints::Hint BinaryOperationHintFromFeedback(int type_feedback);
+BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
 
 }  // namespace compiler
 }  // namespace internal

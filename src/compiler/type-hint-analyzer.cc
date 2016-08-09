@@ -15,76 +15,69 @@ namespace compiler {
 
 namespace {
 
-// TODO(bmeurer): This detour via types is ugly.
-BinaryOperationHints::Hint ToBinaryOperationHint(Type* type) {
-  if (type->Is(Type::None())) return BinaryOperationHints::kNone;
-  if (type->Is(Type::SignedSmall())) return BinaryOperationHints::kSignedSmall;
-  if (type->Is(Type::Signed32())) return BinaryOperationHints::kSigned32;
-  if (type->Is(Type::Number())) return BinaryOperationHints::kNumberOrOddball;
-  if (type->Is(Type::String())) return BinaryOperationHints::kString;
-  return BinaryOperationHints::kAny;
-}
-
-CompareOperationHints::Hint ToCompareOperationHint(
-    Token::Value op, CompareICState::State state) {
-  switch (state) {
-    case CompareICState::UNINITIALIZED:
-      return CompareOperationHints::kNone;
-    case CompareICState::BOOLEAN:
-      return CompareOperationHints::kBoolean;
-    case CompareICState::SMI:
-      return CompareOperationHints::kSignedSmall;
-    case CompareICState::NUMBER:
-      return Token::IsOrderedRelationalCompareOp(op)
-                 ? CompareOperationHints::kNumberOrOddball
-                 : CompareOperationHints::kNumber;
-    case CompareICState::STRING:
-      return CompareOperationHints::kString;
-    case CompareICState::INTERNALIZED_STRING:
-      return CompareOperationHints::kInternalizedString;
-    case CompareICState::UNIQUE_NAME:
-      return CompareOperationHints::kUniqueName;
-    case CompareICState::RECEIVER:
-    case CompareICState::KNOWN_RECEIVER:
-      return CompareOperationHints::kReceiver;
-    case CompareICState::GENERIC:
-      return CompareOperationHints::kAny;
+BinaryOperationHint ToBinaryOperationHint(BinaryOpICState::Kind kind) {
+  switch (kind) {
+    case BinaryOpICState::NONE:
+      return BinaryOperationHint::kNone;
+    case BinaryOpICState::SMI:
+      return BinaryOperationHint::kSignedSmall;
+    case BinaryOpICState::INT32:
+      return BinaryOperationHint::kSigned32;
+    case BinaryOpICState::NUMBER:
+      return BinaryOperationHint::kNumberOrOddball;
+    case BinaryOpICState::STRING:
+    case BinaryOpICState::GENERIC:
+      return BinaryOperationHint::kAny;
   }
   UNREACHABLE();
-  return CompareOperationHints::kAny;
+  return BinaryOperationHint::kNone;
+}
+
+CompareOperationHint ToCompareOperationHint(Token::Value op,
+                                            CompareICState::State state) {
+  switch (state) {
+    case CompareICState::UNINITIALIZED:
+      return CompareOperationHint::kNone;
+    case CompareICState::SMI:
+      return CompareOperationHint::kSignedSmall;
+    case CompareICState::NUMBER:
+      return Token::IsOrderedRelationalCompareOp(op)
+                 ? CompareOperationHint::kNumberOrOddball
+                 : CompareOperationHint::kNumber;
+    case CompareICState::STRING:
+    case CompareICState::INTERNALIZED_STRING:
+    case CompareICState::UNIQUE_NAME:
+    case CompareICState::RECEIVER:
+    case CompareICState::KNOWN_RECEIVER:
+    case CompareICState::BOOLEAN:
+    case CompareICState::GENERIC:
+      return CompareOperationHint::kAny;
+  }
+  UNREACHABLE();
+  return CompareOperationHint::kNone;
 }
 
 }  // namespace
 
-bool TypeHintAnalysis::GetBinaryOperationHints(
-    TypeFeedbackId id, BinaryOperationHints* hints) const {
+bool TypeHintAnalysis::GetBinaryOperationHint(TypeFeedbackId id,
+                                              BinaryOperationHint* hint) const {
   auto i = infos_.find(id);
   if (i == infos_.end()) return false;
   Handle<Code> code = i->second;
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpICState state(code->GetIsolate(), code->extra_ic_state());
-  *hints = BinaryOperationHints(ToBinaryOperationHint(state.GetLeftType()),
-                                ToBinaryOperationHint(state.GetRightType()),
-                                ToBinaryOperationHint(state.GetResultType()));
+  *hint = ToBinaryOperationHint(state.kind());
   return true;
 }
 
-bool TypeHintAnalysis::GetCompareOperationHints(
-    TypeFeedbackId id, CompareOperationHints* hints) const {
+bool TypeHintAnalysis::GetCompareOperationHint(
+    TypeFeedbackId id, CompareOperationHint* hint) const {
   auto i = infos_.find(id);
   if (i == infos_.end()) return false;
   Handle<Code> code = i->second;
   DCHECK_EQ(Code::COMPARE_IC, code->kind());
-
-  Handle<Map> map;
-  Map* raw_map = code->FindFirstMap();
-  if (raw_map != nullptr) Map::TryUpdate(handle(raw_map)).ToHandle(&map);
-
   CompareICStub stub(code->stub_key(), code->GetIsolate());
-  *hints =
-      CompareOperationHints(ToCompareOperationHint(stub.op(), stub.left()),
-                            ToCompareOperationHint(stub.op(), stub.right()),
-                            ToCompareOperationHint(stub.op(), stub.state()));
+  *hint = ToCompareOperationHint(stub.op(), stub.state());
   return true;
 }
 
@@ -139,18 +132,19 @@ TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
   return new (zone()) TypeHintAnalysis(infos, zone());
 }
 
-// Helper function to transform the feedback to BinaryOperationHints
-BinaryOperationHints::Hint BinaryOperationHintFromFeedback(int type_feedback) {
+// Helper function to transform the feedback to BinaryOperationHint.
+BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
   switch (type_feedback) {
     case BinaryOperationFeedback::kSignedSmall:
-      return BinaryOperationHints::kSigned32;
+      return BinaryOperationHint::kSigned32;
     case BinaryOperationFeedback::kNumber:
-      return BinaryOperationHints::kNumberOrOddball;
+      return BinaryOperationHint::kNumberOrOddball;
     case BinaryOperationFeedback::kAny:
     default:
-      return BinaryOperationHints::kAny;
+      return BinaryOperationHint::kAny;
   }
-  return BinaryOperationHints::kAny;
+  UNREACHABLE();
+  return BinaryOperationHint::kNone;
 }
 
 }  // namespace compiler

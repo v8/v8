@@ -376,7 +376,7 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   return OpParameter<CreateLiteralParameters>(op);
 }
 
-const BinaryOperationHints& BinaryOperationHintsOf(const Operator* op) {
+const BinaryOperationHint BinaryOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSBitwiseOr ||
          op->opcode() == IrOpcode::kJSBitwiseXor ||
          op->opcode() == IrOpcode::kJSBitwiseAnd ||
@@ -388,10 +388,10 @@ const BinaryOperationHints& BinaryOperationHintsOf(const Operator* op) {
          op->opcode() == IrOpcode::kJSMultiply ||
          op->opcode() == IrOpcode::kJSDivide ||
          op->opcode() == IrOpcode::kJSModulus);
-  return OpParameter<BinaryOperationHints>(op);
+  return OpParameter<BinaryOperationHint>(op);
 }
 
-const CompareOperationHints& CompareOperationHintsOf(const Operator* op) {
+const CompareOperationHint CompareOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSEqual ||
          op->opcode() == IrOpcode::kJSNotEqual ||
          op->opcode() == IrOpcode::kJSStrictEqual ||
@@ -400,7 +400,7 @@ const CompareOperationHints& CompareOperationHintsOf(const Operator* op) {
          op->opcode() == IrOpcode::kJSGreaterThan ||
          op->opcode() == IrOpcode::kJSLessThanOrEqual ||
          op->opcode() == IrOpcode::kJSGreaterThanOrEqual);
-  return OpParameter<CompareOperationHints>(op);
+  return OpParameter<CompareOperationHint>(op);
 }
 
 #define CACHED_OP_LIST(V)                                   \
@@ -425,210 +425,132 @@ const CompareOperationHints& CompareOperationHintsOf(const Operator* op) {
   V(StackCheck, Operator::kNoWrite, 0, 0)                   \
   V(CreateWithContext, Operator::kNoProperties, 2, 1)
 
-struct JSOperatorGlobalCache final {
-#define CACHED(Name, properties, value_input_count, value_output_count)  \
-  struct Name##Operator final : public Operator {                        \
-    Name##Operator()                                                     \
-        : Operator(IrOpcode::kJS##Name, properties, "JS" #Name,          \
-                   value_input_count, Operator::ZeroIfPure(properties),  \
-                   Operator::ZeroIfEliminatable(properties),             \
-                   value_output_count, Operator::ZeroIfPure(properties), \
-                   Operator::ZeroIfNoThrow(properties)) {}               \
-  };                                                                     \
-  Name##Operator k##Name##Operator;
-  CACHED_OP_LIST(CACHED)
-#undef CACHED
-};
+#define BINARY_OP_LIST(V) \
+  V(BitwiseOr)            \
+  V(BitwiseXor)           \
+  V(BitwiseAnd)           \
+  V(ShiftLeft)            \
+  V(ShiftRight)           \
+  V(ShiftRightLogical)    \
+  V(Add)                  \
+  V(Subtract)             \
+  V(Multiply)             \
+  V(Divide)               \
+  V(Modulus)
 
+#define COMPARE_OP_LIST(V)                    \
+  V(Equal, Operator::kNoProperties)           \
+  V(NotEqual, Operator::kNoProperties)        \
+  V(StrictEqual, Operator::kPure)             \
+  V(StrictNotEqual, Operator::kPure)          \
+  V(LessThan, Operator::kNoProperties)        \
+  V(GreaterThan, Operator::kNoProperties)     \
+  V(LessThanOrEqual, Operator::kNoProperties) \
+  V(GreaterThanOrEqual, Operator::kNoProperties)
+
+struct JSOperatorGlobalCache final {
+#define CACHED_OP(Name, properties, value_input_count, value_output_count) \
+  struct Name##Operator final : public Operator {                          \
+    Name##Operator()                                                       \
+        : Operator(IrOpcode::kJS##Name, properties, "JS" #Name,            \
+                   value_input_count, Operator::ZeroIfPure(properties),    \
+                   Operator::ZeroIfEliminatable(properties),               \
+                   value_output_count, Operator::ZeroIfPure(properties),   \
+                   Operator::ZeroIfNoThrow(properties)) {}                 \
+  };                                                                       \
+  Name##Operator k##Name##Operator;
+  CACHED_OP_LIST(CACHED_OP)
+#undef CACHED_OP
+
+#define BINARY_OP(Name)                                                       \
+  template <BinaryOperationHint kHint>                                        \
+  struct Name##Operator final : public Operator1<BinaryOperationHint> {       \
+    Name##Operator()                                                          \
+        : Operator1<BinaryOperationHint>(IrOpcode::kJS##Name,                 \
+                                         Operator::kNoProperties, "JS" #Name, \
+                                         2, 1, 1, 1, 1, 2, kHint) {}          \
+  };                                                                          \
+  Name##Operator<BinaryOperationHint::kNone> k##Name##NoneOperator;           \
+  Name##Operator<BinaryOperationHint::kSignedSmall>                           \
+      k##Name##SignedSmallOperator;                                           \
+  Name##Operator<BinaryOperationHint::kSigned32> k##Name##Signed32Operator;   \
+  Name##Operator<BinaryOperationHint::kNumberOrOddball>                       \
+      k##Name##NumberOrOddballOperator;                                       \
+  Name##Operator<BinaryOperationHint::kAny> k##Name##AnyOperator;
+  BINARY_OP_LIST(BINARY_OP)
+#undef BINARY_OP
+
+#define COMPARE_OP(Name, properties)                                      \
+  template <CompareOperationHint kHint>                                   \
+  struct Name##Operator final : public Operator1<CompareOperationHint> {  \
+    Name##Operator()                                                      \
+        : Operator1<CompareOperationHint>(                                \
+              IrOpcode::kJS##Name, properties, "JS" #Name, 2, 1, 1, 1, 1, \
+              Operator::ZeroIfNoThrow(properties), kHint) {}              \
+  };                                                                      \
+  Name##Operator<CompareOperationHint::kNone> k##Name##NoneOperator;      \
+  Name##Operator<CompareOperationHint::kSignedSmall>                      \
+      k##Name##SignedSmallOperator;                                       \
+  Name##Operator<CompareOperationHint::kNumber> k##Name##NumberOperator;  \
+  Name##Operator<CompareOperationHint::kNumberOrOddball>                  \
+      k##Name##NumberOrOddballOperator;                                   \
+  Name##Operator<CompareOperationHint::kAny> k##Name##AnyOperator;
+  COMPARE_OP_LIST(COMPARE_OP)
+#undef COMPARE_OP
+};
 
 static base::LazyInstance<JSOperatorGlobalCache>::type kCache =
     LAZY_INSTANCE_INITIALIZER;
 
-
 JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
     : cache_(kCache.Get()), zone_(zone) {}
 
-
-#define CACHED(Name, properties, value_input_count, value_output_count) \
-  const Operator* JSOperatorBuilder::Name() {                           \
-    return &cache_.k##Name##Operator;                                   \
+#define CACHED_OP(Name, properties, value_input_count, value_output_count) \
+  const Operator* JSOperatorBuilder::Name() {                              \
+    return &cache_.k##Name##Operator;                                      \
   }
-CACHED_OP_LIST(CACHED)
-#undef CACHED
+CACHED_OP_LIST(CACHED_OP)
+#undef CACHED_OP
 
-const Operator* JSOperatorBuilder::BitwiseOr(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(  //--
-      IrOpcode::kJSBitwiseOr, Operator::kNoProperties,  // opcode
-      "JSBitwiseOr",                                    // name
-      2, 1, 1, 1, 1, 2,                                 // inputs/outputs
-      hints);                                           // parameter
-}
+#define BINARY_OP(Name)                                               \
+  const Operator* JSOperatorBuilder::Name(BinaryOperationHint hint) { \
+    switch (hint) {                                                   \
+      case BinaryOperationHint::kNone:                                \
+        return &cache_.k##Name##NoneOperator;                         \
+      case BinaryOperationHint::kSignedSmall:                         \
+        return &cache_.k##Name##SignedSmallOperator;                  \
+      case BinaryOperationHint::kSigned32:                            \
+        return &cache_.k##Name##Signed32Operator;                     \
+      case BinaryOperationHint::kNumberOrOddball:                     \
+        return &cache_.k##Name##NumberOrOddballOperator;              \
+      case BinaryOperationHint::kAny:                                 \
+        return &cache_.k##Name##AnyOperator;                          \
+    }                                                                 \
+    UNREACHABLE();                                                    \
+    return nullptr;                                                   \
+  }
+BINARY_OP_LIST(BINARY_OP)
+#undef BINARY_OP
 
-const Operator* JSOperatorBuilder::BitwiseXor(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(   //--
-      IrOpcode::kJSBitwiseXor, Operator::kNoProperties,  // opcode
-      "JSBitwiseXor",                                    // name
-      2, 1, 1, 1, 1, 2,                                  // inputs/outputs
-      hints);                                            // parameter
-}
-
-const Operator* JSOperatorBuilder::BitwiseAnd(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(   //--
-      IrOpcode::kJSBitwiseAnd, Operator::kNoProperties,  // opcode
-      "JSBitwiseAnd",                                    // name
-      2, 1, 1, 1, 1, 2,                                  // inputs/outputs
-      hints);                                            // parameter
-}
-
-const Operator* JSOperatorBuilder::ShiftLeft(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(  //--
-      IrOpcode::kJSShiftLeft, Operator::kNoProperties,  // opcode
-      "JSShiftLeft",                                    // name
-      2, 1, 1, 1, 1, 2,                                 // inputs/outputs
-      hints);                                           // parameter
-}
-
-const Operator* JSOperatorBuilder::ShiftRight(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(   //--
-      IrOpcode::kJSShiftRight, Operator::kNoProperties,  // opcode
-      "JSShiftRight",                                    // name
-      2, 1, 1, 1, 1, 2,                                  // inputs/outputs
-      hints);                                            // parameter
-}
-
-const Operator* JSOperatorBuilder::ShiftRightLogical(
-    BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(          //--
-      IrOpcode::kJSShiftRightLogical, Operator::kNoProperties,  // opcode
-      "JSShiftRightLogical",                                    // name
-      2, 1, 1, 1, 1, 2,  // inputs/outputs
-      hints);            // parameter
-}
-
-const Operator* JSOperatorBuilder::Add(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(  //--
-      IrOpcode::kJSAdd, Operator::kNoProperties,        // opcode
-      "JSAdd",                                          // name
-      2, 1, 1, 1, 1, 2,                                 // inputs/outputs
-      hints);                                           // parameter
-}
-
-const Operator* JSOperatorBuilder::Subtract(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(  //--
-      IrOpcode::kJSSubtract, Operator::kNoProperties,   // opcode
-      "JSSubtract",                                     // name
-      2, 1, 1, 1, 1, 2,                                 // inputs/outputs
-      hints);                                           // parameter
-}
-
-const Operator* JSOperatorBuilder::Multiply(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(  //--
-      IrOpcode::kJSMultiply, Operator::kNoProperties,   // opcode
-      "JSMultiply",                                     // name
-      2, 1, 1, 1, 1, 2,                                 // inputs/outputs
-      hints);                                           // parameter
-}
-
-const Operator* JSOperatorBuilder::Divide(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(  //--
-      IrOpcode::kJSDivide, Operator::kNoProperties,     // opcode
-      "JSDivide",                                       // name
-      2, 1, 1, 1, 1, 2,                                 // inputs/outputs
-      hints);                                           // parameter
-}
-
-const Operator* JSOperatorBuilder::Modulus(BinaryOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<BinaryOperationHints>(  //--
-      IrOpcode::kJSModulus, Operator::kNoProperties,    // opcode
-      "JSModulus",                                      // name
-      2, 1, 1, 1, 1, 2,                                 // inputs/outputs
-      hints);                                           // parameter
-}
-
-const Operator* JSOperatorBuilder::Equal(CompareOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<CompareOperationHints>(  //--
-      IrOpcode::kJSEqual, Operator::kNoProperties,       // opcode
-      "JSEqual",                                         // name
-      2, 1, 1, 1, 1, 2,                                  // inputs/outputs
-      hints);                                            // parameter
-}
-
-const Operator* JSOperatorBuilder::NotEqual(CompareOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<CompareOperationHints>(  //--
-      IrOpcode::kJSNotEqual, Operator::kNoProperties,    // opcode
-      "JSNotEqual",                                      // name
-      2, 1, 1, 1, 1, 2,                                  // inputs/outputs
-      hints);                                            // parameter
-}
-
-const Operator* JSOperatorBuilder::StrictEqual(CompareOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<CompareOperationHints>(  //--
-      IrOpcode::kJSStrictEqual, Operator::kPure,         // opcode
-      "JSStrictEqual",                                   // name
-      2, 1, 1, 1, 1, 0,                                  // inputs/outputs
-      hints);                                            // parameter
-}
-
-const Operator* JSOperatorBuilder::StrictNotEqual(CompareOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<CompareOperationHints>(  //--
-      IrOpcode::kJSStrictNotEqual, Operator::kPure,      // opcode
-      "JSStrictNotEqual",                                // name
-      2, 1, 1, 1, 1, 0,                                  // inputs/outputs
-      hints);                                            // parameter
-}
-
-const Operator* JSOperatorBuilder::LessThan(CompareOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<CompareOperationHints>(  //--
-      IrOpcode::kJSLessThan, Operator::kNoProperties,    // opcode
-      "JSLessThan",                                      // name
-      2, 1, 1, 1, 1, 2,                                  // inputs/outputs
-      hints);                                            // parameter
-}
-
-const Operator* JSOperatorBuilder::GreaterThan(CompareOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<CompareOperationHints>(   //--
-      IrOpcode::kJSGreaterThan, Operator::kNoProperties,  // opcode
-      "JSGreaterThan",                                    // name
-      2, 1, 1, 1, 1, 2,                                   // inputs/outputs
-      hints);                                             // parameter
-}
-
-const Operator* JSOperatorBuilder::LessThanOrEqual(
-    CompareOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<CompareOperationHints>(       //--
-      IrOpcode::kJSLessThanOrEqual, Operator::kNoProperties,  // opcode
-      "JSLessThanOrEqual",                                    // name
-      2, 1, 1, 1, 1, 2,                                       // inputs/outputs
-      hints);                                                 // parameter
-}
-
-const Operator* JSOperatorBuilder::GreaterThanOrEqual(
-    CompareOperationHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<CompareOperationHints>(          //--
-      IrOpcode::kJSGreaterThanOrEqual, Operator::kNoProperties,  // opcode
-      "JSGreaterThanOrEqual",                                    // name
-      2, 1, 1, 1, 1, 2,  // inputs/outputs
-      hints);            // parameter
-}
+#define COMPARE_OP(Name, ...)                                          \
+  const Operator* JSOperatorBuilder::Name(CompareOperationHint hint) { \
+    switch (hint) {                                                    \
+      case CompareOperationHint::kNone:                                \
+        return &cache_.k##Name##NoneOperator;                          \
+      case CompareOperationHint::kSignedSmall:                         \
+        return &cache_.k##Name##SignedSmallOperator;                   \
+      case CompareOperationHint::kNumber:                              \
+        return &cache_.k##Name##NumberOperator;                        \
+      case CompareOperationHint::kNumberOrOddball:                     \
+        return &cache_.k##Name##NumberOrOddballOperator;               \
+      case CompareOperationHint::kAny:                                 \
+        return &cache_.k##Name##AnyOperator;                           \
+    }                                                                  \
+    UNREACHABLE();                                                     \
+    return nullptr;                                                    \
+  }
+COMPARE_OP_LIST(COMPARE_OP)
+#undef COMPARE_OP
 
 const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
   // TODO(turbofan): Cache most important versions of this operator.

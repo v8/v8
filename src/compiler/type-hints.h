@@ -13,100 +13,34 @@ namespace internal {
 namespace compiler {
 
 // Type hints for an binary operation.
-class BinaryOperationHints final {
- public:
-  enum Hint { kNone, kSignedSmall, kSigned32, kNumberOrOddball, kString, kAny };
-
-  BinaryOperationHints() : BinaryOperationHints(kNone, kNone, kNone) {}
-  BinaryOperationHints(Hint left, Hint right, Hint result)
-      : bit_field_(LeftField::encode(left) | RightField::encode(right) |
-                   ResultField::encode(result)) {}
-
-  static BinaryOperationHints Any() {
-    return BinaryOperationHints(kAny, kAny, kAny);
-  }
-
-  Hint left() const { return LeftField::decode(bit_field_); }
-  Hint right() const { return RightField::decode(bit_field_); }
-  Hint result() const { return ResultField::decode(bit_field_); }
-  Hint combined() const { return Combine(Combine(left(), right()), result()); }
-
-  // Hint 'subtyping' and generalization.
-  static bool Is(Hint h1, Hint h2);
-  static Hint Combine(Hint h1, Hint h2);
-
-  bool operator==(BinaryOperationHints const& that) const {
-    return this->bit_field_ == that.bit_field_;
-  }
-  bool operator!=(BinaryOperationHints const& that) const {
-    return !(*this == that);
-  }
-
-  friend size_t hash_value(BinaryOperationHints const& hints) {
-    return hints.bit_field_;
-  }
-
- private:
-  typedef BitField<Hint, 0, 3> LeftField;
-  typedef BitField<Hint, 3, 3> RightField;
-  typedef BitField<Hint, 6, 3> ResultField;
-
-  uint32_t bit_field_;
+enum class BinaryOperationHint : uint8_t {
+  kNone,
+  kSignedSmall,
+  kSigned32,
+  kNumberOrOddball,
+  kAny
 };
 
-std::ostream& operator<<(std::ostream&, BinaryOperationHints::Hint);
-std::ostream& operator<<(std::ostream&, BinaryOperationHints);
+inline size_t hash_value(BinaryOperationHint hint) {
+  return static_cast<unsigned>(hint);
+}
 
-// Type hints for an binary operation.
-class CompareOperationHints final {
- public:
-  enum Hint {
-    kNone,
-    kBoolean,
-    kSignedSmall,
-    kNumber,
-    kNumberOrOddball,
-    kString,
-    kInternalizedString,
-    kUniqueName,
-    kReceiver,
-    kAny
-  };
+std::ostream& operator<<(std::ostream&, BinaryOperationHint);
 
-  CompareOperationHints() : CompareOperationHints(kNone, kNone, kNone) {}
-  CompareOperationHints(Hint left, Hint right, Hint combined)
-      : bit_field_(LeftField::encode(left) | RightField::encode(right) |
-                   CombinedField::encode(combined)) {}
-
-  static CompareOperationHints Any() {
-    return CompareOperationHints(kAny, kAny, kAny);
-  }
-
-  Hint left() const { return LeftField::decode(bit_field_); }
-  Hint right() const { return RightField::decode(bit_field_); }
-  Hint combined() const { return CombinedField::decode(bit_field_); }
-
-  bool operator==(CompareOperationHints const& that) const {
-    return this->bit_field_ == that.bit_field_;
-  }
-  bool operator!=(CompareOperationHints const& that) const {
-    return !(*this == that);
-  }
-
-  friend size_t hash_value(CompareOperationHints const& hints) {
-    return hints.bit_field_;
-  }
-
- private:
-  typedef BitField<Hint, 0, 4> LeftField;
-  typedef BitField<Hint, 4, 4> RightField;
-  typedef BitField<Hint, 8, 4> CombinedField;
-
-  uint32_t bit_field_;
+// Type hints for an compare operation.
+enum class CompareOperationHint : uint8_t {
+  kNone,
+  kSignedSmall,
+  kNumber,
+  kNumberOrOddball,
+  kAny
 };
 
-std::ostream& operator<<(std::ostream&, CompareOperationHints::Hint);
-std::ostream& operator<<(std::ostream&, CompareOperationHints);
+inline size_t hash_value(CompareOperationHint hint) {
+  return static_cast<unsigned>(hint);
+}
+
+std::ostream& operator<<(std::ostream&, CompareOperationHint);
 
 // Type hints for the ToBoolean type conversion.
 enum class ToBooleanHint : uint16_t {
