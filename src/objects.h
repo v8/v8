@@ -6797,6 +6797,7 @@ class Script: public Struct {
   V(String.prototype, charCodeAt, StringCharCodeAt)         \
   V(String.prototype, charAt, StringCharAt)                 \
   V(String.prototype, concat, StringConcat)                 \
+  V(String.prototype, substr, StringSubstr)                 \
   V(String.prototype, toLowerCase, StringToLowerCase)       \
   V(String.prototype, toUpperCase, StringToUpperCase)       \
   V(String, fromCharCode, StringFromCharCode)               \
@@ -6834,7 +6835,8 @@ class Script: public Struct {
   V(Math, clz32, MathClz32)                                 \
   V(Math, fround, MathFround)                               \
   V(Math, trunc, MathTrunc)                                 \
-  V(Number, parseInt, NumberParseInt)
+  V(Number, parseInt, NumberParseInt)                       \
+  V(Number.prototype, toString, NumberToString)
 
 #define ATOMIC_FUNCTIONS_WITH_ID_LIST(V) \
   V(Atomics, load, AtomicsLoad)          \
@@ -6855,6 +6857,12 @@ enum BuiltinFunctionId {
   kDataViewBuffer,
   kDataViewByteLength,
   kDataViewByteOffset,
+  kGlobalDecodeURI,
+  kGlobalDecodeURIComponent,
+  kGlobalEncodeURI,
+  kGlobalEncodeURIComponent,
+  kGlobalEscape,
+  kGlobalUnescape,
   kTypedArrayByteLength,
   kTypedArrayByteOffset,
   kTypedArrayLength,

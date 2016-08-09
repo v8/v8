@@ -1292,21 +1292,27 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         // Unary math functions.
         case kMathAbs:
         case kMathExp:
+        case kMathExpm1:
           return Type::Union(Type::PlainNumber(), Type::NaN(), t->zone());
-        case kMathLog:
-        case kMathSqrt:
-        case kMathCos:
-        case kMathSin:
-        case kMathTan:
         case kMathAcos:
         case kMathAcosh:
         case kMathAsin:
         case kMathAsinh:
         case kMathAtan:
         case kMathAtanh:
+        case kMathCbrt:
+        case kMathCos:
         case kMathFround:
-        case kMathSign:
+        case kMathLog:
+        case kMathLog1p:
+        case kMathLog10:
+        case kMathLog2:
+        case kMathSin:
+        case kMathSqrt:
+        case kMathTan:
           return Type::Number();
+        case kMathSign:
+          return t->cache_.kMinusOneToOne;
         // Binary math functions.
         case kMathAtan2:
         case kMathPow:
@@ -1317,6 +1323,11 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return Type::Signed32();
         case kMathClz32:
           return t->cache_.kZeroToThirtyTwo;
+        // Number functions.
+        case kNumberParseInt:
+          return t->cache_.kIntegerOrMinusZeroOrNaN;
+        case kNumberToString:
+          return Type::String();
         // String functions.
         case kStringCharCodeAt:
           return Type::Union(Type::Range(0, kMaxUInt16, t->zone()), Type::NaN(),
@@ -1324,13 +1335,25 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kStringCharAt:
         case kStringConcat:
         case kStringFromCharCode:
+        case kStringSubstr:
         case kStringToLowerCase:
         case kStringToUpperCase:
           return Type::String();
         // Array functions.
         case kArrayIndexOf:
         case kArrayLastIndexOf:
-          return Type::Number();
+          return Type::Range(-1, kMaxSafeInteger, t->zone());
+        // Object functions.
+        case kObjectHasOwnProperty:
+          return Type::Boolean();
+        // Global functions.
+        case kGlobalDecodeURI:
+        case kGlobalDecodeURIComponent:
+        case kGlobalEncodeURI:
+        case kGlobalEncodeURIComponent:
+        case kGlobalEscape:
+        case kGlobalUnescape:
+          return Type::String();
         default:
           break;
       }

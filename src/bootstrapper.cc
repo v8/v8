@@ -452,6 +452,15 @@ Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
                                len, adapt, attrs);
 }
 
+Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
+                                         const char* name, Builtins::Name call,
+                                         int len, bool adapt,
+                                         BuiltinFunctionId id) {
+  Handle<JSFunction> fun = SimpleInstallFunction(base, name, call, len, adapt);
+  fun->shared()->set_builtin_function_id(id);
+  return fun;
+}
+
 Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
                                        Handle<String> name, Builtins::Name call,
                                        bool adapt) {
@@ -3055,27 +3064,29 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
   // Install Global.decodeURI.
   SimpleInstallFunction(global_object, "decodeURI", Builtins::kGlobalDecodeURI,
-                        1, false);
+                        1, false, kGlobalDecodeURI);
 
   // Install Global.decodeURIComponent.
   SimpleInstallFunction(global_object, "decodeURIComponent",
-                        Builtins::kGlobalDecodeURIComponent, 1, false);
+                        Builtins::kGlobalDecodeURIComponent, 1, false,
+                        kGlobalDecodeURIComponent);
 
   // Install Global.encodeURI.
   SimpleInstallFunction(global_object, "encodeURI", Builtins::kGlobalEncodeURI,
-                        1, false);
+                        1, false, kGlobalEncodeURI);
 
   // Install Global.encodeURIComponent.
   SimpleInstallFunction(global_object, "encodeURIComponent",
-                        Builtins::kGlobalEncodeURIComponent, 1, false);
+                        Builtins::kGlobalEncodeURIComponent, 1, false,
+                        kGlobalEncodeURIComponent);
 
   // Install Global.escape.
   SimpleInstallFunction(global_object, "escape", Builtins::kGlobalEscape, 1,
-                        false);
+                        false, kGlobalEscape);
 
   // Install Global.unescape.
   SimpleInstallFunction(global_object, "unescape", Builtins::kGlobalUnescape, 1,
-                        false);
+                        false, kGlobalUnescape);
 
   // Install Global.eval.
   {
