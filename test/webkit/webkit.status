@@ -105,11 +105,11 @@
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################
-['msan', {
+['variant == ignition and msan', {
   # TODO(mythria,4680): Too slow and timeout on ignition.
-  'dfg-double-vote-fuzz': [PASS, NO_IGNITION],
-  'dfg-int-overflow-in-loop': [PASS, NO_IGNITION],
-}],  # msan
+  'dfg-double-vote-fuzz': [SKIP],
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # variant == ignition and msan
 
 ##############################################################################
 ['variant == turbofan', {
