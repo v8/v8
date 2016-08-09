@@ -2741,8 +2741,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       //       %_IsJSReceiver(temp) ? temp : 1;
 
       // temp = expr
-      Variable* temp =
-          scope()->NewTemporary(ast_value_factory()->empty_string());
+      Variable* temp = NewTemporary(ast_value_factory()->empty_string());
       Assignment* assign = factory()->NewAssignment(
           Token::ASSIGN, factory()->NewVariableProxy(temp), return_value, pos);
 
@@ -2884,7 +2883,7 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
   Expect(Token::RPAREN, CHECK_OK);
 
   Variable* tag_variable =
-      scope()->NewTemporary(ast_value_factory()->dot_switch_tag_string());
+      NewTemporary(ast_value_factory()->dot_switch_tag_string());
   Assignment* tag_assign = factory()->NewAssignment(
       Token::ASSIGN, factory()->NewVariableProxy(tag_variable), tag,
       tag->position());
@@ -3245,8 +3244,7 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
                                     each_keyword_pos);
   } else {
     if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
-      Variable* temp =
-          scope()->NewTemporary(ast_value_factory()->empty_string());
+      Variable* temp = NewTemporary(ast_value_factory()->empty_string());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
       Expression* assign_each = PatternRewriter::RewriteDestructuringAssignment(
           this, factory()->NewAssignment(Token::ASSIGN, each, temp_proxy,
@@ -3279,11 +3277,9 @@ Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
   const int nopos = kNoSourcePosition;
   auto avfactory = ast_value_factory();
 
-  Variable* iterator =
-      scope()->NewTemporary(ast_value_factory()->dot_iterator_string());
-  Variable* result =
-      scope()->NewTemporary(ast_value_factory()->dot_result_string());
-  Variable* completion = scope()->NewTemporary(avfactory->empty_string());
+  Variable* iterator = NewTemporary(ast_value_factory()->dot_iterator_string());
+  Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
+  Variable* completion = NewTemporary(avfactory->empty_string());
 
   // iterator = iterable[Symbol.iterator]()
   Expression* assign_iterator;
@@ -3339,7 +3335,7 @@ Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
   // do { let tmp = #result_value; #set_completion_abrupt; tmp }
   // Expression* result_value (gets overwritten)
   if (finalize) {
-    Variable* var_tmp = scope()->NewTemporary(avfactory->empty_string());
+    Variable* var_tmp = NewTemporary(avfactory->empty_string());
     Expression* tmp = factory()->NewVariableProxy(var_tmp);
     Expression* assignment =
         factory()->NewAssignment(Token::ASSIGN, tmp, result_value, nopos);
@@ -3449,7 +3445,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   //   make statement: temp_x = x.
   for (int i = 0; i < names->length(); i++) {
     VariableProxy* proxy = NewUnresolved(names->at(i), LET);
-    Variable* temp = scope()->NewTemporary(temp_name);
+    Variable* temp = NewTemporary(temp_name);
     VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
     Assignment* assignment = factory()->NewAssignment(Token::ASSIGN, temp_proxy,
                                                       proxy, kNoSourcePosition);
@@ -3462,7 +3458,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   Variable* first = NULL;
   // Make statement: first = 1.
   if (next) {
-    first = scope()->NewTemporary(temp_name);
+    first = NewTemporary(temp_name);
     VariableProxy* first_proxy = factory()->NewVariableProxy(first);
     Expression* const1 = factory()->NewSmiLiteral(1, kNoSourcePosition);
     Assignment* assignment = factory()->NewAssignment(
@@ -3537,7 +3533,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       ignore_completion_block->statements()->Add(clear_first_or_next, zone());
     }
 
-    Variable* flag = scope()->NewTemporary(temp_name);
+    Variable* flag = NewTemporary(temp_name);
     // Make statement: flag = 1.
     {
       VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
@@ -3746,8 +3742,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         //     let x;  // for TDZ
         //   }
 
-        Variable* temp =
-            scope()->NewTemporary(ast_value_factory()->dot_for_string());
+        Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
@@ -4139,8 +4134,8 @@ void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
   //   }
   // }
   scope->ForceContextAllocation();
-  Variable* temp = this->scope()->NewTemporary(
-      ast_value_factory()->dot_generator_object_string());
+  Variable* temp =
+      NewTemporary(ast_value_factory()->dot_generator_object_string());
   function_state_->set_generator_object_variable(temp);
 
   Expression* init_generator_variable = factory()->NewAssignment(
@@ -4178,8 +4173,7 @@ DoExpression* Parser::ParseDoExpression(bool* ok) {
   int pos = peek_position();
 
   Expect(Token::DO, CHECK_OK);
-  Variable* result =
-      scope()->NewTemporary(ast_value_factory()->dot_result_string());
+  Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
   Block* block = ParseBlock(nullptr, CHECK_OK);
   DoExpression* expr = factory()->NewDoExpression(block, result, pos);
   if (!Rewriter::Rewrite(this, GetClosureScope(), expr, ast_value_factory())) {
@@ -4382,8 +4376,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // Calling a generator returns a generator object.  That object is stored
       // in a temporary variable, a definition that is used by "yield"
       // expressions. This also marks the FunctionState as a generator.
-      Variable* temp = this->scope()->NewTemporary(
-          ast_value_factory()->dot_generator_object_string());
+      Variable* temp =
+          NewTemporary(ast_value_factory()->dot_generator_object_string());
       function_state.set_generator_object_variable(temp);
     }
 
@@ -5105,8 +5099,7 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
   }
 
   Block* do_block = factory()->NewBlock(nullptr, 1, false, pos);
-  Variable* result_var =
-      scope()->NewTemporary(ast_value_factory()->empty_string());
+  Variable* result_var = NewTemporary(ast_value_factory()->empty_string());
   do_block->set_scope(block_state.FinalizedBlockScope());
   DoExpression* do_expr = factory()->NewDoExpression(do_block, result_var, pos);
 
@@ -5711,8 +5704,7 @@ Expression* Parser::SpreadCall(Expression* function,
         args->InsertAt(0, function, zone());
         args->InsertAt(1, home, zone());
       } else {
-        Variable* temp =
-            scope()->NewTemporary(ast_value_factory()->empty_string());
+        Variable* temp = NewTemporary(ast_value_factory()->empty_string());
         VariableProxy* obj = factory()->NewVariableProxy(temp);
         Assignment* assign_obj = factory()->NewAssignment(
             Token::ASSIGN, obj, function->AsProperty()->obj(),
@@ -5817,8 +5809,8 @@ Expression* ParserTraits::RewriteAwaitExpression(Expression* value,
   auto factory = parser_->factory();
   const int nopos = kNoSourcePosition;
 
-  Variable* temp_var = parser_->scope()->NewTemporary(
-      parser_->ast_value_factory()->empty_string());
+  Variable* temp_var =
+      parser_->NewTemporary(parser_->ast_value_factory()->empty_string());
   VariableProxy* temp_proxy = factory->NewVariableProxy(temp_var);
   Block* do_block = factory->NewBlock(nullptr, 2, false, nopos);
 
@@ -5957,8 +5949,8 @@ Expression* Parser::RewriteAssignExponentiation(Expression* left,
     return factory()->NewAssignment(Token::ASSIGN, result, call, pos);
   } else if (left->IsProperty()) {
     Property* prop = left->AsProperty();
-    auto temp_obj = scope()->NewTemporary(ast_value_factory()->empty_string());
-    auto temp_key = scope()->NewTemporary(ast_value_factory()->empty_string());
+    auto temp_obj = NewTemporary(ast_value_factory()->empty_string());
+    auto temp_key = NewTemporary(ast_value_factory()->empty_string());
     Expression* assign_obj = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(temp_obj), prop->obj(),
         kNoSourcePosition);
@@ -6001,8 +5993,7 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
   // where $R, $i and $j are fresh temporary variables.
   ZoneList<Expression*>::iterator s = lit->FirstSpread();
   if (s == lit->EndValue()) return nullptr;  // no spread, no rewriting...
-  Variable* result =
-      scope()->NewTemporary(ast_value_factory()->dot_result_string());
+  Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
   // NOTE: The value assigned to R is the whole original array literal,
   // spreads included. This will be fixed before the rewritten AST is returned.
   // $R = lit
@@ -6030,8 +6021,7 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
           zone());
     } else {
       // If it's a spread, we're adding a for/of loop iterating through it.
-      Variable* each =
-          scope()->NewTemporary(ast_value_factory()->dot_for_string());
+      Variable* each = NewTemporary(ast_value_factory()->dot_for_string());
       Expression* subject = spread->expression();
       // %AppendElement($R, each)
       Statement* append_body;
@@ -6216,7 +6206,6 @@ Expression* ParserTraits::RewriteYieldStar(
 
   auto factory = parser_->factory();
   auto avfactory = parser_->ast_value_factory();
-  auto scope = parser_->scope();
   auto zone = parser_->zone();
 
 
@@ -6225,7 +6214,7 @@ Expression* ParserTraits::RewriteYieldStar(
 
 
   // let input = undefined;
-  Variable* var_input = scope->NewTemporary(avfactory->empty_string());
+  Variable* var_input = parser_->NewTemporary(avfactory->empty_string());
   Statement* initialize_input;
   {
     Expression* input_proxy = factory->NewVariableProxy(var_input);
@@ -6236,7 +6225,7 @@ Expression* ParserTraits::RewriteYieldStar(
 
 
   // let mode = kNext;
-  Variable* var_mode = scope->NewTemporary(avfactory->empty_string());
+  Variable* var_mode = parser_->NewTemporary(avfactory->empty_string());
   Statement* initialize_mode;
   {
     Expression* mode_proxy = factory->NewVariableProxy(var_mode);
@@ -6248,7 +6237,7 @@ Expression* ParserTraits::RewriteYieldStar(
 
 
   // let output = undefined;
-  Variable* var_output = scope->NewTemporary(avfactory->empty_string());
+  Variable* var_output = parser_->NewTemporary(avfactory->empty_string());
   Statement* initialize_output;
   {
     Expression* output_proxy = factory->NewVariableProxy(var_output);
@@ -6260,7 +6249,7 @@ Expression* ParserTraits::RewriteYieldStar(
 
 
   // let iterator = iterable[Symbol.iterator];
-  Variable* var_iterator = scope->NewTemporary(avfactory->empty_string());
+  Variable* var_iterator = parser_->NewTemporary(avfactory->empty_string());
   Statement* get_iterator;
   {
     Expression* iterator = GetIterator(iterable, factory, nopos);
@@ -6340,7 +6329,7 @@ Expression* ParserTraits::RewriteYieldStar(
 
 
   // let iteratorThrow = iterator.throw;
-  Variable* var_throw = scope->NewTemporary(avfactory->empty_string());
+  Variable* var_throw = parser_->NewTemporary(avfactory->empty_string());
   Statement* get_throw;
   {
     Expression* iterator_proxy = factory->NewVariableProxy(var_iterator);
@@ -6535,7 +6524,7 @@ Expression* ParserTraits::RewriteYieldStar(
     Block* catch_block = factory->NewBlock(nullptr, 1, false, nopos);
     catch_block->statements()->Add(set_mode_throw, zone);
 
-    Scope* catch_scope = NewScopeWithParent(scope, CATCH_SCOPE);
+    Scope* catch_scope = NewScope(CATCH_SCOPE);
     catch_scope->set_is_hidden();
     const AstRawString* name = avfactory->dot_catch_string();
     Variable* catch_variable =
@@ -6627,9 +6616,11 @@ Expression* ParserTraits::RewriteYieldStar(
     do_block->statements()->Add(do_block_, zone);
     do_block->statements()->Add(get_value, zone);
 
-    Variable* dot_result = scope->NewTemporary(avfactory->dot_result_string());
+    Variable* dot_result =
+        parser_->NewTemporary(avfactory->dot_result_string());
     yield_star = factory->NewDoExpression(do_block, dot_result, nopos);
-    Rewriter::Rewrite(parser_, scope->GetClosureScope(), yield_star, avfactory);
+    Rewriter::Rewrite(parser_, parser_->GetClosureScope(), yield_star,
+                      avfactory);
   }
 
   return yield_star;
@@ -6900,12 +6891,11 @@ void ParserTraits::BuildIteratorCloseForCompletion(
   const int nopos = kNoSourcePosition;
   auto factory = parser_->factory();
   auto avfactory = parser_->ast_value_factory();
-  auto scope = parser_->scope();
   auto zone = parser_->zone();
 
 
   // let iteratorReturn = iterator.return;
-  Variable* var_return = scope->NewTemporary(avfactory->empty_string());
+  Variable* var_return = parser_->NewTemporary(avfactory->empty_string());
   Statement* get_return;
   {
     Expression* iterator_proxy = factory->NewVariableProxy(iterator);
@@ -6946,7 +6936,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
 
     Block* catch_block = factory->NewBlock(nullptr, 0, false, nopos);
 
-    Scope* catch_scope = NewScopeWithParent(scope, CATCH_SCOPE);
+    Scope* catch_scope = NewScope(CATCH_SCOPE);
     Variable* catch_variable = catch_scope->DeclareLocal(
         avfactory->dot_catch_string(), VAR, kCreatedInitialized,
         Variable::NORMAL);
@@ -6962,7 +6952,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
   // }
   Block* validate_return;
   {
-    Variable* var_output = scope->NewTemporary(avfactory->empty_string());
+    Variable* var_output = parser_->NewTemporary(avfactory->empty_string());
     Statement* call_return;
     {
       auto args = new (zone) ZoneList<Expression*>(2, zone);

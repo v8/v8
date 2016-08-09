@@ -776,6 +776,9 @@ class Parser : public ParserBase<ParserTraits> {
   DeclarationScope* GetClosureScope() const {
     return scope()->GetClosureScope();
   }
+  Variable* NewTemporary(const AstRawString* name) {
+    return scope()->NewTemporary(name);
+  }
 
   // Limit the allowed number of local variables in a function. The hard limit
   // is that offsets computed by FullCodeGenerator::StackOperand and similar
