@@ -181,51 +181,6 @@
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 
-  ############################################################################
-  # Ignition
-
-  # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
-  'array-literal-feedback': [PASS, NO_IGNITION],
-  'regress/regress-4121': [PASS, NO_IGNITION],
-
-  # TODO(4680): Test doesn't know about three tier compiler pipeline.
-  'assert-opt-and-deopt': [PASS, NO_IGNITION],
-
-  # BUG(rmcilroy,4989): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
-  'compiler/deopt-inlined-from-call': [PASS, NO_IGNITION],
-  'compiler/increment-typefeedback': [PASS, NO_IGNITION],
-  'compiler/manual-concurrent-recompile': [PASS, NO_IGNITION],
-  'constant-folding-2': [PASS, NO_IGNITION],
-  'debug-is-active': [PASS, NO_IGNITION],
-  'deopt-with-fp-regs': [PASS, NO_IGNITION],
-  'deserialize-optimize-inner': [PASS, NO_IGNITION],
-  'div-mul-minus-one': [PASS, NO_IGNITION],
-  'double-intrinsics': [PASS, NO_IGNITION],
-  'elements-transition-hoisting': [PASS, NO_IGNITION],
-  'es6/block-let-crankshaft': [PASS, NO_IGNITION],
-  'es6/block-let-crankshaft-sloppy': [PASS, NO_IGNITION],
-  'getters-on-elements': [PASS, NO_IGNITION],
-  'harmony/do-expressions': [PASS, NO_IGNITION],
-  'math-floor-of-div-minus-zero': [PASS, NO_IGNITION],
-  'regress/regress-2132': [PASS, NO_IGNITION],
-  'regress/regress-2339': [PASS, NO_IGNITION],
-  'regress/regress-3176': [PASS, NO_IGNITION],
-  'regress/regress-3709': [PASS, NO_IGNITION],
-  'regress/regress-385565': [PASS, NO_IGNITION],
-  'regress/regress-crbug-594183': [PASS, NO_IGNITION],
-  'regress/regress-embedded-cons-string': [PASS, NO_IGNITION],
-  'regress/regress-map-invalidation-2': [PASS, NO_IGNITION],
-  'regress/regress-param-local-type': [PASS, NO_IGNITION],
-  'regress/regress-prepare-break-while-recompile': [PASS, NO_IGNITION],
-  'shift-for-integer-div': [PASS, NO_IGNITION],
-  'sin-cos': [PASS, NO_IGNITION],
-  'smi-mul-const': [PASS, NO_IGNITION],
-  'smi-mul': [PASS, NO_IGNITION],
-  'unary-minus-deopt': [PASS, NO_IGNITION],
-  'array-constructor-feedback': [PASS, NO_IGNITION],
-  'array-feedback': [PASS, NO_IGNITION],
-  'allocation-site-info': [PASS, NO_IGNITION],
-
   # TODO(rmcilroy,5038): Crashes in Deoptimizer::PatchCodeForDeoptimization on
   # nosnap builds when --stress-opt and --turbo-from-bytecode is enabled.
   'harmony/generators-turbo': [PASS, FAST_VARIANTS],
@@ -387,13 +342,6 @@
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
   'whitespaces': [PASS, TIMEOUT, SLOW],
-
-  # TODO(rmcilroy,4680): Arm64 specific timeouts.
-  'asm/construct-double': [PASS, NO_IGNITION],
-  'compiler/osr-one': [PASS, NO_IGNITION],
-  'compiler/osr-two': [PASS, NO_IGNITION],
-  'wasm/asm-wasm-i32': [PASS, NO_IGNITION],
-  'wasm/asm-wasm-u32': [PASS, NO_IGNITION],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -408,10 +356,6 @@
   'unicodelctest-no-optimization': [PASS, TIMEOUT],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
-
-  # Ignition.
-  'es6/templates': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
-  'regress/regress-crbug-364374': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
 ##############################################################################
@@ -434,17 +378,6 @@
   'deep-recursion': [SKIP],
   'regress/regress-builtinbust-7': [SKIP],
   'string-localecompare': [SKIP],
-
-  # TODO(mythria,4680): All of these tests have large loops and hence slow
-  # and timeout.
-  'compiler/osr-big': [PASS, NO_IGNITION],
-  'compiler/osr-nested': [PASS, NO_IGNITION],
-  'regress/regress-298269': [PASS, NO_IGNITION],
-  'regress/regress-crbug-319860': [PASS, NO_IGNITION],
-  'regress/regress-deep-proto': [PASS, NO_IGNITION],
-  'try': [PASS, NO_IGNITION],
-  # Too slow for interpreter and msan.
-  'es6/tail-call-megatest*': [PASS, NO_IGNITION],
 
   # Too slow.
   'harmony/regexp-property-lu-ui': [SKIP],
@@ -492,11 +425,6 @@
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, TIMEOUT],
-
-  # TODO(rmcilroy,4680): Arm specific timeouts.
-  'compiler/osr-one': [PASS, NO_IGNITION],
-  'compiler/osr-two': [PASS, NO_IGNITION],
-  'regress/regress-1257': [PASS, NO_IGNITION],
 }],  # 'arch == arm or arch == android_arm'
 
 ##############################################################################
@@ -703,7 +631,77 @@
   # Might trigger stack overflow.
   'unicode-test': [SKIP],
 
+  # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
+  'array-literal-feedback': [FAIL],
+  'regress/regress-4121': [FAIL],
+
+  # TODO(4680): Test doesn't know about three tier compiler pipeline.
+  'assert-opt-and-deopt': [FAIL],
+
+  # BUG(rmcilroy,4989): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
+  'compiler/deopt-inlined-from-call': [FAIL],
+  'compiler/increment-typefeedback': [FAIL],
+  'compiler/manual-concurrent-recompile': [FAIL],
+  'constant-folding-2': [FAIL],
+  'debug-is-active': [FAIL],
+  'deopt-with-fp-regs': [FAIL],
+  'deserialize-optimize-inner': [FAIL],
+  'div-mul-minus-one': [FAIL],
+  'double-intrinsics': [FAIL],
+  'elements-transition-hoisting': [FAIL],
+  'es6/block-let-crankshaft': [FAIL],
+  'es6/block-let-crankshaft-sloppy': [FAIL],
+  'getters-on-elements': [FAIL],
+  'harmony/do-expressions': [FAIL],
+  'math-floor-of-div-minus-zero': [FAIL],
+  'regress/regress-2132': [FAIL],
+  'regress/regress-2339': [FAIL],
+  'regress/regress-3176': [FAIL],
+  'regress/regress-3709': [FAIL],
+  'regress/regress-385565': [FAIL],
+  'regress/regress-crbug-594183': [FAIL],
+  'regress/regress-embedded-cons-string': [FAIL],
+  'regress/regress-map-invalidation-2': [FAIL],
+  'regress/regress-param-local-type': [FAIL],
+  'regress/regress-prepare-break-while-recompile': [FAIL],
+  'shift-for-integer-div': [FAIL],
+  'sin-cos': [FAIL],
+  'smi-mul-const': [FAIL],
+  'smi-mul': [FAIL],
+  'unary-minus-deopt': [FAIL],
+  'array-constructor-feedback': [FAIL],
+  'array-feedback': [FAIL],
+  'allocation-site-info': [FAIL],
 }],  # variant == ignition
+
+['variant == ignition and arch == arm64', {
+  # TODO(rmcilroy,4680): Arm64 specific timeouts.
+  'asm/construct-double': [SKIP],
+  'compiler/osr-one': [SKIP],
+  'compiler/osr-two': [SKIP],
+  'wasm/asm-wasm-i32': [SKIP],
+  'wasm/asm-wasm-u32': [SKIP],
+}],  # variant == ignition and arch == arm64
+
+['variant == ignition and arch == arm', {
+  # TODO(rmcilroy,4680): Arm specific timeouts.
+  'compiler/osr-one': [SKIP],
+  'compiler/osr-two': [SKIP],
+  'regress/regress-1257': [SKIP],
+}],  # variant == ignition and arch == arm
+
+['variant == ignition and msan', {
+  # TODO(mythria,4680): All of these tests have large loops and hence slow
+  # and timeout.
+  'compiler/osr-big': [SKIP],
+  'compiler/osr-nested': [SKIP],
+  'regress/regress-298269': [SKIP],
+  'regress/regress-crbug-319860': [SKIP],
+  'regress/regress-deep-proto': [SKIP],
+  'try': [SKIP],
+  # Too slow for interpreter and msan.
+  'es6/tail-call-megatest*': [SKIP],
+}],  # variant == ignition and msan
 
 ##############################################################################
 ['variant == ignition_staging', {
@@ -798,7 +796,7 @@
   'wasm/asm-wasm-u32': [SKIP],
 }],  # variant == ignition_turbofan and arch == arm64
 
-['ignition_turbofan and arch == arm', {
+['variant == ignition_turbofan and arch == arm', {
   # TODO(rmcilroy,4680): Arm specific timeouts.
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
