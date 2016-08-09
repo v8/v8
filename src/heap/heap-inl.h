@@ -384,7 +384,9 @@ bool Heap::InOldSpaceSlow(Address address) {
 }
 
 bool Heap::OldGenerationAllocationLimitReached() {
-  if (!incremental_marking()->IsStopped()) return false;
+  if (!incremental_marking()->IsStopped() && !ShouldOptimizeForMemoryUsage()) {
+    return false;
+  }
   return OldGenerationSpaceAvailable() < 0;
 }
 
