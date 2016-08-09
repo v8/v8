@@ -48,7 +48,15 @@ var Node = {
     return Math.max(inputWidth, this.width);
   },
   getTitle: function() {
-    return this.title;
+    var propsString;
+    if (this.properties === undefined) {
+      propsString = "";
+    } else if (this.properties === "") {
+      propsString = "no properties";
+    } else {
+      propsString = "[" + this.properties + "]";
+    }
+    return this.title + "\n" + propsString + "\n" + this.opinfo;
   },
   getDisplayLabel: function() {
     var result = this.id + ":" + this.label;
