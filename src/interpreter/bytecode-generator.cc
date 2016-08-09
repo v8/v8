@@ -629,6 +629,9 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
 Handle<BytecodeArray> BytecodeGenerator::MakeBytecode() {
   GenerateBytecode();
   FinalizeBytecode();
+
+  if (HasStackOverflow()) return Handle<BytecodeArray>();
+
   return builder()->ToBytecodeArray();
 }
 
