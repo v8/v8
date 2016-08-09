@@ -12,17 +12,8 @@
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var MakeRangeError;
-var MakeSyntaxError;
-var MakeTypeError;
 var NaN = %GetRootNaN();
 var ObjectToString = utils.ImportNow("object_to_string");
-
-utils.Import(function(from) {
-  MakeRangeError = from.MakeRangeError;
-  MakeSyntaxError = from.MakeSyntaxError;
-  MakeTypeError = from.MakeTypeError;
-});
 
 // ----------------------------------------------------------------------------
 
@@ -136,7 +127,7 @@ function GetMethod(obj, p) {
   var func = obj[p];
   if (IS_NULL_OR_UNDEFINED(func)) return UNDEFINED;
   if (IS_CALLABLE(func)) return func;
-  throw MakeTypeError(kCalledNonCallable, typeof func);
+  throw %make_type_error(kCalledNonCallable, typeof func);
 }
 
 // ES6 section 19.1.2.18.
@@ -144,7 +135,7 @@ function ObjectSetPrototypeOf(obj, proto) {
   CHECK_OBJECT_COERCIBLE(obj, "Object.setPrototypeOf");
 
   if (proto !== null && !IS_RECEIVER(proto)) {
-    throw MakeTypeError(kProtoObjectOrNull, proto);
+    throw %make_type_error(kProtoObjectOrNull, proto);
   }
 
   if (IS_RECEIVER(obj)) {
@@ -289,11 +280,11 @@ function GetIterator(obj, method) {
     method = obj[iteratorSymbol];
   }
   if (!IS_CALLABLE(method)) {
-    throw MakeTypeError(kNotIterable, obj);
+    throw %make_type_error(kNotIterable, obj);
   }
   var iterator = %_Call(method, obj);
   if (!IS_RECEIVER(iterator)) {
-    throw MakeTypeError(kNotAnIterator, iterator);
+    throw %make_type_error(kNotAnIterator, iterator);
   }
   return iterator;
 }

@@ -19,13 +19,9 @@
 var GlobalArray = global.Array;
 var GlobalBoolean = global.Boolean;
 var GlobalString = global.String;
-var MakeRangeError;
-var MakeTypeError;
 var speciesSymbol;
 
 utils.Import(function(from) {
-  MakeRangeError = from.MakeRangeError;
-  MakeTypeError = from.MakeTypeError;
   speciesSymbol = from.species_symbol;
 });
 
@@ -40,7 +36,7 @@ utils.Import(function(from) {
 
 function ToPositiveInteger(x, rangeErrorIndex) {
   var i = TO_INTEGER(x) + 0;
-  if (i < 0) throw MakeRangeError(rangeErrorIndex);
+  if (i < 0) throw %make_range_error(rangeErrorIndex);
   return i;
 }
 
@@ -66,7 +62,7 @@ function SpeciesConstructor(object, defaultConstructor) {
     return defaultConstructor;
   }
   if (!IS_RECEIVER(constructor)) {
-    throw MakeTypeError(kConstructorNotReceiver);
+    throw %make_type_error(kConstructorNotReceiver);
   }
   var species = constructor[speciesSymbol];
   if (IS_NULL_OR_UNDEFINED(species)) {
@@ -75,7 +71,7 @@ function SpeciesConstructor(object, defaultConstructor) {
   if (%IsConstructor(species)) {
     return species;
   }
-  throw MakeTypeError(kSpeciesNotConstructor);
+  throw %make_type_error(kSpeciesNotConstructor);
 }
 
 //----------------------------------------------------------------------------

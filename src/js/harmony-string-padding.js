@@ -10,11 +10,6 @@
 // Imports
 
 var GlobalString = global.String;
-var MakeTypeError;
-
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-});
 
 // -------------------------------------------------------------------
 // http://tc39.github.io/proposal-string-pad-start-end/

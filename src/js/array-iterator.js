@@ -20,13 +20,8 @@ var arrayIteratorObjectSymbol =
 var GlobalArray = global.Array;
 var IteratorPrototype = utils.ImportNow("IteratorPrototype");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var MakeTypeError;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var GlobalTypedArray = %object_get_prototype_of(global.Uint8Array);
-
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-})
 
 // -----------------------------------------------------------------------
 
@@ -63,7 +58,7 @@ function ArrayIteratorNext() {
 
   if (!IS_RECEIVER(iterator) ||
       !HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Array Iterator.prototype.next', this);
   }
 
@@ -111,19 +106,19 @@ function ArrayKeys() {
 
 // TODO(littledan): Check for detached TypedArray in these three methods
 function TypedArrayEntries() {
-  if (!IS_TYPEDARRAY(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
   return %_Call(ArrayEntries, this);
 }
 
 
 function TypedArrayValues() {
-  if (!IS_TYPEDARRAY(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
   return %_Call(ArrayValues, this);
 }
 
 
 function TypedArrayKeys() {
-  if (!IS_TYPEDARRAY(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
   return %_Call(ArrayKeys, this);
 }
 

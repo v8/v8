@@ -319,7 +319,11 @@ namespace internal {
   CPP(ErrorConstructor)                                                      \
   CPP(ErrorCaptureStackTrace)                                                \
   CPP(ErrorPrototypeToString)                                                \
-  CPP(MakeGenericError)                                                      \
+  CPP(MakeError)                                                             \
+  CPP(MakeRangeError)                                                        \
+  CPP(MakeSyntaxError)                                                       \
+  CPP(MakeTypeError)                                                         \
+  CPP(MakeURIError)                                                          \
                                                                              \
   /* Function */                                                             \
   CPP(FunctionConstructor)                                                   \

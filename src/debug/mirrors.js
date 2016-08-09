@@ -11,7 +11,6 @@
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
-var MakeError;
 var MapEntries;
 var MapIteratorNext;
 var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
@@ -20,7 +19,6 @@ var SetIteratorNext;
 var SetValues;
 
 utils.Import(function(from) {
-  MakeError = from.MakeError;
   MapEntries = from.MapEntries;
   MapIteratorNext = from.MapIteratorNext;
   SetIteratorNext = from.SetIteratorNext;
@@ -192,7 +190,7 @@ function MakeMirror(value, opt_transient) {
  */
 function LookupMirror(handle) {
   if (!mirror_cache_enabled_) {
-    throw MakeError(kDebugger, "Mirror cache is disabled");
+    throw %make_error(kDebugger, "Mirror cache is disabled");
   }
   return mirror_cache_[handle];
 }
@@ -2241,7 +2239,7 @@ ScopeDetails.prototype.setVariableValueImpl = function(name, new_value) {
     raw_res = %SetScopeVariableValue(this.fun_value_, null, null, this.index_,
         name, new_value);
   }
-  if (!raw_res) throw MakeError(kDebugger, "Failed to set variable value");
+  if (!raw_res) throw %make_error(kDebugger, "Failed to set variable value");
 };
 
 
@@ -2340,7 +2338,7 @@ ScriptMirror.prototype.source = function() {
 
 
 ScriptMirror.prototype.setSource = function(source) {
-  if (!IS_STRING(source)) throw MakeError(kDebugger, "Source is not a string");
+  if (!IS_STRING(source)) throw %make_error(kDebugger, "Source is not a string");
   %DebugSetScriptSource(this.script_, source);
 };
 
@@ -2660,7 +2658,7 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
 
     case MirrorType.PROPERTY_TYPE:
     case MirrorType.INTERNAL_PROPERTY_TYPE:
-      throw MakeError(kDebugger,
+      throw %make_error(kDebugger,
                      'PropertyMirror cannot be serialized independently');
       break;
 

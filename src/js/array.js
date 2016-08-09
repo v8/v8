@@ -16,7 +16,6 @@ var GetMethod;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
-var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var ObjectHasOwnProperty;
@@ -28,7 +27,6 @@ var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 utils.Import(function(from) {
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
-  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
@@ -424,7 +422,7 @@ function ArrayPush() {
   // Subtract n from kMaxSafeInteger rather than testing m + n >
   // kMaxSafeInteger. n may already be kMaxSafeInteger. In that case adding
   // e.g., 1 would not be safe.
-  if (m > kMaxSafeInteger - n) throw MakeTypeError(kPushPastSafeLength, m, n);
+  if (m > kMaxSafeInteger - n) throw %make_type_error(kPushPastSafeLength, m, n);
 
   for (var i = 0; i < m; i++) {
     array[i+n] = arguments[i];
@@ -546,7 +544,7 @@ function ArrayShift() {
     return;
   }
 
-  if (%object_is_sealed(array)) throw MakeTypeError(kArrayFunctionsOnSealed);
+  if (%object_is_sealed(array)) throw %make_type_error(kArrayFunctionsOnSealed);
 
   var first = array[0];
 
@@ -673,9 +671,9 @@ function ArraySplice(start, delete_count) {
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
   if (del_count != num_elements_to_add && %object_is_sealed(array)) {
-    throw MakeTypeError(kArrayFunctionsOnSealed);
+    throw %make_type_error(kArrayFunctionsOnSealed);
   } else if (del_count > 0 && %object_is_frozen(array)) {
-    throw MakeTypeError(kArrayFunctionsOnFrozen);
+    throw %make_type_error(kArrayFunctionsOnFrozen);
   }
 
   var changed_elements = del_count;
@@ -1031,14 +1029,14 @@ function ArrayFilter(f, receiver) {
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
   var length = TO_LENGTH(array.length);
-  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
   var result = ArraySpeciesCreate(array, 0);
   return InnerArrayFilter(f, receiver, array, length, result);
 }
 
 
 function InnerArrayForEach(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
 
   if (IS_UNDEFINED(receiver)) {
     for (var i = 0; i < length; i++) {
@@ -1070,7 +1068,7 @@ function ArrayForEach(f, receiver) {
 
 
 function InnerArraySome(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
 
   for (var i = 0; i < length; i++) {
     if (i in array) {
@@ -1096,7 +1094,7 @@ function ArraySome(f, receiver) {
 
 
 function InnerArrayEvery(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
 
   for (var i = 0; i < length; i++) {
     if (i in array) {
@@ -1125,7 +1123,7 @@ function ArrayMap(f, receiver) {
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
   var length = TO_LENGTH(array.length);
-  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
   var result = ArraySpeciesCreate(array, length);
   for (var i = 0; i < length; i++) {
     if (i in array) {
@@ -1264,7 +1262,7 @@ function ArrayLastIndexOf(element, index) {
 
 function InnerArrayReduce(callback, current, array, length, argumentsLength) {
   if (!IS_CALLABLE(callback)) {
-    throw MakeTypeError(kCalledNonCallable, callback);
+    throw %make_type_error(kCalledNonCallable, callback);
   }
 
   var i = 0;
@@ -1275,7 +1273,7 @@ function InnerArrayReduce(callback, current, array, length, argumentsLength) {
         break find_initial;
       }
     }
-    throw MakeTypeError(kReduceNoInitial);
+    throw %make_type_error(kReduceNoInitial);
   }
 
   for (; i < length; i++) {
@@ -1303,7 +1301,7 @@ function ArrayReduce(callback, current) {
 function InnerArrayReduceRight(callback, current, array, length,
                                argumentsLength) {
   if (!IS_CALLABLE(callback)) {
-    throw MakeTypeError(kCalledNonCallable, callback);
+    throw %make_type_error(kCalledNonCallable, callback);
   }
 
   var i = length - 1;
@@ -1314,7 +1312,7 @@ function InnerArrayReduceRight(callback, current, array, length,
         break find_initial;
       }
     }
-    throw MakeTypeError(kReduceNoInitial);
+    throw %make_type_error(kReduceNoInitial);
   }
 
   for (; i >= 0; i--) {
@@ -1400,7 +1398,7 @@ function ArrayCopyWithin(target, start, end) {
 
 function InnerArrayFind(predicate, thisArg, array, length) {
   if (!IS_CALLABLE(predicate)) {
-    throw MakeTypeError(kCalledNonCallable, predicate);
+    throw %make_type_error(kCalledNonCallable, predicate);
   }
 
   for (var i = 0; i < length; i++) {
@@ -1427,7 +1425,7 @@ function ArrayFind(predicate, thisArg) {
 
 function InnerArrayFindIndex(predicate, thisArg, array, length) {
   if (!IS_CALLABLE(predicate)) {
-    throw MakeTypeError(kCalledNonCallable, predicate);
+    throw %make_type_error(kCalledNonCallable, predicate);
   }
 
   for (var i = 0; i < length; i++) {
@@ -1472,7 +1470,7 @@ function InnerArrayFill(value, start, end, array, length) {
   }
 
   if ((end - i) > 0 && %object_is_frozen(array)) {
-    throw MakeTypeError(kArrayFunctionsOnFrozen);
+    throw %make_type_error(kArrayFunctionsOnFrozen);
   }
 
   for (; i < end; i++)
@@ -1499,7 +1497,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
 
   if (mapping) {
     if (!IS_CALLABLE(mapfn)) {
-      throw MakeTypeError(kCalledNonCallable, mapfn);
+      throw %make_type_error(kCalledNonCallable, mapfn);
     }
   }
 

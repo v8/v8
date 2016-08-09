@@ -12,7 +12,6 @@
 // Imports
 
 var InternalArray = utils.InternalArray;
-var MakeTypeError;
 var promiseCombinedDeferredSymbol =
     utils.ImportNow("promise_combined_deferred_symbol");
 var promiseHasHandlerSymbol =
@@ -31,7 +30,6 @@ var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
   SpeciesConstructor = from.SpeciesConstructor;
 });
 
@@ -79,9 +77,9 @@ var GlobalPromise = function Promise(executor) {
   if (executor === promiseRawSymbol) {
     return %_NewObject(GlobalPromise, new.target);
   }
-  if (IS_UNDEFINED(new.target)) throw MakeTypeError(kNotAPromise, this);
+  if (IS_UNDEFINED(new.target)) throw %make_type_error(kNotAPromise, this);
   if (!IS_CALLABLE(executor)) {
-    throw MakeTypeError(kResolverNotAFunction, executor);
+    throw %make_type_error(kResolverNotAFunction, executor);
   }
 
   var promise = PromiseInit(%_NewObject(GlobalPromise, new.target));
@@ -240,7 +238,7 @@ function PromiseCreate() {
 // Promise Resolve Functions, steps 6-13
 function ResolvePromise(promise, resolution) {
   if (resolution === promise) {
-    return RejectPromise(promise, MakeTypeError(kPromiseCyclic, resolution));
+    return RejectPromise(promise, %make_type_error(kPromiseCyclic, resolution));
   }
   if (IS_RECEIVER(resolution)) {
     // 25.4.1.3.2 steps 8-12
@@ -337,13 +335,13 @@ function NewPromiseCapability(C) {
   var result = {promise: UNDEFINED, resolve: UNDEFINED, reject: UNDEFINED };
   result.promise = new C((resolve, reject) => {
     if (!IS_UNDEFINED(result.resolve) || !IS_UNDEFINED(result.reject))
-        throw MakeTypeError(kPromiseExecutorAlreadyInvoked);
+        throw %make_type_error(kPromiseExecutorAlreadyInvoked);
     result.resolve = resolve;
     result.reject = reject;
   });
 
   if (!IS_CALLABLE(result.resolve) || !IS_CALLABLE(result.reject))
-      throw MakeTypeError(kPromiseNonCallable);
+      throw %make_type_error(kPromiseNonCallable);
 
   return result;
 }
@@ -364,7 +362,7 @@ function PromiseAccept(x) {
 // Promise.reject ( x )
 function PromiseReject(r) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kCalledOnNonObject, PromiseResolve);
+    throw %make_type_error(kCalledOnNonObject, PromiseResolve);
   }
   if (this === GlobalPromise) {
     // Optimized case, avoid extra closure.
@@ -437,7 +435,7 @@ function PerformPromiseThen(promise, onResolve, onReject, resultCapability) {
 function PromiseThen(onResolve, onReject) {
   var status = GET_PRIVATE(this, promiseStateSymbol);
   if (IS_UNDEFINED(status)) {
-    throw MakeTypeError(kNotAPromise, this);
+    throw %make_type_error(kNotAPromise, this);
   }
 
   var constructor = SpeciesConstructor(this, GlobalPromise);
@@ -464,7 +462,7 @@ function PromiseCatch(onReject) {
 // Promise.resolve ( x )
 function PromiseResolve(x) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kCalledOnNonObject, PromiseResolve);
+    throw %make_type_error(kCalledOnNonObject, PromiseResolve);
   }
   if (IsPromise(x) && x.constructor === this) return x;
 
@@ -484,7 +482,7 @@ function PromiseResolve(x) {
 // Promise.all ( iterable )
 function PromiseAll(iterable) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kCalledOnNonObject, "Promise.all");
+    throw %make_type_error(kCalledOnNonObject, "Promise.all");
   }
 
   var deferred = NewPromiseCapability(this);
@@ -535,7 +533,7 @@ function PromiseAll(iterable) {
 // Promise.race ( iterable )
 function PromiseRace(iterable) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kCalledOnNonObject, PromiseRace);
+    throw %make_type_error(kCalledOnNonObject, PromiseRace);
   }
 
   var deferred = NewPromiseCapability(this);

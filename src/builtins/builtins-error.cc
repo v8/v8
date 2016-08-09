@@ -81,23 +81,54 @@ BUILTIN(ErrorPrototypeToString) {
                            ErrorUtils::ToString(isolate, args.receiver()));
 }
 
-BUILTIN(MakeGenericError) {
-  HandleScope scope(isolate);
+namespace {
 
-  Handle<Object> constructor = args.atOrUndefined(isolate, 1);
-  Handle<Object> template_index = args.atOrUndefined(isolate, 2);
-  Handle<Object> arg0 = args.atOrUndefined(isolate, 3);
-  Handle<Object> arg1 = args.atOrUndefined(isolate, 4);
-  Handle<Object> arg2 = args.atOrUndefined(isolate, 5);
+Object* MakeGenericError(Isolate* isolate, BuiltinArguments args,
+                         Handle<JSFunction> constructor) {
+  Handle<Object> template_index = args.atOrUndefined(isolate, 1);
+  Handle<Object> arg0 = args.atOrUndefined(isolate, 2);
+  Handle<Object> arg1 = args.atOrUndefined(isolate, 3);
+  Handle<Object> arg2 = args.atOrUndefined(isolate, 4);
 
-  DCHECK(constructor->IsJSFunction());
   DCHECK(template_index->IsSmi());
 
   RETURN_RESULT_OR_FAILURE(
+      isolate, ErrorUtils::MakeGenericError(isolate, constructor,
+                                            Smi::cast(*template_index)->value(),
+                                            arg0, arg1, arg2, SKIP_NONE));
+}
+
+}  // namespace
+
+BUILTIN(MakeError) {
+  HandleScope scope(isolate);
+  return MakeGenericError(isolate, args, isolate->error_function());
+}
+
+BUILTIN(MakeRangeError) {
+  HandleScope scope(isolate);
+  return MakeGenericError(isolate, args, isolate->range_error_function());
+}
+
+BUILTIN(MakeSyntaxError) {
+  HandleScope scope(isolate);
+  return MakeGenericError(isolate, args, isolate->syntax_error_function());
+}
+
+BUILTIN(MakeTypeError) {
+  HandleScope scope(isolate);
+  return MakeGenericError(isolate, args, isolate->type_error_function());
+}
+
+BUILTIN(MakeURIError) {
+  HandleScope scope(isolate);
+  Handle<JSFunction> constructor = isolate->uri_error_function();
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+  const int template_index = MessageTemplate::kURIMalformed;
+  RETURN_RESULT_OR_FAILURE(
       isolate,
-      ErrorUtils::MakeGenericError(
-          isolate, Handle<JSFunction>::cast(constructor),
-          Smi::cast(*template_index)->value(), arg0, arg1, arg2, SKIP_FIRST));
+      ErrorUtils::MakeGenericError(isolate, constructor, template_index,
+                                   undefined, undefined, undefined, SKIP_NONE));
 }
 
 }  // namespace internal

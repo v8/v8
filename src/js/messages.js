@@ -11,15 +11,10 @@
 // -------------------------------------------------------------------
 // Imports
 
-var MakeGenericError = utils.ImportNow("make_generic_error");
-var GlobalError = global.Error;
-var GlobalRangeError = global.RangeError;
-var GlobalSyntaxError = global.SyntaxError;
-var GlobalTypeError = global.TypeError;
-var GlobalURIError = global.URIError;
 var Script = utils.ImportNow("Script");
 
 // -------------------------------------------------------------------
+// Script
 
 /**
  * Set up the Script function and constructor.
@@ -27,40 +22,6 @@ var Script = utils.ImportNow("Script");
 %FunctionSetInstanceClassName(Script, 'Script');
 %AddNamedProperty(Script.prototype, 'constructor', Script,
                   DONT_ENUM | DONT_DELETE | READ_ONLY);
-%SetCode(Script, function(x) {
-  // Script objects can only be created by the VM.
-  throw MakeError(kUnsupported);
-});
-
-function GetLineNumber(message) {
-  var start_position = %MessageGetStartPosition(message);
-  if (start_position == -1) return kNoLineNumberInfo;
-  var script = %MessageGetScript(message);
-  var location = script.locationFromPosition(start_position, true);
-  if (location == null) return kNoLineNumberInfo;
-  return location.line + 1;
-}
-
-
-//Returns the offset of the given position within the containing line.
-function GetColumnNumber(message) {
-  var script = %MessageGetScript(message);
-  var start_position = %MessageGetStartPosition(message);
-  var location = script.locationFromPosition(start_position, true);
-  if (location == null) return -1;
-  return location.column;
-}
-
-
-// Returns the source code line containing the given source
-// position, or the empty string if the position is invalid.
-function GetSourceLine(message) {
-  var script = %MessageGetScript(message);
-  var start_position = %MessageGetStartPosition(message);
-  var location = script.locationFromPosition(start_position, true);
-  if (location == null) return "";
-  return location.sourceText;
-}
 
 
 /**
@@ -112,43 +73,43 @@ utils.SetUpLockedPrototype(Script, [
   ]
 );
 
-// ----------------------------------------------------------------------------
-// Error implementation
+// -------------------------------------------------------------------
+// Message
 
-function MakeError(type, arg0, arg1, arg2) {
-  return MakeGenericError(GlobalError, type, arg0, arg1, arg2);
+function GetLineNumber(message) {
+  var start_position = %MessageGetStartPosition(message);
+  if (start_position == -1) return kNoLineNumberInfo;
+  var script = %MessageGetScript(message);
+  var location = script.locationFromPosition(start_position, true);
+  if (location == null) return kNoLineNumberInfo;
+  return location.line + 1;
 }
 
-function MakeRangeError(type, arg0, arg1, arg2) {
-  return MakeGenericError(GlobalRangeError, type, arg0, arg1, arg2);
+
+//Returns the offset of the given position within the containing line.
+function GetColumnNumber(message) {
+  var script = %MessageGetScript(message);
+  var start_position = %MessageGetStartPosition(message);
+  var location = script.locationFromPosition(start_position, true);
+  if (location == null) return -1;
+  return location.column;
 }
 
-function MakeSyntaxError(type, arg0, arg1, arg2) {
-  return MakeGenericError(GlobalSyntaxError, type, arg0, arg1, arg2);
-}
 
-function MakeTypeError(type, arg0, arg1, arg2) {
-  return MakeGenericError(GlobalTypeError, type, arg0, arg1, arg2);
-}
-
-function MakeURIError() {
-  return MakeGenericError(GlobalURIError, kURIMalformed);
+// Returns the source code line containing the given source
+// position, or the empty string if the position is invalid.
+function GetSourceLine(message) {
+  var script = %MessageGetScript(message);
+  var start_position = %MessageGetStartPosition(message);
+  var location = script.locationFromPosition(start_position, true);
+  if (location == null) return "";
+  return location.sourceText;
 }
 
 %InstallToContext([
-  "make_range_error", MakeRangeError,
-  "make_type_error", MakeTypeError,
   "message_get_column_number", GetColumnNumber,
   "message_get_line_number", GetLineNumber,
   "message_get_source_line", GetSourceLine,
 ]);
-
-utils.Export(function(to) {
-  to.MakeError = MakeError;
-  to.MakeRangeError = MakeRangeError;
-  to.MakeSyntaxError = MakeSyntaxError;
-  to.MakeTypeError = MakeTypeError;
-  to.MakeURIError = MakeURIError;
-});
 
 });

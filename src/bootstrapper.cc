@@ -1051,6 +1051,15 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
   }
 }
 
+static void InstallMakeError(Isolate* isolate, Handle<Code> code,
+                             int context_index) {
+  Handle<JSFunction> function =
+      isolate->factory()->NewFunction(isolate->factory()->empty_string(), code,
+                                      JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  function->shared()->DontAdaptArguments();
+  isolate->native_context()->set(context_index, *function);
+}
+
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
 void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
@@ -1600,6 +1609,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- E r r o r
     InstallError(isolate, global, factory->Error_string(),
                  Context::ERROR_FUNCTION_INDEX);
+    InstallMakeError(isolate, isolate->builtins()->MakeError(),
+                     Context::MAKE_ERROR_INDEX);
   }
 
   {  // -- E v a l E r r o r
@@ -1610,6 +1621,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- R a n g e E r r o r
     InstallError(isolate, global, factory->RangeError_string(),
                  Context::RANGE_ERROR_FUNCTION_INDEX);
+    InstallMakeError(isolate, isolate->builtins()->MakeRangeError(),
+                     Context::MAKE_RANGE_ERROR_INDEX);
   }
 
   {  // -- R e f e r e n c e E r r o r
@@ -1620,16 +1633,22 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- S y n t a x E r r o r
     InstallError(isolate, global, factory->SyntaxError_string(),
                  Context::SYNTAX_ERROR_FUNCTION_INDEX);
+    InstallMakeError(isolate, isolate->builtins()->MakeSyntaxError(),
+                     Context::MAKE_SYNTAX_ERROR_INDEX);
   }
 
   {  // -- T y p e E r r o r
     InstallError(isolate, global, factory->TypeError_string(),
                  Context::TYPE_ERROR_FUNCTION_INDEX);
+    InstallMakeError(isolate, isolate->builtins()->MakeTypeError(),
+                     Context::MAKE_TYPE_ERROR_INDEX);
   }
 
   {  // -- U R I E r r o r
     InstallError(isolate, global, factory->URIError_string(),
                  Context::URI_ERROR_FUNCTION_INDEX);
+    InstallMakeError(isolate, isolate->builtins()->MakeURIError(),
+                     Context::MAKE_URI_ERROR_INDEX);
   }
 
   // Initialize the embedder data slot.
@@ -2477,7 +2496,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     // Builtin functions for Script.
     Handle<JSFunction> script_fun = InstallFunction(
         container, "Script", JS_VALUE_TYPE, JSValue::kSize,
-        isolate->initial_object_prototype(), Builtins::kIllegal);
+        isolate->initial_object_prototype(), Builtins::kUnsupportedThrower);
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
     Accessors::FunctionSetPrototype(script_fun, prototype).Assert();
@@ -2713,13 +2732,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
       Accessors::FunctionSetPrototype(callsite_fun, proto).Assert();
     }
-  }
-
-  {  // -- E r r o r
-    Handle<JSFunction> make_err_fun = InstallFunction(
-        container, "make_generic_error", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        isolate->initial_object_prototype(), Builtins::kMakeGenericError);
-    make_err_fun->shared()->DontAdaptArguments();
   }
 }
 
