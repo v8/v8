@@ -5862,11 +5862,7 @@ ParserTraits::GetReportedErrorList() const {
   return parser_->function_state_->GetReportedErrorList();
 }
 
-
-Zone* ParserTraits::zone() const {
-  return parser_->function_state_->scope()->zone();
-}
-
+Zone* ParserTraits::zone() const { return parser_->zone(); }
 
 class NonPatternRewriter : public AstExpressionRewriter {
  public:
