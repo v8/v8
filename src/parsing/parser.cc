@@ -1954,9 +1954,8 @@ VariableProxy* Parser::NewUnresolved(const AstRawString* name,
   // truly local variable, and the scope of the variable is always the function
   // scope.
   // Let/const variables are always added to the immediately enclosing scope.
-  Scope* scope = IsLexicalVariableMode(mode)
-                     ? this->scope()
-                     : this->scope()->GetDeclarationScope();
+  Scope* scope =
+      IsLexicalVariableMode(mode) ? this->scope() : GetDeclarationScope();
   return scope->NewUnresolved(factory(), name, Variable::NORMAL,
                               scanner()->location().beg_pos,
                               scanner()->location().end_pos);
@@ -2116,7 +2115,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // accessible while parsing the first time not when reparsing
   // because of lazy compilation.
   // TODO(adamk): Should this be GetClosureScope()?
-  scope()->GetDeclarationScope()->ForceEagerCompilation();
+  GetDeclarationScope()->ForceEagerCompilation();
 
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
@@ -2225,7 +2224,7 @@ Statement* Parser::ParseHoistableDeclaration(
       !is_async && !(allow_harmony_restrictive_generators() && is_generator)) {
     SloppyBlockFunctionStatement* delegate =
         factory()->NewSloppyBlockFunctionStatement(empty, scope());
-    DeclarationScope* target_scope = scope()->GetDeclarationScope();
+    DeclarationScope* target_scope = GetDeclarationScope();
     target_scope->DeclareSloppyBlockFunction(variable_name, delegate);
     return delegate;
   }
@@ -2789,7 +2788,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 
   result = factory()->NewReturnStatement(return_value, loc.beg_pos);
 
-  DeclarationScope* decl_scope = scope()->GetDeclarationScope();
+  DeclarationScope* decl_scope = GetDeclarationScope();
   if (decl_scope->is_script_scope() || decl_scope->is_eval_scope()) {
     ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
     *ok = false;
@@ -4183,8 +4182,7 @@ DoExpression* Parser::ParseDoExpression(bool* ok) {
       scope()->NewTemporary(ast_value_factory()->dot_result_string());
   Block* block = ParseBlock(nullptr, CHECK_OK);
   DoExpression* expr = factory()->NewDoExpression(block, result, pos);
-  if (!Rewriter::Rewrite(this, scope()->GetClosureScope(), expr,
-                         ast_value_factory())) {
+  if (!Rewriter::Rewrite(this, GetClosureScope(), expr, ast_value_factory())) {
     *ok = false;
     return nullptr;
   }
@@ -5118,8 +5116,7 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
   do_block->statements()->Add(
       factory()->NewExpressionStatement(class_literal, pos), zone());
   do_expr->set_represented_function(constructor);
-  Rewriter::Rewrite(this, scope()->GetClosureScope(), do_expr,
-                    ast_value_factory());
+  Rewriter::Rewrite(this, GetClosureScope(), do_expr, ast_value_factory());
 
   return do_expr;
 }
@@ -5144,7 +5141,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   if (extension_ != NULL) {
     // The extension structures are only accessible while parsing the
     // very first time not when reparsing because of lazy compilation.
-    scope()->GetDeclarationScope()->ForceEagerCompilation();
+    GetDeclarationScope()->ForceEagerCompilation();
   }
 
   const Runtime::Function* function = Runtime::FunctionForName(name->string());

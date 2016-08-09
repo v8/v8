@@ -770,6 +770,13 @@ class Parser : public ParserBase<ParserTraits> {
     kAbruptCompletion
   };
 
+  DeclarationScope* GetDeclarationScope() const {
+    return scope()->GetDeclarationScope();
+  }
+  DeclarationScope* GetClosureScope() const {
+    return scope()->GetClosureScope();
+  }
+
   // Limit the allowed number of local variables in a function. The hard limit
   // is that offsets computed by FullCodeGenerator::StackOperand and similar
   // functions are ints, and they should not overflow. In addition, accessing

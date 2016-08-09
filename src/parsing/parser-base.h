@@ -853,6 +853,9 @@ class ParserBase : public Traits {
 
   typename Traits::Type::Factory* factory() { return &ast_node_factory_; }
 
+  DeclarationScope* GetReceiverScope() const {
+    return scope()->GetReceiverScope();
+  }
   LanguageMode language_mode() { return scope()->language_mode(); }
   bool is_generator() const { return function_state_->is_generator(); }
   bool is_async_function() const {
@@ -3096,7 +3099,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
   Expect(Token::SUPER, CHECK_OK);
   int pos = position();
 
-  DeclarationScope* scope = this->scope()->GetReceiverScope();
+  DeclarationScope* scope = GetReceiverScope();
   FunctionKind kind = scope->function_kind();
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
       IsClassConstructor(kind)) {
@@ -3138,7 +3141,7 @@ ParserBase<Traits>::ParseNewTargetExpression(bool* ok) {
   int pos = position();
   ExpectMetaProperty(CStrVector("target"), "new.target", pos, CHECK_OK);
 
-  if (!scope()->GetReceiverScope()->is_function_scope()) {
+  if (!GetReceiverScope()->is_function_scope()) {
     ReportMessageAt(scanner()->location(),
                     MessageTemplate::kUnexpectedNewTarget);
     *ok = false;
