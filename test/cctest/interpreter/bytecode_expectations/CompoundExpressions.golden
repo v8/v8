@@ -61,9 +61,8 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
-                B(Star), R(1),
-                B(Star), R(0),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(1),
+                B(Mov), R(1), R(0),
   /*   54 S> */ B(LdrNamedProperty), R(0), U8(1), U8(1), R(2),
                 B(LdaSmi), U8(2),
                 B(Mul), R(2), U8(3),
@@ -87,9 +86,8 @@ parameter count: 1
 bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
-                B(Star), R(1),
-                B(Star), R(0),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(1),
+                B(Mov), R(1), R(0),
   /*   52 S> */ B(LdaSmi), U8(1),
                 B(Star), R(2),
                 B(LdrKeyedProperty), R(0), U8(1), R(3),

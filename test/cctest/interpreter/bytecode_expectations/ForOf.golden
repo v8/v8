@@ -456,9 +456,8 @@ parameter count: 1
 bytecode array length: 309
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
-                B(Star), R(8),
-                B(Star), R(6),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(8),
+                B(Mov), R(8), R(6),
                 B(LdaZero),
                 B(Star), R(2),
                 B(Mov), R(context), R(10),

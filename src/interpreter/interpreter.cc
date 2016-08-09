@@ -1666,7 +1666,7 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
     Node* result = FastCloneShallowObjectStub::GenerateFastPath(
         assembler, &if_not_fast_clone, closure, literal_index,
         fast_clone_properties_count);
-    __ SetAccumulator(result);
+    __ StoreRegister(result, __ BytecodeOperandReg(3));
     __ Dispatch();
   }
 
@@ -1686,7 +1686,7 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
     Node* result =
         __ CallRuntime(Runtime::kCreateObjectLiteral, context, closure,
                        literal_index, constant_elements, flags);
-    __ SetAccumulator(result);
+    __ StoreRegister(result, __ BytecodeOperandReg(3));
     // TODO(klaasb) build a single dispatch once the call is inlined
     __ Dispatch();
   }

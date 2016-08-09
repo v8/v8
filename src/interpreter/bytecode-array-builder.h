@@ -147,7 +147,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& CreateArrayLiteral(Handle<FixedArray> constant_elements,
                                            int literal_index, int flags);
   BytecodeArrayBuilder& CreateObjectLiteral(
-      Handle<FixedArray> constant_properties, int literal_index, int flags);
+      Handle<FixedArray> constant_properties, int literal_index, int flags,
+      Register output);
 
   // Push the context in accumulator as the new context, and store in register
   // |context|.

@@ -108,7 +108,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit literal creation operations.
   builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0)
       .CreateArrayLiteral(factory->NewFixedArray(1), 0, 0)
-      .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0);
+      .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0, reg);
 
   // Call operations.
   builder.Call(reg, other, 0, 1)
@@ -333,7 +333,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("wide_literal"),
                               0, 0)
       .CreateArrayLiteral(factory->NewFixedArray(2), 0, 0)
-      .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0);
+      .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0, reg);
 
   // Longer jumps requiring ConstantWide operand
   {

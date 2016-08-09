@@ -372,11 +372,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
-    Handle<FixedArray> constant_properties, int literal_index, int flags) {
+    Handle<FixedArray> constant_properties, int literal_index, int flags,
+    Register output) {
   size_t constant_properties_entry = GetConstantPoolEntry(constant_properties);
   Output(Bytecode::kCreateObjectLiteral,
          UnsignedOperand(constant_properties_entry),
-         UnsignedOperand(literal_index), UnsignedOperand(flags));
+         UnsignedOperand(literal_index), UnsignedOperand(flags),
+         RegisterOperand(output));
   return *this;
 }
 

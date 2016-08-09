@@ -226,8 +226,8 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kFlag8)                                    \
   V(CreateArrayLiteral, AccumulatorUse::kWrite, OperandType::kIdx,             \
     OperandType::kIdx, OperandType::kFlag8)                                    \
-  V(CreateObjectLiteral, AccumulatorUse::kWrite, OperandType::kIdx,            \
-    OperandType::kIdx, OperandType::kFlag8)                                    \
+  V(CreateObjectLiteral, AccumulatorUse::kNone, OperandType::kIdx,             \
+    OperandType::kIdx, OperandType::kFlag8, OperandType::kRegOut)              \
                                                                                \
   /* Closure allocation */                                                     \
   V(CreateClosure, AccumulatorUse::kWrite, OperandType::kIdx,                  \

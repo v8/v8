@@ -1614,13 +1614,11 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       FastCloneShallowObjectStub::IsSupported(expr),
       FastCloneShallowObjectStub::PropertiesCount(expr->properties_count()),
       expr->ComputeFlags());
-  builder()->CreateObjectLiteral(expr->constant_properties(),
-                                 expr->literal_index(), flags);
-
   // Allocate in the outer scope since this register is used to return the
   // expression's results to the caller.
   Register literal = register_allocator()->outer()->NewRegister();
-  builder()->StoreAccumulatorInRegister(literal);
+  builder()->CreateObjectLiteral(expr->constant_properties(),
+                                 expr->literal_index(), flags, literal);
 
   // Store computed values into the literal.
   int property_index = 0;

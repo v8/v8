@@ -979,6 +979,7 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
 }
 
 void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
+  FrameStateBeforeAndAfter states(this);
   Handle<FixedArray> constant_properties = Handle<FixedArray>::cast(
       bytecode_iterator().GetConstantForIndexOperand(0));
   int literal_index = bytecode_iterator().GetIndexOperand(1);
@@ -987,9 +988,12 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
   // TODO(mstarzinger): Thread through number of properties.
   int number_of_properties = constant_properties->length() / 2;
-  const Operator* op = javascript()->CreateLiteralObject(
-      constant_properties, literal_flags, literal_index, number_of_properties);
-  BuildCreateLiteral(op);
+  Node* literal = NewNode(
+      javascript()->CreateLiteralObject(constant_properties, literal_flags,
+                                        literal_index, number_of_properties),
+      GetFunctionClosure());
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(3),
+                              literal, &states);
 }
 
 Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
