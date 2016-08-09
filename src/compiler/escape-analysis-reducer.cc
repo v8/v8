@@ -331,7 +331,7 @@ Node* EscapeAnalysisReducer::ReduceStateValueInput(Node* node, int node_index,
 void EscapeAnalysisReducer::VerifyReplacement() const {
 #ifdef DEBUG
   AllNodes all(zone(), jsgraph()->graph());
-  for (Node* node : all.live) {
+  for (Node* node : all.reachable) {
     if (node->opcode() == IrOpcode::kAllocate) {
       CHECK(!escape_analysis_->IsVirtual(node));
     }

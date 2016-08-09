@@ -130,7 +130,7 @@ void StoreStoreElimination::Run() {
   NodeVector eligible(temp_zone());  // loops over all nodes
   AllNodes all(temp_zone(), jsgraph()->graph());
 
-  for (Node* node : all.live) {
+  for (Node* node : all.reachable) {
     if (IsEligibleNode(node)) {
       eligible.push_back(node);
     }

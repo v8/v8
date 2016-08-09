@@ -84,8 +84,8 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
     }
 
     // Copy all nodes.
-    for (size_t i = 0; i < all.live.size(); i++) {
-      Node* orig = all.live[i];
+    for (size_t i = 0; i < all.reachable.size(); i++) {
+      Node* orig = all.reachable[i];
       Node* copy = mapping->at(orig->id());
       if (copy != sentinel) {
         // Mapping already exists.
@@ -113,7 +113,7 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
     }
 
     // Fix missing inputs.
-    for (Node* orig : all.live) {
+    for (Node* orig : all.reachable) {
       Node* copy = mapping->at(orig->id());
       for (int j = 0; j < copy->InputCount(); j++) {
         if (copy->InputAt(j) == sentinel) {

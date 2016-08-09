@@ -125,6 +125,7 @@ class GraphView extends View {
     d3.select("#upload").on("click", partial(this.uploadAction, graph));
     d3.select("#layout").on("click", partial(this.layoutAction, graph));
     d3.select("#show-all").on("click", partial(this.showAllAction, graph));
+    d3.select("#hide-dead").on("click", partial(this.hideDeadAction, graph));
     d3.select("#hide-unselected").on("click", partial(this.hideUnselectedAction, graph));
     d3.select("#hide-selected").on("click", partial(this.hideSelectedAction, graph));
     d3.select("#zoom-selection").on("click", partial(this.zoomSelectionAction, graph));
@@ -463,6 +464,11 @@ class GraphView extends View {
     graph.viewWholeGraph();
   }
 
+  hideDeadAction(graph) {
+    graph.nodes.filter(function(n) { if (!n.live) n.visible = false; })
+    graph.updateGraphVisibility();
+  }
+
   hideUnselectedAction(graph) {
     var unselected = graph.visibleNodes.filter(function(n) {
       return !this.classList.contains("selected");
@@ -725,6 +731,8 @@ class GraphView extends View {
       .append("g");
 
     newGs.classed("control", function(n) { return n.isControl(); })
+      .classed("live", function(n) { return n.isLive(); })
+      .classed("dead", function(n) { return !n.isLive(); })
       .classed("javascript", function(n) { return n.isJavaScript(); })
       .classed("input", function(n) { return n.isInput(); })
       .classed("simplified", function(n) { return n.isSimplified(); })

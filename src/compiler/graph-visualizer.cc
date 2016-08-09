@@ -113,10 +113,14 @@ class JSONGraphNodeWriter {
  public:
   JSONGraphNodeWriter(std::ostream& os, Zone* zone, const Graph* graph,
                       const SourcePositionTable* positions)
-      : os_(os), all_(zone, graph), positions_(positions), first_node_(true) {}
+      : os_(os),
+        all_(zone, graph, false),
+        live_(zone, graph, true),
+        positions_(positions),
+        first_node_(true) {}
 
   void Print() {
-    for (Node* const node : all_.live) PrintNode(node);
+    for (Node* const node : all_.reachable) PrintNode(node);
     os_ << "\n";
   }
 
@@ -133,6 +137,7 @@ class JSONGraphNodeWriter {
     os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << Escaped(label, "\"")
         << "\""
         << ",\"title\":\"" << Escaped(title, "\"") << "\""
+        << ",\"live\": " << (live_.IsLive(node) ? "true" : "false")
         << ",\"properties\":\"" << Escaped(properties, "\"") << "\"";
     IrOpcode::Value opcode = node->opcode();
     if (IrOpcode::IsPhiOpcode(opcode)) {
@@ -173,6 +178,7 @@ class JSONGraphNodeWriter {
  private:
   std::ostream& os_;
   AllNodes all_;
+  AllNodes live_;
   const SourcePositionTable* positions_;
   bool first_node_;
 
@@ -183,10 +189,10 @@ class JSONGraphNodeWriter {
 class JSONGraphEdgeWriter {
  public:
   JSONGraphEdgeWriter(std::ostream& os, Zone* zone, const Graph* graph)
-      : os_(os), all_(zone, graph), first_edge_(true) {}
+      : os_(os), all_(zone, graph, false), first_edge_(true) {}
 
   void Print() {
-    for (Node* const node : all_.live) PrintEdges(node);
+    for (Node* const node : all_.reachable) PrintEdges(node);
     os_ << "\n";
   }
 

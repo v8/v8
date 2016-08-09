@@ -85,6 +85,10 @@ g rect {
     stroke-width: 2px;
 }
 
+g.dead {
+    opacity: .5;
+}
+
 g.unsorted rect {
     opacity: 0.5;
 }

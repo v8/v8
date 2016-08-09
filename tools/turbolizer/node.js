@@ -21,6 +21,9 @@ var Node = {
   isInput: function() {
     return this.opcode == 'Parameter' || this.opcode.endsWith('Constant');
   },
+  isLive: function() {
+    return this.live;
+  },
   isJavaScript: function() {
     return this.opcode.startsWith('JS');
   },

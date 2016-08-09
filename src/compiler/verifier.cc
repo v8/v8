@@ -1266,10 +1266,10 @@ void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs) {
   Zone zone(graph->zone()->allocator());
   Visitor visitor(&zone, typing, check_inputs);
   AllNodes all(&zone, graph);
-  for (Node* node : all.live) visitor.Check(node);
+  for (Node* node : all.reachable) visitor.Check(node);
 
   // Check the uniqueness of projections.
-  for (Node* proj : all.live) {
+  for (Node* proj : all.reachable) {
     if (proj->opcode() != IrOpcode::kProjection) continue;
     Node* node = proj->InputAt(0);
     for (Node* other : node->uses()) {
