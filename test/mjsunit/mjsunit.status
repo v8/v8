@@ -636,7 +636,7 @@
   'regress/regress-4121': [FAIL],
 
   # TODO(4680): Test doesn't know about three tier compiler pipeline.
-  'assert-opt-and-deopt': [FAIL],
+  'assert-opt-and-deopt': [SKIP],
 
   # BUG(rmcilroy,4989): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
   'compiler/deopt-inlined-from-call': [FAIL],
@@ -709,7 +709,7 @@
   'array-constructor-feedback': [FAIL],
   'array-feedback': [FAIL],
   'array-literal-feedback': [FAIL],
-  'assert-opt-and-deopt': [FAIL],
+  'assert-opt-and-deopt': [SKIP],
   'compiler/deopt-inlined-from-call': [FAIL],
   'compiler/increment-typefeedback': [FAIL],
   'compiler/manual-concurrent-recompile': [FAIL],

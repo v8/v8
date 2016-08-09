@@ -382,7 +382,7 @@
 
   # BUG(4680): Missing type feedback makes optimistic optimizations fail.
   'test-cpu-profiler/CollectDeoptEvents': [FAIL],
-  'test-cpu-profiler/DeoptUntrackedFunction': [FAIL],
+  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
 
   # BUG(4680): Ignition doesn't support allocation sites currently.
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],
@@ -410,7 +410,7 @@
 
 ##############################################################################
 ['variant == ignition_staging', {
-  'test-cpu-profiler/DeoptUntrackedFunction': [FAIL],
+  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-cpu-profiler/CollectDeoptEvents': [FAIL],
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
@@ -515,7 +515,7 @@
 
   # BUG(4680): Missing type feedback makes optimistic optimizations fail.
   'test-cpu-profiler/CollectDeoptEvents': [FAIL],
-  'test-cpu-profiler/DeoptUntrackedFunction': [FAIL],
+  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
 
   # BUG(4680): Ignition doesn't support allocation sites currently.
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],
