@@ -1083,9 +1083,17 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
        g.UseFixed(node, stX_0), g.Use(node->InputAt(0)));
 }
 
-void InstructionSelector::VisitFloat32Neg(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat32Neg(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(0)));
+  Emit(kX87Float32Neg, g.DefineAsFixed(node, stX_0), 0, nullptr);
+}
 
-void InstructionSelector::VisitFloat64Neg(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Neg(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87PushFloat64, g.NoOutput(), g.Use(node->InputAt(0)));
+  Emit(kX87Float64Neg, g.DefineAsFixed(node, stX_0), 0, nullptr);
+}
 
 void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
                                                    InstructionCode opcode) {
@@ -1715,7 +1723,8 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
-      MachineOperatorBuilder::kWord32ShiftIsSafe;
+      MachineOperatorBuilder::kWord32ShiftIsSafe |
+      MachineOperatorBuilder::kFloat32Neg | MachineOperatorBuilder::kFloat64Neg;
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt;
   }

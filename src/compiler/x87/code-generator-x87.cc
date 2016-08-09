@@ -1179,6 +1179,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lea(esp, Operand(esp, kFloatSize));
       break;
     }
+    case kX87Float32Neg: {
+      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+        __ VerifyX87StackDepth(1);
+      }
+      __ fstp(0);
+      __ fld_s(MemOperand(esp, 0));
+      __ fchs();
+      __ lea(esp, Operand(esp, kFloatSize));
+      break;
+    }
     case kX87Float32Round: {
       RoundingMode mode =
           static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
@@ -1350,6 +1360,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fstp(0);
       __ fld_d(MemOperand(esp, 0));
       __ fabs();
+      __ lea(esp, Operand(esp, kDoubleSize));
+      break;
+    }
+    case kX87Float64Neg: {
+      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+        __ VerifyX87StackDepth(1);
+      }
+      __ fstp(0);
+      __ fld_d(MemOperand(esp, 0));
+      __ fchs();
       __ lea(esp, Operand(esp, kDoubleSize));
       break;
     }
