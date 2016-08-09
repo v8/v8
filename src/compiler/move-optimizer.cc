@@ -28,20 +28,7 @@ typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
 typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
 
 bool Blocks(const OperandSet& set, const InstructionOperand& operand) {
-  if (!operand.IsFPRegister()) return set.find(operand) != set.end();
-
-  const LocationOperand& loc = LocationOperand::cast(operand);
-  if (loc.representation() == MachineRepresentation::kFloat64) {
-    return set.find(operand) != set.end() ||
-           set.find(LocationOperand(loc.kind(), loc.location_kind(),
-                                    MachineRepresentation::kFloat32,
-                                    loc.register_code())) != set.end();
-  }
-  DCHECK_EQ(MachineRepresentation::kFloat32, loc.representation());
-  return set.find(operand) != set.end() ||
-         set.find(LocationOperand(loc.kind(), loc.location_kind(),
-                                  MachineRepresentation::kFloat64,
-                                  loc.register_code())) != set.end();
+  return set.find(operand) != set.end();
 }
 
 int FindFirstNonEmptySlot(const Instruction* instr) {
