@@ -6,6 +6,7 @@
 #include "src/code-factory.h"
 #include "src/frames-inl.h"
 #include "src/frames.h"
+#include "src/ic/handler-configuration.h"
 #include "src/ic/stub-cache.h"
 
 namespace v8 {
@@ -3428,31 +3429,286 @@ void CodeStubAssembler::TryProbeStubCache(
   }
 }
 
-void CodeStubAssembler::HandleLoadICHandlerCase(const LoadICParameters* p,
-                                                Node* handler, Label* miss) {
+Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
+  Variable var_intptr_key(this, MachineType::PointerRepresentation());
+  Label done(this, &var_intptr_key), key_is_smi(this);
+  GotoIf(WordIsSmi(key), &key_is_smi);
+  // Try to convert a heap number to a Smi.
+  GotoUnless(WordEqual(LoadMap(key), HeapNumberMapConstant()), miss);
+  {
+    Node* value = LoadHeapNumberValue(key);
+    Node* int_value = RoundFloat64ToInt32(value);
+    GotoUnless(Float64Equal(value, ChangeInt32ToFloat64(int_value)), miss);
+    var_intptr_key.Bind(ChangeInt32ToIntPtr(int_value));
+    Goto(&done);
+  }
+
+  Bind(&key_is_smi);
+  {
+    var_intptr_key.Bind(SmiUntag(key));
+    Goto(&done);
+  }
+
+  Bind(&done);
+  return var_intptr_key.value();
+}
+
+// |is_jsarray| should be non-zero for JSArrays.
+void CodeStubAssembler::EmitBoundsCheck(Node* object, Node* elements,
+                                        Node* intptr_key, Node* is_jsarray,
+                                        Label* miss) {
+  Variable var_length(this, MachineRepresentation::kTagged);
+  Label if_array(this), length_loaded(this, &var_length);
+  GotoUnless(WordEqual(is_jsarray, IntPtrConstant(0)), &if_array);
+  {
+    var_length.Bind(SmiUntag(LoadFixedArrayBaseLength(elements)));
+    Goto(&length_loaded);
+  }
+  Bind(&if_array);
+  {
+    var_length.Bind(SmiUntag(LoadObjectField(object, JSArray::kLengthOffset)));
+    Goto(&length_loaded);
+  }
+  Bind(&length_loaded);
+  GotoUnless(UintPtrLessThan(intptr_key, var_length.value()), miss);
+}
+
+// |key| should be untagged (int32).
+void CodeStubAssembler::EmitElementLoad(Node* object, Node* elements,
+                                        Node* elements_kind, Node* key,
+                                        Label* if_hole, Label* rebox_double,
+                                        Variable* var_double_value,
+                                        Label* miss) {
+  Label if_typed_array(this), if_fast_packed(this), if_fast_holey(this),
+      if_fast_double(this), if_fast_holey_double(this),
+      unimplemented_elements_kind(this);
+  STATIC_ASSERT(LAST_ELEMENTS_KIND == LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+  GotoIf(
+      IntPtrGreaterThanOrEqual(
+          elements_kind, IntPtrConstant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
+      &if_typed_array);
+
+  int32_t kinds[] = {// Handled by if_fast_packed.
+                     FAST_SMI_ELEMENTS, FAST_ELEMENTS,
+                     // Handled by if_fast_holey.
+                     FAST_HOLEY_SMI_ELEMENTS, FAST_HOLEY_ELEMENTS,
+                     // Handled by if_fast_double.
+                     FAST_DOUBLE_ELEMENTS,
+                     // Handled by if_fast_holey_double.
+                     FAST_HOLEY_DOUBLE_ELEMENTS};
+  Label* labels[] = {// FAST_{SMI,}_ELEMENTS
+                     &if_fast_packed, &if_fast_packed,
+                     // FAST_HOLEY_{SMI,}_ELEMENTS
+                     &if_fast_holey, &if_fast_holey,
+                     // FAST_DOUBLE_ELEMENTS
+                     &if_fast_double,
+                     // FAST_HOLEY_DOUBLE_ELEMENTS
+                     &if_fast_holey_double};
+  Switch(elements_kind, &unimplemented_elements_kind, kinds, labels,
+         arraysize(kinds));
+  Bind(&unimplemented_elements_kind);
+  {
+    // Crash if we get here.
+    DebugBreak();
+    Goto(miss);
+  }
+
+  Bind(&if_fast_packed);
+  {
+    Comment("fast packed elements");
+    // TODO(jkummerow): The Load*Element helpers add movsxlq instructions
+    // on x64 which we don't need here, because |key| is an IntPtr already.
+    // Do something about that.
+    Return(LoadFixedArrayElement(elements, key));
+  }
+
+  Bind(&if_fast_holey);
+  {
+    Comment("fast holey elements");
+    Node* element = LoadFixedArrayElement(elements, key);
+    GotoIf(WordEqual(element, TheHoleConstant()), if_hole);
+    Return(element);
+  }
+
+  Bind(&if_fast_double);
+  {
+    Comment("packed double elements");
+    var_double_value->Bind(
+        LoadFixedDoubleArrayElement(elements, key, MachineType::Float64()));
+    Goto(rebox_double);
+  }
+
+  Bind(&if_fast_holey_double);
+  {
+    Comment("holey double elements");
+    if (kPointerSize == kDoubleSize) {
+      Node* raw_element =
+          LoadFixedDoubleArrayElement(elements, key, MachineType::Uint64());
+      Node* the_hole = Int64Constant(kHoleNanInt64);
+      GotoIf(Word64Equal(raw_element, the_hole), if_hole);
+    } else {
+      Node* element_upper = LoadFixedDoubleArrayElement(
+          elements, key, MachineType::Uint32(), kIeeeDoubleExponentWordOffset);
+      GotoIf(Word32Equal(element_upper, Int32Constant(kHoleNanUpper32)),
+             if_hole);
+    }
+    var_double_value->Bind(
+        LoadFixedDoubleArrayElement(elements, key, MachineType::Float64()));
+    Goto(rebox_double);
+  }
+
+  Bind(&if_typed_array);
+  {
+    Comment("typed elements");
+    // Check if buffer has been neutered.
+    Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
+    Node* bitfield = LoadObjectField(buffer, JSArrayBuffer::kBitFieldOffset,
+                                     MachineType::Uint32());
+    Node* neutered_bit =
+        Word32And(bitfield, Int32Constant(JSArrayBuffer::WasNeutered::kMask));
+    GotoUnless(Word32Equal(neutered_bit, Int32Constant(0)), miss);
+    // Backing store = external_pointer + base_pointer.
+    Node* external_pointer =
+        LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
+                        MachineType::Pointer());
+    Node* base_pointer =
+        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
+    Node* backing_store = IntPtrAdd(external_pointer, base_pointer);
+
+    const int kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+                                        FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
+                                        1;
+    Label* elements_kind_labels[kTypedElementsKindCount];
+    int32_t elements_kinds[kTypedElementsKindCount];
+    for (int i = 0; i < kTypedElementsKindCount; i++) {
+      elements_kinds[i] = i + FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
+      elements_kind_labels[i] = new Label(this);
+    }
+    Switch(elements_kind, miss, elements_kinds, elements_kind_labels,
+           static_cast<size_t>(kTypedElementsKindCount));
+
+    for (int i = 0; i < kTypedElementsKindCount; i++) {
+      ElementsKind kind = static_cast<ElementsKind>(elements_kinds[i]);
+      Bind(elements_kind_labels[i]);
+      Comment(ElementsKindToString(kind));
+      switch (kind) {
+        case UINT8_ELEMENTS:
+        case UINT8_CLAMPED_ELEMENTS:
+          Return(SmiTag(Load(MachineType::Uint8(), backing_store, key)));
+          break;
+        case INT8_ELEMENTS:
+          Return(SmiTag(Load(MachineType::Int8(), backing_store, key)));
+          break;
+        case UINT16_ELEMENTS: {
+          Node* index = WordShl(key, IntPtrConstant(1));
+          Return(SmiTag(Load(MachineType::Uint16(), backing_store, index)));
+          break;
+        }
+        case INT16_ELEMENTS: {
+          Node* index = WordShl(key, IntPtrConstant(1));
+          Return(SmiTag(Load(MachineType::Int16(), backing_store, index)));
+          break;
+        }
+        case UINT32_ELEMENTS: {
+          Node* index = WordShl(key, IntPtrConstant(2));
+          Node* element = Load(MachineType::Uint32(), backing_store, index);
+          Return(ChangeUint32ToTagged(element));
+          break;
+        }
+        case INT32_ELEMENTS: {
+          Node* index = WordShl(key, IntPtrConstant(2));
+          Node* element = Load(MachineType::Int32(), backing_store, index);
+          Return(ChangeInt32ToTagged(element));
+          break;
+        }
+        case FLOAT32_ELEMENTS: {
+          Node* index = WordShl(key, IntPtrConstant(2));
+          Node* element = Load(MachineType::Float32(), backing_store, index);
+          var_double_value->Bind(ChangeFloat32ToFloat64(element));
+          Goto(rebox_double);
+          break;
+        }
+        case FLOAT64_ELEMENTS: {
+          Node* index = WordShl(key, IntPtrConstant(3));
+          Node* element = Load(MachineType::Float64(), backing_store, index);
+          var_double_value->Bind(element);
+          Goto(rebox_double);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+      // Don't forget to clean up.
+      delete elements_kind_labels[i];
+    }
+  }
+}
+
+void CodeStubAssembler::HandleLoadICHandlerCase(
+    const LoadICParameters* p, Node* handler, Label* miss,
+    ElementSupport support_elements) {
   Comment("have_handler");
   Label call_handler(this);
   GotoUnless(WordIsSmi(handler), &call_handler);
 
-  // |handler| is a Smi. It encodes a field index as obtained by
-  // FieldIndex.GetLoadByFieldOffset().
-  // TODO(jkummerow): For KeyedLoadICs, extend this scheme to encode
-  // fast *element* loads.
+  // |handler| is a Smi, encoding what to do. See handler-configuration.h
+  // for the encoding format.
   {
     Variable var_double_value(this, MachineRepresentation::kFloat64);
     Label rebox_double(this, &var_double_value);
 
     Node* handler_word = SmiUntag(handler);
+    if (support_elements == kSupportElements) {
+      Label property(this);
+      Node* handler_type =
+          WordAnd(handler_word, IntPtrConstant(LoadHandlerTypeBit::kMask));
+      GotoUnless(
+          WordEqual(handler_type, IntPtrConstant(kLoadICHandlerForElements)),
+          &property);
+
+      Comment("element_load");
+      Node* key = TryToIntptr(p->name, miss);
+      Node* elements = LoadElements(p->receiver);
+      Node* is_jsarray =
+          WordAnd(handler_word, IntPtrConstant(KeyedLoadIsJsArray::kMask));
+      EmitBoundsCheck(p->receiver, elements, key, is_jsarray, miss);
+      Label if_hole(this);
+
+      Node* elements_kind = BitFieldDecode<KeyedLoadElementsKind>(handler_word);
+
+      EmitElementLoad(p->receiver, elements, elements_kind, key, &if_hole,
+                      &rebox_double, &var_double_value, miss);
+
+      Bind(&if_hole);
+      {
+        Comment("convert hole");
+        Node* convert_hole =
+            WordAnd(handler_word, IntPtrConstant(KeyedLoadConvertHole::kMask));
+        GotoIf(WordEqual(convert_hole, IntPtrConstant(0)), miss);
+        Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
+        DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
+        GotoUnless(
+            WordEqual(
+                LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
+            miss);
+        Return(UndefinedConstant());
+      }
+
+      Bind(&property);
+      Comment("property_load");
+    }
+
     // |handler_word| is a field index as obtained by
     // FieldIndex.GetLoadByFieldOffset():
     Label inobject_double(this), out_of_object(this),
         out_of_object_double(this);
-    Node* inobject_bit = WordAnd(
-        handler_word, IntPtrConstant(FieldIndex::FieldOffsetIsInobject::kMask));
-    Node* double_bit = WordAnd(
-        handler_word, IntPtrConstant(FieldIndex::FieldOffsetIsDouble::kMask));
-    Node* offset = WordSar(
-        handler_word, IntPtrConstant(FieldIndex::FieldOffsetOffset::kShift));
+    Node* inobject_bit =
+        WordAnd(handler_word, IntPtrConstant(FieldOffsetIsInobject::kMask));
+    Node* double_bit =
+        WordAnd(handler_word, IntPtrConstant(FieldOffsetIsDouble::kMask));
+    Node* offset =
+        WordSar(handler_word, IntPtrConstant(FieldOffsetOffset::kShift));
 
     GotoIf(WordEqual(inobject_bit, IntPtrConstant(0)), &out_of_object);
 
@@ -3553,7 +3809,7 @@ void CodeStubAssembler::KeyedLoadIC(const LoadICParameters* p) {
                                       &var_handler, &try_polymorphic);
   Bind(&if_handler);
   {
-    HandleLoadICHandlerCase(p, var_handler.value(), &miss);
+    HandleLoadICHandlerCase(p, var_handler.value(), &miss, kSupportElements);
   }
 
   Bind(&try_polymorphic);

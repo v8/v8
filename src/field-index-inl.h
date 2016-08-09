@@ -6,6 +6,7 @@
 #define V8_FIELD_INDEX_INL_H_
 
 #include "src/field-index.h"
+#include "src/ic/handler-configuration.h"
 
 namespace v8 {
 namespace internal {
@@ -88,7 +89,7 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
 // FieldIndex object from it.
 // static
 inline FieldIndex FieldIndex::ForLoadByFieldOffset(Map* map, int offset) {
-  DCHECK(offset & 1);  // Property marker (as opposed to element).
+  DCHECK(LoadHandlerTypeBit::decode(offset) == kLoadICHandlerForProperties);
   bool is_inobject = FieldOffsetIsInobject::decode(offset);
   bool is_double = FieldOffsetIsDouble::decode(offset);
   int field_index = FieldOffsetOffset::decode(offset) >> kPointerSizeLog2;
@@ -114,7 +115,7 @@ inline int FieldIndex::GetLoadByFieldOffset() const {
   return FieldOffsetIsInobject::encode(is_inobject()) |
          FieldOffsetIsDouble::encode(is_double()) |
          FieldOffsetOffset::encode(index() << kPointerSizeLog2) |
-         1;  // Property marker (as opposed to element).
+         LoadHandlerTypeBit::encode(kLoadICHandlerForProperties);
 }
 
 inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {

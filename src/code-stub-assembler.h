@@ -510,9 +510,6 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                              Variable* var_handler, Label* if_miss,
                              int unroll_count);
 
-  void HandleLoadICHandlerCase(const LoadICParameters* p,
-                               compiler::Node* handler, Label* miss);
-
   compiler::Node* StubCachePrimaryOffset(compiler::Node* name,
                                          compiler::Node* map);
 
@@ -560,6 +557,20 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   }
 
  private:
+  enum ElementSupport { kOnlyProperties, kSupportElements };
+
+  void HandleLoadICHandlerCase(
+      const LoadICParameters* p, compiler::Node* handler, Label* miss,
+      ElementSupport support_elements = kOnlyProperties);
+  compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
+  void EmitBoundsCheck(compiler::Node* object, compiler::Node* elements,
+                       compiler::Node* intptr_key, compiler::Node* is_jsarray,
+                       Label* miss);
+  void EmitElementLoad(compiler::Node* object, compiler::Node* elements,
+                       compiler::Node* elements_kind, compiler::Node* key,
+                       Label* if_hole, Label* rebox_double,
+                       Variable* var_double_value, Label* miss);
+
   compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
                                          ElementsKind kind, ParameterMode mode,
                                          int base_size = 0);
