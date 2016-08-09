@@ -152,13 +152,13 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
       proxy, descriptor_->mode, descriptor_->scope,
       descriptor_->declaration_pos);
   Variable* var = parser_->Declare(declaration, descriptor_->declaration_kind,
+                                   DefaultInitializationFlag(descriptor_->mode),
                                    ok_, descriptor_->hoist_scope);
   if (!*ok_) return;
   DCHECK_NOT_NULL(var);
   DCHECK(!proxy->is_resolved() || proxy->var() == var);
-  var->set_initializer_position(initializer_position_);
-
   DCHECK(initializer_position_ != kNoSourcePosition);
+  var->set_initializer_position(initializer_position_);
 
   // TODO(adamk): This should probably be checking hoist_scope.
   // Move it to Parser::Declare() to make it easier to test

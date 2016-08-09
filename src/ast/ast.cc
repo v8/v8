@@ -65,19 +65,6 @@ MaterializedLiteral* AstNode::AsMaterializedLiteral() {
 
 #undef RETURN_NODE
 
-InitializationFlag Declaration::initialization() const {
-  switch (node_type()) {
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<const Node*>(this)->initialization();
-    DECLARATION_NODE_LIST(GENERATE_CASE);
-#undef GENERATE_CASE
-    default:
-      UNREACHABLE();
-      return kNeedsInitialization;
-  }
-}
-
 bool Expression::IsSmiLiteral() const {
   return IsLiteral() && AsLiteral()->value()->IsSmi();
 }

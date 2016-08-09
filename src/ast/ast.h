@@ -497,7 +497,6 @@ class Declaration : public AstNode {
   VariableProxy* proxy() const { return proxy_; }
   VariableMode mode() const { return mode_; }
   Scope* scope() const { return scope_; }
-  InitializationFlag initialization() const;
 
  protected:
   Declaration(VariableProxy* proxy, VariableMode mode, Scope* scope, int pos,
@@ -516,18 +515,12 @@ class Declaration : public AstNode {
 
 
 class VariableDeclaration final : public Declaration {
- public:
-  InitializationFlag initialization() const { return initialization_; }
-
  private:
   friend class AstNodeFactory;
 
   VariableDeclaration(VariableProxy* proxy, VariableMode mode, Scope* scope,
-                      InitializationFlag initialization, int pos)
-      : Declaration(proxy, mode, scope, pos, kVariableDeclaration),
-        initialization_(initialization) {}
-
-  InitializationFlag initialization_;
+                      int pos)
+      : Declaration(proxy, mode, scope, pos, kVariableDeclaration) {}
 };
 
 
@@ -535,7 +528,6 @@ class FunctionDeclaration final : public Declaration {
  public:
   FunctionLiteral* fun() const { return fun_; }
   void set_fun(FunctionLiteral* f) { fun_ = f; }
-  InitializationFlag initialization() const { return kCreatedInitialized; }
 
  private:
   friend class AstNodeFactory;
@@ -3012,16 +3004,7 @@ class AstNodeFactory final BASE_EMBEDDED {
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
                                               VariableMode mode, Scope* scope,
                                               int pos) {
-    return NewVariableDeclaration(
-        proxy, mode, scope,
-        mode == VAR ? kCreatedInitialized : kNeedsInitialization, pos);
-  }
-
-  VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
-                                              VariableMode mode, Scope* scope,
-                                              InitializationFlag init,
-                                              int pos) {
-    return new (zone_) VariableDeclaration(proxy, mode, scope, init, pos);
+    return new (zone_) VariableDeclaration(proxy, mode, scope, pos);
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,

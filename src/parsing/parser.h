@@ -1075,13 +1075,16 @@ class Parser : public ParserBase<ParserTraits> {
                                             Scope* complex_params_scope,
                                             bool* ok);
 
-  // Parser support
+  static InitializationFlag DefaultInitializationFlag(VariableMode mode);
   VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);
   Variable* Declare(Declaration* declaration,
-                    DeclarationDescriptor::Kind declaration_kind, bool* ok,
+                    DeclarationDescriptor::Kind declaration_kind,
+                    InitializationFlag init, bool* ok,
                     Scope* declaration_scope = nullptr);
-  void DeclareConstVariable(const AstRawString* name, InitializationFlag init,
-                            int pos, bool* ok);
+  Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
+                               int pos, bool* ok);
+  Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
+                               InitializationFlag init, int pos, bool* ok);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);

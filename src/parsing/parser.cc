@@ -1514,8 +1514,8 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
       return nullptr;
     }
 
-    DeclareConstVariable(local_name, kNeedsInitialization, position(),
-                         CHECK_OK);
+    DeclareVariable(local_name, CONST, kNeedsInitialization, position(),
+                    CHECK_OK);
 
     NamedImport* import = new (zone()) NamedImport(
         import_name, local_name, scanner()->location());
@@ -1565,8 +1565,8 @@ void Parser::ParseImportDeclaration(bool* ok) {
     import_default_binding =
         ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK_VOID);
     import_default_binding_loc = scanner()->location();
-    DeclareConstVariable(import_default_binding, kNeedsInitialization, pos,
-                         CHECK_OK_VOID);
+    DeclareVariable(import_default_binding, CONST, kNeedsInitialization, pos,
+                    CHECK_OK_VOID);
   }
 
   // Parse NameSpaceImport or NamedImports if present.
@@ -1581,8 +1581,8 @@ void Parser::ParseImportDeclaration(bool* ok) {
         module_namespace_binding =
             ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK_VOID);
         module_namespace_binding_loc = scanner()->location();
-        DeclareConstVariable(module_namespace_binding, kCreatedInitialized, pos,
-                             CHECK_OK_VOID);
+        DeclareVariable(module_namespace_binding, CONST, kCreatedInitialized,
+                        pos, CHECK_OK_VOID);
         break;
       }
 
@@ -1604,10 +1604,10 @@ void Parser::ParseImportDeclaration(bool* ok) {
   // Now that we have all the information, we can make the appropriate
   // declarations.
 
-  // TODO(neis): Would prefer to call DeclareConstVariable for each case below
-  // rather than above and in ParseNamedImports, but then a possible error
-  // message would point to the wrong location.  Maybe have a DeclareAt version
-  // of Declare that takes a location?
+  // TODO(neis): Would prefer to call DeclareVariable for each case below rather
+  // than above and in ParseNamedImports, but then a possible error message
+  // would point to the wrong location.  Maybe have a DeclareAt version of
+  // Declare that takes a location?
 
   if (module_namespace_binding != nullptr) {
     module()->AddStarImport(module_namespace_binding, module_specifier,
@@ -1678,14 +1678,11 @@ Statement* Parser::ParseExportDefault(bool* ok) {
 
       // It's fine to declare this as CONST because the user has no way of
       // writing to it.
-      VariableProxy* proxy = NewUnresolved(local_name, CONST);
-      Declaration* declaration =
-          factory()->NewVariableDeclaration(proxy, CONST, scope(), pos);
-      Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
-      proxy->var()->set_initializer_position(position());
+      Declaration* decl = DeclareVariable(local_name, CONST, pos, CHECK_OK);
+      decl->proxy()->var()->set_initializer_position(position());
 
       Assignment* assignment = factory()->NewAssignment(
-          Token::INIT, proxy, value, kNoSourcePosition);
+          Token::INIT, decl->proxy(), value, kNoSourcePosition);
       result = factory()->NewExpressionStatement(assignment, kNoSourcePosition);
 
       ExpectSemicolon(CHECK_OK);
@@ -1965,18 +1962,30 @@ VariableProxy* Parser::NewUnresolved(const AstRawString* name,
                               scanner()->location().end_pos);
 }
 
-void Parser::DeclareConstVariable(const AstRawString* name,
-                                  InitializationFlag init, int pos, bool* ok) {
+InitializationFlag Parser::DefaultInitializationFlag(VariableMode mode) {
+  DCHECK(IsDeclaredVariableMode(mode));
+  return mode == VAR ? kCreatedInitialized : kNeedsInitialization;
+}
+
+Declaration* Parser::DeclareVariable(const AstRawString* name,
+                                     VariableMode mode, int pos, bool* ok) {
+  return DeclareVariable(name, mode, DefaultInitializationFlag(mode), pos, ok);
+}
+
+Declaration* Parser::DeclareVariable(const AstRawString* name,
+                                     VariableMode mode, InitializationFlag init,
+                                     int pos, bool* ok) {
   DCHECK_NOT_NULL(name);
-  VariableProxy* proxy = NewUnresolved(name, CONST);
+  VariableProxy* proxy = NewUnresolved(name, mode);
   Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, CONST, scope(), init, pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK_VOID);
+      factory()->NewVariableDeclaration(proxy, mode, scope(), pos);
+  Declare(declaration, DeclarationDescriptor::NORMAL, init, CHECK_OK);
+  return declaration;
 }
 
 Variable* Parser::Declare(Declaration* declaration,
                           DeclarationDescriptor::Kind declaration_kind,
-                          bool* ok, Scope* scope) {
+                          InitializationFlag init, bool* ok, Scope* scope) {
   VariableProxy* proxy = declaration->proxy();
   DCHECK(proxy->raw_name() != NULL);
   const AstRawString* name = proxy->raw_name();
@@ -2000,8 +2009,7 @@ Variable* Parser::Declare(Declaration* declaration,
     // using the DeclareEvalVar or DeclareEvalFunction runtime functions.
     Variable::Kind kind = Variable::NORMAL;
     // TODO(sigurds) figure out if kNotAssigned is OK here
-    var = new (zone()) Variable(scope, name, mode, kind,
-                                declaration->initialization(), kNotAssigned);
+    var = new (zone()) Variable(scope, name, mode, kind, init, kNotAssigned);
     var->AllocateTo(VariableLocation::LOOKUP, -1);
   } else {
     // Declare the variable in the declaration scope.
@@ -2012,8 +2020,7 @@ Variable* Parser::Declare(Declaration* declaration,
       if (is_function_declaration) {
         kind = Variable::FUNCTION;
       }
-      var = scope->DeclareLocal(name, mode, declaration->initialization(), kind,
-                                kNotAssigned);
+      var = scope->DeclareLocal(name, mode, init, kind, kNotAssigned);
     } else if (IsLexicalVariableMode(mode) ||
                IsLexicalVariableMode(var->mode())) {
       // Allow duplicate function decls for web compat, see bug 4693.
@@ -2114,14 +2121,12 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
   // other functions are set up when entering the surrounding scope.
-  VariableProxy* proxy = NewUnresolved(name, VAR);
-  Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, VAR, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
+  Declaration* decl = DeclareVariable(name, VAR, pos, CHECK_OK);
   NativeFunctionLiteral* lit =
       factory()->NewNativeFunctionLiteral(name, extension_, kNoSourcePosition);
   return factory()->NewExpressionStatement(
-      factory()->NewAssignment(Token::INIT, proxy, lit, kNoSourcePosition),
+      factory()->NewAssignment(Token::INIT, decl->proxy(), lit,
+                               kNoSourcePosition),
       pos);
 }
 
@@ -2207,7 +2212,8 @@ Statement* Parser::ParseHoistableDeclaration(
   VariableProxy* proxy = NewUnresolved(variable_name, mode);
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
+  Declare(declaration, DeclarationDescriptor::NORMAL, kCreatedInitialized,
+          CHECK_OK);
   if (names) names->Add(variable_name, zone());
   EmptyStatement* empty = factory()->NewEmptyStatement(kNoSourcePosition);
   // Async functions don't undergo sloppy mode block scoped hoisting, and don't
@@ -2263,13 +2269,10 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   Expression* value = ParseClassLiteral(nullptr, name, scanner()->location(),
                                         is_strict_reserved, pos, CHECK_OK);
 
-  VariableProxy* proxy = NewUnresolved(variable_name, LET);
-  Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, LET, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
-  proxy->var()->set_initializer_position(position());
+  Declaration* decl = DeclareVariable(variable_name, LET, pos, CHECK_OK);
+  decl->proxy()->var()->set_initializer_position(position());
   Assignment* assignment =
-      factory()->NewAssignment(Token::INIT, proxy, value, pos);
+      factory()->NewAssignment(Token::INIT, decl->proxy(), value, pos);
   Statement* assignment_statement =
       factory()->NewExpressionStatement(assignment, kNoSourcePosition);
   if (names) names->Add(variable_name, zone());
@@ -3496,18 +3499,16 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     // For each let variable x:
     //    make statement: let/const x = temp_x.
     for (int i = 0; i < names->length(); i++) {
-      VariableProxy* proxy = NewUnresolved(names->at(i), mode);
-      Declaration* declaration = factory()->NewVariableDeclaration(
-          proxy, mode, scope(), kNoSourcePosition);
-      Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
-      inner_vars.Add(declaration->proxy()->var(), zone());
+      Declaration* decl =
+          DeclareVariable(names->at(i), mode, kNoSourcePosition, CHECK_OK);
+      inner_vars.Add(decl->proxy()->var(), zone());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
       Assignment* assignment = factory()->NewAssignment(
-          Token::INIT, proxy, temp_proxy, kNoSourcePosition);
+          Token::INIT, decl->proxy(), temp_proxy, kNoSourcePosition);
       Statement* assignment_statement =
           factory()->NewExpressionStatement(assignment, kNoSourcePosition);
       DCHECK(init->position() != kNoSourcePosition);
-      proxy->var()->set_initializer_position(init->position());
+      decl->proxy()->var()->set_initializer_position(init->position());
       ignore_completion_block->statements()->Add(assignment_statement, zone());
     }
 
@@ -3847,12 +3848,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             // TODO(adamk): This needs to be some sort of special
             // INTERNAL variable that's invisible to the debugger
             // but visible to everything else.
-            VariableProxy* tdz_proxy = NewUnresolved(bound_names[i], LET);
-            Declaration* tdz_decl = factory()->NewVariableDeclaration(
-                tdz_proxy, LET, scope(), kNoSourcePosition);
-            Variable* tdz_var =
-                Declare(tdz_decl, DeclarationDescriptor::NORMAL, CHECK_OK);
-            tdz_var->set_initializer_position(position());
+            Declaration* tdz_decl = DeclareVariable(
+                bound_names[i], LET, kNoSourcePosition, CHECK_OK);
+            tdz_decl->proxy()->var()->set_initializer_position(position());
           }
         }
 
@@ -5030,7 +5028,8 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     // TODO(verwaest): declare via block_state.
     Declaration* declaration = factory()->NewVariableDeclaration(
         proxy, CONST, block_state.scope(), pos);
-    Declare(declaration, DeclarationDescriptor::NORMAL, CHECK_OK);
+    Declare(declaration, DeclarationDescriptor::NORMAL,
+            DefaultInitializationFlag(CONST), CHECK_OK);
   }
 
   Expression* extends = nullptr;
@@ -5309,7 +5308,8 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
         VariableProxy* proxy = scope->NewUnresolved(factory(), name);
         Declaration* declaration = factory()->NewVariableDeclaration(
             proxy, VAR, scope, kNoSourcePosition);
-        Declare(declaration, DeclarationDescriptor::NORMAL, ok, scope);
+        Declare(declaration, DeclarationDescriptor::NORMAL,
+                DefaultInitializationFlag(VAR), ok, scope);
         DCHECK(ok);  // Based on the preceding check, this should not fail
         if (!ok) return;
       }
