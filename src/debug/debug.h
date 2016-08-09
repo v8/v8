@@ -97,6 +97,7 @@ class BreakLocation {
 
   void SetBreakPoint(Handle<Object> break_point_object);
   void ClearBreakPoint(Handle<Object> break_point_object);
+  void ReapplyBreakPoint();
 
   void SetOneShot();
   void ClearOneShot();
