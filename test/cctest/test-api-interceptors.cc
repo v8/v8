@@ -873,7 +873,21 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
   v8::Local<Value> value = CompileRun(
       "var f = function() { "
       "  try {"
-      "    x;"
+      "    x1;"
+      "  } catch(e) {"
+      "  }"
+      "  return typeof x1 === 'undefined';"
+      "};"
+      "for (var i = 0; i < 10; i++) {"
+      "  f();"
+      "};"
+      "f();");
+  CHECK_EQ(true, value->BooleanValue(context.local()).FromJust());
+
+  value = CompileRun(
+      "var f = function() { "
+      "  try {"
+      "    x2;"
       "    return false;"
       "  } catch(e) {"
       "    return true;"
@@ -888,7 +902,7 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
   value = CompileRun(
       "var f = function() { "
       "  try {"
-      "    typeof(x);"
+      "    typeof(x3);"
       "    return true;"
       "  } catch(e) {"
       "    return false;"

@@ -19,7 +19,9 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         yield_count_(0),
         properties_(zone),
         slot_cache_(zone),
+        slot_cache_inside_typeof_(zone),
         dont_optimize_reason_(kNoReason),
+        typeof_mode_(NOT_INSIDE_TYPEOF),
         catch_prediction_(HandlerTable::UNCAUGHT) {
     InitializeAstVisitor(isolate);
   }
@@ -62,7 +64,9 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
     node->AssignFeedbackVectorSlots(isolate_, properties_.get_spec(),
-                                    &slot_cache_);
+                                    typeof_mode_ == INSIDE_TYPEOF
+                                        ? &slot_cache_inside_typeof_
+                                        : &slot_cache_);
   }
 
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
@@ -74,7 +78,9 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   AstProperties properties_;
   // The slot cache allows us to reuse certain feedback vector slots.
   FeedbackVectorSlotCache slot_cache_;
+  FeedbackVectorSlotCache slot_cache_inside_typeof_;
   BailoutReason dont_optimize_reason_;
+  TypeofMode typeof_mode_;
   HandlerTable::CatchPrediction catch_prediction_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
@@ -216,9 +222,13 @@ void AstNumberingVisitor::VisitThrow(Throw* node) {
 
 
 void AstNumberingVisitor::VisitUnaryOperation(UnaryOperation* node) {
+  Token::Value op = node->op();
+  TypeofMode old_typeof_mode = typeof_mode_;
   IncrementNodeCount();
+  if (op == Token::TYPEOF) typeof_mode_ = INSIDE_TYPEOF;
   node->set_base_id(ReserveIdRange(UnaryOperation::num_ids()));
   Visit(node->expression());
+  typeof_mode_ = old_typeof_mode;
 }
 
 
