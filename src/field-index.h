@@ -81,6 +81,13 @@ class FieldIndex final {
   }
   bool operator!=(FieldIndex const& other) const { return !(*this == other); }
 
+  // For GetLoadByFieldOffset.
+  class FieldOffsetIsInobject : public BitField<bool, 1, 1> {};
+  class FieldOffsetIsDouble : public BitField<bool, 2, 1> {};
+  class FieldOffsetOffset : public BitField<int, 3, 27> {};
+  // Make sure we don't overflow into the sign bit.
+  STATIC_ASSERT(FieldOffsetOffset::kNext <= kSmiValueSize - 1);
+
  private:
   FieldIndex(bool is_inobject, int local_index, bool is_double,
              int inobject_properties, int first_inobject_property_offset,

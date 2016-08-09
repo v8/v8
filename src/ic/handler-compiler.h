@@ -279,8 +279,8 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual ~ElementHandlerCompiler() {}
 
-  static Handle<Object> GetKeyedLoadHandler(Handle<Map> receiver_map,
-                                            Isolate* isolate);
+  static Handle<Code> GetKeyedLoadHandler(Handle<Map> receiver_map,
+                                          Isolate* isolate);
   void CompileElementHandlers(MapHandleList* receiver_maps,
                               List<Handle<Object>>* handlers);
 
