@@ -38,7 +38,7 @@ bytecodes: [
   /*   58 S> */ B(Return),
 ]
 constant pool: [
-  "(\x5cw+)\x5cs(\x5cw+)",
+  "(\u005cw+)\u005cs(\u005cw+)",
 ]
 handlers: [
 ]
