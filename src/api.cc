@@ -86,7 +86,7 @@ namespace v8 {
     return bailout_value;                                            \
   }                                                                  \
   HandleScopeClass handle_scope(isolate);                            \
-  CallDepthScope call_depth_scope(isolate, context, do_callback);    \
+  CallDepthScope<do_callback> call_depth_scope(isolate, context);    \
   LOG_API(isolate, class_name, function_name);                       \
   ENTER_V8(isolate);                                                 \
   bool has_pending_exception = false
@@ -170,15 +170,11 @@ void CheckMicrotasksScopesConsistency(i::Isolate* isolate) {
 }
 #endif
 
-
+template <bool do_callback>
 class CallDepthScope {
  public:
-  explicit CallDepthScope(i::Isolate* isolate, Local<Context> context,
-                          bool do_callback)
-      : isolate_(isolate),
-        context_(context),
-        escaped_(false),
-        do_callback_(do_callback) {
+  explicit CallDepthScope(i::Isolate* isolate, Local<Context> context)
+      : isolate_(isolate), context_(context), escaped_(false) {
     // TODO(dcarney): remove this when blink stops crashing.
     DCHECK(!isolate_->external_caught_exception());
     isolate_->IncrementJsCallsFromApiCounter();
@@ -194,14 +190,14 @@ class CallDepthScope {
         context_->Enter();
       }
     }
-    if (do_callback_) isolate_->FireBeforeCallEnteredCallback();
+    if (do_callback) isolate_->FireBeforeCallEnteredCallback();
   }
   ~CallDepthScope() {
     if (!context_.IsEmpty()) context_->Exit();
     if (!escaped_) isolate_->handle_scope_implementer()->DecrementCallDepth();
-    if (do_callback_) isolate_->FireCallCompletedCallback();
+    if (do_callback) isolate_->FireCallCompletedCallback();
 #ifdef DEBUG
-    if (do_callback_) CheckMicrotasksScopesConsistency(isolate_);
+    if (do_callback) CheckMicrotasksScopesConsistency(isolate_);
 #endif
   }
 
@@ -909,12 +905,9 @@ i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
   return escape_slot_;
 }
 
-
-SealHandleScope::SealHandleScope(Isolate* isolate) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
-  isolate_ = internal_isolate;
-  i::HandleScopeData* current = internal_isolate->handle_scope_data();
+SealHandleScope::SealHandleScope(Isolate* isolate)
+    : isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
+  i::HandleScopeData* current = isolate_->handle_scope_data();
   prev_limit_ = current->limit;
   current->limit = current->next;
   prev_sealed_level_ = current->sealed_level;

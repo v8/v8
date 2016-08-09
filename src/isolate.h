@@ -1497,9 +1497,9 @@ class SaveContext BASE_EMBEDDED {
   Isolate* isolate() { return isolate_; }
 
  private:
-  Isolate* isolate_;
+  Isolate* const isolate_;
   Handle<Context> context_;
-  SaveContext* prev_;
+  SaveContext* const prev_;
   Address c_entry_fp_;
 };
 

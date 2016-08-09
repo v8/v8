@@ -957,7 +957,7 @@ class V8_EXPORT SealHandleScope {
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
-  internal::Isolate* isolate_;
+  internal::Isolate* const isolate_;
   internal::Object** prev_limit_;
   int prev_sealed_level_;
 };
@@ -5694,7 +5694,7 @@ class V8_EXPORT Isolate {
     ~SuppressMicrotaskExecutionScope();
 
    private:
-    internal::Isolate* isolate_;
+    internal::Isolate* const isolate_;
 
     // Prevent copying of Scope objects.
     SuppressMicrotaskExecutionScope(const SuppressMicrotaskExecutionScope&);
