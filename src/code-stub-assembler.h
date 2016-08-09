@@ -287,7 +287,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   compiler::Node* AllocateFixedArray(ElementsKind kind,
                                      compiler::Node* capacity,
-                                     ParameterMode mode = INTEGER_PARAMETERS);
+                                     ParameterMode mode = INTEGER_PARAMETERS,
+                                     AllocationFlags flags = kNone);
 
   void FillFixedArrayWithHole(ElementsKind kind, compiler::Node* array,
                               compiler::Node* from_index,
@@ -550,6 +551,13 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* CreateWeakCellInFeedbackVector(
       compiler::Node* feedback_vector, compiler::Node* slot,
       compiler::Node* value);
+
+  compiler::Node* GetFixedAarrayAllocationSize(compiler::Node* element_count,
+                                               ElementsKind kind,
+                                               ParameterMode mode) {
+    return ElementOffsetFromIndex(element_count, kind, mode,
+                                  FixedArray::kHeaderSize);
+  }
 
  private:
   compiler::Node* ElementOffsetFromIndex(compiler::Node* index,

@@ -1391,17 +1391,21 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
 
 Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
                                             Node* capacity_node,
-                                            ParameterMode mode) {
-  Node* total_size = ElementOffsetFromIndex(capacity_node, kind, mode,
-                                            FixedArray::kHeaderSize);
+                                            ParameterMode mode,
+                                            AllocationFlags flags) {
+  Node* total_size = GetFixedAarrayAllocationSize(capacity_node, kind, mode);
 
   // Allocate both array and elements object, and initialize the JSArray.
-  Node* array = Allocate(total_size);
+  Node* array = Allocate(total_size, flags);
   Heap* heap = isolate()->heap();
   Handle<Map> map(IsFastDoubleElementsKind(kind)
                       ? heap->fixed_double_array_map()
                       : heap->fixed_array_map());
-  StoreMapNoWriteBarrier(array, HeapConstant(map));
+  if (flags & kPretenured) {
+    StoreObjectField(array, JSObject::kMapOffset, HeapConstant(map));
+  } else {
+    StoreMapNoWriteBarrier(array, HeapConstant(map));
+  }
   StoreObjectFieldNoWriteBarrier(
       array, FixedArray::kLengthOffset,
       mode == INTEGER_PARAMETERS ? SmiTag(capacity_node) : capacity_node);
@@ -1592,8 +1596,7 @@ Node* CodeStubAssembler::CheckAndGrowElementsCapacity(Node* context,
 
   // If size of the allocation for the new capacity doesn't fit in a page
   // that we can bump-pointer allocate from, fall back to the runtime,
-  int max_size = ((Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
-                  ElementsKindToShiftSize(kind));
+  int max_size = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
   GotoIf(UintPtrGreaterThanOrEqual(new_capacity,
                                    IntPtrOrSmiConstant(max_size, mode)),
          fail);
