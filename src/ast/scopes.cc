@@ -1302,7 +1302,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
   } else if (outer_scope_ != nullptr && this != max_outer_scope) {
     var = outer_scope_->LookupRecursive(proxy, binding_kind, factory,
                                         max_outer_scope);
-    if (*binding_kind == BOUND && (is_function_scope() || is_with_scope())) {
+    if (*binding_kind == BOUND && is_function_scope()) {
       var->ForceContextAllocation();
     }
   } else {
@@ -1321,7 +1321,11 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
     // the associated variable has to be marked as potentially being accessed
     // from inside of an inner with scope (the property may not be in the 'with'
     // object).
-    if (var != NULL && proxy->is_assigned()) var->set_maybe_assigned();
+    if (var != NULL) {
+      var->set_is_used();
+      var->ForceContextAllocation();
+      if (proxy->is_assigned()) var->set_maybe_assigned();
+    }
     *binding_kind = DYNAMIC_LOOKUP;
     return NULL;
   } else if (calls_sloppy_eval() && is_declaration_scope() &&
@@ -1487,12 +1491,12 @@ bool Scope::MustAllocate(Variable* var) {
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
   if ((var->is_this() || !var->raw_name()->IsEmpty()) &&
-      (var->has_forced_context_allocation() || scope_calls_eval_ ||
-       inner_scope_calls_eval_ || is_catch_scope() || is_block_scope() ||
+      (scope_calls_eval_ || inner_scope_calls_eval_ || is_catch_scope() ||
        is_script_scope())) {
     var->set_is_used();
     if (scope_calls_eval_ || inner_scope_calls_eval_) var->set_maybe_assigned();
   }
+  DCHECK(!var->has_forced_context_allocation() || var->is_used());
   // Global variables do not need to be allocated.
   return !var->IsGlobalObjectProperty() && var->is_used();
 }
