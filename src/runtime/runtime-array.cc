@@ -374,7 +374,8 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   uint32_t index = static_cast<uint32_t>(key);
 
   if (index >= capacity) {
-    if (object->WouldConvertToSlowElements(index)) {
+    if (object->map()->is_prototype_map() ||
+        object->WouldConvertToSlowElements(index)) {
       // We don't want to allow operations that cause lazy deopt. Return a Smi
       // as a signal that optimized code should eagerly deoptimize.
       return Smi::FromInt(0);
