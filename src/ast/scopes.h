@@ -814,6 +814,7 @@ class DeclarationScope : public Scope {
   // adjusting the scope of temporaries used when desugaring parameter
   // initializers.
   void AddTemporary(Variable* var) {
+    DCHECK(!already_resolved());
     // Temporaries are only placed in ClosureScopes.
     DCHECK_EQ(GetClosureScope(), this);
     temps_.Add(var, zone());

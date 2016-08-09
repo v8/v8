@@ -124,7 +124,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
-      decls_(4, zone),
+      decls_(0, zone),
       scope_info_(scope_info),
       scope_type_(scope_type),
       already_resolved_(true) {
@@ -146,8 +146,8 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* inner_scope,
     : Scope(zone, inner_scope, scope_type, scope_info),
       function_kind_(scope_info.is_null() ? kNormalFunction
                                           : scope_info->function_kind()),
-      temps_(4, zone),
-      params_(4, zone),
+      temps_(0, zone),
+      params_(0, zone),
       sloppy_block_function_map_(zone),
       module_descriptor_(nullptr) {
   SetDefaults();
@@ -702,7 +702,6 @@ bool Scope::RemoveUnresolved(VariableProxy* var) {
 
 
 Variable* Scope::NewTemporary(const AstRawString* name) {
-  DCHECK(!already_resolved());
   DeclarationScope* scope = GetClosureScope();
   Variable* var = new(zone()) Variable(scope,
                                        name,
@@ -714,6 +713,7 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
 }
 
 int DeclarationScope::RemoveTemporary(Variable* var) {
+  DCHECK(!already_resolved());
   DCHECK_NOT_NULL(var);
   // Temporaries are only placed in ClosureScopes.
   DCHECK_EQ(GetClosureScope(), this);
@@ -735,6 +735,7 @@ int DeclarationScope::RemoveTemporary(Variable* var) {
 
 
 void Scope::AddDeclaration(Declaration* declaration) {
+  DCHECK(!already_resolved());
   decls_.Add(declaration, zone());
 }
 
