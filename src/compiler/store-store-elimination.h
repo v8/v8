@@ -6,31 +6,16 @@
 #define V8_COMPILER_STORE_STORE_ELIMINATION_H_
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Forward declarations.
-class CommonOperatorBuilder;
-class JSGraph;
-
 class StoreStoreElimination final {
  public:
-  StoreStoreElimination(JSGraph* js_graph, Zone* temp_zone);
-  ~StoreStoreElimination();
-  void Run();
-
- private:
-  static bool IsEligibleNode(Node* node);
-  void ReduceEligibleNode(Node* node);
-  JSGraph* jsgraph() const { return jsgraph_; }
-  Zone* temp_zone() const { return temp_zone_; }
-
-  JSGraph* const jsgraph_;
-  Zone* const temp_zone_;
+  static void Run(JSGraph* js_graph, Zone* temp_zone);
 };
 
 }  // namespace compiler

@@ -356,6 +356,8 @@ DEFINE_STRING(trace_phase, "HLZ", "trace generated IR for specified phases")
 DEFINE_BOOL(trace_inlining, false, "trace inlining decisions")
 DEFINE_BOOL(trace_load_elimination, false, "trace load elimination")
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
+DEFINE_BOOL(turbo_verify_store_elimination, false,
+            "verify store elimination more rigorously")
 DEFINE_BOOL(trace_alloc, false, "trace register allocator")
 DEFINE_BOOL(trace_all_uses, false, "trace all use positions")
 DEFINE_BOOL(trace_range, false, "trace range analysis")
@@ -425,7 +427,6 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
 // Flags for TurboFan.
 DEFINE_BOOL(turbo, false, "enable TurboFan compiler")
 DEFINE_IMPLICATION(turbo, turbo_asm_deoptimization)
-DEFINE_IMPLICATION(turbo, turbo_store_elimination)
 DEFINE_IMPLICATION(turbo, turbo_loop_peeling)
 DEFINE_BOOL(turbo_from_bytecode, false, "enable building graphs from bytecode")
 DEFINE_BOOL(turbo_sp_frame_access, false,
@@ -487,7 +488,7 @@ DEFINE_BOOL(turbo_instruction_scheduling, false,
             "enable instruction scheduling in TurboFan")
 DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
             "randomly schedule instructions to stress dependency tracking")
-DEFINE_BOOL(turbo_store_elimination, false,
+DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
 
 // Flags to help platform porters

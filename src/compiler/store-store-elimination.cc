@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <iterator>
+
 #include "src/compiler/store-store-elimination.h"
 
 #include "src/compiler/all-nodes.h"
@@ -13,307 +15,570 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define TRACE(fmt, ...)                                              \
-  do {                                                               \
-    if (FLAG_trace_store_elimination) {                              \
-      PrintF("StoreStoreElimination::ReduceEligibleNode: " fmt "\n", \
-             ##__VA_ARGS__);                                         \
-    }                                                                \
+#define TRACE(fmt, ...)                                         \
+  do {                                                          \
+    if (FLAG_trace_store_elimination) {                         \
+      PrintF("RedundantStoreFinder: " fmt "\n", ##__VA_ARGS__); \
+    }                                                           \
   } while (false)
 
-// A simple store-store elimination. When the effect chain contains the
-// following sequence,
-//
-// - StoreField[[+off_1]](x1, y1)
-// - StoreField[[+off_2]](x2, y2)
-// - StoreField[[+off_3]](x3, y3)
-//   ...
-// - StoreField[[+off_n]](xn, yn)
-//
-// where the xes are the objects and the ys are the values to be stored, then
-// we are going to say that a store is superfluous if the same offset of the
-// same object will be stored to in the future. If off_i == off_j and xi == xj
-// and i < j, then we optimize the i'th StoreField away.
-//
-// This optimization should be initiated on the last StoreField in such a
-// sequence.
-//
-// The algorithm works by walking the effect chain from the last StoreField
-// upwards. While walking, we maintain a map {futureStore} from offsets to
-// nodes; initially it is empty. As we walk the effect chain upwards, if
-// futureStore[off] = n, then any store to node {n} with offset {off} is
-// guaranteed to be useless because we do a tagged-width[2] store to that
-// offset of that object in the near future anyway. For example, for this
-// effect chain
-//
-// 71: StoreField(60, 0)
-// 72: StoreField(65, 8)
-// 73: StoreField(63, 8)
-// 74: StoreField(65, 16)
-// 75: StoreField(62, 8)
-//
-// just before we get to 72, we will have futureStore = {8: 63, 16: 65}.
-//
-// Here is the complete process.
-//
-// - We are at the end of a sequence of consecutive StoreFields.
-// - We start out with futureStore = empty.
-// - We then walk the effect chain upwards to find the next StoreField [1].
-//
-//   1. If the offset is not a key of {futureStore} yet, we put it in.
-//   2. If the offset is a key of {futureStore}, but futureStore[offset] is a
-//      different node, we overwrite futureStore[offset] with the current node.
-//   3. If the offset is a key of {futureStore} and futureStore[offset] equals
-//      this node, we eliminate this StoreField.
-//
-//   As long as the current effect input points to a node with a single effect
-//   output, and as long as its opcode is StoreField, we keep traversing
-//   upwards.
-//
-//
-//
-//       footnotes:
-//
-// [1] We make sure that we only traverse the linear part, that is, the part
-//   where every node has exactly one incoming and one outgoing effect edge.
-//   Also, we only keep walking upwards as long as we keep finding consecutive
-//   StoreFields on the same node.
-//
-// [2] This optimization is sound only in certain cases. Specifically, the
-//   presence of a future store to {off} by itself does not automatically mean
-//   that earlier stores to {off} are superfluous: a future narrow store does
-//   not obviate an earlier wide store. However, future stores of a certain
-//   size do obviate stores to the same offset of lesser or equal size.
-//
-//   It turns out that we are most interested in stores of "tagged" size,
-//   which is 8 bytes on 64-bit archs and 4 bit on 32-bit archs. In
-//   {futureStore}, we record future writes that are of at least this size.
-//   The three cases are actually a bit more subtle.
-//
-//   1. If the offset is not a key of {futureStore} and the StoreField is of
-//      "tagged" size or wider, then we put it in.
-//   2. If the offset is present in {futureStore} but the value is different,
-//      then we overwrite the value if the current StoreField is of "tagged"
-//      size or wider.
-//   3. If the offset is present and the value matches the node, and the
-//      current StoreField is AT MOST of "tagged" size, then we eliminate this
-//      StoreField.
-//
-//   Examples of stores that we do not detect as superfluous: 2-byte stores
-//   followed by 2-byte stores to the same offset; 16-byte stores followed by
-//   16-byte stores to the same offset. On ia32, we do not detect consecutive
-//   float64 stores as superfluous, and on x86 we do not detect consecutive
-//   int32 stores as superfluous.
+// CHECK_EXTRA is like CHECK, but has two or more arguments: a boolean
+// expression, a format string, and any number of extra arguments. The boolean
+// expression will be evaluated at runtime. If it evaluates to false, then an
+// error message will be shown containing the condition, as well as the extra
+// info formatted like with printf.
+#define CHECK_EXTRA(condition, fmt, ...)                                 \
+  do {                                                                   \
+    if (V8_UNLIKELY(!(condition))) {                                     \
+      V8_Fatal(__FILE__, __LINE__, "Check failed: %s. Extra info: " fmt, \
+               #condition, ##__VA_ARGS__);                               \
+    }                                                                    \
+  } while (0)
 
-// At a late stage, we realized that this code is more complicated than it
-// needs to be: if we store a set of pairs (offset, node), the code simplifies
-// to 3 cases instead of 6. We could even store a map from nodes to sets of
-// bytes.
+#ifdef DEBUG
+#define DCHECK_EXTRA(condition, fmt, ...) \
+  CHECK_EXTRA(condition, fmt, ##__VA_ARGS__)
+#else
+#define DCHECK_EXTRA(condition, fmt, ...) ((void)0)
+#endif
 
-StoreStoreElimination::StoreStoreElimination(JSGraph* js_graph, Zone* temp_zone)
-    : jsgraph_(js_graph), temp_zone_(temp_zone) {}
+// Store-store elimination.
+//
+// The aim of this optimization is to detect the following pattern in the
+// effect graph:
+//
+// - StoreField[+24, kRepTagged](263, ...)
+//
+//   ... lots of nodes from which the field at offset 24 of the object
+//       returned by node #263 cannot be observed ...
+//
+// - StoreField[+24, kRepTagged](263, ...)
+//
+// In such situations, the earlier StoreField cannot be observed, and can be
+// eliminated. This optimization should work for any offset and input node, of
+// course.
+//
+// The optimization also works across splits. It currently does not work for
+// loops, because we tend to put a stack check in loops, and like deopts,
+// stack checks can observe anything.
 
-StoreStoreElimination::~StoreStoreElimination() {}
-
-void StoreStoreElimination::Run() {
-  // The store-store elimination performs work on chains of certain types of
-  // nodes. The elimination must be invoked on the lowest node in such a
-  // chain; we have a helper function IsEligibleNode that returns true
-  // precisely on the lowest node in such a chain.
-  //
-  // Because the elimination removes nodes from the graph, even remove nodes
-  // that the elimination was not invoked on, we cannot use a normal
-  // AdvancedReducer but we manually find which nodes to invoke the
-  // elimination on. Then in a next step, we invoke the elimination for each
-  // node that was eligible.
-
-  NodeVector eligible(temp_zone());  // loops over all nodes
-  AllNodes all(temp_zone(), jsgraph()->graph());
-
-  for (Node* node : all.reachable) {
-    if (IsEligibleNode(node)) {
-      eligible.push_back(node);
-    }
-  }
-
-  for (Node* node : eligible) {
-    ReduceEligibleNode(node);
-  }
-}
+// Assumption: every byte of a JS object is only ever accessed through one
+// offset. For instance, byte 15 of a given object may be accessed using a
+// two-byte read at offset 14, or a four-byte read at offset 12, but never
+// both in the same program.
+//
+// This implementation needs all dead nodes removed from the graph, and the
+// graph should be trimmed.
 
 namespace {
 
 // 16 bits was chosen fairly arbitrarily; it seems enough now. 8 bits is too
 // few.
-typedef uint16_t Offset;
+typedef uint16_t StoreOffset;
+
+struct UnobservableStore {
+  NodeId id_;
+  StoreOffset offset_;
+
+  bool operator==(const UnobservableStore) const;
+  bool operator!=(const UnobservableStore) const;
+  bool operator<(const UnobservableStore) const;
+};
+
+}  // namespace
+
+namespace {
+
+// Instances of UnobservablesSet are immutable. They represent either a set of
+// UnobservableStores, or the "unvisited empty set".
+//
+// We apply some sharing to save memory. The class UnobservablesSet is only a
+// pointer wide, and a copy does not use any heap (or temp_zone) memory. Most
+// changes to an UnobservablesSet might allocate in the temp_zone.
+//
+// The size of an instance should be the size of a pointer, plus additional
+// space in the zone in the case of non-unvisited UnobservablesSets. Copying
+// an UnobservablesSet allocates no memory.
+class UnobservablesSet final {
+ public:
+  static UnobservablesSet Unvisited();
+  static UnobservablesSet VisitedEmpty(Zone* zone);
+  UnobservablesSet();  // unvisited
+  UnobservablesSet(const UnobservablesSet& other) : set_(other.set_) {}
+
+  UnobservablesSet Intersect(UnobservablesSet other, Zone* zone) const;
+  UnobservablesSet Add(UnobservableStore obs, Zone* zone) const;
+  UnobservablesSet RemoveSameOffset(StoreOffset off, Zone* zone) const;
+
+  const ZoneSet<UnobservableStore>* set() const { return set_; }
+
+  bool IsUnvisited() const { return set_ == nullptr; }
+  bool IsEmpty() const { return set_ == nullptr || set_->empty(); }
+  bool Contains(UnobservableStore obs) const {
+    return set_ != nullptr && (set_->find(obs) != set_->end());
+  }
+
+  bool operator==(const UnobservablesSet&) const;
+  bool operator!=(const UnobservablesSet&) const;
+
+ private:
+  explicit UnobservablesSet(const ZoneSet<UnobservableStore>* set)
+      : set_(set) {}
+  const ZoneSet<UnobservableStore>* set_;
+};
+
+}  // namespace
+
+namespace {
+
+class RedundantStoreFinder final {
+ public:
+  RedundantStoreFinder(JSGraph* js_graph, Zone* temp_zone);
+
+  void Find();
+
+  const ZoneSet<Node*>& to_remove_const() { return to_remove_; }
+
+  virtual void Visit(Node* node);
+
+ private:
+  static bool IsEffectful(Node* node);
+  void VisitEffectfulNode(Node* node);
+  UnobservablesSet RecomputeUseIntersection(Node* node);
+  UnobservablesSet RecomputeSet(Node* node, UnobservablesSet uses);
+  static bool CannotObserveStoreField(Node* node);
+  static bool CanObserveAnything(Node* node);
+
+  void MarkForRevisit(Node* node);
+  bool HasBeenVisited(Node* node);
+
+  JSGraph* jsgraph() const { return jsgraph_; }
+  Zone* temp_zone() const { return temp_zone_; }
+  ZoneVector<UnobservablesSet>& unobservable() { return unobservable_; }
+  UnobservablesSet& unobservable_for_id(NodeId id) {
+    DCHECK_LT(id, unobservable().size());
+    return unobservable()[id];
+  }
+  ZoneSet<Node*>& to_remove() { return to_remove_; }
+
+  JSGraph* const jsgraph_;
+  Zone* const temp_zone_;
+
+  ZoneStack<Node*> revisit_;
+  ZoneVector<bool> in_revisit_;
+  // Maps node IDs to UnobservableNodeSets.
+  ZoneVector<UnobservablesSet> unobservable_;
+  ZoneSet<Node*> to_remove_;
+  const UnobservablesSet unobservables_visited_empty_;
+};
 
 // To safely cast an offset from a FieldAccess, which has a wider range
 // (namely int).
-Offset ToOffset(int offset) {
-  CHECK(0 <= offset && offset < (1 << 8 * sizeof(Offset)));
-  return (Offset)offset;
+StoreOffset ToOffset(int offset) {
+  CHECK(0 <= offset && offset < (1 << 8 * sizeof(StoreOffset)));
+  return (StoreOffset)offset;
 }
 
-Offset ToOffset(const FieldAccess& access) { return ToOffset(access.offset); }
-
-// If node has a single effect use, return that node. If node has no or
-// multiple effect uses, return nullptr.
-Node* SingleEffectUse(Node* node) {
-  Node* last_use = nullptr;
-  for (Edge edge : node->use_edges()) {
-    if (!NodeProperties::IsEffectEdge(edge)) {
-      continue;
-    }
-    if (last_use != nullptr) {
-      // more than one
-      return nullptr;
-    }
-    last_use = edge.from();
-    DCHECK_NOT_NULL(last_use);
-  }
-  return last_use;
+StoreOffset ToOffset(const FieldAccess& access) {
+  return ToOffset(access.offset);
 }
 
-// Return true if node is the last consecutive StoreField node in a linear
-// part of the effect chain.
-bool IsEndOfStoreFieldChain(Node* node) {
-  Node* next_on_chain = SingleEffectUse(node);
-  return (next_on_chain == nullptr ||
-          next_on_chain->op()->opcode() != IrOpcode::kStoreField);
+unsigned int RepSizeOf(MachineRepresentation rep) {
+  return 1u << ElementSizeLog2Of(rep);
 }
-
-// The argument must be a StoreField node. If there is a node before it in the
-// effect chain, and if this part of the effect chain is linear (no other
-// effect uses of that previous node), then return that previous node.
-// Otherwise, return nullptr.
-//
-// The returned node need not be a StoreField.
-Node* PreviousEffectBeforeStoreField(Node* node) {
-  DCHECK_EQ(node->op()->opcode(), IrOpcode::kStoreField);
-  DCHECK_EQ(node->op()->EffectInputCount(), 1);
-
-  Node* previous = NodeProperties::GetEffectInput(node);
-  if (previous != nullptr && node == SingleEffectUse(previous)) {
-    return previous;
-  } else {
-    return nullptr;
-  }
-}
-
-size_t rep_size_of(MachineRepresentation rep) {
-  return ((size_t)1) << ElementSizeLog2Of(rep);
-}
-size_t rep_size_of(FieldAccess access) {
-  return rep_size_of(access.machine_type.representation());
+unsigned int RepSizeOf(FieldAccess access) {
+  return RepSizeOf(access.machine_type.representation());
 }
 
 bool AtMostTagged(FieldAccess access) {
-  return rep_size_of(access) <= rep_size_of(MachineRepresentation::kTagged);
+  return RepSizeOf(access) <= RepSizeOf(MachineRepresentation::kTagged);
 }
 
 bool AtLeastTagged(FieldAccess access) {
-  return rep_size_of(access) >= rep_size_of(MachineRepresentation::kTagged);
+  return RepSizeOf(access) >= RepSizeOf(MachineRepresentation::kTagged);
 }
 
 }  // namespace
 
-bool StoreStoreElimination::IsEligibleNode(Node* node) {
-  return (node->op()->opcode() == IrOpcode::kStoreField) &&
-         IsEndOfStoreFieldChain(node);
+void RedundantStoreFinder::Find() {
+  Visit(jsgraph()->graph()->end());
+
+  while (!revisit_.empty()) {
+    Node* next = revisit_.top();
+    revisit_.pop();
+    DCHECK_LT(next->id(), in_revisit_.size());
+    in_revisit_[next->id()] = false;
+    Visit(next);
+  }
+
+#ifdef DEBUG
+  // Check that we visited all the StoreFields
+  AllNodes all(temp_zone(), jsgraph()->graph());
+  for (Node* node : all.reachable) {
+    if (node->op()->opcode() == IrOpcode::kStoreField) {
+      DCHECK_EXTRA(HasBeenVisited(node), "#%d:%s", node->id(),
+                   node->op()->mnemonic());
+    }
+  }
+#endif
 }
 
-void StoreStoreElimination::ReduceEligibleNode(Node* node) {
-  DCHECK(IsEligibleNode(node));
+void RedundantStoreFinder::MarkForRevisit(Node* node) {
+  DCHECK_LT(node->id(), in_revisit_.size());
+  if (!in_revisit_[node->id()]) {
+    revisit_.push(node);
+    in_revisit_[node->id()] = true;
+  }
+}
 
-  // if (FLAG_trace_store_elimination) {
-  //   PrintF("** StoreStoreElimination::ReduceEligibleNode: activated:
-  //   #%d\n",
-  //          node->id());
-  // }
+bool RedundantStoreFinder::HasBeenVisited(Node* node) {
+  return !unobservable_for_id(node->id()).IsUnvisited();
+}
 
-  TRACE("activated: #%d", node->id());
+void StoreStoreElimination::Run(JSGraph* js_graph, Zone* temp_zone) {
+  // Find superfluous nodes
+  RedundantStoreFinder finder(js_graph, temp_zone);
+  finder.Find();
 
-  // Initialize empty futureStore.
-  ZoneMap<Offset, Node*> futureStore(temp_zone());
+  // Remove superfluous nodes
 
-  Node* current_node = node;
+  for (Node* node : finder.to_remove_const()) {
+    if (FLAG_trace_store_elimination) {
+      PrintF("StoreStoreElimination::Run: Eliminating node #%d:%s\n",
+             node->id(), node->op()->mnemonic());
+    }
+    Node* previous_effect = NodeProperties::GetEffectInput(node);
+    NodeProperties::ReplaceUses(node, nullptr, previous_effect, nullptr,
+                                nullptr);
+    node->Kill();
+  }
+}
 
-  do {
-    FieldAccess access = OpParameter<FieldAccess>(current_node->op());
-    Offset offset = ToOffset(access);
-    Node* object_input = current_node->InputAt(0);
+bool RedundantStoreFinder::IsEffectful(Node* node) {
+  return (node->op()->EffectInputCount() >= 1);
+}
 
-    Node* previous = PreviousEffectBeforeStoreField(current_node);
+// Recompute unobservables-set for a node. Will also mark superfluous nodes
+// as to be removed.
 
-    // Find the map entry.
-    ZoneMap<Offset, Node*>::iterator find_result = futureStore.find(offset);
+UnobservablesSet RedundantStoreFinder::RecomputeSet(Node* node,
+                                                    UnobservablesSet uses) {
+  switch (node->op()->opcode()) {
+    case IrOpcode::kStoreField: {
+      Node* stored_to = node->InputAt(0);
+      FieldAccess access = OpParameter<FieldAccess>(node->op());
+      StoreOffset offset = ToOffset(access);
 
-    bool present = find_result != futureStore.end();
-    Node* value = present ? find_result->second : nullptr;
+      UnobservableStore observation = {stored_to->id(), offset};
+      bool isNotObservable = uses.Contains(observation);
 
-    if (present && value == object_input && AtMostTagged(access)) {
-      // Key was present, and the value equalled object_input. This means
-      // that soon after in the effect chain, we will do a StoreField to the
-      // same object with the same offset, therefore current_node can be
-      // optimized away. Also, the future StoreField is at least as big as this
-      // one.
-      //
-      // We don't need to update futureStore.
-
-      Node* previous_effect = NodeProperties::GetEffectInput(current_node);
-
-      NodeProperties::ReplaceUses(current_node, nullptr, previous_effect,
-                                  nullptr, nullptr);
-      current_node->Kill();
-      TRACE("#%d[[+%d,%s]](#%d) -- at most tagged size, eliminated",
-            current_node->id(), offset,
+      if (isNotObservable && AtMostTagged(access)) {
+        TRACE("  #%d is StoreField[+%d,%s](#%d), unobservable", node->id(),
+              offset, MachineReprToString(access.machine_type.representation()),
+              stored_to->id());
+        to_remove().insert(node);
+        return uses;
+      } else if (isNotObservable && !AtMostTagged(access)) {
+        TRACE(
+            "  #%d is StoreField[+%d,%s](#%d), repeated in future but too "
+            "big to optimize away",
+            node->id(), offset,
             MachineReprToString(access.machine_type.representation()),
-            object_input->id());
-    } else if (present && value == object_input && !AtMostTagged(access)) {
-      TRACE("#%d[[+%d,%s]](#%d) -- too wide, not eliminated",
-            current_node->id(), offset,
+            stored_to->id());
+        return uses;
+      } else if (!isNotObservable && AtLeastTagged(access)) {
+        TRACE("  #%d is StoreField[+%d,%s](#%d), observable, recording in set",
+              node->id(), offset,
+              MachineReprToString(access.machine_type.representation()),
+              stored_to->id());
+        return uses.Add(observation, temp_zone());
+      } else if (!isNotObservable && !AtLeastTagged(access)) {
+        TRACE(
+            "  #%d is StoreField[+%d,%s](#%d), observable but too small to "
+            "record",
+            node->id(), offset,
             MachineReprToString(access.machine_type.representation()),
-            object_input->id());
-    } else if (present && value != object_input && AtLeastTagged(access)) {
-      // Key was present, and the value did not equal object_input. This means
-      // that there is a StoreField to this offset in the future, but the
-      // object instance comes from a different Node. We pessimistically
-      // assume that we cannot optimize current_node away. However, we will
-      // guess that the current StoreField is more relevant than the future
-      // one, record the current StoreField in futureStore instead, and
-      // continue ascending up the chain.
-      find_result->second = object_input;
-      TRACE("#%d[[+%d,%s]](#%d) -- wide enough, diff object, updated in map",
-            current_node->id(), offset,
-            MachineReprToString(access.machine_type.representation()),
-            object_input->id());
-    } else if (!present && AtLeastTagged(access)) {
-      // Key was not present. This means that there is no matching
-      // StoreField to this offset in the future, so we cannot optimize
-      // current_node away. However, we will record the current StoreField
-      // in futureStore, and continue ascending up the chain.
-      futureStore.insert(std::make_pair(offset, object_input));
+            stored_to->id());
+        return uses;
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+    case IrOpcode::kLoadField: {
+      Node* loaded_from = node->InputAt(0);
+      FieldAccess access = OpParameter<FieldAccess>(node->op());
+      StoreOffset offset = ToOffset(access);
+
       TRACE(
-          "#%d[[+%d,%s]](#%d) -- wide enough, key not present, inserted in map",
-          current_node->id(), offset,
+          "  #%d is LoadField[+%d,%s](#%d), removing all offsets [+%d] from "
+          "set",
+          node->id(), offset,
           MachineReprToString(access.machine_type.representation()),
-          object_input->id());
-    } else if (!AtLeastTagged(access)) {
-      TRACE("#%d[[+%d,%s]](#%d) -- too narrow to record", current_node->id(),
-            offset, MachineReprToString(access.machine_type.representation()),
-            object_input->id());
-    } else {
-      UNREACHABLE();
+          loaded_from->id(), offset);
+
+      return uses.RemoveSameOffset(offset, temp_zone());
+      break;
+    }
+    default:
+      if (CannotObserveStoreField(node)) {
+        TRACE("  #%d:%s can observe nothing, set stays unchanged", node->id(),
+              node->op()->mnemonic());
+        return uses;
+      } else if (CanObserveAnything(node)) {
+        TRACE("  #%d:%s can observe everything, recording empty set",
+              node->id(), node->op()->mnemonic());
+        return unobservables_visited_empty_;
+      } else {
+        // It is safe to turn this check off in the future, but it is better
+        // to list opcodes in CannotObserveStoreField, in CanObserveAnything,
+        // or if you don't know, to add another case inside this DCHECK_EXTRA.
+        DCHECK_EXTRA(node->op()->opcode() == IrOpcode::kCall, "%s",
+                     node->op()->mnemonic());
+        TRACE(
+            "  cannot determine unobservables-set for #%d:%s; "
+            "conservatively recording empty set",
+            node->id(), node->op()->mnemonic());
+        return unobservables_visited_empty_;
+      }
+  }
+  UNREACHABLE();
+  return UnobservablesSet::Unvisited();
+}
+
+bool RedundantStoreFinder::CannotObserveStoreField(Node* node) {
+  Operator::Properties mask =
+      Operator::kNoRead | Operator::kNoDeopt | Operator::kNoThrow;
+
+  return (node->op()->properties() & mask) == mask ||
+         node->opcode() == IrOpcode::kAllocate ||
+         node->opcode() == IrOpcode::kCheckedLoad ||
+         node->opcode() == IrOpcode::kLoadElement ||
+         node->opcode() == IrOpcode::kLoad;
+}
+
+bool RedundantStoreFinder::CanObserveAnything(Node* node) {
+  return !node->op()->HasProperty(Operator::kNoThrow) ||
+         !node->op()->HasProperty(Operator::kNoDeopt);
+}
+
+// Initialize unobservable_ with js_graph->graph->NodeCount() empty sets.
+RedundantStoreFinder::RedundantStoreFinder(JSGraph* js_graph, Zone* temp_zone)
+    : jsgraph_(js_graph),
+      temp_zone_(temp_zone),
+      revisit_(temp_zone),
+      in_revisit_(js_graph->graph()->NodeCount(), temp_zone),
+      unobservable_(js_graph->graph()->NodeCount(),
+                    UnobservablesSet::Unvisited(), temp_zone),
+      to_remove_(temp_zone),
+      unobservables_visited_empty_(UnobservablesSet::VisitedEmpty(temp_zone)) {}
+
+void RedundantStoreFinder::Visit(Node* node) {
+  // All effectful nodes should be reachable from End via a sequence of
+  // control, then a sequence of effect edges. In VisitEffectfulNode we mark
+  // all effect inputs for revisiting (if they might have stale state); here
+  // we mark all control inputs at least once.
+
+  if (!HasBeenVisited(node)) {
+    for (int i = 0; i < node->op()->ControlInputCount(); i++) {
+      Node* control_input = NodeProperties::GetControlInput(node, i);
+      if (!HasBeenVisited(control_input)) {
+        MarkForRevisit(control_input);
+      }
+    }
+  }
+
+  bool isEffectful = (node->op()->EffectInputCount() >= 1);
+  if (isEffectful) {
+    VisitEffectfulNode(node);
+    DCHECK(HasBeenVisited(node));
+  }
+
+  if (!HasBeenVisited(node)) {
+    // Mark as visited.
+    unobservable_for_id(node->id()) = unobservables_visited_empty_;
+  }
+}
+
+void RedundantStoreFinder::VisitEffectfulNode(Node* node) {
+  if (HasBeenVisited(node)) {
+    TRACE("- Revisiting: #%d:%s", node->id(), node->op()->mnemonic());
+  }
+  UnobservablesSet after_set = RecomputeUseIntersection(node);
+  UnobservablesSet before_set = RecomputeSet(node, after_set);
+  DCHECK(!before_set.IsUnvisited());
+
+  UnobservablesSet stored_for_node = unobservable_for_id(node->id());
+  bool cur_set_changed =
+      (stored_for_node.IsUnvisited() || stored_for_node != before_set);
+  if (!cur_set_changed) {
+    // We will not be able to update the part of this chain above any more.
+    // Exit.
+    TRACE("+ No change: stabilized. Not visiting effect inputs.");
+  } else {
+    unobservable_for_id(node->id()) = before_set;
+
+    // Mark effect inputs for visiting.
+    for (int i = 0; i < node->op()->EffectInputCount(); i++) {
+      Node* input = NodeProperties::GetEffectInput(node, i);
+      if (!CanObserveAnything(input) || !HasBeenVisited(input)) {
+        TRACE("    marking #%d:%s for revisit", input->id(),
+              input->op()->mnemonic());
+        MarkForRevisit(input);
+      }
+    }
+  }
+}
+
+// Compute the intersection of the UnobservablesSets of all effect uses and
+// return it. This function only works if {node} has an effect use.
+//
+// The result UnobservablesSet will always be visited.
+UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
+  // {first} == true indicates that we haven't looked at any elements yet.
+  // {first} == false indicates that cur_set is the intersection of at least one
+  // thing.
+
+  bool first = true;
+  UnobservablesSet cur_set = UnobservablesSet::Unvisited();  // irrelevant
+
+  for (Edge edge : node->use_edges()) {
+    // Skip non-effect edges
+    if (!NodeProperties::IsEffectEdge(edge)) {
+      continue;
     }
 
-    // Regardless of whether we eliminated node {current}, we want to
-    // continue walking up the effect chain.
+    Node* use = edge.from();
+    UnobservablesSet new_set = unobservable_for_id(use->id());
+    // Include new_set in the intersection.
+    if (first) {
+      // Intersection of a one-element set is that one element
+      first = false;
+      cur_set = new_set;
+    } else {
+      // Take the intersection of cur_set and new_set.
+      cur_set = cur_set.Intersect(new_set, temp_zone());
+    }
+  }
 
-    current_node = previous;
-  } while (current_node != nullptr &&
-           current_node->op()->opcode() == IrOpcode::kStoreField);
+  if (first) {
+    // There were no effect uses.
+    auto opcode = node->op()->opcode();
+    // List of opcodes that may end this effect chain. The opcodes are not
+    // important to the soundness of this optimization; this serves as a
+    // general sanity check. Add opcodes to this list as it suits you.
+    //
+    // Everything is observable after these opcodes; return the empty set.
+    DCHECK_EXTRA(
+        opcode == IrOpcode::kReturn || opcode == IrOpcode::kTerminate ||
+            opcode == IrOpcode::kDeoptimize || opcode == IrOpcode::kThrow,
+        "for #%d:%s", node->id(), node->op()->mnemonic());
+    USE(opcode);  // silence warning about unused variable in release mode
 
-  TRACE("finished");
+    return unobservables_visited_empty_;
+  } else {
+    if (cur_set.IsUnvisited()) {
+      cur_set = unobservables_visited_empty_;
+    }
+
+    return cur_set;
+  }
+}
+
+UnobservablesSet UnobservablesSet::Unvisited() { return UnobservablesSet(); }
+
+UnobservablesSet::UnobservablesSet() : set_(nullptr) {}
+
+UnobservablesSet UnobservablesSet::VisitedEmpty(Zone* zone) {
+  // Create a new empty UnobservablesSet. This allocates in the zone, and
+  // can probably be optimized to use a global singleton.
+  ZoneSet<UnobservableStore>* empty_set =
+      new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
+          ZoneSet<UnobservableStore>(zone);
+  return UnobservablesSet(empty_set);
+}
+
+// Computes the intersection of two UnobservablesSets. May return
+// UnobservablesSet::Unvisited() instead of an empty UnobservablesSet for
+// speed.
+UnobservablesSet UnobservablesSet::Intersect(UnobservablesSet other,
+                                             Zone* zone) const {
+  if (IsEmpty() || other.IsEmpty()) {
+    return Unvisited();
+  } else {
+    ZoneSet<UnobservableStore>* intersection =
+        new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
+            ZoneSet<UnobservableStore>(zone);
+    // Put the intersection of set() and other.set() in intersection.
+    set_intersection(set()->begin(), set()->end(), other.set()->begin(),
+                     other.set()->end(),
+                     std::inserter(*intersection, intersection->end()));
+
+    return UnobservablesSet(intersection);
+  }
+}
+
+UnobservablesSet UnobservablesSet::Add(UnobservableStore obs,
+                                       Zone* zone) const {
+  bool present = (set()->find(obs) != set()->end());
+  if (present) {
+    return *this;
+  } else {
+    // Make a new empty set.
+    ZoneSet<UnobservableStore>* new_set =
+        new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
+            ZoneSet<UnobservableStore>(zone);
+    // Copy the old elements over.
+    *new_set = *set();
+    // Add the new element.
+    bool inserted = new_set->insert(obs).second;
+    DCHECK(inserted);
+    USE(inserted);  // silence warning about unused variable
+
+    return UnobservablesSet(new_set);
+  }
+}
+
+UnobservablesSet UnobservablesSet::RemoveSameOffset(StoreOffset offset,
+                                                    Zone* zone) const {
+  // Make a new empty set.
+  ZoneSet<UnobservableStore>* new_set =
+      new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
+          ZoneSet<UnobservableStore>(zone);
+  // Copy all elements over that have a different offset.
+  for (auto obs : *set()) {
+    if (obs.offset_ != offset) {
+      new_set->insert(obs);
+    }
+  }
+
+  return UnobservablesSet(new_set);
+}
+
+// Used for debugging.
+bool UnobservablesSet::operator==(const UnobservablesSet& other) const {
+  if (IsUnvisited() || other.IsUnvisited()) {
+    return IsEmpty() && other.IsEmpty();
+  } else {
+    // Both pointers guaranteed not to be nullptrs.
+    return *set() == *other.set();
+  }
+}
+
+bool UnobservablesSet::operator!=(const UnobservablesSet& other) const {
+  return !(*this == other);
+}
+
+bool UnobservableStore::operator==(const UnobservableStore other) const {
+  return (id_ == other.id_) && (offset_ == other.offset_);
+}
+
+bool UnobservableStore::operator!=(const UnobservableStore other) const {
+  return !(*this == other);
+}
+
+bool UnobservableStore::operator<(const UnobservableStore other) const {
+  return (id_ < other.id_) || (id_ == other.id_ && offset_ < other.offset_);
 }
 
 }  // namespace compiler
