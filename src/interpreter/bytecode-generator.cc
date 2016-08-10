@@ -3053,18 +3053,6 @@ void BytecodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 
-namespace {
-
-Handle<ScopeInfo> GetScopeInfo(Scope* scope, Isolate* isolate) {
-  // TODO(5203): Remove this temporary exception.
-  AllowHeapAllocation allow_allocation;
-  AllowHandleAllocation allow_handles;
-  AllowHandleDereference allow_deref;
-  return scope->GetScopeInfo(isolate);
-}
-
-}  // namespace
-
 void BytecodeGenerator::VisitNewLocalFunctionContext() {
   AccumulatorResultScope accumulator_execution_result(this);
   Scope* scope = this->scope();
@@ -3078,7 +3066,7 @@ void BytecodeGenerator::VisitNewLocalFunctionContext() {
     builder()
         ->LoadAccumulatorWithRegister(Register::function_closure())
         .StoreAccumulatorInRegister(closure)
-        .LoadLiteral(GetScopeInfo(scope, isolate()))
+        .LoadLiteral(scope->GetScopeInfo(isolate()))
         .StoreAccumulatorInRegister(scope_info)
         .CallRuntime(Runtime::kNewScriptContext, closure, 2);
   } else {
@@ -3126,7 +3114,7 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
   Register closure = register_allocator()->NextConsecutiveRegister();
 
   builder()
-      ->LoadLiteral(GetScopeInfo(scope, isolate()))
+      ->LoadLiteral(scope->GetScopeInfo(isolate()))
       .StoreAccumulatorInRegister(scope_info);
   VisitFunctionClosureForContext();
   builder()

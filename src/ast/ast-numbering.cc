@@ -243,6 +243,14 @@ void AstNumberingVisitor::VisitCountOperation(CountOperation* node) {
 void AstNumberingVisitor::VisitBlock(Block* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(Block::num_ids()));
+
+  if (FLAG_ignition && node->scope() != nullptr &&
+      node->scope()->NeedsContext()) {
+    // Create ScopeInfo while on the main thread to avoid allocation during
+    // potentially concurrent bytecode generation.
+    node->scope()->GetScopeInfo(isolate_);
+  }
+
   if (node->scope() != NULL) VisitDeclarations(node->scope()->declarations());
   VisitStatements(node->statements());
 }
@@ -580,6 +588,12 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   int rest_index;
   if (scope->rest_parameter(&rest_index)) {
     DisableCrankshaft(kRestParameter);
+  }
+
+  if (FLAG_ignition && scope->NeedsContext() && scope->is_script_scope()) {
+    // Create ScopeInfo while on the main thread to avoid allocation during
+    // potentially concurrent bytecode generation.
+    node->scope()->GetScopeInfo(isolate_);
   }
 
   if (IsGeneratorFunction(node->kind()) || IsAsyncFunction(node->kind())) {
