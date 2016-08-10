@@ -333,18 +333,13 @@ void Scope::DeserializeScopeInfo(Isolate* isolate,
 
   // Internalize function proxy for this scope.
   if (scope_info_->HasFunctionName()) {
-    AstNodeFactory factory(ast_value_factory);
     Handle<String> name_handle(scope_info_->FunctionName(), isolate);
     const AstRawString* name = ast_value_factory->GetString(name_handle);
     VariableMode mode;
     int index = scope_info_->FunctionContextSlotIndex(*name_handle, &mode);
     if (index >= 0) {
-      Variable* result = new (zone())
-          Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
-      VariableProxy* proxy = factory.NewVariableProxy(result);
-      VariableDeclaration* declaration =
-          factory.NewVariableDeclaration(proxy, this, kNoSourcePosition);
-      AsDeclarationScope()->DeclareFunctionVar(declaration);
+      Variable* result = AsDeclarationScope()->DeclareFunctionVar(name);
+      DCHECK_EQ(mode, result->mode());
       result->AllocateTo(VariableLocation::CONTEXT, index);
     }
   }
@@ -430,6 +425,14 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
   }
 }
 
+Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
+  DCHECK(is_function_scope());
+  DCHECK_NULL(function_);
+  VariableMode mode = is_strict(language_mode()) ? CONST : CONST_LEGACY;
+  function_ = new (zone())
+      Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
+  return function_;
+}
 
 Scope* Scope::FinalizeBlockScope() {
   DCHECK(is_block_scope());
@@ -597,27 +600,20 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
   return var;
 }
 
-Variable* DeclarationScope::LookupFunctionVar(const AstRawString* name,
-                                              AstNodeFactory* factory) {
-  if (function_ != NULL && function_->proxy()->raw_name() == name) {
-    return function_->proxy()->var();
+Variable* DeclarationScope::LookupFunctionVar(const AstRawString* name) {
+  if (function_ != nullptr && function_->raw_name() == name) {
+    return function_;
   } else if (!scope_info_.is_null()) {
     // If we are backed by a scope info, try to lookup the variable there.
     VariableMode mode;
     int index = scope_info_->FunctionContextSlotIndex(*(name->string()), &mode);
-    if (index < 0) return NULL;
-    Variable* var = new (zone())
-        Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
-    DCHECK_NOT_NULL(factory);
-    VariableProxy* proxy = factory->NewVariableProxy(var);
-    VariableDeclaration* declaration =
-        factory->NewVariableDeclaration(proxy, this, kNoSourcePosition);
-    DCHECK_EQ(factory->zone(), zone());
-    DeclareFunctionVar(declaration);
+    if (index < 0) return nullptr;
+    Variable* var = DeclareFunctionVar(name);
+    DCHECK_EQ(mode, var->mode());
     var->AllocateTo(VariableLocation::CONTEXT, index);
     return var;
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -745,11 +741,6 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
   for (int i = 0; i < length; i++) {
     Declaration* decl = decls_[i];
     VariableMode mode = decl->proxy()->var()->mode();
-    // We don't create a separate scope to hold the function name of a function
-    // expression, so we have to make sure not to consider it when checking for
-    // conflicts (since it's conceptually "outside" the declaration scope).
-    if (is_function_scope() && decl == AsDeclarationScope()->function())
-      continue;
     if (IsLexicalVariableMode(mode) && !is_block_scope()) continue;
 
     // Iterate through all scopes until and including the declaration scope.
@@ -1146,10 +1137,10 @@ void Scope::Print(int n) {
   }
 
   // Print parameters, if any.
-  VariableDeclaration* function = nullptr;
+  Variable* function = nullptr;
   if (is_function_scope()) {
     AsDeclarationScope()->PrintParameters();
-    function = AsDeclarationScope()->function();
+    function = AsDeclarationScope()->function_var();
   }
 
   PrintF(" { // (%d, %d)\n", start_position(), end_position());
@@ -1157,7 +1148,7 @@ void Scope::Print(int n) {
   // Function name, if any (named function literals, only).
   if (function != nullptr) {
     Indent(n1, "// (local) function name: ");
-    PrintName(function->proxy()->raw_name());
+    PrintName(function->raw_name());
     PrintF("\n");
   }
 
@@ -1191,7 +1182,7 @@ void Scope::Print(int n) {
   // Print locals.
   if (function != nullptr) {
     Indent(n1, "// function var:\n");
-    PrintVar(n1, function->proxy()->var());
+    PrintVar(n1, function);
   }
 
   if (is_declaration_scope()) {
@@ -1293,10 +1284,9 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
   // We did not find a variable locally. Check against the function variable, if
   // any.
   *binding_kind = UNBOUND;
-  var =
-      is_function_scope()
-          ? AsDeclarationScope()->LookupFunctionVar(proxy->raw_name(), factory)
-          : nullptr;
+  var = is_function_scope()
+            ? AsDeclarationScope()->LookupFunctionVar(proxy->raw_name())
+            : nullptr;
   if (var != NULL) {
     *binding_kind = BOUND;
   } else if (outer_scope_ != nullptr && this != max_outer_scope) {
@@ -1697,7 +1687,7 @@ void DeclarationScope::AllocateLocals(AstValueFactory* ast_value_factory) {
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
   if (function_ != nullptr) {
-    AllocateNonParameterLocal(function_->proxy()->var(), ast_value_factory);
+    AllocateNonParameterLocal(function_, ast_value_factory);
   }
 
   if (rest_parameter_ != nullptr) {
@@ -1776,19 +1766,19 @@ void Scope::AllocateVariablesRecursively(AstValueFactory* ast_value_factory) {
 
 
 int Scope::StackLocalCount() const {
-  VariableDeclaration* function =
-      is_function_scope() ? AsDeclarationScope()->function() : nullptr;
+  Variable* function =
+      is_function_scope() ? AsDeclarationScope()->function_var() : nullptr;
   return num_stack_slots() -
-         (function != NULL && function->proxy()->var()->IsStackLocal() ? 1 : 0);
+         (function != nullptr && function->IsStackLocal() ? 1 : 0);
 }
 
 
 int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;
-  VariableDeclaration* function =
-      is_function_scope() ? AsDeclarationScope()->function() : nullptr;
+  Variable* function =
+      is_function_scope() ? AsDeclarationScope()->function_var() : nullptr;
   bool is_function_var_in_context =
-      function != NULL && function->proxy()->var()->IsContextSlot();
+      function != nullptr && function->IsContextSlot();
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS - num_global_slots() -
          (is_function_var_in_context ? 1 : 0);
 }

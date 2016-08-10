@@ -4932,19 +4932,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   if (function_type == FunctionLiteral::kNamedExpression) {
     // Now that we know the language mode, we can create the const assignment
     // in the previously reserved spot.
-    // NOTE: We create a proxy and resolve it here so that in the
-    // future we can change the AST to only refer to VariableProxies
-    // instead of Variables and Proxies as is the case now.
     DCHECK_EQ(function_scope, scope());
-    VariableMode fvar_mode = is_strict(language_mode()) ? CONST : CONST_LEGACY;
-    Variable* fvar = new (zone())
-        Variable(scope(), function_name, fvar_mode, Variable::NORMAL,
-                 kCreatedInitialized, kNotAssigned);
-    VariableProxy* proxy = factory()->NewVariableProxy(fvar);
-    VariableDeclaration* fvar_declaration =
-        factory()->NewVariableDeclaration(proxy, scope(), kNoSourcePosition);
-    function_scope->DeclareFunctionVar(fvar_declaration);
-
+    Variable* fvar = function_scope->DeclareFunctionVar(function_name);
     VariableProxy* fproxy = factory()->NewVariableProxy(fvar);
     result->Set(kFunctionNameAssignmentIndex,
                 factory()->NewExpressionStatement(

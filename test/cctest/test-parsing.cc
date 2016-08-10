@@ -1495,8 +1495,8 @@ TEST(DiscardFunctionBody) {
         AsCall()->expression()->AsFunctionLiteral();
     i::Scope* inner_scope = inner->scope();
     i::FunctionLiteral* fun = nullptr;
-    if (inner_scope->declarations()->length() > 1) {
-      fun = inner_scope->declarations()->at(1)->AsFunctionDeclaration()->fun();
+    if (inner_scope->declarations()->length() > 0) {
+      fun = inner_scope->declarations()->at(0)->AsFunctionDeclaration()->fun();
     } else {
       // TODO(conradw): This path won't be hit until the other test cases can be
       // uncommented.

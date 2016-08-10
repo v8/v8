@@ -55,8 +55,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   VariableAllocationInfo function_name_info;
   VariableMode function_variable_mode;
   if (scope->is_function_scope() &&
-      scope->AsDeclarationScope()->function() != nullptr) {
-    Variable* var = scope->AsDeclarationScope()->function()->proxy()->var();
+      scope->AsDeclarationScope()->function_var() != nullptr) {
+    Variable* var = scope->AsDeclarationScope()->function_var();
     if (!var->is_used()) {
       function_name_info = UNUSED;
     } else if (var->IsContextSlot()) {
@@ -192,10 +192,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   // If present, add the function variable name and its index.
   DCHECK(index == scope_info->FunctionNameEntryIndex());
   if (has_function_name) {
-    int var_index =
-        scope->AsDeclarationScope()->function()->proxy()->var()->index();
+    int var_index = scope->AsDeclarationScope()->function_var()->index();
     scope_info->set(index++,
-                    *scope->AsDeclarationScope()->function()->proxy()->name());
+                    *scope->AsDeclarationScope()->function_var()->name());
     scope_info->set(index++, Smi::FromInt(var_index));
     DCHECK(function_name_info != CONTEXT ||
            var_index == scope_info->ContextLength() - 1);

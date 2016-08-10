@@ -689,19 +689,12 @@ class DeclarationScope : public Scope {
   // between this scope and the outer scope. (ECMA-262, 3rd., requires that
   // the name of named function literal is kept in an intermediate scope
   // in between this scope and the next outer scope.)
-  Variable* LookupFunctionVar(const AstRawString* name,
-                              AstNodeFactory* factory);
+  Variable* LookupFunctionVar(const AstRawString* name);
 
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
-  void DeclareFunctionVar(VariableDeclaration* declaration) {
-    DCHECK(is_function_scope());
-    // Handle implicit declaration of the function name in named function
-    // expressions before other declarations.
-    declarations()->InsertAt(0, declaration, zone());
-    function_ = declaration;
-  }
+  Variable* DeclareFunctionVar(const AstRawString* name);
 
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
@@ -735,7 +728,7 @@ class DeclarationScope : public Scope {
 
   // The variable holding the function literal for named function
   // literals, or NULL.  Only valid for function scopes.
-  VariableDeclaration* function() const {
+  Variable* function_var() const {
     DCHECK(is_function_scope());
     return function_;
   }
@@ -889,7 +882,7 @@ class DeclarationScope : public Scope {
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.
-  VariableDeclaration* function_;
+  Variable* function_;
   // new.target variable, function scopes only.
   Variable* new_target_;
   // Convenience variable; function scopes only.
