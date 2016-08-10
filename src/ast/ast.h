@@ -314,10 +314,7 @@ class Expression : public AstNode {
   // Symbols that cannot be parsed as array indices are considered property
   // names.  We do not treat symbols that can be array indexes as property
   // names because [] for string objects is handled only by keyed ICs.
-  // Produces the same result whether |deref_mode| is kAllowed or kDisallowed,
-  // although may be faster with kAllowed.
-  bool IsPropertyName(
-      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) const;
+  bool IsPropertyName() const;
 
   // True iff the expression is a class or function expression without
   // a syntactic name.
@@ -1196,15 +1193,11 @@ class SloppyBlockFunctionStatement final : public Statement {
 class Literal final : public Expression {
  public:
   // Returns true if literal represents a property name (i.e. cannot be parsed
-  // as array indices). Produces the same result whether |deref_mode| is
-  // kAllowed or kDisallowed, although may be faster with kAllowed.
-  bool IsPropertyName(HandleDereferenceMode deref_mode =
-                          HandleDereferenceMode::kAllowed) const {
-    return value_->IsPropertyName(deref_mode);
-  }
+  // as array indices).
+  bool IsPropertyName() const { return value_->IsPropertyName(); }
 
   Handle<String> AsPropertyName() {
-    DCHECK(IsPropertyName(HandleDereferenceMode::kDisallowed));
+    DCHECK(IsPropertyName());
     return Handle<String>::cast(value());
   }
 
@@ -1744,15 +1737,13 @@ class Property final : public Expression {
     return property_feedback_slot_;
   }
 
-  // Returns the properties assign type. Produces the same result whether
-  // |deref_mode| is kAllowed or kDisallowed, although may be faster with
-  // kAllowed.
+  // Returns the properties assign type.
   static LhsKind GetAssignType(
       Property* property,
       HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) {
     if (property == NULL) return VARIABLE;
     bool super_access = property->IsSuperAccess();
-    return (property->key()->IsPropertyName(deref_mode))
+    return (property->key()->IsPropertyName())
                ? (super_access ? NAMED_SUPER_PROPERTY : NAMED_PROPERTY)
                : (super_access ? KEYED_SUPER_PROPERTY : KEYED_PROPERTY);
   }

@@ -74,8 +74,8 @@ bool Expression::IsStringLiteral() const {
   return IsLiteral() && AsLiteral()->value()->IsString();
 }
 
-bool Expression::IsPropertyName(HandleDereferenceMode deref_mode) const {
-  return IsLiteral() && AsLiteral()->IsPropertyName(deref_mode);
+bool Expression::IsPropertyName() const {
+  return IsLiteral() && AsLiteral()->IsPropertyName();
 }
 
 bool Expression::IsNullLiteral() const {
@@ -933,7 +933,7 @@ Call::CallType Call::GetCallType(Isolate* isolate,
   Property* property = expression()->AsProperty();
   if (property != nullptr) {
     bool is_super = property->IsSuperAccess();
-    if (property->key()->IsPropertyName(deref_mode)) {
+    if (property->key()->IsPropertyName()) {
       return is_super ? NAMED_SUPER_PROPERTY_CALL : NAMED_PROPERTY_CALL;
     } else {
       return is_super ? KEYED_SUPER_PROPERTY_CALL : KEYED_PROPERTY_CALL;
