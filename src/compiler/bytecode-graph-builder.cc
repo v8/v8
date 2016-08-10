@@ -413,8 +413,9 @@ void BytecodeGraphBuilder::Environment::PrepareForLoopExit(Node* loop) {
                                          GetEffectDependency(), loop_exit);
   UpdateEffectDependency(effect_rename);
 
-  // Rename the current context.
-  context_ = graph()->NewNode(common()->LoopExitValue(), context_, loop_exit);
+  // TODO(jarin) We should also rename context here. However, uncoditional
+  // renaming confuses global object and native context specialization.
+  // We should only rename if the context is assigned in the loop.
 
   // Rename the environmnent values.
   for (size_t i = 0; i < values_.size(); i++) {
