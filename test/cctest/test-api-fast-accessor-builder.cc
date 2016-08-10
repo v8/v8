@@ -113,33 +113,40 @@ TEST(FastAccessor) {
   ExpectInt32("barf()", 124);                 // Call via warmed-up callsite.
 }
 
-
 void AddInternalFieldAccessor(v8::Isolate* isolate,
                               v8::Local<v8::Template> templ, const char* name,
-                              int field_no) {
+                              int field_no, bool useUncheckedLoader) {
   auto builder = v8::experimental::FastAccessorBuilder::New(isolate);
-  builder->ReturnValue(
-      builder->LoadInternalField(builder->GetReceiver(), field_no));
+
+  if (useUncheckedLoader) {
+    builder->ReturnValue(
+        builder->LoadInternalFieldUnchecked(builder->GetReceiver(), field_no));
+  } else {
+    builder->ReturnValue(
+        builder->LoadInternalField(builder->GetReceiver(), field_no));
+  }
+
   templ->SetAccessorProperty(v8_str(name),
                              v8::FunctionTemplate::NewWithFastHandler(
                                  isolate, NativePropertyAccessor, builder));
 }
 
-
-// "Fast" accessor that accesses an internal field.
-TEST(FastAccessorWithInternalField) {
+void checkLoadInternalField(bool useUncheckedLoader, bool emitDebugChecks) {
   // Crankshaft support for fast accessors is not implemented; crankshafted
   // code uses the slow accessor which breaks this test's expectations.
   v8::internal::FLAG_always_opt = false;
+
+  // De/activate debug checks.
+  v8::internal::FLAG_debug_code = emitDebugChecks;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::ObjectTemplate> foo = v8::ObjectTemplate::New(isolate);
   foo->SetInternalFieldCount(3);
-  AddInternalFieldAccessor(isolate, foo, "field0", 0);
-  AddInternalFieldAccessor(isolate, foo, "field1", 1);
-  AddInternalFieldAccessor(isolate, foo, "field2", 2);
+  AddInternalFieldAccessor(isolate, foo, "field0", 0, useUncheckedLoader);
+  AddInternalFieldAccessor(isolate, foo, "field1", 1, useUncheckedLoader);
+  AddInternalFieldAccessor(isolate, foo, "field2", 2, useUncheckedLoader);
 
   // Create an instance w/ 3 internal fields, put in a string, a Smi, nothing.
   v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
@@ -158,6 +165,15 @@ TEST(FastAccessorWithInternalField) {
   ExpectUndefined("field2()");
 }
 
+// "Fast" accessor that accesses an internal field.
+TEST(FastAccessorWithInternalField) { checkLoadInternalField(false, false); }
+
+// "Fast" accessor that accesses an internal field using the fast(er)
+// implementation of LoadInternalField.
+TEST(FastAccessorLoadInternalFieldUnchecked) {
+  checkLoadInternalField(true, false);
+  checkLoadInternalField(true, true);
+}
 
 // "Fast" accessor with control flow via ...OrReturnNull methods.
 TEST(FastAccessorOrReturnNull) {
