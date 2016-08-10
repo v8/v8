@@ -7,7 +7,7 @@
 
 #include "src/parsing/scanner.h"  // Only for Scanner::Location.
 #include "src/pending-compilation-error-handler.h"
-#include "src/zone.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +19,7 @@ class AstRawString;
 class ModuleDescriptor : public ZoneObject {
  public:
   explicit ModuleDescriptor(Zone* zone)
-      : exports_(1, zone), imports_(1, zone) {}
+      : exports_(1, zone), special_imports_(1, zone), regular_imports_(zone) {}
 
   // import x from "foo.js";
   // import {x} from "foo.js";
@@ -82,12 +82,23 @@ class ModuleDescriptor : public ZoneObject {
           module_request(nullptr) {}
   };
 
-  const ZoneList<const ModuleEntry*>& exports() { return exports_; }
-  const ZoneList<const ModuleEntry*>& imports() { return imports_; }
+  const ZoneList<const ModuleEntry*>& exports() const { return exports_; }
+
+  // Empty imports and namespace imports.
+  const ZoneList<const ModuleEntry*>& special_imports() const {
+    return special_imports_;
+  }
+
+  // All the remaining imports, indexed by local name.
+  const ZoneMap<const AstRawString*, const ModuleEntry*>& regular_imports()
+      const {
+    return regular_imports_;
+  }
 
  private:
   ZoneList<const ModuleEntry*> exports_;
-  ZoneList<const ModuleEntry*> imports_;
+  ZoneList<const ModuleEntry*> special_imports_;
+  ZoneMap<const AstRawString*, const ModuleEntry*> regular_imports_;
 };
 
 }  // namespace internal

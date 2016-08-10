@@ -5955,6 +5955,7 @@ TEST(ModuleParsingInternals) {
   CHECK_NULL(outer_scope->outer_scope());
   CHECK(module_scope->is_module_scope());
   i::ZoneList<i::Declaration*>* declarations = module_scope->declarations();
+  CHECK_EQ(13, declarations->length());
 
   CHECK(declarations->at(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
   CHECK(declarations->at(0)->proxy()->var()->mode() == i::LET);
@@ -6035,11 +6036,129 @@ TEST(ModuleParsingInternals) {
   CHECK(declarations->at(12)->proxy()->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK_EQ(13, declarations->length());
-
   i::ModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
-  // TODO(neis): Test more once we can inspect the imports/exports.
+
+  CHECK_EQ(11, descriptor->exports().length());
+
+  CHECK(descriptor->exports().at(0)->export_name->IsOneByteEqualTo("y"));
+  CHECK(descriptor->exports().at(0)->local_name->IsOneByteEqualTo("x"));
+  CHECK_NULL(descriptor->exports().at(0)->module_request);
+  CHECK_NULL(descriptor->exports().at(0)->import_name);
+
+  CHECK(descriptor->exports().at(1)->export_name->IsOneByteEqualTo("b"));
+  CHECK(descriptor->exports().at(1)->import_name->IsOneByteEqualTo("a"));
+  CHECK(descriptor->exports().at(1)->module_request->IsOneByteEqualTo("m.js"));
+  CHECK_NULL(descriptor->exports().at(1)->local_name);
+
+  CHECK(descriptor->exports().at(2)->module_request->IsOneByteEqualTo("p.js"));
+  CHECK_NULL(descriptor->exports().at(2)->local_name);
+  CHECK_NULL(descriptor->exports().at(2)->import_name);
+  CHECK_NULL(descriptor->exports().at(2)->export_name);
+
+  CHECK(descriptor->exports().at(3)->export_name->IsOneByteEqualTo("foo"));
+  CHECK(descriptor->exports().at(3)->local_name->IsOneByteEqualTo("foo"));
+  CHECK_NULL(descriptor->exports().at(3)->module_request);
+  CHECK_NULL(descriptor->exports().at(3)->import_name);
+
+  CHECK(descriptor->exports().at(4)->export_name->IsOneByteEqualTo("goo"));
+  CHECK(descriptor->exports().at(4)->local_name->IsOneByteEqualTo("goo"));
+  CHECK_NULL(descriptor->exports().at(4)->module_request);
+  CHECK_NULL(descriptor->exports().at(4)->import_name);
+
+  CHECK(descriptor->exports().at(5)->export_name->IsOneByteEqualTo("hoo"));
+  CHECK(descriptor->exports().at(5)->local_name->IsOneByteEqualTo("hoo"));
+  CHECK_NULL(descriptor->exports().at(5)->module_request);
+  CHECK_NULL(descriptor->exports().at(5)->import_name);
+
+  CHECK(descriptor->exports().at(6)->export_name->IsOneByteEqualTo("joo"));
+  CHECK(descriptor->exports().at(6)->local_name->IsOneByteEqualTo("joo"));
+  CHECK_NULL(descriptor->exports().at(6)->module_request);
+  CHECK_NULL(descriptor->exports().at(6)->import_name);
+
+  CHECK(descriptor->exports().at(7)->export_name->IsOneByteEqualTo("default"));
+  CHECK(descriptor->exports().at(7)->local_name->IsOneByteEqualTo("*default*"));
+  CHECK_NULL(descriptor->exports().at(7)->module_request);
+  CHECK_NULL(descriptor->exports().at(7)->import_name);
+
+  CHECK(descriptor->exports().at(8)->export_name->IsOneByteEqualTo("bb"));
+  CHECK(descriptor->exports().at(8)->local_name->IsOneByteEqualTo("aa"));
+  CHECK_NULL(descriptor->exports().at(8)->module_request);
+  CHECK_NULL(descriptor->exports().at(8)->import_name);
+
+  CHECK(descriptor->exports().at(9)->export_name->IsOneByteEqualTo("x"));
+  CHECK(descriptor->exports().at(9)->local_name->IsOneByteEqualTo("x"));
+  CHECK_NULL(descriptor->exports().at(9)->module_request);
+  CHECK_NULL(descriptor->exports().at(9)->import_name);
+
+  CHECK(descriptor->exports().at(10)->export_name->IsOneByteEqualTo("foob"));
+  CHECK(descriptor->exports().at(10)->local_name->IsOneByteEqualTo("foob"));
+  CHECK_NULL(descriptor->exports().at(10)->module_request);
+  CHECK_NULL(descriptor->exports().at(10)->import_name);
+
+  CHECK_EQ(3, descriptor->special_imports().length());
+
+  CHECK_NULL(descriptor->special_imports().at(0)->local_name);
+  CHECK_NULL(descriptor->special_imports().at(0)->export_name);
+  CHECK_NULL(descriptor->special_imports().at(0)->import_name);
+  CHECK(descriptor->special_imports().at(0)->module_request->IsOneByteEqualTo(
+      "q.js"));
+
+  CHECK(
+      descriptor->special_imports().at(1)->local_name->IsOneByteEqualTo("loo"));
+  CHECK_NULL(descriptor->special_imports().at(1)->export_name);
+  CHECK_NULL(descriptor->special_imports().at(1)->import_name);
+  CHECK(descriptor->special_imports().at(1)->module_request->IsOneByteEqualTo(
+      "bar.js"));
+
+  CHECK(descriptor->special_imports().at(2)->local_name->IsOneByteEqualTo(
+      "foob"));
+  CHECK_NULL(descriptor->special_imports().at(2)->export_name);
+  CHECK_NULL(descriptor->special_imports().at(2)->import_name);
+  CHECK(descriptor->special_imports().at(2)->module_request->IsOneByteEqualTo(
+      "bar.js"));
+
+  CHECK_EQ(4, descriptor->regular_imports().size());
+
+  CHECK_NULL(descriptor->regular_imports()
+                 .find(declarations->at(1)->proxy()->raw_name())
+                 ->second->export_name);
+  CHECK(descriptor->regular_imports()
+            .find(declarations->at(1)->proxy()->raw_name())
+            ->second->import_name->IsOneByteEqualTo("q"));
+  CHECK(descriptor->regular_imports()
+            .find(declarations->at(1)->proxy()->raw_name())
+            ->second->module_request->IsOneByteEqualTo("m.js"));
+
+  CHECK_NULL(descriptor->regular_imports()
+                 .find(declarations->at(2)->proxy()->raw_name())
+                 ->second->export_name);
+  CHECK(descriptor->regular_imports()
+            .find(declarations->at(2)->proxy()->raw_name())
+            ->second->import_name->IsOneByteEqualTo("default"));
+  CHECK(descriptor->regular_imports()
+            .find(declarations->at(2)->proxy()->raw_name())
+            ->second->module_request->IsOneByteEqualTo("n.js"));
+
+  CHECK_NULL(descriptor->regular_imports()
+                 .find(declarations->at(9)->proxy()->raw_name())
+                 ->second->export_name);
+  CHECK(descriptor->regular_imports()
+            .find(declarations->at(9)->proxy()->raw_name())
+            ->second->import_name->IsOneByteEqualTo("m"));
+  CHECK(descriptor->regular_imports()
+            .find(declarations->at(9)->proxy()->raw_name())
+            ->second->module_request->IsOneByteEqualTo("m.js"));
+
+  CHECK_NULL(descriptor->regular_imports()
+                 .find(declarations->at(10)->proxy()->raw_name())
+                 ->second->export_name);
+  CHECK(descriptor->regular_imports()
+            .find(declarations->at(10)->proxy()->raw_name())
+            ->second->import_name->IsOneByteEqualTo("aa"));
+  CHECK(descriptor->regular_imports()
+            .find(declarations->at(10)->proxy()->raw_name())
+            ->second->module_request->IsOneByteEqualTo("m.js"));
 }
 
 

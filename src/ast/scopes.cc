@@ -1702,13 +1702,13 @@ void DeclarationScope::AllocateLocals(AstValueFactory* ast_value_factory) {
 }
 
 void DeclarationScope::AllocateModuleVariables() {
-  for (auto entry : module()->imports()) {
-    if (entry->local_name == nullptr) continue;
-    if (entry->import_name == nullptr) continue;  // Namespace import.
-    Variable* var = LookupLocal(entry->local_name);
+  for (auto it = module()->regular_imports().begin();
+       it != module()->regular_imports().end(); ++it) {
+    Variable* var = LookupLocal(it->second->local_name);
     // TODO(neis): Use a meaningful index.
     var->AllocateTo(VariableLocation::MODULE, 42);
   }
+
   for (auto entry : module()->exports()) {
     if (entry->local_name == nullptr) continue;
     Variable* var = LookupLocal(entry->local_name);

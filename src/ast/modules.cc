@@ -9,7 +9,6 @@
 namespace v8 {
 namespace internal {
 
-
 void ModuleDescriptor::AddImport(
     const AstRawString* import_name, const AstRawString* local_name,
     const AstRawString* module_request, Scanner::Location loc, Zone* zone) {
@@ -20,7 +19,9 @@ void ModuleDescriptor::AddImport(
   entry->local_name = local_name;
   entry->import_name = import_name;
   entry->module_request = module_request;
-  imports_.Add(entry, zone);
+  regular_imports_.insert(std::make_pair(entry->local_name, entry));
+  // We don't care if there's already an entry for this local name, as in that
+  // case we will report an error when declaring the variable.
 }
 
 
@@ -32,7 +33,7 @@ void ModuleDescriptor::AddStarImport(
   ModuleEntry* entry = new (zone) ModuleEntry(loc);
   entry->local_name = local_name;
   entry->module_request = module_request;
-  imports_.Add(entry, zone);
+  special_imports_.Add(entry, zone);
 }
 
 
@@ -41,7 +42,7 @@ void ModuleDescriptor::AddEmptyImport(
   DCHECK_NOT_NULL(module_request);
   ModuleEntry* entry = new (zone) ModuleEntry(loc);
   entry->module_request = module_request;
-  imports_.Add(entry, zone);
+  special_imports_.Add(entry, zone);
 }
 
 
