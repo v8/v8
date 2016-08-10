@@ -478,7 +478,8 @@ TEST(LargeObjectSpace) {
   CHECK(lo->AllocateRaw(lo_size, NOT_EXECUTABLE).IsRetry());
 }
 
-TEST(SizeOfInitialHeap) {
+
+TEST(SizeOfFirstPageIsLargeEnough) {
   if (i::FLAG_always_opt) return;
   // Bootstrapping without a snapshot causes more allocations.
   CcTest::InitializeVM();
@@ -494,31 +495,22 @@ TEST(SizeOfInitialHeap) {
     return;
   }
 
-  // The limit for each space for an empty isolate containing just the
-  // snapshot.
-  const size_t kMaxInitialSizePerSpace = 1536 * KB;  // 1.5MB
+  // If this test fails due to enabling experimental natives that are not part
+  // of the snapshot, we may need to adjust CalculateFirstPageSizes.
 
-  // Freshly initialized VM gets by with the snapshot size (which is below
-  // kMaxInitialSizePerSpace per space).
-  Heap* heap = isolate->heap();
-  int page_count[LAST_PAGED_SPACE + 1];
+  // Freshly initialized VM gets by with one page per space.
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
     if (i == CODE_SPACE && i::FLAG_debug_code) continue;
-
-    page_count[i] = heap->paged_space(i)->CountTotalPages();
-    // Check that the initial heap is also below the limit.
-    CHECK_LT(static_cast<size_t>(heap->paged_space(i)->CommittedMemory()),
-             kMaxInitialSizePerSpace);
+    CHECK_EQ(1, isolate->heap()->paged_space(i)->CountTotalPages());
   }
 
-  // Executing the empty script gets by with the same number of pages, i.e.,
-  // requires no extra space.
+  // Executing the empty script gets by with one page per space.
   CompileRun("/*empty*/");
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
     if (i == CODE_SPACE && i::FLAG_debug_code) continue;
-    CHECK_EQ(page_count[i], isolate->heap()->paged_space(i)->CountTotalPages());
+    CHECK_EQ(1, isolate->heap()->paged_space(i)->CountTotalPages());
   }
 
   // No large objects required to perform the above steps.
