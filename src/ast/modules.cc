@@ -80,9 +80,26 @@ void ModuleDescriptor::AddStarExport(
   exports_.Add(entry, zone);
 }
 
+void ModuleDescriptor::MakeIndirectExportsExplicit() {
+  for (auto entry : exports_) {
+    if (entry->export_name == nullptr) continue;
+    if (entry->import_name != nullptr) continue;
+    DCHECK_NOT_NULL(entry->local_name);
+    auto it = regular_imports_.find(entry->local_name);
+    if (it != regular_imports_.end()) {
+      // Found an indirect export.
+      DCHECK_NOT_NULL(it->second->module_request);
+      DCHECK_NOT_NULL(it->second->import_name);
+      entry->import_name = it->second->import_name;
+      entry->module_request = it->second->module_request;
+      entry->local_name = nullptr;
+    }
+  }
+}
+
 bool ModuleDescriptor::Validate(DeclarationScope* module_scope,
                                 PendingCompilationErrorHandler* error_handler,
-                                Zone* zone) const {
+                                Zone* zone) {
   DCHECK(module_scope->is_module_scope());
   DCHECK_EQ(this, module_scope->module());
   DCHECK_NOT_NULL(error_handler);
@@ -120,6 +137,7 @@ bool ModuleDescriptor::Validate(DeclarationScope* module_scope,
     }
   }
 
+  MakeIndirectExportsExplicit();
   return true;
 }
 
