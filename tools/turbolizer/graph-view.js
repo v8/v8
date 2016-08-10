@@ -34,7 +34,7 @@ class GraphView extends View {
         broker.clear(selectionHandler);
       },
       select: function(items, selected) {
-        var ranges = [];
+        var locations = [];
         for (var d of items) {
           if (selected) {
             d.classList.add("selected");
@@ -42,22 +42,22 @@ class GraphView extends View {
             d.classList.remove("selected");
           }
           var data = d.__data__;
-          ranges.push([data.pos, data.pos + 1, data.id]);
+          locations.push({ pos_start: data.pos, pos_end: data.pos + 1, node_id: data.id});
         }
-        broker.select(selectionHandler, ranges, selected);
+        broker.select(selectionHandler, locations, selected);
       },
       selectionDifference: function(span1, inclusive1, span2, inclusive2) {
         // Should not be called
       },
-      brokeredSelect: function(ranges, selected) {
+      brokeredSelect: function(locations, selected) {
         var test = [].entries().next();
         var selection = graph.nodes
           .filter(function(n) {
             var pos = n.pos;
-            for (var range of ranges) {
-              var start = range[0];
-              var end = range[1];
-              var id = range[2];
+            for (var location of locations) {
+              var start = location.pos_start;
+              var end = location.pos_end;
+              var id = location.node_id;
               if (end != undefined) {
                 if (pos >= start && pos < end) {
                   return true;
@@ -240,6 +240,7 @@ class GraphView extends View {
     if (rememberedSelection != null) {
       this.attachSelection(rememberedSelection);
       this.connectVisibleSelectedNodes();
+      this.viewSelection();
     }
     this.updateGraphVisibility();
   }

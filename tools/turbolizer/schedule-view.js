@@ -5,7 +5,7 @@
 "use strict";
 
 class ScheduleView extends TextView {
-  constructor(id, broker, nodePositionMap) {
+  constructor(id, broker) {
     super(id, broker, null, false);
     let view = this;
     let BLOCK_STYLE = {
@@ -103,7 +103,6 @@ class ScheduleView extends TextView {
       ]
     ];
     this.setPatterns(patterns);
-    this.setNodePositionMap(nodePositionMap);
   }
 
   initializeContent(data, rememberedSelection) {
@@ -113,14 +112,16 @@ class ScheduleView extends TextView {
     for (var id of rememberedSelection) {
       locations.push({ node_id : id });
     }
-    this.selectLocations(locations, true, false);
+    this.selectLocations(locations, true, true);
   }
 
   detachSelection() {
     var selection = this.selection.detachSelection();
     var s = new Set();
     for (var i of selection) {
-      s.add(i.location.node_id);
+      if (i.location.node_id != undefined && i.location.node_id > 0) {
+        s.add(i.location.node_id);
+      }
     };
     return s;
   }

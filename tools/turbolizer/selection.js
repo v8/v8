@@ -40,6 +40,7 @@ Selection.prototype.select = function(s, isSelected) {
       }
       this.selection.add(i);
     }
+    handler.select(this.selection, true);
   } else {
     let unselectSet = new Set();
     for (let i of s) {
@@ -48,8 +49,8 @@ Selection.prototype.select = function(s, isSelected) {
         this.selection.delete(i);
       }
     }
+    handler.select(unselectSet, false);
   }
-  handler.select(this.selection, isSelected);
 }
 
 

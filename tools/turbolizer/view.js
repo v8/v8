@@ -9,7 +9,6 @@ class View {
     this.divElement = d3.select("#" + id);
     this.divNode = this.divElement[0][0];
     this.parentNode = this.divNode.parentNode;
-    this.hide();
   }
 
   isScrollable() {

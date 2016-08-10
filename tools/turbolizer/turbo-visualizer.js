@@ -170,9 +170,10 @@ document.onload = (function(d3){
 
             hideCurrentPhase();
 
+            selectionBroker.setNodePositionMap(jsonObj.nodePositions);
+
             sourceView.initializeCode(jsonObj.source, jsonObj.sourcePosition);
-            disassemblyView.initializeCode(jsonObj.source, jsonObj.sourcePosition);
-            schedule.setNodePositionMap(jsonObj.nodePositions);
+            disassemblyView.initializeCode(jsonObj.source);
 
             var selectMenu = document.getElementById('display-selector');
             var disassemblyPhase = null;
@@ -195,7 +196,6 @@ document.onload = (function(d3){
               eventMenu.add(optionElement, null);
             }
             disassemblyView.initializePerfProfile(jsonObj.eventCounts);
-            disassemblyView.setNodePositionMap(jsonObj.nodePositions);
             disassemblyView.show(disassemblyPhase.data, null);
 
             var initialPhaseIndex = +window.sessionStorage.getItem("lastSelectedPhase");

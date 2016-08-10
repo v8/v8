@@ -8,9 +8,7 @@ class TextView extends View {
   constructor(id, broker, patterns, allowSpanSelection) {
     super(id, broker);
     let view = this;
-    view.sortedPositionList = [];
-    view.nodePositionMap = [];
-    view.positionNodeMap = [];
+    view.hide();
     view.textListNode = view.divNode.getElementsByTagName('ul')[0];
     view.fillerSvgElement = view.divElement.append("svg").attr('version','1.1').attr("width", "0");
     view.patterns = patterns;
@@ -29,13 +27,12 @@ class TextView extends View {
           }
         }
         broker.clear(selectionHandler);
-        broker.select(selectionHandler, view.getRanges(items), selected);
+        broker.select(selectionHandler, view.getLocations(items), selected);
       },
       selectionDifference: function(span1, inclusive1, span2, inclusive2) {
         return null;
       },
-      brokeredSelect: function(ranges, selected) {
-        let locations = view.rangesToLocations(ranges);
+      brokeredSelect: function(locations, selected) {
         view.selectLocations(locations, selected, true);
       },
       brokeredClear: function() {
@@ -58,36 +55,6 @@ class TextView extends View {
     }
   }
 
-  rangeToLocation(range) {
-    return range;
-  }
-
-  rangesToLocations(ranges) {
-    let view = this;
-    let nodes = new Set();
-    let result = [];
-    for (let range of ranges) {
-      let start = range[0];
-      let end = range[1];
-      let block_id = range[3];
-      let location = { pos_start: start, pos_end: end, block_id: block_id };
-      if (range[2] !== null && range[2] != -1) {
-        location.node_id = range[2];
-        if (range[0] == -1 && range[1] == -1) {
-          location.pos_start = view.nodePositionMap[location.node_id];
-          location.pos_end = location.pos_start + 1;
-        }
-      } else {
-        if (range[0] != undefined) {
-          location.pos_start = range[0];
-          location.pos_end = range[1];
-        }
-      }
-      result.push(location);
-    }
-    return result;
-  }
-
   sameLocation(l1, l2) {
     let view = this;
     if (l1.block_id != undefined && l2.block_id != undefined &&
@@ -102,7 +69,7 @@ class TextView extends View {
     let node1 = l1.node_id;
     let node2 = l2.node_id;
 
-    if (node1 === undefined && node2 == undefined) {
+    if (node1 === undefined || node2 == undefined) {
       if (l1.pos_start === undefined || l2.pos_start == undefined) {
         return false;
       }
@@ -116,54 +83,7 @@ class TextView extends View {
       }
     }
 
-    if (node1 === undefined) {
-      let lower = lowerBound(view.positionNodeMap, l1.pos_start, undefined, function(a, b) {
-        var node = a[b];
-        return view.nodePositionMap[node];
-      } );
-      while (++lower < view.positionNodeMap.length &&
-             view.nodePositionMap[view.positionNodeMap[lower]] < l1.pos_end) {
-        if (view.positionNodeMap[lower] == node2) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    if (node2 === undefined) {
-      let lower = lowerBound(view.positionNodeMap, l2.pos_start, undefined, function(a, b) {
-        var node = a[b];
-        return view.nodePositionMap[node];
-      } );
-      while (++lower < view.positionNodeMap.length &&
-             view.nodePositionMap[view.positionNodeMap[lower]] < l2.pos_end) {
-        if (view.positionNodeMap[lower] == node1) {
-          return true;
-        }
-      }
-      return false;
-    }
-
     return l1.node_id == l2.node_id;
-  }
-
-  setNodePositionMap(map) {
-    let view = this;
-    view.nodePositionMap = map;
-    view.positionNodeMap = [];
-    view.sortedPositionList = [];
-    let next = 0;
-    for (let i in view.nodePositionMap) {
-      view.sortedPositionList[next] = Number(view.nodePositionMap[i]);
-      view.positionNodeMap[next++] = i;
-    }
-    view.sortedPositionList = sortUnique(view.sortedPositionList,
-                                         function(a,b) { return a - b; });
-    this.positionNodeMap.sort(function(a,b) {
-      let result = view.nodePositionMap[a] - view.nodePositionMap[b];
-      if (result != 0) return result;
-      return a - b;
-    });
   }
 
   selectLocations(locations, selected, makeVisible) {
@@ -180,39 +100,12 @@ class TextView extends View {
     view.selectCommon(s, selected, makeVisible);
   }
 
-  getRanges(items) {
+  getLocations(items) {
     let result = [];
     let lastObject = null;
     for (let i of items) {
       if (i.location) {
-        let location = i.location;
-        let start = -1;
-        let end = -1;
-        let node_id = -1;
-        let block_id = -1;
-        if (location.node_id !== undefined) {
-          node_id = location.node_id;
-        }
-        if (location.block_id !== undefined) {
-          block_id = location.block_id;
-        }
-        if (location.pos_start !== undefined) {
-          start = location.pos_start;
-          end = location.pos_end;
-        } else {
-          if (this.nodePositionMap && this.nodePositionMap[node_id]) {
-            start = this.nodePositionMap[node_id];
-            end = start + 1;
-          }
-        }
-        if (lastObject == null ||
-            (lastObject[2] != node_id ||
-             lastObject[0] != start ||
-             lastObject[1] != end ||
-             lastObject[3] != block_id)) {
-          lastObject = [start, end, node_id, block_id];
-          result.push(lastObject);
-        }
+        result.push(i.location);
       }
     }
     return result;
@@ -304,13 +197,13 @@ class TextView extends View {
         }
       }
     } else if (typeof s[Symbol.iterator] === 'function') {
-      for (let i of s) {
-        if (firstSelect) {
+      if (firstSelect) {
+        for (let i of s) {
           makeContainerPosVisible(view.parentNode, i.offsetTop);
-          firstSelect = false;
+          break;
         }
-        view.selection.select(i, selected);
       }
+      view.selection.select(s, selected);
     } else {
       if (firstSelect) {
         makeContainerPosVisible(view.parentNode, s.offsetTop);

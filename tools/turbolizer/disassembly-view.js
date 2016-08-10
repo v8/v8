@@ -5,7 +5,7 @@
 "use strict";
 
 class DisassemblyView extends TextView {
-  constructor(id, broker, sortedPositionList) {
+  constructor(id, broker) {
     super(id, broker, null, false);
 
     let view = this;
@@ -40,9 +40,16 @@ class DisassemblyView extends TextView {
     let OPCODE_STYLE = {
       css: 'kwd',
       location: function(text) {
-        return {
-          address: ADDRESS_STYLE.last_address
-        };
+        if (BLOCK_HEADER_STYLE.block_id != undefined) {
+          return {
+            address: ADDRESS_STYLE.last_address,
+            block_id: BLOCK_HEADER_STYLE.block_id
+          };
+        } else {
+          return {
+            address: ADDRESS_STYLE.last_address
+          };
+        }
       }
     };
     const BLOCK_HEADER_STYLE = {
