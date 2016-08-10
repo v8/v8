@@ -19212,6 +19212,7 @@ int JSGeneratorObject::source_position() const {
   int code_offset;
   if (function()->shared()->HasBytecodeArray()) {
     // New-style generators.
+    DCHECK(!function()->shared()->HasBaselineCode());
     code_offset = Smi::cast(input_or_debug_pos())->value();
     // The stored bytecode offset is relative to a different base than what
     // is used in the source position table, hence the subtraction.
@@ -19219,6 +19220,7 @@ int JSGeneratorObject::source_position() const {
     code = AbstractCode::cast(function()->shared()->bytecode_array());
   } else {
     // Old-style generators.
+    DCHECK(function()->shared()->HasBaselineCode());
     code_offset = continuation();
     CHECK(0 <= code_offset);
     CHECK(code_offset < function()->code()->instruction_size());
