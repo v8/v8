@@ -63,7 +63,7 @@ var Node = {
   },
   getDisplayLabel: function() {
     var result = this.id + ":" + this.label;
-    if (result.length > 30) {
+    if (result.length > 40) {
       return this.id + ":" + this.opcode;
     } else  {
       return result;
