@@ -163,9 +163,6 @@ define COMPILATION_TYPE_HOST = 0;
 define COMPILATION_TYPE_EVAL = 1;
 define COMPILATION_TYPE_JSON = 2;
 
-# Matches Messages::kNoLineNumberInfo from v8.h
-define kNoLineNumberInfo = 0;
-
 # Must match PropertyFilter in property-details.h
 define PROPERTY_FILTER_NONE = 0;
 define PROPERTY_FILTER_ONLY_ENUMERABLE = 2;

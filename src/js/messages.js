@@ -73,43 +73,4 @@ utils.SetUpLockedPrototype(Script, [
   ]
 );
 
-// -------------------------------------------------------------------
-// Message
-
-function GetLineNumber(message) {
-  var start_position = %MessageGetStartPosition(message);
-  if (start_position == -1) return kNoLineNumberInfo;
-  var script = %MessageGetScript(message);
-  var location = script.locationFromPosition(start_position, true);
-  if (location == null) return kNoLineNumberInfo;
-  return location.line + 1;
-}
-
-
-//Returns the offset of the given position within the containing line.
-function GetColumnNumber(message) {
-  var script = %MessageGetScript(message);
-  var start_position = %MessageGetStartPosition(message);
-  var location = script.locationFromPosition(start_position, true);
-  if (location == null) return -1;
-  return location.column;
-}
-
-
-// Returns the source code line containing the given source
-// position, or the empty string if the position is invalid.
-function GetSourceLine(message) {
-  var script = %MessageGetScript(message);
-  var start_position = %MessageGetStartPosition(message);
-  var location = script.locationFromPosition(start_position, true);
-  if (location == null) return "";
-  return location.sourceText;
-}
-
-%InstallToContext([
-  "message_get_column_number", GetColumnNumber,
-  "message_get_line_number", GetLineNumber,
-  "message_get_source_line", GetSourceLine,
-]);
-
 });

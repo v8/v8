@@ -368,22 +368,6 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MessageGetStartPosition) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
-  return Smi::FromInt(message->start_position());
-}
-
-
-RUNTIME_FUNCTION(Runtime_MessageGetScript) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
-  return message->script();
-}
-
-
 RUNTIME_FUNCTION(Runtime_IS_VAR) {
   UNREACHABLE();  // implemented as macro in the parser
   return NULL;
