@@ -729,52 +729,25 @@ TEST_F(MachineOperatorReducerTest, ReduceToWord32RorWithParameters) {
   EXPECT_EQ(reduction2.replacement(), node2);
   EXPECT_THAT(reduction2.replacement(), IsWord32Ror(value, sub));
 
-  // (x << y) ^ (x >>> (32 - y)) => x ror (32 - y)
-  Node* node3 = graph()->NewNode(machine()->Word32Xor(), shl_l, shr_l);
-  Reduction reduction3 = Reduce(node3);
-  EXPECT_TRUE(reduction3.Changed());
-  EXPECT_EQ(reduction3.replacement(), node3);
-  EXPECT_THAT(reduction3.replacement(), IsWord32Ror(value, sub));
-
-  // (x >>> (32 - y)) ^ (x << y) => x ror (32 - y)
-  Node* node4 = graph()->NewNode(machine()->Word32Xor(), shr_l, shl_l);
-  Reduction reduction4 = Reduce(node4);
-  EXPECT_TRUE(reduction4.Changed());
-  EXPECT_EQ(reduction4.replacement(), node4);
-  EXPECT_THAT(reduction4.replacement(), IsWord32Ror(value, sub));
-
   // Testing rotate right.
   Node* shl_r = graph()->NewNode(machine()->Word32Shl(), value, sub);
   Node* shr_r = graph()->NewNode(machine()->Word32Shr(), value, shift);
 
   // (x << (32 - y)) | (x >>> y) => x ror y
-  Node* node5 = graph()->NewNode(machine()->Word32Or(), shl_r, shr_r);
-  Reduction reduction5 = Reduce(node5);
-  EXPECT_TRUE(reduction5.Changed());
-  EXPECT_EQ(reduction5.replacement(), node5);
-  EXPECT_THAT(reduction5.replacement(), IsWord32Ror(value, shift));
+  Node* node3 = graph()->NewNode(machine()->Word32Or(), shl_r, shr_r);
+  Reduction reduction3 = Reduce(node3);
+  EXPECT_TRUE(reduction3.Changed());
+  EXPECT_EQ(reduction3.replacement(), node3);
+  EXPECT_THAT(reduction3.replacement(), IsWord32Ror(value, shift));
 
   // (x >>> y) | (x << (32 - y)) => x ror y
-  Node* node6 = graph()->NewNode(machine()->Word32Or(), shr_r, shl_r);
-  Reduction reduction6 = Reduce(node6);
-  EXPECT_TRUE(reduction6.Changed());
-  EXPECT_EQ(reduction6.replacement(), node6);
-  EXPECT_THAT(reduction6.replacement(), IsWord32Ror(value, shift));
-
-  // (x << (32 - y)) ^ (x >>> y) => x ror y
-  Node* node7 = graph()->NewNode(machine()->Word32Xor(), shl_r, shr_r);
-  Reduction reduction7 = Reduce(node7);
-  EXPECT_TRUE(reduction7.Changed());
-  EXPECT_EQ(reduction7.replacement(), node7);
-  EXPECT_THAT(reduction7.replacement(), IsWord32Ror(value, shift));
-
-  // (x >>> y) ^ (x << (32 - y)) => x ror y
-  Node* node8 = graph()->NewNode(machine()->Word32Xor(), shr_r, shl_r);
-  Reduction reduction8 = Reduce(node8);
-  EXPECT_TRUE(reduction8.Changed());
-  EXPECT_EQ(reduction8.replacement(), node8);
-  EXPECT_THAT(reduction8.replacement(), IsWord32Ror(value, shift));
+  Node* node4 = graph()->NewNode(machine()->Word32Or(), shr_r, shl_r);
+  Reduction reduction4 = Reduce(node4);
+  EXPECT_TRUE(reduction4.Changed());
+  EXPECT_EQ(reduction4.replacement(), node4);
+  EXPECT_THAT(reduction4.replacement(), IsWord32Ror(value, shift));
 }
+
 
 TEST_F(MachineOperatorReducerTest, ReduceToWord32RorWithConstant) {
   Node* value = Parameter(0);
