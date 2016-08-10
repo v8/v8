@@ -136,3 +136,30 @@ assertEquals("\u{10CC0}", "\u{10C80}".toLocaleLowerCase());
 assertEquals("\u{10C80}", "\u{10CC0}".toLocaleUpperCase(["tr"]));
 assertEquals("\u{10C80}", "\u{10CC0}".toLocaleUpperCase(["tr"]));
 assertEquals("\u{10CC0}", "\u{10C80}".toLocaleLowerCase());
+
+// If the result of case mapping is longer than the max string length
+// (1<<28 - 16), it should throw a range error instead of crashing.
+var invalidValues = [
+  { c: "\u0390", opType: 0 },
+  { c: "ß", opType: 0 },
+  { c: "\uFB01", opType: 0 }, // fi ligature
+  { c: "\uFB04", opType: 0 }, // ffl ligature
+  { c: "\u0390", opType: 1, locale: "und" },
+  { c: "\u00CC", opType: 2, locale: "lt" },
+  { c: "\u0130", opType: 2, locale: "en" },
+];
+
+for (var {c, opType, locale} of invalidValues) {
+  var s = c.repeat(1<<27);
+  switch (opType) {
+    case 0:
+      assertThrows(() => s.toUpperCase(), RangeError);
+      break;
+    case 1:
+      assertThrows(() => s.toLocaleUpperCase(locale), RangeError);
+      break;
+    case 2:
+      assertThrows(() => s.toLocaleLowerCase(locale), RangeError);
+      break;
+  }
+}
