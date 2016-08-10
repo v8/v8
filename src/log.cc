@@ -645,15 +645,9 @@ class Ticker: public sampler::Sampler {
 
   void SampleStack(const v8::RegisterState& state) override {
     if (!profiler_) return;
-#if defined(USE_SIMULATOR)
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate());
-    v8::RegisterState regs;
-    if (!SimulatorHelper::FillRegisters(i_isolate, &regs)) return;
-#else
-    const v8::RegisterState& regs = state;
-#endif
-    v8::TickSample sample;
-    sample.Init(isolate(), regs, v8::TickSample::kIncludeCEntryFrame, true);
+    Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
+    TickSample sample;
+    sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);
   }
 
