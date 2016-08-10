@@ -1119,8 +1119,6 @@ v8_source_set("v8_base") {
     "src/compiler/scheduler.h",
     "src/compiler/select-lowering.cc",
     "src/compiler/select-lowering.h",
-    "src/compiler/simd-lowering.cc",
-    "src/compiler/simd-lowering.h",
     "src/compiler/simplified-lowering.cc",
     "src/compiler/simplified-lowering.h",
     "src/compiler/simplified-operator-reducer.cc",
