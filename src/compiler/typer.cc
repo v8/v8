@@ -1537,8 +1537,14 @@ Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
 }
 
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {
-  // TODO(bmeurer): We could do better here based on the limit.
-  return Type::Unsigned31();
+  Type* index = Operand(node, 0);
+  Type* length = Operand(node, 1);
+  index = Type::Intersect(index, Type::Integral32(), zone());
+  if (!index->IsInhabited() || !length->IsInhabited()) return Type::None();
+  double min = std::max(index->Min(), 0.0);
+  double max = std::min(index->Max(), length->Min() - 1);
+  if (max < min) return Type::None();
+  return Type::Range(min, max, zone());
 }
 
 Type* Typer::Visitor::TypeCheckMaps(Node* node) {
