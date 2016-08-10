@@ -490,7 +490,7 @@ DEFINE_BOOL(turbo_instruction_scheduling, false,
             "enable instruction scheduling in TurboFan")
 DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
             "randomly schedule instructions to stress dependency tracking")
-DEFINE_BOOL(turbo_store_elimination, true,
+DEFINE_BOOL(turbo_store_elimination, false,
             "enable store-store elimination in TurboFan")
 
 // Flags to help platform porters
