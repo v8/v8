@@ -2228,6 +2228,18 @@ static Address AlignOldSpace(AllocationAlignment alignment, int offset) {
 // Test the case where allocation must be done from the free list, so filler
 // may precede or follow the object.
 TEST(TestAlignedOverAllocation) {
+  Heap* heap = CcTest::heap();
+  // Test checks for fillers before and behind objects and requires a fresh
+  // page and empty free list.
+  heap::AbandonCurrentlyFreeMemory(heap->old_space());
+  // Allocate a dummy object to properly set up the linear allocation info.
+  AllocationResult dummy =
+      heap->old_space()->AllocateRawUnaligned(kPointerSize);
+  CHECK(!dummy.IsRetry());
+  heap->CreateFillerObjectAt(
+      HeapObject::cast(dummy.ToObjectChecked())->address(), kPointerSize,
+      ClearRecordedSlots::kNo);
+
   // Double misalignment is 4 on 32-bit platforms, 0 on 64-bit ones.
   const intptr_t double_misalignment = kDoubleSize - kPointerSize;
   Address start;
@@ -3611,8 +3623,12 @@ TEST(ReleaseOverReservedPages) {
   i::FLAG_page_promotion = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  // If there's snapshot available, we don't know whether 20 small arrays will
+  // fit on the initial pages.
+  if (!isolate->snapshot_available()) return;
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
+
   v8::HandleScope scope(CcTest::isolate());
   static const int number_of_test_pages = 20;
 
@@ -3642,14 +3658,8 @@ TEST(ReleaseOverReservedPages) {
                           "triggered by test 2");
   CHECK_GE(overall_page_count, old_space->CountTotalPages() * 2);
 
-  // Triggering a last-resort GC should cause all pages to be released to the
-  // OS so that other processes can seize the memory.  If we get a failure here
-  // where there are 2 pages left instead of 1, then we should increase the
-  // size of the first page a little in SizeOfFirstPage in spaces.cc.  The
-  // first page should be small in order to reduce memory used when the VM
-  // boots, but if the 20 small arrays don't fit on the first page then that's
-  // an indication that it is too small.
   heap->CollectAllAvailableGarbage("triggered really hard");
+  // Triggering a last-resort GC should release all additional pages.
   CHECK_EQ(initial_page_count, old_space->CountTotalPages());
 }
 

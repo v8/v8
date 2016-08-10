@@ -4712,6 +4712,7 @@ class FreeSpace: public HeapObject {
   // Size is smi tagged when it is stored.
   static const int kSizeOffset = HeapObject::kHeaderSize;
   static const int kNextOffset = POINTER_SIZE_ALIGN(kSizeOffset + kPointerSize);
+  static const int kSize = kNextOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeSpace);
@@ -10466,12 +10467,12 @@ class JSArray: public JSObject {
   static const int kLengthOffset = JSObject::kHeaderSize;
   static const int kSize = kLengthOffset + kPointerSize;
 
-  // 600 * KB is the Page::kMaxRegularHeapObjectSize defined in spaces.h which
+  // 300 * KB is the Page::kMaxRegularHeapObjectSize defined in spaces.h which
   // we do not want to include in objects.h
   // Note that Page::kMaxRegularHeapObjectSize has to be in sync with
   // kInitialMaxFastElementArray which is checked in a DCHECK in heap.cc.
   static const int kInitialMaxFastElementArray =
-      (600 * KB - FixedArray::kHeaderSize - kSize - AllocationMemento::kSize) /
+      (300 * KB - FixedArray::kHeaderSize - kSize - AllocationMemento::kSize) /
       kPointerSize;
 
  private:
