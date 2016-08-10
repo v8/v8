@@ -397,8 +397,8 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
 bool AstValueFactory::AstRawStringCompare(void* a, void* b) {
   const AstRawString* lhs = static_cast<AstRawString*>(a);
   const AstRawString* rhs = static_cast<AstRawString*>(b);
+  DCHECK_EQ(lhs->hash(), rhs->hash());
   if (lhs->length() != rhs->length()) return false;
-  if (lhs->hash() != rhs->hash()) return false;
   const unsigned char* l = lhs->raw_data();
   const unsigned char* r = rhs->raw_data();
   size_t length = rhs->length();
