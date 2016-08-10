@@ -77,6 +77,11 @@ class SerializerReference {
         ChunkOffsetBits::encode(chunk_offset >> kObjectAlignmentBits));
   }
 
+  static SerializerReference MapReference(uint32_t index) {
+    return SerializerReference(SpaceBits::encode(MAP_SPACE) |
+                               ValueIndexBits::encode(index));
+  }
+
   static SerializerReference LargeObjectReference(uint32_t index) {
     return SerializerReference(SpaceBits::encode(LO_SPACE) |
                                ValueIndexBits::encode(index));
@@ -107,10 +112,14 @@ class SerializerReference {
     return ChunkOffsetBits::decode(bitfield_) << kObjectAlignmentBits;
   }
 
+  uint32_t map_index() const {
+    DCHECK(is_back_reference());
+    return ValueIndexBits::decode(bitfield_);
+  }
+
   uint32_t large_object_index() const {
     DCHECK(is_back_reference());
-    DCHECK(chunk_index() == 0);
-    return ChunkOffsetBits::decode(bitfield_);
+    return ValueIndexBits::decode(bitfield_);
   }
 
   uint32_t chunk_index() const {

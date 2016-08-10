@@ -1119,8 +1119,7 @@ static void VerifyStringTable(Heap* heap) {
 }
 #endif  // VERIFY_HEAP
 
-
-bool Heap::ReserveSpace(Reservation* reservations) {
+bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
   bool gc_performed = true;
   int counter = 0;
   static const int kThreshold = 20;
@@ -1132,7 +1131,30 @@ bool Heap::ReserveSpace(Reservation* reservations) {
       DCHECK_LE(1, reservation->length());
       if (reservation->at(0).size == 0) continue;
       bool perform_gc = false;
-      if (space == LO_SPACE) {
+      if (space == MAP_SPACE) {
+        // We allocate each map individually to avoid fragmentation.
+        maps->Clear();
+        DCHECK_EQ(1, reservation->length());
+        int num_maps = reservation->at(0).size / Map::kSize;
+        for (int i = 0; i < num_maps; i++) {
+          // The deserializer will update the skip list.
+          AllocationResult allocation = map_space()->AllocateRawUnaligned(
+              Map::kSize, PagedSpace::IGNORE_SKIP_LIST);
+          HeapObject* free_space = nullptr;
+          if (allocation.To(&free_space)) {
+            // Mark with a free list node, in case we have a GC before
+            // deserializing.
+            Address free_space_address = free_space->address();
+            CreateFillerObjectAt(free_space_address, Map::kSize,
+                                 ClearRecordedSlots::kNo);
+            maps->Add(free_space_address);
+          } else {
+            perform_gc = true;
+            break;
+          }
+        }
+      } else if (space == LO_SPACE) {
+        // Just check that we can allocate during deserialization.
         DCHECK_EQ(1, reservation->length());
         perform_gc = !CanExpandOldGeneration(reservation->at(0).size);
       } else {

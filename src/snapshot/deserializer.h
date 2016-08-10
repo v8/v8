@@ -34,6 +34,7 @@ class Deserializer : public SerializerDeserializer {
       : isolate_(NULL),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
+        next_map_index_(0),
         external_reference_table_(NULL),
         deserialized_large_objects_(0),
         deserializing_user_code_(deserializing_user_code),
@@ -129,6 +130,8 @@ class Deserializer : public SerializerDeserializer {
   Heap::Reservation reservations_[kNumberOfSpaces];
   uint32_t current_chunk_[kNumberOfPreallocatedSpaces];
   Address high_water_[kNumberOfPreallocatedSpaces];
+  int next_map_index_;
+  List<Address> allocated_maps_;
 
   ExternalReferenceTable* external_reference_table_;
 

@@ -55,7 +55,9 @@ bool Deserializer::ReserveSpace() {
     CHECK(reservations_[i].length() > 0);
   }
 #endif  // DEBUG
-  if (!isolate_->heap()->ReserveSpace(reservations_)) return false;
+  DCHECK(allocated_maps_.is_empty());
+  if (!isolate_->heap()->ReserveSpace(reservations_, &allocated_maps_))
+    return false;
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     high_water_[i] = reservations_[i][0].start;
   }
@@ -161,6 +163,12 @@ MaybeHandle<HeapObject> Deserializer::DeserializeObject(Isolate* isolate) {
 Deserializer::~Deserializer() {
   // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
   // DCHECK(source_.AtEOF());
+  for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
+    int chunk_index = current_chunk_[space];
+    CHECK_EQ(reservations_[space].length(), chunk_index + 1);
+    CHECK_EQ(reservations_[space][chunk_index].end, high_water_[space]);
+  }
+  CHECK_EQ(allocated_maps_.length(), next_map_index_);
 }
 
 // This is called on the roots.  It is the driver of the deserialization
@@ -311,9 +319,12 @@ HeapObject* Deserializer::GetBackReferencedObject(int space) {
   SerializerReference back_reference =
       SerializerReference::FromBitfield(source_.GetInt());
   if (space == LO_SPACE) {
-    CHECK(back_reference.chunk_index() == 0);
     uint32_t index = back_reference.large_object_index();
     obj = deserialized_large_objects_[index];
+  } else if (space == MAP_SPACE) {
+    int index = back_reference.map_index();
+    DCHECK(index < next_map_index_);
+    obj = HeapObject::FromAddress(allocated_maps_[index]);
   } else {
     DCHECK(space < kNumberOfPreallocatedSpaces);
     uint32_t chunk_index = back_reference.chunk_index();
@@ -404,6 +415,9 @@ Address Deserializer::Allocate(int space_index, int size) {
     HeapObject* obj = HeapObject::cast(result.ToObjectChecked());
     deserialized_large_objects_.Add(obj);
     return obj->address();
+  } else if (space_index == MAP_SPACE) {
+    DCHECK_EQ(Map::kSize, size);
+    return allocated_maps_[next_map_index_++];
   } else {
     DCHECK(space_index < kNumberOfPreallocatedSpaces);
     Address address = high_water_[space_index];

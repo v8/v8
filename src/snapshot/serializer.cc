@@ -16,6 +16,7 @@ Serializer::Serializer(Isolate* isolate)
       root_index_map_(isolate),
       recursion_depth_(0),
       code_address_map_(NULL),
+      num_maps_(0),
       large_objects_total_size_(0),
       seen_large_objects_index_(0) {
   // The serializer is meant to be used only to generate initial heap images
@@ -117,7 +118,8 @@ void Serializer::EncodeReservations(
     }
     out->last().mark_as_last();
   }
-
+  out->Add(SerializedData::Reservation(num_maps_ * Map::kSize));
+  out->last().mark_as_last();
   out->Add(SerializedData::Reservation(large_objects_total_size_));
   out->last().mark_as_last();
 }
@@ -127,15 +129,18 @@ bool Serializer::BackReferenceIsAlreadyAllocated(
     SerializerReference reference) {
   DCHECK(reference.is_back_reference());
   AllocationSpace space = reference.space();
-  int chunk_index = reference.chunk_index();
   if (space == LO_SPACE) {
-    return chunk_index == 0 &&
-           reference.large_object_index() < seen_large_objects_index_;
-  } else if (chunk_index == completed_chunks_[space].length()) {
-    return reference.chunk_offset() < pending_chunk_[space];
+    return reference.large_object_index() < seen_large_objects_index_;
+  } else if (space == MAP_SPACE) {
+    return reference.map_index() < num_maps_;
   } else {
-    return chunk_index < completed_chunks_[space].length() &&
-           reference.chunk_offset() < completed_chunks_[space][chunk_index];
+    int chunk_index = reference.chunk_index();
+    if (chunk_index == completed_chunks_[space].length()) {
+      return reference.chunk_offset() < pending_chunk_[space];
+    } else {
+      return chunk_index < completed_chunks_[space].length() &&
+             reference.chunk_offset() < completed_chunks_[space][chunk_index];
+    }
   }
 }
 #endif  // DEBUG
@@ -266,6 +271,11 @@ SerializerReference Serializer::AllocateLargeObject(int size) {
   return SerializerReference::LargeObjectReference(seen_large_objects_index_++);
 }
 
+SerializerReference Serializer::AllocateMap() {
+  // Maps are allocated one-by-one when deserializing.
+  return SerializerReference::MapReference(num_maps_++);
+}
+
 SerializerReference Serializer::Allocate(AllocationSpace space, int size) {
   DCHECK(space >= 0 && space < kNumberOfPreallocatedSpaces);
   DCHECK(size > 0 && size <= static_cast<int>(max_chunk_size(space)));
@@ -336,6 +346,12 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
       sink_->Put(NOT_EXECUTABLE, "not executable large object");
     }
     back_reference = serializer_->AllocateLargeObject(size);
+  } else if (space == MAP_SPACE) {
+    DCHECK_EQ(Map::kSize, size);
+    back_reference = serializer_->AllocateMap();
+    sink_->Put(kNewObject + reference_representation_ + space, "NewMap");
+    // This is redundant, but we include it anyways.
+    sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
   } else {
     int fill = serializer_->PutAlignmentPrefix(object_);
     back_reference = serializer_->Allocate(space, size + fill);

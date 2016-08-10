@@ -190,6 +190,7 @@ class Serializer : public SerializerDeserializer {
 
   // This will return the space for an object.
   SerializerReference AllocateLargeObject(int size);
+  SerializerReference AllocateMap();
   SerializerReference Allocate(AllocationSpace space, int size);
   int EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
@@ -245,6 +246,8 @@ class Serializer : public SerializerDeserializer {
   uint32_t pending_chunk_[kNumberOfPreallocatedSpaces];
   List<uint32_t> completed_chunks_[kNumberOfPreallocatedSpaces];
   uint32_t max_chunk_size_[kNumberOfPreallocatedSpaces];
+  // Number of maps that we need to allocate.
+  uint32_t num_maps_;
 
   // We map serialized large objects to indexes for back-referencing.
   uint32_t large_objects_total_size_;

@@ -754,7 +754,7 @@ class Heap {
   inline AllocationMemento* FindAllocationMemento(HeapObject* object);
 
   // Returns false if not able to reserve.
-  bool ReserveSpace(Reservation* reservations);
+  bool ReserveSpace(Reservation* reservations, List<Address>* maps);
 
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
 
