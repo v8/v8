@@ -979,18 +979,12 @@ Handle<ScopeInfo> Scope::GetScopeInfo(Isolate* isolate) {
   return scope_info_;
 }
 
-Handle<StringSet> Scope::CollectNonLocals(Handle<StringSet> non_locals) {
-  // Collect non-local variables referenced in the scope.
-  // TODO(yangguo): store non-local variables explicitly if we can no longer
-  //                rely on unresolved_ to find them.
-  for (VariableProxy* proxy = unresolved_; proxy != nullptr;
+Handle<StringSet> DeclarationScope::CollectNonLocals(
+    ParseInfo* info, Handle<StringSet> non_locals) {
+  VariableProxy* free_variables = FetchFreeVariables(this, info);
+  for (VariableProxy* proxy = free_variables; proxy != nullptr;
        proxy = proxy->next_unresolved()) {
-    if (proxy->is_resolved() && proxy->var()->IsStackAllocated()) continue;
-    Handle<String> name = proxy->name();
-    non_locals = StringSet::Add(non_locals, name);
-  }
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    non_locals = scope->CollectNonLocals(non_locals);
+    non_locals = StringSet::Add(non_locals, proxy->name());
   }
   return non_locals;
 }
@@ -1003,7 +997,12 @@ void DeclarationScope::AnalyzePartially(DeclarationScope* migrate_to,
   // Try to resolve unresolved variables for this Scope and migrate those which
   // cannot be resolved inside. It doesn't make sense to try to resolve them in
   // the outer Scopes here, because they are incomplete.
-  MigrateUnresolvableLocals(migrate_to, ast_node_factory, this);
+  for (VariableProxy* proxy = FetchFreeVariables(this); proxy != nullptr;
+       proxy = proxy->next_unresolved()) {
+    DCHECK(!proxy->is_resolved());
+    VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
+    migrate_to->AddUnresolved(copy);
+  }
 
   // Push scope data up to migrate_to. Note that migrate_to and this Scope
   // describe the same Scope, just in different Zones.
@@ -1359,6 +1358,11 @@ void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
   BindingKind binding_kind;
   Variable* var = LookupRecursive(proxy, &binding_kind, factory);
 
+  ResolveTo(info, binding_kind, proxy, var);
+}
+
+void Scope::ResolveTo(ParseInfo* info, BindingKind binding_kind,
+                      VariableProxy* proxy, Variable* var) {
 #ifdef DEBUG
   if (info->script_is_native()) {
     // To avoid polluting the global object in native scripts
@@ -1438,30 +1442,38 @@ void Scope::ResolveVariablesRecursively(ParseInfo* info,
   }
 }
 
-void Scope::MigrateUnresolvableLocals(DeclarationScope* migrate_to,
-                                      AstNodeFactory* ast_node_factory,
-                                      DeclarationScope* max_outer_scope) {
-  BindingKind binding_kind;
+VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
+                                         ParseInfo* info,
+                                         VariableProxy* stack) {
+  BindingKind binding_kind = BOUND;
   for (VariableProxy *proxy = unresolved_, *next = nullptr; proxy != nullptr;
        proxy = next) {
     next = proxy->next_unresolved();
+    if (proxy->is_resolved()) continue;
     // Note that we pass nullptr as AstNodeFactory: this phase should not create
     // any new AstNodes, since none of the Scopes involved are backed up by
     // ScopeInfo.
-    if (LookupRecursive(proxy, &binding_kind, nullptr, max_outer_scope) ==
-        nullptr) {
-      // Re-create the VariableProxies in the right Zone and insert them into
-      // migrate_to.
-      DCHECK(!proxy->is_resolved());
-      VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
-      migrate_to->AddUnresolved(copy);
+    Variable* var =
+        LookupRecursive(proxy, &binding_kind, nullptr, max_outer_scope);
+    // Anything that was bound
+    if (var == nullptr) {
+      proxy->set_next_unresolved(stack);
+      stack = proxy;
+    } else if (info != nullptr) {
+      DCHECK_NE(UNBOUND, binding_kind);
+      DCHECK_NE(UNBOUND_EVAL_SHADOWED, binding_kind);
+      ResolveTo(info, binding_kind, proxy, var);
     }
   }
 
+  // Clear unresolved_ as it's in an inconsistent state.
+  unresolved_ = nullptr;
+
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->MigrateUnresolvableLocals(migrate_to, ast_node_factory,
-                                     max_outer_scope);
+    stack = scope->FetchFreeVariables(max_outer_scope, info, stack);
   }
+
+  return stack;
 }
 
 void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval) {

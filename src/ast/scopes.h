@@ -414,8 +414,6 @@ class Scope: public ZoneObject {
 
   Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
 
-  Handle<StringSet> CollectNonLocals(Handle<StringSet> non_locals);
-
   // ---------------------------------------------------------------------------
   // Strict mode support.
   bool IsDeclared(const AstRawString* name) {
@@ -579,15 +577,18 @@ class Scope: public ZoneObject {
   Variable* LookupRecursive(VariableProxy* proxy, BindingKind* binding_kind,
                             AstNodeFactory* factory,
                             Scope* max_outer_scope = nullptr);
+  void ResolveTo(ParseInfo* info, BindingKind binding_kind,
+                 VariableProxy* proxy, Variable* var);
   void ResolveVariable(ParseInfo* info, VariableProxy* proxy,
                        AstNodeFactory* factory);
   void ResolveVariablesRecursively(ParseInfo* info, AstNodeFactory* factory);
 
-  // Tries to resolve local variables inside max_outer_scope; migrates those
-  // which cannot be resolved into migrate_to.
-  void MigrateUnresolvableLocals(DeclarationScope* migrate_to,
-                                 AstNodeFactory* ast_node_factory,
-                                 DeclarationScope* max_outer_scope);
+  // Finds free variables of this scope. This mutates the unresolved variables
+  // list along the way, so full resolution cannot be done afterwards.
+  // If a ParseInfo* is passed, non-free variables will be resolved.
+  VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
+                                    ParseInfo* info = nullptr,
+                                    VariableProxy* stack = nullptr);
 
   // Scope analysis.
   void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
@@ -848,6 +849,9 @@ class DeclarationScope : public Scope {
   // migrates them into migrate_to.
   void AnalyzePartially(DeclarationScope* migrate_to,
                         AstNodeFactory* ast_node_factory);
+
+  Handle<StringSet> CollectNonLocals(ParseInfo* info,
+                                     Handle<StringSet> non_locals);
 
 #ifdef DEBUG
   void PrintParameters();

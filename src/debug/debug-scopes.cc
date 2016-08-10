@@ -13,6 +13,7 @@
 #include "src/globals.h"
 #include "src/isolate-inl.h"
 #include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 
 namespace v8 {
 namespace internal {
@@ -107,10 +108,26 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     // Inner function.
     info.reset(new ParseInfo(&zone, function));
   }
-  Scope* scope = NULL;
-  if (Compiler::ParseAndAnalyze(info.get())) scope = info->literal()->scope();
-  if (!ignore_nested_scopes) RetrieveScopeChain(scope);
-  if (collect_non_locals) CollectNonLocals(scope);
+  if (Parser::ParseStatic(info.get()) && Rewriter::Rewrite(info.get())) {
+    DeclarationScope* scope = info->literal()->scope();
+    if (!ignore_nested_scopes || collect_non_locals) {
+      CollectNonLocals(info.get(), scope);
+    }
+    if (!ignore_nested_scopes) {
+      AstNodeFactory ast_node_factory(info.get()->ast_value_factory());
+      scope->AllocateVariables(info.get(), &ast_node_factory);
+      RetrieveScopeChain(scope);
+    }
+  } else if (!ignore_nested_scopes) {
+    // A failed reparse indicates that the preparser has diverged from the
+    // parser or that the preparse data given to the initial parse has been
+    // faulty. We fail in debug mode but in release mode we only provide the
+    // information we get from the context chain but nothing about
+    // completely stack allocated scopes or stack allocated locals.
+    // Or it could be due to stack overflow.
+    DCHECK(isolate_->has_pending_exception());
+    failed_ = true;
+  }
   UnwrapEvaluationContext();
 }
 
@@ -444,29 +461,16 @@ void ScopeIterator::DebugPrint() {
 }
 #endif
 
-
-void ScopeIterator::RetrieveScopeChain(Scope* scope) {
-  if (scope != NULL) {
-    int source_position = frame_inspector_->GetSourcePosition();
-    GetNestedScopeChain(isolate_, scope, source_position);
-  } else {
-    // A failed reparse indicates that the preparser has diverged from the
-    // parser or that the preparse data given to the initial parse has been
-    // faulty. We fail in debug mode but in release mode we only provide the
-    // information we get from the context chain but nothing about
-    // completely stack allocated scopes or stack allocated locals.
-    // Or it could be due to stack overflow.
-    DCHECK(isolate_->has_pending_exception());
-    failed_ = true;
-  }
+void ScopeIterator::RetrieveScopeChain(DeclarationScope* scope) {
+  DCHECK_NOT_NULL(scope);
+  int source_position = frame_inspector_->GetSourcePosition();
+  GetNestedScopeChain(isolate_, scope, source_position);
 }
 
-
-void ScopeIterator::CollectNonLocals(Scope* scope) {
-  if (scope != NULL) {
-    DCHECK(non_locals_.is_null());
-    non_locals_ = scope->CollectNonLocals(StringSet::New(isolate_));
-  }
+void ScopeIterator::CollectNonLocals(ParseInfo* info, DeclarationScope* scope) {
+  DCHECK_NOT_NULL(scope);
+  DCHECK(non_locals_.is_null());
+  non_locals_ = scope->CollectNonLocals(info, StringSet::New(isolate_));
 }
 
 

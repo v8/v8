@@ -111,9 +111,9 @@ class ScopeIterator {
     return frame_inspector_->GetFunction();
   }
 
-  void RetrieveScopeChain(Scope* scope);
+  void RetrieveScopeChain(DeclarationScope* scope);
 
-  void CollectNonLocals(Scope* scope);
+  void CollectNonLocals(ParseInfo* info, DeclarationScope* scope);
 
   void UnwrapEvaluationContext();
 
