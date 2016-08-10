@@ -1002,7 +1002,6 @@ template <class C> inline bool Is(Object* obj);
   V(JSWeakMap)                   \
   V(JSWeakSet)                   \
   V(JSRegExp)                    \
-  V(WebAssemblyCompiledModule)   \
   V(HashTable)                   \
   V(Dictionary)                  \
   V(UnseededNumberDictionary)    \
@@ -8158,26 +8157,6 @@ class JSMessageObject: public JSObject {
   typedef FixedBodyDescriptor<HeapObject::kMapOffset,
                               kStackFramesOffset + kPointerSize,
                               kSize> BodyDescriptor;
-};
-
-// A compiled web assembly module.
-class WebAssemblyCompiledModule : public JSObject {
- public:
-  // Serialize the compiled module. The returned buffer is owned by
-  // the caller, who may simply leave the return value drop out of
-  // scope, once done processing the bytes.
-  // TODO(mtrofin): to avoid increased memory pressure, we should
-  // explore a caller-provided segmented memory design.
-  std::pair<std::unique_ptr<const byte>, size_t> Serialize();
-
-  // Deserialize a compiled module. The buffer is owned by the caller and may
-  // be released after deserialization returns.
-  static MaybeHandle<WebAssemblyCompiledModule> Deserialize(Isolate* isolate,
-                                                            const byte* data,
-                                                            size_t size);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WebAssemblyCompiledModule);
 };
 
 // Regular expressions

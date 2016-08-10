@@ -53,6 +53,7 @@
 #include "src/prototype.h"
 #include "src/regexp/jsregexp.h"
 #include "src/safepoint-table.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/source-position-table.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
@@ -19023,18 +19024,6 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   }
   Handle<JSTypedArray> self(this);
   return MaterializeArrayBuffer(self);
-}
-
-std::pair<std::unique_ptr<const byte>, size_t>
-WebAssemblyCompiledModule::Serialize() {
-  // TODO(mtrofin): tie to the internal serialization API
-  return {std::unique_ptr<const byte>(), 0};
-}
-
-MaybeHandle<WebAssemblyCompiledModule> WebAssemblyCompiledModule::Deserialize(
-    Isolate* isolate, const byte* data, size_t size) {
-  // TODO(mtrofin): tie to the internal serialization API
-  return MaybeHandle<WebAssemblyCompiledModule>();
 }
 
 Handle<PropertyCell> PropertyCell::InvalidateEntry(

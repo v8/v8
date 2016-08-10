@@ -143,12 +143,6 @@ bool HeapObject::IsFixedArrayBase() const {
   return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
 }
 
-bool HeapObject::IsWebAssemblyCompiledModule() const {
-  if (!IsJSObject()) return false;
-  return GetIsolate()->native_context()->wasm_module_constructor() ==
-         this->map()->GetConstructor();
-}
-
 bool HeapObject::IsFixedArray() const {
   InstanceType instance_type = map()->instance_type();
   return instance_type == FIXED_ARRAY_TYPE ||
