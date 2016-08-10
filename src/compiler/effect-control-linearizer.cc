@@ -1307,13 +1307,13 @@ EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
                                               Node* effect, Node* control) {
   Node* zero = jsgraph()->Int32Constant(0);
+  Node* one = jsgraph()->Int32Constant(1);
   Node* minusone = jsgraph()->Int32Constant(-1);
-  Node* minint = jsgraph()->Int32Constant(std::numeric_limits<int32_t>::min());
 
   // General case for signed integer modulus, with optimization for (unknown)
   // power of 2 right hand side.
   //
-  //   if 0 < rhs then
+  //   if 1 < rhs then
   //     msk = rhs - 1
   //     if rhs & msk == 0 then
   //       if lhs < 0 then
@@ -1327,14 +1327,14 @@ EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
   //       lhs % rhs
   //     else
   //       deopt if rhs == 0
-  //       deopt if lhs == minint
+  //       deopt if lhs < 0
   //       zero
   //
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
-  // Check if {rhs} is strictly positive.
-  Node* check0 = graph()->NewNode(machine()->Int32LessThan(), zero, rhs);
+  // Check if {rhs} is strictly greater than one.
+  Node* check0 = graph()->NewNode(machine()->Int32LessThan(), one, rhs);
   Node* branch0 =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
 
@@ -1410,9 +1410,9 @@ EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
           common()->DeoptimizeIf(DeoptimizeReason::kDivisionByZero), check2,
           frame_state, efalse1, if_false1);
 
-      // Now we know that {rhs} is -1, so make sure {lhs} is not kMinInt, as
-      // we would otherwise have to return -0.
-      Node* check3 = graph()->NewNode(machine()->Word32Equal(), lhs, minint);
+      // Now we know that {rhs} is -1, so make sure {lhs} is >= 0, as we would
+      // otherwise have to return -0.
+      Node* check3 = graph()->NewNode(machine()->Int32LessThan(), lhs, zero);
       if_false1 = efalse1 =
           graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
                            check3, frame_state, efalse1, if_false1);
