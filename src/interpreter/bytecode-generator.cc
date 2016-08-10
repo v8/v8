@@ -2010,30 +2010,16 @@ void BytecodeGenerator::BuildThrowIfNotHole(Handle<String> name) {
   builder()->Bind(&no_reference_error);
 }
 
-void BytecodeGenerator::BuildThrowReassignConstant(Handle<String> name) {
-  // TODO(mythria): This will be replaced by a new bytecode that throws an
-  // appropriate error depending on the whether the value is a hole or not.
-  BytecodeLabel const_assign_error;
-  builder()->JumpIfNotHole(&const_assign_error);
-  BuildThrowReferenceError(name);
-  builder()
-      ->Bind(&const_assign_error)
-      .CallRuntime(Runtime::kThrowConstAssignError, Register(), 0);
-}
-
 void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
                                                             Token::Value op) {
-  VariableMode mode = variable->mode();
-  DCHECK(mode != CONST_LEGACY);
-  if (mode == CONST && op != Token::INIT) {
-    // Non-intializing assignments to constant is not allowed.
-    BuildThrowReassignConstant(variable->name());
-  } else if (mode == LET && op != Token::INIT) {
-    // Perform an initialization check for let declared variables.
+  DCHECK(variable->mode() != CONST_LEGACY);
+  if (op != Token::INIT) {
+    // Perform an initialization check for let/const declared variables.
     // E.g. let x = (x = 20); is not allowed.
     BuildThrowIfHole(variable->name());
   } else {
-    DCHECK(variable->is_this() && mode == CONST && op == Token::INIT);
+    DCHECK(variable->is_this() && variable->mode() == CONST &&
+           op == Token::INIT);
     // Perform an initialization check for 'this'. 'this' variable is the
     // only variable able to trigger bind operations outside the TDZ
     // via 'super' calls.
@@ -2048,9 +2034,9 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
   RegisterAllocationScope assignment_register_scope(this);
   BytecodeLabel end_label;
   bool hole_check_required =
-      (mode == LET && op != Token::INIT) ||
-      (mode == CONST && op != Token::INIT) ||
-      (mode == CONST && op == Token::INIT && variable->is_this());
+      variable->binding_needs_init() &&
+      ((IsLexicalVariableMode(mode) && op != Token::INIT) ||
+       (mode == CONST && op == Token::INIT && variable->is_this()));
   switch (variable->location()) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
@@ -2059,16 +2045,6 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         destination = Register(builder()->Parameter(variable->index() + 1));
       } else {
         destination = Register(variable->index());
-      }
-
-      if (mode == CONST_LEGACY && op != Token::INIT) {
-        if (is_strict(language_mode())) {
-          builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
-                                 0);
-        }
-        // Non-initializing assignments to legacy constants are ignored
-        // in sloppy mode. Break here to avoid storing into variable.
-        break;
       }
 
       if (hole_check_required) {
@@ -2081,6 +2057,17 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         BuildHoleCheckForVariableAssignment(variable, op);
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
+
+      if ((mode == CONST || mode == CONST_LEGACY) && op != Token::INIT) {
+        if (mode == CONST || is_strict(language_mode())) {
+          builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
+                                 0);
+        }
+        // Non-initializing assignments to legacy constants are ignored
+        // in sloppy mode. Break here to avoid storing into variable.
+        break;
+      }
+
       builder()->StoreAccumulatorInRegister(destination);
       break;
     }
@@ -2117,16 +2104,6 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
-      if (mode == CONST_LEGACY && op != Token::INIT) {
-        if (is_strict(language_mode())) {
-          builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
-                                 0);
-        }
-        // Non-initializing assignments to legacy constants are ignored
-        // in sloppy mode. Break here to avoid storing into variable.
-        break;
-      }
-
       if (hole_check_required) {
         // Load destination to check for hole.
         Register value_temp = register_allocator()->NewRegister();
@@ -2136,6 +2113,16 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
 
         BuildHoleCheckForVariableAssignment(variable, op);
         builder()->LoadAccumulatorWithRegister(value_temp);
+      }
+
+      if ((mode == CONST || mode == CONST_LEGACY) && op != Token::INIT) {
+        if (mode == CONST || is_strict(language_mode())) {
+          builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
+                                 0);
+        }
+        // Non-initializing assignments to legacy constants are ignored
+        // in sloppy mode. Break here to avoid storing into variable.
+        break;
       }
 
       builder()->StoreContextSlot(context_reg, variable->index());
