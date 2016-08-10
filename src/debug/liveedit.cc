@@ -986,9 +986,9 @@ void LiveEdit::ReplaceFunctionCode(
     // Clear old bytecode. This will trigger self-healing if we do not install
     // new bytecode.
     shared_info->ClearBytecodeArray();
-    if (old_code->is_interpreter_trampoline_builtin()) {
+    if (!shared_info->HasBaselineCode()) {
       // Every function from this SFI is interpreted.
-      if (new_code->is_interpreter_trampoline_builtin()) {
+      if (!new_shared_info->HasBaselineCode()) {
         // We have newly compiled bytecode. Simply replace the old one.
         shared_info->set_bytecode_array(new_shared_info->bytecode_array());
       } else {

@@ -171,7 +171,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   // Make the profiler arm all back edges in unoptimized code.
   if (function->shared()->HasBytecodeArray() ||
-      function->shared()->code()->kind() == Code::FUNCTION) {
+      function->shared()->HasBaselineCode()) {
     isolate->runtime_profiler()->AttemptOnStackReplacement(
         *function, AbstractCode::kMaxLoopNestingMarker);
   }

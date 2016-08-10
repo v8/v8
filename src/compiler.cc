@@ -992,7 +992,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   // TODO(4280): For now we play it safe and remove the bytecode array when we
   // switch to baseline code. We might consider keeping around the bytecode so
   // that it can be used as the "source of truth" eventually.
-  shared->ClearBytecodeArray();
+  if (!FLAG_ignition_preserve_bytecode) shared->ClearBytecodeArray();
 
   // Update the shared function info with the scope info.
   InstallSharedScopeInfo(&info, shared);
@@ -1432,7 +1432,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     // TODO(4280): For now we play it safe and remove the bytecode array when we
     // switch to baseline code. We might consider keeping around the bytecode so
     // that it can be used as the "source of truth" eventually.
-    shared->ClearBytecodeArray();
+    if (!FLAG_ignition_preserve_bytecode) shared->ClearBytecodeArray();
 
     // The scope info might not have been set if a lazily compiled
     // function is inlined before being called for the first time.
