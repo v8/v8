@@ -121,11 +121,15 @@ namespace internal {
   V(CreateWeakCell)                           \
   V(StringLength)                             \
   V(Add)                                      \
+  V(AddWithFeedback)                          \
   V(Subtract)                                 \
   V(SubtractWithFeedback)                     \
   V(Multiply)                                 \
+  V(MultiplyWithFeedback)                     \
   V(Divide)                                   \
+  V(DivideWithFeedback)                       \
   V(Modulus)                                  \
+  V(ModulusWithFeedback)                      \
   V(ShiftRight)                               \
   V(ShiftRightLogical)                        \
   V(ShiftLeft)                                \
@@ -756,6 +760,15 @@ class AddStub final : public TurboFanCodeStub {
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Add, TurboFanCodeStub);
 };
 
+class AddWithFeedbackStub final : public TurboFanCodeStub {
+ public:
+  explicit AddWithFeedbackStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(AddWithFeedback,
+                                                    TurboFanCodeStub);
+};
+
 class SubtractStub final : public TurboFanCodeStub {
  public:
   explicit SubtractStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -782,6 +795,16 @@ class MultiplyStub final : public TurboFanCodeStub {
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Multiply, TurboFanCodeStub);
 };
 
+class MultiplyWithFeedbackStub final : public TurboFanCodeStub {
+ public:
+  explicit MultiplyWithFeedbackStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(MultiplyWithFeedback,
+                                                    TurboFanCodeStub);
+};
+
 class DivideStub final : public TurboFanCodeStub {
  public:
   explicit DivideStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -790,12 +813,32 @@ class DivideStub final : public TurboFanCodeStub {
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Divide, TurboFanCodeStub);
 };
 
+class DivideWithFeedbackStub final : public TurboFanCodeStub {
+ public:
+  explicit DivideWithFeedbackStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(DivideWithFeedback,
+                                                    TurboFanCodeStub);
+};
+
 class ModulusStub final : public TurboFanCodeStub {
  public:
   explicit ModulusStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Modulus, TurboFanCodeStub);
+};
+
+class ModulusWithFeedbackStub final : public TurboFanCodeStub {
+ public:
+  explicit ModulusWithFeedbackStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(ModulusWithFeedback,
+                                                    TurboFanCodeStub);
 };
 
 class ShiftRightStub final : public TurboFanCodeStub {

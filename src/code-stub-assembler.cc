@@ -3217,6 +3217,37 @@ compiler::Node* CodeStubAssembler::LoadTypeFeedbackVectorForStub() {
   return LoadObjectField(literals, LiteralsArray::kFeedbackVectorOffset);
 }
 
+void CodeStubAssembler::UpdateFeedback(compiler::Node* feedback,
+                                       compiler::Node* type_feedback_vector,
+                                       compiler::Node* slot_id) {
+  Label combine_feedback(this), record_feedback(this), end(this);
+
+  Node* previous_feedback =
+      LoadFixedArrayElement(type_feedback_vector, slot_id);
+  Node* is_uninitialized = WordEqual(
+      previous_feedback,
+      HeapConstant(TypeFeedbackVector::UninitializedSentinel(isolate())));
+  BranchIf(is_uninitialized, &record_feedback, &combine_feedback);
+
+  Bind(&record_feedback);
+  {
+    StoreFixedArrayElement(type_feedback_vector, slot_id, SmiTag(feedback),
+                           SKIP_WRITE_BARRIER);
+    Goto(&end);
+  }
+
+  Bind(&combine_feedback);
+  {
+    Node* untagged_previous_feedback = SmiUntag(previous_feedback);
+    Node* combined_feedback = Word32Or(untagged_previous_feedback, feedback);
+    StoreFixedArrayElement(type_feedback_vector, slot_id,
+                           SmiTag(combined_feedback), SKIP_WRITE_BARRIER);
+    Goto(&end);
+  }
+
+  Bind(&end);
+}
+
 compiler::Node* CodeStubAssembler::LoadReceiverMap(compiler::Node* receiver) {
   Variable var_receiver_map(this, MachineRepresentation::kTagged);
   // TODO(ishell): defer blocks when it works.

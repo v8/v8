@@ -497,6 +497,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Load type feedback vector from the stub caller's frame.
   compiler::Node* LoadTypeFeedbackVectorForStub();
 
+  // Update the type feedback vector.
+  void UpdateFeedback(compiler::Node* feedback,
+                      compiler::Node* type_feedback_vector,
+                      compiler::Node* slot_id);
+
   compiler::Node* LoadReceiverMap(compiler::Node* receiver);
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.

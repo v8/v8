@@ -780,7 +780,7 @@ void Interpreter::DoBinaryOpWithFeedback(InterpreterAssembler* assembler) {
 //
 // Add register <src> to accumulator.
 void Interpreter::DoAdd(InterpreterAssembler* assembler) {
-  DoBinaryOp<AddStub>(assembler);
+  DoBinaryOpWithFeedback<AddWithFeedbackStub>(assembler);
 }
 
 // Sub <src>
@@ -794,21 +794,21 @@ void Interpreter::DoSub(InterpreterAssembler* assembler) {
 //
 // Multiply accumulator by register <src>.
 void Interpreter::DoMul(InterpreterAssembler* assembler) {
-  DoBinaryOp<MultiplyStub>(assembler);
+  DoBinaryOpWithFeedback<MultiplyWithFeedbackStub>(assembler);
 }
 
 // Div <src>
 //
 // Divide register <src> by accumulator.
 void Interpreter::DoDiv(InterpreterAssembler* assembler) {
-  DoBinaryOp<DivideStub>(assembler);
+  DoBinaryOpWithFeedback<DivideWithFeedbackStub>(assembler);
 }
 
 // Mod <src>
 //
 // Modulo register <src> by accumulator.
 void Interpreter::DoMod(InterpreterAssembler* assembler) {
-  DoBinaryOp<ModulusStub>(assembler);
+  DoBinaryOpWithFeedback<ModulusWithFeedbackStub>(assembler);
 }
 
 // BitwiseOr <src>

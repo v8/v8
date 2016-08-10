@@ -1150,7 +1150,7 @@ inline uint32_t ObjectHash(Address address) {
                                kPointerSizeLog2);
 }
 
-// Type feedbac is encoded in such a way that, we can combine the feedback
+// Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
 // kSignedSmall -> kNumber  -> kAny

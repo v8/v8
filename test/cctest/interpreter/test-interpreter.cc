@@ -501,7 +501,7 @@ TEST(InterpreterParameter8) {
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
   typedef Handle<Object> H;
   auto callable = tester.GetCallable<H, H, H, H, H, H, H, H>();
 
