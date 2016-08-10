@@ -472,6 +472,43 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
     }
 
+    // For holey stores or growing stores, we need to check that the prototype
+    // chain contains no setters for elements, and we need to guard those checks
+    // via code dependencies on the relevant prototype maps.
+    if (access_mode == AccessMode::kStore) {
+      // TODO(turbofan): We could have a fast path here, that checks for the
+      // common case of Array or Object prototype only and therefore avoids
+      // the zone allocation of this vector.
+      ZoneVector<Handle<Map>> prototype_maps(zone());
+      for (ElementAccessInfo const& access_info : access_infos) {
+        for (Handle<Map> receiver_map : access_info.receiver_maps()) {
+          // If the {receiver_map} has a prototype and it's elements backing
+          // store is either holey, or we have a potentially growing store,
+          // then we need to check that all prototypes have stable maps with
+          // fast elements (and we need to guard against changes to that below).
+          if (IsHoleyElementsKind(receiver_map->elements_kind()) ||
+              IsGrowStoreMode(store_mode)) {
+            // Make sure all prototypes are stable and have fast elements.
+            for (Handle<Map> map = receiver_map;;) {
+              Handle<Object> map_prototype(map->prototype(), isolate());
+              if (map_prototype->IsNull(isolate())) break;
+              if (!map_prototype->IsJSObject()) return NoChange();
+              map = handle(Handle<JSObject>::cast(map_prototype)->map(),
+                           isolate());
+              if (!map->is_stable()) return NoChange();
+              if (!IsFastElementsKind(map->elements_kind())) return NoChange();
+              prototype_maps.push_back(map);
+            }
+          }
+        }
+      }
+
+      // Install dependencies on the relevant prototype maps.
+      for (Handle<Map> prototype_map : prototype_maps) {
+        dependencies()->AssumeMapStable(prototype_map);
+      }
+    }
+
     // Ensure that {receiver} is a heap object.
     effect = BuildCheckTaggedPointer(receiver, effect, control);
 

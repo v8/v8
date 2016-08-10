@@ -112,12 +112,6 @@
 }],  # variant == ignition and msan
 
 ##############################################################################
-['variant == turbofan', {
-  # BUG(v8:5276): Flaky with turbofan.
-  'fast/js/array-bad-time': [SKIP],
-}],  # variant == turbofan
-
-##############################################################################
 ['variant == ignition_turbofan and msan', {
   # TODO(mythria,4680): Too slow and timeout on ignition.
   'dfg-double-vote-fuzz': [SKIP],
