@@ -15,11 +15,11 @@ namespace tracing {
 
 // Currently we do not support JSON-escaping strings in trace arguments.
 // Thus we perform an IsJSONString() check before writing any string argument.
-// In particular, this means strings cannot have control characters or " or \.
+// In particular, this means strings cannot have control characters or \.
 V8_INLINE static bool IsJSONString(const char* str) {
   size_t len = strlen(str);
   for (size_t i = 0; i < len; ++i) {
-    if (iscntrl(str[i]) || str[i] == '\"' || str[i] == '\\') {
+    if (iscntrl(str[i]) || str[i] == '\\') {
       return false;
     }
   }
@@ -74,8 +74,8 @@ void JSONTraceWriter::AppendArgValue(uint8_t type,
     case TRACE_VALUE_TYPE_COPY_STRING:
       // Strings are currently not JSON-escaped, so we need to perform a check
       // to see if they are valid JSON strings.
-      CHECK(value.as_string == nullptr || IsJSONString(value.as_string));
-      stream_ << "\"" << (value.as_string ? value.as_string : "NULL") << "\"";
+      CHECK(value.as_string != nullptr && IsJSONString(value.as_string));
+      stream_ << (value.as_string ? value.as_string : "NULL");
       break;
     default:
       UNREACHABLE();

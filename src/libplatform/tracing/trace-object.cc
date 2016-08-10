@@ -21,12 +21,12 @@ V8_INLINE static size_t GetAllocLength(const char* str) {
 // Copies |*member| into |*buffer|, sets |*member| to point to this new
 // location, and then advances |*buffer| by the amount written.
 V8_INLINE static void CopyTraceObjectParameter(char** buffer,
-                                               const char** member,
-                                               const char* end) {
+                                               const char** member) {
   if (*member) {
-    strncpy(*buffer, *member, end - *buffer);
+    size_t length = strlen(*member) + 1;
+    strncpy(*buffer, *member, length);
     *member = *buffer;
-    *buffer += strlen(*member) + 1;
+    *buffer += length;
   }
 }
 
@@ -81,17 +81,16 @@ void TraceObject::Initialize(char phase, const uint8_t* category_enabled_flag,
     // to free old memory.
     delete[] parameter_copy_storage_;
     char* ptr = parameter_copy_storage_ = new char[alloc_size];
-    const char* end = ptr + alloc_size;
     if (copy) {
-      CopyTraceObjectParameter(&ptr, &name_, end);
-      CopyTraceObjectParameter(&ptr, &scope_, end);
+      CopyTraceObjectParameter(&ptr, &name_);
+      CopyTraceObjectParameter(&ptr, &scope_);
       for (int i = 0; i < num_args_; ++i) {
-        CopyTraceObjectParameter(&ptr, &arg_names_[i], end);
+        CopyTraceObjectParameter(&ptr, &arg_names_[i]);
       }
     }
     for (int i = 0; i < num_args_; ++i) {
       if (arg_is_copy[i]) {
-        CopyTraceObjectParameter(&ptr, &arg_values_[i].as_string, end);
+        CopyTraceObjectParameter(&ptr, &arg_values_[i].as_string);
       }
     }
   }

@@ -217,8 +217,9 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   double jj4 = std::numeric_limits<double>::infinity();
   double jj5 = -std::numeric_limits<double>::infinity();
   void* kk = &aa;
-  const char* ll = "100";
+  const char* ll = "\"100\"";
   std::string mm = "INIT";
+  std::string mmm = "\"INIT\"";
 
   // Create a scope for the tracing controller to terminate the trace writer.
   {
@@ -250,19 +251,20 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
     TRACE_EVENT1("v8", "v8.Test.jj5", "jj5", jj5);
     TRACE_EVENT1("v8", "v8.Test.kk", "kk", kk);
     TRACE_EVENT1("v8", "v8.Test.ll", "ll", ll);
-    TRACE_EVENT1("v8", "v8.Test.mm", "mm", TRACE_STR_COPY(mm.c_str()));
+    TRACE_EVENT1("v8", "v8.Test.mm", "mm", TRACE_STR_COPY(mmm.c_str()));
 
     TRACE_EVENT2("v8", "v8.Test2.1", "aa", aa, "ll", ll);
-    TRACE_EVENT2("v8", "v8.Test2.2", "mm1", TRACE_STR_COPY(mm.c_str()), "mm2",
-                 TRACE_STR_COPY(mm.c_str()));
+    TRACE_EVENT2("v8", "v8.Test2.2", "mm1", TRACE_STR_COPY(mmm.c_str()), "mm2",
+                 TRACE_STR_COPY(mmm.c_str()));
 
     // Check copies are correct.
     TRACE_EVENT_COPY_INSTANT0("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD);
     TRACE_EVENT_COPY_INSTANT1("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD,
-                              mm.c_str(), mm.c_str());
+                              mm.c_str(), mmm.c_str());
     TRACE_EVENT_COPY_INSTANT2("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD,
-                              mm.c_str(), mm.c_str(), mm.c_str(), mm.c_str());
+                              mm.c_str(), mmm.c_str(), mm.c_str(), mmm.c_str());
     mm = "CHANGED";
+    mmm = "CHANGED";
 
     tracing_controller.StopTracing();
   }
