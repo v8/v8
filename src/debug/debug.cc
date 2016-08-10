@@ -336,13 +336,6 @@ void BreakLocation::ClearBreakPoint(Handle<Object> break_point_object) {
   }
 }
 
-void BreakLocation::ReapplyBreakPoint() {
-  // We indeed have a break point here to re-apply.
-  DCHECK(HasBreakPoint());
-  // The break point is currently not applied to code.
-  DCHECK(!IsDebugBreak());
-  SetDebugBreak();
-}
 
 void BreakLocation::SetOneShot() {
   // Debugger statement always calls debugger. No need to modify it.
@@ -362,6 +355,12 @@ void BreakLocation::SetOneShot() {
 void BreakLocation::ClearOneShot() {
   // Debugger statement always calls debugger. No need to modify it.
   if (IsDebuggerStatement()) return;
+
+  // If there is a real break point here no more to do.
+  if (HasBreakPoint()) {
+    DCHECK(IsDebugBreak());
+    return;
+  }
 
   // Patch code removing debug break.
   ClearDebugBreak();
@@ -1128,27 +1127,12 @@ void Debug::ClearOneShot() {
   // The current implementation just runs through all the breakpoints. When the
   // last break point for a function is removed that function is automatically
   // removed from the list.
-  DisallowHeapAllocation no_gc;
   for (DebugInfoListNode* node = debug_info_list_; node != NULL;
        node = node->next()) {
-    Handle<DebugInfo> debug_info = node->debug_info();
     for (std::unique_ptr<BreakLocation::Iterator> it(
-             BreakLocation::GetIterator(debug_info));
+             BreakLocation::GetIterator(node->debug_info()));
          !it->Done(); it->Next()) {
       it->GetBreakLocation().ClearOneShot();
-    }
-    // Re-apply break points after having cleared everything.
-    if (debug_info->break_points()->IsUndefined(isolate_)) continue;
-    FixedArray* break_points = debug_info->break_points();
-    for (int i = 0; i < break_points->length(); i++) {
-      if (break_points->get(i)->IsUndefined(isolate_)) continue;
-      BreakPointInfo* break_point_info =
-          BreakPointInfo::cast(break_points->get(i));
-      if (break_point_info->GetBreakPointCount() == 0) continue;
-      BreakLocation break_location = BreakLocation::FromPosition(
-          debug_info, break_point_info->source_position(),
-          BREAK_POSITION_ALIGNED);
-      break_location.ReapplyBreakPoint();
     }
   }
 }
