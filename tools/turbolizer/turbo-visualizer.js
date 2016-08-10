@@ -168,6 +168,8 @@ document.onload = (function(d3){
           try{
             jsonObj = JSON.parse(txtRes);
 
+            hideCurrentPhase();
+
             sourceView.initializeCode(jsonObj.source, jsonObj.sourcePosition);
             disassemblyView.initializeCode(jsonObj.source, jsonObj.sourcePosition);
             schedule.setNodePositionMap(jsonObj.nodePositions);

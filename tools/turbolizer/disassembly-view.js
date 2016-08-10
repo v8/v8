@@ -7,10 +7,6 @@
 class DisassemblyView extends TextView {
   constructor(id, broker, sortedPositionList) {
     super(id, broker, null, false);
-    this.pos_start = -1;
-    this.pos_lines = null;
-    this.addr_event_counts = null;
-    this.total_event_counts = null;
 
     let view = this;
     let ADDRESS_STYLE = {
@@ -153,6 +149,9 @@ class DisassemblyView extends TextView {
 
   initializeCode(sourceText, sourcePosition) {
     let view = this;
+    view.pos_start = -1;
+    view.addr_event_counts = null;
+    view.total_event_counts = null;
     view.pos_lines = new Array();
     // Comment lines for line 0 include sourcePosition already, only need to
     // add sourcePosition for lines > 0.

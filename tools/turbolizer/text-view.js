@@ -168,14 +168,16 @@ class TextView extends View {
 
   selectLocations(locations, selected, makeVisible) {
     let view = this;
+    let s = new Set();
     for (let l of locations) {
       for (let i = 0; i < view.textListNode.children.length; ++i) {
         let child = view.textListNode.children[i];
         if (child.location != undefined && view.sameLocation(l, child.location)) {
-          view.selectCommon(child, selected, makeVisible);
+          s.add(child);
         }
       }
     }
+    view.selectCommon(s, selected, makeVisible);
   }
 
   getRanges(items) {
@@ -301,7 +303,7 @@ class TextView extends View {
           view.selection.select(child, selected);
         }
       }
-    } else if (s.length) {
+    } else if (typeof s[Symbol.iterator] === 'function') {
       for (let i of s) {
         if (firstSelect) {
           makeContainerPosVisible(view.parentNode, i.offsetTop);
@@ -312,7 +314,6 @@ class TextView extends View {
     } else {
       if (firstSelect) {
         makeContainerPosVisible(view.parentNode, s.offsetTop);
-        firstSelect = false;
       }
       view.selection.select(s, selected);
     }
@@ -368,6 +369,7 @@ class TextView extends View {
 
   initializeContent(data, rememberedSelection) {
     let view = this;
+    view.selection.clear();
     view.clearText();
     view.processText(data);
     var fillerSize = document.documentElement.clientHeight -
