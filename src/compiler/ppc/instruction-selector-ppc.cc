@@ -1261,47 +1261,11 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Sub(Node* node) {
-  PPCOperandGenerator g(this);
-  Float32BinopMatcher m(node);
-  if (m.left().IsMinusZero()) {
-    Emit(kPPC_NegDouble | MiscField::encode(1), g.DefineAsRegister(node),
-         g.UseRegister(m.right().node()));
-    return;
-  }
-  VisitRRR(this, kPPC_SubDouble | MiscField::encode(1), node);
-}
-
-void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
-  PPCOperandGenerator g(this);
   VisitRRR(this, kPPC_SubDouble | MiscField::encode(1), node);
 }
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   // TODO(mbrandy): detect multiply-subtract
-  PPCOperandGenerator g(this);
-  Float64BinopMatcher m(node);
-  if (m.left().IsMinusZero()) {
-    if (m.right().IsFloat64RoundDown() &&
-        CanCover(m.node(), m.right().node())) {
-      if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
-          CanCover(m.right().node(), m.right().InputAt(0))) {
-        Float64BinopMatcher mright0(m.right().InputAt(0));
-        if (mright0.left().IsMinusZero()) {
-          // -floor(-x) = ceil(x)
-          Emit(kPPC_CeilDouble, g.DefineAsRegister(node),
-               g.UseRegister(mright0.right().node()));
-          return;
-        }
-      }
-    }
-    Emit(kPPC_NegDouble, g.DefineAsRegister(node),
-         g.UseRegister(m.right().node()));
-    return;
-  }
-  VisitRRR(this, kPPC_SubDouble, node);
-}
-
-void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
   VisitRRR(this, kPPC_SubDouble, node);
 }
 
