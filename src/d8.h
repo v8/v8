@@ -291,7 +291,8 @@ class ShellOptions {
         icu_data_file(NULL),
         natives_blob(NULL),
         snapshot_blob(NULL),
-        trace_enabled(false) {}
+        trace_enabled(false),
+        trace_config(NULL) {}
 
   ~ShellOptions() {
     delete[] isolate_sources;

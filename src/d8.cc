@@ -206,6 +206,129 @@ Worker* GetWorkerFromInternalField(Isolate* isolate, Local<Object> object) {
 
 }  // namespace
 
+namespace tracing {
+
+namespace {
+
+// String options that can be used to initialize TraceOptions.
+const char kRecordUntilFull[] = "record-until-full";
+const char kRecordContinuously[] = "record-continuously";
+const char kRecordAsMuchAsPossible[] = "record-as-much-as-possible";
+
+const char kRecordModeParam[] = "record_mode";
+const char kEnableSamplingParam[] = "enable_sampling";
+const char kEnableSystraceParam[] = "enable_systrace";
+const char kEnableArgumentFilterParam[] = "enable_argument_filter";
+const char kIncludedCategoriesParam[] = "included_categories";
+const char kExcludedCategoriesParam[] = "excluded_categories";
+
+class TraceConfigParser {
+ public:
+  static void FillTraceConfig(v8::Isolate* isolate,
+                              platform::tracing::TraceConfig* trace_config,
+                              const char* json_str) {
+    HandleScope outer_scope(isolate);
+    Local<Context> context = Context::New(isolate);
+    Context::Scope context_scope(context);
+    HandleScope inner_scope(isolate);
+
+    Local<String> source =
+        String::NewFromUtf8(isolate, json_str, NewStringType::kNormal)
+            .ToLocalChecked();
+    Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
+    Local<v8::Object> trace_config_object = Local<v8::Object>::Cast(result);
+
+    trace_config->SetTraceRecordMode(
+        GetTraceRecordMode(isolate, context, trace_config_object));
+    if (GetBoolean(isolate, context, trace_config_object,
+                   kEnableSamplingParam)) {
+      trace_config->EnableSampling();
+    }
+    if (GetBoolean(isolate, context, trace_config_object,
+                   kEnableSystraceParam)) {
+      trace_config->EnableSystrace();
+    }
+    if (GetBoolean(isolate, context, trace_config_object,
+                   kEnableArgumentFilterParam)) {
+      trace_config->EnableArgumentFilter();
+    }
+    UpdateCategoriesList(isolate, context, trace_config_object,
+                         kIncludedCategoriesParam, trace_config);
+    UpdateCategoriesList(isolate, context, trace_config_object,
+                         kExcludedCategoriesParam, trace_config);
+  }
+
+ private:
+  static bool GetBoolean(v8::Isolate* isolate, Local<Context> context,
+                         Local<v8::Object> object, const char* property) {
+    Local<Value> value = GetValue(isolate, context, object, property);
+    if (value->IsNumber()) {
+      Local<Boolean> v8_boolean = value->ToBoolean(context).ToLocalChecked();
+      return v8_boolean->Value();
+    }
+    return false;
+  }
+
+  static int UpdateCategoriesList(
+      v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object,
+      const char* property, platform::tracing::TraceConfig* trace_config) {
+    Local<Value> value = GetValue(isolate, context, object, property);
+    if (value->IsArray()) {
+      Local<Array> v8_array = Local<Array>::Cast(value);
+      for (int i = 0, length = v8_array->Length(); i < length; ++i) {
+        Local<Value> v = v8_array->Get(context, i)
+                             .ToLocalChecked()
+                             ->ToString(context)
+                             .ToLocalChecked();
+        String::Utf8Value str(v->ToString(context).ToLocalChecked());
+        if (kIncludedCategoriesParam == property) {
+          trace_config->AddIncludedCategory(*str);
+        } else {
+          trace_config->AddExcludedCategory(*str);
+        }
+      }
+      return v8_array->Length();
+    }
+    return 0;
+  }
+
+  static platform::tracing::TraceRecordMode GetTraceRecordMode(
+      v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object) {
+    Local<Value> value = GetValue(isolate, context, object, kRecordModeParam);
+    if (value->IsString()) {
+      Local<String> v8_string = value->ToString(context).ToLocalChecked();
+      String::Utf8Value str(v8_string);
+      if (strcmp(kRecordUntilFull, *str) == 0) {
+        return platform::tracing::TraceRecordMode::RECORD_UNTIL_FULL;
+      } else if (strcmp(kRecordContinuously, *str) == 0) {
+        return platform::tracing::TraceRecordMode::RECORD_CONTINUOUSLY;
+      } else if (strcmp(kRecordAsMuchAsPossible, *str) == 0) {
+        return platform::tracing::TraceRecordMode::RECORD_AS_MUCH_AS_POSSIBLE;
+      }
+    }
+    return platform::tracing::TraceRecordMode::RECORD_UNTIL_FULL;
+  }
+
+  static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
+                               Local<v8::Object> object, const char* property) {
+    Local<String> v8_str =
+        String::NewFromUtf8(isolate, property, NewStringType::kNormal)
+            .ToLocalChecked();
+    return object->Get(context, v8_str).ToLocalChecked();
+  }
+};
+
+}  // namespace
+
+static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
+    v8::Isolate* isolate, const char* json_str) {
+  platform::tracing::TraceConfig* trace_config =
+      new platform::tracing::TraceConfig();
+  TraceConfigParser::FillTraceConfig(isolate, trace_config, json_str);
+  return trace_config;
+}
+
+}  // namespace tracing
 
 class PerIsolateData {
  public:
@@ -1995,6 +2118,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--enable-tracing") == 0) {
       options.trace_enabled = true;
       argv[i] = NULL;
+    } else if (strncmp(argv[i], "--trace-config=", 15) == 0) {
+      options.trace_config = argv[i] + 15;
+      argv[i] = NULL;
     }
   }
 
@@ -2489,8 +2615,17 @@ int Shell::Main(int argc, char* argv[]) {
               platform::tracing::TraceWriter::CreateJSONTraceWriter(
                   trace_file));
       platform::tracing::TraceConfig* trace_config;
-      trace_config = new platform::tracing::TraceConfig();
-      trace_config->AddIncludedCategory("v8");
+      if (options.trace_config) {
+        int size = 0;
+        char* trace_config_json_str =
+            ReadChars(nullptr, options.trace_config, &size);
+        trace_config =
+            tracing::CreateTraceConfigFromJSON(isolate, trace_config_json_str);
+        delete[] trace_config_json_str;
+      } else {
+        trace_config =
+            platform::tracing::TraceConfig::CreateDefaultTraceConfig();
+      }
       tracing_controller->Initialize(trace_buffer);
       tracing_controller->StartTracing(trace_config);
 #ifndef V8_SHARED

@@ -14,6 +14,12 @@ class Isolate;
 namespace platform {
 namespace tracing {
 
+TraceConfig* TraceConfig::CreateDefaultTraceConfig() {
+  TraceConfig* trace_config = new TraceConfig();
+  trace_config->included_categories_.push_back("v8");
+  return trace_config;
+}
+
 bool TraceConfig::IsCategoryGroupEnabled(const char* category_group) const {
   for (auto included_category : included_categories_) {
     if (strcmp(included_category.data(), category_group) == 0) return true;

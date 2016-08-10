@@ -166,6 +166,8 @@ class TraceConfig {
  public:
   typedef std::vector<std::string> StringList;
 
+  static TraceConfig* CreateDefaultTraceConfig();
+
   TraceConfig()
       : enable_sampling_(false),
         enable_systrace_(false),
