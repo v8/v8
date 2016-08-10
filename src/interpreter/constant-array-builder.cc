@@ -71,7 +71,10 @@ STATIC_CONST_MEMBER_DEFINITION const size_t
     ConstantArrayBuilder::k32BitCapacity;
 
 ConstantArrayBuilder::ConstantArrayBuilder(Isolate* isolate, Zone* zone)
-    : isolate_(isolate), constants_map_(zone) {
+    : isolate_(isolate),
+      constants_map_(zone),
+      smi_map_(zone),
+      smi_pairs_(zone) {
   idx_slice_[0] =
       new (zone) ConstantArraySlice(zone, 0, k8BitCapacity, OperandSize::kByte);
   idx_slice_[1] = new (zone) ConstantArraySlice(
@@ -113,6 +116,12 @@ Handle<Object> ConstantArrayBuilder::At(size_t index) const {
 }
 
 Handle<FixedArray> ConstantArrayBuilder::ToFixedArray() {
+  // First insert reserved SMI values.
+  for (auto reserved_smi : smi_pairs_) {
+    InsertAllocatedEntry(reserved_smi.second,
+                         handle(reserved_smi.first, isolate_));
+  }
+
   Handle<FixedArray> fixed_array = isolate_->factory()->NewFixedArray(
       static_cast<int>(size()), PretenureFlag::TENURED);
   int array_index = 0;
@@ -209,13 +218,21 @@ OperandSize ConstantArrayBuilder::CreateReservedEntry() {
   return OperandSize::kNone;
 }
 
+ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateReservedEntry(
+    Smi* value) {
+  index_t index = static_cast<index_t>(AllocateEntry());
+  smi_map_[value] = index;
+  smi_pairs_.push_back(std::make_pair(value, index));
+  return index;
+}
+
 size_t ConstantArrayBuilder::CommitReservedEntry(OperandSize operand_size,
-                                                 Handle<Object> object) {
+                                                 Smi* value) {
   DiscardReservedEntry(operand_size);
   size_t index;
-  auto entry = constants_map_.find(object.address());
-  if (entry == constants_map_.end()) {
-    index = AllocateEntry(object);
+  auto entry = smi_map_.find(value);
+  if (entry == smi_map_.end()) {
+    index = AllocateReservedEntry(value);
   } else {
     ConstantArraySlice* slice = OperandSizeToSlice(operand_size);
     index = entry->second;
@@ -223,9 +240,9 @@ size_t ConstantArrayBuilder::CommitReservedEntry(OperandSize operand_size,
       // The object is already in the constant array, but may have an
       // index too big for the reserved operand_size. So, duplicate
       // entry with the smaller operand size.
-      index = slice->Allocate(object);
-      constants_map_[object.address()] = static_cast<index_t>(index);
+      index = AllocateReservedEntry(value);
     }
+    DCHECK_LE(index, slice->max_index());
   }
   return index;
 }

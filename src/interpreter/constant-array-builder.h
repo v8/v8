@@ -61,8 +61,8 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   OperandSize CreateReservedEntry();
 
   // Commit reserved entry and returns the constant pool index for the
-  // object.
-  size_t CommitReservedEntry(OperandSize operand_size, Handle<Object> object);
+  // SMI value.
+  size_t CommitReservedEntry(OperandSize operand_size, Smi* value);
 
   // Discards constant pool reservation.
   void DiscardReservedEntry(OperandSize operand_size);
@@ -72,6 +72,7 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
 
   index_t AllocateEntry(Handle<Object> object);
   index_t AllocateIndex(Handle<Object> object);
+  index_t AllocateReservedEntry(Smi* value);
 
   struct ConstantArraySlice final : public ZoneObject {
     ConstantArraySlice(Zone* zone, size_t start_index, size_t capacity,
@@ -107,6 +108,8 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   Isolate* isolate_;
   ConstantArraySlice* idx_slice_[3];
   ZoneMap<Address, index_t> constants_map_;
+  ZoneMap<Smi*, index_t> smi_map_;
+  ZoneVector<std::pair<Smi*, index_t>> smi_pairs_;
 };
 
 }  // namespace interpreter
