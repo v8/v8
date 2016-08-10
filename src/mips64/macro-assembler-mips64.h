@@ -881,6 +881,10 @@ class MacroAssembler: public Assembler {
   void Dextm(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dextu(Register rt, Register rs, uint16_t pos, uint16_t size);
 
+  // MIPS64 R6 instruction macros.
+  void Bovc(Register rt, Register rs, Label* L);
+  void Bnvc(Register rt, Register rs, Label* L);
+
   // ---------------------------------------------------------------------------
   // FPU macros. These do not handle special cases like NaN or +- inf.
 

@@ -831,6 +831,10 @@ class MacroAssembler: public Assembler {
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
 
+  // MIPS32 R6 instruction macros.
+  void Bovc(Register rt, Register rs, Label* L);
+  void Bnvc(Register rt, Register rs, Label* L);
+
   // Int64Lowering instructions
   void AddPair(Register dst_low, Register dst_high, Register left_low,
                Register left_high, Register right_low, Register right_high);
