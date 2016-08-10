@@ -151,6 +151,9 @@ const bool kRequiresCodeRange = true;
 // region. Used only for large object space.
 const size_t kMaximalCodeRangeSize = 256 * MB;
 const size_t kCodeRangeAreaAlignment = 256 * MB;
+#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+const size_t kMaximalCodeRangeSize = 512 * MB;
+const size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
 #else
 const size_t kMaximalCodeRangeSize = 512 * MB;
 const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
@@ -158,6 +161,10 @@ const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #if V8_OS_WIN
 const size_t kMinimumCodeRangeSize = 4 * MB;
 const size_t kReservedCodeRangePages = 1;
+// On PPC Linux PageSize is 4MB
+#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+const size_t kMinimumCodeRangeSize = 12 * MB;
+const size_t kReservedCodeRangePages = 0;
 #else
 const size_t kMinimumCodeRangeSize = 3 * MB;
 const size_t kReservedCodeRangePages = 0;
@@ -171,15 +178,19 @@ const uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 const bool kRequiresCodeRange = true;
 const size_t kMaximalCodeRangeSize = 256 * MB;
 const size_t kMinimumCodeRangeSize = 3 * MB;
-const size_t kReservedCodeRangePages = 0;
 const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+const bool kRequiresCodeRange = false;
+const size_t kMaximalCodeRangeSize = 0 * MB;
+const size_t kMinimumCodeRangeSize = 0 * MB;
+const size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
 #else
 const bool kRequiresCodeRange = false;
 const size_t kMaximalCodeRangeSize = 0 * MB;
 const size_t kMinimumCodeRangeSize = 0 * MB;
-const size_t kReservedCodeRangePages = 0;
 const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #endif
+const size_t kReservedCodeRangePages = 0;
 #endif
 
 // The external allocation limit should be below 256 MB on all architectures
