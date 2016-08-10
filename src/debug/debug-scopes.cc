@@ -125,6 +125,19 @@ ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
   UnwrapEvaluationContext();
 }
 
+ScopeIterator::ScopeIterator(Isolate* isolate,
+                             Handle<JSGeneratorObject> generator)
+    : isolate_(isolate),
+      frame_inspector_(NULL),
+      context_(generator->context()),
+      seen_script_scope_(false),
+      failed_(false) {
+  if (!generator->function()->shared()->IsSubjectToDebugging()) {
+    context_ = Handle<Context>();
+  }
+  UnwrapEvaluationContext();
+}
+
 void ScopeIterator::UnwrapEvaluationContext() {
   while (true) {
     if (context_.is_null()) return;
@@ -623,6 +636,7 @@ bool ScopeIterator::SetParameterValue(Handle<ScopeInfo> scope_info,
 bool ScopeIterator::SetStackVariableValue(Handle<ScopeInfo> scope_info,
                                           Handle<String> variable_name,
                                           Handle<Object> new_value) {
+  if (frame_inspector_ == nullptr) return false;
   JavaScriptFrame* frame = GetFrame();
   // Setting stack locals of optimized frames is not supported.
   if (frame->is_optimized()) return false;

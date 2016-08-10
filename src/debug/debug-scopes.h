@@ -43,6 +43,7 @@ class ScopeIterator {
                 Option options = DEFAULT);
 
   ScopeIterator(Isolate* isolate, Handle<JSFunction> function);
+  ScopeIterator(Isolate* isolate, Handle<JSGeneratorObject> generator);
 
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScopeDetails();
 

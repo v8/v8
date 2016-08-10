@@ -156,6 +156,8 @@ namespace internal {
   F(GetAllScopesDetails, 4, 1)                  \
   F(GetFunctionScopeCount, 1, 1)                \
   F(GetFunctionScopeDetails, 2, 1)              \
+  F(GetGeneratorScopeCount, 1, 1)               \
+  F(GetGeneratorScopeDetails, 2, 1)             \
   F(SetScopeVariableValue, 6, 1)                \
   F(DebugPrintScopes, 0, 1)                     \
   F(SetBreakPointsActive, 1, 1)                 \

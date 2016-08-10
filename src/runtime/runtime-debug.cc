@@ -919,6 +919,48 @@ RUNTIME_FUNCTION(Runtime_GetFunctionScopeDetails) {
   RETURN_RESULT_OR_FAILURE(isolate, it.MaterializeScopeDetails());
 }
 
+RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  if (!args[0]->IsJSGeneratorObject()) return Smi::FromInt(0);
+
+  // Check arguments.
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
+
+  // Count the visible scopes.
+  int n = 0;
+  for (ScopeIterator it(isolate, gen); !it.Done(); it.Next()) {
+    n++;
+  }
+
+  return Smi::FromInt(n);
+}
+
+RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+
+  if (!args[0]->IsJSGeneratorObject()) {
+    return *isolate->factory()->undefined_value();
+  }
+
+  // Check arguments.
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
+  CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
+
+  // Find the requested scope.
+  int n = 0;
+  ScopeIterator it(isolate, gen);
+  for (; !it.Done() && n < index; it.Next()) {
+    n++;
+  }
+  if (it.Done()) {
+    return isolate->heap()->undefined_value();
+  }
+
+  RETURN_RESULT_OR_FAILURE(isolate, it.MaterializeScopeDetails());
+}
 
 static bool SetScopeVariableValue(ScopeIterator* it, int index,
                                   Handle<String> variable_name,
@@ -967,9 +1009,13 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
 
     ScopeIterator it(isolate, &frame_inspector);
     res = SetScopeVariableValue(&it, index, variable_name, new_value);
-  } else {
+  } else if (args[0]->IsJSFunction()) {
     CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
     ScopeIterator it(isolate, fun);
+    res = SetScopeVariableValue(&it, index, variable_name, new_value);
+  } else {
+    CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
+    ScopeIterator it(isolate, gen);
     res = SetScopeVariableValue(&it, index, variable_name, new_value);
   }
 
