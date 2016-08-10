@@ -49,29 +49,16 @@ void Builtins::Generate_LoadGlobalIC_Miss(CodeStubAssembler* assembler) {
                              vector);
 }
 
-namespace {
-void Generate_LoadGlobalIC_Slow(CodeStubAssembler* assembler, TypeofMode mode) {
+void Builtins::Generate_LoadGlobalIC_Slow(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
   typedef LoadGlobalWithVectorDescriptor Descriptor;
 
   Node* slot = assembler->Parameter(Descriptor::kSlot);
   Node* vector = assembler->Parameter(Descriptor::kVector);
   Node* context = assembler->Parameter(Descriptor::kContext);
-  Node* typeof_mode = assembler->SmiConstant(Smi::FromInt(mode));
 
-  assembler->TailCallRuntime(Runtime::kGetGlobal, context, slot, vector,
-                             typeof_mode);
-}
-}  // anonymous namespace
-
-void Builtins::Generate_LoadGlobalIC_SlowInsideTypeof(
-    CodeStubAssembler* assembler) {
-  Generate_LoadGlobalIC_Slow(assembler, INSIDE_TYPEOF);
-}
-
-void Builtins::Generate_LoadGlobalIC_SlowNotInsideTypeof(
-    CodeStubAssembler* assembler) {
-  Generate_LoadGlobalIC_Slow(assembler, NOT_INSIDE_TYPEOF);
+  assembler->TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, slot,
+                             vector);
 }
 
 void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {

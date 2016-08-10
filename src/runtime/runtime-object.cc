@@ -15,9 +15,10 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<Object> Runtime::GetObjectProperty(
-    Isolate* isolate, Handle<Object> object, Handle<Object> key,
-    bool should_throw_reference_error) {
+MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
+                                               Handle<Object> object,
+                                               Handle<Object> key,
+                                               bool* is_found_out) {
   if (object->IsUndefined(isolate) || object->IsNull(isolate)) {
     THROW_NEW_ERROR(
         isolate,
@@ -31,10 +32,7 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
   if (!success) return MaybeHandle<Object>();
 
   MaybeHandle<Object> result = Object::GetProperty(&it);
-  if (!result.is_null() && should_throw_reference_error && !it.IsFound()) {
-    THROW_NEW_ERROR(
-        isolate, NewReferenceError(MessageTemplate::kNotDefined, key), Object);
-  }
+  if (is_found_out) *is_found_out = it.IsFound();
   return result;
 }
 
@@ -346,47 +344,6 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            Runtime::GetObjectProperty(isolate, object, key));
-}
-
-RUNTIME_FUNCTION(Runtime_GetGlobal) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_SMI_ARG_CHECKED(slot, 0);
-  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
-  CONVERT_SMI_ARG_CHECKED(typeof_mode_value, 2);
-  TypeofMode typeof_mode = static_cast<TypeofMode>(typeof_mode_value);
-  bool should_throw_reference_error = typeof_mode == NOT_INSIDE_TYPEOF;
-
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot);
-  DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
-            vector->GetKind(vector_slot));
-  Handle<String> name(vector->GetName(vector_slot), isolate);
-  DCHECK_NE(*name, *isolate->factory()->empty_string());
-
-  Handle<JSGlobalObject> global = isolate->global_object();
-
-  Handle<ScriptContextTable> script_contexts(
-      global->native_context()->script_context_table());
-
-  ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
-    Handle<Context> script_context = ScriptContextTable::GetContext(
-        script_contexts, lookup_result.context_index);
-    Handle<Object> result =
-        FixedArray::get(*script_context, lookup_result.slot_index, isolate);
-    if (*result == *isolate->factory()->the_hole_value()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
-    }
-    return *result;
-  }
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Runtime::GetObjectProperty(isolate, global, name,
-                                 should_throw_reference_error));
-  return *result;
 }
 
 // KeyedGetProperty is called from KeyedLoadIC::GenerateGeneric.
