@@ -139,7 +139,7 @@ class RedundantStoreFinder final {
 
   const ZoneSet<Node*>& to_remove_const() { return to_remove_; }
 
-  virtual void Visit(Node* node);
+  void Visit(Node* node);
 
  private:
   static bool IsEffectful(Node* node);
