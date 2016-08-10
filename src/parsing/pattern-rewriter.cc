@@ -149,14 +149,14 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   const AstRawString* name = pattern->raw_name();
   VariableProxy* proxy = parser_->NewUnresolved(name, descriptor_->mode);
   Declaration* declaration = factory()->NewVariableDeclaration(
-      proxy, descriptor_->mode, descriptor_->scope,
-      descriptor_->declaration_pos);
+      proxy, descriptor_->scope, descriptor_->declaration_pos);
   Variable* var = parser_->Declare(declaration, descriptor_->declaration_kind,
+                                   descriptor_->mode,
                                    DefaultInitializationFlag(descriptor_->mode),
                                    ok_, descriptor_->hoist_scope);
   if (!*ok_) return;
   DCHECK_NOT_NULL(var);
-  DCHECK(!proxy->is_resolved() || proxy->var() == var);
+  DCHECK(proxy->is_resolved());
   DCHECK(initializer_position_ != kNoSourcePosition);
   var->set_initializer_position(initializer_position_);
 

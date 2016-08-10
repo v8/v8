@@ -1979,27 +1979,29 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
   DCHECK_NOT_NULL(name);
   VariableProxy* proxy = NewUnresolved(name, mode);
   Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, mode, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, init, CHECK_OK);
+      factory()->NewVariableDeclaration(proxy, scope(), pos);
+  Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, CHECK_OK);
   return declaration;
 }
 
 Variable* Parser::Declare(Declaration* declaration,
                           DeclarationDescriptor::Kind declaration_kind,
-                          InitializationFlag init, bool* ok, Scope* scope) {
+                          VariableMode mode, InitializationFlag init, bool* ok,
+                          Scope* scope) {
+  DCHECK(IsDeclaredVariableMode(mode) && mode != CONST_LEGACY);
+
   VariableProxy* proxy = declaration->proxy();
   DCHECK(proxy->raw_name() != NULL);
   const AstRawString* name = proxy->raw_name();
-  VariableMode mode = declaration->mode();
-  DCHECK(IsDeclaredVariableMode(mode) && mode != CONST_LEGACY);
-  bool is_function_declaration = declaration->IsFunctionDeclaration();
+
   if (scope == nullptr) scope = this->scope();
   if (mode == VAR) scope = scope->GetDeclarationScope();
-
   DCHECK(!scope->is_catch_scope());
   DCHECK(!scope->is_with_scope());
   DCHECK(scope->is_declaration_scope() ||
          (IsLexicalVariableMode(mode) && scope->is_block_scope()));
+
+  bool is_function_declaration = declaration->IsFunctionDeclaration();
 
   Variable* var = NULL;
   if (scope->is_eval_scope() && is_sloppy(scope->language_mode()) &&
@@ -2212,8 +2214,8 @@ Statement* Parser::ParseHoistableDeclaration(
                                                                        : VAR;
   VariableProxy* proxy = NewUnresolved(variable_name, mode);
   Declaration* declaration =
-      factory()->NewFunctionDeclaration(proxy, mode, fun, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, kCreatedInitialized,
+      factory()->NewFunctionDeclaration(proxy, fun, scope(), pos);
+  Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
           CHECK_OK);
   if (names) names->Add(variable_name, zone());
   EmptyStatement* empty = factory()->NewEmptyStatement(kNoSourcePosition);
@@ -4939,8 +4941,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
         Variable(scope(), function_name, fvar_mode, Variable::NORMAL,
                  kCreatedInitialized, kNotAssigned);
     VariableProxy* proxy = factory()->NewVariableProxy(fvar);
-    VariableDeclaration* fvar_declaration = factory()->NewVariableDeclaration(
-        proxy, fvar_mode, scope(), kNoSourcePosition);
+    VariableDeclaration* fvar_declaration =
+        factory()->NewVariableDeclaration(proxy, scope(), kNoSourcePosition);
     function_scope->DeclareFunctionVar(fvar_declaration);
 
     VariableProxy* fproxy = factory()->NewVariableProxy(fvar);
@@ -5020,9 +5022,9 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
   if (name != nullptr) {
     proxy = NewUnresolved(name, CONST);
     // TODO(verwaest): declare via block_state.
-    Declaration* declaration = factory()->NewVariableDeclaration(
-        proxy, CONST, block_state.scope(), pos);
-    Declare(declaration, DeclarationDescriptor::NORMAL,
+    Declaration* declaration =
+        factory()->NewVariableDeclaration(proxy, block_state.scope(), pos);
+    Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
             DefaultInitializationFlag(CONST), CHECK_OK);
   }
 
@@ -5216,7 +5218,9 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
   BlockState block_state(&scope_state_, inner_scope);
   for (int i = 0; i < decls->length(); ++i) {
     Declaration* decl = decls->at(i);
-    if (decl->mode() != VAR || !decl->IsVariableDeclaration()) continue;
+    if (decl->proxy()->var()->mode() != VAR || !decl->IsVariableDeclaration()) {
+      continue;
+    }
     const AstRawString* name = decl->proxy()->raw_name();
     Variable* parameter = function_scope->LookupLocal(name);
     if (parameter == nullptr) continue;
@@ -5298,9 +5302,9 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
       if (!var_created) {
         var_created = true;
         VariableProxy* proxy = scope->NewUnresolved(factory(), name);
-        Declaration* declaration = factory()->NewVariableDeclaration(
-            proxy, VAR, scope, kNoSourcePosition);
-        Declare(declaration, DeclarationDescriptor::NORMAL,
+        Declaration* declaration =
+            factory()->NewVariableDeclaration(proxy, scope, kNoSourcePosition);
+        Declare(declaration, DeclarationDescriptor::NORMAL, VAR,
                 DefaultInitializationFlag(VAR), ok, scope);
         DCHECK(ok);  // Based on the preceding check, this should not fail
         if (!ok) return;

@@ -495,18 +495,13 @@ class DoExpression final : public Expression {
 class Declaration : public AstNode {
  public:
   VariableProxy* proxy() const { return proxy_; }
-  VariableMode mode() const { return mode_; }
   Scope* scope() const { return scope_; }
 
  protected:
-  Declaration(VariableProxy* proxy, VariableMode mode, Scope* scope, int pos,
-              NodeType type)
-      : AstNode(pos, type), mode_(mode), proxy_(proxy), scope_(scope) {
-    DCHECK(IsDeclaredVariableMode(mode));
-  }
+  Declaration(VariableProxy* proxy, Scope* scope, int pos, NodeType type)
+      : AstNode(pos, type), proxy_(proxy), scope_(scope) {}
 
  private:
-  VariableMode mode_;
   VariableProxy* proxy_;
 
   // Nested scope from which the declaration originated.
@@ -518,9 +513,8 @@ class VariableDeclaration final : public Declaration {
  private:
   friend class AstNodeFactory;
 
-  VariableDeclaration(VariableProxy* proxy, VariableMode mode, Scope* scope,
-                      int pos)
-      : Declaration(proxy, mode, scope, pos, kVariableDeclaration) {}
+  VariableDeclaration(VariableProxy* proxy, Scope* scope, int pos)
+      : Declaration(proxy, scope, pos, kVariableDeclaration) {}
 };
 
 
@@ -532,10 +526,9 @@ class FunctionDeclaration final : public Declaration {
  private:
   friend class AstNodeFactory;
 
-  FunctionDeclaration(VariableProxy* proxy, VariableMode mode,
-                      FunctionLiteral* fun, Scope* scope, int pos)
-      : Declaration(proxy, mode, scope, pos, kFunctionDeclaration), fun_(fun) {
-    DCHECK(mode == VAR || mode == LET || mode == CONST);
+  FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun, Scope* scope,
+                      int pos)
+      : Declaration(proxy, scope, pos, kFunctionDeclaration), fun_(fun) {
     DCHECK(fun != NULL);
   }
 
@@ -3002,17 +2995,14 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
-                                              VariableMode mode, Scope* scope,
-                                              int pos) {
-    return new (zone_) VariableDeclaration(proxy, mode, scope, pos);
+                                              Scope* scope, int pos) {
+    return new (zone_) VariableDeclaration(proxy, scope, pos);
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
-                                              VariableMode mode,
                                               FunctionLiteral* fun,
-                                              Scope* scope,
-                                              int pos) {
-    return new (zone_) FunctionDeclaration(proxy, mode, fun, scope, pos);
+                                              Scope* scope, int pos) {
+    return new (zone_) FunctionDeclaration(proxy, fun, scope, pos);
   }
 
   Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,

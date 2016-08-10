@@ -343,7 +343,7 @@ void Scope::DeserializeScopeInfo(Isolate* isolate,
           Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
       VariableProxy* proxy = factory.NewVariableProxy(result);
       VariableDeclaration* declaration =
-          factory.NewVariableDeclaration(proxy, mode, this, kNoSourcePosition);
+          factory.NewVariableDeclaration(proxy, this, kNoSourcePosition);
       AsDeclarationScope()->DeclareFunctionVar(declaration);
       result->AllocateTo(VariableLocation::CONTEXT, index);
     }
@@ -611,7 +611,7 @@ Variable* DeclarationScope::LookupFunctionVar(const AstRawString* name,
     DCHECK_NOT_NULL(factory);
     VariableProxy* proxy = factory->NewVariableProxy(var);
     VariableDeclaration* declaration =
-        factory->NewVariableDeclaration(proxy, mode, this, kNoSourcePosition);
+        factory->NewVariableDeclaration(proxy, this, kNoSourcePosition);
     DCHECK_EQ(factory->zone(), zone());
     DeclareFunctionVar(declaration);
     var->AllocateTo(VariableLocation::CONTEXT, index);
@@ -744,13 +744,13 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
   int length = decls_.length();
   for (int i = 0; i < length; i++) {
     Declaration* decl = decls_[i];
+    VariableMode mode = decl->proxy()->var()->mode();
     // We don't create a separate scope to hold the function name of a function
     // expression, so we have to make sure not to consider it when checking for
     // conflicts (since it's conceptually "outside" the declaration scope).
     if (is_function_scope() && decl == AsDeclarationScope()->function())
       continue;
-    if (IsLexicalVariableMode(decl->mode()) && !is_block_scope()) continue;
-    const AstRawString* name = decl->proxy()->raw_name();
+    if (IsLexicalVariableMode(mode) && !is_block_scope()) continue;
 
     // Iterate through all scopes until and including the declaration scope.
     Scope* previous = NULL;
@@ -759,10 +759,11 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
     // captured in Parser::Declare. The only conflicts we still need to check
     // are lexical vs VAR, or any declarations within a declaration block scope
     // vs lexical declarations in its surrounding (function) scope.
-    if (IsLexicalVariableMode(decl->mode())) current = current->outer_scope_;
+    if (IsLexicalVariableMode(mode)) current = current->outer_scope_;
     do {
       // There is a conflict if there exists a non-VAR binding.
-      Variable* other_var = current->variables_.Lookup(name);
+      Variable* other_var =
+          current->variables_.Lookup(decl->proxy()->raw_name());
       if (other_var != NULL && IsLexicalVariableMode(other_var->mode())) {
         return decl;
       }

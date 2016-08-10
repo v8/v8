@@ -1089,7 +1089,7 @@ class Parser : public ParserBase<ParserTraits> {
   VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind,
-                    InitializationFlag init, bool* ok,
+                    VariableMode mode, InitializationFlag init, bool* ok,
                     Scope* declaration_scope = nullptr);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
                                int pos, bool* ok);
