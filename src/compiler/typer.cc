@@ -1234,7 +1234,7 @@ Type* Typer::Visitor::WrapContextTypeForInput(Node* node) {
   if (outer->Is(Type::None())) {
     return Type::None();
   } else {
-    DCHECK(outer->Maybe(Type::Internal()));
+    DCHECK(outer->Maybe(Type::OtherInternal()));
     return Type::Context(outer, zone());
   }
 }
@@ -1583,19 +1583,17 @@ Type* Typer::Visitor::TypeCheckFloat64Hole(Node* node) {
 }
 
 Type* Typer::Visitor::TypeCheckTaggedHole(Node* node) {
-  CheckTaggedHoleMode mode = CheckTaggedHoleModeOf(node->op());
   Type* type = Operand(node, 0);
   type = Type::Intersect(type, Type::NonInternal(), zone());
-  switch (mode) {
-    case CheckTaggedHoleMode::kConvertHoleToUndefined: {
-      // The hole is turned into undefined.
-      type = Type::Union(type, Type::Undefined(), zone());
-      break;
-    }
-    case CheckTaggedHoleMode::kNeverReturnHole: {
-      // We deoptimize in case of the hole.
-      break;
-    }
+  return type;
+}
+
+Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {
+  Type* type = Operand(node, 0);
+  if (type->Maybe(Type::Hole())) {
+    // Turn "the hole" into undefined.
+    type = Type::Intersect(type, Type::NonInternal(), zone());
+    type = Type::Union(type, Type::Undefined(), zone());
   }
   return type;
 }

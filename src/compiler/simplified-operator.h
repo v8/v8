@@ -119,17 +119,6 @@ std::ostream& operator<<(std::ostream&, CheckFloat64HoleMode);
 
 CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator*) WARN_UNUSED_RESULT;
 
-enum class CheckTaggedHoleMode : uint8_t {
-  kNeverReturnHole,        // Never return the hole (deoptimize instead).
-  kConvertHoleToUndefined  // Convert the hole to undefined.
-};
-
-size_t hash_value(CheckTaggedHoleMode);
-
-std::ostream& operator<<(std::ostream&, CheckTaggedHoleMode);
-
-CheckTaggedHoleMode CheckTaggedHoleModeOf(const Operator*) WARN_UNUSED_RESULT;
-
 enum class CheckTaggedInputMode : uint8_t {
   kNumber,
   kNumberOrOddball,
@@ -339,7 +328,8 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckedTruncateTaggedToWord32();
 
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
-  const Operator* CheckTaggedHole(CheckTaggedHoleMode);
+  const Operator* CheckTaggedHole();
+  const Operator* ConvertTaggedHoleToUndefined();
 
   const Operator* ObjectIsCallable();
   const Operator* ObjectIsNumber();

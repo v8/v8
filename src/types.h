@@ -199,7 +199,8 @@ namespace internal {
   V(OtherUndetectable,   1u << 16 | REPRESENTATION(kTaggedPointer)) \
   V(Proxy,               1u << 18 | REPRESENTATION(kTaggedPointer)) \
   V(Function,            1u << 19 | REPRESENTATION(kTaggedPointer)) \
-  V(Internal,            1u << 20 | REPRESENTATION(kTagged | kUntagged)) \
+  V(Hole,                1u << 20 | REPRESENTATION(kTaggedPointer)) \
+  V(OtherInternal,       1u << 21 | REPRESENTATION(kTagged | kUntagged)) \
   \
   V(Signed31,                   kUnsigned30 | kNegative31) \
   V(Signed32,                   kSigned31 | kOtherUnsigned31 | kOtherSigned32) \
@@ -225,7 +226,7 @@ namespace internal {
   V(NullOrNumber,               kNull | kNumber) \
   V(NullOrUndefined,            kNull | kUndefined) \
   V(Undetectable,               kNullOrUndefined | kOtherUndetectable) \
-  V(NumberOrOddball,            kNumber | kNullOrUndefined | kBoolean) \
+  V(NumberOrOddball,            kNumber | kNullOrUndefined | kBoolean | kHole) \
   V(NumberOrSimdOrString,       kNumber | kSimd | kString) \
   V(NumberOrString,             kNumber | kString) \
   V(NumberOrUndefined,          kNumber | kUndefined) \
@@ -237,6 +238,7 @@ namespace internal {
   V(StringOrReceiver,           kString | kReceiver) \
   V(Unique,                     kBoolean | kUniqueName | kNull | kUndefined | \
                                 kReceiver) \
+  V(Internal,                   kHole | kOtherInternal) \
   V(NonInternal,                kPrimitive | kReceiver) \
   V(NonNumber,                  kUnique | kString | kInternal) \
   V(Any,                        0xfffffffeu)

@@ -1158,7 +1158,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     }
 
     // Compute the element access.
-    Type* element_type = Type::Any();
+    Type* element_type = Type::NonInternal();
     MachineType element_machine_type = MachineType::AnyTagged();
     if (IsFastDoubleElementsKind(elements_kind)) {
       element_type = Type::Number();
@@ -1176,10 +1176,8 @@ JSNativeContextSpecialization::BuildElementAccess(
       // of holey backing stores.
       if (elements_kind == FAST_HOLEY_ELEMENTS ||
           elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
-        element_access.type = Type::Union(
-            element_type,
-            Type::Constant(factory()->the_hole_value(), graph()->zone()),
-            graph()->zone());
+        element_access.type =
+            Type::Union(element_type, Type::Hole(), graph()->zone());
       }
       // Perform the actual backing store access.
       value = effect =
@@ -1189,15 +1187,16 @@ JSNativeContextSpecialization::BuildElementAccess(
       // the hole to undefined if possible, or deoptimizing otherwise.
       if (elements_kind == FAST_HOLEY_ELEMENTS ||
           elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
-        // Perform the hole check on the result.
-        CheckTaggedHoleMode mode = CheckTaggedHoleMode::kNeverReturnHole;
         // Check if we are allowed to turn the hole into undefined.
         if (CanTreatHoleAsUndefined(receiver_maps, native_context)) {
           // Turn the hole into undefined.
-          mode = CheckTaggedHoleMode::kConvertHoleToUndefined;
+          value = graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(),
+                                   value);
+        } else {
+          // Bailout if we see the hole.
+          value = effect = graph()->NewNode(simplified()->CheckTaggedHole(),
+                                            value, effect, control);
         }
-        value = effect = graph()->NewNode(simplified()->CheckTaggedHole(mode),
-                                          value, effect, control);
       } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
         // Perform the hole check on the result.
         CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;

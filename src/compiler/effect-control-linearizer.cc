@@ -714,6 +714,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckTaggedHole:
       state = LowerCheckTaggedHole(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kConvertTaggedHoleToUndefined:
+      state = LowerConvertTaggedHoleToUndefined(node, *effect, *control);
+      break;
     case IrOpcode::kPlainPrimitiveToNumber:
       state = LowerPlainPrimitiveToNumber(node, *effect, *control);
       break;
@@ -2418,22 +2421,35 @@ EffectControlLinearizer::LowerCheckFloat64Hole(Node* node, Node* frame_state,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerCheckTaggedHole(Node* node, Node* frame_state,
                                               Node* effect, Node* control) {
-  CheckTaggedHoleMode mode = CheckTaggedHoleModeOf(node->op());
   Node* value = node->InputAt(0);
   Node* check = graph()->NewNode(machine()->WordEqual(), value,
                                  jsgraph()->TheHoleConstant());
-  switch (mode) {
-    case CheckTaggedHoleMode::kConvertHoleToUndefined:
-      value = graph()->NewNode(
-          common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
-          check, jsgraph()->UndefinedConstant(), value);
-      break;
-    case CheckTaggedHoleMode::kNeverReturnHole:
-      control = effect =
-          graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kHole),
-                           check, frame_state, effect, control);
-      break;
-  }
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kHole), check,
+                       frame_state, effect, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerConvertTaggedHoleToUndefined(Node* node,
+                                                           Node* effect,
+                                                           Node* control) {
+  Node* value = node->InputAt(0);
+  Node* check = graph()->NewNode(machine()->WordEqual(), value,
+                                 jsgraph()->TheHoleConstant());
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = jsgraph()->UndefinedConstant();
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = value;
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           vtrue, vfalse, control);
 
   return ValueEffectControl(value, effect, control);
 }

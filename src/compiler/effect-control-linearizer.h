@@ -130,6 +130,8 @@ class EffectControlLinearizer {
                                            Node* effect, Node* control);
   ValueEffectControl LowerCheckTaggedHole(Node* node, Node* frame_state,
                                           Node* effect, Node* control);
+  ValueEffectControl LowerConvertTaggedHoleToUndefined(Node* node, Node* effect,
+                                                       Node* control);
   ValueEffectControl LowerPlainPrimitiveToNumber(Node* node, Node* effect,
                                                  Node* control);
   ValueEffectControl LowerPlainPrimitiveToWord32(Node* node, Node* effect,

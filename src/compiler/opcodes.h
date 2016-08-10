@@ -290,6 +290,7 @@
   V(CheckTaggedSigned)              \
   V(CheckFloat64Hole)               \
   V(CheckTaggedHole)                \
+  V(ConvertTaggedHoleToUndefined)   \
   V(Allocate)                       \
   V(LoadField)                      \
   V(LoadBuffer)                     \

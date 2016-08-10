@@ -2392,17 +2392,29 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckTaggedHole: {
-        CheckTaggedHoleMode mode = CheckTaggedHoleModeOf(node->op());
-        if (truncation.IsUsedAsWord32() &&
-            mode == CheckTaggedHoleMode::kConvertHoleToUndefined) {
-          ProcessInput(node, 0, UseInfo::CheckedSigned32AsWord32());
-          ProcessRemainingInputs(node, 1);
-          SetOutput(node, MachineRepresentation::kWord32);
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+        return;
+      }
+      case IrOpcode::kConvertTaggedHoleToUndefined: {
+        if (InputIs(node, Type::NumberOrOddball()) &&
+            truncation.IsUsedAsWord32()) {
+          // Propagate the Word32 truncation.
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    MachineRepresentation::kWord32);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if (InputIs(node, Type::NumberOrOddball()) &&
+                   truncation.IsUsedAsFloat64()) {
+          // Propagate the Float64 truncation.
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kFloat64);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if (InputIs(node, Type::NonInternal())) {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
-          ProcessInput(node, 0, UseInfo::AnyTagged());
-          ProcessRemainingInputs(node, 1);
-          SetOutput(node, MachineRepresentation::kTagged);
+          // TODO(turbofan): Add a (Tagged) truncation that identifies hole
+          // and undefined, i.e. for a[i] === obj cases.
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         }
         return;
       }

@@ -2609,6 +2609,8 @@ void Heap::CreateInitialObjects() {
 
   set_nan_value(*factory->NewHeapNumber(
       std::numeric_limits<double>::quiet_NaN(), IMMUTABLE, TENURED));
+  set_hole_nan_value(*factory->NewHeapNumber(bit_cast<double>(kHoleNanInt64),
+                                             IMMUTABLE, TENURED));
   set_infinity_value(*factory->NewHeapNumber(V8_INFINITY, IMMUTABLE, TENURED));
   set_minus_infinity_value(
       *factory->NewHeapNumber(-V8_INFINITY, IMMUTABLE, TENURED));
@@ -2629,7 +2631,7 @@ void Heap::CreateInitialObjects() {
 
   // Initialize the_hole_value.
   Oddball::Initialize(isolate(), factory->the_hole_value(), "hole",
-                      handle(Smi::FromInt(-1), isolate()), "undefined",
+                      factory->hole_nan_value(), "undefined",
                       Oddball::kTheHole);
 
   // Initialize the true_value.

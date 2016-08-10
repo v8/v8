@@ -166,6 +166,7 @@ using v8::MemoryPressureLevel;
   V(Cell, species_protector, SpeciesProtector)                                 \
   /* Special numbers */                                                        \
   V(HeapNumber, nan_value, NanValue)                                           \
+  V(HeapNumber, hole_nan_value, HoleNanValue)                                  \
   V(HeapNumber, infinity_value, InfinityValue)                                 \
   V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
