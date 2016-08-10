@@ -251,9 +251,8 @@ span.linkable-text:hover {
     -webkit-transition: all 1s ease-in-out;
     -moz-transition: all 1s ease-in-out;
     -o-transition: all 1s ease-in-out;
-    transition: all 1s ease-in-out;
+    transition: all .3s ease-in-out;
     transition-property: width;
-    transition-duration: 1s, 1s;
 }
 
 #middle {
@@ -261,9 +260,8 @@ span.linkable-text:hover {
     -webkit-transition: all 1s ease-in-out;
     -moz-transition: all 1s ease-in-out;
     -o-transition: all 1s ease-in-out;
-    transition: all 1s ease-in-out;
+    transition: all .3s ease-in-out;
     transition-property: width;
-    transition-duration: 1s, 1s;
 }
 
 #right {
@@ -271,9 +269,8 @@ span.linkable-text:hover {
     -webkit-transition: all 1s ease-in-out;
     -moz-transition: all 1s ease-in-out;
     -o-transition: all 1s ease-in-out;
-    transition: all 1s ease-in-out;
+    transition: all .3s ease-in-out;
     transition-property: width;
-    transition-duration: 1s, 1s;
 }
 
 #disassembly-collapse {

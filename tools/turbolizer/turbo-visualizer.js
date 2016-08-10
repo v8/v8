@@ -142,13 +142,13 @@ document.onload = (function(d3){
       toggleSourceExpanded(true);
       setTimeout(function(){
         g.fitGraphViewToWindow();
-      }, 1000);
+      }, 300);
     });
     d3.select("#disassembly-collapse").on("click", function(){
       toggleDisassemblyExpanded();
       setTimeout(function(){
         g.fitGraphViewToWindow();
-      }, 1000);
+      }, 300);
     });
     window.onresize = function(){
       fitPanesToParents();
