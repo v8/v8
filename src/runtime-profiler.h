@@ -11,6 +11,7 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class JavaScriptFrame;
 class JSFunction;
 
 class RuntimeProfiler {
@@ -21,13 +22,14 @@ class RuntimeProfiler {
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 
-  void AttemptOnStackReplacement(JSFunction* function, int nesting_levels = 1);
+  void AttemptOnStackReplacement(JavaScriptFrame* frame,
+                                 int nesting_levels = 1);
 
  private:
-  void MaybeOptimizeFullCodegen(JSFunction* function, int frame_count,
-                                bool frame_optimized);
-  void MaybeBaselineIgnition(JSFunction* function, bool frame_optimized);
-  void MaybeOptimizeIgnition(JSFunction* function, bool frame_optimized);
+  void MaybeOptimizeFullCodegen(JSFunction* function, JavaScriptFrame* frame,
+                                int frame_count);
+  void MaybeBaselineIgnition(JSFunction* function, JavaScriptFrame* frame);
+  void MaybeOptimizeIgnition(JSFunction* function, JavaScriptFrame* frame);
   void Optimize(JSFunction* function, const char* reason);
   void Baseline(JSFunction* function, const char* reason);
 

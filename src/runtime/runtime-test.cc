@@ -143,37 +143,27 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
 
 RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   HandleScope scope(isolate);
+  DCHECK(args.length() == 0 || args.length() == 1);
 
-  // This function is used by fuzzers, ignore calls with bogus arguments count.
-  if (args.length() != 0 && args.length() != 1) {
-    return isolate->heap()->undefined_value();
-  }
+  Handle<JSFunction> function;
 
-  Handle<JSFunction> function = Handle<JSFunction>::null();
-  if (args.length() == 0) {
-    // Find the JavaScript function on the top of the stack.
-    JavaScriptFrameIterator it(isolate);
-    if (!it.done()) function = Handle<JSFunction>(it.frame()->function());
-    if (function.is_null()) return isolate->heap()->undefined_value();
-  } else {
-    // Function was passed as an argument.
-    CONVERT_ARG_HANDLE_CHECKED(JSFunction, arg, 0);
-    function = arg;
-  }
+  // The optional parameter determines the frame being targeted.
+  int stack_depth = args.length() == 1 ? args.smi_at(0) : 0;
 
-  // If function is interpreted but OSR hasn't been enabled, just return.
-  if (function->shared()->HasBytecodeArray() && !FLAG_ignition_osr) {
-    return isolate->heap()->undefined_value();
-  }
+  // Find the JavaScript function on the top of the stack.
+  JavaScriptFrameIterator it(isolate);
+  while (!it.done() && stack_depth--) it.Advance();
+  if (!it.done()) function = Handle<JSFunction>(it.frame()->function());
+  if (function.is_null()) return isolate->heap()->undefined_value();
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
   // Make the profiler arm all back edges in unoptimized code.
-  if (function->shared()->HasBytecodeArray() ||
-      function->shared()->HasBaselineCode()) {
+  if (it.frame()->type() == StackFrame::JAVA_SCRIPT ||
+      it.frame()->type() == StackFrame::INTERPRETED) {
     isolate->runtime_profiler()->AttemptOnStackReplacement(
-        *function, AbstractCode::kMaxLoopNestingMarker);
+        it.frame(), AbstractCode::kMaxLoopNestingMarker);
   }
 
   return isolate->heap()->undefined_value();

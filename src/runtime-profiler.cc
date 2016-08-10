@@ -127,8 +127,9 @@ void RuntimeProfiler::Baseline(JSFunction* function, const char* reason) {
   function->MarkForBaseline();
 }
 
-void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
+void RuntimeProfiler::AttemptOnStackReplacement(JavaScriptFrame* frame,
                                                 int loop_nesting_levels) {
+  JSFunction* function = frame->function();
   SharedFunctionInfo* shared = function->shared();
   if (!FLAG_use_osr || function->shared()->IsBuiltin()) {
     return;
@@ -153,13 +154,15 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
     PrintF("]\n");
   }
 
-  if (shared->code()->kind() == Code::FUNCTION) {
+  if (frame->type() == StackFrame::JAVA_SCRIPT) {
+    DCHECK(shared->HasBaselineCode());
     DCHECK(BackEdgeTable::Verify(shared->GetIsolate(), shared->code()));
     for (int i = 0; i < loop_nesting_levels; i++) {
       BackEdgeTable::Patch(isolate_, shared->code());
     }
-  } else if (shared->HasBytecodeArray()) {
-    DCHECK(FLAG_ignition_osr);  // Should only happen when enabled.
+  } else if (frame->type() == StackFrame::INTERPRETED) {
+    DCHECK(shared->HasBytecodeArray());
+    if (!FLAG_ignition_osr) return;  // Only use this when enabled.
     int level = shared->bytecode_array()->osr_loop_nesting_level();
     shared->bytecode_array()->set_osr_loop_nesting_level(
         Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
@@ -169,17 +172,17 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
 }
 
 void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
-                                               int frame_count,
-                                               bool frame_optimized) {
+                                               JavaScriptFrame* frame,
+                                               int frame_count) {
   SharedFunctionInfo* shared = function->shared();
   Code* shared_code = shared->code();
   if (shared_code->kind() != Code::FUNCTION) return;
   if (function->IsInOptimizationQueue()) return;
 
   if (FLAG_always_osr) {
-    AttemptOnStackReplacement(function, AbstractCode::kMaxLoopNestingMarker);
+    AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
     // Fall through and do a normal optimized compile as well.
-  } else if (!frame_optimized &&
+  } else if (!frame->is_optimized() &&
              (function->IsMarkedForOptimization() ||
               function->IsMarkedForConcurrentOptimization() ||
               function->IsOptimized())) {
@@ -193,7 +196,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
         ticks < Code::ProfilerTicksField::kMax) {
       shared_code->set_profiler_ticks(ticks + 1);
     } else {
-      AttemptOnStackReplacement(function);
+      AttemptOnStackReplacement(frame);
     }
     return;
   }
@@ -265,7 +268,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
 }
 
 void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function,
-                                            bool frame_optimized) {
+                                            JavaScriptFrame* frame) {
   if (function->IsInOptimizationQueue()) return;
 
   SharedFunctionInfo* shared = function->shared();
@@ -274,10 +277,10 @@ void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function,
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
 
-  if (FLAG_ignition_osr && FLAG_always_osr) {
-    AttemptOnStackReplacement(function, AbstractCode::kMaxLoopNestingMarker);
+  if (FLAG_always_osr) {
+    AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
     // Fall through and do a normal baseline compile as well.
-  } else if (!frame_optimized &&
+  } else if (!frame->is_optimized() &&
              (function->IsMarkedForBaseline() ||
               function->IsMarkedForOptimization() ||
               function->IsMarkedForConcurrentOptimization() ||
@@ -287,9 +290,8 @@ void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function,
     int64_t allowance =
         kOSRCodeSizeAllowanceBaseIgnition +
         static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTickIgnition;
-    if (FLAG_ignition_osr && shared->HasBytecodeArray() &&
-        shared->bytecode_array()->Size() <= allowance) {
-      AttemptOnStackReplacement(function);
+    if (shared->bytecode_array()->Size() <= allowance) {
+      AttemptOnStackReplacement(frame);
     }
     return;
   }
@@ -307,7 +309,7 @@ void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function,
 }
 
 void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
-                                            bool frame_optimized) {
+                                            JavaScriptFrame* frame) {
   if (function->IsInOptimizationQueue()) return;
 
   SharedFunctionInfo* shared = function->shared();
@@ -316,10 +318,10 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
 
-  if (FLAG_ignition_osr && FLAG_always_osr) {
-    AttemptOnStackReplacement(function, AbstractCode::kMaxLoopNestingMarker);
+  if (FLAG_always_osr) {
+    AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
     // Fall through and do a normal optimized compile as well.
-  } else if (!frame_optimized &&
+  } else if (!frame->is_optimized() &&
              (function->IsMarkedForBaseline() ||
               function->IsMarkedForOptimization() ||
               function->IsMarkedForConcurrentOptimization() ||
@@ -329,9 +331,8 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
     int64_t allowance =
         kOSRCodeSizeAllowanceBaseIgnition +
         static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTickIgnition;
-    if (FLAG_ignition_osr && shared->HasBytecodeArray() &&
-        shared->bytecode_array()->Size() <= allowance) {
-      AttemptOnStackReplacement(function);
+    if (shared->bytecode_array()->Size() <= allowance) {
+      AttemptOnStackReplacement(frame);
     }
     return;
   }
@@ -405,14 +406,14 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
         Compiler::NextCompilationTier(function);
     if (function->shared()->HasBytecodeArray()) {
       if (next_tier == Compiler::BASELINE) {
-        MaybeBaselineIgnition(function, frame->is_optimized());
+        MaybeBaselineIgnition(function, frame);
       } else {
         DCHECK_EQ(next_tier, Compiler::OPTIMIZED);
-        MaybeOptimizeIgnition(function, frame->is_optimized());
+        MaybeOptimizeIgnition(function, frame);
       }
     } else {
       DCHECK_EQ(next_tier, Compiler::OPTIMIZED);
-      MaybeOptimizeFullCodegen(function, frame_count, frame->is_optimized());
+      MaybeOptimizeFullCodegen(function, frame, frame_count);
     }
   }
   any_ic_changed_ = false;
