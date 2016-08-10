@@ -249,8 +249,8 @@ class WasmTrapHelper : public ZoneObject {
 
       Node* node = graph()->NewNode(
           common()->Call(desc), static_cast<int>(arraysize(inputs)), inputs);
-      *control_ptr = node;
       *effect_ptr = node;
+      *control_ptr = graph()->NewNode(common()->IfSuccess(), node);
     }
     if (false) {
       // End the control flow with a throw
@@ -1662,7 +1662,7 @@ Node* WasmGraphBuilder::BuildGrowMemory(Node* input) {
   Runtime::FunctionId function_id = Runtime::kWasmGrowMemory;
   const Runtime::Function* function = Runtime::FunctionForId(function_id);
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      jsgraph()->zone(), function_id, function->nargs, Operator::kNoProperties,
+      jsgraph()->zone(), function_id, function->nargs, Operator::kNoThrow,
       CallDescriptor::kNoFlags);
   Node** control_ptr = control_;
   Node** effect_ptr = effect_;
@@ -1678,7 +1678,6 @@ Node* WasmGraphBuilder::BuildGrowMemory(Node* input) {
       *control_ptr};
   Node* node = graph()->NewNode(jsgraph()->common()->Call(desc),
                                 static_cast<int>(arraysize(inputs)), inputs);
-  *control_ptr = node;
   *effect_ptr = node;
   node = BuildChangeSmiToInt32(node);
   return node;
@@ -2229,8 +2228,8 @@ Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context,
   Node* result = graph()->NewNode(jsgraph()->common()->Call(desc), stub_code,
                                   node, context, effect, control);
 
-  *control_ = result;
   *effect_ = result;
+  *control_ = graph()->NewNode(jsgraph()->common()->IfSuccess(), result);
 
   return result;
 }

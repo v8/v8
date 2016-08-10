@@ -1264,16 +1264,19 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   Node* if_is_proxy = graph()->NewNode(common()->IfTrue(), branch_is_proxy);
   Node* e_is_proxy = effect;
 
-  Node* runtime_has_in_proto_chain = control = graph()->NewNode(
-      common()->Merge(2), if_is_access_check_needed, if_is_proxy);
+  control = graph()->NewNode(common()->Merge(2), if_is_access_check_needed,
+                             if_is_proxy);
   effect = graph()->NewNode(common()->EffectPhi(2), e_is_access_check_needed,
                             e_is_proxy, control);
 
   // If we need an access check or the object is a Proxy, make a runtime call
   // to finish the lowering.
-  Node* bool_result_runtime_has_in_proto_chain_case = graph()->NewNode(
+  Node* runtimecall = graph()->NewNode(
       javascript()->CallRuntime(Runtime::kHasInPrototypeChain), r.left(),
       prototype, context, frame_state, effect, control);
+
+  Node* runtimecall_control =
+      graph()->NewNode(common()->IfSuccess(), runtimecall);
 
   control = graph()->NewNode(common()->IfFalse(), branch_is_proxy);
 
@@ -1310,16 +1313,14 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   loop_object_map->ReplaceInput(1, load_object_map);
   loop->ReplaceInput(1, control);
 
-  control = graph()->NewNode(common()->Merge(3), runtime_has_in_proto_chain,
+  control = graph()->NewNode(common()->Merge(3), runtimecall_control,
                              if_eq_proto, if_null_proto);
-  effect = graph()->NewNode(common()->EffectPhi(3),
-                            bool_result_runtime_has_in_proto_chain_case,
-                            e_eq_proto, e_null_proto, control);
+  effect = graph()->NewNode(common()->EffectPhi(3), runtimecall, e_eq_proto,
+                            e_null_proto, control);
 
   Node* result = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 3),
-      bool_result_runtime_has_in_proto_chain_case, jsgraph()->TrueConstant(),
-      jsgraph()->FalseConstant(), control);
+      common()->Phi(MachineRepresentation::kTagged, 3), runtimecall,
+      jsgraph()->TrueConstant(), jsgraph()->FalseConstant(), control);
 
   if (if_is_smi != nullptr) {
     DCHECK_NOT_NULL(e_is_smi);
