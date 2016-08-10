@@ -80,7 +80,8 @@ class AstRawString final : public AstString {
 
   void Internalize(Isolate* isolate);
 
-  bool AsArrayIndex(uint32_t* index) const;
+  bool AsArrayIndex(uint32_t* index, HandleDereferenceMode deref_mode =
+                                         HandleDereferenceMode::kAllowed) const;
 
   // The string is not null-terminated, use length() to find out the length.
   const unsigned char* raw_data() const {
@@ -180,7 +181,8 @@ class AstValue : public ZoneObject {
     return type_ == STRING && string_ == string;
   }
 
-  bool IsPropertyName() const;
+  bool IsPropertyName(
+      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) const;
 
   bool BooleanValue() const;
 

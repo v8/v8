@@ -55,10 +55,6 @@ class Variable: public ZoneObject {
   int initializer_position() { return initializer_position_; }
   void set_initializer_position(int pos) { initializer_position_ = pos; }
 
-  bool IsVariable(Handle<String> n) const {
-    return !is_this() && name().is_identical_to(n);
-  }
-
   bool IsUnallocated() const {
     return location_ == VariableLocation::UNALLOCATED;
   }
@@ -90,13 +86,25 @@ class Variable: public ZoneObject {
   // any variable named "this" does indeed refer to a Variable::THIS binding;
   // the grammar ensures this to be the case.  So wherever a "this" binding
   // might be provided by the global, use HasThisName instead of is_this().
-  bool HasThisName(Isolate* isolate) const {
-    return is_this() || *name() == *isolate->factory()->this_string();
+  bool HasThisName(Isolate* isolate,
+                   HandleDereferenceMode deref_mode =
+                       HandleDereferenceMode::kAllowed) const {
+    // Note: it is safe to dereference isolate->factory()->this_string() here
+    // regardless of |deref_mode| because it is a constant root and so will
+    // never be updated or moved.
+    return is_this() ||
+           name_is_identical_to(isolate->factory()->this_string(), deref_mode);
   }
 
   // True if the variable is named eval and not known to be shadowed.
-  bool is_possibly_eval(Isolate* isolate) const {
-    return IsVariable(isolate->factory()->eval_string());
+  bool is_possibly_eval(Isolate* isolate,
+                        HandleDereferenceMode deref_mode =
+                            HandleDereferenceMode::kAllowed) const {
+    // Note: it is safe to dereference isolate->factory()->eval_string() here
+    // regardless of |deref_mode| because it is a constant root and so will
+    // never be updated or moved.
+    return !is_this() &&
+           name_is_identical_to(isolate->factory()->eval_string(), deref_mode);
   }
 
   Variable* local_if_not_shadowed() const {
@@ -122,6 +130,20 @@ class Variable: public ZoneObject {
   static int CompareIndex(Variable* const* v, Variable* const* w);
 
  private:
+  bool name_is_identical_to(Handle<Object> object,
+                            HandleDereferenceMode deref_mode) const {
+    if (deref_mode == HandleDereferenceMode::kAllowed) {
+      return *name() == *object;
+    } else {
+      // If handle dereference isn't allowed use the handle address for
+      // identity. This depends on the variable name being internalized in a
+      // CanonicalHandleScope, so that all handles created during the
+      // internalization with identical values have identical locations, and any
+      // handles created which point to roots have the root handle's location.
+      return name().address() == object.address();
+    }
+  }
+
   Scope* scope_;
   const AstRawString* name_;
   VariableMode mode_;

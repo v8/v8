@@ -540,9 +540,8 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
-  // Create a canonical handle scope if compiling ignition bytecode. This is
-  // required by the constant array builder to de-duplicate common objects
-  // without dereferencing handles.
+  // Create a canonical handle scope before internalizing parsed values if
+  // compiling bytecode. This is required for off-thread bytecode generation.
   std::unique_ptr<CanonicalHandleScope> canonical;
   if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
 
@@ -1077,9 +1076,8 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   ParseInfo* parse_info = info->parse_info();
   Handle<Script> script = parse_info->script();
 
-  // Create a canonical handle scope if compiling ignition bytecode. This is
-  // required by the constant array builder to de-duplicate common objects
-  // without dereferencing handles.
+  // Create a canonical handle scope before internalizing parsed values if
+  // compiling bytecode. This is required for off-thread bytecode generation.
   std::unique_ptr<CanonicalHandleScope> canonical;
   if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate));
 

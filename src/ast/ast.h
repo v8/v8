@@ -314,7 +314,10 @@ class Expression : public AstNode {
   // Symbols that cannot be parsed as array indices are considered property
   // names.  We do not treat symbols that can be array indexes as property
   // names because [] for string objects is handled only by keyed ICs.
-  bool IsPropertyName() const;
+  // Produces the same result whether |deref_mode| is kAllowed or kDisallowed,
+  // although may be faster with kAllowed.
+  bool IsPropertyName(
+      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) const;
 
   // True iff the expression is a class or function expression without
   // a syntactic name.
@@ -1192,10 +1195,16 @@ class SloppyBlockFunctionStatement final : public Statement {
 
 class Literal final : public Expression {
  public:
-  bool IsPropertyName() const { return value_->IsPropertyName(); }
+  // Returns true if literal represents a property name (i.e. cannot be parsed
+  // as array indices). Produces the same result whether |deref_mode| is
+  // kAllowed or kDisallowed, although may be faster with kAllowed.
+  bool IsPropertyName(HandleDereferenceMode deref_mode =
+                          HandleDereferenceMode::kAllowed) const {
+    return value_->IsPropertyName(deref_mode);
+  }
 
   Handle<String> AsPropertyName() {
-    DCHECK(IsPropertyName());
+    DCHECK(IsPropertyName(HandleDereferenceMode::kDisallowed));
     return Handle<String>::cast(value());
   }
 
@@ -1204,8 +1213,8 @@ class Literal final : public Expression {
     return value_->AsString();
   }
 
-  bool ToBooleanIsTrue() const { return value()->BooleanValue(); }
-  bool ToBooleanIsFalse() const { return !value()->BooleanValue(); }
+  bool ToBooleanIsTrue() const { return raw_value()->BooleanValue(); }
+  bool ToBooleanIsFalse() const { return !raw_value()->BooleanValue(); }
 
   Handle<Object> value() const { return value_->value(); }
   const AstValue* raw_value() const { return value_; }
@@ -1360,7 +1369,7 @@ class ObjectLiteral final : public MaterializedLiteral {
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
   }
-  int properties_count() const { return constant_properties_->length() / 2; }
+  int properties_count() const { return boilerplate_properties_; }
   ZoneList<Property*>* properties() const { return properties_; }
   bool fast_elements() const { return fast_elements_; }
   bool may_store_doubles() const { return may_store_doubles_; }
@@ -1735,10 +1744,15 @@ class Property final : public Expression {
     return property_feedback_slot_;
   }
 
-  static LhsKind GetAssignType(Property* property) {
+  // Returns the properties assign type. Produces the same result whether
+  // |deref_mode| is kAllowed or kDisallowed, although may be faster with
+  // kAllowed.
+  static LhsKind GetAssignType(
+      Property* property,
+      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) {
     if (property == NULL) return VARIABLE;
     bool super_access = property->IsSuperAccess();
-    return (property->key()->IsPropertyName())
+    return (property->key()->IsPropertyName(deref_mode))
                ? (super_access ? NAMED_SUPER_PROPERTY : NAMED_PROPERTY)
                : (super_access ? KEYED_SUPER_PROPERTY : KEYED_PROPERTY);
   }
@@ -1853,9 +1867,17 @@ class Call final : public Expression {
   };
 
   // Helpers to determine how to handle the call.
-  CallType GetCallType(Isolate* isolate) const;
-  bool IsUsingCallFeedbackSlot(Isolate* isolate) const;
-  bool IsUsingCallFeedbackICSlot(Isolate* isolate) const;
+  // If called with |deref_mode| of kDisallowed, then the AST nodes must have
+  // been internalized within a CanonicalHandleScope.
+  CallType GetCallType(
+      Isolate* isolate,
+      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) const;
+  bool IsUsingCallFeedbackSlot(
+      Isolate* isolate,
+      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) const;
+  bool IsUsingCallFeedbackICSlot(
+      Isolate* isolate,
+      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) const;
 
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.

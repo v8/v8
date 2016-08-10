@@ -2170,6 +2170,11 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   source->info->set_script(script);
   source->info->set_context(isolate->native_context());
 
+  // Create a canonical handle scope before internalizing parsed values if
+  // compiling bytecode. This is required for off-thread bytecode generation.
+  std::unique_ptr<i::CanonicalHandleScope> canonical;
+  if (i::FLAG_ignition) canonical.reset(new i::CanonicalHandleScope(isolate));
+
   // Do the parsing tasks which need to be done on the main thread. This will
   // also handle parse errors.
   source->parser->Internalize(isolate, script,

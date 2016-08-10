@@ -170,6 +170,12 @@ void CompilerDispatcherJob::InternalizeParsingResult() {
          status() == CompileJobStatus::kFailed);
 
   HandleScope scope(isolate_);
+
+  // Create a canonical handle scope before internalizing parsed values if
+  // compiling bytecode. This is required for off-thread bytecode generation.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate_));
+
   Handle<SharedFunctionInfo> shared(function_->shared(), isolate_);
   Handle<Script> script(Script::cast(shared->script()), isolate_);
 

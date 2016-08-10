@@ -254,6 +254,8 @@ void BytecodeArrayWriter::PatchJumpWith8BitOperand(size_t jump_location,
     constant_array_builder()->DiscardReservedEntry(OperandSize::kByte);
     bytecodes()->at(operand_location) = static_cast<uint8_t>(delta);
   } else {
+    // TODO(5203): Remove this temporary exception.
+    AllowHandleAllocation allow_handles;
     // The jump does not fit within the range of an Imm operand, so
     // commit reservation putting the offset into the constant pool,
     // and update the jump instruction and operand.
@@ -278,6 +280,8 @@ void BytecodeArrayWriter::PatchJumpWith16BitOperand(size_t jump_location,
     constant_array_builder()->DiscardReservedEntry(OperandSize::kShort);
     WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(delta));
   } else {
+    // TODO(5203): Remove this temporary exception.
+    AllowHandleAllocation allow_handles;
     jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
     bytecodes()->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
     size_t entry = constant_array_builder()->CommitReservedEntry(

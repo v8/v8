@@ -294,6 +294,8 @@ void BytecodePeepholeOptimizer::TransformToStarIfLoadingNameConstantAction(
   DCHECK_EQ(last()->bytecode(), Bytecode::kLdaConstant);
   DCHECK(!Bytecodes::IsJump(node->bytecode()));
 
+  // TODO(5203): Remove this temporary exception.
+  AllowHandleDereference allow_deref;
   if (GetConstantForIndexOperand(last(), 0)->IsName()) {
     node->replace_bytecode(Bytecode::kStar);
   }

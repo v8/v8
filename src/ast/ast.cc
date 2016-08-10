@@ -74,22 +74,18 @@ bool Expression::IsStringLiteral() const {
   return IsLiteral() && AsLiteral()->value()->IsString();
 }
 
-bool Expression::IsPropertyName() const {
-  return IsLiteral() && AsLiteral()->IsPropertyName();
+bool Expression::IsPropertyName(HandleDereferenceMode deref_mode) const {
+  return IsLiteral() && AsLiteral()->IsPropertyName(deref_mode);
 }
 
 bool Expression::IsNullLiteral() const {
   if (!IsLiteral()) return false;
-  Handle<Object> value = AsLiteral()->value();
-  return !value->IsSmi() &&
-         value->IsNull(HeapObject::cast(*value)->GetIsolate());
+  return AsLiteral()->raw_value()->IsNull();
 }
 
 bool Expression::IsUndefinedLiteral() const {
   if (IsLiteral()) {
-    Handle<Object> value = AsLiteral()->value();
-    if (!value->IsSmi() &&
-        value->IsUndefined(HeapObject::cast(*value)->GetIsolate())) {
+    if (AsLiteral()->raw_value()->IsUndefined()) {
       return true;
     }
   }
@@ -892,19 +888,20 @@ bool Expression::IsMonomorphic() const {
   }
 }
 
-bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
-  CallType call_type = GetCallType(isolate);
+bool Call::IsUsingCallFeedbackICSlot(
+    Isolate* isolate, HandleDereferenceMode dereference_mode) const {
+  CallType call_type = GetCallType(isolate, dereference_mode);
   if (call_type == POSSIBLY_EVAL_CALL) {
     return false;
   }
   return true;
 }
 
-
-bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
+bool Call::IsUsingCallFeedbackSlot(
+    Isolate* isolate, HandleDereferenceMode dereference_mode) const {
   // SuperConstructorCall uses a CallConstructStub, which wants
   // a Slot, in addition to any IC slots requested elsewhere.
-  return GetCallType(isolate) == SUPER_CALL;
+  return GetCallType(isolate, dereference_mode) == SUPER_CALL;
 }
 
 
@@ -918,11 +915,11 @@ void Call::AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
   }
 }
 
-
-Call::CallType Call::GetCallType(Isolate* isolate) const {
+Call::CallType Call::GetCallType(Isolate* isolate,
+                                 HandleDereferenceMode deref_mode) const {
   VariableProxy* proxy = expression()->AsVariableProxy();
   if (proxy != NULL) {
-    if (proxy->var()->is_possibly_eval(isolate)) {
+    if (proxy->var()->is_possibly_eval(isolate, deref_mode)) {
       return POSSIBLY_EVAL_CALL;
     } else if (proxy->var()->IsUnallocatedOrGlobalSlot()) {
       return GLOBAL_CALL;
@@ -936,7 +933,7 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
   Property* property = expression()->AsProperty();
   if (property != nullptr) {
     bool is_super = property->IsSuperAccess();
-    if (property->key()->IsPropertyName()) {
+    if (property->key()->IsPropertyName(deref_mode)) {
       return is_super ? NAMED_SUPER_PROPERTY_CALL : NAMED_PROPERTY_CALL;
     } else {
       return is_super ? KEYED_SUPER_PROPERTY_CALL : KEYED_PROPERTY_CALL;
@@ -968,7 +965,6 @@ bool Literal::Match(void* literal1, void* literal2) {
   return (x->IsString() && y->IsString() && x->AsString() == y->AsString()) ||
          (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
 }
-
 
 }  // namespace internal
 }  // namespace v8

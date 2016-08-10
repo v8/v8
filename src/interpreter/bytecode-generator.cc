@@ -667,6 +667,10 @@ void BytecodeGenerator::FinalizeBytecode() {
 }
 
 void BytecodeGenerator::GenerateBytecode() {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
   // Initialize the incoming context.
   ContextScope incoming_context(this, scope(), false);
 
@@ -1162,7 +1166,8 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr,
   // Evaluate assignment starting with the value to be stored in the
   // accumulator.
   Property* property = expr->AsProperty();
-  LhsKind assign_type = Property::GetAssignType(property);
+  LhsKind assign_type =
+      Property::GetAssignType(property, HandleDereferenceMode::kDisallowed);
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->AsVariableProxy()->var();
@@ -1639,6 +1644,10 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::COMPUTED: {
         // It is safe to use [[Put]] here because the boilerplate already
         // contains computed properties with an uninitialized value.
+
+        // TODO(5203): Remove this temporary exception.
+        AllowHandleDereference allow_deref;
+
         if (literal_key->value()->IsInternalizedString()) {
           if (property->emit_store()) {
             VisitForAccumulatorValue(property->value());
@@ -2149,7 +2158,8 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->target()->AsProperty();
-  LhsKind assign_type = Property::GetAssignType(property);
+  LhsKind assign_type =
+      Property::GetAssignType(property, HandleDereferenceMode::kDisallowed);
 
   // Evaluate LHS expression.
   switch (assign_type) {
@@ -2379,7 +2389,8 @@ void BytecodeGenerator::VisitThrow(Throw* expr) {
 }
 
 void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
-  LhsKind property_kind = Property::GetAssignType(expr);
+  LhsKind property_kind =
+      Property::GetAssignType(expr, HandleDereferenceMode::kDisallowed);
   FeedbackVectorSlot slot = expr->PropertyFeedbackSlot();
   builder()->SetExpressionPosition(expr);
   switch (property_kind) {
@@ -2457,7 +2468,8 @@ void BytecodeGenerator::VisitKeyedSuperPropertyLoad(Property* property,
 }
 
 void BytecodeGenerator::VisitProperty(Property* expr) {
-  LhsKind property_kind = Property::GetAssignType(expr);
+  LhsKind property_kind =
+      Property::GetAssignType(expr, HandleDereferenceMode::kDisallowed);
   if (property_kind != NAMED_SUPER_PROPERTY &&
       property_kind != KEYED_SUPER_PROPERTY) {
     Register obj = VisitForRegisterValue(expr->obj());
@@ -2501,7 +2513,8 @@ Register BytecodeGenerator::VisitArguments(ZoneList<Expression*>* args) {
 
 void BytecodeGenerator::VisitCall(Call* expr) {
   Expression* callee_expr = expr->expression();
-  Call::CallType call_type = expr->GetCallType(isolate());
+  Call::CallType call_type =
+      expr->GetCallType(isolate(), HandleDereferenceMode::kDisallowed);
 
   if (call_type == Call::SUPER_CALL) {
     return VisitCallSuper(expr);
@@ -2766,7 +2779,9 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
     // not allowed in strict mode. Deleting 'this' is allowed in both modes.
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
     Variable* variable = proxy->var();
-    DCHECK(is_sloppy(language_mode()) || variable->HasThisName(isolate()));
+    DCHECK(
+        is_sloppy(language_mode()) ||
+        variable->HasThisName(isolate(), HandleDereferenceMode::kDisallowed));
     switch (variable->location()) {
       case VariableLocation::GLOBAL:
       case VariableLocation::UNALLOCATED: {
@@ -2788,7 +2803,8 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
       case VariableLocation::CONTEXT: {
         // Deleting local var/let/const, context variables, and arguments
         // does not have any effect.
-        if (variable->HasThisName(isolate())) {
+        if (variable->HasThisName(isolate(),
+                                  HandleDereferenceMode::kDisallowed)) {
           builder()->LoadTrue();
         } else {
           builder()->LoadFalse();
@@ -2819,7 +2835,8 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->expression()->AsProperty();
-  LhsKind assign_type = Property::GetAssignType(property);
+  LhsKind assign_type =
+      Property::GetAssignType(property, HandleDereferenceMode::kDisallowed);
 
   bool is_postfix = expr->is_postfix() && !execution_result()->IsEffect();
 
@@ -3036,6 +3053,18 @@ void BytecodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 
+namespace {
+
+Handle<ScopeInfo> GetScopeInfo(Scope* scope, Isolate* isolate) {
+  // TODO(5203): Remove this temporary exception.
+  AllowHeapAllocation allow_allocation;
+  AllowHandleAllocation allow_handles;
+  AllowHandleDereference allow_deref;
+  return scope->GetScopeInfo(isolate);
+}
+
+}  // namespace
+
 void BytecodeGenerator::VisitNewLocalFunctionContext() {
   AccumulatorResultScope accumulator_execution_result(this);
   Scope* scope = this->scope();
@@ -3049,7 +3078,7 @@ void BytecodeGenerator::VisitNewLocalFunctionContext() {
     builder()
         ->LoadAccumulatorWithRegister(Register::function_closure())
         .StoreAccumulatorInRegister(closure)
-        .LoadLiteral(scope->GetScopeInfo(isolate()))
+        .LoadLiteral(GetScopeInfo(scope, isolate()))
         .StoreAccumulatorInRegister(scope_info)
         .CallRuntime(Runtime::kNewScriptContext, closure, 2);
   } else {
@@ -3097,7 +3126,7 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
   Register closure = register_allocator()->NextConsecutiveRegister();
 
   builder()
-      ->LoadLiteral(scope->GetScopeInfo(isolate()))
+      ->LoadLiteral(GetScopeInfo(scope, isolate()))
       .StoreAccumulatorInRegister(scope_info);
   VisitFunctionClosureForContext();
   builder()

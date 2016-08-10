@@ -106,9 +106,9 @@ void AstRawString::Internalize(Isolate* isolate) {
   }
 }
 
-
-bool AstRawString::AsArrayIndex(uint32_t* index) const {
-  if (!string_.is_null())
+bool AstRawString::AsArrayIndex(uint32_t* index,
+                                HandleDereferenceMode deref_mode) const {
+  if (deref_mode == HandleDereferenceMode::kAllowed && !string_.is_null())
     return string_->AsArrayIndex(index);
   if (!is_one_byte() || literal_bytes_.length() == 0 ||
       literal_bytes_.length() > String::kMaxArrayIndexSize)
@@ -136,11 +136,10 @@ void AstConsString::Internalize(Isolate* isolate) {
                 .ToHandleChecked();
 }
 
-
-bool AstValue::IsPropertyName() const {
+bool AstValue::IsPropertyName(HandleDereferenceMode deref_mode) const {
   if (type_ == STRING) {
     uint32_t index;
-    return !string_->AsArrayIndex(&index);
+    return !string_->AsArrayIndex(&index, deref_mode);
   }
   return false;
 }
@@ -276,6 +275,7 @@ void AstValueFactory::Internalize(Isolate* isolate) {
     // Everything is already internalized.
     return;
   }
+
   // Strings need to be internalized before values, because values refer to
   // strings.
   for (int i = 0; i < strings_.length(); ++i) {
