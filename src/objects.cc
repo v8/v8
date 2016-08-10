@@ -18462,10 +18462,10 @@ bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
   return was_present;
 }
 
-// Check if there is a break point at this code offset.
-bool DebugInfo::HasBreakPoint(int code_offset) {
+// Check if there is a break point at this source position.
+bool DebugInfo::HasBreakPoint(int source_position) {
   // Get the break point info object for this code offset.
-  Object* break_point_info = GetBreakPointInfo(code_offset);
+  Object* break_point_info = GetBreakPointInfo(source_position);
 
   // If there is no break point info object or no break points in the break
   // point info object there is no break point at this code offset.
@@ -18473,34 +18473,42 @@ bool DebugInfo::HasBreakPoint(int code_offset) {
   return BreakPointInfo::cast(break_point_info)->GetBreakPointCount() > 0;
 }
 
-// Get the break point info object for this code offset.
-Object* DebugInfo::GetBreakPointInfo(int code_offset) {
-  // Find the index of the break point info object for this code offset.
-  int index = GetBreakPointInfoIndex(code_offset);
-
-  // Return the break point info object if any.
-  if (index == kNoBreakPointInfo) return GetHeap()->undefined_value();
-  return BreakPointInfo::cast(break_points()->get(index));
+// Get the break point info object for this source position.
+Object* DebugInfo::GetBreakPointInfo(int source_position) {
+  Isolate* isolate = GetIsolate();
+  if (!break_points()->IsUndefined(isolate)) {
+    for (int i = 0; i < break_points()->length(); i++) {
+      if (!break_points()->get(i)->IsUndefined(isolate)) {
+        BreakPointInfo* break_point_info =
+            BreakPointInfo::cast(break_points()->get(i));
+        if (break_point_info->source_position() == source_position) {
+          return break_point_info;
+        }
+      }
+    }
+  }
+  return isolate->heap()->undefined_value();
 }
 
-// Clear a break point at the specified code offset.
-void DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info, int code_offset,
+// Clear a break point at the specified source_position.
+void DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
+                                int source_position,
                                 Handle<Object> break_point_object) {
   Isolate* isolate = debug_info->GetIsolate();
-  Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_offset),
-                                  isolate);
+  Handle<Object> break_point_info(
+      debug_info->GetBreakPointInfo(source_position), isolate);
   if (break_point_info->IsUndefined(isolate)) return;
   BreakPointInfo::ClearBreakPoint(
       Handle<BreakPointInfo>::cast(break_point_info),
       break_point_object);
 }
 
-void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int code_offset,
-                              int source_position, int statement_position,
+void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int source_position,
+                              int statement_position,
                               Handle<Object> break_point_object) {
   Isolate* isolate = debug_info->GetIsolate();
-  Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_offset),
-                                  isolate);
+  Handle<Object> break_point_info(
+      debug_info->GetBreakPointInfo(source_position), isolate);
   if (!break_point_info->IsUndefined(isolate)) {
     BreakPointInfo::SetBreakPoint(
         Handle<BreakPointInfo>::cast(break_point_info),
@@ -18510,6 +18518,7 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int code_offset,
 
   // Adding a new break point for a code offset which did not have any
   // break points before. Try to find a free slot.
+  static const int kNoBreakPointInfo = -1;
   int index = kNoBreakPointInfo;
   for (int i = 0; i < debug_info->break_points()->length(); i++) {
     if (debug_info->break_points()->get(i)->IsUndefined(isolate)) {
@@ -18537,18 +18546,16 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int code_offset,
   // Allocate new BreakPointInfo object and set the break point.
   Handle<BreakPointInfo> new_break_point_info = Handle<BreakPointInfo>::cast(
       isolate->factory()->NewStruct(BREAK_POINT_INFO_TYPE));
-  new_break_point_info->set_code_offset(code_offset);
   new_break_point_info->set_source_position(source_position);
-  new_break_point_info->set_statement_position(statement_position);
   new_break_point_info->set_break_point_objects(
       isolate->heap()->undefined_value());
   BreakPointInfo::SetBreakPoint(new_break_point_info, break_point_object);
   debug_info->break_points()->set(index, *new_break_point_info);
 }
 
-// Get the break point objects for a code offset.
-Handle<Object> DebugInfo::GetBreakPointObjects(int code_offset) {
-  Object* break_point_info = GetBreakPointInfo(code_offset);
+// Get the break point objects for a source position.
+Handle<Object> DebugInfo::GetBreakPointObjects(int source_position) {
+  Object* break_point_info = GetBreakPointInfo(source_position);
   Isolate* isolate = GetIsolate();
   if (break_point_info->IsUndefined(isolate)) {
     return isolate->factory()->undefined_value();
@@ -18591,25 +18598,6 @@ Handle<Object> DebugInfo::FindBreakPointInfo(
   }
   return isolate->factory()->undefined_value();
 }
-
-
-// Find the index of the break point info object for the specified code
-// position.
-int DebugInfo::GetBreakPointInfoIndex(int code_offset) {
-  Isolate* isolate = GetIsolate();
-  if (break_points()->IsUndefined(isolate)) return kNoBreakPointInfo;
-  for (int i = 0; i < break_points()->length(); i++) {
-    if (!break_points()->get(i)->IsUndefined(isolate)) {
-      BreakPointInfo* break_point_info =
-          BreakPointInfo::cast(break_points()->get(i));
-      if (break_point_info->code_offset() == code_offset) {
-        return i;
-      }
-    }
-  }
-  return kNoBreakPointInfo;
-}
-
 
 // Remove the specified break point object.
 void BreakPointInfo::ClearBreakPoint(Handle<BreakPointInfo> break_point_info,

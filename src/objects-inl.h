@@ -5818,9 +5818,7 @@ BytecodeArray* DebugInfo::original_bytecode_array() {
   return shared()->bytecode_array();
 }
 
-SMI_ACCESSORS(BreakPointInfo, code_offset, kCodeOffsetIndex)
 SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionIndex)
-SMI_ACCESSORS(BreakPointInfo, statement_position, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)

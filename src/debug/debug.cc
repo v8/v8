@@ -321,14 +321,14 @@ void BreakLocation::SetBreakPoint(Handle<Object> break_point_object) {
   if (!HasBreakPoint()) SetDebugBreak();
   DCHECK(IsDebugBreak() || IsDebuggerStatement());
   // Set the break point information.
-  DebugInfo::SetBreakPoint(debug_info_, code_offset_, position_,
-                           statement_position_, break_point_object);
+  DebugInfo::SetBreakPoint(debug_info_, position_, statement_position_,
+                           break_point_object);
 }
 
 
 void BreakLocation::ClearBreakPoint(Handle<Object> break_point_object) {
   // Clear the break point information.
-  DebugInfo::ClearBreakPoint(debug_info_, code_offset_, break_point_object);
+  DebugInfo::ClearBreakPoint(debug_info_, position_, break_point_object);
   // If there are no more break points here remove the debug break.
   if (!HasBreakPoint()) {
     ClearDebugBreak();
@@ -340,12 +340,6 @@ void BreakLocation::ClearBreakPoint(Handle<Object> break_point_object) {
 void BreakLocation::SetOneShot() {
   // Debugger statement always calls debugger. No need to modify it.
   if (IsDebuggerStatement()) return;
-
-  // If there is a real break point here no more to do.
-  if (HasBreakPoint()) {
-    DCHECK(IsDebugBreak());
-    return;
-  }
 
   // Patch code with debug break.
   SetDebugBreak();
@@ -435,9 +429,19 @@ bool BreakLocation::IsDebugBreak() const {
   }
 }
 
-
 Handle<Object> BreakLocation::BreakPointObjects() const {
-  return debug_info_->GetBreakPointObjects(code_offset_);
+  return debug_info_->GetBreakPointObjects(position_);
+}
+
+bool BreakLocation::HasBreakPoint() const {
+  // First check whether there is a break point with the same source position.
+  if (!debug_info_->HasBreakPoint(position_)) return false;
+  // Then check whether a break point at that source position would have
+  // the same code offset. Otherwise it's just a break location that we can
+  // step to, but not actually a location where we can put a break point.
+  BreakLocation break_point_location = BreakLocation::FromPosition(
+      debug_info_, position_, BREAK_POSITION_ALIGNED);
+  return break_point_location.code_offset() == code_offset_;
 }
 
 void DebugFeatureTracker::Track(DebugFeatureTracker::Feature feature) {
@@ -830,8 +834,9 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
           Handle<BreakPointInfo>::cast(result);
       Handle<DebugInfo> debug_info = node->debug_info();
 
-      BreakLocation location = BreakLocation::FromCodeOffset(
-          debug_info, break_point_info->code_offset());
+      BreakLocation location = BreakLocation::FromPosition(
+          debug_info, break_point_info->source_position(),
+          BREAK_POSITION_ALIGNED);
       location.ClearBreakPoint(break_point_object);
 
       // If there are no more break points left remove the debug info for this
@@ -1094,13 +1099,14 @@ Handle<Object> Debug::GetSourceBreakLocations(
       int break_points = break_point_info->GetBreakPointCount();
       if (break_points == 0) continue;
       Smi* position = NULL;
-      switch (position_alignment) {
-        case STATEMENT_ALIGNED:
-          position = Smi::FromInt(break_point_info->statement_position());
-          break;
-        case BREAK_POSITION_ALIGNED:
-          position = Smi::FromInt(break_point_info->source_position());
-          break;
+      if (position_alignment == STATEMENT_ALIGNED) {
+        BreakLocation break_point_location = BreakLocation::FromPosition(
+            debug_info, break_point_info->source_position(),
+            BREAK_POSITION_ALIGNED);
+        position = Smi::FromInt(break_point_location.statement_position());
+      } else {
+        DCHECK_EQ(BREAK_POSITION_ALIGNED, position_alignment);
+        position = Smi::FromInt(break_point_info->source_position());
       }
       for (int j = 0; j < break_points; ++j) locations->set(count++, position);
     }

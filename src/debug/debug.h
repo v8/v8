@@ -75,6 +75,7 @@ class BreakLocation {
                                       int statement_position,
                                       List<BreakLocation>* result_out);
 
+  // Find break location (for a break point) from source positon.
   static BreakLocation FromPosition(Handle<DebugInfo> debug_info, int position,
                                     BreakPositionAlignment alignment);
 
@@ -89,9 +90,8 @@ class BreakLocation {
   inline bool IsDebuggerStatement() const {
     return type_ == DEBUGGER_STATEMENT;
   }
-  inline bool HasBreakPoint() const {
-    return debug_info_->HasBreakPoint(code_offset_);
-  }
+
+  bool HasBreakPoint() const;
 
   Handle<Object> BreakPointObjects() const;
 
