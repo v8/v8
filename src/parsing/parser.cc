@@ -5365,13 +5365,12 @@ IterationStatement* Parser::LookupContinueTarget(const AstRawString* label,
 
 
 void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
-  if (scanner_.source_url()->length() > 0) {
-    Handle<String> source_url = scanner_.source_url()->Internalize(isolate);
+  Handle<String> source_url = scanner_.SourceUrl(isolate);
+  if (!source_url.is_null()) {
     script->set_source_url(*source_url);
   }
-  if (scanner_.source_mapping_url()->length() > 0) {
-    Handle<String> source_mapping_url =
-        scanner_.source_mapping_url()->Internalize(isolate);
+  Handle<String> source_mapping_url = scanner_.SourceMappingUrl(isolate);
+  if (!source_mapping_url.is_null()) {
     script->set_source_mapping_url(*source_mapping_url);
   }
 }

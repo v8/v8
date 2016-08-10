@@ -19,8 +19,7 @@
 namespace v8 {
 namespace internal {
 
-
-Handle<String> LiteralBuffer::Internalize(Isolate* isolate) const {
+Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
   if (is_one_byte()) {
     return isolate->factory()->InternalizeOneByteString(one_byte_literal());
   }

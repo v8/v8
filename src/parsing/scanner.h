@@ -148,187 +148,12 @@ class DuplicateFinder {
   char number_buffer_[kBufferSize];
 };
 
-// ----------------------------------------------------------------------------
-// LiteralBuffer -  Collector of chars of literals.
-
-const int kMaxAscii = 127;
-
-class LiteralBuffer {
- public:
-  LiteralBuffer() : is_one_byte_(true), position_(0), backing_store_() { }
-
-  ~LiteralBuffer() { backing_store_.Dispose(); }
-
-  INLINE(void AddChar(char code_unit)) {
-    if (position_ >= backing_store_.length()) ExpandBuffer();
-    DCHECK(is_one_byte_);
-    DCHECK(IsValidAscii(code_unit));
-    backing_store_[position_] = static_cast<byte>(code_unit);
-    position_ += kOneByteSize;
-    return;
-  }
-
-  INLINE(void AddChar(uc32 code_unit)) {
-    if (position_ >= backing_store_.length()) ExpandBuffer();
-    if (is_one_byte_) {
-      if (code_unit <= unibrow::Latin1::kMaxChar) {
-        backing_store_[position_] = static_cast<byte>(code_unit);
-        position_ += kOneByteSize;
-        return;
-      }
-      ConvertToTwoByte();
-    }
-    if (code_unit <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      *reinterpret_cast<uint16_t*>(&backing_store_[position_]) = code_unit;
-      position_ += kUC16Size;
-    } else {
-      *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
-          unibrow::Utf16::LeadSurrogate(code_unit);
-      position_ += kUC16Size;
-      if (position_ >= backing_store_.length()) ExpandBuffer();
-      *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
-          unibrow::Utf16::TrailSurrogate(code_unit);
-      position_ += kUC16Size;
-    }
-  }
-
-  bool is_one_byte() const { return is_one_byte_; }
-
-  bool is_contextual_keyword(Vector<const char> keyword) const {
-    return is_one_byte() && keyword.length() == position_ &&
-        (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
-  }
-
-  Vector<const uint16_t> two_byte_literal() const {
-    DCHECK(!is_one_byte_);
-    DCHECK((position_ & 0x1) == 0);
-    return Vector<const uint16_t>(
-        reinterpret_cast<const uint16_t*>(backing_store_.start()),
-        position_ >> 1);
-  }
-
-  Vector<const uint8_t> one_byte_literal() const {
-    DCHECK(is_one_byte_);
-    return Vector<const uint8_t>(
-        reinterpret_cast<const uint8_t*>(backing_store_.start()),
-        position_);
-  }
-
-  int length() const {
-    return is_one_byte_ ? position_ : (position_ >> 1);
-  }
-
-  void ReduceLength(int delta) {
-    position_ -= delta * (is_one_byte_ ? kOneByteSize : kUC16Size);
-  }
-
-  void Reset() {
-    position_ = 0;
-    is_one_byte_ = true;
-  }
-
-  Handle<String> Internalize(Isolate* isolate) const;
-
-  void CopyFrom(const LiteralBuffer* other) {
-    if (other == nullptr) {
-      Reset();
-    } else {
-      is_one_byte_ = other->is_one_byte_;
-      position_ = other->position_;
-      if (position_ < backing_store_.length()) {
-        std::copy(other->backing_store_.begin(),
-                  other->backing_store_.begin() + position_,
-                  backing_store_.begin());
-      } else {
-        backing_store_.Dispose();
-        backing_store_ = other->backing_store_.Clone();
-      }
-    }
-  }
-
- private:
-  static const int kInitialCapacity = 16;
-  static const int kGrowthFactory = 4;
-  static const int kMinConversionSlack = 256;
-  static const int kMaxGrowth = 1 * MB;
-
-  inline bool IsValidAscii(char code_unit) {
-    // Control characters and printable characters span the range of
-    // valid ASCII characters (0-127). Chars are unsigned on some
-    // platforms which causes compiler warnings if the validity check
-    // tests the lower bound >= 0 as it's always true.
-    return iscntrl(code_unit) || isprint(code_unit);
-  }
-
-  inline int NewCapacity(int min_capacity) {
-    int capacity = Max(min_capacity, backing_store_.length());
-    int new_capacity = Min(capacity * kGrowthFactory, capacity + kMaxGrowth);
-    return new_capacity;
-  }
-
-  void ExpandBuffer() {
-    Vector<byte> new_store = Vector<byte>::New(NewCapacity(kInitialCapacity));
-    MemCopy(new_store.start(), backing_store_.start(), position_);
-    backing_store_.Dispose();
-    backing_store_ = new_store;
-  }
-
-  void ConvertToTwoByte() {
-    DCHECK(is_one_byte_);
-    Vector<byte> new_store;
-    int new_content_size = position_ * kUC16Size;
-    if (new_content_size >= backing_store_.length()) {
-      // Ensure room for all currently read code units as UC16 as well
-      // as the code unit about to be stored.
-      new_store = Vector<byte>::New(NewCapacity(new_content_size));
-    } else {
-      new_store = backing_store_;
-    }
-    uint8_t* src = backing_store_.start();
-    uint16_t* dst = reinterpret_cast<uint16_t*>(new_store.start());
-    for (int i = position_ - 1; i >= 0; i--) {
-      dst[i] = src[i];
-    }
-    if (new_store.start() != backing_store_.start()) {
-      backing_store_.Dispose();
-      backing_store_ = new_store;
-    }
-    position_ = new_content_size;
-    is_one_byte_ = false;
-  }
-
-  bool is_one_byte_;
-  int position_;
-  Vector<byte> backing_store_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
-};
-
 
 // ----------------------------------------------------------------------------
 // JavaScript Scanner.
 
 class Scanner {
  public:
-  // Scoped helper for literal recording. Automatically drops the literal
-  // if aborting the scanning before it's complete.
-  class LiteralScope {
-   public:
-    explicit LiteralScope(Scanner* self) : scanner_(self), complete_(false) {
-      scanner_->StartLiteral();
-    }
-     ~LiteralScope() {
-       if (!complete_) scanner_->DropLiteral();
-     }
-    void Complete() {
-      complete_ = true;
-    }
-
-   private:
-    Scanner* scanner_;
-    bool complete_;
-  };
-
   // Scoped helper for a re-settable bookmark.
   class BookmarkScope {
    public:
@@ -484,9 +309,17 @@ class Scanner {
   Token::Value ScanTemplateStart();
   Token::Value ScanTemplateContinuation();
 
-  const LiteralBuffer* source_url() const { return &source_url_; }
-  const LiteralBuffer* source_mapping_url() const {
-    return &source_mapping_url_;
+  Handle<String> SourceUrl(Isolate* isolate) const {
+    Handle<String> tmp;
+    if (source_url_.length() > 0) tmp = source_url_.Internalize(isolate);
+    return tmp;
+  }
+
+  Handle<String> SourceMappingUrl(Isolate* isolate) const {
+    Handle<String> tmp;
+    if (source_mapping_url_.length() > 0)
+      tmp = source_mapping_url_.Internalize(isolate);
+    return tmp;
   }
 
   bool IdentifierIsFutureStrictReserved(const AstRawString* string) const;
@@ -494,6 +327,172 @@ class Scanner {
   bool FoundHtmlComment() const { return found_html_comment_; }
 
  private:
+  // Scoped helper for literal recording. Automatically drops the literal
+  // if aborting the scanning before it's complete.
+  class LiteralScope {
+   public:
+    explicit LiteralScope(Scanner* self) : scanner_(self), complete_(false) {
+      scanner_->StartLiteral();
+    }
+    ~LiteralScope() {
+      if (!complete_) scanner_->DropLiteral();
+    }
+    void Complete() { complete_ = true; }
+
+   private:
+    Scanner* scanner_;
+    bool complete_;
+  };
+
+  // LiteralBuffer -  Collector of chars of literals.
+  class LiteralBuffer {
+   public:
+    LiteralBuffer() : is_one_byte_(true), position_(0), backing_store_() {}
+
+    ~LiteralBuffer() { backing_store_.Dispose(); }
+
+    INLINE(void AddChar(char code_unit)) {
+      if (position_ >= backing_store_.length()) ExpandBuffer();
+      DCHECK(is_one_byte_);
+      DCHECK(IsValidAscii(code_unit));
+      backing_store_[position_] = static_cast<byte>(code_unit);
+      position_ += kOneByteSize;
+      return;
+    }
+
+    INLINE(void AddChar(uc32 code_unit)) {
+      if (position_ >= backing_store_.length()) ExpandBuffer();
+      if (is_one_byte_) {
+        if (code_unit <= unibrow::Latin1::kMaxChar) {
+          backing_store_[position_] = static_cast<byte>(code_unit);
+          position_ += kOneByteSize;
+          return;
+        }
+        ConvertToTwoByte();
+      }
+      if (code_unit <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+        *reinterpret_cast<uint16_t*>(&backing_store_[position_]) = code_unit;
+        position_ += kUC16Size;
+      } else {
+        *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
+            unibrow::Utf16::LeadSurrogate(code_unit);
+        position_ += kUC16Size;
+        if (position_ >= backing_store_.length()) ExpandBuffer();
+        *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
+            unibrow::Utf16::TrailSurrogate(code_unit);
+        position_ += kUC16Size;
+      }
+    }
+
+    bool is_one_byte() const { return is_one_byte_; }
+
+    bool is_contextual_keyword(Vector<const char> keyword) const {
+      return is_one_byte() && keyword.length() == position_ &&
+             (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
+    }
+
+    Vector<const uint16_t> two_byte_literal() const {
+      DCHECK(!is_one_byte_);
+      DCHECK((position_ & 0x1) == 0);
+      return Vector<const uint16_t>(
+          reinterpret_cast<const uint16_t*>(backing_store_.start()),
+          position_ >> 1);
+    }
+
+    Vector<const uint8_t> one_byte_literal() const {
+      DCHECK(is_one_byte_);
+      return Vector<const uint8_t>(
+          reinterpret_cast<const uint8_t*>(backing_store_.start()), position_);
+    }
+
+    int length() const { return is_one_byte_ ? position_ : (position_ >> 1); }
+
+    void ReduceLength(int delta) {
+      position_ -= delta * (is_one_byte_ ? kOneByteSize : kUC16Size);
+    }
+
+    void Reset() {
+      position_ = 0;
+      is_one_byte_ = true;
+    }
+
+    Handle<String> Internalize(Isolate* isolate) const;
+
+    void CopyFrom(const LiteralBuffer* other) {
+      if (other == nullptr) {
+        Reset();
+      } else {
+        is_one_byte_ = other->is_one_byte_;
+        position_ = other->position_;
+        if (position_ < backing_store_.length()) {
+          std::copy(other->backing_store_.begin(),
+                    other->backing_store_.begin() + position_,
+                    backing_store_.begin());
+        } else {
+          backing_store_.Dispose();
+          backing_store_ = other->backing_store_.Clone();
+        }
+      }
+    }
+
+   private:
+    static const int kInitialCapacity = 16;
+    static const int kGrowthFactory = 4;
+    static const int kMinConversionSlack = 256;
+    static const int kMaxGrowth = 1 * MB;
+
+    inline bool IsValidAscii(char code_unit) {
+      // Control characters and printable characters span the range of
+      // valid ASCII characters (0-127). Chars are unsigned on some
+      // platforms which causes compiler warnings if the validity check
+      // tests the lower bound >= 0 as it's always true.
+      return iscntrl(code_unit) || isprint(code_unit);
+    }
+
+    inline int NewCapacity(int min_capacity) {
+      int capacity = Max(min_capacity, backing_store_.length());
+      int new_capacity = Min(capacity * kGrowthFactory, capacity + kMaxGrowth);
+      return new_capacity;
+    }
+
+    void ExpandBuffer() {
+      Vector<byte> new_store = Vector<byte>::New(NewCapacity(kInitialCapacity));
+      MemCopy(new_store.start(), backing_store_.start(), position_);
+      backing_store_.Dispose();
+      backing_store_ = new_store;
+    }
+
+    void ConvertToTwoByte() {
+      DCHECK(is_one_byte_);
+      Vector<byte> new_store;
+      int new_content_size = position_ * kUC16Size;
+      if (new_content_size >= backing_store_.length()) {
+        // Ensure room for all currently read code units as UC16 as well
+        // as the code unit about to be stored.
+        new_store = Vector<byte>::New(NewCapacity(new_content_size));
+      } else {
+        new_store = backing_store_;
+      }
+      uint8_t* src = backing_store_.start();
+      uint16_t* dst = reinterpret_cast<uint16_t*>(new_store.start());
+      for (int i = position_ - 1; i >= 0; i--) {
+        dst[i] = src[i];
+      }
+      if (new_store.start() != backing_store_.start()) {
+        backing_store_.Dispose();
+        backing_store_ = new_store;
+      }
+      position_ = new_content_size;
+      is_one_byte_ = false;
+    }
+
+    bool is_one_byte_;
+    int position_;
+    Vector<byte> backing_store_;
+
+    DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
+  };
+
   // The current and look-ahead token.
   struct TokenDesc {
     Token::Value token;
@@ -504,6 +503,7 @@ class Scanner {
   };
 
   static const int kCharacterLookaheadBufferSize = 1;
+  const int kMaxAscii = 127;
 
   // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
   template <bool capture_raw>
