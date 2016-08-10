@@ -3575,71 +3575,75 @@ void CodeStubAssembler::EmitElementLoad(Node* object, Node* elements,
         LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
     Node* backing_store = IntPtrAdd(external_pointer, base_pointer);
 
+    Label uint8_elements(this), int8_elements(this), uint16_elements(this),
+        int16_elements(this), uint32_elements(this), int32_elements(this),
+        float32_elements(this), float64_elements(this);
+    Label* elements_kind_labels[] = {
+        &uint8_elements,  &uint8_elements,   &int8_elements,
+        &uint16_elements, &int16_elements,   &uint32_elements,
+        &int32_elements,  &float32_elements, &float64_elements};
+    int32_t elements_kinds[] = {
+        UINT8_ELEMENTS,  UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
+        UINT16_ELEMENTS, INT16_ELEMENTS,         UINT32_ELEMENTS,
+        INT32_ELEMENTS,  FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS};
     const int kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
                                         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
                                         1;
-    Label* elements_kind_labels[kTypedElementsKindCount];
-    int32_t elements_kinds[kTypedElementsKindCount];
-    for (int i = 0; i < kTypedElementsKindCount; i++) {
-      elements_kinds[i] = i + FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
-      elements_kind_labels[i] = new Label(this);
-    }
+    DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
+    DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
     Switch(elements_kind, miss, elements_kinds, elements_kind_labels,
            static_cast<size_t>(kTypedElementsKindCount));
-
-    for (int i = 0; i < kTypedElementsKindCount; i++) {
-      ElementsKind kind = static_cast<ElementsKind>(elements_kinds[i]);
-      Bind(elements_kind_labels[i]);
-      Comment(ElementsKindToString(kind));
-      switch (kind) {
-        case UINT8_ELEMENTS:
-        case UINT8_CLAMPED_ELEMENTS:
-          Return(SmiTag(Load(MachineType::Uint8(), backing_store, key)));
-          break;
-        case INT8_ELEMENTS:
-          Return(SmiTag(Load(MachineType::Int8(), backing_store, key)));
-          break;
-        case UINT16_ELEMENTS: {
-          Node* index = WordShl(key, IntPtrConstant(1));
-          Return(SmiTag(Load(MachineType::Uint16(), backing_store, index)));
-          break;
-        }
-        case INT16_ELEMENTS: {
-          Node* index = WordShl(key, IntPtrConstant(1));
-          Return(SmiTag(Load(MachineType::Int16(), backing_store, index)));
-          break;
-        }
-        case UINT32_ELEMENTS: {
-          Node* index = WordShl(key, IntPtrConstant(2));
-          Node* element = Load(MachineType::Uint32(), backing_store, index);
-          Return(ChangeUint32ToTagged(element));
-          break;
-        }
-        case INT32_ELEMENTS: {
-          Node* index = WordShl(key, IntPtrConstant(2));
-          Node* element = Load(MachineType::Int32(), backing_store, index);
-          Return(ChangeInt32ToTagged(element));
-          break;
-        }
-        case FLOAT32_ELEMENTS: {
-          Node* index = WordShl(key, IntPtrConstant(2));
-          Node* element = Load(MachineType::Float32(), backing_store, index);
-          var_double_value->Bind(ChangeFloat32ToFloat64(element));
-          Goto(rebox_double);
-          break;
-        }
-        case FLOAT64_ELEMENTS: {
-          Node* index = WordShl(key, IntPtrConstant(3));
-          Node* element = Load(MachineType::Float64(), backing_store, index);
-          var_double_value->Bind(element);
-          Goto(rebox_double);
-          break;
-        }
-        default:
-          UNREACHABLE();
-      }
-      // Don't forget to clean up.
-      delete elements_kind_labels[i];
+    Bind(&uint8_elements);
+    {
+      Comment("UINT8_ELEMENTS");  // Handles UINT8_CLAMPED_ELEMENTS too.
+      Return(SmiTag(Load(MachineType::Uint8(), backing_store, key)));
+    }
+    Bind(&int8_elements);
+    {
+      Comment("INT8_ELEMENTS");
+      Return(SmiTag(Load(MachineType::Int8(), backing_store, key)));
+    }
+    Bind(&uint16_elements);
+    {
+      Comment("UINT16_ELEMENTS");
+      Node* index = WordShl(key, IntPtrConstant(1));
+      Return(SmiTag(Load(MachineType::Uint16(), backing_store, index)));
+    }
+    Bind(&int16_elements);
+    {
+      Comment("INT16_ELEMENTS");
+      Node* index = WordShl(key, IntPtrConstant(1));
+      Return(SmiTag(Load(MachineType::Int16(), backing_store, index)));
+    }
+    Bind(&uint32_elements);
+    {
+      Comment("UINT32_ELEMENTS");
+      Node* index = WordShl(key, IntPtrConstant(2));
+      Node* element = Load(MachineType::Uint32(), backing_store, index);
+      Return(ChangeUint32ToTagged(element));
+    }
+    Bind(&int32_elements);
+    {
+      Comment("INT32_ELEMENTS");
+      Node* index = WordShl(key, IntPtrConstant(2));
+      Node* element = Load(MachineType::Int32(), backing_store, index);
+      Return(ChangeInt32ToTagged(element));
+    }
+    Bind(&float32_elements);
+    {
+      Comment("FLOAT32_ELEMENTS");
+      Node* index = WordShl(key, IntPtrConstant(2));
+      Node* element = Load(MachineType::Float32(), backing_store, index);
+      var_double_value->Bind(ChangeFloat32ToFloat64(element));
+      Goto(rebox_double);
+    }
+    Bind(&float64_elements);
+    {
+      Comment("FLOAT64_ELEMENTS");
+      Node* index = WordShl(key, IntPtrConstant(3));
+      Node* element = Load(MachineType::Float64(), backing_store, index);
+      var_double_value->Bind(element);
+      Goto(rebox_double);
     }
   }
 }
