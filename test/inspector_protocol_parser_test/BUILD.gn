@@ -3,21 +3,4 @@
 # found in the LICENSE file.
 
 import("../../gni/v8.gni")
-
-v8_executable("inspector_protocol_parser_test") {
-  testonly = true
-  deps = [
-    "../../src/inspector:inspector_protocol",
-    "//build/config/sanitizers:deps",
-    "//build/win:default_exe_manifest",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-  configs = [
-    "../../src/inspector:inspector_protocol_config"
-  ]
-  sources = [
-    "//third_party/WebKit/Source/platform/inspector_protocol/ParserTest.cpp",
-    "RunTests.cpp",
-  ]
-}
+# TODO: bring tests back once inspector_protocol is stable and moves out of blink.

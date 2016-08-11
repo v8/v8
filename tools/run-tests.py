@@ -71,7 +71,6 @@ TEST_MAP = {
     "preparser",
     "intl",
     "unittests",
-    "inspector_protocol_parser_test",
   ],
   # This needs to stay in sync with test/default.isolate.
   "default": [
@@ -82,7 +81,6 @@ TEST_MAP = {
     "preparser",
     "intl",
     "unittests",
-    "inspector_protocol_parser_test",
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
