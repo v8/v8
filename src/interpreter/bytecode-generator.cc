@@ -627,12 +627,16 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
 }
 
 Handle<BytecodeArray> BytecodeGenerator::MakeBytecode() {
+  // Create an inner HandleScope to avoid unnecessarily canonicalizing handles
+  // created as part of bytecode finalization.
+  HandleScope scope(isolate());
+
   GenerateBytecode();
   FinalizeBytecode();
 
   if (HasStackOverflow()) return Handle<BytecodeArray>();
 
-  return builder()->ToBytecodeArray();
+  return scope.CloseAndEscape(builder()->ToBytecodeArray());
 }
 
 void BytecodeGenerator::FinalizeBytecode() {

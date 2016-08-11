@@ -1809,6 +1809,13 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
   TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
       isolate, &tracing::TraceEventStatsTable::CompileCode);
+
+  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // required by the constant array builder to de-duplicate common objects
+  // without dereferencing handles.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info.isolate()));
+
   if (lazy) {
     info.SetCode(isolate->builtins()->CompileLazy());
   } else if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
