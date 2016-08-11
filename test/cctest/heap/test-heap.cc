@@ -1968,11 +1968,7 @@ TEST(TestSizeOfRegExpCode) {
 
   // Get initial heap size after several full GCs, which will stabilize
   // the heap size and return with sweeping finished completely.
-  CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllAvailableGarbage("initial cleanup");
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
@@ -2005,19 +2001,16 @@ TEST(TestSizeOfRegExpCode) {
 
 HEAP_TEST(TestSizeOfObjects) {
   v8::V8::Initialize();
+  Heap* heap = CcTest::heap();
+  MarkCompactCollector* collector = heap->mark_compact_collector();
 
   // Get initial heap size after several full GCs, which will stabilize
   // the heap size and return with sweeping finished completely.
-  CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage();
-  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
+  heap->CollectAllAvailableGarbage("initial cleanup");
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
   }
-  int initial_size = static_cast<int>(CcTest::heap()->SizeOfObjects());
+  int initial_size = static_cast<int>(heap->SizeOfObjects());
 
   {
     // Allocate objects on several different old-space pages so that
@@ -2026,25 +2019,22 @@ HEAP_TEST(TestSizeOfObjects) {
     AlwaysAllocateScope always_allocate(CcTest::i_isolate());
     int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
     for (int i = 1; i <= 100; i++) {
-      CcTest::heap()->AllocateFixedArray(8192, TENURED).ToObjectChecked();
+      heap->AllocateFixedArray(8192, TENURED).ToObjectChecked();
       CHECK_EQ(initial_size + i * filler_size,
-               static_cast<int>(CcTest::heap()->SizeOfObjects()));
+               static_cast<int>(heap->SizeOfObjects()));
     }
   }
 
   // The heap size should go back to initial size after a full GC, even
   // though sweeping didn't finish yet.
-  CcTest::heap()->CollectAllGarbage();
-
+  heap->CollectAllGarbage();
   // Normally sweeping would not be complete here, but no guarantees.
-
-  CHECK_EQ(initial_size, static_cast<int>(CcTest::heap()->SizeOfObjects()));
-
+  CHECK_EQ(initial_size, static_cast<int>(heap->SizeOfObjects()));
   // Waiting for sweeper threads should not change heap size.
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
   }
-  CHECK_EQ(initial_size, static_cast<int>(CcTest::heap()->SizeOfObjects()));
+  CHECK_EQ(initial_size, static_cast<int>(heap->SizeOfObjects()));
 }
 
 
