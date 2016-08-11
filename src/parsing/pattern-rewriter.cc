@@ -147,7 +147,9 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // pre-resolve the proxy because it resides in the same scope as the
   // declaration.
   const AstRawString* name = pattern->raw_name();
-  VariableProxy* proxy = parser_->NewUnresolved(name, descriptor_->mode);
+  VariableProxy* proxy = descriptor_->scope->NewUnresolved(
+      factory(), name, parser_->scanner()->location().beg_pos,
+      parser_->scanner()->location().end_pos);
   Declaration* declaration = factory()->NewVariableDeclaration(
       proxy, descriptor_->scope, descriptor_->declaration_pos);
   Variable* var = parser_->Declare(declaration, descriptor_->declaration_kind,

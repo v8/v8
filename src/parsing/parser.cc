@@ -275,9 +275,8 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(2, zone());
-      VariableProxy* this_function_proxy = this->scope()->NewUnresolved(
-          factory(), ast_value_factory()->this_function_string(),
-          Variable::NORMAL, pos);
+      VariableProxy* this_function_proxy =
+          NewUnresolved(ast_value_factory()->this_function_string(), pos);
       ZoneList<Expression*>* tmp =
           new (zone()) ZoneList<Expression*>(1, zone());
       tmp->Add(this_function_proxy, zone());
@@ -290,9 +289,8 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
           new (zone()) ZoneList<Expression*>(1, zone());
       spread_args_expr->Add(spread_args, zone());
       args->AddAll(*PrepareSpreadArguments(spread_args_expr), zone());
-      VariableProxy* new_target_proxy = this->scope()->NewUnresolved(
-          factory(), ast_value_factory()->new_target_string(), Variable::NORMAL,
-          pos);
+      VariableProxy* new_target_proxy =
+          NewUnresolved(ast_value_factory()->new_target_string(), pos);
       args->Add(new_target_proxy, zone());
       CallRuntime* call = factory()->NewCallRuntime(
           Context::REFLECT_CONSTRUCT_INDEX, args, pos);
@@ -690,45 +688,40 @@ const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) {
   return parser_->scanner()->NextSymbol(parser_->ast_value_factory());
 }
 
-Expression* ParserTraits::ThisExpression(AstNodeFactory* factory, int pos) {
-  return parser_->scope()->NewUnresolved(
-      factory, parser_->ast_value_factory()->this_string(), Variable::THIS, pos,
-      pos + 4);
+Expression* ParserTraits::ThisExpression(int pos) {
+  return parser_->NewUnresolved(parser_->ast_value_factory()->this_string(),
+                                pos, pos + 4, Variable::THIS);
 }
 
 Expression* ParserTraits::NewSuperPropertyReference(AstNodeFactory* factory,
                                                     int pos) {
   // this_function[home_object_symbol]
-  VariableProxy* this_function_proxy = parser_->scope()->NewUnresolved(
-      factory, parser_->ast_value_factory()->this_function_string(),
-      Variable::NORMAL, pos);
+  VariableProxy* this_function_proxy = parser_->NewUnresolved(
+      parser_->ast_value_factory()->this_function_string(), pos);
   Expression* home_object_symbol_literal =
       factory->NewSymbolLiteral("home_object_symbol", kNoSourcePosition);
   Expression* home_object = factory->NewProperty(
       this_function_proxy, home_object_symbol_literal, pos);
   return factory->NewSuperPropertyReference(
-      ThisExpression(factory, pos)->AsVariableProxy(), home_object, pos);
+      ThisExpression(pos)->AsVariableProxy(), home_object, pos);
 }
 
 Expression* ParserTraits::NewSuperCallReference(AstNodeFactory* factory,
                                                 int pos) {
-  VariableProxy* new_target_proxy = parser_->scope()->NewUnresolved(
-      factory, parser_->ast_value_factory()->new_target_string(),
-      Variable::NORMAL, pos);
-  VariableProxy* this_function_proxy = parser_->scope()->NewUnresolved(
-      factory, parser_->ast_value_factory()->this_function_string(),
-      Variable::NORMAL, pos);
-  return factory->NewSuperCallReference(
-      ThisExpression(factory, pos)->AsVariableProxy(), new_target_proxy,
-      this_function_proxy, pos);
+  VariableProxy* new_target_proxy = parser_->NewUnresolved(
+      parser_->ast_value_factory()->new_target_string(), pos);
+  VariableProxy* this_function_proxy = parser_->NewUnresolved(
+      parser_->ast_value_factory()->this_function_string(), pos);
+  return factory->NewSuperCallReference(ThisExpression(pos)->AsVariableProxy(),
+                                        new_target_proxy, this_function_proxy,
+                                        pos);
 }
 
-Expression* ParserTraits::NewTargetExpression(AstNodeFactory* factory,
-                                              int pos) {
+Expression* ParserTraits::NewTargetExpression(int pos) {
   static const int kNewTargetStringLength = 10;
-  auto proxy = parser_->scope()->NewUnresolved(
-      factory, parser_->ast_value_factory()->new_target_string(),
-      Variable::NORMAL, pos, pos + kNewTargetStringLength);
+  auto proxy =
+      parser_->NewUnresolved(parser_->ast_value_factory()->new_target_string(),
+                             pos, pos + kNewTargetStringLength);
   proxy->set_is_new_target();
   return proxy;
 }
@@ -771,14 +764,11 @@ Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
   return NULL;
 }
 
-
 Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
                                                    int start_position,
-                                                   int end_position,
-                                                   AstNodeFactory* factory) {
+                                                   int end_position) {
   if (parser_->fni_ != NULL) parser_->fni_->PushVariableName(name);
-  return parser_->scope()->NewUnresolved(factory, name, Variable::NORMAL,
-                                         start_position, end_position);
+  return parser_->NewUnresolved(name, start_position, end_position);
 }
 
 
@@ -1949,18 +1939,14 @@ Statement* Parser::ParseStatementAsUnlabelled(
   }
 }
 
+VariableProxy* Parser::NewUnresolved(const AstRawString* name, int begin_pos,
+                                     int end_pos, Variable::Kind kind) {
+  return scope()->NewUnresolved(factory(), name, begin_pos, end_pos, kind);
+}
 
-VariableProxy* Parser::NewUnresolved(const AstRawString* name,
-                                     VariableMode mode) {
-  // If we are inside a function, a declaration of a 'var' variable is a
-  // truly local variable, and the scope of the variable is always the function
-  // scope.
-  // Let/const variables are always added to the immediately enclosing scope.
-  Scope* scope =
-      IsLexicalVariableMode(mode) ? this->scope() : GetDeclarationScope();
-  return scope->NewUnresolved(factory(), name, Variable::NORMAL,
-                              scanner()->location().beg_pos,
-                              scanner()->location().end_pos);
+VariableProxy* Parser::NewUnresolved(const AstRawString* name) {
+  return scope()->NewUnresolved(factory(), name, scanner()->location().beg_pos,
+                                scanner()->location().end_pos);
 }
 
 InitializationFlag Parser::DefaultInitializationFlag(VariableMode mode) {
@@ -1977,9 +1963,13 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
                                      VariableMode mode, InitializationFlag init,
                                      int pos, bool* ok) {
   DCHECK_NOT_NULL(name);
-  VariableProxy* proxy = NewUnresolved(name, mode);
+  Scope* scope =
+      IsLexicalVariableMode(mode) ? this->scope() : GetDeclarationScope();
+  VariableProxy* proxy =
+      scope->NewUnresolved(factory(), name, scanner()->location().beg_pos,
+                           scanner()->location().end_pos);
   Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, scope(), pos);
+      factory()->NewVariableDeclaration(proxy, this->scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, CHECK_OK);
   return declaration;
 }
@@ -2212,7 +2202,7 @@ Statement* Parser::ParseHoistableDeclaration(
   VariableMode mode =
       (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
                                                                        : VAR;
-  VariableProxy* proxy = NewUnresolved(variable_name, mode);
+  VariableProxy* proxy = NewUnresolved(variable_name);
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, fun, scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
@@ -2720,7 +2710,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       tok == Token::RBRACE ||
       tok == Token::EOS) {
     if (IsSubclassConstructor(function_state_->kind())) {
-      return_value = ThisExpression(factory(), loc.beg_pos);
+      return_value = ThisExpression(loc.beg_pos);
     } else {
       return_value = GetLiteralUndefined(position());
     }
@@ -2767,9 +2757,8 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           factory()->NewUndefinedLiteral(kNoSourcePosition), pos);
 
       // is_undefined ? this : is_object_conditional
-      return_value = factory()->NewConditional(is_undefined,
-                                               ThisExpression(factory(), pos),
-                                               is_object_conditional, pos);
+      return_value = factory()->NewConditional(
+          is_undefined, ThisExpression(pos), is_object_conditional, pos);
     } else {
       ReturnExprScope maybe_allow_tail_calls(
           function_state_, ReturnExprContext::kInsideValidReturnStatement);
@@ -3448,7 +3437,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   // For each lexical variable x:
   //   make statement: temp_x = x.
   for (int i = 0; i < names->length(); i++) {
-    VariableProxy* proxy = NewUnresolved(names->at(i), LET);
+    VariableProxy* proxy = NewUnresolved(names->at(i));
     Variable* temp = NewTemporary(temp_name);
     VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
     Assignment* assignment = factory()->NewAssignment(Token::ASSIGN, temp_proxy,
@@ -3719,7 +3708,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           ++use_counts_[v8::Isolate::kForInInitializer];
           const AstRawString* name =
               decl.pattern->AsVariableProxy()->raw_name();
-          VariableProxy* single_var = NewUnresolved(name, VAR);
+          VariableProxy* single_var = NewUnresolved(name);
           init_block = factory()->NewBlock(
               nullptr, 2, true, parsing_result.descriptor.declaration_pos);
           init_block->statements()->Add(
@@ -4762,9 +4751,8 @@ Expression* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
   DCHECK_NOT_NULL(function_state_->generator_object_variable());
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
   args->Add(factory()->NewThisFunction(pos), zone());
-  args->Add(IsArrowFunction(kind)
-                ? GetLiteralUndefined(pos)
-                : ThisExpression(factory(), kNoSourcePosition),
+  args->Add(IsArrowFunction(kind) ? GetLiteralUndefined(pos)
+                                  : ThisExpression(kNoSourcePosition),
             zone());
   return factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args,
                                    pos);
@@ -4885,8 +4873,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
     if (IsSubclassConstructor(kind)) {
       body->Add(factory()->NewReturnStatement(
-                    this->ThisExpression(factory(), kNoSourcePosition),
-                    kNoSourcePosition),
+                    this->ThisExpression(kNoSourcePosition), kNoSourcePosition),
                 zone());
     }
   }
@@ -5009,7 +4996,7 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
 
   VariableProxy* proxy = nullptr;
   if (name != nullptr) {
-    proxy = NewUnresolved(name, CONST);
+    proxy = NewUnresolved(name);
     // TODO(verwaest): declare via block_state.
     Declaration* declaration =
         factory()->NewVariableDeclaration(proxy, block_state.scope(), pos);
@@ -5213,7 +5200,7 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
     const AstRawString* name = decl->proxy()->raw_name();
     Variable* parameter = function_scope->LookupLocal(name);
     if (parameter == nullptr) continue;
-    VariableProxy* to = NewUnresolved(name, VAR);
+    VariableProxy* to = NewUnresolved(name);
     VariableProxy* from = factory()->NewVariableProxy(parameter);
     Expression* assignment =
         factory()->NewAssignment(Token::ASSIGN, to, from, kNoSourcePosition);
@@ -5694,7 +5681,7 @@ Expression* Parser::SpreadCall(Expression* function,
     if (function->IsProperty()) {
       // Method calls
       if (function->AsProperty()->IsSuperAccess()) {
-        Expression* home = ThisExpression(factory(), kNoSourcePosition);
+        Expression* home = ThisExpression(kNoSourcePosition);
         args->InsertAt(0, function, zone());
         args->InsertAt(1, home, zone());
       } else {
@@ -5935,7 +5922,7 @@ Expression* Parser::RewriteAssignExponentiation(Expression* left,
     Expression* result;
     DCHECK_NOT_NULL(lhs->raw_name());
     result = this->ExpressionFromIdentifier(lhs->raw_name(), lhs->position(),
-                                            lhs->end_position(), factory());
+                                            lhs->end_position());
     args->Add(left, zone());
     args->Add(right, zone());
     Expression* call =

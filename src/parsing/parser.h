@@ -549,17 +549,15 @@ class ParserTraits {
   const AstRawString* GetNextSymbol(Scanner* scanner);
   const AstRawString* GetNumberAsSymbol(Scanner* scanner);
 
-  Expression* ThisExpression(AstNodeFactory* factory,
-                             int pos = kNoSourcePosition);
+  Expression* ThisExpression(int pos);
   Expression* NewSuperPropertyReference(AstNodeFactory* factory, int pos);
   Expression* NewSuperCallReference(AstNodeFactory* factory, int pos);
-  Expression* NewTargetExpression(AstNodeFactory* factory, int pos);
+  Expression* NewTargetExpression(int pos);
   Expression* FunctionSentExpression(AstNodeFactory* factory, int pos);
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
                                  AstNodeFactory* factory);
   Expression* ExpressionFromIdentifier(const AstRawString* name,
-                                       int start_position, int end_position,
-                                       AstNodeFactory* factory);
+                                       int start_position, int end_position);
   Expression* ExpressionFromString(int pos, Scanner* scanner,
                                    AstNodeFactory* factory);
   Expression* GetIterator(Expression* iterable, AstNodeFactory* factory,
@@ -1086,7 +1084,10 @@ class Parser : public ParserBase<ParserTraits> {
                                             bool* ok);
 
   static InitializationFlag DefaultInitializationFlag(VariableMode mode);
-  VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);
+  VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
+                               int end_pos = kNoSourcePosition,
+                               Variable::Kind kind = Variable::NORMAL);
+  VariableProxy* NewUnresolved(const AstRawString* name);
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind,
                     VariableMode mode, InitializationFlag init, bool* ok,

@@ -801,8 +801,7 @@ class PreParserTraits {
     return PreParserIdentifier::Default();
   }
 
-  static PreParserExpression ThisExpression(PreParserFactory* factory,
-                                            int pos) {
+  static PreParserExpression ThisExpression(int pos) {
     return PreParserExpression::This();
   }
 
@@ -816,8 +815,7 @@ class PreParserTraits {
     return PreParserExpression::SuperCallReference();
   }
 
-  static PreParserExpression NewTargetExpression(PreParserFactory* factory,
-                                                 int pos) {
+  static PreParserExpression NewTargetExpression(int pos) {
     return PreParserExpression::Default();
   }
 
@@ -832,9 +830,9 @@ class PreParserTraits {
     return PreParserExpression::Default();
   }
 
-  static PreParserExpression ExpressionFromIdentifier(
-      PreParserIdentifier name, int start_position, int end_position,
-      PreParserFactory* factory) {
+  static PreParserExpression ExpressionFromIdentifier(PreParserIdentifier name,
+                                                      int start_position,
+                                                      int end_position) {
     return PreParserExpression::FromIdentifier(name);
   }
 

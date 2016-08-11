@@ -1550,7 +1550,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::THIS: {
       BindingPatternUnexpectedToken(classifier);
       Consume(Token::THIS);
-      return this->ThisExpression(factory(), beg_pos);
+      return this->ThisExpression(beg_pos);
     }
 
     case Token::NULL_LITERAL:
@@ -1582,8 +1582,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
       IdentifierT name = ParseAndClassifyIdentifier(classifier, CHECK_OK);
-      return this->ExpressionFromIdentifier(
-          name, beg_pos, scanner()->location().end_pos, factory());
+      return this->ExpressionFromIdentifier(name, beg_pos,
+                                            scanner()->location().end_pos);
     }
 
     case Token::STRING: {
@@ -2007,8 +2007,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
               MessageTemplate::kAwaitBindingIdentifier);
         }
       }
-      ExpressionT lhs = this->ExpressionFromIdentifier(*name, next_beg_pos,
-                                                       next_end_pos, factory());
+      ExpressionT lhs =
+          this->ExpressionFromIdentifier(*name, next_beg_pos, next_end_pos);
       CheckDestructuringElement(lhs, classifier, next_beg_pos, next_end_pos);
 
       ExpressionT value;
@@ -2317,8 +2317,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     // async Identifier => AsyncConciseBody
     IdentifierT name =
         ParseAndClassifyIdentifier(&arrow_formals_classifier, CHECK_OK);
-    expression = this->ExpressionFromIdentifier(
-        name, position(), scanner()->location().end_pos, factory());
+    expression = this->ExpressionFromIdentifier(name, position(),
+                                                scanner()->location().end_pos);
   }
 
   if (peek() == Token::ARROW) {
@@ -2762,8 +2762,8 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
             Scanner::Location(beg_pos, scanner()->location().end_pos),
             MessageTemplate::kAwaitBindingIdentifier);
 
-        return this->ExpressionFromIdentifier(
-            name, beg_pos, scanner()->location().end_pos, factory());
+        return this->ExpressionFromIdentifier(name, beg_pos,
+                                              scanner()->location().end_pos);
       }
       default:
         break;
@@ -2921,7 +2921,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         // Explicit calls to the super constructor using super() perform an
         // implicit binding assignment to the 'this' variable.
         if (is_super_call) {
-          ExpressionT this_expr = this->ThisExpression(factory(), pos);
+          ExpressionT this_expr = this->ThisExpression(pos);
           result =
               factory()->NewAssignment(Token::INIT, this_expr, result, pos);
         }
@@ -3148,7 +3148,7 @@ ParserBase<Traits>::ParseNewTargetExpression(bool* ok) {
     return this->EmptyExpression();
   }
 
-  return this->NewTargetExpression(factory(), pos);
+  return this->NewTargetExpression(pos);
 }
 
 template <class Traits>

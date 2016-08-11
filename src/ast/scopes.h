@@ -160,9 +160,9 @@ class Scope: public ZoneObject {
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
-                               Variable::Kind kind = Variable::NORMAL,
                                int start_position = kNoSourcePosition,
-                               int end_position = kNoSourcePosition) {
+                               int end_position = kNoSourcePosition,
+                               Variable::Kind kind = Variable::NORMAL) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
