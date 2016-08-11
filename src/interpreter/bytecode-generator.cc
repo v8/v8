@@ -1634,7 +1634,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     if (property->IsCompileTimeValue()) continue;
 
     RegisterAllocationScope inner_register_scope(this);
-    Literal* literal_key = property->key()->AsLiteral();
+    Literal* key = property->key()->AsLiteral();
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
         UNREACHABLE();
@@ -1644,11 +1644,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::COMPUTED: {
         // It is safe to use [[Put]] here because the boilerplate already
         // contains computed properties with an uninitialized value.
-
-        // TODO(5203): Remove this temporary exception.
-        AllowHandleDereference allow_deref;
-
-        if (literal_key->value()->IsInternalizedString()) {
+        if (key->IsPropertyName()) {
           if (property->emit_store()) {
             VisitForAccumulatorValue(property->value());
             if (FunctionLiteral::NeedsHomeObject(property->value())) {
@@ -1656,12 +1652,12 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
               Register value = register_allocator()->NewRegister();
               builder()->StoreAccumulatorInRegister(value);
               builder()->StoreNamedProperty(
-                  literal, literal_key->AsPropertyName(),
+                  literal, key->AsPropertyName(),
                   feedback_index(property->GetSlot(0)), language_mode());
               VisitSetHomeObject(value, literal, property, 1);
             } else {
               builder()->StoreNamedProperty(
-                  literal, literal_key->AsPropertyName(),
+                  literal, key->AsPropertyName(),
                   feedback_index(property->GetSlot(0)), language_mode());
             }
           } else {
@@ -1705,12 +1701,12 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       }
       case ObjectLiteral::Property::GETTER:
         if (property->emit_store()) {
-          accessor_table.lookup(literal_key)->second->getter = property;
+          accessor_table.lookup(key)->second->getter = property;
         }
         break;
       case ObjectLiteral::Property::SETTER:
         if (property->emit_store()) {
-          accessor_table.lookup(literal_key)->second->setter = property;
+          accessor_table.lookup(key)->second->setter = property;
         }
         break;
     }
