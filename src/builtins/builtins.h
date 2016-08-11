@@ -178,7 +178,7 @@ namespace internal {
       TypeConversion)                                                         \
   TFS(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState,               \
       TypeConversion)                                                         \
-  ASM(StringToNumber)                                                         \
+  TFS(StringToNumber, BUILTIN, kNoExtraICState, TypeConversion)               \
   TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
   ASM(ToNumber)                                                               \
                                                                               \

@@ -109,6 +109,38 @@ void Builtins::Generate_NonPrimitiveToPrimitive_String(
   Generate_NonPrimitiveToPrimitive(assembler, ToPrimitiveHint::kString);
 }
 
+void Builtins::Generate_StringToNumber(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef TypeConversionDescriptor Descriptor;
+
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label runtime(assembler);
+
+  // Check if string has a cached array index.
+  Node* hash = assembler->LoadNameHashField(input);
+  Node* bit = assembler->Word32And(
+      hash, assembler->Int32Constant(String::kContainsCachedArrayIndexMask));
+  assembler->GotoIf(assembler->Word32NotEqual(bit, assembler->Int32Constant(0)),
+                    &runtime);
+
+  assembler->Return(assembler->SmiTag(
+      assembler->BitFieldDecode<String::ArrayIndexValueBits>(hash)));
+
+  assembler->Bind(&runtime);
+  {
+    // Note: We cannot tail call to the runtime here, as js-to-wasm
+    // trampolines also use this code currently, and they declare all
+    // outgoing parameters as untagged, while we would push a tagged
+    // object here.
+    Node* result =
+        assembler->CallRuntime(Runtime::kStringToNumber, context, input);
+    assembler->Return(result);
+  }
+}
+
 // ES6 section 7.1.3 ToNumber ( argument )
 void Builtins::Generate_NonNumberToNumber(CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
