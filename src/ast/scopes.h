@@ -571,12 +571,12 @@ class Scope: public ZoneObject {
   };
 
   // Lookup a variable reference given by name recursively starting with this
-  // scope, but only until max_outer_scope (if not nullptr). If the code is
+  // scope, and stopping when reaching the outer_scope_end scope. If the code is
   // executed because of a call to 'eval', the context parameter should be set
   // to the calling context of 'eval'.
   Variable* LookupRecursive(VariableProxy* proxy, BindingKind* binding_kind,
                             AstNodeFactory* factory,
-                            Scope* max_outer_scope = nullptr);
+                            Scope* outer_scope_end = nullptr);
   void ResolveTo(ParseInfo* info, BindingKind binding_kind,
                  VariableProxy* proxy, Variable* var);
   void ResolveVariable(ParseInfo* info, VariableProxy* proxy,
