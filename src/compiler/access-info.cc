@@ -93,14 +93,14 @@ PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
 }
 
 PropertyAccessInfo::PropertyAccessInfo()
-    : kind_(kInvalid), field_type_(Type::Any()) {}
+    : kind_(kInvalid), field_type_(Type::None()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
                                        MapList const& receiver_maps)
     : kind_(kNotFound),
       receiver_maps_(receiver_maps),
       holder_(holder),
-      field_type_(Type::Any()) {}
+      field_type_(Type::None()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
                                        Handle<Object> constant,

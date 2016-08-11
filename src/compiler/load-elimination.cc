@@ -18,6 +18,9 @@ enum Aliasing { kNoAlias, kMayAlias, kMustAlias };
 
 Aliasing QueryAlias(Node* a, Node* b) {
   if (a == b) return kMustAlias;
+  if (!NodeProperties::GetType(a)->Maybe(NodeProperties::GetType(b))) {
+    return kNoAlias;
+  }
   if (b->opcode() == IrOpcode::kAllocate) {
     switch (a->opcode()) {
       case IrOpcode::kAllocate:
@@ -111,6 +114,7 @@ LoadElimination::AbstractElements::Kill(Node* object, Node* index,
           that->elements_[that->next_index_++] = element;
         }
       }
+      that->next_index_ %= arraysize(elements_);
       return that;
     }
   }
@@ -164,6 +168,7 @@ LoadElimination::AbstractElements::Merge(AbstractElements const* that,
       }
     }
   }
+  copy->next_index_ %= arraysize(elements_);
   return copy;
 }
 

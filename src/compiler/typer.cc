@@ -294,7 +294,6 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_METHOD
 
   static Type* JSTypeOfTyper(Type*, Typer*);
-  static Type* JSLoadPropertyTyper(Type*, Type*, Typer*);
   static Type* JSCallFunctionTyper(Type*, Typer*);
 
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
@@ -545,8 +544,9 @@ Type* Typer::Visitor::ObjectIsUndetectable(Type* type, Typer* t) {
 
 Type* Typer::Visitor::TypeStart(Node* node) { return Type::Internal(); }
 
-Type* Typer::Visitor::TypeIfException(Node* node) { return Type::Any(); }
-
+Type* Typer::Visitor::TypeIfException(Node* node) {
+  return Type::NonInternal();
+}
 
 // Common operators.
 
@@ -1080,28 +1080,18 @@ Type* Typer::Visitor::TypeJSCreateLiteralRegExp(Node* node) {
 }
 
 
-Type* Typer::Visitor::JSLoadPropertyTyper(Type* object, Type* name, Typer* t) {
-  // TODO(rossberg): Use range types and sized array types to filter undefined.
-  if (object->IsArray() && name->Is(Type::Integral32())) {
-    return Type::Union(
-        object->AsArray()->Element(), Type::Undefined(), t->zone());
-  }
-  return Type::Any();
-}
-
-
 Type* Typer::Visitor::TypeJSLoadProperty(Node* node) {
-  return TypeBinaryOp(node, JSLoadPropertyTyper);
+  return Type::NonInternal();
 }
 
 
 Type* Typer::Visitor::TypeJSLoadNamed(Node* node) {
-  return Type::Any();
+  return Type::NonInternal();
 }
 
-
-Type* Typer::Visitor::TypeJSLoadGlobal(Node* node) { return Type::Any(); }
-
+Type* Typer::Visitor::TypeJSLoadGlobal(Node* node) {
+  return Type::NonInternal();
+}
 
 // Returns a somewhat larger range if we previously assigned
 // a (smaller) range to this node. This is used  to speed up
@@ -1359,7 +1349,7 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
       }
     }
   }
-  return Type::Any();
+  return Type::NonInternal();
 }
 
 
@@ -1402,6 +1392,9 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     default:
       break;
   }
+  // TODO(turbofan): This should be Type::NonInternal(), but unfortunately we
+  // have a few weird runtime calls that return the hole or even FixedArrays;
+  // change this once those weird runtime calls have been removed.
   return Type::Any();
 }
 

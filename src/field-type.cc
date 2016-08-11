@@ -70,7 +70,7 @@ bool FieldType::NowIs(FieldType* other) {
 bool FieldType::NowIs(Handle<FieldType> other) { return NowIs(*other); }
 
 Type* FieldType::Convert(Zone* zone) {
-  if (IsAny()) return Type::Any();
+  if (IsAny()) return Type::NonInternal();
   if (IsNone()) return Type::None();
   DCHECK(IsClass());
   return Type::Class(AsClass(), zone);

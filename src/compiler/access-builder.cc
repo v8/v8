@@ -17,8 +17,8 @@ namespace compiler {
 // static
 FieldAccess AccessBuilder::ForMap() {
   FieldAccess access = {
-      kTaggedBase, HeapObject::kMapOffset,   MaybeHandle<Name>(),
-      Type::Any(), MachineType::AnyTagged(), kMapWriteBarrier};
+      kTaggedBase,           HeapObject::kMapOffset,   MaybeHandle<Name>(),
+      Type::OtherInternal(), MachineType::AnyTagged(), kMapWriteBarrier};
   return access;
 }
 
@@ -92,7 +92,7 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
   FieldAccess access = {kTaggedBase,
                         JSFunction::kSharedFunctionInfoOffset,
                         Handle<Name>(),
-                        Type::Any(),
+                        Type::OtherInternal(),
                         MachineType::AnyTagged(),
                         kPointerWriteBarrier};
   return access;
@@ -156,7 +156,7 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectInputOrDebugPos() {
   FieldAccess access = {kTaggedBase,
                         JSGeneratorObject::kInputOrDebugPosOffset,
                         Handle<Name>(),
-                        Type::Any(),
+                        Type::NonInternal(),
                         MachineType::AnyTagged(),
                         kFullWriteBarrier};
   return access;
@@ -283,8 +283,8 @@ FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
 // static
 FieldAccess AccessBuilder::ForJSIteratorResultDone() {
   FieldAccess access = {
-      kTaggedBase, JSIteratorResult::kDoneOffset, MaybeHandle<Name>(),
-      Type::Any(), MachineType::AnyTagged(),      kFullWriteBarrier};
+      kTaggedBase,         JSIteratorResult::kDoneOffset, MaybeHandle<Name>(),
+      Type::NonInternal(), MachineType::AnyTagged(),      kFullWriteBarrier};
   return access;
 }
 
@@ -292,8 +292,8 @@ FieldAccess AccessBuilder::ForJSIteratorResultDone() {
 // static
 FieldAccess AccessBuilder::ForJSIteratorResultValue() {
   FieldAccess access = {
-      kTaggedBase, JSIteratorResult::kValueOffset, MaybeHandle<Name>(),
-      Type::Any(), MachineType::AnyTagged(),       kFullWriteBarrier};
+      kTaggedBase,         JSIteratorResult::kValueOffset, MaybeHandle<Name>(),
+      Type::NonInternal(), MachineType::AnyTagged(),       kFullWriteBarrier};
   return access;
 }
 
@@ -536,8 +536,8 @@ FieldAccess AccessBuilder::ForJSGlobalObjectNativeContext() {
 // static
 FieldAccess AccessBuilder::ForValue() {
   FieldAccess access = {
-      kTaggedBase, JSValue::kValueOffset,    Handle<Name>(),
-      Type::Any(), MachineType::AnyTagged(), kFullWriteBarrier};
+      kTaggedBase,         JSValue::kValueOffset,    Handle<Name>(),
+      Type::NonInternal(), MachineType::AnyTagged(), kFullWriteBarrier};
   return access;
 }
 
@@ -545,8 +545,8 @@ FieldAccess AccessBuilder::ForValue() {
 // static
 FieldAccess AccessBuilder::ForArgumentsLength() {
   FieldAccess access = {
-      kTaggedBase, JSArgumentsObject::kLengthOffset, Handle<Name>(),
-      Type::Any(), MachineType::AnyTagged(),         kFullWriteBarrier};
+      kTaggedBase,         JSArgumentsObject::kLengthOffset, Handle<Name>(),
+      Type::NonInternal(), MachineType::AnyTagged(),         kFullWriteBarrier};
   return access;
 }
 
@@ -556,7 +556,7 @@ FieldAccess AccessBuilder::ForArgumentsCallee() {
   FieldAccess access = {kTaggedBase,
                         JSSloppyArgumentsObject::kCalleeOffset,
                         Handle<Name>(),
-                        Type::Any(),
+                        Type::NonInternal(),
                         MachineType::AnyTagged(),
                         kPointerWriteBarrier};
   return access;
@@ -569,7 +569,7 @@ FieldAccess AccessBuilder::ForFixedArraySlot(size_t index) {
   FieldAccess access = {kTaggedBase,
                         offset,
                         Handle<Name>(),
-                        Type::Any(),
+                        Type::NonInternal(),
                         MachineType::AnyTagged(),
                         kFullWriteBarrier};
   return access;
