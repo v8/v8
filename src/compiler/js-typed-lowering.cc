@@ -1123,6 +1123,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
             value = effect =
                 graph()->NewNode(javascript()->ToNumber(), value, context,
                                  frame_state_for_to_number, effect, control);
+            control = graph()->NewNode(common()->IfSuccess(), value);
           }
         }
         // Check if we can avoid the bounds check.

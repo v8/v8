@@ -889,6 +889,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Matcher<Node*> value_matcher =
           IsToNumber(value, context, checkpoint, control);
       Matcher<Node*> effect_matcher = value_matcher;
+      Matcher<Node*> control_matcher = IsIfSuccess(value_matcher);
 
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(
@@ -897,7 +898,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
                         IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
                         offset_matcher,
                         IsNumberConstant(array->byte_length()->Number()),
-                        value_matcher, effect_matcher, control));
+                        value_matcher, effect_matcher, control_matcher));
     }
   }
 }
