@@ -371,7 +371,7 @@ function layoutNodeGraph(graph) {
   var rankSets = [];
   // Collect sets for each rank.
   graph.nodes.forEach(function(n, i){
-    n.y = n.rank * (DEFAULT_NODE_ROW_SEPARATION + graph.getNodeHeight() +
+    n.y = n.rank * (DEFAULT_NODE_ROW_SEPARATION + graph.getNodeHeight(n) +
                     2 * DEFAULT_NODE_BUBBLE_RADIUS);
     if (n.visible) {
       if (rankSets[n.rank] === undefined) {
@@ -482,8 +482,8 @@ function redetermineGraphBoundingBox(graph) {
     if ((node.y - 50) < graph.minGraphY) {
       graph.minGraphY = node.y - 50;
     }
-    if ((node.y + graph.getNodeHeight() + 50) > graph.maxGraphY) {
-      graph.maxGraphY = node.y + graph.getNodeHeight() + 50;
+    if ((node.y + graph.getNodeHeight(node) + 50) > graph.maxGraphY) {
+      graph.maxGraphY = node.y + graph.getNodeHeight(node) + 50;
     }
   }
 

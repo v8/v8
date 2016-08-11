@@ -337,3 +337,12 @@ span.linkable-text:hover {
 .prof-high {
     color: #800;
 }
+
+tspan {
+    font-size: 500%;
+    font-family: sans-serif;
+}
+
+text {
+    dominant-baseline: text-before-edge;
+}

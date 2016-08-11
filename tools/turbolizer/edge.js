@@ -49,8 +49,10 @@ Edge.prototype.generatePath = function(graph) {
   var target = this.target;
   var source = this.source;
   var input_x = target.x + target.getInputX(this.index);
+  var arrowheadHeight = 7;
+  var input_y = target.y - 2 * DEFAULT_NODE_BUBBLE_RADIUS - arrowheadHeight;
   var output_x = source.x + source.getOutputX();
-  var output_y = source.y + DEFAULT_NODE_HEIGHT + DEFAULT_NODE_BUBBLE_RADIUS;
+  var output_y = source.y + graph.getNodeHeight(source) + DEFAULT_NODE_BUBBLE_RADIUS;
   var inputApproach = target.getInputApproach(this.index);
   var outputApproach = source.getOutputApproach(graph);
   var horizontalPos = this.getInputHorizontalPosition(graph);
@@ -68,7 +70,7 @@ Edge.prototype.generatePath = function(graph) {
   }
 
   result += "L" + input_x + "," + inputApproach +
-    "L" + input_x + "," + (target.y - DEFAULT_NODE_BUBBLE_RADIUS - 12);
+    "L" + input_x + "," + input_y;
   return result;
 }
 

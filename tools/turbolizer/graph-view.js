@@ -174,11 +174,11 @@ class GraphView extends View {
     return 50;
   }
 
-  getNodeHeight(graph) {
+  getNodeHeight(d) {
     if (this.state.showTypes) {
-      return DEFAULT_NODE_HEIGHT + TYPE_HEIGHT;
+      return d.normalheight + d.labelbbox.height;
     } else {
-      return DEFAULT_NODE_HEIGHT;
+      return d.normalheight;
     }
   }
 
@@ -254,11 +254,19 @@ class GraphView extends View {
     }
   };
 
+  measureText(text) {
+    var textMeasure = document.getElementById('text-measure');
+    textMeasure.textContent = text;
+    return {
+      width: textMeasure.getBBox().width,
+      height: textMeasure.getBBox().height,
+    };
+  }
+
   createGraph(data, initiallyVisibileIds) {
     var g = this;
     g.nodes = data.nodes;
     g.nodeMap = [];
-    var textMeasure = document.getElementById('text-measure');
     g.nodes.forEach(function(n, i){
       n.__proto__ = Node;
       n.visible = false;
@@ -272,12 +280,13 @@ class GraphView extends View {
       n.cfg = n.control;
       g.nodeMap[n.id] = n;
       n.displayLabel = n.getDisplayLabel();
-      textMeasure.textContent = n.getDisplayLabel();
-      var width = textMeasure.getComputedTextLength();
-      textMeasure.textContent = n.getDisplayType();
-      width = Math.max(width, textMeasure.getComputedTextLength());
-      n.width = Math.alignUp(width + NODE_INPUT_WIDTH * 2,
+      n.labelbbox = g.measureText(n.displayLabel);
+      n.typebbox = g.measureText(n.getDisplayType());
+      var innerwidth = Math.max(n.labelbbox.width, n.typebbox.width);
+      n.width = Math.alignUp(innerwidth + NODE_INPUT_WIDTH * 2,
                              NODE_INPUT_WIDTH);
+      var innerheight = Math.max(n.labelbbox.height, n.typebbox.height);
+      n.normalheight = innerheight + 20;
     });
     g.edges = [];
     data.edges.forEach(function(e, i){
@@ -356,7 +365,7 @@ class GraphView extends View {
       if (components[0] == "ob") {
         var from = g.nodeMap[components[1]];
         var x = from.getOutputX();
-        var y = g.getNodeHeight() + DEFAULT_NODE_BUBBLE_RADIUS / 2 + 4;
+        var y = g.getNodeHeight(from) + DEFAULT_NODE_BUBBLE_RADIUS;
         var transform = "translate(" + x + "," + y + ")";
         this.setAttribute('transform', transform);
       }
@@ -466,7 +475,7 @@ class GraphView extends View {
   }
 
   hideDeadAction(graph) {
-    graph.nodes.filter(function(n) { if (!n.live) n.visible = false; })
+    graph.nodes.filter(function(n) { if (!n.isLive()) n.visible = false; })
     graph.updateGraphVisibility();
   }
 
@@ -725,7 +734,7 @@ class GraphView extends View {
     graph.visibleNodes.attr("transform", function(n){
       return "translate(" + n.x + "," + n.y + ")";
     }).select('rect').
-      attr(HEIGHT, function(d) { return graph.getNodeHeight(); });
+      attr(HEIGHT, function(d) { return graph.getNodeHeight(d); });
 
     // add new nodes
     var newGs = graph.visibleNodes.enter()
@@ -750,13 +759,17 @@ class GraphView extends View {
     newGs.append("rect")
       .attr("rx", 10)
       .attr("ry", 10)
-      .attr(WIDTH, function(d) { return d.getTotalNodeWidth(); })
-      .attr(HEIGHT, function(d) { return graph.getNodeHeight(); })
+      .attr(WIDTH, function(d) {
+        return d.getTotalNodeWidth();
+      })
+      .attr(HEIGHT, function(d) {
+        return graph.getNodeHeight(d);
+      })
 
     function appendInputAndOutputBubbles(g, d) {
       for (var i = 0; i < d.inputs.length; ++i) {
         var x = d.getInputX(i);
-        var y = -DEFAULT_NODE_BUBBLE_RADIUS / 2 - 4;
+        var y = -DEFAULT_NODE_BUBBLE_RADIUS;
         var s = g.append('circle')
           .classed("filledBubbleStyle", function(c) {
             return d.inputs[i].isVisible();
@@ -781,7 +794,7 @@ class GraphView extends View {
       }
       if (d.outputs.length != 0) {
         var x = d.getOutputX();
-        var y = graph.getNodeHeight() + DEFAULT_NODE_BUBBLE_RADIUS / 2 + 4;
+        var y = graph.getNodeHeight(d) + DEFAULT_NODE_BUBBLE_RADIUS;
         var s = g.append('circle')
           .classed("filledBubbleStyle", function(c) {
             return d.areAnyOutputsVisible() == 2;
@@ -813,8 +826,8 @@ class GraphView extends View {
       d3.select(this).append("text")
         .classed("label", true)
         .attr("text-anchor","right")
-        .attr("dx", "5")
-        .attr("dy", DEFAULT_NODE_HEIGHT / 2 + 5)
+        .attr("dx", 5)
+        .attr("dy", 5)
         .append('tspan')
         .text(function(l) {
           return d.getDisplayLabel();
@@ -828,8 +841,8 @@ class GraphView extends View {
           .classed("label", true)
           .classed("type", true)
           .attr("text-anchor","right")
-          .attr("dx", "5")
-          .attr("dy", DEFAULT_NODE_HEIGHT / 2 + TYPE_HEIGHT + 5)
+          .attr("dx", 5)
+          .attr("dy", d.labelbbox.height + 5)
           .append('tspan')
           .text(function(l) {
             return d.getDisplayType();
@@ -986,8 +999,8 @@ class GraphView extends View {
         maxX = maxX ? Math.max(maxX, n.x + n.getTotalNodeWidth()) :
           n.x + n.getTotalNodeWidth();
         minY = minY ? Math.min(minY, n.y) : n.y;
-        maxY = maxY ? Math.max(maxY, n.y + DEFAULT_NODE_HEIGHT) :
-          n.y + DEFAULT_NODE_HEIGHT;
+        maxY = maxY ? Math.max(maxY, n.y + graph.getNodeHeight(n)) :
+          n.y + graph.getNodeHeight(n);
       }
     });
     if (hasSelection) {
