@@ -1462,12 +1462,16 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         break;
       case ObjectLiteral::Property::GETTER:
         if (property->emit_store()) {
-          accessor_table.lookup(key)->second->getter = property;
+          AccessorTable::Iterator it = accessor_table.lookup(key);
+          it->second->bailout_id = expr->GetIdForPropertySet(property_index);
+          it->second->getter = property;
         }
         break;
       case ObjectLiteral::Property::SETTER:
         if (property->emit_store()) {
-          accessor_table.lookup(key)->second->setter = property;
+          AccessorTable::Iterator it = accessor_table.lookup(key);
+          it->second->bailout_id = expr->GetIdForPropertySet(property_index);
+          it->second->setter = property;
         }
         break;
     }
@@ -1478,14 +1482,15 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   for (AccessorTable::Iterator it = accessor_table.begin();
        it != accessor_table.end();
        ++it) {
-      __ Peek(x10, 0);  // Duplicate receiver.
-      PushOperand(x10);
-      VisitForStackValue(it->first);
-      EmitAccessor(it->second->getter);
-      EmitAccessor(it->second->setter);
-      __ Mov(x10, Smi::FromInt(NONE));
-      PushOperand(x10);
-      CallRuntimeWithOperands(Runtime::kDefineAccessorPropertyUnchecked);
+    __ Peek(x10, 0);  // Duplicate receiver.
+    PushOperand(x10);
+    VisitForStackValue(it->first);
+    EmitAccessor(it->second->getter);
+    EmitAccessor(it->second->setter);
+    __ Mov(x10, Smi::FromInt(NONE));
+    PushOperand(x10);
+    CallRuntimeWithOperands(Runtime::kDefineAccessorPropertyUnchecked);
+    PrepareForBailoutForId(it->second->bailout_id, BailoutState::NO_REGISTERS);
   }
 
   // Object literals have two parts. The "static" part on the left contains no
