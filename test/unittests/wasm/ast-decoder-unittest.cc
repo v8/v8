@@ -1829,6 +1829,91 @@ TEST_F(AstDecoderTest, Select_TypeCheck) {
       WASM_SELECT(WASM_F32(9.9), WASM_GET_LOCAL(0), WASM_I64V_1(0)));
 }
 
+TEST_F(AstDecoderTest, Throw) {
+  FLAG_wasm_eh_prototype = true;
+  EXPECT_VERIFIES_INLINE(sigs.v_i(), WASM_GET_LOCAL(0), kExprThrow);
+
+  // TODO(jpp): can't throw d, f, or l.
+  EXPECT_VERIFIES_INLINE(sigs.i_d(), WASM_GET_LOCAL(0), kExprThrow,
+                         WASM_I32V(0));
+  EXPECT_VERIFIES_INLINE(sigs.i_f(), WASM_GET_LOCAL(0), kExprThrow,
+                         WASM_I32V(0));
+  EXPECT_VERIFIES_INLINE(sigs.l_l(), WASM_GET_LOCAL(0), kExprThrow,
+                         WASM_I64V(0));
+}
+
+#define WASM_CATCH(local) kExprCatch, static_cast<byte>(local)
+TEST_F(AstDecoderTest, TryCatch) {
+  FLAG_wasm_eh_prototype = true;
+  EXPECT_VERIFIES_INLINE(sigs.v_i(), kExprTryCatch, WASM_CATCH(0), kExprEnd);
+
+  // Missing catch.
+  EXPECT_FAILURE_INLINE(sigs.v_v(), kExprTryCatch, kExprEnd);
+
+  // Missing end.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatch, WASM_CATCH(0));
+
+  // Double catch.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatch, WASM_CATCH(0), WASM_CATCH(0),
+                        kExprEnd);
+
+  // Unexpected finally.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatch, WASM_CATCH(0), kExprFinally,
+                        kExprEnd);
+}
+
+TEST_F(AstDecoderTest, TryFinally) {
+  FLAG_wasm_eh_prototype = true;
+  EXPECT_VERIFIES_INLINE(sigs.v_v(), kExprTryFinally, kExprFinally, kExprEnd);
+
+  // Mising finally.
+  EXPECT_FAILURE_INLINE(sigs.v_v(), kExprTryFinally, kExprEnd);
+
+  // Missing end.
+  EXPECT_FAILURE_INLINE(sigs.v_v(), kExprTryFinally, kExprFinally);
+
+  // Double finally.
+  EXPECT_FAILURE_INLINE(sigs.v_v(), kExprTryFinally, kExprFinally, kExprFinally,
+                        kExprEnd);
+
+  // Unexpected catch.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatch, WASM_CATCH(0), kExprFinally,
+                        kExprEnd);
+}
+
+TEST_F(AstDecoderTest, TryCatchFinally) {
+  FLAG_wasm_eh_prototype = true;
+  EXPECT_VERIFIES_INLINE(sigs.v_i(), kExprTryCatchFinally, WASM_CATCH(0),
+                         kExprFinally, kExprEnd);
+
+  // Missing catch.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatchFinally, kExprFinally,
+                        kExprEnd);
+
+  // Double catch.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatchFinally, WASM_CATCH(0),
+                        WASM_CATCH(0), kExprFinally, kExprEnd);
+
+  // Missing finally.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatchFinally, WASM_CATCH(0),
+                        kExprEnd);
+
+  // Double finally.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatchFinally, WASM_CATCH(0),
+                        kExprFinally, kExprFinally, kExprEnd);
+
+  // Finally before catch.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatchFinally, kExprFinally,
+                        WASM_CATCH(0), kExprEnd);
+
+  // Missing both try and finally.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatchFinally, kExprEnd);
+
+  // Missing end.
+  EXPECT_FAILURE_INLINE(sigs.v_i(), kExprTryCatchFinally, WASM_CATCH(0),
+                        kExprFinally);
+}
+
 class WasmOpcodeLengthTest : public TestWithZone {
  public:
   WasmOpcodeLengthTest() : TestWithZone() {}
@@ -1856,6 +1941,12 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(1, kExprSelect);
   EXPECT_LENGTH(3, kExprBr);
   EXPECT_LENGTH(3, kExprBrIf);
+  EXPECT_LENGTH(1, kExprThrow);
+  EXPECT_LENGTH(1, kExprTryCatch);
+  EXPECT_LENGTH(1, kExprTryFinally);
+  EXPECT_LENGTH(1, kExprTryCatchFinally);
+  EXPECT_LENGTH(2, kExprCatch);
+  EXPECT_LENGTH(1, kExprFinally);
 }
 
 TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
@@ -2097,6 +2188,13 @@ TEST_F(WasmOpcodeArityTest, Control) {
     EXPECT_ARITY(0, kExprReturn, ARITY_0);
     EXPECT_ARITY(1, kExprReturn, ARITY_1);
   }
+
+  EXPECT_ARITY(0, kExprThrow);
+  EXPECT_ARITY(0, kExprTryCatch);
+  EXPECT_ARITY(0, kExprTryFinally);
+  EXPECT_ARITY(0, kExprTryCatchFinally);
+  EXPECT_ARITY(1, kExprCatch, 2);
+  EXPECT_ARITY(0, kExprFinally);
 }
 
 TEST_F(WasmOpcodeArityTest, Misc) {

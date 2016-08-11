@@ -55,6 +55,12 @@ const WasmCodePosition kNoCodePosition = -1;
   V(BrTable, 0x08, _)             \
   V(Return, 0x09, _)              \
   V(Unreachable, 0x0a, _)         \
+  V(Throw, 0xfa, _)               \
+  V(TryCatch, 0xfb, _)            \
+  V(TryCatchFinally, 0xfc, _)     \
+  V(TryFinally, 0xfd, _)          \
+  V(Catch, 0xfe, _)               \
+  V(Finally, 0xff, _)             \
   V(End, 0x0F, _)
 
 // Constants, locals, globals, and calls.
