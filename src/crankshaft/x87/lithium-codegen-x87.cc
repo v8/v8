@@ -4735,8 +4735,8 @@ void LCodeGen::EmitNumberUntagDNoSSE2(LNumberUntagD* instr, Register input_reg,
                    DeoptimizeReason::kNotAHeapNumberUndefined);
 
       __ bind(&convert);
-      __ push(Immediate(0xffffffff));
-      __ push(Immediate(0x7fffffff));
+      __ push(Immediate(0xfff80000));
+      __ push(Immediate(0x00000000));
       __ fld_d(MemOperand(esp, 0));
       __ lea(esp, Operand(esp, kDoubleSize));
       __ jmp(&done, Label::kNear);
