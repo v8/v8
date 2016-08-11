@@ -210,22 +210,22 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-#define CACHED_OP_LIST(V)                                  \
-  V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)           \
-  V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)          \
-  V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
-  V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
-  V(IfException, Operator::kKontrol, 0, 1, 1, 1, 1, 1)     \
-  V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
-  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
-  V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)       \
-  V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
-  V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
-  V(LoopExit, Operator::kKontrol, 0, 0, 2, 0, 0, 1)        \
-  V(LoopExitValue, Operator::kPure, 1, 0, 1, 1, 0, 0)      \
-  V(LoopExitEffect, Operator::kNoThrow, 0, 1, 1, 0, 1, 0)  \
-  V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)      \
-  V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)    \
+#define CACHED_OP_LIST(V)                                                     \
+  V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)                              \
+  V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                             \
+  V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                            \
+  V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
+  V(IfException, Operator::kKontrol, 0, 1, 1, 1, 1, 1)                        \
+  V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
+  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)                              \
+  V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                          \
+  V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)                    \
+  V(OsrLoopEntry, Operator::kFoldable | Operator::kNoThrow, 0, 1, 1, 0, 1, 1) \
+  V(LoopExit, Operator::kKontrol, 0, 0, 2, 0, 0, 1)                           \
+  V(LoopExitValue, Operator::kPure, 1, 0, 1, 1, 0, 0)                         \
+  V(LoopExitEffect, Operator::kNoThrow, 0, 1, 1, 0, 1, 0)                     \
+  V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)                         \
+  V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)                       \
   V(Retain, Operator::kKontrol, 1, 1, 0, 0, 1, 0)
 
 #define CACHED_RETURN_LIST(V) \
@@ -619,10 +619,10 @@ const Operator* CommonOperatorBuilder::IfValue(int32_t index) {
 
 
 const Operator* CommonOperatorBuilder::Start(int value_output_count) {
-  return new (zone()) Operator(               // --
-      IrOpcode::kStart, Operator::kFoldable,  // opcode
-      "Start",                                // name
-      0, 0, 0, value_output_count, 1, 1);     // counts
+  return new (zone()) Operator(                                    // --
+      IrOpcode::kStart, Operator::kFoldable | Operator::kNoThrow,  // opcode
+      "Start",                                                     // name
+      0, 0, 0, value_output_count, 1, 1);                          // counts
 }
 
 
@@ -934,7 +934,8 @@ const Operator* CommonOperatorBuilder::TailCall(
    public:
     explicit TailCallOperator(const CallDescriptor* descriptor)
         : Operator1<const CallDescriptor*>(
-              IrOpcode::kTailCall, descriptor->properties(), "TailCall",
+              IrOpcode::kTailCall,
+              descriptor->properties() | Operator::kNoThrow, "TailCall",
               descriptor->InputCount() + descriptor->FrameStateCount(), 1, 1, 0,
               0, 1, descriptor) {}
 

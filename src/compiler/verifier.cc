@@ -149,6 +149,30 @@ void Verifier::Visitor::Check(Node* node) {
       CheckOutput(control, node, control->op()->ControlOutputCount(),
                   "control");
     }
+
+    // Verify that no-no-throw nodes only have IfSuccess/IfException control
+    // uses.
+    if (!node->op()->HasProperty(Operator::kNoThrow)) {
+      int count_success = 0, count_exception = 0;
+      for (Edge edge : node->use_edges()) {
+        if (!NodeProperties::IsControlEdge(edge)) {
+          continue;
+        }
+        Node* control_use = edge.from();
+        if (control_use->opcode() != IrOpcode::kIfSuccess &&
+            control_use->opcode() != IrOpcode::kIfException) {
+          V8_Fatal(__FILE__, __LINE__,
+                   "#%d:%s should be followed by IfSuccess/IfException, but is "
+                   "followed by #%d:%s",
+                   node->id(), node->op()->mnemonic(), control_use->id(),
+                   control_use->op()->mnemonic());
+        }
+        if (control_use->opcode() == IrOpcode::kIfSuccess) ++count_success;
+        if (control_use->opcode() == IrOpcode::kIfException) ++count_exception;
+        CHECK_LE(count_success, 1);
+        CHECK_LE(count_exception, 1);
+      }
+    }
   }
 
   switch (node->opcode()) {
