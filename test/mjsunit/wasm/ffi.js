@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --expose-wasm --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
@@ -25,7 +25,9 @@ function testCallFFI(func, check) {
   for (var i = 0; i < 100000; i += 10003) {
     var a = 22.5 + i, b = 10.5 + i;
     var r = main(a, b);
-    check(r, a, b);
+    if (check) {
+      check(r, a, b);
+    }
   }
 }
 
@@ -52,8 +54,63 @@ function check_FOREIGN_SUB(r, a, b) {
     was_called = false;
 }
 
+// Test calling a normal JSFunction.
+print("JSFunction");
 testCallFFI(FOREIGN_SUB, check_FOREIGN_SUB);
 
+// Test calling a proxy.
+print("Proxy");
+var proxy_sub = new Proxy(FOREIGN_SUB, {});
+testCallFFI(proxy_sub, check_FOREIGN_SUB);
+
+// Test calling a bind function.
+print("Bind function");
+var bind_sub = FOREIGN_SUB.bind();
+testCallFFI(bind_sub, check_FOREIGN_SUB);
+
+var main_for_constructor_test;
+print("Constructor");
+(function testCallConstructor() {
+  class C {}
+  var builder = new WasmModuleBuilder();
+
+  var sig_index = builder.addType(kSig_i_dd);
+  builder.addImport("func", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprGetLocal, 0,            // --
+      kExprGetLocal, 1,            // --
+      kExprCallImport, kArity2, 0  // --
+    ])        // --
+    .exportFunc();
+
+  main_for_constructor_test = builder.instantiate({func: C}).exports.main;
+
+  assertThrows("main_for_constructor_test(12, 43)", TypeError);
+}) ();
+
+print("Native function");
+(function test_ffi_call_to_native() {
+
+  var builder = new WasmModuleBuilder();
+
+  var sig_index = builder.addType(kSig_d);
+  builder.addImport("func", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprCallImport, kArity0, 0  // --
+    ])        // --
+    .exportFunc();
+
+  var main = builder.instantiate({func: Object.prototype.toString}).exports.main;
+  // The result of the call to Object.prototype.toString should be
+  // [object Undefined]. However, we cannot test for this result because wasm
+  // cannot return objects but converts them to float64 in this test.
+  assertEquals(NaN, main());
+})();
+
+print("Callable JSObject");
+testCallFFI(%GetCallable(), function check(r, a, b) {assertEquals(a - b, r);});
 
 function FOREIGN_ABCD(a, b, c, d) {
   print("FOREIGN_ABCD(" + a + ", " + b + ", " + c + ", " + d + ")");

@@ -261,6 +261,34 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   return *Utils::OpenHandle(*obj);
 }
 
+static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  double v1 = args[0]
+                  ->NumberValue(v8::Isolate::GetCurrent()->GetCurrentContext())
+                  .ToChecked();
+  double v2 = args[1]
+                  ->NumberValue(v8::Isolate::GetCurrent()->GetCurrentContext())
+                  .ToChecked();
+  args.GetReturnValue().Set(
+      v8::Number::New(v8::Isolate::GetCurrent(), v1 - v2));
+}
+
+// Returns a callable object. The object returns the difference of its two
+// parameters when it is called.
+RUNTIME_FUNCTION(Runtime_GetCallable) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(v8_isolate);
+  Local<ObjectTemplate> instance_template = t->InstanceTemplate();
+  instance_template->SetCallAsFunctionHandler(call_as_function);
+  v8_isolate->GetCurrentContext();
+  Local<v8::Object> instance =
+      t->GetFunction(v8_isolate->GetCurrentContext())
+          .ToLocalChecked()
+          ->NewInstance(v8_isolate->GetCurrentContext())
+          .ToLocalChecked();
+  return *Utils::OpenHandle(*instance);
+}
 
 RUNTIME_FUNCTION(Runtime_ClearFunctionTypeFeedback) {
   HandleScope scope(isolate);

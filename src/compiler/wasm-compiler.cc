@@ -2182,7 +2182,7 @@ Node* WasmGraphBuilder::BuildChangeFloat64ToTagged(Node* value) {
   return value;
 }
 
-Node* WasmGraphBuilder::ToJS(Node* node, Node* context, wasm::LocalType type) {
+Node* WasmGraphBuilder::ToJS(Node* node, wasm::LocalType type) {
   switch (type) {
     case wasm::kAstI32:
       return BuildChangeInt32ToTagged(node);
@@ -2515,18 +2515,18 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
     retval = graph()->NewNode(jsgraph()->common()->Projection(0), retval,
                               graph()->start());
   }
-  Node* jsval =
-      ToJS(retval, context,
-           sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
+  Node* jsval = ToJS(
+      retval, sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
   Node* ret =
       graph()->NewNode(jsgraph()->common()->Return(), jsval, call, start);
 
   MergeControlToEnd(jsgraph(), ret);
 }
 
-void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
+void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
                                             wasm::FunctionSig* sig) {
-  int js_count = function->shared()->internal_formal_parameter_count();
+  DCHECK(target->IsCallable());
+
   int wasm_count = static_cast<int>(sig->parameter_count());
   int param_count;
   if (jsgraph()->machine()->Is64()) {
@@ -2541,61 +2541,71 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
   Node* start = Start(param_count + 3);
   *effect_ = start;
   *control_ = start;
-  // JS context is the last parameter.
-  Node* context = HeapConstant(Handle<Context>(function->context(), isolate));
   Node** args = Buffer(wasm_count + 7);
 
-  bool arg_count_before_args = false;
-  bool add_new_target_undefined = false;
+  // The default context of the target.
+  Handle<Context> target_context = isolate->native_context();
 
+  // Optimization: check if the target is a JSFunction with the right arity so
+  // that we can call it directly.
+  bool call_direct = false;
   int pos = 0;
-  if (js_count == wasm_count) {
-    // exact arity match, just call the function directly.
-    desc = Linkage::GetJSCallDescriptor(graph()->zone(), false, wasm_count + 1,
-                                        CallDescriptor::kNoFlags);
-    arg_count_before_args = false;
-    add_new_target_undefined = true;
-  } else {
-    // Use the Call builtin.
+  if (target->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(target);
+    if (function->shared()->internal_formal_parameter_count() == wasm_count) {
+      call_direct = true;
+
+      args[pos++] = jsgraph()->Constant(target);  // target callable.
+      // Receiver.
+      if (is_sloppy(function->shared()->language_mode()) &&
+          !function->shared()->native()) {
+        args[pos++] =
+            HeapConstant(handle(function->context()->global_proxy(), isolate));
+      } else {
+        args[pos++] = jsgraph()->Constant(
+            handle(isolate->heap()->undefined_value(), isolate));
+      }
+
+      desc = Linkage::GetJSCallDescriptor(
+          graph()->zone(), false, wasm_count + 1, CallDescriptor::kNoFlags);
+
+      // For a direct call we have to use the context of the JSFunction.
+      target_context = handle(function->context());
+    }
+  }
+
+  // We cannot call the target directly, we have to use the Call builtin.
+  if (!call_direct) {
     Callable callable = CodeFactory::Call(isolate);
     args[pos++] = jsgraph()->HeapConstant(callable.code());
+    args[pos++] = jsgraph()->Constant(target);           // target callable
+    args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
+    args[pos++] = jsgraph()->Constant(
+        handle(isolate->heap()->undefined_value(), isolate));  // receiver
+
     desc = Linkage::GetStubCallDescriptor(isolate, graph()->zone(),
                                           callable.descriptor(), wasm_count + 1,
                                           CallDescriptor::kNoFlags);
-    arg_count_before_args = true;
   }
-
-  args[pos++] = jsgraph()->Constant(function);  // JS function.
-  if (arg_count_before_args) {
-    args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
-  }
-  // Create the receiver constant (either undefined or the global proxy).
-  Handle<Object> receiver(isolate->heap()->undefined_value(), isolate);
-  if (is_sloppy(function->shared()->language_mode())) {
-    receiver = Handle<Object>(function->context()->global_proxy(), isolate);
-  }
-  args[pos++] = jsgraph()->Constant(receiver);
 
   // Convert WASM numbers to JS values.
   int param_index = 0;
   for (int i = 0; i < wasm_count; ++i) {
     Node* param =
         graph()->NewNode(jsgraph()->common()->Parameter(param_index++), start);
-    args[pos++] = ToJS(param, context, sig->GetParam(i));
+    args[pos++] = ToJS(param, sig->GetParam(i));
     if (jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kAstI64) {
       // On 32 bit platforms we have to skip the high word of int64 parameters.
       param_index++;
     }
   }
 
-  if (add_new_target_undefined) {
+  if (call_direct) {
     args[pos++] = jsgraph()->UndefinedConstant();  // new target
-  }
-
-  if (!arg_count_before_args) {
     args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
   }
-  args[pos++] = context;
+
+  args[pos++] = HeapConstant(target_context);
   args[pos++] = *effect_;
   args[pos++] = *control_;
 
@@ -2604,7 +2614,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
   // Convert the return value back.
   Node* ret;
   Node* val =
-      FromJS(call, context,
+      FromJS(call, HeapConstant(isolate->native_context()),
              sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
   if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
       sig->GetReturn() == wasm::kAstI64) {
@@ -2960,8 +2970,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   return code;
 }
 
-Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,
-                                    Handle<JSFunction> function,
+Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
                                     Handle<String> import_module,
                                     MaybeHandle<String> import_function) {
@@ -2980,7 +2989,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,
   WasmGraphBuilder builder(&zone, &jsgraph, sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildWasmToJSWrapper(function, sig);
+  builder.BuildWasmToJSWrapper(target, sig);
 
   Handle<Code> code = Handle<Code>::null();
   {

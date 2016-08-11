@@ -81,8 +81,7 @@ class WasmCompilationUnit final {
 };
 
 // Wraps a JS function, producing a code object that can be called from WASM.
-Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,
-                                    Handle<JSFunction> function,
+Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
                                     Handle<String> import_module,
                                     MaybeHandle<String> import_function);
@@ -156,10 +155,9 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args,
                      wasm::WasmCodePosition position);
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
-  void BuildWasmToJSWrapper(Handle<JSFunction> function,
-                            wasm::FunctionSig* sig);
+  void BuildWasmToJSWrapper(Handle<JSReceiver> target, wasm::FunctionSig* sig);
 
-  Node* ToJS(Node* node, Node* context, wasm::LocalType type);
+  Node* ToJS(Node* node, wasm::LocalType type);
   Node* FromJS(Node* node, Node* context, wasm::LocalType type);
   Node* Invert(Node* node);
   Node* FunctionTable(uint32_t index);

@@ -471,7 +471,7 @@ static MaybeHandle<JSFunction> ReportFFIError(
   return MaybeHandle<JSFunction>();
 }
 
-static MaybeHandle<JSFunction> LookupFunction(
+static MaybeHandle<JSReceiver> LookupFunction(
     ErrorThrower& thrower, Factory* factory, Handle<JSReceiver> ffi,
     uint32_t index, Handle<String> module_name,
     MaybeHandle<String> function_name) {
@@ -509,12 +509,12 @@ static MaybeHandle<JSFunction> LookupFunction(
     function = module;
   }
 
-  if (!function->IsJSFunction()) {
-    return ReportFFIError(thrower, "not a function", index, module_name,
+  if (!function->IsCallable()) {
+    return ReportFFIError(thrower, "not a callable", index, module_name,
                           function_name);
   }
 
-  return Handle<JSFunction>::cast(function);
+  return Handle<JSReceiver>::cast(function);
 }
 
 namespace {
@@ -661,23 +661,27 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate,
       int param_count = sig_data_size - ret_count;
       CHECK(param_count >= 0);
 
-      MaybeHandle<JSFunction> function = LookupFunction(
+      MaybeHandle<JSReceiver> function = LookupFunction(
           *thrower, isolate->factory(), ffi, index, module_name, function_name);
       if (function.is_null()) return false;
       Handle<Code> code;
-      Handle<JSFunction> func = function.ToHandleChecked();
-      Handle<Code> export_wrapper_code = handle(func->code());
+      Handle<JSReceiver> target = function.ToHandleChecked();
       bool isMatch = false;
-      if (export_wrapper_code->kind() == Code::JS_TO_WASM_FUNCTION) {
-        int exported_param_count =
-            Smi::cast(func->GetInternalField(kInternalArity))->value();
-        Handle<ByteArray> exportedSig = Handle<ByteArray>(
-            ByteArray::cast(func->GetInternalField(kInternalSignature)));
-        if (exported_param_count == param_count &&
-            exportedSig->length() == sig_data->length() &&
-            memcmp(exportedSig->data(), sig_data->data(),
-                   exportedSig->length()) == 0) {
-          isMatch = true;
+      Handle<Code> export_wrapper_code;
+      if (target->IsJSFunction()) {
+        Handle<JSFunction> func = Handle<JSFunction>::cast(target);
+        export_wrapper_code = handle(func->code());
+        if (export_wrapper_code->kind() == Code::JS_TO_WASM_FUNCTION) {
+          int exported_param_count =
+              Smi::cast(func->GetInternalField(kInternalArity))->value();
+          Handle<ByteArray> exportedSig = Handle<ByteArray>(
+              ByteArray::cast(func->GetInternalField(kInternalSignature)));
+          if (exported_param_count == param_count &&
+              exportedSig->length() == sig_data->length() &&
+              memcmp(exportedSig->data(), sig_data->data(),
+                     exportedSig->length()) == 0) {
+            isMatch = true;
+          }
         }
       }
       if (isMatch) {
@@ -704,7 +708,7 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate,
                sizeof(MachineRepresentation) * sig_data_size);
         FunctionSig sig(ret_count, param_count, reps);
 
-        code = compiler::CompileWasmToJSWrapper(isolate, func, &sig, index,
+        code = compiler::CompileWasmToJSWrapper(isolate, target, &sig, index,
                                                 module_name, function_name);
       }
       imports.push_back(code);
