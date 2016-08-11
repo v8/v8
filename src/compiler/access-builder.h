@@ -6,6 +6,7 @@
 #define V8_COMPILER_ACCESS_BUILDER_H_
 
 #include "src/compiler/simplified-operator.h"
+#include "src/elements-kind.h"
 
 namespace v8 {
 namespace internal {
@@ -191,6 +192,7 @@ class AccessBuilder final : public AllStatic {
 
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
+  static ElementAccess ForFixedArrayElement(ElementsKind kind);
 
   // Provides access to FixedDoubleArray elements.
   static ElementAccess ForFixedDoubleArrayElement();

@@ -38,6 +38,7 @@ class TypeCache final {
   Type* const kFloat64 = CreateNative(Type::Number(), Type::UntaggedFloat64());
 
   Type* const kSmi = CreateNative(Type::SignedSmall(), Type::TaggedSigned());
+  Type* const kHoleySmi = Type::Union(kSmi, Type::Hole(), zone());
   Type* const kHeapNumber = CreateNative(Type::Number(), Type::TaggedPointer());
 
   Type* const kSingletonZero = CreateRange(0.0, 0.0);

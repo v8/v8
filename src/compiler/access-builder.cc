@@ -612,6 +612,29 @@ ElementAccess AccessBuilder::ForFixedArrayElement() {
   return access;
 }
 
+// static
+ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
+  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
+                          MachineType::AnyTagged(), kFullWriteBarrier};
+  switch (kind) {
+    case FAST_SMI_ELEMENTS:
+      access.type = TypeCache::Get().kSmi;
+      access.write_barrier_kind = kNoWriteBarrier;
+      break;
+    case FAST_HOLEY_SMI_ELEMENTS:
+      access.type = TypeCache::Get().kHoleySmi;
+      break;
+    case FAST_ELEMENTS:
+      access.type = Type::NonInternal();
+      break;
+    case FAST_HOLEY_ELEMENTS:
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  return access;
+}
 
 // static
 ElementAccess AccessBuilder::ForFixedDoubleArrayElement() {

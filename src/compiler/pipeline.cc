@@ -900,7 +900,12 @@ struct TypedLoweringPhase {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
-    JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
+    JSBuiltinReducer builtin_reducer(
+        &graph_reducer, data->jsgraph(),
+        data->info()->is_deoptimization_enabled()
+            ? JSBuiltinReducer::kDeoptimizationEnabled
+            : JSBuiltinReducer::kNoFlags,
+        data->info()->dependencies());
     MaybeHandle<LiteralsArray> literals_array =
         data->info()->is_native_context_specializing()
             ? handle(data->info()->closure()->literals(), data->isolate())

@@ -33,7 +33,8 @@ class JSBuiltinReducerTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    JSBuiltinReducer reducer(&graph_reducer, &jsgraph);
+    JSBuiltinReducer reducer(&graph_reducer, &jsgraph,
+                             JSBuiltinReducer::kNoFlags, nullptr);
     return reducer.Reduce(node);
   }
 
