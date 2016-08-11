@@ -1130,6 +1130,7 @@ class ParserBase : public Traits {
                               int formals_end_pos, bool* ok);
 
   bool IsNextLetKeyword();
+  bool IsTrivialExpression();
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -1556,8 +1557,6 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::NULL_LITERAL:
     case Token::TRUE_LITERAL:
     case Token::FALSE_LITERAL:
-      BindingPatternUnexpectedToken(classifier);
-      return this->ExpressionFromLiteral(Next(), beg_pos, scanner(), factory());
     case Token::SMI:
     case Token::NUMBER:
       BindingPatternUnexpectedToken(classifier);
@@ -2310,8 +2309,17 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   if (!is_async && !parenthesized_formals) {
     ArrowFormalParametersUnexpectedToken(&arrow_formals_classifier);
   }
-  ExpressionT expression = this->ParseConditionalExpression(
-      accept_IN, &arrow_formals_classifier, CHECK_OK);
+
+  // Parse a simple, faster sub-grammar (primary expression) if it's evident
+  // that we have only a trivial expression to parse.
+  ExpressionT expression;
+  if (IsTrivialExpression()) {
+    expression = this->ParsePrimaryExpression(&arrow_formals_classifier,
+                                              &is_async, CHECK_OK);
+  } else {
+    expression = this->ParseConditionalExpression(
+        accept_IN, &arrow_formals_classifier, CHECK_OK);
+  }
 
   if (is_async && peek_any_identifier() && PeekAhead() == Token::ARROW) {
     // async Identifier => AsyncConciseBody
@@ -3365,6 +3373,24 @@ bool ParserBase<Traits>::IsNextLetKeyword() {
     default:
       return false;
   }
+}
+
+template <class Traits>
+bool ParserBase<Traits>::IsTrivialExpression() {
+  Token::Value peek_token = peek();
+  if (peek_token == Token::SMI || peek_token == Token::NUMBER ||
+      peek_token == Token::NULL_LITERAL || peek_token == Token::TRUE_LITERAL ||
+      peek_token == Token::FALSE_LITERAL || peek_token == Token::STRING ||
+      peek_token == Token::IDENTIFIER || peek_token == Token::THIS) {
+    // PeekAhead() is expensive & may not always be called, so we only call it
+    // after checking peek().
+    Token::Value peek_ahead = PeekAhead();
+    if (peek_ahead == Token::COMMA || peek_ahead == Token::RPAREN ||
+        peek_ahead == Token::SEMICOLON || peek_ahead == Token::RBRACK) {
+      return true;
+    }
+  }
+  return false;
 }
 
 template <class Traits>
