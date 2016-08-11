@@ -1868,7 +1868,6 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       Register source(Register(variable->index()));
       builder()->LoadAccumulatorWithRegister(source);
       BuildHoleCheckForVariableLoad(variable);
-      execution_result()->SetResultInAccumulator();
       break;
     }
     case VariableLocation::PARAMETER: {
@@ -1877,13 +1876,11 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       Register source = builder()->Parameter(variable->index() + 1);
       builder()->LoadAccumulatorWithRegister(source);
       BuildHoleCheckForVariableLoad(variable);
-      execution_result()->SetResultInAccumulator();
       break;
     }
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       builder()->LoadGlobal(feedback_index(slot), typeof_mode);
-      execution_result()->SetResultInAccumulator();
       break;
     }
     case VariableLocation::CONTEXT: {
@@ -1911,17 +1908,16 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
 
       builder()->LoadContextSlot(context_reg, variable->index());
       BuildHoleCheckForVariableLoad(variable);
-      execution_result()->SetResultInAccumulator();
       break;
     }
     case VariableLocation::LOOKUP: {
       builder()->LoadLookupSlot(variable->name(), typeof_mode);
-      execution_result()->SetResultInAccumulator();
       break;
     }
     case VariableLocation::MODULE:
       UNREACHABLE();
   }
+  execution_result()->SetResultInAccumulator();
 }
 
 void BytecodeGenerator::VisitVariableLoadForAccumulatorValue(
@@ -2035,8 +2031,7 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
   BytecodeLabel end_label;
   bool hole_check_required =
       variable->binding_needs_init() &&
-      ((IsLexicalVariableMode(mode) && op != Token::INIT) ||
-       (mode == CONST && op == Token::INIT && variable->is_this()));
+      (op != Token::INIT || (mode == CONST && variable->is_this()));
   switch (variable->location()) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
