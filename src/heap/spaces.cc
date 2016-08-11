@@ -504,6 +504,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->set_next_chunk(nullptr);
   chunk->set_prev_chunk(nullptr);
   chunk->local_tracker_ = nullptr;
+  chunk->black_area_end_marker_map_ = nullptr;
 
   DCHECK(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
   DCHECK(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
@@ -1286,16 +1287,26 @@ void PagedSpace::EmptyAllocationInfo() {
     DCHECK(current_limit == nullptr);
     return;
   }
-  int old_linear_size = static_cast<int>(current_limit - current_top);
-  SetTopAndLimit(NULL, NULL);
-  if (current_top != current_limit &&
-      heap()->incremental_marking()->black_allocation()) {
+
+  if (heap()->incremental_marking()->black_allocation()) {
     Page* page = Page::FromAddress(current_top);
-    page->markbits()->ClearRange(page->AddressToMarkbitIndex(current_top),
-                                 page->AddressToMarkbitIndex(current_limit));
-    page->IncrementLiveBytes(-static_cast<int>(current_limit - current_top));
+    // We have to remember the end of the current black allocation area if
+    // something was allocated in the current bump pointer range.
+    if (allocation_info_.original_top() != current_top) {
+      Address end_black_area = current_top - kPointerSize;
+      page->AddBlackAreaEndMarker(end_black_area);
+    }
+
+    // Clear the bits in the unused black area.
+    if (current_top != current_limit) {
+      page->markbits()->ClearRange(page->AddressToMarkbitIndex(current_top),
+                                   page->AddressToMarkbitIndex(current_limit));
+      page->IncrementLiveBytes(-static_cast<int>(current_limit - current_top));
+    }
   }
-  Free(current_top, old_linear_size);
+
+  SetTopAndLimit(NULL, NULL);
+  Free(current_top, static_cast<int>(current_limit - current_top));
 }
 
 void PagedSpace::IncreaseCapacity(int size) {
@@ -1309,6 +1320,8 @@ void PagedSpace::ReleasePage(Page* page) {
 
   free_list_.EvictFreeListItems(page);
   DCHECK(!free_list_.ContainsPageFreeListItems(page));
+
+  page->ReleaseBlackAreaEndMarkerMap();
 
   if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
     allocation_info_.Reset(nullptr, nullptr);

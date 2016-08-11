@@ -7,6 +7,7 @@
 
 #include <list>
 #include <memory>
+#include <unordered_set>
 
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
@@ -350,7 +351,9 @@ class MemoryChunk {
       + kPointerSize      // AtomicValue prev_chunk_
       // FreeListCategory categories_[kNumberOfCategories]
       + FreeListCategory::kSize * kNumberOfCategories +
-      kPointerSize;  // LocalArrayBufferTracker* local_tracker_;
+      kPointerSize  // LocalArrayBufferTracker* local_tracker_;
+      // std::unordered_set<Address>* black_area_end_marker_map_
+      + kPointerSize;
 
   // We add some more space to the computed header size to amount for missing
   // alignment requirements in our computation.
@@ -592,6 +595,33 @@ class MemoryChunk {
   void InsertAfter(MemoryChunk* other);
   void Unlink();
 
+  void ReleaseBlackAreaEndMarkerMap() {
+    if (black_area_end_marker_map_) {
+      delete black_area_end_marker_map_;
+      black_area_end_marker_map_ = nullptr;
+    }
+  }
+
+  bool IsBlackAreaEndMarker(Address address) {
+    if (black_area_end_marker_map_) {
+      return black_area_end_marker_map_->find(address) !=
+             black_area_end_marker_map_->end();
+    }
+    return false;
+  }
+
+  void AddBlackAreaEndMarker(Address address) {
+    if (!black_area_end_marker_map_) {
+      black_area_end_marker_map_ = new std::unordered_set<Address>();
+    }
+    auto ret = black_area_end_marker_map_->insert(address);
+    USE(ret);
+    // Check that we inserted a new black area end marker.
+    DCHECK(ret.second);
+  }
+
+  bool HasBlackAreas() { return black_area_end_marker_map_ != nullptr; }
+
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -659,6 +689,9 @@ class MemoryChunk {
   FreeListCategory categories_[kNumberOfCategories];
 
   LocalArrayBufferTracker* local_tracker_;
+
+  // Stores the end addresses of black areas.
+  std::unordered_set<Address>* black_area_end_marker_map_;
 
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }
@@ -1481,12 +1514,20 @@ class HeapObjectIterator : public ObjectIterator {
 // space.
 class AllocationInfo {
  public:
-  AllocationInfo() : top_(nullptr), limit_(nullptr) {}
-  AllocationInfo(Address top, Address limit) : top_(top), limit_(limit) {}
+  AllocationInfo() : original_top_(nullptr), top_(nullptr), limit_(nullptr) {}
+  AllocationInfo(Address top, Address limit)
+      : original_top_(top), top_(top), limit_(limit) {}
 
   void Reset(Address top, Address limit) {
+    original_top_ = top;
     set_top(top);
     set_limit(limit);
+  }
+
+  Address original_top() {
+    SLOW_DCHECK(top_ == NULL ||
+                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
+    return original_top_;
   }
 
   INLINE(void set_top(Address top)) {
@@ -1522,6 +1563,8 @@ class AllocationInfo {
 #endif
 
  private:
+  // The original top address when the allocation info was initialized.
+  Address original_top_;
   // Current allocation top.
   Address top_;
   // Current allocation limit.

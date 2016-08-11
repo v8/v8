@@ -2991,6 +2991,11 @@ bool MarkCompactCollector::IsSlotInBlackObject(MemoryChunk* p, Address slot) {
   base_address += (cell_index - base_address_cell_index) *
                   Bitmap::kBitsPerCell * kPointerSize;
   Address address = base_address + offset * kPointerSize;
+
+  // If the found mark bit is part of a black area, the slot cannot be part
+  // of a live object since it is not marked.
+  if (p->IsBlackAreaEndMarker(address + kPointerSize)) return false;
+
   HeapObject* object = HeapObject::FromAddress(address);
   CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
   CHECK(object->address() < reinterpret_cast<Address>(slot));
@@ -3371,6 +3376,9 @@ int MarkCompactCollector::Sweeper::RawSweep(
   // Before we sweep objects on the page, we free dead array buffers which
   // requires valid mark bits.
   ArrayBufferTracker::FreeDead(p);
+
+  // We also release the black area markers here.
+  p->ReleaseBlackAreaEndMarkerMap();
 
   Address free_start = p->area_start();
   DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
@@ -3915,6 +3923,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     if (p->IsEvacuationCandidate()) {
       // Will be processed in EvacuateNewSpaceAndCandidates.
       DCHECK(evacuation_candidates_.length() > 0);
+      DCHECK(!p->HasBlackAreas());
       continue;
     }
 
