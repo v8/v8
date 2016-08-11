@@ -73,6 +73,8 @@ class Variable: public ZoneObject {
   bool is_dynamic() const { return IsDynamicVariableMode(mode_); }
   bool is_const_mode() const { return IsImmutableVariableMode(mode_); }
   bool binding_needs_init() const {
+    DCHECK(initialization_flag_ != kNeedsInitialization ||
+           IsLexicalVariableMode(mode_));
     return initialization_flag_ == kNeedsInitialization;
   }
 

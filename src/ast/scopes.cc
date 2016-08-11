@@ -1249,9 +1249,9 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   Variable* var = map->Lookup(name);
   if (var == NULL) {
     // Declare a new non-local.
-    InitializationFlag init_flag = (mode == VAR)
-        ? kCreatedInitialized : kNeedsInitialization;
-    var = map->Declare(zone(), NULL, name, mode, Variable::NORMAL, init_flag);
+    DCHECK(!IsLexicalVariableMode(mode));
+    var = map->Declare(zone(), NULL, name, mode, Variable::NORMAL,
+                       kCreatedInitialized);
     // Allocate it by giving it a dynamic lookup.
     var->AllocateTo(VariableLocation::LOOKUP, -1);
   }
