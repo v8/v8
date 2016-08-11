@@ -917,27 +917,12 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   Emit(kX87Float32Sub, g.DefineAsFixed(node, stX_0), 0, nullptr);
 }
 
-void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
-  X87OperandGenerator g(this);
-  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(0)));
-  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(1)));
-  Emit(kX87Float32Sub, g.DefineAsFixed(node, stX_0), 0, nullptr);
-}
-
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   X87OperandGenerator g(this);
   Emit(kX87PushFloat64, g.NoOutput(), g.Use(node->InputAt(0)));
   Emit(kX87PushFloat64, g.NoOutput(), g.Use(node->InputAt(1)));
   Emit(kX87Float64Sub, g.DefineAsFixed(node, stX_0), 0, nullptr);
 }
-
-void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
-  X87OperandGenerator g(this);
-  Emit(kX87PushFloat64, g.NoOutput(), g.Use(node->InputAt(0)));
-  Emit(kX87PushFloat64, g.NoOutput(), g.Use(node->InputAt(1)));
-  Emit(kX87Float64Sub, g.DefineAsFixed(node, stX_0), 0, nullptr);
-}
-
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
   X87OperandGenerator g(this);
