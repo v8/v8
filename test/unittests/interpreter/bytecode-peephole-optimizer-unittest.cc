@@ -7,7 +7,6 @@
 #include "src/factory.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-peephole-optimizer.h"
-#include "src/interpreter/constant-array-builder.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "test/unittests/test-utils.h"
@@ -19,9 +18,7 @@ namespace interpreter {
 class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
                                       public TestWithIsolateAndZone {
  public:
-  BytecodePeepholeOptimizerTest()
-      : constant_array_builder_(isolate(), zone()),
-        peephole_optimizer_(&constant_array_builder_, this) {}
+  BytecodePeepholeOptimizerTest() : peephole_optimizer_(this) {}
   ~BytecodePeepholeOptimizerTest() override {}
 
   void Reset() {
@@ -52,13 +49,11 @@ class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
   }
 
   BytecodePeepholeOptimizer* optimizer() { return &peephole_optimizer_; }
-  ConstantArrayBuilder* constant_array() { return &constant_array_builder_; }
 
   int write_count() const { return write_count_; }
   const BytecodeNode& last_written() const { return last_written_; }
 
  private:
-  ConstantArrayBuilder constant_array_builder_;
   BytecodePeepholeOptimizer peephole_optimizer_;
 
   int write_count_ = 0;
@@ -264,38 +259,6 @@ TEST_F(BytecodePeepholeOptimizerTest, TypeOfToName) {
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
   CHECK_EQ(last_written().bytecode(), Bytecode::kStar);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, LdaConstantStringToName) {
-  Handle<Object> word =
-      isolate()->factory()->NewStringFromStaticChars("optimizing");
-  size_t index = constant_array()->Insert(word);
-  BytecodeNode first(Bytecode::kLdaConstant, static_cast<uint32_t>(index));
-  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written(), second);
-  CHECK_EQ(last_written().bytecode(), Bytecode::kStar);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, LdaConstantNumberToName) {
-  Handle<Object> word = isolate()->factory()->NewNumber(0.380);
-  size_t index = constant_array()->Insert(word);
-  BytecodeNode first(Bytecode::kLdaConstant, static_cast<uint32_t>(index));
-  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
-  optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written(), second);
 }
 
 // Tests covering BytecodePeepholeOptimizer::CanElideLast().

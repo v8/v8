@@ -108,13 +108,8 @@ PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
 
   // ToName bytecodes can be replaced by Star with the same output register if
   // the value in the accumulator is already a name.
-  if (current == Bytecode::kToName) {
-    if (last == Bytecode::kLdaConstant) {
-      return {PeepholeAction::kTransformToStarIfLoadingNameConstantAction,
-              Bytecode::kIllegal};
-    } else if (Bytecodes::PutsNameInAccumulator(last)) {
-      return {PeepholeAction::kChangeBytecodeAction, Bytecode::kStar};
-    }
+  if (current == Bytecode::kToName && Bytecodes::PutsNameInAccumulator(last)) {
+    return {PeepholeAction::kChangeBytecodeAction, Bytecode::kStar};
   }
 
   // Nop are placeholders for holding source position information and can be

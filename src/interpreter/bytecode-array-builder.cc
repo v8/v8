@@ -43,8 +43,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
   }
 
   if (FLAG_ignition_peephole) {
-    pipeline_ = new (zone)
-        BytecodePeepholeOptimizer(&constant_array_builder_, pipeline_);
+    pipeline_ = new (zone) BytecodePeepholeOptimizer(pipeline_);
   }
 
   if (FLAG_ignition_reo) {
