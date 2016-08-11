@@ -762,6 +762,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
                                                     Node* control) {
+  CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
   Node* value = node->InputAt(0);
 
   Node* value32 = graph()->NewNode(machine()->RoundFloat64ToInt32(), value);
@@ -774,29 +775,32 @@ EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
   Node* vsmi;
   Node* if_box = graph()->NewNode(common()->IfFalse(), branch_same);
 
-  // Check if {value} is -0.
-  Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
-                                      jsgraph()->Int32Constant(0));
-  Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                       check_zero, if_smi);
+  if (mode == CheckForMinusZeroMode::kCheckForMinusZero) {
+    // Check if {value} is -0.
+    Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
+                                        jsgraph()->Int32Constant(0));
+    Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                         check_zero, if_smi);
 
-  Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
-  Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
+    Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
+    Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
 
-  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-  Node* check_negative = graph()->NewNode(
-      machine()->Int32LessThan(),
-      graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
-      jsgraph()->Int32Constant(0));
-  Node* branch_negative = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                           check_negative, if_zero);
+    // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+    Node* check_negative = graph()->NewNode(
+        machine()->Int32LessThan(),
+        graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
+        jsgraph()->Int32Constant(0));
+    Node* branch_negative = graph()->NewNode(
+        common()->Branch(BranchHint::kFalse), check_negative, if_zero);
 
-  Node* if_negative = graph()->NewNode(common()->IfTrue(), branch_negative);
-  Node* if_notnegative = graph()->NewNode(common()->IfFalse(), branch_negative);
+    Node* if_negative = graph()->NewNode(common()->IfTrue(), branch_negative);
+    Node* if_notnegative =
+        graph()->NewNode(common()->IfFalse(), branch_negative);
 
-  // We need to create a box for negative 0.
-  if_smi = graph()->NewNode(common()->Merge(2), if_notzero, if_notnegative);
-  if_box = graph()->NewNode(common()->Merge(2), if_box, if_negative);
+    // We need to create a box for negative 0.
+    if_smi = graph()->NewNode(common()->Merge(2), if_notzero, if_notnegative);
+    if_box = graph()->NewNode(common()->Merge(2), if_box, if_negative);
+  }
 
   // On 64-bit machines we can just wrap the 32-bit integer in a smi, for 32-bit
   // machines we need to deal with potential overflow and fallback to boxing.

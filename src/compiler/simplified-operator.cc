@@ -208,7 +208,8 @@ CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator* op) {
 }
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kCheckedInt32Mul ||
+  DCHECK(op->opcode() == IrOpcode::kChangeFloat64ToTagged ||
+         op->opcode() == IrOpcode::kCheckedInt32Mul ||
          op->opcode() == IrOpcode::kCheckedFloat64ToInt32 ||
          op->opcode() == IrOpcode::kCheckedTaggedToInt32);
   return OpParameter<CheckForMinusZeroMode>(op);
@@ -395,7 +396,6 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0)    \
   V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)          \
   V(ChangeUint32ToTagged, Operator::kNoProperties, 1, 0)         \
-  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1, 0)        \
   V(ChangeTaggedToBit, Operator::kNoProperties, 1, 0)            \
   V(ChangeBitToTagged, Operator::kNoProperties, 1, 0)            \
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)       \
@@ -457,6 +457,19 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
+
+  template <CheckForMinusZeroMode kMode>
+  struct ChangeFloat64ToTaggedOperator final
+      : public Operator1<CheckForMinusZeroMode> {
+    ChangeFloat64ToTaggedOperator()
+        : Operator1<CheckForMinusZeroMode>(
+              IrOpcode::kChangeFloat64ToTagged, Operator::kPure,
+              "ChangeFloat64ToTagged", 1, 0, 0, 1, 0, 0, kMode) {}
+  };
+  ChangeFloat64ToTaggedOperator<CheckForMinusZeroMode::kCheckForMinusZero>
+      kChangeFloat64ToTaggedCheckForMinusZeroOperator;
+  ChangeFloat64ToTaggedOperator<CheckForMinusZeroMode::kDontCheckForMinusZero>
+      kChangeFloat64ToTaggedDontCheckForMinusZeroOperator;
 
   template <CheckForMinusZeroMode kMode>
   struct CheckedInt32MulOperator final
@@ -602,6 +615,18 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 PURE_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
+
+const Operator* SimplifiedOperatorBuilder::ChangeFloat64ToTagged(
+    CheckForMinusZeroMode mode) {
+  switch (mode) {
+    case CheckForMinusZeroMode::kCheckForMinusZero:
+      return &cache_.kChangeFloat64ToTaggedCheckForMinusZeroOperator;
+    case CheckForMinusZeroMode::kDontCheckForMinusZero:
+      return &cache_.kChangeFloat64ToTaggedDontCheckForMinusZeroOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 const Operator* SimplifiedOperatorBuilder::CheckedInt32Mul(
     CheckForMinusZeroMode mode) {

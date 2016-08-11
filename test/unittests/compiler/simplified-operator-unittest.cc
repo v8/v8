@@ -60,7 +60,6 @@ const PureOperator kPureOperators[] = {
     PURE(ChangeTaggedToFloat64, Operator::kNoProperties, 1),
     PURE(ChangeInt32ToTagged, Operator::kNoProperties, 1),
     PURE(ChangeUint32ToTagged, Operator::kNoProperties, 1),
-    PURE(ChangeFloat64ToTagged, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToBit, Operator::kNoProperties, 1),
     PURE(ChangeBitToTagged, Operator::kNoProperties, 1),
     PURE(TruncateTaggedToWord32, Operator::kNoProperties, 1),
