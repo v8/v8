@@ -2325,29 +2325,31 @@ class HeapStats {
   static const int kStartMarker = 0xDECADE00;
   static const int kEndMarker = 0xDECADE01;
 
-  int* start_marker;                       //  0
-  int* new_space_size;                     //  1
-  int* new_space_capacity;                 //  2
-  intptr_t* old_space_size;                //  3
-  intptr_t* old_space_capacity;            //  4
-  intptr_t* code_space_size;               //  5
-  intptr_t* code_space_capacity;           //  6
-  intptr_t* map_space_size;                //  7
-  intptr_t* map_space_capacity;            //  8
-  intptr_t* lo_space_size;                 //  9
-  int* global_handle_count;                // 10
-  int* weak_global_handle_count;           // 11
-  int* pending_global_handle_count;        // 12
-  int* near_death_global_handle_count;     // 13
-  int* free_global_handle_count;           // 14
-  intptr_t* memory_allocator_size;         // 15
-  intptr_t* memory_allocator_capacity;     // 16
-  int* objects_per_type;                   // 17
-  int* size_per_type;                      // 18
-  int* os_error;                           // 19
-  char* last_few_messages;                 // 20
-  char* js_stacktrace;                     // 21
-  int* end_marker;                         // 22
+  intptr_t* start_marker;                  //  0
+  size_t* new_space_size;                  //  1
+  size_t* new_space_capacity;              //  2
+  size_t* old_space_size;                  //  3
+  size_t* old_space_capacity;              //  4
+  size_t* code_space_size;                 //  5
+  size_t* code_space_capacity;             //  6
+  size_t* map_space_size;                  //  7
+  size_t* map_space_capacity;              //  8
+  size_t* lo_space_size;                   //  9
+  size_t* global_handle_count;             // 10
+  size_t* weak_global_handle_count;        // 11
+  size_t* pending_global_handle_count;     // 12
+  size_t* near_death_global_handle_count;  // 13
+  size_t* free_global_handle_count;        // 14
+  size_t* memory_allocator_size;           // 15
+  size_t* memory_allocator_capacity;       // 16
+  size_t* malloced_memory;                 // 17
+  size_t* malloced_peak_memory;            // 18
+  size_t* objects_per_type;                // 19
+  size_t* size_per_type;                   // 20
+  int* os_error;                           // 21
+  char* last_few_messages;                 // 22
+  char* js_stacktrace;                     // 23
+  intptr_t* end_marker;                    // 24
 };
 
 
