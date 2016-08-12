@@ -709,28 +709,6 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
   return var;
 }
 
-int DeclarationScope::RemoveTemporary(Variable* var) {
-  DCHECK(!already_resolved());
-  DCHECK_NOT_NULL(var);
-  // Temporaries are only placed in ClosureScopes.
-  DCHECK_EQ(GetClosureScope(), this);
-  DCHECK_EQ(var->scope()->GetClosureScope(), var->scope());
-  // If the temporary is not here, return quickly.
-  if (var->scope() != this) return -1;
-  // Most likely (always?) any temporary variable we want to remove
-  // was just added before, so we search backwards.
-  for (int i = temps_.length(); i-- > 0;) {
-    if (temps_[i] == var) {
-      // Don't shrink temps_, as callers of this method expect
-      // the returned indices to be unique per-scope.
-      temps_[i] = nullptr;
-      return i;
-    }
-  }
-  return -1;
-}
-
-
 void Scope::AddDeclaration(Declaration* declaration) {
   DCHECK(!already_resolved());
   decls_.Add(declaration, zone());
@@ -813,7 +791,6 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
     ZoneList<Variable*>* temps = AsDeclarationScope()->temps();
     for (int i = 0; i < temps->length(); i++) {
       Variable* var = (*temps)[i];
-      if (var == nullptr) continue;
       if (var->is_used()) {
         if (var->IsContextSlot()) {
           DCHECK(has_forced_context_allocation());
@@ -1190,13 +1167,11 @@ void Scope::Print(int n) {
     bool printed_header = false;
     ZoneList<Variable*>* temps = AsDeclarationScope()->temps();
     for (int i = 0; i < temps->length(); i++) {
-      if ((*temps)[i] != nullptr) {
-        if (!printed_header) {
-          printed_header = true;
-          Indent(n1, "// temporary vars:\n");
-        }
-        PrintVar(n1, (*temps)[i]);
+      if (!printed_header) {
+        printed_header = true;
+        Indent(n1, "// temporary vars:\n");
       }
+      PrintVar(n1, (*temps)[i]);
     }
   }
 
@@ -1661,7 +1636,6 @@ void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(
   if (is_declaration_scope()) {
     ZoneList<Variable*>* temps = AsDeclarationScope()->temps();
     for (int i = 0; i < temps->length(); i++) {
-      if ((*temps)[i] == nullptr) continue;
       AllocateNonParameterLocal((*temps)[i], ast_value_factory);
     }
   }

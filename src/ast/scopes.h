@@ -800,12 +800,6 @@ class DeclarationScope : public Scope {
     return this_function_;
   }
 
-  // Remove a temporary variable. This is for adjusting the scope of
-  // temporaries used when desugaring parameter initializers.
-  // Returns the index at which it was found in this scope, or -1 if
-  // it was not found.
-  int RemoveTemporary(Variable* var);
-
   // Adds a temporary variable in this scope's TemporaryScope. This is for
   // adjusting the scope of temporaries used when desugaring parameter
   // initializers.
@@ -873,9 +867,7 @@ class DeclarationScope : public Scope {
   int arity_;
   int rest_index_;
   Variable* rest_parameter_;
-  // Compiler-allocated (user-invisible) temporaries. Due to the implementation
-  // of RemoveTemporary(), may contain nulls, which must be skipped-over during
-  // allocation and printing.
+  // Compiler-allocated (user-invisible) temporaries.
   ZoneList<Variable*> temps_;
   // Parameter list in source order.
   ZoneList<Variable*> params_;
