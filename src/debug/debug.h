@@ -61,25 +61,23 @@ enum BreakPositionAlignment {
   BREAK_POSITION_ALIGNED = 1
 };
 
+enum DebugBreakType {
+  NOT_DEBUG_BREAK,
+  DEBUGGER_STATEMENT,
+  DEBUG_BREAK_SLOT,
+  DEBUG_BREAK_SLOT_AT_CALL,
+  DEBUG_BREAK_SLOT_AT_RETURN,
+  DEBUG_BREAK_SLOT_AT_TAIL_CALL,
+};
 
 class BreakLocation {
  public:
-  // Find the break point at the supplied address, or the closest one before
-  // the address.
-  static BreakLocation FromCodeOffset(Handle<DebugInfo> debug_info, int offset);
-
   static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
                                  JavaScriptFrame* frame);
 
-  static void AllForStatementPosition(Handle<DebugInfo> debug_info,
-                                      int statement_position,
-                                      List<BreakLocation>* result_out);
-
-  // Find break location (for a break point) from source positon.
-  static BreakLocation FromPosition(Handle<DebugInfo> debug_info, int position,
-                                    BreakPositionAlignment alignment);
-
-  bool IsDebugBreak() const;
+  static void AllAtCurrentStatement(Handle<DebugInfo> debug_info,
+                                    JavaScriptFrame* frame,
+                                    List<BreakLocation>* result_out);
 
   inline bool IsReturn() const { return type_ == DEBUG_BREAK_SLOT_AT_RETURN; }
   inline bool IsCall() const { return type_ == DEBUG_BREAK_SLOT_AT_CALL; }
@@ -91,135 +89,136 @@ class BreakLocation {
     return type_ == DEBUGGER_STATEMENT;
   }
 
-  bool HasBreakPoint() const;
-
-  Handle<Object> BreakPointObjects() const;
-
-  void SetBreakPoint(Handle<Object> break_point_object);
-  void ClearBreakPoint(Handle<Object> break_point_object);
-
-  void SetOneShot();
-  void ClearOneShot();
+  bool HasBreakPoint(Handle<DebugInfo> debug_info) const;
 
   inline int position() const { return position_; }
-  inline int statement_position() const { return statement_position_; }
-
-  inline int code_offset() const { return code_offset_; }
-  inline Isolate* isolate() { return debug_info_->GetIsolate(); }
-
-  inline AbstractCode* abstract_code() const {
-    return debug_info_->abstract_code();
-  }
-
- protected:
-  enum DebugBreakType {
-    NOT_DEBUG_BREAK,
-    DEBUGGER_STATEMENT,
-    DEBUG_BREAK_SLOT,
-    DEBUG_BREAK_SLOT_AT_CALL,
-    DEBUG_BREAK_SLOT_AT_RETURN,
-    DEBUG_BREAK_SLOT_AT_TAIL_CALL,
-  };
-
-  BreakLocation(Handle<DebugInfo> debug_info, DebugBreakType type,
-                int code_offset, int position, int statement_position);
-
-  class Iterator {
-   public:
-    virtual ~Iterator() {}
-
-    virtual BreakLocation GetBreakLocation() = 0;
-    virtual bool Done() const = 0;
-    virtual void Next() = 0;
-
-    void SkipTo(int count) {
-      while (count-- > 0) Next();
-    }
-
-    virtual int code_offset() = 0;
-    int break_index() const { return break_index_; }
-    inline int position() const { return position_; }
-    inline int statement_position() const { return statement_position_; }
-
-   protected:
-    explicit Iterator(Handle<DebugInfo> debug_info);
-
-    Isolate* isolate() { return debug_info_->GetIsolate(); }
-
-    Handle<DebugInfo> debug_info_;
-    int break_index_;
-    int position_;
-    int statement_position_;
-
-   private:
-    DisallowHeapAllocation no_gc_;
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
-  };
-
-  class CodeIterator : public Iterator {
-   public:
-    CodeIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
-    ~CodeIterator() override {}
-
-    BreakLocation GetBreakLocation() override;
-    bool Done() const override { return reloc_iterator_.done(); }
-    void Next() override;
-
-    int code_offset() override {
-      return static_cast<int>(
-          rinfo()->pc() -
-          debug_info_->abstract_code()->GetCode()->instruction_start());
-    }
-
-   private:
-    int GetModeMask(BreakLocatorType type);
-    RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
-    RelocInfo* rinfo() { return reloc_iterator_.rinfo(); }
-
-    RelocIterator reloc_iterator_;
-    SourcePositionTableIterator source_position_iterator_;
-    DISALLOW_COPY_AND_ASSIGN(CodeIterator);
-  };
-
-  class BytecodeArrayIterator : public Iterator {
-   public:
-    BytecodeArrayIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
-    ~BytecodeArrayIterator() override {}
-
-    BreakLocation GetBreakLocation() override;
-    bool Done() const override { return source_position_iterator_.done(); }
-    void Next() override;
-
-    int code_offset() override {
-      return source_position_iterator_.code_offset();
-    }
-
-   private:
-    DebugBreakType GetDebugBreakType();
-
-    SourcePositionTableIterator source_position_iterator_;
-    BreakLocatorType break_locator_type_;
-    DISALLOW_COPY_AND_ASSIGN(BytecodeArrayIterator);
-  };
-
-  static Iterator* GetIterator(Handle<DebugInfo> debug_info,
-                               BreakLocatorType type = ALL_BREAK_LOCATIONS);
 
  private:
-  friend class Debug;
+  BreakLocation(Handle<AbstractCode> abstract_code, DebugBreakType type,
+                int code_offset, int position)
+      : abstract_code_(abstract_code),
+        code_offset_(code_offset),
+        type_(type),
+        position_(position) {
+    DCHECK_NE(NOT_DEBUG_BREAK, type_);
+  }
 
-  static int BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info, int offset);
+  static int BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
+                                      Handle<AbstractCode> abstract_code,
+                                      int offset);
 
   void SetDebugBreak();
   void ClearDebugBreak();
 
-  Handle<DebugInfo> debug_info_;
+  Handle<AbstractCode> abstract_code_;
   int code_offset_;
   DebugBreakType type_;
   int position_;
-  int statement_position_;
+
+  friend class CodeBreakIterator;
+  friend class BytecodeArrayBreakIterator;
 };
 
+class BreakIterator {
+ public:
+  static std::unique_ptr<BreakIterator> GetIterator(
+      Handle<DebugInfo> debug_info, Handle<AbstractCode> abstract_code,
+      BreakLocatorType type = ALL_BREAK_LOCATIONS);
+
+  virtual ~BreakIterator() {}
+
+  virtual BreakLocation GetBreakLocation() = 0;
+  virtual bool Done() const = 0;
+  virtual void Next() = 0;
+
+  void SkipTo(int count) {
+    while (count-- > 0) Next();
+  }
+
+  virtual int code_offset() = 0;
+  int break_index() const { return break_index_; }
+  inline int position() const { return position_; }
+  inline int statement_position() const { return statement_position_; }
+
+  virtual bool IsDebugBreak() = 0;
+  virtual void ClearDebugBreak() = 0;
+  virtual void SetDebugBreak() = 0;
+
+ protected:
+  explicit BreakIterator(Handle<DebugInfo> debug_info,
+                         BreakLocatorType break_locator_type);
+
+  int BreakIndexFromPosition(int position, BreakPositionAlignment alignment);
+
+  Isolate* isolate() { return debug_info_->GetIsolate(); }
+
+  Handle<DebugInfo> debug_info_;
+  int break_index_;
+  int position_;
+  int statement_position_;
+  BreakLocatorType break_locator_type_;
+
+ private:
+  DisallowHeapAllocation no_gc_;
+  DISALLOW_COPY_AND_ASSIGN(BreakIterator);
+};
+
+class CodeBreakIterator : public BreakIterator {
+ public:
+  CodeBreakIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
+  ~CodeBreakIterator() override {}
+
+  BreakLocation GetBreakLocation() override;
+  bool Done() const override { return reloc_iterator_.done(); }
+  void Next() override;
+
+  bool IsDebugBreak() override;
+  void ClearDebugBreak() override;
+  void SetDebugBreak() override;
+
+  void SkipToPosition(int position, BreakPositionAlignment alignment);
+
+  int code_offset() override {
+    return static_cast<int>(rinfo()->pc() -
+                            debug_info_->DebugCode()->instruction_start());
+  }
+
+ private:
+  int GetModeMask(BreakLocatorType type);
+  DebugBreakType GetDebugBreakType();
+
+  RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
+  RelocInfo* rinfo() { return reloc_iterator_.rinfo(); }
+
+  RelocIterator reloc_iterator_;
+  SourcePositionTableIterator source_position_iterator_;
+  DISALLOW_COPY_AND_ASSIGN(CodeBreakIterator);
+};
+
+class BytecodeArrayBreakIterator : public BreakIterator {
+ public:
+  BytecodeArrayBreakIterator(Handle<DebugInfo> debug_info,
+                             BreakLocatorType type);
+  ~BytecodeArrayBreakIterator() override {}
+
+  BreakLocation GetBreakLocation() override;
+  bool Done() const override { return source_position_iterator_.done(); }
+  void Next() override;
+
+  bool IsDebugBreak() override;
+  void ClearDebugBreak() override;
+  void SetDebugBreak() override;
+
+  void SkipToPosition(int position, BreakPositionAlignment alignment);
+
+  int code_offset() override { return source_position_iterator_.code_offset(); }
+
+ private:
+  DebugBreakType GetDebugBreakType();
+
+  SourcePositionTableIterator source_position_iterator_;
+  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBreakIterator);
+};
 
 // Linked list holding debug info objects. The debug info objects are kept as
 // weak handles to avoid a debug info object to keep a function alive.
@@ -239,7 +238,6 @@ class DebugInfoListNode {
   // Next pointer for linked list.
   DebugInfoListNode* next_;
 };
-
 
 
 // Message delivered to the message handler callback. This is either a debugger
@@ -449,9 +447,6 @@ class Debug {
                               int* source_position,
                               BreakPositionAlignment alignment);
   void ClearBreakPoint(Handle<Object> break_point_object);
-  void ClearAllBreakPoints();
-  void FloodWithOneShot(Handle<JSFunction> function,
-                        BreakLocatorType type = ALL_BREAK_LOCATIONS);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
 
@@ -616,10 +611,25 @@ class Debug {
                             bool auto_continue);
   void InvokeMessageHandler(MessageImpl message);
 
+  // Find the closest source position for a break point for a given position.
+  int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position,
+                            BreakPositionAlignment alignment);
+  // Instrument code to break at break points.
+  void ApplyBreakPoints(Handle<DebugInfo> debug_info);
+  // Clear code from instrumentation.
+  void ClearBreakPoints(Handle<DebugInfo> debug_info);
+  // Clear all code from instrumentation.
+  void ClearAllBreakPoints();
+  // Instrument a function with one-shots.
+  void FloodWithOneShot(Handle<JSFunction> function,
+                        BreakLocatorType type = ALL_BREAK_LOCATIONS);
+  // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
+
   void ActivateStepOut(StackFrame* frame);
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
-  Handle<Object> CheckBreakPoints(BreakLocation* location,
+  Handle<Object> CheckBreakPoints(Handle<DebugInfo> debug_info,
+                                  BreakLocation* location,
                                   bool* has_break_points = nullptr);
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
   bool CheckBreakPoint(Handle<Object> break_point_object);

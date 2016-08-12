@@ -10870,20 +10870,18 @@ class DebugInfo: public Struct {
  public:
   // The shared function info for the source being debugged.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
-  // Code object for the patched code. This code object is the code object
-  // currently active for the function.
-  DECL_ACCESSORS(abstract_code, AbstractCode)
+
+  DECL_ACCESSORS(debug_bytecode_array, Object)
   // Fixed array holding status information for each active break point.
   DECL_ACCESSORS(break_points, FixedArray)
 
   // Check if there is a break point at a source position.
   bool HasBreakPoint(int source_position);
-  // Clear a break point.
-  static void ClearBreakPoint(Handle<DebugInfo> debug_info, int source_position,
+  // Attempt to clear a break point. Return true if successful.
+  static bool ClearBreakPoint(Handle<DebugInfo> debug_info,
                               Handle<Object> break_point_object);
   // Set a break point.
   static void SetBreakPoint(Handle<DebugInfo> debug_info, int source_position,
-                            int statement_position,
                             Handle<Object> break_point_object);
   // Get the break point objects for a source position.
   Handle<Object> GetBreakPointObjects(int source_position);
@@ -10895,7 +10893,12 @@ class DebugInfo: public Struct {
 
   static Smi* uninitialized() { return Smi::FromInt(0); }
 
-  inline BytecodeArray* original_bytecode_array();
+  inline bool HasDebugBytecodeArray();
+  inline bool HasDebugCode();
+
+  inline BytecodeArray* OriginalBytecodeArray();
+  inline BytecodeArray* DebugBytecodeArray();
+  inline Code* DebugCode();
 
   DECLARE_CAST(DebugInfo)
 
@@ -10904,11 +10907,13 @@ class DebugInfo: public Struct {
   DECLARE_VERIFIER(DebugInfo)
 
   static const int kSharedFunctionInfoIndex = Struct::kHeaderSize;
-  static const int kAbstractCodeIndex = kSharedFunctionInfoIndex + kPointerSize;
-  static const int kBreakPointsStateIndex = kAbstractCodeIndex + kPointerSize;
+  static const int kDebugBytecodeArrayIndex =
+      kSharedFunctionInfoIndex + kPointerSize;
+  static const int kBreakPointsStateIndex =
+      kDebugBytecodeArrayIndex + kPointerSize;
   static const int kSize = kBreakPointsStateIndex + kPointerSize;
 
-  static const int kEstimatedNofBreakPointsInFunction = 16;
+  static const int kEstimatedNofBreakPointsInFunction = 4;
 
  private:
   // Get the break point info object for a source position.
@@ -10939,6 +10944,8 @@ class BreakPointInfo: public Struct {
                                   Handle<Object> break_point_object);
   // Get the number of break points for this code offset.
   int GetBreakPointCount();
+
+  int GetStatementPosition(Handle<DebugInfo> debug_info);
 
   DECLARE_CAST(BreakPointInfo)
 

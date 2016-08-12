@@ -1128,7 +1128,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Load debug copy of the bytecode array.
   __ Bind(&load_debug_bytecode_array);
   __ Ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(debug_info, DebugInfo::kAbstractCodeIndex));
+         FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex));
   __ B(&bytecode_array_loaded);
 
   // If the bytecode array is no longer present, then the underlying function

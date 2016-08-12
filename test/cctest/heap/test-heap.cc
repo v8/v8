@@ -1585,7 +1585,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   Handle<Object> breakpoint_object(Smi::FromInt(0), isolate);
   EnableDebugger(CcTest::isolate());
   isolate->debug()->SetBreakPoint(function, breakpoint_object, &position);
-  isolate->debug()->ClearAllBreakPoints();
+  isolate->debug()->ClearBreakPoint(breakpoint_object);
   DisableDebugger(CcTest::isolate());
 
   // Force optimization now that code flushing is disabled.

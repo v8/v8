@@ -18490,21 +18490,25 @@ Object* DebugInfo::GetBreakPointInfo(int source_position) {
   return isolate->heap()->undefined_value();
 }
 
-// Clear a break point at the specified source_position.
-void DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
-                                int source_position,
+bool DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
                                 Handle<Object> break_point_object) {
   Isolate* isolate = debug_info->GetIsolate();
-  Handle<Object> break_point_info(
-      debug_info->GetBreakPointInfo(source_position), isolate);
-  if (break_point_info->IsUndefined(isolate)) return;
-  BreakPointInfo::ClearBreakPoint(
-      Handle<BreakPointInfo>::cast(break_point_info),
-      break_point_object);
+  if (debug_info->break_points()->IsUndefined(isolate)) return false;
+
+  for (int i = 0; i < debug_info->break_points()->length(); i++) {
+    if (debug_info->break_points()->get(i)->IsUndefined(isolate)) continue;
+    Handle<BreakPointInfo> break_point_info = Handle<BreakPointInfo>(
+        BreakPointInfo::cast(debug_info->break_points()->get(i)), isolate);
+    if (BreakPointInfo::HasBreakPointObject(break_point_info,
+                                            break_point_object)) {
+      BreakPointInfo::ClearBreakPoint(break_point_info, break_point_object);
+      return true;
+    }
+  }
+  return false;
 }
 
 void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int source_position,
-                              int statement_position,
                               Handle<Object> break_point_object) {
   Isolate* isolate = debug_info->GetIsolate();
   Handle<Object> break_point_info(
