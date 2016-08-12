@@ -1625,6 +1625,8 @@ v8_source_set("v8_base") {
     "src/v8memory.h",
     "src/v8threads.cc",
     "src/v8threads.h",
+    "src/value-serializer.cc",
+    "src/value-serializer.h",
     "src/version.cc",
     "src/version.h",
     "src/vm-state-inl.h",

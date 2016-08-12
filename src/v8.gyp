@@ -1231,6 +1231,8 @@
         'v8memory.h',
         'v8threads.cc',
         'v8threads.h',
+        'value-serializer.cc',
+        'value-serializer.h',
         'vector.h',
         'version.cc',
         'version.h',

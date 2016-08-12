@@ -112,6 +112,7 @@
       'source-position-table-unittest.cc',
       'test-utils.h',
       'test-utils.cc',
+      'value-serializer-unittest.cc',
       'wasm/asm-types-unittest.cc',
       'wasm/ast-decoder-unittest.cc',
       'wasm/control-transfer-unittest.cc',
