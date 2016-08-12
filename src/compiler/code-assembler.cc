@@ -69,8 +69,8 @@ Handle<Code> CodeAssembler::GenerateCode() {
 
   Schedule* schedule = raw_assembler_->Export();
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
-      isolate(), raw_assembler_->call_descriptor(), graph(), schedule, flags_,
-      name_);
+      isolate(), raw_assembler_->call_descriptor(), raw_assembler_->graph(),
+      schedule, flags_, name_);
 
   code_generated_ = true;
   return code;
@@ -196,10 +196,6 @@ Node* CodeAssembler::LoadParentFramePointer() {
 
 Node* CodeAssembler::LoadStackPointer() {
   return raw_assembler_->LoadStackPointer();
-}
-
-Node* CodeAssembler::SmiShiftBitsConstant() {
-  return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
 #define DEFINE_CODE_ASSEMBLER_BINARY_OP(name)   \
@@ -908,8 +904,6 @@ Node* CodeAssembler::Select(Node* condition, Node* true_value,
 Isolate* CodeAssembler::isolate() const { return raw_assembler_->isolate(); }
 
 Factory* CodeAssembler::factory() const { return isolate()->factory(); }
-
-Graph* CodeAssembler::graph() const { return raw_assembler_->graph(); }
 
 Zone* CodeAssembler::zone() const { return raw_assembler_->zone(); }
 

@@ -5567,7 +5567,7 @@ void CreateAllocationSiteStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
   Node* size = assembler->IntPtrConstant(AllocationSite::kSize);
-  Node* site = assembler->Allocate(size, compiler::CodeAssembler::kPretenured);
+  Node* site = assembler->Allocate(size, CodeStubAssembler::kPretenured);
 
   // Store the map
   assembler->StoreObjectFieldRoot(site, AllocationSite::kMapOffset,

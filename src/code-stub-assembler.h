@@ -38,6 +38,14 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   CodeStubAssembler(Isolate* isolate, Zone* zone, int parameter_count,
                     Code::Flags flags, const char* name);
 
+  enum AllocationFlag : uint8_t {
+    kNone = 0,
+    kDoubleAlignment = 1,
+    kPretenured = 1 << 1
+  };
+
+  typedef base::Flags<AllocationFlag> AllocationFlags;
+
   enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS };
 
   compiler::Node* BooleanMapConstant();
@@ -589,8 +597,12 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                        compiler::Node* top_adddress,
                                        compiler::Node* limit_address);
 
+  compiler::Node* SmiShiftBitsConstant();
+
   static const int kElementLoopUnrollThreshold = 8;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
 
 }  // namespace internal
 }  // namespace v8

@@ -21,7 +21,7 @@ Node* SmiTag(CodeAssemblerTester& m, Node* value) {
       Smi::IsValid(constant_value)) {
     return m.SmiConstant(Smi::FromInt(constant_value));
   }
-  return m.WordShl(value, m.SmiShiftBitsConstant());
+  return m.WordShl(value, m.IntPtrConstant(kSmiShiftSize + kSmiTagSize));
 }
 
 Node* UndefinedConstant(CodeAssemblerTester& m) {

@@ -278,6 +278,10 @@ Node* CodeStubAssembler::Float64Trunc(Node* x) {
   return var_x.value();
 }
 
+Node* CodeStubAssembler::SmiShiftBitsConstant() {
+  return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
+}
+
 Node* CodeStubAssembler::SmiFromWord32(Node* value) {
   value = ChangeInt32ToIntPtr(value);
   return WordShl(value, SmiShiftBitsConstant());
@@ -4000,7 +4004,7 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
                                                         Node* slot,
                                                         Node* value) {
   Node* size = IntPtrConstant(WeakCell::kSize);
-  Node* cell = Allocate(size, compiler::CodeAssembler::kPretenured);
+  Node* cell = Allocate(size, CodeStubAssembler::kPretenured);
 
   // Initialize the WeakCell.
   StoreObjectFieldRoot(cell, WeakCell::kMapOffset, Heap::kWeakCellMapRootIndex);

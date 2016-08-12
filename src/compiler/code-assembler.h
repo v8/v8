@@ -29,12 +29,9 @@ class Zone;
 namespace compiler {
 
 class CallDescriptor;
-class Graph;
 class Node;
-class Operator;
 class RawMachineAssembler;
 class RawMachineLabel;
-class Schedule;
 
 #define CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
   V(Float32Equal)                                \
@@ -206,14 +203,6 @@ class CodeAssembler {
     Impl* impl_;
     CodeAssembler* assembler_;
   };
-
-  enum AllocationFlag : uint8_t {
-    kNone = 0,
-    kDoubleAlignment = 1,
-    kPretenured = 1 << 1
-  };
-
-  typedef base::Flags<AllocationFlag> AllocationFlags;
 
   // ===========================================================================
   // Base Assembler
@@ -433,11 +422,6 @@ class CodeAssembler {
   Zone* zone() const;
 
  protected:
-  // Protected helpers which delegate to RawMachineAssembler.
-  Graph* graph() const;
-
-  Node* SmiShiftBitsConstant();
-
   // Enables subclasses to perform operations before and after a call.
   virtual void CallPrologue();
   virtual void CallEpilogue();
@@ -457,8 +441,6 @@ class CodeAssembler {
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };
-
-DEFINE_OPERATORS_FOR_FLAGS(CodeAssembler::AllocationFlags);
 
 class CodeAssembler::Label {
  public:

@@ -92,7 +92,7 @@ void Builtins::Generate_CopyFastSmiOrObjectElements(
   assembler->Bind(&if_oldspace);
   {
     Node* target = assembler->AllocateFixedArray(
-        kind, length, mode, compiler::CodeAssembler::kPretenured);
+        kind, length, mode, CodeStubAssembler::kPretenured);
     assembler->CopyFixedArrayElements(kind, source, target, length,
                                       UPDATE_WRITE_BARRIER, mode);
     assembler->StoreObjectField(object, JSObject::kElementsOffset, target);
