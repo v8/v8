@@ -1315,131 +1315,108 @@ EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
                                               Node* effect, Node* control) {
   Node* zero = jsgraph()->Int32Constant(0);
   Node* one = jsgraph()->Int32Constant(1);
-  Node* minusone = jsgraph()->Int32Constant(-1);
 
   // General case for signed integer modulus, with optimization for (unknown)
   // power of 2 right hand side.
   //
-  //   if 1 < rhs then
-  //     msk = rhs - 1
-  //     if rhs & msk == 0 then
-  //       if lhs < 0 then
-  //         -(-lhs & msk)
-  //       else
-  //         lhs & msk
-  //     else
-  //       lhs % rhs
+  //   if rhs <= 0 then
+  //     rhs = -rhs
+  //     deopt if rhs == 0
+  //   if lhs < 0 then
+  //     let res = lhs % rhs in
+  //     deopt if res == 0
+  //     res
   //   else
-  //     if rhs < -1 then
-  //       lhs % rhs
+  //     let msk = rhs - 1 in
+  //     if rhs & msk == 0 then
+  //       lhs & msk
   //     else
-  //       deopt if rhs == 0
-  //       deopt if lhs < 0
-  //       zero
+  //       lhs % rhs
   //
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
-  // Check if {rhs} is strictly greater than one.
-  Node* check0 = graph()->NewNode(machine()->Int32LessThan(), one, rhs);
+  // Check if {rhs} is not strictly positive.
+  Node* check0 = graph()->NewNode(machine()->Int32LessThanOrEqual(), rhs, zero);
   Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
 
   Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
   Node* etrue0 = effect;
   Node* vtrue0;
   {
-    Node* msk = graph()->NewNode(machine()->Int32Add(), rhs, minusone);
+    // Negate {rhs}, might still produce a negative result in case of
+    // -2^31, but that is handled safely below.
+    vtrue0 = graph()->NewNode(machine()->Int32Sub(), zero, rhs);
 
-    // Check if {rhs} minus one is a valid mask.
-    Node* check1 = graph()->NewNode(
-        machine()->Word32Equal(),
-        graph()->NewNode(machine()->Word32And(), rhs, msk), zero);
-    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_true0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* vtrue1;
-    {
-      // Check if {lhs} is negative.
-      Node* check2 = graph()->NewNode(machine()->Int32LessThan(), lhs, zero);
-      Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                       check2, if_true1);
-
-      // Compute the remainder as {-(-lhs & msk)}.
-      Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-      Node* vtrue2 = graph()->NewNode(
-          machine()->Int32Sub(), zero,
-          graph()->NewNode(machine()->Word32And(),
-                           graph()->NewNode(machine()->Int32Sub(), zero, lhs),
-                           msk));
-
-      // Compute the remainder as {lhs & msk}.
-      Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
-      Node* vfalse2 = graph()->NewNode(machine()->Word32And(), lhs, msk);
-
-      if_true1 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
-      vtrue1 =
-          graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                           vtrue2, vfalse2, if_true1);
-    }
-
-    // Compute the remainder using the generic {lhs % rhs}.
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* vfalse1 =
-        graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_false1);
-
-    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    vtrue0 = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                              vtrue1, vfalse1, if_true0);
+    // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
+    Node* check = graph()->NewNode(machine()->Word32Equal(), vtrue0, zero);
+    if_true0 = etrue0 = graph()->NewNode(
+        common()->DeoptimizeIf(DeoptimizeReason::kDivisionByZero), check,
+        frame_state, etrue0, if_true0);
   }
 
   Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
   Node* efalse0 = effect;
-  Node* vfalse0;
-  {
-    // Check if {rhs} is strictly less than -1.
-    Node* check1 = graph()->NewNode(machine()->Int32LessThan(), rhs, minusone);
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                     check1, if_false0);
+  Node* vfalse0 = rhs;
 
-    // Compute the remainder using the generic {lhs % rhs}.
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* etrue1 = efalse0;
-    Node* vtrue1 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_true1);
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* efalse1 = efalse0;
-    Node* vfalse1;
-    {
-      // Ensure that {rhs} is not zero.
-      Node* check2 = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-      if_false1 = efalse1 = graph()->NewNode(
-          common()->DeoptimizeIf(DeoptimizeReason::kDivisionByZero), check2,
-          frame_state, efalse1, if_false1);
-
-      // Now we know that {rhs} is -1, so make sure {lhs} is >= 0, as we would
-      // otherwise have to return -0.
-      Node* check3 = graph()->NewNode(machine()->Int32LessThan(), lhs, zero);
-      if_false1 = efalse1 =
-          graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
-                           check3, frame_state, efalse1, if_false1);
-
-      // The remainder is zero.
-      vfalse1 = zero;
-    }
-
-    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    efalse0 =
-        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
-    vfalse0 = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                               vtrue1, vfalse1, if_false0);
-  }
-
+  // At this point {rhs} is either greater than zero or -2^31, both are
+  // fine for the code that follows.
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  rhs = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                         vtrue0, vfalse0, control);
+
+  // Check if {lhs} is negative.
+  Node* check1 = graph()->NewNode(machine()->Int32LessThan(), lhs, zero);
+  Node* branch1 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, control);
+
+  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+  Node* etrue1 = effect;
+  Node* vtrue1;
+  {
+    // Compute the remainder using {lhs % msk}.
+    vtrue1 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_true1);
+
+    // Check if we would have to return -0.
+    Node* check = graph()->NewNode(machine()->Word32Equal(), vtrue1, zero);
+    if_true1 = etrue1 =
+        graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
+                         check, frame_state, etrue1, if_true1);
+  }
+
+  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+  Node* efalse1 = effect;
+  Node* vfalse1;
+  {
+    Node* msk = graph()->NewNode(machine()->Int32Sub(), rhs, one);
+
+    // Check if {rhs} minus one is a valid mask.
+    Node* check2 = graph()->NewNode(
+        machine()->Word32Equal(),
+        graph()->NewNode(machine()->Word32And(), rhs, msk), zero);
+    Node* branch2 = graph()->NewNode(common()->Branch(), check2, if_false1);
+
+    // Compute the remainder using {lhs & msk}.
+    Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+    Node* vtrue2 = graph()->NewNode(machine()->Word32And(), lhs, msk);
+
+    // Compute the remainder using the generic {lhs % rhs}.
+    Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+    Node* vfalse2 =
+        graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_false2);
+
+    if_false1 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
+    vfalse1 = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                               vtrue2, vfalse2, if_false1);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, control);
   Node* value =
-      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), vtrue0,
-                       vfalse0, control);
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), vtrue1,
+                       vfalse1, control);
 
   return ValueEffectControl(value, effect, control);
 }
