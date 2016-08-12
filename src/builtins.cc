@@ -5612,25 +5612,14 @@ void Generate_LoadIC_Slow(CodeStubAssembler* assembler) {
   assembler->TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
 }
 
-void Generate_LoadGlobalIC_SlowInsideTypeof(CodeStubAssembler* assembler) {
+void Generate_LoadGlobalIC_Slow(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
 
   Node* slot = assembler->Parameter(0);
   Node* vector = assembler->Parameter(1);
   Node* context = assembler->Parameter(2);
 
-  assembler->TailCallRuntime(Runtime::kGetGlobalInsideTypeof, context, slot,
-                             vector);
-}
-
-void Generate_LoadGlobalIC_SlowNotInsideTypeof(CodeStubAssembler* assembler) {
-  typedef compiler::Node Node;
-
-  Node* slot = assembler->Parameter(0);
-  Node* vector = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-
-  assembler->TailCallRuntime(Runtime::kGetGlobalNotInsideTypeof, context, slot,
+  assembler->TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, slot,
                              vector);
 }
 

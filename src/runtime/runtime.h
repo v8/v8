@@ -384,8 +384,6 @@ namespace internal {
   F(SetPrototype, 2, 1)                              \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(GetProperty, 2, 1)                               \
-  F(GetGlobalInsideTypeof, 2, 1)                     \
-  F(GetGlobalNotInsideTypeof, 2, 1)                  \
   F(KeyedGetProperty, 2, 1)                          \
   F(StoreGlobalViaContext_Sloppy, 2, 1)              \
   F(StoreGlobalViaContext_Strict, 2, 1)              \
@@ -954,6 +952,7 @@ namespace internal {
   F(KeyedStoreIC_Slow, 5, 1)                 \
   F(LoadElementWithInterceptor, 2, 1)        \
   F(LoadGlobalIC_Miss, 2, 1)                 \
+  F(LoadGlobalIC_Slow, 2, 1)                 \
   F(LoadIC_Miss, 4, 1)                       \
   F(LoadIC_MissFromStubFailure, 4, 1)        \
   F(LoadPropertyWithInterceptor, 3, 1)       \
@@ -1075,7 +1074,7 @@ class Runtime : public AllStatic {
 
   MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
-      bool should_throw_reference_error = false);
+      bool* is_found_out = nullptr);
 
   enum TypedArrayId {
     // arrayIds below should be synchronized with typedarray.js natives.
