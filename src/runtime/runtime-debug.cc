@@ -606,8 +606,12 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   DCHECK(*scope_info != ScopeInfo::Empty(isolate));
 
   // Get the locals names and values into a temporary array.
-  int local_count = scope_info->LocalCount();
-  for (int slot = 0; slot < scope_info->LocalCount(); ++slot) {
+  Handle<Object> maybe_context = frame_inspector.GetContext();
+  const int local_count_with_synthetic = maybe_context->IsContext()
+                                             ? scope_info->LocalCount()
+                                             : scope_info->StackLocalCount();
+  int local_count = local_count_with_synthetic;
+  for (int slot = 0; slot < local_count_with_synthetic; ++slot) {
     // Hide compiler-introduced temporary variables, whether on the stack or on
     // the context.
     if (ScopeInfo::VariableIsSynthetic(scope_info->LocalName(slot))) {
@@ -633,8 +637,9 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
   if (locals.length() < local_count * 2) {
     // Get the context containing declarations.
-    Handle<Context> context(
-        Handle<Context>::cast(frame_inspector.GetContext())->closure_context());
+    DCHECK(maybe_context->IsContext());
+    Handle<Context> context(Context::cast(*maybe_context)->closure_context());
+
     for (; i < scope_info->LocalCount(); ++i) {
       Handle<String> name(scope_info->LocalName(i));
       if (ScopeInfo::VariableIsSynthetic(*name)) continue;
