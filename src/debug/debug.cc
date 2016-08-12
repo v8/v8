@@ -1325,7 +1325,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   DCHECK(baseline_exists || suspended_generators.is_empty());
 
   // We do not need to recompile to debug bytecode.
-  if (baseline_exists && !shared->HasDebugCode()) {
+  if (baseline_exists && !shared->code()->has_debug_break_slots()) {
     DCHECK(functions.length() > 0);
     if (!Compiler::CompileDebugCode(functions.first())) return false;
   }

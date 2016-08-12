@@ -448,7 +448,7 @@ bool ShouldUseIgnition(CompilationInfo* info) {
   // When requesting debug code as a replacement for existing code, we provide
   // the same kind as the existing code (to prevent implicit tier-change).
   if (info->is_debug() && info->shared_info()->is_compiled()) {
-    return info->shared_info()->HasBytecodeArray();
+    return !info->shared_info()->HasBaselineCode();
   }
 
   // Since we can't OSR from Ignition, skip Ignition for asm.js functions.
