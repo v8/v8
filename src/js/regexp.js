@@ -38,15 +38,17 @@ utils.Import(function(from) {
 // regexp match.  The property RegExpLastMatchInfo includes the matchIndices
 // array of the last successful regexp match (an array of start/end index
 // pairs for the match and all the captured substrings), the invariant is
-// that there are at least two capture indeces.  The array also contains
+// that there are at least two capture indices.  The array also contains
 // the subject string for the last successful match.
-var RegExpLastMatchInfo = new InternalPackedArray(
- 2,                 // REGEXP_NUMBER_OF_CAPTURES
- "",                // Last subject.
- UNDEFINED,         // Last input - settable with RegExpSetInput.
- 0,                 // REGEXP_FIRST_CAPTURE + 0
- 0                  // REGEXP_FIRST_CAPTURE + 1
-);
+// We use a JSObject rather than a JSArray so we don't have to manually update
+// its length.
+var RegExpLastMatchInfo = {
+  REGEXP_NUMBER_OF_CAPTURES: 2,
+  REGEXP_LAST_SUBJECT:       "",
+  REGEXP_LAST_INPUT:         UNDEFINED,  // Settable with RegExpSetInput.
+  CAPTURE0:                  0,
+  CAPTURE1:                  0
+};
 
 // -------------------------------------------------------------------
 
@@ -1201,7 +1203,13 @@ for (var i = 1; i < 10; ++i) {
 // -------------------------------------------------------------------
 // Internal
 
-var InternalRegExpMatchInfo = new InternalPackedArray(2, "", UNDEFINED, 0, 0);
+var InternalRegExpMatchInfo = {
+  REGEXP_NUMBER_OF_CAPTURES: 2,
+  REGEXP_LAST_SUBJECT:       "",
+  REGEXP_LAST_INPUT:         UNDEFINED,
+  CAPTURE0:                  0,
+  CAPTURE1:                  0
+};
 
 function InternalRegExpMatch(regexp, subject) {
   var matchInfo = %_RegExpExec(regexp, subject, 0, InternalRegExpMatchInfo);

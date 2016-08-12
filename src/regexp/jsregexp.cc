@@ -10,6 +10,7 @@
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
+#include "src/elements.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
@@ -17,9 +18,9 @@
 #include "src/ostreams.h"
 #include "src/regexp/interpreter-irregexp.h"
 #include "src/regexp/jsregexp-inl.h"
-#include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
+#include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-parser.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
@@ -193,11 +194,9 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   return re;
 }
 
-
 MaybeHandle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
-                                     Handle<String> subject,
-                                     int index,
-                                     Handle<JSArray> last_match_info) {
+                                     Handle<String> subject, int index,
+                                     Handle<JSObject> last_match_info) {
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
       return AtomExec(regexp, subject, index, last_match_info);
@@ -290,11 +289,9 @@ int RegExpImpl::AtomExecRaw(Handle<JSRegExp> regexp,
   return output_size / 2;
 }
 
-
-Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
-                                    Handle<String> subject,
+Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re, Handle<String> subject,
                                     int index,
-                                    Handle<JSArray> last_match_info) {
+                                    Handle<JSObject> last_match_info) {
   Isolate* isolate = re->GetIsolate();
 
   static const int kNumRegisters = 2;
@@ -571,11 +568,10 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
 #endif  // V8_INTERPRETED_REGEXP
 }
 
-
 MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
                                              Handle<String> subject,
                                              int previous_index,
-                                             Handle<JSArray> last_match_info) {
+                                             Handle<JSObject> last_match_info) {
   Isolate* isolate = regexp->GetIsolate();
   DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
@@ -619,18 +615,16 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   return isolate->factory()->null_value();
 }
 
-
-static void EnsureSize(Handle<JSArray> array, uint32_t minimum_size) {
+static void EnsureSize(Handle<JSObject> array, uint32_t minimum_size) {
   if (static_cast<uint32_t>(array->elements()->length()) < minimum_size) {
-    JSArray::SetLength(array, minimum_size);
+    array->GetElementsAccessor()->GrowCapacityAndConvert(array, minimum_size);
   }
 }
 
-
-Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
-                                             Handle<String> subject,
-                                             int capture_count,
-                                             int32_t* match) {
+Handle<JSObject> RegExpImpl::SetLastMatchInfo(Handle<JSObject> last_match_info,
+                                              Handle<String> subject,
+                                              int capture_count,
+                                              int32_t* match) {
   DCHECK(last_match_info->HasFastObjectElements());
   int capture_register_count = (capture_count + 1) * 2;
   EnsureSize(last_match_info, capture_register_count + kLastMatchOverhead);

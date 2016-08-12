@@ -1588,9 +1588,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ LoadP(r2, MemOperand(sp, kLastMatchInfoOffset));
   __ JumpIfSmi(r2, &runtime);
-  __ CompareObjectType(r2, r4, r4, JS_ARRAY_TYPE);
+  __ CompareObjectType(r2, r4, r4, JS_OBJECT_TYPE);
   __ bne(&runtime);
-  // Check that the JSArray is in fast case.
+  // Check that the object has fast elements.
   __ LoadP(last_match_info_elements,
            FieldMemOperand(r2, JSArray::kElementsOffset));
   __ LoadP(r2,

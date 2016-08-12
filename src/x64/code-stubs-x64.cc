@@ -693,12 +693,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ leal(rdx, Operand(rax, rax, times_1, 2));
 
   // rdx: Number of capture registers
-  // Check that the fourth object is a JSArray object.
+  // Check that the fourth object is a JSObject.
   __ movp(r15, args.GetArgumentOperand(LAST_MATCH_INFO_ARGUMENT_INDEX));
   __ JumpIfSmi(r15, &runtime);
-  __ CmpObjectType(r15, JS_ARRAY_TYPE, kScratchRegister);
+  __ CmpObjectType(r15, JS_OBJECT_TYPE, kScratchRegister);
   __ j(not_equal, &runtime);
-  // Check that the JSArray is in fast case.
+  // Check that the object has fast elements.
   __ movp(rbx, FieldOperand(r15, JSArray::kElementsOffset));
   __ movp(rax, FieldOperand(rbx, HeapObject::kMapOffset));
   __ CompareRoot(rax, Heap::kFixedArrayMapRootIndex);

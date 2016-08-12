@@ -1732,6 +1732,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
       FixedArray::cast(old_shared_array->elements()));
 
   Handle<JSArray> result = isolate->factory()->NewJSArray(len);
+  result->set_length(Smi::FromInt(len));
   JSObject::EnsureWritableFastElements(result);
   Handle<FixedArray> result_elements =
       handle(FixedArray::cast(result->elements()), isolate);

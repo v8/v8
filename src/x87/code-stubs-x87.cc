@@ -631,13 +631,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ add(edx, Immediate(2));  // edx was a smi.
 
   // edx: Number of capture registers
-  // Load last_match_info which is still known to be a fast case JSArray.
-  // Check that the fourth object is a JSArray object.
+  // Load last_match_info which is still known to be a fast-elements JSObject.
+  // Check that the fourth object is a JSObject.
   __ mov(eax, Operand(esp, kLastMatchInfoOffset));
   __ JumpIfSmi(eax, &runtime);
-  __ CmpObjectType(eax, JS_ARRAY_TYPE, ebx);
+  __ CmpObjectType(eax, JS_OBJECT_TYPE, ebx);
   __ j(not_equal, &runtime);
-  // Check that the JSArray is in fast case.
+  // Check that the object has fast elements.
   __ mov(ebx, FieldOperand(eax, JSArray::kElementsOffset));
   __ mov(eax, FieldOperand(ebx, HeapObject::kMapOffset));
   __ cmp(eax, factory->fixed_array_map());

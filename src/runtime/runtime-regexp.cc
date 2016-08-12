@@ -386,11 +386,10 @@ void FindStringIndicesDispatch(Isolate* isolate, String* subject,
   }
 }
 
-
 template <typename ResultSeqString>
 MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> pattern_regexp,
-    Handle<String> replacement, Handle<JSArray> last_match_info) {
+    Handle<String> replacement, Handle<JSObject> last_match_info) {
   DCHECK(subject->IsFlat());
   DCHECK(replacement->IsFlat());
 
@@ -465,10 +464,9 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   return *result;
 }
 
-
 MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
-    Handle<String> replacement, Handle<JSArray> last_match_info) {
+    Handle<String> replacement, Handle<JSObject> last_match_info) {
   DCHECK(subject->IsFlat());
   DCHECK(replacement->IsFlat());
 
@@ -547,11 +545,10 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   RETURN_RESULT_OR_FAILURE(isolate, builder.ToString());
 }
 
-
 template <typename ResultSeqString>
 MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
     Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
-    Handle<JSArray> last_match_info) {
+    Handle<JSObject> last_match_info) {
   DCHECK(subject->IsFlat());
 
   // Shortcut for simple non-regexp global replacements
@@ -654,7 +651,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceGlobalRegExpWithString) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, replacement, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, last_match_info, 3);
 
   CHECK(regexp->GetFlags() & JSRegExp::kGlobal);
   CHECK(last_match_info->HasFastObjectElements());
@@ -771,7 +768,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_INT32_ARG_CHECKED(index, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, last_match_info, 3);
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CHECK(index >= 0);
@@ -838,7 +835,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
 template <bool has_capture>
 static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
                                     Handle<JSRegExp> regexp,
-                                    Handle<JSArray> last_match_array,
+                                    Handle<JSObject> last_match_array,
                                     Handle<JSArray> result_array) {
   DCHECK(subject->IsFlat());
   DCHECK_NE(has_capture, regexp->CaptureCount() == 0);
@@ -988,7 +985,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, last_match_info, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, result_array, 3);
   CHECK(last_match_info->HasFastObjectElements());
   CHECK(result_array->HasFastObjectElements());
