@@ -3174,12 +3174,12 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
 }
 
 void Isolate::IsolateInBackgroundNotification() {
-  is_isolate_in_background_ = false;
+  is_isolate_in_background_ = true;
   heap()->ActivateMemoryReducerIfNeeded();
 }
 
 void Isolate::IsolateInForegroundNotification() {
-  is_isolate_in_background_ = true;
+  is_isolate_in_background_ = false;
 }
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
