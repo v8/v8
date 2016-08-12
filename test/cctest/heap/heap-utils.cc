@@ -28,6 +28,35 @@ int FixedArrayLenFromSize(int size) {
   return (size - FixedArray::kHeaderSize) / kPointerSize;
 }
 
+std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
+                                                                int remainder) {
+  std::vector<Handle<FixedArray>> handles;
+  Isolate* isolate = heap->isolate();
+  const int kArraySize = 128;
+  const int kArrayLen = heap::FixedArrayLenFromSize(kArraySize);
+  CHECK_EQ(Page::kAllocatableMemory % kArraySize, 0);
+  Handle<FixedArray> array;
+  for (size_t allocated = 0;
+       allocated != (Page::kAllocatableMemory - remainder);
+       allocated += array->Size()) {
+    if (allocated == (Page::kAllocatableMemory - kArraySize)) {
+      array = isolate->factory()->NewFixedArray(
+          heap::FixedArrayLenFromSize(kArraySize - remainder), TENURED);
+      CHECK_EQ(kArraySize - remainder, array->Size());
+    } else {
+      array = isolate->factory()->NewFixedArray(kArrayLen, TENURED);
+      CHECK_EQ(kArraySize, array->Size());
+    }
+    if (handles.empty()) {
+      // Check that allocations started on a new page.
+      CHECK_EQ(array->address(),
+               Page::FromAddress(array->address())->area_start());
+    }
+    handles.push_back(array);
+  }
+  return handles;
+}
+
 std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
                                               PretenureFlag tenure,
                                               int object_size) {

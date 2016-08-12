@@ -77,7 +77,7 @@ Heap::Heap()
       // semispace_size_ should be a power of 2 and old_generation_size_ should
       // be a multiple of Page::kPageSize.
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
-      initial_semispace_size_(Page::kPageSize),
+      initial_semispace_size_(MB),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
       initial_old_generation_size_(max_old_generation_size_ /
                                    kInitalOldGenerationLimitFactor),
@@ -5429,16 +5429,19 @@ void Heap::PrintAlloctionsHash() {
 
 
 void Heap::NotifyDeserializationComplete() {
-  deserialization_complete_ = true;
-#ifdef DEBUG
-  // All pages right after bootstrapping must be marked as never-evacuate.
+  DCHECK_EQ(0, gc_count());
   PagedSpaces spaces(this);
   for (PagedSpace* s = spaces.next(); s != NULL; s = spaces.next()) {
+    if (isolate()->snapshot_available()) s->ShrinkImmortalImmovablePages();
+#ifdef DEBUG
+    // All pages right after bootstrapping must be marked as never-evacuate.
     for (Page* p : *s) {
       CHECK(p->NeverEvacuate());
     }
-  }
 #endif  // DEBUG
+  }
+
+  deserialization_complete_ = true;
 }
 
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {

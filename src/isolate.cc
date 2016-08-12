@@ -2438,13 +2438,19 @@ bool Isolate::Init(Deserializer* des) {
   runtime_profiler_ = new RuntimeProfiler(this);
 
   // If we are deserializing, read the state into the now-empty heap.
-  if (!create_heap_objects) {
-    des->Deserialize(this);
-  }
-  load_stub_cache_->Initialize();
-  store_stub_cache_->Initialize();
-  if (FLAG_ignition || serializer_enabled()) {
-    interpreter_->Initialize();
+  {
+    AlwaysAllocateScope always_allocate(this);
+
+    if (!create_heap_objects) {
+      des->Deserialize(this);
+    }
+    load_stub_cache_->Initialize();
+    store_stub_cache_->Initialize();
+    if (FLAG_ignition || serializer_enabled()) {
+      interpreter_->Initialize();
+    }
+
+    heap_.NotifyDeserializationComplete();
   }
 
   // Finish initialization of ThreadLocal after deserialization is done.
@@ -2474,8 +2480,6 @@ bool Isolate::Init(Deserializer* des) {
            Internals::kExternalMemoryLimitOffset);
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
-
-  heap_.NotifyDeserializationComplete();
 
   if (!create_heap_objects) {
     // Now that the heap is consistent, it's OK to generate the code for the
