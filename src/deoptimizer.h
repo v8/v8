@@ -357,8 +357,10 @@ class Deoptimizer : public Malloced {
 
   static DeoptInfo GetDeoptInfo(Code* code, byte* from);
 
-  static int ComputeSourcePosition(SharedFunctionInfo* shared,
-                                   BailoutId node_id);
+  static int ComputeSourcePositionFromBaselineCode(SharedFunctionInfo* shared,
+                                                   BailoutId node_id);
+  static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
+                                                    BailoutId node_id);
 
   struct JumpTableEntry : public ZoneObject {
     inline JumpTableEntry(Address entry, const DeoptInfo& deopt_info,

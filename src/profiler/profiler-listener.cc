@@ -283,7 +283,15 @@ void ProfilerListener::RecordDeoptInlinedFrames(CodeEntry* entry,
       it.Next();  // Skip height
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(
           deopt_input_data->LiteralArray()->get(shared_info_id));
-      int source_position = Deoptimizer::ComputeSourcePosition(shared, ast_id);
+      int source_position;
+      if (opcode == Translation::INTERPRETED_FRAME) {
+        source_position =
+            Deoptimizer::ComputeSourcePositionFromBytecodeArray(shared, ast_id);
+      } else {
+        DCHECK(opcode == Translation::JS_FRAME);
+        source_position =
+            Deoptimizer::ComputeSourcePositionFromBaselineCode(shared, ast_id);
+      }
       int script_id = v8::UnboundScript::kNoScriptId;
       if (shared->script()->IsScript()) {
         Script* script = Script::cast(shared->script());

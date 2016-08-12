@@ -2683,8 +2683,14 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
       parameter_frame != state->begin() &&
       (parameter_frame - 1)->kind() == TranslatedFrame::kConstructStub;
 
-  source_position_ = Deoptimizer::ComputeSourcePosition(
-      *frame_it->shared_info(), frame_it->node_id());
+  if (frame_it->kind() == TranslatedFrame::kInterpretedFunction) {
+    source_position_ = Deoptimizer::ComputeSourcePositionFromBytecodeArray(
+        *frame_it->shared_info(), frame_it->node_id());
+  } else {
+    DCHECK_EQ(TranslatedFrame::kFunction, frame_it->kind());
+    source_position_ = Deoptimizer::ComputeSourcePositionFromBaselineCode(
+        *frame_it->shared_info(), frame_it->node_id());
+  }
 
   TranslatedFrame::iterator value_it = frame_it->begin();
   // Get the function. Note that this might materialize the function.
@@ -2762,22 +2768,27 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
 
 
 // static
-int Deoptimizer::ComputeSourcePosition(SharedFunctionInfo* shared,
-                                       BailoutId node_id) {
-  AbstractCode* abstract_code = shared->abstract_code();
-  int code_offset;
-  if (abstract_code->IsBytecodeArray()) {
-    // BailoutId points to the next bytecode in the bytecode aray. Subtract
-    // 1 to get the end of current bytecode.
-    code_offset = node_id.ToInt() - 1;
-  } else {
-    FixedArray* raw_data = abstract_code->GetCode()->deoptimization_data();
-    DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
-    unsigned pc_and_state = Deoptimizer::GetOutputInfo(data, node_id, shared);
-    code_offset =
-        static_cast<int>(FullCodeGenerator::PcField::decode(pc_and_state));
-  }
-  return abstract_code->SourcePosition(code_offset);
+int Deoptimizer::ComputeSourcePositionFromBaselineCode(
+    SharedFunctionInfo* shared, BailoutId node_id) {
+  DCHECK(shared->HasBaselineCode());
+  Code* code = shared->code();
+  FixedArray* raw_data = code->deoptimization_data();
+  DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
+  unsigned pc_and_state = Deoptimizer::GetOutputInfo(data, node_id, shared);
+  int code_offset =
+      static_cast<int>(FullCodeGenerator::PcField::decode(pc_and_state));
+  return AbstractCode::cast(code)->SourcePosition(code_offset);
+}
+
+// static
+int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
+    SharedFunctionInfo* shared, BailoutId node_id) {
+  DCHECK(shared->HasBytecodeArray());
+  // BailoutId points to the next bytecode in the bytecode aray. Subtract
+  // 1 to get the end of current bytecode.
+  int code_offset = node_id.ToInt() - 1;
+  return AbstractCode::cast(shared->bytecode_array())
+      ->SourcePosition(code_offset);
 }
 
 // static
