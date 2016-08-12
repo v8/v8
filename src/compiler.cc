@@ -526,8 +526,6 @@ void InstallSharedCompilationResult(CompilationInfo* info,
   if (info->is_debug() && info->has_bytecode_array()) {
     shared->ClearBytecodeArray();
   }
-  // Assert that we are not overwriting (possibly patched) debug code.
-  DCHECK(!shared->HasDebugInfo());
   DCHECK(!info->code().is_null());
   shared->ReplaceCode(*info->code());
   if (info->has_bytecode_array()) {

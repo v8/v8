@@ -1283,7 +1283,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
                                       "prepare for break points");
 
   DCHECK(shared->is_compiled());
-  bool is_interpreted = shared->HasBytecodeArray();
+  bool baseline_exists = shared->HasBaselineCode();
 
   {
     // TODO(yangguo): with bytecode, we still walk the heap to find all
@@ -1291,7 +1291,8 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
     // smarter here and avoid the heap walk.
     HeapIterator iterator(isolate_->heap());
     HeapObject* obj;
-    bool find_resumables = !is_interpreted && shared->is_resumable();
+    // Continuation from old-style generators need to be recomputed.
+    bool find_resumables = baseline_exists && shared->is_resumable();
 
     while ((obj = iterator.next())) {
       if (obj->IsJSFunction()) {
@@ -1300,8 +1301,9 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
         if (function->code()->kind() == Code::OPTIMIZED_FUNCTION) {
           Deoptimizer::DeoptimizeFunction(function);
         }
-        if (is_interpreted) continue;
-        if (function->shared() == *shared) functions.Add(handle(function));
+        if (baseline_exists && function->shared() == *shared) {
+          functions.Add(handle(function));
+        }
       } else if (find_resumables && obj->IsJSGeneratorObject()) {
         // This case handles async functions as well, as they use generator
         // objects for in-progress async function execution.
@@ -1319,11 +1321,11 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   }
 
   // We do not need to replace code to debug bytecode.
-  DCHECK(!is_interpreted || functions.length() == 0);
-  DCHECK(!is_interpreted || suspended_generators.length() == 0);
+  DCHECK(baseline_exists || functions.is_empty());
+  DCHECK(baseline_exists || suspended_generators.is_empty());
 
   // We do not need to recompile to debug bytecode.
-  if (!is_interpreted && !shared->HasDebugCode()) {
+  if (baseline_exists && !shared->HasDebugCode()) {
     DCHECK(functions.length() > 0);
     if (!Compiler::CompileDebugCode(functions.first())) return false;
   }
@@ -1502,23 +1504,17 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
     return false;
   }
 
-  if (shared->HasBytecodeArray()) {
-    // To prepare bytecode for debugging, we already need to have the debug
-    // info (containing the debug copy) upfront, but since we do not recompile,
-    // preparing for break points cannot fail.
-    CreateDebugInfo(shared);
-    CHECK(PrepareFunctionForBreakPoints(shared));
-  } else {
-    if (!PrepareFunctionForBreakPoints(shared)) return false;
-    CreateDebugInfo(shared);
-  }
+  // To prepare bytecode for debugging, we already need to have the debug
+  // info (containing the debug copy) upfront, but since we do not recompile,
+  // preparing for break points cannot fail.
+  CreateDebugInfo(shared);
+  CHECK(PrepareFunctionForBreakPoints(shared));
   return true;
 }
 
 
 void Debug::CreateDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Create the debug info object.
-  DCHECK(shared->HasDebugCode());
   Handle<DebugInfo> debug_info = isolate_->factory()->NewDebugInfo(shared);
 
   // Add debug info to the list.
