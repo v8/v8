@@ -600,7 +600,7 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
   // For memory reducing and optimize for memory mode we directly define both
   // constants.
   const int kTargetFragmentationPercentForReduceMemory = 20;
-  const int kMaxEvacuatedBytesForReduceMemory = 12 * MB;
+  const int kMaxEvacuatedBytesForReduceMemory = 12 * Page::kPageSize;
   const int kTargetFragmentationPercentForOptimizeMemory = 20;
   const int kMaxEvacuatedBytesForOptimizeMemory = 6 * MB;
 
@@ -608,10 +608,10 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
   // defaults to start and switch to a trace-based (using compaction speed)
   // approach as soon as we have enough samples.
   const int kTargetFragmentationPercent = 70;
-  const int kMaxEvacuatedBytes = 4 * MB;
+  const int kMaxEvacuatedBytes = 4 * Page::kPageSize;
   // Time to take for a single area (=payload of page). Used as soon as there
   // exist enough compaction speed samples.
-  const float kTargetMsPerArea = 0.5;
+  const int kTargetMsPerArea = 1;
 
   if (heap()->ShouldReduceMemory()) {
     *target_fragmentation_percent = kTargetFragmentationPercentForReduceMemory;
@@ -3223,7 +3223,7 @@ int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
   // The number of parallel compaction tasks is limited by:
   // - #evacuation pages
   // - (#cores - 1)
-  const double kTargetCompactionTimeInMs = .5;
+  const double kTargetCompactionTimeInMs = 1;
   const int kNumSweepingTasks = 3;
 
   double compaction_speed =

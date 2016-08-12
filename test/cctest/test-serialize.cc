@@ -1177,13 +1177,13 @@ TEST(CodeSerializerThreeBigStrings) {
 
   Vector<const uint8_t> source_b =
       ConstructSource(STATIC_CHAR_VECTOR("var b = \""), STATIC_CHAR_VECTOR("b"),
-                      STATIC_CHAR_VECTOR("\";"), 400000);
+                      STATIC_CHAR_VECTOR("\";"), 600000);
   Handle<String> source_b_str =
       f->NewStringFromOneByte(source_b).ToHandleChecked();
 
   Vector<const uint8_t> source_c =
       ConstructSource(STATIC_CHAR_VECTOR("var c = \""), STATIC_CHAR_VECTOR("c"),
-                      STATIC_CHAR_VECTOR("\";"), 400000);
+                      STATIC_CHAR_VECTOR("\";"), 500000);
   Handle<String> source_c_str =
       f->NewStringFromOneByte(source_c).ToHandleChecked();
 
@@ -1216,10 +1216,10 @@ TEST(CodeSerializerThreeBigStrings) {
   v8::Maybe<int32_t> result =
       CompileRun("(a + b).length")
           ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
-  CHECK_EQ(400000 + 700000, result.FromJust());
+  CHECK_EQ(600000 + 700000, result.FromJust());
   result = CompileRun("(b + c).length")
                ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
-  CHECK_EQ(400000 + 400000, result.FromJust());
+  CHECK_EQ(500000 + 600000, result.FromJust());
   Heap* heap = isolate->heap();
   v8::Local<v8::String> result_str =
       CompileRun("a")

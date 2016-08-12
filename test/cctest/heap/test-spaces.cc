@@ -32,7 +32,6 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
-#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -479,7 +478,8 @@ TEST(LargeObjectSpace) {
   CHECK(lo->AllocateRaw(lo_size, NOT_EXECUTABLE).IsRetry());
 }
 
-TEST(SizeOfInitialHeap) {
+
+TEST(SizeOfFirstPageIsLargeEnough) {
   if (i::FLAG_always_opt) return;
   // Bootstrapping without a snapshot causes more allocations.
   CcTest::InitializeVM();
@@ -495,31 +495,22 @@ TEST(SizeOfInitialHeap) {
     return;
   }
 
-  // The limit for each space for an empty isolate containing just the
-  // snapshot.
-  const size_t kMaxInitialSizePerSpace = 1536 * KB;  // 1.5MB
+  // If this test fails due to enabling experimental natives that are not part
+  // of the snapshot, we may need to adjust CalculateFirstPageSizes.
 
-  // Freshly initialized VM gets by with the snapshot size (which is below
-  // kMaxInitialSizePerSpace per space).
-  Heap* heap = isolate->heap();
-  int page_count[LAST_PAGED_SPACE + 1] = {0, 0, 0, 0};
+  // Freshly initialized VM gets by with one page per space.
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
     if (i == CODE_SPACE && i::FLAG_debug_code) continue;
-
-    page_count[i] = heap->paged_space(i)->CountTotalPages();
-    // Check that the initial heap is also below the limit.
-    CHECK_LT(static_cast<size_t>(heap->paged_space(i)->CommittedMemory()),
-             kMaxInitialSizePerSpace);
+    CHECK_EQ(1, isolate->heap()->paged_space(i)->CountTotalPages());
   }
 
-  // Executing the empty script gets by with the same number of pages, i.e.,
-  // requires no extra space.
+  // Executing the empty script gets by with one page per space.
   CompileRun("/*empty*/");
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
     if (i == CODE_SPACE && i::FLAG_debug_code) continue;
-    CHECK_EQ(page_count[i], isolate->heap()->paged_space(i)->CountTotalPages());
+    CHECK_EQ(1, isolate->heap()->paged_space(i)->CountTotalPages());
   }
 
   // No large objects required to perform the above steps.
@@ -688,106 +679,6 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
     CHECK_EQ(observer2.count(), 28);
   }
   isolate->Dispose();
-}
-
-TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  // Prepare page that only contains a single object and a trailing FreeSpace
-  // filler.
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(128, TENURED);
-  Page* page = Page::FromAddress(array->address());
-
-  // Reset space so high water mark is consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
-
-  HeapObject* filler =
-      HeapObject::FromAddress(array->address() + array->Size());
-  CHECK(filler->IsFreeSpace());
-  size_t shrinked = page->ShrinkToHighWaterMark();
-  size_t should_have_shrinked =
-      RoundDown(static_cast<size_t>(Page::kAllocatableMemory - array->Size()),
-                base::OS::CommitPageSize());
-  CHECK_EQ(should_have_shrinked, shrinked);
-}
-
-TEST(ShrinkPageToHighWaterMarkNoFiller) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  const int kFillerSize = 0;
-  std::vector<Handle<FixedArray>> arrays =
-      heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
-  Handle<FixedArray> array = arrays.back();
-  Page* page = Page::FromAddress(array->address());
-  CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
-
-  // Reset space so high water mark and fillers are consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
-
-  const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
-}
-
-TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  const int kFillerSize = kPointerSize;
-  std::vector<Handle<FixedArray>> arrays =
-      heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
-  Handle<FixedArray> array = arrays.back();
-  Page* page = Page::FromAddress(array->address());
-  CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
-
-  // Reset space so high water mark and fillers are consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
-
-  HeapObject* filler =
-      HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler->map(), CcTest::heap()->one_pointer_filler_map());
-
-  const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
-}
-
-TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  const int kFillerSize = 2 * kPointerSize;
-  std::vector<Handle<FixedArray>> arrays =
-      heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
-  Handle<FixedArray> array = arrays.back();
-  Page* page = Page::FromAddress(array->address());
-  CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
-
-  // Reset space so high water mark and fillers are consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
-
-  HeapObject* filler =
-      HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler->map(), CcTest::heap()->two_pointer_filler_map());
-
-  const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
 }
 
 }  // namespace internal

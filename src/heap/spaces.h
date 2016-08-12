@@ -235,10 +235,7 @@ class MemoryChunk {
     IN_TO_SPACE,    // All pages in new space has one of these two set.
     NEW_SPACE_BELOW_AGE_MARK,
     EVACUATION_CANDIDATE,
-
-    // |NEVER_EVACUATE|: A page tagged with this flag will never be selected
-    // for evacuation. Typically used for immortal immovable pages.
-    NEVER_EVACUATE,
+    NEVER_EVACUATE,  // May contain immortal immutables.
 
     // Large objects can have a progress bar in their page header. These object
     // are scanned in increments and will be kept black while being scanned.
@@ -725,7 +722,7 @@ class Page : public MemoryChunk {
   // account.
   // TODO(hpayer): This limit should be way smaller but we currently have
   // short living objects >256K.
-  static const int kMaxRegularHeapObjectSize = 400 * KB;
+  static const int kMaxRegularHeapObjectSize = 600 * KB;
 
   static inline Page* ConvertNewToOld(Page* old_page, PagedSpace* new_owner);
 
@@ -825,8 +822,6 @@ class Page : public MemoryChunk {
   void add_available_in_free_list(intptr_t available) {
     available_in_free_list_.Increment(available);
   }
-
-  size_t ShrinkToHighWaterMark();
 
 #ifdef DEBUG
   void Print();
@@ -1308,8 +1303,6 @@ class MemoryAllocator {
                              intptr_t commit_area_size,
                              Executability executable, Space* space);
 
-  void ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink);
-
   Address ReserveAlignedMemory(size_t requested, size_t alignment,
                                base::VirtualMemory* controller);
   Address AllocateAlignedMemory(size_t reserve_size, size_t commit_size,
@@ -1625,7 +1618,6 @@ class AllocationStats BASE_EMBEDDED {
     capacity_ -= size_in_bytes;
     size_ -= size_in_bytes;
     CHECK_GE(size_, 0);
-    CHECK_GE(capacity_, 0);
   }
 
   // Allocate from available bytes (available -> size).
@@ -2190,10 +2182,6 @@ class PagedSpace : public Space {
 
   iterator begin() { return iterator(anchor_.next_page()); }
   iterator end() { return iterator(&anchor_); }
-
-  // Shrink immortal immovable pages of the space to be exactly the size needed
-  // using the high water mark.
-  void ShrinkImmortalImmovablePages();
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
