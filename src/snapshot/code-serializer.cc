@@ -315,10 +315,6 @@ SerializedCodeData::SerializedCodeData(const List<byte>* payload,
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload->length());
 
-  Checksum checksum(payload->ToConstVector());
-  SetHeaderValue(kChecksum1Offset, checksum.a());
-  SetHeaderValue(kChecksum2Offset, checksum.b());
-
   // Copy reservation chunk sizes.
   CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
             reservation_size);
@@ -332,6 +328,10 @@ SerializedCodeData::SerializedCodeData(const List<byte>* payload,
   // Copy serialized data.
   CopyBytes(data_ + padded_payload_offset, payload->begin(),
             static_cast<size_t>(payload->length()));
+
+  Checksum checksum(DataWithoutHeader());
+  SetHeaderValue(kChecksum1Offset, checksum.a());
+  SetHeaderValue(kChecksum2Offset, checksum.b());
 }
 
 SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
@@ -350,7 +350,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
     return CPU_FEATURES_MISMATCH;
   }
   if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
-  if (!Checksum(Payload()).Check(c1, c2)) return CHECKSUM_MISMATCH;
+  if (!Checksum(DataWithoutHeader()).Check(c1, c2)) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
 }
 

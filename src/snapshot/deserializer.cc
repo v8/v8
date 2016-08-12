@@ -163,12 +163,14 @@ MaybeHandle<HeapObject> Deserializer::DeserializeObject(Isolate* isolate) {
 Deserializer::~Deserializer() {
   // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
   // DCHECK(source_.AtEOF());
+#ifdef DEBUG
   for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
     int chunk_index = current_chunk_[space];
     CHECK_EQ(reservations_[space].length(), chunk_index + 1);
     CHECK_EQ(reservations_[space][chunk_index].end, high_water_[space]);
   }
   CHECK_EQ(allocated_maps_.length(), next_map_index_);
+#endif  // DEBUG
 }
 
 // This is called on the roots.  It is the driver of the deserialization

@@ -115,6 +115,10 @@ class SerializedCodeData : public SerializedData {
   SerializedCodeData(const byte* data, int size)
       : SerializedData(const_cast<byte*>(data), size) {}
 
+  Vector<const byte> DataWithoutHeader() const {
+    return Vector<const byte>(data_ + kHeaderSize, size_ - kHeaderSize);
+  }
+
   SanityCheckResult SanityCheck(Isolate* isolate,
                                 uint32_t expected_source_hash) const;
   // The data header consists of uint32_t-sized entries:
