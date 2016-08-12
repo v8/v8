@@ -766,8 +766,11 @@ Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
 
 Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
                                                    int start_position,
-                                                   int end_position) {
-  if (parser_->fni_ != NULL) parser_->fni_->PushVariableName(name);
+                                                   int end_position,
+                                                   InferName infer) {
+  if (infer == InferName::Yes && parser_->fni_ != NULL) {
+    parser_->fni_->PushVariableName(name);
+  }
   return parser_->NewUnresolved(name, start_position, end_position);
 }
 

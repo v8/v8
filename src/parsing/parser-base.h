@@ -2321,12 +2321,17 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
         accept_IN, &arrow_formals_classifier, CHECK_OK);
   }
 
-  if (is_async && peek_any_identifier() && PeekAhead() == Token::ARROW) {
+  if (is_async && this->IsIdentifier(expression) && peek_any_identifier() &&
+      PeekAhead() == Token::ARROW) {
     // async Identifier => AsyncConciseBody
     IdentifierT name =
         ParseAndClassifyIdentifier(&arrow_formals_classifier, CHECK_OK);
-    expression = this->ExpressionFromIdentifier(name, position(),
-                                                scanner()->location().end_pos);
+    expression = this->ExpressionFromIdentifier(
+        name, position(), scanner()->location().end_pos, InferName::No);
+    if (fni_) {
+      // Remove `async` keyword from inferred name stack.
+      fni_->RemoveAsyncKeywordFromEnd();
+    }
   }
 
   if (peek() == Token::ARROW) {
@@ -2882,10 +2887,13 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         }
         Scanner::Location spread_pos;
         typename Traits::Type::ExpressionList args;
-        if (V8_UNLIKELY(is_async)) {
+        if (V8_UNLIKELY(is_async && this->IsIdentifier(result))) {
           ExpressionClassifier async_classifier(this);
           args = ParseArguments(&spread_pos, true, &async_classifier, CHECK_OK);
           if (peek() == Token::ARROW) {
+            if (fni_) {
+              fni_->RemoveAsyncKeywordFromEnd();
+            }
             ValidateBindingPattern(&async_classifier, CHECK_OK);
             if (!async_classifier.is_valid_async_arrow_formal_parameters()) {
               ReportClassifierError(

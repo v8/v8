@@ -557,7 +557,8 @@ class ParserTraits {
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
                                  AstNodeFactory* factory);
   Expression* ExpressionFromIdentifier(const AstRawString* name,
-                                       int start_position, int end_position);
+                                       int start_position, int end_position,
+                                       InferName = InferName::Yes);
   Expression* ExpressionFromString(int pos, Scanner* scanner,
                                    AstNodeFactory* factory);
   Expression* GetIterator(Expression* iterable, AstNodeFactory* factory,

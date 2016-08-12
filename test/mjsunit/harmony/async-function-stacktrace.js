@@ -83,12 +83,30 @@ async function runTests() {
     try { await reject(); } catch (e) { throw new Error("FAIL"); }
   } }).c4, ["c4"]);
 
-  // TODO(caitp): `async` probably shouldn't be the inferred name for async
-  // arrow functions...
+  // TODO(caitp): We should infer anonymous async functions as the empty
+  // string, not as the name of a function they're passed as a parameter to.
+  await test(async x => { throw new Error("FAIL") },
+             ["test", "test", "runTests"]);
   await test(async() => { throw new Error("FAIL") },
-  ["async", "test", "runTests"]);
+             ["test", "test", "runTests"]);
+  await test(async(a) => { throw new Error("FAIL") },
+             ["test", "test", "runTests"]);
+  await test(async(a, b) => { throw new Error("FAIL") },
+             ["test", "test", "runTests"]);
 
-  await test(async() => { await 1; throw new Error("FAIL") }, ["async"]);
+  await test(async x => { await 1; throw new Error("FAIL") }, ["test"]);
+  await test(async() => { await 1; throw new Error("FAIL") }, ["test"]);
+  await test(async(a) => { await 1; throw new Error("FAIL") }, ["test"]);
+  await test(async(a, b) => { await 1; throw new Error("FAIL") }, ["test"]);
+
+  await test(async x => {
+    await 1;
+    try {
+      await thrower();
+    } catch (e) {
+      throw new Error("FAIL");
+    }
+  }, ["test"]);
 
   await test(async() => {
     await 1;
@@ -97,7 +115,34 @@ async function runTests() {
     } catch (e) {
       throw new Error("FAIL");
     }
-  }, ["async"]);
+  }, ["test"]);
+
+  await test(async(a) => {
+    await 1;
+    try {
+      await thrower();
+    } catch (e) {
+      throw new Error("FAIL");
+    }
+  }, ["test"]);
+
+  await test(async(a, b) => {
+    await 1;
+    try {
+      await thrower();
+    } catch (e) {
+      throw new Error("FAIL");
+    }
+  }, ["test"]);
+
+  await test(async x => {
+    await 1;
+    try {
+      await reject();
+    } catch (e) {
+      throw new Error("FAIL");
+    }
+  }, ["test"]);
 
   await test(async() => {
     await 1;
@@ -106,7 +151,25 @@ async function runTests() {
     } catch (e) {
       throw new Error("FAIL");
     }
-  }, ["async"]);
+  }, ["test"]);
+
+  await test(async(a) => {
+    await 1;
+    try {
+      await reject();
+    } catch (e) {
+      throw new Error("FAIL");
+    }
+  }, ["test"]);
+
+  await test(async(a, b) => {
+    await 1;
+    try {
+      await reject();
+    } catch (e) {
+      throw new Error("FAIL");
+    }
+  }, ["test"]);
 }
 
 runTests().catch(e => {
