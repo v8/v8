@@ -2524,7 +2524,7 @@ EffectControlLinearizer::LowerPlainPrimitiveToNumber(Node* node, Node* effect,
   Node* value = node->InputAt(0);
   Node* result = effect =
       graph()->NewNode(ToNumberOperator(), jsgraph()->ToNumberBuiltinConstant(),
-                       value, jsgraph()->NoContextConstant(), effect, control);
+                       value, jsgraph()->NoContextConstant(), effect);
   return ValueEffectControl(result, effect, control);
 }
 
@@ -2547,7 +2547,7 @@ EffectControlLinearizer::LowerPlainPrimitiveToWord32(Node* node, Node* effect,
   {
     vfalse0 = efalse0 = graph()->NewNode(
         ToNumberOperator(), jsgraph()->ToNumberBuiltinConstant(), value,
-        jsgraph()->NoContextConstant(), efalse0, if_false0);
+        jsgraph()->NoContextConstant(), efalse0);
 
     Node* check1 = ObjectIsSmi(vfalse0);
     Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
@@ -2603,7 +2603,7 @@ EffectControlLinearizer::LowerPlainPrimitiveToFloat64(Node* node, Node* effect,
   {
     vfalse0 = efalse0 = graph()->NewNode(
         ToNumberOperator(), jsgraph()->ToNumberBuiltinConstant(), value,
-        jsgraph()->NoContextConstant(), efalse0, if_false0);
+        jsgraph()->NoContextConstant(), efalse0);
 
     Node* check1 = ObjectIsSmi(vfalse0);
     Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
@@ -3307,7 +3307,7 @@ Operator const* EffectControlLinearizer::ToNumberOperator() {
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0, flags,
-        Operator::kNoThrow);
+        Operator::kEliminatable);
     to_number_operator_.set(common()->Call(desc));
   }
   return to_number_operator_.get();
