@@ -629,6 +629,16 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
       break;
     case FAST_HOLEY_ELEMENTS:
       break;
+    case FAST_DOUBLE_ELEMENTS:
+      access.type = Type::Number();
+      access.write_barrier_kind = kNoWriteBarrier;
+      access.machine_type = MachineType::Float64();
+      break;
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
+      access.type = Type::Number();
+      access.write_barrier_kind = kNoWriteBarrier;
+      access.machine_type = MachineType::Float64();
+      break;
     default:
       UNREACHABLE();
       break;

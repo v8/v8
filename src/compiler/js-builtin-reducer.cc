@@ -245,6 +245,75 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
   return NoChange();
 }
 
+// ES6 section 22.1.3.18 Array.prototype.push ( )
+Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
+  Handle<Map> receiver_map;
+  // We need exactly target, receiver and value parameters.
+  if (node->op()->ValueInputCount() != 3) return NoChange();
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* value = NodeProperties::GetValueInput(node, 2);
+  if (GetMapWitness(node).ToHandle(&receiver_map) &&
+      CanInlineArrayResizeOperation(receiver_map)) {
+    // Install code dependencies on the {receiver} prototype maps and the
+    // global array protector cell.
+    dependencies()->AssumePropertyCell(factory()->array_protector());
+    dependencies()->AssumePrototypeMapsStable(receiver_map);
+
+    // TODO(turbofan): Perform type checks on the {value}. We are not guaranteed
+    // to learn from these checks in case they fail, as the witness (i.e. the
+    // map check from the LoadIC for a.push) might not be executed in baseline
+    // code (after we stored the value in the builtin and thereby changed the
+    // elements kind of a) before be decide to optimize this function again. We
+    // currently don't have a proper way to deal with this; the proper solution
+    // here is to learn on deopt, i.e. disable Array.prototype.push inlining
+    // for this function.
+    if (IsFastSmiElementsKind(receiver_map->elements_kind())) {
+      value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
+                                        value, effect, control);
+    } else if (IsFastDoubleElementsKind(receiver_map->elements_kind())) {
+      value = effect =
+          graph()->NewNode(simplified()->CheckNumber(), value, effect, control);
+      // Make sure we do not store signaling NaNs into double arrays.
+      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+    }
+
+    // Load the "length" property of the {receiver}.
+    Node* length = effect = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForJSArrayLength(receiver_map->elements_kind())),
+        receiver, effect, control);
+
+    // Load the elements backing store of the {receiver}.
+    Node* elements = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
+        effect, control);
+
+    // TODO(turbofan): Check if we need to grow the {elements} backing store.
+    // This will deopt if we cannot grow the array further, and we currently
+    // don't necessarily learn from it. See the comment on the value type check
+    // above.
+    GrowFastElementsFlags flags = GrowFastElementsFlag::kArrayObject;
+    if (IsFastDoubleElementsKind(receiver_map->elements_kind())) {
+      flags |= GrowFastElementsFlag::kDoubleElements;
+    }
+    elements = effect =
+        graph()->NewNode(simplified()->MaybeGrowFastElements(flags), receiver,
+                         elements, length, length, effect, control);
+
+    // Append the value to the {elements}.
+    effect = graph()->NewNode(
+        simplified()->StoreElement(
+            AccessBuilder::ForFixedArrayElement(receiver_map->elements_kind())),
+        elements, length, value, effect, control);
+
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.1 Math.abs ( x )
 Reduction JSBuiltinReducer::ReduceMathAbs(Node* node) {
   JSCallReduction r(node);
@@ -898,6 +967,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
   switch (r.GetBuiltinFunctionId()) {
     case kArrayPop:
       return ReduceArrayPop(node);
+    case kArrayPush:
+      return ReduceArrayPush(node);
     case kMathAbs:
       reduction = ReduceMathAbs(node);
       break;
