@@ -670,10 +670,11 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                             maybe_assigned_flag);
 }
 
-Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name) {
+Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
+                                                 Variable::Kind kind) {
   DCHECK(is_script_scope());
-  return variables_.Declare(zone(), this, name, DYNAMIC_GLOBAL,
-                            Variable::NORMAL, kCreatedInitialized);
+  return variables_.Declare(zone(), this, name, DYNAMIC_GLOBAL, kind,
+                            kCreatedInitialized);
 }
 
 
@@ -1242,16 +1243,15 @@ void Scope::CheckZones() {
 }
 #endif  // DEBUG
 
-
-Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
+Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode,
+                          Variable::Kind kind) {
   if (dynamics_ == NULL) dynamics_ = new (zone()) DynamicScopePart(zone());
   VariableMap* map = dynamics_->GetMap(mode);
   Variable* var = map->Lookup(name);
   if (var == NULL) {
     // Declare a new non-local.
     DCHECK(!IsLexicalVariableMode(mode));
-    var = map->Declare(zone(), NULL, name, mode, Variable::NORMAL,
-                       kCreatedInitialized);
+    var = map->Declare(zone(), NULL, name, mode, kind, kCreatedInitialized);
     // Allocate it by giving it a dynamic lookup.
     var->AllocateTo(VariableLocation::LOOKUP, -1);
   }
@@ -1381,6 +1381,9 @@ void Scope::ResolveTo(ParseInfo* info, BindingKind binding_kind,
   }
 #endif
 
+  // TODO(verwaest): 'this' should always be declared and found. That way we can
+  // remove this workaround.
+  Variable::Kind kind = proxy->is_this() ? Variable::THIS : Variable::NORMAL;
   switch (binding_kind) {
     case BOUND:
       break;
@@ -1391,29 +1394,29 @@ void Scope::ResolveTo(ParseInfo* info, BindingKind binding_kind,
       // scope which was not promoted to a context, this can happen if we use
       // debugger to evaluate arbitrary expressions at a break point).
       if (var->IsGlobalObjectProperty()) {
-        var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL);
+        var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL, kind);
       } else if (var->is_dynamic()) {
-        var = NonLocal(proxy->raw_name(), DYNAMIC);
+        var = NonLocal(proxy->raw_name(), DYNAMIC, kind);
       } else {
         Variable* invalidated = var;
-        var = NonLocal(proxy->raw_name(), DYNAMIC_LOCAL);
+        var = NonLocal(proxy->raw_name(), DYNAMIC_LOCAL, kind);
         var->set_local_if_not_shadowed(invalidated);
       }
       break;
 
     case UNBOUND:
       // No binding has been found. Declare a variable on the global object.
-      var = info->script_scope()->DeclareDynamicGlobal(proxy->raw_name());
+      var = info->script_scope()->DeclareDynamicGlobal(proxy->raw_name(), kind);
       break;
 
     case UNBOUND_EVAL_SHADOWED:
       // No binding has been found. But some scope makes a sloppy 'eval' call.
-      var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL);
+      var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL, kind);
       break;
 
     case DYNAMIC_LOOKUP:
       // The variable could not be resolved statically.
-      var = NonLocal(proxy->raw_name(), DYNAMIC);
+      var = NonLocal(proxy->raw_name(), DYNAMIC, kind);
       break;
   }
 

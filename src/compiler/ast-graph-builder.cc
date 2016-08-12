@@ -2936,12 +2936,10 @@ void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
 void AstGraphBuilder::VisitDelete(UnaryOperation* expr) {
   Node* value;
   if (expr->expression()->IsVariableProxy()) {
-    // Delete of an unqualified identifier is only allowed in classic mode but
-    // deleting "this" is allowed in all language modes.
-    Variable* variable = expr->expression()->AsVariableProxy()->var();
     // Delete of an unqualified identifier is disallowed in strict mode but
     // "delete this" is allowed.
-    DCHECK(is_sloppy(language_mode()) || variable->HasThisName(isolate()));
+    Variable* variable = expr->expression()->AsVariableProxy()->var();
+    DCHECK(is_sloppy(language_mode()) || variable->is_this());
     value = BuildVariableDelete(variable, expr->id(),
                                 ast_context()->GetStateCombine());
   } else if (expr->expression()->IsProperty()) {
@@ -3403,7 +3401,7 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
     case VariableLocation::LOCAL:
     case VariableLocation::CONTEXT: {
       // Local var, const, or let variable or context variable.
-      return jsgraph()->BooleanConstant(variable->HasThisName(isolate()));
+      return jsgraph()->BooleanConstant(variable->is_this());
     }
     case VariableLocation::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).

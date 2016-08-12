@@ -10600,8 +10600,8 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
       // Result of deleting non-global variables is false.  'this' is not really
       // a variable, though we implement it as one.  The subexpression does not
       // have side effects.
-      HValue* value = var->HasThisName(isolate()) ? graph()->GetConstantTrue()
-                                                  : graph()->GetConstantFalse();
+      HValue* value = var->is_this() ? graph()->GetConstantTrue()
+                                     : graph()->GetConstantFalse();
       return ast_context()->ReturnValue(value);
     } else {
       Bailout(kDeleteWithNonGlobalVariable);

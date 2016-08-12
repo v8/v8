@@ -522,7 +522,8 @@ class Scope: public ZoneObject {
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
-  Variable* NonLocal(const AstRawString* name, VariableMode mode);
+  Variable* NonLocal(const AstRawString* name, VariableMode mode,
+                     Variable::Kind variable_kind);
 
   // Variable resolution.
   // Possible results of a recursive variable lookup telling if and how a
@@ -707,7 +708,8 @@ class DeclarationScope : public Scope {
   // script scope.  The variable was introduced (possibly from an inner
   // scope) by a reference to an unresolved variable with no intervening
   // with statements or eval calls.
-  Variable* DeclareDynamicGlobal(const AstRawString* name);
+  Variable* DeclareDynamicGlobal(const AstRawString* name,
+                                 Variable::Kind variable_kind);
 
   // The variable corresponding to the 'this' value.
   Variable* receiver() {

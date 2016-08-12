@@ -2761,9 +2761,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
     // not allowed in strict mode. Deleting 'this' is allowed in both modes.
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
     Variable* variable = proxy->var();
-    DCHECK(
-        is_sloppy(language_mode()) ||
-        variable->HasThisName(isolate(), HandleDereferenceMode::kDisallowed));
+    DCHECK(is_sloppy(language_mode()) || variable->is_this());
     switch (variable->location()) {
       case VariableLocation::GLOBAL:
       case VariableLocation::UNALLOCATED: {
@@ -2785,8 +2783,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
       case VariableLocation::CONTEXT: {
         // Deleting local var/let/const, context variables, and arguments
         // does not have any effect.
-        if (variable->HasThisName(isolate(),
-                                  HandleDereferenceMode::kDisallowed)) {
+        if (variable->is_this()) {
           builder()->LoadTrue();
         } else {
           builder()->LoadFalse();

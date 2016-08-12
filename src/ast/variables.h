@@ -82,22 +82,6 @@ class Variable: public ZoneObject {
   bool is_this() const { return kind_ == THIS; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
 
-  // For script scopes, the "this" binding is provided by a ScriptContext added
-  // to the global's ScriptContextTable.  This binding might not statically
-  // resolve to a Variable::THIS binding, instead being DYNAMIC_LOCAL.  However
-  // any variable named "this" does indeed refer to a Variable::THIS binding;
-  // the grammar ensures this to be the case.  So wherever a "this" binding
-  // might be provided by the global, use HasThisName instead of is_this().
-  bool HasThisName(Isolate* isolate,
-                   HandleDereferenceMode deref_mode =
-                       HandleDereferenceMode::kAllowed) const {
-    // Note: it is safe to dereference isolate->factory()->this_string() here
-    // regardless of |deref_mode| because it is a constant root and so will
-    // never be updated or moved.
-    return is_this() ||
-           name_is_identical_to(isolate->factory()->this_string(), deref_mode);
-  }
-
   // True if the variable is named eval and not known to be shadowed.
   bool is_possibly_eval(Isolate* isolate,
                         HandleDereferenceMode deref_mode =
