@@ -199,6 +199,9 @@
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
+
+  # BUG(5193): Flaky timeout.
+  'test-sampler/LibSamplerCollectSample': [PASS, ['arch == x64', SKIP]],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -337,6 +340,12 @@
 }],  # variant == turbofan
 
 ##############################################################################
+['variant == turbofan_opt', {
+  # BUG(5193): Flaky.
+  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
+}],  # variant == turbofan_opt
+
+##############################################################################
 ['variant == ignition', {
   # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
   'test-heap/TestCodeFlushingPreAged': [FAIL],
@@ -387,6 +396,9 @@
   # TurboFan cpu profiler result is different.
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
+
+  # BUG(5193): Flaky.
+  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition
 
 ##############################################################################
@@ -438,6 +450,9 @@
   'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
   'test-run-inlining/SimpleInliningContext': [FAIL],
   'test-run-inlining/SimpleInlining': [FAIL],
+
+  # BUG(5193): Flaky.
+  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition_staging
 
 ##############################################################################
@@ -517,6 +532,9 @@
   # TurboFan cpu profiler result is different.
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
+
+  # BUG(5193): Flaky.
+  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition_turbofan
 
 ]
