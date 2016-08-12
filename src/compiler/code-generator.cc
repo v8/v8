@@ -32,44 +32,48 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
-                             InstructionSequence* code, CompilationInfo* info)
+CodeGenerator::CodeGenerator(Zone* zone, CompilationInfo* info)
     : frame_access_state_(nullptr),
-      linkage_(linkage),
-      code_(code),
-      unwinding_info_writer_(zone()),
+      linkage_(nullptr),
+      code_(nullptr),
+      unwinding_info_writer_(zone),
       info_(info),
-      labels_(zone()->NewArray<Label>(code->InstructionBlockCount())),
+      labels_(nullptr),
       current_block_(RpoNumber::Invalid()),
       current_source_position_(SourcePosition::Unknown()),
       masm_(info->isolate(), nullptr, 0, CodeObjectRequired::kNo),
       resolver_(this),
-      safepoints_(code->zone()),
-      handlers_(code->zone()),
-      deoptimization_exits_(code->zone()),
-      deoptimization_states_(code->zone()),
-      deoptimization_literals_(code->zone()),
+      safepoints_(zone),
+      handlers_(zone),
+      deoptimization_exits_(zone),
+      deoptimization_states_(zone),
+      deoptimization_literals_(zone),
       inlined_function_count_(0),
-      translations_(code->zone()),
+      translations_(zone),
       last_lazy_deopt_pc_(0),
       jump_tables_(nullptr),
       ools_(nullptr),
       osr_pc_offset_(-1),
-      source_position_table_builder_(info->isolate(), code->zone(),
-                                     info->SourcePositionRecordingMode()) {
+      source_position_table_builder_(info->isolate(), zone,
+                                     info->SourcePositionRecordingMode()),
+      assemble_code_successful_(false) {}
+
+void CodeGenerator::Initialize(Frame* frame, Linkage* linkage,
+                               InstructionSequence* code) {
+  linkage_ = linkage;
+  code_ = code;
+  labels_ = zone()->NewArray<Label>(code->InstructionBlockCount());
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
-  CreateFrameAccessState(frame);
-}
 
-void CodeGenerator::CreateFrameAccessState(Frame* frame) {
+  // Create the FrameAccessState object. The Frame is immutable from here on.
   FinishFrame(frame);
-  frame_access_state_ = new (code()->zone()) FrameAccessState(frame);
+  frame_access_state_ = new (code->zone()) FrameAccessState(frame);
 }
 
-Handle<Code> CodeGenerator::GenerateCode() {
-  CompilationInfo* info = this->info();
+bool CodeGenerator::AssembleCode() {
+  DCHECK(!assemble_code_successful());
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
@@ -81,13 +85,13 @@ Handle<Code> CodeGenerator::GenerateCode() {
     ProfileEntryHookStub::MaybeCallEntryHook(masm());
   }
   // Architecture-specific, linkage-specific prologue.
-  info->set_prologue_offset(masm()->pc_offset());
+  info()->set_prologue_offset(masm()->pc_offset());
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
   for (const CompilationInfo::InlinedFunctionHolder& inlined :
-       info->inlined_functions()) {
-    if (!inlined.shared_info.is_identical_to(info->shared_info())) {
+       info()->inlined_functions()) {
+    if (!inlined.shared_info.is_identical_to(info()->shared_info())) {
       DefineDeoptimizationLiteral(inlined.shared_info);
     }
   }
@@ -96,8 +100,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
   // Define deoptimization literals for all unoptimized code objects of inlined
   // functions. This ensures unoptimized code is kept alive by optimized code.
   for (const CompilationInfo::InlinedFunctionHolder& inlined :
-       info->inlined_functions()) {
-    if (!inlined.shared_info.is_identical_to(info->shared_info())) {
+       info()->inlined_functions()) {
+    if (!inlined.shared_info.is_identical_to(info()->shared_info())) {
       DefineDeoptimizationLiteral(inlined.inlined_code_object_root);
     }
   }
@@ -167,9 +171,21 @@ Handle<Code> CodeGenerator::GenerateCode() {
       } else {
         result = AssembleBlock(block);
       }
-      if (result != kSuccess) return Handle<Code>();
+      if (result != kSuccess) {
+        assemble_code_successful_ = false;
+        return false;
+      }
       unwinding_info_writer_.EndInstructionBlock(block);
     }
+  }
+
+  assemble_code_successful_ = true;
+  return true;
+}
+
+Handle<Code> CodeGenerator::FinishCodeObject() {
+  if (!assemble_code_successful_) {
+    return Handle<Code>::null();
   }
 
   // Assemble all out-of-line code.
@@ -189,7 +205,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   }
 
   // Ensure there is space for lazy deoptimization in the code.
-  if (info->ShouldEnsureSpaceForLazyDeopt()) {
+  if (info()->ShouldEnsureSpaceForLazyDeopt()) {
     int target_offset = masm()->pc_offset() + Deoptimizer::patch_size();
     while (masm()->pc_offset() < target_offset) {
       masm()->nop();
@@ -212,7 +228,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
   unwinding_info_writer_.Finish(masm()->pc_offset());
 
   Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
-      masm(), unwinding_info_writer_.eh_frame_writer(), info, Handle<Object>());
+      masm(), unwinding_info_writer_.eh_frame_writer(), info(),
+      Handle<Object>());
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
@@ -237,13 +254,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
   PopulateDeoptimizationData(result);
 
   // Ensure there is space for lazy deoptimization in the relocation info.
-  if (info->ShouldEnsureSpaceForLazyDeopt()) {
+  if (info()->ShouldEnsureSpaceForLazyDeopt()) {
     Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(result);
   }
 
   return result;
 }
-
 
 bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
   return code()
