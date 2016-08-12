@@ -310,7 +310,9 @@ void IncrementalMarking::IterateBlackObject(HeapObject* object) {
       // IterateBlackObject requires us to visit the whole object.
       page->ResetProgressBar();
     }
-    IncrementalMarkingMarkingVisitor::IterateBody(object->map(), object);
+    Map* map = object->map();
+    MarkGrey(heap_, map);
+    IncrementalMarkingMarkingVisitor::IterateBody(map, object);
   }
 }
 
