@@ -66,12 +66,11 @@ MaterializedLiteral* AstNode::AsMaterializedLiteral() {
 #undef RETURN_NODE
 
 bool Expression::IsSmiLiteral() const {
-  return IsLiteral() && AsLiteral()->value()->IsSmi();
+  return IsLiteral() && AsLiteral()->raw_value()->IsSmi();
 }
 
-
 bool Expression::IsStringLiteral() const {
-  return IsLiteral() && AsLiteral()->value()->IsString();
+  return IsLiteral() && AsLiteral()->raw_value()->IsString();
 }
 
 bool Expression::IsPropertyName() const {
