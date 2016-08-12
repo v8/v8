@@ -2082,7 +2082,7 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
                                        CodeStubAssembler::SMI_PARAMETERS);
 
   // Check if we can use the for-in fast path potentially using the enum cache.
-  Label if_fast(assembler), if_slow(assembler);
+  Label if_fast(assembler), if_slow(assembler, Label::kDeferred);
   Node* receiver_map = __ LoadObjectField(receiver, HeapObject::kMapOffset);
   __ BranchIfWordEqual(receiver_map, cache_type, &if_fast, &if_slow);
   __ Bind(&if_fast);
@@ -2103,7 +2103,8 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
 
     // Need to filter the {key} for the {receiver}.
     Node* context = __ GetContext();
-    Node* result = ForInFilterStub::Generate(assembler, key, receiver, context);
+    Callable callable = CodeFactory::ForInFilter(assembler->isolate());
+    Node* result = __ CallStub(callable, context, key, receiver);
     __ SetAccumulator(result);
     __ Dispatch();
   }
