@@ -89,13 +89,10 @@ class PipelineData {
         outer_zone_(info_->zone()),
         zone_pool_(zone_pool),
         pipeline_statistics_(pipeline_statistics),
-        code_generator_(info->zone(), info),
         graph_zone_scope_(zone_pool_),
         graph_zone_(graph_zone_scope_.zone()),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(instruction_zone_scope_.zone()),
-        sequence_(nullptr),
-        frame_(nullptr),
         register_allocation_zone_scope_(zone_pool_),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
     PhaseScope scope(pipeline_statistics, "init pipeline data");
@@ -119,14 +116,11 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_pool_(zone_pool),
-        code_generator_(info->zone(), info),
         graph_zone_scope_(zone_pool_),
         graph_(graph),
         source_positions_(source_positions),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(instruction_zone_scope_.zone()),
-        sequence_(nullptr),
-        frame_(nullptr),
         register_allocation_zone_scope_(zone_pool_),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
 
@@ -137,15 +131,12 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_pool_(zone_pool),
-        code_generator_(info->zone(), info),
         graph_zone_scope_(zone_pool_),
         graph_(graph),
         source_positions_(new (info->zone()) SourcePositionTable(graph_)),
         schedule_(schedule),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(instruction_zone_scope_.zone()),
-        sequence_(nullptr),
-        frame_(nullptr),
         register_allocation_zone_scope_(zone_pool_),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
 
@@ -156,12 +147,10 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_pool_(zone_pool),
-        code_generator_(info->zone(), info),
         graph_zone_scope_(zone_pool_),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(sequence->zone()),
         sequence_(sequence),
-        frame_(nullptr),
         register_allocation_zone_scope_(zone_pool_),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
 
@@ -222,10 +211,6 @@ class PipelineData {
   Zone* instruction_zone() const { return instruction_zone_; }
   InstructionSequence* sequence() const { return sequence_; }
   Frame* frame() const { return frame_; }
-  CodeGenerator* code_generator() { return &code_generator_; }
-  bool assemble_code_successful() {
-    return code_generator_.assemble_code_successful();
-  }
 
   Zone* register_allocation_zone() const { return register_allocation_zone_; }
   RegisterAllocationData* register_allocation_data() const {
@@ -328,7 +313,6 @@ class PipelineData {
   PipelineStatistics* pipeline_statistics_ = nullptr;
   bool compilation_failed_ = false;
   Handle<Code> code_ = Handle<Code>::null();
-  CodeGenerator code_generator_;
 
   // All objects in the following group of fields are allocated in graph_zone_.
   // They are all set to nullptr when the graph_zone_ is destroyed.
@@ -347,11 +331,12 @@ class PipelineData {
 
   // All objects in the following group of fields are allocated in
   // instruction_zone_.  They are all set to nullptr when the instruction_zone_
-  // is destroyed.
+  // is
+  // destroyed.
   ZonePool::Scope instruction_zone_scope_;
   Zone* instruction_zone_;
-  InstructionSequence* sequence_;
-  Frame* frame_;
+  InstructionSequence* sequence_ = nullptr;
+  Frame* frame_ = nullptr;
 
   // All objects in the following group of fields are allocated in
   // register_allocation_zone_.  They are all set to nullptr when the zone is
@@ -398,8 +383,7 @@ class PipelineImpl final {
   bool OptimizeGraph(Linkage* linkage);
 
   // Perform the actual code generation and return handle to a code object.
-  bool AssembleCode(Linkage* linkage);
-  Handle<Code> FinishCodeObject();
+  Handle<Code> GenerateCode(Linkage* linkage);
 
   bool ScheduleAndSelectInstructions(Linkage* linkage);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
@@ -655,8 +639,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::OptimizeGraphImpl() {
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
-  pipeline_.AssembleCode(linkage_);
-  Handle<Code> code = pipeline_.FinishCodeObject();
+  Handle<Code> code = pipeline_.GenerateCode(linkage_);
   if (code.is_null()) {
     if (info()->bailout_reason() == kNoReason) {
       return AbortOptimization(kCodeGenerationFailed);
@@ -716,8 +699,7 @@ PipelineWasmCompilationJob::OptimizeGraphImpl() {
 
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::GenerateCodeImpl() {
-  pipeline_.AssembleCode(&linkage_);
-  pipeline_.FinishCodeObject();
+  pipeline_.GenerateCode(&linkage_);
   return SUCCEEDED;
 }
 
@@ -1415,23 +1397,17 @@ struct JumpThreadingPhase {
   }
 };
 
-struct AssembleCodePhase {
+
+struct GenerateCodePhase {
   static const char* phase_name() { return "generate code"; }
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    data->code_generator()->Initialize(data->frame(), linkage,
-                                       data->sequence());
-    data->code_generator()->AssembleCode();
+    CodeGenerator generator(data->frame(), linkage, data->sequence(),
+                            data->info());
+    data->set_code(generator.GenerateCode());
   }
 };
 
-struct FinishCodeObjectPhase {
-  static const char* phase_name() { return "generate code"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    data->set_code(data->code_generator()->FinishCodeObject());
-  }
-};
 
 struct PrintGraphPhase {
   static const char* phase_name() { return nullptr; }
@@ -1684,8 +1660,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info) {
 
   if (!pipeline.CreateGraph()) return Handle<Code>::null();
   if (!pipeline.OptimizeGraph(&linkage)) return Handle<Code>::null();
-  pipeline.AssembleCode(&linkage);
-  return pipeline.FinishCodeObject();
+  return pipeline.GenerateCode(&linkage);
 }
 
 // static
@@ -1813,23 +1788,13 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage) {
   return true;
 }
 
-bool PipelineImpl::AssembleCode(Linkage* linkage) {
+Handle<Code> PipelineImpl::GenerateCode(Linkage* linkage) {
   PipelineData* data = this->data_;
 
-  data->BeginPhaseKind("assemble code");
+  data->BeginPhaseKind("code generation");
 
-  // Assemble machine code.
-  Run<AssembleCodePhase>(linkage);
-  return data->assemble_code_successful();
-}
-
-Handle<Code> PipelineImpl::FinishCodeObject() {
-  PipelineData* data = this->data_;
-
-  data->BeginPhaseKind("finish code generation");
-
-  // Generate final code object.
-  Run<FinishCodeObjectPhase>();
+  // Generate final machine code.
+  Run<GenerateCodePhase>(linkage);
 
   Handle<Code> code = data->code();
   if (data->profiler_data()) {
@@ -1876,8 +1841,7 @@ Handle<Code> PipelineImpl::ScheduleAndGenerateCode(
   if (!ScheduleAndSelectInstructions(&linkage)) return Handle<Code>();
 
   // Generate the final machine code.
-  AssembleCode(&linkage);
-  return FinishCodeObject();
+  return GenerateCode(&linkage);
 }
 
 void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,

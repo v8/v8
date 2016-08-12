@@ -48,24 +48,17 @@ class InstructionOperandIterator {
 // Generates native code for a sequence of instructions.
 class CodeGenerator final : public GapResolver::Assembler {
  public:
-  CodeGenerator(Zone* zone, CompilationInfo* info);
+  explicit CodeGenerator(Frame* frame, Linkage* linkage,
+                         InstructionSequence* code, CompilationInfo* info);
 
-  // Initialize before calling AssembleCode or FinishCodeObject.
-  void Initialize(Frame* frame, Linkage* linkage, InstructionSequence* code);
-
-  // Generate native code. This function can be run off the main thread.
-  bool AssembleCode();
-
-  // Finishes the code object generated in AssembleCode. This function returns
-  // an empty handle if AssembleCode() fails or has not been called.
-  Handle<Code> FinishCodeObject();
+  // Generate native code.
+  Handle<Code> GenerateCode();
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
   const Frame* frame() const { return frame_access_state_->frame(); }
   Isolate* isolate() const { return info_->isolate(); }
   Linkage* linkage() const { return linkage_; }
-  bool assemble_code_successful() { return assemble_code_successful_; }
 
   Label* GetLabel(RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
 
@@ -75,6 +68,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   SafepointTableBuilder* safepoints() { return &safepoints_; }
   Zone* zone() const { return code()->zone(); }
   CompilationInfo* info() const { return info_; }
+
+  // Create the FrameAccessState object. The Frame is immutable from here on.
+  void CreateFrameAccessState(Frame* frame);
 
   // Architecture - specific frame finalization.
   void FinishFrame(Frame* frame);
@@ -261,11 +257,11 @@ class CodeGenerator final : public GapResolver::Assembler {
   friend class OutOfLineCode;
 
   FrameAccessState* frame_access_state_;
-  Linkage* linkage_;
-  InstructionSequence* code_;
+  Linkage* const linkage_;
+  InstructionSequence* const code_;
   UnwindingInfoWriter unwinding_info_writer_;
   CompilationInfo* const info_;
-  Label* labels_;
+  Label* const labels_;
   Label return_label_;
   RpoNumber current_block_;
   SourcePosition current_source_position_;
@@ -283,7 +279,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   OutOfLineCode* ools_;
   int osr_pc_offset_;
   SourcePositionTableBuilder source_position_table_builder_;
-  bool assemble_code_successful_;
 };
 
 }  // namespace compiler
