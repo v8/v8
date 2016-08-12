@@ -4286,6 +4286,31 @@ TEST_F(InstructionSelectorTest, Float64Neg) {
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
 
+TEST_F(InstructionSelectorTest, LoadAndShiftRight) {
+  {
+    int32_t immediates[] = {-256, -255, -3,   -2,   -1,    0,    1,
+                            2,    3,    255,  256,  260,   4096, 4100,
+                            8192, 8196, 3276, 3280, 16376, 16380};
+    TRACED_FOREACH(int32_t, index, immediates) {
+      StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer());
+      Node* const load = m.Load(MachineType::Uint64(), m.Parameter(0),
+                                m.Int32Constant(index - 4));
+      Node* const sar = m.Word64Sar(load, m.Int32Constant(32));
+      // Make sure we don't fold the shift into the following add:
+      m.Return(m.Int64Add(sar, m.Parameter(0)));
+      Stream s = m.Build();
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kArm64Ldrsw, s[0]->arch_opcode());
+      EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+      EXPECT_EQ(2U, s[0]->InputCount());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+      ASSERT_EQ(1U, s[0]->OutputCount());
+    }
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
