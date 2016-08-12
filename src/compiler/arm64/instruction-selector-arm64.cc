@@ -1671,18 +1671,9 @@ void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
   Node* value = node->InputAt(0);
-  if (CanCover(node, value) && value->InputCount() >= 2) {
-    Int64BinopMatcher m(value);
-    if ((m.IsWord64Sar() && m.right().HasValue() &&
-         (m.right().Value() == 32)) ||
-        (m.IsWord64Shr() && m.right().IsInRange(32, 63))) {
-      Emit(kArm64Lsr, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.UseImmediate(m.right().node()));
-      return;
-    }
-  }
-
-  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  // The top 32 bits in the 64-bit register will be undefined, and
+  // must not be used by a dependent node.
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.UseRegister(value));
 }
 
 

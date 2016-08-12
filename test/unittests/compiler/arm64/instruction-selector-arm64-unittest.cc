@@ -314,7 +314,7 @@ const Conversion kConversionInstructions[] = {
       kArm64Mov32, MachineType::Uint64()},
      MachineType::Uint32()},
     {{&RawMachineAssembler::TruncateInt64ToInt32, "TruncateInt64ToInt32",
-      kArm64Mov32, MachineType::Int32()},
+      kArchNop, MachineType::Int32()},
      MachineType::Int64()},
     {{&RawMachineAssembler::ChangeInt32ToFloat64, "ChangeInt32ToFloat64",
       kArm64Int32ToFloat64, MachineType::Float64()},
@@ -1799,12 +1799,11 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Sar) {
   m.Return(t);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Lsr, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Asr, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p), s.ToVreg(s[0]->InputAt(0)));
   EXPECT_EQ(32, s.ToInt64(s[0]->InputAt(1)));
   ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(t), s.ToVreg(s[0]->OutputAt(0)));
 }
 
 
@@ -1821,7 +1820,6 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Shr) {
     EXPECT_EQ(s.ToVreg(p), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(x, s.ToInt64(s[0]->InputAt(1)));
     ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(t), s.ToVreg(s[0]->OutputAt(0)));
   }
 }
 
@@ -2319,6 +2317,10 @@ TEST_P(InstructionSelectorConversionTest, Parameter) {
   StreamBuilder m(this, conv.mi.machine_type, conv.src_machine_type);
   m.Return((m.*conv.mi.constructor)(m.Parameter(0)));
   Stream s = m.Build();
+  if (conv.mi.arch_opcode == kArchNop) {
+    ASSERT_EQ(0U, s.size());
+    return;
+  }
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(conv.mi.arch_opcode, s[0]->arch_opcode());
   EXPECT_EQ(1U, s[0]->InputCount());
