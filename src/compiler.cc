@@ -1033,6 +1033,12 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     return Handle<Code>(function->shared()->code());
   }
 
+  if (function->shared()->HasBytecodeArray()) {
+    Handle<Code> entry = isolate->builtins()->InterpreterEntryTrampoline();
+    function->shared()->ReplaceCode(*entry);
+    return entry;
+  }
+
   Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info, function);
