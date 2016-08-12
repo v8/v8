@@ -393,6 +393,11 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
   if (Node* const object_map = state->LookupField(object, 0)) {
+    if (target_map == object_map) {
+      // The {object} already has the {target_map}, so this TransitionElements
+      // {node} is fully redundant (independent of what {source_map} is).
+      return Replace(effect);
+    }
     state = state->KillField(object, 0, zone());
     if (source_map == object_map) {
       state = state->AddField(object, 0, target_map, zone());
