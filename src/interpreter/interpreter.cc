@@ -811,25 +811,97 @@ void Interpreter::DoMod(InterpreterAssembler* assembler) {
   DoBinaryOpWithFeedback<ModulusWithFeedbackStub>(assembler);
 }
 
+void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
+                                    InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+
+  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32),
+      var_rhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, lhs, &var_lhs_type_feedback);
+  Node* rhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, rhs, &var_rhs_type_feedback);
+  Node* result = nullptr;
+
+  switch (bitwise_op) {
+    case Token::BIT_OR: {
+      Node* value = __ Word32Or(lhs_value, rhs_value);
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    case Token::BIT_AND: {
+      Node* value = __ Word32And(lhs_value, rhs_value);
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    case Token::BIT_XOR: {
+      Node* value = __ Word32Xor(lhs_value, rhs_value);
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    case Token::SHL: {
+      Node* value = __ Word32Shl(
+          lhs_value, __ Word32And(rhs_value, __ Int32Constant(0x1f)));
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    case Token::SHR: {
+      Node* value = __ Word32Shr(
+          lhs_value, __ Word32And(rhs_value, __ Int32Constant(0x1f)));
+      result = __ ChangeUint32ToTagged(value);
+    } break;
+    case Token::SAR: {
+      Node* value = __ Word32Sar(
+          lhs_value, __ Word32And(rhs_value, __ Int32Constant(0x1f)));
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    default:
+      UNREACHABLE();
+  }
+
+  Node* result_type =
+      __ Select(__ WordIsSmi(result),
+                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+                __ Int32Constant(BinaryOperationFeedback::kNumber));
+
+  if (FLAG_debug_code) {
+    Label ok(assembler);
+    __ GotoIf(__ WordIsSmi(result), &ok);
+    Node* result_map = __ LoadMap(result);
+    __ AbortIfWordNotEqual(result_map, __ HeapNumberMapConstant(),
+                           kExpectedHeapNumber);
+    __ Goto(&ok);
+    __ Bind(&ok);
+  }
+
+  Node* input_feedback =
+      __ Word32Or(var_lhs_type_feedback.value(), var_rhs_type_feedback.value());
+  __ UpdateFeedback(__ Word32Or(result_type, input_feedback),
+                    type_feedback_vector, slot_index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
 // BitwiseOr <src>
 //
 // BitwiseOr register <src> to accumulator.
 void Interpreter::DoBitwiseOr(InterpreterAssembler* assembler) {
-  DoBinaryOp<BitwiseOrStub>(assembler);
+  DoBitwiseBinaryOp(Token::BIT_OR, assembler);
 }
 
 // BitwiseXor <src>
 //
 // BitwiseXor register <src> to accumulator.
 void Interpreter::DoBitwiseXor(InterpreterAssembler* assembler) {
-  DoBinaryOp<BitwiseXorStub>(assembler);
+  DoBitwiseBinaryOp(Token::BIT_XOR, assembler);
 }
 
 // BitwiseAnd <src>
 //
 // BitwiseAnd register <src> to accumulator.
 void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
-  DoBinaryOp<BitwiseAndStub>(assembler);
+  DoBitwiseBinaryOp(Token::BIT_AND, assembler);
 }
 
 // ShiftLeft <src>
@@ -839,7 +911,7 @@ void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
 // before the operation. 5 lsb bits from the accumulator are used as count
 // i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
-  DoBinaryOp<ShiftLeftStub>(assembler);
+  DoBitwiseBinaryOp(Token::SHL, assembler);
 }
 
 // ShiftRight <src>
@@ -849,7 +921,7 @@ void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
 // accumulator to uint32 before the operation. 5 lsb bits from the accumulator
 // are used as count i.e. <src> >> (accumulator & 0x1F).
 void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
-  DoBinaryOp<ShiftRightStub>(assembler);
+  DoBitwiseBinaryOp(Token::SAR, assembler);
 }
 
 // ShiftRightLogical <src>
@@ -859,7 +931,7 @@ void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
 // uint32 before the operation 5 lsb bits from the accumulator are used as
 // count i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftRightLogical(InterpreterAssembler* assembler) {
-  DoBinaryOp<ShiftRightLogicalStub>(assembler);
+  DoBitwiseBinaryOp(Token::SHR, assembler);
 }
 
 // AddSmi <imm> <reg>

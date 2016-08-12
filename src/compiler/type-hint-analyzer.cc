@@ -136,7 +136,7 @@ TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
 BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
   switch (type_feedback) {
     case BinaryOperationFeedback::kSignedSmall:
-      return BinaryOperationHint::kSigned32;
+      return BinaryOperationHint::kSignedSmall;
     case BinaryOperationFeedback::kNumber:
       return BinaryOperationHint::kNumberOrOddball;
     case BinaryOperationFeedback::kAny:

@@ -1186,8 +1186,7 @@ BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint() {
 }
 
 void BytecodeGraphBuilder::VisitAdd() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->Add(hint));
+  BuildBinaryOp(javascript()->Add(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitSub() {
@@ -1195,48 +1194,39 @@ void BytecodeGraphBuilder::VisitSub() {
 }
 
 void BytecodeGraphBuilder::VisitMul() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->Multiply(hint));
+  BuildBinaryOp(javascript()->Multiply(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitDiv() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->Divide(hint));
+  BuildBinaryOp(javascript()->Divide(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitMod() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->Modulus(hint));
+  BuildBinaryOp(javascript()->Modulus(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOr() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->BitwiseOr(hint));
+  BuildBinaryOp(javascript()->BitwiseOr(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseXor() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->BitwiseXor(hint));
+  BuildBinaryOp(javascript()->BitwiseXor(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseAnd() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->BitwiseAnd(hint));
+  BuildBinaryOp(javascript()->BitwiseAnd(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitShiftLeft() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->ShiftLeft(hint));
+  BuildBinaryOp(javascript()->ShiftLeft(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitShiftRight() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->ShiftRight(hint));
+  BuildBinaryOp(javascript()->ShiftRight(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitShiftRightLogical() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOp(javascript()->ShiftRightLogical(hint));
+  BuildBinaryOp(javascript()->ShiftRightLogical(GetBinaryOperationHint()));
 }
 
 void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* js_op) {
