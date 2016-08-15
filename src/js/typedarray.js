@@ -28,9 +28,7 @@ var InnerArrayFilter;
 var InnerArrayFind;
 var InnerArrayFindIndex;
 var InnerArrayForEach;
-var InnerArrayIndexOf;
 var InnerArrayJoin;
-var InnerArrayLastIndexOf;
 var InnerArrayReduce;
 var InnerArrayReduceRight;
 var InnerArraySome;
@@ -79,9 +77,7 @@ utils.Import(function(from) {
   InnerArrayFind = from.InnerArrayFind;
   InnerArrayFindIndex = from.InnerArrayFindIndex;
   InnerArrayForEach = from.InnerArrayForEach;
-  InnerArrayIndexOf = from.InnerArrayIndexOf;
   InnerArrayJoin = from.InnerArrayJoin;
-  InnerArrayLastIndexOf = from.InnerArrayLastIndexOf;
   InnerArrayReduce = from.InnerArrayReduce;
   InnerArrayReduceRight = from.InnerArrayReduceRight;
   InnerArraySome = from.InnerArraySome;
@@ -572,7 +568,31 @@ function TypedArrayIndexOf(element, index) {
   if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
-  return InnerArrayIndexOf(this, element, index, length);
+
+  if (length === 0) return -1;
+  if (!IS_NUMBER(element)) return -1;
+  var n = TO_INTEGER(index);
+
+  var k;
+  if (n === 0) {
+    k = 0;
+  } else if (n > 0) {
+    k = n;
+  } else {
+    k = length + n;
+    if (k < 0) {
+      k = 0;
+    }
+  }
+
+  while (k < length) {
+    var elementK = this[k];
+    if (element === elementK) {
+      return k;
+    }
+    ++k;
+  }
+  return -1;
 }
 %FunctionSetLength(TypedArrayIndexOf, 1);
 
@@ -583,8 +603,36 @@ function TypedArrayLastIndexOf(element, index) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayLastIndexOf(this, element, index, length,
-                               arguments.length);
+  if (length === 0) return -1;
+  if (!IS_NUMBER(element)) return -1;
+  var n;
+  if (arguments.length < 2) {
+    n = length - 1;
+  } else {
+    n = TO_INTEGER(index);
+  }
+
+  var k;
+  if (n >= 0) {
+    if (length <= n) {
+      k = length - 1;
+    } else if (n === 0) {
+      k = 0;
+    } else {
+      k = n;
+    }
+  } else {
+    k = length + n;
+  }
+
+  while (k >= 0) {
+    var elementK = this[k];
+    if (element === elementK) {
+      return k;
+    }
+    --k;
+  }
+  return -1;
 }
 %FunctionSetLength(TypedArrayLastIndexOf, 1);
 
