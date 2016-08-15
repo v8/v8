@@ -83,8 +83,8 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
       last_side_effect_instr_(nullptr),
       pending_loads_(zone),
       last_live_in_reg_marker_(nullptr),
-      last_deopt_(nullptr) {
-}
+      last_deopt_(nullptr),
+      operands_map_(zone) {}
 
 
 void InstructionScheduler::StartBlock(RpoNumber rpo) {
@@ -93,6 +93,7 @@ void InstructionScheduler::StartBlock(RpoNumber rpo) {
   DCHECK(pending_loads_.empty());
   DCHECK(last_live_in_reg_marker_ == nullptr);
   DCHECK(last_deopt_ == nullptr);
+  DCHECK(operands_map_.empty());
   sequence()->StartBlock(rpo);
 }
 
@@ -109,6 +110,7 @@ void InstructionScheduler::EndBlock(RpoNumber rpo) {
   pending_loads_.clear();
   last_live_in_reg_marker_ = nullptr;
   last_deopt_ = nullptr;
+  operands_map_.clear();
 }
 
 
@@ -165,9 +167,26 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
     }
 
     // Look for operand dependencies.
-    for (ScheduleGraphNode* node : graph_) {
-      if (HasOperandDependency(node->instruction(), instr)) {
-        node->AddSuccessor(new_node);
+    for (size_t i = 0; i < instr->InputCount(); ++i) {
+      const InstructionOperand* input = instr->InputAt(i);
+      if (input->IsUnallocated()) {
+        int32_t vreg = UnallocatedOperand::cast(input)->virtual_register();
+        auto it = operands_map_.find(vreg);
+        if (it != operands_map_.end()) {
+          it->second->AddSuccessor(new_node);
+        }
+      }
+    }
+
+    // Record the virtual registers defined by this instruction.
+    for (size_t i = 0; i < instr->OutputCount(); ++i) {
+      const InstructionOperand* output = instr->OutputAt(i);
+      if (output->IsUnallocated()) {
+        operands_map_[UnallocatedOperand::cast(output)->virtual_register()] =
+            new_node;
+      } else if (output->IsConstant()) {
+        operands_map_[ConstantOperand::cast(output)->virtual_register()] =
+            new_node;
       }
     }
   }
@@ -314,33 +333,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 
   UNREACHABLE();
   return kNoOpcodeFlags;
-}
-
-
-bool InstructionScheduler::HasOperandDependency(
-    const Instruction* instr1, const Instruction* instr2) const {
-  for (size_t i = 0; i < instr1->OutputCount(); ++i) {
-    for (size_t j = 0; j < instr2->InputCount(); ++j) {
-      const InstructionOperand* output = instr1->OutputAt(i);
-      const InstructionOperand* input = instr2->InputAt(j);
-
-      if (output->IsUnallocated() && input->IsUnallocated() &&
-          (UnallocatedOperand::cast(output)->virtual_register() ==
-           UnallocatedOperand::cast(input)->virtual_register())) {
-        return true;
-      }
-
-      if (output->IsConstant() && input->IsUnallocated() &&
-          (ConstantOperand::cast(output)->virtual_register() ==
-           UnallocatedOperand::cast(input)->virtual_register())) {
-        return true;
-      }
-    }
-  }
-
-  // TODO(bafsa): Do we need to look for anti-dependencies/output-dependencies?
-
-  return false;
 }
 
 

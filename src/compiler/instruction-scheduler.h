@@ -156,10 +156,6 @@ class InstructionScheduler final : public ZoneObject {
   int GetInstructionFlags(const Instruction* instr) const;
   int GetTargetInstructionFlags(const Instruction* instr) const;
 
-  // Return true if instr2 uses any value defined by instr1.
-  bool HasOperandDependency(const Instruction* instr1,
-                            const Instruction* instr2) const;
-
   // Return true if the instruction is a basic block terminator.
   bool IsBlockTerminator(const Instruction* instr) const;
 
@@ -214,6 +210,10 @@ class InstructionScheduler final : public ZoneObject {
 
   // Last deoptimization instruction encountered while building the graph.
   ScheduleGraphNode* last_deopt_;
+
+  // Keep track of definition points for virtual registers. This is used to
+  // record operand dependencies in the scheduling graph.
+  ZoneMap<int32_t, ScheduleGraphNode*> operands_map_;
 };
 
 }  // namespace compiler
