@@ -7085,7 +7085,7 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
       }
     }
 
-    if (proxy->IsArguments()) return Bailout(kAssignmentToArguments);
+    if (var->is_arguments()) return Bailout(kAssignmentToArguments);
 
     // Handle the assignment.
     switch (var->location()) {

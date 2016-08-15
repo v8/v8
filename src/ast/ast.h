@@ -220,8 +220,6 @@ class AstNode: public ZoneObject {
   // current zone from the TLS.
   void* operator new(size_t size);
 
-  friend class CaseClause;  // Generates AST IDs.
-
   int position_;
   NodeType node_type_;
   // Ends with NodeType which is uint8_t sized. Deriving classes in turn begin
@@ -1580,8 +1578,6 @@ class VariableProxy final : public Expression {
     return !is_this() && !is_new_target();
   }
 
-  bool IsArguments() const { return is_resolved() && var()->is_arguments(); }
-
   Handle<String> name() const { return raw_name()->string(); }
   const AstRawString* raw_name() const {
     return is_resolved() ? var_->raw_name() : raw_name_;
@@ -1651,8 +1647,6 @@ class VariableProxy final : public Expression {
   class IsResolvedField : public BitField8<bool, 2, 1> {};
   class IsNewTargetField : public BitField8<bool, 3, 1> {};
 
-  // Start with 16-bit (or smaller) field, which should get packed together
-  // with Expression's trailing 16-bit field.
   uint8_t bit_field_;
   // Position is stored in the AstNode superclass, but VariableProxy needs to
   // know its end position too (for error messages). It cannot be inferred from
