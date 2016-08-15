@@ -16,9 +16,11 @@
 namespace v8 {
 namespace internal {
 
+class HeapNumber;
 class Isolate;
 class Object;
 class Oddball;
+class Smi;
 
 enum class SerializationTag : uint8_t;
 
@@ -54,9 +56,14 @@ class ValueSerializer {
   void WriteTag(SerializationTag tag);
   template <typename T>
   void WriteVarint(T value);
+  template <typename T>
+  void WriteZigZag(T value);
+  void WriteDouble(double value);
 
   // Writing V8 objects of various kinds.
   void WriteOddball(Oddball* oddball);
+  void WriteSmi(Smi* smi);
+  void WriteHeapNumber(HeapNumber* number);
 
   std::vector<uint8_t> buffer_;
 
@@ -86,6 +93,9 @@ class ValueDeserializer {
   Maybe<SerializationTag> ReadTag() WARN_UNUSED_RESULT;
   template <typename T>
   Maybe<T> ReadVarint() WARN_UNUSED_RESULT;
+  template <typename T>
+  Maybe<T> ReadZigZag() WARN_UNUSED_RESULT;
+  Maybe<double> ReadDouble() WARN_UNUSED_RESULT;
 
   Isolate* const isolate_;
   const uint8_t* position_;

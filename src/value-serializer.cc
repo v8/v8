@@ -19,13 +19,26 @@ namespace internal {
 static const uint32_t kLatestVersion = 9;
 
 enum class SerializationTag : uint8_t {
+  // version:uint32_t (if at beginning of data, sets version > 0)
   kVersion = 0xFF,
+  // ignore
   kPadding = '\0',
+  // refTableSize:uint32_t (previously used for sanity checks; safe to ignore)
   kVerifyObjectCount = '?',
+  // Oddballs (no data).
   kUndefined = '_',
   kNull = '0',
   kTrue = 'T',
   kFalse = 'F',
+  // Number represented as 32-bit integer, ZigZag-encoded
+  // (like sint32 in protobuf)
+  kInt32 = 'I',
+  // Number represented as 32-bit unsigned integer, varint-encoded
+  // (like uint32 in protobuf)
+  kUint32 = 'U',
+  // Number represented as a 64-bit double.
+  // Host byte order is used (N.B. this makes the format non-portable).
+  kDouble = 'N',
 };
 
 ValueSerializer::ValueSerializer() {}
@@ -60,13 +73,39 @@ void ValueSerializer::WriteVarint(T value) {
   buffer_.insert(buffer_.end(), stack_buffer, next_byte);
 }
 
+template <typename T>
+void ValueSerializer::WriteZigZag(T value) {
+  // Writes a signed integer as a varint using ZigZag encoding (i.e. 0 is
+  // encoded as 0, -1 as 1, 1 as 2, -2 as 3, and so on).
+  // See also https://developers.google.com/protocol-buffers/docs/encoding
+  // Note that this implementation relies on the right shift being arithmetic.
+  static_assert(std::is_integral<T>::value && std::is_signed<T>::value,
+                "Only signed integer types can be written as zigzag.");
+  using UnsignedT = typename std::make_unsigned<T>::type;
+  WriteVarint((static_cast<UnsignedT>(value) << 1) ^
+              (value >> (8 * sizeof(T) - 1)));
+}
+
+void ValueSerializer::WriteDouble(double value) {
+  // Warning: this uses host endianness.
+  buffer_.insert(buffer_.end(), reinterpret_cast<const uint8_t*>(&value),
+                 reinterpret_cast<const uint8_t*>(&value + 1));
+}
+
 Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
-  if (object->IsSmi()) UNIMPLEMENTED();
+  if (object->IsSmi()) {
+    WriteSmi(Smi::cast(*object));
+    return Just(true);
+  }
 
   DCHECK(object->IsHeapObject());
   switch (HeapObject::cast(*object)->map()->instance_type()) {
     case ODDBALL_TYPE:
       WriteOddball(Oddball::cast(*object));
+      return Just(true);
+    case HEAP_NUMBER_TYPE:
+    case MUTABLE_HEAP_NUMBER_TYPE:
+      WriteHeapNumber(HeapNumber::cast(*object));
       return Just(true);
     default:
       UNIMPLEMENTED();
@@ -94,6 +133,17 @@ void ValueSerializer::WriteOddball(Oddball* oddball) {
       break;
   }
   WriteTag(tag);
+}
+
+void ValueSerializer::WriteSmi(Smi* smi) {
+  static_assert(kSmiValueSize <= 32, "Expected SMI <= 32 bits.");
+  WriteTag(SerializationTag::kInt32);
+  WriteZigZag<int32_t>(smi->value());
+}
+
+void ValueSerializer::WriteHeapNumber(HeapNumber* number) {
+  WriteTag(SerializationTag::kDouble);
+  WriteDouble(number->value());
 }
 
 ValueDeserializer::ValueDeserializer(Isolate* isolate,
@@ -149,6 +199,30 @@ Maybe<T> ValueDeserializer::ReadVarint() {
   return Just(value);
 }
 
+template <typename T>
+Maybe<T> ValueDeserializer::ReadZigZag() {
+  // Writes a signed integer as a varint using ZigZag encoding (i.e. 0 is
+  // encoded as 0, -1 as 1, 1 as 2, -2 as 3, and so on).
+  // See also https://developers.google.com/protocol-buffers/docs/encoding
+  static_assert(std::is_integral<T>::value && std::is_signed<T>::value,
+                "Only signed integer types can be read as zigzag.");
+  using UnsignedT = typename std::make_unsigned<T>::type;
+  UnsignedT unsigned_value;
+  if (!ReadVarint<UnsignedT>().To(&unsigned_value)) return Nothing<T>();
+  return Just(static_cast<T>((unsigned_value >> 1) ^
+                             -static_cast<T>(unsigned_value & 1)));
+}
+
+Maybe<double> ValueDeserializer::ReadDouble() {
+  // Warning: this uses host endianness.
+  if (position_ > end_ - sizeof(double)) return Nothing<double>();
+  double value;
+  memcpy(&value, position_, sizeof(double));
+  position_ += sizeof(double);
+  if (std::isnan(value)) value = std::numeric_limits<double>::quiet_NaN();
+  return Just(value);
+}
+
 MaybeHandle<Object> ValueDeserializer::ReadObject() {
   SerializationTag tag;
   if (!ReadTag().To(&tag)) return MaybeHandle<Object>();
@@ -165,6 +239,21 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
       return isolate_->factory()->true_value();
     case SerializationTag::kFalse:
       return isolate_->factory()->false_value();
+    case SerializationTag::kInt32: {
+      Maybe<int32_t> number = ReadZigZag<int32_t>();
+      if (number.IsNothing()) return MaybeHandle<Object>();
+      return isolate_->factory()->NewNumberFromInt(number.FromJust());
+    }
+    case SerializationTag::kUint32: {
+      Maybe<uint32_t> number = ReadVarint<uint32_t>();
+      if (number.IsNothing()) return MaybeHandle<Object>();
+      return isolate_->factory()->NewNumberFromUint(number.FromJust());
+    }
+    case SerializationTag::kDouble: {
+      Maybe<double> number = ReadDouble();
+      if (number.IsNothing()) return MaybeHandle<Object>();
+      return isolate_->factory()->NewNumber(number.FromJust());
+    }
     default:
       return MaybeHandle<Object>();
   }

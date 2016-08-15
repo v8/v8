@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/value-serializer.h"
+
 #include "include/v8.h"
 #include "src/api.h"
+#include "src/base/build_config.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -161,6 +163,89 @@ TEST_F(ValueSerializerTest, DecodeOddball) {
              [](Local<Value> value) { EXPECT_TRUE(value->IsFalse()); });
   DecodeTest({0x30, 0x00},
              [](Local<Value> value) { EXPECT_TRUE(value->IsNull()); });
+}
+
+TEST_F(ValueSerializerTest, RoundTripNumber) {
+  RoundTripTest([this]() { return Integer::New(isolate(), 42); },
+                [](Local<Value> value) {
+                  ASSERT_TRUE(value->IsInt32());
+                  EXPECT_EQ(42, Int32::Cast(*value)->Value());
+                });
+  RoundTripTest([this]() { return Integer::New(isolate(), -31337); },
+                [](Local<Value> value) {
+                  ASSERT_TRUE(value->IsInt32());
+                  EXPECT_EQ(-31337, Int32::Cast(*value)->Value());
+                });
+  RoundTripTest(
+      [this]() {
+        return Integer::New(isolate(), std::numeric_limits<int32_t>::min());
+      },
+      [](Local<Value> value) {
+        ASSERT_TRUE(value->IsInt32());
+        EXPECT_EQ(std::numeric_limits<int32_t>::min(),
+                  Int32::Cast(*value)->Value());
+      });
+  RoundTripTest([this]() { return Number::New(isolate(), -0.25); },
+                [](Local<Value> value) {
+                  ASSERT_TRUE(value->IsNumber());
+                  EXPECT_EQ(-0.25, Number::Cast(*value)->Value());
+                });
+  RoundTripTest(
+      [this]() {
+        return Number::New(isolate(), std::numeric_limits<double>::quiet_NaN());
+      },
+      [](Local<Value> value) {
+        ASSERT_TRUE(value->IsNumber());
+        EXPECT_TRUE(std::isnan(Number::Cast(*value)->Value()));
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeNumber) {
+  // 42 zig-zag encoded (signed)
+  DecodeTest({0xff, 0x09, 0x49, 0x54},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsInt32());
+               EXPECT_EQ(42, Int32::Cast(*value)->Value());
+             });
+  // 42 varint encoded (unsigned)
+  DecodeTest({0xff, 0x09, 0x55, 0x2a},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsInt32());
+               EXPECT_EQ(42, Int32::Cast(*value)->Value());
+             });
+  // 160 zig-zag encoded (signed)
+  DecodeTest({0xff, 0x09, 0x49, 0xc0, 0x02},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsInt32());
+               ASSERT_EQ(160, Int32::Cast(*value)->Value());
+             });
+  // 160 varint encoded (unsigned)
+  DecodeTest({0xff, 0x09, 0x55, 0xa0, 0x01},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsInt32());
+               ASSERT_EQ(160, Int32::Cast(*value)->Value());
+             });
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  // IEEE 754 doubles, little-endian byte order
+  DecodeTest({0xff, 0x09, 0x4e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd0, 0xbf},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsNumber());
+               EXPECT_EQ(-0.25, Number::Cast(*value)->Value());
+             });
+  // quiet NaN
+  DecodeTest({0xff, 0x09, 0x4e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf8, 0x7f},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsNumber());
+               EXPECT_TRUE(std::isnan(Number::Cast(*value)->Value()));
+             });
+  // signaling NaN
+  DecodeTest({0xff, 0x09, 0x4e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf4, 0x7f},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsNumber());
+               EXPECT_TRUE(std::isnan(Number::Cast(*value)->Value()));
+             });
+#endif
+  // TODO(jbroman): Equivalent test for big-endian machines.
 }
 
 }  // namespace
