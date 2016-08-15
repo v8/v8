@@ -20,7 +20,7 @@ deps = {
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "315bf1e2d45be7d53346c31cfcc37424a32c30c8",
   "v8/third_party/WebKit/Source/platform/inspector_protocol":
-    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "9d440c96636c5a41ce3e40f1924fe41dd2694f51",
+    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "ac24d974a70c8611d2837e183d6cf99f39fb0410",
   "v8/third_party/jinja2":
     Var("git_url") + "/chromium/src/third_party/jinja2.git" + "@" + "2222b31554f03e62600cd7e383376a7c187967a1",
   "v8/third_party/markupsafe":
