@@ -7837,9 +7837,10 @@ EVALUATE(LARL) {
 }
 
 EVALUATE(LGFI) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LGFI);
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  set_register(r1, static_cast<int64_t>(static_cast<int32_t>(imm)));
+  return length;
 }
 
 EVALUATE(BRASL) {
@@ -10499,7 +10500,7 @@ EVALUATE(POPCNT_Z) {
 }
 
 EVALUATE(LOCGR) {
-  DCHECK_OPCODE(LOCR);
+  DCHECK_OPCODE(LOCGR);
   DECODE_RRF_C_INSTRUCTION(r1, r2, m3);
   if (TestConditionCode(m3)) {
     set_register(r1, get_register(r2));

@@ -71,12 +71,19 @@ class S390OperandConverter final : public InstructionOperandConverter {
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
         break;
+      case kMode_MR:
+        *first_index += 1;
+        return MemOperand(InputRegister(index + 0), 0);
       case kMode_MRI:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
       case kMode_MRR:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1));
+      case kMode_MRRI:
+        *first_index += 3;
+        return MemOperand(InputRegister(index + 0), InputRegister(index + 1),
+                          InputInt32(index + 2));
     }
     UNREACHABLE();
     return MemOperand(r0);

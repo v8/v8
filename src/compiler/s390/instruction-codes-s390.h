@@ -166,8 +166,10 @@ namespace compiler {
 // MRI = [register + immediate]
 // MRR = [register + register]
 #define TARGET_ADDRESSING_MODE_LIST(V) \
-  V(MRI) /* [%r0 + K] */               \
-  V(MRR) /* [%r0 + %r1] */
+  V(MR)   /* [%r0          ] */        \
+  V(MRI)  /* [%r0       + K] */        \
+  V(MRR)  /* [%r0 + %r1    ] */        \
+  V(MRRI) /* [%r0 + %r1 + K] */
 
 }  // namespace compiler
 }  // namespace internal

@@ -1094,6 +1094,9 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
     case IIHF:
       Format(instr, "iihf\t'r1,'i7");
       break;
+    case LGFI:
+      Format(instr, "lgfi\t'r1,'i7");
+      break;
     case IILF:
       Format(instr, "iilf\t'r1,'i7");
       break;

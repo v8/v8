@@ -778,6 +778,7 @@ class Assembler : public AssemblerBase {
   RI1_FORM(iihh);
   RI1_FORM(iihl);
   RIL1_FORM(iilf);
+  RIL1_FORM(lgfi);
   RI1_FORM(iilh);
   RI1_FORM(iill);
   RRE_FORM(lcgr);

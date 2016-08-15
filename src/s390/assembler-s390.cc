@@ -1920,7 +1920,7 @@ void Assembler::agf(Register r1, const MemOperand& opnd) {
 
 // Add Immediate (64)
 void Assembler::agfi(Register r1, const Operand& opnd) {
-  ril_form(ALFI, r1, opnd);
+  ril_form(AGFI, r1, opnd);
 }
 
 // Add Register-Register (64<-32)
@@ -2644,6 +2644,11 @@ void Assembler::iilh(Register r1, const Operand& opnd) {
 // Insert Immediate (low low)
 void Assembler::iill(Register r1, const Operand& opnd) {
   ri_form(IILL, r1, opnd);
+}
+
+// Load Immediate 32->64
+void Assembler::lgfi(Register r1, const Operand& opnd) {
+  ril_form(LGFI, r1, opnd);
 }
 
 // GPR <-> FPR Instructions
