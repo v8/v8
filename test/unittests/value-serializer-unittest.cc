@@ -4,6 +4,9 @@
 
 #include "src/value-serializer.h"
 
+#include <algorithm>
+#include <string>
+
 #include "include/v8.h"
 #include "src/api.h"
 #include "src/base/build_config.h"
@@ -29,22 +32,27 @@ class ValueSerializerTest : public TestWithIsolate {
   template <typename InputFunctor, typename OutputFunctor>
   void RoundTripTest(const InputFunctor& input_functor,
                      const OutputFunctor& output_functor) {
-    std::vector<uint8_t> data;
-    {
-      Context::Scope scope(serialization_context());
-      TryCatch try_catch(isolate());
-      // TODO(jbroman): Use the public API once it exists.
-      Local<Value> input_value = input_functor();
-      i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate());
-      i::HandleScope handle_scope(internal_isolate);
-      i::ValueSerializer serializer;
-      serializer.WriteHeader();
-      ASSERT_TRUE(serializer.WriteObject(Utils::OpenHandle(*input_value))
-                      .FromMaybe(false));
-      ASSERT_FALSE(try_catch.HasCaught());
-      data = serializer.ReleaseBuffer();
-    }
-    DecodeTest(data, output_functor);
+    EncodeTest(input_functor,
+               [this, &output_functor](const std::vector<uint8_t>& data) {
+                 DecodeTest(data, output_functor);
+               });
+  }
+
+  template <typename InputFunctor, typename EncodedDataFunctor>
+  void EncodeTest(const InputFunctor& input_functor,
+                  const EncodedDataFunctor& encoded_data_functor) {
+    Context::Scope scope(serialization_context());
+    TryCatch try_catch(isolate());
+    // TODO(jbroman): Use the public API once it exists.
+    Local<Value> input_value = input_functor();
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    i::HandleScope handle_scope(internal_isolate);
+    i::ValueSerializer serializer;
+    serializer.WriteHeader();
+    ASSERT_TRUE(serializer.WriteObject(Utils::OpenHandle(*input_value))
+                    .FromMaybe(false));
+    ASSERT_FALSE(try_catch.HasCaught());
+    encoded_data_functor(serializer.ReleaseBuffer());
   }
 
   template <typename OutputFunctor>
@@ -104,6 +112,11 @@ class ValueSerializerTest : public TestWithIsolate {
   Local<String> StringFromUtf8(const char* source) {
     return String::NewFromUtf8(isolate(), source, NewStringType::kNormal)
         .ToLocalChecked();
+  }
+
+  static std::string Utf8Value(Local<Value> value) {
+    String::Utf8Value utf8(value);
+    return std::string(*utf8, utf8.length());
   }
 
  private:
@@ -246,6 +259,133 @@ TEST_F(ValueSerializerTest, DecodeNumber) {
              });
 #endif
   // TODO(jbroman): Equivalent test for big-endian machines.
+}
+
+// String constants (in UTF-8) used for string encoding tests.
+static const char kHelloString[] = "Hello";
+static const char kQuebecString[] = "\x51\x75\xC3\xA9\x62\x65\x63";
+static const char kEmojiString[] = "\xF0\x9F\x91\x8A";
+
+TEST_F(ValueSerializerTest, RoundTripString) {
+  RoundTripTest([this]() { return String::Empty(isolate()); },
+                [](Local<Value> value) {
+                  ASSERT_TRUE(value->IsString());
+                  EXPECT_EQ(0, String::Cast(*value)->Length());
+                });
+  // Inside ASCII.
+  RoundTripTest([this]() { return StringFromUtf8(kHelloString); },
+                [](Local<Value> value) {
+                  ASSERT_TRUE(value->IsString());
+                  EXPECT_EQ(5, String::Cast(*value)->Length());
+                  EXPECT_EQ(kHelloString, Utf8Value(value));
+                });
+  // Inside Latin-1 (i.e. one-byte string), but not ASCII.
+  RoundTripTest([this]() { return StringFromUtf8(kQuebecString); },
+                [](Local<Value> value) {
+                  ASSERT_TRUE(value->IsString());
+                  EXPECT_EQ(6, String::Cast(*value)->Length());
+                  EXPECT_EQ(kQuebecString, Utf8Value(value));
+                });
+  // An emoji (decodes to two 16-bit chars).
+  RoundTripTest([this]() { return StringFromUtf8(kEmojiString); },
+                [](Local<Value> value) {
+                  ASSERT_TRUE(value->IsString());
+                  EXPECT_EQ(2, String::Cast(*value)->Length());
+                  EXPECT_EQ(kEmojiString, Utf8Value(value));
+                });
+}
+
+TEST_F(ValueSerializerTest, DecodeString) {
+  // Decoding the strings above from UTF-8.
+  DecodeTest({0xff, 0x09, 0x53, 0x00},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(0, String::Cast(*value)->Length());
+             });
+  DecodeTest({0xff, 0x09, 0x53, 0x05, 'H', 'e', 'l', 'l', 'o'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(5, String::Cast(*value)->Length());
+               EXPECT_EQ(kHelloString, Utf8Value(value));
+             });
+  DecodeTest({0xff, 0x09, 0x53, 0x07, 'Q', 'u', 0xc3, 0xa9, 'b', 'e', 'c'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(6, String::Cast(*value)->Length());
+               EXPECT_EQ(kQuebecString, Utf8Value(value));
+             });
+  DecodeTest({0xff, 0x09, 0x53, 0x04, 0xf0, 0x9f, 0x91, 0x8a},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(2, String::Cast(*value)->Length());
+               EXPECT_EQ(kEmojiString, Utf8Value(value));
+             });
+
+// And from two-byte strings (endianness dependent).
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  DecodeTest({0xff, 0x09, 0x63, 0x00},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(0, String::Cast(*value)->Length());
+             });
+  DecodeTest({0xff, 0x09, 0x63, 0x0a, 'H', '\0', 'e', '\0', 'l', '\0', 'l',
+              '\0', 'o', '\0'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(5, String::Cast(*value)->Length());
+               EXPECT_EQ(kHelloString, Utf8Value(value));
+             });
+  DecodeTest({0xff, 0x09, 0x63, 0x0c, 'Q', '\0', 'u', '\0', 0xe9, '\0', 'b',
+              '\0', 'e', '\0', 'c', '\0'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(6, String::Cast(*value)->Length());
+               EXPECT_EQ(kQuebecString, Utf8Value(value));
+             });
+  DecodeTest({0xff, 0x09, 0x63, 0x04, 0x3d, 0xd8, 0x4a, 0xdc},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(2, String::Cast(*value)->Length());
+               EXPECT_EQ(kEmojiString, Utf8Value(value));
+             });
+#endif
+  // TODO(jbroman): The same for big-endian systems.
+}
+
+TEST_F(ValueSerializerTest, DecodeInvalidString) {
+  // UTF-8 string with too few bytes available.
+  InvalidDecodeTest({0xff, 0x09, 0x53, 0x10, 'v', '8'});
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  // Two-byte string with too few bytes available.
+  InvalidDecodeTest({0xff, 0x09, 0x63, 0x10, 'v', '\0', '8', '\0'});
+  // Two-byte string with an odd byte length.
+  InvalidDecodeTest({0xff, 0x09, 0x63, 0x03, 'v', '\0', '8'});
+#endif
+  // TODO(jbroman): The same for big-endian systems.
+}
+
+TEST_F(ValueSerializerTest, EncodeTwoByteStringUsesPadding) {
+  // As long as the output has a version that Blink expects to be able to read,
+  // we must respect its alignment requirements. It requires that two-byte
+  // characters be aligned.
+  EncodeTest(
+      [this]() {
+        // We need a string whose length will take two bytes to encode, so that
+        // a padding byte is needed to keep the characters aligned. The string
+        // must also have a two-byte character, so that it gets the two-byte
+        // encoding.
+        std::string string(200, ' ');
+        string += kEmojiString;
+        return StringFromUtf8(string.c_str());
+      },
+      [](const std::vector<uint8_t>& data) {
+        // This is a sufficient but not necessary condition to be aligned.
+        // Note that the third byte (0x00) is padding.
+        const uint8_t expected_prefix[] = {0xff, 0x09, 0x00, 0x63, 0x94, 0x03};
+        ASSERT_GT(data.size(), sizeof(expected_prefix) / sizeof(uint8_t));
+        EXPECT_TRUE(std::equal(std::begin(expected_prefix),
+                               std::end(expected_prefix), data.begin()));
+      });
 }
 
 }  // namespace

@@ -59,11 +59,15 @@ class ValueSerializer {
   template <typename T>
   void WriteZigZag(T value);
   void WriteDouble(double value);
+  void WriteOneByteString(Vector<const uint8_t> chars);
+  void WriteTwoByteString(Vector<const uc16> chars);
+  uint8_t* ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
   void WriteOddball(Oddball* oddball);
   void WriteSmi(Smi* smi);
   void WriteHeapNumber(HeapNumber* number);
+  void WriteString(Handle<String> string);
 
   std::vector<uint8_t> buffer_;
 
@@ -90,12 +94,19 @@ class ValueDeserializer {
   MaybeHandle<Object> ReadObject() WARN_UNUSED_RESULT;
 
  private:
+  // Reading the wire format.
   Maybe<SerializationTag> ReadTag() WARN_UNUSED_RESULT;
   template <typename T>
   Maybe<T> ReadVarint() WARN_UNUSED_RESULT;
   template <typename T>
   Maybe<T> ReadZigZag() WARN_UNUSED_RESULT;
   Maybe<double> ReadDouble() WARN_UNUSED_RESULT;
+  Maybe<Vector<const uint8_t>> ReadRawBytes(int size) WARN_UNUSED_RESULT;
+
+  // Reading V8 objects of specific kinds.
+  // The tag is assumed to have already been read.
+  MaybeHandle<String> ReadUtf8String() WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadTwoByteString() WARN_UNUSED_RESULT;
 
   Isolate* const isolate_;
   const uint8_t* position_;

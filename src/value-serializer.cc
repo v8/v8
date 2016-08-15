@@ -18,6 +18,18 @@ namespace internal {
 
 static const uint32_t kLatestVersion = 9;
 
+template <typename T>
+static size_t BytesNeededForVarint(T value) {
+  static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
+                "Only unsigned integer types can be written as varints.");
+  size_t result = 0;
+  do {
+    result++;
+    value >>= 7;
+  } while (value);
+  return result;
+}
+
 enum class SerializationTag : uint8_t {
   // version:uint32_t (if at beginning of data, sets version > 0)
   kVersion = 0xFF,
@@ -39,6 +51,9 @@ enum class SerializationTag : uint8_t {
   // Number represented as a 64-bit double.
   // Host byte order is used (N.B. this makes the format non-portable).
   kDouble = 'N',
+  // byteLength:uint32_t, then raw data
+  kUtf8String = 'S',
+  kTwoByteString = 'c',
 };
 
 ValueSerializer::ValueSerializer() {}
@@ -92,6 +107,24 @@ void ValueSerializer::WriteDouble(double value) {
                  reinterpret_cast<const uint8_t*>(&value + 1));
 }
 
+void ValueSerializer::WriteOneByteString(Vector<const uint8_t> chars) {
+  WriteVarint<uint32_t>(chars.length());
+  buffer_.insert(buffer_.end(), chars.begin(), chars.end());
+}
+
+void ValueSerializer::WriteTwoByteString(Vector<const uc16> chars) {
+  // Warning: this uses host endianness.
+  WriteVarint<uint32_t>(chars.length() * sizeof(uc16));
+  buffer_.insert(buffer_.end(), reinterpret_cast<const uint8_t*>(chars.begin()),
+                 reinterpret_cast<const uint8_t*>(chars.end()));
+}
+
+uint8_t* ValueSerializer::ReserveRawBytes(size_t bytes) {
+  auto old_size = buffer_.size();
+  buffer_.resize(buffer_.size() + bytes);
+  return &buffer_[old_size];
+}
+
 Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
   if (object->IsSmi()) {
     WriteSmi(Smi::cast(*object));
@@ -108,6 +141,10 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
       WriteHeapNumber(HeapNumber::cast(*object));
       return Just(true);
     default:
+      if (object->IsString()) {
+        WriteString(Handle<String>::cast(object));
+        return Just(true);
+      }
       UNIMPLEMENTED();
       return Nothing<bool>();
   }
@@ -144,6 +181,41 @@ void ValueSerializer::WriteSmi(Smi* smi) {
 void ValueSerializer::WriteHeapNumber(HeapNumber* number) {
   WriteTag(SerializationTag::kDouble);
   WriteDouble(number->value());
+}
+
+void ValueSerializer::WriteString(Handle<String> string) {
+  string = String::Flatten(string);
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat = string->GetFlatContent();
+  DCHECK(flat.IsFlat());
+  if (flat.IsOneByte()) {
+    // The existing format uses UTF-8, rather than Latin-1. As a result we must
+    // to do work to encode strings that have characters outside ASCII.
+    // TODO(jbroman): In a future format version, consider adding a tag for
+    // Latin-1 strings, so that this can be skipped.
+    WriteTag(SerializationTag::kUtf8String);
+    Vector<const uint8_t> chars = flat.ToOneByteVector();
+    if (String::IsAscii(chars.begin(), chars.length())) {
+      WriteOneByteString(chars);
+    } else {
+      v8::Local<v8::String> api_string = Utils::ToLocal(string);
+      uint32_t utf8_length = api_string->Utf8Length();
+      WriteVarint(utf8_length);
+      api_string->WriteUtf8(
+          reinterpret_cast<char*>(ReserveRawBytes(utf8_length)), utf8_length,
+          nullptr, v8::String::NO_NULL_TERMINATION);
+    }
+  } else if (flat.IsTwoByte()) {
+    Vector<const uc16> chars = flat.ToUC16Vector();
+    uint32_t byte_length = chars.length() * sizeof(uc16);
+    // The existing reading code expects 16-byte strings to be aligned.
+    if ((buffer_.size() + 1 + BytesNeededForVarint(byte_length)) & 1)
+      WriteTag(SerializationTag::kPadding);
+    WriteTag(SerializationTag::kTwoByteString);
+    WriteTwoByteString(chars);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 ValueDeserializer::ValueDeserializer(Isolate* isolate,
@@ -223,6 +295,13 @@ Maybe<double> ValueDeserializer::ReadDouble() {
   return Just(value);
 }
 
+Maybe<Vector<const uint8_t>> ValueDeserializer::ReadRawBytes(int size) {
+  if (size > end_ - position_) return Nothing<Vector<const uint8_t>>();
+  const uint8_t* start = position_;
+  position_ += size;
+  return Just(Vector<const uint8_t>(start, size));
+}
+
 MaybeHandle<Object> ValueDeserializer::ReadObject() {
   SerializationTag tag;
   if (!ReadTag().To(&tag)) return MaybeHandle<Object>();
@@ -254,9 +333,48 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
       if (number.IsNothing()) return MaybeHandle<Object>();
       return isolate_->factory()->NewNumber(number.FromJust());
     }
+    case SerializationTag::kUtf8String:
+      return ReadUtf8String();
+    case SerializationTag::kTwoByteString:
+      return ReadTwoByteString();
     default:
       return MaybeHandle<Object>();
   }
+}
+
+MaybeHandle<String> ValueDeserializer::ReadUtf8String() {
+  uint32_t utf8_length;
+  Vector<const uint8_t> utf8_bytes;
+  if (!ReadVarint<uint32_t>().To(&utf8_length) ||
+      utf8_length >
+          static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
+      !ReadRawBytes(utf8_length).To(&utf8_bytes))
+    return MaybeHandle<String>();
+  return isolate_->factory()->NewStringFromUtf8(
+      Vector<const char>::cast(utf8_bytes));
+}
+
+MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
+  uint32_t byte_length;
+  Vector<const uint8_t> bytes;
+  if (!ReadVarint<uint32_t>().To(&byte_length) ||
+      byte_length >
+          static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
+      byte_length % sizeof(uc16) != 0 || !ReadRawBytes(byte_length).To(&bytes))
+    return MaybeHandle<String>();
+
+  // Allocate an uninitialized string so that we can do a raw memcpy into the
+  // string on the heap (regardless of alignment).
+  Handle<SeqTwoByteString> string;
+  if (!isolate_->factory()
+           ->NewRawTwoByteString(byte_length / sizeof(uc16))
+           .ToHandle(&string))
+    return MaybeHandle<String>();
+
+  // Copy the bytes directly into the new string.
+  // Warning: this uses host endianness.
+  memcpy(string->GetChars(), bytes.begin(), bytes.length());
+  return string;
 }
 
 }  // namespace internal
