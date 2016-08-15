@@ -150,7 +150,7 @@ class X87OperandGenerator final : public OperandGenerator {
   AddressingMode GetEffectiveAddressMemoryOperand(Node* node,
                                                   InstructionOperand inputs[],
                                                   size_t* input_count) {
-    BaseWithIndexAndDisplacement32Matcher m(node, true);
+    BaseWithIndexAndDisplacement32Matcher m(node, AddressOption::kAllowAll);
     DCHECK(m.matches());
     if ((m.displacement() == nullptr || CanBeImmediate(m.displacement()))) {
       return GenerateMemoryOperandInputs(

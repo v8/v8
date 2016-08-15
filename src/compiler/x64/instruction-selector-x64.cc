@@ -128,7 +128,7 @@ class X64OperandGenerator final : public OperandGenerator {
   AddressingMode GetEffectiveAddressMemoryOperand(Node* operand,
                                                   InstructionOperand inputs[],
                                                   size_t* input_count) {
-    BaseWithIndexAndDisplacement64Matcher m(operand, true);
+    BaseWithIndexAndDisplacement64Matcher m(operand, AddressOption::kAllowAll);
     DCHECK(m.matches());
     if ((m.displacement() == nullptr || CanBeImmediate(m.displacement()))) {
       return GenerateMemoryOperandInputs(
@@ -653,7 +653,8 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
       m.right().Is(32)) {
     // Just load and sign-extend the interesting 4 bytes instead. This happens,
     // for example, when we're loading and untagging SMIs.
-    BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(), true);
+    BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(),
+                                                AddressOption::kAllowAll);
     if (mleft.matches() && (mleft.displacement() == nullptr ||
                             g.CanBeImmediate(mleft.displacement()))) {
       size_t input_count = 0;

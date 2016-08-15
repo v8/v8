@@ -394,16 +394,26 @@ typedef AddMatcher<Int64BinopMatcher, IrOpcode::kInt64Add, IrOpcode::kInt64Sub,
 
 enum DisplacementMode { kPositiveDisplacement, kNegativeDisplacement };
 
+enum class AddressOption : uint8_t {
+  kAllowNone = 0u,
+  kAllowInputSwap = 1u << 0,
+  kAllowScale = 1u << 1,
+  kAllowAll = kAllowInputSwap | kAllowScale
+};
+
+typedef base::Flags<AddressOption, uint8_t> AddressOptions;
+DEFINE_OPERATORS_FOR_FLAGS(AddressOptions);
+
 template <class AddMatcher>
 struct BaseWithIndexAndDisplacementMatcher {
-  BaseWithIndexAndDisplacementMatcher(Node* node, bool allow_input_swap)
+  BaseWithIndexAndDisplacementMatcher(Node* node, AddressOptions options)
       : matches_(false),
         index_(nullptr),
         scale_(0),
         base_(nullptr),
         displacement_(nullptr),
         displacement_mode_(kPositiveDisplacement) {
-    Initialize(node, allow_input_swap);
+    Initialize(node, options);
   }
 
   explicit BaseWithIndexAndDisplacementMatcher(Node* node)
@@ -413,7 +423,10 @@ struct BaseWithIndexAndDisplacementMatcher {
         base_(nullptr),
         displacement_(nullptr),
         displacement_mode_(kPositiveDisplacement) {
-    Initialize(node, node->op()->HasProperty(Operator::kCommutative));
+    Initialize(node, AddressOption::kAllowScale |
+                         (node->op()->HasProperty(Operator::kCommutative)
+                              ? AddressOption::kAllowInputSwap
+                              : AddressOption::kAllowNone));
   }
 
   bool matches() const { return matches_; }
@@ -431,7 +444,7 @@ struct BaseWithIndexAndDisplacementMatcher {
   Node* displacement_;
   DisplacementMode displacement_mode_;
 
-  void Initialize(Node* node, bool allow_input_swap) {
+  void Initialize(Node* node, AddressOptions options) {
     // The BaseWithIndexAndDisplacementMatcher canonicalizes the order of
     // displacements and scale factors that are used as inputs, so instead of
     // enumerating all possible patterns by brute force, checking for node
@@ -449,7 +462,7 @@ struct BaseWithIndexAndDisplacementMatcher {
     // (B + D)
     // (B + B)
     if (node->InputCount() < 2) return;
-    AddMatcher m(node, allow_input_swap);
+    AddMatcher m(node, options & AddressOption::kAllowInputSwap);
     Node* left = m.left().node();
     Node* right = m.right().node();
     Node* displacement = nullptr;
@@ -607,6 +620,10 @@ struct BaseWithIndexAndDisplacementMatcher {
       } else {
         base = index;
       }
+    }
+    if (!(options & AddressOption::kAllowScale) && scale != 0) {
+      index = scale_expression;
+      scale = 0;
     }
     base_ = base;
     displacement_ = displacement;

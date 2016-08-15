@@ -877,7 +877,8 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
       m.right().Is(32)) {
     // Just load and sign-extend the interesting 4 bytes instead. This happens,
     // for example, when we're loading and untagging SMIs.
-    BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(), true);
+    BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(),
+                                                AddressOption::kAllowAll);
     if (mleft.matches() && mleft.index() == nullptr) {
       int64_t offset = 0;
       Node* displacement = mleft.displacement();
