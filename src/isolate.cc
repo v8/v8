@@ -3021,7 +3021,6 @@ void Isolate::RunMicrotasksInternal() {
             &maybe_exception);
         handle_scope_implementer_->LeaveMicrotaskContext();
         // If execution is terminating, just bail out.
-        Handle<Object> exception;
         if (result.is_null() && maybe_exception.is_null()) {
           // Clear out any remaining callbacks in the queue.
           heap()->set_microtask_queue(heap()->empty_fixed_array());
