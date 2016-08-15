@@ -48,6 +48,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class GlobalDeclarationsBuilder;
   class RegisterResultScope;
   class RegisterAllocationScope;
+  class TestResultScope;
+
+  enum class TestFallthrough { kThen, kElse, kNone };
 
   void GenerateBytecode();
   void GenerateBytecodeBody();
@@ -162,6 +165,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
   void VisitForRegisterValue(Expression* expr, Register destination);
   void VisitForEffect(Expression* expr);
+  void VisitForTest(Expression* expr, BytecodeLabels* then_labels,
+                    BytecodeLabels* else_labels, TestFallthrough fallthrough);
 
   // Methods for tracking and remapping register.
   void RecordStoreToRegister(Register reg);

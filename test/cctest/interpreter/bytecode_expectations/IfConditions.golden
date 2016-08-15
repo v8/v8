@@ -737,3 +737,47 @@ constant pool: [
 handlers: [
 ]
 
+---
+snippet: "
+  function f(a, b) {
+    if (a == b || a < 0) {
+      return 1;
+    } else if (a > 0 && b > 0) {
+      return 0;
+    } else {
+      return -1;
+    }
+  };
+  f(-1, 1);
+"
+frame size: 0
+parameter count: 3
+bytecode array length: 32
+bytecodes: [
+  /*   10 E> */ B(StackCheck),
+  /*   21 S> */ B(Ldar), R(arg1),
+  /*   27 E> */ B(TestEqual), R(arg0),
+                B(JumpIfTrue), U8(7),
+                B(LdaZero),
+  /*   37 E> */ B(TestLessThan), R(arg0),
+                B(JumpIfFalse), U8(5),
+  /*   48 S> */ B(LdaSmi), U8(1),
+  /*  133 S> */ B(Return),
+  /*   67 S> */ B(LdaZero),
+  /*   73 E> */ B(TestGreaterThan), R(arg0),
+                B(JumpIfFalse), U8(9),
+                B(LdaZero),
+  /*   82 E> */ B(TestGreaterThan), R(arg1),
+                B(JumpIfFalse), U8(4),
+  /*   93 S> */ B(LdaZero),
+  /*  133 S> */ B(Return),
+  /*  118 S> */ B(LdaSmi), U8(-1),
+  /*  133 S> */ B(Return),
+                B(LdaUndefined),
+  /*  133 S> */ B(Return),
+]
+constant pool: [
+]
+handlers: [
+]
+

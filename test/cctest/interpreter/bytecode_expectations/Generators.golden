@@ -264,7 +264,7 @@ snippet: "
 "
 frame size: 18
 parameter count: 1
-bytecode array length: 769
+bytecode array length: 768
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -316,7 +316,7 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(Star), R(5),
-                B(JumpConstant), U8(16),
+                B(JumpConstant), U8(17),
                 B(Ldar), R(10),
   /*   11 E> */ B(Throw),
                 B(LdaConstant), U8(0),
@@ -452,12 +452,11 @@ bytecodes: [
                 B(LdrContextSlot), R(1), U8(9), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(11),
-                B(JumpIfTrue), U8(9),
+                B(JumpIfTrueConstant), U8(15),
                 B(LdrContextSlot), R(1), U8(7), R(11),
                 B(LdaUndefined),
                 B(TestEqualStrict), R(11),
-                B(ToBooleanLogicalNot),
-                B(JumpIfFalseConstant), U8(15),
+                B(JumpIfTrueConstant), U8(16),
                 B(LdrContextSlot), R(1), U8(7), R(11),
                 B(LdaNamedProperty), R(11), U8(12), U8(13),
                 B(StaContextSlot), R(1), U8(11),
@@ -596,11 +595,12 @@ constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   kInstanceTypeDontCare,
   kInstanceTypeDontCare,
+  kInstanceTypeDontCare,
 ]
 handlers: [
-  [41, 688, 694],
+  [41, 687, 693],
   [147, 442, 448],
   [150, 396, 398],
-  [545, 557, 559],
+  [544, 556, 558],
 ]
 

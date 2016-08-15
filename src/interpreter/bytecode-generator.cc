@@ -8,6 +8,7 @@
 #include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/objects.h"
@@ -445,6 +446,12 @@ class BytecodeGenerator::ExpressionResultScope {
 
   bool IsEffect() const { return kind_ == Expression::kEffect; }
   bool IsValue() const { return kind_ == Expression::kValue; }
+  bool IsTest() const { return kind_ == Expression::kTest; }
+
+  TestResultScope* AsTest() {
+    DCHECK(IsTest());
+    return reinterpret_cast<TestResultScope*>(this);
+  }
 
   virtual void SetResultInAccumulator() = 0;
   virtual void SetResultInRegister(Register reg) = 0;
@@ -533,6 +540,61 @@ class BytecodeGenerator::RegisterResultScope final
 
  private:
   Register result_register_;
+};
+
+// Scoped class used when the result of the current expression to be
+// evaluated is only tested with jumps to two branches.
+class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
+ public:
+  TestResultScope(BytecodeGenerator* generator, BytecodeLabels* then_labels,
+                  BytecodeLabels* else_labels, TestFallthrough fallthrough)
+      : ExpressionResultScope(generator, Expression::kTest),
+        then_labels_(then_labels),
+        else_labels_(else_labels),
+        fallthrough_(fallthrough),
+        result_consumed_by_test_(false) {}
+
+  virtual void SetResultInAccumulator() { set_result_identified(); }
+
+  virtual void SetResultInRegister(Register reg) {
+    builder()->LoadAccumulatorWithRegister(reg);
+    set_result_identified();
+  }
+
+  // Used when code special cases for TestResultScope and consumes any
+  // possible value by testing and jumping to a then/else label.
+  void SetResultConsumedByTest() {
+    result_consumed_by_test_ = true;
+    set_result_identified();
+  }
+
+  bool ResultConsumedByTest() { return result_consumed_by_test_; }
+
+  BytecodeLabel* NewThenLabel() { return then_labels_->New(); }
+  BytecodeLabel* NewElseLabel() { return else_labels_->New(); }
+
+  BytecodeLabels* then_labels() const { return then_labels_; }
+  BytecodeLabels* else_labels() const { return else_labels_; }
+
+  TestFallthrough fallthrough() const { return fallthrough_; }
+  TestFallthrough inverted_fallthrough() const {
+    switch (fallthrough_) {
+      case TestFallthrough::kThen:
+        return TestFallthrough::kElse;
+      case TestFallthrough::kElse:
+        return TestFallthrough::kThen;
+      default:
+        return TestFallthrough::kNone;
+    }
+  }
+
+ private:
+  BytecodeLabels* then_labels_;
+  BytecodeLabels* else_labels_;
+  TestFallthrough fallthrough_;
+  bool result_consumed_by_test_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestResultScope);
 };
 
 // Used to build a list of global declaration initial value pairs.
@@ -983,7 +1045,6 @@ void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
   builder()->SetStatementPosition(stmt);
-  BytecodeLabel else_label, end_label;
   if (stmt->condition()->ToBooleanIsTrue()) {
     // Generate then block unconditionally as always true.
     Visit(stmt->then_statement());
@@ -996,15 +1057,20 @@ void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
     // TODO(oth): If then statement is BreakStatement or
     // ContinueStatement we can reduce number of generated
     // jump/jump_ifs here. See BasicLoops test.
-    VisitForAccumulatorValue(stmt->condition());
-    builder()->JumpIfFalse(&else_label);
+    BytecodeLabel end_label;
+    BytecodeLabels then_labels(zone()), else_labels(zone());
+    VisitForTest(stmt->condition(), &then_labels, &else_labels,
+                 TestFallthrough::kThen);
+
+    then_labels.Bind(builder());
     Visit(stmt->then_statement());
+
     if (stmt->HasElseStatement()) {
       builder()->Jump(&end_label);
-      builder()->Bind(&else_label);
+      else_labels.Bind(builder());
       Visit(stmt->else_statement());
     } else {
-      builder()->Bind(&else_label);
+      else_labels.Bind(builder());
     }
     builder()->Bind(&end_label);
   }
@@ -1113,6 +1179,7 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
     VisitIterationHeader(stmt, &loop_builder);
     VisitIterationBody(stmt, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->cond());
+    // TODO(klaasb) VisitForTest for loop conditions
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.JumpToHeaderIfTrue();
   }
@@ -1129,6 +1196,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   VisitIterationHeader(stmt, &loop_builder);
   if (!stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
+    // TODO(klaasb) VisitForTest for loop conditions
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.BreakIfFalse();
   }
@@ -1151,6 +1219,7 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   VisitIterationHeader(stmt, &loop_builder);
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
+    // TODO(klaasb) VisitForTest for loop conditions
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.BreakIfFalse();
   }
@@ -1568,21 +1637,27 @@ void BytecodeGenerator::VisitDoExpression(DoExpression* expr) {
 }
 
 void BytecodeGenerator::VisitConditional(Conditional* expr) {
-  // TODO(rmcilroy): Spot easy cases where there code would not need to
-  // emit the then block or the else block, e.g. condition is
-  // obviously true/1/false/0.
+  if (expr->condition()->ToBooleanIsTrue()) {
+    // Generate then block unconditionally as always true.
+    VisitForAccumulatorValue(expr->then_expression());
+  } else if (expr->condition()->ToBooleanIsFalse()) {
+    // Generate else block unconditionally if it exists.
+    VisitForAccumulatorValue(expr->else_expression());
+  } else {
+    BytecodeLabel end_label;
+    BytecodeLabels then_labels(zone()), else_labels(zone());
 
-  BytecodeLabel else_label, end_label;
+    VisitForTest(expr->condition(), &then_labels, &else_labels,
+                 TestFallthrough::kThen);
 
-  VisitForAccumulatorValue(expr->condition());
-  builder()->JumpIfFalse(&else_label);
+    then_labels.Bind(builder());
+    VisitForAccumulatorValue(expr->then_expression());
+    builder()->Jump(&end_label);
 
-  VisitForAccumulatorValue(expr->then_expression());
-  builder()->Jump(&end_label);
-
-  builder()->Bind(&else_label);
-  VisitForAccumulatorValue(expr->else_expression());
-  builder()->Bind(&end_label);
+    else_labels.Bind(builder());
+    VisitForAccumulatorValue(expr->else_expression());
+    builder()->Bind(&end_label);
+  }
 
   execution_result()->SetResultInAccumulator();
 }
@@ -1866,6 +1941,9 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
       Register source(Register(variable->index()));
+      // We need to load the variable into the accumulator, even when in a
+      // VisitForRegisterScope, in order to avoid register aliasing if
+      // subsequent expressions assign to the same variable.
       builder()->LoadAccumulatorWithRegister(source);
       BuildHoleCheckForVariableLoad(variable);
       break;
@@ -1874,6 +1952,9 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       // The parameter indices are shifted by 1 (receiver is variable
       // index -1 but is parameter index 0 in BytecodeArrayBuilder).
       Register source = builder()->Parameter(variable->index() + 1);
+      // We need to load the variable into the accumulator, even when in a
+      // VisitForRegisterScope, in order to avoid register aliasing if
+      // subsequent expressions assign to the same variable.
       builder()->LoadAccumulatorWithRegister(source);
       BuildHoleCheckForVariableLoad(variable);
       break;
@@ -2714,9 +2795,21 @@ void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
 }
 
 void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
-  VisitForAccumulatorValue(expr->expression());
-  builder()->LogicalNot();
-  execution_result()->SetResultInAccumulator();
+  if (execution_result()->IsEffect()) {
+    VisitForEffect(expr->expression());
+  } else if (execution_result()->IsTest()) {
+    TestResultScope* test_result = execution_result()->AsTest();
+    // No actual logical negation happening, we just swap the control flow by
+    // swapping the target labels and the fallthrough branch.
+    VisitForTest(expr->expression(), test_result->else_labels(),
+                 test_result->then_labels(),
+                 test_result->inverted_fallthrough());
+    test_result->SetResultConsumedByTest();
+  } else {
+    VisitForAccumulatorValue(expr->expression());
+    builder()->LogicalNot();
+    execution_result()->SetResultInAccumulator();
+  }
 }
 
 void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
@@ -2991,36 +3084,72 @@ void BytecodeGenerator::VisitLogicalOrExpression(BinaryOperation* binop) {
   Expression* left = binop->left();
   Expression* right = binop->right();
 
-  // Short-circuit evaluation- If it is known that left is always true,
-  // no need to visit right
-  if (left->ToBooleanIsTrue()) {
-    VisitForAccumulatorValue(left);
+  if (execution_result()->IsTest()) {
+    TestResultScope* test_result = execution_result()->AsTest();
+
+    if (left->ToBooleanIsTrue() || right->ToBooleanIsTrue()) {
+      builder()->Jump(test_result->NewThenLabel());
+    } else if (left->ToBooleanIsFalse() && right->ToBooleanIsFalse()) {
+      builder()->Jump(test_result->NewElseLabel());
+    } else {
+      BytecodeLabels test_right(zone());
+      VisitForTest(left, test_result->then_labels(), &test_right,
+                   TestFallthrough::kElse);
+      test_right.Bind(builder());
+      VisitForTest(right, test_result->then_labels(),
+                   test_result->else_labels(), test_result->fallthrough());
+    }
+    test_result->SetResultConsumedByTest();
   } else {
-    BytecodeLabel end_label;
-    VisitForAccumulatorValue(left);
-    builder()->JumpIfTrue(&end_label);
-    VisitForAccumulatorValue(right);
-    builder()->Bind(&end_label);
+    if (left->ToBooleanIsTrue()) {
+      VisitForAccumulatorValue(left);
+    } else if (left->ToBooleanIsFalse()) {
+      VisitForAccumulatorValue(right);
+    } else {
+      BytecodeLabel end_label;
+      VisitForAccumulatorValue(left);
+      builder()->JumpIfTrue(&end_label);
+      VisitForAccumulatorValue(right);
+      builder()->Bind(&end_label);
+    }
+    execution_result()->SetResultInAccumulator();
   }
-  execution_result()->SetResultInAccumulator();
 }
 
 void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
   Expression* left = binop->left();
   Expression* right = binop->right();
 
-  // Short-circuit evaluation- If it is known that left is always false,
-  // no need to visit right
-  if (left->ToBooleanIsFalse()) {
-    VisitForAccumulatorValue(left);
+  if (execution_result()->IsTest()) {
+    TestResultScope* test_result = execution_result()->AsTest();
+
+    if (left->ToBooleanIsFalse() || right->ToBooleanIsFalse()) {
+      builder()->Jump(test_result->NewElseLabel());
+    } else if (left->ToBooleanIsTrue() && right->ToBooleanIsTrue()) {
+      builder()->Jump(test_result->NewThenLabel());
+    } else {
+      BytecodeLabels test_right(zone());
+      VisitForTest(left, &test_right, test_result->else_labels(),
+                   TestFallthrough::kThen);
+      test_right.Bind(builder());
+      VisitForTest(right, test_result->then_labels(),
+                   test_result->else_labels(), test_result->fallthrough());
+    }
+    test_result->SetResultConsumedByTest();
   } else {
-    BytecodeLabel end_label;
-    VisitForAccumulatorValue(left);
-    builder()->JumpIfFalse(&end_label);
-    VisitForAccumulatorValue(right);
-    builder()->Bind(&end_label);
+    if (left->ToBooleanIsFalse()) {
+      VisitForAccumulatorValue(left);
+    } else if (left->ToBooleanIsTrue()) {
+      VisitForAccumulatorValue(right);
+    } else {
+      BytecodeLabel end_label;
+      VisitForAccumulatorValue(left);
+      builder()->JumpIfFalse(&end_label);
+      VisitForAccumulatorValue(right);
+      builder()->Bind(&end_label);
+    }
+    execution_result()->SetResultInAccumulator();
   }
-  execution_result()->SetResultInAccumulator();
 }
 
 void BytecodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
@@ -3260,6 +3389,36 @@ void BytecodeGenerator::VisitForRegisterValue(Expression* expr,
   AccumulatorResultScope register_scope(this);
   Visit(expr);
   builder()->StoreAccumulatorInRegister(destination);
+}
+
+// Visits the expression |expr| for testing its boolean value and jumping to the
+// |then| or |other| label depending on value and short-circuit semantics
+void BytecodeGenerator::VisitForTest(Expression* expr,
+                                     BytecodeLabels* then_labels,
+                                     BytecodeLabels* else_labels,
+                                     TestFallthrough fallthrough) {
+  bool result_consumed;
+  {
+    // To make sure that all temporary registers are returned before generating
+    // jumps below, we ensure that the result scope is deleted before doing so.
+    // Dead registers might be materialized otherwise.
+    TestResultScope test_result(this, then_labels, else_labels, fallthrough);
+    Visit(expr);
+    result_consumed = test_result.ResultConsumedByTest();
+  }
+  if (!result_consumed) {
+    switch (fallthrough) {
+      case TestFallthrough::kThen:
+        builder()->JumpIfFalse(else_labels->New());
+        break;
+      case TestFallthrough::kElse:
+        builder()->JumpIfTrue(then_labels->New());
+        break;
+      case TestFallthrough::kNone:
+        builder()->JumpIfTrue(then_labels->New());
+        builder()->Jump(else_labels->New());
+    }
+  }
 }
 
 void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {

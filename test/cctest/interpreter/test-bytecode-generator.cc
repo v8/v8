@@ -705,6 +705,17 @@ TEST(IfConditions) {
     "  }\n"
     "};\n"
     "f();\n",
+
+    "function f(a, b) {\n"
+    "  if (a == b || a < 0) {\n"
+    "    return 1;\n"
+    "  } else if (a > 0 && b > 0) {\n"
+    "    return 0;\n"
+    "  } else {\n"
+    "    return -1;\n"
+    "  }\n"
+    "};\n"
+    "f(-1, 1);\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
@@ -1615,6 +1626,11 @@ TEST(Conditional) {
       "return 1 ? 2 : 3;\n",
 
       "return 1 ? 2 ? 3 : 4 : 5;\n",
+
+      "return 0 < 1 ? 2 : 3;\n",
+
+      "var x = 0;\n"
+      "return x ? 2 : 3;\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

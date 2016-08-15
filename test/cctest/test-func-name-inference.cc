@@ -287,7 +287,8 @@ TEST(MultipleFuncsConditional) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Local<v8::Script> script = Compile(CcTest::isolate(),
-                                         "fun1 = 0 ?\n"
+                                         "var x = 0;\n"
+                                         "fun1 = x ?\n"
                                          "    function() { return 1; } :\n"
                                          "    function() { return 2; }");
   CheckFunctionName(script, "return 1", "fun1");
@@ -301,9 +302,10 @@ TEST(MultipleFuncsInLiteral) {
 
   v8::Local<v8::Script> script =
       Compile(CcTest::isolate(),
+              "var x = 0;\n"
               "function MyClass() {}\n"
               "MyClass.prototype = {\n"
-              "  method1: 0 ? function() { return 1; } :\n"
+              "  method1: x ? function() { return 1; } :\n"
               "               function() { return 2; } }");
   CheckFunctionName(script, "return 1", "MyClass.method1");
   CheckFunctionName(script, "return 2", "MyClass.method1");

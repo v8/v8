@@ -985,6 +985,7 @@
         'interpreter/bytecode-flags.h',
         'interpreter/bytecode-generator.cc',
         'interpreter/bytecode-generator.h',
+        'interpreter/bytecode-label.cc',
         'interpreter/bytecode-label.h',
         'interpreter/bytecode-peephole-optimizer.cc',
         'interpreter/bytecode-peephole-optimizer.h',
