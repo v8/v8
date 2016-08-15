@@ -9828,8 +9828,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     PushArgumentsFromEnvironment(argument_count);
 
   } else {
-    VariableProxy* proxy = expr->expression()->AsVariableProxy();
-    if (proxy != NULL && proxy->var()->is_possibly_eval(isolate())) {
+    if (expr->is_possibly_eval()) {
       return Bailout(kPossibleDirectCallToEval);
     }
 
@@ -9874,8 +9873,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
                                      syntactic_tail_call_mode, tail_call_mode);
     } else {
       PushArgumentsFromEnvironment(argument_count);
-      if (expr->is_uninitialized() &&
-          expr->IsUsingCallFeedbackICSlot(isolate())) {
+      if (expr->is_uninitialized() && expr->IsUsingCallFeedbackICSlot()) {
         // We've never seen this call before, so let's have Crankshaft learn
         // through the type vector.
         call = NewCallFunctionViaIC(function, argument_count,

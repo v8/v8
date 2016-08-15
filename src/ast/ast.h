@@ -1738,9 +1738,7 @@ class Property final : public Expression {
   }
 
   // Returns the properties assign type.
-  static LhsKind GetAssignType(
-      Property* property,
-      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) {
+  static LhsKind GetAssignType(Property* property) {
     if (property == NULL) return VARIABLE;
     bool super_access = property->IsSuperAccess();
     return (property->key()->IsPropertyName())
@@ -1839,6 +1837,10 @@ class Call final : public Expression {
     bit_field_ = IsUninitializedField::update(bit_field_, b);
   }
 
+  bool is_possibly_eval() const {
+    return IsPossiblyEvalField::decode(bit_field_);
+  }
+
   TailCallMode tail_call_mode() const {
     return IsTailField::decode(bit_field_) ? TailCallMode::kAllow
                                            : TailCallMode::kDisallow;
@@ -1857,18 +1859,15 @@ class Call final : public Expression {
     OTHER_CALL
   };
 
+  enum PossiblyEval {
+    IS_POSSIBLY_EVAL,
+    NOT_EVAL,
+  };
+
   // Helpers to determine how to handle the call.
-  // If called with |deref_mode| of kDisallowed, then the AST nodes must have
-  // been internalized within a CanonicalHandleScope.
-  CallType GetCallType(
-      Isolate* isolate,
-      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) const;
-  bool IsUsingCallFeedbackSlot(
-      Isolate* isolate,
-      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) const;
-  bool IsUsingCallFeedbackICSlot(
-      Isolate* isolate,
-      HandleDereferenceMode deref_mode = HandleDereferenceMode::kAllowed) const;
+  CallType GetCallType() const;
+  bool IsUsingCallFeedbackSlot() const;
+  bool IsUsingCallFeedbackICSlot() const;
 
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.
@@ -1879,9 +1878,11 @@ class Call final : public Expression {
   friend class AstNodeFactory;
 
   Call(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
-       int pos)
+       int pos, PossiblyEval possibly_eval)
       : Expression(zone, pos, kCall),
-        bit_field_(IsUninitializedField::encode(false)),
+        bit_field_(
+            IsUninitializedField::encode(false) |
+            IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL)),
         expression_(expression),
         arguments_(arguments) {
     if (expression->IsProperty()) {
@@ -1894,6 +1895,7 @@ class Call final : public Expression {
 
   class IsUninitializedField : public BitField8<bool, 0, 1> {};
   class IsTailField : public BitField8<bool, 1, 1> {};
+  class IsPossiblyEvalField : public BitField8<bool, 2, 1> {};
 
   uint8_t bit_field_;
   FeedbackVectorSlot ic_slot_;
@@ -3241,10 +3243,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) Property(zone_, obj, key, pos);
   }
 
-  Call* NewCall(Expression* expression,
-                ZoneList<Expression*>* arguments,
-                int pos) {
-    return new (zone_) Call(zone_, expression, arguments, pos);
+  Call* NewCall(Expression* expression, ZoneList<Expression*>* arguments,
+                int pos, Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
+    return new (zone_) Call(zone_, expression, arguments, pos, possibly_eval);
   }
 
   CallNew* NewCallNew(Expression* expression,

@@ -515,7 +515,7 @@ void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
   RECURSE(Visit(expr->expression()));
   bool is_uninitialized = true;
-  if (expr->IsUsingCallFeedbackICSlot(isolate_)) {
+  if (expr->IsUsingCallFeedbackICSlot()) {
     FeedbackVectorSlot slot = expr->CallFeedbackICSlot();
     is_uninitialized = oracle()->CallIsUninitialized(slot);
     if (!expr->expression()->IsProperty() &&
@@ -534,8 +534,7 @@ void AstTyper::VisitCall(Call* expr) {
     RECURSE(Visit(arg));
   }
 
-  VariableProxy* proxy = expr->expression()->AsVariableProxy();
-  if (proxy != NULL && proxy->var()->is_possibly_eval(isolate_)) {
+  if (expr->is_possibly_eval()) {
     store_.Forget();  // Eval could do whatever to local variables.
   }
 

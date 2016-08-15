@@ -520,10 +520,11 @@ class PreParserFactory {
                                         int pos) {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewCall(PreParserExpression expression,
-                              PreParserExpressionList arguments,
-                              int pos) {
-    if (expression.IsIdentifier() && expression.AsIdentifier().IsEval()) {
+  PreParserExpression NewCall(
+      PreParserExpression expression, PreParserExpressionList arguments,
+      int pos, Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
+    if (possibly_eval == Call::IS_POSSIBLY_EVAL) {
+      DCHECK(expression.IsIdentifier() && expression.AsIdentifier().IsEval());
       return PreParserExpression::CallEval();
     }
     return PreParserExpression::Call();

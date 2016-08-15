@@ -816,8 +816,6 @@ enum class CreateArgumentsType : uint8_t {
   kRestParameter
 };
 
-enum class HandleDereferenceMode { kAllowed, kDisallowed };
-
 inline size_t hash_value(CreateArgumentsType type) {
   return bit_cast<uint8_t>(type);
 }

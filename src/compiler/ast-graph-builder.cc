@@ -2277,7 +2277,7 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
 
 void AstGraphBuilder::VisitCall(Call* expr) {
   Expression* callee = expr->expression();
-  Call::CallType call_type = expr->GetCallType(isolate());
+  Call::CallType call_type = expr->GetCallType();
 
   // Prepare the callee and the receiver to the function call. This depends on
   // the semantics of the underlying call type.

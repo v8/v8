@@ -1170,8 +1170,7 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr,
   // Evaluate assignment starting with the value to be stored in the
   // accumulator.
   Property* property = expr->AsProperty();
-  LhsKind assign_type =
-      Property::GetAssignType(property, HandleDereferenceMode::kDisallowed);
+  LhsKind assign_type = Property::GetAssignType(property);
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->AsVariableProxy()->var();
@@ -2141,8 +2140,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->target()->AsProperty();
-  LhsKind assign_type =
-      Property::GetAssignType(property, HandleDereferenceMode::kDisallowed);
+  LhsKind assign_type = Property::GetAssignType(property);
 
   // Evaluate LHS expression.
   switch (assign_type) {
@@ -2372,8 +2370,7 @@ void BytecodeGenerator::VisitThrow(Throw* expr) {
 }
 
 void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
-  LhsKind property_kind =
-      Property::GetAssignType(expr, HandleDereferenceMode::kDisallowed);
+  LhsKind property_kind = Property::GetAssignType(expr);
   FeedbackVectorSlot slot = expr->PropertyFeedbackSlot();
   builder()->SetExpressionPosition(expr);
   switch (property_kind) {
@@ -2451,8 +2448,7 @@ void BytecodeGenerator::VisitKeyedSuperPropertyLoad(Property* property,
 }
 
 void BytecodeGenerator::VisitProperty(Property* expr) {
-  LhsKind property_kind =
-      Property::GetAssignType(expr, HandleDereferenceMode::kDisallowed);
+  LhsKind property_kind = Property::GetAssignType(expr);
   if (property_kind != NAMED_SUPER_PROPERTY &&
       property_kind != KEYED_SUPER_PROPERTY) {
     Register obj = VisitForRegisterValue(expr->obj());
@@ -2496,8 +2492,7 @@ Register BytecodeGenerator::VisitArguments(ZoneList<Expression*>* args) {
 
 void BytecodeGenerator::VisitCall(Call* expr) {
   Expression* callee_expr = expr->expression();
-  Call::CallType call_type =
-      expr->GetCallType(isolate(), HandleDereferenceMode::kDisallowed);
+  Call::CallType call_type = expr->GetCallType();
 
   if (call_type == Call::SUPER_CALL) {
     return VisitCallSuper(expr);
@@ -2815,8 +2810,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->expression()->AsProperty();
-  LhsKind assign_type =
-      Property::GetAssignType(property, HandleDereferenceMode::kDisallowed);
+  LhsKind assign_type = Property::GetAssignType(property);
 
   bool is_postfix = expr->is_postfix() && !execution_result()->IsEffect();
 

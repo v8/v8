@@ -1262,7 +1262,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   }
 
   void VisitCall(Call* expr) {
-    Call::CallType call_type = expr->GetCallType(isolate_);
+    Call::CallType call_type = expr->GetCallType();
     switch (call_type) {
       case Call::OTHER_CALL: {
         DCHECK_EQ(kFuncScope, scope_);

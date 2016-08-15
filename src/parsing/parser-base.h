@@ -1160,7 +1160,8 @@ class ParserBase : public Traits {
   // Keep track of eval() calls since they disable all local variable
   // optimizations. This checks if expression is an eval call, and if yes,
   // forwards the information to scope.
-  void CheckPossibleEvalCall(ExpressionT expression, Scope* scope) {
+  Call::PossiblyEval CheckPossibleEvalCall(ExpressionT expression,
+                                           Scope* scope) {
     if (Traits::IsIdentifier(expression) &&
         Traits::IsEval(Traits::AsIdentifier(expression))) {
       scope->RecordEvalCall();
@@ -1169,7 +1170,9 @@ class ParserBase : public Traits {
         // in case it includes declarations that will be hoisted.
         scope->GetDeclarationScope()->RecordEvalCall();
       }
+      return Call::IS_POSSIBLY_EVAL;
     }
+    return Call::NOT_EVAL;
   }
 
   // Used to validate property names in object literals and class literals
@@ -2924,14 +2927,15 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         // no explicit receiver.
         // These calls are marked as potentially direct eval calls. Whether
         // they are actually direct calls to eval is determined at run time.
-        this->CheckPossibleEvalCall(result, scope());
+        Call::PossiblyEval is_possibly_eval =
+            CheckPossibleEvalCall(result, scope());
 
         bool is_super_call = result->IsSuperCallReference();
         if (spread_pos.IsValid()) {
           args = Traits::PrepareSpreadArguments(args);
           result = Traits::SpreadCall(result, args, pos);
         } else {
-          result = factory()->NewCall(result, args, pos);
+          result = factory()->NewCall(result, args, pos, is_possibly_eval);
         }
 
         // Explicit calls to the super constructor using super() perform an

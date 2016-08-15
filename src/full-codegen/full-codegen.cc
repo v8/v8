@@ -1564,7 +1564,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
                           ? "[ TailCall"
                           : "[ Call");
   Expression* callee = expr->expression();
-  Call::CallType call_type = expr->GetCallType(isolate());
+  Call::CallType call_type = expr->GetCallType();
 
   switch (call_type) {
     case Call::POSSIBLY_EVAL_CALL:

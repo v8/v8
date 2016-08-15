@@ -887,38 +887,31 @@ bool Expression::IsMonomorphic() const {
   }
 }
 
-bool Call::IsUsingCallFeedbackICSlot(
-    Isolate* isolate, HandleDereferenceMode dereference_mode) const {
-  CallType call_type = GetCallType(isolate, dereference_mode);
-  if (call_type == POSSIBLY_EVAL_CALL) {
-    return false;
-  }
-  return true;
+bool Call::IsUsingCallFeedbackICSlot() const {
+  return GetCallType() != POSSIBLY_EVAL_CALL;
 }
 
-bool Call::IsUsingCallFeedbackSlot(
-    Isolate* isolate, HandleDereferenceMode dereference_mode) const {
+bool Call::IsUsingCallFeedbackSlot() const {
   // SuperConstructorCall uses a CallConstructStub, which wants
   // a Slot, in addition to any IC slots requested elsewhere.
-  return GetCallType(isolate, dereference_mode) == SUPER_CALL;
+  return GetCallType() == SUPER_CALL;
 }
 
 
 void Call::AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                      FeedbackVectorSlotCache* cache) {
-  if (IsUsingCallFeedbackICSlot(isolate)) {
+  if (IsUsingCallFeedbackICSlot()) {
     ic_slot_ = spec->AddCallICSlot();
   }
-  if (IsUsingCallFeedbackSlot(isolate)) {
+  if (IsUsingCallFeedbackSlot()) {
     stub_slot_ = spec->AddGeneralSlot();
   }
 }
 
-Call::CallType Call::GetCallType(Isolate* isolate,
-                                 HandleDereferenceMode deref_mode) const {
+Call::CallType Call::GetCallType() const {
   VariableProxy* proxy = expression()->AsVariableProxy();
   if (proxy != NULL) {
-    if (proxy->var()->is_possibly_eval(isolate, deref_mode)) {
+    if (is_possibly_eval()) {
       return POSSIBLY_EVAL_CALL;
     } else if (proxy->var()->IsUnallocatedOrGlobalSlot()) {
       return GLOBAL_CALL;
