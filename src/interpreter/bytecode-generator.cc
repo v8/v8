@@ -3211,18 +3211,9 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
   AccumulatorResultScope accumulator_execution_result(this);
   DCHECK(scope->is_block_scope());
 
-  // Allocate a new local block context.
-  register_allocator()->PrepareForConsecutiveAllocations(2);
-  Register scope_info = register_allocator()->NextConsecutiveRegister();
-  Register closure = register_allocator()->NextConsecutiveRegister();
-
-  builder()
-      ->LoadLiteral(scope->GetScopeInfo(isolate()))
-      .StoreAccumulatorInRegister(scope_info);
   VisitFunctionClosureForContext();
-  builder()
-      ->StoreAccumulatorInRegister(closure)
-      .CallRuntime(Runtime::kPushBlockContext, scope_info, 2);
+
+  builder()->CreateBlockContext(scope->GetScopeInfo(isolate()));
   execution_result()->SetResultInAccumulator();
 }
 

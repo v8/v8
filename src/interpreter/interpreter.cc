@@ -1795,6 +1795,20 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
   }
 }
 
+// CreateBlockContext <index>
+//
+// Creates a new block context with the scope info constant at |index| and the
+// closure in the accumulator.
+void Interpreter::DoCreateBlockContext(InterpreterAssembler* assembler) {
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* scope_info = __ LoadConstantPoolEntry(index);
+  Node* closure = __ GetAccumulator();
+  Node* context = __ GetContext();
+  __ SetAccumulator(
+      __ CallRuntime(Runtime::kPushBlockContext, context, scope_info, closure));
+  __ Dispatch();
+}
+
 // CreateFunctionContext <slots>
 //
 // Creates a new context with number of |slots| for the function closure.

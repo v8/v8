@@ -103,9 +103,9 @@ snippet: "
   let a = 1;
   { let b = 2; return function() { a + b; }; }
 "
-frame size: 4
+frame size: 2
 parameter count: 1
-bytecode array length: 43
+bytecode array length: 35
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
@@ -114,10 +114,8 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   56 S> */ B(LdaSmi), U8(1),
   /*   56 E> */ B(StaContextSlot), R(context), U8(4),
-                B(LdaConstant), U8(0),
-                B(Star), R(2),
-                B(Mov), R(closure), R(3),
-                B(CallRuntime), U16(Runtime::kPushBlockContext), R(2), U8(2),
+                B(Ldar), R(closure),
+                B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),

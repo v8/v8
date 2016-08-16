@@ -264,7 +264,7 @@ snippet: "
 "
 frame size: 18
 parameter count: 1
-bytecode array length: 768
+bytecode array length: 752
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -319,10 +319,8 @@ bytecodes: [
                 B(JumpConstant), U8(17),
                 B(Ldar), R(10),
   /*   11 E> */ B(Throw),
-                B(LdaConstant), U8(0),
-                B(Star), R(8),
-                B(Mov), R(closure), R(9),
-                B(CallRuntime), U16(Runtime::kPushBlockContext), R(8), U8(2),
+                B(Ldar), R(closure),
+                B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
@@ -366,10 +364,8 @@ bytecodes: [
                 B(LdaContextSlot), R(1), U8(10),
                 B(StaContextSlot), R(1), U8(6),
   /*   16 E> */ B(StackCheck),
-                B(LdaConstant), U8(7),
-                B(Star), R(12),
-                B(Mov), R(closure), R(13),
-                B(CallRuntime), U16(Runtime::kPushBlockContext), R(12), U8(2),
+                B(Ldar), R(closure),
+                B(CreateBlockContext), U8(7),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
@@ -423,7 +419,7 @@ bytecodes: [
                 B(PopContext), R(2),
                 B(LdaZero),
                 B(StaContextSlot), R(1), U8(9),
-                B(Wide), B(Jump), U16(-223),
+                B(Wide), B(Jump), U16(-215),
                 B(Jump), U8(46),
                 B(Star), R(13),
                 B(LdaConstant), U8(11),
@@ -598,9 +594,9 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [41, 687, 693],
-  [147, 442, 448],
-  [150, 396, 398],
-  [544, 556, 558],
+  [41, 671, 677],
+  [139, 426, 432],
+  [142, 380, 382],
+  [528, 540, 542],
 ]
 

@@ -135,6 +135,10 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // constant pool index |entry|.
   BytecodeArrayBuilder& CreateClosure(size_t entry, int flags);
 
+  // Create a new local context for a |scope_info| and a closure which should be
+  // in the accumulator.
+  BytecodeArrayBuilder& CreateBlockContext(Handle<ScopeInfo> scope_info);
+
   // Create a new context with size |slots|.
   BytecodeArrayBuilder& CreateFunctionContext(int slots);
 

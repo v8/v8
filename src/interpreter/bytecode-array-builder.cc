@@ -338,6 +338,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(size_t entry,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateBlockContext(
+    Handle<ScopeInfo> scope_info) {
+  size_t entry = GetConstantPoolEntry(scope_info);
+  Output(Bytecode::kCreateBlockContext, UnsignedOperand(entry));
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
   Output(Bytecode::kCreateFunctionContext, UnsignedOperand(slots));
   return *this;

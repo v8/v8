@@ -101,15 +101,13 @@ snippet: "
     break outer;
   }
 "
-frame size: 5
+frame size: 3
 parameter count: 1
-bytecode array length: 40
+bytecode array length: 32
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-                B(LdaConstant), U8(0),
-                B(Star), R(3),
-                B(Mov), R(closure), R(4),
-                B(CallRuntime), U16(Runtime::kPushBlockContext), R(3), U8(2),
+                B(Ldar), R(closure),
+                B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
@@ -146,7 +144,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 115
+bytecode array length: 107
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(2),
@@ -155,10 +153,8 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(StaContextSlot), R(context), U8(4),
-                B(LdaConstant), U8(0),
-                B(Star), R(4),
-                B(Mov), R(closure), R(5),
-                B(CallRuntime), U16(Runtime::kPushBlockContext), R(4), U8(2),
+                B(Ldar), R(closure),
+                B(CreateBlockContext), U8(0),
                 B(PushContext), R(3),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
