@@ -775,6 +775,7 @@ std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
   V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
   V(BYTECODE_ARRAY_HANDLER_TABLE_SUB_TYPE)       \
   V(CODE_STUBS_TABLE_SUB_TYPE)                   \
+  V(COMPILATION_CACHE_TABLE_SUB_TYPE)            \
   V(CONTEXT_SUB_TYPE)                            \
   V(COPY_ON_WRITE_SUB_TYPE)                      \
   V(DEOPTIMIZATION_DATA_SUB_TYPE)                \
@@ -798,6 +799,7 @@ std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_SUB_TYPE)     \
   V(NUMBER_STRING_CACHE_SUB_TYPE)                \
   V(OBJECT_TO_CODE_SUB_TYPE)                     \
+  V(OPTIMIZED_CODE_LITERALS_SUB_TYPE)            \
   V(OPTIMIZED_CODE_MAP_SUB_TYPE)                 \
   V(PROTOTYPE_USERS_SUB_TYPE)                    \
   V(REGEXP_MULTIPLE_CACHE_SUB_TYPE)              \
@@ -810,6 +812,7 @@ std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
   V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
   V(STRING_TABLE_SUB_TYPE)                       \
+  V(TEMPLATE_INFO_SUB_TYPE)                      \
   V(TYPE_FEEDBACK_VECTOR_SUB_TYPE)               \
   V(TYPE_FEEDBACK_METADATA_SUB_TYPE)             \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
@@ -10820,6 +10823,8 @@ class TemplateInfo: public Struct {
   DECL_ACCESSORS(property_accessors, Object)
 
   DECLARE_VERIFIER(TemplateInfo)
+
+  DECLARE_CAST(TemplateInfo)
 
   static const int kTagOffset = HeapObject::kHeaderSize;
   static const int kSerialNumberOffset = kTagOffset + kPointerSize;

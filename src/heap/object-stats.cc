@@ -4,6 +4,7 @@
 
 #include "src/heap/object-stats.h"
 
+#include "src/compilation-cache.h"
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
@@ -173,6 +174,9 @@ void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
 
   // Record specific sub types where possible.
   if (obj->IsMap()) RecordMapDetails(Map::cast(obj));
+  if (obj->IsObjectTemplateInfo() || obj->IsFunctionTemplateInfo()) {
+    RecordTemplateInfoDetails(TemplateInfo::cast(obj));
+  }
   if (obj->IsBytecodeArray()) {
     RecordBytecodeArrayDetails(BytecodeArray::cast(obj));
   }
@@ -191,6 +195,26 @@ void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
   if (obj->IsJSFunction()) RecordJSFunctionDetails(JSFunction::cast(obj));
   if (obj->IsScript()) RecordScriptDetails(Script::cast(obj));
 }
+
+class ObjectStatsCollector::CompilationCacheTableVisitor
+    : public ObjectVisitor {
+ public:
+  explicit CompilationCacheTableVisitor(ObjectStatsCollector* parent)
+      : parent_(parent) {}
+
+  void VisitPointers(Object** start, Object** end) override {
+    for (Object** current = start; current < end; current++) {
+      HeapObject* obj = HeapObject::cast(*current);
+      if (obj->IsUndefined(parent_->heap_->isolate())) continue;
+      CHECK(obj->IsCompilationCacheTable());
+      parent_->RecordHashTableHelper(nullptr, CompilationCacheTable::cast(obj),
+                                     COMPILATION_CACHE_TABLE_SUB_TYPE);
+    }
+  }
+
+ private:
+  ObjectStatsCollector* parent_;
+};
 
 void ObjectStatsCollector::CollectGlobalStatistics() {
   // Global FixedArrays.
@@ -226,6 +250,9 @@ void ObjectStatsCollector::CollectGlobalStatistics() {
                         INTRINSIC_FUNCTION_NAMES_SUB_TYPE);
   RecordHashTableHelper(nullptr, heap_->empty_properties_dictionary(),
                         EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE);
+  CompilationCache* compilation_cache = heap_->isolate()->compilation_cache();
+  CompilationCacheTableVisitor v(this);
+  compilation_cache->Iterate(&v);
 }
 
 static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
@@ -366,8 +393,13 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
   }
 
   if (map_obj->has_code_cache()) {
-    RecordFixedArrayHelper(map_obj, map_obj->code_cache(),
-                           MAP_CODE_CACHE_SUB_TYPE, 0);
+    FixedArray* code_cache = map_obj->code_cache();
+    if (code_cache->IsCodeCacheHashTable()) {
+      RecordHashTableHelper(map_obj, CodeCacheHashTable::cast(code_cache),
+                            MAP_CODE_CACHE_SUB_TYPE);
+    } else {
+      RecordFixedArrayHelper(map_obj, code_cache, MAP_CODE_CACHE_SUB_TYPE, 0);
+    }
   }
 
   for (DependentCode* cur_dependent_code = map_obj->dependent_code();
@@ -390,6 +422,17 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
   }
 }
 
+void ObjectStatsCollector::RecordTemplateInfoDetails(TemplateInfo* obj) {
+  if (obj->property_accessors()->IsFixedArray()) {
+    RecordFixedArrayHelper(obj, FixedArray::cast(obj->property_accessors()),
+                           TEMPLATE_INFO_SUB_TYPE, 0);
+  }
+  if (obj->property_list()->IsFixedArray()) {
+    RecordFixedArrayHelper(obj, FixedArray::cast(obj->property_list()),
+                           TEMPLATE_INFO_SUB_TYPE, 0);
+  }
+}
+
 void ObjectStatsCollector::RecordBytecodeArrayDetails(BytecodeArray* obj) {
   RecordFixedArrayHelper(obj, obj->constant_pool(),
                          BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE, 0);
@@ -401,6 +444,13 @@ void ObjectStatsCollector::RecordCodeDetails(Code* code) {
   stats_->RecordCodeSubTypeStats(code->kind(), code->GetAge(), code->Size());
   RecordFixedArrayHelper(code, code->deoptimization_data(),
                          DEOPTIMIZATION_DATA_SUB_TYPE, 0);
+  if (code->kind() == Code::Kind::OPTIMIZED_FUNCTION) {
+    DeoptimizationInputData* input_data =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    RecordFixedArrayHelper(code->deoptimization_data(),
+                           input_data->LiteralArray(),
+                           OPTIMIZED_CODE_LITERALS_SUB_TYPE, 0);
+  }
   RecordFixedArrayHelper(code, code->handler_table(), HANDLER_TABLE_SUB_TYPE,
                          0);
   int const mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);

@@ -127,6 +127,8 @@ class ObjectStatsCollector {
   void CollectStatistics(HeapObject* obj);
 
  private:
+  class CompilationCacheTableVisitor;
+
   void RecordBytecodeArrayDetails(BytecodeArray* obj);
   void RecordCodeDetails(Code* code);
   void RecordFixedArrayDetails(FixedArray* array);
@@ -136,6 +138,7 @@ class ObjectStatsCollector {
   void RecordJSWeakCollectionDetails(JSWeakCollection* obj);
   void RecordMapDetails(Map* map);
   void RecordScriptDetails(Script* obj);
+  void RecordTemplateInfoDetails(TemplateInfo* obj);
   void RecordSharedFunctionInfoDetails(SharedFunctionInfo* sfi);
 
   bool RecordFixedArrayHelper(HeapObject* parent, FixedArray* array,
@@ -146,6 +149,8 @@ class ObjectStatsCollector {
   void RecordHashTableHelper(HeapObject* parent, HashTable* array, int subtype);
   Heap* heap_;
   ObjectStats* stats_;
+
+  friend class ObjectStatsCollector::CompilationCacheTableVisitor;
 };
 
 }  // namespace internal
