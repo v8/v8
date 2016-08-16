@@ -147,7 +147,6 @@ class RedundantStoreFinder final {
   UnobservablesSet RecomputeUseIntersection(Node* node);
   UnobservablesSet RecomputeSet(Node* node, UnobservablesSet uses);
   static bool CannotObserveStoreField(Node* node);
-  static bool CanObserveAnything(Node* node);
 
   void MarkForRevisit(Node* node);
   bool HasBeenVisited(Node* node);
@@ -325,20 +324,9 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(Node* node,
         TRACE("  #%d:%s can observe nothing, set stays unchanged", node->id(),
               node->op()->mnemonic());
         return uses;
-      } else if (CanObserveAnything(node)) {
-        TRACE("  #%d:%s can observe everything, recording empty set",
-              node->id(), node->op()->mnemonic());
-        return unobservables_visited_empty_;
       } else {
-        // It is safe to turn this check off in the future, but it is better
-        // to list opcodes in CannotObserveStoreField, in CanObserveAnything,
-        // or if you don't know, to add another case inside this DCHECK_EXTRA.
-        DCHECK_EXTRA(node->op()->opcode() == IrOpcode::kCall, "%s",
-                     node->op()->mnemonic());
-        TRACE(
-            "  cannot determine unobservables-set for #%d:%s; "
-            "conservatively recording empty set",
-            node->id(), node->op()->mnemonic());
+        TRACE("  #%d:%s might observe anything, recording empty set",
+              node->id(), node->op()->mnemonic());
         return unobservables_visited_empty_;
       }
   }
@@ -347,19 +335,15 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(Node* node,
 }
 
 bool RedundantStoreFinder::CannotObserveStoreField(Node* node) {
-  Operator::Properties mask =
-      Operator::kNoRead | Operator::kNoDeopt | Operator::kNoThrow;
-
-  return (node->op()->properties() & mask) == mask ||
-         node->opcode() == IrOpcode::kAllocate ||
-         node->opcode() == IrOpcode::kCheckedLoad ||
+  return node->opcode() == IrOpcode::kCheckedLoad ||
          node->opcode() == IrOpcode::kLoadElement ||
-         node->opcode() == IrOpcode::kLoad;
-}
-
-bool RedundantStoreFinder::CanObserveAnything(Node* node) {
-  return !node->op()->HasProperty(Operator::kNoThrow) ||
-         !node->op()->HasProperty(Operator::kNoDeopt);
+         node->opcode() == IrOpcode::kLoad ||
+         node->opcode() == IrOpcode::kStore ||
+         node->opcode() == IrOpcode::kEffectPhi ||
+         node->opcode() == IrOpcode::kStoreElement ||
+         node->opcode() == IrOpcode::kCheckedStore ||
+         node->opcode() == IrOpcode::kUnsafePointerAdd ||
+         node->opcode() == IrOpcode::kRetain;
 }
 
 // Initialize unobservable_ with js_graph->graph->NodeCount() empty sets.
@@ -421,7 +405,7 @@ void RedundantStoreFinder::VisitEffectfulNode(Node* node) {
     // Mark effect inputs for visiting.
     for (int i = 0; i < node->op()->EffectInputCount(); i++) {
       Node* input = NodeProperties::GetEffectInput(node, i);
-      if (!CanObserveAnything(input) || !HasBeenVisited(input)) {
+      if (!HasBeenVisited(input)) {
         TRACE("    marking #%d:%s for revisit", input->id(),
               input->op()->mnemonic());
         MarkForRevisit(input);
