@@ -537,86 +537,62 @@ class CompilationInfo final {
 // A base class for compilation jobs intended to run concurrent to the main
 // thread. The job is split into three phases which are called in sequence on
 // different threads and with different limitations:
-//  1) PrepareJob:   Runs on main thread. No major limitations.
-//  2) ExecuteJob:   Runs concurrently. No heap allocation or handle derefs.
-//  3) FinalizeJob:  Runs on main thread. No dependency changes.
+//  1) CreateGraph:   Runs on main thread. No major limitations.
+//  2) OptimizeGraph: Runs concurrently. No heap allocation or handle derefs.
+//  3) GenerateCode:  Runs on main thread. No dependency changes.
 //
-// Each of the three phases can either fail or succeed. The current state of
-// the job can be checked using {state()}.
+// Each of the three phases can either fail or succeed. Apart from their return
+// value, the status of the phase last run can be checked using {last_status()}
+// as well. When failing we distinguish between the following levels:
+//  a) AbortOptimization: Persistent failure, disable future optimization.
+//  b) RetryOptimzation: Transient failure, try again next time.
 class CompilationJob {
  public:
-  enum Status { SUCCEEDED, FAILED };
-  enum class State {
-    kReadyToPrepare,
-    kReadyToExecute,
-    kReadyToFinalize,
-    kSucceeded,
-    kFailed,
-  };
-
-  explicit CompilationJob(CompilationInfo* info, const char* compiler_name,
-                          State initial_state = State::kReadyToPrepare)
-      : info_(info), compiler_name_(compiler_name), state_(initial_state) {}
+  explicit CompilationJob(CompilationInfo* info, const char* compiler_name)
+      : info_(info), compiler_name_(compiler_name), last_status_(SUCCEEDED) {}
   virtual ~CompilationJob() {}
 
-  // Prepare the compile job. Must be called on the main thread.
-  MUST_USE_RESULT Status PrepareJob();
+  enum Status { FAILED, SUCCEEDED };
 
-  // Executes the compile job. Can be called off the main thread.
-  MUST_USE_RESULT Status ExecuteJob();
+  MUST_USE_RESULT Status CreateGraph();
+  MUST_USE_RESULT Status OptimizeGraph();
+  MUST_USE_RESULT Status GenerateCode();
 
-  // Finalizes the compile job. Must be called on the main thread.
-  MUST_USE_RESULT Status FinalizeJob();
+  Status last_status() const { return last_status_; }
+  CompilationInfo* info() const { return info_; }
+  Isolate* isolate() const { return info()->isolate(); }
 
-  // Report a transient failure, try again next time. Should only be called on
-  // optimization compilation jobs.
   Status RetryOptimization(BailoutReason reason) {
-    DCHECK(info_->IsOptimizing());
     info_->RetryOptimization(reason);
-    state_ = State::kFailed;
-    return FAILED;
+    return SetLastStatus(FAILED);
   }
 
-  // Report a persistent failure, disable future optimization on the function.
-  // Should only be called on optimization compilation jobs.
   Status AbortOptimization(BailoutReason reason) {
-    DCHECK(info_->IsOptimizing());
     info_->AbortOptimization(reason);
-    state_ = State::kFailed;
-    return FAILED;
+    return SetLastStatus(FAILED);
   }
 
   void RecordOptimizationStats();
 
-  // Registers weak object to optimized code dependencies.
-  // TODO(turbofan): Move this to pipeline.cc once Crankshaft dies.
-  static void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
-
-  State state() const { return state_; }
-  CompilationInfo* info() const { return info_; }
-  Isolate* isolate() const { return info()->isolate(); }
-
  protected:
+  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
+
   // Overridden by the actual implementation.
-  virtual Status PrepareJobImpl() = 0;
-  virtual Status ExecuteJobImpl() = 0;
-  virtual Status FinalizeJobImpl() = 0;
+  virtual Status CreateGraphImpl() = 0;
+  virtual Status OptimizeGraphImpl() = 0;
+  virtual Status GenerateCodeImpl() = 0;
 
  private:
   CompilationInfo* info_;
-  base::TimeDelta time_taken_to_prepare_;
-  base::TimeDelta time_taken_to_execute_;
-  base::TimeDelta time_taken_to_finalize_;
+  base::TimeDelta time_taken_to_create_graph_;
+  base::TimeDelta time_taken_to_optimize_;
+  base::TimeDelta time_taken_to_codegen_;
   const char* compiler_name_;
-  State state_;
+  Status last_status_;
 
-  MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
-    if (status == SUCCEEDED) {
-      state_ = next_state;
-    } else {
-      state_ = State::kFailed;
-    }
-    return status;
+  MUST_USE_RESULT Status SetLastStatus(Status status) {
+    last_status_ = status;
+    return last_status_;
   }
 };
 

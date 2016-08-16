@@ -549,8 +549,8 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
                          Code::ComputeFlags(Code::WASM_FUNCTION));
     std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
         &info, graph(), desc, &source_position_table_));
-    if (job->ExecuteJob() != CompilationJob::SUCCEEDED ||
-        job->FinalizeJob() != CompilationJob::SUCCEEDED)
+    if (job->OptimizeGraph() != CompilationJob::SUCCEEDED ||
+        job->GenerateCode() != CompilationJob::SUCCEEDED)
       return Handle<Code>::null();
 
     Handle<Code> code = info.code();
