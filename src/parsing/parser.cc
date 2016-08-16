@@ -991,6 +991,12 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   FunctionLiteral* result = NULL;
   {
     Scope* outer = original_scope_;
+    // If there's a chance that there's a reference to global 'this', predeclare
+    // it as a dynamic global on the script scope.
+    if (outer->GetReceiverScope()->is_script_scope()) {
+      info->script_scope()->DeclareDynamicGlobal(
+          ast_value_factory()->this_string(), Variable::THIS);
+    }
     DCHECK(outer);
     if (info->is_eval()) {
       if (!outer->is_script_scope() || is_strict(info->language_mode())) {
@@ -1155,6 +1161,12 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
     // Parse the function literal.
     Scope* scope = original_scope_;
     DCHECK(scope);
+    // If there's a chance that there's a reference to global 'this', predeclare
+    // it as a dynamic global on the script scope.
+    if (info->is_arrow() && scope->GetReceiverScope()->is_script_scope()) {
+      info->script_scope()->DeclareDynamicGlobal(
+          ast_value_factory()->this_string(), Variable::THIS);
+    }
     FunctionState function_state(&function_state_, &scope_state_, scope,
                                  info->function_kind());
     DCHECK(is_sloppy(scope->language_mode()) ||

@@ -442,6 +442,7 @@ class Scope: public ZoneObject {
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
   bool HasSimpleParameters();
+  void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
 
  private:
   Zone* zone_;
@@ -505,6 +506,8 @@ class Scope: public ZoneObject {
   // This scope's declarations might not be executed in order (e.g., switch).
   bool scope_nonlinear_ : 1;
   bool is_hidden_ : 1;
+  // Temporary workaround that allows masking of 'this' in debug-evalute scopes.
+  bool is_debug_evaluate_scope_ : 1;
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_sloppy_eval_ : 1;
@@ -522,8 +525,7 @@ class Scope: public ZoneObject {
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
-  Variable* NonLocal(const AstRawString* name, VariableMode mode,
-                     Variable::Kind variable_kind);
+  Variable* NonLocal(const AstRawString* name, VariableMode mode);
 
   // Variable resolution.
   // Possible results of a recursive variable lookup telling if and how a

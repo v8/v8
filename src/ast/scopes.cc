@@ -209,6 +209,7 @@ void Scope::SetDefaults() {
   asm_function_ = false;
   scope_nonlinear_ = false;
   is_hidden_ = false;
+  is_debug_evaluate_scope_ = false;
 
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
@@ -236,6 +237,11 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       // For scope analysis, debug-evaluate is equivalent to a with scope.
       Scope* with_scope = new (zone)
           Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>::null());
+      // TODO(yangguo): Remove once debug-evaluate properly keeps track of the
+      // function scope in which we are evaluating.
+      if (context->IsDebugEvaluateContext()) {
+        with_scope->set_is_debug_evaluate_scope();
+      }
       current_scope = with_scope;
       // All the inner scopes are inside a with.
       for (Scope* s = innermost_scope; s != nullptr; s = s->outer_scope()) {
@@ -554,7 +560,7 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
   // it's ok to get the Handle<String> here.
   // If we have a serialized scope info, we might find the variable there.
   // There should be no local slot with the given name.
-  DCHECK(scope_info_->StackSlotIndex(*name_handle) < 0 || is_block_scope());
+  DCHECK(scope_info_->StackSlotIndex(*name_handle) < 0);
 
   // Check context slot lookup.
   VariableMode mode;
@@ -1218,15 +1224,15 @@ void Scope::CheckZones() {
 }
 #endif  // DEBUG
 
-Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode,
-                          Variable::Kind kind) {
+Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   if (dynamics_ == NULL) dynamics_ = new (zone()) DynamicScopePart(zone());
   VariableMap* map = dynamics_->GetMap(mode);
   Variable* var = map->Lookup(name);
   if (var == NULL) {
     // Declare a new non-local.
     DCHECK(!IsLexicalVariableMode(mode));
-    var = map->Declare(zone(), NULL, name, mode, kind, kCreatedInitialized);
+    var = map->Declare(zone(), NULL, name, mode, Variable::NORMAL,
+                       kCreatedInitialized);
     // Allocate it by giving it a dynamic lookup.
     var->AllocateTo(VariableLocation::LOOKUP, -1);
   }
@@ -1240,9 +1246,14 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
   DCHECK_NE(outer_scope_end, this);
   DCHECK_NOT_NULL(binding_kind);
   DCHECK_EQ(UNBOUND, *binding_kind);
-  if (already_resolved() && is_with_scope()) {
-    // Short-cut: if the scope is deserialized from a scope info, variable
-    // allocation is already fixed.  We can simply return with dynamic lookup.
+  // Short-cut: whenever we find a debug-evaluate scope, just look everything up
+  // dynamically. Debug-evaluate doesn't properly create scope info for the
+  // lookups it does. It may not have a valid 'this' declaration, and anything
+  // accessed through debug-evaluate might invalidly resolve to stack-allocated
+  // variables.
+  // TODO(yangguo): Remove once debug-evaluate creates proper ScopeInfo for the
+  // scopes in which it's evaluating.
+  if (is_debug_evaluate_scope_) {
     *binding_kind = DYNAMIC_LOOKUP;
     return nullptr;
   }
@@ -1280,14 +1291,13 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
     if (var != nullptr && var->is_this()) return var;
 
     if (is_with_scope()) {
-      DCHECK(!already_resolved());
       // The current scope is a with scope, so the variable binding can not be
       // statically resolved. However, note that it was necessary to do a lookup
       // in the outer scope anyway, because if a binding exists in an outer
       // scope, the associated variable has to be marked as potentially being
       // accessed from inside of an inner with scope (the property may not be in
       // the 'with' object).
-      if (var != nullptr) {
+      if (var != nullptr && !already_resolved()) {
         var->set_is_used();
         var->ForceContextAllocation();
         if (proxy->is_assigned()) var->set_maybe_assigned();
@@ -1356,9 +1366,6 @@ void Scope::ResolveTo(ParseInfo* info, BindingKind binding_kind,
   }
 #endif
 
-  // TODO(verwaest): 'this' should always be declared and found. That way we can
-  // remove this workaround.
-  Variable::Kind kind = proxy->is_this() ? Variable::THIS : Variable::NORMAL;
   switch (binding_kind) {
     case BOUND:
       break;
@@ -1369,29 +1376,30 @@ void Scope::ResolveTo(ParseInfo* info, BindingKind binding_kind,
       // scope which was not promoted to a context, this can happen if we use
       // debugger to evaluate arbitrary expressions at a break point).
       if (var->IsGlobalObjectProperty()) {
-        var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL, kind);
+        var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL);
       } else if (var->is_dynamic()) {
-        var = NonLocal(proxy->raw_name(), DYNAMIC, kind);
+        var = NonLocal(proxy->raw_name(), DYNAMIC);
       } else {
         Variable* invalidated = var;
-        var = NonLocal(proxy->raw_name(), DYNAMIC_LOCAL, kind);
+        var = NonLocal(proxy->raw_name(), DYNAMIC_LOCAL);
         var->set_local_if_not_shadowed(invalidated);
       }
       break;
 
     case UNBOUND:
       // No binding has been found. Declare a variable on the global object.
-      var = info->script_scope()->DeclareDynamicGlobal(proxy->raw_name(), kind);
+      var = info->script_scope()->DeclareDynamicGlobal(proxy->raw_name(),
+                                                       Variable::NORMAL);
       break;
 
     case UNBOUND_EVAL_SHADOWED:
       // No binding has been found. But some scope makes a sloppy 'eval' call.
-      var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL, kind);
+      var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL);
       break;
 
     case DYNAMIC_LOOKUP:
       // The variable could not be resolved statically.
-      var = NonLocal(proxy->raw_name(), DYNAMIC, kind);
+      var = NonLocal(proxy->raw_name(), DYNAMIC);
       break;
   }
 
