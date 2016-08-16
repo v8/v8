@@ -269,7 +269,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitWithStatement(WithStatement* stmt) { UNREACHABLE(); }
 
   void HandleCase(CaseNode* node,
-                  const ZoneMap<int, unsigned int>& case_to_block,
+                  ZoneMap<int, unsigned int>& case_to_block,
                   VariableProxy* tag, int default_block, int if_depth) {
     int prev_if_depth = if_depth;
     if (node->left != nullptr) {
@@ -300,7 +300,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       DCHECK(case_to_block.find(node->begin) != case_to_block.end());
       current_function_builder_->EmitWithU8(kExprBr, ARITY_0);
       current_function_builder_->EmitVarInt(1 + if_depth +
-                                            case_to_block.at(node->begin));
+                                            case_to_block[node->begin]);
       current_function_builder_->Emit(kExprEnd);
     } else {
       if (node->begin != 0) {
@@ -314,7 +314,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       current_function_builder_->EmitVarInt(node->end - node->begin + 1);
       for (int v = node->begin; v <= node->end; v++) {
         if (case_to_block.find(v) != case_to_block.end()) {
-          byte break_code[] = {BR_TARGET(if_depth + case_to_block.at(v))};
+          byte break_code[] = {BR_TARGET(if_depth + case_to_block[v])};
           current_function_builder_->EmitCode(break_code, sizeof(break_code));
         } else {
           byte break_code[] = {BR_TARGET(if_depth + default_block)};
