@@ -299,6 +299,7 @@ DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
 DEFINE_IMPLICATION(ignition_staging, ignition)
 DEFINE_IMPLICATION(ignition_staging, ignition_osr)
 DEFINE_IMPLICATION(ignition_staging, turbo_from_bytecode)
+DEFINE_IMPLICATION(ignition_staging, ignition_preserve_bytecode)
 DEFINE_BOOL(ignition_eager, false, "eagerly compile and parse with ignition")
 DEFINE_STRING(ignition_filter, "*", "filter for ignition interpreter")
 DEFINE_BOOL(ignition_deadcode, true,

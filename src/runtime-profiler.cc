@@ -404,7 +404,7 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
 
     Compiler::CompilationTier next_tier =
         Compiler::NextCompilationTier(function);
-    if (function->shared()->HasBytecodeArray()) {
+    if (function->shared()->code()->is_interpreter_trampoline_builtin()) {
       if (next_tier == Compiler::BASELINE) {
         MaybeBaselineIgnition(function, frame);
       } else {
