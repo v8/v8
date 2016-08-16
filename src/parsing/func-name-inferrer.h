@@ -16,7 +16,7 @@ class AstString;
 class AstValueFactory;
 class FunctionLiteral;
 
-enum class InferName { Yes, No };
+enum class InferName { kYes, kNo };
 
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.

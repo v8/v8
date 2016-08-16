@@ -558,7 +558,7 @@ class ParserTraits {
                                  AstNodeFactory* factory);
   Expression* ExpressionFromIdentifier(const AstRawString* name,
                                        int start_position, int end_position,
-                                       InferName = InferName::Yes);
+                                       InferName = InferName::kYes);
   Expression* ExpressionFromString(int pos, Scanner* scanner,
                                    AstNodeFactory* factory);
   Expression* GetIterator(Expression* iterable, AstNodeFactory* factory,
@@ -768,6 +768,8 @@ class Parser : public ParserBase<ParserTraits> {
     kThrowCompletion,
     kAbruptCompletion
   };
+
+  enum class FunctionBodyType { kNormal, kSingleExpression };
 
   DeclarationScope* GetDeclarationScope() const {
     return scope()->GetDeclarationScope();
@@ -1041,7 +1043,7 @@ class Parser : public ParserBase<ParserTraits> {
   void DesugarAsyncFunctionBody(const AstRawString* function_name, Scope* scope,
                                 ZoneList<Statement*>* body,
                                 Type::ExpressionClassifier* classifier,
-                                FunctionKind kind, FunctionBody type,
+                                FunctionKind kind, FunctionBodyType type,
                                 bool accept_IN, int pos, bool* ok);
 
   void RewriteDoExpression(Expression* expr, bool* ok);

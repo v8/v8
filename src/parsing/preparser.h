@@ -833,7 +833,7 @@ class PreParserTraits {
 
   static PreParserExpression ExpressionFromIdentifier(
       PreParserIdentifier name, int start_position, int end_position,
-      InferName = InferName::Yes) {
+      InferName = InferName::kYes) {
     return PreParserExpression::FromIdentifier(name);
   }
 

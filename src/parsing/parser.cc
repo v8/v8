@@ -768,7 +768,7 @@ Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
                                                    int start_position,
                                                    int end_position,
                                                    InferName infer) {
-  if (infer == InferName::Yes && parser_->fni_ != NULL) {
+  if (infer == InferName::kYes && parser_->fni_ != NULL) {
     parser_->fni_->PushVariableName(name);
   }
   return parser_->NewUnresolved(name, start_position, end_position);
@@ -4124,14 +4124,15 @@ void ParserTraits::ParseAsyncArrowSingleExpressionBody(
     Type::ExpressionClassifier* classifier, int pos, bool* ok) {
   parser_->DesugarAsyncFunctionBody(
       parser_->ast_value_factory()->empty_string(), parser_->scope(), body,
-      classifier, kAsyncArrowFunction, FunctionBody::SingleExpression,
-      accept_IN, pos, ok);
+      classifier, kAsyncArrowFunction,
+      Parser::FunctionBodyType::kSingleExpression, accept_IN, pos, ok);
 }
 
 void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
                                       Scope* scope, ZoneList<Statement*>* body,
                                       ExpressionClassifier* classifier,
-                                      FunctionKind kind, FunctionBody body_type,
+                                      FunctionKind kind,
+                                      FunctionBodyType body_type,
                                       bool accept_IN, int pos, bool* ok) {
   // function async_function() {
   //   try {
@@ -4158,7 +4159,7 @@ void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
   ZoneList<Statement*>* inner_body = try_block->statements();
 
   Expression* return_value = nullptr;
-  if (body_type == FunctionBody::Normal) {
+  if (body_type == FunctionBodyType::kNormal) {
     ParseStatementList(inner_body, Token::RBRACE, CHECK_OK_VOID);
     return_value = factory()->NewUndefinedLiteral(kNoSourcePosition);
   } else {
@@ -4881,7 +4882,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     } else if (IsAsyncFunction(kind)) {
       const bool accept_IN = true;
       DesugarAsyncFunctionBody(function_name, inner_scope, body, nullptr, kind,
-                               FunctionBody::Normal, accept_IN, pos, CHECK_OK);
+                               FunctionBodyType::kNormal, accept_IN, pos,
+                               CHECK_OK);
     } else {
       ParseStatementList(body, Token::RBRACE, CHECK_OK);
     }
@@ -5052,7 +5054,7 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     ExpressionClassifier property_classifier(this);
     const AstRawString* property_name = nullptr;
     ObjectLiteral::Property* property = ParsePropertyDefinition(
-        &checker, in_class, has_extends, MethodKind::Normal, &is_computed_name,
+        &checker, in_class, has_extends, MethodKind::kNormal, &is_computed_name,
         &has_seen_constructor, &property_classifier, &property_name, CHECK_OK);
     RewriteNonPattern(&property_classifier, CHECK_OK);
     if (classifier != nullptr) {

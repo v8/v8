@@ -30,8 +30,6 @@ enum AllowLabelledFunctionStatement {
   kDisallowLabelledFunctionStatement,
 };
 
-enum class FunctionBody { Normal, SingleExpression };
-
 enum class ParseFunctionFlags {
   kIsNormal = 0,
   kIsGenerator = 1,
@@ -59,21 +57,22 @@ static inline bool operator&(ParseFunctionFlags bitfield,
 }
 
 enum class MethodKind {
-  Normal = 0,
-  Static = 1 << 0,
-  Generator = 1 << 1,
-  StaticGenerator = Static | Generator,
-  Async = 1 << 2,
-  StaticAsync = Static | Async,
+  kNormal = 0,
+  kStatic = 1 << 0,
+  kGenerator = 1 << 1,
+  kStaticGenerator = kStatic | kGenerator,
+  kAsync = 1 << 2,
+  kStaticAsync = kStatic | kAsync,
 
   /* Any non-ordinary method kinds */
-  SpecialMask = Generator | Async
+  kSpecialMask = kGenerator | kAsync
 };
 
 inline bool IsValidMethodKind(MethodKind kind) {
-  return kind == MethodKind::Normal || kind == MethodKind::Static ||
-         kind == MethodKind::Generator || kind == MethodKind::StaticGenerator ||
-         kind == MethodKind::Async || kind == MethodKind::StaticAsync;
+  return kind == MethodKind::kNormal || kind == MethodKind::kStatic ||
+         kind == MethodKind::kGenerator ||
+         kind == MethodKind::kStaticGenerator || kind == MethodKind::kAsync ||
+         kind == MethodKind::kStaticAsync;
 }
 
 static inline MethodKind operator|(MethodKind lhs, MethodKind rhs) {
@@ -93,22 +92,22 @@ static inline bool operator&(MethodKind bitfield, MethodKind mask) {
 }
 
 inline bool IsNormalMethod(MethodKind kind) {
-  return kind == MethodKind::Normal;
+  return kind == MethodKind::kNormal;
 }
 
 inline bool IsSpecialMethod(MethodKind kind) {
-  return kind & MethodKind::SpecialMask;
+  return kind & MethodKind::kSpecialMask;
 }
 
 inline bool IsStaticMethod(MethodKind kind) {
-  return kind & MethodKind::Static;
+  return kind & MethodKind::kStatic;
 }
 
 inline bool IsGeneratorMethod(MethodKind kind) {
-  return kind & MethodKind::Generator;
+  return kind & MethodKind::kGenerator;
 }
 
-inline bool IsAsyncMethod(MethodKind kind) { return kind & MethodKind::Async; }
+inline bool IsAsyncMethod(MethodKind kind) { return kind & MethodKind::kAsync; }
 
 struct FormalParametersBase {
   explicit FormalParametersBase(DeclarationScope* scope) : scope(scope) {}
@@ -1942,7 +1941,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
   Token::Value name_token = peek();
 
   if (is_generator) {
-    method_kind |= MethodKind::Generator;
+    method_kind |= MethodKind::kGenerator;
   } else if (allow_harmony_async_await() && name_token == Token::ASYNC &&
              !scanner()->HasAnyLineTerminatorAfterNext() &&
              PeekAhead() != Token::LPAREN && PeekAhead()) {
@@ -1966,7 +1965,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
       // PropertyDefinition
       //    PropertyName ':' AssignmentExpression
       if (!*is_computed_name) {
-        checker->CheckProperty(name_token, kValueProperty, MethodKind::Normal,
+        checker->CheckProperty(name_token, kValueProperty, MethodKind::kNormal,
                                CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       }
       Consume(Token::COLON);
@@ -2052,7 +2051,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     name_expression = ParsePropertyName(
         name, &dont_care, &dont_care, &dont_care, is_computed_name, classifier,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-    method_kind |= MethodKind::Async;
+    method_kind |= MethodKind::kAsync;
   }
 
   if (is_generator || peek() == Token::LPAREN) {
@@ -2091,7 +2090,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     //    'static' MethodDefinition
     *name = this->EmptyIdentifier();
     ObjectLiteralPropertyT property = ParsePropertyDefinition(
-        checker, true, has_extends, MethodKind::Static, is_computed_name,
+        checker, true, has_extends, MethodKind::kStatic, is_computed_name,
         nullptr, classifier, name, ok);
     Traits::RewriteNonPattern(classifier, ok);
     return property;
@@ -2164,7 +2163,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
     bool is_computed_name = false;
     IdentifierT name = this->EmptyIdentifier();
     ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
-        &checker, in_class, has_extends, MethodKind::Normal, &is_computed_name,
+        &checker, in_class, has_extends, MethodKind::kNormal, &is_computed_name,
         NULL, classifier, &name, CHECK_OK);
 
     if (is_computed_name) {
@@ -2330,7 +2329,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     IdentifierT name =
         ParseAndClassifyIdentifier(&arrow_formals_classifier, CHECK_OK);
     expression = this->ExpressionFromIdentifier(
-        name, position(), scanner()->location().end_pos, InferName::No);
+        name, position(), scanner()->location().end_pos, InferName::kNo);
     if (fni_) {
       // Remove `async` keyword from inferred name stack.
       fni_->RemoveAsyncKeywordFromEnd();
