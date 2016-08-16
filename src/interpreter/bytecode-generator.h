@@ -24,7 +24,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
   explicit BytecodeGenerator(CompilationInfo* info);
 
-  Handle<BytecodeArray> MakeBytecode();
+  void GenerateBytecode();
+  Handle<BytecodeArray> FinalizeBytecode();
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
@@ -52,9 +53,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   enum class TestFallthrough { kThen, kElse, kNone };
 
-  void GenerateBytecode();
   void GenerateBytecodeBody();
-  void FinalizeBytecode();
+  void AllocateDeferredConstants();
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
