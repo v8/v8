@@ -112,11 +112,12 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
       function_kind_(function_kind),
       temps_(4, zone),
       params_(4, zone),
-      sloppy_block_function_map_(zone),
-      module_descriptor_(scope_type == MODULE_SCOPE ? new (zone)
-                                                          ModuleDescriptor(zone)
-                                                    : NULL) {
+      sloppy_block_function_map_(zone) {
   SetDefaults();
+  if (scope_type == MODULE_SCOPE) {
+    module_descriptor_ = new (zone) ModuleDescriptor(zone);
+    language_mode_ = STRICT;
+  }
 }
 
 Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
@@ -129,11 +130,14 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
       scope_type_(scope_type),
       already_resolved_(true) {
   SetDefaults();
-  if (!scope_info.is_null()) {
+  if (scope_type == WITH_SCOPE) {
+    DCHECK(scope_info.is_null());
+  } else {
     scope_calls_eval_ = scope_info->CallsEval();
     language_mode_ = scope_info->language_mode();
-    num_heap_slots_ = scope_info_->ContextLength();
+    num_heap_slots_ = scope_info->ContextLength();
   }
+
   // Ensure at least MIN_CONTEXT_SLOTS to indicate a materialized context.
   num_heap_slots_ = Max(num_heap_slots_,
                         static_cast<int>(Context::MIN_CONTEXT_SLOTS));
@@ -144,12 +148,10 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* inner_scope,
                                    ScopeType scope_type,
                                    Handle<ScopeInfo> scope_info)
     : Scope(zone, inner_scope, scope_type, scope_info),
-      function_kind_(scope_info.is_null() ? kNormalFunction
-                                          : scope_info->function_kind()),
+      function_kind_(scope_info->function_kind()),
       temps_(0, zone),
       params_(0, zone),
-      sloppy_block_function_map_(zone),
-      module_descriptor_(nullptr) {
+      sloppy_block_function_map_(zone) {
   SetDefaults();
 }
 
@@ -179,8 +181,9 @@ void DeclarationScope::SetDefaults() {
   arguments_ = nullptr;
   this_function_ = nullptr;
   arity_ = 0;
-  rest_parameter_ = NULL;
+  rest_parameter_ = nullptr;
   rest_index_ = -1;
+  module_descriptor_ = nullptr;
 }
 
 void Scope::SetDefaults() {
@@ -199,7 +202,7 @@ void Scope::SetDefaults() {
   num_heap_slots_ = 0;
   num_global_slots_ = 0;
 
-  language_mode_ = is_module_scope() ? STRICT : SLOPPY;
+  language_mode_ = SLOPPY;
 
   scope_inside_with_ = false;
   scope_calls_eval_ = false;
@@ -236,7 +239,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     if (context->IsWithContext() || context->IsDebugEvaluateContext()) {
       // For scope analysis, debug-evaluate is equivalent to a with scope.
       Scope* with_scope = new (zone)
-          Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>::null());
+          Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>());
       // TODO(yangguo): Remove once debug-evaluate properly keeps track of the
       // function scope in which we are evaluating.
       if (context->IsDebugEvaluateContext()) {
@@ -248,23 +251,24 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
         s->scope_inside_with_ = true;
       }
     } else if (context->IsScriptContext()) {
-      ScopeInfo* scope_info = context->scope_info();
-      current_scope = new (zone) DeclarationScope(
-          zone, current_scope, SCRIPT_SCOPE, Handle<ScopeInfo>(scope_info));
+      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+      current_scope = new (zone)
+          DeclarationScope(zone, current_scope, SCRIPT_SCOPE, scope_info);
     } else if (context->IsFunctionContext()) {
-      ScopeInfo* scope_info = context->closure()->shared()->scope_info();
-      current_scope = new (zone) DeclarationScope(
-          zone, current_scope, FUNCTION_SCOPE, Handle<ScopeInfo>(scope_info));
+      Handle<ScopeInfo> scope_info(context->closure()->shared()->scope_info(),
+                                   isolate);
+      current_scope = new (zone)
+          DeclarationScope(zone, current_scope, FUNCTION_SCOPE, scope_info);
       if (scope_info->IsAsmFunction()) current_scope->asm_function_ = true;
       if (scope_info->IsAsmModule()) current_scope->asm_module_ = true;
     } else if (context->IsBlockContext()) {
-      ScopeInfo* scope_info = context->scope_info();
+      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
       if (scope_info->is_declaration_scope()) {
-        current_scope = new (zone) DeclarationScope(
-            zone, current_scope, BLOCK_SCOPE, Handle<ScopeInfo>(scope_info));
+        current_scope = new (zone)
+            DeclarationScope(zone, current_scope, BLOCK_SCOPE, scope_info);
       } else {
-        current_scope = new (zone) Scope(zone, current_scope, BLOCK_SCOPE,
-                                         Handle<ScopeInfo>(scope_info));
+        current_scope =
+            new (zone) Scope(zone, current_scope, BLOCK_SCOPE, scope_info);
       }
     } else {
       DCHECK(context->IsCatchContext());
