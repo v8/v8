@@ -408,6 +408,9 @@ namespace testing {
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, bool asm_js = false);
 
+int32_t CallFunction(Isolate* isolate, Handle<JSObject> instance,
+                     ErrorThrower* thrower, const char* name, int argc,
+                     Handle<Object> argv[]);
 }  // namespace testing
 }  // namespace wasm
 }  // namespace internal

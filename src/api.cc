@@ -6833,14 +6833,14 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   std::unique_ptr<i::ScriptData> script_data =
       i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
                                                            compiled_part);
+  script_data->ReleaseDataOwnership();
   size_t size = static_cast<size_t>(script_data->length());
-  script_data.release();
   return {std::unique_ptr<const uint8_t[]>(script_data->data()), size};
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
     Isolate* isolate,
-    const WasmCompiledModule::SerializedModule serialized_data) {
+    const WasmCompiledModule::SerializedModule& serialized_data) {
   int size = static_cast<int>(serialized_data.second);
   i::ScriptData sc(serialized_data.first.get(), size);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);

@@ -1628,10 +1628,16 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                               Handle<JSArrayBuffer>::null())
           .ToHandleChecked();
 
+  return CallFunction(isolate, instance, &thrower, "main", 0, nullptr);
+}
+
+int32_t CallFunction(Isolate* isolate, Handle<JSObject> instance,
+                     ErrorThrower* thrower, const char* name, int argc,
+                     Handle<Object> argv[]) {
   Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
   Handle<JSObject> exports_object = Handle<JSObject>::cast(
       JSObject::GetProperty(instance, exports).ToHandleChecked());
-  Handle<Name> main_name = isolate->factory()->NewStringFromStaticChars("main");
+  Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked(name);
   PropertyDescriptor desc;
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, exports_object, main_name, &desc);
@@ -1642,11 +1648,11 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   // Call the JS function.
   Handle<Object> undefined = isolate->factory()->undefined_value();
   MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_export, undefined, 0, nullptr);
+      Execution::Call(isolate, main_export, undefined, argc, argv);
 
   // The result should be a number.
   if (retval.is_null()) {
-    thrower.Error("WASM.compileRun() failed: Invocation was null");
+    thrower->Error("WASM.compileRun() failed: Invocation was null");
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();
@@ -1656,7 +1662,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   if (result->IsHeapNumber()) {
     return static_cast<int32_t>(HeapNumber::cast(*result)->value());
   }
-  thrower.Error("WASM.compileRun() failed: Return value should be number");
+  thrower->Error("WASM.compileRun() failed: Return value should be number");
   return -1;
 }
 

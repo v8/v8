@@ -3469,7 +3469,7 @@ class V8_EXPORT WasmCompiledModule : public Object {
 
   SerializedModule Serialize();
   static MaybeLocal<WasmCompiledModule> Deserialize(
-      Isolate* isolate, const SerializedModule serialized_data);
+      Isolate* isolate, const SerializedModule& serialized_data);
   V8_INLINE static WasmCompiledModule* Cast(Value* obj);
 
  private:
