@@ -1309,8 +1309,8 @@ void PagedSpace::EmptyAllocationInfo() {
   Free(current_top, static_cast<int>(current_limit - current_top));
 }
 
-void PagedSpace::IncreaseCapacity(int size) {
-  accounting_stats_.ExpandSpace(size);
+void PagedSpace::IncreaseCapacity(size_t bytes) {
+  accounting_stats_.ExpandSpace(bytes);
 }
 
 void PagedSpace::ReleasePage(Page* page) {

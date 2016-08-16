@@ -1592,74 +1592,75 @@ class AllocationStats BASE_EMBEDDED {
   void ClearSize() { size_ = capacity_; }
 
   // Accessors for the allocation statistics.
-  intptr_t Capacity() { return capacity_; }
-  intptr_t MaxCapacity() { return max_capacity_; }
-  intptr_t Size() {
-    CHECK_GE(size_, 0);
-    return size_;
-  }
+  size_t Capacity() { return capacity_; }
+  size_t MaxCapacity() { return max_capacity_; }
+  size_t Size() { return size_; }
 
   // Grow the space by adding available bytes.  They are initially marked as
   // being in use (part of the size), but will normally be immediately freed,
   // putting them on the free list and removing them from size_.
-  void ExpandSpace(int size_in_bytes) {
-    capacity_ += size_in_bytes;
-    size_ += size_in_bytes;
+  void ExpandSpace(size_t bytes) {
+    DCHECK_GE(size_ + bytes, size_);
+    DCHECK_GE(capacity_ + bytes, capacity_);
+    capacity_ += bytes;
+    size_ += bytes;
     if (capacity_ > max_capacity_) {
       max_capacity_ = capacity_;
     }
-    CHECK(size_ >= 0);
   }
 
   // Shrink the space by removing available bytes.  Since shrinking is done
   // during sweeping, bytes have been marked as being in use (part of the size)
   // and are hereby freed.
-  void ShrinkSpace(int size_in_bytes) {
-    capacity_ -= size_in_bytes;
-    size_ -= size_in_bytes;
-    CHECK_GE(size_, 0);
+  void ShrinkSpace(size_t bytes) {
+    DCHECK_GE(capacity_, bytes);
+    DCHECK_GE(size_, bytes);
+    capacity_ -= bytes;
+    size_ -= bytes;
   }
 
-  // Allocate from available bytes (available -> size).
-  void AllocateBytes(intptr_t size_in_bytes) {
-    size_ += size_in_bytes;
-    CHECK_GE(size_, 0);
+  void AllocateBytes(size_t bytes) {
+    DCHECK_GE(size_ + bytes, size_);
+    size_ += bytes;
   }
 
-  // Free allocated bytes, making them available (size -> available).
-  void DeallocateBytes(intptr_t size_in_bytes) {
-    size_ -= size_in_bytes;
-    CHECK_GE(size_, 0);
+  void DeallocateBytes(size_t bytes) {
+    DCHECK_GE(size_, bytes);
+    size_ -= bytes;
   }
 
-  // Merge {other} into {this}.
+  void DecreaseCapacity(size_t bytes) {
+    DCHECK_GE(capacity_, bytes);
+    DCHECK_GE(capacity_ - bytes, size_);
+    capacity_ -= bytes;
+  }
+
+  void IncreaseCapacity(size_t bytes) {
+    DCHECK_GE(capacity_ + bytes, capacity_);
+    capacity_ += bytes;
+  }
+
+  // Merge |other| into |this|.
   void Merge(const AllocationStats& other) {
+    DCHECK_GE(capacity_ + other.capacity_, capacity_);
+    DCHECK_GE(size_ + other.size_, size_);
     capacity_ += other.capacity_;
     size_ += other.size_;
     if (other.max_capacity_ > max_capacity_) {
       max_capacity_ = other.max_capacity_;
     }
-    CHECK_GE(size_, 0);
   }
-
-  void DecreaseCapacity(intptr_t size_in_bytes) {
-    capacity_ -= size_in_bytes;
-    CHECK_GE(capacity_, 0);
-    CHECK_GE(capacity_, size_);
-  }
-
-  void IncreaseCapacity(intptr_t size_in_bytes) { capacity_ += size_in_bytes; }
 
  private:
   // |capacity_|: The number of object-area bytes (i.e., not including page
   // bookkeeping structures) currently in the space.
-  intptr_t capacity_;
+  size_t capacity_;
 
   // |max_capacity_|: The maximum capacity ever observed.
-  intptr_t max_capacity_;
+  size_t max_capacity_;
 
   // |size_|: The number of allocated bytes.
-  intptr_t size_;
+  size_t size_;
 };
 
 // A free list maintaining free blocks of memory. The free list is organized in
@@ -2120,7 +2121,7 @@ class PagedSpace : public Space {
 
   void Allocate(int bytes) { accounting_stats_.AllocateBytes(bytes); }
 
-  void IncreaseCapacity(int size);
+  void IncreaseCapacity(size_t bytes);
 
   // Releases an unused page and shrinks the space.
   void ReleasePage(Page* page);
