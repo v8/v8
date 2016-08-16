@@ -604,13 +604,10 @@ class Scope: public ZoneObject {
   // Variable allocation.
   void AllocateStackSlot(Variable* var);
   void AllocateHeapSlot(Variable* var);
-  void AllocateNonParameterLocal(Variable* var,
-                                 AstValueFactory* ast_value_factory);
-  void AllocateDeclaredGlobal(Variable* var,
-                              AstValueFactory* ast_value_factory);
-  void AllocateNonParameterLocalsAndDeclaredGlobals(
-      AstValueFactory* ast_value_factory);
-  void AllocateVariablesRecursively(AstValueFactory* ast_value_factory);
+  void AllocateNonParameterLocal(Variable* var);
+  void AllocateDeclaredGlobal(Variable* var);
+  void AllocateNonParameterLocalsAndDeclaredGlobals();
+  void AllocateVariablesRecursively();
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, Scope* inner_scope, ScopeType type,
@@ -848,7 +845,7 @@ class DeclarationScope : public Scope {
   void PrintParameters();
 #endif
 
-  void AllocateLocals(AstValueFactory* ast_value_factory);
+  void AllocateLocals();
   void AllocateParameterLocals();
   void AllocateReceiver();
   // Set MODULE as VariableLocation for all variables that will live in some

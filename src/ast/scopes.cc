@@ -853,7 +853,7 @@ void DeclarationScope::AllocateVariables(ParseInfo* info,
   ResolveVariablesRecursively(info, factory);
 
   // 3) Allocate variables.
-  AllocateVariablesRecursively(info->ast_value_factory());
+  AllocateVariablesRecursively();
 }
 
 
@@ -1610,11 +1610,8 @@ void DeclarationScope::AllocateReceiver() {
   AllocateParameter(receiver(), -1);
 }
 
-void Scope::AllocateNonParameterLocal(Variable* var,
-                                      AstValueFactory* ast_value_factory) {
+void Scope::AllocateNonParameterLocal(Variable* var) {
   DCHECK(var->scope() == this);
-  DCHECK(var->raw_name() != ast_value_factory->dot_result_string() ||
-         !var->IsStackLocal());
   if (var->IsUnallocated() && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
       AllocateHeapSlot(var);
@@ -1624,11 +1621,8 @@ void Scope::AllocateNonParameterLocal(Variable* var,
   }
 }
 
-void Scope::AllocateDeclaredGlobal(Variable* var,
-                                   AstValueFactory* ast_value_factory) {
+void Scope::AllocateDeclaredGlobal(Variable* var) {
   DCHECK(var->scope() == this);
-  DCHECK(var->raw_name() != ast_value_factory->dot_result_string() ||
-         !var->IsStackLocal());
   if (var->IsUnallocated()) {
     if (var->IsStaticGlobalObjectProperty()) {
       DCHECK_EQ(-1, var->index());
@@ -1642,13 +1636,12 @@ void Scope::AllocateDeclaredGlobal(Variable* var,
   }
 }
 
-void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(
-    AstValueFactory* ast_value_factory) {
+void Scope::AllocateNonParameterLocalsAndDeclaredGlobals() {
   // All variables that have no rewrite yet are non-parameter locals.
   if (is_declaration_scope()) {
     ZoneList<Variable*>* temps = AsDeclarationScope()->temps();
     for (int i = 0; i < temps->length(); i++) {
-      AllocateNonParameterLocal((*temps)[i], ast_value_factory);
+      AllocateNonParameterLocal((*temps)[i]);
     }
   }
 
@@ -1662,31 +1655,31 @@ void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(
   vars.Sort(VarAndOrder::Compare);
   int var_count = vars.length();
   for (int i = 0; i < var_count; i++) {
-    AllocateNonParameterLocal(vars[i].var(), ast_value_factory);
+    AllocateNonParameterLocal(vars[i].var());
   }
 
   if (FLAG_global_var_shortcuts) {
     for (int i = 0; i < var_count; i++) {
-      AllocateDeclaredGlobal(vars[i].var(), ast_value_factory);
+      AllocateDeclaredGlobal(vars[i].var());
     }
   }
 
   if (is_declaration_scope()) {
-    AsDeclarationScope()->AllocateLocals(ast_value_factory);
+    AsDeclarationScope()->AllocateLocals();
   }
 }
 
-void DeclarationScope::AllocateLocals(AstValueFactory* ast_value_factory) {
+void DeclarationScope::AllocateLocals() {
   // For now, function_ must be allocated at the very end.  If it gets
   // allocated in the context, it must be the last slot in the context,
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
   if (function_ != nullptr) {
-    AllocateNonParameterLocal(function_, ast_value_factory);
+    AllocateNonParameterLocal(function_);
   }
 
   if (rest_parameter_ != nullptr) {
-    AllocateNonParameterLocal(rest_parameter_, ast_value_factory);
+    AllocateNonParameterLocal(rest_parameter_);
   }
 
   if (new_target_ != nullptr && !MustAllocate(new_target_)) {
@@ -1713,13 +1706,13 @@ void DeclarationScope::AllocateModuleVariables() {
   }
 }
 
-void Scope::AllocateVariablesRecursively(AstValueFactory* ast_value_factory) {
+void Scope::AllocateVariablesRecursively() {
   if (!already_resolved()) {
     num_stack_slots_ = 0;
   }
   // Allocate variables for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->AllocateVariablesRecursively(ast_value_factory);
+    scope->AllocateVariablesRecursively();
   }
 
   // If scope is already resolved, we still need to allocate
@@ -1738,7 +1731,7 @@ void Scope::AllocateVariablesRecursively(AstValueFactory* ast_value_factory) {
     }
     AsDeclarationScope()->AllocateReceiver();
   }
-  AllocateNonParameterLocalsAndDeclaredGlobals(ast_value_factory);
+  AllocateNonParameterLocalsAndDeclaredGlobals();
 
   // Force allocation of a context for this scope if necessary. For a 'with'
   // scope and for a function scope that makes an 'eval' call we need a context,
