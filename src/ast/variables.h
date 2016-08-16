@@ -15,15 +15,13 @@ namespace internal {
 // variables. Variables themselves are never directly referred to from the AST,
 // they are maintained by scopes, and referred to from VariableProxies and Slots
 // after binding and variable allocation.
-class Variable: public ZoneObject {
+class Variable final : public ZoneObject {
  public:
   enum Kind { NORMAL, FUNCTION, THIS, ARGUMENTS };
 
   Variable(Scope* scope, const AstRawString* name, VariableMode mode, Kind kind,
            InitializationFlag initialization_flag,
            MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
-
-  virtual ~Variable() {}
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
