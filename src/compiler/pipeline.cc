@@ -573,9 +573,9 @@ class PipelineCompilationJob final : public CompilationJob {
         linkage_(nullptr) {}
 
  protected:
-  Status CreateGraphImpl() final;
-  Status OptimizeGraphImpl() final;
-  Status GenerateCodeImpl() final;
+  Status PrepareJobImpl() final;
+  Status ExecuteJobImpl() final;
+  Status FinalizeJobImpl() final;
 
  private:
   Zone zone_;
@@ -590,7 +590,7 @@ class PipelineCompilationJob final : public CompilationJob {
   DISALLOW_COPY_AND_ASSIGN(PipelineCompilationJob);
 };
 
-PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
+PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
   if (info()->shared_info()->asm_function()) {
     if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
     info()->MarkAsFunctionContextSpecializing();
@@ -633,12 +633,12 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
   return SUCCEEDED;
 }
 
-PipelineCompilationJob::Status PipelineCompilationJob::OptimizeGraphImpl() {
+PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
   if (!pipeline_.OptimizeGraph(linkage_)) return FAILED;
   return SUCCEEDED;
 }
 
-PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
+PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
   Handle<Code> code = pipeline_.GenerateCode(linkage_);
   if (code.is_null()) {
     if (info()->bailout_reason() == kNoReason) {
@@ -650,7 +650,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
   info()->SetCode(code);
   if (info()->is_deoptimization_enabled()) {
     info()->context()->native_context()->AddOptimizedCode(*code);
-    RegisterWeakObjectsInOptimizedCode(code);
+    CompilationJob::RegisterWeakObjectsInOptimizedCode(code);
   }
   return SUCCEEDED;
 }
@@ -660,16 +660,16 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   explicit PipelineWasmCompilationJob(CompilationInfo* info, Graph* graph,
                                       CallDescriptor* descriptor,
                                       SourcePositionTable* source_positions)
-      : CompilationJob(info, "TurboFan"),
+      : CompilationJob(info, "TurboFan", State::kReadyToExecute),
         zone_pool_(info->isolate()->allocator()),
         data_(&zone_pool_, info, graph, source_positions),
         pipeline_(&data_),
         linkage_(descriptor) {}
 
  protected:
-  Status CreateGraphImpl() final;
-  Status OptimizeGraphImpl() final;
-  Status GenerateCodeImpl() final;
+  Status PrepareJobImpl() final;
+  Status ExecuteJobImpl() final;
+  Status FinalizeJobImpl() final;
 
  private:
   ZonePool zone_pool_;
@@ -679,12 +679,13 @@ class PipelineWasmCompilationJob final : public CompilationJob {
 };
 
 PipelineWasmCompilationJob::Status
-PipelineWasmCompilationJob::CreateGraphImpl() {
+PipelineWasmCompilationJob::PrepareJobImpl() {
+  UNREACHABLE();  // Prepare should always be skipped for WasmCompilationJob.
   return SUCCEEDED;
 }
 
 PipelineWasmCompilationJob::Status
-PipelineWasmCompilationJob::OptimizeGraphImpl() {
+PipelineWasmCompilationJob::ExecuteJobImpl() {
   if (FLAG_trace_turbo) {
     TurboJsonFile json_of(info(), std::ios_base::trunc);
     json_of << "{\"function\":\"" << info()->GetDebugName().get()
@@ -698,7 +699,7 @@ PipelineWasmCompilationJob::OptimizeGraphImpl() {
 }
 
 PipelineWasmCompilationJob::Status
-PipelineWasmCompilationJob::GenerateCodeImpl() {
+PipelineWasmCompilationJob::FinalizeJobImpl() {
   pipeline_.GenerateCode(&linkage_);
   return SUCCEEDED;
 }

@@ -114,7 +114,7 @@ class HOptimizedGraphBuilderWithPositions : public HOptimizedGraphBuilder {
 #undef DEF_VISIT
 };
 
-HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
+HCompilationJob::Status HCompilationJob::PrepareJobImpl() {
   if (!isolate()->use_crankshaft() ||
       info()->shared_info()->dont_crankshaft()) {
     // Crankshaft is entirely disabled.
@@ -203,7 +203,7 @@ HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
   return SUCCEEDED;
 }
 
-HCompilationJob::Status HCompilationJob::OptimizeGraphImpl() {
+HCompilationJob::Status HCompilationJob::ExecuteJobImpl() {
   DCHECK(graph_ != NULL);
   BailoutReason bailout_reason = kNoReason;
 
@@ -217,7 +217,7 @@ HCompilationJob::Status HCompilationJob::OptimizeGraphImpl() {
   return FAILED;
 }
 
-HCompilationJob::Status HCompilationJob::GenerateCodeImpl() {
+HCompilationJob::Status HCompilationJob::FinalizeJobImpl() {
   DCHECK(chunk_ != NULL);
   DCHECK(graph_ != NULL);
   {
@@ -233,7 +233,7 @@ HCompilationJob::Status HCompilationJob::GenerateCodeImpl() {
       }
       return FAILED;
     }
-    RegisterWeakObjectsInOptimizedCode(optimized_code);
+    CompilationJob::RegisterWeakObjectsInOptimizedCode(optimized_code);
     info()->SetCode(optimized_code);
   }
   // Add to the weak list of optimized code objects.

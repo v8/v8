@@ -240,11 +240,11 @@ bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
 // ----------------------------------------------------------------------------
 // Implementation of CompilationJob
 
-CompilationJob::Status CompilationJob::CreateGraph() {
+CompilationJob::Status CompilationJob::PrepareJob() {
+  DCHECK(ThreadId::Current().Equals(info()->isolate()->thread_id()));
   DisallowJavascriptExecution no_js(isolate());
-  DCHECK(info()->IsOptimizing());
 
-  if (FLAG_trace_opt) {
+  if (FLAG_trace_opt && info()->IsOptimizing()) {
     OFStream os(stdout);
     os << "[compiling method " << Brief(*info()->closure()) << " using "
        << compiler_name_;
@@ -253,34 +253,69 @@ CompilationJob::Status CompilationJob::CreateGraph() {
   }
 
   // Delegate to the underlying implementation.
-  DCHECK_EQ(SUCCEEDED, last_status());
-  ScopedTimer t(&time_taken_to_create_graph_);
-  return SetLastStatus(CreateGraphImpl());
+  DCHECK(state() == State::kReadyToPrepare);
+  ScopedTimer t(&time_taken_to_prepare_);
+  return UpdateState(PrepareJobImpl(), State::kReadyToExecute);
 }
 
-CompilationJob::Status CompilationJob::OptimizeGraph() {
+CompilationJob::Status CompilationJob::ExecuteJob() {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
   DisallowCodeDependencyChange no_dependency_change;
 
   // Delegate to the underlying implementation.
-  DCHECK_EQ(SUCCEEDED, last_status());
-  ScopedTimer t(&time_taken_to_optimize_);
-  return SetLastStatus(OptimizeGraphImpl());
+  DCHECK(state() == State::kReadyToExecute);
+  ScopedTimer t(&time_taken_to_execute_);
+  return UpdateState(ExecuteJobImpl(), State::kReadyToFinalize);
 }
 
-CompilationJob::Status CompilationJob::GenerateCode() {
+CompilationJob::Status CompilationJob::FinalizeJob() {
+  DCHECK(ThreadId::Current().Equals(info()->isolate()->thread_id()));
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate());
   DCHECK(!info()->dependencies()->HasAborted());
 
   // Delegate to the underlying implementation.
-  DCHECK_EQ(SUCCEEDED, last_status());
-  ScopedTimer t(&time_taken_to_codegen_);
-  return SetLastStatus(GenerateCodeImpl());
+  DCHECK(state() == State::kReadyToFinalize);
+  ScopedTimer t(&time_taken_to_finalize_);
+  return UpdateState(FinalizeJobImpl(), State::kSucceeded);
 }
 
+void CompilationJob::RecordOptimizationStats() {
+  DCHECK(info()->IsOptimizing());
+  Handle<JSFunction> function = info()->closure();
+  if (!function->IsOptimized()) {
+    // Concurrent recompilation and OSR may race.  Increment only once.
+    int opt_count = function->shared()->opt_count();
+    function->shared()->set_opt_count(opt_count + 1);
+  }
+  double ms_creategraph = time_taken_to_prepare_.InMillisecondsF();
+  double ms_optimize = time_taken_to_execute_.InMillisecondsF();
+  double ms_codegen = time_taken_to_finalize_.InMillisecondsF();
+  if (FLAG_trace_opt) {
+    PrintF("[optimizing ");
+    function->ShortPrint();
+    PrintF(" - took %0.3f, %0.3f, %0.3f ms]\n", ms_creategraph, ms_optimize,
+           ms_codegen);
+  }
+  if (FLAG_trace_opt_stats) {
+    static double compilation_time = 0.0;
+    static int compiled_functions = 0;
+    static int code_size = 0;
+
+    compilation_time += (ms_creategraph + ms_optimize + ms_codegen);
+    compiled_functions++;
+    code_size += function->shared()->SourceSize();
+    PrintF("Compiled: %d functions with %d byte source size in %fms.\n",
+           compiled_functions, code_size, compilation_time);
+  }
+  if (FLAG_hydrogen_stats) {
+    isolate()->GetHStatistics()->IncrementSubtotals(time_taken_to_prepare_,
+                                                    time_taken_to_execute_,
+                                                    time_taken_to_finalize_);
+  }
+}
 
 namespace {
 
@@ -300,6 +335,7 @@ void AddWeakObjectToCodeDependency(Isolate* isolate, Handle<HeapObject> object,
 
 }  // namespace
 
+// static
 void CompilationJob::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
   // TODO(turbofan): Move this to pipeline.cc once Crankshaft dies.
   Isolate* const isolate = code->GetIsolate();
@@ -338,42 +374,6 @@ void CompilationJob::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
     AddWeakObjectToCodeDependency(isolate, object, code);
   }
   code->set_can_have_weak_objects(true);
-}
-
-void CompilationJob::RecordOptimizationStats() {
-  Handle<JSFunction> function = info()->closure();
-  if (!function->IsOptimized()) {
-    // Concurrent recompilation and OSR may race.  Increment only once.
-    int opt_count = function->shared()->opt_count();
-    function->shared()->set_opt_count(opt_count + 1);
-  }
-  double ms_creategraph = time_taken_to_create_graph_.InMillisecondsF();
-  double ms_optimize = time_taken_to_optimize_.InMillisecondsF();
-  double ms_codegen = time_taken_to_codegen_.InMillisecondsF();
-  if (FLAG_trace_opt) {
-    PrintF("[optimizing ");
-    function->ShortPrint();
-    PrintF(" - took %0.3f, %0.3f, %0.3f ms]\n", ms_creategraph, ms_optimize,
-           ms_codegen);
-  }
-  if (FLAG_trace_opt_stats) {
-    static double compilation_time = 0.0;
-    static int compiled_functions = 0;
-    static int code_size = 0;
-
-    compilation_time += (ms_creategraph + ms_optimize + ms_codegen);
-    compiled_functions++;
-    code_size += function->shared()->SourceSize();
-    PrintF("Compiled: %d functions with %d byte source size in %fms.\n",
-           compiled_functions,
-           code_size,
-           compilation_time);
-  }
-  if (FLAG_hydrogen_stats) {
-    isolate()->GetHStatistics()->IncrementSubtotals(time_taken_to_create_graph_,
-                                                    time_taken_to_optimize_,
-                                                    time_taken_to_codegen_);
-  }
 }
 
 // ----------------------------------------------------------------------------
@@ -672,9 +672,9 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
       isolate, &tracing::TraceEventStatsTable::RecompileSynchronous);
 
-  if (job->CreateGraph() != CompilationJob::SUCCEEDED ||
-      job->OptimizeGraph() != CompilationJob::SUCCEEDED ||
-      job->GenerateCode() != CompilationJob::SUCCEEDED) {
+  if (job->PrepareJob() != CompilationJob::SUCCEEDED ||
+      job->ExecuteJob() != CompilationJob::SUCCEEDED ||
+      job->FinalizeJob() != CompilationJob::SUCCEEDED) {
     if (FLAG_trace_opt) {
       PrintF("[aborted optimizing ");
       info->closure()->ShortPrint();
@@ -735,7 +735,7 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
       isolate, &tracing::TraceEventStatsTable::RecompileSynchronous);
 
-  if (job->CreateGraph() != CompilationJob::SUCCEEDED) return false;
+  if (job->PrepareJob() != CompilationJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
 
   if (FLAG_trace_concurrent_recompilation) {
@@ -1907,12 +1907,12 @@ void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
   //    Except when OSR already disabled optimization for some reason.
   // 3) The code may have already been invalidated due to dependency change.
   // 4) Code generation may have failed.
-  if (job->last_status() == CompilationJob::SUCCEEDED) {
+  if (job->state() == CompilationJob::State::kReadyToFinalize) {
     if (shared->optimization_disabled()) {
       job->RetryOptimization(kOptimizationDisabled);
     } else if (info->dependencies()->HasAborted()) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
-    } else if (job->GenerateCode() == CompilationJob::SUCCEEDED) {
+    } else if (job->FinalizeJob() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizationStats();
       RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
       if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
@@ -1929,7 +1929,7 @@ void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
     }
   }
 
-  DCHECK(job->last_status() != CompilationJob::SUCCEEDED);
+  DCHECK(job->state() == CompilationJob::State::kFailed);
   if (FLAG_trace_opt) {
     PrintF("[aborted optimizing ");
     info->closure()->ShortPrint();
