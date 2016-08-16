@@ -388,6 +388,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ALLOCATION_MEMENTO_TYPE)                                    \
   V(ALLOCATION_SITE_TYPE)                                       \
   V(SCRIPT_TYPE)                                                \
+  V(STACK_TRACE_FRAME_TYPE)                                     \
   V(TYPE_FEEDBACK_INFO_TYPE)                                    \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(BOX_TYPE)                                                   \
@@ -503,6 +504,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
   V(SCRIPT, Script, script)                                                  \
+  V(STACK_TRACE_FRAME, StackTraceFrame, stack_trace_frame)                   \
   V(ALLOCATION_SITE, AllocationSite, allocation_site)                        \
   V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
   V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)                \
@@ -674,6 +676,7 @@ enum InstanceType {
   ALLOCATION_SITE_TYPE,
   ALLOCATION_MEMENTO_TYPE,
   SCRIPT_TYPE,
+  STACK_TRACE_FRAME_TYPE,
   TYPE_FEEDBACK_INFO_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   BOX_TYPE,
@@ -6491,7 +6494,6 @@ class Box : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Box);
 };
 
-
 // Container for metadata stored on each prototype map.
 class PrototypeInfo : public Struct {
  public:
@@ -6776,6 +6778,88 @@ class Script: public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);
 };
 
+class StackTraceFrame : public Struct {
+ public:
+  // --- Fields for JS and Wasm frames. ---
+
+  static const int kIsWasmFrame = 1 << 0;
+  static const int kForceConstructor = 1 << 1;
+  static const int kIsStrict = 1 << 2;
+
+  // [flags]
+  DECL_INT_ACCESSORS(flags)
+
+  // [abstract_code]
+  DECL_ACCESSORS(abstract_code, AbstractCode)
+
+  // [offset]
+  DECL_INT_ACCESSORS(offset)
+
+  // --- Fields for JS frames. ---
+
+  // [receiver]
+  DECL_ACCESSORS(receiver, Object)
+
+  // [function]
+  DECL_ACCESSORS(function, JSFunction)
+
+  // --- Fields for Wasm frames. ---
+
+  // [wasm_object]
+  DECL_ACCESSORS(wasm_object, Object)
+
+  // [wasm_function_index]
+  DECL_INT_ACCESSORS(wasm_function_index)
+
+  inline bool IsWasmFrame() const;
+  inline bool IsJavaScriptFrame() const;
+  inline bool IsStrict() const;
+  inline bool ForceConstructor() const;
+
+  Handle<Object> GetFileName();
+  Handle<Object> GetFunctionName();
+  Handle<Object> GetScriptNameOrSourceUrl();
+  Handle<Object> GetMethodName();
+  Handle<Object> GetTypeName();
+  Handle<Object> GetEvalOrigin();
+
+  int GetPosition();
+  // Return 1-based line number, including line offset.
+  int GetLineNumber();
+  // Return 1-based column number, including column offset if first line.
+  int GetColumnNumber();
+
+  bool IsNative();
+  bool IsToplevel();
+  bool IsEval();
+  bool IsConstructor();
+
+  Handle<String> ToString();
+
+  DECLARE_CAST(StackTraceFrame)
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(StackTraceFrame)
+  DECLARE_VERIFIER(StackTraceFrame)
+
+  // Fields for all frame types.
+  static const int kFlagsOffset = HeapObject::kHeaderSize;
+  static const int kAbstractCodeOffset = kFlagsOffset + kPointerSize;
+  static const int kOffsetOffset = kAbstractCodeOffset + kPointerSize;
+
+  // Fields for JS frames.
+  static const int kReceiverOffset = kOffsetOffset + kPointerSize;
+  static const int kFunctionOffset = kReceiverOffset + kPointerSize;
+
+  // Fields for Wasm frames.
+  static const int kWasmObjectOffset = kOffsetOffset + kPointerSize;
+  static const int kWasmFunctionIndexOffset = kWasmObjectOffset + kPointerSize;
+
+  static const int kSize = kFunctionOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StackTraceFrame);
+};
 
 // List of builtin functions we want to identify to improve code
 // generation.

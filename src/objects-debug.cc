@@ -1016,6 +1016,10 @@ void Script::ScriptVerify() {
   VerifyPointer(line_ends());
 }
 
+void StackTraceFrame::StackTraceFrameVerify() {
+  CHECK(IsStackTraceFrame());
+  VerifyPointer(abstract_code());
+}
 
 void NormalizedMapCache::NormalizedMapCacheVerify() {
   FixedArray::cast(this)->FixedArrayVerify();

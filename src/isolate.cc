@@ -357,21 +357,16 @@ class StackTraceHelper {
         break;
     }
     encountered_strict_function_ = false;
-    sloppy_frames_ = 0;
   }
 
   // The stack trace API should not expose receivers and function
   // objects on frames deeper than the top-most one with a strict mode
-  // function. The number of sloppy frames is stored as first element in
-  // the result array.
-  void CountSloppyFrames(JSFunction* fun) {
+  // function.
+  bool IsStrictFrame(JSFunction* fun) {
     if (!encountered_strict_function_) {
-      if (is_strict(fun->shared()->language_mode())) {
-        encountered_strict_function_ = true;
-      } else {
-        sloppy_frames_++;
-      }
+      encountered_strict_function_ = is_strict(fun->shared()->language_mode());
     }
+    return encountered_strict_function_;
   }
 
   // Determines whether the given stack frame should be displayed in a stack
@@ -380,8 +375,6 @@ class StackTraceHelper {
     return ShouldIncludeFrame(fun) && IsNotInNativeScript(fun) &&
            IsInSameSecurityContext(fun);
   }
-
-  int sloppy_frames() const { return sloppy_frames_; }
 
  private:
   // This mechanism excludes a number of uninteresting frames from the stack
@@ -428,7 +421,6 @@ class StackTraceHelper {
   const Handle<Object> caller_;
   bool skip_next_frame_;
 
-  int sloppy_frames_;
   bool encountered_strict_function_;
 };
 
@@ -441,34 +433,38 @@ Handle<Object> TheHoleToUndefined(Isolate* isolate, Handle<Object> in) {
              ? Handle<Object>::cast(isolate->factory()->undefined_value())
              : in;
 }
+
+bool GetStackTraceLimit(Isolate* isolate, int* result) {
+  Handle<JSObject> error = isolate->error_function();
+  Handle<String> stackTraceLimit =
+      isolate->factory()->InternalizeUtf8String("stackTraceLimit");
+  DCHECK(!stackTraceLimit.is_null());
+
+  Handle<Object> stack_trace_limit =
+      JSReceiver::GetDataProperty(error, stackTraceLimit);
+  if (!stack_trace_limit->IsNumber()) return false;
+
+  // Ensure that limit is not negative.
+  *result = Max(FastD2IChecked(stack_trace_limit->Number()), 0);
+  return true;
 }
+
+}  // namespace
 
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                                 FrameSkipMode mode,
                                                 Handle<Object> caller) {
   DisallowJavascriptExecution no_js(this);
 
-  // Get stack trace limit.
-  Handle<JSObject> error = error_function();
-  Handle<String> stackTraceLimit =
-      factory()->InternalizeUtf8String("stackTraceLimit");
-  DCHECK(!stackTraceLimit.is_null());
-  Handle<Object> stack_trace_limit =
-      JSReceiver::GetDataProperty(error, stackTraceLimit);
-  if (!stack_trace_limit->IsNumber()) return factory()->undefined_value();
-  int limit = FastD2IChecked(stack_trace_limit->Number());
-  limit = Max(limit, 0);  // Ensure that limit is not negative.
+  int limit;
+  if (!GetStackTraceLimit(this, &limit)) return factory()->undefined_value();
 
   int initial_size = Min(limit, 10);
-  Handle<FixedArray> elements =
-      factory()->NewFixedArrayWithHoles(initial_size * 4 + 1);
+  Handle<FixedArray> elements = factory()->NewFixedArrayWithHoles(initial_size);
 
+  int cursor = 0;
   StackTraceHelper helper(this, mode, caller);
-
-  // First element is reserved to store the number of sloppy frames.
-  int cursor = 1;
-  int frames_seen = 0;
-  for (StackFrameIterator iter(this); !iter.done() && frames_seen < limit;
+  for (StackFrameIterator iter(this); !iter.done() && cursor < limit;
        iter.Advance()) {
     StackFrame* frame = iter.frame();
 
@@ -487,26 +483,33 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
           // Filter out internal frames that we do not want to show.
           if (!helper.IsVisibleInStackTrace(*fun)) continue;
-          helper.CountSloppyFrames(*fun);
 
           Handle<Object> recv = frames[i].receiver();
           Handle<AbstractCode> abstract_code = frames[i].abstract_code();
+          const int offset = frames[i].code_offset();
+
+          bool force_constructor = false;
           if (frame->type() == StackFrame::BUILTIN) {
             // Help CallSite::IsConstructor correctly detect hand-written
             // construct stubs.
-            Code* code = Code::cast(*abstract_code);
-            if (code->is_construct_stub()) {
-              recv = handle(heap()->call_site_constructor_symbol(), this);
+            if (Code::cast(*abstract_code)->is_construct_stub()) {
+              force_constructor = true;
             }
           }
-          Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
 
-          elements = MaybeGrow(this, elements, cursor, cursor + 4);
-          elements->set(cursor++, *TheHoleToUndefined(this, recv));
-          elements->set(cursor++, *fun);
-          elements->set(cursor++, *abstract_code);
-          elements->set(cursor++, *offset);
-          frames_seen++;
+          int flags = 0;
+          if (helper.IsStrictFrame(*fun)) flags |= StackTraceFrame::kIsStrict;
+          if (force_constructor) flags |= StackTraceFrame::kForceConstructor;
+
+          Handle<StackTraceFrame> callsite = factory()->NewStackTraceFrame();
+          callsite->set_flags(flags);
+          callsite->set_receiver(*TheHoleToUndefined(this, recv));
+          callsite->set_function(*fun);
+          callsite->set_abstract_code(*abstract_code);
+          callsite->set_offset(offset);
+
+          elements = MaybeGrow(this, elements, cursor, cursor + 1);
+          elements->set(cursor++, *callsite);
         }
       } break;
 
@@ -516,27 +519,26 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
         // Filter out internal frames that we do not want to show.
         if (!helper.IsVisibleInStackTrace(*fun)) continue;
-        helper.CountSloppyFrames(*fun);
 
+        Handle<Object> recv = handle(exit_frame->receiver(), this);
         Handle<Code> code = handle(exit_frame->LookupCode(), this);
-        int offset =
+        const int offset =
             static_cast<int>(exit_frame->pc() - code->instruction_start());
 
-        // In order to help CallSite::IsConstructor detect builtin constructors,
-        // we reuse the receiver field to pass along a special symbol.
-        Handle<Object> recv;
-        if (exit_frame->IsConstructor()) {
-          recv = factory()->call_site_constructor_symbol();
-        } else {
-          recv = handle(exit_frame->receiver(), this);
-        }
+        int flags = 0;
+        if (helper.IsStrictFrame(*fun)) flags |= StackTraceFrame::kIsStrict;
+        if (exit_frame->IsConstructor())
+          flags |= StackTraceFrame::kForceConstructor;
 
-        elements = MaybeGrow(this, elements, cursor, cursor + 4);
-        elements->set(cursor++, *recv);
-        elements->set(cursor++, *fun);
-        elements->set(cursor++, *code);
-        elements->set(cursor++, Smi::FromInt(offset));
-        frames_seen++;
+        Handle<StackTraceFrame> callsite = factory()->NewStackTraceFrame();
+        callsite->set_flags(flags);
+        callsite->set_receiver(*recv);
+        callsite->set_function(*fun);
+        callsite->set_abstract_code(AbstractCode::cast(*code));
+        callsite->set_offset(offset);
+
+        elements = MaybeGrow(this, elements, cursor, cursor + 1);
+        elements->set(cursor++, *callsite);
       } break;
 
       case StackFrame::WASM: {
@@ -544,24 +546,34 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         Code* code = wasm_frame->unchecked_code();
         Handle<AbstractCode> abstract_code =
             Handle<AbstractCode>(AbstractCode::cast(code), this);
-        int offset =
+        const int offset =
             static_cast<int>(wasm_frame->pc() - code->instruction_start());
-        elements = MaybeGrow(this, elements, cursor, cursor + 4);
-        elements->set(cursor++, wasm_frame->wasm_obj());
-        elements->set(cursor++, Smi::FromInt(wasm_frame->function_index()));
-        elements->set(cursor++, *abstract_code);
-        elements->set(cursor++, Smi::FromInt(offset));
-        frames_seen++;
+
+        // TODO(wasm): The wasm object returned by the WasmFrame should always
+        //             be a wasm object.
+        DCHECK(wasm::IsWasmObject(wasm_frame->wasm_obj()) ||
+               wasm_frame->wasm_obj()->IsUndefined(this));
+
+        Handle<StackTraceFrame> callsite = factory()->NewStackTraceFrame();
+        callsite->set_flags(StackTraceFrame::kIsWasmFrame);
+        callsite->set_wasm_object(wasm_frame->wasm_obj());
+        callsite->set_wasm_function_index(wasm_frame->function_index());
+        callsite->set_abstract_code(*abstract_code);
+        callsite->set_offset(offset);
+
+        elements = MaybeGrow(this, elements, cursor, cursor + 1);
+        elements->set(cursor++, *callsite);
       } break;
 
       default:
         break;
     }
   }
-  elements->set(0, Smi::FromInt(helper.sloppy_frames()));
+
   elements->Shrink(cursor);
   Handle<JSArray> result = factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(cursor));
+
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
   return result;
 }
@@ -769,19 +781,6 @@ class CaptureStackTraceHelper {
   Handle<String> eval_key_;
   Handle<String> constructor_key_;
 };
-
-
-int PositionFromStackTrace(Handle<FixedArray> elements, int index) {
-  DisallowHeapAllocation no_gc;
-  Object* maybe_code = elements->get(index + 2);
-  if (maybe_code->IsSmi()) {
-    return Smi::cast(maybe_code)->value();
-  } else {
-    AbstractCode* abstract_code = AbstractCode::cast(maybe_code);
-    int code_offset = Smi::cast(elements->get(index + 3))->value();
-    return abstract_code->SourcePosition(code_offset);
-  }
-}
 
 Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
@@ -1427,36 +1426,26 @@ Object* Isolate::PromoteScheduledException() {
 
 
 void Isolate::PrintCurrentStackTrace(FILE* out) {
-  StackTraceFrameIterator it(this);
-  while (!it.done()) {
+  for (StackTraceFrameIterator it(this); !it.done(); it.Advance()) {
+    if (!it.is_javascript()) continue;
+
     HandleScope scope(this);
+    JavaScriptFrame* frame = it.javascript_frame();
+
     // Find code position if recorded in relocation info.
-    StandardFrame* frame = it.frame();
-    AbstractCode* abstract_code;
-    int code_offset;
-    if (frame->is_interpreted()) {
-      InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
-      abstract_code = AbstractCode::cast(iframe->GetBytecodeArray());
-      code_offset = iframe->GetBytecodeOffset();
-    } else {
-      DCHECK(frame->is_java_script() || frame->is_wasm());
-      Code* code = frame->LookupCode();
-      abstract_code = AbstractCode::cast(code);
-      code_offset = static_cast<int>(frame->pc() - code->instruction_start());
-    }
-    int pos = abstract_code->SourcePosition(code_offset);
-    JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-    Handle<Object> pos_obj(Smi::FromInt(pos), this);
-    // Fetch function and receiver.
-    Handle<JSFunction> fun(js_frame->function(), this);
-    Handle<Object> recv(js_frame->receiver(), this);
-    // Advance to the next JavaScript frame and determine if the
-    // current frame is the top-level frame.
-    it.Advance();
-    Handle<Object> is_top_level = factory()->ToBoolean(it.done());
+    AbstractCode* abstract_code = AbstractCode::cast(frame->LookupCode());
+    const int code_offset =
+        static_cast<int>(frame->pc() - abstract_code->instruction_start());
+
+    Handle<StackTraceFrame> st_frame = factory()->NewStackTraceFrame();
+
+    st_frame->set_receiver(frame->receiver());
+    st_frame->set_function(frame->function());
+    st_frame->set_abstract_code(abstract_code);
+    st_frame->set_offset(code_offset);
+
     // Generate and print stack trace line.
-    Handle<String> line =
-        Execution::GetStackTraceLine(recv, fun, pos_obj, is_top_level);
+    Handle<String> line = st_frame->ToString();
     if (line->length() > 0) {
       line->PrintOn(out);
       PrintF(out, "\n");
@@ -1525,21 +1514,24 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
 
   Handle<FixedArray> elements(FixedArray::cast(simple_stack_trace->elements()));
-  int elements_limit = Smi::cast(simple_stack_trace->length())->value();
+  const int elements_limit = Smi::cast(simple_stack_trace->length())->value();
 
-  for (int i = 1; i < elements_limit; i += 4) {
-    Handle<Object> fun_obj = handle(elements->get(i + 1), this);
-    if (fun_obj->IsSmi()) {
+  for (int i = 0; i < elements_limit; i++) {
+    DCHECK(elements->get(i)->IsStackTraceFrame());
+    Handle<StackTraceFrame> frame(StackTraceFrame::cast(elements->get(i)));
+
+    if (frame->IsWasmFrame()) {
       // TODO(clemensh): handle wasm frames
       return false;
     }
-    Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
+
+    Handle<JSFunction> fun = handle(frame->function());
     if (!fun->shared()->IsSubjectToDebugging()) continue;
 
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined(this))) {
-      int pos = PositionFromStackTrace(elements, i);
+      const int pos = frame->GetPosition();
       Handle<Script> casted_script(Script::cast(script));
       *target = MessageLocation(casted_script, pos, pos + 1);
       return true;

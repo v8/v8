@@ -115,22 +115,27 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   // TODO(wasm): This implementation is temporary, see bug #5007:
   // https://bugs.chromium.org/p/v8/issues/detail?id=5007
   Handle<JSObject> error = Handle<JSObject>::cast(error_obj);
+
+  // Patch the stack trace (array of <receiver, function, code, position>).
+
   Handle<Object> stack_trace_obj = JSReceiver::GetDataProperty(
       error, isolate->factory()->stack_trace_symbol());
-  // Patch the stack trace (array of <receiver, function, code, position>).
   if (stack_trace_obj->IsJSArray()) {
     Handle<FixedArray> stack_elements(
         FixedArray::cast(JSArray::cast(*stack_trace_obj)->elements()));
-    DCHECK_EQ(1, stack_elements->length() % 4);
-    DCHECK(Code::cast(stack_elements->get(3))->kind() == Code::WASM_FUNCTION);
-    DCHECK(stack_elements->get(4)->IsSmi() &&
-           Smi::cast(stack_elements->get(4))->value() >= 0);
-    stack_elements->set(4, Smi::FromInt(-1 - byte_offset));
+    Handle<StackTraceFrame> frame =
+        handle(StackTraceFrame::cast(stack_elements->get(0)));
+
+    DCHECK(frame->IsWasmFrame());
+    DCHECK(frame->offset() >= 0);
+    frame->set_offset(-1 - byte_offset);
   }
-  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
-      error, isolate->factory()->detailed_stack_trace_symbol());
+
   // Patch the detailed stack trace (array of JSObjects with various
   // properties).
+
+  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
+      error, isolate->factory()->detailed_stack_trace_symbol());
   if (detailed_stack_trace_obj->IsJSArray()) {
     Handle<FixedArray> stack_elements(
         FixedArray::cast(JSArray::cast(*detailed_stack_trace_obj)->elements()));
