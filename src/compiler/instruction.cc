@@ -180,6 +180,12 @@ std::ostream& operator<<(std::ostream& os,
         case MachineRepresentation::kSimd128:
           os << "|s128";
           break;
+        case MachineRepresentation::kTaggedSigned:
+          os << "|ts";
+          break;
+        case MachineRepresentation::kTaggedPointer:
+          os << "|tp";
+          break;
         case MachineRepresentation::kTagged:
           os << "|t";
           break;
@@ -795,6 +801,8 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       return rep;
     case MachineRepresentation::kNone:

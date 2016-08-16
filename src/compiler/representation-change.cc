@@ -141,6 +141,8 @@ Node* RepresentationChanger::GetRepresentationFor(
   }
 
   switch (use_info.representation()) {
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone);
       return GetTaggedRepresentationFor(node, output_rep, output_type);

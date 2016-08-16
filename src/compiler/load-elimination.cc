@@ -514,6 +514,8 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
       break;
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       state = state->AddElement(object, index, new_value, zone());
       break;
@@ -688,6 +690,9 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
       return -1;  // Currently untracked.
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
+      return -1;  // Currently untracked.
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       // TODO(bmeurer): Check that we never do overlapping load/stores of
       // individual parts of Float64/Simd128 values.

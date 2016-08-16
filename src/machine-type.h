@@ -25,6 +25,8 @@ enum class MachineRepresentation : uint8_t {
   kFloat32,
   kFloat64,  // must follow kFloat32
   kSimd128,  // must follow kFloat64
+  kTaggedSigned,
+  kTaggedPointer,
   kTagged
 };
 
@@ -228,6 +230,8 @@ inline int ElementSizeLog2Of(MachineRepresentation rep) {
       return 3;
     case MachineRepresentation::kSimd128:
       return 4;
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       return kPointerSizeLog2;
     default:

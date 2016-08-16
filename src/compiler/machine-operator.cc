@@ -436,6 +436,8 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(kWord16)                           \
   V(kWord32)                           \
   V(kWord64)                           \
+  V(kTaggedSigned)                     \
+  V(kTaggedPointer)                    \
   V(kTagged)
 
 #define ATOMIC_TYPE_LIST(V) \
