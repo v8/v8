@@ -878,7 +878,7 @@ const double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
 
 
 // The order of this enum has to be kept in sync with the predicates below.
-enum VariableMode : uint8_t {
+enum VariableMode {
   // User declared variables:
   VAR,  // declared via 'var', and 'function' declarations
 
@@ -899,12 +899,10 @@ enum VariableMode : uint8_t {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL,  // requires dynamic lookup, but we know that the
-                  // variable is local and where it is unless it
-                  // has been shadowed by an eval-introduced
-                  // variable
-
-  kLastVariableMode = DYNAMIC_LOCAL
+  DYNAMIC_LOCAL  // requires dynamic lookup, but we know that the
+                 // variable is local and where it is unless it
+                 // has been shadowed by an eval-introduced
+                 // variable
 };
 
 inline bool IsDynamicVariableMode(VariableMode mode) {
@@ -926,7 +924,7 @@ inline bool IsImmutableVariableMode(VariableMode mode) {
   return mode == CONST || mode == CONST_LEGACY;
 }
 
-enum class VariableLocation : uint8_t {
+enum class VariableLocation {
   // Before and during variable allocation, a variable whose location is
   // not yet determined.  After allocation, a variable looked up as a
   // property on the global object (and possibly absent).  name() is the
@@ -959,9 +957,7 @@ enum class VariableLocation : uint8_t {
   LOOKUP,
 
   // A named slot in a module's export table.
-  MODULE,
-
-  kLastVariableLocation = MODULE
+  MODULE
 };
 
 // ES6 Draft Rev3 10.2 specifies declarative environment records with mutable
@@ -995,9 +991,14 @@ enum class VariableLocation : uint8_t {
 // The following enum specifies a flag that indicates if the binding needs a
 // distinct initialization step (kNeedsInitialization) or if the binding is
 // immediately initialized upon creation (kCreatedInitialized).
-enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
+enum InitializationFlag {
+  kNeedsInitialization,
+  kCreatedInitialized
+};
 
-enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
+
+enum MaybeAssignedFlag { kNotAssigned, kMaybeAssigned };
+
 
 // Serialized in PreparseData, so numeric values should not be changed.
 enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };

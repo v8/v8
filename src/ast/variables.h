@@ -17,13 +17,7 @@ namespace internal {
 // after binding and variable allocation.
 class Variable final : public ZoneObject {
  public:
-  enum Kind : uint8_t {
-    NORMAL,
-    FUNCTION,
-    THIS,
-    ARGUMENTS,
-    kLastKind = ARGUMENTS
-  };
+  enum Kind { NORMAL, FUNCTION, THIS, ARGUMENTS };
 
   Variable(Scope* scope, const AstRawString* name, VariableMode mode, Kind kind,
            InitializationFlag initialization_flag,
@@ -111,27 +105,23 @@ class Variable final : public ZoneObject {
  private:
   Scope* scope_;
   const AstRawString* name_;
+  VariableMode mode_;
+  Kind kind_;
+  VariableLocation location_;
+  int index_;
+  int initializer_position_;
+
   // If this field is set, this variable references the stored locally bound
   // variable, but it might be shadowed by variable bindings introduced by
   // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
-  int index_;
-  int initializer_position_;
-
-  STATIC_ASSERT(kLastVariableMode < (1 << 3));
-  VariableMode mode_ : 3;
-  STATIC_ASSERT(kLastKind < (1 << 2));
-  Kind kind_ : 2;
-  STATIC_ASSERT(static_cast<uint8_t>(VariableLocation::kLastVariableLocation) <
-                (1 << 3));
-  VariableLocation location_ : 3;
 
   // Usage info.
-  bool force_context_allocation_ : 1;  // set by variable resolver
-  bool is_used_ : 1;
-  InitializationFlag initialization_flag_ : 2;
-  MaybeAssignedFlag maybe_assigned_ : 2;
+  bool force_context_allocation_;  // set by variable resolver
+  bool is_used_;
+  InitializationFlag initialization_flag_;
+  MaybeAssignedFlag maybe_assigned_;
 };
 }  // namespace internal
 }  // namespace v8
