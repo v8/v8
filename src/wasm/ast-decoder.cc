@@ -31,6 +31,12 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
+#define CHECK_PROTOTYPE_OPCODE(flag)                   \
+  if (!FLAG_##flag) {                                  \
+    error("Invalid opcode (enable with --" #flag ")"); \
+    break;                                             \
+  }
+
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
 // It maintains a control state that tracks whether the environment
@@ -671,23 +677,14 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprThrow: {
-            if (!FLAG_wasm_eh_prototype) {
-              error("Invalid opcode");
-              return;
-            }
-
-            // TODO(jpp): validate the poped value.
-            Pop();
+            CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
+            Pop(0, kAstI32);
 
             // TODO(jpp): start exception propagation.
             break;
           }
           case kExprTryCatch: {
-            if (!FLAG_wasm_eh_prototype) {
-              error("Invalid opcode");
-              return;
-            }
-
+            CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
             SsaEnv* outer_env = ssa_env_;
             SsaEnv* try_env = Steal(outer_env);
             SsaEnv* catch_env = Split(try_env);
@@ -696,11 +693,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprTryCatchFinally: {
-            if (!FLAG_wasm_eh_prototype) {
-              error("Invalid opcode");
-              return;
-            }
-
+            CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
             SsaEnv* outer_env = ssa_env_;
             SsaEnv* try_env = Steal(outer_env);
             SsaEnv* catch_env = Split(try_env);
@@ -710,11 +703,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprTryFinally: {
-            if (!FLAG_wasm_eh_prototype) {
-              error("Invalid opcode");
-              return;
-            }
-
+            CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
             SsaEnv* outer_env = ssa_env_;
             SsaEnv* try_env = Steal(outer_env);
             SsaEnv* finally_env = Split(outer_env);
@@ -723,11 +712,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprCatch: {
-            if (!FLAG_wasm_eh_prototype) {
-              error("Invalid opcode");
-              return;
-            }
-
+            CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
             LocalIndexOperand operand(this, pc_);
             len = 1 + operand.length;
 
@@ -766,11 +751,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprFinally: {
-            if (!FLAG_wasm_eh_prototype) {
-              error("Invalid opcode");
-              return;
-            }
-
+            CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
             if (control_.empty()) {
               error(pc_, "finally does not match a any try");
               break;
@@ -885,8 +866,6 @@ class WasmFullDecoder : public WasmDecoder {
                 name = "if_else:merge";
               }
             } else if (c->is_try()) {
-              DCHECK(FLAG_wasm_eh_prototype);
-
               name = "try:end";
 
               // try blocks do not yield a value.
@@ -1201,10 +1180,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kSimdPrefix: {
-            if (!FLAG_wasm_simd_prototype) {
-              error("Invalid opcode");
-              return;
-            }
+            CHECK_PROTOTYPE_OPCODE(wasm_simd_prototype);
             len++;
             byte simd_index = *(pc_ + 1);
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);

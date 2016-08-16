@@ -1833,13 +1833,12 @@ TEST_F(AstDecoderTest, Throw) {
   FLAG_wasm_eh_prototype = true;
   EXPECT_VERIFIES_INLINE(sigs.v_i(), WASM_GET_LOCAL(0), kExprThrow);
 
-  // TODO(jpp): can't throw d, f, or l.
-  EXPECT_VERIFIES_INLINE(sigs.i_d(), WASM_GET_LOCAL(0), kExprThrow,
-                         WASM_I32V(0));
-  EXPECT_VERIFIES_INLINE(sigs.i_f(), WASM_GET_LOCAL(0), kExprThrow,
-                         WASM_I32V(0));
-  EXPECT_VERIFIES_INLINE(sigs.l_l(), WASM_GET_LOCAL(0), kExprThrow,
-                         WASM_I64V(0));
+  EXPECT_FAILURE_INLINE(sigs.i_d(), WASM_GET_LOCAL(0), kExprThrow,
+                        WASM_I32V(0));
+  EXPECT_FAILURE_INLINE(sigs.i_f(), WASM_GET_LOCAL(0), kExprThrow,
+                        WASM_I32V(0));
+  EXPECT_FAILURE_INLINE(sigs.l_l(), WASM_GET_LOCAL(0), kExprThrow,
+                        WASM_I64V(0));
 }
 
 #define WASM_CATCH(local) kExprCatch, static_cast<byte>(local)
