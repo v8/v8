@@ -1306,8 +1306,8 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
       return nullptr;
     }
   } else {
-    DCHECK(is_function_scope() || is_script_scope() || is_eval_scope());
     DCHECK(!is_with_scope());
+    DCHECK(is_function_scope() || is_script_scope() || is_eval_scope());
   }
 
   if (calls_sloppy_eval() && is_declaration_scope() && !is_script_scope()) {
