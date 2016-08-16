@@ -44,9 +44,9 @@ class HCompilationJob final : public CompilationJob {
         chunk_(nullptr) {}
 
  protected:
-  virtual Status PrepareJobImpl();
-  virtual Status ExecuteJobImpl();
-  virtual Status FinalizeJobImpl();
+  virtual Status CreateGraphImpl();
+  virtual Status OptimizeGraphImpl();
+  virtual Status GenerateCodeImpl();
 
  private:
   Zone zone_;

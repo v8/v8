@@ -688,16 +688,20 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
   InitializeAstVisitor(isolate()->stack_guard()->real_climit());
 }
 
-Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode() {
+Handle<BytecodeArray> BytecodeGenerator::MakeBytecode() {
   // Create an inner HandleScope to avoid unnecessarily canonicalizing handles
   // created as part of bytecode finalization.
   HandleScope scope(isolate());
-  AllocateDeferredConstants();
+
+  GenerateBytecode();
+  FinalizeBytecode();
+
   if (HasStackOverflow()) return Handle<BytecodeArray>();
+
   return scope.CloseAndEscape(builder()->ToBytecodeArray());
 }
 
-void BytecodeGenerator::AllocateDeferredConstants() {
+void BytecodeGenerator::FinalizeBytecode() {
   // Build global declaration pair arrays.
   for (GlobalDeclarationsBuilder* globals_builder : global_declarations_) {
     Handle<FixedArray> declarations =
