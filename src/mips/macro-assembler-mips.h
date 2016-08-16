@@ -688,8 +688,8 @@ class MacroAssembler: public Assembler {
   // Pseudo-instructions.
 
   // Change endianness
-  void ByteSwapSigned(Register reg, int operand_size);
-  void ByteSwapUnsigned(Register reg, int operand_size);
+  void ByteSwapSigned(Register dest, Register src, int operand_size);
+  void ByteSwapUnsigned(Register dest, Register src, int operand_size);
 
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 

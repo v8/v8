@@ -1357,45 +1357,47 @@ void MacroAssembler::Bnvc(Register rs, Register rt, Label* L) {
 // ------------Pseudo-instructions-------------
 
 // Change endianness
-void MacroAssembler::ByteSwapSigned(Register reg, int operand_size) {
+void MacroAssembler::ByteSwapSigned(Register dest, Register src,
+                                    int operand_size) {
   DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4 ||
          operand_size == 8);
   DCHECK(kArchVariant == kMips64r6 || kArchVariant == kMips64r2);
   if (operand_size == 1) {
-    seb(reg, reg);
-    sll(reg, reg, 0);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    seb(src, src);
+    sll(src, src, 0);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else if (operand_size == 2) {
-    seh(reg, reg);
-    sll(reg, reg, 0);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    seh(src, src);
+    sll(src, src, 0);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else if (operand_size == 4) {
-    sll(reg, reg, 0);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    sll(src, src, 0);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else {
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    dsbh(dest, src);
+    dshd(dest, dest);
   }
 }
 
-void MacroAssembler::ByteSwapUnsigned(Register reg, int operand_size) {
+void MacroAssembler::ByteSwapUnsigned(Register dest, Register src,
+                                      int operand_size) {
   DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4);
   if (operand_size == 1) {
-    andi(reg, reg, 0xFF);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    andi(src, src, 0xFF);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else if (operand_size == 2) {
-    andi(reg, reg, 0xFFFF);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    andi(src, src, 0xFFFF);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else {
-    dsll32(reg, reg, 0);
-    dsrl32(reg, reg, 0);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    dsll32(src, src, 0);
+    dsrl32(src, src, 0);
+    dsbh(dest, src);
+    dshd(dest, dest);
   }
 }
 

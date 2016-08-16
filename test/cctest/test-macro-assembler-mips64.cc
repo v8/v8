@@ -85,37 +85,37 @@ TEST(BYTESWAP) {
 
   __ ld(a4, MemOperand(a0, offsetof(T, r1)));
   __ nop();
-  __ ByteSwapSigned(a4, 8);
+  __ ByteSwapSigned(a4, a4, 8);
   __ sd(a4, MemOperand(a0, offsetof(T, r1)));
 
   __ ld(a4, MemOperand(a0, offsetof(T, r2)));
   __ nop();
-  __ ByteSwapSigned(a4, 4);
+  __ ByteSwapSigned(a4, a4, 4);
   __ sd(a4, MemOperand(a0, offsetof(T, r2)));
 
   __ ld(a4, MemOperand(a0, offsetof(T, r3)));
   __ nop();
-  __ ByteSwapSigned(a4, 2);
+  __ ByteSwapSigned(a4, a4, 2);
   __ sd(a4, MemOperand(a0, offsetof(T, r3)));
 
   __ ld(a4, MemOperand(a0, offsetof(T, r4)));
   __ nop();
-  __ ByteSwapSigned(a4, 1);
+  __ ByteSwapSigned(a4, a4, 1);
   __ sd(a4, MemOperand(a0, offsetof(T, r4)));
 
   __ ld(a4, MemOperand(a0, offsetof(T, r5)));
   __ nop();
-  __ ByteSwapUnsigned(a4, 1);
+  __ ByteSwapUnsigned(a4, a4, 1);
   __ sd(a4, MemOperand(a0, offsetof(T, r5)));
 
   __ ld(a4, MemOperand(a0, offsetof(T, r6)));
   __ nop();
-  __ ByteSwapUnsigned(a4, 2);
+  __ ByteSwapUnsigned(a4, a4, 2);
   __ sd(a4, MemOperand(a0, offsetof(T, r6)));
 
   __ ld(a4, MemOperand(a0, offsetof(T, r7)));
   __ nop();
-  __ ByteSwapUnsigned(a4, 4);
+  __ ByteSwapUnsigned(a4, a4, 4);
   __ sd(a4, MemOperand(a0, offsetof(T, r7)));
 
   __ jr(ra);

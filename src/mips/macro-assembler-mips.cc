@@ -1211,74 +1211,76 @@ void MacroAssembler::Bnvc(Register rs, Register rt, Label* L) {
 // ------------Pseudo-instructions-------------
 
 // Word Swap Byte
-void MacroAssembler::ByteSwapSigned(Register reg, int operand_size) {
+void MacroAssembler::ByteSwapSigned(Register dest, Register src,
+                                    int operand_size) {
   DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4);
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
     if (operand_size == 2) {
-      seh(reg, reg);
+      seh(src, src);
     } else if (operand_size == 1) {
-      seb(reg, reg);
+      seb(src, src);
     }
     // No need to do any preparation if operand_size is 4
 
-    wsbh(reg, reg);
-    rotr(reg, reg, 16);
+    wsbh(dest, src);
+    rotr(dest, dest, 16);
   } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
     if (operand_size == 1) {
-      sll(reg, reg, 24);
-      sra(reg, reg, 24);
+      sll(src, src, 24);
+      sra(src, src, 24);
     } else if (operand_size == 2) {
-      sll(reg, reg, 16);
-      sra(reg, reg, 16);
+      sll(src, src, 16);
+      sra(src, src, 16);
     }
     // No need to do any preparation if operand_size is 4
 
     Register tmp = t0;
     Register tmp2 = t1;
 
-    andi(tmp2, reg, 0xFF);
+    andi(tmp2, src, 0xFF);
     sll(tmp2, tmp2, 24);
     or_(tmp, zero_reg, tmp2);
 
-    andi(tmp2, reg, 0xFF00);
+    andi(tmp2, src, 0xFF00);
     sll(tmp2, tmp2, 8);
     or_(tmp, tmp, tmp2);
 
-    srl(reg, reg, 8);
-    andi(tmp2, reg, 0xFF00);
+    srl(src, src, 8);
+    andi(tmp2, src, 0xFF00);
     or_(tmp, tmp, tmp2);
 
-    srl(reg, reg, 16);
-    andi(tmp2, reg, 0xFF);
+    srl(src, src, 16);
+    andi(tmp2, src, 0xFF);
     or_(tmp, tmp, tmp2);
 
-    or_(reg, tmp, zero_reg);
+    or_(dest, tmp, zero_reg);
   }
 }
 
-void MacroAssembler::ByteSwapUnsigned(Register reg, int operand_size) {
+void MacroAssembler::ByteSwapUnsigned(Register dest, Register src,
+                                      int operand_size) {
   DCHECK(operand_size == 1 || operand_size == 2);
 
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
     if (operand_size == 1) {
-      andi(reg, reg, 0xFF);
+      andi(src, src, 0xFF);
     } else {
-      andi(reg, reg, 0xFFFF);
+      andi(src, src, 0xFFFF);
     }
     // No need to do any preparation if operand_size is 4
 
-    wsbh(reg, reg);
-    rotr(reg, reg, 16);
+    wsbh(dest, src);
+    rotr(dest, dest, 16);
   } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
     if (operand_size == 1) {
-      sll(reg, reg, 24);
+      sll(src, src, 24);
     } else {
       Register tmp = t0;
 
-      andi(tmp, reg, 0xFF00);
-      sll(reg, reg, 24);
+      andi(tmp, src, 0xFF00);
+      sll(src, src, 24);
       sll(tmp, tmp, 8);
-      or_(reg, tmp, reg);
+      or_(dest, tmp, src);
     }
   }
 }

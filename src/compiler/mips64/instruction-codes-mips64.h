@@ -155,6 +155,8 @@ namespace compiler {
   V(Mips64Float64SilenceNaN)        \
   V(Mips64Push)                     \
   V(Mips64StoreToStackSlot)         \
+  V(Mips64ByteSwap64)               \
+  V(Mips64ByteSwap32)               \
   V(Mips64StackClaim)
 
 // Addressing modes represent the "shape" of inputs to an instruction.

@@ -80,27 +80,27 @@ TEST(BYTESWAP) {
 
   __ lw(a2, MemOperand(a0, offsetof(T, r1)));
   __ nop();
-  __ ByteSwapSigned(a2, 4);
+  __ ByteSwapSigned(a2, a2, 4);
   __ sw(a2, MemOperand(a0, offsetof(T, r1)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r2)));
   __ nop();
-  __ ByteSwapSigned(a2, 2);
+  __ ByteSwapSigned(a2, a2, 2);
   __ sw(a2, MemOperand(a0, offsetof(T, r2)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r3)));
   __ nop();
-  __ ByteSwapSigned(a2, 1);
+  __ ByteSwapSigned(a2, a2, 1);
   __ sw(a2, MemOperand(a0, offsetof(T, r3)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r4)));
   __ nop();
-  __ ByteSwapUnsigned(a2, 1);
+  __ ByteSwapUnsigned(a2, a2, 1);
   __ sw(a2, MemOperand(a0, offsetof(T, r4)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r5)));
   __ nop();
-  __ ByteSwapUnsigned(a2, 2);
+  __ ByteSwapUnsigned(a2, a2, 2);
   __ sw(a2, MemOperand(a0, offsetof(T, r5)));
 
   __ jr(ra);
