@@ -1226,13 +1226,9 @@ void RegExpMacroAssemblerS390::CallCFunctionUsingStub(
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }
 
-bool RegExpMacroAssemblerS390::CanReadUnaligned() {
-  return CpuFeatures::IsSupported(UNALIGNED_ACCESSES) && !slow_safe();
-}
 
 void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
-  DCHECK(characters == 1 || CanReadUnaligned());
   if (mode_ == LATIN1) {
     // using load reverse for big-endian platforms
     if (characters == 4) {
