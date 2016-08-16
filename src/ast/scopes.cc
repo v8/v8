@@ -132,15 +132,15 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
   SetDefaults();
   if (scope_type == WITH_SCOPE) {
     DCHECK(scope_info.is_null());
+    // Ensure at least MIN_CONTEXT_SLOTS to indicate a materialized context.
+    num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   } else {
     scope_calls_eval_ = scope_info->CallsEval();
     language_mode_ = scope_info->language_mode();
     num_heap_slots_ = scope_info->ContextLength();
+    DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
   }
 
-  // Ensure at least MIN_CONTEXT_SLOTS to indicate a materialized context.
-  num_heap_slots_ = Max(num_heap_slots_,
-                        static_cast<int>(Context::MIN_CONTEXT_SLOTS));
   if (inner_scope != nullptr) AddInnerScope(inner_scope);
 }
 
