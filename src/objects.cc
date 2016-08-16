@@ -2155,6 +2155,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   Heap* heap = GetHeap();
   bool is_one_byte = this->IsOneByteRepresentation();
   bool is_internalized = this->IsInternalizedString();
+  bool has_pointers = this->IsConsString() || this->IsSlicedString();
 
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -2183,6 +2184,9 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   int new_size = this->SizeFromMap(new_map);
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size,
                              ClearRecordedSlots::kNo);
+  if (has_pointers) {
+    heap->ClearRecordedSlotRange(this->address(), this->address() + new_size);
+  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
@@ -2223,6 +2227,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   if (size < ExternalString::kShortSize) return false;
   Heap* heap = GetHeap();
   bool is_internalized = this->IsInternalizedString();
+  bool has_pointers = this->IsConsString() || this->IsSlicedString();
 
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -2245,6 +2250,9 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   int new_size = this->SizeFromMap(new_map);
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size,
                              ClearRecordedSlots::kNo);
+  if (has_pointers) {
+    heap->ClearRecordedSlotRange(this->address(), this->address() + new_size);
+  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.

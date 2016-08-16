@@ -6818,6 +6818,65 @@ TEST(Regress615489) {
   CHECK_LE(size_after, size_before);
 }
 
+class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit StaticOneByteResource(const char* data) : data_(data) {}
+
+  ~StaticOneByteResource() {}
+
+  const char* data() const { return data_; }
+
+  size_t length() const { return strlen(data_); }
+
+ private:
+  const char* data_;
+};
+
+TEST(Regress631969) {
+  FLAG_manual_evacuation_candidates_selection = true;
+  FLAG_parallel_compaction = false;
+  FLAG_concurrent_sweeping = false;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  // Get the heap in clean state.
+  heap->CollectGarbage(OLD_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  // Allocate two strings in a fresh page and mark the page as evacuation
+  // candidate.
+  heap::SimulateFullSpace(heap->old_space());
+  Handle<String> s1 = factory->NewStringFromStaticChars("123456789", TENURED);
+  Handle<String> s2 = factory->NewStringFromStaticChars("01234", TENURED);
+  Page::FromAddress(s1->address())
+      ->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+
+  heap::SimulateIncrementalMarking(heap, false);
+
+  // Allocate a cons string and promote it to a fresh page in the old space.
+  heap::SimulateFullSpace(heap->old_space());
+  Handle<String> s3;
+  factory->NewConsString(s1, s2).ToHandle(&s3);
+  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbage(NEW_SPACE);
+
+  // Finish incremental marking.
+  IncrementalMarking* marking = heap->incremental_marking();
+  while (!marking->IsComplete()) {
+    marking->Step(MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    if (marking->IsReadyToOverApproximateWeakClosure()) {
+      marking->FinalizeIncrementally();
+    }
+  }
+
+  {
+    StaticOneByteResource external_string("12345678901234");
+    s3->MakeExternal(&external_string);
+    heap->CollectGarbage(OLD_SPACE);
+  }
+}
+
 TEST(LeftTrimFixedArrayInBlackArea) {
   FLAG_black_allocation = true;
   CcTest::InitializeVM();
