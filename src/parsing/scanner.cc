@@ -260,6 +260,8 @@ Token::Value Scanner::Next() {
       next_.token = token;
       next_.location.beg_pos = pos;
       next_.location.end_pos = pos + 1;
+      next_.literal_chars = nullptr;
+      next_.raw_literal_chars = nullptr;
       Advance();
       return current_.token;
     }
@@ -270,6 +272,9 @@ Token::Value Scanner::Next() {
 
 
 Token::Value Scanner::PeekAhead() {
+  DCHECK(next_.token != Token::DIV);
+  DCHECK(next_.token != Token::ASSIGN_DIV);
+
   if (next_next_.token != Token::UNINITIALIZED) {
     return next_next_.token;
   }
@@ -731,8 +736,50 @@ void Scanner::Scan() {
 
   next_.location.end_pos = source_pos();
   next_.token = token;
+
+#ifdef DEBUG
+  SanityCheckTokenDesc(current_);
+  SanityCheckTokenDesc(next_);
+  SanityCheckTokenDesc(next_next_);
+#endif
 }
 
+#ifdef DEBUG
+void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
+  // Most tokens should not have literal_chars or even raw_literal chars.
+  // The rules are:
+  // - UNINITIALIZED: we don't care.
+  // - TEMPLATE_*: need both literal + raw literal chars.
+  // - IDENTIFIERS, STRINGS, etc.: need a literal, but no raw literal.
+  // - all others: should have neither.
+
+  switch (token.token) {
+    case Token::UNINITIALIZED:
+      // token.literal_chars & other members might be garbage. That's ok.
+      break;
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+      DCHECK_NOT_NULL(token.raw_literal_chars);
+      DCHECK_NOT_NULL(token.literal_chars);
+      break;
+    case Token::ESCAPED_KEYWORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::IDENTIFIER:
+    case Token::NUMBER:
+    case Token::REGEXP_LITERAL:
+    case Token::SMI:
+    case Token::STRING:
+      DCHECK_NOT_NULL(token.literal_chars);
+      DCHECK_NULL(token.raw_literal_chars);
+      break;
+    default:
+      DCHECK_NULL(token.literal_chars);
+      DCHECK_NULL(token.raw_literal_chars);
+      break;
+  }
+}
+#endif  // DEBUG
 
 void Scanner::SeekForward(int pos) {
   // After this call, we will have the token at the given position as
@@ -954,6 +1001,7 @@ Token::Value Scanner::ScanTemplateSpan() {
 
 
 Token::Value Scanner::ScanTemplateStart() {
+  DCHECK(next_next_.token == Token::UNINITIALIZED);
   DCHECK(c0_ == '`');
   next_.location.beg_pos = source_pos();
   Advance();  // Consume `
@@ -1216,7 +1264,7 @@ uc32 Scanner::ScanUnicodeEscape() {
   KEYWORD("yield", Token::YIELD)
 
 static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
-                                             int input_length, bool escaped) {
+                                             int input_length) {
   DCHECK(input_length >= 1);
   const int kMinLength = 2;
   const int kMaxLength = 10;
@@ -1244,13 +1292,6 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
         (keyword_length <= 7 || input[7] == keyword[7]) &&          \
         (keyword_length <= 8 || input[8] == keyword[8]) &&          \
         (keyword_length <= 9 || input[9] == keyword[9])) {          \
-      if (escaped) {                                                \
-        /* TODO(adamk): YIELD should be handled specially. */       \
-        return (token == Token::FUTURE_STRICT_RESERVED_WORD ||      \
-                token == Token::LET || token == Token::STATIC)      \
-                   ? Token::ESCAPED_STRICT_RESERVED_WORD            \
-                   : Token::ESCAPED_KEYWORD;                        \
-      }                                                             \
       return token;                                                 \
     }                                                               \
   }
@@ -1269,7 +1310,7 @@ bool Scanner::IdentifierIsFutureStrictReserved(
     return true;
   }
   return Token::FUTURE_STRICT_RESERVED_WORD ==
-         KeywordOrIdentifierToken(string->raw_data(), string->length(), false);
+         KeywordOrIdentifierToken(string->raw_data(), string->length());
 }
 
 
@@ -1300,9 +1341,13 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       }
     } else if (c0_ <= kMaxAscii && c0_ != '\\') {
       // Only a-z+: could be a keyword or identifier.
-      literal.Complete();
       Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
-      return KeywordOrIdentifierToken(chars.start(), chars.length(), false);
+      Token::Value token =
+          KeywordOrIdentifierToken(chars.start(), chars.length());
+      if (token == Token::IDENTIFIER ||
+          token == Token::FUTURE_STRICT_RESERVED_WORD)
+        literal.Complete();
+      return token;
     }
 
     HandleLeadSurrogate();
@@ -1348,12 +1393,14 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
     return ScanIdentifierSuffix(&literal, false);
   }
 
-  literal.Complete();
-
   if (next_.literal_chars->is_one_byte()) {
     Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
-    return KeywordOrIdentifierToken(chars.start(), chars.length(), false);
+    Token::Value token =
+        KeywordOrIdentifierToken(chars.start(), chars.length());
+    if (token == Token::IDENTIFIER) literal.Complete();
+    return token;
   }
+  literal.Complete();
   return Token::IDENTIFIER;
 }
 
@@ -1381,15 +1428,28 @@ Token::Value Scanner::ScanIdentifierSuffix(LiteralScope* literal,
 
   if (escaped && next_.literal_chars->is_one_byte()) {
     Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
-    return KeywordOrIdentifierToken(chars.start(), chars.length(), true);
+    Token::Value token =
+        KeywordOrIdentifierToken(chars.start(), chars.length());
+    /* TODO(adamk): YIELD should be handled specially. */
+    if (token == Token::IDENTIFIER) {
+      return Token::IDENTIFIER;
+    } else if (token == Token::FUTURE_STRICT_RESERVED_WORD ||
+               token == Token::LET || token == Token::STATIC) {
+      return Token::ESCAPED_STRICT_RESERVED_WORD;
+    } else {
+      return Token::ESCAPED_KEYWORD;
+    }
   }
   return Token::IDENTIFIER;
 }
 
+bool Scanner::ScanRegExpPattern() {
+  DCHECK(next_next_.token == Token::UNINITIALIZED);
+  DCHECK(next_.token == Token::DIV || next_.token == Token::ASSIGN_DIV);
 
-bool Scanner::ScanRegExpPattern(bool seen_equal) {
   // Scan: ('/' | '/=') RegularExpressionBody '/' RegularExpressionFlags
   bool in_character_class = false;
+  bool seen_equal = (next_.token == Token::ASSIGN_DIV);
 
   // Previous token is either '/' or '/=', in the second case, the
   // pattern starts at =.
@@ -1429,14 +1489,15 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
   Advance();  // consume '/'
 
   literal.Complete();
-
+  next_.token = Token::REGEXP_LITERAL;
   return true;
 }
 
 
 Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
+  DCHECK(next_.token == Token::REGEXP_LITERAL);
+
   // Scan regular expression flags.
-  LiteralScope literal(this);
   int flags = 0;
   while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
     RegExp::Flags flag = RegExp::kNone;
@@ -1459,11 +1520,12 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
       default:
         return Nothing<RegExp::Flags>();
     }
-    if (flags & flag) return Nothing<RegExp::Flags>();
-    AddLiteralCharAdvance();
+    if (flags & flag) {
+      return Nothing<RegExp::Flags>();
+    }
+    Advance();
     flags |= flag;
   }
-  literal.Complete();
 
   next_.location.end_pos = source_pos();
   return Just(RegExp::Flags(flags));

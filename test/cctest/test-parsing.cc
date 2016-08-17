@@ -885,7 +885,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
 
   i::Token::Value start = scanner.peek();
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
-  CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
+  CHECK(scanner.ScanRegExpPattern());
   scanner.Next();  // Current token is now the regexp literal.
   i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,

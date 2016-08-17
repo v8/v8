@@ -1055,7 +1055,7 @@ class ParserBase : public Traits {
 
   IdentifierT ParseIdentifierName(bool* ok);
 
-  ExpressionT ParseRegExpLiteral(bool seen_equal, bool* ok);
+  ExpressionT ParseRegExpLiteral(bool* ok);
 
   ExpressionT ParsePrimaryExpression(ExpressionClassifier* classifier,
                                      bool* is_async, bool* ok);
@@ -1349,6 +1349,9 @@ void ParserBase<Traits>::GetUnexpectedTokenMessage(
         *message = MessageTemplate::kInvalidOrUnexpectedToken;
       }
       break;
+    case Token::REGEXP_LITERAL:
+      *message = MessageTemplate::kUnexpectedTokenRegExp;
+      break;
     default:
       const char* name = Token::String(token);
       DCHECK(name != NULL);
@@ -1502,9 +1505,9 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
-    bool seen_equal, bool* ok) {
+    bool* ok) {
   int pos = peek_position();
-  if (!scanner()->ScanRegExpPattern(seen_equal)) {
+  if (!scanner()->ScanRegExpPattern()) {
     Next();
     ReportMessage(MessageTemplate::kUnterminatedRegExp);
     *ok = false;
@@ -1594,14 +1597,10 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     }
 
     case Token::ASSIGN_DIV:
-      classifier->RecordBindingPatternError(
-          scanner()->peek_location(), MessageTemplate::kUnexpectedTokenRegExp);
-      return this->ParseRegExpLiteral(true, ok);
-
     case Token::DIV:
       classifier->RecordBindingPatternError(
           scanner()->peek_location(), MessageTemplate::kUnexpectedTokenRegExp);
-      return this->ParseRegExpLiteral(false, ok);
+      return this->ParseRegExpLiteral(ok);
 
     case Token::LBRACK:
       return this->ParseArrayLiteral(classifier, ok);

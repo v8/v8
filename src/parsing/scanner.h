@@ -219,10 +219,9 @@ class Scanner {
   bool literal_contains_escapes() const {
     return LiteralContainsEscapes(current_);
   }
-  bool next_literal_contains_escapes() const {
-    return LiteralContainsEscapes(next_);
-  }
   bool is_literal_contextual_keyword(Vector<const char> keyword) {
+    DCHECK(current_.token == Token::IDENTIFIER ||
+           current_.token == Token::ESCAPED_STRICT_RESERVED_WORD);
     DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->is_contextual_keyword(keyword);
   }
@@ -238,9 +237,10 @@ class Scanner {
   double DoubleValue();
   bool ContainsDot();
   bool LiteralMatches(const char* data, int length, bool allow_escapes = true) {
-    if (is_literal_one_byte() &&
-        literal_length() == length &&
-        (allow_escapes || !literal_contains_escapes())) {
+    if (!current_.literal_chars) {
+      return !strncmp(Token::Name(current_.token), data, length);
+    } else if (is_literal_one_byte() && literal_length() == length &&
+               (allow_escapes || !literal_contains_escapes())) {
       const char* token =
           reinterpret_cast<const char*>(literal_one_byte_string().start());
       return !strncmp(token, data, length);
@@ -299,9 +299,9 @@ class Scanner {
     return has_line_terminator_after_next_;
   }
 
-  // Scans the input as a regular expression pattern, previous
-  // character(s) must be /(=). Returns true if a pattern is scanned.
-  bool ScanRegExpPattern(bool seen_equal);
+  // Scans the input as a regular expression pattern, next token must be /(=).
+  // Returns true if a pattern is scanned.
+  bool ScanRegExpPattern();
   // Scans the input as regular expression flags. Returns the flags on success.
   Maybe<RegExp::Flags> ScanRegExpFlags();
 
@@ -515,9 +515,15 @@ class Scanner {
     STATIC_ASSERT(kCharacterLookaheadBufferSize == 1);
     Advance();
     // Initialize current_ to not refer to a literal.
+    current_.token = Token::UNINITIALIZED;
     current_.literal_chars = NULL;
     current_.raw_literal_chars = NULL;
+    next_.token = Token::UNINITIALIZED;
+    next_.literal_chars = NULL;
+    next_.raw_literal_chars = NULL;
     next_next_.token = Token::UNINITIALIZED;
+    next_next_.literal_chars = NULL;
+    next_next_.raw_literal_chars = NULL;
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
   }
@@ -650,21 +656,30 @@ class Scanner {
   // form.
   // These functions only give the correct result if the literal was scanned
   // when a LiteralScope object is alive.
+  //
+  // Current usage of these functions is unfortunately a little undisciplined,
+  // and is_literal_one_byte() + is_literal_one_byte_string() is also
+  // requested for tokens that do not have a literal. Hence, we treat any
+  // token as a one-byte literal. E.g. Token::FUNCTION pretends to have a
+  // literal "function".
   Vector<const uint8_t> literal_one_byte_string() {
-    DCHECK_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->one_byte_literal();
+    if (current_.literal_chars)
+      return current_.literal_chars->one_byte_literal();
+    const char* str = Token::String(current_.token);
+    const uint8_t* str_as_uint8 = reinterpret_cast<const uint8_t*>(str);
+    return Vector<const uint8_t>(str_as_uint8,
+                                 Token::StringLength(current_.token));
   }
   Vector<const uint16_t> literal_two_byte_string() {
     DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->two_byte_literal();
   }
   bool is_literal_one_byte() {
-    DCHECK_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->is_one_byte();
+    return !current_.literal_chars || current_.literal_chars->is_one_byte();
   }
   int literal_length() const {
-    DCHECK_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->length();
+    if (current_.literal_chars) return current_.literal_chars->length();
+    return Token::StringLength(current_.token);
   }
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
@@ -746,8 +761,13 @@ class Scanner {
       // Subtract delimiters.
       source_length -= 2;
     }
-    return token.literal_chars->length() != source_length;
+    return token.literal_chars &&
+           (token.literal_chars->length() != source_length);
   }
+
+#ifdef DEBUG
+  void SanityCheckTokenDesc(const TokenDesc&) const;
+#endif
 
   UnicodeCache* unicode_cache_;
 
