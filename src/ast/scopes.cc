@@ -1678,9 +1678,7 @@ void DeclarationScope::AllocateLocals() {
     AllocateNonParameterLocal(function_);
   }
 
-  if (rest_parameter_ != nullptr) {
-    AllocateNonParameterLocal(rest_parameter_);
-  }
+  DCHECK(rest_parameter_ == nullptr || !rest_parameter_->IsUnallocated());
 
   if (new_target_ != nullptr && !MustAllocate(new_target_)) {
     new_target_ = nullptr;
