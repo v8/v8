@@ -479,8 +479,8 @@ class ModuleDecoder : public Decoder {
   // Decodes a single global entry inside a module starting at {pc_}.
   void DecodeGlobalInModule(WasmGlobal* global) {
     global->name_offset = consume_string(&global->name_length, false);
-    if(!unibrow::Utf8::Validate(start_ + global->name_offset,
-                                global->name_length)) {
+    if (!unibrow::Utf8::Validate(start_ + global->name_offset,
+                                 global->name_length)) {
       error("global name is not valid utf8");
     }
     global->type = mem_type();
