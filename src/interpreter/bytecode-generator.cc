@@ -876,7 +876,10 @@ void BytecodeGenerator::VisitGeneratorPrologue() {
   BuildIndexedJump(generator_state_, 0, generator_resume_points_.size(),
                    generator_resume_points_);
 
-  builder()->Bind(&regular_call);
+  builder()
+      ->Bind(&regular_call)
+      .LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
+      .StoreAccumulatorInRegister(generator_state_);
   // This is a regular call. Fall through to the ordinary function prologue,
   // after which we will run into the generator object creation and other extra
   // code inserted by the parser.
