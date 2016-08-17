@@ -166,7 +166,7 @@ class Scope: public ZoneObject {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
-    DCHECK(!already_resolved());
+    DCHECK(!already_resolved_);
     DCHECK_EQ(factory->zone(), zone());
     VariableProxy* proxy =
         factory->NewVariableProxy(name, kind, start_position, end_position);
@@ -176,7 +176,7 @@ class Scope: public ZoneObject {
   }
 
   void AddUnresolved(VariableProxy* proxy) {
-    DCHECK(!already_resolved());
+    DCHECK(!already_resolved_);
     DCHECK(!proxy->is_resolved());
     proxy->set_next_unresolved(unresolved_);
     unresolved_ = proxy;
@@ -289,7 +289,7 @@ class Scope: public ZoneObject {
 
   // In some cases we want to force context allocation for a whole scope.
   void ForceContextAllocation() {
-    DCHECK(!already_resolved());
+    DCHECK(!already_resolved_);
     force_context_allocation_ = true;
   }
   bool has_forced_context_allocation() const {
@@ -471,6 +471,10 @@ class Scope: public ZoneObject {
 // Debugging support.
 #ifdef DEBUG
   const AstRawString* scope_name_;
+
+  // True if it doesn't need scope resolution (e.g., if the scope was
+  // constructed based on a serialized scope info or a catch context).
+  bool already_resolved_ : 1;
 #endif
 
   // Source positions.
@@ -514,11 +518,6 @@ class Scope: public ZoneObject {
   bool inner_scope_calls_eval_ : 1;
   bool force_eager_compilation_ : 1;
   bool force_context_allocation_ : 1;
-
-  // True if it doesn't need scope resolution (e.g., if the scope was
-  // constructed based on a serialized scope info or a catch context).
-  bool already_resolved_ : 1;
-  bool already_resolved() { return already_resolved_; }
 
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
@@ -803,7 +802,7 @@ class DeclarationScope : public Scope {
   // adjusting the scope of temporaries used when desugaring parameter
   // initializers.
   void AddTemporary(Variable* var) {
-    DCHECK(!already_resolved());
+    DCHECK(!already_resolved_);
     // Temporaries are only placed in ClosureScopes.
     DCHECK_EQ(GetClosureScope(), this);
     temps_.Add(var, zone());

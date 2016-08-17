@@ -80,8 +80,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
       outer_scope_(outer_scope),
       variables_(zone),
       decls_(4, zone),
-      scope_type_(scope_type),
-      already_resolved_(false) {
+      scope_type_(scope_type) {
   SetDefaults();
   if (outer_scope == nullptr) {
     // If the outer scope is null, this cannot be a with scope. The outermost
@@ -125,19 +124,19 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
       variables_(zone),
       decls_(0, zone),
       scope_info_(scope_info),
-      scope_type_(scope_type),
-      already_resolved_(true) {
+      scope_type_(scope_type) {
   SetDefaults();
+#ifdef DEBUG
+  already_resolved_ = true;
+#endif
   if (scope_type == WITH_SCOPE) {
     DCHECK(scope_info.is_null());
-    // Ensure at least MIN_CONTEXT_SLOTS to indicate a materialized context.
-    num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   } else {
     scope_calls_eval_ = scope_info->CallsEval();
     language_mode_ = scope_info->language_mode();
     num_heap_slots_ = scope_info->ContextLength();
-    DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
   }
+  DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
 
   if (inner_scope != nullptr) AddInnerScope(inner_scope);
 }
@@ -159,11 +158,12 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       outer_scope_(nullptr),
       variables_(zone),
       decls_(0, zone),
-      scope_type_(CATCH_SCOPE),
-      already_resolved_(true) {
+      scope_type_(CATCH_SCOPE) {
   SetDefaults();
+#ifdef DEBUG
+  already_resolved_ = true;
+#endif
   if (inner_scope != nullptr) AddInnerScope(inner_scope);
-  num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   Variable* variable =
       variables_.Declare(zone, this, catch_variable_name, VAR, Variable::NORMAL,
                          kCreatedInitialized);
@@ -187,6 +187,7 @@ void DeclarationScope::SetDefaults() {
 void Scope::SetDefaults() {
 #ifdef DEBUG
   scope_name_ = nullptr;
+  already_resolved_ = false;
 #endif
   inner_scope_ = nullptr;
   sibling_ = nullptr;
@@ -197,7 +198,7 @@ void Scope::SetDefaults() {
   end_position_ = kNoSourcePosition;
 
   num_stack_slots_ = 0;
-  num_heap_slots_ = 0;
+  num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   num_global_slots_ = 0;
 
   language_mode_ = SLOPPY;
@@ -379,7 +380,7 @@ void Scope::Analyze(ParseInfo* info) {
   // 3) a function/eval in a scope that was already resolved.
   DCHECK(scope->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
-         scope->outer_scope()->already_resolved());
+         scope->outer_scope()->already_resolved_);
 
   // Allocate the variables.
   {
@@ -398,7 +399,7 @@ void Scope::Analyze(ParseInfo* info) {
 }
 
 void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
-  DCHECK(!already_resolved());
+  DCHECK(!already_resolved_);
   DCHECK(is_declaration_scope());
   DCHECK(has_this_declaration());
 
@@ -480,7 +481,8 @@ Scope* Scope::FinalizeBlockScope() {
   }
 
   PropagateUsageFlagsToScope(outer_scope_);
-
+  // This block does not need a context.
+  num_heap_slots_ = 0;
   return NULL;
 }
 
@@ -533,9 +535,9 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
 void Scope::ReplaceOuterScope(Scope* outer) {
   DCHECK_NOT_NULL(outer);
   DCHECK_NOT_NULL(outer_scope_);
-  DCHECK(!already_resolved());
-  DCHECK(!outer->already_resolved());
-  DCHECK(!outer_scope_->already_resolved());
+  DCHECK(!already_resolved_);
+  DCHECK(!outer->already_resolved_);
+  DCHECK(!outer_scope_->already_resolved_);
   outer_scope_->RemoveInnerScope(this);
   outer->AddInnerScope(this);
   outer_scope_ = outer;
@@ -544,8 +546,8 @@ void Scope::ReplaceOuterScope(Scope* outer) {
 
 void Scope::PropagateUsageFlagsToScope(Scope* other) {
   DCHECK_NOT_NULL(other);
-  DCHECK(!already_resolved());
-  DCHECK(!other->already_resolved());
+  DCHECK(!already_resolved_);
+  DCHECK(!other->already_resolved_);
   if (uses_super_property()) other->RecordSuperPropertyUsage();
   if (calls_eval()) other->RecordEvalCall();
 }
@@ -639,7 +641,7 @@ Variable* Scope::Lookup(const AstRawString* name) {
 Variable* DeclarationScope::DeclareParameter(
     const AstRawString* name, VariableMode mode, bool is_optional, bool is_rest,
     bool* is_duplicate, AstValueFactory* ast_value_factory) {
-  DCHECK(!already_resolved());
+  DCHECK(!already_resolved_);
   DCHECK(is_function_scope());
   DCHECK(!is_optional || !is_rest);
   Variable* var;
@@ -669,7 +671,7 @@ Variable* DeclarationScope::DeclareParameter(
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                               InitializationFlag init_flag, Variable::Kind kind,
                               MaybeAssignedFlag maybe_assigned_flag) {
-  DCHECK(!already_resolved());
+  DCHECK(!already_resolved_);
   // This function handles VAR, LET, and CONST modes.  DYNAMIC variables are
   // introduced during variable allocation, and TEMPORARY variables are
   // allocated via NewTemporary().
@@ -718,7 +720,7 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
 }
 
 void Scope::AddDeclaration(Declaration* declaration) {
-  DCHECK(!already_resolved());
+  DCHECK(!already_resolved_);
   decls_.Add(declaration, zone());
 }
 
@@ -1299,7 +1301,8 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
       // scope, the associated variable has to be marked as potentially being
       // accessed from inside of an inner with scope (the property may not be in
       // the 'with' object).
-      if (var != nullptr && !already_resolved()) {
+      if (var != nullptr && var->IsUnallocated()) {
+        DCHECK(!already_resolved_);
         var->set_is_used();
         var->ForceContextAllocation();
         if (proxy->is_assigned()) var->set_maybe_assigned();
@@ -1703,19 +1706,16 @@ void DeclarationScope::AllocateModuleVariables() {
 }
 
 void Scope::AllocateVariablesRecursively() {
-  if (!already_resolved()) {
-    num_stack_slots_ = 0;
-  }
+  DCHECK(!already_resolved_);
+  DCHECK_EQ(0, num_stack_slots_);
+
   // Allocate variables for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     scope->AllocateVariablesRecursively();
   }
 
-  // If scope is already resolved, we still need to allocate
-  // variables in inner scopes which might not have been resolved yet.
-  if (already_resolved()) return;
-  // The number of slots required for variables.
-  num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
+  DCHECK(!already_resolved_);
+  DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
 
   // Allocate variables for this scope.
   // Parameters must be allocated first, if any.
