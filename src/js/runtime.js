@@ -41,6 +41,13 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 }
 
 
+function ToIndex(x, rangeErrorIndex) {
+  var i = TO_INTEGER(x) + 0;
+  if (i < 0 || i > kMaxSafeInteger) throw %make_range_error(rangeErrorIndex);
+  return i;
+}
+
+
 function MaxSimple(a, b) {
   return a > b ? a : b;
 }
@@ -90,6 +97,7 @@ utils.Export(function(to) {
   to.MaxSimple = MaxSimple;
   to.MinSimple = MinSimple;
   to.ToPositiveInteger = ToPositiveInteger;
+  to.ToIndex = ToIndex;
   to.SpeciesConstructor = SpeciesConstructor;
 });
 

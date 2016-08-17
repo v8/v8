@@ -18,6 +18,7 @@
 #include "src/field-index.h"
 #include "src/flags.h"
 #include "src/list.h"
+#include "src/messages.h"
 #include "src/property-details.h"
 #include "src/unicode-decoder.h"
 #include "src/unicode.h"
@@ -1210,6 +1211,11 @@ class Object {
   // ES6 section 7.1.15 ToLength
   MUST_USE_RESULT static MaybeHandle<Object> ToLength(Isolate* isolate,
                                                       Handle<Object> input);
+
+  // ES6 section 7.1.17 ToIndex
+  MUST_USE_RESULT static MaybeHandle<Object> ToIndex(
+      Isolate* isolate, Handle<Object> input,
+      MessageTemplate::Template error_index);
 
   // ES6 section 7.3.9 GetMethod
   MUST_USE_RESULT static MaybeHandle<Object> GetMethod(
