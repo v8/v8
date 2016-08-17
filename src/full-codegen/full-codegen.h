@@ -46,7 +46,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
                          info->zone()),
         back_edges_(2, info->zone()),
         handler_table_(info->zone()),
-        source_position_table_builder_(info->isolate(), info->zone(),
+        source_position_table_builder_(info->zone(),
                                        info->SourcePositionRecordingMode()),
         ic_total_count_(0) {
     DCHECK(!info->IsStub());
@@ -199,23 +199,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
       }
       return previous_;
     }
-  };
-
-  // A class literal expression
-  class NestedClassLiteral : public NestedStatement {
-   public:
-    NestedClassLiteral(FullCodeGenerator* codegen, ClassLiteral* lit)
-        : NestedStatement(codegen),
-          needs_context_(lit->scope() != nullptr &&
-                         lit->scope()->NeedsContext()) {}
-
-    NestedStatement* Exit(int* context_length) override {
-      if (needs_context_) ++(*context_length);
-      return previous_;
-    }
-
-   private:
-    const bool needs_context_;
   };
 
   class DeferredCommands {
@@ -686,7 +669,8 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void RecordPosition(int pos);
 
   // Non-local control flow support.
-  void EnterTryBlock(int handler_index, Label* handler, bool catch_predicted);
+  void EnterTryBlock(int handler_index, Label* handler,
+                     HandlerTable::CatchPrediction catch_prediction);
   void ExitTryBlock(int handler_index);
   void EnterFinallyBlock();
   void ExitFinallyBlock();
@@ -773,7 +757,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
     unsigned range_end;
     unsigned handler_offset;
     int stack_depth;
-    bool catch_predicted;
+    HandlerTable::CatchPrediction catch_prediction;
   };
 
   class ExpressionContext BASE_EMBEDDED {

@@ -33,7 +33,6 @@ namespace internal {
 class ArmDebugger {
  public:
   explicit ArmDebugger(Simulator* sim) : sim_(sim) { }
-  ~ArmDebugger();
 
   void Stop(Instruction* instr);
   void Debug();
@@ -62,77 +61,18 @@ class ArmDebugger {
   void RedoBreakpoints();
 };
 
-
-ArmDebugger::~ArmDebugger() {
-}
-
-
-
-#ifdef GENERATED_CODE_COVERAGE
-static FILE* coverage_log = NULL;
-
-
-static void InitializeCoverage() {
-  char* file_name = getenv("V8_GENERATED_CODE_COVERAGE_LOG");
-  if (file_name != NULL) {
-    coverage_log = fopen(file_name, "aw+");
-  }
-}
-
-
 void ArmDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   uint32_t code = instr->SvcValue() & kStopCodeMask;
-  // Retrieve the encoded address, which comes just after this stop.
-  char** msg_address =
-    reinterpret_cast<char**>(sim_->get_pc() + Instruction::kInstrSize);
-  char* msg = *msg_address;
-  DCHECK(msg != NULL);
-
-  // Update this stop description.
-  if (isWatchedStop(code) && !watched_stops_[code].desc) {
-    watched_stops_[code].desc = msg;
-  }
-
-  if (strlen(msg) > 0) {
-    if (coverage_log != NULL) {
-      fprintf(coverage_log, "%s\n", msg);
-      fflush(coverage_log);
-    }
-    // Overwrite the instruction and address with nops.
-    instr->SetInstructionBits(kNopInstr);
-    reinterpret_cast<Instruction*>(msg_address)->SetInstructionBits(kNopInstr);
-  }
-  sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstrSize);
-}
-
-#else  // ndef GENERATED_CODE_COVERAGE
-
-static void InitializeCoverage() {
-}
-
-
-void ArmDebugger::Stop(Instruction* instr) {
-  // Get the stop code.
-  uint32_t code = instr->SvcValue() & kStopCodeMask;
-  // Retrieve the encoded address, which comes just after this stop.
-  char* msg = *reinterpret_cast<char**>(sim_->get_pc()
-                                        + Instruction::kInstrSize);
-  // Update this stop description.
-  if (sim_->isWatchedStop(code) && !sim_->watched_stops_[code].desc) {
-    sim_->watched_stops_[code].desc = msg;
-  }
   // Print the stop message and code if it is not the default code.
   if (code != kMaxStopCode) {
-    PrintF("Simulator hit stop %u: %s\n", code, msg);
+    PrintF("Simulator hit stop %u\n", code);
   } else {
-    PrintF("Simulator hit %s\n", msg);
+    PrintF("Simulator hit\n");
   }
   sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstrSize);
   Debug();
 }
-#endif
-
 
 int32_t ArmDebugger::GetRegisterValue(int regnum) {
   if (regnum == kPCRegister) {
@@ -141,7 +81,6 @@ int32_t ArmDebugger::GetRegisterValue(int regnum) {
     return sim_->get_register(regnum);
   }
 }
-
 
 double ArmDebugger::GetRegisterPairDoubleValue(int regnum) {
   return sim_->get_double_from_register_pair(regnum);
@@ -764,7 +703,6 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // access violation if the simulator ever tries to execute it.
   registers_[pc] = bad_lr;
   registers_[lr] = bad_lr;
-  InitializeCoverage();
 
   last_debugger_input_ = NULL;
 }
@@ -1107,98 +1045,51 @@ void Simulator::TrashCallerSaveRegisters() {
 }
 
 
-// Some Operating Systems allow unaligned access on ARMv7 targets. We
-// assume that unaligned accesses are not allowed unless the v8 build system
-// defines the CAN_USE_UNALIGNED_ACCESSES macro to be non-zero.
-// The following statements below describes the behavior of the ARM CPUs
-// that don't support unaligned access.
-// Some ARM platforms raise an interrupt on detecting unaligned access.
-// On others it does a funky rotation thing.  For now we
-// simply disallow unaligned reads.  Note that simulator runs have the runtime
-// system running directly on the host system and only generated code is
-// executed in the simulator.  Since the host is typically IA32 we will not
-// get the correct ARM-like behaviour on unaligned accesses for those ARM
-// targets that don't support unaligned loads and stores.
-
-
 int Simulator::ReadW(int32_t addr, Instruction* instr) {
-  if (FLAG_enable_unaligned_accesses || (addr & 3) == 0) {
-    intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
-    return *ptr;
-  } else {
-    PrintF("Unaligned read at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
-           addr,
-           reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
-    return 0;
-  }
+  // All supported ARM targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
+  return *ptr;
 }
 
 
 void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
-  if (FLAG_enable_unaligned_accesses || (addr & 3) == 0) {
-    intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
-    *ptr = value;
-  } else {
-    PrintF("Unaligned write at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
-           addr,
-           reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
-  }
+  // All supported ARM targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
+  *ptr = value;
 }
 
 
 uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
-  if (FLAG_enable_unaligned_accesses || (addr & 1) == 0) {
-    uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
-    return *ptr;
-  } else {
-    PrintF("Unaligned unsigned halfword read at 0x%08x, pc=0x%08"
-           V8PRIxPTR "\n",
-           addr,
-           reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
-    return 0;
-  }
+  // All supported ARM targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
+  return *ptr;
 }
 
 
 int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
-  if (FLAG_enable_unaligned_accesses || (addr & 1) == 0) {
-    int16_t* ptr = reinterpret_cast<int16_t*>(addr);
-    return *ptr;
-  } else {
-    PrintF("Unaligned signed halfword read at 0x%08x\n", addr);
-    UNIMPLEMENTED();
-    return 0;
-  }
+  // All supported ARM targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  int16_t* ptr = reinterpret_cast<int16_t*>(addr);
+  return *ptr;
 }
 
 
 void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
-  if (FLAG_enable_unaligned_accesses || (addr & 1) == 0) {
-    uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
-    *ptr = value;
-  } else {
-    PrintF("Unaligned unsigned halfword write at 0x%08x, pc=0x%08"
-           V8PRIxPTR "\n",
-           addr,
-           reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
-  }
+  // All supported ARM targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
+  *ptr = value;
 }
 
 
 void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
-  if (FLAG_enable_unaligned_accesses || (addr & 1) == 0) {
-    int16_t* ptr = reinterpret_cast<int16_t*>(addr);
-    *ptr = value;
-  } else {
-    PrintF("Unaligned halfword write at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
-           addr,
-           reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
-  }
+  // All supported ARM targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  int16_t* ptr = reinterpret_cast<int16_t*>(addr);
+  *ptr = value;
 }
 
 
@@ -1227,26 +1118,19 @@ void Simulator::WriteB(int32_t addr, int8_t value) {
 
 
 int32_t* Simulator::ReadDW(int32_t addr) {
-  if (FLAG_enable_unaligned_accesses || (addr & 3) == 0) {
-    int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-    return ptr;
-  } else {
-    PrintF("Unaligned read at 0x%08x\n", addr);
-    UNIMPLEMENTED();
-    return 0;
-  }
+  // All supported ARM targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
+  return ptr;
 }
 
 
 void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
-  if (FLAG_enable_unaligned_accesses || (addr & 3) == 0) {
-    int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-    *ptr++ = value1;
-    *ptr = value2;
-  } else {
-    PrintF("Unaligned write at 0x%08x\n", addr);
-    UNIMPLEMENTED();
-  }
+  // All supported ARM targets allow unaligned accesses, so we don't need to
+  // check the alignment here.
+  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
+  *ptr++ = value1;
+  *ptr = value2;
 }
 
 
@@ -3727,11 +3611,14 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         }
 
         int32_t address = get_register(rn) + 4 * offset;
+        // Load and store address for singles must be at least four-byte
+        // aligned.
+        DCHECK((address % 4) == 0);
         if (instr->HasL()) {
-          // Load double from memory: vldr.
+          // Load single from memory: vldr.
           set_s_register_from_sinteger(vd, ReadW(address, instr));
         } else {
-          // Store double to memory: vstr.
+          // Store single to memory: vstr.
           WriteW(address, get_sinteger_from_s_register(vd), instr);
         }
         break;
@@ -3780,6 +3667,9 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
           offset = -offset;
         }
         int32_t address = get_register(rn) + 4 * offset;
+        // Load and store address for doubles must be at least four-byte
+        // aligned.
+        DCHECK((address % 4) == 0);
         if (instr->HasL()) {
           // Load double from memory: vldr.
           int32_t data[] = {

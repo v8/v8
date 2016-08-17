@@ -4,6 +4,8 @@
 
 #include "src/gdb-jit.h"
 
+#include <memory>
+
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -1015,7 +1017,7 @@ class CodeDescription BASE_EMBEDDED {
   }
 #endif
 
-  base::SmartArrayPointer<char> GetFilename() {
+  std::unique_ptr<char[]> GetFilename() {
     return String::cast(script()->name())->ToCString();
   }
 

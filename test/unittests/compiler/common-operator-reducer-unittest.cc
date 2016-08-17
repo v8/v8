@@ -324,78 +324,6 @@ TEST_F(CommonOperatorReducerTest, PhiToFloat64Abs) {
 }
 
 
-TEST_F(CommonOperatorReducerTest, PhiToFloat32Max) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* check = graph()->NewNode(machine()->Float32LessThan(), p0, p1);
-  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kFloat32, 2), p1, p0, merge);
-  StrictMock<MockAdvancedReducerEditor> editor;
-  EXPECT_CALL(editor, Revisit(merge));
-  Reduction r = Reduce(&editor, phi, MachineOperatorBuilder::kFloat32Max);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat32Max(p1, p0));
-}
-
-
-TEST_F(CommonOperatorReducerTest, PhiToFloat64Max) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* check = graph()->NewNode(machine()->Float64LessThan(), p0, p1);
-  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kFloat64, 2), p1, p0, merge);
-  StrictMock<MockAdvancedReducerEditor> editor;
-  EXPECT_CALL(editor, Revisit(merge));
-  Reduction r = Reduce(&editor, phi, MachineOperatorBuilder::kFloat64Max);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat64Max(p1, p0));
-}
-
-
-TEST_F(CommonOperatorReducerTest, PhiToFloat32Min) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* check = graph()->NewNode(machine()->Float32LessThan(), p0, p1);
-  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kFloat32, 2), p0, p1, merge);
-  StrictMock<MockAdvancedReducerEditor> editor;
-  EXPECT_CALL(editor, Revisit(merge));
-  Reduction r = Reduce(&editor, phi, MachineOperatorBuilder::kFloat32Min);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat32Min(p0, p1));
-}
-
-
-TEST_F(CommonOperatorReducerTest, PhiToFloat64Min) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* check = graph()->NewNode(machine()->Float64LessThan(), p0, p1);
-  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kFloat64, 2), p0, p1, merge);
-  StrictMock<MockAdvancedReducerEditor> editor;
-  EXPECT_CALL(editor, Revisit(merge));
-  Reduction r = Reduce(&editor, phi, MachineOperatorBuilder::kFloat64Min);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat64Min(p0, p1));
-}
-
-
 // -----------------------------------------------------------------------------
 // Return
 
@@ -512,54 +440,6 @@ TEST_F(CommonOperatorReducerTest, SelectToFloat64Abs) {
   Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat64Abs(p0));
-}
-
-
-TEST_F(CommonOperatorReducerTest, SelectToFloat32Max) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* check = graph()->NewNode(machine()->Float32LessThan(), p0, p1);
-  Node* select = graph()->NewNode(
-      common()->Select(MachineRepresentation::kFloat32), check, p1, p0);
-  Reduction r = Reduce(select, MachineOperatorBuilder::kFloat32Max);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat32Max(p1, p0));
-}
-
-
-TEST_F(CommonOperatorReducerTest, SelectToFloat64Max) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* check = graph()->NewNode(machine()->Float64LessThan(), p0, p1);
-  Node* select = graph()->NewNode(
-      common()->Select(MachineRepresentation::kFloat64), check, p1, p0);
-  Reduction r = Reduce(select, MachineOperatorBuilder::kFloat64Max);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat64Max(p1, p0));
-}
-
-
-TEST_F(CommonOperatorReducerTest, SelectToFloat32Min) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* check = graph()->NewNode(machine()->Float32LessThan(), p0, p1);
-  Node* select = graph()->NewNode(
-      common()->Select(MachineRepresentation::kFloat32), check, p0, p1);
-  Reduction r = Reduce(select, MachineOperatorBuilder::kFloat32Min);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat32Min(p0, p1));
-}
-
-
-TEST_F(CommonOperatorReducerTest, SelectToFloat64Min) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* check = graph()->NewNode(machine()->Float64LessThan(), p0, p1);
-  Node* select = graph()->NewNode(
-      common()->Select(MachineRepresentation::kFloat64), check, p0, p1);
-  Reduction r = Reduce(select, MachineOperatorBuilder::kFloat64Min);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat64Min(p0, p1));
 }
 
 }  // namespace compiler

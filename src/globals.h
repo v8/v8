@@ -151,6 +151,9 @@ const bool kRequiresCodeRange = true;
 // region. Used only for large object space.
 const size_t kMaximalCodeRangeSize = 256 * MB;
 const size_t kCodeRangeAreaAlignment = 256 * MB;
+#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+const size_t kMaximalCodeRangeSize = 512 * MB;
+const size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
 #else
 const size_t kMaximalCodeRangeSize = 512 * MB;
 const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
@@ -158,6 +161,10 @@ const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #if V8_OS_WIN
 const size_t kMinimumCodeRangeSize = 4 * MB;
 const size_t kReservedCodeRangePages = 1;
+// On PPC Linux PageSize is 4MB
+#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+const size_t kMinimumCodeRangeSize = 12 * MB;
+const size_t kReservedCodeRangePages = 0;
 #else
 const size_t kMinimumCodeRangeSize = 3 * MB;
 const size_t kReservedCodeRangePages = 0;
@@ -171,15 +178,19 @@ const uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 const bool kRequiresCodeRange = true;
 const size_t kMaximalCodeRangeSize = 256 * MB;
 const size_t kMinimumCodeRangeSize = 3 * MB;
-const size_t kReservedCodeRangePages = 0;
 const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+const bool kRequiresCodeRange = false;
+const size_t kMaximalCodeRangeSize = 0 * MB;
+const size_t kMinimumCodeRangeSize = 0 * MB;
+const size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
 #else
 const bool kRequiresCodeRange = false;
 const size_t kMaximalCodeRangeSize = 0 * MB;
 const size_t kMinimumCodeRangeSize = 0 * MB;
-const size_t kReservedCodeRangePages = 0;
 const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #endif
+const size_t kReservedCodeRangePages = 0;
 #endif
 
 // The external allocation limit should be below 256 MB on all architectures
@@ -295,6 +306,9 @@ inline LanguageMode construct_language_mode(bool strict_bit) {
 
 // This constant is used as an undefined value when passing source positions.
 const int kNoSourcePosition = -1;
+
+// This constant is used to indicate missing deoptimization information.
+const int kNoDeoptimizationId = -1;
 
 // Mask for the sign bit in a smi.
 const intptr_t kSmiSignMask = kIntptrSignBit;
@@ -415,6 +429,7 @@ class OldSpace;
 class ParameterCount;
 class Foreign;
 class Scope;
+class DeclarationScope;
 class ScopeInfo;
 class Script;
 class Smi;
@@ -721,7 +736,6 @@ enum CpuFeature {
   ARMv7,
   ARMv8,
   SUDIV,
-  UNALIGNED_ACCESSES,
   MOVW_MOVT_IMMEDIATE_LOADS,
   VFP32DREGS,
   NEON,
@@ -741,6 +755,9 @@ enum CpuFeature {
   DISTINCT_OPS,
   GENERAL_INSTR_EXT,
   FLOATING_POINT_EXT,
+  // PPC/S390
+  UNALIGNED_ACCESSES,
+
   NUMBER_OF_CPU_FEATURES
 };
 
@@ -840,8 +857,10 @@ enum ScopeType {
 // Use mips sNaN which is a not used qNaN in x87 port as sNaN to workaround this
 // issue
 // for some test cases.
-#if (V8_TARGET_ARCH_MIPS && !defined(_MIPS_ARCH_MIPS32R6)) ||   \
-    (V8_TARGET_ARCH_MIPS64 && !defined(_MIPS_ARCH_MIPS64R6)) || \
+#if (V8_TARGET_ARCH_MIPS && !defined(_MIPS_ARCH_MIPS32R6) &&           \
+     (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR))) || \
+    (V8_TARGET_ARCH_MIPS64 && !defined(_MIPS_ARCH_MIPS64R6) &&         \
+     (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR))) || \
     (V8_TARGET_ARCH_X87)
 const uint32_t kHoleNanUpper32 = 0xFFFF7FFF;
 const uint32_t kHoleNanLower32 = 0xFFFF7FFF;
@@ -866,9 +885,6 @@ enum VariableMode {
   CONST_LEGACY,  // declared via legacy 'const' declarations
 
   LET,  // declared via 'let' declarations (first lexical)
-
-  // TODO(neis): Is it correct to make this one of the lexical modes?
-  IMPORT,  // declared via 'import' declarations (except namespace imports)
 
   CONST,  // declared via 'const' declarations (last lexical)
 
@@ -905,9 +921,8 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_LEGACY || mode == IMPORT;
+  return mode == CONST || mode == CONST_LEGACY;
 }
-
 
 enum class VariableLocation {
   // Before and during variable allocation, a variable whose location is
@@ -939,9 +954,11 @@ enum class VariableLocation {
   // A named slot in a heap context.  name() is the variable name in the
   // context object on the heap, with lookup starting at the current
   // context.  index() is invalid.
-  LOOKUP
-};
+  LOOKUP,
 
+  // A named slot in a module's export table.
+  MODULE
+};
 
 // ES6 Draft Rev3 10.2 specifies declarative environment records with mutable
 // and immutable bindings that can be in two states: initialized and
@@ -995,7 +1012,7 @@ enum MinusZeroMode {
 
 enum Signedness { kSigned, kUnsigned };
 
-enum FunctionKind {
+enum FunctionKind : uint16_t {
   kNormalFunction = 0,
   kArrowFunction = 1 << 0,
   kGeneratorFunction = 1 << 1,
@@ -1130,6 +1147,15 @@ inline uint32_t ObjectHash(Address address) {
   return static_cast<uint32_t>(bit_cast<uintptr_t>(address) >>
                                kPointerSizeLog2);
 }
+
+// Type feedback is encoded in such a way that, we can combine the feedback
+// at different points by performing an 'OR' operation. Type feedback moves
+// to a more generic type when we combine feedback.
+// kSignedSmall -> kNumber  -> kAny
+class BinaryOperationFeedback {
+ public:
+  enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
+};
 
 }  // namespace internal
 }  // namespace v8

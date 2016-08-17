@@ -104,27 +104,27 @@ static void VerifyMarking(Heap* heap, Address bottom, Address top) {
   VerifyMarkingVisitor visitor(heap);
   HeapObject* object;
   Address next_object_must_be_here_or_later = bottom;
-
-  for (Address current = bottom; current < top; current += kPointerSize) {
+  for (Address current = bottom; current < top;) {
     object = HeapObject::FromAddress(current);
     if (MarkCompactCollector::IsMarked(object)) {
       CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
       CHECK(current >= next_object_must_be_here_or_later);
       object->Iterate(&visitor);
       next_object_must_be_here_or_later = current + object->Size();
-      // The next word for sure belongs to the current object, jump over it.
+      // The object is either part of a black area of black allocation or a
+      // regular black object
+      Page* page = Page::FromAddress(current);
+      CHECK(
+          page->markbits()->AllBitsSetInRange(
+              page->AddressToMarkbitIndex(current),
+              page->AddressToMarkbitIndex(next_object_must_be_here_or_later)) ||
+          page->markbits()->AllBitsClearInRange(
+              page->AddressToMarkbitIndex(current + kPointerSize * 2),
+              page->AddressToMarkbitIndex(next_object_must_be_here_or_later)));
+      current = next_object_must_be_here_or_later;
+    } else {
       current += kPointerSize;
     }
-  }
-}
-
-static void VerifyMarkingBlackPage(Heap* heap, Page* page) {
-  CHECK(page->IsFlagSet(Page::BLACK_PAGE));
-  VerifyMarkingVisitor visitor(heap);
-  HeapObjectIterator it(page);
-  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
-    CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
-    object->Iterate(&visitor);
   }
 }
 
@@ -146,11 +146,7 @@ static void VerifyMarking(NewSpace* space) {
 
 static void VerifyMarking(PagedSpace* space) {
   for (Page* p : *space) {
-    if (p->IsFlagSet(Page::BLACK_PAGE)) {
-      VerifyMarkingBlackPage(space->heap(), p);
-    } else {
-      VerifyMarking(space->heap(), p->area_start(), p->area_end());
-    }
+    VerifyMarking(space->heap(), p->area_start(), p->area_end());
   }
 }
 
@@ -409,9 +405,6 @@ void MarkCompactCollector::VerifyOmittedMapChecks() {
 static void ClearMarkbitsInPagedSpace(PagedSpace* space) {
   for (Page* p : *space) {
     p->ClearLiveness();
-    if (p->IsFlagSet(Page::BLACK_PAGE)) {
-      p->ClearFlag(Page::BLACK_PAGE);
-    }
   }
 }
 
@@ -435,9 +428,6 @@ void MarkCompactCollector::ClearMarkbits() {
     MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
     chunk->ResetProgressBar();
     chunk->ResetLiveBytes();
-    if (chunk->IsFlagSet(Page::BLACK_PAGE)) {
-      chunk->ClearFlag(Page::BLACK_PAGE);
-    }
   }
 }
 
@@ -607,9 +597,12 @@ const char* AllocationSpaceName(AllocationSpace space) {
 void MarkCompactCollector::ComputeEvacuationHeuristics(
     int area_size, int* target_fragmentation_percent,
     int* max_evacuated_bytes) {
-  // For memory reducing mode we directly define both constants.
+  // For memory reducing and optimize for memory mode we directly define both
+  // constants.
   const int kTargetFragmentationPercentForReduceMemory = 20;
   const int kMaxEvacuatedBytesForReduceMemory = 12 * Page::kPageSize;
+  const int kTargetFragmentationPercentForOptimizeMemory = 20;
+  const int kMaxEvacuatedBytesForOptimizeMemory = 6 * MB;
 
   // For regular mode (which is latency critical) we define less aggressive
   // defaults to start and switch to a trace-based (using compaction speed)
@@ -623,6 +616,10 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
   if (heap()->ShouldReduceMemory()) {
     *target_fragmentation_percent = kTargetFragmentationPercentForReduceMemory;
     *max_evacuated_bytes = kMaxEvacuatedBytesForReduceMemory;
+  } else if (heap()->ShouldOptimizeForMemoryUsage()) {
+    *target_fragmentation_percent =
+        kTargetFragmentationPercentForOptimizeMemory;
+    *max_evacuated_bytes = kMaxEvacuatedBytesForOptimizeMemory;
   } else {
     const double estimated_compaction_speed =
         heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
@@ -659,7 +656,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
   for (Page* p : *space) {
     if (p->NeverEvacuate()) continue;
-    if (p->IsFlagSet(Page::BLACK_PAGE)) continue;
     // Invariant: Evacuation candidates are just created when marking is
     // started. This means that sweeping has finished. Furthermore, at the end
     // of a GC all evacuation candidates are cleared and their slot buffers are
@@ -1913,9 +1909,7 @@ class MarkCompactCollector::EvacuateRecordOnlyVisitor final
 
 void MarkCompactCollector::DiscoverGreyObjectsInSpace(PagedSpace* space) {
   for (Page* p : *space) {
-    if (!p->IsFlagSet(Page::BLACK_PAGE)) {
-      DiscoverGreyObjectsOnPage(p);
-    }
+    DiscoverGreyObjectsOnPage(p);
     if (marking_deque()->IsFull()) return;
   }
 }
@@ -2021,18 +2015,15 @@ void MarkCompactCollector::MarkImplicitRefGroups(
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
 void MarkCompactCollector::EmptyMarkingDeque() {
-  Map* filler_map = heap_->one_pointer_filler_map();
   while (!marking_deque_.IsEmpty()) {
     HeapObject* object = marking_deque_.Pop();
-    // Explicitly skip one word fillers. Incremental markbit patterns are
-    // correct only for objects that occupy at least two words.
-    Map* map = object->map();
-    if (map == filler_map) continue;
 
+    DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
     DCHECK(!Marking::IsWhite(ObjectMarking::MarkBitFrom(object)));
 
+    Map* map = object->map();
     MarkBit map_mark = ObjectMarking::MarkBitFrom(map);
     MarkObject(map, map_mark);
 
@@ -2243,25 +2234,28 @@ void MarkCompactCollector::RegisterExternallyReferencedObject(Object** object) {
 class MarkCompactCollector::ObjectStatsVisitor
     : public MarkCompactCollector::HeapObjectVisitor {
  public:
-  ObjectStatsVisitor(ObjectStats* live_stats, ObjectStats* dead_stats)
-      : live_stats_(live_stats), dead_stats_(dead_stats) {
-    DCHECK_NOT_NULL(live_stats_);
-    DCHECK_NOT_NULL(dead_stats_);
+  ObjectStatsVisitor(Heap* heap, ObjectStats* live_stats,
+                     ObjectStats* dead_stats)
+      : live_collector_(heap, live_stats), dead_collector_(heap, dead_stats) {
+    DCHECK_NOT_NULL(live_stats);
+    DCHECK_NOT_NULL(dead_stats);
+    // Global objects are roots and thus recorded as live.
+    live_collector_.CollectGlobalStatistics();
   }
 
   bool Visit(HeapObject* obj) override {
     if (Marking::IsBlack(ObjectMarking::MarkBitFrom(obj))) {
-      ObjectStatsCollector::CollectStatistics(live_stats_, obj);
+      live_collector_.CollectStatistics(obj);
     } else {
       DCHECK(!Marking::IsGrey(ObjectMarking::MarkBitFrom(obj)));
-      ObjectStatsCollector::CollectStatistics(dead_stats_, obj);
+      dead_collector_.CollectStatistics(obj);
     }
     return true;
   }
 
  private:
-  ObjectStats* live_stats_;
-  ObjectStats* dead_stats_;
+  ObjectStatsCollector live_collector_;
+  ObjectStatsCollector dead_collector_;
 };
 
 void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
@@ -2277,7 +2271,7 @@ void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
 
 void MarkCompactCollector::RecordObjectStats() {
   if (FLAG_track_gc_object_stats) {
-    ObjectStatsVisitor visitor(heap()->live_object_stats_,
+    ObjectStatsVisitor visitor(heap(), heap()->live_object_stats_,
                                heap()->dead_object_stats_);
     VisitAllObjects(&visitor);
     if (FLAG_trace_gc_object_stats) {
@@ -2929,9 +2923,8 @@ bool MarkCompactCollector::IsSlotInBlackObject(MemoryChunk* p, Address slot) {
   DCHECK(owner != heap_->lo_space() && owner != nullptr);
   USE(owner);
 
-  // If we are on a black page, we cannot find the actual object start
-  // easiliy. We just return true but do not set the out_object.
-  if (p->IsFlagSet(Page::BLACK_PAGE)) {
+  // We may be part of a black area.
+  if (Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(slot))) {
     return true;
   }
 
@@ -2998,6 +2991,11 @@ bool MarkCompactCollector::IsSlotInBlackObject(MemoryChunk* p, Address slot) {
   base_address += (cell_index - base_address_cell_index) *
                   Bitmap::kBitsPerCell * kPointerSize;
   Address address = base_address + offset * kPointerSize;
+
+  // If the found mark bit is part of a black area, the slot cannot be part
+  // of a live object since it is not marked.
+  if (p->IsBlackAreaEndMarker(address + kPointerSize)) return false;
+
   HeapObject* object = HeapObject::FromAddress(address);
   CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
   CHECK(object->address() < reinterpret_cast<Address>(slot));
@@ -3028,27 +3026,16 @@ HeapObject* MarkCompactCollector::FindBlackObjectBySlotSlow(Address slot) {
     return nullptr;
   }
 
-  if (p->IsFlagSet(Page::BLACK_PAGE)) {
-    HeapObjectIterator it(p);
-    HeapObject* object = nullptr;
-    while ((object = it.Next()) != nullptr) {
-      int size = object->Size();
-      if (object->address() > slot) return nullptr;
-      if (object->address() <= slot && slot < (object->address() + size)) {
-        return object;
-      }
-    }
-  } else {
-    LiveObjectIterator<kBlackObjects> it(p);
-    HeapObject* object = nullptr;
-    while ((object = it.Next()) != nullptr) {
-      int size = object->Size();
-      if (object->address() > slot) return nullptr;
-      if (object->address() <= slot && slot < (object->address() + size)) {
-        return object;
-      }
+  LiveObjectIterator<kBlackObjects> it(p);
+  HeapObject* object = nullptr;
+  while ((object = it.Next()) != nullptr) {
+    int size = object->Size();
+    if (object->address() > slot) return nullptr;
+    if (object->address() <= slot && slot < (object->address() + size)) {
+      return object;
     }
   }
+
   return nullptr;
 }
 
@@ -3385,11 +3372,13 @@ int MarkCompactCollector::Sweeper::RawSweep(
   DCHECK(free_list_mode == IGNORE_FREE_LIST || space->identity() == OLD_SPACE ||
          space->identity() == CODE_SPACE || space->identity() == MAP_SPACE);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
-  DCHECK(!p->IsFlagSet(Page::BLACK_PAGE));
 
   // Before we sweep objects on the page, we free dead array buffers which
   // requires valid mark bits.
   ArrayBufferTracker::FreeDead(p);
+
+  // We also release the black area markers here.
+  p->ReleaseBlackAreaEndMarkerMap();
 
   Address free_start = p->area_start();
   DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
@@ -3546,23 +3535,6 @@ void MarkCompactCollector::RecomputeLiveBytes(MemoryChunk* page) {
     new_live_size += object->Size();
   }
   page->SetLiveBytes(new_live_size);
-}
-
-
-void MarkCompactCollector::VisitLiveObjectsBody(Page* page,
-                                                ObjectVisitor* visitor) {
-#ifdef VERIFY_HEAP
-  VerifyAllBlackObjects(page);
-#endif  // VERIFY_HEAP
-
-  LiveObjectIterator<kBlackObjects> it(page);
-  HeapObject* object = NULL;
-  while ((object = it.Next()) != NULL) {
-    DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
-    Map* map = object->synchronized_map();
-    int size = object->SizeFromMap(map);
-    object->IterateBody(map->instance_type(), size, visitor);
-  }
 }
 
 void MarkCompactCollector::Sweeper::AddSweptPageSafe(PagedSpace* space,
@@ -3938,7 +3910,6 @@ void MarkCompactCollector::Sweeper::AddSweepingPageSafe(AllocationSpace space,
 }
 
 void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
-  Address space_top = space->top();
   space->ClearStats();
 
   int will_be_swept = 0;
@@ -3952,24 +3923,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     if (p->IsEvacuationCandidate()) {
       // Will be processed in EvacuateNewSpaceAndCandidates.
       DCHECK(evacuation_candidates_.length() > 0);
-      continue;
-    }
-
-    // We can not sweep black pages, since all mark bits are set for these
-    // pages.
-    if (p->IsFlagSet(Page::BLACK_PAGE)) {
-      p->ClearLiveness();
-      p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
-      p->ClearFlag(Page::BLACK_PAGE);
-      // Area above the high watermark is free.
-      Address free_start = p->HighWaterMark();
-      // Check if the space top was in this page, which means that the
-      // high watermark is not up-to-date.
-      if (free_start < space_top && space_top <= p->area_end()) {
-        free_start = space_top;
-      }
-      int size = static_cast<int>(p->area_end() - free_start);
-      space->Free(free_start, size);
+      DCHECK(!p->HasBlackAreas());
       continue;
     }
 

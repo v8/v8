@@ -805,7 +805,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ beq(&no_carry, cr0);
   __ fmul(double_result, double_result, double_scratch);
   __ bind(&no_carry);
-  __ ShiftRightArithImm(scratch, scratch, 1, SetRC);
+  __ ShiftRightImm(scratch, scratch, Operand(1), SetRC);
   __ beq(&loop_end, cr0);
   __ fmul(double_scratch, double_scratch, double_scratch);
   __ b(&while_true);
@@ -859,7 +859,6 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
   BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
-  TypeofStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -1169,12 +1168,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // returns control to the code after the b(&invoke) above, which
   // restores all kCalleeSaved registers (including cp and fp) to their
   // saved values before returning a failure to C.
-
-  // Clear any pending exceptions.
-  __ mov(r8, Operand(isolate()->factory()->the_hole_value()));
-  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                       isolate())));
-  __ StoreP(r8, MemOperand(ip));
 
   // Invoke the function by calling through JS entry trampoline builtin.
   // Notice that we cannot store a reference to the trampoline code directly in
@@ -1585,9 +1578,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ LoadP(r3, MemOperand(sp, kLastMatchInfoOffset));
   __ JumpIfSmi(r3, &runtime);
-  __ CompareObjectType(r3, r5, r5, JS_ARRAY_TYPE);
+  __ CompareObjectType(r3, r5, r5, JS_OBJECT_TYPE);
   __ bne(&runtime);
-  // Check that the JSArray is in fast case.
+  // Check that the object has fast elements.
   __ LoadP(last_match_info_elements,
            FieldMemOperand(r3, JSArray::kElementsOffset));
   __ LoadP(r3,
@@ -1707,9 +1700,11 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
   // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(r3);
   __ Push(r6, r5, r4, r3);
+  __ Push(cp);
 
   __ CallStub(stub);
 
+  __ Pop(cp);
   __ Pop(r6, r5, r4, r3);
   __ SmiUntag(r3);
 }
@@ -2022,9 +2017,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
-    __ Push(r4);
+    __ Push(cp, r4);
     __ CallStub(&create_stub);
-    __ Pop(r4);
+    __ Pop(cp, r4);
   }
 
   __ b(&call_function);

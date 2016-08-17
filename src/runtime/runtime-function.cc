@@ -92,16 +92,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   return Smi::FromInt(pos);
 }
 
-
-RUNTIME_FUNCTION(Runtime_FunctionGetPositionForOffset) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_ARG_CHECKED(AbstractCode, abstract_code, 0);
-  CONVERT_NUMBER_CHECKED(int, offset, Int32, args[1]);
-  return Smi::FromInt(abstract_code->SourcePosition(offset));
-}
-
 RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

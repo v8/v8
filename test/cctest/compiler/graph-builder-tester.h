@@ -25,7 +25,8 @@ class GraphAndBuilders {
       : main_graph_(new (zone) Graph(zone)),
         main_common_(zone),
         main_machine_(zone, MachineType::PointerRepresentation(),
-                      InstructionSelector::SupportedMachineOperatorFlags()),
+                      InstructionSelector::SupportedMachineOperatorFlags(),
+                      InstructionSelector::AlignmentRequirements()),
         main_simplified_(zone) {}
 
   Graph* graph() const { return main_graph_; }
@@ -238,7 +239,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     CHECK_EQ(op->ValueInputCount(), value_input_count);
 
     CHECK(!OperatorProperties::HasContextInput(op));
-    CHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(op));
+    CHECK(!OperatorProperties::HasFrameStateInput(op));
     bool has_control = op->ControlInputCount() == 1;
     bool has_effect = op->EffectInputCount() == 1;
 

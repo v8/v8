@@ -35,6 +35,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitStatements(ZoneList<Statement*>* statments);
 
  private:
+  class AccumulatorResultScope;
   class ContextScope;
   class ControlScope;
   class ControlScopeForBreakable;
@@ -44,11 +45,16 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ControlScopeForTryFinally;
   class ExpressionResultScope;
   class EffectResultScope;
-  class AccumulatorResultScope;
+  class GlobalDeclarationsBuilder;
   class RegisterResultScope;
   class RegisterAllocationScope;
+  class TestResultScope;
 
-  void MakeBytecodeBody();
+  enum class TestFallthrough { kThen, kElse, kNone };
+
+  void GenerateBytecode();
+  void GenerateBytecodeBody();
+  void FinalizeBytecode();
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
@@ -110,9 +116,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildAbort(BailoutReason bailout_reason);
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);
-  void BuildThrowReassignConstant(Handle<String> name);
   void BuildThrowReferenceError(Handle<String> name);
-  void BuildHoleCheckForVariableLoad(VariableMode mode, Handle<String> name);
+  void BuildHoleCheckForVariableLoad(Variable* variable);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
   // Build jump to targets[value], where
@@ -125,7 +130,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
-  void VisitClassLiteralContents(ClassLiteral* expr);
   void VisitClassLiteralForRuntimeDefinition(ClassLiteral* expr);
   void VisitClassLiteralProperties(ClassLiteral* expr, Register literal,
                                    Register prototype);
@@ -161,6 +165,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
   void VisitForRegisterValue(Expression* expr, Register destination);
   void VisitForEffect(Expression* expr);
+  void VisitForTest(Expression* expr, BytecodeLabels* then_labels,
+                    BytecodeLabels* else_labels, TestFallthrough fallthrough);
 
   // Methods for tracking and remapping register.
   void RecordStoreToRegister(Register reg);
@@ -173,7 +179,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   inline BytecodeArrayBuilder* builder() const { return builder_; }
   inline Isolate* isolate() const { return isolate_; }
   inline Zone* zone() const { return zone_; }
-  inline Scope* scope() const { return scope_; }
+  inline DeclarationScope* scope() const { return scope_; }
   inline CompilationInfo* info() const { return info_; }
 
   inline ControlScope* execution_control() const { return execution_control_; }
@@ -196,7 +202,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     return register_allocator_;
   }
 
-  ZoneVector<Handle<Object>>* globals() { return &globals_; }
+  GlobalDeclarationsBuilder* globals_builder() { return globals_builder_; }
   inline LanguageMode language_mode() const;
   int feedback_index(FeedbackVectorSlot slot) const;
 
@@ -204,14 +210,19 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
   CompilationInfo* info_;
-  Scope* scope_;
-  ZoneVector<Handle<Object>> globals_;
+  DeclarationScope* scope_;
+  GlobalDeclarationsBuilder* globals_builder_;
+  ZoneVector<GlobalDeclarationsBuilder*> global_declarations_;
+  ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
+  ZoneVector<std::pair<NativeFunctionLiteral*, size_t>>
+      native_function_literals_;
   ControlScope* execution_control_;
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
   RegisterAllocationScope* register_allocator_;
   ZoneVector<BytecodeLabel> generator_resume_points_;
   Register generator_state_;
+  int loop_depth_;
 };
 
 }  // namespace interpreter

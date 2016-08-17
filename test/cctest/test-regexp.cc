@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cstdlib>
+#include <memory>
 #include <sstream>
 
 #include "include/v8.h"
@@ -485,7 +486,7 @@ static void ExpectError(const char* input, const char* expected,
                                                  &reader, flags, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
-  v8::base::SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
+  std::unique_ptr<char[]> str = result.error->ToCString(ALLOW_NULLS);
   CHECK_EQ(0, strcmp(expected, str.get()));
 }
 

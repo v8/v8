@@ -129,7 +129,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     // we can only optimize this in case the {node} was already inlined into
     // some other function (and same for the {arg_array}).
     CreateArgumentsType type = CreateArgumentsTypeOf(arg_array->op());
-    Node* frame_state = NodeProperties::GetFrameStateInput(arg_array, 0);
+    Node* frame_state = NodeProperties::GetFrameStateInput(arg_array);
     Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
     if (outer_state->opcode() != IrOpcode::kFrameState) return NoChange();
     FrameStateInfo outer_info = OpParameter<FrameStateInfo>(outer_state);
@@ -323,8 +323,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                   target, array_function);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                   array_function);
     effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
     // Turn the {node} into a {JSCreateArray} call.
@@ -338,8 +338,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                     target, target_function);
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                     target_function);
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
@@ -439,8 +439,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                   target, array_function);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                   array_function);
     effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
     // Turn the {node} into a {JSCreateArray} call.
@@ -459,8 +459,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                     target, target_function);
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                     target_function);
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 

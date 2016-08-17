@@ -20,20 +20,20 @@ bool OperatorProperties::HasContextInput(const Operator* op) {
 
 
 // static
-int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
+bool OperatorProperties::HasFrameStateInput(const Operator* op) {
   switch (op->opcode()) {
     case IrOpcode::kCheckpoint:
     case IrOpcode::kFrameState:
-      return 1;
+      return true;
     case IrOpcode::kJSCallRuntime: {
       const CallRuntimeParameters& p = CallRuntimeParametersOf(op);
-      return Linkage::NeedsFrameStateInput(p.id()) ? 1 : 0;
+      return Linkage::NeedsFrameStateInput(p.id());
     }
 
     // Strict equality cannot lazily deoptimize.
     case IrOpcode::kJSStrictEqual:
     case IrOpcode::kJSStrictNotEqual:
-      return 0;
+      return false;
 
     // Binary operations
     case IrOpcode::kJSAdd:
@@ -41,6 +41,16 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
+
+    // Bitwise operations
+    case IrOpcode::kJSBitwiseOr:
+    case IrOpcode::kJSBitwiseXor:
+    case IrOpcode::kJSBitwiseAnd:
+
+    // Shift operations
+    case IrOpcode::kJSShiftLeft:
+    case IrOpcode::kJSShiftRight:
+    case IrOpcode::kJSShiftRightLogical:
 
     // Compare operations
     case IrOpcode::kJSEqual:
@@ -89,21 +99,10 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:
-      return 1;
-
-    // Binary operators that can deopt in the middle the operation (e.g.,
-    // as a result of lazy deopt in ToNumber conversion) need a second frame
-    // state so that we can resume before the operation.
-    case IrOpcode::kJSBitwiseAnd:
-    case IrOpcode::kJSBitwiseOr:
-    case IrOpcode::kJSBitwiseXor:
-    case IrOpcode::kJSShiftLeft:
-    case IrOpcode::kJSShiftRight:
-    case IrOpcode::kJSShiftRightLogical:
-      return 2;
+      return true;
 
     default:
-      return 0;
+      return false;
   }
 }
 

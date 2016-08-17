@@ -65,14 +65,7 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& that) const {
-  if (!IsFPRegister() || !that.IsFPRegister() || kSimpleFPAliasing)
-    return EqualsCanonicalized(that);
-  // Both operands are fp registers and aliasing is non-simple.
-  const LocationOperand& loc1 = *LocationOperand::cast(this);
-  const LocationOperand& loc2 = LocationOperand::cast(that);
-  return GetRegConfig()->AreAliases(loc1.representation(), loc1.register_code(),
-                                    loc2.representation(),
-                                    loc2.register_code());
+  return EqualsCanonicalized(that);
 }
 
 void InstructionOperand::Print(const RegisterConfiguration* config) const {
@@ -186,6 +179,12 @@ std::ostream& operator<<(std::ostream& os,
           break;
         case MachineRepresentation::kSimd128:
           os << "|s128";
+          break;
+        case MachineRepresentation::kTaggedSigned:
+          os << "|ts";
+          break;
+        case MachineRepresentation::kTaggedPointer:
+          os << "|tp";
           break;
         case MachineRepresentation::kTagged:
           os << "|t";
@@ -802,6 +801,8 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       return rep;
     case MachineRepresentation::kNone:
@@ -836,22 +837,16 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
   representations_[virtual_register] = rep;
 }
 
-
-InstructionSequence::StateId InstructionSequence::AddFrameStateDescriptor(
-    FrameStateDescriptor* descriptor) {
+int InstructionSequence::AddDeoptimizationEntry(
+    FrameStateDescriptor* descriptor, DeoptimizeReason reason) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
-  deoptimization_entries_.push_back(descriptor);
-  return StateId::FromInt(deoptimization_id);
+  deoptimization_entries_.push_back(DeoptimizationEntry(descriptor, reason));
+  return deoptimization_id;
 }
 
-FrameStateDescriptor* InstructionSequence::GetFrameStateDescriptor(
-    InstructionSequence::StateId state_id) {
-  return deoptimization_entries_[state_id.ToInt()];
-}
-
-
-int InstructionSequence::GetFrameStateDescriptorCount() {
-  return static_cast<int>(deoptimization_entries_.size());
+DeoptimizationEntry const& InstructionSequence::GetDeoptimizationEntry(
+    int state_id) {
+  return deoptimization_entries_[state_id];
 }
 
 

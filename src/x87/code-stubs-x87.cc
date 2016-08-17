@@ -631,13 +631,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ add(edx, Immediate(2));  // edx was a smi.
 
   // edx: Number of capture registers
-  // Load last_match_info which is still known to be a fast case JSArray.
-  // Check that the fourth object is a JSArray object.
+  // Load last_match_info which is still known to be a fast-elements JSObject.
+  // Check that the fourth object is a JSObject.
   __ mov(eax, Operand(esp, kLastMatchInfoOffset));
   __ JumpIfSmi(eax, &runtime);
-  __ CmpObjectType(eax, JS_ARRAY_TYPE, ebx);
+  __ CmpObjectType(eax, JS_OBJECT_TYPE, ebx);
   __ j(not_equal, &runtime);
-  // Check that the JSArray is in fast case.
+  // Check that the object has fast elements.
   __ mov(ebx, FieldOperand(eax, JSArray::kElementsOffset));
   __ mov(eax, FieldOperand(ebx, HeapObject::kMapOffset));
   __ cmp(eax, factory->fixed_array_map());
@@ -1106,9 +1106,11 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
     __ push(edi);
     __ push(edx);
     __ push(ebx);
+    __ push(esi);
 
     __ CallStub(stub);
 
+    __ pop(esi);
     __ pop(ebx);
     __ pop(edx);
     __ pop(edi);
@@ -1404,7 +1406,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(isolate);
     __ push(edi);
+    __ push(esi);
     __ CallStub(&create_stub);
+    __ pop(esi);
     __ pop(edi);
   }
 
@@ -1454,7 +1458,6 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   BinaryOpICStub::GenerateAheadOfTime(isolate);
   BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
-  TypeofStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -1687,10 +1690,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
   __ PushStackHandler();
-
-  // Clear any pending exceptions.
-  __ mov(edx, Immediate(isolate()->factory()->the_hole_value()));
-  __ mov(Operand::StaticVariable(pending_exception), edx);
 
   // Fake a receiver (NULL).
   __ push(Immediate(0));  // receiver

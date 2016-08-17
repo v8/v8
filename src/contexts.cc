@@ -4,7 +4,6 @@
 
 #include "src/contexts.h"
 
-#include "src/ast/scopeinfo.h"
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
@@ -177,54 +176,15 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it) {
   return Just(!blacklist->BooleanValue());
 }
 
-static void GetAttributesAndBindingFlags(VariableMode mode,
-                                         InitializationFlag init_flag,
-                                         PropertyAttributes* attributes,
-                                         BindingFlags* binding_flags) {
-  switch (mode) {
-    case VAR:
-      *attributes = NONE;
-      *binding_flags = BINDING_IS_INITIALIZED;
-      break;
-    case LET:
-      *attributes = NONE;
-      *binding_flags = (init_flag == kNeedsInitialization)
-                           ? BINDING_CHECK_INITIALIZED
-                           : BINDING_IS_INITIALIZED;
-      break;
-    case CONST_LEGACY:
-      DCHECK_EQ(kCreatedInitialized, init_flag);
-      *attributes = READ_ONLY;
-      *binding_flags = BINDING_IS_INITIALIZED;
-      break;
-    case CONST:
-      *attributes = READ_ONLY;
-      *binding_flags = (init_flag == kNeedsInitialization)
-                           ? BINDING_CHECK_INITIALIZED
-                           : BINDING_IS_INITIALIZED;
-      break;
-    case IMPORT:  // TODO(neis): Make sure this is what we want for IMPORT.
-    case DYNAMIC:
-    case DYNAMIC_GLOBAL:
-    case DYNAMIC_LOCAL:
-    case TEMPORARY:
-      // Note: Fixed context slots are statically allocated by the compiler.
-      // Statically allocated variables always have a statically known mode,
-      // which is the mode with which they were declared when added to the
-      // scope. Thus, the DYNAMIC mode (which corresponds to dynamically
-      // declared variables that were introduced through declaration nodes)
-      // must not appear here.
-      UNREACHABLE();
-      break;
-  }
+static PropertyAttributes GetAttributesForMode(VariableMode mode) {
+  DCHECK(IsDeclaredVariableMode(mode));
+  return IsImmutableVariableMode(mode) ? READ_ONLY : NONE;
 }
 
-
-Handle<Object> Context::Lookup(Handle<String> name,
-                               ContextLookupFlags flags,
-                               int* index,
-                               PropertyAttributes* attributes,
-                               BindingFlags* binding_flags) {
+Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
+                               int* index, PropertyAttributes* attributes,
+                               InitializationFlag* init_flag,
+                               VariableMode* variable_mode) {
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 
@@ -232,7 +192,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
   bool failed_whitelist = false;
   *index = kNotFound;
   *attributes = ABSENT;
-  *binding_flags = MISSING_BINDING;
+  *init_flag = kCreatedInitialized;
+  *variable_mode = VAR;
 
   if (FLAG_trace_contexts) {
     PrintF("Context::Lookup(");
@@ -271,8 +232,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
                    r.context_index, reinterpret_cast<void*>(*c));
           }
           *index = r.slot_index;
-          GetAttributesAndBindingFlags(r.mode, r.init_flag, attributes,
-                                       binding_flags);
+          *variable_mode = r.mode;
+          *init_flag = r.init_flag;
+          *attributes = GetAttributesForMode(r.mode);
           return ScriptContextTable::GetContext(script_contexts,
                                                 r.context_index);
         }
@@ -327,12 +289,10 @@ Handle<Object> Context::Lookup(Handle<String> name,
           ? context->closure()->shared()->scope_info()
           : context->scope_info());
       VariableMode mode;
-      InitializationFlag init_flag;
-      // TODO(sigurds) Figure out whether maybe_assigned_flag should
-      // be used to compute binding_flags.
+      InitializationFlag flag;
       MaybeAssignedFlag maybe_assigned_flag;
-      int slot_index = ScopeInfo::ContextSlotIndex(
-          scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
+      int slot_index = ScopeInfo::ContextSlotIndex(scope_info, name, &mode,
+                                                   &flag, &maybe_assigned_flag);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
@@ -340,8 +300,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
                  slot_index, mode);
         }
         *index = slot_index;
-        GetAttributesAndBindingFlags(mode, init_flag, attributes,
-                                     binding_flags);
+        *variable_mode = mode;
+        *init_flag = flag;
+        *attributes = GetAttributesForMode(mode);
         return context;
       }
 
@@ -358,7 +319,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
           *index = function_index;
           *attributes = READ_ONLY;
           DCHECK(mode == CONST_LEGACY || mode == CONST);
-          *binding_flags = BINDING_IS_INITIALIZED;
+          *init_flag = kCreatedInitialized;
+          *variable_mode = mode;
           return context;
         }
       }
@@ -371,7 +333,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
         }
         *index = Context::THROWN_OBJECT_INDEX;
         *attributes = NONE;
-        *binding_flags = BINDING_IS_INITIALIZED;
+        *init_flag = kCreatedInitialized;
+        *variable_mode = VAR;
         return context;
       }
     } else if (context->IsDebugEvaluateContext()) {
@@ -389,8 +352,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
       // Check the original context, but do not follow its context chain.
       obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (obj->IsContext()) {
-        Handle<Object> result = Context::cast(obj)->Lookup(
-            name, DONT_FOLLOW_CHAINS, index, attributes, binding_flags);
+        Handle<Object> result =
+            Context::cast(obj)->Lookup(name, DONT_FOLLOW_CHAINS, index,
+                                       attributes, init_flag, variable_mode);
         if (!result.is_null()) return result;
       }
       // Check whitelist. Names that do not pass whitelist shall only resolve

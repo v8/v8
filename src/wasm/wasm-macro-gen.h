@@ -65,9 +65,9 @@
 #define DEPTH_0 0
 #define DEPTH_1 1
 
-#define WASM_BLOCK(count, ...) kExprBlock, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK(...) kExprBlock, __VA_ARGS__, kExprEnd
 #define WASM_INFINITE_LOOP kExprLoop, kExprBr, ARITY_0, DEPTH_0, kExprEnd
-#define WASM_LOOP(count, ...) kExprLoop, __VA_ARGS__, kExprEnd
+#define WASM_LOOP(...) kExprLoop, __VA_ARGS__, kExprEnd
 #define WASM_IF(cond, tstmt) cond, kExprIf, tstmt, kExprEnd
 #define WASM_IF_ELSE(cond, tstmt, fstmt) \
   cond, kExprIf, tstmt, kExprElse, fstmt, kExprEnd
@@ -343,9 +343,9 @@ class LocalDeclEncoder {
       static_cast<byte>(bit_cast<uint64_t>(val) >> 56)
 #define WASM_GET_LOCAL(index) kExprGetLocal, static_cast<byte>(index)
 #define WASM_SET_LOCAL(index, val) val, kExprSetLocal, static_cast<byte>(index)
-#define WASM_LOAD_GLOBAL(index) kExprLoadGlobal, static_cast<byte>(index)
-#define WASM_STORE_GLOBAL(index, val) \
-  val, kExprStoreGlobal, static_cast<byte>(index)
+#define WASM_GET_GLOBAL(index) kExprGetGlobal, static_cast<byte>(index)
+#define WASM_SET_GLOBAL(index, val) \
+  val, kExprSetGlobal, static_cast<byte>(index)
 #define WASM_LOAD_MEM(type, index)                                             \
   index, static_cast<byte>(                                                    \
              v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, false)), \

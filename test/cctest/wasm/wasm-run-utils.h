@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <memory>
+
 #include "src/base/accounting-allocator.h"
 #include "src/base/utils/random-number-generator.h"
 
@@ -112,8 +114,8 @@ class TestingModule : public ModuleEnv {
   }
 
   template <typename T>
-  T* AddGlobal(MachineType mem_type) {
-    const WasmGlobal* global = AddGlobal(mem_type);
+  T* AddGlobal(LocalType type) {
+    const WasmGlobal* global = AddGlobal(type);
     return reinterpret_cast<T*>(instance->globals_start + global->offset);
   }
 
@@ -209,10 +211,16 @@ class TestingModule : public ModuleEnv {
     WasmJs::InstallWasmFunctionMap(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
         compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
+    FunctionSig* funcSig = this->module->functions[index].sig;
+    Handle<ByteArray> exportedSig = isolate_->factory()->NewByteArray(
+        static_cast<int>(funcSig->parameter_count() + funcSig->return_count()),
+        TENURED);
+    exportedSig->copy_in(0, reinterpret_cast<const byte*>(funcSig->raw_data()),
+                         exportedSig->length());
     Handle<JSFunction> ret = WrapExportCodeAsJSFunction(
         isolate_, ret_code, name,
         static_cast<int>(this->module->functions[index].sig->parameter_count()),
-        module_object);
+        exportedSig, module_object);
     return ret;
   }
 
@@ -220,25 +228,24 @@ class TestingModule : public ModuleEnv {
     instance->function_code[index] = code;
   }
 
-  void AddIndirectFunctionTable(int* functions, int table_size) {
-    Handle<FixedArray> fixed =
-        isolate_->factory()->NewFixedArray(2 * table_size);
-    instance->function_table = fixed;
-    DCHECK_EQ(0u, module->function_table.size());
-    for (int i = 0; i < table_size; i++) {
-      module_.function_table.push_back(functions[i]);
+  void AddIndirectFunctionTable(uint16_t* functions, uint32_t table_size) {
+    module_.function_tables.push_back(
+        {table_size, table_size, std::vector<uint16_t>()});
+    for (uint32_t i = 0; i < table_size; ++i) {
+      module_.function_tables.back().values.push_back(functions[i]);
     }
+
+    Handle<FixedArray> values = BuildFunctionTable(
+        isolate_, static_cast<int>(module_.function_tables.size() - 1),
+        &module_);
+    instance->function_tables.push_back(values);
   }
 
   void PopulateIndirectFunctionTable() {
-    if (instance->function_table.is_null()) return;
-    int table_size = static_cast<int>(module->function_table.size());
-    for (int i = 0; i < table_size; i++) {
-      int function_index = module->function_table[i];
-      const WasmFunction* function = &module->functions[function_index];
-      instance->function_table->set(i, Smi::FromInt(function->sig_index));
-      instance->function_table->set(i + table_size,
-                                    *instance->function_code[function_index]);
+    for (uint32_t i = 0; i < instance->function_tables.size(); i++) {
+      PopulateFunctionTable(instance->function_tables[i],
+                            module_.function_tables[i].size,
+                            &instance->function_code);
     }
   }
 
@@ -257,10 +264,10 @@ class TestingModule : public ModuleEnv {
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
   WasmInterpreter* interpreter_;
 
-  const WasmGlobal* AddGlobal(MachineType mem_type) {
-    byte size = WasmOpcodes::MemSize(mem_type);
+  const WasmGlobal* AddGlobal(LocalType type) {
+    byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
-    module_.globals.push_back({0, 0, mem_type, global_offset, false});
+    module_.globals.push_back({0, 0, type, global_offset, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
@@ -540,7 +547,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     }
     CompilationInfo info(debug_name_, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
-    v8::base::SmartPointer<CompilationJob> job(Pipeline::NewWasmCompilationJob(
+    std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
         &info, graph(), desc, &source_position_table_));
     if (job->OptimizeGraph() != CompilationJob::SUCCEEDED ||
         job->GenerateCode() != CompilationJob::SUCCEEDED)

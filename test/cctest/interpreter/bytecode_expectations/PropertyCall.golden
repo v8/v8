@@ -61,13 +61,13 @@ snippet: "
 "
 frame size: 4
 parameter count: 3
-bytecode array length: 25
+bytecode array length: 26
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Nop),
   /*   27 E> */ B(LdrNamedProperty), R(arg0), U8(0), U8(3), R(0),
                 B(Ldar), R(arg1),
-  /*   37 E> */ B(Add), R(arg1),
+  /*   37 E> */ B(Add), R(arg1), U8(5),
                 B(Star), R(2),
                 B(Mov), R(arg0), R(1),
                 B(Mov), R(arg1), R(3),

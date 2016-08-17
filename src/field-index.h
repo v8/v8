@@ -76,6 +76,11 @@ class FieldIndex final {
         (IsInObjectBits::kMask | IsDoubleBits::kMask | IndexBits::kMask);
   }
 
+  bool operator==(FieldIndex const& other) const {
+    return bit_field_ == other.bit_field_;
+  }
+  bool operator!=(FieldIndex const& other) const { return !(*this == other); }
+
  private:
   FieldIndex(bool is_inobject, int local_index, bool is_double,
              int inobject_properties, int first_inobject_property_offset,

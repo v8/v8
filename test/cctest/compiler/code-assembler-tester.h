@@ -51,12 +51,6 @@ class CodeAssemblerTesterImpl : private ZoneHolder, public CodeAssemblerT {
     return scope_.CloseAndEscape(CodeAssemblerT::GenerateCode());
   }
 
-  // Expose some internal methods.
-
-  Node* SmiShiftBitsConstant() {
-    return CodeAssemblerT::SmiShiftBitsConstant();
-  }
-
  private:
   HandleScope scope_;
   LocalContext context_;

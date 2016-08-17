@@ -84,7 +84,7 @@ macro IS_CALLABLE(arg) = (typeof(arg) === 'function');
 
 # Macro for ES6 CheckObjectCoercible
 # Will throw a TypeError of the form "[functionName] called on null or undefined".
-macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) || IS_UNDEFINED(arg)) throw MakeTypeError(kCalledOnNullOrUndefined, functionName);
+macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) || IS_UNDEFINED(arg)) throw %make_type_error(kCalledOnNullOrUndefined, functionName);
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
@@ -117,9 +117,18 @@ define UNDEFINED = (void 0);
 # Macros implemented in Python.
 python macro CHAR_CODE(str) = ord(str[1]);
 
-# Constants used on an array to implement the properties of the RegExp object.
+# Layout of internal RegExpLastMatchInfo object.
 define REGEXP_NUMBER_OF_CAPTURES = 0;
+define REGEXP_LAST_SUBJECT = 1;
+define REGEXP_LAST_INPUT = 2;
 define REGEXP_FIRST_CAPTURE = 3;
+define CAPTURE0 = 3;  # Aliases REGEXP_FIRST_CAPTURE.
+define CAPTURE1 = 4;
+
+macro NUMBER_OF_CAPTURES(array) = ((array)[REGEXP_NUMBER_OF_CAPTURES]);
+macro LAST_SUBJECT(array) = ((array)[REGEXP_LAST_SUBJECT]);
+macro LAST_INPUT(array) = ((array)[REGEXP_LAST_INPUT]);
+macro CAPTURE(index) = (REGEXP_FIRST_CAPTURE + (index));
 
 # Macros for internal slot access.
 macro REGEXP_GLOBAL(regexp) = (%_RegExpFlags(regexp) & 1);
@@ -128,20 +137,6 @@ macro REGEXP_MULTILINE(regexp) = (%_RegExpFlags(regexp) & 4);
 macro REGEXP_STICKY(regexp) = (%_RegExpFlags(regexp) & 8);
 macro REGEXP_UNICODE(regexp) = (%_RegExpFlags(regexp) & 16);
 macro REGEXP_SOURCE(regexp) = (%_RegExpSource(regexp));
-
-# We can't put macros in macros so we use constants here.
-# REGEXP_NUMBER_OF_CAPTURES
-macro NUMBER_OF_CAPTURES(array) = ((array)[0]);
-
-# Last input and last subject of regexp matches.
-define LAST_SUBJECT_INDEX = 1;
-macro LAST_SUBJECT(array) = ((array)[1]);
-macro LAST_INPUT(array) = ((array)[2]);
-
-# REGEXP_FIRST_CAPTURE
-macro CAPTURE(index) = (3 + (index));
-define CAPTURE0 = 3;
-define CAPTURE1 = 4;
 
 # For the regexp capture override array.  This has the same
 # format as the arguments to a function called from
@@ -162,9 +157,6 @@ define TYPE_NORMAL = 2;
 define COMPILATION_TYPE_HOST = 0;
 define COMPILATION_TYPE_EVAL = 1;
 define COMPILATION_TYPE_JSON = 2;
-
-# Matches Messages::kNoLineNumberInfo from v8.h
-define kNoLineNumberInfo = 0;
 
 # Must match PropertyFilter in property-details.h
 define PROPERTY_FILTER_NONE = 0;

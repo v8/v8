@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var DEFAULT_NODE_WIDTH = 240;
-var DEFAULT_NODE_HEIGHT = 40;
 var TYPE_HEIGHT = 25;
-var DEFAULT_NODE_BUBBLE_RADIUS = 4;
-var NODE_INPUT_WIDTH = 20;
-var MINIMUM_NODE_INPUT_APPROACH = 20;
+var DEFAULT_NODE_BUBBLE_RADIUS = 12;
+var NODE_INPUT_WIDTH = 50;
+var MINIMUM_NODE_INPUT_APPROACH = 15 + 2 * DEFAULT_NODE_BUBBLE_RADIUS;
 var MINIMUM_NODE_OUTPUT_APPROACH = 15;
 
 function isNodeInitiallyVisible(node) {
@@ -20,6 +18,9 @@ var Node = {
   },
   isInput: function() {
     return this.opcode == 'Parameter' || this.opcode.endsWith('Constant');
+  },
+  isLive: function() {
+    return this.live !== false;
   },
   isJavaScript: function() {
     return this.opcode.startsWith('JS');
@@ -48,11 +49,19 @@ var Node = {
     return Math.max(inputWidth, this.width);
   },
   getTitle: function() {
-    return this.title;
+    var propsString;
+    if (this.properties === undefined) {
+      propsString = "";
+    } else if (this.properties === "") {
+      propsString = "no properties";
+    } else {
+      propsString = "[" + this.properties + "]";
+    }
+    return this.title + "\n" + propsString + "\n" + this.opinfo;
   },
   getDisplayLabel: function() {
     var result = this.id + ":" + this.label;
-    if (result.length > 30) {
+    if (result.length > 40) {
       return this.id + ":" + this.opcode;
     } else  {
       return result;
@@ -116,7 +125,7 @@ var Node = {
       (index % 4) * MINIMUM_EDGE_SEPARATION - DEFAULT_NODE_BUBBLE_RADIUS
   },
   getOutputApproach: function(graph, index) {
-    return this.y + this.outputApproach + graph.getNodeHeight() +
+    return this.y + this.outputApproach + graph.getNodeHeight(this) +
       + DEFAULT_NODE_BUBBLE_RADIUS;
   },
   getInputX: function(index) {

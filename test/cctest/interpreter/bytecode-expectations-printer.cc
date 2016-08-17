@@ -12,7 +12,6 @@
 #include "include/v8.h"
 
 #include "src/base/logging.h"
-#include "src/base/smart-pointers.h"
 #include "src/compiler.h"
 #include "src/runtime/runtime.h"
 

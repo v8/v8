@@ -236,22 +236,14 @@ def CopyVsRuntimeDlls(output_dir, runtime_dirs):
   """
   x86, x64 = runtime_dirs
   out_debug = os.path.join(output_dir, 'Debug')
-  out_debug_nacl64 = os.path.join(output_dir, 'Debug', 'x64')
   out_release = os.path.join(output_dir, 'Release')
-  out_release_nacl64 = os.path.join(output_dir, 'Release', 'x64')
   out_debug_x64 = os.path.join(output_dir, 'Debug_x64')
   out_release_x64 = os.path.join(output_dir, 'Release_x64')
 
-  if os.path.exists(out_debug) and not os.path.exists(out_debug_nacl64):
-    os.makedirs(out_debug_nacl64)
-  if os.path.exists(out_release) and not os.path.exists(out_release_nacl64):
-    os.makedirs(out_release_nacl64)
   _CopyRuntime(out_debug,          x86, "x86", debug=True)
   _CopyRuntime(out_release,        x86, "x86", debug=False)
   _CopyRuntime(out_debug_x64,      x64, "x64", debug=True)
   _CopyRuntime(out_release_x64,    x64, "x64", debug=False)
-  _CopyRuntime(out_debug_nacl64,   x64, "x64", debug=True)
-  _CopyRuntime(out_release_nacl64, x64, "x64", debug=False)
 
 
 def CopyDlls(target_dir, configuration, target_cpu):

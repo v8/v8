@@ -155,7 +155,7 @@ void ProfilerListener::CodeDeoptEvent(Code* code, Address pc,
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
   rec->start = code->address();
-  rec->deopt_reason = Deoptimizer::GetDeoptReason(info.deopt_reason);
+  rec->deopt_reason = DeoptimizeReasonToString(info.deopt_reason);
   rec->position = info.position;
   rec->deopt_id = info.deopt_id;
   rec->pc = reinterpret_cast<void*>(pc);
@@ -283,7 +283,15 @@ void ProfilerListener::RecordDeoptInlinedFrames(CodeEntry* entry,
       it.Next();  // Skip height
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(
           deopt_input_data->LiteralArray()->get(shared_info_id));
-      int source_position = Deoptimizer::ComputeSourcePosition(shared, ast_id);
+      int source_position;
+      if (opcode == Translation::INTERPRETED_FRAME) {
+        source_position =
+            Deoptimizer::ComputeSourcePositionFromBytecodeArray(shared, ast_id);
+      } else {
+        DCHECK(opcode == Translation::JS_FRAME);
+        source_position =
+            Deoptimizer::ComputeSourcePositionFromBaselineCode(shared, ast_id);
+      }
       int script_id = v8::UnboundScript::kNoScriptId;
       if (shared->script()->IsScript()) {
         Script* script = Script::cast(shared->script());

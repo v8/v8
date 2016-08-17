@@ -8,11 +8,9 @@
 // ----------------------------------------------------------------------------
 // Imports
 
-var ErrorToString;
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
-var MakeError;
 var MapEntries;
 var MapIteratorNext;
 var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
@@ -21,8 +19,6 @@ var SetIteratorNext;
 var SetValues;
 
 utils.Import(function(from) {
-  ErrorToString = from.ErrorToString;
-  MakeError = from.MakeError;
   MapEntries = from.MapEntries;
   MapIteratorNext = from.MapIteratorNext;
   SetIteratorNext = from.SetIteratorNext;
@@ -194,7 +190,7 @@ function MakeMirror(value, opt_transient) {
  */
 function LookupMirror(handle) {
   if (!mirror_cache_enabled_) {
-    throw MakeError(kDebugger, "Mirror cache is disabled");
+    throw %make_error(kDebugger, "Mirror cache is disabled");
   }
   return mirror_cache_[handle];
 }
@@ -1026,7 +1022,7 @@ FunctionMirror.prototype.scopeCount = function() {
 
 FunctionMirror.prototype.scope = function(index) {
   if (this.resolved()) {
-    return new ScopeMirror(UNDEFINED, this, index);
+    return new ScopeMirror(UNDEFINED, this, UNDEFINED, index);
   }
 };
 
@@ -1255,7 +1251,7 @@ ErrorMirror.prototype.toText = function() {
   // Use the same text representation as in messages.js.
   var text;
   try {
-    text = %_Call(ErrorToString, this.value_);
+    text = %ErrorToString(this.value_);
   } catch (e) {
     text = '#<Error>';
   }
@@ -1452,6 +1448,27 @@ GeneratorMirror.prototype.receiver = function() {
     this.receiver_ = MakeMirror(%GeneratorGetReceiver(this.value_));
   }
   return this.receiver_;
+};
+
+
+GeneratorMirror.prototype.scopeCount = function() {
+  // This value can change over time as the underlying generator is suspended
+  // at different locations.
+  return %GetGeneratorScopeCount(this.value());
+};
+
+
+GeneratorMirror.prototype.scope = function(index) {
+  return new ScopeMirror(UNDEFINED, UNDEFINED, this, index);
+};
+
+
+GeneratorMirror.prototype.allScopes = function() {
+  var scopes = [];
+  for (let i = 0; i < this.scopeCount(); i++) {
+    scopes.push(this.scope(i));
+  }
+  return scopes;
 };
 
 
@@ -1977,7 +1994,7 @@ FrameMirror.prototype.scopeCount = function() {
 
 
 FrameMirror.prototype.scope = function(index) {
-  return new ScopeMirror(this, UNDEFINED, index);
+  return new ScopeMirror(this, UNDEFINED, UNDEFINED, index);
 };
 
 
@@ -1988,7 +2005,8 @@ FrameMirror.prototype.allScopes = function(opt_ignore_nested_scopes) {
                                           !!opt_ignore_nested_scopes);
   var result = [];
   for (var i = 0; i < scopeDetails.length; ++i) {
-    result.push(new ScopeMirror(this, UNDEFINED, i, scopeDetails[i]));
+    result.push(new ScopeMirror(this, UNDEFINED, UNDEFINED, i,
+                                scopeDetails[i]));
   }
   return result;
 };
@@ -2167,7 +2185,7 @@ var kScopeDetailsStartPositionIndex = 3;
 var kScopeDetailsEndPositionIndex = 4;
 var kScopeDetailsFunctionIndex = 5;
 
-function ScopeDetails(frame, fun, index, opt_details) {
+function ScopeDetails(frame, fun, gen, index, opt_details) {
   if (frame) {
     this.break_id_ = frame.break_id_;
     this.details_ = opt_details ||
@@ -2177,9 +2195,14 @@ function ScopeDetails(frame, fun, index, opt_details) {
                                      index);
     this.frame_id_ = frame.details_.frameId();
     this.inlined_frame_id_ = frame.details_.inlinedFrameIndex();
-  } else {
+  } else if (fun) {
     this.details_ = opt_details || %GetFunctionScopeDetails(fun.value(), index);
     this.fun_value_ = fun.value();
+    this.break_id_ = UNDEFINED;
+  } else {
+    this.details_ =
+      opt_details || %GetGeneratorScopeDetails(gen.value(), index);
+    this.gen_value_ = gen.value();
     this.break_id_ = UNDEFINED;
   }
   this.index_ = index;
@@ -2239,11 +2262,14 @@ ScopeDetails.prototype.setVariableValueImpl = function(name, new_value) {
     %CheckExecutionState(this.break_id_);
     raw_res = %SetScopeVariableValue(this.break_id_, this.frame_id_,
         this.inlined_frame_id_, this.index_, name, new_value);
-  } else {
+  } else if (!IS_UNDEFINED(this.fun_value_)) {
     raw_res = %SetScopeVariableValue(this.fun_value_, null, null, this.index_,
         name, new_value);
+  } else {
+    raw_res = %SetScopeVariableValue(this.gen_value_, null, null, this.index_,
+        name, new_value);
   }
-  if (!raw_res) throw MakeError(kDebugger, "Failed to set variable value");
+  if (!raw_res) throw %make_error(kDebugger, "Failed to set variable value");
 };
 
 
@@ -2252,12 +2278,13 @@ ScopeDetails.prototype.setVariableValueImpl = function(name, new_value) {
  * be specified.
  * @param {FrameMirror} frame The frame this scope is a part of
  * @param {FunctionMirror} function The function this scope is a part of
+ * @param {GeneratorMirror} gen The generator this scope is a part of
  * @param {number} index The scope index in the frame
  * @param {Array=} opt_details Raw scope details data
  * @constructor
  * @extends Mirror
  */
-function ScopeMirror(frame, fun, index, opt_details) {
+function ScopeMirror(frame, fun, gen, index, opt_details) {
   %_Call(Mirror, this, MirrorType.SCOPE_TYPE);
   if (frame) {
     this.frame_index_ = frame.index_;
@@ -2265,7 +2292,7 @@ function ScopeMirror(frame, fun, index, opt_details) {
     this.frame_index_ = UNDEFINED;
   }
   this.scope_index_ = index;
-  this.details_ = new ScopeDetails(frame, fun, index, opt_details);
+  this.details_ = new ScopeDetails(frame, fun, gen, index, opt_details);
 }
 inherits(ScopeMirror, Mirror);
 
@@ -2342,7 +2369,7 @@ ScriptMirror.prototype.source = function() {
 
 
 ScriptMirror.prototype.setSource = function(source) {
-  if (!IS_STRING(source)) throw MakeError(kDebugger, "Source is not a string");
+  if (!IS_STRING(source)) throw %make_error(kDebugger, "Source is not a string");
   %DebugSetScriptSource(this.script_, source);
 };
 
@@ -2662,7 +2689,7 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
 
     case MirrorType.PROPERTY_TYPE:
     case MirrorType.INTERNAL_PROPERTY_TYPE:
-      throw MakeError(kDebugger,
+      throw %make_error(kDebugger,
                      'PropertyMirror cannot be serialized independently');
       break;
 

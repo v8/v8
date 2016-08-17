@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --ignition-generators
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 var Debug = debug.Debug;
 var LiveEdit = Debug.LiveEdit;

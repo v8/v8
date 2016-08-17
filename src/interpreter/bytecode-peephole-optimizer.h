@@ -12,7 +12,6 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class ConstantArrayBuilder;
 class BytecodePeepholeActionAndData;
 
 // An optimization stage for performing peephole optimizations on
@@ -21,8 +20,7 @@ class BytecodePeepholeActionAndData;
 class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
                                         public ZoneObject {
  public:
-  BytecodePeepholeOptimizer(ConstantArrayBuilder* constant_array_builder,
-                            BytecodePipelineStage* next_stage);
+  explicit BytecodePeepholeOptimizer(BytecodePipelineStage* next_stage);
 
   // BytecodePipelineStage interface.
   void Write(BytecodeNode* node) override;
@@ -48,13 +46,9 @@ class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
   bool LastIsValid() const;
   void SetLast(const BytecodeNode* const node);
 
-  Handle<Object> GetConstantForIndexOperand(const BytecodeNode* const node,
-                                            int index) const;
-
   BytecodePipelineStage* next_stage() const { return next_stage_; }
   BytecodeNode* last() { return &last_; }
 
-  ConstantArrayBuilder* constant_array_builder_;
   BytecodePipelineStage* next_stage_;
   BytecodeNode last_;
 

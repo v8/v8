@@ -46,9 +46,8 @@ inline void MemoryBarrier() {
 
 
 int localtime_s(tm* out_tm, const time_t* time) {
-  tm* posix_local_time_struct = localtime(time);  // NOLINT
+  tm* posix_local_time_struct = localtime_r(time, out_tm);
   if (posix_local_time_struct == NULL) return 1;
-  *out_tm = *posix_local_time_struct;
   return 0;
 }
 

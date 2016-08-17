@@ -2955,7 +2955,7 @@ void MacroAssembler::SetCounter(StatsCounter* counter, int value,
   if (FLAG_native_code_counters && counter->Enabled()) {
     Mov(scratch1, value);
     Mov(scratch2, ExternalReference(counter));
-    Str(scratch1, MemOperand(scratch2));
+    Str(scratch1.W(), MemOperand(scratch2));
   }
 }
 
@@ -2965,9 +2965,9 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
   DCHECK(value != 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Mov(scratch2, ExternalReference(counter));
-    Ldr(scratch1, MemOperand(scratch2));
-    Add(scratch1, scratch1, value);
-    Str(scratch1, MemOperand(scratch2));
+    Ldr(scratch1.W(), MemOperand(scratch2));
+    Add(scratch1.W(), scratch1.W(), value);
+    Str(scratch1.W(), MemOperand(scratch2));
   }
 }
 
@@ -4653,16 +4653,18 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // Avoid infinite recursion; Push contains some assertions that use Abort.
     NoUseRealAbortsScope no_real_aborts(this);
 
-    Mov(x0, Smi::FromInt(reason));
-    Push(x0);
+    // Check if Abort() has already been initialized.
+    DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
+
+    Move(x1, Smi::FromInt(static_cast<int>(reason)));
 
     if (!has_frame_) {
       // We don't actually want to generate a pile of code for this, so just
       // claim there is a stack frame, without generating one.
       FrameScope scope(this, StackFrame::NONE);
-      CallRuntime(Runtime::kAbort);
+      Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
     } else {
-      CallRuntime(Runtime::kAbort);
+      Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
     }
   } else {
     // Load the string to pass to Printf.

@@ -51,7 +51,7 @@ class TyperTest : public TypedGraphTest {
 
   Types types_;
   JSOperatorBuilder javascript_;
-  BinaryOperationHints const hints_ = BinaryOperationHints::Any();
+  BinaryOperationHint const hints_ = BinaryOperationHint::kAny;
   Node* context_node_;
   v8::base::RandomNumberGenerator* rng_;
   std::vector<double> integers;
@@ -290,51 +290,51 @@ TEST_F(TyperTest, TypeJSShiftRight) {
 
 
 TEST_F(TyperTest, TypeJSLessThan) {
-  TestBinaryCompareOp(javascript_.LessThan(CompareOperationHints::Any()),
+  TestBinaryCompareOp(javascript_.LessThan(CompareOperationHint::kAny),
                       std::less<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSLessThanOrEqual) {
-  TestBinaryCompareOp(javascript_.LessThanOrEqual(CompareOperationHints::Any()),
+  TestBinaryCompareOp(javascript_.LessThanOrEqual(CompareOperationHint::kAny),
                       std::less_equal<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThan) {
-  TestBinaryCompareOp(javascript_.GreaterThan(CompareOperationHints::Any()),
+  TestBinaryCompareOp(javascript_.GreaterThan(CompareOperationHint::kAny),
                       std::greater<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThanOrEqual) {
   TestBinaryCompareOp(
-      javascript_.GreaterThanOrEqual(CompareOperationHints::Any()),
+      javascript_.GreaterThanOrEqual(CompareOperationHint::kAny),
       std::greater_equal<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSEqual) {
-  TestBinaryCompareOp(javascript_.Equal(CompareOperationHints::Any()),
+  TestBinaryCompareOp(javascript_.Equal(CompareOperationHint::kAny),
                       std::equal_to<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSNotEqual) {
-  TestBinaryCompareOp(javascript_.NotEqual(CompareOperationHints::Any()),
+  TestBinaryCompareOp(javascript_.NotEqual(CompareOperationHint::kAny),
                       std::not_equal_to<double>());
 }
 
 
 // For numbers there's no difference between strict and non-strict equality.
 TEST_F(TyperTest, TypeJSStrictEqual) {
-  TestBinaryCompareOp(javascript_.StrictEqual(CompareOperationHints::Any()),
+  TestBinaryCompareOp(javascript_.StrictEqual(CompareOperationHint::kAny),
                       std::equal_to<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSStrictNotEqual) {
-  TestBinaryCompareOp(javascript_.StrictNotEqual(CompareOperationHints::Any()),
+  TestBinaryCompareOp(javascript_.StrictNotEqual(CompareOperationHint::kAny),
                       std::not_equal_to<double>());
 }
 
@@ -342,9 +342,9 @@ TEST_F(TyperTest, TypeJSStrictNotEqual) {
 //------------------------------------------------------------------------------
 // Monotonicity
 
-#define TEST_BINARY_MONOTONICITY(name)                                      \
-  TEST_F(TyperTest, Monotonicity_##name) {                                  \
-    TestBinaryMonotonicity(javascript_.name(CompareOperationHints::Any())); \
+#define TEST_BINARY_MONOTONICITY(name)                                    \
+  TEST_F(TyperTest, Monotonicity_##name) {                                \
+    TestBinaryMonotonicity(javascript_.name(CompareOperationHint::kAny)); \
   }
 TEST_BINARY_MONOTONICITY(Equal)
 TEST_BINARY_MONOTONICITY(NotEqual)
@@ -356,9 +356,9 @@ TEST_BINARY_MONOTONICITY(LessThanOrEqual)
 TEST_BINARY_MONOTONICITY(GreaterThanOrEqual)
 #undef TEST_BINARY_MONOTONICITY
 
-#define TEST_BINARY_MONOTONICITY(name)                                     \
-  TEST_F(TyperTest, Monotonicity_##name) {                                 \
-    TestBinaryMonotonicity(javascript_.name(BinaryOperationHints::Any())); \
+#define TEST_BINARY_MONOTONICITY(name)                                   \
+  TEST_F(TyperTest, Monotonicity_##name) {                               \
+    TestBinaryMonotonicity(javascript_.name(BinaryOperationHint::kAny)); \
   }
 TEST_BINARY_MONOTONICITY(BitwiseOr)
 TEST_BINARY_MONOTONICITY(BitwiseXor)

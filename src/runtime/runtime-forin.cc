@@ -26,7 +26,6 @@ MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   FastKeyAccumulator accumulator(isolate, receiver,
                                  KeyCollectionMode::kIncludePrototypes,
                                  ENUMERABLE_STRINGS);
-  accumulator.set_filter_proxy_keys(false);
   accumulator.set_is_for_in(true);
   // Test if we have an enum cache for {receiver}.
   if (!accumulator.is_receiver_simple_enum()) {
@@ -101,11 +100,6 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
   return isolate->factory()->undefined_value();
 }
 
-MaybeHandle<Object> Filter(Handle<JSReceiver> receiver, Handle<Object> key) {
-  Isolate* const isolate = receiver->GetIsolate();
-  return HasEnumerableProperty(isolate, receiver, key);
-}
-
 }  // namespace
 
 
@@ -157,13 +151,24 @@ RUNTIME_FUNCTION(Runtime_ForInDone) {
   return isolate->heap()->ToBoolean(index == length);
 }
 
+RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, HasEnumerableProperty(isolate, receiver, key));
+  return isolate->heap()->ToBoolean(!result->IsUndefined(isolate));
+}
 
 RUNTIME_FUNCTION(Runtime_ForInFilter) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  RETURN_RESULT_OR_FAILURE(isolate, Filter(receiver, key));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           HasEnumerableProperty(isolate, receiver, key));
 }
 
 
@@ -179,7 +184,8 @@ RUNTIME_FUNCTION(Runtime_ForInNext) {
   if (receiver->map() == *cache_type) {
     return *key;
   }
-  RETURN_RESULT_OR_FAILURE(isolate, Filter(receiver, key));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           HasEnumerableProperty(isolate, receiver, key));
 }
 
 

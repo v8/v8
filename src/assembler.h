@@ -37,6 +37,7 @@
 
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
+#include "src/deoptimize-reason.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/register-configuration.h"
@@ -859,7 +860,7 @@ class ExternalReference BASE_EMBEDDED {
 
   ExternalReference() : address_(NULL) {}
 
-  ExternalReference(Builtins::CFunctionId id, Isolate* isolate);
+  ExternalReference(Address address, Isolate* isolate);
 
   ExternalReference(ApiFunction* ptr, Type type, Isolate* isolate);
 
@@ -927,6 +928,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference wasm_word64_ctz(Isolate* isolate);
   static ExternalReference wasm_word32_popcnt(Isolate* isolate);
   static ExternalReference wasm_word64_popcnt(Isolate* isolate);
+  static ExternalReference wasm_float64_pow(Isolate* isolate);
 
   static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
   static ExternalReference f64_asin_wrapper_function(Isolate* isolate);
@@ -988,6 +990,12 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_negative_infinity();
   static ExternalReference address_of_the_hole_nan();
   static ExternalReference address_of_uint32_bias();
+
+  // Static variables containing simd constants.
+  static ExternalReference address_of_float_abs_constant();
+  static ExternalReference address_of_float_neg_constant();
+  static ExternalReference address_of_double_abs_constant();
+  static ExternalReference address_of_double_neg_constant();
 
   // IEEE 754 functions.
   static ExternalReference ieee754_acos_function(Isolate* isolate);

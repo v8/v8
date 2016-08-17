@@ -51,7 +51,7 @@ namespace internal {
   CHECK(args[index]->IsNumber());                        \
   Handle<Object> name##_object = args.at<Object>(index); \
   size_t name = 0;                                       \
-  CHECK(TryNumberToSize(isolate, *name##_object, &name));
+  CHECK(TryNumberToSize(*name##_object, &name));
 
 // Call the specified converter on the object *comand store the result in
 // a variable of the specified type with the given name.  If the

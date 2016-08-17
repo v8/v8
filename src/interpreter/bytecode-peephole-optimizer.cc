@@ -4,7 +4,6 @@
 
 #include "src/interpreter/bytecode-peephole-optimizer.h"
 
-#include "src/interpreter/constant-array-builder.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 
@@ -13,9 +12,8 @@ namespace internal {
 namespace interpreter {
 
 BytecodePeepholeOptimizer::BytecodePeepholeOptimizer(
-    ConstantArrayBuilder* constant_array_builder,
     BytecodePipelineStage* next_stage)
-    : constant_array_builder_(constant_array_builder), next_stage_(next_stage) {
+    : next_stage_(next_stage) {
   InvalidateLast();
 }
 
@@ -81,14 +79,6 @@ void BytecodePeepholeOptimizer::SetLast(const BytecodeNode* const node) {
   DCHECK(node->bytecode() != Bytecode::kNop || node->source_info().is_valid());
 
   last_.Clone(node);
-}
-
-Handle<Object> BytecodePeepholeOptimizer::GetConstantForIndexOperand(
-    const BytecodeNode* const node, int index) const {
-  DCHECK_LE(index, node->operand_count());
-  DCHECK_EQ(Bytecodes::GetOperandType(node->bytecode(), 0), OperandType::kIdx);
-  uint32_t index_operand = node->operand(0);
-  return constant_array_builder_->At(index_operand);
 }
 
 bool BytecodePeepholeOptimizer::CanElideLastBasedOnSourcePosition(
@@ -221,18 +211,6 @@ void BytecodePeepholeOptimizer::ElideCurrentIfOperand0MatchesAction(
   }
 }
 
-void BytecodePeepholeOptimizer::ElideCurrentIfLoadingNameConstantAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK_EQ(last()->bytecode(), Bytecode::kLdaConstant);
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (GetConstantForIndexOperand(last(), 0)->IsName()) {
-    ElideCurrentAction(node);
-  } else {
-    DefaultAction(node);
-  }
-}
-
 void BytecodePeepholeOptimizer::ElideLastAction(
     BytecodeNode* const node, const PeepholeActionAndData* action_data) {
   DCHECK(LastIsValid());
@@ -256,7 +234,7 @@ void BytecodePeepholeOptimizer::ChangeBytecodeAction(
   DCHECK(LastIsValid());
   DCHECK(!Bytecodes::IsJump(node->bytecode()));
 
-  node->set_bytecode(action_data->bytecode);
+  node->replace_bytecode(action_data->bytecode);
   DefaultAction(node);
 }
 
@@ -330,12 +308,11 @@ void BytecodePeepholeOptimizer::ElideLastBeforeJumpAction(
     BytecodeNode* const node, const PeepholeActionAndData* action_data) {
   DCHECK(LastIsValid());
   DCHECK(Bytecodes::IsJump(node->bytecode()));
-  DCHECK(CanElideLastBasedOnSourcePosition(node));
 
-  if (!node->source_info().is_valid()) {
-    node->source_info().Clone(last()->source_info());
-  } else {
+  if (!CanElideLastBasedOnSourcePosition(node)) {
     next_stage()->Write(last());
+  } else if (!node->source_info().is_valid()) {
+    node->source_info().Clone(last()->source_info());
   }
   InvalidateLast();
 }

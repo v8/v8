@@ -8,7 +8,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/list-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "src/unicode-inl.h"
 
 namespace v8 {
@@ -559,15 +559,11 @@ void ExternalStreamingStream::HandleUtf8SplitCharacters(
 ExternalTwoByteStringUtf16CharacterStream::
     ~ExternalTwoByteStringUtf16CharacterStream() { }
 
-
 ExternalTwoByteStringUtf16CharacterStream::
     ExternalTwoByteStringUtf16CharacterStream(
         Handle<ExternalTwoByteString> data, int start_position,
         int end_position)
-    : Utf16CharacterStream(),
-      source_(data),
-      raw_data_(data->GetTwoByteData(start_position)),
-      bookmark_(kNoBookmark) {
+    : raw_data_(data->GetTwoByteData(start_position)), bookmark_(kNoBookmark) {
   buffer_cursor_ = raw_data_,
   buffer_end_ = raw_data_ + (end_position - start_position);
   pos_ = start_position;
@@ -585,5 +581,52 @@ void ExternalTwoByteStringUtf16CharacterStream::ResetToBookmark() {
   pos_ = bookmark_;
   buffer_cursor_ = raw_data_ + bookmark_;
 }
+
+// ----------------------------------------------------------------------------
+// ExternalOneByteStringUtf16CharacterStream
+
+ExternalOneByteStringUtf16CharacterStream::
+    ~ExternalOneByteStringUtf16CharacterStream() {}
+
+ExternalOneByteStringUtf16CharacterStream::
+    ExternalOneByteStringUtf16CharacterStream(
+        Handle<ExternalOneByteString> data, int start_position,
+        int end_position)
+    : raw_data_(data->GetChars()),
+      length_(end_position),
+      bookmark_(kNoBookmark) {
+  DCHECK(end_position >= start_position);
+  pos_ = start_position;
+}
+
+bool ExternalOneByteStringUtf16CharacterStream::SetBookmark() {
+  bookmark_ = pos_;
+  return true;
+}
+
+void ExternalOneByteStringUtf16CharacterStream::ResetToBookmark() {
+  DCHECK(bookmark_ != kNoBookmark);
+  pos_ = bookmark_;
+  buffer_cursor_ = buffer_;
+  buffer_end_ = buffer_ + FillBuffer(pos_);
+}
+
+size_t ExternalOneByteStringUtf16CharacterStream::BufferSeekForward(
+    size_t delta) {
+  size_t old_pos = pos_;
+  pos_ = Min(pos_ + delta, length_);
+  ReadBlock();
+  return pos_ - old_pos;
+}
+
+size_t ExternalOneByteStringUtf16CharacterStream::FillBuffer(size_t from_pos) {
+  if (from_pos >= length_) return 0;
+  size_t length = Min(kBufferSize, length_ - from_pos);
+  for (size_t i = 0; i < length; ++i) {
+    buffer_[i] = static_cast<uc16>(raw_data_[from_pos + i]);
+  }
+  return length;
+}
+
 }  // namespace internal
 }  // namespace v8

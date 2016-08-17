@@ -27,6 +27,8 @@
 
 #include "src/perf-jit.h"
 
+#include <memory>
+
 #include "src/assembler.h"
 #include "src/eh-frame.h"
 #include "src/objects-inl.h"
@@ -256,7 +258,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   Handle<Object> name_or_url(Script::GetNameOrSourceURL(script));
 
   int name_length = 0;
-  base::SmartArrayPointer<char> name_string;
+  std::unique_ptr<char[]> name_string;
   if (name_or_url->IsString()) {
     name_string =
         Handle<String>::cast(name_or_url)
@@ -268,7 +270,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     char* buffer = NewArray<char>(name_length);
     base::OS::StrNCpy(buffer, name_length + 1, unknown,
                       static_cast<size_t>(name_length));
-    name_string = base::SmartArrayPointer<char>(buffer);
+    name_string = std::unique_ptr<char[]>(buffer);
   }
   DCHECK_EQ(name_length, strlen(name_string.get()));
 

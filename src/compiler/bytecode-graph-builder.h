@@ -7,7 +7,9 @@
 
 #include "src/compiler.h"
 #include "src/compiler/bytecode-branch-analysis.h"
+#include "src/compiler/bytecode-loop-analysis.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/type-hint-analyzer.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
@@ -133,6 +135,10 @@ class BytecodeGraphBuilder {
   void BuildForInNext();
   void BuildInvokeIntrinsic();
 
+  // Helper function to create binary operation hint from the recorded
+  // type feedback.
+  BinaryOperationHint GetBinaryOperationHint();
+
   // Control flow plumbing.
   void BuildJump();
   void BuildConditionalJump(Node* condition);
@@ -148,15 +154,18 @@ class BytecodeGraphBuilder {
   // Simulates control flow that exits the function body.
   void MergeControlToLeaveFunction(Node* exit);
 
+  // Builds loop exit nodes for every exited loop between the current bytecode
+  // offset and {target_offset}.
+  void BuildLoopExitsForBranch(int target_offset);
+  void BuildLoopExitsForFunctionExit();
+  void BuildLoopExitsUntilLoop(int loop_offset);
+
   // Simulates entry and exit of exception handlers.
   void EnterAndExitExceptionHandlers(int current_offset);
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;
-
-  // The catch prediction from the handler table is reused.
-  typedef HandlerTable::CatchPrediction CatchPrediction;
 
   // An abstract representation for an exception handler that is being
   // entered and exited while the graph builder is iterating over the
@@ -167,7 +176,6 @@ class BytecodeGraphBuilder {
     int end_offset_;        // End offset of the handled area in the bytecode.
     int handler_offset_;    // Handler entry offset within the bytecode.
     int context_register_;  // Index of register holding handler context.
-    CatchPrediction pred_;  // Prediction of whether handler is catching.
   };
 
   // Field accessors
@@ -207,6 +215,12 @@ class BytecodeGraphBuilder {
     branch_analysis_ = branch_analysis;
   }
 
+  const BytecodeLoopAnalysis* loop_analysis() const { return loop_analysis_; }
+
+  void set_loop_analysis(const BytecodeLoopAnalysis* loop_analysis) {
+    loop_analysis_ = loop_analysis;
+  }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -219,7 +233,9 @@ class BytecodeGraphBuilder {
   const FrameStateFunctionInfo* frame_state_function_info_;
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
   const BytecodeBranchAnalysis* branch_analysis_;
+  const BytecodeLoopAnalysis* loop_analysis_;
   Environment* environment_;
+  BailoutId osr_ast_id_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all

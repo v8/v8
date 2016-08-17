@@ -5,6 +5,8 @@
 #ifndef V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 
+#include <unordered_map>
+
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
@@ -385,6 +387,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractCodeReferences(int entry, Code* code);
   void ExtractBoxReferences(int entry, Box* box);
   void ExtractCellReferences(int entry, Cell* cell);
+  void ExtractWeakCellReferences(int entry, WeakCell* weak_cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
   void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
@@ -396,6 +399,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractInternalReferences(JSObject* js_obj, int entry);
 
   bool IsEssentialObject(Object* object);
+  bool IsEssentialHiddenReference(Object* parent, int field_offset);
+
   void SetContextReference(HeapObject* parent_obj,
                            int parent,
                            String* reference_name,
@@ -419,10 +424,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                             int index,
                             Object* child,
                             int field_offset = -1);
-  void SetHiddenReference(HeapObject* parent_obj,
-                          int parent,
-                          int index,
-                          Object* child);
+  void SetHiddenReference(HeapObject* parent_obj, int parent, int index,
+                          Object* child, int field_offset);
   void SetWeakReference(HeapObject* parent_obj,
                         int parent,
                         const char* reference_name,
@@ -452,7 +455,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
       VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
   const char* GetStrongGcSubrootName(Object* object);
   void TagObject(Object* obj, const char* tag);
-  void MarkAsWeakContainer(Object* object);
+  void TagFixedArraySubType(const FixedArray* array,
+                            FixedArraySubInstanceType type);
 
   HeapEntry* GetEntry(Object* obj);
 
@@ -465,7 +469,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
   HeapObjectsSet user_roots_;
-  HeapObjectsSet weak_containers_;
+  std::unordered_map<const FixedArray*, FixedArraySubInstanceType> array_types_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> marks_;

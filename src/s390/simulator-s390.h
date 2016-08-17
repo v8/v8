@@ -281,6 +281,7 @@ class Simulator {
   // Byte Reverse
   inline int16_t ByteReverse(int16_t hword);
   inline int32_t ByteReverse(int32_t word);
+  inline int64_t ByteReverse(int64_t dword);
 
   // Read and write memory.
   inline uint8_t ReadBU(intptr_t addr);
@@ -296,6 +297,7 @@ class Simulator {
 
   inline uint32_t ReadWU(intptr_t addr, Instruction* instr);
   inline int32_t ReadW(intptr_t addr, Instruction* instr);
+  inline int64_t ReadW64(intptr_t addr, Instruction* instr);
   inline void WriteW(intptr_t addr, uint32_t value, Instruction* instr);
   inline void WriteW(intptr_t addr, int32_t value, Instruction* instr);
 

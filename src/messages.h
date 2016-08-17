@@ -10,7 +10,8 @@
 #ifndef V8_MESSAGES_H_
 #define V8_MESSAGES_H_
 
-#include "src/base/smart-pointers.h"
+#include <memory>
+
 #include "src/handles.h"
 #include "src/list.h"
 
@@ -41,34 +42,35 @@ class MessageLocation {
   Handle<JSFunction> function_;
 };
 
+// Determines how stack trace collection skips frames.
+enum FrameSkipMode {
+  // Unconditionally skips the first frame. Used e.g. when the Error constructor
+  // is called, in which case the first frame is always a BUILTIN_EXIT frame.
+  SKIP_FIRST,
+  // Skip all frames until a specified caller function is seen.
+  SKIP_UNTIL_SEEN,
+  SKIP_NONE,
+};
 
-class CallSite {
+class ErrorUtils : public AllStatic {
  public:
-  CallSite(Isolate* isolate, Handle<JSObject> call_site_obj);
+  static MaybeHandle<Object> Construct(
+      Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
+      Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
+      bool suppress_detailed_trace);
 
-  Handle<Object> GetFileName();
-  Handle<Object> GetFunctionName();
-  Handle<Object> GetScriptNameOrSourceUrl();
-  Handle<Object> GetMethodName();
-  // Return 1-based line number, including line offset.
-  int GetLineNumber();
-  // Return 1-based column number, including column offset if first line.
-  int GetColumnNumber();
-  bool IsNative();
-  bool IsToplevel();
-  bool IsEval();
-  bool IsConstructor();
+  static MaybeHandle<String> ToString(Isolate* isolate, Handle<Object> recv);
 
-  bool IsJavaScript() { return !fun_.is_null(); }
-  bool IsWasm() { return !wasm_obj_.is_null(); }
+  static MaybeHandle<Object> MakeGenericError(
+      Isolate* isolate, Handle<JSFunction> constructor, int template_index,
+      Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
+      FrameSkipMode mode);
 
- private:
-  Isolate* isolate_;
-  Handle<Object> receiver_;
-  Handle<JSFunction> fun_;
-  int32_t pos_ = -1;
-  Handle<JSObject> wasm_obj_;
-  uint32_t wasm_func_index_ = static_cast<uint32_t>(-1);
+  // Formats a textual stack trace from the given structured stack trace.
+  // Note that this can call arbitrary JS code through Error.prepareStackTrace.
+  static MaybeHandle<Object> FormatStackTrace(Isolate* isolate,
+                                              Handle<JSObject> error,
+                                              Handle<Object> stack_trace);
 };
 
 #define MESSAGE_TEMPLATES(T)                                                   \
@@ -506,7 +508,6 @@ class CallSite {
   T(WasmTrapFloatUnrepresentable, "integer result unrepresentable")            \
   T(WasmTrapFuncInvalid, "invalid function")                                   \
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
-  T(WasmTrapMemAllocationFail, "failed to allocate memory")                    \
   T(WasmTrapInvalidIndex, "invalid index into function table")
 
 class MessageTemplate {
@@ -547,8 +548,8 @@ class MessageHandler {
   static void DefaultMessageReport(Isolate* isolate, const MessageLocation* loc,
                                    Handle<Object> message_obj);
   static Handle<String> GetMessage(Isolate* isolate, Handle<Object> data);
-  static base::SmartArrayPointer<char> GetLocalizedMessage(Isolate* isolate,
-                                                           Handle<Object> data);
+  static std::unique_ptr<char[]> GetLocalizedMessage(Isolate* isolate,
+                                                     Handle<Object> data);
 };
 
 

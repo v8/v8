@@ -75,7 +75,7 @@ void FutexWaitList::RemoveNode(FutexWaitListNode* node) {
 Object* FutexEmulation::Wait(Isolate* isolate,
                              Handle<JSArrayBuffer> array_buffer, size_t addr,
                              int32_t value, double rel_timeout_ms) {
-  DCHECK(addr < NumberToSize(isolate, array_buffer->byte_length()));
+  DCHECK(addr < NumberToSize(array_buffer->byte_length()));
 
   void* backing_store = array_buffer->backing_store();
   int32_t* p =
@@ -191,7 +191,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
 Object* FutexEmulation::Wake(Isolate* isolate,
                              Handle<JSArrayBuffer> array_buffer, size_t addr,
                              int num_waiters_to_wake) {
-  DCHECK(addr < NumberToSize(isolate, array_buffer->byte_length()));
+  DCHECK(addr < NumberToSize(array_buffer->byte_length()));
 
   int waiters_woken = 0;
   void* backing_store = array_buffer->backing_store();
@@ -216,7 +216,7 @@ Object* FutexEmulation::Wake(Isolate* isolate,
 Object* FutexEmulation::NumWaitersForTesting(Isolate* isolate,
                                              Handle<JSArrayBuffer> array_buffer,
                                              size_t addr) {
-  DCHECK(addr < NumberToSize(isolate, array_buffer->byte_length()));
+  DCHECK(addr < NumberToSize(array_buffer->byte_length()));
   void* backing_store = array_buffer->backing_store();
 
   base::LockGuard<base::Mutex> lock_guard(mutex_.Pointer());

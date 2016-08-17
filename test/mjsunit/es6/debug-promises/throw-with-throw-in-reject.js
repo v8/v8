@@ -12,7 +12,7 @@
 
 Debug = debug.Debug;
 
-var expected_events = 2;
+var expected_events = 1;
 var log = [];
 
 var p = new Promise(function(resolve, reject) {
@@ -45,12 +45,10 @@ function listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Exception) {
       expected_events--;
       assertTrue(expected_events >= 0);
-      if (expected_events == 1) {
+      if (expected_events == 0) {
         assertEquals(["resolve", "construct", "end main",
                       "throw caught"], log);
         assertEquals("caught", event_data.exception().message);
-      } else if (expected_events == 0) {
-        assertEquals("reject", event_data.exception().message);
       } else {
         assertUnreachable();
       }

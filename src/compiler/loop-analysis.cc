@@ -509,7 +509,7 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, Zone* zone) {
       new (graph->zone()) LoopTree(graph->NodeCount(), graph->zone());
   LoopFinderImpl finder(graph, loop_tree, zone);
   finder.Run();
-  if (FLAG_trace_turbo_graph) {
+  if (FLAG_trace_turbo_loop) {
     finder.Print();
   }
   return loop_tree;

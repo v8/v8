@@ -29,10 +29,9 @@ class JSIntrinsicLoweringTest : public GraphTest {
   ~JSIntrinsicLoweringTest() override {}
 
  protected:
-  Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
-                                   MachineOperatorBuilder::kNoFlags) {
-    MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
-                                   flags);
+  Reduction Reduce(Node* node) {
+    MachineOperatorBuilder machine(zone(),
+                                   MachineType::PointerRepresentation());
     SimplifiedOperatorBuilder simplified(zone());
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
@@ -87,11 +86,11 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsArray) {
       phi,
       IsPhi(
           MachineRepresentation::kTagged, IsFalseConstant(),
-          IsWord32Equal(IsLoadField(AccessBuilder::ForMapInstanceType(),
+          IsNumberEqual(IsLoadField(AccessBuilder::ForMapInstanceType(),
                                     IsLoadField(AccessBuilder::ForMap(), input,
                                                 effect, CaptureEq(&if_false)),
                                     effect, _),
-                        IsInt32Constant(JS_ARRAY_TYPE)),
+                        IsNumberConstant(JS_ARRAY_TYPE)),
           IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
                                  IsBranch(IsObjectIsSmi(input), control))),
                   AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
@@ -118,11 +117,11 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsTypedArray) {
       phi,
       IsPhi(
           MachineRepresentation::kTagged, IsFalseConstant(),
-          IsWord32Equal(IsLoadField(AccessBuilder::ForMapInstanceType(),
+          IsNumberEqual(IsLoadField(AccessBuilder::ForMapInstanceType(),
                                     IsLoadField(AccessBuilder::ForMap(), input,
                                                 effect, CaptureEq(&if_false)),
                                     effect, _),
-                        IsInt32Constant(JS_TYPED_ARRAY_TYPE)),
+                        IsNumberConstant(JS_TYPED_ARRAY_TYPE)),
           IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
                                  IsBranch(IsObjectIsSmi(input), control))),
                   AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
@@ -149,11 +148,11 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsRegExp) {
       phi,
       IsPhi(
           MachineRepresentation::kTagged, IsFalseConstant(),
-          IsWord32Equal(IsLoadField(AccessBuilder::ForMapInstanceType(),
+          IsNumberEqual(IsLoadField(AccessBuilder::ForMapInstanceType(),
                                     IsLoadField(AccessBuilder::ForMap(), input,
                                                 effect, CaptureEq(&if_false)),
                                     effect, _),
-                        IsInt32Constant(JS_REGEXP_TYPE)),
+                        IsNumberConstant(JS_REGEXP_TYPE)),
           IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
                                  IsBranch(IsObjectIsSmi(input), control))),
                   AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));

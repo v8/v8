@@ -2381,6 +2381,120 @@ TEST(ARMv8_vsel) {
   }
 }
 
+TEST(unaligned_loads) {
+  // All supported ARM targets allow unaligned accesses.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t ldrh;
+    uint32_t ldrsh;
+    uint32_t ldr;
+  } T;
+  T t;
+
+  Assembler assm(isolate, NULL, 0);
+  __ ldrh(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldrh)));
+  __ ldrsh(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldrsh)));
+  __ ldr(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldr)));
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#ifndef V8_TARGET_LITTLE_ENDIAN
+#error This test assumes a little-endian layout.
+#endif
+  uint64_t data = UINT64_C(0x84838281807f7e7d);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 0, 0, 0);
+  CHECK_EQ(0x00007e7d, t.ldrh);
+  CHECK_EQ(0x00007e7d, t.ldrsh);
+  CHECK_EQ(0x807f7e7d, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 1, 0, 0);
+  CHECK_EQ(0x00007f7e, t.ldrh);
+  CHECK_EQ(0x00007f7e, t.ldrsh);
+  CHECK_EQ(0x81807f7e, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 2, 0, 0);
+  CHECK_EQ(0x0000807f, t.ldrh);
+  CHECK_EQ(0xffff807f, t.ldrsh);
+  CHECK_EQ(0x8281807f, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 3, 0, 0);
+  CHECK_EQ(0x00008180, t.ldrh);
+  CHECK_EQ(0xffff8180, t.ldrsh);
+  CHECK_EQ(0x83828180, t.ldr);
+}
+
+TEST(unaligned_stores) {
+  // All supported ARM targets allow unaligned accesses.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+  __ strh(r3, MemOperand(r0, r2));
+  __ str(r3, MemOperand(r1, r2));
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#ifndef V8_TARGET_LITTLE_ENDIAN
+#error This test assumes a little-endian layout.
+#endif
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 0, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x000000000000ba98), strh);
+    CHECK_EQ(UINT64_C(0x00000000fedcba98), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 1, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x0000000000ba9800), strh);
+    CHECK_EQ(UINT64_C(0x000000fedcba9800), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 2, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x00000000ba980000), strh);
+    CHECK_EQ(UINT64_C(0x0000fedcba980000), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 3, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x000000ba98000000), strh);
+    CHECK_EQ(UINT64_C(0x00fedcba98000000), str);
+  }
+}
+
 TEST(regress4292_b) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

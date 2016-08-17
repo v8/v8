@@ -314,7 +314,7 @@ const Conversion kConversionInstructions[] = {
       kArm64Mov32, MachineType::Uint64()},
      MachineType::Uint32()},
     {{&RawMachineAssembler::TruncateInt64ToInt32, "TruncateInt64ToInt32",
-      kArm64Mov32, MachineType::Int32()},
+      kArchNop, MachineType::Int32()},
      MachineType::Int64()},
     {{&RawMachineAssembler::ChangeInt32ToFloat64, "ChangeInt32ToFloat64",
       kArm64Int32ToFloat64, MachineType::Float64()},
@@ -1799,12 +1799,11 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Sar) {
   m.Return(t);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Lsr, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Asr, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p), s.ToVreg(s[0]->InputAt(0)));
   EXPECT_EQ(32, s.ToInt64(s[0]->InputAt(1)));
   ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(t), s.ToVreg(s[0]->OutputAt(0)));
 }
 
 
@@ -1821,7 +1820,6 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Shr) {
     EXPECT_EQ(s.ToVreg(p), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(x, s.ToInt64(s[0]->InputAt(1)));
     ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(t), s.ToVreg(s[0]->OutputAt(0)));
   }
 }
 
@@ -2319,6 +2317,10 @@ TEST_P(InstructionSelectorConversionTest, Parameter) {
   StreamBuilder m(this, conv.mi.machine_type, conv.src_machine_type);
   m.Return((m.*conv.mi.constructor)(m.Parameter(0)));
   Stream s = m.Build();
+  if (conv.mi.arch_opcode == kArchNop) {
+    ASSERT_EQ(0U, s.size());
+    return;
+  }
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(conv.mi.arch_opcode, s[0]->arch_opcode());
   EXPECT_EQ(1U, s[0]->InputCount());
@@ -2390,6 +2392,89 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64LdrW, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
+  // For each case, test that the conversion is merged into the load
+  // operation.
+  // ChangeInt32ToInt64(Load_Uint8) -> Ldrb
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Uint8(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ldrb, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Int8) -> Ldrsb
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Int8(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ldrsb, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Uint16) -> Ldrh
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Uint16(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ldrh, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Int16) -> Ldrsh
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Int16(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ldrsh, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Uint32) -> Ldrsw
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Uint32(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ldrsw, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Int32) -> Ldrsw
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Int32(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ldrsw, s[0]->arch_opcode());
     EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -4136,59 +4221,6 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
 }
 
 
-TEST_F(InstructionSelectorTest, Float64SubWithMinusZero) {
-  StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
-  Node* const p0 = m.Parameter(0);
-  Node* const n = m.Float64Sub(m.Float64Constant(-0.0), p0);
-  m.Return(n);
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Float64Neg, s[0]->arch_opcode());
-  ASSERT_EQ(1U, s[0]->InputCount());
-  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-}
-
-
-TEST_F(InstructionSelectorTest, Float32Max) {
-  StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
-                  MachineType::Float32());
-  Node* const p0 = m.Parameter(0);
-  Node* const p1 = m.Parameter(1);
-  Node* const n = m.Float32Max(p0, p1);
-  m.Return(n);
-  Stream s = m.Build();
-  // Float32Max is `(b < a) ? a : b`.
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Float32Max, s[0]->arch_opcode());
-  ASSERT_EQ(2U, s[0]->InputCount());
-  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-}
-
-
-TEST_F(InstructionSelectorTest, Float32Min) {
-  StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
-                  MachineType::Float32());
-  Node* const p0 = m.Parameter(0);
-  Node* const p1 = m.Parameter(1);
-  Node* const n = m.Float32Min(p0, p1);
-  m.Return(n);
-  Stream s = m.Build();
-  // Float32Min is `(a < b) ? a : b`.
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Float32Min, s[0]->arch_opcode());
-  ASSERT_EQ(2U, s[0]->InputCount());
-  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-}
-
-
 TEST_F(InstructionSelectorTest, Float64Max) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
                   MachineType::Float64());
@@ -4197,7 +4229,6 @@ TEST_F(InstructionSelectorTest, Float64Max) {
   Node* const n = m.Float64Max(p0, p1);
   m.Return(n);
   Stream s = m.Build();
-  // Float64Max is `(b < a) ? a : b`.
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Float64Max, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
@@ -4216,7 +4247,6 @@ TEST_F(InstructionSelectorTest, Float64Min) {
   Node* const n = m.Float64Min(p0, p1);
   m.Return(n);
   Stream s = m.Build();
-  // Float64Min is `(a < b) ? a : b`.
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Float64Min, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
@@ -4230,7 +4260,7 @@ TEST_F(InstructionSelectorTest, Float32Neg) {
   StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
   Node* const p0 = m.Parameter(0);
   // Don't use m.Float32Neg() as that generates an explicit sub.
-  Node* const n = m.AddNode(m.machine()->Float32Neg().op(), m.Parameter(0));
+  Node* const n = m.AddNode(m.machine()->Float32Neg(), m.Parameter(0));
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -4245,7 +4275,7 @@ TEST_F(InstructionSelectorTest, Float64Neg) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
   Node* const p0 = m.Parameter(0);
   // Don't use m.Float64Neg() as that generates an explicit sub.
-  Node* const n = m.AddNode(m.machine()->Float64Neg().op(), m.Parameter(0));
+  Node* const n = m.AddNode(m.machine()->Float64Neg(), m.Parameter(0));
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -4254,6 +4284,31 @@ TEST_F(InstructionSelectorTest, Float64Neg) {
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, LoadAndShiftRight) {
+  {
+    int32_t immediates[] = {-256, -255, -3,   -2,   -1,    0,    1,
+                            2,    3,    255,  256,  260,   4096, 4100,
+                            8192, 8196, 3276, 3280, 16376, 16380};
+    TRACED_FOREACH(int32_t, index, immediates) {
+      StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer());
+      Node* const load = m.Load(MachineType::Uint64(), m.Parameter(0),
+                                m.Int32Constant(index - 4));
+      Node* const sar = m.Word64Sar(load, m.Int32Constant(32));
+      // Make sure we don't fold the shift into the following add:
+      m.Return(m.Int64Add(sar, m.Parameter(0)));
+      Stream s = m.Build();
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kArm64Ldrsw, s[0]->arch_opcode());
+      EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+      EXPECT_EQ(2U, s[0]->InputCount());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+      ASSERT_EQ(1U, s[0]->OutputCount());
+    }
+  }
 }
 
 }  // namespace compiler

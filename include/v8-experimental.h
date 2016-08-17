@@ -31,6 +31,7 @@ class V8_EXPORT FastAccessorBuilder {
   ValueId IntegerConstant(int int_constant);
   ValueId GetReceiver();
   ValueId LoadInternalField(ValueId value_id, int field_no);
+  ValueId LoadInternalFieldUnchecked(ValueId value_id, int field_no);
   ValueId LoadValue(ValueId value_id, int offset);
   ValueId LoadObject(ValueId value_id, int offset);
   void ReturnValue(ValueId value_id);

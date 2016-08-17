@@ -357,10 +357,10 @@
 
 
 (function testNameNotReflectedInToString() {
-  var f = function() {};
-  var g = function*() {};
+  var f = function () {};
+  var g = function* () {};
   var obj = {
-    ['h']: function() {},
+    ['h']: function () {},
     i: () => {}
   };
   assertEquals('function () {}', f.toString());

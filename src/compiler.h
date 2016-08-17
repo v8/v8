@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_H_
 #define V8_COMPILER_H_
 
+#include <memory>
+
 #include "src/allocation.h"
 #include "src/ast/ast.h"
 #include "src/bailout-reason.h"
@@ -37,6 +39,7 @@ class Compiler : public AllStatic {
  public:
   enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
+  enum CompilationTier { INTERPRETED, BASELINE, OPTIMIZED };
 
   // ===========================================================================
   // The following family of methods ensures a given function is compiled. The
@@ -65,6 +68,12 @@ class Compiler : public AllStatic {
   static bool Analyze(ParseInfo* info);
   // Adds deoptimization support, requires ParseAndAnalyze.
   static bool EnsureDeoptimizationSupport(CompilationInfo* info);
+  // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
+  static bool EnsureBytecode(CompilationInfo* info);
+
+  // The next compilation tier which the function should  be compiled to for
+  // optimization. This is used as a hint by the runtime profiler.
+  static CompilationTier NextCompilationTier(JSFunction* function);
 
   // ===========================================================================
   // The following family of methods instantiates new functions for scripts or
@@ -83,6 +92,11 @@ class Compiler : public AllStatic {
       int line_offset = 0, int column_offset = 0,
       Handle<Object> script_name = Handle<Object>(),
       ScriptOriginOptions options = ScriptOriginOptions());
+
+  // Create a (bound) function for a String source within a context for eval.
+  MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
+      Handle<Context> context, Handle<String> source,
+      ParseRestriction restriction);
 
   // Create a shared function info object for a String source within a context.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
@@ -148,6 +162,7 @@ class CompilationInfo final {
     kBailoutOnUninitialized = 1 << 16,
     kOptimizeFromBytecode = 1 << 17,
     kTypeFeedbackEnabled = 1 << 18,
+    kAccessorInliningEnabled = 1 << 19,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -162,7 +177,7 @@ class CompilationInfo final {
   // -----------------------------------------------------------
   Handle<Script> script() const;
   FunctionLiteral* literal() const;
-  Scope* scope() const;
+  DeclarationScope* scope() const;
   Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
@@ -262,6 +277,12 @@ class CompilationInfo final {
 
   bool is_type_feedback_enabled() const {
     return GetFlag(kTypeFeedbackEnabled);
+  }
+
+  void MarkAsAccessorInliningEnabled() { SetFlag(kAccessorInliningEnabled); }
+
+  bool is_accessor_inlining_enabled() const {
+    return GetFlag(kAccessorInliningEnabled);
   }
 
   void MarkAsSourcePositionsEnabled() { SetFlag(kSourcePositionsEnabled); }
@@ -422,7 +443,7 @@ class CompilationInfo final {
     inlined_functions_.push_back(InlinedFunctionHolder(inlined_function));
   }
 
-  base::SmartArrayPointer<char> GetDebugName() const;
+  std::unique_ptr<char[]> GetDebugName() const;
 
   Code::Kind output_code_kind() const {
     return Code::ExtractKindFromFlags(code_flags_);

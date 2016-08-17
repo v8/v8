@@ -62,7 +62,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       v8::TryCatch try_catch(isolate);
       i::MaybeHandle<i::JSRegExp> maybe_regexp =
           i::JSRegExp::New(source, static_cast<i::JSRegExp::Flags>(flags));
-      if (!maybe_regexp.ToHandle(&regexp)) continue;
+      if (!maybe_regexp.ToHandle(&regexp)) {
+        i_isolate->clear_pending_exception();
+        continue;
+      }
     }
     Test(isolate, regexp, one_byte, results_array);
     Test(isolate, regexp, two_byte, results_array);

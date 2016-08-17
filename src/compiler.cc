@@ -5,12 +5,12 @@
 #include "src/compiler.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-typer.h"
 #include "src/ast/ast-numbering.h"
 #include "src/ast/prettyprinter.h"
-#include "src/ast/scopeinfo.h"
 #include "src/ast/scopes.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
@@ -54,7 +54,7 @@ namespace internal {
 
 PARSE_INFO_GETTER(Handle<Script>, script)
 PARSE_INFO_GETTER(FunctionLiteral*, literal)
-PARSE_INFO_GETTER_WITH_DEFAULT(Scope*, scope, nullptr)
+PARSE_INFO_GETTER_WITH_DEFAULT(DeclarationScope*, scope, nullptr)
 PARSE_INFO_GETTER_WITH_DEFAULT(Handle<Context>, context,
                                Handle<Context>::null())
 PARSE_INFO_GETTER(Handle<SharedFunctionInfo>, shared_info)
@@ -181,8 +181,7 @@ bool CompilationInfo::has_simple_parameters() {
   return scope()->has_simple_parameters();
 }
 
-
-base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
+std::unique_ptr<char[]> CompilationInfo::GetDebugName() const {
   if (parse_info() && parse_info()->literal()) {
     AllowHandleDereference allow_deref;
     return parse_info()->literal()->debug_name()->ToCString();
@@ -192,7 +191,7 @@ base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
   }
   Vector<const char> name_vec = debug_name_;
   if (name_vec.is_empty()) name_vec = ArrayVector("unknown");
-  base::SmartArrayPointer<char> name(new char[name_vec.length() + 1]);
+  std::unique_ptr<char[]> name(new char[name_vec.length() + 1]);
   memcpy(name.get(), name_vec.start(), name_vec.length());
   name[name_vec.length()] = '\0';
   return name;
@@ -441,18 +440,15 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
       info->literal()->feedback_vector_spec()));
 }
 
-bool UseIgnition(CompilationInfo* info) {
+bool ShouldUseIgnition(CompilationInfo* info) {
+  if (!FLAG_ignition) return false;
+
   DCHECK(info->has_shared_info());
 
   // When requesting debug code as a replacement for existing code, we provide
   // the same kind as the existing code (to prevent implicit tier-change).
   if (info->is_debug() && info->shared_info()->is_compiled()) {
-    return info->shared_info()->HasBytecodeArray();
-  }
-
-  // For generator or async functions we might avoid Ignition wholesale.
-  if (info->shared_info()->is_resumable() && !FLAG_ignition_generators) {
-    return false;
+    return !info->shared_info()->HasBaselineCode();
   }
 
   // Since we can't OSR from Ignition, skip Ignition for asm.js functions.
@@ -489,7 +485,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
       return true;
     }
   }
-  if (FLAG_ignition && UseIgnition(info)) {
+  if (ShouldUseIgnition(info)) {
     success = interpreter::Interpreter::MakeBytecode(info);
   } else {
     success = FullCodeGenerator::MakeCode(info);
@@ -530,8 +526,6 @@ void InstallSharedCompilationResult(CompilationInfo* info,
   if (info->is_debug() && info->has_bytecode_array()) {
     shared->ClearBytecodeArray();
   }
-  // Assert that we are not overwriting (possibly patched) debug code.
-  DCHECK(!shared->HasDebugInfo());
   DCHECK(!info->code().is_null());
   shared->ReplaceCode(*info->code());
   if (info->has_bytecode_array()) {
@@ -543,6 +537,11 @@ void InstallSharedCompilationResult(CompilationInfo* info,
 MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
+
+  // Create a canonical handle scope before internalizing parsed values if
+  // compiling bytecode. This is required for off-thread bytecode generation.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
 
   // Parse and update CompilationInfo with the results.
   if (!Parser::ParseStatic(info->parse_info())) return MaybeHandle<Code>();
@@ -589,6 +588,10 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   if (info->is_function_context_specializing()) return;
   // Frame specialization implies function context specialization.
   DCHECK(!info->is_frame_specializing());
+
+  // TODO(4764): When compiling for OSR from bytecode, BailoutId might derive
+  // from bytecode offset and overlap with actual BailoutId. No caching!
+  if (info->is_osr() && info->is_optimizing_from_bytecode()) return;
 
   // Cache optimized context-specific code.
   Handle<JSFunction> function = info->closure();
@@ -666,8 +669,8 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::RecompileSynchronous);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.RecompileSynchronous");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::RecompileSynchronous);
 
   if (job->CreateGraph() != CompilationJob::SUCCEEDED ||
       job->OptimizeGraph() != CompilationJob::SUCCEEDED ||
@@ -729,8 +732,8 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
   RuntimeCallTimerScope runtimeTimer(info->isolate(),
                                      &RuntimeCallStats::RecompileSynchronous);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.RecompileSynchronous");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::RecompileSynchronous);
 
   if (job->CreateGraph() != CompilationJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
@@ -750,8 +753,18 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
 
+  bool ignition_osr = osr_frame && osr_frame->is_interpreted();
+  DCHECK_IMPLIES(ignition_osr, !osr_ast_id.IsNone());
+  DCHECK_IMPLIES(ignition_osr, FLAG_ignition_osr);
+
+  // Flag combination --ignition-osr --no-turbo-from-bytecode is unsupported.
+  if (ignition_osr && !FLAG_turbo_from_bytecode) return MaybeHandle<Code>();
+
   Handle<Code> cached_code;
-  if (GetCodeFromOptimizedCodeMap(function, osr_ast_id)
+  // TODO(4764): When compiling for OSR from bytecode, BailoutId might derive
+  // from bytecode offset and overlap with actual BailoutId. No lookup!
+  if (!ignition_osr &&
+      GetCodeFromOptimizedCodeMap(function, osr_ast_id)
           .ToHandle(&cached_code)) {
     if (FLAG_trace_opt) {
       PrintF("[found optimized code for ");
@@ -772,8 +785,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   VMState<COMPILER> state(isolate);
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
-  bool use_turbofan = UseTurboFan(shared);
-  base::SmartPointer<CompilationJob> job(
+  bool use_turbofan = UseTurboFan(shared) || ignition_osr;
+  std::unique_ptr<CompilationJob> job(
       use_turbofan ? compiler::Pipeline::NewCompilationJob(function)
                    : new HCompilationJob(function));
   CompilationInfo* info = job->info();
@@ -798,11 +811,15 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   CanonicalHandleScope canonical(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::OptimizeCode);
 
   // TurboFan can optimize directly from existing bytecode.
-  if (FLAG_turbo_from_bytecode && use_turbofan &&
-      info->shared_info()->HasBytecodeArray()) {
+  if (FLAG_turbo_from_bytecode && use_turbofan && ShouldUseIgnition(info)) {
+    if (!Compiler::EnsureBytecode(info)) {
+      if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+      return MaybeHandle<Code>();
+    }
     info->MarkAsOptimizeFromBytecode();
   }
 
@@ -816,7 +833,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   if (mode == Compiler::CONCURRENT) {
     if (GetOptimizedCodeLater(job.get())) {
-      job.Detach();   // The background recompile job owns this now.
+      job.release();  // The background recompile job owns this now.
       return isolate->builtins()->InOptimizationQueue();
     }
   } else {
@@ -838,8 +855,14 @@ class InterpreterActivationsFinder : public ThreadVisitor,
     JavaScriptFrameIterator it(isolate, top);
     for (; !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
-      if (!frame->is_interpreted()) continue;
-      if (frame->function()->shared() == shared_) {
+      if (FLAG_turbo_from_bytecode && FLAG_ignition_osr &&
+          frame->is_optimized() && frame->function()->shared() == shared_) {
+        // If we are able to optimize functions directly from bytecode, then
+        // there might be optimized OSR code active on the stack that is not
+        // reachable through a function. We count this as an activation.
+        has_activations_ = true;
+      }
+      if (frame->is_interpreted() && frame->function()->shared() == shared_) {
         has_activations_ = true;
         activation_pc_address = frame->pc_address();
       }
@@ -967,7 +990,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   // TODO(4280): For now we play it safe and remove the bytecode array when we
   // switch to baseline code. We might consider keeping around the bytecode so
   // that it can be used as the "source of truth" eventually.
-  shared->ClearBytecodeArray();
+  if (!FLAG_ignition_preserve_bytecode) shared->ClearBytecodeArray();
 
   // Update the shared function info with the scope info.
   InstallSharedScopeInfo(&info, shared);
@@ -988,7 +1011,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileCodeLazy);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::CompileCodeLazy);
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
   if (FLAG_turbo_cache_shared_code) {
@@ -1007,6 +1031,12 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
   if (function->shared()->is_compiled()) {
     return Handle<Code>(function->shared()->code());
+  }
+
+  if (function->shared()->HasBytecodeArray()) {
+    Handle<Code> entry = isolate->builtins()->InterpreterEntryTrampoline();
+    function->shared()->ReplaceCode(*entry);
+    return entry;
   }
 
   Zone zone(isolate->allocator());
@@ -1043,11 +1073,17 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   TimerEventScope<TimerEventCompileCode> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::CompileCode);
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
   ParseInfo* parse_info = info->parse_info();
   Handle<Script> script = parse_info->script();
+
+  // Create a canonical handle scope before internalizing parsed values if
+  // compiling bytecode. This is required for off-thread bytecode generation.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate));
 
   // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
   FixedArray* array = isolate->native_context()->embedder_data();
@@ -1091,6 +1127,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         parse_info->set_cached_data(nullptr);
         parse_info->set_compile_options(ScriptCompiler::kNoCompileOptions);
       }
+
       if (!Parser::ParseStatic(parse_info)) {
         return Handle<SharedFunctionInfo>::null();
       }
@@ -1110,8 +1147,10 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
                                ? info->isolate()->counters()->compile_eval()
                                : info->isolate()->counters()->compile();
     HistogramTimerScope timer(rate);
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                 parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
+    TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+        isolate,
+        (parse_info->is_eval() ? &tracing::TraceEventStatsTable::CompileEval
+                               : &tracing::TraceEventStatsTable::Compile));
 
     // Allocate a shared function info object.
     DCHECK_EQ(kNoSourcePosition, lit->function_token_position());
@@ -1161,7 +1200,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 bool Compiler::Analyze(ParseInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   if (!Rewriter::Rewrite(info)) return false;
-  if (!Scope::Analyze(info)) return false;
+  Scope::Analyze(info);
   if (!Renumber(info)) return false;
   DCHECK_NOT_NULL(info->scope());
   return true;
@@ -1344,6 +1383,16 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   return infos;
 }
 
+bool Compiler::EnsureBytecode(CompilationInfo* info) {
+  DCHECK(ShouldUseIgnition(info));
+  if (!info->shared_info()->HasBytecodeArray()) {
+    DCHECK(!info->shared_info()->is_compiled());
+    if (GetUnoptimizedCode(info).is_null()) return false;
+  }
+  DCHECK(info->shared_info()->HasBytecodeArray());
+  return true;
+}
+
 // TODO(turbofan): In the future, unoptimized code with deopt support could
 // be generated lazily once deopt is triggered.
 bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
@@ -1387,7 +1436,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     // TODO(4280): For now we play it safe and remove the bytecode array when we
     // switch to baseline code. We might consider keeping around the bytecode so
     // that it can be used as the "source of truth" eventually.
-    shared->ClearBytecodeArray();
+    if (!FLAG_ignition_preserve_bytecode) shared->ClearBytecodeArray();
 
     // The scope info might not have been set if a lazily compiled
     // function is inlined before being called for the first time.
@@ -1403,6 +1452,20 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
                               &unoptimized);
   }
   return true;
+}
+
+// static
+Compiler::CompilationTier Compiler::NextCompilationTier(JSFunction* function) {
+  Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
+  if (shared->code()->is_interpreter_trampoline_builtin()) {
+    if (FLAG_turbo_from_bytecode && UseTurboFan(shared)) {
+      return OPTIMIZED;
+    } else {
+      return BASELINE;
+    }
+  } else {
+    return OPTIMIZED;
+  }
 }
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
@@ -1469,6 +1532,52 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   return result;
 }
 
+namespace {
+
+bool CodeGenerationFromStringsAllowed(Isolate* isolate,
+                                      Handle<Context> context) {
+  DCHECK(context->allow_code_gen_from_strings()->IsFalse(isolate));
+  // Check with callback if set.
+  AllowCodeGenerationFromStringsCallback callback =
+      isolate->allow_code_gen_callback();
+  if (callback == NULL) {
+    // No callback set and code generation disallowed.
+    return false;
+  } else {
+    // Callback set. Let it decide if code generation is allowed.
+    VMState<EXTERNAL> state(isolate);
+    return callback(v8::Utils::ToLocal(context));
+  }
+}
+
+}  // namespace
+
+MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
+    Handle<Context> context, Handle<String> source,
+    ParseRestriction restriction) {
+  Isolate* const isolate = context->GetIsolate();
+  Handle<Context> native_context(context->native_context(), isolate);
+
+  // Check if native context allows code generation from
+  // strings. Throw an exception if it doesn't.
+  if (native_context->allow_code_gen_from_strings()->IsFalse(isolate) &&
+      !CodeGenerationFromStringsAllowed(isolate, native_context)) {
+    Handle<Object> error_message =
+        native_context->ErrorMessageForCodeGenerationFromStrings();
+    THROW_NEW_ERROR(isolate, NewEvalError(MessageTemplate::kCodeGenFromStrings,
+                                          error_message),
+                    JSFunction);
+  }
+
+  // Compile source string in the native context.
+  int eval_scope_position = 0;
+  int eval_position = kNoSourcePosition;
+  Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared());
+  return Compiler::GetFunctionFromEval(source, outer_info, native_context,
+                                       SLOPPY, restriction, eval_scope_position,
+                                       eval_position);
+}
+
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Handle<String> source, Handle<Object> script_name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
@@ -1512,8 +1621,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
       RuntimeCallTimerScope runtimeTimer(isolate,
                                          &RuntimeCallStats::CompileDeserialize);
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                   "V8.CompileDeserialize");
+      TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+          isolate, &tracing::TraceEventStatsTable::CompileDeserialize);
       Handle<SharedFunctionInfo> result;
       if (CodeSerializer::Deserialize(isolate, *cached_data, source)
               .ToHandle(&result)) {
@@ -1587,8 +1696,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
             isolate->counters()->compile_serialize());
         RuntimeCallTimerScope runtimeTimer(isolate,
                                            &RuntimeCallStats::CompileSerialize);
-        TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                     "V8.CompileSerialize");
+        TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+            isolate, &tracing::TraceEventStatsTable::CompileSerialize);
         *cached_data = CodeSerializer::Serialize(isolate, result, source);
         if (FLAG_profile_deserialization) {
           PrintF("[Compiling and serializing took %0.3f ms]\n",
@@ -1679,7 +1788,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   parse_info.set_literal(literal);
   parse_info.set_shared_info(result);
-  parse_info.set_scope(literal->scope());
   parse_info.set_language_mode(literal->scope()->language_mode());
   parse_info.set_typed(literal->scope()->typed());
   if (outer_info->will_serialize()) info.PrepareForSerializing();
@@ -1707,7 +1815,15 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // Generate code
   TimerEventScope<TimerEventCompileCode> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::CompileCode);
+
+  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // required by the constant array builder to de-duplicate common objects
+  // without dereferencing handles.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info.isolate()));
+
   if (lazy) {
     info.SetCode(isolate->builtins()->CompileLazy());
   } else if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
@@ -1774,7 +1890,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
 
 void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
   // Take ownership of compilation job.  Deleting job also tears down the zone.
-  base::SmartPointer<CompilationJob> job(raw_job);
+  std::unique_ptr<CompilationJob> job(raw_job);
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 
@@ -1782,8 +1898,8 @@ void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::RecompileSynchronous);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.RecompileSynchronous");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::RecompileSynchronous);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
   shared->code()->set_profiler_ticks(0);

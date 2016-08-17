@@ -765,7 +765,6 @@ class Assembler : public AssemblerBase {
   RRE_FORM(cdr);
   RXE_FORM(cdb);
   RXE_FORM(ceb);
-  RRE_FORM(cefbr);
   RXE_FORM(ddb);
   RRE_FORM(ddbr);
   SS1_FORM(ed);
@@ -779,6 +778,7 @@ class Assembler : public AssemblerBase {
   RI1_FORM(iihh);
   RI1_FORM(iihl);
   RIL1_FORM(iilf);
+  RIL1_FORM(lgfi);
   RI1_FORM(iilh);
   RI1_FORM(iill);
   RRE_FORM(lcgr);
@@ -791,7 +791,10 @@ class Assembler : public AssemblerBase {
   RR_FORM(lnr);
   RSY1_FORM(loc);
   RXY_FORM(lrv);
+  RRE_FORM(lrvr);
+  RRE_FORM(lrvgr);
   RXY_FORM(lrvh);
+  RXY_FORM(lrvg);
   RXE_FORM(mdb);
   RRE_FORM(mdbr);
   SS4_FORM(mvck);
@@ -817,6 +820,8 @@ class Assembler : public AssemblerBase {
   RX_FORM(ste);
   RXY_FORM(stey);
   RXY_FORM(strv);
+  RXY_FORM(strvh);
+  RXY_FORM(strvg);
   RI1_FORM(tmll);
   SS1_FORM(tr);
   S_FORM(ts);
@@ -870,6 +875,12 @@ class Assembler : public AssemblerBase {
   void lm(Register r1, Register r2, const MemOperand& src);
   void lmy(Register r1, Register r2, const MemOperand& src);
   void lmg(Register r1, Register r2, const MemOperand& src);
+
+  // Load On Condition Instructions
+  void locr(Condition m3, Register r1, Register r2);
+  void locgr(Condition m3, Register r1, Register r2);
+  void loc(Condition m3, Register r1, const MemOperand& src);
+  void locg(Condition m3, Register r1, const MemOperand& src);
 
   // Store Instructions
   void st(Register r, const MemOperand& src);
@@ -1144,7 +1155,7 @@ class Assembler : public AssemblerBase {
   void cegbr(DoubleRegister fltReg, Register fixReg);
   void cdgbr(DoubleRegister fltReg, Register fixReg);
   void cfebr(Condition m3, Register fixReg, DoubleRegister fltReg);
-  void cefbr(DoubleRegister fltReg, Register fixReg);
+  void cefbr(Condition m3, DoubleRegister fltReg, Register fixReg);
 
   // Floating Point Compare Instructions
   void cebr(DoubleRegister r1, DoubleRegister r2);
@@ -1171,6 +1182,7 @@ class Assembler : public AssemblerBase {
   void sqdb(DoubleRegister r1, const MemOperand& opnd);
   void sqdbr(DoubleRegister r1, DoubleRegister r2);
   void lcdbr(DoubleRegister r1, DoubleRegister r2);
+  void lcebr(DoubleRegister r1, DoubleRegister r2);
   void ldeb(DoubleRegister r1, const MemOperand& opnd);
 
   enum FIDBRA_MASK3 {
@@ -1241,7 +1253,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, int raw_position, int id);
+  void RecordDeoptReason(DeoptimizeReason reason, int raw_position, int id);
 
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
@@ -1411,6 +1423,8 @@ class Assembler : public AssemblerBase {
                        Register x2, Disp d2);
 
   inline void rxy_form(Opcode op, Register r1, Register x2, Register b2,
+                       Disp d2);
+  inline void rxy_form(Opcode op, Register r1, Condition m3, Register b2,
                        Disp d2);
   inline void rxy_form(Opcode op, DoubleRegister r1, Register x2, Register b2,
                        Disp d2);

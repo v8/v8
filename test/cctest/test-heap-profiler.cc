@@ -29,6 +29,8 @@
 
 #include <ctype.h>
 
+#include <memory>
+
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
@@ -254,13 +256,13 @@ TEST(BoundFunctionInSnapshot) {
   CHECK_EQ(v8::HeapGraphNode::kArray, bindings->GetType());
   CHECK_EQ(1, bindings->GetChildrenCount());
 
-  const v8::HeapGraphNode* bound_this = GetProperty(
-      f, v8::HeapGraphEdge::kShortcut, "bound_this");
+  const v8::HeapGraphNode* bound_this =
+      GetProperty(f, v8::HeapGraphEdge::kInternal, "bound_this");
   CHECK(bound_this);
   CHECK_EQ(v8::HeapGraphNode::kObject, bound_this->GetType());
 
-  const v8::HeapGraphNode* bound_function = GetProperty(
-      f, v8::HeapGraphEdge::kShortcut, "bound_function");
+  const v8::HeapGraphNode* bound_function =
+      GetProperty(f, v8::HeapGraphEdge::kInternal, "bound_function");
   CHECK(bound_function);
   CHECK_EQ(v8::HeapGraphNode::kClosure, bound_function->GetType());
 
@@ -491,6 +493,16 @@ void CheckSimdSnapshot(const char* program, const char* var_name) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   CompileRun(program);
+  // The TakeHeapSnapshot function does not do enough GCs to ensure
+  // that all garbage is collected. We perform addition GC here
+  // to reclaim a floating AllocationSite and to fix the following failure:
+  // # Check failed: ValidateSnapshot(snapshot).
+  // Stdout:
+  //     28 @ 13523   entry with no retainer: /hidden/ system / AllocationSite
+  //     44 @   767    $map: /hidden/ system / Map
+  //     44 @    59      $map: /hidden/ system / Map
+  CcTest::heap()->CollectAllGarbage();
+
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
@@ -659,6 +671,31 @@ TEST(HeapSnapshotCollection) {
   CHECK_EQ(s->GetId(), map_s->GetId());
 }
 
+TEST(HeapSnapshotMap) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun(
+      "function Z() { this.foo = {}; }\n"
+      "z = new Z();\n");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* z =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "z");
+  CHECK(z);
+  const v8::HeapGraphNode* map =
+      GetProperty(z, v8::HeapGraphEdge::kInternal, "map");
+  CHECK(map);
+  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "map"));
+  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "prototype"));
+  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "back_pointer"));
+  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "descriptors"));
+  const v8::HeapGraphNode* weak_cell =
+      GetProperty(map, v8::HeapGraphEdge::kInternal, "weak_cell_cache");
+  CHECK(GetProperty(weak_cell, v8::HeapGraphEdge::kWeak, "value"));
+}
 
 TEST(HeapSnapshotInternalReferences) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -1830,7 +1867,7 @@ TEST(GetHeapValueForDeletedObject) {
 
 
 static int StringCmp(const char* ref, i::String* act) {
-  v8::base::SmartArrayPointer<char> s_act = act->ToCString();
+  std::unique_ptr<char[]> s_act = act->ToCString();
   int result = strcmp(ref, s_act.get());
   if (result != 0)
     fprintf(stderr, "Expected: \"%s\", Actual: \"%s\"\n", ref, s_act.get());
@@ -2787,7 +2824,7 @@ TEST(WeakContainers) {
   CHECK_NE(0, count);
   for (int i = 0; i < count; ++i) {
     const v8::HeapGraphEdge* prop = dependent_code->GetChild(i);
-    CHECK_EQ(v8::HeapGraphEdge::kWeak, prop->GetType());
+    CHECK_EQ(v8::HeapGraphEdge::kInternal, prop->GetType());
   }
 }
 
@@ -2912,9 +2949,9 @@ TEST(SamplingHeapProfiler) {
     heap_profiler->StartSamplingHeapProfiler(1024);
     CompileRun(script_source);
 
-    v8::base::SmartPointer<v8::AllocationProfile> profile(
+    std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
-    CHECK(!profile.is_empty());
+    CHECK(profile);
 
     const char* names[] = {"", "foo", "bar"};
     auto node_bar = FindAllocationProfileNode(*profile, ArrayVector(names));
@@ -2939,9 +2976,9 @@ TEST(SamplingHeapProfiler) {
     heap_profiler->StartSamplingHeapProfiler(128);
     CompileRun(script_source);
 
-    v8::base::SmartPointer<v8::AllocationProfile> profile(
+    std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
-    CHECK(!profile.is_empty());
+    CHECK(profile);
 
     const char* names[] = {"", "foo", "bar"};
     auto node_bar = FindAllocationProfileNode(*profile, ArrayVector(names));
@@ -2973,9 +3010,9 @@ TEST(SamplingHeapProfiler) {
     heap_profiler->StartSamplingHeapProfiler(64);
     CompileRun(record_trace_tree_source);
 
-    v8::base::SmartPointer<v8::AllocationProfile> profile(
+    std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
-    CHECK(!profile.is_empty());
+    CHECK(profile);
 
     const char* names1[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
     auto node1 = FindAllocationProfileNode(*profile, ArrayVector(names1));
@@ -2998,9 +3035,9 @@ TEST(SamplingHeapProfiler) {
 
     CcTest::heap()->CollectAllGarbage();
 
-    v8::base::SmartPointer<v8::AllocationProfile> profile(
+    std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
-    CHECK(!profile.is_empty());
+    CHECK(profile);
 
     CheckNoZeroCountNodes(profile->GetRootNode());
 
@@ -3021,9 +3058,9 @@ TEST(SamplingHeapProfilerApiAllocation) {
 
   for (int i = 0; i < 8 * 1024; ++i) v8::Object::New(env->GetIsolate());
 
-  v8::base::SmartPointer<v8::AllocationProfile> profile(
+  std::unique_ptr<v8::AllocationProfile> profile(
       heap_profiler->GetAllocationProfile());
-  CHECK(!profile.is_empty());
+  CHECK(profile);
   const char* names[] = {"(V8 API)"};
   auto node = FindAllocationProfileNode(*profile, ArrayVector(names));
   CHECK(node);

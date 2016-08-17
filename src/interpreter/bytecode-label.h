@@ -5,9 +5,13 @@
 #ifndef V8_INTERPRETER_BYTECODE_LABEL_H_
 #define V8_INTERPRETER_BYTECODE_LABEL_H_
 
+#include "src/zone-containers.h"
+
 namespace v8 {
 namespace internal {
 namespace interpreter {
+
+class BytecodeArrayBuilder;
 
 // A label representing a branch target in a bytecode array. When a
 // label is bound, it represents a known position in the bytecode
@@ -47,6 +51,21 @@ class BytecodeLabel final {
   size_t offset_;
 
   friend class BytecodeArrayWriter;
+};
+
+// Class representing a branch target of multiple jumps.
+class BytecodeLabels {
+ public:
+  explicit BytecodeLabels(Zone* zone) : labels_(zone) {}
+
+  BytecodeLabel* New();
+
+  void Bind(BytecodeArrayBuilder* builder);
+
+ private:
+  ZoneVector<BytecodeLabel> labels_;
+
+  DISALLOW_COPY_AND_ASSIGN(BytecodeLabels);
 };
 
 }  // namespace interpreter

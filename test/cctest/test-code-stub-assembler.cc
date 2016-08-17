@@ -1103,24 +1103,21 @@ TEST(TestOutOfScopeVariable) {
 
 namespace {
 
-void TestStubCacheOffsetCalculation(StubCache::Table table,
-                                    Code::Kind handler_kind) {
+void TestStubCacheOffsetCalculation(StubCache::Table table) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
   CodeStubAssemblerTester m(isolate, kNumParams);
 
-  Code::Flags code_flags =
-      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(handler_kind));
   {
     Node* name = m.Parameter(0);
     Node* map = m.Parameter(1);
-    Node* primary_offset = m.StubCachePrimaryOffset(name, code_flags, map);
+    Node* primary_offset = m.StubCachePrimaryOffset(name, map);
     Node* result;
     if (table == StubCache::kPrimary) {
       result = primary_offset;
     } else {
       CHECK_EQ(StubCache::kSecondary, table);
-      result = m.StubCacheSecondaryOffset(name, code_flags, primary_offset);
+      result = m.StubCacheSecondaryOffset(name, primary_offset);
     }
     m.Return(m.SmiFromWord32(result));
   }
@@ -1163,13 +1160,12 @@ void TestStubCacheOffsetCalculation(StubCache::Table table,
 
       int expected_result;
       {
-        int primary_offset =
-            StubCache::PrimaryOffsetForTesting(*name, code_flags, *map);
+        int primary_offset = StubCache::PrimaryOffsetForTesting(*name, *map);
         if (table == StubCache::kPrimary) {
           expected_result = primary_offset;
         } else {
-          expected_result = StubCache::SecondaryOffsetForTesting(
-              *name, code_flags, primary_offset);
+          expected_result =
+              StubCache::SecondaryOffsetForTesting(*name, primary_offset);
         }
       }
       Handle<Object> result = ft.Call(name, map).ToHandleChecked();
@@ -1182,20 +1178,12 @@ void TestStubCacheOffsetCalculation(StubCache::Table table,
 
 }  // namespace
 
-TEST(StubCachePrimaryOffsetLoadIC) {
-  TestStubCacheOffsetCalculation(StubCache::kPrimary, Code::LOAD_IC);
+TEST(StubCachePrimaryOffset) {
+  TestStubCacheOffsetCalculation(StubCache::kPrimary);
 }
 
-TEST(StubCachePrimaryOffsetStoreIC) {
-  TestStubCacheOffsetCalculation(StubCache::kPrimary, Code::STORE_IC);
-}
-
-TEST(StubCacheSecondaryOffsetLoadIC) {
-  TestStubCacheOffsetCalculation(StubCache::kSecondary, Code::LOAD_IC);
-}
-
-TEST(StubCacheSecondaryOffsetStoreIC) {
-  TestStubCacheOffsetCalculation(StubCache::kSecondary, Code::STORE_IC);
+TEST(StubCacheSecondaryOffset) {
+  TestStubCacheOffsetCalculation(StubCache::kSecondary);
 }
 
 namespace {
@@ -1217,9 +1205,6 @@ TEST(TryProbeStubCache) {
   CodeStubAssemblerTester m(isolate, kNumParams);
 
   Code::Kind ic_kind = Code::LOAD_IC;
-  Code::Flags flags_to_query =
-      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind));
-
   StubCache stub_cache(isolate, ic_kind);
   stub_cache.Clear();
 
@@ -1299,25 +1284,8 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of handlers.
   for (int i = 0; i < 30; i++) {
-    Code::Kind code_kind;
-    switch (rand_gen.NextInt(4)) {
-      case 0:
-        code_kind = Code::LOAD_IC;
-        break;
-      case 1:
-        code_kind = Code::KEYED_LOAD_IC;
-        break;
-      case 2:
-        code_kind = Code::STORE_IC;
-        break;
-      case 3:
-        code_kind = Code::KEYED_STORE_IC;
-        break;
-      default:
-        UNREACHABLE();
-    }
     Code::Flags flags =
-        Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(code_kind));
+        Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind));
     handlers.push_back(CreateCodeWithFlags(flags));
   }
 
@@ -1342,7 +1310,7 @@ TEST(TryProbeStubCache) {
     int index = rand_gen.NextInt();
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
-    Code* handler = stub_cache.Get(*name, receiver->map(), flags_to_query);
+    Code* handler = stub_cache.Get(*name, receiver->map());
     if (handler == nullptr) {
       queried_non_existing = true;
     } else {
@@ -1358,7 +1326,7 @@ TEST(TryProbeStubCache) {
     int index2 = rand_gen.NextInt();
     Handle<Name> name = names[index1 % names.size()];
     Handle<JSObject> receiver = receivers[index2 % receivers.size()];
-    Code* handler = stub_cache.Get(*name, receiver->map(), flags_to_query);
+    Code* handler = stub_cache.Get(*name, receiver->map());
     if (handler == nullptr) {
       queried_non_existing = true;
     } else {

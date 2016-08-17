@@ -31,9 +31,9 @@
   'overrides/caching': [PASS, FAIL],
 }],  # ALWAYS
 
-['arch == arm64 and mode == debug and simulator_run == True', {
-  # Ignition.
-  'date-format/timezone': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
-  'number-format/check-digit-ranges': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
-}],  # 'arch == arm64 and mode == debug and simulator_run == True'
+['arch == arm64 and mode == debug and simulator_run == True and variant == ignition', {
+  # Ignition on ARM64 simulator in debug mode.
+  'date-format/timezone': [PASS, ['no_snap', SKIP]],
+  'number-format/check-digit-ranges': [PASS, ['no_snap', SKIP]],
+}],  # 'arch == arm64 and mode == debug and simulator_run == True and variant == ignition'
 ]

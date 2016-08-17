@@ -30,13 +30,14 @@ class Deserializer : public SerializerDeserializer {
  public:
   // Create a deserializer from a snapshot byte source.
   template <class Data>
-  explicit Deserializer(Data* data)
+  explicit Deserializer(Data* data, bool deserializing_user_code = false)
       : isolate_(NULL),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
+        next_map_index_(0),
         external_reference_table_(NULL),
         deserialized_large_objects_(0),
-        deserializing_user_code_(false),
+        deserializing_user_code_(deserializing_user_code),
         next_alignment_(kWordAligned) {
     DecodeReservation(data->Reservations());
   }
@@ -50,8 +51,8 @@ class Deserializer : public SerializerDeserializer {
   MaybeHandle<Object> DeserializePartial(Isolate* isolate,
                                          Handle<JSGlobalProxy> global_proxy);
 
-  // Deserialize a shared function info. Fail gracefully.
-  MaybeHandle<SharedFunctionInfo> DeserializeCode(Isolate* isolate);
+  // Deserialize an object graph. Fail gracefully.
+  MaybeHandle<HeapObject> DeserializeObject(Isolate* isolate);
 
   // Add an object to back an attached reference. The order to add objects must
   // mirror the order they are added in the serializer.
@@ -89,7 +90,7 @@ class Deserializer : public SerializerDeserializer {
   void DeserializeDeferredObjects();
 
   void FlushICacheForNewIsolate();
-  void FlushICacheForNewCodeObjects();
+  void FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
 
   void CommitPostProcessedObjects(Isolate* isolate);
 
@@ -129,6 +130,8 @@ class Deserializer : public SerializerDeserializer {
   Heap::Reservation reservations_[kNumberOfSpaces];
   uint32_t current_chunk_[kNumberOfPreallocatedSpaces];
   Address high_water_[kNumberOfPreallocatedSpaces];
+  int next_map_index_;
+  List<Address> allocated_maps_;
 
   ExternalReferenceTable* external_reference_table_;
 

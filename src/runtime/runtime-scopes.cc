@@ -4,9 +4,10 @@
 
 #include "src/runtime/runtime-utils.h"
 
+#include <memory>
+
 #include "src/accessors.h"
 #include "src/arguments.h"
-#include "src/ast/scopeinfo.h"
 #include "src/ast/scopes.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
@@ -208,42 +209,6 @@ RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
       isolate, Object::SetProperty(global, name, value, language_mode));
 }
 
-
-RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
-  HandleScope handle_scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-
-  Handle<JSGlobalObject> global(isolate->global_object());
-
-  // Lookup the property as own on the global object.
-  LookupIterator it(global, name, global, LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  DCHECK(maybe.IsJust());
-  PropertyAttributes old_attributes = maybe.FromJust();
-
-  PropertyAttributes attr =
-      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
-  // Set the value if the property is either missing, or the property attributes
-  // allow setting the value without invoking an accessor.
-  if (it.IsFound()) {
-    // Ignore if we can't reconfigure the value.
-    if ((old_attributes & DONT_DELETE) != 0) {
-      if ((old_attributes & READ_ONLY) != 0 ||
-          it.state() == LookupIterator::ACCESSOR) {
-        return *value;
-      }
-      attr = static_cast<PropertyAttributes>(old_attributes | READ_ONLY);
-    }
-  }
-
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
-
-  return *value;
-}
-
 namespace {
 
 Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
@@ -265,11 +230,13 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
   int index;
   PropertyAttributes attributes;
-  BindingFlags binding_flags;
+  InitializationFlag init_flag;
+  VariableMode mode;
 
   // Check for a conflict with a lexically scoped variable
-  context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes, &binding_flags);
-  if (attributes != ABSENT && binding_flags == BINDING_CHECK_INITIALIZED) {
+  context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes, &init_flag,
+                      &mode);
+  if (attributes != ABSENT && IsLexicalVariableMode(mode)) {
     // ES#sec-evaldeclarationinstantiation 5.a.i.1:
     // If varEnvRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
     // exception.
@@ -280,7 +247,7 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   }
 
   Handle<Object> holder = context->Lookup(name, DONT_FOLLOW_CHAINS, &index,
-                                          &attributes, &binding_flags);
+                                          &attributes, &init_flag, &mode);
   DCHECK(!isolate->has_pending_exception());
 
   Handle<JSObject> object;
@@ -370,8 +337,8 @@ namespace {
 
 // Find the arguments of the JavaScript function invocation that called
 // into C++ code. Collect these in a newly allocated array of handles.
-base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
-                                                           int* total_argc) {
+std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
+                                                     int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
@@ -396,7 +363,7 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     argument_count--;
 
     *total_argc = argument_count;
-    base::SmartArrayPointer<Handle<Object>> param_data(
+    std::unique_ptr<Handle<Object>[]> param_data(
         NewArray<Handle<Object>>(*total_argc));
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
@@ -417,7 +384,7 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     int args_count = frame->ComputeParametersCount();
 
     *total_argc = args_count;
-    base::SmartArrayPointer<Handle<Object>> param_data(
+    std::unique_ptr<Handle<Object>[]> param_data(
         NewArray<Handle<Object>>(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
@@ -426,7 +393,6 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     return param_data;
   }
 }
-
 
 template <typename T>
 Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
@@ -546,7 +512,7 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
-  base::SmartArrayPointer<Handle<Object>> arguments =
+  std::unique_ptr<Handle<Object>[]> arguments =
       GetCallerArguments(isolate, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
@@ -560,7 +526,7 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
-  base::SmartArrayPointer<Handle<Object>> arguments =
+  std::unique_ptr<Handle<Object>[]> arguments =
       GetCallerArguments(isolate, &argument_count);
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
@@ -586,7 +552,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
-  base::SmartArrayPointer<Handle<Object>> arguments =
+  std::unique_ptr<Handle<Object>[]> arguments =
       GetCallerArguments(isolate, &argument_count);
   int num_elements = std::max(0, argument_count - start_index);
   Handle<JSObject> result =
@@ -770,9 +736,10 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 
   int index;
   PropertyAttributes attributes;
-  BindingFlags flags;
+  InitializationFlag flag;
+  VariableMode mode;
   Handle<Object> holder = isolate->context()->Lookup(
-      name, FOLLOW_CHAINS, &index, &attributes, &flags);
+      name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
 
   // If the slot was not found the result is true.
   if (holder.is_null()) {
@@ -805,9 +772,10 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
 
   int index;
   PropertyAttributes attributes;
-  BindingFlags flags;
+  InitializationFlag flag;
+  VariableMode mode;
   Handle<Object> holder = isolate->context()->Lookup(
-      name, FOLLOW_CHAINS, &index, &attributes, &flags);
+      name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   if (index != Context::kNotFound) {
@@ -817,22 +785,14 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
     Handle<Object> receiver = isolate->factory()->undefined_value();
     Handle<Object> value = handle(Context::cast(*holder)->get(index), isolate);
     // Check for uninitialized bindings.
-    switch (flags) {
-      case BINDING_CHECK_INITIALIZED:
-        if (value->IsTheHole(isolate)) {
-          THROW_NEW_ERROR(isolate,
-                          NewReferenceError(MessageTemplate::kNotDefined, name),
-                          Object);
-        }
-      // FALLTHROUGH
-      case BINDING_IS_INITIALIZED:
-        DCHECK(!value->IsTheHole(isolate));
-        if (receiver_return) *receiver_return = receiver;
-        return value;
-      case MISSING_BINDING:
-        break;
+    if (flag == kNeedsInitialization && value->IsTheHole(isolate)) {
+      THROW_NEW_ERROR(isolate,
+                      NewReferenceError(MessageTemplate::kNotDefined, name),
+                      Object);
     }
-    UNREACHABLE();
+    DCHECK(!value->IsTheHole(isolate));
+    if (receiver_return) *receiver_return = receiver;
+    return value;
   }
 
   // Otherwise, if the slot was found the holder is a context extension
@@ -908,9 +868,10 @@ MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
 
   int index;
   PropertyAttributes attributes;
-  BindingFlags flags;
+  InitializationFlag flag;
+  VariableMode mode;
   Handle<Object> holder =
-      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flags);
+      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();
@@ -918,7 +879,7 @@ MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
 
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
-    if (flags == BINDING_CHECK_INITIALIZED &&
+    if (flag == kNeedsInitialization &&
         Handle<Context>::cast(holder)->is_the_hole(index)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name),

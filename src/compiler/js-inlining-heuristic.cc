@@ -67,9 +67,9 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Stop inlinining once the maximum allowed level is reached.
   int level = 0;
-  for (Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  for (Node* frame_state = NodeProperties::GetFrameStateInput(node);
        frame_state->opcode() == IrOpcode::kFrameState;
-       frame_state = NodeProperties::GetFrameStateInput(frame_state, 0)) {
+       frame_state = NodeProperties::GetFrameStateInput(frame_state)) {
     if (++level > FLAG_max_inlining_levels) return NoChange();
   }
 

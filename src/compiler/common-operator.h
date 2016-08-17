@@ -7,6 +7,7 @@
 
 #include "src/assembler.h"
 #include "src/compiler/frame-states.h"
+#include "src/deoptimize-reason.h"
 #include "src/machine-type.h"
 #include "src/zone-containers.h"
 
@@ -42,6 +43,8 @@ std::ostream& operator<<(std::ostream&, BranchHint);
 
 BranchHint BranchHintOf(const Operator* const);
 
+// Deoptimize reason for Deoptimize, DeoptimizeIf and DeoptimizeUnless.
+DeoptimizeReason DeoptimizeReasonOf(Operator const* const);
 
 // Deoptimize bailout kind.
 enum class DeoptimizeKind : uint8_t { kEager, kSoft };
@@ -50,15 +53,28 @@ size_t hash_value(DeoptimizeKind kind);
 
 std::ostream& operator<<(std::ostream&, DeoptimizeKind);
 
-DeoptimizeKind DeoptimizeKindOf(const Operator* const);
+// Parameters for the {Deoptimize} operator.
+class DeoptimizeParameters final {
+ public:
+  DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason)
+      : kind_(kind), reason_(reason) {}
 
+  DeoptimizeKind kind() const { return kind_; }
+  DeoptimizeReason reason() const { return reason_; }
 
-// Prediction whether throw-site is surrounded by any local catch-scope.
-enum class IfExceptionHint { kLocallyUncaught, kLocallyCaught };
+ private:
+  DeoptimizeKind const kind_;
+  DeoptimizeReason const reason_;
+};
 
-size_t hash_value(IfExceptionHint hint);
+bool operator==(DeoptimizeParameters, DeoptimizeParameters);
+bool operator!=(DeoptimizeParameters, DeoptimizeParameters);
 
-std::ostream& operator<<(std::ostream&, IfExceptionHint);
+size_t hast_value(DeoptimizeParameters p);
+
+std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
+
+DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const);
 
 
 class SelectParameters final {
@@ -153,6 +169,8 @@ RegionObservability RegionObservabilityOf(Operator const*) WARN_UNUSED_RESULT;
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types);
 
+Type* TypeGuardTypeOf(Operator const*) WARN_UNUSED_RESULT;
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class CommonOperatorBuilder final : public ZoneObject {
@@ -165,14 +183,14 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* IfTrue();
   const Operator* IfFalse();
   const Operator* IfSuccess();
-  const Operator* IfException(IfExceptionHint hint);
+  const Operator* IfException();
   const Operator* Switch(size_t control_output_count);
   const Operator* IfValue(int32_t value);
   const Operator* IfDefault();
   const Operator* Throw();
-  const Operator* Deoptimize(DeoptimizeKind kind);
-  const Operator* DeoptimizeIf();
-  const Operator* DeoptimizeUnless();
+  const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason);
+  const Operator* DeoptimizeIf(DeoptimizeReason reason);
+  const Operator* DeoptimizeUnless(DeoptimizeReason reason);
   const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 
@@ -202,6 +220,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* Phi(MachineRepresentation representation,
                       int value_input_count);
   const Operator* EffectPhi(int effect_input_count);
+  const Operator* InductionVariablePhi(int value_input_count);
   const Operator* LoopExit();
   const Operator* LoopExitValue();
   const Operator* LoopExitEffect();
@@ -217,6 +236,8 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* Call(const CallDescriptor* descriptor);
   const Operator* TailCall(const CallDescriptor* descriptor);
   const Operator* Projection(size_t index);
+  const Operator* Retain();
+  const Operator* TypeGuard(Type* type);
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but
   // with {size} inputs.

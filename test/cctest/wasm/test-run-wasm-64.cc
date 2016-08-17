@@ -1256,10 +1256,10 @@ WASM_EXEC_TEST(F64ReinterpretI64) {
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
   WasmRunner<int64_t> r(&module, MachineType::Int64());
 
-  BUILD(r, WASM_BLOCK(
-               2, WASM_STORE_MEM(MachineType::Float64(), WASM_ZERO,
-                                 WASM_F64_REINTERPRET_I64(WASM_GET_LOCAL(0))),
-               WASM_GET_LOCAL(0)));
+  BUILD(r,
+        WASM_BLOCK(WASM_STORE_MEM(MachineType::Float64(), WASM_ZERO,
+                                  WASM_F64_REINTERPRET_I64(WASM_GET_LOCAL(0))),
+                   WASM_GET_LOCAL(0)));
 
   FOR_INT32_INPUTS(i) {
     int64_t expected = static_cast<int64_t>(*i) * 0x300010001;
@@ -1320,18 +1320,18 @@ WASM_EXEC_TEST(MemI64_Sum) {
   WasmRunner<uint64_t> r(&module, MachineType::Int32());
   const byte kSum = r.AllocateLocal(kAstI64);
 
-  BUILD(r, WASM_BLOCK(
-               2, WASM_WHILE(
-                      WASM_GET_LOCAL(0),
-                      WASM_BLOCK(
-                          2, WASM_SET_LOCAL(
-                                 kSum, WASM_I64_ADD(
-                                           WASM_GET_LOCAL(kSum),
+  BUILD(r,
+        WASM_BLOCK(
+            WASM_WHILE(
+                WASM_GET_LOCAL(0),
+                WASM_BLOCK(
+                    WASM_SET_LOCAL(
+                        kSum, WASM_I64_ADD(WASM_GET_LOCAL(kSum),
                                            WASM_LOAD_MEM(MachineType::Int64(),
                                                          WASM_GET_LOCAL(0)))),
-                          WASM_SET_LOCAL(
-                              0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I8(8))))),
-               WASM_GET_LOCAL(1)));
+                    WASM_SET_LOCAL(
+                        0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I8(8))))),
+            WASM_GET_LOCAL(1)));
 
   // Run 4 trials.
   for (int i = 0; i < 3; i++) {
@@ -1368,11 +1368,11 @@ WASM_EXEC_TEST(I64Global) {
   REQUIRE(I64And);
   REQUIRE(DepthFirst);
   TestingModule module(execution_mode);
-  int64_t* global = module.AddGlobal<int64_t>(MachineType::Int64());
+  int64_t* global = module.AddGlobal<int64_t>(kAstI64);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
-  BUILD(r, B2(WASM_STORE_GLOBAL(
-                  0, WASM_I64_AND(WASM_LOAD_GLOBAL(0),
+  BUILD(r, B2(WASM_SET_GLOBAL(
+                  0, WASM_I64_AND(WASM_GET_GLOBAL(0),
                                   WASM_I64_SCONVERT_I32(WASM_GET_LOCAL(0)))),
               WASM_ZERO));
 

@@ -46,6 +46,16 @@ StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   return OpParameter<StoreRepresentation>(op);
 }
 
+UnalignedLoadRepresentation UnalignedLoadRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kUnalignedLoad, op->opcode());
+  return OpParameter<UnalignedLoadRepresentation>(op);
+}
+
+UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kUnalignedStore, op->opcode());
+  return OpParameter<UnalignedStoreRepresentation>(op);
+}
 
 CheckedLoadRepresentation CheckedLoadRepresentationOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kCheckedLoad, op->opcode());
@@ -135,6 +145,12 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                    \
   V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                  \
+  V(ImpossibleToWord32, Operator::kNoProperties, 1, 0, 1)                    \
+  V(ImpossibleToWord64, Operator::kNoProperties, 1, 0, 1)                    \
+  V(ImpossibleToFloat32, Operator::kNoProperties, 1, 0, 1)                   \
+  V(ImpossibleToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(ImpossibleToTagged, Operator::kNoProperties, 1, 0, 1)                    \
+  V(ImpossibleToBit, Operator::kNoProperties, 1, 0, 1)                       \
   V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)              \
   V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)                  \
   V(BitcastFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
@@ -144,9 +160,9 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float32Add, Operator::kCommutative, 2, 0, 1)                             \
   V(Float32Sub, Operator::kNoProperties, 2, 0, 1)                            \
-  V(Float32SubPreserveNan, Operator::kNoProperties, 2, 0, 1)                 \
   V(Float32Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(Float32Div, Operator::kNoProperties, 2, 0, 1)                            \
+  V(Float32Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
   V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float64Acos, Operator::kNoProperties, 1, 0, 1)                           \
@@ -165,9 +181,11 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float64Log1p, Operator::kNoProperties, 1, 0, 1)                          \
   V(Float64Log2, Operator::kNoProperties, 1, 0, 1)                           \
   V(Float64Log10, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Max, Operator::kNoProperties, 2, 0, 1)                            \
+  V(Float64Min, Operator::kNoProperties, 2, 0, 1)                            \
+  V(Float64Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float64Add, Operator::kCommutative, 2, 0, 1)                             \
   V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                            \
-  V(Float64SubPreserveNan, Operator::kNoProperties, 2, 0, 1)                 \
   V(Float64Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(Float64Div, Operator::kNoProperties, 2, 0, 1)                            \
   V(Float64Mod, Operator::kNoProperties, 2, 0, 1)                            \
@@ -374,12 +392,10 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Word32ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Word64ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
+  V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)   \
+  V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)   \
   V(Word32Popcnt, Operator::kNoProperties, 1, 0, 1)         \
   V(Word64Popcnt, Operator::kNoProperties, 1, 0, 1)         \
-  V(Float32Max, Operator::kNoProperties, 2, 0, 1)           \
-  V(Float32Min, Operator::kNoProperties, 2, 0, 1)           \
-  V(Float64Max, Operator::kNoProperties, 2, 0, 1)           \
-  V(Float64Min, Operator::kNoProperties, 2, 0, 1)           \
   V(Float32RoundDown, Operator::kNoProperties, 1, 0, 1)     \
   V(Float64RoundDown, Operator::kNoProperties, 1, 0, 1)     \
   V(Float32RoundUp, Operator::kNoProperties, 1, 0, 1)       \
@@ -388,9 +404,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float64RoundTruncate, Operator::kNoProperties, 1, 0, 1) \
   V(Float64RoundTiesAway, Operator::kNoProperties, 1, 0, 1) \
   V(Float32RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
-  V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
-  V(Float32Neg, Operator::kNoProperties, 1, 0, 1)           \
-  V(Float64Neg, Operator::kNoProperties, 1, 0, 1)
+  V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1)
 
 #define OVERFLOW_OP_LIST(V)                                                \
   V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
@@ -422,6 +436,8 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(kWord16)                           \
   V(kWord32)                           \
   V(kWord64)                           \
+  V(kTaggedSigned)                     \
+  V(kTaggedPointer)                    \
   V(kTagged)
 
 #define ATOMIC_TYPE_LIST(V) \
@@ -470,6 +486,14 @@ struct MachineOperatorGlobalCache {
               Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
               "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}              \
   };                                                                         \
+  struct UnalignedLoad##Type##Operator final                                 \
+      : public Operator1<UnalignedLoadRepresentation> {                      \
+    UnalignedLoad##Type##Operator()                                          \
+        : Operator1<UnalignedLoadRepresentation>(                            \
+              IrOpcode::kUnalignedLoad,                                      \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
+              "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}     \
+  };                                                                         \
   struct CheckedLoad##Type##Operator final                                   \
       : public Operator1<CheckedLoadRepresentation> {                        \
     CheckedLoad##Type##Operator()                                            \
@@ -479,6 +503,7 @@ struct MachineOperatorGlobalCache {
               "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
   };                                                                         \
   Load##Type##Operator kLoad##Type;                                          \
+  UnalignedLoad##Type##Operator kUnalignedLoad##Type;                        \
   CheckedLoad##Type##Operator kCheckedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
@@ -526,6 +551,15 @@ struct MachineOperatorGlobalCache {
     Store##Type##FullWriteBarrier##Operator()                                  \
         : Store##Type##Operator(kFullWriteBarrier) {}                          \
   };                                                                           \
+  struct UnalignedStore##Type##Operator final                                  \
+      : public Operator1<UnalignedStoreRepresentation> {                       \
+    UnalignedStore##Type##Operator()                                           \
+        : Operator1<UnalignedStoreRepresentation>(                             \
+              IrOpcode::kUnalignedStore,                                       \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
+              "UnalignedStore", 3, 1, 1, 0, 1, 0,                              \
+              MachineRepresentation::Type) {}                                  \
+  };                                                                           \
   struct CheckedStore##Type##Operator final                                    \
       : public Operator1<CheckedStoreRepresentation> {                         \
     CheckedStore##Type##Operator()                                             \
@@ -540,6 +574,7 @@ struct MachineOperatorGlobalCache {
   Store##Type##PointerWriteBarrier##Operator                                   \
       kStore##Type##PointerWriteBarrier;                                       \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;      \
+  UnalignedStore##Type##Operator kUnalignedStore##Type;                        \
   CheckedStore##Type##Operator kCheckedStore##Type;
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
@@ -576,6 +611,13 @@ struct MachineOperatorGlobalCache {
                    0, 0, 0, 0, 0) {}
   };
   DebugBreakOperator kDebugBreak;
+
+  struct UnsafePointerAddOperator final : public Operator {
+    UnsafePointerAddOperator()
+        : Operator(IrOpcode::kUnsafePointerAdd, Operator::kKontrol,
+                   "UnsafePointerAdd", 2, 1, 1, 1, 1, 0) {}
+  };
+  UnsafePointerAddOperator kUnsafePointerAdd;
 };
 
 struct CommentOperator : public Operator1<const char*> {
@@ -599,6 +641,33 @@ MachineOperatorBuilder::MachineOperatorBuilder(
          word == MachineRepresentation::kWord64);
 }
 
+const Operator* MachineOperatorBuilder::UnalignedLoad(
+    UnalignedLoadRepresentation rep) {
+#define LOAD(Type)                       \
+  if (rep == MachineType::Type()) {      \
+    return &cache_.kUnalignedLoad##Type; \
+  }
+  MACHINE_TYPE_LIST(LOAD)
+#undef LOAD
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::UnalignedStore(
+    UnalignedStoreRepresentation rep) {
+  switch (rep) {
+#define STORE(kRep)                 \
+  case MachineRepresentation::kRep: \
+    return &cache_.kUnalignedStore##kRep;
+    MACHINE_REPRESENTATION_LIST(STORE)
+#undef STORE
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kNone:
+      break;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 #define PURE(Name, properties, value_input_count, control_input_count, \
              output_count)                                             \
@@ -664,6 +733,10 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   }
   UNREACHABLE();
   return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
+  return &cache_.kUnsafePointerAdd;
 }
 
 const Operator* MachineOperatorBuilder::DebugBreak() {

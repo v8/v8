@@ -48,6 +48,19 @@ void Operator::PrintToImpl(std::ostream& os, PrintVerbosity verbose) const {
   os << mnemonic();
 }
 
+void Operator::PrintPropsTo(std::ostream& os) const {
+  std::string separator = "";
+
+#define PRINT_PROP_IF_SET(name)         \
+  if (HasProperty(Operator::k##name)) { \
+    os << separator;                    \
+    os << #name;                        \
+    separator = ", ";                   \
+  }
+  OPERATOR_PROPERTY_LIST(PRINT_PROP_IF_SET)
+#undef PRINT_PROP_IF_SET
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

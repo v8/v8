@@ -55,7 +55,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       jump_tables_(nullptr),
       ools_(nullptr),
       osr_pc_offset_(-1),
-      source_position_table_builder_(info->isolate(), code->zone(),
+      source_position_table_builder_(code->zone(),
                                      info->SourcePositionRecordingMode()) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
@@ -217,9 +217,9 @@ Handle<Code> CodeGenerator::GenerateCode() {
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
   Handle<ByteArray> source_positions =
-      source_position_table_builder_.ToSourcePositionTable();
+      source_position_table_builder_.ToSourcePositionTable(
+          isolate(), Handle<AbstractCode>::cast(result));
   result->set_source_position_table(*source_positions);
-  source_position_table_builder_.EndJitLogging(AbstractCode::cast(*result));
 
   // Emit exception handler table.
   if (!handlers_.empty()) {
@@ -228,12 +228,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
             HandlerTable::LengthForReturn(static_cast<int>(handlers_.size())),
             TENURED));
     for (size_t i = 0; i < handlers_.size(); ++i) {
-      int position = handlers_[i].handler->pos();
-      HandlerTable::CatchPrediction prediction = handlers_[i].caught_locally
-                                                     ? HandlerTable::CAUGHT
-                                                     : HandlerTable::UNCAUGHT;
       table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
-      table->SetReturnHandler(static_cast<int>(i), position, prediction);
+      table->SetReturnHandler(static_cast<int>(i), handlers_[i].handler->pos());
     }
     result->set_handler_table(*table);
   }
@@ -605,9 +601,8 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 
   if (flags & CallDescriptor::kHasExceptionHandler) {
     InstructionOperandConverter i(this, instr);
-    bool caught = flags & CallDescriptor::kHasLocalCatchHandler;
     RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
-    handlers_.push_back({caught, GetLabel(handler_rpo), masm()->pc_offset()});
+    handlers_.push_back({GetLabel(handler_rpo), masm()->pc_offset()});
   }
 
   if (needs_frame_state) {
@@ -616,7 +611,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     // code address).
     size_t frame_state_offset = 1;
     FrameStateDescriptor* descriptor =
-        GetFrameStateDescriptor(instr, frame_state_offset);
+        GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
     int pc_offset = masm()->pc_offset();
     int deopt_state_id = BuildTranslation(instr, pc_offset, frame_state_offset,
                                           descriptor->state_combine());
@@ -653,15 +648,19 @@ int CodeGenerator::DefineDeoptimizationLiteral(Handle<Object> literal) {
   return result;
 }
 
-
-FrameStateDescriptor* CodeGenerator::GetFrameStateDescriptor(
+DeoptimizationEntry const& CodeGenerator::GetDeoptimizationEntry(
     Instruction* instr, size_t frame_state_offset) {
   InstructionOperandConverter i(this, instr);
-  InstructionSequence::StateId state_id =
-      InstructionSequence::StateId::FromInt(i.InputInt32(frame_state_offset));
-  return code()->GetFrameStateDescriptor(state_id);
+  int const state_id = i.InputInt32(frame_state_offset);
+  return code()->GetDeoptimizationEntry(state_id);
 }
 
+DeoptimizeReason CodeGenerator::GetDeoptimizationReason(
+    int deoptimization_id) const {
+  size_t const index = static_cast<size_t>(deoptimization_id);
+  DCHECK_LT(index, deoptimization_states_.size());
+  return deoptimization_states_[index]->reason();
+}
 
 void CodeGenerator::TranslateStateValueDescriptor(
     StateValueDescriptor* desc, Translation* translation,
@@ -770,6 +769,12 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
           shared_info_id,
           static_cast<unsigned int>(descriptor->parameters_count()));
       break;
+    case FrameStateType::kGetterStub:
+      translation->BeginGetterStubFrame(shared_info_id);
+      break;
+    case FrameStateType::kSetterStub:
+      translation->BeginSetterStubFrame(shared_info_id);
+      break;
   }
 
   TranslateFrameStateDescriptorOperands(descriptor, iter, state_combine,
@@ -780,8 +785,9 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
 int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
                                     size_t frame_state_offset,
                                     OutputFrameStateCombine state_combine) {
-  FrameStateDescriptor* descriptor =
-      GetFrameStateDescriptor(instr, frame_state_offset);
+  DeoptimizationEntry const& entry =
+      GetDeoptimizationEntry(instr, frame_state_offset);
+  FrameStateDescriptor* const descriptor = entry.descriptor();
   frame_state_offset++;
 
   Translation translation(
@@ -794,7 +800,8 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
   int deoptimization_id = static_cast<int>(deoptimization_states_.size());
 
   deoptimization_states_.push_back(new (zone()) DeoptimizationState(
-      descriptor->bailout_id(), translation.index(), pc_offset));
+      descriptor->bailout_id(), translation.index(), pc_offset,
+      entry.reason()));
 
   return deoptimization_id;
 }
@@ -854,10 +861,33 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     Handle<Object> constant_object;
     switch (constant.type()) {
       case Constant::kInt32:
-        DCHECK(type == MachineType::Int32() || type == MachineType::Uint32() ||
-               type.representation() == MachineRepresentation::kBit);
+        if (type.representation() == MachineRepresentation::kTagged) {
+          // When pointers are 4 bytes, we can use int32 constants to represent
+          // Smis.
+          DCHECK_EQ(4, kPointerSize);
+          constant_object =
+              handle(reinterpret_cast<Smi*>(constant.ToInt32()), isolate());
+          DCHECK(constant_object->IsSmi());
+        } else {
+          DCHECK(type == MachineType::Int32() ||
+                 type == MachineType::Uint32() ||
+                 type.representation() == MachineRepresentation::kBit ||
+                 type.representation() == MachineRepresentation::kNone);
+          DCHECK(type.representation() != MachineRepresentation::kNone ||
+                 constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
+
+          constant_object =
+              isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+        }
+        break;
+      case Constant::kInt64:
+        // When pointers are 8 bytes, we can use int64 constants to represent
+        // Smis.
+        DCHECK_EQ(type.representation(), MachineRepresentation::kTagged);
+        DCHECK_EQ(8, kPointerSize);
         constant_object =
-            isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+            handle(reinterpret_cast<Smi*>(constant.ToInt64()), isolate());
+        DCHECK(constant_object->IsSmi());
         break;
       case Constant::kFloat32:
         DCHECK(type.representation() == MachineRepresentation::kFloat32 ||

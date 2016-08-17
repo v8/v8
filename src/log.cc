@@ -5,6 +5,7 @@
 #include "src/log.h"
 
 #include <cstdarg>
+#include <memory>
 #include <sstream>
 
 #include "src/bailout-reason.h"
@@ -24,6 +25,7 @@
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
 #include "src/runtime-profiler.h"
+#include "src/source-position-table.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
 
@@ -414,10 +416,6 @@ void LowLevelLogger::CodeMovingGCEvent() {
   LogWriteBytes(&tag, sizeof(tag));
 }
 
-
-#define JIT_LOG(Call) if (jit_logger_) jit_logger_->Call;
-
-
 class JitLogger : public CodeEventLogger {
  public:
   explicit JitLogger(JitCodeEventHandler code_event_handler);
@@ -644,15 +642,9 @@ class Ticker: public sampler::Sampler {
 
   void SampleStack(const v8::RegisterState& state) override {
     if (!profiler_) return;
-#if defined(USE_SIMULATOR)
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate());
-    v8::RegisterState regs;
-    if (!SimulatorHelper::FillRegisters(i_isolate, &regs)) return;
-#else
-    const v8::RegisterState& regs = state;
-#endif
-    v8::TickSample sample;
-    sample.Init(isolate(), regs, v8::TickSample::kIncludeCEntryFrame, true);
+    Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
+    TickSample sample;
+    sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);
   }
 
@@ -894,14 +886,6 @@ void Logger::LeaveExternal(Isolate* isolate) {
   isolate->set_current_vm_state(JS);
 }
 
-
-template <class TimerEvent>
-void TimerEventScope<TimerEvent>::LogTimerEvent(Logger::StartEnd se) {
-  Logger::CallEventLogger(isolate_, TimerEvent::name(), se,
-                          TimerEvent::expose_to_api());
-}
-
-
 // Instantiate template methods.
 #define V(TimerName, expose)                                           \
   template void TimerEventScope<TimerEvent##TimerName>::LogTimerEvent( \
@@ -973,10 +957,10 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
   DCHECK(name->IsName());
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = holder->class_name();
-  base::SmartArrayPointer<char> class_name =
+  std::unique_ptr<char[]> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   if (name->IsString()) {
-    base::SmartArrayPointer<char> property_name =
+    std::unique_ptr<char[]> property_name =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     ApiEvent("api,%s,\"%s\",\"%s\"", tag, class_name.get(),
              property_name.get());
@@ -986,7 +970,7 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
     if (symbol->name()->IsUndefined(symbol->GetIsolate())) {
       ApiEvent("api,%s,\"%s\",symbol(hash %x)", tag, class_name.get(), hash);
     } else {
-      base::SmartArrayPointer<char> str =
+      std::unique_ptr<char[]> str =
           String::cast(symbol->name())
               ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
       ApiEvent("api,%s,\"%s\",symbol(\"%s\" hash %x)", tag, class_name.get(),
@@ -1000,7 +984,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
                                       uint32_t index) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = holder->class_name();
-  base::SmartArrayPointer<char> class_name =
+  std::unique_ptr<char[]> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\",%u", tag, class_name.get(), index);
 }
@@ -1009,7 +993,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
 void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = object->class_name();
-  base::SmartArrayPointer<char> class_name =
+  std::unique_ptr<char[]> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\"", tag, class_name.get());
 }
@@ -1046,7 +1030,7 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
              kLogEventsNames[CodeEventListener::CALLBACK_TAG]);
   msg.AppendAddress(entry_point);
   if (name->IsString()) {
-    base::SmartArrayPointer<char> str =
+    std::unique_ptr<char[]> str =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append(",1,\"%s%s\"", prefix, str.get());
   } else {
@@ -1054,7 +1038,7 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
     if (symbol->name()->IsUndefined(symbol->GetIsolate())) {
       msg.Append(",1,symbol(hash %x)", symbol->Hash());
     } else {
-      base::SmartArrayPointer<char> str =
+      std::unique_ptr<char[]> str =
           String::cast(symbol->name())
               ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
       msg.Append(",1,symbol(\"%s%s\" hash %x)", prefix, str.get(),
@@ -1129,7 +1113,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
   if (name->IsString()) {
-    base::SmartArrayPointer<char> str =
+    std::unique_ptr<char[]> str =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("\"%s\"", str.get());
   } else {
@@ -1152,11 +1136,11 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
-  base::SmartArrayPointer<char> name =
+  std::unique_ptr<char[]> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("\"%s ", name.get());
   if (source->IsString()) {
-    base::SmartArrayPointer<char> sourcestr = String::cast(source)->ToCString(
+    std::unique_ptr<char[]> sourcestr = String::cast(source)->ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("%s", sourcestr.get());
   } else {
@@ -1184,7 +1168,7 @@ void Logger::CodeDisableOptEvent(AbstractCode* code,
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[CodeEventListener::CODE_DISABLE_OPT_EVENT]);
-  base::SmartArrayPointer<char> name =
+  std::unique_ptr<char[]> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("\"%s\",", name.get());
   msg.Append("\"%s\"", GetBailoutReason(shared->disable_optimization_reason()));
@@ -1214,34 +1198,24 @@ void Logger::CodeMoveEvent(AbstractCode* from, Address to) {
   MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from->address(), to);
 }
 
-void Logger::CodeLinePosInfoAddPositionEvent(void* jit_handler_data,
-                                             int pc_offset, int position) {
-  JIT_LOG(AddCodeLinePosInfoEvent(jit_handler_data,
-                                  pc_offset,
-                                  position,
-                                  JitCodeEvent::POSITION));
+void Logger::CodeLinePosInfoRecordEvent(AbstractCode* code,
+                                        ByteArray* source_position_table) {
+  if (jit_logger_) {
+    void* jit_handler_data = jit_logger_->StartCodePosInfoEvent();
+    for (SourcePositionTableIterator iter(source_position_table); !iter.done();
+         iter.Advance()) {
+      if (iter.is_statement()) {
+        jit_logger_->AddCodeLinePosInfoEvent(
+            jit_handler_data, iter.code_offset(), iter.source_position(),
+            JitCodeEvent::STATEMENT_POSITION);
+      }
+      jit_logger_->AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
+                                           iter.source_position(),
+                                           JitCodeEvent::POSITION);
+    }
+    jit_logger_->EndCodePosInfoEvent(code, jit_handler_data);
+  }
 }
-
-
-void Logger::CodeLinePosInfoAddStatementPositionEvent(void* jit_handler_data,
-                                                      int pc_offset,
-                                                      int position) {
-  JIT_LOG(AddCodeLinePosInfoEvent(jit_handler_data,
-                                  pc_offset,
-                                  position,
-                                  JitCodeEvent::STATEMENT_POSITION));
-}
-
-void Logger::CodeStartLinePosInfoRecordEvent(void** jit_handler_data_out) {
-  *jit_handler_data_out =
-      (jit_logger_ == NULL) ? NULL : jit_logger_->StartCodePosInfoEvent();
-}
-
-void Logger::CodeEndLinePosInfoRecordEvent(AbstractCode* code,
-                                           void* jit_handler_data) {
-  JIT_LOG(EndCodePosInfoEvent(code, jit_handler_data));
-}
-
 
 void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
   if (code_name == NULL) return;  // Not a code object.
@@ -1559,8 +1533,6 @@ void Logger::LogCodeObject(Object* object) {
 
 void Logger::LogCodeObjects() {
   Heap* heap = isolate_->heap();
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                          "Logger::LogCodeObjects");
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
@@ -1647,8 +1619,6 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
 
 void Logger::LogCompiledFunctions() {
   Heap* heap = isolate_->heap();
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                          "Logger::LogCompiledFunctions");
   HandleScope scope(isolate_);
   const int compiled_funcs_count = EnumerateCompiledFunctions(heap, NULL, NULL);
   ScopedVector< Handle<SharedFunctionInfo> > sfis(compiled_funcs_count);
@@ -1667,8 +1637,6 @@ void Logger::LogCompiledFunctions() {
 
 void Logger::LogAccessorCallbacks() {
   Heap* heap = isolate_->heap();
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                          "Logger::LogAccessorCallbacks");
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {

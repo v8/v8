@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-async-await
-// Flags: --expose-debug-as debug --allow-natives-syntax --ignition-generators
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 var Debug = debug.Debug;
 var LiveEdit = Debug.LiveEdit;

@@ -4,6 +4,8 @@
 
 #include "src/deoptimizer.h"
 
+#include <memory>
+
 #include "src/accessors.h"
 #include "src/ast/prettyprinter.h"
 #include "src/codegen.h"
@@ -23,13 +25,7 @@ namespace internal {
 static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
   return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
                                   base::OS::CommitPageSize(),
-#if defined(__native_client__)
-  // The Native Client port of V8 uses an interpreter,
-  // so code pages don't need PROT_EXEC.
-                                  NOT_EXECUTABLE,
-#else
                                   EXECUTABLE,
-#endif
                                   NULL);
 }
 
@@ -370,7 +366,8 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::DeoptimizeCode);
   if (FLAG_trace_deopt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[deoptimize all code in all contexts]\n");
@@ -391,7 +388,8 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::DeoptimizeCode);
   if (FLAG_trace_deopt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[deoptimize marked code in all contexts]\n");
@@ -424,7 +422,8 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      isolate, &tracing::TraceEventStatsTable::DeoptimizeCode);
   Code* code = function->code();
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     // Mark the code for deoptimization and unlink any functions that also
@@ -874,7 +873,7 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   input_index++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating frame ");
-    base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+    std::unique_ptr<char[]> name = shared->DebugName()->ToCString();
     PrintF(trace_scope_->file(), "%s", name.get());
     PrintF(trace_scope_->file(), " => node=%d, height=%d%s\n", node_id.ToInt(),
            height_in_bytes, goto_catch_handler ? " (throw)" : "");
@@ -1093,7 +1092,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   input_index++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating interpreted frame ");
-    base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+    std::unique_ptr<char[]> name = shared->DebugName()->ToCString();
     PrintF(trace_scope_->file(), "%s", name.get());
     PrintF(trace_scope_->file(), " => bytecode_offset=%d, height=%d%s\n",
            bytecode_offset, height_in_bytes,
@@ -1438,7 +1437,7 @@ void Deoptimizer::DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
 
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating tail caller frame ");
-    base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+    std::unique_ptr<char[]> name = shared->DebugName()->ToCString();
     PrintF(trace_scope_->file(), "%s\n", name.get());
   }
 
@@ -2684,8 +2683,14 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
       parameter_frame != state->begin() &&
       (parameter_frame - 1)->kind() == TranslatedFrame::kConstructStub;
 
-  source_position_ = Deoptimizer::ComputeSourcePosition(
-      *frame_it->shared_info(), frame_it->node_id());
+  if (frame_it->kind() == TranslatedFrame::kInterpretedFunction) {
+    source_position_ = Deoptimizer::ComputeSourcePositionFromBytecodeArray(
+        *frame_it->shared_info(), frame_it->node_id());
+  } else {
+    DCHECK_EQ(TranslatedFrame::kFunction, frame_it->kind());
+    source_position_ = Deoptimizer::ComputeSourcePositionFromBaselineCode(
+        *frame_it->shared_info(), frame_it->node_id());
+  }
 
   TranslatedFrame::iterator value_it = frame_it->begin();
   // Get the function. Note that this might materialize the function.
@@ -2736,20 +2741,10 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
 }
 
 
-const char* Deoptimizer::GetDeoptReason(DeoptReason deopt_reason) {
-  DCHECK(deopt_reason < kLastDeoptReason);
-#define DEOPT_MESSAGES_TEXTS(C, T) T,
-  static const char* deopt_messages_[] = {
-      DEOPT_MESSAGES_LIST(DEOPT_MESSAGES_TEXTS)};
-#undef DEOPT_MESSAGES_TEXTS
-  return deopt_messages_[deopt_reason];
-}
-
-
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   SourcePosition last_position = SourcePosition::Unknown();
-  Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
-  int last_deopt_id = Deoptimizer::DeoptInfo::kNoDeoptId;
+  DeoptimizeReason last_reason = DeoptimizeReason::kNoReason;
+  int last_deopt_id = kNoDeoptimizationId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_POSITION);
@@ -2765,30 +2760,35 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
     } else if (info->rmode() == RelocInfo::DEOPT_ID) {
       last_deopt_id = static_cast<int>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
-      last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
+      last_reason = static_cast<DeoptimizeReason>(info->data());
     }
   }
-  return DeoptInfo(SourcePosition::Unknown(), Deoptimizer::kNoReason, -1);
+  return DeoptInfo(SourcePosition::Unknown(), DeoptimizeReason::kNoReason, -1);
 }
 
 
 // static
-int Deoptimizer::ComputeSourcePosition(SharedFunctionInfo* shared,
-                                       BailoutId node_id) {
-  AbstractCode* abstract_code = shared->abstract_code();
-  int code_offset;
-  if (abstract_code->IsBytecodeArray()) {
-    // BailoutId points to the next bytecode in the bytecode aray. Subtract
-    // 1 to get the end of current bytecode.
-    code_offset = node_id.ToInt() - 1;
-  } else {
-    FixedArray* raw_data = abstract_code->GetCode()->deoptimization_data();
-    DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
-    unsigned pc_and_state = Deoptimizer::GetOutputInfo(data, node_id, shared);
-    code_offset =
-        static_cast<int>(FullCodeGenerator::PcField::decode(pc_and_state));
-  }
-  return abstract_code->SourcePosition(code_offset);
+int Deoptimizer::ComputeSourcePositionFromBaselineCode(
+    SharedFunctionInfo* shared, BailoutId node_id) {
+  DCHECK(shared->HasBaselineCode());
+  Code* code = shared->code();
+  FixedArray* raw_data = code->deoptimization_data();
+  DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
+  unsigned pc_and_state = Deoptimizer::GetOutputInfo(data, node_id, shared);
+  int code_offset =
+      static_cast<int>(FullCodeGenerator::PcField::decode(pc_and_state));
+  return AbstractCode::cast(code)->SourcePosition(code_offset);
+}
+
+// static
+int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
+    SharedFunctionInfo* shared, BailoutId node_id) {
+  DCHECK(shared->HasBytecodeArray());
+  // BailoutId points to the next bytecode in the bytecode aray. Subtract
+  // 1 to get the end of current bytecode.
+  int code_offset = node_id.ToInt() - 1;
+  return AbstractCode::cast(shared->bytecode_array())
+      ->SourcePosition(code_offset);
 }
 
 // static
@@ -3195,8 +3195,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading input frame %s", name.get());
         int arg_count = shared_info->internal_formal_parameter_count() + 1;
         PrintF(trace_file, " => node=%d, args=%d, height=%d; inputs:\n",
@@ -3211,8 +3210,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading input frame %s", name.get());
         int arg_count = shared_info->internal_formal_parameter_count() + 1;
         PrintF(trace_file,
@@ -3228,8 +3226,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading arguments adaptor frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
@@ -3240,8 +3237,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       SharedFunctionInfo* shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading tail caller frame marker %s\n",
                name.get());
       }
@@ -3253,8 +3249,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading construct stub frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
@@ -3265,8 +3260,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       SharedFunctionInfo* shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading getter frame %s; inputs:\n", name.get());
       }
       return TranslatedFrame::AccessorFrame(TranslatedFrame::kGetter,
@@ -3277,8 +3271,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       SharedFunctionInfo* shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading setter frame %s; inputs:\n", name.get());
       }
       return TranslatedFrame::AccessorFrame(TranslatedFrame::kSetter,

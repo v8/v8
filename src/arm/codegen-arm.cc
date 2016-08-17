@@ -6,6 +6,8 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include <memory>
+
 #include "src/arm/simulator-arm.h"
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
@@ -22,7 +24,6 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
 #if defined(USE_SIMULATOR)
   return stub;
 #else
-  if (!CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) return stub;
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
@@ -180,7 +181,6 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
 #if defined(USE_SIMULATOR)
   return stub;
 #else
-  if (!CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) return stub;
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
@@ -746,7 +746,7 @@ CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before ARM simulator ICache is setup.
-  base::SmartPointer<CodePatcher> patcher(
+  std::unique_ptr<CodePatcher> patcher(
       new CodePatcher(isolate, young_sequence_.start(),
                       young_sequence_.length() / Assembler::kInstrSize,
                       CodePatcher::DONT_FLUSH));

@@ -31,14 +31,16 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
                         Bytecodes::ReturnCount(bytecode)),
       bytecode_(bytecode),
       operand_scale_(operand_scale),
+      bytecode_offset_(this, MachineType::PointerRepresentation()),
       interpreted_frame_pointer_(this, MachineType::PointerRepresentation()),
       accumulator_(this, MachineRepresentation::kTagged),
       accumulator_use_(AccumulatorUse::kNone),
       made_call_(false),
       disable_stack_check_across_call_(false),
       stack_pointer_before_call_(nullptr) {
-  accumulator_.Bind(
-      Parameter(InterpreterDispatchDescriptor::kAccumulatorParameter));
+  accumulator_.Bind(Parameter(InterpreterDispatchDescriptor::kAccumulator));
+  bytecode_offset_.Bind(
+      Parameter(InterpreterDispatchDescriptor::kBytecodeOffset));
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
   }
@@ -83,7 +85,7 @@ void InterpreterAssembler::SetContext(Node* value) {
 }
 
 Node* InterpreterAssembler::BytecodeOffset() {
-  return Parameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter);
+  return bytecode_offset_.value();
 }
 
 Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
@@ -92,12 +94,12 @@ Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
     // the debugger has swapped us to the patched debugger bytecode array.
     return LoadRegister(Register::bytecode_array());
   } else {
-    return Parameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter);
+    return Parameter(InterpreterDispatchDescriptor::kBytecodeArray);
   }
 }
 
 Node* InterpreterAssembler::DispatchTableRawPointer() {
-  return Parameter(InterpreterDispatchDescriptor::kDispatchTableParameter);
+  return Parameter(InterpreterDispatchDescriptor::kDispatchTable);
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
@@ -390,6 +392,26 @@ Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   return Load(MachineType::AnyTagged(), constant_pool, entry_offset);
 }
 
+Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
+  Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
+                                        BytecodeArray::kConstantPoolOffset);
+  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
+#if V8_TARGET_LITTLE_ENDIAN
+  if (Is64()) {
+    offset += kPointerSize / 2;
+  }
+#endif
+  Node* entry_offset =
+      IntPtrAdd(IntPtrConstant(offset), WordShl(index, kPointerSizeLog2));
+  if (Is64()) {
+    return ChangeInt32ToInt64(
+        Load(MachineType::Int32(), constant_pool, entry_offset));
+  } else {
+    return SmiUntag(
+        Load(MachineType::AnyTagged(), constant_pool, entry_offset));
+  }
+}
+
 Node* InterpreterAssembler::LoadContextSlot(Node* context, int slot_index) {
   return Load(MachineType::AnyTagged(), context,
               IntPtrConstant(Context::SlotOffset(slot_index)));
@@ -546,10 +568,8 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       StoreFixedArrayElement(type_feedback_vector, call_count_slot,
                              SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
 
-      CreateWeakCellStub weak_cell_stub(isolate());
-      CallStub(weak_cell_stub.GetCallInterfaceDescriptor(),
-               HeapConstant(weak_cell_stub.GetCode()), context,
-               type_feedback_vector, SmiTag(slot_id), function);
+      CreateWeakCellInFeedbackVector(type_feedback_vector, SmiTag(slot_id),
+                                     function);
 
       // Call using call function builtin.
       Callable callable = CodeFactory::InterpreterPushArgsAndCall(
@@ -659,17 +679,30 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
                       new_budget.value());
 }
 
+Node* InterpreterAssembler::Advance() {
+  return Advance(Bytecodes::Size(bytecode_, operand_scale_));
+}
+
 Node* InterpreterAssembler::Advance(int delta) {
-  return IntPtrAdd(BytecodeOffset(), IntPtrConstant(delta));
+  return Advance(IntPtrConstant(delta));
 }
 
 Node* InterpreterAssembler::Advance(Node* delta) {
-  return IntPtrAdd(BytecodeOffset(), delta);
+  if (FLAG_trace_ignition) {
+    TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
+  }
+  Node* next_offset = IntPtrAdd(BytecodeOffset(), delta);
+  bytecode_offset_.Bind(next_offset);
+  return next_offset;
 }
 
 Node* InterpreterAssembler::Jump(Node* delta) {
+  DCHECK(!Bytecodes::IsStarLookahead(bytecode_, operand_scale_));
+
   UpdateInterruptBudget(delta);
-  return DispatchTo(Advance(delta));
+  Node* new_bytecode_offset = Advance(delta);
+  Node* target_bytecode = LoadBytecode(new_bytecode_offset);
+  return DispatchToBytecode(target_bytecode, new_bytecode_offset);
 }
 
 void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
@@ -691,17 +724,66 @@ void InterpreterAssembler::JumpIfWordNotEqual(Node* lhs, Node* rhs,
   JumpConditional(WordNotEqual(lhs, rhs), delta);
 }
 
-Node* InterpreterAssembler::Dispatch() {
-  return DispatchTo(Advance(Bytecodes::Size(bytecode_, operand_scale_)));
+Node* InterpreterAssembler::LoadBytecode(compiler::Node* bytecode_offset) {
+  Node* bytecode =
+      Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(), bytecode_offset);
+  if (kPointerSize == 8) {
+    bytecode = ChangeUint32ToUint64(bytecode);
+  }
+  return bytecode;
 }
 
-Node* InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
-  Node* target_bytecode = Load(
-      MachineType::Uint8(), BytecodeArrayTaggedPointer(), new_bytecode_offset);
-  if (kPointerSize == 8) {
-    target_bytecode = ChangeUint32ToUint64(target_bytecode);
-  }
+Node* InterpreterAssembler::StarDispatchLookahead(Node* target_bytecode) {
+  Label do_inline_star(this), done(this);
 
+  Variable var_bytecode(this, MachineRepresentation::kWord8);
+  var_bytecode.Bind(target_bytecode);
+
+  Node* star_bytecode = IntPtrConstant(static_cast<int>(Bytecode::kStar));
+  Node* is_star = WordEqual(target_bytecode, star_bytecode);
+  BranchIf(is_star, &do_inline_star, &done);
+
+  Bind(&do_inline_star);
+  {
+    InlineStar();
+    var_bytecode.Bind(LoadBytecode(BytecodeOffset()));
+    Goto(&done);
+  }
+  Bind(&done);
+  return var_bytecode.value();
+}
+
+void InterpreterAssembler::InlineStar() {
+  Bytecode previous_bytecode = bytecode_;
+  AccumulatorUse previous_acc_use = accumulator_use_;
+
+  bytecode_ = Bytecode::kStar;
+  accumulator_use_ = AccumulatorUse::kNone;
+
+  if (FLAG_trace_ignition) {
+    TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+  }
+  StoreRegister(GetAccumulator(), BytecodeOperandReg(0));
+
+  DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+
+  Advance();
+  bytecode_ = previous_bytecode;
+  accumulator_use_ = previous_acc_use;
+}
+
+Node* InterpreterAssembler::Dispatch() {
+  Node* target_offset = Advance();
+  Node* target_bytecode = LoadBytecode(target_offset);
+
+  if (Bytecodes::IsStarLookahead(bytecode_, operand_scale_)) {
+    target_bytecode = StarDispatchLookahead(target_bytecode);
+  }
+  return DispatchToBytecode(target_bytecode, BytecodeOffset());
+}
+
+Node* InterpreterAssembler::DispatchToBytecode(Node* target_bytecode,
+                                               Node* new_bytecode_offset) {
   if (FLAG_trace_ignition_dispatches) {
     TraceBytecodeDispatch(target_bytecode);
   }
@@ -722,10 +804,6 @@ Node* InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
 
 Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset) {
-  if (FLAG_trace_ignition) {
-    TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
-  }
-
   InterpreterDispatchDescriptor descriptor(isolate());
   Node* args[] = {GetAccumulatorUnchecked(), bytecode_offset,
                   BytecodeArrayTaggedPointer(), DispatchTableRawPointer()};
@@ -741,11 +819,7 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   //   Indices 256-511 correspond to bytecodes with operand_scale == 1
   //   Indices 512-767 correspond to bytecodes with operand_scale == 2
   Node* next_bytecode_offset = Advance(1);
-  Node* next_bytecode = Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(),
-                             next_bytecode_offset);
-  if (kPointerSize == 8) {
-    next_bytecode = ChangeUint32ToUint64(next_bytecode);
-  }
+  Node* next_bytecode = LoadBytecode(next_bytecode_offset);
 
   if (FLAG_trace_ignition_dispatches) {
     TraceBytecodeDispatch(next_bytecode);
@@ -771,6 +845,67 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   DispatchToBytecodeHandlerEntry(target_code_entry, next_bytecode_offset);
 }
 
+Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
+    Node* context, Node* value, Variable* var_type_feedback) {
+  // We might need to loop once due to ToNumber conversion.
+  Variable var_value(this, MachineRepresentation::kTagged),
+      var_result(this, MachineRepresentation::kWord32);
+  Variable* loop_vars[] = {&var_value, var_type_feedback};
+  Label loop(this, 2, loop_vars), done_loop(this, &var_result);
+  var_value.Bind(value);
+  var_type_feedback->Bind(Int32Constant(BinaryOperationFeedback::kNone));
+  Goto(&loop);
+  Bind(&loop);
+  {
+    // Load the current {value}.
+    value = var_value.value();
+
+    // Check if the {value} is a Smi or a HeapObject.
+    Label if_valueissmi(this), if_valueisnotsmi(this);
+    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+
+    Bind(&if_valueissmi);
+    {
+      // Convert the Smi {value}.
+      var_result.Bind(SmiToWord32(value));
+      var_type_feedback->Bind(
+          Word32And(var_type_feedback->value(),
+                    Int32Constant(BinaryOperationFeedback::kSignedSmall)));
+      Goto(&done_loop);
+    }
+
+    Bind(&if_valueisnotsmi);
+    {
+      // Check if {value} is a HeapNumber.
+      Label if_valueisheapnumber(this),
+          if_valueisnotheapnumber(this, Label::kDeferred);
+      Branch(WordEqual(LoadMap(value), HeapNumberMapConstant()),
+             &if_valueisheapnumber, &if_valueisnotheapnumber);
+
+      Bind(&if_valueisheapnumber);
+      {
+        // Truncate the floating point value.
+        var_result.Bind(TruncateHeapNumberValueToWord32(value));
+        var_type_feedback->Bind(
+            Word32Or(var_type_feedback->value(),
+                     Int32Constant(BinaryOperationFeedback::kNumber)));
+        Goto(&done_loop);
+      }
+
+      Bind(&if_valueisnotheapnumber);
+      {
+        // Convert the {value} to a Number first.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_value.Bind(CallStub(callable, context, value));
+        var_type_feedback->Bind(Int32Constant(BinaryOperationFeedback::kAny));
+        Goto(&loop);
+      }
+    }
+  }
+  Bind(&done_loop);
+  return var_result.value();
+}
+
 void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   // TODO(rmcilroy): Investigate whether it is worth supporting self
   // optimization of primitive functions like FullCodegen.
@@ -789,6 +924,12 @@ Node* InterpreterAssembler::StackCheckTriggeredInterrupt() {
       MachineType::Pointer(),
       ExternalConstant(ExternalReference::address_of_stack_limit(isolate())));
   return UintPtrLessThan(sp, stack_limit);
+}
+
+Node* InterpreterAssembler::LoadOSRNestingLevel() {
+  Node* offset =
+      IntPtrConstant(BytecodeArray::kOSRNestingLevelOffset - kHeapObjectTag);
+  return Load(MachineType::Int8(), BytecodeArrayTaggedPointer(), offset);
 }
 
 void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
@@ -848,10 +989,10 @@ void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
 bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   return false;
-#elif V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC
   return CpuFeatures::IsSupported(UNALIGNED_ACCESSES);
 #elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X87 || \
-    V8_TARGET_ARCH_S390
+    V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
   return true;
 #else
 #error "Unknown Architecture"
@@ -867,7 +1008,7 @@ Node* InterpreterAssembler::RegisterCount() {
 
 Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
   if (FLAG_debug_code) {
-    Node* array_size = SmiUntag(LoadFixedArrayBaseLength(array));
+    Node* array_size = LoadAndUntagFixedArrayBaseLength(array);
     AbortIfWordNotEqual(
         array_size, RegisterCount(), kInvalidRegisterFileInGenerator);
   }
@@ -902,7 +1043,7 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
 
 Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
   if (FLAG_debug_code) {
-    Node* array_size = SmiUntag(LoadFixedArrayBaseLength(array));
+    Node* array_size = LoadAndUntagFixedArrayBaseLength(array);
     AbortIfWordNotEqual(
         array_size, RegisterCount(), kInvalidRegisterFileInGenerator);
   }

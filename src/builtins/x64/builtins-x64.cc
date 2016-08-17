@@ -14,7 +14,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
+void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments excluding receiver
@@ -49,7 +49,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
   __ Push(rdx);
   __ PushReturnAddressFrom(kScratchRegister);
 
-  __ JumpToExternalReference(ExternalReference(id, masm->isolate()),
+  __ JumpToExternalReference(ExternalReference(address, masm->isolate()),
                              exit_frame_type == BUILTIN_EXIT);
 }
 
@@ -736,7 +736,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register debug_info = kInterpreterBytecodeArrayRegister;
   __ movp(debug_info, FieldOperand(rax, SharedFunctionInfo::kDebugInfoOffset));
   __ movp(kInterpreterBytecodeArrayRegister,
-          FieldOperand(debug_info, DebugInfo::kAbstractCodeIndex));
+          FieldOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex));
   __ jmp(&bytecode_array_loaded);
 
   // If the bytecode array is no longer present, then the underlying function
@@ -2115,29 +2115,17 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
 }
 
-void Builtins::Generate_StringToNumber(MacroAssembler* masm) {
-  // The StringToNumber stub takes one argument in rax.
-  __ AssertString(rax);
-
-  // Check if string has a cached array index.
-  Label runtime;
-  __ testl(FieldOperand(rax, String::kHashFieldOffset),
-           Immediate(String::kContainsCachedArrayIndexMask));
-  __ j(not_zero, &runtime, Label::kNear);
-  __ movl(rax, FieldOperand(rax, String::kHashFieldOffset));
-  __ IndexFromHash(rax, rax);
-  __ Ret();
-
-  __ bind(&runtime);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    // Push argument.
-    __ Push(rax);
-    // We cannot use a tail call here because this builtin can also be called
-    // from wasm.
-    __ CallRuntime(Runtime::kStringToNumber);
-  }
-  __ Ret();
+// static
+void Builtins::Generate_Abort(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdx    : message_id as Smi
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  __ PopReturnAddressTo(rcx);
+  __ Push(rdx);
+  __ PushReturnAddressFrom(rcx);
+  __ Move(rsi, Smi::FromInt(0));
+  __ TailCallRuntime(Runtime::kAbort);
 }
 
 // static
@@ -2550,8 +2538,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ Push(rax);
         __ Push(rdi);
         __ movp(rax, rcx);
+        __ Push(rsi);
         ToObjectStub stub(masm->isolate());
         __ CallStub(&stub);
+        __ Pop(rsi);
         __ movp(rcx, rax);
         __ Pop(rdi);
         __ Pop(rax);
@@ -2998,9 +2988,16 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   }
 }
 
-void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
+static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
+                                              bool has_handler_frame) {
   // Lookup the function in the JavaScript frame.
-  __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  if (has_handler_frame) {
+    __ movp(rax, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+    __ movp(rax, Operand(rax, JavaScriptFrameConstants::kFunctionOffset));
+  } else {
+    __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  }
+
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Pass function as argument.
@@ -3009,12 +3006,18 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   }
 
   Label skip;
-  // If the code object is null, just return to the unoptimized code.
+  // If the code object is null, just return to the caller.
   __ cmpp(rax, Immediate(0));
   __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 
   __ bind(&skip);
+
+  // Drop any potential handler frame that is be sitting on top of the actual
+  // JavaScript frame. This is the case then OSR is triggered from bytecode.
+  if (has_handler_frame) {
+    __ leave();
+  }
 
   // Load deoptimization data from the code object.
   __ movp(rbx, Operand(rax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
@@ -3033,6 +3036,14 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   // And "return" to the OSR entry point of the function.
   __ ret(0);
+}
+
+void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
+  Generate_OnStackReplacementHelper(masm, false);
+}
+
+void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
+  Generate_OnStackReplacementHelper(masm, true);
 }
 
 #undef __

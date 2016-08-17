@@ -4,7 +4,6 @@
 
 #include "src/profiler/profile-generator.h"
 
-#include "src/ast/scopeinfo.h"
 #include "src/base/adapters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -179,7 +178,7 @@ CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
 
   CpuProfileDeoptInfo info;
   info.deopt_reason = deopt_reason_;
-  DCHECK_NE(Deoptimizer::DeoptInfo::kNoDeoptId, deopt_id_);
+  DCHECK_NE(kNoDeoptimizationId, deopt_id_);
   if (deopt_inlined_frames_.find(deopt_id_) == deopt_inlined_frames_.end()) {
     info.stack.push_back(CpuProfileDeoptFrame(
         {script_id_, position_ + deopt_position_.position()}));

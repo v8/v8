@@ -2965,17 +2965,19 @@ void MacroAssembler::Abort(BailoutReason reason) {
   }
 #endif
 
-  mov(r0, Operand(Smi::FromInt(reason)));
-  push(r0);
+  // Check if Abort() has already been initialized.
+  DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
+
+  Move(r1, Smi::FromInt(static_cast<int>(reason)));
 
   // Disable stub call restrictions to always allow calls to abort.
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort);
+    Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
   } else {
-    CallRuntime(Runtime::kAbort);
+    Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
   }
   // will not return here
   if (is_const_pool_blocked()) {
@@ -3376,17 +3378,7 @@ void MacroAssembler::CopyBytes(Register src,
   cmp(length, Operand(kPointerSize));
   b(lt, &byte_loop);
   ldr(scratch, MemOperand(src, kPointerSize, PostIndex));
-  if (CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) {
-    str(scratch, MemOperand(dst, kPointerSize, PostIndex));
-  } else {
-    strb(scratch, MemOperand(dst, 1, PostIndex));
-    mov(scratch, Operand(scratch, LSR, 8));
-    strb(scratch, MemOperand(dst, 1, PostIndex));
-    mov(scratch, Operand(scratch, LSR, 8));
-    strb(scratch, MemOperand(dst, 1, PostIndex));
-    mov(scratch, Operand(scratch, LSR, 8));
-    strb(scratch, MemOperand(dst, 1, PostIndex));
-  }
+  str(scratch, MemOperand(dst, kPointerSize, PostIndex));
   sub(length, length, Operand(kPointerSize));
   b(&word_loop);
 

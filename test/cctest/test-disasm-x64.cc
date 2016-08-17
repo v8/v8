@@ -431,6 +431,8 @@ TEST(DisasmX64) {
     __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
     // 128 bit move instructions.
+    __ movupd(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ movupd(Operand(rbx, rcx, times_4, 10000), xmm0);
     __ movdqa(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
 
@@ -449,6 +451,11 @@ TEST(DisasmX64) {
     __ ucomisd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
+    __ andpd(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ orpd(xmm0, xmm1);
+    __ orpd(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ xorpd(xmm0, xmm1);
+    __ xorpd(xmm0, Operand(rbx, rcx, times_4, 10000));
 
     __ pslld(xmm0, 6);
     __ psrld(xmm0, 6);
@@ -493,12 +500,33 @@ TEST(DisasmX64) {
       __ pinsrd(xmm5, Operand(rax, 4), 1);
 
       __ cmpps(xmm5, xmm1, 1);
+      __ cmpps(xmm5, Operand(rbx, rcx, times_4, 10000), 1);
       __ cmpeqps(xmm5, xmm1);
+      __ cmpeqps(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpltps(xmm5, xmm1);
+      __ cmpltps(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpleps(xmm5, xmm1);
+      __ cmpleps(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpneqps(xmm5, xmm1);
+      __ cmpneqps(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpnltps(xmm5, xmm1);
+      __ cmpnltps(xmm5, Operand(rbx, rcx, times_4, 10000));
       __ cmpnleps(xmm5, xmm1);
+      __ cmpnleps(xmm5, Operand(rbx, rcx, times_4, 10000));
+      __ cmppd(xmm5, xmm1, 1);
+      __ cmppd(xmm5, Operand(rbx, rcx, times_4, 10000), 1);
+      __ cmpeqpd(xmm5, xmm1);
+      __ cmpeqpd(xmm5, Operand(rbx, rcx, times_4, 10000));
+      __ cmpltpd(xmm5, xmm1);
+      __ cmpltpd(xmm5, Operand(rbx, rcx, times_4, 10000));
+      __ cmplepd(xmm5, xmm1);
+      __ cmplepd(xmm5, Operand(rbx, rcx, times_4, 10000));
+      __ cmpneqpd(xmm5, xmm1);
+      __ cmpneqpd(xmm5, Operand(rbx, rcx, times_4, 10000));
+      __ cmpnltpd(xmm5, xmm1);
+      __ cmpnltpd(xmm5, Operand(rbx, rcx, times_4, 10000));
+      __ cmpnlepd(xmm5, xmm1);
+      __ cmpnlepd(xmm5, Operand(rbx, rcx, times_4, 10000));
 
       __ minps(xmm5, xmm1);
       __ minps(xmm5, Operand(rdx, 4));
@@ -597,6 +625,8 @@ TEST(DisasmX64) {
 
       __ vmovaps(xmm10, xmm11);
       __ vmovapd(xmm7, xmm0);
+      __ vmovupd(xmm0, Operand(rbx, rcx, times_4, 10000));
+      __ vmovupd(Operand(rbx, rcx, times_4, 10000), xmm0);
       __ vmovmskpd(r9, xmm4);
 
       __ vmovups(xmm5, xmm1);
@@ -619,6 +649,35 @@ TEST(DisasmX64) {
       __ vpcmpeqd(xmm15, xmm0, Operand(rbx, rcx, times_4, 10000));
       __ vpsllq(xmm0, xmm15, 21);
       __ vpsrlq(xmm15, xmm0, 21);
+
+      __ vcmpps(xmm5, xmm4, xmm1, 1);
+      __ vcmpps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1);
+      __ vcmpeqps(xmm5, xmm4, xmm1);
+      __ vcmpeqps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpltps(xmm5, xmm4, xmm1);
+      __ vcmpltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpleps(xmm5, xmm4, xmm1);
+      __ vcmpleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpneqps(xmm5, xmm4, xmm1);
+      __ vcmpneqps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpnltps(xmm5, xmm4, xmm1);
+      __ vcmpnltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpnleps(xmm5, xmm4, xmm1);
+      __ vcmpnleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmppd(xmm5, xmm4, xmm1, 1);
+      __ vcmppd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1);
+      __ vcmpeqpd(xmm5, xmm4, xmm1);
+      __ vcmpeqpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpltpd(xmm5, xmm4, xmm1);
+      __ vcmpltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmplepd(xmm5, xmm4, xmm1);
+      __ vcmplepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpneqpd(xmm5, xmm4, xmm1);
+      __ vcmpneqpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpnltpd(xmm5, xmm4, xmm1);
+      __ vcmpnltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpnlepd(xmm5, xmm4, xmm1);
+      __ vcmpnlepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
     }
   }
 

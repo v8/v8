@@ -6,6 +6,7 @@
 #define V8_COMPILER_CODE_ASSEMBLER_H_
 
 #include <map>
+#include <memory>
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
@@ -28,12 +29,9 @@ class Zone;
 namespace compiler {
 
 class CallDescriptor;
-class Graph;
 class Node;
-class Operator;
 class RawMachineAssembler;
 class RawMachineLabel;
-class Schedule;
 
 #define CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
   V(Float32Equal)                                \
@@ -56,6 +54,7 @@ class Schedule;
   V(IntPtrGreaterThanOrEqual)                    \
   V(IntPtrEqual)                                 \
   V(Uint32LessThan)                              \
+  V(Uint32GreaterThanOrEqual)                    \
   V(UintPtrLessThan)                             \
   V(UintPtrGreaterThanOrEqual)                   \
   V(WordEqual)                                   \
@@ -205,14 +204,6 @@ class CodeAssembler {
     CodeAssembler* assembler_;
   };
 
-  enum AllocationFlag : uint8_t {
-    kNone = 0,
-    kDoubleAlignment = 1,
-    kPretenured = 1 << 1
-  };
-
-  typedef base::Flags<AllocationFlag> AllocationFlags;
-
   // ===========================================================================
   // Base Assembler
   // ===========================================================================
@@ -245,7 +236,7 @@ class CodeAssembler {
   void GotoUnless(Node* condition, Label* false_label);
   void Branch(Node* condition, Label* true_label, Label* false_label);
 
-  void Switch(Node* index, Label* default_label, int32_t* case_values,
+  void Switch(Node* index, Label* default_label, const int32_t* case_values,
               Label** case_labels, size_t case_count);
 
   Node* Select(Node* condition, Node* true_value, Node* false_value,
@@ -285,6 +276,7 @@ class CodeAssembler {
 
   Node* WordShl(Node* value, int shift);
   Node* WordShr(Node* value, int shift);
+  Node* Word32Shr(Node* value, int shift);
 
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name) Node* name(Node* a);
@@ -324,6 +316,15 @@ class CodeAssembler {
                         Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                         Node* arg5);
 
+  // A pair of a zero-based argument index and a value.
+  // It helps writing arguments order independent code.
+  struct Arg {
+    Arg(int index, Node* value) : index(index), value(value) {}
+
+    int const index;
+    Node* const value;
+  };
+
   Node* CallStub(Callable const& callable, Node* context, Node* arg1,
                  size_t result_size = 1);
   Node* CallStub(Callable const& callable, Node* context, Node* arg1,
@@ -333,6 +334,8 @@ class CodeAssembler {
   Node* CallStubN(Callable const& callable, Node** args,
                   size_t result_size = 1);
 
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, size_t result_size = 1);
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, Node* arg1, size_t result_size = 1);
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
@@ -346,6 +349,21 @@ class CodeAssembler {
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                  Node* arg5, size_t result_size = 1);
+
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, const Arg& arg1, const Arg& arg2,
+                 size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, const Arg& arg1, const Arg& arg2,
+                 const Arg& arg3, size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, const Arg& arg1, const Arg& arg2,
+                 const Arg& arg3, const Arg& arg4, size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, const Arg& arg1, const Arg& arg2,
+                 const Arg& arg3, const Arg& arg4, const Arg& arg5,
+                 size_t result_size = 1);
+
   Node* CallStubN(const CallInterfaceDescriptor& descriptor, Node* target,
                   Node** args, size_t result_size = 1);
 
@@ -355,6 +373,9 @@ class CodeAssembler {
                      Node* arg2, size_t result_size = 1);
   Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
                      Node* arg2, Node* arg3, size_t result_size = 1);
+  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
+                     Node* arg2, Node* arg3, Node* arg4,
+                     size_t result_size = 1);
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, Node* arg1, size_t result_size = 1);
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
@@ -366,6 +387,14 @@ class CodeAssembler {
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, Node* arg1, Node* arg2, Node* arg3,
                      Node* arg4, size_t result_size = 1);
+
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, const Arg& arg1, const Arg& arg2,
+                     const Arg& arg3, const Arg& arg4, size_t result_size = 1);
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, const Arg& arg1, const Arg& arg2,
+                     const Arg& arg3, const Arg& arg4, const Arg& arg5,
+                     size_t result_size = 1);
 
   Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
                                  Node* code_target_address, Node** args);
@@ -393,11 +422,6 @@ class CodeAssembler {
   Zone* zone() const;
 
  protected:
-  // Protected helpers which delegate to RawMachineAssembler.
-  Graph* graph() const;
-
-  Node* SmiShiftBitsConstant();
-
   // Enables subclasses to perform operations before and after a call.
   virtual void CallPrologue();
   virtual void CallEpilogue();
@@ -409,7 +433,7 @@ class CodeAssembler {
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
 
-  base::SmartPointer<RawMachineAssembler> raw_assembler_;
+  std::unique_ptr<RawMachineAssembler> raw_assembler_;
   Code::Flags flags_;
   const char* name_;
   bool code_generated_;
@@ -417,8 +441,6 @@ class CodeAssembler {
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };
-
-DEFINE_OPERATORS_FOR_FLAGS(CodeAssembler::AllocationFlags);
 
 class CodeAssembler::Label {
  public:

@@ -292,7 +292,7 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
   // Test allocates JSArrayBuffer on different pages before triggering a
   // full GC that performs the semispace copy. If parallelized, this test
   // ensures proper synchronization in TSAN configurations.
-  FLAG_min_semi_space_size = 2;
+  FLAG_min_semi_space_size = 2 * Page::kPageSize / MB;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);

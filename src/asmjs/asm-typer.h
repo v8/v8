@@ -47,6 +47,7 @@ class AsmTyper final {
     kMathFloor,
     kMathSqrt,
     kMathAbs,
+    kMathClz32,
     kMathMin,
     kMathMax,
     kMathAtan2,

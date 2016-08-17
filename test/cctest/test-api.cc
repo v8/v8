@@ -28,6 +28,7 @@
 #include <climits>
 #include <csignal>
 #include <map>
+#include <memory>
 #include <string>
 
 #include "test/cctest/test-api.h"
@@ -40,7 +41,7 @@
 #include "src/api.h"
 #include "src/arguments.h"
 #include "src/base/platform/platform.h"
-#include "src/base/smart-pointers.h"
+#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
@@ -331,6 +332,11 @@ THREADED_TEST(Access) {
   CHECK(!foo_after->IsUndefined());
   CHECK(foo_after->IsString());
   CHECK(bar_str->Equals(env.local(), foo_after).FromJust());
+
+  CHECK(obj->Set(env.local(), v8_str("foo"), bar_str).ToChecked());
+  bool result;
+  CHECK(obj->Set(env.local(), v8_str("foo"), bar_str).To(&result));
+  CHECK(result);
 }
 
 
@@ -2472,8 +2478,7 @@ THREADED_TEST(UndefinedIsNotEnumerable) {
 
 
 v8::Local<Script> call_recursively_script;
-static const int kTargetRecursionDepth = 150;  // near maximum
-
+static const int kTargetRecursionDepth = 100;  // near maximum
 
 static void CallScriptRecursivelyCall(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -2682,6 +2687,40 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   CHECK_EQ(huge, Object::GetAlignedPointerFromInternalField(persistent, 0));
 }
 
+THREADED_TEST(SetAlignedPointerInInternalFields) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetInternalFieldCount(2);
+  Local<v8::Object> obj = templ->GetFunction(env.local())
+                              .ToLocalChecked()
+                              ->NewInstance(env.local())
+                              .ToLocalChecked();
+  CHECK_EQ(2, obj->InternalFieldCount());
+
+  int* heap_allocated_1 = new int[100];
+  int* heap_allocated_2 = new int[100];
+  int indices[] = {0, 1};
+  void* values[] = {heap_allocated_1, heap_allocated_2};
+
+  obj->SetAlignedPointerInInternalFields(2, indices, values);
+  CcTest::heap()->CollectAllGarbage();
+  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(0));
+  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(1));
+
+  indices[0] = 1;
+  indices[1] = 0;
+  obj->SetAlignedPointerInInternalFields(2, indices, values);
+  CcTest::heap()->CollectAllGarbage();
+  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(0));
+  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(1));
+
+  delete[] heap_allocated_1;
+  delete[] heap_allocated_2;
+}
 
 static void CheckAlignedPointerInEmbedderData(LocalContext* env, int index,
                                               void* value) {
@@ -2722,7 +2761,6 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
     CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(i));
   }
 }
-
 
 static void CheckEmbedderData(LocalContext* env, int index,
                               v8::Local<Value> data) {
@@ -10131,6 +10169,12 @@ static bool AccessAlwaysBlocked(Local<v8::Context> accessing_context,
   return false;
 }
 
+static bool AccessAlwaysAllowed(Local<v8::Context> accessing_context,
+                                Local<v8::Object> global,
+                                Local<v8::Value> data) {
+  i::PrintF("Access allowed.\n");
+  return true;
+}
 
 THREADED_TEST(AccessControlGetOwnPropertyNames) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -11664,6 +11708,9 @@ THREADED_TEST(EvalInDetachedGlobal) {
 
   v8::Local<Context> context0 = Context::New(isolate);
   v8::Local<Context> context1 = Context::New(isolate);
+  Local<String> token = v8_str("<security token>");
+  context0->SetSecurityToken(token);
+  context1->SetSecurityToken(token);
 
   // Set up function in context0 that uses eval from context0.
   context0->Enter();
@@ -11677,15 +11724,14 @@ THREADED_TEST(EvalInDetachedGlobal) {
 
   // Put the function into context1 and call it before and after
   // detaching the global.  Before detaching, the call succeeds and
-  // after detaching and exception is thrown.
+  // after detaching undefined is returned.
   context1->Enter();
   CHECK(context1->Global()->Set(context1, v8_str("fun"), fun).FromJust());
   v8::Local<v8::Value> x_value = CompileRun("fun('x')");
   CHECK_EQ(42, x_value->Int32Value(context1).FromJust());
   context0->DetachGlobal();
-  v8::TryCatch catcher(isolate);
   x_value = CompileRun("fun('x')");
-  CHECK_EQ(42, x_value->Int32Value(context1).FromJust());
+  CHECK(x_value->IsUndefined());
   context1->Exit();
 }
 
@@ -13760,6 +13806,16 @@ void ApiTestFuzzer::TearDown() {
   }
 }
 
+void ApiTestFuzzer::CallTest() {
+  v8::Isolate::Scope scope(CcTest::isolate());
+  if (kLogThreading)
+    printf("Start test %s #%d\n",
+           RegisterThreadedTest::nth(test_number_)->name(), test_number_);
+  CallTestNumber(test_number_);
+  if (kLogThreading)
+    printf("End test %s #%d\n", RegisterThreadedTest::nth(test_number_)->name(),
+           test_number_);
+}
 
 // Lets not be needlessly self-referential.
 TEST(Threading1) {
@@ -13787,16 +13843,6 @@ TEST(Threading4) {
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FOURTH_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
-}
-
-
-void ApiTestFuzzer::CallTest() {
-  v8::Isolate::Scope scope(CcTest::isolate());
-  if (kLogThreading)
-    printf("Start test %d\n", test_number_);
-  CallTestNumber(test_number_);
-  if (kLogThreading)
-    printf("End test %d\n", test_number_);
 }
 
 
@@ -19256,8 +19302,7 @@ TEST(ContainsOnlyOneByte) {
   const int length = 512;
   // Ensure word aligned assignment.
   const int aligned_length = length*sizeof(uintptr_t)/sizeof(uint16_t);
-  v8::base::SmartArrayPointer<uintptr_t> aligned_contents(
-      new uintptr_t[aligned_length]);
+  std::unique_ptr<uintptr_t[]> aligned_contents(new uintptr_t[aligned_length]);
   uint16_t* string_contents =
       reinterpret_cast<uint16_t*>(aligned_contents.get());
   // Set to contain only one byte.
@@ -21450,18 +21495,23 @@ const char* kMegamorphicTestProgram =
     "}\n"
     "function fooify(obj) { obj.foo(); };\n"
     "var objs = [];\n"
-    "for (var i = 0; i < 6; i++) {\n"
+    "for (var i = 0; i < 50; i++) {\n"
     "  var Class = CreateClass('Class' + i);\n"
     "  var obj = new Class();\n"
     "  objs.push(obj);\n"
     "}\n"
-    "for (var i = 0; i < 10000; i++) {\n"
+    "for (var i = 0; i < 1000; i++) {\n"
     "  for (var obj of objs) {\n"
     "    fooify(obj);\n"
     "  }\n"
     "}\n";
 
-void StubCacheHelper(bool primary) {
+void TestStubCache(bool primary) {
+  // The test does not work with interpreter because bytecode handlers taken
+  // from the snapshot already refer to ICs with disabled counters and there
+  // is no way to trigger bytecode handlers recompilation.
+  if (i::FLAG_ignition) return;
+
   i::FLAG_native_code_counters = true;
   if (primary) {
     i::FLAG_test_primary_stub_cache = true;
@@ -21474,13 +21524,30 @@ void StubCacheHelper(bool primary) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  if (!i_isolate->snapshot_available()) {
-    // The test is valid only for no-snapshot mode.
+  {
     v8::Isolate::Scope isolate_scope(isolate);
     LocalContext env(isolate);
     v8::HandleScope scope(isolate);
+
+    {
+      // Enforce recompilation of IC stubs that access megamorphic stub cache
+      // to respect enabled native code counters and stub cache test flags.
+      i::CodeStub::Major code_stub_keys[] = {
+          i::CodeStub::LoadIC,       i::CodeStub::LoadICTrampoline,
+          i::CodeStub::LoadICTF,     i::CodeStub::LoadICTrampolineTF,
+          i::CodeStub::KeyedLoadIC,  i::CodeStub::KeyedLoadICTrampoline,
+          i::CodeStub::StoreIC,      i::CodeStub::StoreICTrampoline,
+          i::CodeStub::KeyedStoreIC, i::CodeStub::KeyedStoreICTrampoline,
+      };
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      i::Heap* heap = i_isolate->heap();
+      i::Handle<i::UnseededNumberDictionary> dict(heap->code_stubs());
+      for (size_t i = 0; i < arraysize(code_stub_keys); i++) {
+        dict = i::UnseededNumberDictionary::DeleteKey(dict, code_stub_keys[i]);
+      }
+      heap->SetRootCodeStubs(*dict);
+    }
 
     int initial_probes = probes_counter;
     int initial_misses = misses_counter;
@@ -21489,25 +21556,44 @@ void StubCacheHelper(bool primary) {
     int probes = probes_counter - initial_probes;
     int misses = misses_counter - initial_misses;
     int updates = updates_counter - initial_updates;
-    const int kClassesCount = 6;
-    // Check that updates and misses counts are bounded.
+    const int kClassesCount = 50;
+    const int kIterationsCount = 1000;
     CHECK_LE(kClassesCount, updates);
-    CHECK_LT(updates, kClassesCount * 3);
+    // Check that updates and misses counts are bounded.
+    // If there are too many updates then most likely the stub cache does not
+    // work properly.
+    CHECK_LE(updates, kClassesCount * 2);
     CHECK_LE(1, misses);
-    CHECK_LT(misses, kClassesCount * 2);
+    CHECK_LE(misses, kClassesCount * 2);
     // 2 is for PREMONOMORPHIC and MONOMORPHIC states,
     // 4 is for POLYMORPHIC states,
     // and all the others probes are for MEGAMORPHIC state.
-    CHECK_EQ(10000 * kClassesCount - 2 - 4, probes);
+    CHECK_EQ(kIterationsCount * kClassesCount - 2 - 4, probes);
   }
   isolate->Dispose();
 }
 
 }  // namespace
 
-UNINITIALIZED_TEST(PrimaryStubCache) { StubCacheHelper(true); }
+UNINITIALIZED_TEST(PrimaryStubCache) {
+  i::FLAG_tf_load_ic_stub = false;
+  TestStubCache(true);
+}
 
-UNINITIALIZED_TEST(SecondaryStubCache) { StubCacheHelper(false); }
+UNINITIALIZED_TEST(SecondaryStubCache) {
+  i::FLAG_tf_load_ic_stub = false;
+  TestStubCache(false);
+}
+
+UNINITIALIZED_TEST(PrimaryStubCacheTF) {
+  i::FLAG_tf_load_ic_stub = true;
+  TestStubCache(true);
+}
+
+UNINITIALIZED_TEST(SecondaryStubCacheTF) {
+  i::FLAG_tf_load_ic_stub = true;
+  TestStubCache(false);
+}
 
 #endif  // ENABLE_DISASSEMBLER
 
@@ -22129,7 +22215,7 @@ THREADED_TEST(JSONStringifyObjectWithGap) {
   ExpectString("JSON.stringify(obj, null,  '*')", *utf8);
 }
 
-#if V8_OS_POSIX && !V8_OS_NACL
+#if V8_OS_POSIX
 class ThreadInterruptTest {
  public:
   ThreadInterruptTest() : sem_(0), sem_value_(0) { }
@@ -22352,7 +22438,7 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%DeleteProperty_Sloppy(other, '1')");
   CheckCorrectThrow("%DeleteProperty_Strict(other, '1')");
   CheckCorrectThrow("Object.prototype.hasOwnProperty.call(other, 'x')");
-  CheckCorrectThrow("%HasProperty('x', other)");
+  CheckCorrectThrow("%HasProperty(other, 'x')");
   CheckCorrectThrow("Object.prototype.propertyIsEnumerable(other, 'x')");
   // PROPERTY_ATTRIBUTES_NONE = 0
   CheckCorrectThrow("%DefineAccessorPropertyUnchecked("
@@ -22760,9 +22846,12 @@ THREADED_TEST(FunctionNew) {
                        ->get_api_func_data()
                        ->serial_number()),
       i_isolate);
-  auto cache = i_isolate->template_instantiations_cache();
-  CHECK(cache->FindEntry(static_cast<uint32_t>(serial_number->value())) ==
+  auto slow_cache = i_isolate->slow_template_instantiations_cache();
+  CHECK(slow_cache->FindEntry(static_cast<uint32_t>(serial_number->value())) ==
         i::UnseededNumberDictionary::kNotFound);
+  auto fast_cache = i_isolate->fast_template_instantiations_cache();
+  CHECK(fast_cache->get(static_cast<uint32_t>(serial_number->value()))
+            ->IsUndefined(i_isolate));
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
   function_new_expected_env = data2;
@@ -23850,7 +23939,6 @@ void RunStreamingTest(const char** chunks,
   delete[] full_source;
 }
 
-
 TEST(StreamingSimpleScript) {
   // This script is unrealistically small, since no one chunk is enough to fill
   // the backing buffer of Scanner, let alone overflow it.
@@ -23859,6 +23947,35 @@ TEST(StreamingSimpleScript) {
   RunStreamingTest(chunks);
 }
 
+TEST(StreamingScriptConstantArray) {
+  // When run with Ignition, tests that the streaming parser canonicalizes
+  // handles so that they are only added to the constant pool array once.
+  const char* chunks[] = {"var a = {};",
+                          "var b = {};",
+                          "var c = 'testing';",
+                          "var d = 'testing';",
+                          "13;",
+                          NULL};
+  RunStreamingTest(chunks);
+}
+
+TEST(StreamingScriptEvalShadowing) {
+  // When run with Ignition, tests that the streaming parser canonicalizes
+  // handles so the Variable::is_possibly_eval() is correct.
+  const char* chunk1 =
+      "(function() {\n"
+      "  var y = 2;\n"
+      "  return (function() {\n"
+      "    eval('var y = 13;');\n"
+      "    function g() {\n"
+      "      return y\n"
+      "    }\n"
+      "    return g();\n"
+      "  })()\n"
+      "})()\n";
+  const char* chunks[] = {chunk1, NULL};
+  RunStreamingTest(chunks);
+}
 
 TEST(StreamingBiggerScript) {
   const char* chunk1 =
@@ -25249,6 +25366,7 @@ class MemoryPressureThread : public v8::base::Thread {
 };
 
 TEST(MemoryPressure) {
+  if (v8::internal::FLAG_optimize_for_size) return;
   v8::Isolate* isolate = CcTest::isolate();
   WeakCallCounter counter(1234);
 
@@ -25342,4 +25460,74 @@ THREADED_TEST(ImmutableProto) {
   CHECK(new_proto.As<v8::Object>()
             ->Equals(context.local(), original_proto)
             .FromJust());
+}
+
+Local<v8::Context> call_eval_context;
+Local<v8::Function> call_eval_bound_function;
+
+static void CallEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Context::Scope scope(call_eval_context);
+  args.GetReturnValue().Set(
+      call_eval_bound_function
+          ->Call(call_eval_context, call_eval_context->Global(), 0, NULL)
+          .ToLocalChecked());
+}
+
+TEST(CrossActivationEval) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  {
+    call_eval_context = v8::Context::New(isolate);
+    v8::Context::Scope scope(call_eval_context);
+    call_eval_bound_function =
+        Local<Function>::Cast(CompileRun("eval.bind(this, '1')"));
+  }
+  env->Global()
+      ->Set(env.local(), v8_str("CallEval"),
+            v8::FunctionTemplate::New(isolate, CallEval)
+                ->GetFunction(env.local())
+                .ToLocalChecked())
+      .FromJust();
+  Local<Value> result = CompileRun("CallEval();");
+  CHECK(result->IsInt32());
+  CHECK_EQ(1, result->Int32Value(env.local()).FromJust());
+}
+
+TEST(EvalInAccessCheckedContext) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
+
+  obj_template->SetAccessCheckCallback(AccessAlwaysAllowed);
+
+  v8::Local<Context> context0 = Context::New(isolate, NULL, obj_template);
+  v8::Local<Context> context1 = Context::New(isolate, NULL, obj_template);
+
+  Local<Value> foo = v8_str("foo");
+  Local<Value> bar = v8_str("bar");
+
+  // Set to different domains.
+  context0->SetSecurityToken(foo);
+  context1->SetSecurityToken(bar);
+
+  // Set up function in context0 that uses eval from context0.
+  context0->Enter();
+  v8::Local<v8::Value> fun = CompileRun(
+      "var x = 42;"
+      "(function() {"
+      "  var e = eval;"
+      "  return function(s) { return e(s); }"
+      "})()");
+  context0->Exit();
+
+  // Put the function into context1 and call it. Since the access check
+  // callback always returns true, the call succeeds even though the tokens
+  // are different.
+  context1->Enter();
+  context1->Global()->Set(context1, v8_str("fun"), fun).FromJust();
+  v8::Local<v8::Value> x_value = CompileRun("fun('x')");
+  CHECK_EQ(42, x_value->Int32Value(context1).FromJust());
+  context1->Exit();
 }

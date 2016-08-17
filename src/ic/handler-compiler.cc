@@ -6,6 +6,7 @@
 
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
+#include "src/ic/handler-configuration.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic.h"
 #include "src/isolate-inl.h"
@@ -576,44 +577,58 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 
 #undef __
 
+// static
+Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
+    Handle<Map> receiver_map, Isolate* isolate) {
+  if (receiver_map->has_indexed_interceptor() &&
+      !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined(isolate) &&
+      !receiver_map->GetIndexedInterceptor()->non_masking()) {
+    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadIndexedInterceptorStub);
+    return LoadIndexedInterceptorStub(isolate).GetCode();
+  }
+  if (receiver_map->IsStringMap()) {
+    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadIndexedStringStub);
+    return LoadIndexedStringStub(isolate).GetCode();
+  }
+  InstanceType instance_type = receiver_map->instance_type();
+  if (instance_type < FIRST_JS_RECEIVER_TYPE) {
+    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_SlowStub);
+    return isolate->builtins()->KeyedLoadIC_Slow();
+  }
+
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  if (IsSloppyArgumentsElements(elements_kind)) {
+    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
+    return KeyedLoadSloppyArgumentsStub(isolate).GetCode();
+  }
+  if (elements_kind == DICTIONARY_ELEMENTS) {
+    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadDictionaryElementStub);
+    return LoadDictionaryElementStub(isolate).GetCode();
+  }
+  DCHECK(IsFastElementsKind(elements_kind) ||
+         IsFixedTypedArrayElementsKind(elements_kind));
+  bool is_js_array = instance_type == JS_ARRAY_TYPE;
+  bool convert_hole_to_undefined =
+      is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
+      *receiver_map == isolate->get_initial_js_array_map(elements_kind);
+  if (FLAG_tf_load_ic_stub) {
+    int config = KeyedLoadElementsKind::encode(elements_kind) |
+                 KeyedLoadConvertHole::encode(convert_hole_to_undefined) |
+                 KeyedLoadIsJsArray::encode(is_js_array) |
+                 LoadHandlerTypeBit::encode(kLoadICHandlerForElements);
+    return handle(Smi::FromInt(config), isolate);
+  } else {
+    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadFastElementStub);
+    return LoadFastElementStub(isolate, is_js_array, elements_kind,
+                               convert_hole_to_undefined)
+        .GetCode();
+  }
+}
+
 void ElementHandlerCompiler::CompileElementHandlers(
     MapHandleList* receiver_maps, List<Handle<Object>>* handlers) {
   for (int i = 0; i < receiver_maps->length(); ++i) {
-    Handle<Map> receiver_map = receiver_maps->at(i);
-    Handle<Code> cached_stub;
-
-    if (receiver_map->IsStringMap()) {
-      cached_stub = LoadIndexedStringStub(isolate()).GetCode();
-    } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
-      cached_stub = isolate()->builtins()->KeyedLoadIC_Slow();
-    } else {
-      bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-      ElementsKind elements_kind = receiver_map->elements_kind();
-
-      // No need to check for an elements-free prototype chain here, the
-      // generated stub code needs to check that dynamically anyway.
-      bool convert_hole_to_undefined =
-          (is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
-           *receiver_map == isolate()->get_initial_js_array_map(elements_kind));
-
-      if (receiver_map->has_indexed_interceptor() &&
-          !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined(
-              isolate()) &&
-          !receiver_map->GetIndexedInterceptor()->non_masking()) {
-        cached_stub = LoadIndexedInterceptorStub(isolate()).GetCode();
-      } else if (IsSloppyArgumentsElements(elements_kind)) {
-        cached_stub = KeyedLoadSloppyArgumentsStub(isolate()).GetCode();
-      } else if (IsFastElementsKind(elements_kind) ||
-                 IsFixedTypedArrayElementsKind(elements_kind)) {
-        cached_stub = LoadFastElementStub(isolate(), is_js_array, elements_kind,
-                                          convert_hole_to_undefined).GetCode();
-      } else {
-        DCHECK(elements_kind == DICTIONARY_ELEMENTS);
-        cached_stub = LoadDictionaryElementStub(isolate()).GetCode();
-      }
-    }
-
-    handlers->Add(cached_stub);
+    handlers->Add(GetKeyedLoadHandler(receiver_maps->at(i), isolate()));
   }
 }
 }  // namespace internal

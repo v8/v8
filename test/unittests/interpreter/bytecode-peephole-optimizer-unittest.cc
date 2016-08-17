@@ -7,7 +7,6 @@
 #include "src/factory.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-peephole-optimizer.h"
-#include "src/interpreter/constant-array-builder.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "test/unittests/test-utils.h"
@@ -19,9 +18,7 @@ namespace interpreter {
 class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
                                       public TestWithIsolateAndZone {
  public:
-  BytecodePeepholeOptimizerTest()
-      : constant_array_builder_(isolate(), zone()),
-        peephole_optimizer_(&constant_array_builder_, this) {}
+  BytecodePeepholeOptimizerTest() : peephole_optimizer_(this) {}
   ~BytecodePeepholeOptimizerTest() override {}
 
   void Reset() {
@@ -52,13 +49,11 @@ class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
   }
 
   BytecodePeepholeOptimizer* optimizer() { return &peephole_optimizer_; }
-  ConstantArrayBuilder* constant_array() { return &constant_array_builder_; }
 
   int write_count() const { return write_count_; }
   const BytecodeNode& last_written() const { return last_written_; }
 
  private:
-  ConstantArrayBuilder constant_array_builder_;
   BytecodePeepholeOptimizer peephole_optimizer_;
 
   int write_count_ = 0;
@@ -70,7 +65,7 @@ class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
 TEST_F(BytecodePeepholeOptimizerTest, FlushOnJump) {
   CHECK_EQ(write_count(), 0);
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 0);
 
@@ -84,7 +79,7 @@ TEST_F(BytecodePeepholeOptimizerTest, FlushOnJump) {
 TEST_F(BytecodePeepholeOptimizerTest, FlushOnBind) {
   CHECK_EQ(write_count(), 0);
 
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   CHECK_EQ(write_count(), 0);
 
@@ -99,7 +94,7 @@ TEST_F(BytecodePeepholeOptimizerTest, FlushOnBind) {
 TEST_F(BytecodePeepholeOptimizerTest, ElideEmptyNop) {
   BytecodeNode nop(Bytecode::kNop);
   optimizer()->Write(&nop);
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   Flush();
   CHECK_EQ(write_count(), 1);
@@ -110,7 +105,7 @@ TEST_F(BytecodePeepholeOptimizerTest, ElideExpressionNop) {
   BytecodeNode nop(Bytecode::kNop);
   nop.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&nop);
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   optimizer()->Write(&add);
   Flush();
   CHECK_EQ(write_count(), 1);
@@ -121,7 +116,7 @@ TEST_F(BytecodePeepholeOptimizerTest, KeepStatementNop) {
   BytecodeNode nop(Bytecode::kNop);
   nop.source_info().MakeStatementPosition(3);
   optimizer()->Write(&nop);
-  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(), 1);
   add.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&add);
   Flush();
@@ -241,7 +236,7 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatementStarRy) {
 
 TEST_F(BytecodePeepholeOptimizerTest, LdarToName) {
   BytecodeNode first(Bytecode::kLdar, Register(0).ToOperand());
-  BytecodeNode second(Bytecode::kToName);
+  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
@@ -250,49 +245,11 @@ TEST_F(BytecodePeepholeOptimizerTest, LdarToName) {
   Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, ToNameToName) {
-  BytecodeNode first(Bytecode::kToName);
-  BytecodeNode second(Bytecode::kToName);
-  optimizer()->Write(&first);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 0);
-  Flush();
-  CHECK_EQ(last_written(), first);
-  CHECK_EQ(write_count(), 1);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, TypeOfToName) {
   BytecodeNode first(Bytecode::kTypeOf);
-  BytecodeNode second(Bytecode::kToName);
-  optimizer()->Write(&first);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 0);
-  Flush();
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, LdaConstantStringToName) {
-  Handle<Object> word =
-      isolate()->factory()->NewStringFromStaticChars("optimizing");
-  size_t index = constant_array()->Insert(word);
-  BytecodeNode first(Bytecode::kLdaConstant, static_cast<uint32_t>(index));
-  BytecodeNode second(Bytecode::kToName);
-  optimizer()->Write(&first);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 0);
-  Flush();
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, LdaConstantNumberToName) {
-  Handle<Object> word = isolate()->factory()->NewNumber(0.380);
-  size_t index = constant_array()->Insert(word);
-  BytecodeNode first(Bytecode::kLdaConstant, static_cast<uint32_t>(index));
-  BytecodeNode second(Bytecode::kToName);
+  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
@@ -301,6 +258,7 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaConstantNumberToName) {
   Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kStar);
 }
 
 // Tests covering BytecodePeepholeOptimizer::CanElideLast().
@@ -499,7 +457,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaSmiWithBinaryOp) {
     BytecodeNode first(Bytecode::kLdaSmi, imm_operand);
     first.source_info().Clone({3, true});
     uint32_t reg_operand = Register(0).ToOperand();
-    BytecodeNode second(operator_replacement[0], reg_operand);
+    BytecodeNode second(operator_replacement[0], reg_operand, 1);
     optimizer()->Write(&first);
     optimizer()->Write(&second);
     Flush();
@@ -527,7 +485,7 @@ TEST_F(BytecodePeepholeOptimizerTest, NotMergingLdaSmiWithBinaryOp) {
     BytecodeNode first(Bytecode::kLdaSmi, imm_operand);
     first.source_info().Clone({3, true});
     uint32_t reg_operand = Register(0).ToOperand();
-    BytecodeNode second(operator_replacement[0], reg_operand);
+    BytecodeNode second(operator_replacement[0], reg_operand, 1);
     second.source_info().Clone({4, true});
     optimizer()->Write(&first);
     optimizer()->Write(&second);
@@ -550,7 +508,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaZeroWithBinaryOp) {
   for (auto operator_replacement : operator_replacement_pairs) {
     BytecodeNode first(Bytecode::kLdaZero);
     uint32_t reg_operand = Register(0).ToOperand();
-    BytecodeNode second(operator_replacement[0], reg_operand);
+    BytecodeNode second(operator_replacement[0], reg_operand, 1);
     optimizer()->Write(&first);
     optimizer()->Write(&second);
     Flush();

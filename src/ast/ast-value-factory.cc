@@ -58,7 +58,7 @@ class AstRawStringInternalizationKey : public HashTableKey {
       : string_(string) {}
 
   bool IsMatch(Object* other) override {
-    if (string_->is_one_byte_)
+    if (string_->is_one_byte())
       return String::cast(other)->IsOneByteEqualTo(string_->literal_bytes_);
     return String::cast(other)->IsTwoByteEqualTo(
         Vector<const uint16_t>::cast(string_->literal_bytes_));
@@ -71,7 +71,7 @@ class AstRawStringInternalizationKey : public HashTableKey {
   }
 
   Handle<Object> AsHandle(Isolate* isolate) override {
-    if (string_->is_one_byte_)
+    if (string_->is_one_byte())
       return isolate->factory()->NewOneByteInternalizedString(
           string_->literal_bytes_, string_->hash());
     return isolate->factory()->NewTwoByteInternalizedString(
@@ -82,9 +82,21 @@ class AstRawStringInternalizationKey : public HashTableKey {
   const AstRawString* string_;
 };
 
+int AstString::length() const {
+  if (IsRawStringBits::decode(bit_field_)) {
+    return reinterpret_cast<const AstRawString*>(this)->length();
+  }
+  return reinterpret_cast<const AstConsString*>(this)->length();
+}
+
+void AstString::Internalize(Isolate* isolate) {
+  if (IsRawStringBits::decode(bit_field_)) {
+    return reinterpret_cast<AstRawString*>(this)->Internalize(isolate);
+  }
+  return reinterpret_cast<AstConsString*>(this)->Internalize(isolate);
+}
 
 void AstRawString::Internalize(Isolate* isolate) {
-  if (!string_.is_null()) return;
   if (literal_bytes_.length() == 0) {
     string_ = isolate->factory()->empty_string();
   } else {
@@ -93,21 +105,22 @@ void AstRawString::Internalize(Isolate* isolate) {
   }
 }
 
-
 bool AstRawString::AsArrayIndex(uint32_t* index) const {
-  if (!string_.is_null())
-    return string_->AsArrayIndex(index);
-  if (!is_one_byte_ || literal_bytes_.length() == 0 ||
-      literal_bytes_.length() > String::kMaxArrayIndexSize)
-    return false;
-  OneByteStringStream stream(literal_bytes_);
-  return StringToArrayIndex(&stream, index);
+  // The StringHasher will set up the hash in such a way that we can use it to
+  // figure out whether the string is convertible to an array index.
+  if ((hash_ & Name::kIsNotArrayIndexMask) != 0) return false;
+  if (length() <= Name::kMaxCachedArrayIndexLength) {
+    *index = Name::ArrayIndexValueBits::decode(hash_);
+  } else {
+    OneByteStringStream stream(literal_bytes_);
+    CHECK(StringToArrayIndex(&stream, index));
+  }
+  return true;
 }
-
 
 bool AstRawString::IsOneByteEqualTo(const char* data) const {
   int length = static_cast<int>(strlen(data));
-  if (is_one_byte_ && literal_bytes_.length() == length) {
+  if (is_one_byte() && literal_bytes_.length() == length) {
     const char* token = reinterpret_cast<const char*>(literal_bytes_.start());
     return !strncmp(token, data, length);
   }
@@ -122,7 +135,6 @@ void AstConsString::Internalize(Isolate* isolate) {
                 ->NewConsString(left_->string(), right_->string())
                 .ToHandleChecked();
 }
-
 
 bool AstValue::IsPropertyName() const {
   if (type_ == STRING) {
@@ -239,7 +251,13 @@ const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
     }
   }
   isolate_ = saved_isolate;
-  if (isolate_) result->Internalize(isolate_);
+  if (strings_ != nullptr && isolate_) {
+    // Only the string we are creating is uninternalized at this point.
+    DCHECK_EQ(result, strings_);
+    DCHECK_NULL(strings_->next());
+    result->Internalize(isolate_);
+    ResetStrings();
+  }
   return result;
 }
 
@@ -250,83 +268,67 @@ const AstConsString* AstValueFactory::NewConsString(
   // the AstRawString will not be moved).
   AstConsString* new_string = new (zone_) AstConsString(left, right);
   CHECK(new_string != nullptr);
-  strings_.Add(new_string);
-  if (isolate_) {
-    new_string->Internalize(isolate_);
-  }
+  AddString(new_string);
   return new_string;
 }
 
 
 void AstValueFactory::Internalize(Isolate* isolate) {
   if (isolate_) {
+    DCHECK_NULL(strings_);
+    DCHECK_NULL(values_);
     // Everything is already internalized.
     return;
   }
+
   // Strings need to be internalized before values, because values refer to
   // strings.
-  for (int i = 0; i < strings_.length(); ++i) {
-    strings_[i]->Internalize(isolate);
+  for (AstString* current = strings_; current != nullptr;) {
+    AstString* next = current->next();
+    current->Internalize(isolate);
+    current = next;
   }
-  for (int i = 0; i < values_.length(); ++i) {
-    values_[i]->Internalize(isolate);
+  for (AstValue* current = values_; current != nullptr;) {
+    AstValue* next = current->next();
+    current->Internalize(isolate);
+    current = next;
   }
   isolate_ = isolate;
+  ResetStrings();
+  values_ = nullptr;
 }
 
 
 const AstValue* AstValueFactory::NewString(const AstRawString* string) {
   AstValue* value = new (zone_) AstValue(string);
   CHECK(string != nullptr);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  return AddValue(value);
 }
 
 
 const AstValue* AstValueFactory::NewSymbol(const char* name) {
   AstValue* value = new (zone_) AstValue(name);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  return AddValue(value);
 }
 
 
 const AstValue* AstValueFactory::NewNumber(double number, bool with_dot) {
   AstValue* value = new (zone_) AstValue(number, with_dot);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  return AddValue(value);
 }
 
 
 const AstValue* AstValueFactory::NewSmi(int number) {
   AstValue* value =
       new (zone_) AstValue(AstValue::SMI, number);
-  if (isolate_) {
-    value->Internalize(isolate_);
-  }
-  values_.Add(value);
-  return value;
+  return AddValue(value);
 }
 
-
-#define GENERATE_VALUE_GETTER(value, initializer) \
-  if (!value) {                                   \
-    value = new (zone_) AstValue(initializer);    \
-    if (isolate_) {                               \
-      value->Internalize(isolate_);               \
-    }                                             \
-    values_.Add(value);                           \
-  }                                               \
+#define GENERATE_VALUE_GETTER(value, initializer)        \
+  if (!value) {                                          \
+    value = AddValue(new (zone_) AstValue(initializer)); \
+  }                                                      \
   return value;
-
 
 const AstValue* AstValueFactory::NewBoolean(bool b) {
   if (b) {
@@ -371,10 +373,7 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
         is_one_byte, Vector<const byte>(new_literal_bytes, length), hash);
     CHECK(new_string != nullptr);
     entry->key = new_string;
-    strings_.Add(new_string);
-    if (isolate_) {
-      new_string->Internalize(isolate_);
-    }
+    AddString(new_string);
     entry->value = reinterpret_cast<void*>(1);
   }
   return reinterpret_cast<AstRawString*>(entry->key);
@@ -384,8 +383,8 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
 bool AstValueFactory::AstRawStringCompare(void* a, void* b) {
   const AstRawString* lhs = static_cast<AstRawString*>(a);
   const AstRawString* rhs = static_cast<AstRawString*>(b);
+  DCHECK_EQ(lhs->hash(), rhs->hash());
   if (lhs->length() != rhs->length()) return false;
-  if (lhs->hash() != rhs->hash()) return false;
   const unsigned char* l = lhs->raw_data();
   const unsigned char* r = rhs->raw_data();
   size_t length = rhs->length();

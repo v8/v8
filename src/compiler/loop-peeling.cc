@@ -186,7 +186,7 @@ bool LoopPeeler::CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop) {
             unmarked_exit = (use->opcode() != IrOpcode::kTerminate);
         }
         if (unmarked_exit) {
-          if (FLAG_trace_turbo_graph) {
+          if (FLAG_trace_turbo_loop) {
             Node* loop_node = loop_tree->GetLoopControl(loop);
             PrintF(
                 "Cannot peel loop %i. Loop exit without explicit mark: Node %i "
@@ -312,11 +312,12 @@ void PeelInnerLoops(Graph* graph, CommonOperatorBuilder* common,
   }
   // Only peel small-enough loops.
   if (loop->TotalSize() > LoopPeeler::kMaxPeeledNodes) return;
-  if (FLAG_trace_turbo_graph) {
+  if (FLAG_trace_turbo_loop) {
     PrintF("Peeling loop with header: ");
     for (Node* node : loop_tree->HeaderNodes(loop)) {
       PrintF("%i ", node->id());
     }
+    PrintF("\n");
   }
 
   LoopPeeler::Peel(graph, common, loop_tree, loop, temp_zone);

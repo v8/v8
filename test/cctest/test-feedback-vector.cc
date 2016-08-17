@@ -36,7 +36,7 @@ TEST(VectorStructure) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Zone* zone = isolate->runtime_zone();
+  Zone zone(isolate->allocator());
 
   // Empty vectors are the empty fixed array.
   StaticFeedbackVectorSpec empty;
@@ -47,7 +47,7 @@ TEST(VectorStructure) {
   CHECK(vector->is_empty());
 
   {
-    FeedbackVectorSpec one_slot(zone);
+    FeedbackVectorSpec one_slot(&zone);
     one_slot.AddGeneralSlot();
     vector = NewTypeFeedbackVector(isolate, &one_slot);
     FeedbackVectorHelper helper(vector);
@@ -55,7 +55,7 @@ TEST(VectorStructure) {
   }
 
   {
-    FeedbackVectorSpec one_icslot(zone);
+    FeedbackVectorSpec one_icslot(&zone);
     one_icslot.AddCallICSlot();
     vector = NewTypeFeedbackVector(isolate, &one_icslot);
     FeedbackVectorHelper helper(vector);
@@ -63,7 +63,7 @@ TEST(VectorStructure) {
   }
 
   {
-    FeedbackVectorSpec spec(zone);
+    FeedbackVectorSpec spec(&zone);
     for (int i = 0; i < 3; i++) {
       spec.AddGeneralSlot();
     }
@@ -103,9 +103,9 @@ TEST(VectorICMetadata) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
-  Zone* zone = isolate->runtime_zone();
+  Zone zone(isolate->allocator());
 
-  FeedbackVectorSpec spec(zone);
+  FeedbackVectorSpec spec(&zone);
   // Set metadata.
   for (int i = 0; i < 40; i++) {
     switch (i % 4) {
@@ -158,12 +158,12 @@ TEST(VectorSlotClearing) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Zone* zone = isolate->runtime_zone();
+  Zone zone(isolate->allocator());
 
   // We only test clearing FeedbackVectorSlots, not FeedbackVectorSlots.
   // The reason is that FeedbackVectorSlots need a full code environment
   // to fully test (See VectorICProfilerStatistics test below).
-  FeedbackVectorSpec spec(zone);
+  FeedbackVectorSpec spec(&zone);
   for (int i = 0; i < 5; i++) {
     spec.AddGeneralSlot();
   }
@@ -365,8 +365,8 @@ TEST(VectorLoadICSlotSharing) {
   CompileRun(
       "o = 10;"
       "function f() {"
-      "  var x = o + 10;"
-      "  return o + x + o;"
+      "  var x = o || 10;"
+      "  return o , x , o;"
       "}"
       "f();");
   Handle<JSFunction> f = GetFunction("f");
@@ -544,13 +544,15 @@ TEST(ReferenceContextAllocatesNoSlots) {
     // of x.old and x.young.
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
-    CHECK_EQ(6, helper.slot_count());
+    CHECK_EQ(7, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
     CHECK_SLOT_KIND(helper, 5, FeedbackVectorSlotKind::LOAD_IC);
+    // Binary operation feedback is a general slot.
+    CHECK_SLOT_KIND(helper, 6, FeedbackVectorSlotKind::GENERAL);
   }
 }
 

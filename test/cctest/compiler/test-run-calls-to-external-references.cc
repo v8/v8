@@ -240,6 +240,12 @@ TEST(RunCallWord64Popcnt) {
   ExternalReference ref = ExternalReference::wasm_word64_popcnt(m.isolate());
   TestExternalReference(&m, ref, wasm::word64_popcnt_wrapper, uint64_t(1774));
 }
+
+TEST(RunCallFloat64Pow) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref = ExternalReference::wasm_float64_pow(m.isolate());
+  TestExternalReference(&m, ref, wasm::float64_pow_wrapper, 1.5, 1.5);
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

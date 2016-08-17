@@ -33,7 +33,7 @@ class InterpreterState {
  private:
   struct Key {
     bool is_constant;
-    bool is_float;
+    MachineRepresentation rep;
     LocationOperand::LocationKind kind;
     int index;
 
@@ -41,8 +41,8 @@ class InterpreterState {
       if (this->is_constant != other.is_constant) {
         return this->is_constant;
       }
-      if (this->is_float != other.is_float) {
-        return this->is_float;
+      if (this->rep != other.rep) {
+        return static_cast<int>(this->rep) < static_cast<int>(other.rep);
       }
       if (this->kind != other.kind) {
         return this->kind < other.kind;
@@ -51,7 +51,7 @@ class InterpreterState {
     }
 
     bool operator==(const Key& other) const {
-      return this->is_constant == other.is_constant &&
+      return this->is_constant == other.is_constant && this->rep == other.rep &&
              this->kind == other.kind && this->index == other.index;
     }
   };
@@ -75,24 +75,26 @@ class InterpreterState {
 
   static Key KeyFor(const InstructionOperand& op) {
     bool is_constant = op.IsConstant();
-    bool is_float = false;
+    MachineRepresentation rep =
+        v8::internal::compiler::InstructionSequence::DefaultRepresentation();
     LocationOperand::LocationKind kind;
     int index;
     if (!is_constant) {
-      if (op.IsRegister()) {
-        index = LocationOperand::cast(op).GetRegister().code();
-      } else if (op.IsFPRegister()) {
-        index = LocationOperand::cast(op).GetDoubleRegister().code();
+      const LocationOperand& loc_op = LocationOperand::cast(op);
+      if (loc_op.IsAnyRegister()) {
+        if (loc_op.IsFPRegister()) {
+          rep = MachineRepresentation::kFloat64;
+        }
+        index = loc_op.register_code();
       } else {
-        index = LocationOperand::cast(op).index();
+        index = loc_op.index();
       }
-      is_float = IsFloatingPoint(LocationOperand::cast(op).representation());
-      kind = LocationOperand::cast(op).location_kind();
+      kind = loc_op.location_kind();
     } else {
       index = ConstantOperand::cast(op).virtual_register();
       kind = LocationOperand::REGISTER;
     }
-    Key key = {is_constant, is_float, kind, index};
+    Key key = {is_constant, rep, kind, index};
     return key;
   }
 
@@ -102,10 +104,7 @@ class InterpreterState {
     if (key.is_constant) {
       return ConstantOperand(key.index);
     }
-    return AllocatedOperand(
-        key.kind,
-        v8::internal::compiler::InstructionSequence::DefaultRepresentation(),
-        key.index);
+    return AllocatedOperand(key.kind, key.rep, key.index);
   }
 
   friend std::ostream& operator<<(std::ostream& os,
@@ -113,8 +112,8 @@ class InterpreterState {
     for (OperandMap::const_iterator it = is.values_.begin();
          it != is.values_.end(); ++it) {
       if (it != is.values_.begin()) os << " ";
-      InstructionOperand source = FromKey(it->first);
-      InstructionOperand destination = FromKey(it->second);
+      InstructionOperand source = FromKey(it->second);
+      InstructionOperand destination = FromKey(it->first);
       MoveOperands mo(source, destination);
       PrintableMoveOperands pmo = {RegisterConfiguration::Turbofan(), &mo};
       os << pmo;
@@ -165,8 +164,8 @@ class ParallelMoveCreator : public HandleAndZoneScope {
   ParallelMove* Create(int size) {
     ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
     std::set<InstructionOperand, CompareOperandModuloType> seen;
-    MachineRepresentation rep = RandomRepresentation();
     for (int i = 0; i < size; ++i) {
+      MachineRepresentation rep = RandomRepresentation();
       MoveOperands mo(CreateRandomOperand(true, rep),
                       CreateRandomOperand(false, rep));
       if (!mo.IsRedundant() && seen.find(mo.destination()) == seen.end()) {
@@ -202,13 +201,18 @@ class ParallelMoveCreator : public HandleAndZoneScope {
     auto GetRegisterCode = [&conf](MachineRepresentation rep, int index) {
       switch (rep) {
         case MachineRepresentation::kFloat32:
+#if V8_TARGET_ARCH_ARM
+          // Only even number float registers are used on Arm.
+          // TODO(bbudge) Eliminate this when FP register aliasing works.
+          return conf->RegisterConfiguration::GetAllocatableDoubleCode(index) *
+                 2;
+#endif
+        // Fall through on non-Arm targets.
         case MachineRepresentation::kFloat64:
           return conf->RegisterConfiguration::GetAllocatableDoubleCode(index);
-          break;
 
         default:
           return conf->RegisterConfiguration::GetAllocatableGeneralCode(index);
-          break;
       }
       UNREACHABLE();
       return static_cast<int>(Register::kCode_no_reg);
@@ -252,7 +256,7 @@ TEST(FuzzResolver) {
       GapResolver resolver(&mi2);
       resolver.Resolve(pm);
 
-      CHECK(mi1.state() == mi2.state());
+      CHECK_EQ(mi1.state(), mi2.state());
     }
   }
 }

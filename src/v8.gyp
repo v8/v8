@@ -179,6 +179,7 @@
       ],
       'include_dirs+': [
         '..',
+        '<(DEPTH)',
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -237,6 +238,7 @@
       ],
       'include_dirs+': [
         '..',
+        '<(DEPTH)',
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -299,6 +301,7 @@
           ],
           'include_dirs+': [
             '..',
+            '<(DEPTH)',
           ],
           'sources': [
             'snapshot/natives-external.cc',
@@ -399,7 +402,7 @@
         'action': ['<(mkpeephole_exec)', '<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc' ],
         'process_outputs_as_sources': 1,
         'conditions': [
-          ['want_separate_host_toolset==1', {
+          ['want_separate_host_toolset_mkpeephole==1', {
             'dependencies': ['mkpeephole#host'],
             'toolsets': ['host'],
           }, {
@@ -451,17 +454,18 @@
         'assert-scope.cc',
         'ast/ast-expression-rewriter.cc',
         'ast/ast-expression-rewriter.h',
-        'ast/ast-expression-visitor.cc',
-        'ast/ast-expression-visitor.h',
         'ast/ast-literal-reindexer.cc',
         'ast/ast-literal-reindexer.h',
         'ast/ast-numbering.cc',
         'ast/ast-numbering.h',
+        'ast/ast-traversal-visitor.h',
         'ast/ast-type-bounds.h',
         'ast/ast-value-factory.cc',
         'ast/ast-value-factory.h',
         'ast/ast.cc',
         'ast/ast.h',
+        'ast/context-slot-cache.cc',
+        'ast/context-slot-cache.h',
         'ast/modules.cc',
         'ast/modules.h',
         'ast/prettyprinter.cc',
@@ -486,6 +490,34 @@
         'bit-vector.h',
         'bootstrapper.cc',
         'bootstrapper.h',
+        'builtins/builtins-api.cc',
+        'builtins/builtins-arraybuffer.cc',
+        'builtins/builtins-array.cc',
+        'builtins/builtins-boolean.cc',
+        'builtins/builtins-call.cc',
+        'builtins/builtins-callsite.cc',
+        'builtins/builtins-conversion.cc',
+        'builtins/builtins-dataview.cc',
+        'builtins/builtins-date.cc',
+        'builtins/builtins-debug.cc',
+        'builtins/builtins-error.cc',
+        'builtins/builtins-function.cc',
+        'builtins/builtins-generator.cc',
+        'builtins/builtins-global.cc',
+        'builtins/builtins-handler.cc',
+        'builtins/builtins-internal.cc',
+        'builtins/builtins-interpreter.cc',
+        'builtins/builtins-json.cc',
+        'builtins/builtins-math.cc',
+        'builtins/builtins-number.cc',
+        'builtins/builtins-object.cc',
+        'builtins/builtins-proxy.cc',
+        'builtins/builtins-reflect.cc',
+        'builtins/builtins-sharedarraybuffer.cc',
+        'builtins/builtins-string.cc',
+        'builtins/builtins-symbol.cc',
+        'builtins/builtins-typedarray.cc',
+        'builtins/builtins-utils.h',
         'builtins/builtins.cc',
         'builtins/builtins.h',
         'cached-powers.cc',
@@ -531,6 +563,8 @@
         'compiler/bytecode-branch-analysis.h',
         'compiler/bytecode-graph-builder.cc',
         'compiler/bytecode-graph-builder.h',
+        'compiler/bytecode-loop-analysis.cc',
+        'compiler/bytecode-loop-analysis.h',
         'compiler/c-linkage.cc',
         'compiler/checkpoint-elimination.cc',
         'compiler/checkpoint-elimination.h',
@@ -630,6 +664,8 @@
         'compiler/loop-analysis.h',
         'compiler/loop-peeling.cc',
         'compiler/loop-peeling.h',
+        'compiler/loop-variable-optimizer.cc',
+        'compiler/loop-variable-optimizer.h',
         'compiler/machine-operator-reducer.cc',
         'compiler/machine-operator-reducer.h',
         'compiler/machine-operator.cc',
@@ -679,8 +715,6 @@
         'compiler/scheduler.h',
         'compiler/select-lowering.cc',
         'compiler/select-lowering.h',
-        'compiler/simd-lowering.cc',
-        'compiler/simd-lowering.h',
         'compiler/simplified-lowering.cc',
         'compiler/simplified-lowering.h',
         'compiler/simplified-operator-reducer.cc',
@@ -711,6 +745,10 @@
         'compiler/wasm-linkage.cc',
         'compiler/zone-pool.cc',
         'compiler/zone-pool.h',
+        'compiler-dispatcher/compiler-dispatcher-job.cc',
+        'compiler-dispatcher/compiler-dispatcher-job.h',
+        'compiler-dispatcher/optimizing-compile-dispatcher.cc',
+        'compiler-dispatcher/optimizing-compile-dispatcher.h',
         'compiler.cc',
         'compiler.h',
         'context-measure.cc',
@@ -802,6 +840,8 @@
         'debug/debug.h',
         'debug/liveedit.cc',
         'debug/liveedit.h',
+        'deoptimize-reason.cc',
+        'deoptimize-reason.h',
         'deoptimizer.cc',
         'deoptimizer.h',
         'disasm.h',
@@ -945,6 +985,7 @@
         'interpreter/bytecode-flags.h',
         'interpreter/bytecode-generator.cc',
         'interpreter/bytecode-generator.h',
+        'interpreter/bytecode-label.cc',
         'interpreter/bytecode-label.h',
         'interpreter/bytecode-peephole-optimizer.cc',
         'interpreter/bytecode-peephole-optimizer.h',
@@ -1006,8 +1047,6 @@
         'objects-printer.cc',
         'objects.cc',
         'objects.h',
-        'optimizing-compile-dispatcher.cc',
-        'optimizing-compile-dispatcher.h',
         'ostreams.cc',
         'ostreams.h',
         'parsing/expression-classifier.h',
@@ -1099,6 +1138,7 @@
         'runtime/runtime-debug.cc',
         'runtime/runtime-forin.cc',
         'runtime/runtime-function.cc',
+        'runtime/runtime-error.cc',
         'runtime/runtime-futex.cc',
         'runtime/runtime-generator.cc',
         'runtime/runtime-i18n.cc',
@@ -1192,6 +1232,8 @@
         'v8memory.h',
         'v8threads.cc',
         'v8threads.h',
+        'value-serializer.cc',
+        'value-serializer.h',
         'vector.h',
         'version.cc',
         'version.h',
@@ -1711,7 +1753,6 @@
         'base/atomicops_internals_mac.h',
         'base/atomicops_internals_mips_gcc.h',
         'base/atomicops_internals_mips64_gcc.h',
-        'base/atomicops_internals_portable.h',
         'base/atomicops_internals_ppc_gcc.h',
         'base/atomicops_internals_s390_gcc.h',
         'base/atomicops_internals_tsan.h',
@@ -1756,33 +1797,25 @@
         'base/safe_conversions_impl.h',
         'base/safe_math.h',
         'base/safe_math_impl.h',
-        'base/smart-pointers.h',
         'base/sys-info.cc',
         'base/sys-info.h',
         'base/utils/random-number-generator.cc',
         'base/utils/random-number-generator.h',
       ],
       'conditions': [
-        ['want_separate_host_toolset==1', {
+        ['want_separate_host_toolset==1 or \
+          want_separate_host_toolset_mkpeephole==1', {
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
         }],
         ['OS=="linux"', {
-            'conditions': [
-              ['nacl_target_arch=="none"', {
-                'link_settings': {
-                  'libraries': [
-                    '-ldl',
-                    '-lrt'
-                  ],
-                },
-              }, {
-                'defines': [
-                  'V8_LIBRT_NOT_AVAILABLE=1',
-                ],
-              }],
-            ],
+            'link_settings': {
+              'libraries': [
+                '-ldl',
+                '-lrt'
+              ],
+            },
             'sources': [
               'base/platform/platform-linux.cc',
               'base/platform/platform-posix.cc'
@@ -1976,14 +2009,23 @@
       ],
       'include_dirs+': [
         '..',
+        '<(DEPTH)',
         '../include',
       ],
       'sources': [
         '../include/libplatform/libplatform.h',
+        '../include/libplatform/v8-tracing.h',
         'libplatform/default-platform.cc',
         'libplatform/default-platform.h',
         'libplatform/task-queue.cc',
         'libplatform/task-queue.h',
+        'libplatform/tracing/trace-buffer.cc',
+        'libplatform/tracing/trace-buffer.h',
+        'libplatform/tracing/trace-config.cc',
+        'libplatform/tracing/trace-object.cc',
+        'libplatform/tracing/trace-writer.cc',
+        'libplatform/tracing/trace-writer.h',
+        'libplatform/tracing/tracing-controller.cc',
         'libplatform/worker-thread.cc',
         'libplatform/worker-thread.h',
       ],
@@ -2317,6 +2359,7 @@
       'dependencies': ['v8_base', 'v8_nosnapshot', 'v8_libplatform'],
       'include_dirs+': [
         '..',
+        '<(DEPTH)',
       ],
       'sources': [
         'snapshot/mksnapshot.cc',
@@ -2349,7 +2392,7 @@
         'interpreter/mkpeephole.cc'
       ],
       'conditions': [
-        ['want_separate_host_toolset==1', {
+        ['want_separate_host_toolset_mkpeephole==1', {
           'toolsets': ['host'],
         }, {
           'toolsets': ['target'],

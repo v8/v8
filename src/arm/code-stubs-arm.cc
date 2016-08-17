@@ -697,10 +697,10 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
   DCHECK(exponent.is(r2));
-  const DwVfpRegister double_base = d0;
-  const DwVfpRegister double_exponent = d1;
-  const DwVfpRegister double_result = d2;
-  const DwVfpRegister double_scratch = d3;
+  const LowDwVfpRegister double_base = d0;
+  const LowDwVfpRegister double_exponent = d1;
+  const LowDwVfpRegister double_result = d2;
+  const LowDwVfpRegister double_scratch = d3;
   const SwVfpRegister single_scratch = s6;
   const Register scratch = r9;
   const Register scratch2 = r4;
@@ -715,14 +715,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   }
 
   if (exponent_type() != INTEGER) {
-    Label int_exponent_convert;
     // Detect integer exponents stored as double.
-    __ vcvt_u32_f64(single_scratch, double_exponent);
-    // We do not check for NaN or Infinity here because comparing numbers on
-    // ARM correctly distinguishes NaNs.  We end up calling the built-in.
-    __ vcvt_f64_u32(double_scratch, single_scratch);
-    __ VFPCompareAndSetFlags(double_scratch, double_exponent);
-    __ b(eq, &int_exponent_convert);
+    __ TryDoubleToInt32Exact(scratch, double_exponent, double_scratch);
+    __ b(eq, &int_exponent);
 
     __ push(lr);
     {
@@ -734,11 +729,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     }
     __ pop(lr);
     __ MovFromFloatResult(double_result);
-    __ jmp(&done);
-
-    __ bind(&int_exponent_convert);
-    __ vcvt_u32_f64(single_scratch, double_exponent);
-    __ vmov(scratch, single_scratch);
+    __ b(&done);
   }
 
   // Calculate power with integer exponent.
@@ -756,12 +747,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Get absolute value of exponent.
   __ cmp(scratch, Operand::Zero());
-  __ mov(scratch2, Operand::Zero(), LeaveCC, mi);
-  __ sub(scratch, scratch2, scratch, LeaveCC, mi);
+  __ rsb(scratch, scratch, Operand::Zero(), LeaveCC, mi);
 
   Label while_true;
   __ bind(&while_true);
-  __ mov(scratch, Operand(scratch, ASR, 1), SetCC);
+  __ mov(scratch, Operand(scratch, LSR, 1), SetCC);
   __ vmul(double_result, double_result, double_scratch, cs);
   __ vmul(double_scratch, double_scratch, double_scratch, ne);
   __ b(ne, &while_true);
@@ -810,7 +800,6 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   BinaryOpICStub::GenerateAheadOfTime(isolate);
   BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
-  TypeofStub::GenerateAheadOfTime(isolate);
 }
 
 
@@ -1115,12 +1104,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // returns control to the code after the bl(&invoke) above, which
   // restores all kCalleeSaved registers (including cp and fp) to their
   // saved values before returning a failure to C.
-
-  // Clear any pending exceptions.
-  __ mov(r5, Operand(isolate()->factory()->the_hole_value()));
-  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                       isolate())));
-  __ str(r5, MemOperand(ip));
 
   // Invoke the function by calling through JS entry trampoline builtin.
   // Notice that we cannot store a reference to the trampoline code directly in
@@ -1516,9 +1499,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ ldr(r0, MemOperand(sp, kLastMatchInfoOffset));
   __ JumpIfSmi(r0, &runtime);
-  __ CompareObjectType(r0, r2, r2, JS_ARRAY_TYPE);
+  __ CompareObjectType(r0, r2, r2, JS_OBJECT_TYPE);
   __ b(ne, &runtime);
-  // Check that the JSArray is in fast case.
+  // Check that the object has fast elements.
   __ ldr(last_match_info_elements,
          FieldMemOperand(r0, JSArray::kElementsOffset));
   __ ldr(r0, FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
@@ -1644,9 +1627,11 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
   // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(r0);
   __ Push(r3, r2, r1, r0);
+  __ Push(cp);
 
   __ CallStub(stub);
 
+  __ Pop(cp);
   __ Pop(r3, r2, r1, r0);
   __ SmiUntag(r0);
 }
@@ -1946,9 +1931,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
-    __ Push(r1);
+    __ Push(cp, r1);
     __ CallStub(&create_stub);
-    __ Pop(r1);
+    __ Pop(cp, r1);
   }
 
   __ jmp(&call_function);

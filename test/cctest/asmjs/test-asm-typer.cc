@@ -275,7 +275,8 @@ class AsmTyperHarnessBuilder {
   Variable* DeclareVariable(VariableName var_name) {
     auto* name_ast_string = ast_value_factory_.GetOneByteString(var_name.name_);
     return var_name.mode_ == DYNAMIC_GLOBAL
-               ? outer_scope_->DeclareDynamicGlobal(name_ast_string)
+               ? outer_scope_->DeclareDynamicGlobal(name_ast_string,
+                                                    Variable::NORMAL)
                : module_->scope()->DeclareLocal(name_ast_string, VAR,
                                                 kCreatedInitialized,
                                                 Variable::NORMAL);
@@ -324,7 +325,7 @@ class AsmTyperHarnessBuilder {
   Handle<String> source_code_;
   Handle<Script> script_;
 
-  Scope* outer_scope_;
+  DeclarationScope* outer_scope_;
   FunctionLiteral* module_;
   FunctionDeclaration* fun_decl_;
   std::unique_ptr<AsmTyper> typer_;
@@ -859,6 +860,8 @@ TEST(ErrorsInStatement) {
       {"do {} while (fround(1));", "Do {} While condition must be type int"},
       {"for (;fround(1););", "For condition must be type int"},
       {"switch(flocal){ case 0: return 0; }", "Switch tag must be signed"},
+      {"switch(slocal){ default: case 0: return 0; }",
+       "Switch default must appear last"},
       {"switch(slocal){ case 1: case 1: return 0; }", "Duplicated case label"},
       {"switch(slocal){ case 1: case 0: break; case 1: return 0; }",
        "Duplicated case label"},
@@ -1792,6 +1795,145 @@ TEST(CannotReferenceModuleName) {
     if (!ValidationOf(Module(test->module))
              ->FailsWithMessage(test->error_message)) {
       std::cerr << "Test:\n" << test->module;
+      CHECK(false);
+    }
+  }
+}
+
+TEST(InvalidSourceLayout) {
+  const char* kTests[] = {
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  function f() {}\n"
+      "  var v = 0;\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "  var v = 0;\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "  var v = 0;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  var v_v = [f];\n"
+      "  function f() {}\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "  function f() {}\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  return f;\n"
+      "  var v_v = [f];\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  var v1 = 0;\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "  var v1 = 0;\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "  var v1 = 0;\n"
+      "}",
+      "function asm() {\n"
+      "  function f() {}\n"
+      "  'use asm';\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  return f;\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  return f;\n"
+      "  function f() {}\n"
+      "}",
+      "function __f_59() {\n"
+      "  'use asm';\n"
+      "  function __f_110() {\n"
+      "    return 71;\n"
+      "  }\n"
+      "  function __f_21() {\n"
+      "    var __v_38 = 0;\n"
+      "    return __v_23[__v_38&0]() | 0;\n"
+      "  }\n"
+      "  return {__f_21:__f_21};\n"
+      "  var __v_23 = [__f_110];\n"
+      "}",
+  };
+
+  for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
+    if (!ValidationOf(Module(kTests[ii]))
+             ->FailsWithMessage("Invalid asm.js source code layout")) {
+      std::cerr << "Test:\n" << kTests[ii];
+      CHECK(false);
+    }
+  }
+}
+
+// This issue was triggered because of the "lenient" 8-bit heap access code
+// path. The canonical heap access index validation fails because __34 is not an
+// intish. Then, during the "lenient" code path for accessing elements in 8-bit
+// heap views, the __34 node in the indexing expression would be re-tagged, thus
+// causing the assertion failure.
+TEST(B63099) {
+  const char* kTests[] = {
+      "function __f_109(stdlib, __v_36, buffer) {\n"
+      "  'use asm';\n"
+      "  var __v_34 = new stdlib.Uint8Array(buffer);\n"
+      "  function __f_22() {__v_34[__v_34>>0]|0 + 1 | 0;\n"
+      "  }\n"
+      "}",
+      "function __f_109(stdlib, __v_36, buffer) {\n"
+      "  'use asm';\n"
+      "  var __v_34 = new stdlib.Int8Array(buffer);\n"
+      "  function __f_22() {__v_34[__v_34>>0]|0 + 1 | 0;\n"
+      "  }\n"
+      "}",
+  };
+
+  for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
+    if (!ValidationOf(Module(kTests[ii]))
+             ->FailsWithMessage("Invalid heap access index")) {
+      std::cerr << "Test:\n" << kTests[ii];
       CHECK(false);
     }
   }

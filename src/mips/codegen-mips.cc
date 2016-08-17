@@ -6,6 +6,8 @@
 
 #if V8_TARGET_ARCH_MIPS
 
+#include <memory>
+
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
 #include "src/mips/simulator-mips.h"
@@ -41,8 +43,8 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
 
     // The size of each prefetch.
     uint32_t pref_chunk = 32;
-    // The maximum size of a prefetch, it must not be less then pref_chunk.
-    // If the real size of a prefetch is greater then max_pref_size and
+    // The maximum size of a prefetch, it must not be less than pref_chunk.
+    // If the real size of a prefetch is greater than max_pref_size and
     // the kPrefHintPrepareForStore hint is used, the code will not work
     // correctly.
     uint32_t max_pref_size = 128;
@@ -1051,7 +1053,7 @@ CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before MIPS simulator ICache is setup.
-  base::SmartPointer<CodePatcher> patcher(
+  std::unique_ptr<CodePatcher> patcher(
       new CodePatcher(isolate, young_sequence_.start(),
                       young_sequence_.length() / Assembler::kInstrSize,
                       CodePatcher::DONT_FLUSH));

@@ -43,8 +43,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
   }
 
   if (FLAG_ignition_peephole) {
-    pipeline_ = new (zone)
-        BytecodePeepholeOptimizer(&constant_array_builder_, pipeline_);
+    pipeline_ = new (zone) BytecodePeepholeOptimizer(pipeline_);
   }
 
   if (FLAG_ignition_reo) {
@@ -152,13 +151,16 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode) {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
-                                                            Register reg) {
-  Output(BytecodeForBinaryOperation(op), RegisterOperand(reg));
+                                                            Register reg,
+                                                            int feedback_slot) {
+  Output(BytecodeForBinaryOperation(op), RegisterOperand(reg),
+         UnsignedOperand(feedback_slot));
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op) {
-  Output(BytecodeForCountOperation(op));
+BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op,
+                                                           int feedback_slot) {
+  Output(BytecodeForCountOperation(op), UnsignedOperand(feedback_slot));
   return *this;
 }
 
@@ -176,6 +178,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf() {
 BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
                                                              Register reg) {
   Output(BytecodeForCompareOperation(op), RegisterOperand(reg));
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadConstantPoolEntry(
+    size_t entry) {
+  Output(Bytecode::kLdaConstant, UnsignedOperand(entry));
   return *this;
 }
 
@@ -323,11 +331,22 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
-    Handle<SharedFunctionInfo> shared_info, int flags) {
-  size_t entry = GetConstantPoolEntry(shared_info);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(size_t entry,
+                                                          int flags) {
   Output(Bytecode::kCreateClosure, UnsignedOperand(entry),
          UnsignedOperand(flags));
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateBlockContext(
+    Handle<ScopeInfo> scope_info) {
+  size_t entry = GetConstantPoolEntry(scope_info);
+  Output(Bytecode::kCreateBlockContext, UnsignedOperand(entry));
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
+  Output(Bytecode::kCreateFunctionContext, UnsignedOperand(slots));
   return *this;
 }
 
@@ -359,11 +378,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
-    Handle<FixedArray> constant_properties, int literal_index, int flags) {
+    Handle<FixedArray> constant_properties, int literal_index, int flags,
+    Register output) {
   size_t constant_properties_entry = GetConstantPoolEntry(constant_properties);
   Output(Bytecode::kCreateObjectLiteral,
          UnsignedOperand(constant_properties_entry),
-         UnsignedOperand(literal_index), UnsignedOperand(flags));
+         UnsignedOperand(literal_index), UnsignedOperand(flags),
+         RegisterOperand(output));
   return *this;
 }
 
@@ -377,18 +398,21 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::PopContext(Register context) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToJSObject() {
-  Output(Bytecode::kToObject);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToJSObject(
+    Register out) {
+  Output(Bytecode::kToObject, RegisterOperand(out));
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName() {
-  Output(Bytecode::kToName);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName(
+    Register out) {
+  Output(Bytecode::kToName, RegisterOperand(out));
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToNumber() {
-  Output(Bytecode::kToNumber);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToNumber(
+    Register out) {
+  Output(Bytecode::kToNumber, RegisterOperand(out));
   return *this;
 }
 
@@ -462,6 +486,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::OsrPoll(int loop_depth) {
+  Output(Bytecode::kOsrPoll, UnsignedOperand(loop_depth));
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
   Output(Bytecode::kThrow);
   return *this;
@@ -485,8 +514,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Debugger() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
-    Register cache_info_triple) {
-  Output(Bytecode::kForInPrepare, RegisterOperand(cache_info_triple));
+    Register receiver, Register cache_info_triple) {
+  Output(Bytecode::kForInPrepare, RegisterOperand(receiver),
+         RegisterOperand(cache_info_triple));
   return *this;
 }
 
@@ -523,12 +553,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(int handler_id,
-                                                        bool will_catch) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(
+    int handler_id, HandlerTable::CatchPrediction catch_prediction) {
   BytecodeLabel handler;
   Bind(&handler);
   handler_table_builder()->SetHandlerTarget(handler_id, handler.offset());
-  handler_table_builder()->SetPrediction(handler_id, will_catch);
+  handler_table_builder()->SetPrediction(handler_id, catch_prediction);
   return *this;
 }
 
@@ -630,6 +660,15 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
 
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   return constant_array_builder()->Insert(object);
+}
+
+size_t BytecodeArrayBuilder::AllocateConstantPoolEntry() {
+  return constant_array_builder()->AllocateEntry();
+}
+
+void BytecodeArrayBuilder::InsertConstantPoolEntryAt(size_t entry,
+                                                     Handle<Object> object) {
+  constant_array_builder()->InsertAllocatedEntry(entry, object);
 }
 
 void BytecodeArrayBuilder::SetReturnPosition() {

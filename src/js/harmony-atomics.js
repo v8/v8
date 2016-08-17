@@ -12,14 +12,10 @@
 // Imports
 
 var GlobalObject = global.Object;
-var MakeRangeError;
-var MakeTypeError;
 var MaxSimple;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-  MakeRangeError = from.MakeRangeError;
   MaxSimple = from.MaxSimple;
 });
 
@@ -28,14 +24,14 @@ utils.Import(function(from) {
 
 function CheckSharedIntegerTypedArray(ia) {
   if (!%IsSharedIntegerTypedArray(ia)) {
-    throw MakeTypeError(kNotIntegerSharedTypedArray, ia);
+    throw %make_type_error(kNotIntegerSharedTypedArray, ia);
   }
 }
 
 function CheckSharedInteger32TypedArray(ia) {
   CheckSharedIntegerTypedArray(ia);
   if (!%IsSharedInteger32TypedArray(ia)) {
-    throw MakeTypeError(kNotInt32SharedTypedArray, ia);
+    throw %make_type_error(kNotInt32SharedTypedArray, ia);
   }
 }
 
@@ -44,10 +40,10 @@ function ValidateIndex(index, length) {
   var numberIndex = TO_NUMBER(index);
   var accessIndex = TO_INTEGER(numberIndex);
   if (numberIndex !== accessIndex) {
-    throw MakeRangeError(kInvalidAtomicAccessIndex);
+    throw %make_range_error(kInvalidAtomicAccessIndex);
   }
   if (accessIndex < 0 || accessIndex >= length) {
-    throw MakeRangeError(kInvalidAtomicAccessIndex);
+    throw %make_range_error(kInvalidAtomicAccessIndex);
   }
   return accessIndex;
 }

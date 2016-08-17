@@ -82,8 +82,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float32Sub:
     case kArm64Float32Mul:
     case kArm64Float32Div:
-    case kArm64Float32Max:
-    case kArm64Float32Min:
     case kArm64Float32Abs:
     case kArm64Float32Neg:
     case kArm64Float32Sqrt:
@@ -146,6 +144,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Ldrsb:
     case kArm64Ldrh:
     case kArm64Ldrsh:
+    case kArm64Ldrsw:
     case kArm64LdrW:
     case kArm64Ldr:
       return kIsLoadOperation;
@@ -238,6 +237,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64Ldrh:
     case kArm64Ldrsb:
     case kArm64Ldrsh:
+    case kArm64Ldrsw:
       return 11;
 
     case kCheckedLoadInt8:

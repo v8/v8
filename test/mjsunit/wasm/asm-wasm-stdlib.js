@@ -50,6 +50,7 @@
     "use asm";
 
     var StdlibMathCeil = stdlib.Math.ceil;
+    var StdlibMathClz32 = stdlib.Math.clz32;
     var StdlibMathFloor = stdlib.Math.floor;
     var StdlibMathSqrt = stdlib.Math.sqrt;
     var StdlibMathAbs = stdlib.Math.abs;
@@ -106,6 +107,7 @@
       if (!(deltaEqual(+StdlibMathTan(0.2), 0.20271003550867250)|0)) return 0;
       if (!(deltaEqual(+StdlibMathExp(0.2), 1.2214027581601699)|0)) return 0;
       if (!(deltaEqual(+StdlibMathLog(0.2), -1.6094379124341003)|0)) return 0;
+      if ((StdlibMathClz32(134217728)|0) != 4) return 0;
 
       if ((StdlibMathImul(6, 7)|0) != 42) return 0;
       if (!(deltaEqual(+StdlibMathAtan2(6.0, 7.0), 0.7086262721276703)|0))

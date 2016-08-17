@@ -69,3 +69,12 @@ function sortUnique(arr, f) {
   }
   return ret;
 }
+
+// Partial application without binding the receiver
+function partial(f) {
+  var arguments1 = Array.prototype.slice.call(arguments, 1);
+  return function() {
+    var arguments2 = Array.from(arguments);
+    f.apply(this, arguments1.concat(arguments2));
+  }
+}

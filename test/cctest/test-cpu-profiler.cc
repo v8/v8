@@ -63,8 +63,8 @@ static size_t offset(const char* src, const char* substring) {
   return static_cast<size_t>(it - src);
 }
 
-static const char* reason(const i::Deoptimizer::DeoptReason reason) {
-  return i::Deoptimizer::GetDeoptReason(reason);
+static const char* reason(const i::DeoptimizeReason reason) {
+  return i::DeoptimizeReasonToString(reason);
 }
 
 TEST(StartStop) {
@@ -242,7 +242,7 @@ TEST(TickEvents) {
   EnqueueTickSampleEvent(
       processor,
       frame2_code->instruction_start() + frame2_code->ExecutableSize() / 2,
-      frame1_code->instruction_start() + frame2_code->ExecutableSize() / 2);
+      frame1_code->instruction_start() + frame1_code->ExecutableSize() / 2);
   EnqueueTickSampleEvent(processor, frame3_code->instruction_end() - 1,
                          frame2_code->instruction_end() - 1,
                          frame1_code->instruction_end() - 1);
@@ -1045,9 +1045,10 @@ static void TickLines(bool optimize) {
               "    n += m * m * m;\n"
               "  }\n"
               "}\n"
+              "%s();"
               "%s(%s);\n"
               "%s();\n",
-              func_name, opt_func, func_name, func_name);
+              func_name, func_name, opt_func, func_name, func_name);
 
   CompileRun(script.start());
 
@@ -1055,6 +1056,8 @@ static void TickLines(bool optimize) {
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(func->shared());
   CHECK(func->shared()->abstract_code());
+  CHECK(!optimize || func->IsOptimized() ||
+        !CcTest::i_isolate()->use_crankshaft());
   i::AbstractCode* code = func->abstract_code();
   CHECK(code);
   i::Address code_address = code->instruction_start();
@@ -1853,21 +1856,21 @@ TEST(CollectDeoptEvents) {
 
   {
     const char* branch[] = {"", "opt_function0", "opt_function0"};
-    CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber),
+    CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber),
              GetBranchDeoptReason(env, iprofile, branch, arraysize(branch)));
   }
   {
     const char* branch[] = {"", "opt_function1", "opt_function1"};
     const char* deopt_reason =
         GetBranchDeoptReason(env, iprofile, branch, arraysize(branch));
-    if (deopt_reason != reason(i::Deoptimizer::kNaN) &&
-        deopt_reason != reason(i::Deoptimizer::kLostPrecisionOrNaN)) {
+    if (deopt_reason != reason(i::DeoptimizeReason::kNaN) &&
+        deopt_reason != reason(i::DeoptimizeReason::kLostPrecisionOrNaN)) {
       FATAL(deopt_reason);
     }
   }
   {
     const char* branch[] = {"", "opt_function2", "opt_function2"};
-    CHECK_EQ(reason(i::Deoptimizer::kDivisionByZero),
+    CHECK_EQ(reason(i::DeoptimizeReason::kDivisionByZero),
              GetBranchDeoptReason(env, iprofile, branch, arraysize(branch)));
   }
   iprofiler->DeleteProfile(iprofile);
@@ -1957,7 +1960,7 @@ TEST(DeoptAtFirstLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo& info = deopt_infos[0];
-  CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
+  CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber), info.deopt_reason);
   CHECK_EQ(2U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
   CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
@@ -2030,7 +2033,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo info = deopt_infos[0];
-  CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
+  CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber), info.deopt_reason);
   CHECK_EQ(3U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
   CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);

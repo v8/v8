@@ -16,7 +16,7 @@ if (((v8_current_cpu == "x86" ||
       v8_current_cpu=="x87") &&
      (is_linux || is_mac)) ||
     (v8_current_cpu == "ppc64" && is_linux)) {
-  v8_enable_gdbjit = true
+  v8_enable_gdbjit_default = true
 }
 
 v8_imminent_deprecation_warnings_default = true

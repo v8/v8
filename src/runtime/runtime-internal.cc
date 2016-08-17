@@ -4,6 +4,8 @@
 
 #include "src/runtime/runtime-utils.h"
 
+#include <memory>
+
 #include "src/arguments.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
@@ -113,22 +115,27 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   // TODO(wasm): This implementation is temporary, see bug #5007:
   // https://bugs.chromium.org/p/v8/issues/detail?id=5007
   Handle<JSObject> error = Handle<JSObject>::cast(error_obj);
+
+  // Patch the stack trace (array of <receiver, function, code, position>).
+
   Handle<Object> stack_trace_obj = JSReceiver::GetDataProperty(
       error, isolate->factory()->stack_trace_symbol());
-  // Patch the stack trace (array of <receiver, function, code, position>).
   if (stack_trace_obj->IsJSArray()) {
     Handle<FixedArray> stack_elements(
         FixedArray::cast(JSArray::cast(*stack_trace_obj)->elements()));
-    DCHECK_EQ(1, stack_elements->length() % 4);
-    DCHECK(Code::cast(stack_elements->get(3))->kind() == Code::WASM_FUNCTION);
-    DCHECK(stack_elements->get(4)->IsSmi() &&
-           Smi::cast(stack_elements->get(4))->value() >= 0);
-    stack_elements->set(4, Smi::FromInt(-1 - byte_offset));
+    Handle<StackTraceFrame> frame =
+        handle(StackTraceFrame::cast(stack_elements->get(0)));
+
+    DCHECK(frame->IsWasmFrame());
+    DCHECK(frame->offset() >= 0);
+    frame->set_offset(-1 - byte_offset);
   }
-  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
-      error, isolate->factory()->detailed_stack_trace_symbol());
+
   // Patch the detailed stack trace (array of JSObjects with various
   // properties).
+
+  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
+      error, isolate->factory()->detailed_stack_trace_symbol());
   if (detailed_stack_trace_obj->IsJSArray()) {
     Handle<FixedArray> stack_elements(
         FixedArray::cast(JSArray::cast(*detailed_stack_trace_obj)->elements()));
@@ -365,96 +372,6 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   return *result;
 }
 
-// Collect the raw data for a stack trace.  Returns an array of 4
-// element segments each containing a receiver, function, code and
-// native code offset.
-RUNTIME_FUNCTION(Runtime_CollectStackTrace) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, error_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, caller, 1);
-
-  if (!isolate->bootstrapper()->IsActive()) {
-    // Optionally capture a more detailed stack trace for the message.
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, isolate->CaptureAndSetDetailedStackTrace(error_object));
-    // Capture a simple stack trace for the stack property.
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, isolate->CaptureAndSetSimpleStackTrace(error_object, caller));
-  }
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_MessageGetStartPosition) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
-  return Smi::FromInt(message->start_position());
-}
-
-
-RUNTIME_FUNCTION(Runtime_MessageGetScript) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
-  return message->script();
-}
-
-
-RUNTIME_FUNCTION(Runtime_FormatMessageString) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_INT32_ARG_CHECKED(template_index, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, arg0, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, arg1, 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, arg2, 3);
-  isolate->native_context()->IncrementErrorsThrown();
-  RETURN_RESULT_OR_FAILURE(isolate, MessageTemplate::FormatMessage(
-                                        template_index, arg0, arg1, arg2));
-}
-
-#define CALLSITE_GET(NAME, RETURN)                          \
-  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {            \
-    HandleScope scope(isolate);                             \
-    DCHECK(args.length() == 1);                             \
-    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
-    Handle<String> result;                                  \
-    CallSite call_site(isolate, call_site_obj);             \
-    CHECK(call_site.IsJavaScript() || call_site.IsWasm());  \
-    return RETURN(call_site.NAME(), isolate);               \
-  }
-
-static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
-                                               Isolate* isolate) {
-  return *obj;
-}
-
-
-static inline Object* ReturnPositiveNumberOrNull(int value, Isolate* isolate) {
-  if (value >= 0) return *isolate->factory()->NewNumberFromInt(value);
-  return isolate->heap()->null_value();
-}
-
-
-static inline Object* ReturnBoolean(bool value, Isolate* isolate) {
-  return isolate->heap()->ToBoolean(value);
-}
-
-
-CALLSITE_GET(GetFileName, ReturnDereferencedHandle)
-CALLSITE_GET(GetFunctionName, ReturnDereferencedHandle)
-CALLSITE_GET(GetScriptNameOrSourceUrl, ReturnDereferencedHandle)
-CALLSITE_GET(GetMethodName, ReturnDereferencedHandle)
-CALLSITE_GET(GetLineNumber, ReturnPositiveNumberOrNull)
-CALLSITE_GET(GetColumnNumber, ReturnPositiveNumberOrNull)
-CALLSITE_GET(IsNative, ReturnBoolean)
-CALLSITE_GET(IsToplevel, ReturnBoolean)
-CALLSITE_GET(IsEval, ReturnBoolean)
-CALLSITE_GET(IsConstructor, ReturnBoolean)
-
-#undef CALLSITE_GET
-
 
 RUNTIME_FUNCTION(Runtime_IS_VAR) {
   UNREACHABLE();  // implemented as macro in the parser
@@ -492,7 +409,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     Zone zone(isolate->allocator());
-    base::SmartPointer<ParseInfo> info(
+    std::unique_ptr<ParseInfo> info(
         location.function()->shared()->is_function()
             ? new ParseInfo(&zone, location.function())
             : new ParseInfo(&zone, location.script()));
@@ -538,7 +455,6 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
       isolate, NewTypeError(MessageTemplate::kNotConstructor, callsite));
 }
 
-
 RUNTIME_FUNCTION(Runtime_ThrowDerivedConstructorReturnedNonObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -546,6 +462,13 @@ RUNTIME_FUNCTION(Runtime_ThrowDerivedConstructorReturnedNonObject) {
       isolate, NewTypeError(MessageTemplate::kDerivedConstructorReturn));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowUndefinedOrNullToObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject, name));
+}
 
 // ES6 section 7.3.17 CreateListFromArrayLike (obj)
 RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
@@ -642,6 +565,13 @@ RUNTIME_FUNCTION(Runtime_IsWasmObject) {
   bool is_wasm_object =
       object->IsJSObject() && wasm::IsWasmObject(JSObject::cast(object));
   return *isolate->factory()->ToBoolean(is_wasm_object);
+}
+
+RUNTIME_FUNCTION(Runtime_Typeof) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  return *Object::TypeOf(isolate, object);
 }
 
 }  // namespace internal

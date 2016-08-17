@@ -14,8 +14,6 @@ var ArrayJoin;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var IsRegExp;
-var MakeRangeError;
-var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var RegExpInitialize;
@@ -28,8 +26,6 @@ utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
   IsRegExp = from.IsRegExp;
-  MakeRangeError = from.MakeRangeError;
-  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   RegExpInitialize = from.RegExpInitialize;
@@ -138,7 +134,7 @@ function StringNormalize(formArg) {  // length == 0
   var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
   var normalizationForm = %_Call(ArrayIndexOf, NORMALIZATION_FORMS, form);
   if (normalizationForm === -1) {
-    throw MakeRangeError(kNormalizationForm,
+    throw %make_range_error(kNormalizationForm,
                          %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));
   }
 
@@ -583,14 +579,14 @@ function StringRepeat(count) {
   var s = TO_STRING(this);
   var n = TO_INTEGER(count);
 
-  if (n < 0 || n === INFINITY) throw MakeRangeError(kInvalidCountValue);
+  if (n < 0 || n === INFINITY) throw %make_range_error(kInvalidCountValue);
 
   // Early return to allow an arbitrarily-large repeat of the empty string.
   if (s.length === 0) return "";
 
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
-  if (n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
+  if (n > %_MaxSmi()) throw %make_range_error(kInvalidCountValue);
 
   var r = "";
   while (true) {
@@ -609,7 +605,7 @@ function StringStartsWith(searchString, position) {  // length == 1
   var s = TO_STRING(this);
 
   if (IsRegExp(searchString)) {
-    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.startsWith");
+    throw %make_type_error(kFirstArgumentNotRegExp, "String.prototype.startsWith");
   }
 
   var ss = TO_STRING(searchString);
@@ -635,7 +631,7 @@ function StringEndsWith(searchString, position) {  // length == 1
   var s = TO_STRING(this);
 
   if (IsRegExp(searchString)) {
-    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.endsWith");
+    throw %make_type_error(kFirstArgumentNotRegExp, "String.prototype.endsWith");
   }
 
   var ss = TO_STRING(searchString);
@@ -662,7 +658,7 @@ function StringIncludes(searchString, position) {  // length == 1
   var string = TO_STRING(this);
 
   if (IsRegExp(searchString)) {
-    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.includes");
+    throw %make_type_error(kFirstArgumentNotRegExp, "String.prototype.includes");
   }
 
   searchString = TO_STRING(searchString);

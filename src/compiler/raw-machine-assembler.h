@@ -40,7 +40,10 @@ class RawMachineAssembler {
       Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
       MachineRepresentation word = MachineType::PointerRepresentation(),
       MachineOperatorBuilder::Flags flags =
-          MachineOperatorBuilder::Flag::kNoFlags);
+          MachineOperatorBuilder::Flag::kNoFlags,
+      MachineOperatorBuilder::AlignmentRequirements alignment_requirements =
+          MachineOperatorBuilder::AlignmentRequirements::
+              FullUnalignedAccessSupport());
   ~RawMachineAssembler() {}
 
   Isolate* isolate() const { return isolate_; }
@@ -131,6 +134,34 @@ class RawMachineAssembler {
               WriteBarrierKind write_barrier) {
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
+  }
+
+  // Unaligned memory operations
+  Node* UnalignedLoad(MachineType rep, Node* base) {
+    return UnalignedLoad(rep, base, IntPtrConstant(0));
+  }
+  Node* UnalignedLoad(MachineType rep, Node* base, Node* index) {
+    if (machine()->UnalignedLoadSupported(rep, 1)) {
+      return AddNode(machine()->Load(rep), base, index);
+    } else {
+      return AddNode(machine()->UnalignedLoad(rep), base, index);
+    }
+  }
+  Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* value) {
+    return UnalignedStore(rep, base, IntPtrConstant(0), value);
+  }
+  Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* index,
+                       Node* value) {
+    MachineType t = MachineType::TypeForRepresentation(rep);
+    if (machine()->UnalignedStoreSupported(t, 1)) {
+      return AddNode(machine()->Store(StoreRepresentation(
+                         rep, WriteBarrierKind::kNoWriteBarrier)),
+                     base, index, value);
+    } else {
+      return AddNode(
+          machine()->UnalignedStore(UnalignedStoreRepresentation(rep)), base,
+          index, value);
+    }
   }
 
   // Atomic memory operations.
@@ -402,23 +433,14 @@ class RawMachineAssembler {
   Node* Float32Sub(Node* a, Node* b) {
     return AddNode(machine()->Float32Sub(), a, b);
   }
-  Node* Float32SubPreserveNan(Node* a, Node* b) {
-    return AddNode(machine()->Float32SubPreserveNan(), a, b);
-  }
   Node* Float32Mul(Node* a, Node* b) {
     return AddNode(machine()->Float32Mul(), a, b);
   }
   Node* Float32Div(Node* a, Node* b) {
     return AddNode(machine()->Float32Div(), a, b);
   }
-  Node* Float32Max(Node* a, Node* b) {
-    return AddNode(machine()->Float32Max().op(), a, b);
-  }
-  Node* Float32Min(Node* a, Node* b) {
-    return AddNode(machine()->Float32Min().op(), a, b);
-  }
   Node* Float32Abs(Node* a) { return AddNode(machine()->Float32Abs(), a); }
-  Node* Float32Neg(Node* a) { return Float32Sub(Float32Constant(-0.0f), a); }
+  Node* Float32Neg(Node* a) { return AddNode(machine()->Float32Neg(), a); }
   Node* Float32Sqrt(Node* a) { return AddNode(machine()->Float32Sqrt(), a); }
   Node* Float32Equal(Node* a, Node* b) {
     return AddNode(machine()->Float32Equal(), a, b);
@@ -443,9 +465,6 @@ class RawMachineAssembler {
   Node* Float64Sub(Node* a, Node* b) {
     return AddNode(machine()->Float64Sub(), a, b);
   }
-  Node* Float64SubPreserveNan(Node* a, Node* b) {
-    return AddNode(machine()->Float64SubPreserveNan(), a, b);
-  }
   Node* Float64Mul(Node* a, Node* b) {
     return AddNode(machine()->Float64Mul(), a, b);
   }
@@ -456,13 +475,13 @@ class RawMachineAssembler {
     return AddNode(machine()->Float64Mod(), a, b);
   }
   Node* Float64Max(Node* a, Node* b) {
-    return AddNode(machine()->Float64Max().op(), a, b);
+    return AddNode(machine()->Float64Max(), a, b);
   }
   Node* Float64Min(Node* a, Node* b) {
-    return AddNode(machine()->Float64Min().op(), a, b);
+    return AddNode(machine()->Float64Min(), a, b);
   }
   Node* Float64Abs(Node* a) { return AddNode(machine()->Float64Abs(), a); }
-  Node* Float64Neg(Node* a) { return Float64Sub(Float64Constant(-0.0), a); }
+  Node* Float64Neg(Node* a) { return AddNode(machine()->Float64Neg(), a); }
   Node* Float64Acos(Node* a) { return AddNode(machine()->Float64Acos(), a); }
   Node* Float64Acosh(Node* a) { return AddNode(machine()->Float64Acosh(), a); }
   Node* Float64Asin(Node* a) { return AddNode(machine()->Float64Asin(), a); }
@@ -653,6 +672,14 @@ class RawMachineAssembler {
   Node* StoreToPointer(void* address, MachineRepresentation rep, Node* node) {
     return Store(rep, PointerConstant(address), node, kNoWriteBarrier);
   }
+  Node* UnalignedLoadFromPointer(void* address, MachineType rep,
+                                 int32_t offset = 0) {
+    return UnalignedLoad(rep, PointerConstant(address), Int32Constant(offset));
+  }
+  Node* UnalignedStoreToPointer(void* address, MachineRepresentation rep,
+                                Node* node) {
+    return UnalignedStore(rep, PointerConstant(address), node);
+  }
   Node* StringConstant(const char* string) {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
   }
@@ -721,8 +748,9 @@ class RawMachineAssembler {
   void Goto(RawMachineLabel* label);
   void Branch(Node* condition, RawMachineLabel* true_val,
               RawMachineLabel* false_val);
-  void Switch(Node* index, RawMachineLabel* default_label, int32_t* case_values,
-              RawMachineLabel** case_labels, size_t case_count);
+  void Switch(Node* index, RawMachineLabel* default_label,
+              const int32_t* case_values, RawMachineLabel** case_labels,
+              size_t case_count);
   void Return(Node* value);
   void Return(Node* v1, Node* v2);
   void Return(Node* v1, Node* v2, Node* v3);

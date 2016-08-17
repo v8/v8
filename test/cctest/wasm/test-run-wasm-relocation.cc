@@ -13,27 +13,23 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
-#define FOREACH_TYPE(TEST_BODY)             \
-  TEST_BODY(int8_t, Int8, WASM_I32_ADD)     \
-  TEST_BODY(uint8_t, Uint8, WASM_I32_ADD)   \
-  TEST_BODY(int16_t, Int16, WASM_I32_ADD)   \
-  TEST_BODY(uint16_t, Uint16, WASM_I32_ADD) \
-  TEST_BODY(int32_t, Int32, WASM_I32_ADD)   \
-  TEST_BODY(uint32_t, Uint32, WASM_I32_ADD) \
-  TEST_BODY(float, Float32, WASM_F32_ADD)   \
-  TEST_BODY(double, Float64, WASM_F64_ADD)
+#define FOREACH_TYPE(TEST_BODY)         \
+  TEST_BODY(int32_t, I32, WASM_I32_ADD) \
+  TEST_BODY(int64_t, I64, WASM_I64_ADD) \
+  TEST_BODY(float, F32, WASM_F32_ADD)   \
+  TEST_BODY(double, F64, WASM_F64_ADD)
 
-#define LOAD_STORE_GLOBAL_TEST_BODY(C_TYPE, MACHINE_TYPE, ADD)                \
+#define LOAD_SET_GLOBAL_TEST_BODY(C_TYPE, MACHINE_TYPE, ADD)                  \
   TEST(WasmRelocateGlobal##MACHINE_TYPE) {                                    \
     TestingModule module(kExecuteCompiled);                                   \
-    module.AddGlobal<int32_t>(MachineType::MACHINE_TYPE());                   \
-    module.AddGlobal<int32_t>(MachineType::MACHINE_TYPE());                   \
+    module.AddGlobal<C_TYPE>(kAst##MACHINE_TYPE);                             \
+    module.AddGlobal<C_TYPE>(kAst##MACHINE_TYPE);                             \
                                                                               \
-    WasmRunner<C_TYPE> r(&module, MachineType::MACHINE_TYPE());               \
+    WasmRunner<C_TYPE> r(&module,                                             \
+                         WasmOpcodes::MachineTypeFor(kAst##MACHINE_TYPE));    \
                                                                               \
     /* global = global + p0 */                                                \
-    BUILD(r,                                                                  \
-          WASM_STORE_GLOBAL(1, ADD(WASM_LOAD_GLOBAL(0), WASM_GET_LOCAL(0)))); \
+    BUILD(r, WASM_SET_GLOBAL(1, ADD(WASM_GET_GLOBAL(0), WASM_GET_LOCAL(0)))); \
     CHECK_EQ(1, module.instance->function_code.size());                       \
                                                                               \
     int filter = 1 << RelocInfo::WASM_GLOBAL_REFERENCE;                       \
@@ -61,4 +57,4 @@ using namespace v8::internal::compiler;
     CHECK_EQ(2U, address_index);                                              \
   }
 
-FOREACH_TYPE(LOAD_STORE_GLOBAL_TEST_BODY)
+FOREACH_TYPE(LOAD_SET_GLOBAL_TEST_BODY)

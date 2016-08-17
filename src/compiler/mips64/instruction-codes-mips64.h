@@ -66,22 +66,22 @@ namespace compiler {
   V(Mips64CmpS)                     \
   V(Mips64AddS)                     \
   V(Mips64SubS)                     \
-  V(Mips64SubPreserveNanS)          \
   V(Mips64MulS)                     \
   V(Mips64DivS)                     \
   V(Mips64ModS)                     \
   V(Mips64AbsS)                     \
+  V(Mips64NegS)                     \
   V(Mips64SqrtS)                    \
   V(Mips64MaxS)                     \
   V(Mips64MinS)                     \
   V(Mips64CmpD)                     \
   V(Mips64AddD)                     \
   V(Mips64SubD)                     \
-  V(Mips64SubPreserveNanD)          \
   V(Mips64MulD)                     \
   V(Mips64DivD)                     \
   V(Mips64ModD)                     \
   V(Mips64AbsD)                     \
+  V(Mips64NegD)                     \
   V(Mips64SqrtD)                    \
   V(Mips64MaxD)                     \
   V(Mips64MinD)                     \
@@ -121,17 +121,29 @@ namespace compiler {
   V(Mips64Lbu)                      \
   V(Mips64Sb)                       \
   V(Mips64Lh)                       \
+  V(Mips64Ulh)                      \
   V(Mips64Lhu)                      \
+  V(Mips64Ulhu)                     \
   V(Mips64Sh)                       \
-  V(Mips64Lw)                       \
-  V(Mips64Lwu)                      \
-  V(Mips64Sw)                       \
+  V(Mips64Ush)                      \
   V(Mips64Ld)                       \
+  V(Mips64Uld)                      \
+  V(Mips64Lw)                       \
+  V(Mips64Ulw)                      \
+  V(Mips64Lwu)                      \
+  V(Mips64Ulwu)                     \
+  V(Mips64Sw)                       \
+  V(Mips64Usw)                      \
   V(Mips64Sd)                       \
+  V(Mips64Usd)                      \
   V(Mips64Lwc1)                     \
+  V(Mips64Ulwc1)                    \
   V(Mips64Swc1)                     \
+  V(Mips64Uswc1)                    \
   V(Mips64Ldc1)                     \
+  V(Mips64Uldc1)                    \
   V(Mips64Sdc1)                     \
+  V(Mips64Usdc1)                    \
   V(Mips64BitcastDL)                \
   V(Mips64BitcastLD)                \
   V(Mips64Float64ExtractLowWord32)  \
@@ -141,10 +153,10 @@ namespace compiler {
   V(Mips64Float64Max)               \
   V(Mips64Float64Min)               \
   V(Mips64Float64SilenceNaN)        \
-  V(Mips64Float32Max)               \
-  V(Mips64Float32Min)               \
   V(Mips64Push)                     \
   V(Mips64StoreToStackSlot)         \
+  V(Mips64ByteSwap64)               \
+  V(Mips64ByteSwap32)               \
   V(Mips64StackClaim)
 
 // Addressing modes represent the "shape" of inputs to an instruction.

@@ -6,6 +6,8 @@
 #ifdef V8_I18N_SUPPORT
 #include "src/runtime/runtime-utils.h"
 
+#include <memory>
+
 #include "src/api.h"
 #include "src/api-natives.h"
 #include "src/arguments.h"
@@ -45,12 +47,12 @@ namespace internal {
 namespace {
 
 const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
-                                    base::SmartArrayPointer<uc16>* dest,
+                                    std::unique_ptr<uc16[]>* dest,
                                     int32_t length) {
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
-    if (dest->is_empty()) {
-      dest->Reset(NewArray<uc16>(length));
+    if (!*dest) {
+      dest->reset(NewArray<uc16>(length));
       CopyChars(dest->get(), flat.ToOneByteVector().start(), length);
     }
     return reinterpret_cast<const UChar*>(dest->get());
@@ -569,18 +571,22 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
 
   string1 = String::Flatten(string1);
   string2 = String::Flatten(string2);
-  DisallowHeapAllocation no_gc;
-  int32_t length1 = string1->length();
-  int32_t length2 = string2->length();
-  String::FlatContent flat1 = string1->GetFlatContent();
-  String::FlatContent flat2 = string2->GetFlatContent();
-  base::SmartArrayPointer<uc16> sap1;
-  base::SmartArrayPointer<uc16> sap2;
-  const UChar* string_val1 = GetUCharBufferFromFlat(flat1, &sap1, length1);
-  const UChar* string_val2 = GetUCharBufferFromFlat(flat2, &sap2, length2);
+
+  UCollationResult result;
   UErrorCode status = U_ZERO_ERROR;
-  UCollationResult result =
-      collator->compare(string_val1, length1, string_val2, length2, status);
+  {
+    DisallowHeapAllocation no_gc;
+    int32_t length1 = string1->length();
+    int32_t length2 = string2->length();
+    String::FlatContent flat1 = string1->GetFlatContent();
+    String::FlatContent flat2 = string2->GetFlatContent();
+    std::unique_ptr<uc16[]> sap1;
+    std::unique_ptr<uc16[]> sap2;
+    const UChar* string_val1 = GetUCharBufferFromFlat(flat1, &sap1, length1);
+    const UChar* string_val2 = GetUCharBufferFromFlat(flat2, &sap2, length2);
+    result =
+        collator->compare(string_val1, length1, string_val2, length2, status);
+  }
   if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
 
   return *isolate->factory()->NewNumberFromInt(result);
@@ -609,7 +615,7 @@ RUNTIME_FUNCTION(Runtime_StringNormalize) {
   int length = s->length();
   s = String::Flatten(s);
   icu::UnicodeString result;
-  base::SmartArrayPointer<uc16> sap;
+  std::unique_ptr<uc16[]> sap;
   UErrorCode status = U_ZERO_ERROR;
   {
     DisallowHeapAllocation no_gc;
@@ -708,7 +714,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
   text = String::Flatten(text);
   DisallowHeapAllocation no_gc;
   String::FlatContent flat = text->GetFlatContent();
-  base::SmartArrayPointer<uc16> sap;
+  std::unique_ptr<uc16[]> sap;
   const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
   u_text = new icu::UnicodeString(text_value, length);
   break_iterator_holder->SetInternalField(1, reinterpret_cast<Smi*>(u_text));
@@ -799,7 +805,7 @@ namespace {
 void ConvertCaseWithTransliterator(icu::UnicodeString* input,
                                    const char* transliterator_id) {
   UErrorCode status = U_ZERO_ERROR;
-  base::SmartPointer<icu::Transliterator> translit(
+  std::unique_ptr<icu::Transliterator> translit(
       icu::Transliterator::createInstance(
           icu::UnicodeString(transliterator_id, -1, US_INV), UTRANS_FORWARD,
           status));
@@ -820,7 +826,7 @@ MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
   // ICU's C API for transliteration is nasty and we just use C++ API.
   if (V8_UNLIKELY(is_to_upper && lang[0] == 'e' && lang[1] == 'l')) {
     icu::UnicodeString converted;
-    base::SmartArrayPointer<uc16> sap;
+    std::unique_ptr<uc16[]> sap;
     {
       DisallowHeapAllocation no_gc;
       String::FlatContent flat = s->GetFlatContent();
@@ -848,13 +854,15 @@ MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
   int32_t dest_length = src_length;
   UErrorCode status;
   Handle<SeqTwoByteString> result;
-  base::SmartArrayPointer<uc16> sap;
+  std::unique_ptr<uc16[]> sap;
 
   // This is not a real loop. It'll be executed only once (no overflow) or
   // twice (overflow).
   for (int i = 0; i < 2; ++i) {
-    result =
-        isolate->factory()->NewRawTwoByteString(dest_length).ToHandleChecked();
+    // Case conversion can increase the string length (e.g. sharp-S => SS) so
+    // that we have to handle RangeError exceptions here.
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, isolate->factory()->NewRawTwoByteString(dest_length));
     DisallowHeapAllocation no_gc;
     String::FlatContent flat = s->GetFlatContent();
     const UChar* src = GetUCharBufferFromFlat(flat, &sap, src_length);

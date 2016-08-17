@@ -260,11 +260,6 @@ class CallIC : public IC {
 
   void HandleMiss(Handle<Object> function);
 
-  // Code generator routines.
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, int argc, ConvertReceiverMode mode,
-      TailCallMode tail_call_mode);
-
   static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };
 
@@ -288,8 +283,6 @@ class LoadIC : public IC {
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
-
-  static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
@@ -321,21 +314,13 @@ class LoadGlobalIC : public LoadIC {
   LoadGlobalIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
       : LoadIC(depth, isolate, nexus) {}
 
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, ExtraICState extra_state);
-
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Name> name);
 
   static void Clear(Isolate* isolate, Code* host, LoadGlobalICNexus* nexus);
 
  protected:
   Handle<Code> slow_stub() const override {
-    if (LoadGlobalICState::GetTypeofMode(extra_ic_state()) ==
-        NOT_INSIDE_TYPEOF) {
-      return isolate()->builtins()->LoadGlobalIC_SlowNotInsideTypeof();
-    } else {
-      return isolate()->builtins()->LoadGlobalIC_SlowInsideTypeof();
-    }
+    return isolate()->builtins()->LoadGlobalIC_Slow();
   }
 };
 
@@ -355,8 +340,6 @@ class KeyedLoadIC : public LoadIC {
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
 
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, ExtraICState extra_state);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
                                             ExtraICState extra_state);
 
@@ -386,9 +369,6 @@ class StoreIC : public IC {
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
-
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, LanguageMode language_mode);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
@@ -453,8 +433,6 @@ class KeyedStoreIC : public StoreIC {
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   LanguageMode language_mode);
 
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, LanguageMode language_mode);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
                                             ExtraICState extra_state);
 
@@ -493,9 +471,6 @@ class CompareIC : public IC {
 
   // Helper function for computing the condition for a compare operation.
   static Condition ComputeCondition(Token::Value op);
-
-  // Factory method for getting an uninitialized compare stub.
-  static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op);
 
  private:
   static bool HasInlinedSmiCode(Address address);

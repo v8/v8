@@ -79,13 +79,11 @@ struct ImmF64Operand {
 struct GlobalIndexOperand {
   uint32_t index;
   LocalType type;
-  MachineType machine_type;
   unsigned length;
 
   inline GlobalIndexOperand(Decoder* decoder, const byte* pc) {
     index = decoder->checked_read_u32v(pc, 1, &length, "global index");
     type = kAstStmt;
-    machine_type = MachineType::None();
   }
 };
 
@@ -146,16 +144,6 @@ struct CallImportOperand {
     arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
     index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "import index");
     length = len1 + len2;
-    sig = nullptr;
-  }
-};
-
-struct JITSingleFunctionOperand {
-  uint32_t sig_index;
-  FunctionSig* sig;
-  unsigned length;
-  inline JITSingleFunctionOperand(Decoder* decoder, const byte* pc) {
-    sig_index = decoder->checked_read_u32v(pc, 1, &length, "signature index");
     sig = nullptr;
   }
 };

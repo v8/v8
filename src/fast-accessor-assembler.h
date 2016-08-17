@@ -6,11 +6,11 @@
 #define V8_FAST_ACCESSOR_ASSEMBLER_H_
 
 #include <stdint.h>
+#include <memory>
 #include <vector>
 
 #include "include/v8-experimental.h"
 #include "src/base/macros.h"
-#include "src/base/smart-pointers.h"
 #include "src/handles.h"
 
 // For CodeStubAssembler::Label. (We cannot forward-declare inner classes.)
@@ -54,6 +54,15 @@ class FastAccessorAssembler {
   ValueId IntegerConstant(int int_constant);
   ValueId GetReceiver();
   ValueId LoadInternalField(ValueId value_id, int field_no);
+
+  // Loads internal field and assumes the object is indeed a valid API object
+  // with the proper internal fields present.
+  // The intended use is to call this on an object whose structure has already
+  // been checked previously, e.g. the accessor's receiver, which is map-checked
+  // before the fast accessor is called on it. Using this on an arbitrary object
+  // will result in unsafe memory accesses.
+  ValueId LoadInternalFieldUnchecked(ValueId value_id, int field_no);
+
   ValueId LoadValue(ValueId value_id, int offset);
   ValueId LoadObject(ValueId value_id, int offset);
 
@@ -77,13 +86,15 @@ class FastAccessorAssembler {
   compiler::Node* FromId(ValueId value) const;
   CodeStubAssembler::Label* FromId(LabelId value) const;
 
+  void CheckIsJSObjectOrJump(ValueId value, LabelId label_id);
+
   void Clear();
   Zone* zone() { return &zone_; }
   Isolate* isolate() const { return isolate_; }
 
   Zone zone_;
   Isolate* isolate_;
-  base::SmartPointer<CodeStubAssembler> assembler_;
+  std::unique_ptr<CodeStubAssembler> assembler_;
 
   // To prevent exposing the RMA internals to the outside world, we'll map
   // Node + Label pointers integers wrapped in ValueId and LabelId instances.

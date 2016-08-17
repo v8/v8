@@ -157,26 +157,20 @@ static bool HasDebugInfo(v8::Local<v8::Function> fun) {
   return shared->HasDebugInfo();
 }
 
-
-// Set a break point in a function and return the associated break point
-// number.
-static int SetBreakPoint(Handle<v8::internal::JSFunction> fun, int position) {
+// Set a break point in a function with a position relative to function start,
+// and return the associated break point number.
+static int SetBreakPoint(v8::Local<v8::Function> fun, int position) {
+  i::Handle<i::JSFunction> function =
+      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
+  position += function->shared()->start_position();
   static int break_point = 0;
-  v8::internal::Isolate* isolate = fun->GetIsolate();
+  v8::internal::Isolate* isolate = function->GetIsolate();
   v8::internal::Debug* debug = isolate->debug();
   debug->SetBreakPoint(
-      fun,
+      function,
       Handle<Object>(v8::internal::Smi::FromInt(++break_point), isolate),
       &position);
   return break_point;
-}
-
-
-// Set a break point in a function and return the associated break point
-// number.
-static int SetBreakPoint(v8::Local<v8::Function> fun, int position) {
-  return SetBreakPoint(
-      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun)), position);
 }
 
 
@@ -7984,18 +7978,11 @@ static void NoInterruptsOnDebugEvent(
   --after_compile_handler_depth;
 }
 
-
 TEST(NoInterruptsInDebugListener) {
   DebugLocalContext env;
   v8::Debug::SetDebugEventListener(env->GetIsolate(), NoInterruptsOnDebugEvent);
   CompileRun("void(0);");
 }
-
-class TestBreakLocation : public i::BreakLocation {
- public:
-  using i::BreakLocation::GetIterator;
-  using i::BreakLocation::Iterator;
-};
 
 TEST(BreakLocationIterator) {
   DebugLocalContext env;
@@ -8018,53 +8005,40 @@ TEST(BreakLocationIterator) {
   CHECK(i_isolate->debug()->EnsureDebugInfo(shared, function));
 
   Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
-  int code_size = debug_info->abstract_code()->Size();
+  Handle<i::AbstractCode> abstract_code(shared->abstract_code());
 
-  bool found_return = false;
-  bool found_call = false;
-  bool found_debugger = false;
-
-  // Test public interface.
-  for (int i = 0; i < code_size; i++) {
-    i::BreakLocation location = i::BreakLocation::FromCodeOffset(debug_info, i);
-    if (location.IsCall()) found_call = true;
-    if (location.IsReturn()) found_return = true;
-    if (location.IsDebuggerStatement()) found_debugger = true;
+  {
+    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code,
+                                                  i::ALL_BREAK_LOCATIONS);
+    CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
+    CHECK_EQ(17, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsDebugBreakSlot());
+    CHECK_EQ(32, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsCall());
+    CHECK_EQ(32, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
+    CHECK_EQ(47, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsReturn());
+    CHECK_EQ(60, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->Done());
   }
-  CHECK(found_call);
-  CHECK(found_return);
-  CHECK(found_debugger);
 
-  // Test underlying implementation.
-  TestBreakLocation::Iterator* iterator =
-      TestBreakLocation::GetIterator(debug_info, i::ALL_BREAK_LOCATIONS);
-  CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
-  CHECK_EQ(7, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsDebugBreakSlot());
-  CHECK_EQ(22, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsCall());
-  CHECK_EQ(22, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
-  CHECK_EQ(37, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsReturn());
-  CHECK_EQ(50, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->Done());
-  delete iterator;
-
-  iterator = TestBreakLocation::GetIterator(debug_info, i::CALLS_AND_RETURNS);
-  CHECK(iterator->GetBreakLocation().IsCall());
-  CHECK_EQ(22, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->GetBreakLocation().IsReturn());
-  CHECK_EQ(50, iterator->GetBreakLocation().position());
-  iterator->Next();
-  CHECK(iterator->Done());
-  delete iterator;
+  {
+    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code,
+                                                  i::CALLS_AND_RETURNS);
+    CHECK(iterator->GetBreakLocation().IsCall());
+    CHECK_EQ(32, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->GetBreakLocation().IsReturn());
+    CHECK_EQ(60, iterator->GetBreakLocation().position());
+    iterator->Next();
+    CHECK(iterator->Done());
+  }
 
   DisableDebugger(isolate);
 }

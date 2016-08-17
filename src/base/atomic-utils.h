@@ -19,10 +19,16 @@ class AtomicNumber {
   AtomicNumber() : value_(0) {}
   explicit AtomicNumber(T initial) : value_(initial) {}
 
-  // Returns the newly set value.
+  // Returns the value after incrementing.
   V8_INLINE T Increment(T increment) {
     return static_cast<T>(base::Barrier_AtomicIncrement(
         &value_, static_cast<base::AtomicWord>(increment)));
+  }
+
+  // Returns the value after decrementing.
+  V8_INLINE T Decrement(T decrement) {
+    return static_cast<T>(base::Barrier_AtomicIncrement(
+        &value_, -static_cast<base::AtomicWord>(decrement)));
   }
 
   V8_INLINE T Value() { return static_cast<T>(base::Acquire_Load(&value_)); }
@@ -35,6 +41,9 @@ class AtomicNumber {
     SetValue(value);
     return value;
   }
+
+  V8_INLINE T operator+=(T value) { return Increment(value); }
+  V8_INLINE T operator-=(T value) { return Decrement(value); }
 
  private:
   STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
@@ -52,7 +61,7 @@ class AtomicValue {
   explicit AtomicValue(T initial)
       : value_(cast_helper<T>::to_storage_type(initial)) {}
 
-  V8_INLINE T Value() {
+  V8_INLINE T Value() const {
     return cast_helper<T>::to_return_type(base::Acquire_Load(&value_));
   }
 

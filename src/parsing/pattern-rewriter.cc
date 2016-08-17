@@ -147,23 +147,27 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // pre-resolve the proxy because it resides in the same scope as the
   // declaration.
   const AstRawString* name = pattern->raw_name();
-  VariableProxy* proxy = parser_->NewUnresolved(name, descriptor_->mode);
+  VariableProxy* proxy = descriptor_->scope->NewUnresolved(
+      factory(), name, parser_->scanner()->location().beg_pos,
+      parser_->scanner()->location().end_pos);
   Declaration* declaration = factory()->NewVariableDeclaration(
-      proxy, descriptor_->mode, descriptor_->scope,
-      descriptor_->declaration_pos);
-  Variable* var =
-      parser_->Declare(declaration, descriptor_->declaration_kind,
-                       descriptor_->mode != VAR, ok_, descriptor_->hoist_scope);
+      proxy, descriptor_->scope, descriptor_->declaration_pos);
+  Variable* var = parser_->Declare(declaration, descriptor_->declaration_kind,
+                                   descriptor_->mode,
+                                   DefaultInitializationFlag(descriptor_->mode),
+                                   ok_, descriptor_->hoist_scope);
   if (!*ok_) return;
   DCHECK_NOT_NULL(var);
-  DCHECK(!proxy->is_resolved() || proxy->var() == var);
+  DCHECK(proxy->is_resolved());
+  DCHECK(initializer_position_ != kNoSourcePosition);
   var->set_initializer_position(initializer_position_);
 
-  DCHECK(initializer_position_ != kNoSourcePosition);
-
+  // TODO(adamk): This should probably be checking hoist_scope.
+  // Move it to Parser::Declare() to make it easier to test
+  // the right scope.
   Scope* declaration_scope = IsLexicalVariableMode(descriptor_->mode)
                                  ? descriptor_->scope
-                                 : descriptor_->scope->DeclarationScope();
+                                 : descriptor_->scope->GetDeclarationScope();
   if (declaration_scope->num_var() > kMaxNumFunctionLocals) {
     parser_->ReportMessage(MessageTemplate::kTooManyVariables);
     *ok_ = false;
@@ -173,8 +177,10 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     names_->Add(name, zone());
   }
 
-  // Initialize variables if needed. A
-  // declaration of the form:
+  // If there's no initializer, we're done.
+  if (value == nullptr) return;
+
+  // A declaration of the form:
   //
   //    var v = x;
   //
@@ -182,119 +188,57 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   //
   //    var v; v = x;
   //
-  // In particular, we need to re-lookup 'v' (in scope_, not
-  // declaration_scope) as it may be a different 'v' than the 'v' in the
-  // declaration (e.g., if we are inside a 'with' statement or 'catch'
-  // block).
-  //
-  // However, note that const declarations are different! A const
-  // declaration of the form:
-  //
-  //   const c = x;
-  //
-  // is *not* syntactic sugar for:
-  //
-  //   const c; c = x;
-  //
-  // The "variable" c initialized to x is the same as the declared
-  // one - there is no re-lookup (see the last parameter of the
-  // Declare() call above).
-  Scope* initialization_scope = IsImmutableVariableMode(descriptor_->mode)
-                                    ? declaration_scope
-                                    : descriptor_->scope;
+  // In particular, we need to re-lookup 'v' as it may be a different
+  // 'v' than the 'v' in the declaration (e.g., if we are inside a
+  // 'with' statement or 'catch' block). Global var declarations
+  // also need special treatment.
+  Scope* var_init_scope = descriptor_->scope;
 
+  if (descriptor_->mode == VAR && var_init_scope->is_script_scope()) {
+    // Global variable declarations must be compiled in a specific
+    // way. When the script containing the global variable declaration
+    // is entered, the global variable must be declared, so that if it
+    // doesn't exist (on the global object itself, see ES5 errata) it
+    // gets created with an initial undefined value. This is handled
+    // by the declarations part of the function representing the
+    // top-level global code; see Runtime::DeclareGlobalVariable. If
+    // it already exists (in the object or in a prototype), it is
+    // *not* touched until the variable declaration statement is
+    // executed.
+    //
+    // Executing the variable declaration statement will always
+    // guarantee to give the global object an own property.
+    // This way, global variable declarations can shadow
+    // properties in the prototype chain, but only after the variable
+    // declaration statement has been executed. This is important in
+    // browsers where the global object (window) has lots of
+    // properties defined in prototype objects.
 
-  // Global variable declarations must be compiled in a specific
-  // way. When the script containing the global variable declaration
-  // is entered, the global variable must be declared, so that if it
-  // doesn't exist (on the global object itself, see ES5 errata) it
-  // gets created with an initial undefined value. This is handled
-  // by the declarations part of the function representing the
-  // top-level global code; see Runtime::DeclareGlobalVariable. If
-  // it already exists (in the object or in a prototype), it is
-  // *not* touched until the variable declaration statement is
-  // executed.
-  //
-  // Executing the variable declaration statement will always
-  // guarantee to give the global object an own property.
-  // This way, global variable declarations can shadow
-  // properties in the prototype chain, but only after the variable
-  // declaration statement has been executed. This is important in
-  // browsers where the global object (window) has lots of
-  // properties defined in prototype objects.
-  if (initialization_scope->is_script_scope() &&
-      !IsLexicalVariableMode(descriptor_->mode)) {
-    // Compute the arguments for the runtime
-    // call.test-parsing/InitializedDeclarationsInStrictForOfError
     ZoneList<Expression*>* arguments =
         new (zone()) ZoneList<Expression*>(3, zone());
-    // We have at least 1 parameter.
     arguments->Add(
         factory()->NewStringLiteral(name, descriptor_->declaration_pos),
         zone());
-    CallRuntime* initialize;
+    arguments->Add(factory()->NewNumberLiteral(var_init_scope->language_mode(),
+                                               kNoSourcePosition),
+                   zone());
+    arguments->Add(value, zone());
 
-    if (IsImmutableVariableMode(descriptor_->mode)) {
-      arguments->Add(value, zone());
-      // Construct the call to Runtime_InitializeConstGlobal
-      // and add it to the initialization statement block.
-      // Note that the function does different things depending on
-      // the number of arguments (1 or 2).
-      initialize = factory()->NewCallRuntime(Runtime::kInitializeConstGlobal,
-                                             arguments, value->position());
-      value = NULL;  // zap the value to avoid the unnecessary assignment
-    } else {
-      // Add language mode.
-      // We may want to pass singleton to avoid Literal allocations.
-      LanguageMode language_mode = initialization_scope->language_mode();
-      arguments->Add(
-          factory()->NewNumberLiteral(language_mode, kNoSourcePosition),
-          zone());
-
-      // Be careful not to assign a value to the global variable if
-      // we're in a with. The initialization value should not
-      // necessarily be stored in the global object in that case,
-      // which is why we need to generate a separate assignment node.
-      if (value != NULL && !descriptor_->scope->inside_with()) {
-        arguments->Add(value, zone());
-        // Construct the call to Runtime_InitializeVarGlobal
-        // and add it to the initialization statement block.
-        initialize = factory()->NewCallRuntime(Runtime::kInitializeVarGlobal,
-                                               arguments, value->position());
-        value = NULL;  // zap the value to avoid the unnecessary assignment
-      } else {
-        initialize = NULL;
-      }
-    }
-
-    if (initialize != NULL) {
-      block_->statements()->Add(
-          factory()->NewExpressionStatement(initialize, initialize->position()),
-          zone());
-    }
-  } else if (value != nullptr && IsLexicalVariableMode(descriptor_->mode)) {
+    CallRuntime* initialize = factory()->NewCallRuntime(
+        Runtime::kInitializeVarGlobal, arguments, value->position());
+    block_->statements()->Add(
+        factory()->NewExpressionStatement(initialize, initialize->position()),
+        zone());
+  } else {
     // For 'let' and 'const' declared variables the initialization always
     // assigns to the declared variable.
-    DCHECK_NOT_NULL(proxy);
-    DCHECK_NOT_NULL(proxy->var());
-    DCHECK_NOT_NULL(value);
-    // Add break location for destructured sub-pattern.
-    int pos = IsSubPattern() ? pattern->position() : value->position();
-    Assignment* assignment =
-        factory()->NewAssignment(Token::INIT, proxy, value, pos);
-    block_->statements()->Add(
-        factory()->NewExpressionStatement(assignment, pos), zone());
-    value = NULL;
-  }
-
-  // Add an assignment node to the initialization statement block if we still
-  // have a pending initialization value.
-  if (value != NULL) {
-    DCHECK(descriptor_->mode == VAR);
-    // 'var' initializations are simply assignments (with all the consequences
-    // if they are inside a 'with' statement - they may change a 'with' object
-    // property).
-    VariableProxy* proxy = initialization_scope->NewUnresolved(factory(), name);
+    // But for var declarations we need to do a new lookup.
+    if (descriptor_->mode == VAR) {
+      proxy = var_init_scope->NewUnresolved(factory(), name);
+    } else {
+      DCHECK_NOT_NULL(proxy);
+      DCHECK_NOT_NULL(proxy->var());
+    }
     // Add break location for destructured sub-pattern.
     int pos = IsSubPattern() ? pattern->position() : value->position();
     Assignment* assignment =
@@ -380,36 +324,20 @@ void Parser::PatternRewriter::VisitRewritableExpression(
   return set_context(old_context);
 }
 
-// Two cases for scope rewriting the scope of default parameters:
-// - Eagerly parsed arrow functions are initially parsed as having
-//   expressions in the enclosing scope, but when the arrow is encountered,
-//   need to be in the scope of the function.
-// - When an extra declaration scope needs to be inserted to account for
-//   a sloppy eval in a default parameter or function body, the expressions
-//   needs to be in that new inner scope which was added after initial
-//   parsing.
-// Each of these cases can be handled by rewriting the contents of the
-// expression to the current scope. The source scope is typically the outer
-// scope when one case occurs; when both cases occur, both scopes need to
-// be included as the outer scope. (Both rewritings still need to be done
-// to account for lazily parsed arrow functions which hit the second case.)
-// TODO(littledan): Remove the outer_scope parameter of
-//                  RewriteParameterInitializerScope
+// When an extra declaration scope needs to be inserted to account for
+// a sloppy eval in a default parameter or function body, the expressions
+// needs to be in that new inner scope which was added after initial
+// parsing.
 void Parser::PatternRewriter::RewriteParameterScopes(Expression* expr) {
   if (!IsBindingContext()) return;
   if (descriptor_->declaration_kind != DeclarationDescriptor::PARAMETER) return;
-  if (!scope()->is_arrow_scope() && !scope()->is_block_scope()) return;
+  if (!scope()->is_block_scope()) return;
 
-  // Either this scope is an arrow scope or a declaration block scope.
   DCHECK(scope()->is_declaration_scope());
+  DCHECK(scope()->outer_scope()->is_function_scope());
+  DCHECK(scope()->calls_sloppy_eval());
 
-  if (scope()->outer_scope()->is_arrow_scope() && scope()->is_block_scope()) {
-    RewriteParameterInitializerScope(parser_->stack_limit(), expr,
-                                     scope()->outer_scope()->outer_scope(),
-                                     scope());
-  }
-  RewriteParameterInitializerScope(parser_->stack_limit(), expr,
-                                   scope()->outer_scope(), scope());
+  ReparentParameterExpressionScope(parser_->stack_limit(), expr, scope());
 }
 
 void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,

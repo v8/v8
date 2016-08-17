@@ -64,7 +64,6 @@ var kDeclExports = 0x09;
 var kDeclFunctions = 0x0a;
 var kDeclCode = 0x0b;
 var kDeclNames = 0x0c;
-var kDeclFunctionTablePad = 0x0d;
 
 var kArity0 = 0;
 var kArity1 = 1;
@@ -75,7 +74,7 @@ var kWasmFunctionTypeForm = 0x40;
 var section_names = [
   "memory", "type", "old_function", "global", "data",
   "table", "end", "start", "import", "export",
-  "function", "code", "name", "table_pad"];
+  "function", "code", "name"];
 
 // Function declaration flags
 var kDeclFunctionName   = 0x01;
@@ -101,6 +100,11 @@ var kSig_l_ll = makeSig([kAstI64, kAstI64], [kAstI64]);
 var kSig_i_dd = makeSig([kAstF64, kAstF64], [kAstI32]);
 var kSig_v_v = makeSig([], []);
 var kSig_i_v = makeSig([], [kAstI32]);
+var kSig_v_i = makeSig([kAstI32], []);
+var kSig_v_ii = makeSig([kAstI32, kAstI32], []);
+var kSig_v_iii = makeSig([kAstI32, kAstI32, kAstI32], []);
+var kSig_v_d = makeSig([kAstF64], []);
+var kSig_v_dd = makeSig([kAstF64, kAstF64], []);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -150,8 +154,8 @@ var kExprCallFunction = 0x16;
 var kExprCallIndirect = 0x17;
 var kExprCallImport = 0x18;
 var kExprI8Const = 0xcb;
-var kExprLoadGlobal = 0xcc;
-var kExprStoreGlobal = 0xcd;
+var kExprGetGlobal = 0xbb;
+var kExprSetGlobal = 0xbc;
 
 var kExprI32LoadMem8S = 0x20;
 var kExprI32LoadMem8U = 0x21;
@@ -303,11 +307,6 @@ var kExprI32Ror = 0xb6;
 var kExprI32Rol = 0xb7;
 var kExprI64Ror = 0xb8;
 var kExprI64Rol = 0xb9;
-var kExprSimdPrefix = 0xe5;
-var kExprI32x4Splat = 0x1b;
-var kExprI32x4ExtractLane = 0x1c;
-
-var kExprJITSingleFunction = 0xf0;
 
 var kTrapUnreachable          = 0;
 var kTrapMemOutOfBounds       = 1;
@@ -317,8 +316,7 @@ var kTrapRemByZero            = 4;
 var kTrapFloatUnrepresentable = 5;
 var kTrapFuncInvalid          = 6;
 var kTrapFuncSigMismatch      = 7;
-var kTrapMemAllocationFail    = 8;
-var kTrapInvalidIndex         = 9;
+var kTrapInvalidIndex         = 8;
 
 var kTrapMsgs = [
   "unreachable",
@@ -329,7 +327,6 @@ var kTrapMsgs = [
   "integer result unrepresentable",
   "invalid function",
   "function signature mismatch",
-  "failed to allocate memory",
   "invalid index into function table"
 ];
 

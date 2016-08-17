@@ -31,7 +31,6 @@
 
 #include "src/v8.h"
 
-#include "src/ast/scopeinfo.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
@@ -1061,10 +1060,14 @@ TEST(CodeSerializerLargeCodeObject) {
 
   v8::HandleScope scope(CcTest::isolate());
 
+  // The serializer only tests the shared code, which is always the unoptimized
+  // code. Don't even bother generating optimized code to avoid timeouts.
+  FLAG_always_opt = false;
+
   Vector<const uint8_t> source =
-      ConstructSource(STATIC_CHAR_VECTOR("var j=1; try { if (j) throw 1;"),
-                      STATIC_CHAR_VECTOR("for(var i=0;i<1;i++)j++;"),
-                      STATIC_CHAR_VECTOR("} catch (e) { j=7; } j"), 10000);
+      ConstructSource(STATIC_CHAR_VECTOR("var j=1; if (!j) {"),
+                      STATIC_CHAR_VECTOR("for (let i of Object.prototype);"),
+                      STATIC_CHAR_VECTOR("} j=7; j"), 1500);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 
@@ -1075,7 +1078,7 @@ TEST(CodeSerializerLargeCodeObject) {
       CompileScript(isolate, source_str, Handle<String>(), &cache,
                     v8::ScriptCompiler::kProduceCodeCache);
 
-  CHECK(isolate->heap()->InSpace(orig->code(), LO_SPACE));
+  CHECK(isolate->heap()->InSpace(orig->abstract_code(), LO_SPACE));
 
   Handle<SharedFunctionInfo> copy;
   {
@@ -1885,6 +1888,61 @@ TEST(CodeSerializerCell) {
   delete script_data;
 }
 #endif  // V8_TARGET_ARCH_X64
+
+TEST(CodeSerializerEmbeddedObject) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(CcTest::isolate());
+
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
+  HandleScope handles(isolate);
+
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
+  assembler.enable_serializer();
+  Handle<Object> number = isolate->factory()->NewHeapNumber(0.3);
+  CHECK(isolate->heap()->InNewSpace(*number));
+  Handle<Code> code;
+  {
+    MacroAssembler* masm = &assembler;
+    masm->Push(number);
+    CodeDesc desc;
+    masm->GetCode(&desc);
+    code = isolate->factory()->NewCode(desc, Code::ComputeFlags(Code::FUNCTION),
+                                       masm->CodeObject());
+    code->set_has_reloc_info_for_serialization(true);
+  }
+  RelocIterator rit1(*code, RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
+  CHECK_EQ(*number, rit1.rinfo()->target_object());
+
+  Handle<String> source = isolate->factory()->empty_string();
+  Handle<SharedFunctionInfo> sfi =
+      isolate->factory()->NewSharedFunctionInfo(source, code, false);
+  ScriptData* script_data = CodeSerializer::Serialize(isolate, sfi, source);
+
+  Handle<SharedFunctionInfo> copy =
+      CodeSerializer::Deserialize(isolate, script_data, source)
+          .ToHandleChecked();
+  RelocIterator rit2(copy->code(),
+                     RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
+  CHECK(rit2.rinfo()->target_object()->IsHeapNumber());
+  CHECK_EQ(0.3, HeapNumber::cast(rit2.rinfo()->target_object())->value());
+
+  heap->CollectAllAvailableGarbage();
+
+  RelocIterator rit3(copy->code(),
+                     RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
+  CHECK(rit3.rinfo()->target_object()->IsHeapNumber());
+  CHECK_EQ(0.3, HeapNumber::cast(rit3.rinfo()->target_object())->value());
+
+  delete script_data;
+}
 
 TEST(SnapshotCreatorMultipleContexts) {
   DisableTurbofan();

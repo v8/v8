@@ -23,18 +23,11 @@ class CpuSampler : public sampler::Sampler {
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
         processor_(processor) {}
 
-  void SampleStack(const v8::RegisterState& state) override {
-    v8::Isolate* v8_isolate = isolate();
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(v8_isolate);
-#if defined(USE_SIMULATOR)
-    v8::RegisterState regs;
-    if (!SimulatorHelper::FillRegisters(i_isolate, &regs)) return;
-#else
-    const v8::RegisterState& regs = state;
-#endif
+  void SampleStack(const v8::RegisterState& regs) override {
     TickSample* sample = processor_->StartTickSample();
-    if (sample == NULL) return;
-    sample->Init(i_isolate, regs, TickSample::kIncludeCEntryFrame, true);
+    if (sample == nullptr) return;
+    Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
+    sample->Init(isolate, regs, TickSample::kIncludeCEntryFrame, true);
     if (is_counting_samples_ && !sample->timestamp.IsNull()) {
       if (sample->state == JS) ++js_sample_count_;
       if (sample->state == EXTERNAL) ++external_sample_count_;
@@ -77,7 +70,7 @@ void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
   regs.sp = fp - fp_to_sp_delta;
   regs.fp = fp;
   regs.pc = from;
-  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, false);
+  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, false, false);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
@@ -92,7 +85,8 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
     regs.fp = frame->fp();
     regs.pc = frame->pc();
   }
-  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, update_stats);
+  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, update_stats,
+                     false);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 

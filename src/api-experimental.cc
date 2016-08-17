@@ -76,6 +76,10 @@ FastAccessorBuilder::ValueId FastAccessorBuilder::LoadInternalField(
   return FromApi(this)->LoadInternalField(value, field_no);
 }
 
+FastAccessorBuilder::ValueId FastAccessorBuilder::LoadInternalFieldUnchecked(
+    ValueId value, int field_no) {
+  return FromApi(this)->LoadInternalFieldUnchecked(value, field_no);
+}
 
 FastAccessorBuilder::ValueId FastAccessorBuilder::LoadValue(ValueId value_id,
                                                             int offset) {

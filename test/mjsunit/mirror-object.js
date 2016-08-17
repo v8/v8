@@ -200,10 +200,10 @@ assertFalse(math_mirror.property("E").canDelete());
 
 // Test objects with JavaScript accessors.
 o = {}
-o.__defineGetter__('a', function(){return 'a';});
-o.__defineSetter__('b', function(){});
-o.__defineGetter__('c', function(){throw 'c';});
-o.__defineSetter__('c', function(){throw 'c';});
+o.__defineGetter__('a', function (){return 'a';});
+o.__defineSetter__('b', function (){});
+o.__defineGetter__('c', function (){throw 'c';});
+o.__defineSetter__('c', function (){throw 'c';});
 testObjectMirror(o, 'Object', 'Object');
 mirror = debug.MakeMirror(o);
 // a has getter but no setter.

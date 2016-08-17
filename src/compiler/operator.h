@@ -49,6 +49,12 @@ class Operator : public ZoneObject {
     kEliminatable = kNoDeopt | kNoWrite | kNoThrow,
     kPure = kNoDeopt | kNoRead | kNoWrite | kNoThrow | kIdempotent
   };
+
+// List of all bits, for the visualizer.
+#define OPERATOR_PROPERTY_LIST(V) \
+  V(Commutative)                  \
+  V(Associative) V(Idempotent) V(NoRead) V(NoWrite) V(NoThrow) V(NoDeopt)
+
   typedef base::Flags<Property, uint8_t> Properties;
   enum class PrintVerbosity { kVerbose, kSilent };
 
@@ -121,6 +127,8 @@ class Operator : public ZoneObject {
     // methods are banned in the style guide.
     return PrintToImpl(os, verbose);
   }
+
+  void PrintPropsTo(std::ostream& os) const;
 
  protected:
   virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const;

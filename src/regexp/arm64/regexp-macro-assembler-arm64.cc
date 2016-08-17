@@ -1363,12 +1363,6 @@ void RegExpMacroAssemblerARM64::CheckPosition(int cp_offset,
 }
 
 
-bool RegExpMacroAssemblerARM64::CanReadUnaligned() {
-  // TODO(pielan): See whether or not we should disable unaligned accesses.
-  return !slow_safe();
-}
-
-
 // Private methods:
 
 void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {

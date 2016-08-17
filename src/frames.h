@@ -334,7 +334,7 @@ class BuiltinExitFrameConstants : public CommonFrameConstants {
 
 class InterpreterFrameConstants : public AllStatic {
  public:
-  // Fixed frame includes new.target and bytecode offset.
+  // Fixed frame includes new.target, bytecode array, and bytecode offset.
   static const int kFixedFrameSize =
       StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
   static const int kFixedFrameSizeFromFp =
@@ -354,6 +354,11 @@ class InterpreterFrameConstants : public AllStatic {
       -StandardFrameConstants::kFixedFrameSizeFromFp - 4 * kPointerSize;
 
   static const int kExpressionsOffset = kRegisterFileFromFp;
+
+  // Number of fixed slots in addition to a {StandardFrame}.
+  static const int kExtraSlotCount =
+      InterpreterFrameConstants::kFixedFrameSize / kPointerSize -
+      StandardFrameConstants::kFixedFrameSize / kPointerSize;
 
   // Expression index for {StandardFrame::GetExpressionAddress}.
   static const int kBytecodeArrayExpressionIndex = -2;
@@ -705,11 +710,11 @@ class FrameSummary BASE_EMBEDDED {
 
   static FrameSummary GetFirst(JavaScriptFrame* frame);
 
-  Handle<Object> receiver() { return receiver_; }
-  Handle<JSFunction> function() { return function_; }
-  Handle<AbstractCode> abstract_code() { return abstract_code_; }
-  int code_offset() { return code_offset_; }
-  bool is_constructor() { return is_constructor_; }
+  Handle<Object> receiver() const { return receiver_; }
+  Handle<JSFunction> function() const { return function_; }
+  Handle<AbstractCode> abstract_code() const { return abstract_code_; }
+  int code_offset() const { return code_offset_; }
+  bool is_constructor() const { return is_constructor_; }
 
   void Print();
 

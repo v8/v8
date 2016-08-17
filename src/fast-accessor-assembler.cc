@@ -43,52 +43,53 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::LoadInternalField(
     ValueId value, int field_no) {
   CHECK_EQ(kBuilding, state_);
 
-  // Determine the 'value' object's instance type.
-  Node* object_map = assembler_->LoadObjectField(
-      FromId(value), Internals::kHeapObjectMapOffset, MachineType::Pointer());
-  Node* instance_type = assembler_->WordAnd(
-      assembler_->LoadObjectField(object_map,
-                                  Internals::kMapInstanceTypeAndBitFieldOffset,
-                                  MachineType::Uint16()),
-      assembler_->IntPtrConstant(0xff));
-
-  // Check whether we have a proper JSObject.
   CodeStubAssembler::Variable result(assembler_.get(),
                                      MachineRepresentation::kTagged);
-  CodeStubAssembler::Label is_jsobject(assembler_.get());
-  CodeStubAssembler::Label maybe_api_object(assembler_.get());
-  CodeStubAssembler::Label is_not_jsobject(assembler_.get());
+  LabelId is_not_jsobject = MakeLabel();
   CodeStubAssembler::Label merge(assembler_.get(), &result);
-  assembler_->Branch(
-      assembler_->WordEqual(
-          instance_type, assembler_->IntPtrConstant(Internals::kJSObjectType)),
-      &is_jsobject, &maybe_api_object);
 
-  // JSObject? Then load the internal field field_no.
-  assembler_->Bind(&is_jsobject);
+  CheckIsJSObjectOrJump(value, is_not_jsobject);
+
   Node* internal_field = assembler_->LoadObjectField(
       FromId(value), JSObject::kHeaderSize + kPointerSize * field_no,
       MachineType::Pointer());
+
   result.Bind(internal_field);
   assembler_->Goto(&merge);
 
-  assembler_->Bind(&maybe_api_object);
-  assembler_->Branch(
-      assembler_->WordEqual(instance_type, assembler_->IntPtrConstant(
-                                               Internals::kJSApiObjectType)),
-      &is_jsobject, &is_not_jsobject);
-
-  // No JSObject? Return undefined.
-  // TODO(vogelheim): Check whether this is the appropriate action, or whether
-  //                  the method should take a label instead.
-  assembler_->Bind(&is_not_jsobject);
-  Node* fail_value = assembler_->UndefinedConstant();
-  result.Bind(fail_value);
+  // Return null, mimicking the C++ counterpart.
+  SetLabel(is_not_jsobject);
+  result.Bind(assembler_->NullConstant());
   assembler_->Goto(&merge);
 
   // Return.
   assembler_->Bind(&merge);
   return FromRaw(result.value());
+}
+
+FastAccessorAssembler::ValueId
+FastAccessorAssembler::LoadInternalFieldUnchecked(ValueId value, int field_no) {
+  CHECK_EQ(kBuilding, state_);
+
+  // Defensive debug checks.
+  if (FLAG_debug_code) {
+    LabelId is_jsobject = MakeLabel();
+    LabelId is_not_jsobject = MakeLabel();
+    CheckIsJSObjectOrJump(value, is_not_jsobject);
+    assembler_->Goto(FromId(is_jsobject));
+
+    SetLabel(is_not_jsobject);
+    assembler_->DebugBreak();
+    assembler_->Goto(FromId(is_jsobject));
+
+    SetLabel(is_jsobject);
+  }
+
+  Node* result = assembler_->LoadObjectField(
+      FromId(value), JSObject::kHeaderSize + kPointerSize * field_no,
+      MachineType::Pointer());
+
+  return FromRaw(result);
 }
 
 FastAccessorAssembler::ValueId FastAccessorAssembler::LoadValue(ValueId value,
@@ -191,6 +192,40 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
       FromId(arg));
 
   return FromRaw(call);
+}
+
+void FastAccessorAssembler::CheckIsJSObjectOrJump(ValueId value_id,
+                                                  LabelId label_id) {
+  CHECK_EQ(kBuilding, state_);
+
+  // Determine the 'value' object's instance type.
+  Node* object_map = assembler_->LoadObjectField(
+      FromId(value_id), Internals::kHeapObjectMapOffset,
+      MachineType::Pointer());
+
+  Node* instance_type = assembler_->WordAnd(
+      assembler_->LoadObjectField(object_map,
+                                  Internals::kMapInstanceTypeAndBitFieldOffset,
+                                  MachineType::Uint16()),
+      assembler_->IntPtrConstant(0xff));
+
+  CodeStubAssembler::Label is_jsobject(assembler_.get());
+
+  // Check whether we have a proper JSObject.
+  assembler_->GotoIf(
+      assembler_->WordEqual(
+          instance_type, assembler_->IntPtrConstant(Internals::kJSObjectType)),
+      &is_jsobject);
+
+  // JSApiObject?.
+  assembler_->GotoUnless(
+      assembler_->WordEqual(instance_type, assembler_->IntPtrConstant(
+                                               Internals::kJSApiObjectType)),
+      FromId(label_id));
+
+  // Continue.
+  assembler_->Goto(&is_jsobject);
+  assembler_->Bind(&is_jsobject);
 }
 
 MaybeHandle<Code> FastAccessorAssembler::Build() {

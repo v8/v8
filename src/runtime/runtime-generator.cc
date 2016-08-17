@@ -23,11 +23,13 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   Handle<FixedArray> operand_stack;
   if (function->shared()->HasBytecodeArray()) {
     // New-style generators.
+    DCHECK(!function->shared()->HasBaselineCode());
     int size = function->shared()->bytecode_array()->register_count();
     operand_stack = isolate->factory()->NewFixedArray(size);
   } else {
     // Old-style generators.
-    operand_stack = handle(isolate->heap()->empty_fixed_array());
+    DCHECK(function->shared()->HasBaselineCode());
+    operand_stack = isolate->factory()->empty_fixed_array();
   }
 
   Handle<JSGeneratorObject> generator =

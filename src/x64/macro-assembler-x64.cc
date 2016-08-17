@@ -638,17 +638,18 @@ void MacroAssembler::Abort(BailoutReason reason) {
   }
 #endif
 
-  Move(kScratchRegister, Smi::FromInt(static_cast<int>(reason)),
-       Assembler::RelocInfoNone());
-  Push(kScratchRegister);
+  // Check if Abort() has already been initialized.
+  DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
+
+  Move(rdx, Smi::FromInt(static_cast<int>(reason)));
 
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort);
+    Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
   } else {
-    CallRuntime(Runtime::kAbort);
+    Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
   }
   // Control will not return here.
   int3();
@@ -2754,6 +2755,23 @@ void MacroAssembler::Movapd(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void MacroAssembler::Movupd(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovupd(dst, src);
+  } else {
+    movupd(dst, src);
+  }
+}
+
+void MacroAssembler::Movupd(const Operand& dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovupd(dst, src);
+  } else {
+    movupd(dst, src);
+  }
+}
 
 void MacroAssembler::Movsd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -2973,6 +2991,27 @@ void MacroAssembler::Ucomisd(XMMRegister src1, const Operand& src2) {
   }
 }
 
+// ----------------------------------------------------------------------------
+
+void MacroAssembler::Absps(XMMRegister dst) {
+  Andps(dst,
+        ExternalOperand(ExternalReference::address_of_float_abs_constant()));
+}
+
+void MacroAssembler::Negps(XMMRegister dst) {
+  Xorps(dst,
+        ExternalOperand(ExternalReference::address_of_float_neg_constant()));
+}
+
+void MacroAssembler::Abspd(XMMRegister dst) {
+  Andps(dst,
+        ExternalOperand(ExternalReference::address_of_double_abs_constant()));
+}
+
+void MacroAssembler::Negpd(XMMRegister dst) {
+  Xorps(dst,
+        ExternalOperand(ExternalReference::address_of_double_neg_constant()));
+}
 
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   AllowDeferredHandleDereference smi_check;

@@ -7,7 +7,7 @@
 
 #include "src/parsing/scanner.h"  // Only for Scanner::Location.
 #include "src/pending-compilation-error-handler.h"
-#include "src/zone.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +19,7 @@ class AstRawString;
 class ModuleDescriptor : public ZoneObject {
  public:
   explicit ModuleDescriptor(Zone* zone)
-      : exports_(1, zone), imports_(1, zone) {}
+      : exports_(1, zone), special_imports_(1, zone), regular_imports_(zone) {}
 
   // import x from "foo.js";
   // import {x} from "foo.js";
@@ -63,12 +63,10 @@ class ModuleDescriptor : public ZoneObject {
     Zone* zone);
 
   // Check if module is well-formed and report error if not.
-  bool Validate(
-      Scope* module_scope, PendingCompilationErrorHandler* error_handler,
-      Zone* zone) const;
+  // Also canonicalize indirect exports.
+  bool Validate(DeclarationScope* module_scope,
+                PendingCompilationErrorHandler* error_handler, Zone* zone);
 
-
- private:
   struct ModuleEntry : public ZoneObject {
     const Scanner::Location location;
     const AstRawString* export_name;
@@ -84,8 +82,41 @@ class ModuleDescriptor : public ZoneObject {
           module_request(nullptr) {}
   };
 
-  ZoneList<const ModuleEntry*> exports_;
-  ZoneList<const ModuleEntry*> imports_;
+  const ZoneList<ModuleEntry*>& exports() const { return exports_; }
+
+  // Empty imports and namespace imports.
+  const ZoneList<const ModuleEntry*>& special_imports() const {
+    return special_imports_;
+  }
+
+  // All the remaining imports, indexed by local name.
+  const ZoneMap<const AstRawString*, const ModuleEntry*>& regular_imports()
+      const {
+    return regular_imports_;
+  }
+
+ private:
+  ZoneList<ModuleEntry*> exports_;
+  ZoneList<const ModuleEntry*> special_imports_;
+  ZoneMap<const AstRawString*, const ModuleEntry*> regular_imports_;
+
+  // Find any implicitly indirect exports and make them explicit.
+  //
+  // An explicitly indirect export is an export entry arising from an export
+  // statement of the following form:
+  //   export {a as c} from "X";
+  // An implicitly indirect export corresponds to
+  //   export {b as c};
+  // in the presence of an import statement of the form
+  //   import {a as b} from "X";
+  // This function finds such implicitly indirect export entries and rewrites
+  // them by filling in the import name and module request, as well as nulling
+  // out the local name.  Effectively, it turns
+  //   import {a as b} from "X"; export {b as c};
+  // into:
+  //   import {a as b} from "X"; export {a as c} from "X";
+  // (The import entry is never deleted.)
+  void MakeIndirectExportsExplicit();
 };
 
 }  // namespace internal

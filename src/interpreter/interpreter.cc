@@ -5,6 +5,7 @@
 #include "src/interpreter/interpreter.h"
 
 #include <fstream>
+#include <memory>
 
 #include "src/ast/prettyprinter.h"
 #include "src/code-factory.h"
@@ -25,6 +26,7 @@ namespace interpreter {
 using compiler::Node;
 typedef CodeStubAssembler::Label Label;
 typedef CodeStubAssembler::Variable Variable;
+typedef InterpreterAssembler::Arg Arg;
 
 #define __ assembler->
 
@@ -39,7 +41,7 @@ void Interpreter::Initialize() {
 
   if (FLAG_trace_ignition_dispatches) {
     static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
-    bytecode_dispatch_counters_table_.Reset(
+    bytecode_dispatch_counters_table_.reset(
         new uintptr_t[kBytecodeCount * kBytecodeCount]);
     memset(bytecode_dispatch_counters_table_.get(), 0,
            sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
@@ -127,8 +129,6 @@ void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
 
 // static
 int Interpreter::InterruptBudget() {
-  // TODO(ignition): Tune code size multiplier.
-  const int kCodeSizeMultiplier = 32;
   return FLAG_interrupt_budget * kCodeSizeMultiplier;
 }
 
@@ -136,11 +136,12 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   RuntimeCallTimerScope runtimeTimer(info->isolate(),
                                      &RuntimeCallStats::CompileIgnition);
   TimerEventScope<TimerEventCompileIgnition> timer(info->isolate());
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      info->isolate(), &tracing::TraceEventStatsTable::CompileIgnition);
 
   if (FLAG_print_bytecode || FLAG_print_ast) {
     OFStream os(stdout);
-    base::SmartArrayPointer<char> name = info->GetDebugName();
+    std::unique_ptr<char[]> name = info->GetDebugName();
     os << "[generating bytecode for function: " << info->GetDebugName().get()
        << "]" << std::endl
        << std::flush;
@@ -382,6 +383,7 @@ void Interpreter::DoMov(InterpreterAssembler* assembler) {
 
 Node* Interpreter::BuildLoadGlobal(Callable ic,
                                    InterpreterAssembler* assembler) {
+  typedef LoadGlobalWithVectorDescriptor Descriptor;
   // Get the global object.
   Node* context = __ GetContext();
 
@@ -390,8 +392,9 @@ Node* Interpreter::BuildLoadGlobal(Callable ic,
   Node* raw_slot = __ BytecodeOperandIdx(0);
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  return __ CallStub(ic.descriptor(), code_target, context, smi_slot,
-                     type_feedback_vector);
+  return __ CallStub(ic.descriptor(), code_target, context,
+                     Arg(Descriptor::kSlot, smi_slot),
+                     Arg(Descriptor::kVector, type_feedback_vector));
 }
 
 // LdaGlobal <slot>
@@ -432,6 +435,7 @@ void Interpreter::DoLdaGlobalInsideTypeof(InterpreterAssembler* assembler) {
 }
 
 void Interpreter::DoStaGlobal(Callable ic, InterpreterAssembler* assembler) {
+  typedef StoreWithVectorDescriptor Descriptor;
   // Get the global object.
   Node* context = __ GetContext();
   Node* native_context =
@@ -446,8 +450,10 @@ void Interpreter::DoStaGlobal(Callable ic, InterpreterAssembler* assembler) {
   Node* raw_slot = __ BytecodeOperandIdx(1);
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  __ CallStub(ic.descriptor(), code_target, context, global, name, value,
-              smi_slot, type_feedback_vector);
+  __ CallStub(ic.descriptor(), code_target, context,
+              Arg(Descriptor::kReceiver, global), Arg(Descriptor::kName, name),
+              Arg(Descriptor::kValue, value), Arg(Descriptor::kSlot, smi_slot),
+              Arg(Descriptor::kVector, type_feedback_vector));
   __ Dispatch();
 }
 
@@ -566,6 +572,7 @@ void Interpreter::DoStaLookupSlotStrict(InterpreterAssembler* assembler) {
 
 Node* Interpreter::BuildLoadNamedProperty(Callable ic,
                                           InterpreterAssembler* assembler) {
+  typedef LoadWithVectorDescriptor Descriptor;
   Node* code_target = __ HeapConstant(ic.code());
   Node* register_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(register_index);
@@ -575,8 +582,10 @@ Node* Interpreter::BuildLoadNamedProperty(Callable ic,
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  return __ CallStub(ic.descriptor(), code_target, context, object, name,
-                     smi_slot, type_feedback_vector);
+  return __ CallStub(
+      ic.descriptor(), code_target, context, Arg(Descriptor::kReceiver, object),
+      Arg(Descriptor::kName, name), Arg(Descriptor::kSlot, smi_slot),
+      Arg(Descriptor::kVector, type_feedback_vector));
 }
 
 // LdaNamedProperty <object> <name_index> <slot>
@@ -604,6 +613,7 @@ void Interpreter::DoLdrNamedProperty(InterpreterAssembler* assembler) {
 
 Node* Interpreter::BuildLoadKeyedProperty(Callable ic,
                                           InterpreterAssembler* assembler) {
+  typedef LoadWithVectorDescriptor Descriptor;
   Node* code_target = __ HeapConstant(ic.code());
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(reg_index);
@@ -612,8 +622,10 @@ Node* Interpreter::BuildLoadKeyedProperty(Callable ic,
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  return __ CallStub(ic.descriptor(), code_target, context, object, name,
-                     smi_slot, type_feedback_vector);
+  return __ CallStub(
+      ic.descriptor(), code_target, context, Arg(Descriptor::kReceiver, object),
+      Arg(Descriptor::kName, name), Arg(Descriptor::kSlot, smi_slot),
+      Arg(Descriptor::kVector, type_feedback_vector));
 }
 
 // KeyedLoadIC <object> <slot>
@@ -640,6 +652,7 @@ void Interpreter::DoLdrKeyedProperty(InterpreterAssembler* assembler) {
 }
 
 void Interpreter::DoStoreIC(Callable ic, InterpreterAssembler* assembler) {
+  typedef StoreWithVectorDescriptor Descriptor;
   Node* code_target = __ HeapConstant(ic.code());
   Node* object_reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(object_reg_index);
@@ -650,8 +663,10 @@ void Interpreter::DoStoreIC(Callable ic, InterpreterAssembler* assembler) {
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  __ CallStub(ic.descriptor(), code_target, context, object, name, value,
-              smi_slot, type_feedback_vector);
+  __ CallStub(ic.descriptor(), code_target, context,
+              Arg(Descriptor::kReceiver, object), Arg(Descriptor::kName, name),
+              Arg(Descriptor::kValue, value), Arg(Descriptor::kSlot, smi_slot),
+              Arg(Descriptor::kVector, type_feedback_vector));
   __ Dispatch();
 }
 
@@ -676,6 +691,7 @@ void Interpreter::DoStaNamedPropertyStrict(InterpreterAssembler* assembler) {
 }
 
 void Interpreter::DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler) {
+  typedef StoreWithVectorDescriptor Descriptor;
   Node* code_target = __ HeapConstant(ic.code());
   Node* object_reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(object_reg_index);
@@ -686,8 +702,10 @@ void Interpreter::DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler) {
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  __ CallStub(ic.descriptor(), code_target, context, object, name, value,
-              smi_slot, type_feedback_vector);
+  __ CallStub(ic.descriptor(), code_target, context,
+              Arg(Descriptor::kReceiver, object), Arg(Descriptor::kName, name),
+              Arg(Descriptor::kValue, value), Arg(Descriptor::kSlot, smi_slot),
+              Arg(Descriptor::kVector, type_feedback_vector));
   __ Dispatch();
 }
 
@@ -732,6 +750,7 @@ void Interpreter::DoPopContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+// TODO(mythria): Remove this function once all BinaryOps record type feedback.
 template <class Generator>
 void Interpreter::DoBinaryOp(InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
@@ -743,60 +762,146 @@ void Interpreter::DoBinaryOp(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+template <class Generator>
+void Interpreter::DoBinaryOpWithFeedback(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* result = Generator::Generate(assembler, lhs, rhs, context,
+                                     type_feedback_vector, slot_index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
 // Add <src>
 //
 // Add register <src> to accumulator.
 void Interpreter::DoAdd(InterpreterAssembler* assembler) {
-  DoBinaryOp<AddStub>(assembler);
+  DoBinaryOpWithFeedback<AddWithFeedbackStub>(assembler);
 }
 
 // Sub <src>
 //
 // Subtract register <src> from accumulator.
 void Interpreter::DoSub(InterpreterAssembler* assembler) {
-  DoBinaryOp<SubtractStub>(assembler);
+  DoBinaryOpWithFeedback<SubtractWithFeedbackStub>(assembler);
 }
 
 // Mul <src>
 //
 // Multiply accumulator by register <src>.
 void Interpreter::DoMul(InterpreterAssembler* assembler) {
-  DoBinaryOp<MultiplyStub>(assembler);
+  DoBinaryOpWithFeedback<MultiplyWithFeedbackStub>(assembler);
 }
 
 // Div <src>
 //
 // Divide register <src> by accumulator.
 void Interpreter::DoDiv(InterpreterAssembler* assembler) {
-  DoBinaryOp<DivideStub>(assembler);
+  DoBinaryOpWithFeedback<DivideWithFeedbackStub>(assembler);
 }
 
 // Mod <src>
 //
 // Modulo register <src> by accumulator.
 void Interpreter::DoMod(InterpreterAssembler* assembler) {
-  DoBinaryOp<ModulusStub>(assembler);
+  DoBinaryOpWithFeedback<ModulusWithFeedbackStub>(assembler);
+}
+
+void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
+                                    InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+
+  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32),
+      var_rhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, lhs, &var_lhs_type_feedback);
+  Node* rhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, rhs, &var_rhs_type_feedback);
+  Node* result = nullptr;
+
+  switch (bitwise_op) {
+    case Token::BIT_OR: {
+      Node* value = __ Word32Or(lhs_value, rhs_value);
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    case Token::BIT_AND: {
+      Node* value = __ Word32And(lhs_value, rhs_value);
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    case Token::BIT_XOR: {
+      Node* value = __ Word32Xor(lhs_value, rhs_value);
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    case Token::SHL: {
+      Node* value = __ Word32Shl(
+          lhs_value, __ Word32And(rhs_value, __ Int32Constant(0x1f)));
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    case Token::SHR: {
+      Node* value = __ Word32Shr(
+          lhs_value, __ Word32And(rhs_value, __ Int32Constant(0x1f)));
+      result = __ ChangeUint32ToTagged(value);
+    } break;
+    case Token::SAR: {
+      Node* value = __ Word32Sar(
+          lhs_value, __ Word32And(rhs_value, __ Int32Constant(0x1f)));
+      result = __ ChangeInt32ToTagged(value);
+    } break;
+    default:
+      UNREACHABLE();
+  }
+
+  Node* result_type =
+      __ Select(__ WordIsSmi(result),
+                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+                __ Int32Constant(BinaryOperationFeedback::kNumber));
+
+  if (FLAG_debug_code) {
+    Label ok(assembler);
+    __ GotoIf(__ WordIsSmi(result), &ok);
+    Node* result_map = __ LoadMap(result);
+    __ AbortIfWordNotEqual(result_map, __ HeapNumberMapConstant(),
+                           kExpectedHeapNumber);
+    __ Goto(&ok);
+    __ Bind(&ok);
+  }
+
+  Node* input_feedback =
+      __ Word32Or(var_lhs_type_feedback.value(), var_rhs_type_feedback.value());
+  __ UpdateFeedback(__ Word32Or(result_type, input_feedback),
+                    type_feedback_vector, slot_index);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 // BitwiseOr <src>
 //
 // BitwiseOr register <src> to accumulator.
 void Interpreter::DoBitwiseOr(InterpreterAssembler* assembler) {
-  DoBinaryOp<BitwiseOrStub>(assembler);
+  DoBitwiseBinaryOp(Token::BIT_OR, assembler);
 }
 
 // BitwiseXor <src>
 //
 // BitwiseXor register <src> to accumulator.
 void Interpreter::DoBitwiseXor(InterpreterAssembler* assembler) {
-  DoBinaryOp<BitwiseXorStub>(assembler);
+  DoBitwiseBinaryOp(Token::BIT_XOR, assembler);
 }
 
 // BitwiseAnd <src>
 //
 // BitwiseAnd register <src> to accumulator.
 void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
-  DoBinaryOp<BitwiseAndStub>(assembler);
+  DoBitwiseBinaryOp(Token::BIT_AND, assembler);
 }
 
 // ShiftLeft <src>
@@ -806,7 +911,7 @@ void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
 // before the operation. 5 lsb bits from the accumulator are used as count
 // i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
-  DoBinaryOp<ShiftLeftStub>(assembler);
+  DoBitwiseBinaryOp(Token::SHL, assembler);
 }
 
 // ShiftRight <src>
@@ -816,7 +921,7 @@ void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
 // accumulator to uint32 before the operation. 5 lsb bits from the accumulator
 // are used as count i.e. <src> >> (accumulator & 0x1F).
 void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
-  DoBinaryOp<ShiftRightStub>(assembler);
+  DoBitwiseBinaryOp(Token::SAR, assembler);
 }
 
 // ShiftRightLogical <src>
@@ -826,7 +931,7 @@ void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
 // uint32 before the operation 5 lsb bits from the accumulator are used as
 // count i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftRightLogical(InterpreterAssembler* assembler) {
-  DoBinaryOp<ShiftRightLogicalStub>(assembler);
+  DoBitwiseBinaryOp(Token::SHR, assembler);
 }
 
 // AddSmi <imm> <reg>
@@ -997,15 +1102,12 @@ void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-void Interpreter::DoUnaryOp(Callable callable,
-                            InterpreterAssembler* assembler) {
+Node* Interpreter::BuildUnaryOp(Callable callable,
+                                InterpreterAssembler* assembler) {
   Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
-  Node* result =
-      __ CallStub(callable.descriptor(), target, context, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  return __ CallStub(callable.descriptor(), target, context, accumulator);
 }
 
 template <class Generator>
@@ -1021,21 +1123,27 @@ void Interpreter::DoUnaryOp(InterpreterAssembler* assembler) {
 //
 // Cast the object referenced by the accumulator to a name.
 void Interpreter::DoToName(InterpreterAssembler* assembler) {
-  DoUnaryOp(CodeFactory::ToName(isolate_), assembler);
+  Node* result = BuildUnaryOp(CodeFactory::ToName(isolate_), assembler);
+  __ StoreRegister(result, __ BytecodeOperandReg(0));
+  __ Dispatch();
 }
 
 // ToNumber
 //
 // Cast the object referenced by the accumulator to a number.
 void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
-  DoUnaryOp(CodeFactory::ToNumber(isolate_), assembler);
+  Node* result = BuildUnaryOp(CodeFactory::ToNumber(isolate_), assembler);
+  __ StoreRegister(result, __ BytecodeOperandReg(0));
+  __ Dispatch();
 }
 
 // ToObject
 //
 // Cast the object referenced by the accumulator to a JSObject.
 void Interpreter::DoToObject(InterpreterAssembler* assembler) {
-  DoUnaryOp(CodeFactory::ToObject(isolate_), assembler);
+  Node* result = BuildUnaryOp(CodeFactory::ToObject(isolate_), assembler);
+  __ StoreRegister(result, __ BytecodeOperandReg(0));
+  __ Dispatch();
 }
 
 // Inc
@@ -1052,14 +1160,39 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
   DoUnaryOp<DecStub>(assembler);
 }
 
-Node* Interpreter::BuildToBoolean(Node* value,
-                                  InterpreterAssembler* assembler) {
-  Node* context = __ GetContext();
-  return ToBooleanStub::Generate(assembler, value, context);
+// LogicalNot
+//
+// Perform logical-not on the accumulator, first casting the
+// accumulator to a boolean value if required.
+// ToBooleanLogicalNot
+void Interpreter::DoToBooleanLogicalNot(InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
+  Variable result(assembler, MachineRepresentation::kTagged);
+  Label if_true(assembler), if_false(assembler), end(assembler);
+  Node* true_value = __ BooleanConstant(true);
+  Node* false_value = __ BooleanConstant(false);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  {
+    result.Bind(false_value);
+    __ Goto(&end);
+  }
+  __ Bind(&if_false);
+  {
+    result.Bind(true_value);
+    __ Goto(&end);
+  }
+  __ Bind(&end);
+  __ SetAccumulator(result.value());
+  __ Dispatch();
 }
 
-Node* Interpreter::BuildLogicalNot(Node* value,
-                                   InterpreterAssembler* assembler) {
+// LogicalNot
+//
+// Perform logical-not on the accumulator, which must already be a boolean
+// value.
+void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
   Variable result(assembler, MachineRepresentation::kTagged);
   Label if_true(assembler), if_false(assembler), end(assembler);
   Node* true_value = __ BooleanConstant(true);
@@ -1080,30 +1213,7 @@ Node* Interpreter::BuildLogicalNot(Node* value,
     __ Goto(&end);
   }
   __ Bind(&end);
-  return result.value();
-}
-
-// LogicalNot
-//
-// Perform logical-not on the accumulator, first casting the
-// accumulator to a boolean value if required.
-// ToBooleanLogicalNot
-void Interpreter::DoToBooleanLogicalNot(InterpreterAssembler* assembler) {
-  Node* value = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(value, assembler);
-  Node* result = BuildLogicalNot(to_boolean_value, assembler);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-// LogicalNot
-//
-// Perform logical-not on the accumulator, which must already be a boolean
-// value.
-void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
-  Node* value = __ GetAccumulator();
-  Node* result = BuildLogicalNot(value, assembler);
-  __ SetAccumulator(result);
+  __ SetAccumulator(result.value());
   __ Dispatch();
 }
 
@@ -1112,7 +1222,7 @@ void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
 // Load the accumulator with the string representating type of the
 // object in the accumulator.
 void Interpreter::DoTypeOf(InterpreterAssembler* assembler) {
-  DoUnaryOp(CodeFactory::Typeof(isolate_), assembler);
+  DoUnaryOp<TypeofStub>(assembler);
 }
 
 void Interpreter::DoDelete(Runtime::FunctionId function_id,
@@ -1380,8 +1490,7 @@ void Interpreter::DoJump(InterpreterAssembler* assembler) {
 // Jump by number of bytes in the Smi in the |idx| entry in the constant pool.
 void Interpreter::DoJumpConstant(InterpreterAssembler* assembler) {
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   __ Jump(relative_jump);
 }
 
@@ -1403,8 +1512,7 @@ void Interpreter::DoJumpIfTrue(InterpreterAssembler* assembler) {
 void Interpreter::DoJumpIfTrueConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   Node* true_value = __ BooleanConstant(true);
   __ JumpIfWordEqual(accumulator, true_value, relative_jump);
 }
@@ -1427,8 +1535,7 @@ void Interpreter::DoJumpIfFalse(InterpreterAssembler* assembler) {
 void Interpreter::DoJumpIfFalseConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   Node* false_value = __ BooleanConstant(false);
   __ JumpIfWordEqual(accumulator, false_value, relative_jump);
 }
@@ -1438,11 +1545,14 @@ void Interpreter::DoJumpIfFalseConstant(InterpreterAssembler* assembler) {
 // Jump by number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is true when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(accumulator, assembler);
+  Node* value = __ GetAccumulator();
   Node* relative_jump = __ BytecodeOperandImm(0);
-  Node* true_value = __ BooleanConstant(true);
-  __ JumpIfWordEqual(to_boolean_value, true_value, relative_jump);
+  Label if_true(assembler), if_false(assembler);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  __ Jump(relative_jump);
+  __ Bind(&if_false);
+  __ Dispatch();
 }
 
 // JumpIfToBooleanTrueConstant <idx>
@@ -1452,13 +1562,15 @@ void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
 // to boolean.
 void Interpreter::DoJumpIfToBooleanTrueConstant(
     InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(accumulator, assembler);
+  Node* value = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
-  Node* true_value = __ BooleanConstant(true);
-  __ JumpIfWordEqual(to_boolean_value, true_value, relative_jump);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
+  Label if_true(assembler), if_false(assembler);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  __ Jump(relative_jump);
+  __ Bind(&if_false);
+  __ Dispatch();
 }
 
 // JumpIfToBooleanFalse <imm>
@@ -1466,11 +1578,14 @@ void Interpreter::DoJumpIfToBooleanTrueConstant(
 // Jump by number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is false when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(accumulator, assembler);
+  Node* value = __ GetAccumulator();
   Node* relative_jump = __ BytecodeOperandImm(0);
-  Node* false_value = __ BooleanConstant(false);
-  __ JumpIfWordEqual(to_boolean_value, false_value, relative_jump);
+  Label if_true(assembler), if_false(assembler);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  __ Dispatch();
+  __ Bind(&if_false);
+  __ Jump(relative_jump);
 }
 
 // JumpIfToBooleanFalseConstant <idx>
@@ -1480,13 +1595,15 @@ void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
 // to boolean.
 void Interpreter::DoJumpIfToBooleanFalseConstant(
     InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(accumulator, assembler);
+  Node* value = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
-  Node* false_value = __ BooleanConstant(false);
-  __ JumpIfWordEqual(to_boolean_value, false_value, relative_jump);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
+  Label if_true(assembler), if_false(assembler);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  __ Dispatch();
+  __ Bind(&if_false);
+  __ Jump(relative_jump);
 }
 
 // JumpIfNull <imm>
@@ -1508,8 +1625,7 @@ void Interpreter::DoJumpIfNullConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   __ JumpIfWordEqual(accumulator, null_value, relative_jump);
 }
 
@@ -1534,8 +1650,7 @@ void Interpreter::DoJumpIfUndefinedConstant(InterpreterAssembler* assembler) {
   Node* undefined_value =
       __ HeapConstant(isolate_->factory()->undefined_value());
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   __ JumpIfWordEqual(accumulator, undefined_value, relative_jump);
 }
 
@@ -1558,8 +1673,7 @@ void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* the_hole_value = __ HeapConstant(isolate_->factory()->the_hole_value());
   Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  Node* relative_jump = __ SmiUntag(constant);
+  Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
 }
 
@@ -1568,8 +1682,6 @@ void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
 // Creates a regular expression literal for literal index <literal_idx> with
 // <flags> and the pattern in <pattern_idx>.
 void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
-  Callable callable = CodeFactory::FastCloneRegExp(isolate_);
-  Node* target = __ HeapConstant(callable.code());
   Node* index = __ BytecodeOperandIdx(0);
   Node* pattern = __ LoadConstantPoolEntry(index);
   Node* literal_index_raw = __ BytecodeOperandIdx(1);
@@ -1578,8 +1690,8 @@ void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
   Node* flags = __ SmiTag(flags_raw);
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
-  Node* result = __ CallStub(callable.descriptor(), target, context, closure,
-                             literal_index, pattern, flags);
+  Node* result = FastCloneRegExpStub::Generate(
+      assembler, closure, literal_index, pattern, flags, context);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1627,7 +1739,7 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
     Node* result = FastCloneShallowObjectStub::GenerateFastPath(
         assembler, &if_not_fast_clone, closure, literal_index,
         fast_clone_properties_count);
-    __ SetAccumulator(result);
+    __ StoreRegister(result, __ BytecodeOperandReg(3));
     __ Dispatch();
   }
 
@@ -1647,7 +1759,8 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
     Node* result =
         __ CallRuntime(Runtime::kCreateObjectLiteral, context, closure,
                        literal_index, constant_elements, flags);
-    __ SetAccumulator(result);
+    __ StoreRegister(result, __ BytecodeOperandReg(3));
+    // TODO(klaasb) build a single dispatch once the call is inlined
     __ Dispatch();
   }
 }
@@ -1680,6 +1793,32 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
     __ SetAccumulator(result);
     __ Dispatch();
   }
+}
+
+// CreateBlockContext <index>
+//
+// Creates a new block context with the scope info constant at |index| and the
+// closure in the accumulator.
+void Interpreter::DoCreateBlockContext(InterpreterAssembler* assembler) {
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* scope_info = __ LoadConstantPoolEntry(index);
+  Node* closure = __ GetAccumulator();
+  Node* context = __ GetContext();
+  __ SetAccumulator(
+      __ CallRuntime(Runtime::kPushBlockContext, context, scope_info, closure));
+  __ Dispatch();
+}
+
+// CreateFunctionContext <slots>
+//
+// Creates a new context with number of |slots| for the function closure.
+void Interpreter::DoCreateFunctionContext(InterpreterAssembler* assembler) {
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* slots = __ BytecodeOperandIdx(0);
+  Node* context = __ GetContext();
+  __ SetAccumulator(
+      FastNewFunctionContextStub::Generate(assembler, closure, slots, context));
+  __ Dispatch();
 }
 
 // CreateMappedArguments
@@ -1772,6 +1911,32 @@ void Interpreter::DoStackCheck(InterpreterAssembler* assembler) {
   }
 }
 
+// OsrPoll <loop_depth>
+//
+// Performs a loop nesting check and potentially triggers OSR.
+void Interpreter::DoOsrPoll(InterpreterAssembler* assembler) {
+  Node* loop_depth = __ BytecodeOperandImm(0);
+  Node* osr_level = __ LoadOSRNestingLevel();
+
+  // Check if OSR points at the given {loop_depth} are armed by comparing it to
+  // the current {osr_level} loaded from the header of the BytecodeArray.
+  Label ok(assembler), osr_armed(assembler, Label::kDeferred);
+  Node* condition = __ Int32GreaterThanOrEqual(loop_depth, osr_level);
+  __ Branch(condition, &ok, &osr_armed);
+
+  __ Bind(&ok);
+  __ Dispatch();
+
+  __ Bind(&osr_armed);
+  {
+    Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate_);
+    Node* target = __ HeapConstant(callable.code());
+    Node* context = __ GetContext();
+    __ CallStub(callable.descriptor(), target, context);
+    __ Dispatch();
+  }
+}
+
 // Throw
 //
 // Throws the exception in the accumulator.
@@ -1826,26 +1991,91 @@ void Interpreter::DoDebugger(InterpreterAssembler* assembler) {
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
 #undef DEBUG_BREAK
 
-// ForInPrepare <cache_info_triple>
+void Interpreter::BuildForInPrepareResult(Node* output_register,
+                                          Node* cache_type, Node* cache_array,
+                                          Node* cache_length,
+                                          InterpreterAssembler* assembler) {
+  __ StoreRegister(cache_type, output_register);
+  output_register = __ NextRegister(output_register);
+  __ StoreRegister(cache_array, output_register);
+  output_register = __ NextRegister(output_register);
+  __ StoreRegister(cache_length, output_register);
+}
+
+// ForInPrepare <receiver> <cache_info_triple>
 //
-// Returns state for for..in loop execution based on the object in the
-// accumulator. The result is output in registers |cache_info_triple| to
+// Returns state for for..in loop execution based on the object in the register
+// |receiver|. The object must not be null or undefined and must have been
+// converted to a receiver already.
+// The result is output in registers |cache_info_triple| to
 // |cache_info_triple + 2|, with the registers holding cache_type, cache_array,
 // and cache_length respectively.
 void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
-  Node* object = __ GetAccumulator();
+  Node* object_reg = __ BytecodeOperandReg(0);
+  Node* receiver = __ LoadRegister(object_reg);
   Node* context = __ GetContext();
-  Node* result_triple = __ CallRuntime(Runtime::kForInPrepare, context, object);
+  Node* const zero_smi = __ SmiConstant(Smi::FromInt(0));
 
-  // Set output registers:
-  //   0 == cache_type, 1 == cache_array, 2 == cache_length
-  Node* output_register = __ BytecodeOperandReg(0);
-  for (int i = 0; i < 3; i++) {
-    Node* cache_info = __ Projection(i, result_triple);
-    __ StoreRegister(cache_info, output_register);
-    output_register = __ NextRegister(output_register);
+  Label nothing_to_iterate(assembler, Label::kDeferred),
+      use_enum_cache(assembler), use_runtime(assembler, Label::kDeferred);
+
+  if (FLAG_debug_code) {
+    Label already_receiver(assembler), abort(assembler);
+    Node* instance_type = __ LoadInstanceType(receiver);
+    Node* first_receiver_type = __ Int32Constant(FIRST_JS_RECEIVER_TYPE);
+    __ BranchIfInt32GreaterThanOrEqual(instance_type, first_receiver_type,
+                                       &already_receiver, &abort);
+    __ Bind(&abort);
+    {
+      __ Abort(kExpectedJSReceiver);
+      // TODO(klaasb) remove this unreachable Goto once Abort ends the block
+      __ Goto(&already_receiver);
+    }
+    __ Bind(&already_receiver);
   }
-  __ Dispatch();
+
+  __ CheckEnumCache(receiver, &use_enum_cache, &use_runtime);
+
+  __ Bind(&use_enum_cache);
+  {
+    // The enum cache is valid.  Load the map of the object being
+    // iterated over and use the cache for the iteration.
+    Node* cache_type = __ LoadMap(receiver);
+    Node* cache_length = __ EnumLength(cache_type);
+    __ GotoIf(assembler->WordEqual(cache_length, zero_smi),
+              &nothing_to_iterate);
+    Node* descriptors = __ LoadMapDescriptors(cache_type);
+    Node* cache_offset =
+        __ LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
+    Node* cache_array = __ LoadObjectField(
+        cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
+    Node* output_register = __ BytecodeOperandReg(1);
+    BuildForInPrepareResult(output_register, cache_type, cache_array,
+                            cache_length, assembler);
+    __ Dispatch();
+  }
+
+  __ Bind(&use_runtime);
+  {
+    Node* result_triple =
+        __ CallRuntime(Runtime::kForInPrepare, context, receiver);
+    Node* cache_type = __ Projection(0, result_triple);
+    Node* cache_array = __ Projection(1, result_triple);
+    Node* cache_length = __ Projection(2, result_triple);
+    Node* output_register = __ BytecodeOperandReg(1);
+    BuildForInPrepareResult(output_register, cache_type, cache_array,
+                            cache_length, assembler);
+    __ Dispatch();
+  }
+
+  __ Bind(&nothing_to_iterate);
+  {
+    // Receiver is null or undefined or descriptors are zero length.
+    Node* output_register = __ BytecodeOperandReg(1);
+    BuildForInPrepareResult(output_register, zero_smi, zero_smi, zero_smi,
+                            assembler);
+    __ Dispatch();
+  }
 }
 
 // ForInNext <receiver> <index> <cache_info_pair>
@@ -1868,8 +2098,7 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   // Check if we can use the for-in fast path potentially using the enum cache.
   Label if_fast(assembler), if_slow(assembler, Label::kDeferred);
   Node* receiver_map = __ LoadObjectField(receiver, HeapObject::kMapOffset);
-  Node* condition = __ WordEqual(receiver_map, cache_type);
-  __ BranchIf(condition, &if_fast, &if_slow);
+  __ BranchIfWordEqual(receiver_map, cache_type, &if_fast, &if_slow);
   __ Bind(&if_fast);
   {
     // Enum cache in use for {receiver}, the {key} is definitely valid.
@@ -1888,8 +2117,8 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
 
     // Need to filter the {key} for the {receiver}.
     Node* context = __ GetContext();
-    Node* result =
-        __ CallRuntime(Runtime::kForInFilter, context, receiver, key);
+    Callable callable = CodeFactory::ForInFilter(assembler->isolate());
+    Node* result = __ CallStub(callable, context, key, receiver);
     __ SetAccumulator(result);
     __ Dispatch();
   }

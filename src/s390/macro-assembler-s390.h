@@ -112,7 +112,6 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 #define LoadRR lgr
 #define LoadAndTestRR ltgr
 #define LoadImmP lghi
-#define LoadLogicalHalfWordP llgh
 
 // Compare
 #define CmpPH cghi
@@ -150,7 +149,6 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 #define LoadRR lr
 #define LoadAndTestRR ltr
 #define LoadImmP lhi
-#define LoadLogicalHalfWordP llh
 
 // Compare
 #define CmpPH chi
@@ -333,9 +331,14 @@ class MacroAssembler : public Assembler {
   void LoadW(Register dst, Register src);
   void LoadlW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
   void LoadlW(Register dst, Register src);
+  void LoadLogicalHalfWordP(Register dst, const MemOperand& opnd);
+  void LoadLogicalHalfWordP(Register dst, Register src);
   void LoadB(Register dst, const MemOperand& opnd);
   void LoadB(Register dst, Register src);
   void LoadlB(Register dst, const MemOperand& opnd);
+
+  void LoadLogicalReversedWordP(Register dst, const MemOperand& opnd);
+  void LoadLogicalReversedHalfWordP(Register dst, const MemOperand& opnd);
 
   // Load And Test
   void LoadAndTest32(Register dst, Register src);
@@ -349,6 +352,9 @@ class MacroAssembler : public Assembler {
   void LoadDouble(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32ConvertToDouble(DoubleRegister dst, const MemOperand& mem);
+
+  // Load On Condition
+  void LoadOnConditionP(Condition cond, Register dst, Register src);
 
   // Store Floating Point
   void StoreDouble(DoubleRegister dst, const MemOperand& opnd);
@@ -403,12 +409,13 @@ class MacroAssembler : public Assembler {
   void Xor(Register dst, Register src, const Operand& opnd);
   void XorP(Register dst, Register src, const Operand& opnd);
   void Popcnt32(Register dst, Register src);
+  void Not32(Register dst, Register src = no_reg);
+  void Not64(Register dst, Register src = no_reg);
+  void NotP(Register dst, Register src = no_reg);
 
 #ifdef V8_TARGET_ARCH_S390X
   void Popcnt64(Register dst, Register src);
 #endif
-
-  void NotP(Register dst);
 
   void mov(Register dst, const Operand& src);
 
@@ -692,7 +699,7 @@ class MacroAssembler : public Assembler {
   void ConvertFloat32ToInt32(const DoubleRegister double_input,
                              const Register dst,
                              const DoubleRegister double_dst,
-                             FPRoundingMode rounding_mode = kRoundToZero);
+                             FPRoundingMode rounding_mode);
   void ConvertFloat32ToUnsignedInt32(
       const DoubleRegister double_input, const Register dst,
       const DoubleRegister double_dst,
@@ -1221,44 +1228,6 @@ class MacroAssembler : public Assembler {
   void TruncateNumberToI(Register object, Register result,
                          Register heap_number_map, Register scratch1,
                          Label* not_int32);
-
-  // Overflow handling functions.
-  // Usage: call the appropriate arithmetic function and then call one of the
-  // flow control functions with the corresponding label.
-
-  // Compute dst = left + right, setting condition codes. dst may be same as
-  // either left or right (or a unique register). left and right must not be
-  // the same register.
-  void AddAndCheckForOverflow(Register dst, Register left, Register right,
-                              Register overflow_dst, Register scratch = r0);
-  void AddAndCheckForOverflow(Register dst, Register left, intptr_t right,
-                              Register overflow_dst, Register scratch = r0);
-
-  // Compute dst = left - right, setting condition codes. dst may be same as
-  // either left or right (or a unique register). left and right must not be
-  // the same register.
-  void SubAndCheckForOverflow(Register dst, Register left, Register right,
-                              Register overflow_dst, Register scratch = r0);
-
-  void BranchOnOverflow(Label* label) { blt(label /*, cr0*/); }
-
-  void BranchOnNoOverflow(Label* label) { bge(label /*, cr0*/); }
-
-  void RetOnOverflow(void) {
-    Label label;
-
-    blt(&label /*, cr0*/);
-    Ret();
-    bind(&label);
-  }
-
-  void RetOnNoOverflow(void) {
-    Label label;
-
-    bge(&label /*, cr0*/);
-    Ret();
-    bind(&label);
-  }
 
   // ---------------------------------------------------------------------------
   // Runtime calls
@@ -1907,16 +1876,8 @@ inline MemOperand NativeContextMemOperand() {
   return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
 }
 
-#ifdef GENERATED_CODE_COVERAGE
-#define CODE_COVERAGE_STRINGIFY(x) #x
-#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
-#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
-#define ACCESS_MASM(masm)    \
-  masm->stop(__FILE_LINE__); \
-  masm->
-#else
 #define ACCESS_MASM(masm) masm->
-#endif
+
 }  // namespace internal
 }  // namespace v8
 

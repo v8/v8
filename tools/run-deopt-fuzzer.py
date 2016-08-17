@@ -394,8 +394,6 @@ def Execute(arch, mode, args, options, suites, workspace):
     "deopt_fuzzer": True,
     "gc_stress": False,
     "gcov_coverage": False,
-    "ignition": False,
-    "ignition_turbofan": False,
     "isolates": options.isolates,
     "mode": mode,
     "no_i18n": False,

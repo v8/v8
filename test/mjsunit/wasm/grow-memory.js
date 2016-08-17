@@ -34,45 +34,33 @@ function testGrowMemoryReadWrite() {
 
   for(offset = 0; offset <= (kPageSize - 4); offset++) {
     poke(20);
-    assertEquals(peek(), 20);
+    assertEquals(20, peek());
   }
   for (offset = kPageSize - 3; offset < kPageSize + 4; offset++) {
     assertTraps(kTrapMemOutOfBounds, poke);
     assertTraps(kTrapMemOutOfBounds, peek);
   }
 
-  try {
-    assertEquals(growMem(3), 1);
-  } catch (e) {
-    assertEquals("object", typeof e);
-    assertEquals(e.message, kTrapMsgs[kTrapMemAllocationFail]);
-    return;
-  }
+  assertEquals(1, growMem(3));
 
   for (offset = kPageSize; offset <= 4*kPageSize -4; offset++) {
     poke(20);
-    assertEquals(peek(), 20);
+    assertEquals(20, peek());
   }
   for (offset = 4*kPageSize - 3; offset < 4*kPageSize + 4; offset++) {
     assertTraps(kTrapMemOutOfBounds, poke);
     assertTraps(kTrapMemOutOfBounds, peek);
   }
 
-  try {
-    assertEquals(growMem(15), 4);
-  } catch (e) {
-    assertEquals("object", typeof e);
-    assertEquals(e.message, kTrapMsgs[kTrapMemAllocationFail]);
-    return;
-  }
+  assertEquals(4, growMem(15));
 
   for (offset = 4*kPageSize - 3; offset <= 4*kPageSize + 4; offset++) {
     poke(20);
-    assertEquals(peek(), 20);
+    assertEquals(20, peek());
   }
   for (offset = 19*kPageSize - 10; offset <= 19*kPageSize - 4; offset++) {
     poke(20);
-    assertEquals(peek(), 20);
+    assertEquals(20, peek());
   }
   for (offset = 19*kPageSize - 3; offset < 19*kPageSize + 5; offset++) {
     assertTraps(kTrapMemOutOfBounds, poke);
@@ -93,17 +81,11 @@ function testGrowMemoryZeroInitialSize() {
   assertTraps(kTrapMemOutOfBounds, peek);
   assertTraps(kTrapMemOutOfBounds, poke);
 
-  try {
-    assertEquals(growMem(1), 0);
-  } catch (e) {
-    assertEquals("object", typeof e);
-    assertEquals(e.message, kTrapMsgs[kTrapMemAllocationFail]);
-    return;
-  }
+  assertEquals(0, growMem(1));
 
   for(offset = 0; offset <= kPageSize - 4; offset++) {
     poke(20);
-    assertEquals(peek(), 20);
+    assertEquals(20, peek());
   }
 
   //TODO(gdeepti): Fix tests with correct write boundaries
@@ -119,8 +101,8 @@ function testGrowMemoryTrapMaxPagesZeroInitialMemory() {
   var builder = genGrowMemoryBuilder();
   var module = builder.instantiate();
   var maxPages = 16385;
-  function growMem() { return module.exports.grow_memory(maxPages); }
-  assertTraps(kTrapMemOutOfBounds, growMem);
+  function growMem(pages) { return module.exports.grow_memory(pages); }
+  assertEquals(-1, growMem(maxPages));
 }
 
 testGrowMemoryTrapMaxPagesZeroInitialMemory();
@@ -130,8 +112,8 @@ function testGrowMemoryTrapMaxPages() {
   builder.addMemory(1, 1, false);
   var module = builder.instantiate();
   var maxPages = 16384;
-  function growMem() { return module.exports.grow_memory(maxPages); }
-  assertTraps(kTrapMemOutOfBounds, growMem);
+  function growMem(pages) { return module.exports.grow_memory(pages); }
+  assertEquals(-1, growMem(maxPages));
 }
 
 testGrowMemoryTrapMaxPages();

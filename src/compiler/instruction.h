@@ -466,6 +466,8 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:
+      case MachineRepresentation::kTaggedSigned:
+      case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
         return true;
       case MachineRepresentation::kBit:
@@ -607,14 +609,8 @@ uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAllocated() || IsExplicit()) {
     MachineRepresentation canonical = MachineRepresentation::kNone;
     if (IsFPRegister()) {
-      if (kSimpleFPAliasing) {
-        // We treat all FP register operands the same for simple aliasing.
-        canonical = MachineRepresentation::kFloat64;
-      } else {
-        // We need to distinguish FP register operands of different reps when
-        // aliasing is not simple (e.g. ARM).
-        canonical = LocationOperand::cast(this)->representation();
-      }
+      // We treat all FP register operands the same for simple aliasing.
+      canonical = MachineRepresentation::kFloat64;
     }
     return InstructionOperand::KindField::update(
         LocationOperand::RepresentationField::update(this->value_, canonical),
@@ -1149,6 +1145,8 @@ class FrameStateDescriptor : public ZoneObject {
   }
   StateValueDescriptor* GetStateValueDescriptor() { return &values_; }
 
+  static const int kImpossibleValue = 0xdead;
+
  private:
   FrameStateType type_;
   BailoutId bailout_id_;
@@ -1161,9 +1159,23 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateDescriptor* outer_state_;
 };
 
+// A deoptimization entry is a pair of the reason why we deoptimize and the
+// frame state descriptor that we have to go back to.
+class DeoptimizationEntry final {
+ public:
+  DeoptimizationEntry() {}
+  DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeReason reason)
+      : descriptor_(descriptor), reason_(reason) {}
 
-typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
+  FrameStateDescriptor* descriptor() const { return descriptor_; }
+  DeoptimizeReason reason() const { return reason_; }
 
+ private:
+  FrameStateDescriptor* descriptor_ = nullptr;
+  DeoptimizeReason reason_ = DeoptimizeReason::kNoReason;
+};
+
+typedef ZoneVector<DeoptimizationEntry> DeoptimizationVector;
 
 class PhiInstruction final : public ZoneObject {
  public:
@@ -1414,21 +1426,11 @@ class InstructionSequence final : public ZoneObject {
     return Constant(static_cast<int32_t>(0));
   }
 
-  class StateId {
-   public:
-    static StateId FromInt(int id) { return StateId(id); }
-    int ToInt() const { return id_; }
-
-   private:
-    explicit StateId(int id) : id_(id) {}
-    int id_;
-  };
-
-  StateId AddFrameStateDescriptor(FrameStateDescriptor* descriptor);
-  FrameStateDescriptor* GetFrameStateDescriptor(StateId deoptimization_id);
-  int GetFrameStateDescriptorCount();
-  DeoptimizationVector const& frame_state_descriptors() const {
-    return deoptimization_entries_;
+  int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,
+                             DeoptimizeReason reason);
+  DeoptimizationEntry const& GetDeoptimizationEntry(int deoptimization_id);
+  int GetDeoptimizationEntryCount() const {
+    return static_cast<int>(deoptimization_entries_.size());
   }
 
   RpoNumber InputRpo(Instruction* instr, size_t index);

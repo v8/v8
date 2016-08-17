@@ -10,42 +10,6 @@
 namespace v8 {
 namespace internal {
 
-
-Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
-    Handle<Map> receiver_map, ExtraICState extra_ic_state) {
-  // TODO(ishell): remove extra_ic_state
-  Isolate* isolate = receiver_map->GetIsolate();
-  bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-  ElementsKind elements_kind = receiver_map->elements_kind();
-
-  // No need to check for an elements-free prototype chain here, the generated
-  // stub code needs to check that dynamically anyway.
-  bool convert_hole_to_undefined =
-      is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
-      *receiver_map == isolate->get_initial_js_array_map(elements_kind);
-  Handle<Code> stub;
-  if (receiver_map->has_indexed_interceptor()) {
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadIndexedInterceptorStub);
-    stub = LoadIndexedInterceptorStub(isolate).GetCode();
-  } else if (receiver_map->IsStringMap()) {
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadIndexedStringStub);
-    stub = LoadIndexedStringStub(isolate).GetCode();
-  } else if (receiver_map->has_sloppy_arguments_elements()) {
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
-    stub = KeyedLoadSloppyArgumentsStub(isolate).GetCode();
-  } else if (receiver_map->has_fast_elements() ||
-             receiver_map->has_fixed_typed_array_elements()) {
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadFastElementStub);
-    stub = LoadFastElementStub(isolate, is_js_array, elements_kind,
-                               convert_hole_to_undefined).GetCode();
-  } else {
-    DCHECK(receiver_map->has_dictionary_elements());
-    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadDictionaryElementStub);
-    stub = LoadDictionaryElementStub(isolate).GetCode();
-  }
-  return stub;
-}
-
 Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
     Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
   Isolate* isolate = receiver_map->GetIsolate();

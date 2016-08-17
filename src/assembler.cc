@@ -126,6 +126,32 @@ double uint32_bias;
 
 static DoubleConstant double_constants;
 
+static struct V8_ALIGNED(16) {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t d;
+} float_absolute_constant = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
+
+static struct V8_ALIGNED(16) {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t d;
+} float_negate_constant = {0x80000000, 0x80000000, 0x80000000, 0x80000000};
+
+static struct V8_ALIGNED(16) {
+  uint64_t a;
+  uint64_t b;
+} double_absolute_constant = {V8_UINT64_C(0x7FFFFFFFFFFFFFFF),
+                              V8_UINT64_C(0x7FFFFFFFFFFFFFFF)};
+
+static struct V8_ALIGNED(16) {
+  uint64_t a;
+  uint64_t b;
+} double_negate_constant = {V8_UINT64_C(0x8000000000000000),
+                            V8_UINT64_C(0x8000000000000000)};
+
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 // -----------------------------------------------------------------------------
@@ -774,8 +800,8 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   } else if (rmode_ == DEOPT_POSITION) {
     os << "  (" << data() << ")";
   } else if (rmode_ == DEOPT_REASON) {
-    os << "  (" << Deoptimizer::GetDeoptReason(
-                       static_cast<Deoptimizer::DeoptReason>(data_)) << ")";
+    os << "  ("
+       << DeoptimizeReasonToString(static_cast<DeoptimizeReason>(data_)) << ")";
   } else if (rmode_ == EMBEDDED_OBJECT) {
     os << "  (" << Brief(target_object()) << ")";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
@@ -896,10 +922,8 @@ void ExternalReference::SetUp() {
     static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
 }
 
-
-ExternalReference::ExternalReference(Builtins::CFunctionId id, Isolate* isolate)
-  : address_(Redirect(isolate, Builtins::c_function_address(id))) {}
-
+ExternalReference::ExternalReference(Address address, Isolate* isolate)
+    : address_(Redirect(isolate, address)) {}
 
 ExternalReference::ExternalReference(
     ApiFunction* fun,
@@ -1158,6 +1182,11 @@ ExternalReference ExternalReference::f64_asin_wrapper_function(
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
 }
 
+ExternalReference ExternalReference::wasm_float64_pow(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float64_pow_wrapper)));
+}
+
 static void f64_mod_wrapper(double* param0, double* param1) {
   WriteDoubleValue(param0,
                    modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));
@@ -1311,6 +1340,26 @@ ExternalReference ExternalReference::address_of_the_hole_nan() {
 ExternalReference ExternalReference::address_of_uint32_bias() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.uint32_bias));
+}
+
+
+ExternalReference ExternalReference::address_of_float_abs_constant() {
+  return ExternalReference(reinterpret_cast<void*>(&float_absolute_constant));
+}
+
+
+ExternalReference ExternalReference::address_of_float_neg_constant() {
+  return ExternalReference(reinterpret_cast<void*>(&float_negate_constant));
+}
+
+
+ExternalReference ExternalReference::address_of_double_abs_constant() {
+  return ExternalReference(reinterpret_cast<void*>(&double_absolute_constant));
+}
+
+
+ExternalReference ExternalReference::address_of_double_neg_constant() {
+  return ExternalReference(reinterpret_cast<void*>(&double_negate_constant));
 }
 
 
@@ -1862,11 +1911,12 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 
 // Platform specific but identical code for all the platforms.
 
-void Assembler::RecordDeoptReason(const int reason, int raw_position, int id) {
+void Assembler::RecordDeoptReason(DeoptimizeReason reason, int raw_position,
+                                  int id) {
   if (FLAG_trace_deopt || isolate()->is_profiling()) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::DEOPT_POSITION, raw_position);
-    RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
+    RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
     RecordRelocInfo(RelocInfo::DEOPT_ID, id);
   }
 }

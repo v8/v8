@@ -72,6 +72,7 @@ class InitializedIgnitionHandleScope : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
     i::FLAG_ignition = true;
+    i::FLAG_ignition_osr = false;  // TODO(4764): Disabled for now.
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
     CcTest::i_isolate()->interpreter()->Initialize();
@@ -177,6 +178,8 @@ TEST(PrimitiveReturnStatements) {
       "return +127;\n",
 
       "return -128;\n",
+
+      "return 2.0;\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
@@ -702,6 +705,17 @@ TEST(IfConditions) {
     "  }\n"
     "};\n"
     "f();\n",
+
+    "function f(a, b) {\n"
+    "  if (a == b || a < 0) {\n"
+    "    return 1;\n"
+    "  } else if (a > 0 && b > 0) {\n"
+    "    return 0;\n"
+    "  } else {\n"
+    "    return -1;\n"
+    "  }\n"
+    "};\n"
+    "f(-1, 1);\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
@@ -1612,6 +1626,11 @@ TEST(Conditional) {
       "return 1 ? 2 : 3;\n",
 
       "return 1 ? 2 ? 3 : 4 : 5;\n",
+
+      "return 0 < 1 ? 2 : 3;\n",
+
+      "var x = 0;\n"
+      "return x ? 2 : 3;\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
@@ -2222,9 +2241,6 @@ TEST(ClassAndSuperClass) {
 }
 
 TEST(Generators) {
-  bool old_flag = FLAG_ignition_generators;
-  FLAG_ignition_generators = true;
-
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
@@ -2244,8 +2260,6 @@ TEST(Generators) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("Generators.golden")));
-
-  FLAG_ignition_generators = old_flag;
 }
 
 }  // namespace interpreter

@@ -26,6 +26,9 @@ class ApiNatives {
       Handle<ObjectTemplateInfo> data,
       Handle<JSReceiver> new_target = Handle<JSReceiver>());
 
+  MUST_USE_RESULT static MaybeHandle<JSObject> InstantiateRemoteObject(
+      Handle<ObjectTemplateInfo> data);
+
   enum ApiInstanceType {
     JavaScriptObjectType,
     GlobalObjectType,

@@ -17,7 +17,6 @@ namespace interpreter {
   V(UpdateLastIfSourceInfoPresentAction)            \
   V(ElideCurrentAction)                             \
   V(ElideCurrentIfOperand0MatchesAction)            \
-  V(ElideCurrentIfLoadingNameConstantAction)        \
   V(ElideLastAction)                                \
   V(ChangeBytecodeAction)                           \
   V(TransformLdaStarToLdrLdarAction)                \

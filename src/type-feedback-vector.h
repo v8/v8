@@ -557,7 +557,7 @@ class KeyedLoadICNexus : public FeedbackNexus {
 
   // name can be a null handle for element loads.
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
-                            Handle<Code> handler);
+                            Handle<Object> handler);
   // name can be null.
   void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
                             List<Handle<Object>>* handlers);

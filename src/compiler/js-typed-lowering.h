@@ -35,7 +35,6 @@ class JSTypedLowering final : public AdvancedReducer {
   enum Flag {
     kNoFlags = 0u,
     kDeoptimizationEnabled = 1u << 0,
-    kDisableIntegerBinaryOpReduction = 1u << 1,
   };
   typedef base::Flags<Flag> Flags;
 
@@ -79,18 +78,16 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
+  Reduction ReduceCheckMaps(Node* node);
+  Reduction ReduceCheckString(Node* node);
+  Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberRoundop(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceJSSubtract(Node* node);
   Reduction ReduceJSDivide(Node* node);
   Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
-  Reduction ReduceShiftLeft(Node* node);
-  Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
+  Reduction ReduceUI32Shift(Node* node, Signedness signedness,
                             const Operator* shift_op);
-
-  Node* Word32Shl(Node* const lhs, int32_t const rhs);
-
-  Node* EmptyFrameState();
 
   Factory* factory() const;
   Graph* graph() const;

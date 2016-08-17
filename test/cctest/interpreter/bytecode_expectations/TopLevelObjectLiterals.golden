@@ -14,7 +14,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 45
 bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -26,9 +26,8 @@ bytecodes: [
   /*    8 S> */ B(LdaConstant), U8(1),
                 B(Star), R(1),
                 B(LdaZero),
+                B(CreateObjectLiteral), U8(2), U8(0), U8(1), R(4),
                 B(Star), R(2),
-                B(CreateObjectLiteral), U8(2), U8(0), U8(1),
-                B(Star), R(4),
                 B(CreateClosure), U8(3), U8(0),
                 B(StaNamedPropertySloppy), R(4), U8(4), U8(3),
                 B(Mov), R(4), R(3),

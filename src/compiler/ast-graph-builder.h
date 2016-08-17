@@ -74,7 +74,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   class ControlScopeForCatch;
   class ControlScopeForFinally;
   class Environment;
-  class FrameStateBeforeAndAfter;
   friend class ControlBuilder;
 
   Isolate* isolate_;
@@ -100,9 +99,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Tracks how many try-blocks are currently entered.
   int try_nesting_level_;
-
-  // Tracks the prediction of the innermost try-block.
-  bool try_catch_prediction_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;
@@ -457,9 +453,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   void VisitObjectLiteralAccessor(Node* home_object,
                                   ObjectLiteralProperty* property);
 
-  // Dispatched from VisitClassLiteral.
-  void VisitClassLiteralContents(ClassLiteral* expr);
-
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstGraphBuilder);
 };
@@ -475,7 +468,8 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 //
 class AstGraphBuilder::Environment : public ZoneObject {
  public:
-  Environment(AstGraphBuilder* builder, Scope* scope, Node* control_dependency);
+  Environment(AstGraphBuilder* builder, DeclarationScope* scope,
+              Node* control_dependency);
 
   int parameters_count() const { return parameters_count_; }
   int locals_count() const { return locals_count_; }

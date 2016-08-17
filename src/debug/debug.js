@@ -15,8 +15,6 @@ var IsNaN = global.isNaN;
 var JSONParse = global.JSON.parse;
 var JSONStringify = global.JSON.stringify;
 var LookupMirror = global.LookupMirror;
-var MakeError;
-var MakeTypeError;
 var MakeMirror = global.MakeMirror;
 var MakeMirrorSerializer = global.MakeMirrorSerializer;
 var MathMin = global.Math.min;
@@ -26,8 +24,6 @@ var ParseInt = global.parseInt;
 var ValueMirror = global.ValueMirror;
 
 utils.Import(function(from) {
-  MakeError = from.MakeError;
-  MakeTypeError = from.MakeTypeError;
   MirrorType = from.MirrorType;
 });
 
@@ -247,7 +243,7 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
   } else if (type == Debug.ScriptBreakPointType.ScriptRegExp) {
     this.script_regexp_object_ = new GlobalRegExp(script_id_or_name);
   } else {
-    throw MakeError(kDebugger, "Unexpected breakpoint type " + type);
+    throw %make_error(kDebugger, "Unexpected breakpoint type " + type);
   }
   this.line_ = opt_line || 0;
   this.column_ = opt_column;
@@ -370,7 +366,7 @@ ScriptBreakPoint.prototype.matchesScript = function(script) {
     } else if (this.type_ == Debug.ScriptBreakPointType.ScriptRegExp) {
       return this.script_regexp_object_.test(script.nameOrSourceURL());
     } else {
-      throw MakeError(kDebugger, "Unexpected breakpoint type " + this.type_);
+      throw %make_error(kDebugger, "Unexpected breakpoint type " + this.type_);
     }
   }
 };
@@ -466,18 +462,11 @@ function GetScriptBreakPoints(script) {
 
 Debug.setListener = function(listener, opt_data) {
   if (!IS_FUNCTION(listener) && !IS_UNDEFINED(listener) && !IS_NULL(listener)) {
-    throw MakeTypeError(kDebuggerType);
+    throw %make_type_error(kDebuggerType);
   }
   %SetDebugEventListener(listener, opt_data);
 };
 
-
-Debug.breakLocations = function(f, opt_position_aligment) {
-  if (!IS_FUNCTION(f)) throw MakeTypeError(kDebuggerType);
-  var position_aligment = IS_UNDEFINED(opt_position_aligment)
-      ? Debug.BreakPositionAlignment.Statement : opt_position_aligment;
-  return %GetBreakLocations(f, position_aligment);
-};
 
 // Returns a Script object. If the parameter is a function the return value
 // is the script in which the function is defined. If the parameter is a string
@@ -523,13 +512,13 @@ Debug.scriptSource = function(func_or_script_name) {
 
 
 Debug.source = function(f) {
-  if (!IS_FUNCTION(f)) throw MakeTypeError(kDebuggerType);
+  if (!IS_FUNCTION(f)) throw %make_type_error(kDebuggerType);
   return %FunctionGetSourceCode(f);
 };
 
 
 Debug.sourcePosition = function(f) {
-  if (!IS_FUNCTION(f)) throw MakeTypeError(kDebuggerType);
+  if (!IS_FUNCTION(f)) throw %make_type_error(kDebuggerType);
   return %FunctionGetScriptSourcePosition(f);
 };
 
@@ -583,26 +572,23 @@ Debug.findBreakPointActualLocations = function(break_point_number) {
 };
 
 Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
-  if (!IS_FUNCTION(func)) throw MakeTypeError(kDebuggerType);
+  if (!IS_FUNCTION(func)) throw %make_type_error(kDebuggerType);
   // Break points in API functions are not supported.
   if (%FunctionIsAPIFunction(func)) {
-    throw MakeError(kDebugger, 'Cannot set break point in native code.');
+    throw %make_error(kDebugger, 'Cannot set break point in native code.');
   }
-  // Find source position relative to start of the function
-  var break_position =
+  // Find source position.
+  var source_position =
       this.findFunctionSourceLocation(func, opt_line, opt_column).position;
-  var source_position = break_position - this.sourcePosition(func);
   // Find the script for the function.
   var script = %FunctionGetScript(func);
   // Break in builtin JavaScript code is not supported.
   if (script.type == Debug.ScriptType.Native) {
-    throw MakeError(kDebugger, 'Cannot set break point in native code.');
+    throw %make_error(kDebugger, 'Cannot set break point in native code.');
   }
   // If the script for the function has a name convert this to a script break
   // point.
   if (script && script.id) {
-    // Adjust the source position to be script relative.
-    source_position += %FunctionGetScriptSourcePosition(func);
     // Find line and column for the position in the script and set a script
     // break point from that.
     var location = script.locationFromPosition(source_position, false);
@@ -614,7 +600,6 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
     var break_point = MakeBreakPoint(source_position);
     var actual_position =
         %SetFunctionBreakPoint(func, source_position, break_point);
-    actual_position += this.sourcePosition(func);
     var actual_location = script.locationFromPosition(actual_position, true);
     break_point.actual_location = { line: actual_location.line,
                                     column: actual_location.column,
@@ -675,7 +660,7 @@ Debug.clearBreakPoint = function(break_point_number) {
     return %ClearBreakPoint(break_point);
   } else {
     break_point = this.findScriptBreakPoint(break_point_number, true);
-    if (!break_point) throw MakeError(kDebugger, 'Invalid breakpoint');
+    if (!break_point) throw %make_error(kDebugger, 'Invalid breakpoint');
   }
 };
 
@@ -827,10 +812,12 @@ Debug.isBreakOnUncaughtException = function() {
 };
 
 Debug.showBreakPoints = function(f, full, opt_position_alignment) {
-  if (!IS_FUNCTION(f)) throw MakeError(kDebuggerType);
+  if (!IS_FUNCTION(f)) throw %make_error(kDebuggerType);
   var source = full ? this.scriptSource(f) : this.source(f);
-  var offset = full ? this.sourcePosition(f) : 0;
-  var locations = this.breakLocations(f, opt_position_alignment);
+  var offset = full ? 0 : this.sourcePosition(f);
+  var position_alignment = IS_UNDEFINED(opt_position_alignment)
+      ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
+  var locations = %GetBreakLocations(f, position_alignment);
   if (!locations) return source;
   locations.sort(function(x, y) { return x - y; });
   var result = "";
@@ -899,7 +886,7 @@ ExecutionState.prototype.prepareStep = function(action) {
       action === Debug.StepAction.StepFrame) {
     return %PrepareStep(this.break_id, action);
   }
-  throw MakeTypeError(kDebuggerType);
+  throw %make_type_error(kDebuggerType);
 };
 
 ExecutionState.prototype.evaluateGlobal = function(source, disable_break,
@@ -917,7 +904,7 @@ ExecutionState.prototype.frame = function(opt_index) {
   // If no index supplied return the selected frame.
   if (opt_index == null) opt_index = this.selected_frame;
   if (opt_index < 0 || opt_index >= this.frameCount()) {
-    throw MakeTypeError(kDebuggerFrame);
+    throw %make_type_error(kDebuggerFrame);
   }
   return new FrameMirror(this.break_id, opt_index);
 };
@@ -925,7 +912,7 @@ ExecutionState.prototype.frame = function(opt_index) {
 ExecutionState.prototype.setSelectedFrame = function(index) {
   var i = TO_NUMBER(index);
   if (i < 0 || i >= this.frameCount()) {
-    throw MakeTypeError(kDebuggerFrame);
+    throw %make_type_error(kDebuggerFrame);
   }
   this.selected_frame = i;
 };
@@ -1299,16 +1286,16 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
       response = this.createResponse(request);
 
       if (!request.type) {
-        throw MakeError(kDebugger, 'Type not specified');
+        throw %make_error(kDebugger, 'Type not specified');
       }
 
       if (request.type != 'request') {
-        throw MakeError(kDebugger,
+        throw %make_error(kDebugger,
                         "Illegal type '" + request.type + "' in request");
       }
 
       if (!request.command) {
-        throw MakeError(kDebugger, 'Command not specified');
+        throw %make_error(kDebugger, 'Command not specified');
       }
 
       if (request.arguments) {
@@ -1328,7 +1315,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
       if (IS_FUNCTION(handler)) {
         %_Call(handler, this, request, response);
       } else {
-        throw MakeError(kDebugger,
+        throw %make_error(kDebugger,
                         'Unknown command "' + request.command + '" in request');
       }
     } catch (e) {
@@ -1380,7 +1367,7 @@ DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
       } else if (stepaction == 'out') {
         action = Debug.StepAction.StepOut;
       } else {
-        throw MakeError(kDebugger,
+        throw %make_error(kDebugger,
                         'Invalid stepaction argument "' + stepaction + '".');
       }
     }
@@ -1500,7 +1487,7 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
       response.body.type = 'scriptRegExp';
       response.body.script_regexp = break_point.script_regexp_object().source;
     } else {
-      throw MakeError(kDebugger,
+      throw %make_error(kDebugger,
                       "Unexpected breakpoint type: " + break_point.type());
     }
     response.body.line = break_point.line();
@@ -1634,7 +1621,7 @@ DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(
       description.type = 'scriptRegExp';
       description.script_regexp = break_point.script_regexp_object().source;
     } else {
-      throw MakeError(kDebugger,
+      throw %make_error(kDebugger,
                       "Unexpected breakpoint type: " + break_point.type());
     }
     array.push(description);
@@ -1783,7 +1770,7 @@ DebugCommandProcessor.prototype.resolveFrameFromScopeDescription_ =
   if (scope_description && !IS_UNDEFINED(scope_description.frameNumber)) {
     var frame_index = scope_description.frameNumber;
     if (frame_index < 0 || this.exec_state_.frameCount() <= frame_index) {
-      throw MakeTypeError(kDebuggerFrame);
+      throw %make_type_error(kDebuggerFrame);
     }
     return this.exec_state_.frame(frame_index);
   } else {
@@ -1799,21 +1786,21 @@ DebugCommandProcessor.prototype.resolveScopeHolder_ =
     function(scope_description) {
   if (scope_description && "functionHandle" in scope_description) {
     if (!IS_NUMBER(scope_description.functionHandle)) {
-      throw MakeError(kDebugger, 'Function handle must be a number');
+      throw %make_error(kDebugger, 'Function handle must be a number');
     }
     var function_mirror = LookupMirror(scope_description.functionHandle);
     if (!function_mirror) {
-      throw MakeError(kDebugger, 'Failed to find function object by handle');
+      throw %make_error(kDebugger, 'Failed to find function object by handle');
     }
     if (!function_mirror.isFunction()) {
-      throw MakeError(kDebugger,
+      throw %make_error(kDebugger,
                       'Value of non-function type is found by handle');
     }
     return function_mirror;
   } else {
     // No frames no scopes.
     if (this.exec_state_.frameCount() == 0) {
-      throw MakeError(kDebugger, 'No scopes');
+      throw %make_error(kDebugger, 'No scopes');
     }
 
     // Get the frame for which the scopes are requested.
@@ -1866,7 +1853,7 @@ DebugCommandProcessor.resolveValue_ = function(value_description) {
   if ("handle" in value_description) {
     var value_mirror = LookupMirror(value_description.handle);
     if (!value_mirror) {
-      throw MakeError(kDebugger, "Failed to resolve value by handle, ' #" +
+      throw %make_error(kDebugger, "Failed to resolve value by handle, ' #" +
                                  value_description.handle + "# not found");
     }
     return value_mirror.value();
@@ -1878,7 +1865,7 @@ DebugCommandProcessor.resolveValue_ = function(value_description) {
     } if (value_description.type == MirrorType.STRING_TYPE) {
       return TO_STRING(value_description.stringDescription);
     } else {
-      throw MakeError(kDebugger, "Unknown type");
+      throw %make_error(kDebugger, "Unknown type");
     }
   } else if ("value" in value_description) {
     return value_description.value;
@@ -1887,7 +1874,7 @@ DebugCommandProcessor.resolveValue_ = function(value_description) {
   } else if (value_description.type == MirrorType.NULL_TYPE) {
     return null;
   } else {
-    throw MakeError(kDebugger, "Failed to parse value description");
+    throw %make_error(kDebugger, "Failed to parse value description");
   }
 };
 

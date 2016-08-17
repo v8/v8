@@ -21,7 +21,6 @@ namespace compiler {
 class CommonOperatorBuilder;
 class JSOperatorBuilder;
 class JSGraph;
-class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
 
 
@@ -74,7 +73,6 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
-  MachineOperatorBuilder* machine() const;
   SimplifiedOperatorBuilder* simplified() const;
   DeoptimizationMode mode() const { return mode_; }
 

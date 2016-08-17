@@ -1154,7 +1154,7 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
           effect->op()->mnemonic(), effect->id(), node->op()->mnemonic(),
           node->id());
     if (status_analysis_->IsEffectBranchPoint(effect) ||
-        OperatorProperties::GetFrameStateInputCount(node->op()) > 0) {
+        OperatorProperties::HasFrameStateInput(node->op())) {
       virtual_states_[node->id()]->SetCopyRequired();
       TRACE(", effect input %s#%d is branch point", effect->op()->mnemonic(),
             effect->id());

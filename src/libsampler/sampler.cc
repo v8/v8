@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <sys/time.h>
 
-#if !V8_OS_QNX && !V8_OS_NACL && !V8_OS_AIX
+#if !V8_OS_QNX && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
 #endif
 
@@ -21,8 +21,7 @@
 #include <mach/mach.h>
 // OpenBSD doesn't have <ucontext.h>. ucontext_t lives in <signal.h>
 // and is a typedef for struct sigcontext. There is no uc_mcontext.
-#elif(!V8_OS_ANDROID || defined(__BIONIC_HAVE_UCONTEXT_T)) && \
-    !V8_OS_OPENBSD && !V8_OS_NACL
+#elif(!V8_OS_ANDROID || defined(__BIONIC_HAVE_UCONTEXT_T)) && !V8_OS_OPENBSD
 #include <ucontext.h>
 #endif
 
@@ -366,7 +365,6 @@ class SignalHandler {
 
  private:
   static void Install() {
-#if !V8_OS_NACL
     struct sigaction sa;
     sa.sa_sigaction = &HandleProfilerSignal;
     sigemptyset(&sa.sa_mask);
@@ -377,22 +375,18 @@ class SignalHandler {
 #endif
     signal_handler_installed_ =
         (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
-#endif  // !V8_OS_NACL
   }
 
   static void Restore() {
-#if !V8_OS_NACL
     if (signal_handler_installed_) {
       sigaction(SIGPROF, &old_signal_handler_, 0);
       signal_handler_installed_ = false;
     }
-#endif
   }
 
-#if !V8_OS_NACL
   static void FillRegisterState(void* context, RegisterState* regs);
   static void HandleProfilerSignal(int signal, siginfo_t* info, void* context);
-#endif
+
   // Protects the process wide state below.
   static base::Mutex* mutex_;
   static int client_count_;
@@ -406,8 +400,6 @@ struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
 
 
-// As Native Client does not support signal handling, profiling is disabled.
-#if !V8_OS_NACL
 void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
   USE(info);
@@ -551,8 +543,6 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->fp = reinterpret_cast<void*>(mcontext.jmp_context.gpr[31]);
 #endif  // V8_OS_AIX
 }
-
-#endif  // !V8_OS_NACL
 
 #endif  // USE_SIGNALS
 

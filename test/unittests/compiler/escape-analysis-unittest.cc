@@ -446,8 +446,9 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
                            nullptr),
       state_values1, state_values2, state_values3, UndefinedConstant(),
       graph()->start(), graph()->start());
-  Node* deopt = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                                 frame_state, effect1, ifFalse);
+  Node* deopt = graph()->NewNode(
+      common()->Deoptimize(DeoptimizeKind::kEager, DeoptimizeReason::kNoReason),
+      frame_state, effect1, ifFalse);
   Node* ifTrue = IfTrue();
   Node* load = Load(FieldAccessAtIndex(0), finish, effect1, ifTrue);
   Node* result = Return(load, effect1, ifTrue);
@@ -486,8 +487,9 @@ TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
                            nullptr),
       state_values1, state_values2, state_values3, UndefinedConstant(),
       graph()->start(), graph()->start());
-  Node* deopt = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                                 frame_state, effect1, ifFalse);
+  Node* deopt = graph()->NewNode(
+      common()->Deoptimize(DeoptimizeKind::kEager, DeoptimizeReason::kNoReason),
+      frame_state, effect1, ifFalse);
   Node* ifTrue = IfTrue();
   Node* load = Load(FieldAccessAtIndex(0), finish, effect1, ifTrue);
   Node* result = Return(load, effect1, ifTrue);

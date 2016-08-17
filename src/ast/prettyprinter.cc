@@ -687,8 +687,7 @@ void AstPrinter::PrintDeclarations(ZoneList<Declaration*>* declarations) {
   }
 }
 
-
-void AstPrinter::PrintParameters(Scope* scope) {
+void AstPrinter::PrintParameters(DeclarationScope* scope) {
   if (scope->num_parameters() > 0) {
     IndentedScope indent(this, "PARAMS");
     for (int i = 0; i < scope->num_parameters(); i++) {
@@ -723,8 +722,7 @@ void AstPrinter::VisitBlock(Block* node) {
 
 // TODO(svenpanne) Start with IndentedScope.
 void AstPrinter::VisitVariableDeclaration(VariableDeclaration* node) {
-  PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),
-                               node->proxy()->var(),
+  PrintLiteralWithModeIndented("VARIABLE", node->proxy()->var(),
                                node->proxy()->name());
 }
 
@@ -885,8 +883,23 @@ void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
 
 void AstPrinter::PrintTryStatement(TryStatement* node) {
   PrintIndentedVisit("TRY", node->try_block());
-  PrintIndented("CATCH PREDICTED");
-  Print(" %d\n", node->catch_predicted());
+  PrintIndented("CATCH PREDICTION");
+  const char* prediction = "";
+  switch (node->catch_prediction()) {
+    case HandlerTable::UNCAUGHT:
+      prediction = "UNCAUGHT";
+      break;
+    case HandlerTable::CAUGHT:
+      prediction = "CAUGHT";
+      break;
+    case HandlerTable::PROMISE:
+      prediction = "PROMISE";
+      break;
+    case HandlerTable::DESUGARING:
+      prediction = "DESUGARING";
+      break;
+  }
+  Print(" %s\n", prediction);
 }
 
 void AstPrinter::VisitDebuggerStatement(DebuggerStatement* node) {
@@ -1048,6 +1061,9 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
         break;
       case VariableLocation::LOOKUP:
         SNPrintF(buf + pos, " lookup");
+        break;
+      case VariableLocation::MODULE:
+        SNPrintF(buf + pos, " module");
         break;
     }
     PrintLiteralWithModeIndented(buf.start(), var, node->name());

@@ -51,8 +51,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Typer typer;
   Node* context_node;
   JSTypedLowering::Flags flags;
-  BinaryOperationHints const binop_hints = BinaryOperationHints::Any();
-  CompareOperationHints const compare_hints = CompareOperationHints::Any();
+  BinaryOperationHint const binop_hints = BinaryOperationHint::kAny;
+  CompareOperationHint const compare_hints = CompareOperationHint::kAny;
 
   Node* Parameter(Type* t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());
@@ -247,7 +247,7 @@ TEST(AddNumber1) {
   for (size_t i = 0; i < arraysize(kNumberTypes); ++i) {
     Node* p0 = R.Parameter(kNumberTypes[i], 0);
     Node* p1 = R.Parameter(kNumberTypes[i], 1);
-    Node* add = R.Binop(R.javascript.Add(BinaryOperationHints::Any()), p0, p1);
+    Node* add = R.Binop(R.javascript.Add(BinaryOperationHint::kAny), p0, p1);
     Node* r = R.reduce(add);
 
     R.CheckBinop(IrOpcode::kNumberAdd, r);
@@ -442,7 +442,7 @@ TEST(JSToNumber_replacement) {
         R.graph.NewNode(R.javascript.ToNumber(), n, R.context(),
                         R.EmptyFrameState(R.context()), R.start(), R.start());
     Node* effect_use = R.UseForEffect(c);
-    Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(Type::Any()), n, c);
+    Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(), n, c);
 
     R.CheckEffectInput(c, effect_use);
     Node* r = R.reduce(c);
@@ -554,7 +554,7 @@ TEST(JSToString_replacement) {
         R.graph.NewNode(R.javascript.ToString(), n, R.context(),
                         R.EmptyFrameState(R.context()), R.start(), R.start());
     Node* effect_use = R.UseForEffect(c);
-    Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(Type::Any()), n, c);
+    Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(), n, c);
 
     R.CheckEffectInput(c, effect_use);
     Node* r = R.reduce(c);
@@ -575,13 +575,13 @@ TEST(StringComparison) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.LessThan(CompareOperationHints::Any()),
+      R.javascript.LessThan(CompareOperationHint::kAny),
       R.simplified.StringLessThan(),
-      R.javascript.LessThanOrEqual(CompareOperationHints::Any()),
+      R.javascript.LessThanOrEqual(CompareOperationHint::kAny),
       R.simplified.StringLessThanOrEqual(),
-      R.javascript.GreaterThan(CompareOperationHints::Any()),
+      R.javascript.GreaterThan(CompareOperationHint::kAny),
       R.simplified.StringLessThan(),
-      R.javascript.GreaterThanOrEqual(CompareOperationHints::Any()),
+      R.javascript.GreaterThanOrEqual(CompareOperationHint::kAny),
       R.simplified.StringLessThanOrEqual()};
 
   for (size_t i = 0; i < arraysize(kStringTypes); i++) {
@@ -623,13 +623,13 @@ TEST(NumberComparison) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.LessThan(CompareOperationHints::Any()),
+      R.javascript.LessThan(CompareOperationHint::kAny),
       R.simplified.NumberLessThan(),
-      R.javascript.LessThanOrEqual(CompareOperationHints::Any()),
+      R.javascript.LessThanOrEqual(CompareOperationHint::kAny),
       R.simplified.NumberLessThanOrEqual(),
-      R.javascript.GreaterThan(CompareOperationHints::Any()),
+      R.javascript.GreaterThan(CompareOperationHint::kAny),
       R.simplified.NumberLessThan(),
-      R.javascript.GreaterThanOrEqual(CompareOperationHints::Any()),
+      R.javascript.GreaterThanOrEqual(CompareOperationHint::kAny),
       R.simplified.NumberLessThanOrEqual()};
 
   Node* const p0 = R.Parameter(Type::Number(), 0);
@@ -665,7 +665,7 @@ TEST(MixedComparison1) {
       Node* p1 = R.Parameter(types[j], 1);
       {
         const Operator* less_than =
-            R.javascript.LessThan(CompareOperationHints::Any());
+            R.javascript.LessThan(CompareOperationHint::kAny);
         Node* cmp = R.Binop(less_than, p0, p1);
         Node* r = R.reduce(cmp);
         if (types[i]->Is(Type::String()) && types[j]->Is(Type::String())) {
@@ -811,8 +811,8 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
 
     {
       const Operator* op =
-          strict ? R->javascript.StrictEqual(CompareOperationHints::Any())
-                 : R->javascript.Equal(CompareOperationHints::Any());
+          strict ? R->javascript.StrictEqual(CompareOperationHint::kAny)
+                 : R->javascript.Equal(CompareOperationHint::kAny);
       Node* eq = R->Binop(op, p0, p1);
       Node* r = R->reduce(eq);
       R->CheckBinop(expected, r);
@@ -820,8 +820,8 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
 
     {
       const Operator* op =
-          strict ? R->javascript.StrictNotEqual(CompareOperationHints::Any())
-                 : R->javascript.NotEqual(CompareOperationHints::Any());
+          strict ? R->javascript.StrictNotEqual(CompareOperationHint::kAny)
+                 : R->javascript.NotEqual(CompareOperationHint::kAny);
       Node* ne = R->Binop(op, p0, p1);
       Node* n = R->reduce(ne);
       CHECK_EQ(IrOpcode::kBooleanNot, n->opcode());
@@ -1044,7 +1044,8 @@ TEST(Int32BinopEffects) {
   JSBitwiseTypedLoweringTester R;
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], I32Type(signed_left), I32Type(signed_right));
+    BinopEffectsTester B(R.ops[j], I32Type(signed_left), I32Type(signed_right),
+                         JSTypedLowering::kNoFlags);
     CHECK_EQ(R.ops[j + 1]->opcode(), B.result->op()->opcode());
 
     B.R.CheckBinop(B.result->opcode(), B.result);
@@ -1057,7 +1058,8 @@ TEST(Int32BinopEffects) {
 
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], Type::Number(), Type::Number());
+    BinopEffectsTester B(R.ops[j], Type::Number(), Type::Number(),
+                         JSTypedLowering::kNoFlags);
     CHECK_EQ(R.ops[j + 1]->opcode(), B.result->op()->opcode());
 
     B.R.CheckBinop(B.result->opcode(), B.result);
@@ -1070,7 +1072,8 @@ TEST(Int32BinopEffects) {
 
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], Type::Number(), Type::Primitive());
+    BinopEffectsTester B(R.ops[j], Type::Number(), Type::Primitive(),
+                         JSTypedLowering::kNoFlags);
 
     B.R.CheckBinop(B.result->opcode(), B.result);
 
@@ -1087,7 +1090,8 @@ TEST(Int32BinopEffects) {
 
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Number());
+    BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Number(),
+                         JSTypedLowering::kNoFlags);
 
     B.R.CheckBinop(B.result->opcode(), B.result);
 
@@ -1104,7 +1108,8 @@ TEST(Int32BinopEffects) {
 
   for (int j = 0; j < R.kNumberOps; j += 2) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
-    BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Primitive());
+    BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Primitive(),
+                         JSTypedLowering::kNoFlags);
 
     B.R.CheckBinop(B.result->opcode(), B.result);
 

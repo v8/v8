@@ -45,7 +45,7 @@ import time
 from testrunner.local import execution
 from testrunner.local import progress
 from testrunner.local import testsuite
-from testrunner.local.testsuite import ALL_VARIANTS
+from testrunner.local.variants import ALL_VARIANTS
 from testrunner.local import utils
 from testrunner.local import verbose
 from testrunner.network import network_execution
@@ -82,13 +82,6 @@ TEST_MAP = {
     "intl",
     "unittests",
   ],
-  # This needs to stay in sync with test/ignition.isolate.
-  "ignition": [
-    "mjsunit",
-    "cctest",
-    "webkit",
-    "message",
-  ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
     "mjsunit",
@@ -103,13 +96,24 @@ TEST_MAP = {
 
 TIMEOUT_DEFAULT = 60
 
-VARIANTS = ["default", "stress", "turbofan"]
+VARIANTS = ["default", "turbofan", "ignition_staging"]
 
-EXHAUSTIVE_VARIANTS = VARIANTS + [
+MORE_VARIANTS = [
   "ignition",
-  "nocrankshaft",
+  "stress",
   "turbofan_opt",
 ]
+
+EXHAUSTIVE_VARIANTS = VARIANTS + MORE_VARIANTS
+
+VARIANT_ALIASES = {
+  # The default for developer workstations.
+  "dev": VARIANTS,
+  # Additional variants, run on all bots.
+  "more": MORE_VARIANTS,
+  # Additional variants, run on a subset of bots.
+  "extra": ["nocrankshaft"],
+}
 
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
                "--nofold-constants", "--enable-slow-asserts",
@@ -246,16 +250,11 @@ def BuildOptions():
   result.add_option("--download-data", help="Download missing test suite data",
                     default=False, action="store_true")
   result.add_option("--download-data-only",
-                    help="Download missing test suite data and exit",
+                    help="Deprecated",
                     default=False, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
-  result.add_option("--ignition", help="Skip tests which don't run in ignition",
-                    default=False, action="store_true")
-  result.add_option("--ignition-turbofan",
-                    help="Skip tests which don't run in ignition_turbofan",
-                    default=False, action="store_true")
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
@@ -283,17 +282,16 @@ def BuildOptions():
   result.add_option("--no-sorting", "--nosorting",
                     help="Don't sort tests according to duration of last run.",
                     default=False, dest="no_sorting", action="store_true")
-  result.add_option("--no-stress", "--nostress",
-                    help="Don't run crankshaft --always-opt --stress-op test",
-                    default=False, dest="no_stress", action="store_true")
   result.add_option("--no-variants", "--novariants",
                     help="Don't run any testing variants",
                     default=False, dest="no_variants", action="store_true")
   result.add_option("--variants",
-                    help="Comma-separated list of testing variants: %s" % VARIANTS)
+                    help="Comma-separated list of testing variants;"
+                    " default: \"%s\"" % ",".join(VARIANTS))
   result.add_option("--exhaustive-variants",
                     default=False, action="store_true",
-                    help="Use exhaustive set of default variants.")
+                    help="Use exhaustive set of default variants:"
+                    " \"%s\"" % ",".join(EXHAUSTIVE_VARIANTS))
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
   result.add_option("--predictable",
@@ -329,9 +327,6 @@ def BuildOptions():
                     help="Don't skip more slow tests when using a simulator.",
                     default=False, action="store_true",
                     dest="dont_skip_simulator_slow_tests")
-  result.add_option("--stress-only",
-                    help="Only run tests with --always-opt --stress-opt",
-                    default=False, action="store_true")
   result.add_option("--swarming",
                     help="Indicates running test driver on swarming.",
                     default=False, action="store_true")
@@ -427,8 +422,6 @@ def SetupEnvironment(options):
     ])
 
 def ProcessOptions(options):
-  global ALL_VARIANTS
-  global EXHAUSTIVE_VARIANTS
   global VARIANTS
 
   # First try to auto-detect configurations based on the build if GN was
@@ -509,6 +502,8 @@ def ProcessOptions(options):
     # Other options for manipulating variants still apply afterwards.
     VARIANTS = EXHAUSTIVE_VARIANTS
 
+  # TODO(machenbach): Figure out how to test a bigger subset of variants on
+  # msan and tsan.
   if options.msan:
     VARIANTS = ["default"]
 
@@ -525,23 +520,25 @@ def ProcessOptions(options):
     """Returns true if zero or one of multiple arguments are true."""
     return reduce(lambda x, y: x + y, args) <= 1
 
-  if not excl(options.no_stress, options.stress_only, options.no_variants,
-              bool(options.variants)):
-    print("Use only one of --no-stress, --stress-only, --no-variants, "
-          "or --variants.")
+  if not excl(options.no_variants, bool(options.variants)):
+    print("Use only one of --no-variants or --variants.")
     return False
   if options.quickcheck:
     VARIANTS = ["default", "stress"]
     options.slow_tests = "skip"
     options.pass_fail_tests = "skip"
-  if options.no_stress:
-    VARIANTS = ["default", "nocrankshaft"]
   if options.no_variants:
     VARIANTS = ["default"]
-  if options.stress_only:
-    VARIANTS = ["stress"]
   if options.variants:
     VARIANTS = options.variants.split(",")
+
+    # Resolve variant aliases.
+    VARIANTS = reduce(
+        list.__add__,
+        (VARIANT_ALIASES.get(v, [v]) for v in VARIANTS),
+        [],
+    )
+
     if not set(VARIANTS).issubset(ALL_VARIANTS):
       print "All variants must be in %s" % str(ALL_VARIANTS)
       return False
@@ -550,6 +547,9 @@ def ProcessOptions(options):
     options.extra_flags.append("--predictable")
     options.extra_flags.append("--verify_predictable")
     options.extra_flags.append("--no-inline-new")
+
+  # Dedupe.
+  VARIANTS = list(set(VARIANTS))
 
   if not options.shell_dir:
     if options.shell:
@@ -665,6 +665,9 @@ def Main():
   if options.download_data_only:
     return exit_code
 
+  for s in suites:
+    s.PrepareSources()
+
   for (arch, mode) in options.arch_and_mode:
     try:
       code = Execute(arch, mode, args, options, suites)
@@ -746,8 +749,6 @@ def Execute(arch, mode, args, options, suites):
     "deopt_fuzzer": False,
     "gc_stress": options.gc_stress,
     "gcov_coverage": options.gcov_coverage,
-    "ignition": options.ignition,
-    "ignition_turbofan": options.ignition_turbofan,
     "isolates": options.isolates,
     "mode": MODES[mode]["status_mode"],
     "no_i18n": options.no_i18n,
@@ -770,8 +771,12 @@ def Execute(arch, mode, args, options, suites):
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
     all_tests += s.tests
+
+    # First filtering by status applying the generic rules (independent of
+    # variants).
     s.FilterTestCasesByStatus(options.warn_unused, options.slow_tests,
                               options.pass_fail_tests)
+
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue
@@ -798,6 +803,10 @@ def Execute(arch, mode, args, options, suites):
       ]
     else:
       s.tests = variant_tests
+
+    # Second filtering by status applying the variant-dependent rules.
+    s.FilterTestCasesByStatus(options.warn_unused, options.slow_tests,
+                              options.pass_fail_tests, variants=True)
 
     s.tests = ShardTests(s.tests, options)
     num_tests += len(s.tests)

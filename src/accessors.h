@@ -24,6 +24,7 @@ class AccessorInfo;
   V(ArrayLength)                  \
   V(BoundFunctionLength)          \
   V(BoundFunctionName)            \
+  V(ErrorStack)                   \
   V(FunctionArguments)            \
   V(FunctionCaller)               \
   V(FunctionName)                 \
@@ -46,9 +47,10 @@ class AccessorInfo;
   V(ScriptIsEmbedderDebugScript)  \
   V(StringLength)
 
-#define ACCESSOR_SETTER_LIST(V)        \
-  V(ReconfigureToDataProperty)         \
-  V(ArrayLengthSetter)                 \
+#define ACCESSOR_SETTER_LIST(V) \
+  V(ReconfigureToDataProperty)  \
+  V(ArrayLengthSetter)          \
+  V(ErrorStackSetter)           \
   V(FunctionPrototypeSetter)
 
 // Accessors contains all predefined proxy accessors.

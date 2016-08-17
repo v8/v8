@@ -13,14 +13,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
-                                         CallDescriptor* call_descriptor,
-                                         MachineRepresentation word,
-                                         MachineOperatorBuilder::Flags flags)
+RawMachineAssembler::RawMachineAssembler(
+    Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
+    MachineRepresentation word, MachineOperatorBuilder::Flags flags,
+    MachineOperatorBuilder::AlignmentRequirements alignment_requirements)
     : isolate_(isolate),
       graph_(graph),
       schedule_(new (zone()) Schedule(zone())),
-      machine_(zone(), word, flags),
+      machine_(zone(), word, flags, alignment_requirements),
       common_(zone()),
       call_descriptor_(call_descriptor),
       parameters_(parameter_count(), zone()),
@@ -85,9 +85,8 @@ void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
   current_block_ = nullptr;
 }
 
-
 void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
-                                 int32_t* case_values,
+                                 const int32_t* case_values,
                                  RawMachineLabel** case_labels,
                                  size_t case_count) {
   DCHECK_NE(schedule()->end(), current_block_);

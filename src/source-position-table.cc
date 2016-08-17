@@ -105,24 +105,13 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
 }  // namespace
 
 SourcePositionTableBuilder::SourcePositionTableBuilder(
-    Isolate* isolate, Zone* zone,
-    SourcePositionTableBuilder::RecordingMode mode)
-    : isolate_(isolate),
-      mode_(mode),
+    Zone* zone, SourcePositionTableBuilder::RecordingMode mode)
+    : mode_(mode),
       bytes_(zone),
 #ifdef ENABLE_SLOW_DCHECKS
       raw_entries_(zone),
 #endif
-      previous_(),
-      jit_handler_data_(nullptr) {
-  if (Omit()) return;
-  LOG_CODE_EVENT(isolate_, CodeStartLinePosInfoRecordEvent(&jit_handler_data_));
-}
-
-void SourcePositionTableBuilder::EndJitLogging(AbstractCode* code) {
-  if (Omit()) return;
-  LOG_CODE_EVENT(isolate_,
-                 CodeEndLinePosInfoRecordEvent(code, jit_handler_data_));
+      previous_() {
 }
 
 void SourcePositionTableBuilder::AddPosition(size_t code_offset,
@@ -138,29 +127,22 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
   SubtractFromEntry(tmp, previous_);
   EncodeEntry(bytes_, tmp);
   previous_ = entry;
-
-  if (entry.is_statement) {
-    LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddStatementPositionEvent(
-                                 jit_handler_data_, entry.code_offset,
-                                 entry.source_position));
-  }
-  LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddPositionEvent(
-                               jit_handler_data_, entry.code_offset,
-                               entry.source_position));
-
 #ifdef ENABLE_SLOW_DCHECKS
   raw_entries_.push_back(entry);
 #endif
 }
 
-Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable() {
-  if (bytes_.empty()) return isolate_->factory()->empty_byte_array();
+Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
+    Isolate* isolate, Handle<AbstractCode> code) {
+  if (bytes_.empty()) return isolate->factory()->empty_byte_array();
   DCHECK(!Omit());
 
-  Handle<ByteArray> table = isolate_->factory()->NewByteArray(
+  Handle<ByteArray> table = isolate->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), TENURED);
 
   MemCopy(table->GetDataStartAddress(), &*bytes_.begin(), bytes_.size());
+
+  LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(*code, *table));
 
 #ifdef ENABLE_SLOW_DCHECKS
   // Brute force testing: Record all positions and decode

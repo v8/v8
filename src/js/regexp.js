@@ -16,7 +16,6 @@ var GlobalRegExp = global.RegExp;
 var GlobalRegExpPrototype;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
-var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var matchSymbol = utils.ImportNow("match_symbol");
@@ -28,7 +27,6 @@ var SpeciesConstructor;
 
 utils.Import(function(from) {
   ExpandReplacement = from.ExpandReplacement;
-  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   SpeciesConstructor = from.SpeciesConstructor;
@@ -40,15 +38,17 @@ utils.Import(function(from) {
 // regexp match.  The property RegExpLastMatchInfo includes the matchIndices
 // array of the last successful regexp match (an array of start/end index
 // pairs for the match and all the captured substrings), the invariant is
-// that there are at least two capture indeces.  The array also contains
+// that there are at least two capture indices.  The array also contains
 // the subject string for the last successful match.
-var RegExpLastMatchInfo = new InternalPackedArray(
- 2,                 // REGEXP_NUMBER_OF_CAPTURES
- "",                // Last subject.
- UNDEFINED,         // Last input - settable with RegExpSetInput.
- 0,                 // REGEXP_FIRST_CAPTURE + 0
- 0                  // REGEXP_FIRST_CAPTURE + 1
-);
+// We use a JSObject rather than a JSArray so we don't have to manually update
+// its length.
+var RegExpLastMatchInfo = {
+  REGEXP_NUMBER_OF_CAPTURES: 2,
+  REGEXP_LAST_SUBJECT:       "",
+  REGEXP_LAST_INPUT:         UNDEFINED,  // Settable with RegExpSetInput.
+  CAPTURE0:                  0,
+  CAPTURE1:                  0
+};
 
 // -------------------------------------------------------------------
 
@@ -114,12 +114,12 @@ function RegExpConstructor(pattern, flags) {
 // ES#sec-regexp.prototype.compile RegExp.prototype.compile (pattern, flags)
 function RegExpCompileJS(pattern, flags) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.compile", this);
   }
 
   if (IS_REGEXP(pattern)) {
-    if (!IS_UNDEFINED(flags)) throw MakeTypeError(kRegExpFlags);
+    if (!IS_UNDEFINED(flags)) throw %make_type_error(kRegExpFlags);
 
     flags = PatternFlags(pattern);
     pattern = REGEXP_SOURCE(pattern);
@@ -180,7 +180,7 @@ function RegExpExecNoTests(regexp, string, start) {
 // RegExp.prototype.exec ( string )
 function RegExpSubclassExecJS(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'RegExp.prototype.exec', this);
   }
 
@@ -226,7 +226,7 @@ function RegExpSubclassExecJS(string) {
 // Legacy implementation of RegExp.prototype.exec
 function RegExpExecJS(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'RegExp.prototype.exec', this);
   }
 
@@ -273,7 +273,7 @@ function RegExpSubclassExec(regexp, string, exec) {
   if (IS_CALLABLE(exec)) {
     var result = %_Call(exec, regexp, string);
     if (!IS_RECEIVER(result) && !IS_NULL(result)) {
-      throw MakeTypeError(kInvalidRegExpExecResult);
+      throw %make_type_error(kInvalidRegExpExecResult);
     }
     return result;
   }
@@ -293,7 +293,7 @@ var regexp_val;
 // else implements.
 function RegExpTest(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'RegExp.prototype.test', this);
   }
   string = TO_STRING(string);
@@ -344,7 +344,7 @@ function RegExpTest(string) {
 // ES#sec-regexp.prototype.test RegExp.prototype.test ( S )
 function RegExpSubclassTest(string) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'RegExp.prototype.test', this);
   }
   string = TO_STRING(string);
@@ -368,7 +368,7 @@ function TrimRegExp(regexp) {
 
 function RegExpToString() {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(
+    throw %make_type_error(
         kIncompatibleMethodReceiver, 'RegExp.prototype.toString', this);
   }
   if (this === GlobalRegExpPrototype) {
@@ -392,7 +392,7 @@ function AtSurrogatePair(subject, index) {
 function RegExpSplit(string, limit) {
   // TODO(yangguo): allow non-regexp receivers.
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@split", this);
   }
   var separator = this;
@@ -466,7 +466,7 @@ function RegExpSplit(string, limit) {
 // RegExp.prototype [ @@split ] ( string, limit )
 function RegExpSubclassSplit(string, limit) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@split", this);
   }
   string = TO_STRING(string);
@@ -542,7 +542,7 @@ function RegExpSubclassSplit(string, limit) {
 // RegExp.prototype [ @@match ] ( string )
 function RegExpSubclassMatch(string) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@match", this);
   }
   string = TO_STRING(string);
@@ -700,7 +700,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
 
 function RegExpReplace(string, replace) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@replace", this);
   }
   var subject = TO_STRING(string);
@@ -856,7 +856,7 @@ function SetAdvancedStringIndex(regexp, string, unicode) {
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
 function RegExpSubclassReplace(string, replace) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@replace", this);
   }
   string = TO_STRING(string);
@@ -941,7 +941,7 @@ function RegExpSubclassReplace(string, replace) {
 // RegExp.prototype [ @@search ] ( string )
 function RegExpSubclassSearch(string) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@search", this);
   }
   string = TO_STRING(string);
@@ -1019,7 +1019,7 @@ function RegExpMakeCaptureGetter(n) {
 // ES6 21.2.5.3.
 function RegExpGetFlags() {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(
+    throw %make_type_error(
         kRegExpNonObject, "RegExp.prototype.flags", TO_STRING(this));
   }
   var result = '';
@@ -1040,7 +1040,7 @@ function RegExpGetGlobal() {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.global");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.global");
   }
   return TO_BOOLEAN(REGEXP_GLOBAL(this));
 }
@@ -1055,7 +1055,7 @@ function RegExpGetIgnoreCase() {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.ignoreCase");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.ignoreCase");
   }
   return TO_BOOLEAN(REGEXP_IGNORE_CASE(this));
 }
@@ -1069,7 +1069,7 @@ function RegExpGetMultiline() {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.multiline");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.multiline");
   }
   return TO_BOOLEAN(REGEXP_MULTILINE(this));
 }
@@ -1083,7 +1083,7 @@ function RegExpGetSource() {
       %IncrementUseCounter(kRegExpPrototypeSourceGetter);
       return "(?:)";
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.source");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.source");
   }
   return REGEXP_SOURCE(this);
 }
@@ -1098,7 +1098,7 @@ function RegExpGetSticky() {
       %IncrementUseCounter(kRegExpPrototypeStickyGetter);
       return UNDEFINED;
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.sticky");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.sticky");
   }
   return TO_BOOLEAN(REGEXP_STICKY(this));
 }
@@ -1113,7 +1113,7 @@ function RegExpGetUnicode() {
       %IncrementUseCounter(kRegExpPrototypeUnicodeGetter);
       return UNDEFINED;
     }
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.unicode");
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.unicode");
   }
   return TO_BOOLEAN(REGEXP_UNICODE(this));
 }
@@ -1203,7 +1203,13 @@ for (var i = 1; i < 10; ++i) {
 // -------------------------------------------------------------------
 // Internal
 
-var InternalRegExpMatchInfo = new InternalPackedArray(2, "", UNDEFINED, 0, 0);
+var InternalRegExpMatchInfo = {
+  REGEXP_NUMBER_OF_CAPTURES: 2,
+  REGEXP_LAST_SUBJECT:       "",
+  REGEXP_LAST_INPUT:         UNDEFINED,
+  CAPTURE0:                  0,
+  CAPTURE1:                  0
+};
 
 function InternalRegExpMatch(regexp, subject) {
   var matchInfo = %_RegExpExec(regexp, subject, 0, InternalRegExpMatchInfo);

@@ -80,7 +80,9 @@ class SerializerDeserializer : public ObjectVisitor {
   static void Iterate(Isolate* isolate, ObjectVisitor* visitor);
 
   // No reservation for large object space necessary.
-  static const int kNumberOfPreallocatedSpaces = LAST_PAGED_SPACE + 1;
+  // We also handle map space differenly.
+  STATIC_ASSERT(MAP_SPACE == CODE_SPACE + 1);
+  static const int kNumberOfPreallocatedSpaces = CODE_SPACE + 1;
   static const int kNumberOfSpaces = LAST_SPACE + 1;
 
  protected:

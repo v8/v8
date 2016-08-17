@@ -16,7 +16,6 @@ var hasInstanceSymbol = utils.ImportNow("has_instance_symbol");
 var isConcatSpreadableSymbol =
     utils.ImportNow("is_concat_spreadable_symbol");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var MakeTypeError;
 var matchSymbol = utils.ImportNow("match_symbol");
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
@@ -25,10 +24,6 @@ var splitSymbol = utils.ImportNow("split_symbol");
 var toPrimitiveSymbol = utils.ImportNow("to_primitive_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
-
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-});
 
 // -------------------------------------------------------------------
 
@@ -45,7 +40,7 @@ function SymbolFor(key) {
 
 
 function SymbolKeyFor(symbol) {
-  if (!IS_SYMBOL(symbol)) throw MakeTypeError(kSymbolKeyFor, symbol);
+  if (!IS_SYMBOL(symbol)) throw %make_type_error(kSymbolKeyFor, symbol);
   return %SymbolRegistry().keyFor[symbol];
 }
 

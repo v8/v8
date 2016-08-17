@@ -132,8 +132,17 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
         Type* entry_type = NodeProperties::GetType(entry);
         Type* node_type = NodeProperties::GetType(node);
         if (!entry_type->Is(node_type)) {
-          NodeProperties::SetType(
-              entry, Type::Intersect(entry_type, node_type, graph_zone()));
+          // Ideally, we would set an intersection of {entry_type} and
+          // {node_type} here. However, typing of NumberConstants assigns
+          // different types to constants with the same value (it creates
+          // a fresh heap number), which would make the intersection empty.
+          // To be safe, we use the smaller type if the types are comparable.
+          if (node_type->Is(entry_type)) {
+            NodeProperties::SetType(entry, node_type);
+          } else {
+            // Types are not comparable => do not replace.
+            return NoChange();
+          }
         }
       }
       return Replace(entry);

@@ -12,14 +12,12 @@
 // Imports
 
 var GlobalArrayBuffer = global.ArrayBuffer;
-var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var SpeciesConstructor;
 var speciesSymbol = utils.ImportNow("species_symbol");
 
 utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   SpeciesConstructor = from.SpeciesConstructor;
@@ -30,7 +28,7 @@ utils.Import(function(from) {
 // ES6 Draft 15.13.5.5.3
 function ArrayBufferSlice(start, end) {
   if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'ArrayBuffer.prototype.slice', this);
   }
 
@@ -60,17 +58,17 @@ function ArrayBufferSlice(start, end) {
   var constructor = SpeciesConstructor(this, GlobalArrayBuffer, true);
   var result = new constructor(newLen);
   if (!IS_ARRAYBUFFER(result)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'ArrayBuffer.prototype.slice', result);
   }
   // Checks for detached source/target ArrayBuffers are done inside of
   // %ArrayBufferSliceImpl; the reordering of checks does not violate
   // the spec because all exceptions thrown are TypeErrors.
   if (result === this) {
-    throw MakeTypeError(kArrayBufferSpeciesThis);
+    throw %make_type_error(kArrayBufferSpeciesThis);
   }
   if (%_ArrayBufferGetByteLength(result) < newLen) {
-    throw MakeTypeError(kArrayBufferTooShort);
+    throw %make_type_error(kArrayBufferTooShort);
   }
 
   %ArrayBufferSliceImpl(this, result, first, newLen);

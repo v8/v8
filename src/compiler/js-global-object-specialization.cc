@@ -169,9 +169,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       // Record a code dependency on the cell, and just deoptimize if the new
       // value doesn't match the previous value stored inside the cell.
       dependencies()->AssumePropertyCell(property_cell);
-      Node* check =
-          graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()), value,
-                           jsgraph()->Constant(property_cell_value));
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(), value,
+                                     jsgraph()->Constant(property_cell_value));
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
       break;
@@ -186,17 +185,12 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
         value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
                                           value, effect, control);
 
-        // Load the {value} map check against the {property_cell} map.
-        Node* value_map = effect =
-            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                             value, effect, control);
+        // Check {value} map agains the {property_cell} map.
         Handle<Map> property_cell_value_map(
             Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
-        Node* check = graph()->NewNode(
-            simplified()->ReferenceEqual(Type::Any()), value_map,
-            jsgraph()->HeapConstant(property_cell_value_map));
-        effect =
-            graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+        effect = graph()->NewNode(
+            simplified()->CheckMaps(1), value,
+            jsgraph()->HeapConstant(property_cell_value_map), effect, control);
         property_cell_value_type = Type::TaggedPointer();
       } else {
         // Check that the {value} is a Smi.

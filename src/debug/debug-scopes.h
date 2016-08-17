@@ -43,6 +43,7 @@ class ScopeIterator {
                 Option options = DEFAULT);
 
   ScopeIterator(Isolate* isolate, Handle<JSFunction> function);
+  ScopeIterator(Isolate* isolate, Handle<JSGeneratorObject> generator);
 
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScopeDetails();
 
@@ -110,9 +111,9 @@ class ScopeIterator {
     return frame_inspector_->GetFunction();
   }
 
-  void RetrieveScopeChain(Scope* scope);
+  void RetrieveScopeChain(DeclarationScope* scope);
 
-  void CollectNonLocals(Scope* scope);
+  void CollectNonLocals(ParseInfo* info, DeclarationScope* scope);
 
   void UnwrapEvaluationContext();
 

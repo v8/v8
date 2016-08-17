@@ -48,6 +48,20 @@ Node* JSGraph::EmptyLiteralsArrayConstant() {
                 HeapConstant(factory()->empty_literals_array()));
 }
 
+Node* JSGraph::EmptyStringConstant() {
+  return CACHED(kEmptyStringConstant, HeapConstant(factory()->empty_string()));
+}
+
+Node* JSGraph::FixedArrayMapConstant() {
+  return CACHED(kFixedArrayMapConstant,
+                HeapConstant(factory()->fixed_array_map()));
+}
+
+Node* JSGraph::FixedDoubleArrayMapConstant() {
+  return CACHED(kFixedDoubleArrayMapConstant,
+                HeapConstant(factory()->fixed_double_array_map()));
+}
+
 Node* JSGraph::HeapNumberMapConstant() {
   return CACHED(kHeapNumberMapConstant,
                 HeapConstant(factory()->heap_number_map()));
@@ -146,6 +160,11 @@ Node* JSGraph::Constant(int32_t value) {
   return NumberConstant(value);
 }
 
+Node* JSGraph::Constant(uint32_t value) {
+  if (value == 0) return ZeroConstant();
+  if (value == 1) return OneConstant();
+  return NumberConstant(value);
+}
 
 Node* JSGraph::Int32Constant(int32_t value) {
   Node** loc = cache_.FindInt32Constant(value);

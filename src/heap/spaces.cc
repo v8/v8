@@ -504,6 +504,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->set_next_chunk(nullptr);
   chunk->set_prev_chunk(nullptr);
   chunk->local_tracker_ = nullptr;
+  chunk->black_area_end_marker_map_ = nullptr;
 
   DCHECK(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
   DCHECK(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
@@ -1229,18 +1230,6 @@ bool PagedSpace::Expand() {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!heap()->deserialization_complete()) p->MarkNeverEvacuate();
 
-  // When incremental marking was activated, old space pages are allocated
-  // black.
-  if (heap()->incremental_marking()->black_allocation() &&
-      identity() == OLD_SPACE) {
-    p->markbits()->SetAllBits();
-    p->SetFlag(Page::BLACK_PAGE);
-    if (FLAG_trace_incremental_marking) {
-      PrintIsolate(heap()->isolate(), "Added black page %p\n",
-                   static_cast<void*>(p));
-    }
-  }
-
   DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
 
   p->InsertAfter(anchor_.prev_page());
@@ -1265,9 +1254,63 @@ void PagedSpace::ResetFreeListStatistics() {
   }
 }
 
+void PagedSpace::SetAllocationInfo(Address top, Address limit) {
+  SetTopAndLimit(top, limit);
+  if (top != nullptr && top != limit &&
+      heap()->incremental_marking()->black_allocation()) {
+    Page* page = Page::FromAddress(top);
+    page->markbits()->SetRange(page->AddressToMarkbitIndex(top),
+                               page->AddressToMarkbitIndex(limit));
+    page->IncrementLiveBytes(static_cast<int>(limit - top));
+  }
+}
 
-void PagedSpace::IncreaseCapacity(int size) {
-  accounting_stats_.ExpandSpace(size);
+void PagedSpace::MarkAllocationInfoBlack() {
+  DCHECK(heap()->incremental_marking()->black_allocation());
+  Address current_top = top();
+  Address current_limit = limit();
+  if (current_top != nullptr && current_top != current_limit) {
+    Page* page = Page::FromAddress(current_top);
+    page->markbits()->SetRange(page->AddressToMarkbitIndex(current_top),
+                               page->AddressToMarkbitIndex(current_limit));
+    page->IncrementLiveBytes(static_cast<int>(current_limit - current_top));
+  }
+}
+
+// Empty space allocation info, returning unused area to free list.
+void PagedSpace::EmptyAllocationInfo() {
+  // Mark the old linear allocation area with a free space map so it can be
+  // skipped when scanning the heap.
+  Address current_top = top();
+  Address current_limit = limit();
+  if (current_top == nullptr) {
+    DCHECK(current_limit == nullptr);
+    return;
+  }
+
+  if (heap()->incremental_marking()->black_allocation()) {
+    Page* page = Page::FromAddress(current_top);
+    // We have to remember the end of the current black allocation area if
+    // something was allocated in the current bump pointer range.
+    if (allocation_info_.original_top() != current_top) {
+      Address end_black_area = current_top - kPointerSize;
+      page->AddBlackAreaEndMarker(end_black_area);
+    }
+
+    // Clear the bits in the unused black area.
+    if (current_top != current_limit) {
+      page->markbits()->ClearRange(page->AddressToMarkbitIndex(current_top),
+                                   page->AddressToMarkbitIndex(current_limit));
+      page->IncrementLiveBytes(-static_cast<int>(current_limit - current_top));
+    }
+  }
+
+  SetTopAndLimit(NULL, NULL);
+  Free(current_top, static_cast<int>(current_limit - current_top));
+}
+
+void PagedSpace::IncreaseCapacity(size_t bytes) {
+  accounting_stats_.ExpandSpace(bytes);
 }
 
 void PagedSpace::ReleasePage(Page* page) {
@@ -1277,6 +1320,8 @@ void PagedSpace::ReleasePage(Page* page) {
 
   free_list_.EvictFreeListItems(page);
   DCHECK(!free_list_.ContainsPageFreeListItems(page));
+
+  page->ReleaseBlackAreaEndMarkerMap();
 
   if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
     allocation_info_.Reset(nullptr, nullptr);
@@ -1331,8 +1376,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
       object->IterateBody(map->instance_type(), size, visitor);
-      if (!page->IsFlagSet(Page::BLACK_PAGE) &&
-          Marking::IsBlack(ObjectMarking::MarkBitFrom(object))) {
+      if (Marking::IsBlack(ObjectMarking::MarkBitFrom(object))) {
         black_size += size;
       }
 
@@ -2429,8 +2473,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
-  owner_->Free(owner_->top(), old_linear_size);
-  owner_->SetTopAndLimit(nullptr, nullptr);
+  owner_->EmptyAllocationInfo();
 
   owner_->heap()->incremental_marking()->OldSpaceStep(size_in_bytes -
                                                       old_linear_size);
@@ -2464,8 +2507,8 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
     // Keep the linear allocation area empty if requested to do so, just
     // return area back to the free list instead.
     owner_->Free(new_node->address() + size_in_bytes, bytes_left);
-    owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
-                           new_node->address() + size_in_bytes);
+    owner_->SetAllocationInfo(new_node->address() + size_in_bytes,
+                              new_node->address() + size_in_bytes);
   } else if (bytes_left > kThreshold &&
              owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
              FLAG_incremental_marking) {
@@ -2475,17 +2518,16 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
     // we want to do another increment until the linear area is used up.
     owner_->Free(new_node->address() + size_in_bytes + linear_size,
                  new_node_size - size_in_bytes - linear_size);
-    owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
-                           new_node->address() + size_in_bytes + linear_size);
+    owner_->SetAllocationInfo(
+        new_node->address() + size_in_bytes,
+        new_node->address() + size_in_bytes + linear_size);
   } else {
     DCHECK(bytes_left >= 0);
     // Normally we give the rest of the node to the allocator as its new
     // linear allocation area.
-    owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
-                           new_node->address() + new_node_size);
+    owner_->SetAllocationInfo(new_node->address() + size_in_bytes,
+                              new_node->address() + new_node_size);
   }
-
-  owner_->AllocationStep(new_node->address(), size_in_bytes);
 
   return new_node;
 }
@@ -2872,6 +2914,11 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
 
   heap()->incremental_marking()->OldSpaceStep(object_size);
   AllocationStep(object->address(), object_size);
+
+  if (heap()->incremental_marking()->black_allocation()) {
+    Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
+    MemoryChunk::IncrementLiveBytesFromGC(object, object_size);
+  }
   return object;
 }
 

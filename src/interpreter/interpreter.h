@@ -5,6 +5,8 @@
 #ifndef V8_INTERPRETER_INTERPRETER_H_
 #define V8_INTERPRETER_INTERPRETER_H_
 
+#include <memory>
+
 // Clients of this interface shouldn't depend on lots of interpreter internals.
 // Do not include anything from src/interpreter other than
 // src/interpreter/bytecodes.h here!
@@ -63,6 +65,9 @@ class Interpreter {
     return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
   }
 
+  // TODO(ignition): Tune code size multiplier.
+  static const int kCodeSizeMultiplier = 32;
+
  private:
 // Bytecode handler generator functions.
 #define DECLARE_BYTECODE_HANDLER_GENERATOR(Name, ...) \
@@ -74,13 +79,19 @@ class Interpreter {
   template <class Generator>
   void DoBinaryOp(InterpreterAssembler* assembler);
 
+  // Generates code to perform the binary operation via |Generator|.
+  template <class Generator>
+  void DoBinaryOpWithFeedback(InterpreterAssembler* assembler);
+
+  // Generates code to perform the bitwise binary operation corresponding to
+  // |bitwise_op| while gathering type feedback.
+  void DoBitwiseBinaryOp(Token::Value bitwise_op,
+                         InterpreterAssembler* assembler);
+
   // Generates code to perform the binary operation via |Generator| using
   // an immediate value rather the accumulator as the rhs operand.
   template <class Generator>
   void DoBinaryOpWithImmediate(InterpreterAssembler* assembler);
-
-  // Generates code to perform the unary operation via |callable|.
-  void DoUnaryOp(Callable callable, InterpreterAssembler* assembler);
 
   // Generates code to perform the unary operation via |Generator|.
   template <class Generator>
@@ -143,15 +154,18 @@ class Interpreter {
   compiler::Node* BuildLoadKeyedProperty(Callable ic,
                                          InterpreterAssembler* assembler);
 
-  // Generates code to perform logical-not on boolean |value| and returns the
-  // result.
-  compiler::Node* BuildLogicalNot(compiler::Node* value,
-                                  InterpreterAssembler* assembler);
+  // Generates code to prepare the result for ForInPrepare. Cache data
+  // are placed into the consecutive series of registers starting at
+  // |output_register|.
+  void BuildForInPrepareResult(compiler::Node* output_register,
+                               compiler::Node* cache_type,
+                               compiler::Node* cache_array,
+                               compiler::Node* cache_length,
+                               InterpreterAssembler* assembler);
 
-  // Generates code to convert |value| to a boolean and returns the
-  // result.
-  compiler::Node* BuildToBoolean(compiler::Node* value,
-                                 InterpreterAssembler* assembler);
+  // Generates code to perform the unary operation via |callable|.
+  compiler::Node* BuildUnaryOp(Callable callable,
+                               InterpreterAssembler* assembler);
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 
@@ -167,7 +181,7 @@ class Interpreter {
 
   Isolate* isolate_;
   Address dispatch_table_[kDispatchTableSize];
-  v8::base::SmartArrayPointer<uintptr_t> bytecode_dispatch_counters_table_;
+  std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };

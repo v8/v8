@@ -7,7 +7,6 @@ pool type: mixed
 execute: yes
 wrap: no
 test function name: f
-ignition generators: yes
 
 ---
 snippet: "
@@ -16,7 +15,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 200
+bytecode array length: 197
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(20),
@@ -24,11 +23,11 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrict), R(1),
-                B(JumpIfTrue), U8(56),
-                B(LdaSmi), U8(75),
+                B(JumpIfTrue), U8(53),
+                B(LdaSmi), U8(76),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kAbort), R(2), U8(1),
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(2),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
                 B(StaContextSlot), R(context), U8(4),
@@ -109,7 +108,7 @@ bytecodes: [
 constant pool: [
 ]
 handlers: [
-  [38, 137, 143],
+  [35, 134, 140],
 ]
 
 ---
@@ -119,7 +118,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 293
+bytecode array length: 290
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -127,14 +126,14 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrict), R(1),
-                B(JumpIfTrue), U8(62),
+                B(JumpIfTrue), U8(59),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(1),
                 B(JumpIfTrueConstant), U8(0),
-                B(LdaSmi), U8(75),
+                B(LdaSmi), U8(76),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kAbort), R(2), U8(1),
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(2),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
                 B(StaContextSlot), R(context), U8(4),
@@ -255,7 +254,7 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [44, 221, 227],
+  [41, 218, 224],
 ]
 
 ---
@@ -265,7 +264,7 @@ snippet: "
 "
 frame size: 18
 parameter count: 1
-bytecode array length: 774
+bytecode array length: 752
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -273,14 +272,14 @@ bytecodes: [
                 B(Star), R(4),
                 B(LdaZero),
                 B(TestEqualStrict), R(4),
-                B(JumpIfTrue), U8(62),
+                B(JumpIfTrue), U8(59),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(4),
                 B(JumpIfTrueConstant), U8(3),
-                B(LdaSmi), U8(75),
+                B(LdaSmi), U8(76),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kAbort), R(5), U8(1),
-                B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
+                B(CreateFunctionContext), U8(9),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
                 B(StaContextSlot), R(context), U8(4),
@@ -317,13 +316,11 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(Star), R(5),
-                B(JumpConstant), U8(16),
+                B(JumpConstant), U8(17),
                 B(Ldar), R(10),
   /*   11 E> */ B(Throw),
-                B(LdaConstant), U8(0),
-                B(Star), R(8),
-                B(Mov), R(closure), R(9),
-                B(CallRuntime), U16(Runtime::kPushBlockContext), R(8), U8(2),
+                B(Ldar), R(closure),
+                B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
@@ -343,7 +340,7 @@ bytecodes: [
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(4),
                 B(JumpIfTrueConstant), U8(9),
-                B(LdaSmi), U8(75),
+                B(LdaSmi), U8(76),
                 B(Star), R(12),
                 B(CallRuntime), U16(Runtime::kAbort), R(12), U8(1),
   /*   27 S> */ B(LdrContextSlot), R(1), U8(7), R(14),
@@ -367,10 +364,8 @@ bytecodes: [
                 B(LdaContextSlot), R(1), U8(10),
                 B(StaContextSlot), R(1), U8(6),
   /*   16 E> */ B(StackCheck),
-                B(LdaConstant), U8(7),
-                B(Star), R(12),
-                B(Mov), R(closure), R(13),
-                B(CallRuntime), U16(Runtime::kPushBlockContext), R(12), U8(2),
+                B(Ldar), R(closure),
+                B(CreateBlockContext), U8(7),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
@@ -399,16 +394,15 @@ bytecodes: [
                 B(Star), R(15),
                 B(LdaZero),
                 B(TestEqualStrict), R(15),
-                B(JumpIfTrue), U8(45),
+                B(JumpIfTrue), U8(43),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(15),
-                B(JumpIfTrue), U8(36),
+                B(JumpIfTrue), U8(34),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(17),
                 B(Mov), R(13), R(16),
                 B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(16), U8(2),
-                B(PopContext), R(2),
                 B(PopContext), R(2),
                 B(PopContext), R(2),
                 B(PopContext), R(2),
@@ -425,7 +419,7 @@ bytecodes: [
                 B(PopContext), R(2),
                 B(LdaZero),
                 B(StaContextSlot), R(1), U8(9),
-                B(Wide), B(Jump), U16(-225),
+                B(Wide), B(Jump), U16(-215),
                 B(Jump), U8(46),
                 B(Star), R(13),
                 B(LdaConstant), U8(11),
@@ -454,12 +448,11 @@ bytecodes: [
                 B(LdrContextSlot), R(1), U8(9), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(11),
-                B(JumpIfTrue), U8(9),
+                B(JumpIfTrueConstant), U8(15),
                 B(LdrContextSlot), R(1), U8(7), R(11),
                 B(LdaUndefined),
                 B(TestEqualStrict), R(11),
-                B(ToBooleanLogicalNot),
-                B(JumpIfFalseConstant), U8(15),
+                B(JumpIfTrueConstant), U8(16),
                 B(LdrContextSlot), R(1), U8(7), R(11),
                 B(LdaNamedProperty), R(11), U8(12), U8(13),
                 B(StaContextSlot), R(1), U8(11),
@@ -598,11 +591,12 @@ constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   kInstanceTypeDontCare,
   kInstanceTypeDontCare,
+  kInstanceTypeDontCare,
 ]
 handlers: [
-  [44, 693, 699],
-  [150, 447, 453],
-  [153, 401, 403],
-  [550, 562, 564],
+  [41, 671, 677],
+  [139, 426, 432],
+  [142, 380, 382],
+  [528, 540, 542],
 ]
 

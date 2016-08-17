@@ -25,39 +25,6 @@ enum ContextLookupFlags {
 };
 
 
-// ES5 10.2 defines lexical environments with mutable and immutable bindings.
-// Immutable bindings have two states, initialized and uninitialized, and
-// their state is changed by the InitializeImmutableBinding method. The
-// BindingFlags enum represents information if a binding has definitely been
-// initialized. A mutable binding does not need to be checked and thus has
-// the BindingFlag BINDING_IS_INITIALIZED.
-//
-// There is one possibility for legacy immutable bindings:
-//  * The function name of a named function literal. The binding is immediately
-//    initialized when entering the function and thus does not need to be
-//    checked. it gets the BindingFlag BINDING_IS_INITIALIZED.
-//
-// The harmony proposal for block scoped bindings also introduces the
-// uninitialized state for mutable bindings.
-//  * A 'let' declared variable. They are initialized when evaluating the
-//    corresponding declaration statement. They need to be checked for being
-//    initialized and thus get the flag BINDING_CHECK_INITIALIZED.
-//  * A 'var' declared variable. It is initialized immediately upon creation
-//    and thus doesn't need to be checked. It gets the flag
-//    BINDING_IS_INITIALIZED.
-//  * Catch bound variables, function parameters and variables introduced by
-//    function declarations are initialized immediately and do not need to be
-//    checked. Thus they get the flag BINDING_IS_INITIALIZED.
-// Accessing an uninitialized binding produces a reference error.
-//
-// In V8 uninitialized bindings are set to the hole value upon creation and set
-// to a different value upon initialization.
-enum BindingFlags {
-  BINDING_IS_INITIALIZED,
-  BINDING_CHECK_INITIALIZED,
-  MISSING_BINDING
-};
-
 // Heap-allocated activation contexts.
 //
 // Contexts are implemented as FixedArray objects; the Context
@@ -70,8 +37,11 @@ enum BindingFlags {
 #define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                           \
   V(IS_ARRAYLIKE, JSFunction, is_arraylike)                             \
   V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)   \
+  V(MAKE_ERROR_INDEX, JSFunction, make_error)                           \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)               \
+  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)             \
   V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                 \
+  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)                   \
   V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)     \
   V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)         \
   V(OBJECT_FREEZE, JSFunction, object_freeze)                           \
@@ -101,19 +71,13 @@ enum BindingFlags {
   V(ASYNC_FUNCTION_AWAIT_INDEX, JSFunction, async_function_await)           \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                   \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                       \
+  V(ERROR_TO_STRING, JSFunction, error_to_string)                           \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)             \
-  V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)       \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                     \
-  V(MAKE_ERROR_FUNCTION_INDEX, JSFunction, make_error_function)             \
   V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                        \
   V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                              \
   V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                              \
   V(MAP_SET_METHOD_INDEX, JSFunction, map_set)                              \
-  V(MESSAGE_GET_COLUMN_NUMBER_INDEX, JSFunction, message_get_column_number) \
-  V(MESSAGE_GET_LINE_NUMBER_INDEX, JSFunction, message_get_line_number)     \
-  V(MESSAGE_GET_SOURCE_LINE_INDEX, JSFunction, message_get_source_line)     \
-  V(NO_SIDE_EFFECTS_TO_STRING_FUN_INDEX, JSFunction,                        \
-    no_side_effects_to_string_fun)                                          \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                           \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                         \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                         \
@@ -132,7 +96,6 @@ enum BindingFlags {
   V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                              \
   V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                        \
   V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                              \
-  V(STACK_OVERFLOW_BOILERPLATE_INDEX, JSObject, stack_overflow_boilerplate) \
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)         \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)             \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)
@@ -159,6 +122,7 @@ enum BindingFlags {
   V(CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, JSFunction,                            \
     call_as_constructor_delegate)                                              \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
+  V(CALLSITE_FUNCTION_INDEX, JSFunction, callsite_function)                    \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
   V(DATA_PROPERTY_DESCRIPTOR_MAP_INDEX, Map, data_property_descriptor_map)     \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
@@ -172,8 +136,10 @@ enum BindingFlags {
   V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun)                    \
   V(FLOAT32X4_FUNCTION_INDEX, JSFunction, float32x4_function)                  \
   V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun)                    \
-  V(TEMPLATE_INSTANTIATIONS_CACHE_INDEX, UnseededNumberDictionary,             \
-    template_instantiations_cache)                                             \
+  V(FAST_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, FixedArray,                      \
+    fast_template_instantiations_cache)                                        \
+  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, UnseededNumberDictionary,        \
+    slow_template_instantiations_cache)                                        \
   V(FUNCTION_FUNCTION_INDEX, JSFunction, function_function)                    \
   V(GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                             \
     generator_function_function)                                               \
@@ -209,7 +175,7 @@ enum BindingFlags {
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
   V(STRING_ITERATOR_MAP_INDEX, Map, string_iterator_map)                       \
-  V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners)                      \
+  V(MESSAGE_LISTENERS_INDEX, TemplateList, message_listeners)                  \
   V(NATIVES_UTILS_OBJECT_INDEX, Object, natives_utils_object)                  \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
@@ -331,9 +297,7 @@ class ScriptContextTable : public FixedArray {
 //                statically allocated context slots. The names are needed
 //                for dynamic lookups in the presence of 'with' or 'eval'.
 //
-// [ previous  ]  A pointer to the previous context. It is NULL for
-//                function contexts, and non-NULL for 'with' contexts.
-//                Used to implement the 'with' statement.
+// [ previous  ]  A pointer to the previous context.
 //
 // [ extension ]  A pointer to an extension JSObject, or "the hole". Used to
 //                implement 'with' statements and dynamic declarations
@@ -348,9 +312,7 @@ class ScriptContextTable : public FixedArray {
 //                SloppyBlockWithEvalContextExtension, pairing the ScopeInfo
 //                with an extension object.
 //
-// [ global_object ]  A pointer to the global object. Provided for quick
-//                access to the global object from inside the code (since
-//                we always have a context pointer).
+// [ native_context ]  A pointer to the native context.
 //
 // In addition, function contexts may have statically allocated context slots
 // to store local variables/functions that are accessed from inner functions
@@ -508,11 +470,10 @@ class Context: public FixedArray {
   // 3) result.is_null():
   //    There was no binding found, *index is always -1 and *attributes is
   //    always ABSENT.
-  Handle<Object> Lookup(Handle<String> name,
-                        ContextLookupFlags flags,
-                        int* index,
-                        PropertyAttributes* attributes,
-                        BindingFlags* binding_flags);
+  Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,
+                        int* index, PropertyAttributes* attributes,
+                        InitializationFlag* init_flag,
+                        VariableMode* variable_mode);
 
   // Code generation support.
   static int SlotOffset(int index) {

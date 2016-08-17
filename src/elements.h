@@ -94,12 +94,12 @@ class ElementsAccessor {
       Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
       PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  virtual Handle<FixedArray> PrependElementIndices(
+  virtual MaybeHandle<FixedArray> PrependElementIndices(
       Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
       Handle<FixedArray> keys, GetKeysConversion convert,
       PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  inline Handle<FixedArray> PrependElementIndices(
+  inline MaybeHandle<FixedArray> PrependElementIndices(
       Handle<JSObject> object, Handle<FixedArray> keys,
       GetKeysConversion convert, PropertyFilter filter = ALL_PROPERTIES) {
     return PrependElementIndices(object, handle(object->elements()), keys,
@@ -110,6 +110,8 @@ class ElementsAccessor {
                                            KeyAccumulator* accumulator,
                                            AddKeyConversion convert) = 0;
 
+  virtual void TransitionElementsKind(Handle<JSObject> object,
+                                      Handle<Map> map) = 0;
   virtual void GrowCapacityAndConvert(Handle<JSObject> object,
                                       uint32_t capacity) = 0;
 
@@ -151,6 +153,12 @@ class ElementsAccessor {
 
   virtual uint32_t GetCapacity(JSObject* holder,
                                FixedArrayBase* backing_store) = 0;
+
+  // Check an Object's own elements for an element (using SameValueZero
+  // semantics)
+  virtual Maybe<bool> IncludesValue(Isolate* isolate, Handle<JSObject> receiver,
+                                    Handle<Object> value, uint32_t start,
+                                    uint32_t length) = 0;
 
  protected:
   friend class LookupIterator;

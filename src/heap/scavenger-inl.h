@@ -55,9 +55,9 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
     if (heap->InToSpace(object)) {
       return KEEP_SLOT;
     }
-  } else {
-    DCHECK(!heap->InNewSpace(object));
   }
+  // Slots can point to "to" space if the slot has been recorded multiple
+  // times in the remembered set. We remove the redundant slot now.
   return REMOVE_SLOT;
 }
 

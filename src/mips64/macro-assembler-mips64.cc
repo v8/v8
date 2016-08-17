@@ -1332,49 +1332,72 @@ void MacroAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
   }
 }
 
+void MacroAssembler::Bovc(Register rs, Register rt, Label* L) {
+  if (is_trampoline_emitted()) {
+    Label skip;
+    bnvc(rs, rt, &skip);
+    BranchLong(L, PROTECT);
+    bind(&skip);
+  } else {
+    bovc(rs, rt, L);
+  }
+}
+
+void MacroAssembler::Bnvc(Register rs, Register rt, Label* L) {
+  if (is_trampoline_emitted()) {
+    Label skip;
+    bovc(rs, rt, &skip);
+    BranchLong(L, PROTECT);
+    bind(&skip);
+  } else {
+    bnvc(rs, rt, L);
+  }
+}
 
 // ------------Pseudo-instructions-------------
 
 // Change endianness
-void MacroAssembler::ByteSwapSigned(Register reg, int operand_size) {
+void MacroAssembler::ByteSwapSigned(Register dest, Register src,
+                                    int operand_size) {
   DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4 ||
          operand_size == 8);
   DCHECK(kArchVariant == kMips64r6 || kArchVariant == kMips64r2);
   if (operand_size == 1) {
-    seb(reg, reg);
-    sll(reg, reg, 0);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    seb(src, src);
+    sll(src, src, 0);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else if (operand_size == 2) {
-    seh(reg, reg);
-    sll(reg, reg, 0);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    seh(src, src);
+    sll(src, src, 0);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else if (operand_size == 4) {
-    sll(reg, reg, 0);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    sll(src, src, 0);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else {
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    dsbh(dest, src);
+    dshd(dest, dest);
   }
 }
 
-void MacroAssembler::ByteSwapUnsigned(Register reg, int operand_size) {
+void MacroAssembler::ByteSwapUnsigned(Register dest, Register src,
+                                      int operand_size) {
   DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4);
   if (operand_size == 1) {
-    andi(reg, reg, 0xFF);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    andi(src, src, 0xFF);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else if (operand_size == 2) {
-    andi(reg, reg, 0xFFFF);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    andi(src, src, 0xFFFF);
+    dsbh(dest, src);
+    dshd(dest, dest);
   } else {
-    dsll32(reg, reg, 0);
-    dsrl32(reg, reg, 0);
-    dsbh(reg, reg);
-    dshd(reg, reg);
+    dsll32(src, src, 0);
+    dsrl32(src, src, 0);
+    dsbh(dest, src);
+    dshd(dest, dest);
   }
 }
 
@@ -5606,9 +5629,9 @@ void MacroAssembler::AddBranchOvf(Register dst, Register left, Register right,
       Move(left_reg, left);
       Move(right_reg, right);
       addu(dst, left, right);
-      bnvc(left_reg, right_reg, no_overflow_label);
+      Bnvc(left_reg, right_reg, no_overflow_label);
     } else {
-      bovc(left, right, overflow_label);
+      Bovc(left, right, overflow_label);
       addu(dst, left, right);
       if (no_overflow_label) bc(no_overflow_label);
     }
@@ -6004,7 +6027,7 @@ void MacroAssembler::SetCounter(StatsCounter* counter, int value,
   if (FLAG_native_code_counters && counter->Enabled()) {
     li(scratch1, Operand(value));
     li(scratch2, Operand(ExternalReference(counter)));
-    sd(scratch1, MemOperand(scratch2));
+    sw(scratch1, MemOperand(scratch2));
   }
 }
 
@@ -6014,9 +6037,9 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
   DCHECK(value > 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     li(scratch2, Operand(ExternalReference(counter)));
-    ld(scratch1, MemOperand(scratch2));
-    Daddu(scratch1, scratch1, Operand(value));
-    sd(scratch1, MemOperand(scratch2));
+    lw(scratch1, MemOperand(scratch2));
+    Addu(scratch1, scratch1, Operand(value));
+    sw(scratch1, MemOperand(scratch2));
   }
 }
 
@@ -6026,9 +6049,9 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
   DCHECK(value > 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     li(scratch2, Operand(ExternalReference(counter)));
-    ld(scratch1, MemOperand(scratch2));
-    Dsubu(scratch1, scratch1, Operand(value));
-    sd(scratch1, MemOperand(scratch2));
+    lw(scratch1, MemOperand(scratch2));
+    Subu(scratch1, scratch1, Operand(value));
+    sw(scratch1, MemOperand(scratch2));
   }
 }
 
@@ -6088,16 +6111,19 @@ void MacroAssembler::Abort(BailoutReason reason) {
   }
 #endif
 
-  li(a0, Operand(Smi::FromInt(reason)));
-  push(a0);
+  // Check if Abort() has already been initialized.
+  DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
+
+  Move(a0, Smi::FromInt(static_cast<int>(reason)));
+
   // Disable stub call restrictions to always allow calls to abort.
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort);
+    Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
   } else {
-    CallRuntime(Runtime::kAbort);
+    Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
   }
   // Will not return here.
   if (is_trampoline_pool_blocked()) {

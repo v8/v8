@@ -102,9 +102,9 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       s.references_.insert(virtual_register);
     }
   }
-  for (int i = 0; i < sequence.GetFrameStateDescriptorCount(); i++) {
-    s.deoptimization_entries_.push_back(sequence.GetFrameStateDescriptor(
-        InstructionSequence::StateId::FromInt(i)));
+  for (int i = 0; i < sequence.GetDeoptimizationEntryCount(); i++) {
+    s.deoptimization_entries_.push_back(
+        sequence.GetDeoptimizationEntry(i).descriptor());
   }
   return s;
 }

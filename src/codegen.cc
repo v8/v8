@@ -7,6 +7,9 @@
 #if defined(V8_OS_AIX)
 #include <fenv.h>  // NOLINT(build/c++11)
 #endif
+
+#include <memory>
+
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
@@ -97,7 +100,7 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
   }
 
   if (FLAG_trace_codegen || print_ast) {
-    base::SmartArrayPointer<char> name = info->GetDebugName();
+    std::unique_ptr<char[]> name = info->GetDebugName();
     PrintF("[generating %s code for %s function: %s]\n", kind, ftype,
            name.get());
   }
@@ -146,7 +149,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
           : (FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
              (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
-    base::SmartArrayPointer<char> debug_name = info->GetDebugName();
+    std::unique_ptr<char[]> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
 

@@ -85,6 +85,10 @@ g rect {
     stroke-width: 2px;
 }
 
+g.dead {
+    opacity: .5;
+}
+
 g.unsorted rect {
     opacity: 0.5;
 }
@@ -247,9 +251,8 @@ span.linkable-text:hover {
     -webkit-transition: all 1s ease-in-out;
     -moz-transition: all 1s ease-in-out;
     -o-transition: all 1s ease-in-out;
-    transition: all 1s ease-in-out;
+    transition: all .3s ease-in-out;
     transition-property: width;
-    transition-duration: 1s, 1s;
 }
 
 #middle {
@@ -257,9 +260,8 @@ span.linkable-text:hover {
     -webkit-transition: all 1s ease-in-out;
     -moz-transition: all 1s ease-in-out;
     -o-transition: all 1s ease-in-out;
-    transition: all 1s ease-in-out;
+    transition: all .3s ease-in-out;
     transition-property: width;
-    transition-duration: 1s, 1s;
 }
 
 #right {
@@ -267,9 +269,8 @@ span.linkable-text:hover {
     -webkit-transition: all 1s ease-in-out;
     -moz-transition: all 1s ease-in-out;
     -o-transition: all 1s ease-in-out;
-    transition: all 1s ease-in-out;
+    transition: all .3s ease-in-out;
     transition-property: width;
-    transition-duration: 1s, 1s;
 }
 
 #disassembly-collapse {
@@ -278,6 +279,10 @@ span.linkable-text:hover {
 
 #source-collapse {
     left: 0;
+}
+
+#graph-toolbox-anchor {
+    height: 0px;
 }
 
 #graph-toolbox {
@@ -288,17 +293,10 @@ span.linkable-text:hover {
     border-radius: 5px;
     padding: 0.7em;
     z-index: 5;
+    background: rgba(100%, 100%, 100%, 0.7);
 }
 
-#disassembly-collapse {
-    right: 0;
-}
-
-#source-collapse {
-    left: 0;
-}
-
-#graph-toolbox {
+#disassembly-toolbox {
     position: relative;
     top: 1em;
     left: 0.7em;
@@ -309,19 +307,42 @@ span.linkable-text:hover {
 }
 
 #load-file {
-    background: #A0A0A0;
     position: absolute;
     top: 0;
     right: 0;
     margin-top: 0.5em;
     margin-right: 0.5em;
-    border-radius: 5px;
-    padding: 0.5em;
     z-index: 5;
     opacity: 0.7;
 }
 
-#hidden-file-upload{
+#load-file input {
+    background: #A0A0A0;
+    border-radius: 5px;
+    padding: 0.5em;
+}
+
+#hidden-file-upload {
     display: none;
 }
 
+.prof-low {
+    color: #888;
+}
+
+.prof-med {
+    color: #080;
+}
+
+.prof-high {
+    color: #800;
+}
+
+tspan {
+    font-size: 500%;
+    font-family: sans-serif;
+}
+
+text {
+    dominant-baseline: text-before-edge;
+}

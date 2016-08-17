@@ -352,13 +352,23 @@ static inline double ExecuteF64Sub(double a, double b, TrapReason* trap) {
 static inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
   if (std::isnan(a)) return quiet(a);
   if (std::isnan(b)) return quiet(b);
-  return std::min(a, b);
+  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
+    // a and b are zero, and the sign differs: return -0.0.
+    return -0.0;
+  } else {
+    return (a < b) ? a : b;
+  }
 }
 
 static inline double ExecuteF64Max(double a, double b, TrapReason* trap) {
   if (std::isnan(a)) return quiet(a);
   if (std::isnan(b)) return quiet(b);
-  return std::max(a, b);
+  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
+    // a and b are zero, and the sign differs: return 0.0.
+    return 0.0;
+  } else {
+    return (a > b) ? a : b;
+  }
 }
 
 static inline double ExecuteF64CopySign(double a, double b, TrapReason* trap) {
@@ -915,9 +925,12 @@ class CodeMap {
     return Preprocess(&interpreter_code_[function_index]);
   }
 
-  InterpreterCode* GetIndirectCode(uint32_t indirect_index) {
-    if (indirect_index >= module_->function_table.size()) return nullptr;
-    uint32_t index = module_->function_table[indirect_index];
+  InterpreterCode* GetIndirectCode(uint32_t table_index, uint32_t entry_index) {
+    if (table_index >= module_->function_tables.size()) return nullptr;
+    const WasmIndirectFunctionTable* table =
+        &module_->function_tables[table_index];
+    if (entry_index >= table->values.size()) return nullptr;
+    uint32_t index = table->values[entry_index];
     if (index >= interpreter_code_.size()) return nullptr;
     return GetCode(index);
   }
@@ -1383,14 +1396,13 @@ class ThreadImpl : public WasmInterpreter::Thread {
           CallIndirectOperand operand(&decoder, code->at(pc));
           size_t index = stack_.size() - operand.arity - 1;
           DCHECK_LT(index, stack_.size());
-          uint32_t table_index = stack_[index].to<uint32_t>();
-          if (table_index >= module()->function_table.size()) {
+          uint32_t entry_index = stack_[index].to<uint32_t>();
+          // Assume only one table for now.
+          DCHECK_LE(module()->function_tables.size(), 1u);
+          InterpreterCode* target = codemap()->GetIndirectCode(0, entry_index);
+          if (target == nullptr) {
             return DoTrap(kTrapFuncInvalid, pc);
-          }
-          uint16_t function_index = module()->function_table[table_index];
-          InterpreterCode* target = codemap()->GetCode(function_index);
-          DCHECK(target);
-          if (target->function->sig_index != operand.index) {
+          } else if (target->function->sig_index != operand.index) {
             return DoTrap(kTrapFuncSigMismatch, pc);
           }
 
@@ -1403,35 +1415,19 @@ class ThreadImpl : public WasmInterpreter::Thread {
           UNIMPLEMENTED();
           break;
         }
-        case kExprLoadGlobal: {
+        case kExprGetGlobal: {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          MachineType type = global->type;
+          LocalType type = global->type;
           WasmVal val;
-          if (type == MachineType::Int8()) {
-            val =
-                WasmVal(static_cast<int32_t>(*reinterpret_cast<int8_t*>(ptr)));
-          } else if (type == MachineType::Uint8()) {
-            val =
-                WasmVal(static_cast<int32_t>(*reinterpret_cast<uint8_t*>(ptr)));
-          } else if (type == MachineType::Int16()) {
-            val =
-                WasmVal(static_cast<int32_t>(*reinterpret_cast<int16_t*>(ptr)));
-          } else if (type == MachineType::Uint16()) {
-            val = WasmVal(
-                static_cast<int32_t>(*reinterpret_cast<uint16_t*>(ptr)));
-          } else if (type == MachineType::Int32()) {
+          if (type == kAstI32) {
             val = WasmVal(*reinterpret_cast<int32_t*>(ptr));
-          } else if (type == MachineType::Uint32()) {
-            val = WasmVal(*reinterpret_cast<uint32_t*>(ptr));
-          } else if (type == MachineType::Int64()) {
+          } else if (type == kAstI64) {
             val = WasmVal(*reinterpret_cast<int64_t*>(ptr));
-          } else if (type == MachineType::Uint64()) {
-            val = WasmVal(*reinterpret_cast<uint64_t*>(ptr));
-          } else if (type == MachineType::Float32()) {
+          } else if (type == kAstF32) {
             val = WasmVal(*reinterpret_cast<float*>(ptr));
-          } else if (type == MachineType::Float64()) {
+          } else if (type == kAstF64) {
             val = WasmVal(*reinterpret_cast<double*>(ptr));
           } else {
             UNREACHABLE();
@@ -1440,35 +1436,19 @@ class ThreadImpl : public WasmInterpreter::Thread {
           len = 1 + operand.length;
           break;
         }
-        case kExprStoreGlobal: {
+        case kExprSetGlobal: {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          MachineType type = global->type;
+          LocalType type = global->type;
           WasmVal val = Pop();
-          if (type == MachineType::Int8()) {
-            *reinterpret_cast<int8_t*>(ptr) =
-                static_cast<int8_t>(val.to<int32_t>());
-          } else if (type == MachineType::Uint8()) {
-            *reinterpret_cast<uint8_t*>(ptr) =
-                static_cast<uint8_t>(val.to<uint32_t>());
-          } else if (type == MachineType::Int16()) {
-            *reinterpret_cast<int16_t*>(ptr) =
-                static_cast<int16_t>(val.to<int32_t>());
-          } else if (type == MachineType::Uint16()) {
-            *reinterpret_cast<uint16_t*>(ptr) =
-                static_cast<uint16_t>(val.to<uint32_t>());
-          } else if (type == MachineType::Int32()) {
+          if (type == kAstI32) {
             *reinterpret_cast<int32_t*>(ptr) = val.to<int32_t>();
-          } else if (type == MachineType::Uint32()) {
-            *reinterpret_cast<uint32_t*>(ptr) = val.to<uint32_t>();
-          } else if (type == MachineType::Int64()) {
+          } else if (type == kAstI64) {
             *reinterpret_cast<int64_t*>(ptr) = val.to<int64_t>();
-          } else if (type == MachineType::Uint64()) {
-            *reinterpret_cast<uint64_t*>(ptr) = val.to<uint64_t>();
-          } else if (type == MachineType::Float32()) {
+          } else if (type == kAstF32) {
             *reinterpret_cast<float*>(ptr) = val.to<float>();
-          } else if (type == MachineType::Float64()) {
+          } else if (type == kAstF64) {
             *reinterpret_cast<double*>(ptr) = val.to<double>();
           } else {
             UNREACHABLE();

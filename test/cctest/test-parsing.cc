@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <memory>
+
 #include "src/v8.h"
 
 #include "src/ast/ast.h"
@@ -528,8 +530,7 @@ TEST(PreParseOverflow) {
       i::GetCurrentStackPosition() - 128 * 1024);
 
   size_t kProgramSize = 1024 * 1024;
-  v8::base::SmartArrayPointer<char> program(
-      i::NewArray<char>(kProgramSize + 1));
+  std::unique_ptr<char[]> program(i::NewArray<char>(kProgramSize + 1));
   memset(program.get(), '(', kProgramSize);
   program[kProgramSize] = '\0';
 
@@ -582,7 +583,7 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope test_scope(isolate);
-  v8::base::SmartArrayPointer<i::uc16> uc16_buffer(new i::uc16[length]);
+  std::unique_ptr<i::uc16[]> uc16_buffer(new i::uc16[length]);
   for (unsigned i = 0; i < length; i++) {
     uc16_buffer[i] = static_cast<i::uc16>(one_byte_source[i]);
   }
@@ -593,9 +594,16 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
   TestExternalResource resource(uc16_buffer.get(), length);
   i::Handle<i::String> uc16_string(
       factory->NewExternalStringFromTwoByte(&resource).ToHandleChecked());
+  ScriptResource one_byte_resource(one_byte_source, length);
+  i::Handle<i::String> ext_one_byte_string(
+      factory->NewExternalStringFromOneByte(&one_byte_resource)
+          .ToHandleChecked());
 
   i::ExternalTwoByteStringUtf16CharacterStream uc16_stream(
       i::Handle<i::ExternalTwoByteString>::cast(uc16_string), start, end);
+  i::ExternalOneByteStringUtf16CharacterStream one_byte_stream(
+      i::Handle<i::ExternalOneByteString>::cast(ext_one_byte_string), start,
+      end);
   i::GenericStringUtf16CharacterStream string_stream(one_byte_string, start,
                                                      end);
   i::Utf8ToUtf16CharacterStream utf8_stream(
@@ -608,17 +616,21 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     int32_t c0 = one_byte_source[i];
     int32_t c1 = uc16_stream.Advance();
     int32_t c2 = string_stream.Advance();
     int32_t c3 = utf8_stream.Advance();
+    int32_t c4 = one_byte_stream.Advance();
     i++;
     CHECK_EQ(c0, c1);
     CHECK_EQ(c0, c2);
     CHECK_EQ(c0, c3);
+    CHECK_EQ(c0, c4);
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
   }
   while (i > start + sub_length / 4) {
     // Pushback, re-read, pushback again.
@@ -626,64 +638,80 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     uc16_stream.PushBack(c0);
     string_stream.PushBack(c0);
     utf8_stream.PushBack(c0);
+    one_byte_stream.PushBack(c0);
     i--;
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     int32_t c1 = uc16_stream.Advance();
     int32_t c2 = string_stream.Advance();
     int32_t c3 = utf8_stream.Advance();
+    int32_t c4 = one_byte_stream.Advance();
     i++;
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     CHECK_EQ(c0, c1);
     CHECK_EQ(c0, c2);
     CHECK_EQ(c0, c3);
+    CHECK_EQ(c0, c4);
     uc16_stream.PushBack(c0);
     string_stream.PushBack(c0);
     utf8_stream.PushBack(c0);
+    one_byte_stream.PushBack(c0);
     i--;
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
   }
   unsigned halfway = start + sub_length / 2;
   uc16_stream.SeekForward(halfway - i);
   string_stream.SeekForward(halfway - i);
   utf8_stream.SeekForward(halfway - i);
+  one_byte_stream.SeekForward(halfway - i);
   i = halfway;
   CHECK_EQU(i, uc16_stream.pos());
   CHECK_EQU(i, string_stream.pos());
   CHECK_EQU(i, utf8_stream.pos());
+  CHECK_EQU(i, one_byte_stream.pos());
 
   while (i < end) {
     // Read streams one char at a time
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     int32_t c0 = one_byte_source[i];
     int32_t c1 = uc16_stream.Advance();
     int32_t c2 = string_stream.Advance();
     int32_t c3 = utf8_stream.Advance();
+    int32_t c4 = one_byte_stream.Advance();
     i++;
     CHECK_EQ(c0, c1);
     CHECK_EQ(c0, c2);
     CHECK_EQ(c0, c3);
+    CHECK_EQ(c0, c4);
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
   }
 
   int32_t c1 = uc16_stream.Advance();
   int32_t c2 = string_stream.Advance();
   int32_t c3 = utf8_stream.Advance();
+  int32_t c4 = one_byte_stream.Advance();
   CHECK_LT(c1, 0);
   CHECK_LT(c2, 0);
   CHECK_LT(c3, 0);
+  CHECK_LT(c4, 0);
 }
 
 
@@ -857,7 +885,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
 
   i::Token::Value start = scanner.peek();
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
-  CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
+  CHECK(scanner.ScanRegExpPattern());
   scanner.Next();  // Current token is now the regexp literal.
   i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,
@@ -1089,21 +1117,26 @@ TEST(ScopeUsesArgumentsSuperThis) {
       info.set_global();
       CHECK(parser.Parse(&info));
       CHECK(i::Rewriter::Rewrite(&info));
-      CHECK(i::Scope::Analyze(&info));
+      i::Scope::Analyze(&info);
       CHECK(info.literal() != NULL);
 
-      i::Scope* script_scope = info.literal()->scope();
+      i::DeclarationScope* script_scope = info.literal()->scope();
       CHECK(script_scope->is_script_scope());
-      CHECK_EQ(1, script_scope->inner_scopes()->length());
 
-      i::Scope* scope = script_scope->inner_scopes()->at(0);
+      i::Scope* scope = script_scope->inner_scope();
+      DCHECK_NOT_NULL(scope);
+      DCHECK_NULL(scope->sibling());
       // Adjust for constructor scope.
       if (j == 2) {
-        CHECK_EQ(1, scope->inner_scopes()->length());
-        scope = scope->inner_scopes()->at(0);
+        scope = scope->inner_scope();
+        DCHECK_NOT_NULL(scope);
+        DCHECK_NULL(scope->sibling());
       }
-      CHECK_EQ((source_data[i].expected & ARGUMENTS) != 0,
-               scope->uses_arguments());
+      // Arrows themselves never get an arguments object.
+      if ((source_data[i].expected & ARGUMENTS) != 0 &&
+          !scope->AsDeclarationScope()->is_arrow_scope()) {
+        CHECK_NOT_NULL(scope->AsDeclarationScope()->arguments());
+      }
       CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
                scope->uses_super_property());
       if ((source_data[i].expected & THIS) != 0) {
@@ -1412,9 +1445,10 @@ TEST(ScopePositions) {
     CHECK(scope->is_script_scope());
     CHECK_EQ(scope->start_position(), 0);
     CHECK_EQ(scope->end_position(), kProgramSize);
-    CHECK_EQ(scope->inner_scopes()->length(), 1);
 
-    i::Scope* inner_scope = scope->inner_scopes()->at(0);
+    i::Scope* inner_scope = scope->inner_scope();
+    DCHECK_NOT_NULL(inner_scope);
+    DCHECK_NULL(inner_scope->sibling());
     CHECK_EQ(inner_scope->scope_type(), source_data[i].scope_type);
     CHECK_EQ(inner_scope->start_position(), kPrefixLen);
     // The end position of a token is one position after the last
@@ -1461,8 +1495,8 @@ TEST(DiscardFunctionBody) {
         AsCall()->expression()->AsFunctionLiteral();
     i::Scope* inner_scope = inner->scope();
     i::FunctionLiteral* fun = nullptr;
-    if (inner_scope->declarations()->length() > 1) {
-      fun = inner_scope->declarations()->at(1)->AsFunctionDeclaration()->fun();
+    if (inner_scope->declarations()->length() > 0) {
+      fun = inner_scope->declarations()->at(0)->AsFunctionDeclaration()->fun();
     } else {
       // TODO(conradw): This path won't be hit until the other test cases can be
       // uncommented.
@@ -1523,7 +1557,6 @@ enum ParserFlag {
   kAllowNatives,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveDeclarations,
-  kAllowHarmonyExponentiationOperator,
   kAllowHarmonyForIn,
   kAllowHarmonyAsyncAwait,
   kAllowHarmonyRestrictiveGenerators,
@@ -1546,8 +1579,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_restrictive_declarations(
       flags.Contains(kAllowHarmonyRestrictiveDeclarations));
-  parser->set_allow_harmony_exponentiation_operator(
-      flags.Contains(kAllowHarmonyExponentiationOperator));
   parser->set_allow_harmony_for_in(flags.Contains(kAllowHarmonyForIn));
   parser->set_allow_harmony_async_await(
       flags.Contains(kAllowHarmonyAsyncAwait));
@@ -1618,6 +1649,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Handle<i::String> message_string = i::Handle<i::String>::cast(
         i::JSReceiver::GetProperty(isolate, exception_handle, "message")
             .ToHandleChecked());
+    isolate->clear_pending_exception();
 
     if (result == kSuccess) {
       v8::base::OS::Print(
@@ -3362,11 +3394,11 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   const i::AstRawString* name = avf.GetOneByteString("result");
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
-  i::Scope* script_scope =
-      new (&zone) i::Scope(&zone, NULL, i::SCRIPT_SCOPE, &avf);
-  script_scope->Initialize();
-  i::Scope* s =
-      i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
+  i::DeclarationScope* script_scope =
+      new (&zone) i::DeclarationScope(&zone, nullptr, i::SCRIPT_SCOPE);
+  i::Scope* s = i::Scope::DeserializeScopeChain(
+      isolate, &zone, context, script_scope, &avf,
+      i::Scope::DeserializationMode::kKeepScopeInfo);
   CHECK(s != script_scope);
   CHECK(name != NULL);
 
@@ -3410,11 +3442,11 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
   avf.Internalize(isolate);
 
-  i::Scope* script_scope =
-      new (&zone) i::Scope(&zone, NULL, i::SCRIPT_SCOPE, &avf);
-  script_scope->Initialize();
-  i::Scope* s =
-      i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
+  i::DeclarationScope* script_scope =
+      new (&zone) i::DeclarationScope(&zone, nullptr, i::SCRIPT_SCOPE);
+  i::Scope* s = i::Scope::DeserializeScopeChain(
+      isolate, &zone, context, script_scope, &avf,
+      i::Scope::DeserializationMode::kKeepScopeInfo);
   CHECK(s != script_scope);
   const i::AstRawString* name_x = avf.GetOneByteString("x");
 
@@ -3554,8 +3586,9 @@ TEST(InnerAssignment) {
           CHECK(info.literal() != NULL);
 
           i::Scope* scope = info.literal()->scope();
-          CHECK_EQ(scope->inner_scopes()->length(), 1);
-          i::Scope* inner_scope = scope->inner_scopes()->at(0);
+          i::Scope* inner_scope = scope->inner_scope();
+          DCHECK_NOT_NULL(inner_scope);
+          DCHECK_NULL(inner_scope->sibling());
           const i::AstRawString* var_name =
               info.ast_value_factory()->GetOneByteString("x");
           i::Variable* var = inner_scope->Lookup(var_name);
@@ -5557,6 +5590,13 @@ TEST(BasicImportExportParsing) {
       "import { yield as y } from 'm.js';",
       "import { static as s } from 'm.js';",
       "import { let as l } from 'm.js';",
+
+      "import thing from 'a.js'; export {thing};",
+      "export {thing}; import thing from 'a.js';",
+      "import {thing} from 'a.js'; export {thing};",
+      "export {thing}; import {thing} from 'a.js';",
+      "import * as thing from 'a.js'; export {thing};",
+      "export {thing}; import * as thing from 'a.js';",
   };
   // clang-format on
 
@@ -5587,6 +5627,7 @@ TEST(BasicImportExportParsing) {
         i::Handle<i::String> message_string = i::Handle<i::String>::cast(
             i::JSReceiver::GetProperty(isolate, exception_handle, "message")
                 .ToHandleChecked());
+        isolate->clear_pending_exception();
 
         v8::base::OS::Print(
             "Parser failed on:\n"
@@ -5607,6 +5648,7 @@ TEST(BasicImportExportParsing) {
       i::Parser parser(&info);
       info.set_global();
       CHECK(!parser.Parse(&info));
+      isolate->clear_pending_exception();
     }
   }
 }
@@ -5699,6 +5741,7 @@ TEST(ImportExportParsingErrors) {
     i::Parser parser(&info);
     info.set_module();
     CHECK(!parser.Parse(&info));
+    isolate->clear_pending_exception();
   }
 }
 
@@ -5736,6 +5779,7 @@ TEST(ModuleTopLevelFunctionDecl) {
     i::Parser parser(&info);
     info.set_module();
     CHECK(!parser.Parse(&info));
+    isolate->clear_pending_exception();
   }
 }
 
@@ -5876,6 +5920,33 @@ TEST(EnumReserved) {
   RunModuleParserSyncTest(context_data, kErrorSources, kError);
 }
 
+static void CheckModuleEntry(const i::ModuleDescriptor::ModuleEntry* entry,
+                             const char* export_name, const char* local_name,
+                             const char* import_name,
+                             const char* module_request) {
+  CHECK_NOT_NULL(entry);
+  if (export_name == nullptr) {
+    CHECK_NULL(entry->export_name);
+  } else {
+    entry->export_name->IsOneByteEqualTo(export_name);
+  }
+  if (local_name == nullptr) {
+    CHECK_NULL(entry->local_name);
+  } else {
+    entry->local_name->IsOneByteEqualTo(local_name);
+  }
+  if (import_name == nullptr) {
+    CHECK_NULL(entry->import_name);
+  } else {
+    entry->import_name->IsOneByteEqualTo(import_name);
+  }
+  if (module_request == nullptr) {
+    CHECK_NULL(entry->module_request);
+  } else {
+    entry->module_request->IsOneByteEqualTo(module_request);
+  }
+}
+
 TEST(ModuleParsingInternals) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -5897,7 +5968,14 @@ TEST(ModuleParsingInternals) {
       "export let hoo;"
       "export const joo = 42;"
       "export default (function koo() {});"
-      "import 'q.js'";
+      "import 'q.js';"
+      "let nonexport = 42;"
+      "import {m as mm} from 'm.js';"
+      "import {aa} from 'm.js';"
+      "export {aa as bb, x};"
+      "import * as loo from 'bar.js';"
+      "import * as foob from 'bar.js';"
+      "export {foob};";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
   i::Zone zone(CcTest::i_isolate()->allocator());
@@ -5907,25 +5985,142 @@ TEST(ModuleParsingInternals) {
   CHECK(parser.Parse(&info));
   CHECK(i::Compiler::Analyze(&info));
   i::FunctionLiteral* func = info.literal();
-  i::Scope* module_scope = func->scope();
+  i::DeclarationScope* module_scope = func->scope();
   i::Scope* outer_scope = module_scope->outer_scope();
   CHECK(outer_scope->is_script_scope());
   CHECK_NULL(outer_scope->outer_scope());
   CHECK(module_scope->is_module_scope());
-  i::ModuleDescriptor* descriptor = module_scope->module();
-  CHECK_NOT_NULL(descriptor);
   i::ZoneList<i::Declaration*>* declarations = module_scope->declarations();
-  CHECK_EQ(8, declarations->length());
+  CHECK_EQ(13, declarations->length());
+
   CHECK(declarations->at(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
+  CHECK(declarations->at(0)->proxy()->var()->mode() == i::LET);
+  CHECK(declarations->at(0)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(0)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
   CHECK(declarations->at(1)->proxy()->raw_name()->IsOneByteEqualTo("z"));
+  CHECK(declarations->at(1)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(1)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(1)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
   CHECK(declarations->at(2)->proxy()->raw_name()->IsOneByteEqualTo("n"));
+  CHECK(declarations->at(2)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(2)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(2)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
   CHECK(declarations->at(3)->proxy()->raw_name()->IsOneByteEqualTo("foo"));
+  CHECK(declarations->at(3)->proxy()->var()->mode() == i::VAR);
+  CHECK(!declarations->at(3)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(3)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
   CHECK(declarations->at(4)->proxy()->raw_name()->IsOneByteEqualTo("goo"));
+  CHECK(declarations->at(4)->proxy()->var()->mode() == i::LET);
+  CHECK(!declarations->at(4)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(4)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
   CHECK(declarations->at(5)->proxy()->raw_name()->IsOneByteEqualTo("hoo"));
+  CHECK(declarations->at(5)->proxy()->var()->mode() == i::LET);
+  CHECK(declarations->at(5)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(5)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
   CHECK(declarations->at(6)->proxy()->raw_name()->IsOneByteEqualTo("joo"));
+  CHECK(declarations->at(6)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(6)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(6)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
   CHECK(
       declarations->at(7)->proxy()->raw_name()->IsOneByteEqualTo("*default*"));
-  // TODO(neis): Test more once we can inspect the imports/exports.
+  CHECK(declarations->at(7)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(7)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(7)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
+  CHECK(
+      declarations->at(8)->proxy()->raw_name()->IsOneByteEqualTo("nonexport"));
+  CHECK(declarations->at(8)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(8)->proxy()->var()->location() !=
+        i::VariableLocation::MODULE);
+
+  CHECK(declarations->at(9)->proxy()->raw_name()->IsOneByteEqualTo("mm"));
+  CHECK(declarations->at(9)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(9)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(9)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
+  CHECK(declarations->at(10)->proxy()->raw_name()->IsOneByteEqualTo("aa"));
+  CHECK(declarations->at(10)->proxy()->var()->mode() == i::CONST);
+  CHECK(declarations->at(10)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(10)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
+  CHECK(declarations->at(11)->proxy()->raw_name()->IsOneByteEqualTo("loo"));
+  CHECK(declarations->at(11)->proxy()->var()->mode() == i::CONST);
+  CHECK(!declarations->at(11)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(11)->proxy()->var()->location() !=
+        i::VariableLocation::MODULE);
+
+  CHECK(declarations->at(12)->proxy()->raw_name()->IsOneByteEqualTo("foob"));
+  CHECK(declarations->at(12)->proxy()->var()->mode() == i::CONST);
+  CHECK(!declarations->at(12)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->at(12)->proxy()->var()->location() ==
+        i::VariableLocation::MODULE);
+
+  i::ModuleDescriptor* descriptor = module_scope->module();
+  CHECK_NOT_NULL(descriptor);
+
+  CHECK_EQ(11, descriptor->exports().length());
+  CheckModuleEntry(
+      descriptor->exports().at(0), "y", "x", nullptr, nullptr);
+  CheckModuleEntry(
+      descriptor->exports().at(1), "b", nullptr, "a", "m.js");
+  CheckModuleEntry(
+      descriptor->exports().at(2), nullptr, nullptr, nullptr, "p.js");
+  CheckModuleEntry(
+      descriptor->exports().at(3), "foo", "foo", nullptr, nullptr);
+  CheckModuleEntry(
+      descriptor->exports().at(4), "goo", "goo", nullptr, nullptr);
+  CheckModuleEntry(
+      descriptor->exports().at(5), "hoo", "hoo", nullptr, nullptr);
+  CheckModuleEntry(
+      descriptor->exports().at(6), "joo", "joo", nullptr, nullptr);
+  CheckModuleEntry(
+      descriptor->exports().at(7), "default", "*default*", nullptr, nullptr);
+  CheckModuleEntry(
+      descriptor->exports().at(8), "bb", nullptr, "aa", "m.js");  // !!!
+  CheckModuleEntry(
+      descriptor->exports().at(9), "x", "x", nullptr, nullptr);
+  CheckModuleEntry(
+      descriptor->exports().at(10), "foob", "foob", nullptr, nullptr);
+
+  CHECK_EQ(3, descriptor->special_imports().length());
+  CheckModuleEntry(
+      descriptor->special_imports().at(0), nullptr, nullptr, nullptr, "q.js");
+  CheckModuleEntry(
+      descriptor->special_imports().at(1), nullptr, "loo", nullptr, "bar.js");
+  CheckModuleEntry(
+      descriptor->special_imports().at(2), nullptr, "foob", nullptr, "bar.js");
+
+  CHECK_EQ(4, descriptor->regular_imports().size());
+  const i::ModuleDescriptor::ModuleEntry* entry;
+  entry = descriptor->regular_imports().find(
+      declarations->at(1)->proxy()->raw_name())->second;
+  CheckModuleEntry(entry, nullptr, "z", "q", "m.js");
+  entry = descriptor->regular_imports().find(
+      declarations->at(2)->proxy()->raw_name())->second;
+  CheckModuleEntry(entry, nullptr, "n", "default", "n.js");
+  entry = descriptor->regular_imports().find(
+      declarations->at(9)->proxy()->raw_name())->second;
+  CheckModuleEntry(entry, nullptr, "mm", "m", "m.js");
+  entry = descriptor->regular_imports().find(
+      declarations->at(10)->proxy()->raw_name())->second;
+  CheckModuleEntry(entry, nullptr, "aa", "aa", "m.js");
 }
 
 
@@ -7439,10 +7634,7 @@ TEST(ExponentiationOperator) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonyExponentiationOperator};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(ExponentiationOperatorErrors) {
@@ -7489,10 +7681,7 @@ TEST(ExponentiationOperatorErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonyExponentiationOperator};
-  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, error_data, kError);
 }
 
 TEST(AsyncAwait) {
@@ -7654,34 +7843,34 @@ TEST(AsyncAwaitErrors) {
     "async function foo() { function await() {} }",
 
     // Henrique Ferreiro's bug (tm)
-    "(async function foo() { } foo => 1)",
-    "(async function foo() { } () => 1)",
-    "(async function foo() { } => 1)",
-    "(async function() { } foo => 1)",
+    "(async function foo1() { } foo2 => 1)",
+    "(async function foo3() { } () => 1)",
+    "(async function foo4() { } => 1)",
+    "(async function() { } foo5 => 1)",
     "(async function() { } () => 1)",
     "(async function() { } => 1)",
-    "(async.foo => 1)",
-    "(async.foo foo => 1)",
-    "(async.foo () => 1)",
-    "(async().foo => 1)",
-    "(async().foo foo => 1)",
-    "(async().foo () => 1)",
-    "(async['foo'] => 1)",
-    "(async['foo'] foo => 1)",
-    "(async['foo'] () => 1)",
-    "(async()['foo'] => 1)",
-    "(async()['foo'] foo => 1)",
-    "(async()['foo'] () => 1)",
-    "(async`foo` => 1)",
-    "(async`foo` foo => 1)",
-    "(async`foo` () => 1)",
-    "(async`foo`.bar => 1)",
-    "(async`foo`.bar foo => 1)",
-    "(async`foo`.bar () => 1)",
+    "(async.foo6 => 1)",
+    "(async.foo7 foo8 => 1)",
+    "(async.foo9 () => 1)",
+    "(async().foo10 => 1)",
+    "(async().foo11 foo12 => 1)",
+    "(async().foo13 () => 1)",
+    "(async['foo14'] => 1)",
+    "(async['foo15'] foo16 => 1)",
+    "(async['foo17'] () => 1)",
+    "(async()['foo18'] => 1)",
+    "(async()['foo19'] foo20 => 1)",
+    "(async()['foo21'] () => 1)",
+    "(async`foo22` => 1)",
+    "(async`foo23` foo24 => 1)",
+    "(async`foo25` () => 1)",
+    "(async`foo26`.bar27 => 1)",
+    "(async`foo28`.bar29 foo30 => 1)",
+    "(async`foo31`.bar32 () => 1)",
 
     // v8:5148 assert that errors are still thrown for calls that may have been
     // async functions
-    "async({ foo = 1 })",
+    "async({ foo33 = 1 })",
     NULL
   };
 

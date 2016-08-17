@@ -4,7 +4,9 @@
 
 #include "src/asmjs/asm-typer.h"
 
+#include <algorithm>
 #include <limits>
+#include <memory>
 #include <string>
 
 #include "src/v8.h"
@@ -176,6 +178,9 @@ void AsmTyper::InitializeStdlib() {
   s2s->AsFunctionType()->AddArgument(s);
 
   auto* i = AsmType::Int();
+  auto* i2s = AsmType::Function(zone_, s);
+  i2s->AsFunctionType()->AddArgument(i);
+
   auto* ii2s = AsmType::Function(zone_, s);
   ii2s->AsFunctionType()->AddArgument(i);
   ii2s->AsFunctionType()->AddArgument(i);
@@ -246,6 +251,10 @@ void AsmTyper::InitializeStdlib() {
       {"SQRT1_2", kMathSQRT1_2, d},
       {"imul", kMathImul, ii2s},
       {"abs", kMathAbs, abs},
+      // NOTE: clz32 should return fixnum. The current typer can only return
+      // Signed, Float, or Double, so it returns Signed in our version of
+      // asm.js.
+      {"clz32", kMathClz32, i2s},
       {"ceil", kMathCeil, ceil},
       {"floor", kMathFloor, floor},
       {"fround", kMathFround, fround},
@@ -312,7 +321,7 @@ AsmTyper::VariableInfo* AsmTyper::ImportLookup(Property* import) {
     return obj_info;
   }
 
-  base::SmartArrayPointer<char> aname = key->AsPropertyName()->ToCString();
+  std::unique_ptr<char[]> aname = key->AsPropertyName()->ToCString();
   ObjectTypeMap::iterator i = stdlib->find(std::string(aname.get()));
   if (i == stdlib->end()) {
     return nullptr;
@@ -466,8 +475,90 @@ Assignment* ExtractInitializerExpression(Statement* statement) {
 }  // namespace
 
 // 6.1 ValidateModule
+namespace {
+// SourceLayoutTracker keeps track of the start and end positions of each
+// section in the asm.js source. The sections should not overlap, otherwise the
+// asm.js source is invalid.
+class SourceLayoutTracker {
+ public:
+  SourceLayoutTracker() = default;
+
+  bool IsValid() const {
+    const Section* kAllSections[] = {&use_asm_, &globals_, &functions_,
+                                     &tables_, &exports_};
+    for (size_t ii = 0; ii < arraysize(kAllSections); ++ii) {
+      const auto& curr_section = *kAllSections[ii];
+      for (size_t jj = ii + 1; jj < arraysize(kAllSections); ++jj) {
+        if (curr_section.OverlapsWith(*kAllSections[jj])) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  void AddUseAsm(const AstNode& node) { use_asm_.AddNewElement(node); }
+
+  void AddGlobal(const AstNode& node) { globals_.AddNewElement(node); }
+
+  void AddFunction(const AstNode& node) { functions_.AddNewElement(node); }
+
+  void AddTable(const AstNode& node) { tables_.AddNewElement(node); }
+
+  void AddExport(const AstNode& node) { exports_.AddNewElement(node); }
+
+ private:
+  class Section {
+   public:
+    Section() = default;
+    Section(const Section&) = default;
+    Section& operator=(const Section&) = default;
+
+    void AddNewElement(const AstNode& node) {
+      const int node_pos = node.position();
+      if (start_ == kNoSourcePosition) {
+        start_ = node_pos;
+      } else {
+        start_ = std::max(start_, node_pos);
+      }
+      if (end_ == kNoSourcePosition) {
+        end_ = node_pos;
+      } else {
+        end_ = std::max(end_, node_pos);
+      }
+    }
+
+    bool OverlapsWith(const Section& other) const {
+      if (start_ == kNoSourcePosition) {
+        DCHECK_EQ(end_, kNoSourcePosition);
+        return false;
+      }
+      if (other.start_ == kNoSourcePosition) {
+        DCHECK_EQ(other.end_, kNoSourcePosition);
+        return false;
+      }
+      return other.start_ < end_ || other.end_ < start_;
+    }
+
+   private:
+    int start_ = kNoSourcePosition;
+    int end_ = kNoSourcePosition;
+  };
+
+  Section use_asm_;
+  Section globals_;
+  Section functions_;
+  Section tables_;
+  Section exports_;
+
+  DISALLOW_COPY_AND_ASSIGN(SourceLayoutTracker);
+};
+}  // namespace
+
 AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
-  Scope* scope = fun->scope();
+  SourceLayoutTracker source_layout;
+
+  DeclarationScope* scope = fun->scope();
   if (!scope->is_function_scope()) FAIL(fun, "Not at function scope.");
   if (!ValidAsmIdentifier(fun->name()))
     FAIL(fun, "Invalid asm.js identifier in module name.");
@@ -507,6 +598,7 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   if (use_asm_directive == nullptr || !IsUseAsmDirective(use_asm_directive)) {
     FAIL(fun, "Missing \"use asm\".");
   }
+  source_layout.AddUseAsm(*use_asm_directive);
   ReturnStatement* module_return = nullptr;
 
   // *VIOLATION* The spec states that globals should be followed by function
@@ -520,6 +612,7 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
         function_pointer_tables.push_back(assign);
       } else {
         RECURSE(ValidateGlobalDeclaration(assign));
+        source_layout.AddGlobal(*assign);
       }
       continue;
     }
@@ -529,6 +622,7 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
         FAIL(fun, "Multiple export statements.");
       }
       module_return = current_as_return;
+      source_layout.AddExport(*module_return);
       continue;
     }
 
@@ -542,12 +636,14 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
 
     if (FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration()) {
       RECURSE(ValidateFunction(fun_decl));
+      source_layout.AddFunction(*fun_decl);
       continue;
     }
   }
 
   for (auto* function_table : function_pointer_tables) {
     RECURSE(ValidateFunctionTable(function_table));
+    source_layout.AddTable(*function_table);
   }
 
   for (int ii = 0; ii < decls->length(); ++ii) {
@@ -585,6 +681,10 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   }
 
   RECURSE(ValidateExport(module_return));
+
+  if (!source_layout.IsValid()) {
+    FAIL(fun, "Invalid asm.js source code layout.");
+  }
 
   return AsmType::Int();  // Any type that is not AsmType::None();
 }
@@ -1255,15 +1355,21 @@ AsmType* AsmTyper::ValidateSwitchStatement(SwitchStatement* stmt) {
     FAIL(stmt, "Switch tag must be signed.");
   }
 
-  bool has_default = false;
-
+  int default_pos = kNoSourcePosition;
+  int last_case_pos = kNoSourcePosition;
   ZoneSet<int32_t> cases_seen(zone_);
   for (auto* a_case : *stmt->cases()) {
     if (a_case->is_default()) {
-      CHECK(!has_default);
+      CHECK(default_pos == kNoSourcePosition);
       RECURSE(ValidateDefault(a_case));
-      has_default = true;
+      default_pos = a_case->position();
       continue;
+    }
+
+    if (last_case_pos == kNoSourcePosition) {
+      last_case_pos = a_case->position();
+    } else {
+      last_case_pos = std::max(last_case_pos, a_case->position());
     }
 
     int32_t case_lbl;
@@ -1281,6 +1387,11 @@ AsmType* AsmTyper::ValidateSwitchStatement(SwitchStatement* stmt) {
     if (max_lbl - min_lbl > std::numeric_limits<int32_t>::max()) {
       FAIL(stmt, "Out-of-bounds case label range.");
     }
+  }
+
+  if (last_case_pos != kNoSourcePosition && default_pos != kNoSourcePosition &&
+      default_pos < last_case_pos) {
+    FAIL(stmt, "Switch default must appear last.");
   }
 
   return AsmType::Void();
@@ -2358,9 +2469,7 @@ AsmType* AsmTyper::ValidateHeapAccess(Property* heap,
         }
         return obj_type->StoreType();
       }
-      // TODO(jpp): it may be the case that, if type is not an Intish, we could
-      // fail here instead of letting the validator try using the "leniency"
-      // rule (i.e., allow unshifted indexes for heap views of 8-bit integers.
+      FAIL(key_as_binop, "Invalid heap access index.");
     }
   }
 

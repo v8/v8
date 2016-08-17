@@ -6,6 +6,8 @@
 #define V8_HEAP_SPACES_H_
 
 #include <list>
+#include <memory>
+#include <unordered_set>
 
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
@@ -249,11 +251,6 @@ class MemoryChunk {
     // within the new space during evacuation.
     PAGE_NEW_NEW_PROMOTION,
 
-    // A black page has all mark bits set to 1 (black). A black page currently
-    // cannot be iterated because it is not swept. Moreover live bytes are also
-    // not updated.
-    BLACK_PAGE,
-
     // This flag is intended to be used for testing. Works only when both
     // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
     // are set. It forces the page to become an evacuation candidate at next
@@ -354,7 +351,9 @@ class MemoryChunk {
       + kPointerSize      // AtomicValue prev_chunk_
       // FreeListCategory categories_[kNumberOfCategories]
       + FreeListCategory::kSize * kNumberOfCategories +
-      kPointerSize;  // LocalArrayBufferTracker* local_tracker_;
+      kPointerSize  // LocalArrayBufferTracker* local_tracker_;
+      // std::unordered_set<Address>* black_area_end_marker_map_
+      + kPointerSize;
 
   // We add some more space to the computed header size to amount for missing
   // alignment requirements in our computation.
@@ -428,12 +427,10 @@ class MemoryChunk {
 
   int LiveBytes() {
     DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
-    DCHECK(!IsFlagSet(BLACK_PAGE) || live_byte_count_ == 0);
     return live_byte_count_;
   }
 
   void SetLiveBytes(int live_bytes) {
-    if (IsFlagSet(BLACK_PAGE)) return;
     DCHECK_GE(live_bytes, 0);
     DCHECK_LE(static_cast<size_t>(live_bytes), size_);
     live_byte_count_ = live_bytes;
@@ -598,6 +595,33 @@ class MemoryChunk {
   void InsertAfter(MemoryChunk* other);
   void Unlink();
 
+  void ReleaseBlackAreaEndMarkerMap() {
+    if (black_area_end_marker_map_) {
+      delete black_area_end_marker_map_;
+      black_area_end_marker_map_ = nullptr;
+    }
+  }
+
+  bool IsBlackAreaEndMarker(Address address) {
+    if (black_area_end_marker_map_) {
+      return black_area_end_marker_map_->find(address) !=
+             black_area_end_marker_map_->end();
+    }
+    return false;
+  }
+
+  void AddBlackAreaEndMarker(Address address) {
+    if (!black_area_end_marker_map_) {
+      black_area_end_marker_map_ = new std::unordered_set<Address>();
+    }
+    auto ret = black_area_end_marker_map_->insert(address);
+    USE(ret);
+    // Check that we inserted a new black area end marker.
+    DCHECK(ret.second);
+  }
+
+  bool HasBlackAreas() { return black_area_end_marker_map_ != nullptr; }
+
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -665,6 +689,9 @@ class MemoryChunk {
   FreeListCategory categories_[kNumberOfCategories];
 
   LocalArrayBufferTracker* local_tracker_;
+
+  // Stores the end addresses of black areas.
+  std::unordered_set<Address>* black_area_end_marker_map_;
 
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }
@@ -935,7 +962,7 @@ class Space : public Malloced {
 #endif
 
  protected:
-  v8::base::SmartPointer<List<AllocationObserver*>> allocation_observers_;
+  std::unique_ptr<List<AllocationObserver*>> allocation_observers_;
   bool allocation_observers_paused_;
 
  private:
@@ -946,6 +973,8 @@ class Space : public Malloced {
   // Keeps track of committed memory in a space.
   intptr_t committed_;
   intptr_t max_committed_;
+
+  DISALLOW_COPY_AND_ASSIGN(Space);
 };
 
 
@@ -1485,12 +1514,20 @@ class HeapObjectIterator : public ObjectIterator {
 // space.
 class AllocationInfo {
  public:
-  AllocationInfo() : top_(nullptr), limit_(nullptr) {}
-  AllocationInfo(Address top, Address limit) : top_(top), limit_(limit) {}
+  AllocationInfo() : original_top_(nullptr), top_(nullptr), limit_(nullptr) {}
+  AllocationInfo(Address top, Address limit)
+      : original_top_(top), top_(top), limit_(limit) {}
 
   void Reset(Address top, Address limit) {
+    original_top_ = top;
     set_top(top);
     set_limit(limit);
+  }
+
+  Address original_top() {
+    SLOW_DCHECK(top_ == NULL ||
+                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
+    return original_top_;
   }
 
   INLINE(void set_top(Address top)) {
@@ -1526,6 +1563,8 @@ class AllocationInfo {
 #endif
 
  private:
+  // The original top address when the allocation info was initialized.
+  Address original_top_;
   // Current allocation top.
   Address top_;
   // Current allocation limit.
@@ -1553,74 +1592,75 @@ class AllocationStats BASE_EMBEDDED {
   void ClearSize() { size_ = capacity_; }
 
   // Accessors for the allocation statistics.
-  intptr_t Capacity() { return capacity_; }
-  intptr_t MaxCapacity() { return max_capacity_; }
-  intptr_t Size() {
-    CHECK_GE(size_, 0);
-    return size_;
-  }
+  size_t Capacity() { return capacity_; }
+  size_t MaxCapacity() { return max_capacity_; }
+  size_t Size() { return size_; }
 
   // Grow the space by adding available bytes.  They are initially marked as
   // being in use (part of the size), but will normally be immediately freed,
   // putting them on the free list and removing them from size_.
-  void ExpandSpace(int size_in_bytes) {
-    capacity_ += size_in_bytes;
-    size_ += size_in_bytes;
+  void ExpandSpace(size_t bytes) {
+    DCHECK_GE(size_ + bytes, size_);
+    DCHECK_GE(capacity_ + bytes, capacity_);
+    capacity_ += bytes;
+    size_ += bytes;
     if (capacity_ > max_capacity_) {
       max_capacity_ = capacity_;
     }
-    CHECK(size_ >= 0);
   }
 
   // Shrink the space by removing available bytes.  Since shrinking is done
   // during sweeping, bytes have been marked as being in use (part of the size)
   // and are hereby freed.
-  void ShrinkSpace(int size_in_bytes) {
-    capacity_ -= size_in_bytes;
-    size_ -= size_in_bytes;
-    CHECK_GE(size_, 0);
+  void ShrinkSpace(size_t bytes) {
+    DCHECK_GE(capacity_, bytes);
+    DCHECK_GE(size_, bytes);
+    capacity_ -= bytes;
+    size_ -= bytes;
   }
 
-  // Allocate from available bytes (available -> size).
-  void AllocateBytes(intptr_t size_in_bytes) {
-    size_ += size_in_bytes;
-    CHECK_GE(size_, 0);
+  void AllocateBytes(size_t bytes) {
+    DCHECK_GE(size_ + bytes, size_);
+    size_ += bytes;
   }
 
-  // Free allocated bytes, making them available (size -> available).
-  void DeallocateBytes(intptr_t size_in_bytes) {
-    size_ -= size_in_bytes;
-    CHECK_GE(size_, 0);
+  void DeallocateBytes(size_t bytes) {
+    DCHECK_GE(size_, bytes);
+    size_ -= bytes;
   }
 
-  // Merge {other} into {this}.
+  void DecreaseCapacity(size_t bytes) {
+    DCHECK_GE(capacity_, bytes);
+    DCHECK_GE(capacity_ - bytes, size_);
+    capacity_ -= bytes;
+  }
+
+  void IncreaseCapacity(size_t bytes) {
+    DCHECK_GE(capacity_ + bytes, capacity_);
+    capacity_ += bytes;
+  }
+
+  // Merge |other| into |this|.
   void Merge(const AllocationStats& other) {
+    DCHECK_GE(capacity_ + other.capacity_, capacity_);
+    DCHECK_GE(size_ + other.size_, size_);
     capacity_ += other.capacity_;
     size_ += other.size_;
     if (other.max_capacity_ > max_capacity_) {
       max_capacity_ = other.max_capacity_;
     }
-    CHECK_GE(size_, 0);
   }
-
-  void DecreaseCapacity(intptr_t size_in_bytes) {
-    capacity_ -= size_in_bytes;
-    CHECK_GE(capacity_, 0);
-    CHECK_GE(capacity_, size_);
-  }
-
-  void IncreaseCapacity(intptr_t size_in_bytes) { capacity_ += size_in_bytes; }
 
  private:
   // |capacity_|: The number of object-area bytes (i.e., not including page
   // bookkeeping structures) currently in the space.
-  intptr_t capacity_;
+  size_t capacity_;
 
   // |max_capacity_|: The maximum capacity ever observed.
-  intptr_t max_capacity_;
+  size_t max_capacity_;
 
   // |size_|: The number of allocated bytes.
-  intptr_t size_;
+  size_t size_;
 };
 
 // A free list maintaining free blocks of memory. The free list is organized in
@@ -2072,18 +2112,16 @@ class PagedSpace : public Space {
     allocation_info_.Reset(top, limit);
   }
 
+  void SetAllocationInfo(Address top, Address limit);
+
   // Empty space allocation info, returning unused area to free list.
-  void EmptyAllocationInfo() {
-    // Mark the old linear allocation area with a free space map so it can be
-    // skipped when scanning the heap.
-    int old_linear_size = static_cast<int>(limit() - top());
-    Free(top(), old_linear_size);
-    SetTopAndLimit(NULL, NULL);
-  }
+  void EmptyAllocationInfo();
+
+  void MarkAllocationInfoBlack();
 
   void Allocate(int bytes) { accounting_stats_.AllocateBytes(bytes); }
 
-  void IncreaseCapacity(int size);
+  void IncreaseCapacity(size_t bytes);
 
   // Releases an unused page and shrinks the space.
   void ReleasePage(Page* page);

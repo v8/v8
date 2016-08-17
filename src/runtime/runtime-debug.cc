@@ -408,7 +408,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
 
   DCHECK(args.length() == 2);
 
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
   LookupIterator it(obj, name);
@@ -606,8 +606,12 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   DCHECK(*scope_info != ScopeInfo::Empty(isolate));
 
   // Get the locals names and values into a temporary array.
-  int local_count = scope_info->LocalCount();
-  for (int slot = 0; slot < scope_info->LocalCount(); ++slot) {
+  Handle<Object> maybe_context = frame_inspector.GetContext();
+  const int local_count_with_synthetic = maybe_context->IsContext()
+                                             ? scope_info->LocalCount()
+                                             : scope_info->StackLocalCount();
+  int local_count = local_count_with_synthetic;
+  for (int slot = 0; slot < local_count_with_synthetic; ++slot) {
     // Hide compiler-introduced temporary variables, whether on the stack or on
     // the context.
     if (ScopeInfo::VariableIsSynthetic(scope_info->LocalName(slot))) {
@@ -633,8 +637,9 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
   if (locals.length() < local_count * 2) {
     // Get the context containing declarations.
-    Handle<Context> context(
-        Handle<Context>::cast(frame_inspector.GetContext())->closure_context());
+    DCHECK(maybe_context->IsContext());
+    Handle<Context> context(Context::cast(*maybe_context)->closure_context());
+
     for (; i < scope_info->LocalCount(); ++i) {
       Handle<String> name(scope_info->LocalName(i));
       if (ScopeInfo::VariableIsSynthetic(*name)) continue;
@@ -919,6 +924,48 @@ RUNTIME_FUNCTION(Runtime_GetFunctionScopeDetails) {
   RETURN_RESULT_OR_FAILURE(isolate, it.MaterializeScopeDetails());
 }
 
+RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  if (!args[0]->IsJSGeneratorObject()) return Smi::FromInt(0);
+
+  // Check arguments.
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
+
+  // Count the visible scopes.
+  int n = 0;
+  for (ScopeIterator it(isolate, gen); !it.Done(); it.Next()) {
+    n++;
+  }
+
+  return Smi::FromInt(n);
+}
+
+RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+
+  if (!args[0]->IsJSGeneratorObject()) {
+    return *isolate->factory()->undefined_value();
+  }
+
+  // Check arguments.
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
+  CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
+
+  // Find the requested scope.
+  int n = 0;
+  ScopeIterator it(isolate, gen);
+  for (; !it.Done() && n < index; it.Next()) {
+    n++;
+  }
+  if (it.Done()) {
+    return isolate->heap()->undefined_value();
+  }
+
+  RETURN_RESULT_OR_FAILURE(isolate, it.MaterializeScopeDetails());
+}
 
 static bool SetScopeVariableValue(ScopeIterator* it, int index,
                                   Handle<String> variable_name,
@@ -967,9 +1014,13 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
 
     ScopeIterator it(isolate, &frame_inspector);
     res = SetScopeVariableValue(&it, index, variable_name, new_value);
-  } else {
+  } else if (args[0]->IsJSFunction()) {
     CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
     ScopeIterator it(isolate, fun);
+    res = SetScopeVariableValue(&it, index, variable_name, new_value);
+  } else {
+    CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
+    ScopeIterator it(isolate, gen);
     res = SetScopeVariableValue(&it, index, variable_name, new_value);
   }
 
@@ -1582,7 +1633,7 @@ static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
                                         Isolate* isolate) {
   Script::PositionInfo info;
   if (!script->GetPositionInfo(position, &info, offset_flag)) {
-    return handle(isolate->heap()->null_value(), isolate);
+    return isolate->factory()->null_value();
   }
 
   Handle<String> source = handle(String::cast(script->source()), isolate);
@@ -1754,11 +1805,10 @@ RUNTIME_FUNCTION(Runtime_DebugRecordAsyncFunction) {
 }
 
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 1);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
-  isolate->PushPromise(promise, function);
+  isolate->PushPromise(promise);
   return isolate->heap()->undefined_value();
 }
 

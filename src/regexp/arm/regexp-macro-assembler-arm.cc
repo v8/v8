@@ -1200,11 +1200,6 @@ void RegExpMacroAssemblerARM::CheckStackLimit() {
 }
 
 
-bool RegExpMacroAssemblerARM::CanReadUnaligned() {
-  return CpuFeatures::IsSupported(UNALIGNED_ACCESSES) && !slow_safe();
-}
-
-
 void RegExpMacroAssemblerARM::LoadCurrentCharacterUnchecked(int cp_offset,
                                                             int characters) {
   Register offset = current_input_offset();

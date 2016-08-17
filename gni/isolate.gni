@@ -66,11 +66,6 @@ template("v8_isolate_run") {
       } else {
         cfi_vptr = "0"
       }
-      if (use_custom_libcxx) {
-        custom_libcxx = "1"
-      } else {
-        custom_libcxx = "0"
-      }
       if (target_cpu == "x86") {
         target_arch = "ia32"
       } else {
@@ -158,8 +153,6 @@ template("v8_isolate_run") {
         "component=$component",
         "--config-variable",
         "target_arch=$target_arch",
-        "--config-variable",
-        "use_custom_libcxx=$custom_libcxx",
         "--config-variable",
         "v8_use_external_startup_data=$use_external_startup_data",
         "--config-variable",

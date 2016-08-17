@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 
+#include "src/ast/context-slot-cache.h"
 #include "src/ast/scopes.h"
 #include "src/bootstrapper.h"
 
@@ -31,8 +32,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   // Determine use and location of the "this" binding if it is present.
   VariableAllocationInfo receiver_info;
-  if (scope->has_this_declaration()) {
-    Variable* var = scope->receiver();
+  if (scope->is_declaration_scope() &&
+      scope->AsDeclarationScope()->has_this_declaration()) {
+    Variable* var = scope->AsDeclarationScope()->receiver();
     if (!var->is_used()) {
       receiver_info = UNUSED;
     } else if (var->IsContextSlot()) {
@@ -45,13 +47,16 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
     receiver_info = NONE;
   }
 
-  bool has_new_target = scope->new_target_var() != nullptr;
+  bool has_new_target =
+      scope->is_declaration_scope() &&
+      scope->AsDeclarationScope()->new_target_var() != nullptr;
 
   // Determine use and location of the function variable if it is present.
   VariableAllocationInfo function_name_info;
   VariableMode function_variable_mode;
-  if (scope->is_function_scope() && scope->function() != NULL) {
-    Variable* var = scope->function()->proxy()->var();
+  if (scope->is_function_scope() &&
+      scope->AsDeclarationScope()->function_var() != nullptr) {
+    Variable* var = scope->AsDeclarationScope()->function_var();
     if (!var->is_used()) {
       function_name_info = UNUSED;
     } else if (var->IsContextSlot()) {
@@ -79,7 +84,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   bool has_simple_parameters =
-      scope->is_function_scope() && scope->has_simple_parameters();
+      scope->is_function_scope() &&
+      scope->AsDeclarationScope()->has_simple_parameters();
+  FunctionKind function_kind =
+      scope->is_declaration_scope()
+          ? scope->AsDeclarationScope()->function_kind()
+          : kNormalFunction;
 
   // Encode the flags.
   int flags = ScopeTypeField::encode(scope->scope_type()) |
@@ -93,7 +103,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               AsmModuleField::encode(scope->asm_module()) |
               AsmFunctionField::encode(scope->asm_function()) |
               HasSimpleParametersField::encode(has_simple_parameters) |
-              FunctionKindField::encode(scope->function_kind()) |
+              FunctionKindField::encode(function_kind) |
               TypedField::encode(scope->typed());
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
@@ -104,8 +114,11 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   int index = kVariablePartIndex;
   // Add parameters.
   DCHECK(index == scope_info->ParameterEntriesIndex());
-  for (int i = 0; i < parameter_count; ++i) {
-    scope_info->set(index++, *scope->parameter(i)->name());
+  if (scope->is_declaration_scope()) {
+    for (int i = 0; i < parameter_count; ++i) {
+      scope_info->set(index++,
+                      *scope->AsDeclarationScope()->parameter(i)->name());
+    }
   }
 
   // Add stack locals' names. We are assuming that the stack locals'
@@ -171,7 +184,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   // If the receiver is allocated, add its index.
   DCHECK(index == scope_info->ReceiverEntryIndex());
   if (has_receiver) {
-    int var_index = scope->receiver()->index();
+    int var_index = scope->AsDeclarationScope()->receiver()->index();
     scope_info->set(index++, Smi::FromInt(var_index));
     // ?? DCHECK(receiver_info != CONTEXT || var_index ==
     // scope_info->ContextLength() - 1);
@@ -180,8 +193,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   // If present, add the function variable name and its index.
   DCHECK(index == scope_info->FunctionNameEntryIndex());
   if (has_function_name) {
-    int var_index = scope->function()->proxy()->var()->index();
-    scope_info->set(index++, *scope->function()->proxy()->name());
+    int var_index = scope->AsDeclarationScope()->function_var()->index();
+    scope_info->set(index++,
+                    *scope->AsDeclarationScope()->function_var()->name());
     scope_info->set(index++, Smi::FromInt(var_index));
     DCHECK(function_name_info != CONTEXT ||
            var_index == scope_info->ContextLength() - 1);
@@ -639,83 +653,7 @@ int ScopeInfo::FunctionNameEntryIndex() {
   return ReceiverEntryIndex() + (HasAllocatedReceiver() ? 1 : 0);
 }
 
-
-int ContextSlotCache::Hash(Object* data, String* name) {
-  // Uses only lower 32 bits if pointers are larger.
-  uintptr_t addr_hash =
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(data)) >> 2;
-  return static_cast<int>((addr_hash ^ name->Hash()) % kLength);
-}
-
-
-int ContextSlotCache::Lookup(Object* data, String* name, VariableMode* mode,
-                             InitializationFlag* init_flag,
-                             MaybeAssignedFlag* maybe_assigned_flag) {
-  int index = Hash(data, name);
-  Key& key = keys_[index];
-  if ((key.data == data) && key.name->Equals(name)) {
-    Value result(values_[index]);
-    if (mode != NULL) *mode = result.mode();
-    if (init_flag != NULL) *init_flag = result.initialization_flag();
-    if (maybe_assigned_flag != NULL)
-      *maybe_assigned_flag = result.maybe_assigned_flag();
-    return result.index() + kNotFound;
-  }
-  return kNotFound;
-}
-
-
-void ContextSlotCache::Update(Handle<Object> data, Handle<String> name,
-                              VariableMode mode, InitializationFlag init_flag,
-                              MaybeAssignedFlag maybe_assigned_flag,
-                              int slot_index) {
-  DisallowHeapAllocation no_gc;
-  Handle<String> internalized_name;
-  DCHECK(slot_index > kNotFound);
-  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
-      ToHandle(&internalized_name)) {
-    int index = Hash(*data, *internalized_name);
-    Key& key = keys_[index];
-    key.data = *data;
-    key.name = *internalized_name;
-    // Please note value only takes a uint as index.
-    values_[index] = Value(mode, init_flag, maybe_assigned_flag,
-                           slot_index - kNotFound).raw();
 #ifdef DEBUG
-    ValidateEntry(data, name, mode, init_flag, maybe_assigned_flag, slot_index);
-#endif
-  }
-}
-
-
-void ContextSlotCache::Clear() {
-  for (int index = 0; index < kLength; index++) keys_[index].data = NULL;
-}
-
-
-#ifdef DEBUG
-
-void ContextSlotCache::ValidateEntry(Handle<Object> data, Handle<String> name,
-                                     VariableMode mode,
-                                     InitializationFlag init_flag,
-                                     MaybeAssignedFlag maybe_assigned_flag,
-                                     int slot_index) {
-  DisallowHeapAllocation no_gc;
-  Handle<String> internalized_name;
-  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
-      ToHandle(&internalized_name)) {
-    int index = Hash(*data, *name);
-    Key& key = keys_[index];
-    DCHECK(key.data == *data);
-    DCHECK(key.name->Equals(*name));
-    Value result(values_[index]);
-    DCHECK(result.mode() == mode);
-    DCHECK(result.initialization_flag() == init_flag);
-    DCHECK(result.maybe_assigned_flag() == maybe_assigned_flag);
-    DCHECK(result.index() + kNotFound == slot_index);
-  }
-}
-
 
 static void PrintList(const char* list_name,
                       int nof_internal_slots,

@@ -80,27 +80,27 @@ TEST(BYTESWAP) {
 
   __ lw(a2, MemOperand(a0, offsetof(T, r1)));
   __ nop();
-  __ ByteSwapSigned(a2, 4);
+  __ ByteSwapSigned(a2, a2, 4);
   __ sw(a2, MemOperand(a0, offsetof(T, r1)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r2)));
   __ nop();
-  __ ByteSwapSigned(a2, 2);
+  __ ByteSwapSigned(a2, a2, 2);
   __ sw(a2, MemOperand(a0, offsetof(T, r2)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r3)));
   __ nop();
-  __ ByteSwapSigned(a2, 1);
+  __ ByteSwapSigned(a2, a2, 1);
   __ sw(a2, MemOperand(a0, offsetof(T, r3)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r4)));
   __ nop();
-  __ ByteSwapUnsigned(a2, 1);
+  __ ByteSwapUnsigned(a2, a2, 1);
   __ sw(a2, MemOperand(a0, offsetof(T, r4)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r5)));
   __ nop();
-  __ ByteSwapUnsigned(a2, 2);
+  __ ByteSwapUnsigned(a2, a2, 2);
   __ sw(a2, MemOperand(a0, offsetof(T, r5)));
 
   __ jr(ra);
@@ -632,6 +632,79 @@ static bool runOverflow(IN_TYPE valLeft, IN_TYPE valRight,
 
   DCHECK(r == 0 || r == 1);
   return r;
+}
+
+TEST(BranchOverflowInt32BothLabelsTrampoline) {
+  if (!IsMipsArchVariant(kMips32r6)) return;
+  static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
+
+  FOR_INT32_INPUTS(i, overflow_int32_test_values) {
+    FOR_INT32_INPUTS(j, overflow_int32_test_values) {
+      FOR_ENUM_INPUTS(br, OverflowBranchType, overflow_branch_type) {
+        FOR_STRUCT_INPUTS(regComb, OverflowRegisterCombination,
+                          overflow_register_combination) {
+          int32_t ii = *i;
+          int32_t jj = *j;
+          enum OverflowBranchType branchType = *br;
+          struct OverflowRegisterCombination rc = *regComb;
+
+          // If left and right register are same then left and right
+          // test values must also be same, otherwise we skip the test
+          if (rc.left.code() == rc.right.code()) {
+            if (ii != jj) {
+              continue;
+            }
+          }
+
+          bool res1 = runOverflow<int32_t>(
+              ii, jj, [branchType, rc](MacroAssembler* masm, int32_t valLeft,
+                                       int32_t valRight) {
+                Label overflow, no_overflow, end;
+                __ li(rc.left, valLeft);
+                __ li(rc.right, valRight);
+                switch (branchType) {
+                  case kAddBranchOverflow:
+                    __ AddBranchOvf(rc.dst, rc.left, rc.right, &overflow,
+                                    &no_overflow, rc.scratch);
+                    break;
+                  case kSubBranchOverflow:
+                    __ SubBranchOvf(rc.dst, rc.left, rc.right, &overflow,
+                                    &no_overflow, rc.scratch);
+                    break;
+                }
+
+                Label done;
+                size_t nr_calls =
+                    kMaxBranchOffset / (2 * Instruction::kInstrSize) + 2;
+                for (size_t i = 0; i < nr_calls; ++i) {
+                  __ BranchShort(&done, eq, a0, Operand(a1));
+                }
+                __ bind(&done);
+
+                __ li(v0, 2);
+                __ Branch(&end);
+                __ bind(&overflow);
+                __ li(v0, 1);
+                __ Branch(&end);
+                __ bind(&no_overflow);
+                __ li(v0, 0);
+                __ bind(&end);
+              });
+
+          switch (branchType) {
+            case kAddBranchOverflow:
+              CHECK_EQ(IsAddOverflow<int32_t>(ii, jj), res1);
+              break;
+            case kSubBranchOverflow:
+              CHECK_EQ(IsSubOverflow<int32_t>(ii, jj), res1);
+              break;
+            default:
+              UNREACHABLE();
+          }
+        }
+      }
+    }
+  }
 }
 
 TEST(BranchOverflowInt32BothLabels) {

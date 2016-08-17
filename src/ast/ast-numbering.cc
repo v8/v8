@@ -20,7 +20,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         properties_(zone),
         slot_cache_(zone),
         dont_optimize_reason_(kNoReason),
-        catch_predicted_(false) {
+        catch_prediction_(HandlerTable::UNCAUGHT) {
     InitializeAstVisitor(isolate);
   }
 
@@ -56,12 +56,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
     DisableSelfOptimization();
   }
   void DisableCrankshaft(BailoutReason reason) {
-    if (FLAG_turbo_shipping) {
-      properties_.flags() |= AstProperties::kDontCrankshaft;
-    } else {
-      dont_optimize_reason_ = reason;
-      DisableSelfOptimization();
-    }
+    properties_.flags() |= AstProperties::kDontCrankshaft;
   }
 
   template <typename Node>
@@ -80,7 +75,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   // The slot cache allows us to reuse certain feedback vector slots.
   FeedbackVectorSlotCache slot_cache_;
   BailoutReason dont_optimize_reason_;
-  bool catch_predicted_;
+  HandlerTable::CatchPrediction catch_prediction_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstNumberingVisitor);
@@ -238,6 +233,14 @@ void AstNumberingVisitor::VisitCountOperation(CountOperation* node) {
 void AstNumberingVisitor::VisitBlock(Block* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(Block::num_ids()));
+
+  if (FLAG_ignition && node->scope() != nullptr &&
+      node->scope()->NeedsContext()) {
+    // Create ScopeInfo while on the main thread to avoid allocation during
+    // potentially concurrent bytecode generation.
+    node->scope()->GetScopeInfo(isolate_);
+  }
+
   if (node->scope() != NULL) VisitDeclarations(node->scope()->declarations());
   VisitStatements(node->statements());
 }
@@ -292,15 +295,16 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
   IncrementNodeCount();
   DisableCrankshaft(kTryCatchStatement);
   {
-    const bool old_catch_predicted = catch_predicted_;
-    // If the node's clear_pending_message flag is unset, we assume that the
-    // catch block is a ReThrow and hence predict uncaught (unless caught by
-    // outer handlers).  Otherwise, we predict caught.
-    const bool not_rethrow = node->clear_pending_message();
-    catch_predicted_ = catch_predicted_ || not_rethrow;
-    node->set_catch_predicted(catch_predicted_);
+    const HandlerTable::CatchPrediction old_prediction = catch_prediction_;
+    // This node uses its own prediction, unless it's "uncaught", in which case
+    // we adopt the prediction of the outer try-block.
+    HandlerTable::CatchPrediction catch_prediction = node->catch_prediction();
+    if (catch_prediction != HandlerTable::UNCAUGHT) {
+      catch_prediction_ = catch_prediction;
+    }
+    node->set_catch_prediction(catch_prediction_);
     Visit(node->try_block());
-    catch_predicted_ = old_catch_predicted;
+    catch_prediction_ = old_prediction;
   }
   Visit(node->catch_block());
 }
@@ -311,7 +315,7 @@ void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   DisableCrankshaft(kTryFinallyStatement);
   // We can't know whether the finally block will override ("catch") an
   // exception thrown in the try block, so we just adopt the outer prediction.
-  node->set_catch_predicted(catch_predicted_);
+  node->set_catch_prediction(catch_prediction_);
   Visit(node->try_block());
   Visit(node->finally_block());
 }
@@ -357,6 +361,7 @@ void AstNumberingVisitor::VisitBinaryOperation(BinaryOperation* node) {
   node->set_base_id(ReserveIdRange(BinaryOperation::num_ids()));
   Visit(node->left());
   Visit(node->right());
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -563,7 +568,7 @@ void AstNumberingVisitor::VisitRewritableExpression(
 
 
 bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
-  Scope* scope = node->scope();
+  DeclarationScope* scope = node->scope();
   if (scope->new_target_var()) DisableCrankshaft(kSuperReference);
   if (scope->calls_eval()) DisableOptimization(kFunctionCallsEval);
   if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {
@@ -573,6 +578,12 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   int rest_index;
   if (scope->rest_parameter(&rest_index)) {
     DisableCrankshaft(kRestParameter);
+  }
+
+  if (FLAG_ignition && scope->NeedsContext() && scope->is_script_scope()) {
+    // Create ScopeInfo while on the main thread to avoid allocation during
+    // potentially concurrent bytecode generation.
+    node->scope()->GetScopeInfo(isolate_);
   }
 
   if (IsGeneratorFunction(node->kind()) || IsAsyncFunction(node->kind())) {

@@ -174,18 +174,17 @@ class CallDescriptor final : public ZoneObject {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
     kHasExceptionHandler = 1u << 1,
-    kHasLocalCatchHandler = 1u << 2,
-    kSupportsTailCalls = 1u << 3,
-    kCanUseRoots = 1u << 4,
+    kSupportsTailCalls = 1u << 2,
+    kCanUseRoots = 1u << 3,
     // (arm64 only) native stack should be used for arguments.
-    kUseNativeStack = 1u << 5,
+    kUseNativeStack = 1u << 4,
     // (arm64 only) call instruction has to restore JSSP or CSP.
-    kRestoreJSSP = 1u << 6,
-    kRestoreCSP = 1u << 7,
+    kRestoreJSSP = 1u << 5,
+    kRestoreCSP = 1u << 6,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 8,
+    kInitializeRootRegister = 1u << 7,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 9
+    kNoAllocate = 1u << 8
   };
   typedef base::Flags<Flag> Flags;
 
@@ -420,6 +419,9 @@ class Linkage : public ZoneObject {
 
   // A special {OsrValue} index to indicate the context spill slot.
   static const int kOsrContextSpillSlotIndex = -1;
+
+  // A special {OsrValue} index to indicate the accumulator register.
+  static const int kOsrAccumulatorRegisterIndex = -1;
 
  private:
   CallDescriptor* const incoming_;

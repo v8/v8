@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --ignition-generators --harmony-do-expressions
+// Flags: --ignition --harmony-do-expressions
 // Flags: --allow-natives-syntax --turbo --turbo-from-bytecode
 
 

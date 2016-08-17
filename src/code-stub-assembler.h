@@ -38,6 +38,14 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   CodeStubAssembler(Isolate* isolate, Zone* zone, int parameter_count,
                     Code::Flags flags, const char* name);
 
+  enum AllocationFlag : uint8_t {
+    kNone = 0,
+    kDoubleAlignment = 1,
+    kPretenured = 1 << 1
+  };
+
+  typedef base::Flags<AllocationFlag> AllocationFlags;
+
   enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS };
 
   compiler::Node* BooleanMapConstant();
@@ -51,6 +59,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* TheHoleConstant();
   compiler::Node* HashSeed();
   compiler::Node* StaleRegisterConstant();
+
+  compiler::Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
   // Float64 operations.
   compiler::Node* Float64Ceil(compiler::Node* x);
@@ -99,6 +109,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Check that the value is a positive smi.
   compiler::Node* WordIsPositiveSmi(compiler::Node* a);
 
+  void BranchIfSmiEqual(compiler::Node* a, compiler::Node* b, Label* if_true,
+                        Label* if_false) {
+    BranchIf(SmiEqual(a, b), if_true, if_false);
+  }
+
   void BranchIfSmiLessThan(compiler::Node* a, compiler::Node* b, Label* if_true,
                            Label* if_false) {
     BranchIf(SmiLessThan(a, b), if_true, if_false);
@@ -113,6 +128,27 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                             Label* if_false) {
     BranchIfFloat64Equal(value, value, if_false, if_true);
   }
+
+  // Branches to {if_true} if ToBoolean applied to {value} yields true,
+  // otherwise goes to {if_false}.
+  void BranchIfToBooleanIsTrue(compiler::Node* value, Label* if_true,
+                               Label* if_false);
+
+  void BranchIfSimd128Equal(compiler::Node* lhs, compiler::Node* lhs_map,
+                            compiler::Node* rhs, compiler::Node* rhs_map,
+                            Label* if_equal, Label* if_notequal);
+  void BranchIfSimd128Equal(compiler::Node* lhs, compiler::Node* rhs,
+                            Label* if_equal, Label* if_notequal) {
+    BranchIfSimd128Equal(lhs, LoadMap(lhs), rhs, LoadMap(rhs), if_equal,
+                         if_notequal);
+  }
+
+  void BranchIfSameValueZero(compiler::Node* a, compiler::Node* b,
+                             compiler::Node* context, Label* if_true,
+                             Label* if_false);
+
+  void BranchIfFastJSArray(compiler::Node* object, compiler::Node* context,
+                           Label* if_true, Label* if_false);
 
   // Load value from current frame by given offset in bytes.
   compiler::Node* LoadFromFrame(int offset,
@@ -130,6 +166,15 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadObjectField(compiler::Node* object,
                                   compiler::Node* offset,
                                   MachineType rep = MachineType::AnyTagged());
+  // Load a SMI field and untag it.
+  compiler::Node* LoadAndUntagObjectField(compiler::Node* object, int offset);
+  // Load a SMI field, untag it, and convert to Word32.
+  compiler::Node* LoadAndUntagToWord32ObjectField(compiler::Node* object,
+                                                  int offset);
+  // Load a SMI and untag it.
+  compiler::Node* LoadAndUntagSmi(compiler::Node* base, int index);
+  // Load a SMI root, untag it, and convert to Word32.
+  compiler::Node* LoadAndUntagToWord32Root(Heap::RootListIndex root_index);
 
   // Load the floating point value of a HeapNumber.
   compiler::Node* LoadHeapNumberValue(compiler::Node* object);
@@ -145,6 +190,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadElements(compiler::Node* object);
   // Load the length of a fixed array base instance.
   compiler::Node* LoadFixedArrayBaseLength(compiler::Node* array);
+  // Load the length of a fixed array base instance.
+  compiler::Node* LoadAndUntagFixedArrayBaseLength(compiler::Node* array);
   // Load the bit field of a Map.
   compiler::Node* LoadMapBitField(compiler::Node* map);
   // Load bit field 2 of a map.
@@ -186,6 +233,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       compiler::Node* object, compiler::Node* int32_index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
+  // Load an array element from a FixedArray, untag it and return it as Word32.
+  compiler::Node* LoadAndUntagToWord32FixedArrayElement(
+      compiler::Node* object, compiler::Node* int32_index,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
   // Load an array element from a FixedDoubleArray.
   compiler::Node* LoadFixedDoubleArrayElement(
       compiler::Node* object, compiler::Node* int32_index,
@@ -210,6 +262,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Store the Map of an HeapObject.
   compiler::Node* StoreMapNoWriteBarrier(compiler::Node* object,
                                          compiler::Node* map);
+  compiler::Node* StoreObjectFieldRoot(compiler::Node* object, int offset,
+                                       Heap::RootListIndex root);
   // Store an array element to a FixedArray.
   compiler::Node* StoreFixedArrayElement(
       compiler::Node* object, compiler::Node* index, compiler::Node* value,
@@ -238,6 +292,31 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                   compiler::Node* length,
                                   compiler::Node* allocation_site = nullptr,
                                   ParameterMode mode = INTEGER_PARAMETERS);
+
+  compiler::Node* AllocateFixedArray(ElementsKind kind,
+                                     compiler::Node* capacity,
+                                     ParameterMode mode = INTEGER_PARAMETERS,
+                                     AllocationFlags flags = kNone);
+
+  void FillFixedArrayWithHole(ElementsKind kind, compiler::Node* array,
+                              compiler::Node* from_index,
+                              compiler::Node* to_index,
+                              ParameterMode mode = INTEGER_PARAMETERS);
+
+  void CopyFixedArrayElements(
+      ElementsKind kind, compiler::Node* from_array, compiler::Node* to_array,
+      compiler::Node* element_count,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode mode = INTEGER_PARAMETERS);
+
+  compiler::Node* CalculateNewElementsCapacity(
+      compiler::Node* old_capacity, ParameterMode mode = INTEGER_PARAMETERS);
+
+  compiler::Node* CheckAndGrowElementsCapacity(compiler::Node* context,
+                                               compiler::Node* elements,
+                                               ElementsKind kind,
+                                               compiler::Node* key,
+                                               Label* fail);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(compiler::Node* base_allocation,
@@ -426,6 +505,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Load type feedback vector from the stub caller's frame.
   compiler::Node* LoadTypeFeedbackVectorForStub();
 
+  // Update the type feedback vector.
+  void UpdateFeedback(compiler::Node* feedback,
+                      compiler::Node* type_feedback_vector,
+                      compiler::Node* slot_id);
+
   compiler::Node* LoadReceiverMap(compiler::Node* receiver);
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
@@ -440,11 +524,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                              int unroll_count);
 
   compiler::Node* StubCachePrimaryOffset(compiler::Node* name,
-                                         Code::Flags flags,
                                          compiler::Node* map);
 
   compiler::Node* StubCacheSecondaryOffset(compiler::Node* name,
-                                           Code::Flags flags,
                                            compiler::Node* seed);
 
   // This enum is used here as a replacement for StubCache::Table to avoid
@@ -453,9 +535,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
                               compiler::Node* entry_offset,
-                              compiler::Node* name, Code::Flags flags,
-                              compiler::Node* map, Label* if_handler,
-                              Variable* var_handler, Label* if_miss);
+                              compiler::Node* name, compiler::Node* map,
+                              Label* if_handler, Variable* var_handler,
+                              Label* if_miss);
 
   void TryProbeStubCache(StubCache* stub_cache, compiler::Node* receiver,
                          compiler::Node* name, Label* if_handler,
@@ -463,8 +545,45 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);
+  void KeyedLoadIC(const LoadICParameters* p);
+
+  // Get the enumerable length from |map| and return the result as a Smi.
+  compiler::Node* EnumLength(compiler::Node* map);
+
+  // Check the cache validity for |receiver|. Branch to |use_cache| if
+  // the cache is valid, otherwise branch to |use_runtime|.
+  void CheckEnumCache(compiler::Node* receiver,
+                      CodeStubAssembler::Label* use_cache,
+                      CodeStubAssembler::Label* use_runtime);
+
+  // Create a new weak cell with a specified value and install it into a
+  // feedback vector.
+  compiler::Node* CreateWeakCellInFeedbackVector(
+      compiler::Node* feedback_vector, compiler::Node* slot,
+      compiler::Node* value);
+
+  compiler::Node* GetFixedAarrayAllocationSize(compiler::Node* element_count,
+                                               ElementsKind kind,
+                                               ParameterMode mode) {
+    return ElementOffsetFromIndex(element_count, kind, mode,
+                                  FixedArray::kHeaderSize);
+  }
 
  private:
+  enum ElementSupport { kOnlyProperties, kSupportElements };
+
+  void HandleLoadICHandlerCase(
+      const LoadICParameters* p, compiler::Node* handler, Label* miss,
+      ElementSupport support_elements = kOnlyProperties);
+  compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
+  void EmitBoundsCheck(compiler::Node* object, compiler::Node* elements,
+                       compiler::Node* intptr_key, compiler::Node* is_jsarray,
+                       Label* miss);
+  void EmitElementLoad(compiler::Node* object, compiler::Node* elements,
+                       compiler::Node* elements_kind, compiler::Node* key,
+                       Label* if_hole, Label* rebox_double,
+                       Variable* var_double_value, Label* miss);
+
   compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
                                          ElementsKind kind, ParameterMode mode,
                                          int base_size = 0);
@@ -478,8 +597,12 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                        compiler::Node* top_adddress,
                                        compiler::Node* limit_address);
 
+  compiler::Node* SmiShiftBitsConstant();
+
   static const int kElementLoopUnrollThreshold = 8;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
 
 }  // namespace internal
 }  // namespace v8

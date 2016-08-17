@@ -91,7 +91,7 @@ void LoopBuilder::ExitLoop(Node** extra_value_to_rename) {
   environment()->PrepareForLoopExit(loop_environment_->GetControlDependency(),
                                     assigned_);
   if (extra_value_to_rename) {
-    environment()->Pop();
+    *extra_value_to_rename = environment()->Pop();
   }
 }
 

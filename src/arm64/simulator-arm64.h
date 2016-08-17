@@ -652,11 +652,8 @@ class Simulator : public DecoderVisitor {
 
   template<typename T>
   void AddSubHelper(Instruction* instr, T op2);
-  template<typename T>
-  T AddWithCarry(bool set_flags,
-                 T src1,
-                 T src2,
-                 T carry_in = 0);
+  template <typename T>
+  T AddWithCarry(bool set_flags, T left, T right, int carry_in = 0);
   template<typename T>
   void AddSubWithCarry(Instruction* instr);
   template<typename T>

@@ -12,6 +12,7 @@ from matplotlib import colors
 from matplotlib import pyplot
 import numpy
 import struct
+import sys
 
 
 __DESCRIPTION = """
@@ -50,8 +51,8 @@ __COUNTER_MAX = 2**__COUNTER_BITS - 1
 
 
 def warn_if_counter_may_have_saturated(dispatches_table):
-  for source, counters_from_source in dispatches_table.items():
-    for destination, counter in counters_from_source.items():
+  for source, counters_from_source in iteritems(dispatches_table):
+    for destination, counter in iteritems(counters_from_source):
       if counter == __COUNTER_MAX:
         print "WARNING: {} -> {} may have saturated.".format(source,
                                                              destination)
@@ -59,8 +60,8 @@ def warn_if_counter_may_have_saturated(dispatches_table):
 
 def find_top_bytecode_dispatch_pairs(dispatches_table, top_count):
   def flattened_counters_generator():
-    for source, counters_from_source in dispatches_table.items():
-      for destination, counter in counters_from_source.items():
+    for source, counters_from_source in iteritems(dispatches_table):
+      for destination, counter in iteritems(counters_from_source):
         yield source, destination, counter
 
   return heapq.nlargest(top_count, flattened_counters_generator(),
@@ -77,8 +78,9 @@ def print_top_bytecode_dispatch_pairs(dispatches_table, top_count):
 
 def find_top_bytecodes(dispatches_table):
   top_bytecodes = []
-  for bytecode, counters_from_bytecode in dispatches_table.items():
-    top_bytecodes.append((bytecode, sum(counters_from_bytecode.values())))
+  for bytecode, counters_from_bytecode in iteritems(dispatches_table):
+    top_bytecodes.append((bytecode, sum(itervalues(counters_from_bytecode))))
+
   top_bytecodes.sort(key=lambda x: x[1], reverse=True)
   return top_bytecodes
 
@@ -90,30 +92,37 @@ def print_top_bytecodes(dispatches_table):
     print "{:>12d}\t{}".format(counter, bytecode)
 
 
-def find_top_dispatch_sources(dispatches_table, destination, top_count):
-  def source_counters_generator():
-    for source, table_row in dispatches_table.items():
-      if destination in table_row:
-        yield source, table_row[destination]
+def find_top_dispatch_sources_and_destinations(
+    dispatches_table, bytecode, top_count, sort_source_relative):
+  sources = []
+  for source, destinations in iteritems(dispatches_table):
+    total = float(sum(itervalues(destinations)))
+    if bytecode in destinations:
+      count = destinations[bytecode]
+      sources.append((source, count, count / total))
 
-  return heapq.nlargest(top_count, source_counters_generator(),
-                        key=lambda x: x[1])
+  destinations = []
+  bytecode_destinations = dispatches_table[bytecode]
+  bytecode_total = float(sum(itervalues(bytecode_destinations)))
+  for destination, count in iteritems(bytecode_destinations):
+    destinations.append((destination, count, count / bytecode_total))
+
+  return (heapq.nlargest(top_count, sources,
+                         key=lambda x: x[2 if sort_source_relative else 1]),
+          heapq.nlargest(top_count, destinations, key=lambda x: x[1]))
 
 
 def print_top_dispatch_sources_and_destinations(dispatches_table, bytecode,
-                                                top_count):
-  top_sources = find_top_dispatch_sources(dispatches_table, bytecode, top_count)
-  top_destinations = heapq.nlargest(top_count,
-                                    dispatches_table[bytecode].items(),
-                                    key=lambda x: x[1])
-
+                                                top_count, sort_relative):
+  top_sources, top_destinations = find_top_dispatch_sources_and_destinations(
+      dispatches_table, bytecode, top_count, sort_relative)
   print "Top sources of dispatches to {}:".format(bytecode)
-  for source_name, counter in top_sources:
-    print "{:>12d}\t{}".format(counter, source_name)
+  for source_name, counter, ratio in top_sources:
+    print "{:>12d}\t{:>5.1f}%\t{}".format(counter, ratio * 100, source_name)
 
   print "\nTop destinations of dispatches from {}:".format(bytecode)
-  for destination_name, counter in top_destinations:
-    print "{:>12d}\t{}".format(counter, destination_name)
+  for destination_name, counter, ratio in top_destinations:
+    print "{:>12d}\t{:>5.1f}%\t{}".format(counter, ratio * 100, destination_name)
 
 
 def build_counters_matrix(dispatches_table):
@@ -215,6 +224,12 @@ def parse_command_line():
           "extension. PDF, SVG, PNG supported")
   )
   command_line_parser.add_argument(
+    "--sort-sources-relative", "-r",
+    action="store_true",
+    help=("print top sources in order to how often they dispatch to the "
+          "specified bytecode, only applied when using -f")
+  )
+  command_line_parser.add_argument(
     "input_filename",
     metavar="<input filename>",
     default="v8.ignition_dispatches_table.json",
@@ -223,6 +238,14 @@ def parse_command_line():
   )
 
   return command_line_parser.parse_args()
+
+
+def itervalues(d):
+  return d.values() if sys.version_info[0] > 2 else d.itervalues()
+
+
+def iteritems(d):
+  return d.items() if sys.version_info[0] > 2 else d.iteritems()
 
 
 def main():
@@ -249,7 +272,7 @@ def main():
   elif program_options.top_dispatches_for_bytecode:
     print_top_dispatch_sources_and_destinations(
       dispatches_table, program_options.top_dispatches_for_bytecode,
-      program_options.top_entries_count)
+      program_options.top_entries_count, program_options.sort_sources_relative)
   else:
     print_top_bytecodes(dispatches_table)
 

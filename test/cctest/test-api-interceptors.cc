@@ -873,7 +873,21 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
   v8::Local<Value> value = CompileRun(
       "var f = function() { "
       "  try {"
-      "    x;"
+      "    x1;"
+      "  } catch(e) {"
+      "  }"
+      "  return typeof x1 === 'undefined';"
+      "};"
+      "for (var i = 0; i < 10; i++) {"
+      "  f();"
+      "};"
+      "f();");
+  CHECK_EQ(true, value->BooleanValue(context.local()).FromJust());
+
+  value = CompileRun(
+      "var f = function() { "
+      "  try {"
+      "    x2;"
       "    return false;"
       "  } catch(e) {"
       "    return true;"
@@ -888,7 +902,7 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
   value = CompileRun(
       "var f = function() { "
       "  try {"
-      "    typeof(x);"
+      "    typeof(x3);"
       "    return true;"
       "  } catch(e) {"
       "    return false;"
@@ -3292,6 +3306,25 @@ THREADED_TEST(Regress149912) {
   CompileRun("Number.prototype.__proto__ = new Bug; var x = 0; x.foo();");
 }
 
+THREADED_TEST(Regress625155) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  context->Global()
+      ->Set(context.local(), v8_str("Bug"),
+            templ->GetFunction(context.local()).ToLocalChecked())
+      .FromJust();
+  CompileRun(
+      "Number.prototype.__proto__ = new Bug;"
+      "var x;"
+      "x = 0xdead;"
+      "x.boom = 0;"
+      "x = 's';"
+      "x.boom = 0;"
+      "x = 1.5;"
+      "x.boom = 0;");
+}
 
 THREADED_TEST(Regress125988) {
   v8::HandleScope scope(CcTest::isolate());

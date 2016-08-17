@@ -22,21 +22,6 @@ enum LocalTypeCode {
   kLocalS128 = 5
 };
 
-// Binary encoding of memory types.
-enum MemTypeCode {
-  kMemI8 = 0,
-  kMemU8 = 1,
-  kMemI16 = 2,
-  kMemU16 = 3,
-  kMemI32 = 4,
-  kMemU32 = 5,
-  kMemI64 = 6,
-  kMemU64 = 7,
-  kMemF32 = 8,
-  kMemF64 = 9,
-  kMemS128 = 10
-};
-
 // We reuse the internal machine type to represent WebAssembly AST types.
 // A typedef improves readability without adding a whole new type system.
 typedef MachineRepresentation LocalType;
@@ -70,6 +55,12 @@ const WasmCodePosition kNoCodePosition = -1;
   V(BrTable, 0x08, _)             \
   V(Return, 0x09, _)              \
   V(Unreachable, 0x0a, _)         \
+  V(Throw, 0xfa, _)               \
+  V(TryCatch, 0xfb, _)            \
+  V(TryCatchFinally, 0xfc, _)     \
+  V(TryFinally, 0xfd, _)          \
+  V(Catch, 0xfe, _)               \
+  V(Finally, 0xff, _)             \
   V(End, 0x0F, _)
 
 // Constants, locals, globals, and calls.
@@ -84,8 +75,8 @@ const WasmCodePosition kNoCodePosition = -1;
   V(CallIndirect, 0x17, _)     \
   V(CallImport, 0x18, _)       \
   V(I8Const, 0xcb, _)          \
-  V(LoadGlobal, 0xcc, _)       \
-  V(StoreGlobal, 0xcd, _)
+  V(GetGlobal, 0xbb, _)        \
+  V(SetGlobal, 0xbc, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -406,9 +397,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(S128Xor, 0xe578, s_ss)             \
   V(S128Not, 0xe579, s_s)
 
-// For enabling JIT functionality
-#define FOREACH_JIT_OPCODE(V) V(JITSingleFunction, 0xf0, _)
-
 // All opcodes.
 #define FOREACH_OPCODE(V)        \
   FOREACH_CONTROL_OPCODE(V)      \
@@ -419,8 +407,7 @@ const WasmCodePosition kNoCodePosition = -1;
   FOREACH_LOAD_MEM_OPCODE(V)     \
   FOREACH_MISC_MEM_OPCODE(V)     \
   FOREACH_ASMJS_COMPAT_OPCODE(V) \
-  FOREACH_SIMD_OPCODE(V)         \
-  FOREACH_JIT_OPCODE(V)
+  FOREACH_SIMD_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)         \
@@ -487,7 +474,6 @@ enum WasmOpcode {
   V(TrapFloatUnrepresentable)      \
   V(TrapFuncInvalid)               \
   V(TrapFuncSigMismatch)           \
-  V(TrapMemAllocationFail)         \
   V(TrapInvalidIndex)
 
 enum TrapReason {
@@ -528,35 +514,6 @@ class WasmOpcodes {
       default:
         UNREACHABLE();
         return kLocalVoid;
-    }
-  }
-
-  static MemTypeCode MemTypeCodeFor(MachineType type) {
-    if (type == MachineType::Int8()) {
-      return kMemI8;
-    } else if (type == MachineType::Uint8()) {
-      return kMemU8;
-    } else if (type == MachineType::Int16()) {
-      return kMemI16;
-    } else if (type == MachineType::Uint16()) {
-      return kMemU16;
-    } else if (type == MachineType::Int32()) {
-      return kMemI32;
-    } else if (type == MachineType::Uint32()) {
-      return kMemU32;
-    } else if (type == MachineType::Int64()) {
-      return kMemI64;
-    } else if (type == MachineType::Uint64()) {
-      return kMemU64;
-    } else if (type == MachineType::Float32()) {
-      return kMemF32;
-    } else if (type == MachineType::Float64()) {
-      return kMemF64;
-    } else if (type == MachineType::Simd128()) {
-      return kMemS128;
-    } else {
-      UNREACHABLE();
-      return kMemI32;
     }
   }
 

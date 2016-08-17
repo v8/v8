@@ -30,7 +30,7 @@ class LoopAssignmentAnalysis : public ZoneObject {
     return nullptr;
   }
 
-  int GetAssignmentCountForTesting(Scope* scope, Variable* var);
+  int GetAssignmentCountForTesting(DeclarationScope* scope, Variable* var);
 
  private:
   friend class AstLoopAssignmentAnalyzer;
@@ -51,7 +51,7 @@ class AstLoopAssignmentAnalyzer final
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  static int GetVariableIndex(Scope* scope, Variable* var);
+  static int GetVariableIndex(DeclarationScope* scope, Variable* var);
 
  private:
   CompilationInfo* info_;
