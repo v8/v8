@@ -662,6 +662,22 @@ RUNTIME_FUNCTION(Runtime_InNewSpace) {
   return isolate->heap()->ToBoolean(isolate->heap()->InNewSpace(obj));
 }
 
+RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  if (!function->shared()->HasAsmWasmData()) {
+    // Doesn't have wasm data.
+    return isolate->heap()->ToBoolean(false);
+  }
+  if (function->shared()->code() !=
+      isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
+    // Hasn't been compiled yet.
+    return isolate->heap()->ToBoolean(false);
+  }
+  return isolate->heap()->ToBoolean(true);
+}
 
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)       \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                  \

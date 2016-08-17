@@ -7307,6 +7307,9 @@ class SharedFunctionInfo: public HeapObject {
   // Whether this function was created from a FunctionDeclaration.
   DECL_BOOLEAN_ACCESSORS(is_declaration)
 
+  // Indicates that asm->wasm conversion failed and should not be re-attempted.
+  DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
+
   inline FunctionKind kind();
   inline void set_kind(FunctionKind kind);
 
@@ -7579,6 +7582,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsAsyncFunction,
     kDeserialized,
     kIsDeclaration,
+    kIsAsmWasmBroken,
     kCompilerHintsCount,  // Pseudo entry
   };
   // Add hints for other modes when they're added.

@@ -1446,23 +1446,48 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   Label failed;
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    // Preserve argument count for later compare.
+    __ Move(x4, x0);
     // Push a copy of the target function and the new target.
     __ SmiTag(x0);
     // Push another copy as a parameter to the runtime call.
     __ Push(x0, x1, x3, x1);
 
     // Copy arguments from caller (stdlib, foreign, heap).
-    for (int i = 2; i >= 0; --i) {
-      __ ldr(x4, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
-                                    i * kPointerSize));
-      __ push(x4);
+    Label args_done;
+    for (int j = 0; j < 4; ++j) {
+      Label over;
+      if (j < 3) {
+        __ cmp(x4, Operand(j));
+        __ B(ne, &over);
+      }
+      for (int i = j - 1; i >= 0; --i) {
+        __ ldr(x4, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
+                                      i * kPointerSize));
+        __ push(x4);
+      }
+      for (int i = 0; i < 3 - j; ++i) {
+        __ PushRoot(Heap::kUndefinedValueRootIndex);
+      }
+      if (j < 3) {
+        __ jmp(&args_done);
+        __ bind(&over);
+      }
     }
+    __ bind(&args_done);
+
     // Call runtime, on success unwind frame, and parent frame.
     __ CallRuntime(Runtime::kInstantiateAsmJs, 4);
     // A smi 0 is returned on failure, an object on success.
     __ JumpIfSmi(x0, &failed);
+
+    __ Drop(2);
+    __ pop(x4);
+    __ SmiUntag(x4);
     scope.GenerateLeaveFrame();
-    __ Drop(4);
+
+    __ add(x4, x4, Operand(1));
+    __ Drop(x4);
     __ Ret();
 
     __ bind(&failed);

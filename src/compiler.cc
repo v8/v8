@@ -476,7 +476,8 @@ int CodeAndMetadataSize(CompilationInfo* info) {
 bool GenerateUnoptimizedCode(CompilationInfo* info) {
   bool success;
   EnsureFeedbackMetadata(info);
-  if (FLAG_validate_asm && info->scope()->asm_module()) {
+  if (FLAG_validate_asm && info->scope()->asm_module() &&
+      !info->shared_info()->is_asm_wasm_broken()) {
     MaybeHandle<FixedArray> wasm_data;
     wasm_data = AsmJs::ConvertAsmToWasm(info->parse_info());
     if (!wasm_data.is_null()) {
@@ -1436,7 +1437,9 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     // TODO(4280): For now we play it safe and remove the bytecode array when we
     // switch to baseline code. We might consider keeping around the bytecode so
     // that it can be used as the "source of truth" eventually.
-    if (!FLAG_ignition_preserve_bytecode) shared->ClearBytecodeArray();
+    if (shared->HasBytecodeArray()) {
+      if (!FLAG_ignition_preserve_bytecode) shared->ClearBytecodeArray();
+    }
 
     // The scope info might not have been set if a lazily compiled
     // function is inlined before being called for the first time.

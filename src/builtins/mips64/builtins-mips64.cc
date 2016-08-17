@@ -1438,21 +1438,44 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Push a copy of the target function and the new target.
     // Push function as parameter to the runtime call.
+    __ Move(t2, a0);
     __ SmiTag(a0);
     __ Push(a0, a1, a3, a1);
 
     // Copy arguments from caller (stdlib, foreign, heap).
-    for (int i = 2; i >= 0; --i) {
-      __ lw(a3, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
-                                   i * kPointerSize));
-      __ push(a3);
+    Label args_done;
+    for (int j = 0; j < 4; ++j) {
+      Label over;
+      if (j < 3) {
+        __ Branch(&over, ne, t2, Operand(j));
+      }
+      for (int i = j - 1; i >= 0; --i) {
+        __ lw(t2, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
+                                     i * kPointerSize));
+        __ push(t2);
+      }
+      for (int i = 0; i < 3 - j; ++i) {
+        __ PushRoot(Heap::kUndefinedValueRootIndex);
+      }
+      if (j < 3) {
+        __ jmp(&args_done);
+        __ bind(&over);
+      }
     }
+    __ bind(&args_done);
+
     // Call runtime, on success unwind frame, and parent frame.
     __ CallRuntime(Runtime::kInstantiateAsmJs, 4);
     // A smi 0 is returned on failure, an object on success.
-    __ JumpIfSmi(a0, &failed);
+    __ JumpIfSmi(v0, &failed);
+
+    __ Drop(2);
+    __ pop(t2);
+    __ SmiUntag(t2);
     scope.GenerateLeaveFrame();
-    __ Drop(4);
+
+    __ Addu(t2, t2, Operand(1));
+    __ Lsa(sp, sp, t2, kPointerSizeLog2);
     __ Ret();
 
     __ bind(&failed);
