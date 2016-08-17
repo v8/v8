@@ -113,9 +113,20 @@ class ValueDeserializer {
    */
   MaybeHandle<Object> ReadObject() WARN_UNUSED_RESULT;
 
+  /*
+   * Reads an object, consuming the entire buffer.
+   *
+   * This is required for the legacy "version 0" format, which did not allow
+   * reference deduplication, and instead relied on a "stack" model for
+   * deserializing, with the contents of objects and arrays provided first.
+   */
+  MaybeHandle<Object> ReadObjectUsingEntireBufferForLegacyFormat()
+      WARN_UNUSED_RESULT;
+
  private:
   // Reading the wire format.
   Maybe<SerializationTag> PeekTag() const WARN_UNUSED_RESULT;
+  void ConsumeTag(SerializationTag peeked_tag);
   Maybe<SerializationTag> ReadTag() WARN_UNUSED_RESULT;
   template <typename T>
   Maybe<T> ReadVarint() WARN_UNUSED_RESULT;

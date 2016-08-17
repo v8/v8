@@ -108,6 +108,34 @@ class ValueSerializerTest : public TestWithIsolate {
     ASSERT_FALSE(try_catch.HasCaught());
   }
 
+  template <typename OutputFunctor>
+  void DecodeTestForVersion0(const std::vector<uint8_t>& data,
+                             const OutputFunctor& output_functor) {
+    Context::Scope scope(deserialization_context());
+    TryCatch try_catch(isolate());
+    // TODO(jbroman): Use the public API once it exists.
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    i::HandleScope handle_scope(internal_isolate);
+    i::ValueDeserializer deserializer(
+        internal_isolate,
+        i::Vector<const uint8_t>(&data[0], static_cast<int>(data.size())));
+    // TODO(jbroman): Enable legacy support.
+    ASSERT_TRUE(deserializer.ReadHeader().FromMaybe(false));
+    // TODO(jbroman): Check version 0.
+    Local<Value> result;
+    ASSERT_TRUE(ToLocal<Value>(
+        deserializer.ReadObjectUsingEntireBufferForLegacyFormat(), &result));
+    ASSERT_FALSE(result.IsEmpty());
+    ASSERT_FALSE(try_catch.HasCaught());
+    ASSERT_TRUE(deserialization_context()
+                    ->Global()
+                    ->CreateDataProperty(deserialization_context_,
+                                         StringFromUtf8("result"), result)
+                    .FromMaybe(false));
+    output_functor(result);
+    ASSERT_FALSE(try_catch.HasCaught());
+  }
+
   void InvalidDecodeTest(const std::vector<uint8_t>& data) {
     Context::Scope scope(deserialization_context());
     TryCatch try_catch(isolate());
@@ -625,6 +653,58 @@ TEST_F(ValueSerializerTest, RoundTripTrickyGetters) {
                       EXPECT_NE(std::string::npos,
                                 Utf8Value(message->Get()).find("sentinel"));
                     });
+}
+
+TEST_F(ValueSerializerTest, DecodeDictionaryObjectVersion0) {
+  // Empty object.
+  DecodeTestForVersion0(
+      {0x7b, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsObject());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === Object.prototype"));
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getOwnPropertyNames(result).length === 0"));
+      });
+  // String key.
+  DecodeTestForVersion0(
+      {0x53, 0x01, 0x61, 0x49, 0x54, 0x7b, 0x01, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsObject());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === Object.prototype"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.hasOwnProperty('a')"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === 42"));
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getOwnPropertyNames(result).length === 1"));
+      });
+  // Integer key (treated as a string, but may be encoded differently).
+  DecodeTestForVersion0(
+      {0x49, 0x54, 0x53, 0x01, 0x61, 0x7b, 0x01, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsObject());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.hasOwnProperty('42')"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[42] === 'a'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getOwnPropertyNames(result).length === 1"));
+      });
+  // Key order must be preserved.
+  DecodeTestForVersion0(
+      {0x53, 0x01, 0x78, 0x49, 0x02, 0x53, 0x01, 0x79, 0x49, 0x04, 0x53, 0x01,
+       0x61, 0x49, 0x06, 0x7b, 0x03, 0x00},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getOwnPropertyNames(result).toString() === 'x,y,a'"));
+      });
+  // A property and an element.
+  DecodeTestForVersion0(
+      {0x49, 0x54, 0x53, 0x01, 0x61, 0x53, 0x01, 0x61, 0x49, 0x54, 0x7b, 0x02},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getOwnPropertyNames(result).toString() === '42,a'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[42] === 'a'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === 42"));
+      });
 }
 
 }  // namespace

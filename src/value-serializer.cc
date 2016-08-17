@@ -340,6 +340,12 @@ Maybe<SerializationTag> ValueDeserializer::PeekTag() const {
   return Just(tag);
 }
 
+void ValueDeserializer::ConsumeTag(SerializationTag peeked_tag) {
+  SerializationTag actual_tag = ReadTag().ToChecked();
+  DCHECK(actual_tag == peeked_tag);
+  USE(actual_tag);
+}
+
 Maybe<SerializationTag> ValueDeserializer::ReadTag() {
   SerializationTag tag;
   do {
@@ -517,9 +523,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     SerializationTag tag;
     if (!PeekTag().To(&tag)) return Nothing<uint32_t>();
     if (tag == end_tag) {
-      SerializationTag consumed_tag = ReadTag().ToChecked();
-      USE(consumed_tag);
-      DCHECK(tag == consumed_tag);
+      ConsumeTag(end_tag);
       return Just(num_properties);
     }
 
@@ -567,6 +571,78 @@ void ValueDeserializer::AddObjectWithID(uint32_t id,
     id_map_ = Handle<SeededNumberDictionary>::cast(
         isolate_->global_handles()->Create(*new_dictionary));
   }
+}
+
+static MaybeHandle<JSObject> CreateJSObjectFromKeyValuePairs(
+    Isolate* isolate, Handle<Object>* data, uint32_t num_properties) {
+  Handle<JSObject> object =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  for (unsigned i = 0; i < 2 * num_properties; i += 2) {
+    Handle<Object> key = data[i];
+    Handle<Object> value = data[i + 1];
+    bool success;
+    LookupIterator it = LookupIterator::PropertyOrElement(
+        isolate, object, key, &success, LookupIterator::OWN);
+    if (!success ||
+        JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
+            .is_null()) {
+      return MaybeHandle<JSObject>();
+    }
+  }
+  return object;
+}
+
+MaybeHandle<Object>
+ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
+  if (version_ > 0) return MaybeHandle<Object>();
+
+  HandleScope scope(isolate_);
+  std::vector<Handle<Object>> stack;
+  while (position_ < end_) {
+    SerializationTag tag;
+    if (!PeekTag().To(&tag)) break;
+
+    Handle<Object> new_object;
+    switch (tag) {
+      case SerializationTag::kEndJSObject: {
+        ConsumeTag(SerializationTag::kEndJSObject);
+
+        // JS Object: Read the last 2*n values from the stack and use them as
+        // key-value pairs.
+        uint32_t num_properties;
+        if (!ReadVarint<uint32_t>().To(&num_properties) ||
+            stack.size() / 2 < num_properties) {
+          return MaybeHandle<Object>();
+        }
+
+        size_t begin_properties = stack.size() - 2 * num_properties;
+        Handle<Object>* data =
+            num_properties ? &stack[begin_properties] : nullptr;
+        if (!CreateJSObjectFromKeyValuePairs(isolate_, data, num_properties)
+                 .ToHandle(&new_object)) {
+          return MaybeHandle<Object>();
+        }
+
+        stack.resize(begin_properties);
+        break;
+      }
+      default:
+        if (!ReadObject().ToHandle(&new_object)) return MaybeHandle<Object>();
+        break;
+    }
+    stack.push_back(new_object);
+  }
+
+// Nothing remains but padding.
+#ifdef DEBUG
+  while (position_ < end_) {
+    DCHECK(*position_++ == static_cast<uint8_t>(SerializationTag::kPadding));
+  }
+#endif
+  position_ = end_;
+
+  if (stack.size() != 1) return MaybeHandle<Object>();
+  return scope.CloseAndEscape(stack[0]);
 }
 
 }  // namespace internal
