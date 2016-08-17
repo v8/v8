@@ -384,6 +384,9 @@ function getGetOption(options, caller) {
 
 
 /**
+ * Ecma 402 9.2.5
+ * TODO(jshin): relevantExtensionKeys and localeData need to be taken into
+ * account per spec.
  * Compares a BCP 47 language priority list requestedLocales against the locales
  * in availableLocales and determines the best available language to meet the
  * request. Two algorithms are available to match the locales: the Lookup
@@ -467,6 +470,11 @@ function bestFitMatcher(service, requestedLocales) {
  * Parses Unicode extension into key - value map.
  * Returns empty object if the extension string is invalid.
  * We are not concerned with the validity of the values at this point.
+ * 'attribute' in RFC 6047 is not supported. Keys without explicit
+ * values are assigned UNDEFINED.
+ * TODO(jshin): Fix the handling of 'attribute' (in RFC 6047, but none
+ * has been defined so that it's not used) and boolean keys without
+ * an explicit value.
  */
 function parseExtension(extension) {
   var extensionSplit = %StringSplit(extension, '-', kMaxUint32);
@@ -480,20 +488,32 @@ function parseExtension(extension) {
   // Key is {2}alphanum, value is {3,8}alphanum.
   // Some keys may not have explicit values (booleans).
   var extensionMap = {};
-  var previousKey = UNDEFINED;
+  var key = UNDEFINED;
+  var value = UNDEFINED;
   for (var i = 2; i < extensionSplit.length; ++i) {
     var length = extensionSplit[i].length;
     var element = extensionSplit[i];
     if (length === 2) {
-      extensionMap[element] = UNDEFINED;
-      previousKey = element;
-    } else if (length >= 3 && length <=8 && !IS_UNDEFINED(previousKey)) {
-      extensionMap[previousKey] = element;
-      previousKey = UNDEFINED;
+      if (!IS_UNDEFINED(key)) {
+        if (!(key in extensionMap)) {
+          extensionMap[key] = value;
+        }
+        value = UNDEFINED;
+      }
+      key = element;
+    } else if (length >= 3 && length <= 8 && !IS_UNDEFINED(key)) {
+      if (IS_UNDEFINED(value)) {
+        value = element;
+      } else {
+        value = value + "-" + element;
+      }
     } else {
       // There is a value that's too long, or that doesn't have a key.
       return {};
     }
+  }
+  if (!IS_UNDEFINED(key) && !(key in extensionMap)) {
+    extensionMap[key] = value;
   }
 
   return extensionMap;
@@ -917,6 +937,9 @@ function initializeCollator(collator, locales, options) {
 
   var locale = resolveLocale('collator', locales, options);
 
+  // TODO(jshin): ICU now can take kb, kc, etc. Switch over to using ICU
+  // directly. See Collator::InitializeCollator and
+  // Collator::CreateICUCollator in src/i18n.cc
   // ICU can't take kb, kc... parameters through localeID, so we need to pass
   // them as options.
   // One exception is -co- which has to be part of the extension, but only for
@@ -1664,21 +1687,13 @@ InstallFunction(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
     }
 
     /**
-     * Maps ICU calendar names into LDML type.
+     * Maps ICU calendar names to LDML/BCP47 types for key 'ca'.
+     * See typeMap section in third_party/icu/source/data/misc/keyTypeData.txt
+     * and
+     * http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
      */
     var ICU_CALENDAR_MAP = {
       'gregorian': 'gregory',
-      'japanese': 'japanese',
-      'buddhist': 'buddhist',
-      'roc': 'roc',
-      'persian': 'persian',
-      'islamic-civil': 'islamicc',
-      'islamic': 'islamic',
-      'hebrew': 'hebrew',
-      'chinese': 'chinese',
-      'indian': 'indian',
-      'coptic': 'coptic',
-      'ethiopic': 'ethiopic',
       'ethiopic-amete-alem': 'ethioaa'
     };
 
@@ -1686,8 +1701,7 @@ InstallFunction(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
     var fromPattern = fromLDMLString(format[resolvedSymbol][patternSymbol]);
     var userCalendar = ICU_CALENDAR_MAP[format[resolvedSymbol].calendar];
     if (IS_UNDEFINED(userCalendar)) {
-      // Use ICU name if we don't have a match. It shouldn't happen, but
-      // it would be too strict to throw for this.
+      // No match means that ICU's legacy name is identical to LDML/BCP type.
       userCalendar = format[resolvedSymbol].calendar;
     }
 

@@ -157,6 +157,9 @@ void SetResolvedDateSettings(Isolate* isolate,
 
   // Set time zone and calendar.
   const icu::Calendar* calendar = date_format->getCalendar();
+  // getType() returns legacy calendar type name instead of LDML/BCP47 calendar
+  // key values. i18n.js maps them to BCP47 values for key "ca".
+  // TODO(jshin): Consider doing it here, instead.
   const char* calendar_name = calendar->getType();
   JSObject::SetProperty(resolved, factory->NewStringFromStaticChars("calendar"),
                         factory->NewStringFromAsciiChecked(calendar_name),
