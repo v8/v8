@@ -33,8 +33,6 @@
   'dfg-inline-arguments-become-int32': [PASS, FAIL],
   'dfg-inline-arguments-reset': [PASS, FAIL],
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
-  # TODO(turbofan): We run out of stack earlier on 64-bit for now.
-  'fast/js/deep-recursion-test': [PASS, NO_VARIANTS],
   # Irregexp interpreter overflows stack. We should just not crash.
   'fast/js/regexp-stack-overflow': [PASS, FAIL],
 }],  # ALWAYS
