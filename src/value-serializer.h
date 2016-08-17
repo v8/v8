@@ -11,7 +11,9 @@
 #include "include/v8.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
+#include "src/identity-map.h"
 #include "src/vector.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -32,7 +34,7 @@ enum class SerializationTag : uint8_t;
  */
 class ValueSerializer {
  public:
-  ValueSerializer();
+  explicit ValueSerializer(Isolate* isolate);
   ~ValueSerializer();
 
   /*
@@ -68,8 +70,26 @@ class ValueSerializer {
   void WriteSmi(Smi* smi);
   void WriteHeapNumber(HeapNumber* number);
   void WriteString(Handle<String> string);
+  Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver) WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSObject(Handle<JSObject> object) WARN_UNUSED_RESULT;
 
+  /*
+   * Reads the specified keys from the object and writes key-value pairs to the
+   * buffer. Returns the number of keys actually written, which may be smaller
+   * if some keys are not own properties when accessed.
+   */
+  Maybe<uint32_t> WriteJSObjectProperties(
+      Handle<JSObject> object, Handle<FixedArray> keys) WARN_UNUSED_RESULT;
+
+  Isolate* const isolate_;
   std::vector<uint8_t> buffer_;
+  Zone zone_;
+
+  // To avoid extra lookups in the identity map, ID+1 is actually stored in the
+  // map (checking if the used identity is zero is the fast way of checking if
+  // the entry is new).
+  IdentityMap<uint32_t> id_map_;
+  uint32_t next_id_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(ValueSerializer);
 };
@@ -95,6 +115,7 @@ class ValueDeserializer {
 
  private:
   // Reading the wire format.
+  Maybe<SerializationTag> PeekTag() const WARN_UNUSED_RESULT;
   Maybe<SerializationTag> ReadTag() WARN_UNUSED_RESULT;
   template <typename T>
   Maybe<T> ReadVarint() WARN_UNUSED_RESULT;
@@ -107,11 +128,26 @@ class ValueDeserializer {
   // The tag is assumed to have already been read.
   MaybeHandle<String> ReadUtf8String() WARN_UNUSED_RESULT;
   MaybeHandle<String> ReadTwoByteString() WARN_UNUSED_RESULT;
+  MaybeHandle<JSObject> ReadJSObject() WARN_UNUSED_RESULT;
+
+  /*
+   * Reads key-value pairs into the object until the specified end tag is
+   * encountered. If successful, returns the number of properties read.
+   */
+  Maybe<uint32_t> ReadJSObjectProperties(Handle<JSObject> object,
+                                         SerializationTag end_tag);
+
+  // Manipulating the map from IDs to reified objects.
+  bool HasObjectWithID(uint32_t id);
+  MaybeHandle<JSReceiver> GetObjectWithID(uint32_t id);
+  void AddObjectWithID(uint32_t id, Handle<JSReceiver> object);
 
   Isolate* const isolate_;
   const uint8_t* position_;
   const uint8_t* const end_;
   uint32_t version_ = 0;
+  Handle<SeededNumberDictionary> id_map_;  // Always a global handle.
+  uint32_t next_id_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(ValueDeserializer);
 };

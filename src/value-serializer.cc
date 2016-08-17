@@ -54,9 +54,18 @@ enum class SerializationTag : uint8_t {
   // byteLength:uint32_t, then raw data
   kUtf8String = 'S',
   kTwoByteString = 'c',
+  // Reference to a serialized object. objectID:uint32_t
+  kObjectReference = '^',
+  // Beginning of a JS object.
+  kBeginJSObject = 'o',
+  // End of a JS object. numProperties:uint32_t
+  kEndJSObject = '{',
 };
 
-ValueSerializer::ValueSerializer() {}
+ValueSerializer::ValueSerializer(Isolate* isolate)
+    : isolate_(isolate),
+      zone_(isolate->allocator()),
+      id_map_(isolate->heap(), &zone_) {}
 
 ValueSerializer::~ValueSerializer() {}
 
@@ -144,6 +153,8 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
       if (object->IsString()) {
         WriteString(Handle<String>::cast(object));
         return Just(true);
+      } else if (object->IsJSReceiver()) {
+        return WriteJSReceiver(Handle<JSReceiver>::cast(object));
       }
       UNIMPLEMENTED();
       return Nothing<bool>();
@@ -218,13 +229,95 @@ void ValueSerializer::WriteString(Handle<String> string) {
   }
 }
 
+Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
+  // If the object has already been serialized, just write its ID.
+  uint32_t* id_map_entry = id_map_.Get(receiver);
+  if (uint32_t id = *id_map_entry) {
+    WriteTag(SerializationTag::kObjectReference);
+    WriteVarint(id - 1);
+    return Just(true);
+  }
+
+  // Otherwise, allocate an ID for it.
+  uint32_t id = next_id_++;
+  *id_map_entry = id + 1;
+
+  // Eliminate callable and exotic objects, which should not be serialized.
+  InstanceType instance_type = receiver->map()->instance_type();
+  if (receiver->IsCallable() || instance_type <= LAST_SPECIAL_RECEIVER_TYPE) {
+    return Nothing<bool>();
+  }
+
+  // If we are at the end of the stack, abort. This function may recurse.
+  if (StackLimitCheck(isolate_).HasOverflowed()) return Nothing<bool>();
+
+  HandleScope scope(isolate_);
+  switch (instance_type) {
+    case JS_OBJECT_TYPE:
+    case JS_API_OBJECT_TYPE:
+      return WriteJSObject(Handle<JSObject>::cast(receiver));
+    default:
+      UNIMPLEMENTED();
+      break;
+  }
+  return Nothing<bool>();
+}
+
+Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
+  WriteTag(SerializationTag::kBeginJSObject);
+  Handle<FixedArray> keys;
+  uint32_t properties_written;
+  if (!KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+                               ENUMERABLE_STRINGS)
+           .ToHandle(&keys) ||
+      !WriteJSObjectProperties(object, keys).To(&properties_written)) {
+    return Nothing<bool>();
+  }
+  WriteTag(SerializationTag::kEndJSObject);
+  WriteVarint<uint32_t>(properties_written);
+  return Just(true);
+}
+
+Maybe<uint32_t> ValueSerializer::WriteJSObjectProperties(
+    Handle<JSObject> object, Handle<FixedArray> keys) {
+  uint32_t properties_written = 0;
+  int length = keys->length();
+  for (int i = 0; i < length; i++) {
+    Handle<Object> key(keys->get(i), isolate_);
+
+    bool success;
+    LookupIterator it = LookupIterator::PropertyOrElement(
+        isolate_, object, key, &success, LookupIterator::OWN);
+    DCHECK(success);
+    Handle<Object> value;
+    if (!Object::GetProperty(&it).ToHandle(&value)) return Nothing<uint32_t>();
+
+    // If the property is no longer found, do not serialize it.
+    // This could happen if a getter deleted the property.
+    if (!it.IsFound()) continue;
+
+    if (!WriteObject(key).FromMaybe(false) ||
+        !WriteObject(value).FromMaybe(false)) {
+      return Nothing<uint32_t>();
+    }
+
+    properties_written++;
+  }
+  return Just(properties_written);
+}
+
 ValueDeserializer::ValueDeserializer(Isolate* isolate,
                                      Vector<const uint8_t> data)
     : isolate_(isolate),
       position_(data.start()),
-      end_(data.start() + data.length()) {}
+      end_(data.start() + data.length()),
+      id_map_(Handle<SeededNumberDictionary>::cast(
+          isolate->global_handles()->Create(
+              *SeededNumberDictionary::New(isolate, 0)))) {}
 
-ValueDeserializer::~ValueDeserializer() {}
+ValueDeserializer::~ValueDeserializer() {
+  GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
+}
 
 Maybe<bool> ValueDeserializer::ReadHeader() {
   if (position_ < end_ &&
@@ -234,6 +327,17 @@ Maybe<bool> ValueDeserializer::ReadHeader() {
     if (version_ > kLatestVersion) return Nothing<bool>();
   }
   return Just(true);
+}
+
+Maybe<SerializationTag> ValueDeserializer::PeekTag() const {
+  const uint8_t* peek_position = position_;
+  SerializationTag tag;
+  do {
+    if (peek_position >= end_) return Nothing<SerializationTag>();
+    tag = static_cast<SerializationTag>(*peek_position);
+    peek_position++;
+  } while (tag == SerializationTag::kPadding);
+  return Just(tag);
 }
 
 Maybe<SerializationTag> ValueDeserializer::ReadTag() {
@@ -337,6 +441,13 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
       return ReadUtf8String();
     case SerializationTag::kTwoByteString:
       return ReadTwoByteString();
+    case SerializationTag::kObjectReference: {
+      uint32_t id;
+      if (!ReadVarint<uint32_t>().To(&id)) return MaybeHandle<Object>();
+      return GetObjectWithID(id);
+    }
+    case SerializationTag::kBeginJSObject:
+      return ReadJSObject();
     default:
       return MaybeHandle<Object>();
   }
@@ -375,6 +486,87 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   // Warning: this uses host endianness.
   memcpy(string->GetChars(), bytes.begin(), bytes.length());
   return string;
+}
+
+MaybeHandle<JSObject> ValueDeserializer::ReadJSObject() {
+  // If we are at the end of the stack, abort. This function may recurse.
+  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSObject>();
+
+  uint32_t id = next_id_++;
+  HandleScope scope(isolate_);
+  Handle<JSObject> object =
+      isolate_->factory()->NewJSObject(isolate_->object_function());
+  AddObjectWithID(id, object);
+
+  uint32_t num_properties;
+  uint32_t expected_num_properties;
+  if (!ReadJSObjectProperties(object, SerializationTag::kEndJSObject)
+           .To(&num_properties) ||
+      !ReadVarint<uint32_t>().To(&expected_num_properties) ||
+      num_properties != expected_num_properties) {
+    return MaybeHandle<JSObject>();
+  }
+
+  DCHECK(HasObjectWithID(id));
+  return scope.CloseAndEscape(object);
+}
+
+Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
+    Handle<JSObject> object, SerializationTag end_tag) {
+  for (uint32_t num_properties = 0;; num_properties++) {
+    SerializationTag tag;
+    if (!PeekTag().To(&tag)) return Nothing<uint32_t>();
+    if (tag == end_tag) {
+      SerializationTag consumed_tag = ReadTag().ToChecked();
+      USE(consumed_tag);
+      DCHECK(tag == consumed_tag);
+      return Just(num_properties);
+    }
+
+    Handle<Object> key;
+    if (!ReadObject().ToHandle(&key)) return Nothing<uint32_t>();
+    Handle<Object> value;
+    if (!ReadObject().ToHandle(&value)) return Nothing<uint32_t>();
+
+    bool success;
+    LookupIterator it = LookupIterator::PropertyOrElement(
+        isolate_, object, key, &success, LookupIterator::OWN);
+    if (!success ||
+        JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
+            .is_null()) {
+      return Nothing<uint32_t>();
+    }
+  }
+}
+
+bool ValueDeserializer::HasObjectWithID(uint32_t id) {
+  return id_map_->Has(isolate_, id);
+}
+
+MaybeHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
+  int index = id_map_->FindEntry(isolate_, id);
+  if (index == SeededNumberDictionary::kNotFound) {
+    return MaybeHandle<JSReceiver>();
+  }
+  Object* value = id_map_->ValueAt(index);
+  DCHECK(value->IsJSReceiver());
+  return Handle<JSReceiver>(JSReceiver::cast(value), isolate_);
+}
+
+void ValueDeserializer::AddObjectWithID(uint32_t id,
+                                        Handle<JSReceiver> object) {
+  DCHECK(!HasObjectWithID(id));
+  const bool used_as_prototype = false;
+  Handle<SeededNumberDictionary> new_dictionary =
+      SeededNumberDictionary::AtNumberPut(id_map_, id, object,
+                                          used_as_prototype);
+
+  // If the dictionary was reallocated, update the global handle.
+  if (!new_dictionary.is_identical_to(id_map_)) {
+    GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
+    id_map_ = Handle<SeededNumberDictionary>::cast(
+        isolate_->global_handles()->Create(*new_dictionary));
+  }
 }
 
 }  // namespace internal
