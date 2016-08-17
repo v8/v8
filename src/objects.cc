@@ -16346,7 +16346,7 @@ Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
   int capacity = table->Capacity();
   int nof = table->NumberOfElements() + n;
 
-  if (table->HasSufficientCapacity(n)) return table;
+  if (table->HasSufficientCapacityToAdd(n)) return table;
 
   const int kMinCapacityForPretenure = 256;
   bool should_pretenure = pretenure == TENURED ||
@@ -16362,16 +16362,16 @@ Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
   return new_table;
 }
 
-
 template <typename Derived, typename Shape, typename Key>
-bool HashTable<Derived, Shape, Key>::HasSufficientCapacity(int n) {
+bool HashTable<Derived, Shape, Key>::HasSufficientCapacityToAdd(
+    int number_of_additional_elements) {
   int capacity = Capacity();
-  int nof = NumberOfElements() + n;
+  int nof = NumberOfElements() + number_of_additional_elements;
   int nod = NumberOfDeletedElements();
   // Return true if:
-  //   50% is still free after adding n elements and
+  //   50% is still free after adding number_of_additional_elements elements and
   //   at most 50% of the free elements are deleted elements.
-  if (nod <= (capacity - nof) >> 1) {
+  if ((nof < capacity) && ((nod <= (capacity - nof) >> 1))) {
     int needed_free = nof >> 1;
     if (nof + needed_free <= capacity) return true;
   }
@@ -17189,7 +17189,8 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
 void CompilationCacheTable::Age() {
   DisallowHeapAllocation no_allocation;
   Object* the_hole_value = GetHeap()->the_hole_value();
-  for (int entry = 0, size = Capacity(); entry < size; entry++) {
+  uint32_t capacity = Capacity();
+  for (int entry = 0, size = capacity; entry < size; entry++) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
 
@@ -17212,6 +17213,16 @@ void CompilationCacheTable::Age() {
       }
     }
   }
+  // Wipe deleted entries.
+  Heap* heap = GetHeap();
+  Object* the_hole = heap->the_hole_value();
+  Object* undefined = heap->undefined_value();
+  for (uint32_t current = 0; current < capacity; current++) {
+    if (get(EntryToIndex(current)) == the_hole) {
+      set(EntryToIndex(current), undefined);
+    }
+  }
+  SetNumberOfDeletedElements(0);
 }
 
 
@@ -17312,7 +17323,7 @@ void Dictionary<Derived, Shape, Key>::SetRequiresCopyOnCapacityChange() {
   DCHECK_EQ(0, DerivedHashTable::NumberOfDeletedElements());
   // Make sure that HashTable::EnsureCapacity will create a copy.
   DerivedHashTable::SetNumberOfDeletedElements(DerivedHashTable::Capacity());
-  DCHECK(!DerivedHashTable::HasSufficientCapacity(1));
+  DCHECK(!DerivedHashTable::HasSufficientCapacityToAdd(1));
 }
 
 
@@ -17706,10 +17717,23 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
     return table;
   }
 
-  // Rehash if more than 33% of the entries are deleted entries.
+  // Rehash if more than 25% of the entries are deleted entries.
   // TODO(jochen): Consider to shrink the fixed array in place.
   if ((table->NumberOfDeletedElements() << 1) > table->NumberOfElements()) {
     table->Rehash(isolate->factory()->undefined_value());
+  }
+  // If we're out of luck, we didn't get a GC recently, and so rehashing
+  // isn't enough to avoid a crash.
+  if (!table->HasSufficientCapacityToAdd(1)) {
+    int nof = table->NumberOfElements() + 1;
+    int capacity = ObjectHashTable::ComputeCapacity(nof * 2);
+    if (capacity > ObjectHashTable::kMaxCapacity) {
+      for (size_t i = 0; i < 2; ++i) {
+        isolate->heap()->CollectAllGarbage(
+            Heap::kFinalizeIncrementalMarkingMask, "full object hash table");
+      }
+      table->Rehash(isolate->factory()->undefined_value());
+    }
   }
 
   // Check whether the hash table should be extended.
