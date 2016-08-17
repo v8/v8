@@ -89,9 +89,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
     DCHECK_EQ(SCRIPT_SCOPE, scope_type);
   } else {
     asm_function_ = outer_scope_->asm_module_;
-    // Inherit the language mode from the parent scope unless we're a module
-    // scope.
-    if (!is_module_scope()) language_mode_ = outer_scope->language_mode_;
+    language_mode_ = outer_scope->language_mode_;
     force_context_allocation_ =
         !is_function_scope() && outer_scope->has_forced_context_allocation();
     outer_scope_->AddInnerScope(this);
