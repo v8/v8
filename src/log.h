@@ -179,20 +179,9 @@ class Logger : public CodeEventListener {
   void RegExpCodeCreateEvent(AbstractCode* code, String* source);
   // Emits a code move event.
   void CodeMoveEvent(AbstractCode* from, Address to);
-  // Emits a code line info add event with Postion type.
-  void CodeLinePosInfoAddPositionEvent(void* jit_handler_data,
-                                       int pc_offset,
-                                       int position);
-  // Emits a code line info add event with StatementPostion type.
-  void CodeLinePosInfoAddStatementPositionEvent(void* jit_handler_data,
-                                                int pc_offset,
-                                                int position);
-  // Emits a code line info start to record event
-  void CodeStartLinePosInfoRecordEvent(void** jit_handler_data_out);
-  // Emits a code line info finish record event.
-  // It's the callee's responsibility to dispose the parameter jit_handler_data.
-  void CodeEndLinePosInfoRecordEvent(AbstractCode* code,
-                                     void* jit_handler_data);
+  // Emits a code line info record event.
+  void CodeLinePosInfoRecordEvent(AbstractCode* code,
+                                  ByteArray* source_position_table);
 
   void SharedFunctionInfoMoveEvent(Address from, Address to);
 
@@ -346,7 +335,6 @@ class Logger : public CodeEventListener {
   base::ElapsedTimer timer_;
 
   friend class CpuProfiler;
-  friend class SourcePositionTableBuilder;
 };
 
 #define TIMER_EVENTS_LIST(V)    \

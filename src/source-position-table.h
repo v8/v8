@@ -34,29 +34,25 @@ class SourcePositionTableBuilder {
  public:
   enum RecordingMode { OMIT_SOURCE_POSITIONS, RECORD_SOURCE_POSITIONS };
 
-  SourcePositionTableBuilder(Isolate* isolate, Zone* zone,
+  SourcePositionTableBuilder(Zone* zone,
                              RecordingMode mode = RECORD_SOURCE_POSITIONS);
 
-  void EndJitLogging(AbstractCode* code);
-
   void AddPosition(size_t code_offset, int source_position, bool is_statement);
-  Handle<ByteArray> ToSourcePositionTable();
+
+  Handle<ByteArray> ToSourcePositionTable(Isolate* isolate,
+                                          Handle<AbstractCode> code);
 
  private:
   void AddEntry(const PositionTableEntry& entry);
 
   inline bool Omit() const { return mode_ == OMIT_SOURCE_POSITIONS; }
 
-  Isolate* isolate_;
   RecordingMode mode_;
   ZoneVector<byte> bytes_;
 #ifdef ENABLE_SLOW_DCHECKS
   ZoneVector<PositionTableEntry> raw_entries_;
 #endif
   PositionTableEntry previous_;  // Previously written entry, to compute delta.
-  // Currently jit_handler_data_ is used to store JITHandler-specific data
-  // over the lifetime of a SourcePositionTableBuilder.
-  void* jit_handler_data_;
 };
 
 class SourcePositionTableIterator {

@@ -5341,6 +5341,14 @@ ByteArray* AbstractCode::source_position_table() {
   }
 }
 
+void AbstractCode::set_source_position_table(ByteArray* source_position_table) {
+  if (IsCode()) {
+    GetCode()->set_source_position_table(source_position_table);
+  } else {
+    GetBytecodeArray()->set_source_position_table(source_position_table);
+  }
+}
+
 int AbstractCode::LookupRangeInHandlerTable(
     int code_offset, int* data, HandlerTable::CatchPrediction* prediction) {
   if (IsCode()) {

@@ -55,7 +55,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       jump_tables_(nullptr),
       ools_(nullptr),
       osr_pc_offset_(-1),
-      source_position_table_builder_(info->isolate(), code->zone(),
+      source_position_table_builder_(code->zone(),
                                      info->SourcePositionRecordingMode()) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
@@ -217,9 +217,9 @@ Handle<Code> CodeGenerator::GenerateCode() {
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
   Handle<ByteArray> source_positions =
-      source_position_table_builder_.ToSourcePositionTable();
+      source_position_table_builder_.ToSourcePositionTable(
+          isolate(), Handle<AbstractCode>::cast(result));
   result->set_source_position_table(*source_positions);
-  source_position_table_builder_.EndJitLogging(AbstractCode::cast(*result));
 
   // Emit exception handler table.
   if (!handlers_.empty()) {

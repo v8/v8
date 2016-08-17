@@ -1102,13 +1102,13 @@ static int TranslatePosition(int original_position,
   return original_position + position_diff;
 }
 
-Handle<ByteArray> TranslateSourcePositionTable(
-    Handle<ByteArray> source_position_table,
-    Handle<JSArray> position_change_array) {
-  Isolate* isolate = source_position_table->GetIsolate();
+void TranslateSourcePositionTable(Handle<AbstractCode> code,
+                                  Handle<JSArray> position_change_array) {
+  Isolate* isolate = code->GetIsolate();
   Zone zone(isolate->allocator());
-  SourcePositionTableBuilder builder(isolate, &zone);
+  SourcePositionTableBuilder builder(&zone);
 
+  Handle<ByteArray> source_position_table(code->source_position_table());
   for (SourcePositionTableIterator iterator(*source_position_table);
        !iterator.done(); iterator.Advance()) {
     int position = iterator.source_position();
@@ -1117,7 +1117,9 @@ Handle<ByteArray> TranslateSourcePositionTable(
                         iterator.is_statement());
   }
 
-  return builder.ToSourcePositionTable();
+  Handle<ByteArray> new_source_position_table(
+      builder.ToSourcePositionTable(isolate, code));
+  code->set_source_position_table(*new_source_position_table);
 }
 }  // namespace
 
@@ -1139,17 +1141,14 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_function_token_position(new_function_token_pos);
 
   if (info->HasBytecodeArray()) {
-    Handle<ByteArray> new_source_position_table = TranslateSourcePositionTable(
-        Handle<ByteArray>(info->bytecode_array()->source_position_table()),
+    TranslateSourcePositionTable(
+        Handle<AbstractCode>(AbstractCode::cast(info->bytecode_array())),
         position_change_array);
-    info->bytecode_array()->set_source_position_table(
-        *new_source_position_table);
   }
   if (info->code()->kind() == Code::FUNCTION) {
-    Handle<ByteArray> new_source_position_table = TranslateSourcePositionTable(
-        Handle<ByteArray>(info->code()->source_position_table()),
+    TranslateSourcePositionTable(
+        Handle<AbstractCode>(AbstractCode::cast(info->code())),
         position_change_array);
-    info->code()->set_source_position_table(*new_source_position_table);
   }
   if (info->HasDebugInfo()) {
     // Existing break points will be re-applied. Reset the debug info here.

@@ -461,8 +461,10 @@ Handle<Code> LChunk::Codegen() {
         &assembler, nullptr, info(), assembler.CodeObject());
     generator.FinishCode(code);
     CommitDependencies(code);
-    generator.source_position_table_builder()->EndJitLogging(
-        AbstractCode::cast(*code));
+    Handle<ByteArray> source_positions =
+        generator.source_position_table_builder()->ToSourcePositionTable(
+            info()->isolate(), Handle<AbstractCode>::cast(code));
+    code->set_source_position_table(*source_positions);
     code->set_is_crankshafted(true);
 
     CodeGenerator::PrintCode(code, info());

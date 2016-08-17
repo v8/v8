@@ -24,7 +24,7 @@ BytecodeArrayWriter::BytecodeArrayWriter(
       bytecodes_(zone),
       max_register_count_(0),
       unbound_jumps_(0),
-      source_position_table_builder_(isolate, zone, source_position_mode),
+      source_position_table_builder_(zone, source_position_mode),
       constant_array_builder_(constant_array_builder) {}
 
 // override
@@ -49,10 +49,9 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
       constant_pool);
   bytecode_array->set_handler_table(*handler_table);
   Handle<ByteArray> source_position_table =
-      source_position_table_builder()->ToSourcePositionTable();
+      source_position_table_builder()->ToSourcePositionTable(
+          isolate(), Handle<AbstractCode>::cast(bytecode_array));
   bytecode_array->set_source_position_table(*source_position_table);
-  source_position_table_builder()->EndJitLogging(
-      AbstractCode::cast(*bytecode_array));
   return bytecode_array;
 }
 

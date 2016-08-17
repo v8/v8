@@ -5574,6 +5574,9 @@ class AbstractCode : public HeapObject {
   // Return the source position table.
   inline ByteArray* source_position_table();
 
+  // Set the source position table.
+  inline void set_source_position_table(ByteArray* source_position_table);
+
   // Return the exception handler table.
   inline int LookupRangeInHandlerTable(
       int code_offset, int* data, HandlerTable::CatchPrediction* prediction);

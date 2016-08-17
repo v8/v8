@@ -66,9 +66,9 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_profiler_ticks(0);
   code->set_back_edge_table_offset(table_offset);
   Handle<ByteArray> source_positions =
-      cgen.source_position_table_builder_.ToSourcePositionTable();
+      cgen.source_position_table_builder_.ToSourcePositionTable(
+          isolate, Handle<AbstractCode>::cast(code));
   code->set_source_position_table(*source_positions);
-  cgen.source_position_table_builder_.EndJitLogging(AbstractCode::cast(*code));
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);
 

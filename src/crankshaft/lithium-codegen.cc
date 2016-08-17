@@ -63,7 +63,7 @@ LCodeGenBase::LCodeGenBase(LChunk* chunk, MacroAssembler* assembler,
       inlined_function_count_(0),
       last_lazy_deopt_pc_(0),
       osr_pc_offset_(-1),
-      source_position_table_builder_(info->isolate(), info->zone(),
+      source_position_table_builder_(info->zone(),
                                      info->SourcePositionRecordingMode()) {}
 
 bool LCodeGenBase::GenerateBody() {

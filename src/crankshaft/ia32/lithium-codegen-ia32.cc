@@ -69,9 +69,6 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   code->set_stack_slots(GetTotalFrameSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
-  Handle<ByteArray> source_positions =
-      source_position_table_builder_.ToSourcePositionTable();
-  code->set_source_position_table(*source_positions);
   if (info()->ShouldEnsureSpaceForLazyDeopt()) {
     Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
   }

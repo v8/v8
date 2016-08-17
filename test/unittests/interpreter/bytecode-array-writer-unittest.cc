@@ -235,9 +235,10 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
              static_cast<int>(expected_bytes[i]));
   }
 
-  Handle<ByteArray> source_positions =
-      source_position_table_builder()->ToSourcePositionTable();
-  SourcePositionTableIterator source_iterator(*source_positions);
+  Handle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(0, 0, factory()->empty_fixed_array());
+  SourcePositionTableIterator source_iterator(
+      bytecode_array->source_position_table());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
