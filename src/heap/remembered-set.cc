@@ -39,17 +39,17 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
           });
     }
   }
-  if (Heap::ShouldZapGarbage()) {
-    // Need to filter invalid slots as we overwrite them with zap values in
-    // during sweeping which runs concurrently with pointer updating.
-    for (MemoryChunk* chunk : *heap->map_space()) {
-      SlotSet* slots = GetSlotSet(chunk);
-      if (slots != nullptr) {
-        slots->Iterate([heap, chunk](Address addr) {
-          Object** slot = reinterpret_cast<Object**>(addr);
-          return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
-        });
-      }
+  for (MemoryChunk* chunk : *heap->map_space()) {
+    SlotSet* slots = GetSlotSet(chunk);
+    if (slots != nullptr) {
+      slots->Iterate([heap, chunk](Address addr) {
+        Object** slot = reinterpret_cast<Object**>(addr);
+        // TODO(mlippautz): In map space all allocations would ideally be map
+        // aligned. After establishing this invariant IsValidSlot could just
+        // refer to the containing object using alignment and check the mark
+        // bits.
+        return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
+      });
     }
   }
 }
