@@ -520,6 +520,61 @@ TEST(InterpreterParameter8) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(36));
 }
 
+TEST(InterpreterBitwiseTypeFeedback) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
+  const Token::Value kBitwiseBinaryOperators[] = {
+      Token::Value::BIT_OR, Token::Value::BIT_XOR, Token::Value::BIT_AND,
+      Token::Value::SHL,    Token::Value::SHR,     Token::Value::SAR};
+
+  for (Token::Value op : kBitwiseBinaryOperators) {
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 4, 0, 0);
+
+    i::FeedbackVectorSpec feedback_spec(&zone);
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+
+    Handle<i::TypeFeedbackVector> vector =
+        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
+    builder.LoadAccumulatorWithRegister(builder.Parameter(0))
+        .BinaryOperation(op, builder.Parameter(1), vector->GetIndex(slot0))
+        .BinaryOperation(op, builder.Parameter(2), vector->GetIndex(slot1))
+        .BinaryOperation(op, builder.Parameter(3), vector->GetIndex(slot2))
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
+    typedef Handle<Object> H;
+    auto callable = tester.GetCallable<H, H, H, H>();
+
+    Handle<Smi> arg1 = Handle<Smi>(Smi::FromInt(2), isolate);
+    Handle<Smi> arg2 = Handle<Smi>(Smi::FromInt(2), isolate);
+    Handle<HeapNumber> arg3 = isolate->factory()->NewHeapNumber(2.2);
+    Handle<String> arg4 = isolate->factory()->NewStringFromAsciiChecked("2");
+
+    Handle<Object> return_val =
+        callable(arg1, arg2, arg3, arg4).ToHandleChecked();
+    USE(return_val);
+    Object* feedback0 = vector->Get(slot0);
+    CHECK(feedback0->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
+             static_cast<Smi*>(feedback0)->value());
+
+    Object* feedback1 = vector->Get(slot1);
+    CHECK(feedback1->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kNumber,
+             static_cast<Smi*>(feedback1)->value());
+
+    Object* feedback2 = vector->Get(slot2);
+    CHECK(feedback2->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kAny,
+             static_cast<Smi*>(feedback2)->value());
+  }
+}
 
 TEST(InterpreterParameter1Assign) {
   HandleAndZoneScope handles;

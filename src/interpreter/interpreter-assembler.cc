@@ -869,8 +869,8 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
       // Convert the Smi {value}.
       var_result.Bind(SmiToWord32(value));
       var_type_feedback->Bind(
-          Word32And(var_type_feedback->value(),
-                    Int32Constant(BinaryOperationFeedback::kSignedSmall)));
+          Word32Or(var_type_feedback->value(),
+                   Int32Constant(BinaryOperationFeedback::kSignedSmall)));
       Goto(&done_loop);
     }
 
