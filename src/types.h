@@ -751,8 +751,8 @@ class Type {
   SIMD128_TYPES(CONSTRUCT_SIMD_TYPE)
 #undef CONSTRUCT_SIMD_TYPE
 
-  static Type* Union(Type* type1, Type* type2, Zone* reg);
-  static Type* Intersect(Type* type1, Type* type2, Zone* reg);
+  static Type* Union(Type* type1, Type* type2, Zone* zone);
+  static Type* Intersect(Type* type1, Type* type2, Zone* zone);
 
   static Type* Of(double value, Zone* zone) {
     return BitsetType::New(BitsetType::ExpandInternals(BitsetType::Lub(value)));

@@ -896,6 +896,11 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         field_type,  MachineType::AnyTagged(), kFullWriteBarrier};
     if (access_mode == AccessMode::kLoad) {
       if (field_type->Is(Type::UntaggedFloat64())) {
+        // TODO(turbofan): We remove the representation axis from the type to
+        // avoid uninhabited representation types. This is a workaround until
+        // the {PropertyAccessInfo} is using {MachineRepresentation} instead.
+        field_access.type = Type::Union(
+            field_type, Type::Representation(Type::Number(), zone()), zone());
         if (!field_index.is_inobject() || field_index.is_hidden_field() ||
             !FLAG_unbox_double_fields) {
           storage = effect = graph()->NewNode(
@@ -910,6 +915,11 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);
       if (field_type->Is(Type::UntaggedFloat64())) {
+        // TODO(turbofan): We remove the representation axis from the type to
+        // avoid uninhabited representation types. This is a workaround until
+        // the {PropertyAccessInfo} is using {MachineRepresentation} instead.
+        field_access.type = Type::Union(
+            field_type, Type::Representation(Type::Number(), zone()), zone());
         value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
                                           effect, control);
 
