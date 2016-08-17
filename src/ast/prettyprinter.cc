@@ -596,7 +596,7 @@ class IndentedScope BASE_EMBEDDED {
 //-----------------------------------------------------------------------------
 
 AstPrinter::AstPrinter(Isolate* isolate)
-    : output_(nullptr), size_(0), pos_(0), indent_(0) {
+    : isolate_(isolate), output_(nullptr), size_(0), pos_(0), indent_(0) {
   InitializeAstVisitor(isolate);
 }
 
