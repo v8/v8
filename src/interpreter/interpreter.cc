@@ -30,23 +30,6 @@ typedef InterpreterAssembler::Arg Arg;
 
 #define __ assembler->
 
-class InterpreterCompilationJob final : public CompilationJob {
- public:
-  explicit InterpreterCompilationJob(CompilationInfo* info);
-
- protected:
-  Status PrepareJobImpl() final;
-  Status ExecuteJobImpl() final;
-  Status FinalizeJobImpl() final;
-
- private:
-  BytecodeGenerator* generator() { return &generator_; }
-
-  BytecodeGenerator generator_;
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
-};
-
 Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
   memset(dispatch_table_, 0, sizeof(dispatch_table_));
 }
@@ -149,39 +132,6 @@ int Interpreter::InterruptBudget() {
   return FLAG_interrupt_budget * kCodeSizeMultiplier;
 }
 
-InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info)
-    : CompilationJob(info, "Ignition"), generator_(info) {}
-
-InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
-  return SUCCEEDED;
-}
-
-InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
-  generator()->GenerateBytecode();
-
-  if (generator()->HasStackOverflow()) {
-    return FAILED;
-  }
-  return SUCCEEDED;
-}
-
-InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
-  Handle<BytecodeArray> bytecodes = generator()->FinalizeBytecode(isolate());
-  if (generator()->HasStackOverflow()) {
-    return FAILED;
-  }
-
-  if (FLAG_print_bytecode) {
-    OFStream os(stdout);
-    bytecodes->Print(os);
-    os << std::flush;
-  }
-
-  info()->SetBytecodeArray(bytecodes);
-  info()->SetCode(info()->isolate()->builtins()->InterpreterEntryTrampoline());
-  return SUCCEEDED;
-}
-
 bool Interpreter::MakeBytecode(CompilationInfo* info) {
   RuntimeCallTimerScope runtimeTimer(info->isolate(),
                                      &RuntimeCallStats::CompileIgnition);
@@ -206,10 +156,20 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   }
 #endif  // DEBUG
 
-  InterpreterCompilationJob job(info);
-  if (job.PrepareJob() != CompilationJob::SUCCEEDED) return false;
-  if (job.ExecuteJob() != CompilationJob::SUCCEEDED) return false;
-  return job.FinalizeJob() == CompilationJob::SUCCEEDED;
+  BytecodeGenerator generator(info);
+  Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info->isolate());
+
+  if (generator.HasStackOverflow()) return false;
+
+  if (FLAG_print_bytecode) {
+    OFStream os(stdout);
+    bytecodes->Print(os);
+    os << std::flush;
+  }
+
+  info->SetBytecodeArray(bytecodes);
+  info->SetCode(info->isolate()->builtins()->InterpreterEntryTrampoline());
+  return true;
 }
 
 bool Interpreter::IsDispatchTableInitialized() {

@@ -107,7 +107,7 @@ void OptimizingCompileDispatcher::CompileNext(CompilationJob* job) {
   if (!job) return;
 
   // The function may have already been optimized by OSR.  Simply continue.
-  CompilationJob::Status status = job->ExecuteJob();
+  CompilationJob::Status status = job->OptimizeGraph();
   USE(status);  // Prevent an unused-variable error.
 
   // The function may have already been optimized by OSR.  Simply continue.
