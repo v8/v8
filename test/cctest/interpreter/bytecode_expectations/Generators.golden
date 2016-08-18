@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 200
+bytecode array length: 204
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(20),
@@ -24,10 +24,12 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrict), R(1),
-                B(JumpIfTrue), U8(56),
+                B(JumpIfTrue), U8(60),
                 B(LdaSmi), U8(76),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kAbort), R(2), U8(1),
+                B(LdaSmi), U8(-2),
+                B(Star), R(1),
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
@@ -109,7 +111,7 @@ bytecodes: [
 constant pool: [
 ]
 handlers: [
-  [38, 137, 143],
+  [42, 141, 147],
 ]
 
 ---
@@ -119,7 +121,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 293
+bytecode array length: 297
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -127,13 +129,15 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrict), R(1),
-                B(JumpIfTrue), U8(62),
+                B(JumpIfTrue), U8(66),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(1),
                 B(JumpIfTrueConstant), U8(0),
                 B(LdaSmi), U8(76),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kAbort), R(2), U8(1),
+                B(LdaSmi), U8(-2),
+                B(Star), R(1),
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
@@ -255,7 +259,7 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [44, 221, 227],
+  [48, 225, 231],
 ]
 
 ---
@@ -265,7 +269,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 775
+bytecode array length: 779
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -273,13 +277,15 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaZero),
                 B(TestEqualStrict), R(3),
-                B(JumpIfTrue), U8(62),
+                B(JumpIfTrue), U8(66),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(3),
                 B(JumpIfTrueConstant), U8(3),
                 B(LdaSmi), U8(76),
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kAbort), R(4), U8(1),
+                B(LdaSmi), U8(-2),
+                B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
@@ -601,9 +607,9 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [44, 694, 700],
-  [154, 448, 454],
-  [157, 402, 404],
-  [551, 563, 565],
+  [48, 698, 704],
+  [158, 452, 458],
+  [161, 406, 408],
+  [555, 567, 569],
 ]
 
