@@ -305,8 +305,9 @@ class BitFieldBase {
   static T decode(U value) {
     return static_cast<T>((value & kMask) >> shift);
   }
-};
 
+  STATIC_ASSERT((kNext - 1) / 8 < sizeof(U));
+};
 
 template <class T, int shift, int size>
 class BitField8 : public BitFieldBase<T, shift, size, uint8_t> {};

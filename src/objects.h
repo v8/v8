@@ -5475,9 +5475,10 @@ class Code: public HeapObject {
       : public BitField<CacheHolderFlag, HasUnwindingInfoField::kNext, 2> {};
   class KindField : public BitField<Kind, CacheHolderField::kNext, 5> {};
   STATIC_ASSERT(NUMBER_OF_KINDS <= KindField::kMax);
-  class ExtraICStateField : public BitField<ExtraICState, KindField::kNext,
-                                            PlatformSmiTagging::kSmiValueSize -
-                                                KindField::kNext + 1> {};
+  class ExtraICStateField
+      : public BitField<ExtraICState, KindField::kNext,
+                        PlatformSmiTagging::kSmiValueSize - KindField::kNext> {
+  };
 
   // KindSpecificFlags1 layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
