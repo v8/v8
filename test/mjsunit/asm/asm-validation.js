@@ -174,6 +174,29 @@ function IsAlwaysOpt(module) {
   assertEquals(123, m2.foo());
 })();
 
+(function TestSuccessThenFailureThenRetry() {
+  function MkModule() {
+    function Module(stdlib, ffi, heap) {
+      "use asm";
+      function foo() { return 123; }
+      return { foo: foo };
+    }
+    return Module;
+  }
+  var Module1 = MkModule();
+  var Module2 = MkModule();
+  var heap = new ArrayBuffer(1024 * 1024);
+  var m1a = Module1({}, {}, heap);
+  assertTrue(%IsAsmWasmCode(Module1) || IsAlwaysOpt(Module1));
+  var m2 = Module2(1, 2, 3);
+  assertFalse(%IsAsmWasmCode(Module2));
+  var m1b = Module1({}, {}, heap);
+  assertFalse(%IsAsmWasmCode(Module1));
+  assertEquals(123, m1a.foo());
+  assertEquals(123, m1b.foo());
+  assertEquals(123, m2.foo());
+})();
+
 (function TestBoundFunction() {
   function Module(stdlib, ffi, heap) {
     "use asm";

@@ -93,7 +93,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   if (args[3]->IsJSArrayBuffer()) {
     memory = args.at<i::JSArrayBuffer>(3);
   }
-  if (args[1]->IsJSObject()) {
+  if (args[1]->IsJSObject() && function->shared()->HasAsmWasmData()) {
     MaybeHandle<Object> result;
     result = AsmJs::InstantiateAsmWasm(
         isolate, handle(function->shared()->asm_wasm_data()), memory, foreign);
@@ -103,7 +103,9 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   }
   // Remove wasm data, mark as broken for asm->wasm,
   // replace code with CompileLazy, and return a smi 0 to indicate failure.
-  function->shared()->ClearAsmWasmData();
+  if (function->shared()->HasAsmWasmData()) {
+    function->shared()->ClearAsmWasmData();
+  }
   function->shared()->set_is_asm_wasm_broken(true);
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
