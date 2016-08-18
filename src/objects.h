@@ -4404,7 +4404,7 @@ class ScopeInfo : public FixedArray {
   // Properties of scopes.
   class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
   class CallsEvalField : public BitField<bool, ScopeTypeField::kNext, 1> {};
-  STATIC_ASSERT(LAST_LANGUAGE_MODE == 1);
+  STATIC_ASSERT(LANGUAGE_END == 2);
   class LanguageModeField
       : public BitField<LanguageMode, CallsEvalField::kNext, 1> {};
   class DeclarationScopeField
