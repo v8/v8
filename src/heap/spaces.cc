@@ -1258,7 +1258,7 @@ void PagedSpace::SetAllocationInfo(Address top, Address limit) {
   SetTopAndLimit(top, limit);
   if (top != nullptr && top != limit &&
       heap()->incremental_marking()->black_allocation()) {
-    Page* page = Page::FromAddress(top);
+    Page* page = Page::FromAllocationAreaAddress(top);
     page->markbits()->SetRange(page->AddressToMarkbitIndex(top),
                                page->AddressToMarkbitIndex(limit));
     page->IncrementLiveBytes(static_cast<int>(limit - top));
@@ -1270,7 +1270,7 @@ void PagedSpace::MarkAllocationInfoBlack() {
   Address current_top = top();
   Address current_limit = limit();
   if (current_top != nullptr && current_top != current_limit) {
-    Page* page = Page::FromAddress(current_top);
+    Page* page = Page::FromAllocationAreaAddress(current_top);
     page->markbits()->SetRange(page->AddressToMarkbitIndex(current_top),
                                page->AddressToMarkbitIndex(current_limit));
     page->IncrementLiveBytes(static_cast<int>(current_limit - current_top));
@@ -1289,7 +1289,7 @@ void PagedSpace::EmptyAllocationInfo() {
   }
 
   if (heap()->incremental_marking()->black_allocation()) {
-    Page* page = Page::FromAddress(current_top);
+    Page* page = Page::FromAllocationAreaAddress(current_top);
     // We have to remember the end of the current black allocation area if
     // something was allocated in the current bump pointer range.
     if (allocation_info_.original_top() != current_top) {
