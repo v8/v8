@@ -370,7 +370,7 @@ assertEqualsAsync(
 assertThrows(() => eval("async({ foo = 1 })"), SyntaxError);
 assertThrows(() => eval("async(a, { foo = 1 })"), SyntaxError);
 
-// https://bugs.chromium.org/p/chromium/issues/detail?id=628984
+// https://bugs.chromium.org/p/chromium/issues/detail?id=638019
 async function gaga() {
   let i = 1;
   while (i-- > 0) { await 42 }
