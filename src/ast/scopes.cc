@@ -88,7 +88,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
     DCHECK_EQ(SCRIPT_SCOPE, scope_type);
   } else {
     asm_function_ = outer_scope_->asm_module_;
-    language_mode_ = outer_scope->language_mode_;
+    set_language_mode(outer_scope->language_mode());
     force_context_allocation_ =
         !is_function_scope() && outer_scope->has_forced_context_allocation();
     outer_scope_->AddInnerScope(this);
@@ -137,7 +137,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
     DCHECK(scope_info.is_null());
   } else {
     scope_calls_eval_ = scope_info->CallsEval();
-    language_mode_ = scope_info->language_mode();
+    set_language_mode(scope_info->language_mode());
     num_heap_slots_ = scope_info->ContextLength();
   }
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
@@ -204,7 +204,7 @@ void Scope::SetDefaults() {
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   num_global_slots_ = 0;
 
-  language_mode_ = SLOPPY;
+  set_language_mode(SLOPPY);
 
   scope_inside_with_ = false;
   scope_calls_eval_ = false;
@@ -1005,7 +1005,7 @@ void DeclarationScope::AnalyzePartially(DeclarationScope* migrate_to,
   DCHECK(!force_eager_compilation_);
   migrate_to->set_start_position(start_position_);
   migrate_to->set_end_position(end_position_);
-  migrate_to->language_mode_ = language_mode_;
+  migrate_to->set_language_mode(language_mode());
   migrate_to->arity_ = arity_;
   migrate_to->force_context_allocation_ = force_context_allocation_;
   outer_scope_->RemoveInnerScope(this);

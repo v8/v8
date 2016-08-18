@@ -230,7 +230,7 @@ class Scope: public ZoneObject {
   // Set the language mode flag (unless disabled by a global flag).
   void SetLanguageMode(LanguageMode language_mode) {
     DCHECK(!is_module_scope() || is_strict(language_mode));
-    language_mode_ = language_mode;
+    set_language_mode(language_mode);
   }
 
   // Set the ASM module flag.
@@ -311,7 +311,7 @@ class Scope: public ZoneObject {
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
   bool calls_sloppy_eval() const {
-    return scope_calls_eval_ && is_sloppy(language_mode_);
+    return scope_calls_eval_ && is_sloppy(language_mode());
   }
   bool outer_scope_calls_sloppy_eval() const {
     return outer_scope_calls_sloppy_eval_;
@@ -338,7 +338,7 @@ class Scope: public ZoneObject {
   ScopeType scope_type() const { return scope_type_; }
 
   // The language mode of this scope.
-  LanguageMode language_mode() const { return language_mode_; }
+  LanguageMode language_mode() const { return is_strict_ ? STRICT : SLOPPY; }
 
   // inner_scope() and sibling() together implement the inner scope list of a
   // scope. Inner scope points to the an inner scope of the function, and
@@ -452,7 +452,7 @@ class Scope: public ZoneObject {
 
  protected:
   void set_language_mode(LanguageMode language_mode) {
-    language_mode_ = language_mode;
+    is_strict_ = is_strict(language_mode);
   }
 
  private:
@@ -503,8 +503,8 @@ class Scope: public ZoneObject {
   // Scope-specific information computed during parsing.
   //
   // The language mode of this scope.
-  STATIC_ASSERT(LANGUAGE_END == 3);
-  LanguageMode language_mode_ : 2;
+  STATIC_ASSERT(LANGUAGE_END == 2);
+  bool is_strict_ : 1;
   // This scope is inside a 'with' of some outer scope.
   bool scope_inside_with_ : 1;
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
