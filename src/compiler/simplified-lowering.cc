@@ -2189,29 +2189,8 @@ class RepresentationSelector {
         FieldAccess access = FieldAccessOf(node->op());
         MachineRepresentation const representation =
             access.machine_type.representation();
-        // If we are loading from a Smi field and truncate the result to Word32,
-        // we can instead just load the high word on 64-bit architectures, which
-        // is exactly the Word32 we are looking for, and therefore avoid a nasty
-        // right shift afterwards.
         // TODO(bmeurer): Introduce an appropriate tagged-signed machine rep.
-        if (truncation.IsUsedAsWord32() &&
-            representation == MachineRepresentation::kTagged &&
-            access.type->Is(Type::TaggedSigned()) && SmiValuesAre32Bits()) {
-          VisitUnop(node, UseInfoForBasePointer(access),
-                    MachineRepresentation::kWord32);
-          if (lower()) {
-            // Morph this Smi load field into an int32 load field.
-            access.machine_type = MachineType::Int32();
-            access.type = type_cache_.kInt32;
-#if V8_TARGET_LITTLE_ENDIAN
-            access.offset += kPointerSize / 2;
-#endif
-            NodeProperties::ChangeOp(node,
-                                     jsgraph_->simplified()->LoadField(access));
-          }
-        } else {
-          VisitUnop(node, UseInfoForBasePointer(access), representation);
-        }
+        VisitUnop(node, UseInfoForBasePointer(access), representation);
         return;
       }
       case IrOpcode::kStoreField: {

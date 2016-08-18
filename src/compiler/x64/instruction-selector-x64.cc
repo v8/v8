@@ -37,6 +37,15 @@ class X64OperandGenerator final : public OperandGenerator {
     }
   }
 
+  int32_t GetImmediateIntegerValue(Node* node) {
+    DCHECK(CanBeImmediate(node));
+    if (node->opcode() == IrOpcode::kInt32Constant) {
+      return OpParameter<int32_t>(node);
+    }
+    DCHECK_EQ(IrOpcode::kInt64Constant, node->opcode());
+    return static_cast<int32_t>(OpParameter<int64_t>(node));
+  }
+
   bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input,
                           int effect_level) {
     if (input->opcode() != IrOpcode::kLoad ||
@@ -631,33 +640,14 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   VisitWord32Shift(this, node, kX64Shr32);
 }
 
-
-void InstructionSelector::VisitWord64Shr(Node* node) {
-  VisitWord64Shift(this, node, kX64Shr);
-}
-
-
-void InstructionSelector::VisitWord32Sar(Node* node) {
-  X64OperandGenerator g(this);
-  Int32BinopMatcher m(node);
-  if (CanCover(m.node(), m.left().node()) && m.left().IsWord32Shl()) {
-    Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().Is(16) && m.right().Is(16)) {
-      Emit(kX64Movsxwl, g.DefineAsRegister(node), g.Use(mleft.left().node()));
-      return;
-    } else if (mleft.right().Is(24) && m.right().Is(24)) {
-      Emit(kX64Movsxbl, g.DefineAsRegister(node), g.Use(mleft.left().node()));
-      return;
-    }
-  }
-  VisitWord32Shift(this, node, kX64Sar32);
-}
-
-
-void InstructionSelector::VisitWord64Sar(Node* node) {
-  X64OperandGenerator g(this);
+namespace {
+bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
+                                     InstructionCode opcode) {
+  DCHECK(IrOpcode::kWord64Sar == node->opcode() ||
+         IrOpcode::kWord64Shr == node->opcode());
+  X64OperandGenerator g(selector);
   Int64BinopMatcher m(node);
-  if (CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
+  if (selector->CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
       m.right().Is(32)) {
     // Just load and sign-extend the interesting 4 bytes instead. This happens,
     // for example, when we're loading and untagging SMIs.
@@ -715,16 +705,43 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
         }
         inputs[input_count++] = ImmediateOperand(ImmediateOperand::INLINE, 4);
       } else {
-        ImmediateOperand* op = ImmediateOperand::cast(&inputs[input_count - 1]);
-        int32_t displacement = sequence()->GetImmediate(op).ToInt32();
-        *op = ImmediateOperand(ImmediateOperand::INLINE, displacement + 4);
+        int32_t displacement = g.GetImmediateIntegerValue(mleft.displacement());
+        inputs[input_count - 1] =
+            ImmediateOperand(ImmediateOperand::INLINE, displacement + 4);
       }
       InstructionOperand outputs[] = {g.DefineAsRegister(node)};
-      InstructionCode code = kX64Movsxlq | AddressingModeField::encode(mode);
-      Emit(code, 1, outputs, input_count, inputs);
+      InstructionCode code = opcode | AddressingModeField::encode(mode);
+      selector->Emit(code, 1, outputs, input_count, inputs);
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+
+void InstructionSelector::VisitWord64Shr(Node* node) {
+  if (TryMatchLoadWord64AndShiftRight(this, node, kX64Movl)) return;
+  VisitWord64Shift(this, node, kX64Shr);
+}
+
+void InstructionSelector::VisitWord32Sar(Node* node) {
+  X64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  if (CanCover(m.node(), m.left().node()) && m.left().IsWord32Shl()) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().Is(16) && m.right().Is(16)) {
+      Emit(kX64Movsxwl, g.DefineAsRegister(node), g.Use(mleft.left().node()));
+      return;
+    } else if (mleft.right().Is(24) && m.right().Is(24)) {
+      Emit(kX64Movsxbl, g.DefineAsRegister(node), g.Use(mleft.left().node()));
       return;
     }
   }
+  VisitWord32Shift(this, node, kX64Sar32);
+}
+
+void InstructionSelector::VisitWord64Sar(Node* node) {
+  if (TryMatchLoadWord64AndShiftRight(this, node, kX64Movsxlq)) return;
   VisitWord64Shift(this, node, kX64Sar);
 }
 
@@ -1258,6 +1275,10 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
       case IrOpcode::kWord64Shr: {
         Int64BinopMatcher m(value);
         if (m.right().Is(32)) {
+          if (TryMatchLoadWord64AndShiftRight(this, value, kX64Movl)) {
+            Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+            return;
+          }
           Emit(kX64Shr, g.DefineSameAsFirst(node),
                g.UseRegister(m.left().node()), g.TempImmediate(32));
           return;

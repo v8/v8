@@ -1303,6 +1303,55 @@ TEST_F(InstructionSelectorTest, Word32Clz) {
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
 
+TEST_F(InstructionSelectorTest, LoadAndWord64ShiftRight32) {
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint32());
+    Node* const p0 = m.Parameter(0);
+    Node* const load = m.Load(MachineType::Uint64(), p0);
+    Node* const shift = m.Word64Shr(load, m.Int32Constant(32));
+    m.Return(shift);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const load = m.Load(MachineType::Int64(), p0);
+    Node* const shift = m.Word64Sar(load, m.Int32Constant(32));
+    m.Return(shift);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movsxlq, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const load = m.Load(MachineType::Int64(), p0);
+    Node* const shift = m.Word64Sar(load, m.Int32Constant(32));
+    Node* const truncate = m.TruncateInt64ToInt32(shift);
+    m.Return(truncate);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
