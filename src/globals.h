@@ -430,6 +430,7 @@ class ParameterCount;
 class Foreign;
 class Scope;
 class DeclarationScope;
+class ModuleScope;
 class ScopeInfo;
 class Script;
 class Smi;

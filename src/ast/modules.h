@@ -64,7 +64,7 @@ class ModuleDescriptor : public ZoneObject {
 
   // Check if module is well-formed and report error if not.
   // Also canonicalize indirect exports.
-  bool Validate(DeclarationScope* module_scope,
+  bool Validate(ModuleScope* module_scope,
                 PendingCompilationErrorHandler* error_handler, Zone* zone);
 
   struct ModuleEntry : public ZoneObject {

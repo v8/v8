@@ -618,12 +618,8 @@ class ParserBase : public Traits {
     return new (zone()) DeclarationScope(zone(), scope(), BLOCK_SCOPE);
   }
 
-  DeclarationScope* NewModuleScope(Scope* parent) {
-    DeclarationScope* result =
-        new (zone()) DeclarationScope(zone(), parent, MODULE_SCOPE);
-    // TODO(verwaest): Move into the DeclarationScope constructor.
-    result->DeclareThis(ast_value_factory());
-    return result;
+  ModuleScope* NewModuleScope(DeclarationScope* parent) {
+    return new (zone()) ModuleScope(zone(), parent, ast_value_factory());
   }
 
   DeclarationScope* NewEvalScope(Scope* parent) {
@@ -1234,7 +1230,7 @@ class ParserBase : public Traits {
   };
 
   ModuleDescriptor* module() const {
-    return scope()->AsDeclarationScope()->module();
+    return scope()->AsModuleScope()->module();
   }
   Scope* scope() const { return scope_state_->scope(); }
 

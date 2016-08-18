@@ -69,13 +69,10 @@ class SloppyBlockFunctionMap : public ZoneHashMap {
 // a location. Note that many VariableProxy nodes may refer to the same Java-
 // Script variable.
 
-class DeclarationScope;
-
-// JS environments are represented in the parser using two scope classes, Scope
-// and its subclass DeclarationScope. DeclarationScope is used for any scope
-// that hosts 'var' declarations. This includes script, module, eval, varblock,
-// and function scope. All fields required by such scopes are only available on
-// DeclarationScope.
+// JS environments are represented in the parser using Scope, DeclarationScope
+// and ModuleScope. DeclarationScope is used for any scope that hosts 'var'
+// declarations. This includes script, module, eval, varblock, and function
+// scope. ModuleScope further specializes DeclarationScope.
 class Scope: public ZoneObject {
  public:
   // ---------------------------------------------------------------------------
@@ -95,6 +92,8 @@ class Scope: public ZoneObject {
 
   DeclarationScope* AsDeclarationScope();
   const DeclarationScope* AsDeclarationScope() const;
+  ModuleScope* AsModuleScope();
+  const ModuleScope* AsModuleScope() const;
 
   class Snapshot final BASE_EMBEDDED {
    public:
@@ -444,6 +443,11 @@ class Scope: public ZoneObject {
   bool HasSimpleParameters();
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
 
+ protected:
+  void set_language_mode(LanguageMode language_mode) {
+    language_mode_ = language_mode;
+  }
+
  private:
   Zone* zone_;
 
@@ -673,14 +677,6 @@ class DeclarationScope : public Scope {
              IsClassConstructor(function_kind())));
   }
 
-  // The ModuleDescriptor for this scope; only for module scopes.
-  // TODO(verwaest): Move to ModuleScope?
-  ModuleDescriptor* module() const {
-    DCHECK(is_module_scope());
-    DCHECK_NOT_NULL(module_descriptor_);
-    return module_descriptor_;
-  }
-
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
 
@@ -847,9 +843,6 @@ class DeclarationScope : public Scope {
   void AllocateLocals();
   void AllocateParameterLocals();
   void AllocateReceiver();
-  // Set MODULE as VariableLocation for all variables that will live in some
-  // module's export table.
-  void AllocateModuleVariables();
 
  private:
   void AllocateParameter(Variable* var, int index);
@@ -881,7 +874,23 @@ class DeclarationScope : public Scope {
   Variable* arguments_;
   // Convenience variable; Subclass constructor only
   Variable* this_function_;
-  // Module descriptor; module scopes only.
+};
+
+class ModuleScope final : public DeclarationScope {
+ public:
+  ModuleScope(Zone* zone, DeclarationScope* script_scope,
+              AstValueFactory* ast_value_factory);
+
+  ModuleDescriptor* module() const {
+    DCHECK_NOT_NULL(module_descriptor_);
+    return module_descriptor_;
+  }
+
+  // Set MODULE as VariableLocation for all variables that will live in some
+  // module's export table.
+  void AllocateModuleVariables();
+
+ private:
   ModuleDescriptor* module_descriptor_;
 };
 

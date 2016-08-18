@@ -97,10 +97,9 @@ void ModuleDescriptor::MakeIndirectExportsExplicit() {
   }
 }
 
-bool ModuleDescriptor::Validate(DeclarationScope* module_scope,
+bool ModuleDescriptor::Validate(ModuleScope* module_scope,
                                 PendingCompilationErrorHandler* error_handler,
                                 Zone* zone) {
-  DCHECK(module_scope->is_module_scope());
   DCHECK_EQ(this, module_scope->module());
   DCHECK_NOT_NULL(error_handler);
 

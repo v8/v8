@@ -1036,7 +1036,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   PreParseResult PreParseProgram(int* materialized_literals = 0,
                                  bool is_module = false) {
     DCHECK_NULL(scope_state_);
-    Scope* scope = NewScriptScope();
+    DeclarationScope* scope = NewScriptScope();
 
     // ModuleDeclarationInstantiation for Source Text Module Records creates a
     // new Module Environment Record whose outer lexical environment record is

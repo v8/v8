@@ -1004,7 +1004,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       }
       outer = NewEvalScope(outer);
     } else if (info->is_module()) {
-      outer = NewModuleScope(outer);
+      DCHECK_EQ(outer, info->script_scope());
+      outer = NewModuleScope(info->script_scope());
     }
 
     DeclarationScope* scope = outer->AsDeclarationScope();
@@ -1023,7 +1024,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     if (parsing_module_) {
       ParseModuleItemList(body, &ok);
       ok = ok &&
-           module()->Validate(this->scope()->AsDeclarationScope(),
+           module()->Validate(this->scope()->AsModuleScope(),
                               &pending_error_handler_, zone());
     } else {
       // Don't count the mode in the use counters--give the program a chance

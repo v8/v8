@@ -111,10 +111,14 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
       params_(4, zone),
       sloppy_block_function_map_(zone) {
   SetDefaults();
-  if (scope_type == MODULE_SCOPE) {
-    module_descriptor_ = new (zone) ModuleDescriptor(zone);
-    language_mode_ = STRICT;
-  }
+}
+
+ModuleScope::ModuleScope(Zone* zone, DeclarationScope* script_scope,
+                         AstValueFactory* ast_value_factory)
+    : DeclarationScope(zone, script_scope, MODULE_SCOPE) {
+  module_descriptor_ = new (zone) ModuleDescriptor(zone);
+  set_language_mode(STRICT);
+  DeclareThis(ast_value_factory);
 }
 
 Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
@@ -181,7 +185,6 @@ void DeclarationScope::SetDefaults() {
   arity_ = 0;
   rest_parameter_ = nullptr;
   rest_index_ = -1;
-  module_descriptor_ = nullptr;
 }
 
 void Scope::SetDefaults() {
@@ -364,6 +367,16 @@ DeclarationScope* Scope::AsDeclarationScope() {
 const DeclarationScope* Scope::AsDeclarationScope() const {
   DCHECK(is_declaration_scope());
   return static_cast<const DeclarationScope*>(this);
+}
+
+ModuleScope* Scope::AsModuleScope() {
+  DCHECK(is_module_scope());
+  return static_cast<ModuleScope*>(this);
+}
+
+const ModuleScope* Scope::AsModuleScope() const {
+  DCHECK(is_module_scope());
+  return static_cast<const ModuleScope*>(this);
 }
 
 int Scope::num_parameters() const {
@@ -1690,7 +1703,7 @@ void DeclarationScope::AllocateLocals() {
   }
 }
 
-void DeclarationScope::AllocateModuleVariables() {
+void ModuleScope::AllocateModuleVariables() {
   for (auto it = module()->regular_imports().begin();
        it != module()->regular_imports().end(); ++it) {
     Variable* var = LookupLocal(it->second->local_name);
@@ -1721,7 +1734,7 @@ void Scope::AllocateVariablesRecursively() {
   // Parameters must be allocated first, if any.
   if (is_declaration_scope()) {
     if (is_module_scope()) {
-      AsDeclarationScope()->AllocateModuleVariables();
+      AsModuleScope()->AllocateModuleVariables();
     } else if (is_function_scope()) {
       AsDeclarationScope()->AllocateParameterLocals();
     }
