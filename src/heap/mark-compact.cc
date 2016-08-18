@@ -542,15 +542,6 @@ void MarkCompactCollector::Sweeper::EnsureCompleted() {
   sweeping_in_progress_ = false;
 }
 
-void MarkCompactCollector::Sweeper::EnsureNewSpaceCompleted() {
-  if (!sweeping_in_progress_) return;
-  if (!FLAG_concurrent_sweeping || !IsSweepingCompleted()) {
-    for (Page* p : *heap_->new_space()) {
-      SweepOrWaitUntilSweepingCompleted(p);
-    }
-  }
-}
-
 void MarkCompactCollector::EnsureSweepingCompleted() {
   if (!sweeper().sweeping_in_progress()) return;
 
