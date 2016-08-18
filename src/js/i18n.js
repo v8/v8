@@ -587,6 +587,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
  * Given an array-like, outputs an Array with the numbered
  * properties copied over and defined
  * configurable: false, writable: false, enumerable: true.
+ * When |expandable| is true, the result array can be expanded.
  */
 function freezeArray(input) {
   var array = [];
@@ -604,6 +605,12 @@ function freezeArray(input) {
   return array;
 }
 
+/* Make JS array[] out of InternalArray */
+function makeArray(input) {
+  var array = [];
+  %MoveArrayContents(input, array);
+  return array;
+}
 
 /**
  * It's sometimes desireable to leave user requested locale instead of ICU
@@ -738,6 +745,7 @@ function toTitleCaseTimezoneLocation(location) {
 
 /**
  * Canonicalizes the language tag, or throws in case the tag is invalid.
+ * ECMA 402 9.2.1 steps 7.c ii ~ v.
  */
 function canonicalizeLanguageTag(localeID) {
   // null is typeof 'object' so we have to do extra check.
@@ -755,11 +763,14 @@ function canonicalizeLanguageTag(localeID) {
 
   var localeString = TO_STRING(localeID);
 
-  if (isValidLanguageTag(localeString) === false) {
+  if (isStructuallyValidLanguageTag(localeString) === false) {
     throw %make_range_error(kInvalidLanguageTag, localeString);
   }
 
+  // ECMA 402 6.2.3
   var tag = %CanonicalizeLanguageTag(localeString);
+  // TODO(jshin): This should not happen because the structual validity
+  // is already checked. If that's the case, remove this.
   if (tag === 'invalid-tag') {
     throw %make_range_error(kInvalidLanguageTag, localeString);
   }
@@ -769,20 +780,22 @@ function canonicalizeLanguageTag(localeID) {
 
 
 /**
- * Returns an array where all locales are canonicalized and duplicates removed.
+ * Returns an InternalArray where all locales are canonicalized and duplicates
+ * removed.
  * Throws on locales that are not well formed BCP47 tags.
+ * ECMA 402 8.2.1 steps 1 (ECMA 402 9.2.1) and 2.
  */
-function initializeLocaleList(locales) {
+function canonicalizeLocaleList(locales) {
   var seen = new InternalArray();
   if (!IS_UNDEFINED(locales)) {
     // We allow single string localeID.
     if (typeof locales === 'string') {
       %_Call(ArrayPush, seen, canonicalizeLanguageTag(locales));
-      return freezeArray(seen);
+      return seen;
     }
 
     var o = TO_OBJECT(locales);
-    var len = TO_UINT32(o.length);
+    var len = TO_LENGTH(o.length);
 
     for (var k = 0; k < len; k++) {
       if (k in o) {
@@ -797,20 +810,30 @@ function initializeLocaleList(locales) {
     }
   }
 
-  return freezeArray(seen);
+  return seen;
 }
 
+function initializeLocaleList(locales) {
+  return freezeArray(canonicalizeLocaleList(locales));
+}
 
 /**
- * Validates the language tag. Section 2.2.9 of the bcp47 spec
- * defines a valid tag.
+ * Check the structual Validity of the language tag per ECMA 402 6.2.2:
+ *   - Well-formed per RFC 5646 2.1
+ *   - There are no duplicate variant subtags
+ *   - There are no duplicate singletion (extension) subtags
+ *
+ * One extra-check is done (from RFC 5646 2.2.9): the tag is compared
+ * against the list of grandfathered tags. However, subtags for
+ * primary/extended language, script, region, variant are not checked
+ * against the IANA language subtag registry.
  *
  * ICU is too permissible and lets invalid tags, like
  * hant-cmn-cn, through.
  *
  * Returns false if the language tag is invalid.
  */
-function isValidLanguageTag(locale) {
+function isStructuallyValidLanguageTag(locale) {
   // Check if it's well-formed, including grandfadered tags.
   if (IS_NULL(InternalRegExpMatch(GetLanguageTagRE(), locale))) {
     return false;
@@ -904,6 +927,16 @@ var resolvedAccessor = {
     this[resolvedSymbol] = value;
   }
 };
+
+// ECMA 402 section 8.2.1
+InstallFunction(Intl, 'getCanonicalLocales', function(locales) {
+    if (!IS_UNDEFINED(new.target)) {
+      throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
+    }
+
+    return makeArray(canonicalizeLocaleList(locales));
+  }
+);
 
 /**
  * Initializes the given object so it's a valid Collator instance.

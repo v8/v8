@@ -330,7 +330,10 @@
   'language/module-code/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012
-  'intl402/Intl/getCanonicalLocales/*': [FAIL],
+  # http://bugs.icu-project.org/trac/ticket/12671
+  'intl402/Intl/getCanonicalLocales/weird-cases': [FAIL],
+  # https://github.com/tc39/test262/issues/743
+  'intl402/Intl/getCanonicalLocales/main': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5115
   'language/statements/class/subclass/class-definition-null-proto-missing-return-override': [FAIL],
