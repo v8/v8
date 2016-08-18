@@ -5818,29 +5818,6 @@ void Script::set_origin_options(ScriptOriginOptions origin_options) {
             (origin_options.Flags() << kOriginOptionsShift));
 }
 
-SMI_ACCESSORS(StackTraceFrame, flags, kFlagsOffset)
-ACCESSORS(StackTraceFrame, abstract_code, AbstractCode, kAbstractCodeOffset)
-SMI_ACCESSORS(StackTraceFrame, offset, kOffsetOffset)
-ACCESSORS_CHECKED(StackTraceFrame, receiver, Object, kReceiverOffset,
-                  !IsWasmFrame())
-ACCESSORS_CHECKED(StackTraceFrame, function, JSFunction, kFunctionOffset,
-                  !IsWasmFrame())
-ACCESSORS_CHECKED(StackTraceFrame, wasm_object, Object, kWasmObjectOffset,
-                  IsWasmFrame())
-SMI_ACCESSORS_CHECKED(StackTraceFrame, wasm_function_index,
-                      kWasmFunctionIndexOffset, IsWasmFrame())
-
-bool StackTraceFrame::IsWasmFrame() const {
-  return ((flags() & kIsWasmFrame) != 0);
-}
-
-bool StackTraceFrame::IsJavaScriptFrame() const { return !IsWasmFrame(); }
-
-bool StackTraceFrame::IsStrict() const { return ((flags() & kIsStrict) != 0); }
-
-bool StackTraceFrame::ForceConstructor() const {
-  return ((flags() & kForceConstructor) != 0);
-}
 
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayIndex)

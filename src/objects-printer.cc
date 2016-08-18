@@ -1274,21 +1274,6 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "StackTraceFrame");
-  os << "\n - flags: " << flags();
-  os << "\n - abstract_code: " << Brief(abstract_code());
-  os << "\n - offset: " << offset();
-  if (IsWasmFrame()) {
-    os << "\n - wasm_object: " << Brief(wasm_object());
-    os << "\n - wasm_function_index data: " << wasm_function_index();
-  } else {
-    DCHECK(IsJavaScriptFrame());
-    os << "\n - receiver: " << Brief(receiver());
-    os << "\n - function: " << Brief(function());
-  }
-  os << "\n";
-}
 
 void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "DebugInfo");

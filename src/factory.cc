@@ -917,13 +917,6 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   return script;
 }
 
-Handle<StackTraceFrame> Factory::NewStackTraceFrame() {
-  Handle<StackTraceFrame> frame =
-      Handle<StackTraceFrame>::cast(NewStruct(STACK_TRACE_FRAME_TYPE));
-  frame->set_flags(0);
-  frame->set_offset(0);
-  return frame;
-}
 
 Handle<Foreign> Factory::NewForeign(Address addr, PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(isolate(),

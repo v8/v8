@@ -48,6 +48,11 @@ class Execution final : public AllStatic {
                                      Handle<Object> receiver, int argc,
                                      Handle<Object> argv[],
                                      MaybeHandle<Object>* exception_out = NULL);
+
+  static Handle<String> GetStackTraceLine(Handle<Object> recv,
+                                          Handle<JSFunction> fun,
+                                          Handle<Object> pos,
+                                          Handle<Object> is_global);
 };
 
 

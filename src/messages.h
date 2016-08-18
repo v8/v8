@@ -42,6 +42,40 @@ class MessageLocation {
   Handle<JSFunction> function_;
 };
 
+
+class CallSite {
+ public:
+  CallSite(Isolate* isolate, Handle<JSObject> call_site_obj);
+
+  Handle<Object> GetFileName();
+  Handle<Object> GetFunctionName();
+  Handle<Object> GetScriptNameOrSourceUrl();
+  Handle<Object> GetMethodName();
+  Handle<Object> GetTypeName();
+  Handle<Object> GetEvalOrigin();
+  // Return 1-based line number, including line offset.
+  int GetLineNumber();
+  // Return 1-based column number, including column offset if first line.
+  int GetColumnNumber();
+  bool IsNative();
+  bool IsToplevel();
+  bool IsEval();
+  bool IsConstructor();
+
+  bool IsJavaScript() { return !fun_.is_null(); }
+  bool IsWasm() { return !wasm_obj_.is_null(); }
+
+  int wasm_func_index() const { return wasm_func_index_; }
+
+ private:
+  Isolate* isolate_;
+  Handle<Object> receiver_;
+  Handle<JSFunction> fun_;
+  int32_t pos_ = -1;
+  Handle<JSObject> wasm_obj_;
+  uint32_t wasm_func_index_ = static_cast<uint32_t>(-1);
+};
+
 // Determines how stack trace collection skips frames.
 enum FrameSkipMode {
   // Unconditionally skips the first frame. Used e.g. when the Error constructor
@@ -71,6 +105,16 @@ class ErrorUtils : public AllStatic {
   static MaybeHandle<Object> FormatStackTrace(Isolate* isolate,
                                               Handle<JSObject> error,
                                               Handle<Object> stack_trace);
+};
+
+class CallSiteUtils : public AllStatic {
+ public:
+  static MaybeHandle<Object> Construct(Isolate* isolate,
+                                       Handle<Object> receiver,
+                                       Handle<Object> fun, Handle<Object> pos,
+                                       Handle<Object> strict_mode);
+
+  static MaybeHandle<String> ToString(Isolate* isolate, Handle<Object> recv);
 };
 
 #define MESSAGE_TEMPLATES(T)                                                   \

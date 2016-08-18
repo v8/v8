@@ -292,8 +292,6 @@ class Factory final {
 
   Handle<Script> NewScript(Handle<String> source);
 
-  Handle<StackTraceFrame> NewStackTraceFrame();
-
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
                              PretenureFlag pretenure = NOT_TENURED);

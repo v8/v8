@@ -11,22 +11,15 @@
 namespace v8 {
 namespace internal {
 
-#define CHECK_CALLSITE(recv, method)                                           \
-  CHECK_RECEIVER(JSObject, recv, method);                                      \
-  Handle<StackTraceFrame> frame;                                               \
-  {                                                                            \
-    Handle<Object> frame_obj;                                                  \
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                        \
-        isolate, frame_obj,                                                    \
-        JSObject::GetProperty(recv,                                            \
-                              isolate->factory()->call_site_frame_symbol()));  \
-    if (!frame_obj->IsStackTraceFrame()) {                                     \
-      THROW_NEW_ERROR_RETURN_FAILURE(                                          \
-          isolate, NewTypeError(MessageTemplate::kCallSiteMethod,              \
-                                isolate->factory()->NewStringFromAsciiChecked( \
-                                    method)));                                 \
-    }                                                                          \
-    frame = Handle<StackTraceFrame>::cast(frame_obj);                          \
+#define CHECK_CALLSITE(recv, method)                                          \
+  CHECK_RECEIVER(JSObject, recv, method);                                     \
+  if (!JSReceiver::HasOwnProperty(                                            \
+           recv, isolate->factory()->call_site_position_symbol())             \
+           .FromMaybe(false)) {                                               \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                           \
+        isolate,                                                              \
+        NewTypeError(MessageTemplate::kCallSiteMethod,                        \
+                     isolate->factory()->NewStringFromAsciiChecked(method))); \
   }
 
 namespace {
@@ -41,107 +34,167 @@ Object* PositiveNumberOrNull(int value, Isolate* isolate) {
 BUILTIN(CallSitePrototypeGetColumnNumber) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getColumnNumber");
-  return PositiveNumberOrNull(frame->GetColumnNumber(), isolate);
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return PositiveNumberOrNull(call_site.GetColumnNumber(), isolate);
 }
 
 BUILTIN(CallSitePrototypeGetEvalOrigin) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getEvalOrigin");
-  return *frame->GetEvalOrigin();
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return *call_site.GetEvalOrigin();
 }
 
 BUILTIN(CallSitePrototypeGetFileName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getFileName");
-  return *frame->GetFileName();
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return *call_site.GetFileName();
 }
+
+namespace {
+
+bool CallSiteIsStrict(Isolate* isolate, Handle<JSObject> receiver) {
+  Handle<Object> strict;
+  Handle<Symbol> symbol = isolate->factory()->call_site_strict_symbol();
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, strict,
+                                     JSObject::GetProperty(receiver, symbol));
+  return strict->BooleanValue();
+}
+
+}  // namespace
 
 BUILTIN(CallSitePrototypeGetFunction) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getFunction");
 
-  if (frame->IsStrict() || frame->IsWasmFrame()) {
+  if (CallSiteIsStrict(isolate, recv))
     return *isolate->factory()->undefined_value();
-  }
 
-  return frame->function();
+  Handle<Symbol> symbol = isolate->factory()->call_site_function_symbol();
+  RETURN_RESULT_OR_FAILURE(isolate, JSObject::GetProperty(recv, symbol));
 }
 
 BUILTIN(CallSitePrototypeGetFunctionName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getFunctionName");
-  return *frame->GetFunctionName();
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return *call_site.GetFunctionName();
 }
 
 BUILTIN(CallSitePrototypeGetLineNumber) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getLineNumber");
-  return PositiveNumberOrNull(frame->GetLineNumber(), isolate);
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+
+  int line_number = call_site.IsWasm() ? call_site.wasm_func_index()
+                                       : call_site.GetLineNumber();
+  return PositiveNumberOrNull(line_number, isolate);
 }
 
 BUILTIN(CallSitePrototypeGetMethodName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getMethodName");
-  return *frame->GetMethodName();
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return *call_site.GetMethodName();
 }
 
 BUILTIN(CallSitePrototypeGetPosition) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getPosition");
-  return Smi::FromInt(frame->GetPosition());
+
+  Handle<Symbol> symbol = isolate->factory()->call_site_position_symbol();
+  RETURN_RESULT_OR_FAILURE(isolate, JSObject::GetProperty(recv, symbol));
 }
 
 BUILTIN(CallSitePrototypeGetScriptNameOrSourceURL) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getScriptNameOrSourceUrl");
-  return *frame->GetScriptNameOrSourceUrl();
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return *call_site.GetScriptNameOrSourceUrl();
 }
 
 BUILTIN(CallSitePrototypeGetThis) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getThis");
 
-  if (frame->IsStrict() || frame->ForceConstructor() || frame->IsWasmFrame()) {
+  if (CallSiteIsStrict(isolate, recv))
     return *isolate->factory()->undefined_value();
-  }
 
-  return frame->receiver();
+  Handle<Object> receiver;
+  Handle<Symbol> symbol = isolate->factory()->call_site_receiver_symbol();
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     JSObject::GetProperty(recv, symbol));
+
+  if (*receiver == isolate->heap()->call_site_constructor_symbol())
+    return *isolate->factory()->undefined_value();
+
+  return *receiver;
 }
 
 BUILTIN(CallSitePrototypeGetTypeName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getTypeName");
-  return *frame->GetTypeName();
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return *call_site.GetTypeName();
 }
 
 BUILTIN(CallSitePrototypeIsConstructor) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isConstructor");
-  return isolate->heap()->ToBoolean(frame->IsConstructor());
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return isolate->heap()->ToBoolean(call_site.IsConstructor());
 }
 
 BUILTIN(CallSitePrototypeIsEval) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isEval");
-  return isolate->heap()->ToBoolean(frame->IsEval());
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return isolate->heap()->ToBoolean(call_site.IsEval());
 }
 
 BUILTIN(CallSitePrototypeIsNative) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isNative");
-  return isolate->heap()->ToBoolean(frame->IsNative());
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return isolate->heap()->ToBoolean(call_site.IsNative());
 }
 
 BUILTIN(CallSitePrototypeIsToplevel) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isToplevel");
-  return isolate->heap()->ToBoolean(frame->IsToplevel());
+
+  CallSite call_site(isolate, recv);
+  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
+  return isolate->heap()->ToBoolean(call_site.IsToplevel());
 }
 
 BUILTIN(CallSitePrototypeToString) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "toString");
-  return *frame->ToString();
+  RETURN_RESULT_OR_FAILURE(isolate, CallSiteUtils::ToString(isolate, recv));
 }
 
 #undef CHECK_CALLSITE
