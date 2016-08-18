@@ -345,13 +345,21 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateBlockContext(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateCatchContext(
+    Register exception, Handle<String> name) {
+  size_t name_index = GetConstantPoolEntry(name);
+  Output(Bytecode::kCreateCatchContext, RegisterOperand(exception),
+         UnsignedOperand(name_index));
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
   Output(Bytecode::kCreateFunctionContext, UnsignedOperand(slots));
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateWithContext(Register object) {
-  Output(Bytecode::kCreateWithContext, RegisterOperand(object));
+    Output(Bytecode::kCreateWithContext, RegisterOperand(object));
   return *this;
 }
 

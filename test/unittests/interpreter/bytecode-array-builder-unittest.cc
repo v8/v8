@@ -102,11 +102,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit closure operations.
   builder.CreateClosure(0, NOT_TENURED);
 
-  builder.CreateBlockContext(factory->NewScopeInfo(1));
-
   // Emit create context operation.
+  builder.CreateBlockContext(factory->NewScopeInfo(1));
+  builder.CreateCatchContext(reg, name);
   builder.CreateFunctionContext(1);
-
   builder.CreateWithContext(reg);
 
   // Emit literal creation operations.

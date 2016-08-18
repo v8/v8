@@ -139,6 +139,11 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // in the accumulator.
   BytecodeArrayBuilder& CreateBlockContext(Handle<ScopeInfo> scope_info);
 
+  // Create a new context for a catch block with |exception| and |name| and the
+  // closure in the accumulator.
+  BytecodeArrayBuilder& CreateCatchContext(Register exception,
+                                           Handle<String> name);
+
   // Create a new context with size |slots|.
   BytecodeArrayBuilder& CreateFunctionContext(int slots);
 

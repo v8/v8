@@ -1849,6 +1849,22 @@ void Interpreter::DoCreateBlockContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+// CreateCatchContext <exception> <index>
+//
+// Creates a new context for a catch block with the |exception| in a register,
+// the variable name at |index| and the closure in the accumulator.
+void Interpreter::DoCreateCatchContext(InterpreterAssembler* assembler) {
+  Node* exception_reg = __ BytecodeOperandReg(0);
+  Node* exception = __ LoadRegister(exception_reg);
+  Node* index = __ BytecodeOperandIdx(1);
+  Node* name = __ LoadConstantPoolEntry(index);
+  Node* closure = __ GetAccumulator();
+  Node* context = __ GetContext();
+  __ SetAccumulator(__ CallRuntime(Runtime::kPushCatchContext, context, name,
+                                   exception, closure));
+  __ Dispatch();
+}
+
 // CreateFunctionContext <slots>
 //
 // Creates a new context with number of |slots| for the function closure.

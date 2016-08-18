@@ -3227,19 +3227,10 @@ void BytecodeGenerator::VisitNewLocalCatchContext(Variable* variable) {
   AccumulatorResultScope accumulator_execution_result(this);
   DCHECK(variable->IsContextSlot());
 
-  // Allocate a new local block context.
-  register_allocator()->PrepareForConsecutiveAllocations(3);
-  Register name = register_allocator()->NextConsecutiveRegister();
-  Register exception = register_allocator()->NextConsecutiveRegister();
-  Register closure = register_allocator()->NextConsecutiveRegister();
-
-  builder()
-      ->StoreAccumulatorInRegister(exception)
-      .LoadLiteral(variable->name())
-      .StoreAccumulatorInRegister(name);
+  Register exception = register_allocator()->NewRegister();
+  builder()->StoreAccumulatorInRegister(exception);
   VisitFunctionClosureForContext();
-  builder()->StoreAccumulatorInRegister(closure).CallRuntime(
-      Runtime::kPushCatchContext, name, 3);
+  builder()->CreateCatchContext(exception, variable->name());
   execution_result()->SetResultInAccumulator();
 }
 

@@ -942,6 +942,18 @@ void BytecodeGraphBuilder::VisitCreateFunctionContext() {
   environment()->BindAccumulator(context);
 }
 
+void BytecodeGraphBuilder::VisitCreateCatchContext() {
+  interpreter::Register reg = bytecode_iterator().GetRegisterOperand(0);
+  Node* exception = environment()->LookupRegister(reg);
+  Handle<String> name =
+      Handle<String>::cast(bytecode_iterator().GetConstantForIndexOperand(1));
+  Node* closure = environment()->LookupAccumulator();
+
+  const Operator* op = javascript()->CreateCatchContext(name);
+  Node* context = NewNode(op, exception, closure);
+  environment()->BindAccumulator(context);
+}
+
 void BytecodeGraphBuilder::VisitCreateWithContext() {
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
