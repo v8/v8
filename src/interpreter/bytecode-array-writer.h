@@ -23,8 +23,7 @@ class ConstantArrayBuilder;
 class BytecodeArrayWriter final : public BytecodePipelineStage {
  public:
   BytecodeArrayWriter(
-      Isolate* isolate, Zone* zone,
-      ConstantArrayBuilder* constant_array_builder,
+      Zone* zone, ConstantArrayBuilder* constant_array_builder,
       SourcePositionTableBuilder::RecordingMode source_position_mode);
   virtual ~BytecodeArrayWriter();
 
@@ -34,7 +33,7 @@ class BytecodeArrayWriter final : public BytecodePipelineStage {
   void BindLabel(BytecodeLabel* label) override;
   void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override;
   Handle<BytecodeArray> ToBytecodeArray(
-      int fixed_register_count, int parameter_count,
+      Isolate* isolate, int fixed_register_count, int parameter_count,
       Handle<FixedArray> handler_table) override;
 
  private:
@@ -63,7 +62,6 @@ class BytecodeArrayWriter final : public BytecodePipelineStage {
   void EmitJump(BytecodeNode* node, BytecodeLabel* label);
   void UpdateSourcePositionTable(const BytecodeNode* const node);
 
-  Isolate* isolate() { return isolate_; }
   ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
   SourcePositionTableBuilder* source_position_table_builder() {
     return &source_position_table_builder_;
@@ -73,7 +71,6 @@ class BytecodeArrayWriter final : public BytecodePipelineStage {
   }
   int max_register_count() { return max_register_count_; }
 
-  Isolate* isolate_;
   ZoneVector<uint8_t> bytecodes_;
   int max_register_count_;
   int unbound_jumps_;

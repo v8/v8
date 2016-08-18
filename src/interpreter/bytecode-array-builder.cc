@@ -21,17 +21,16 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
     Isolate* isolate, Zone* zone, int parameter_count, int context_count,
     int locals_count, FunctionLiteral* literal,
     SourcePositionTableBuilder::RecordingMode source_position_mode)
-    : isolate_(isolate),
-      zone_(zone),
+    : zone_(zone),
       bytecode_generated_(false),
-      constant_array_builder_(isolate, zone),
-      handler_table_builder_(isolate, zone),
+      constant_array_builder_(zone, isolate->factory()->the_hole_value()),
+      handler_table_builder_(zone),
       return_seen_in_block_(false),
       parameter_count_(parameter_count),
       local_register_count_(locals_count),
       context_register_count_(context_count),
       temporary_allocator_(zone, fixed_register_count()),
-      bytecode_array_writer_(isolate, zone, &constant_array_builder_,
+      bytecode_array_writer_(zone, &constant_array_builder_,
                              source_position_mode),
       pipeline_(&bytecode_array_writer_) {
   DCHECK_GE(parameter_count_, 0);
@@ -75,14 +74,15 @@ bool BytecodeArrayBuilder::RegisterIsParameterOrLocal(Register reg) const {
   return reg.is_parameter() || reg.index() < locals_count();
 }
 
-Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
+Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
   DCHECK(return_seen_in_block_);
   DCHECK(!bytecode_generated_);
   bytecode_generated_ = true;
 
-  Handle<FixedArray> handler_table = handler_table_builder()->ToHandlerTable();
-  return pipeline_->ToBytecodeArray(fixed_register_count(), parameter_count(),
-                                    handler_table);
+  Handle<FixedArray> handler_table =
+      handler_table_builder()->ToHandlerTable(isolate);
+  return pipeline_->ToBytecodeArray(isolate, fixed_register_count(),
+                                    parameter_count(), handler_table);
 }
 
 namespace {

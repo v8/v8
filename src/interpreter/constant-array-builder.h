@@ -32,10 +32,10 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   static const size_t k32BitCapacity =
       kMaxUInt32 - k16BitCapacity - k8BitCapacity + 1;
 
-  ConstantArrayBuilder(Isolate* isolate, Zone* zone);
+  ConstantArrayBuilder(Zone* zone, Handle<Object> the_hole_value);
 
   // Generate a fixed array of constants based on inserted objects.
-  Handle<FixedArray> ToFixedArray();
+  Handle<FixedArray> ToFixedArray(Isolate* isolate);
 
   // Returns the object in the constant pool array that at index
   // |index|.
@@ -105,11 +105,13 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   ConstantArraySlice* IndexToSlice(size_t index) const;
   ConstantArraySlice* OperandSizeToSlice(OperandSize operand_size) const;
 
-  Isolate* isolate_;
+  Handle<Object> the_hole_value() const { return the_hole_value_; }
+
   ConstantArraySlice* idx_slice_[3];
   ZoneMap<Address, index_t> constants_map_;
   ZoneMap<Smi*, index_t> smi_map_;
   ZoneVector<std::pair<Smi*, index_t>> smi_pairs_;
+  Handle<Object> the_hole_value_;
 };
 
 }  // namespace interpreter

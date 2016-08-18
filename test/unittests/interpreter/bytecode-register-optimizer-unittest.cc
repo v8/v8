@@ -35,7 +35,7 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
   void BindLabel(BytecodeLabel* label) override {}
   void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override {}
   Handle<BytecodeArray> ToBytecodeArray(
-      int fixed_register_count, int parameter_count,
+      Isolate* isolate, int fixed_register_count, int parameter_count,
       Handle<FixedArray> handle_table) override {
     return Handle<BytecodeArray>();
   }

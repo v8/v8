@@ -21,11 +21,11 @@ namespace interpreter {
 // A helper class for constructing exception handler tables for the interpreter.
 class HandlerTableBuilder final BASE_EMBEDDED {
  public:
-  HandlerTableBuilder(Isolate* isolate, Zone* zone);
+  explicit HandlerTableBuilder(Zone* zone);
 
   // Builds the actual handler table by copying the current values into a heap
   // object. Any further mutations to the builder won't be reflected.
-  Handle<HandlerTable> ToHandlerTable();
+  Handle<HandlerTable> ToHandlerTable(Isolate* isolate);
 
   // Creates a new handler table entry and returns a {hander_id} identifying the
   // entry, so that it can be referenced by below setter functions.
@@ -50,7 +50,6 @@ class HandlerTableBuilder final BASE_EMBEDDED {
     HandlerTable::CatchPrediction catch_prediction_;
   };
 
-  Isolate* isolate_;
   ZoneVector<Entry> entries_;
 
   DISALLOW_COPY_AND_ASSIGN(HandlerTableBuilder);

@@ -19,11 +19,11 @@ BytecodePeepholeOptimizer::BytecodePeepholeOptimizer(
 
 // override
 Handle<BytecodeArray> BytecodePeepholeOptimizer::ToBytecodeArray(
-    int fixed_register_count, int parameter_count,
+    Isolate* isolate, int fixed_register_count, int parameter_count,
     Handle<FixedArray> handler_table) {
   Flush();
-  return next_stage_->ToBytecodeArray(fixed_register_count, parameter_count,
-                                      handler_table);
+  return next_stage_->ToBytecodeArray(isolate, fixed_register_count,
+                                      parameter_count, handler_table);
 }
 
 // override

@@ -47,7 +47,7 @@ class BytecodePipelineStage {
 
   // Flush the pipeline and generate a bytecode array.
   virtual Handle<BytecodeArray> ToBytecodeArray(
-      int fixed_register_count, int parameter_count,
+      Isolate* isolate, int fixed_register_count, int parameter_count,
       Handle<FixedArray> handler_table) = 0;
 };
 

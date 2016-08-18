@@ -411,7 +411,14 @@ class Scope: public ZoneObject {
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
 
+  // Creates a scope info if it doesn't already exist.
   Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
+
+  // GetScopeInfo() must have been called once to create the ScopeInfo.
+  Handle<ScopeInfo> scope_info() {
+    DCHECK(!scope_info_.is_null());
+    return scope_info_;
+  }
 
   // ---------------------------------------------------------------------------
   // Strict mode support.

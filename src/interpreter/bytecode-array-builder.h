@@ -34,7 +34,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
       SourcePositionTableBuilder::RecordingMode source_position_mode =
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
-  Handle<BytecodeArray> ToBytecodeArray();
+  Handle<BytecodeArray> ToBytecodeArray(Isolate* isolate);
 
   // Get the number of parameters expected by function.
   int parameter_count() const {
@@ -363,7 +363,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   void LeaveBasicBlock() { return_seen_in_block_ = false; }
 
-  Isolate* isolate() const { return isolate_; }
   BytecodeArrayWriter* bytecode_array_writer() {
     return &bytecode_array_writer_;
   }
@@ -378,7 +377,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
     return &handler_table_builder_;
   }
 
-  Isolate* isolate_;
   Zone* zone_;
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;

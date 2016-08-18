@@ -28,7 +28,7 @@ class InvokeIntrinsicHelper {
     BytecodeArrayBuilder builder(isolate_, zone_, sizeof...(args), 0, 0);
     builder.CallRuntime(function_id_, builder.Parameter(0), sizeof...(args))
         .Return();
-    InterpreterTester tester(isolate_, builder.ToBytecodeArray());
+    InterpreterTester tester(isolate_, builder.ToBytecodeArray(isolate_));
     auto callable = tester.GetCallable<A...>();
     return callable(args...).ToHandleChecked();
   }
