@@ -3174,11 +3174,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
   }
   job_.reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph_->graph(),
                                              descriptor, source_positions));
-
-  // The function name {OptimizeGraph()} is misleading but necessary because we
-  // want to use the CompilationJob interface. A better name would be
-  // ScheduleGraphAndSelectInstructions.
-  ok_ = job_->OptimizeGraph() == CompilationJob::SUCCEEDED;
+  ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
   // TODO(bradnelson): Improve histogram handling of size_t.
   // TODO(ahaas): The counters are not thread-safe at the moment.
   //    isolate_->counters()->wasm_compile_function_peak_memory_bytes()
@@ -3210,7 +3206,7 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
 
     return Handle<Code>::null();
   }
-  if (job_->GenerateCode() != CompilationJob::SUCCEEDED) {
+  if (job_->FinalizeJob() != CompilationJob::SUCCEEDED) {
     return Handle<Code>::null();
   }
   base::ElapsedTimer compile_timer;

@@ -54,8 +54,6 @@ class LCodeGenBase BASE_EMBEDDED {
 
   int GetNextEmittedBlock() const;
 
-  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
-
   void WriteTranslationFrame(LEnvironment* environment,
                              Translation* translation);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
