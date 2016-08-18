@@ -942,6 +942,15 @@ void BytecodeGraphBuilder::VisitCreateFunctionContext() {
   environment()->BindAccumulator(context);
 }
 
+void BytecodeGraphBuilder::VisitCreateWithContext() {
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+
+  const Operator* op = javascript()->CreateWithContext();
+  Node* context = NewNode(op, object, environment()->LookupAccumulator());
+  environment()->BindAccumulator(context);
+}
+
 void BytecodeGraphBuilder::BuildCreateArguments(CreateArgumentsType type) {
   FrameStateBeforeAndAfter states(this);
   const Operator* op = javascript()->CreateArguments(type);

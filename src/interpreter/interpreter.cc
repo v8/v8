@@ -1821,6 +1821,20 @@ void Interpreter::DoCreateFunctionContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+// CreateWithContext <register>
+//
+// Creates a new context for a with-statement with the object in |register| and
+// the closure in the accumulator.
+void Interpreter::DoCreateWithContext(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* object = __ LoadRegister(reg_index);
+  Node* closure = __ GetAccumulator();
+  Node* context = __ GetContext();
+  __ SetAccumulator(
+      __ CallRuntime(Runtime::kPushWithContext, context, object, closure));
+  __ Dispatch();
+}
+
 // CreateMappedArguments
 //
 // Creates a new mapped arguments object.

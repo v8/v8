@@ -350,6 +350,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateWithContext(Register object) {
+  Output(Bytecode::kCreateWithContext, RegisterOperand(object));
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArguments(
     CreateArgumentsType type) {
   // TODO(rmcilroy): Consider passing the type as a bytecode operand rather

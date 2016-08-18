@@ -3219,14 +3219,11 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
 void BytecodeGenerator::VisitNewLocalWithContext() {
   AccumulatorResultScope accumulator_execution_result(this);
 
-  register_allocator()->PrepareForConsecutiveAllocations(2);
-  Register extension_object = register_allocator()->NextConsecutiveRegister();
-  Register closure = register_allocator()->NextConsecutiveRegister();
+  Register extension_object = register_allocator()->NewRegister();
 
   builder()->CastAccumulatorToJSObject(extension_object);
   VisitFunctionClosureForContext();
-  builder()->StoreAccumulatorInRegister(closure).CallRuntime(
-      Runtime::kPushWithContext, extension_object, 2);
+  builder()->CreateWithContext(extension_object);
   execution_result()->SetResultInAccumulator();
 }
 
