@@ -48,9 +48,6 @@ class JSTypedLowering final : public AdvancedReducer {
   friend class JSBinopReduction;
 
   Reduction ReduceJSAdd(Node* node);
-  Reduction ReduceJSModulus(Node* node);
-  Reduction ReduceJSBitwiseOr(Node* node);
-  Reduction ReduceJSMultiply(Node* node);
   Reduction ReduceJSComparison(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
@@ -83,11 +80,9 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberRoundop(Node* node);
   Reduction ReduceSelect(Node* node);
-  Reduction ReduceJSSubtract(Node* node);
-  Reduction ReduceJSDivide(Node* node);
-  Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
-  Reduction ReduceUI32Shift(Node* node, Signedness signedness,
-                            const Operator* shift_op);
+  Reduction ReduceNumberBinop(Node* node);
+  Reduction ReduceInt32Binop(Node* node);
+  Reduction ReduceUI32Shift(Node* node, Signedness signedness);
 
   Factory* factory() const;
   Graph* graph() const;
