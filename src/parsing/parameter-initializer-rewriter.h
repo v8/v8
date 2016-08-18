@@ -5,10 +5,13 @@
 #ifndef V8_PARSING_PARAMETER_EXPRESSION_REWRITER_H_
 #define V8_PARSING_PARAMETER_EXPRESSION_REWRITER_H_
 
-#include "src/ast/ast.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {
+
+class Expression;
+class Scope;
 
 // When an extra declaration scope needs to be inserted to account for
 // a sloppy eval in a default parameter or function body, the expressions

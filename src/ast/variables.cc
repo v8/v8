@@ -4,7 +4,6 @@
 
 #include "src/ast/variables.h"
 
-#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/globals.h"
 

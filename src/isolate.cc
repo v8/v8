@@ -9,7 +9,6 @@
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 
-#include "src/ast/ast.h"
 #include "src/ast/context-slot-cache.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"

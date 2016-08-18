@@ -8,9 +8,12 @@
 #include <memory>
 
 #include "src/allocation.h"
-#include "src/ast/ast.h"
 #include "src/bailout-reason.h"
 #include "src/compilation-dependencies.h"
+#include "src/contexts.h"
+#include "src/frames.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/source-position-table.h"
 #include "src/source-position.h"
 #include "src/zone.h"

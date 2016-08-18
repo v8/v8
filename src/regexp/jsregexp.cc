@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "src/ast/ast.h"
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"

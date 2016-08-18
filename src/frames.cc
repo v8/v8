@@ -7,7 +7,6 @@
 #include <memory>
 #include <sstream>
 
-#include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"

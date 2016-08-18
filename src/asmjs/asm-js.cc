@@ -9,8 +9,6 @@
 #include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-wasm-builder.h"
 #include "src/assert-scope.h"
-#include "src/ast/ast.h"
-#include "src/ast/scopes.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/handles.h"
