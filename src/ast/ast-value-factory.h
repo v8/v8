@@ -154,10 +154,13 @@ class AstValue : public ZoneObject {
   }
 
   bool IsNumber() const {
-    return type_ == NUMBER || type_ == NUMBER_WITH_DOT || type_ == SMI;
+    return type_ == NUMBER || type_ == NUMBER_WITH_DOT || type_ == SMI ||
+           type_ == SMI_WITH_DOT;
   }
 
-  bool ContainsDot() const { return type_ == NUMBER_WITH_DOT; }
+  bool ContainsDot() const {
+    return type_ == NUMBER_WITH_DOT || type_ == SMI_WITH_DOT;
+  }
 
   const AstRawString* AsString() const {
     CHECK_EQ(STRING, type_);
@@ -167,14 +170,14 @@ class AstValue : public ZoneObject {
   double AsNumber() const {
     if (type_ == NUMBER || type_ == NUMBER_WITH_DOT)
       return number_;
-    if (type_ == SMI)
+    if (type_ == SMI || type_ == SMI_WITH_DOT)
       return smi_;
     UNREACHABLE();
     return 0;
   }
 
   Smi* AsSmi() const {
-    CHECK_EQ(SMI, type_);
+    CHECK(type_ == SMI || type_ == SMI_WITH_DOT);
     return Smi::FromInt(smi_);
   }
 
@@ -186,7 +189,7 @@ class AstValue : public ZoneObject {
 
   bool BooleanValue() const;
 
-  bool IsSmi() const { return type_ == SMI; }
+  bool IsSmi() const { return type_ == SMI || type_ == SMI_WITH_DOT; }
   bool IsFalse() const { return type_ == BOOLEAN && !bool_; }
   bool IsTrue() const { return type_ == BOOLEAN && bool_; }
   bool IsUndefined() const { return type_ == UNDEFINED; }
@@ -215,6 +218,7 @@ class AstValue : public ZoneObject {
     NUMBER,
     NUMBER_WITH_DOT,
     SMI,
+    SMI_WITH_DOT,
     BOOLEAN,
     NULL_TYPE,
     UNDEFINED,
@@ -230,18 +234,13 @@ class AstValue : public ZoneObject {
   }
 
   explicit AstValue(double n, bool with_dot) : next_(nullptr) {
-    if (with_dot) {
-      type_ = NUMBER_WITH_DOT;
-      number_ = n;
+    int int_value;
+    if (DoubleToSmiInteger(n, &int_value)) {
+      type_ = with_dot ? SMI_WITH_DOT : SMI;
+      smi_ = int_value;
     } else {
-      int int_value;
-      if (DoubleToSmiInteger(n, &int_value)) {
-        type_ = SMI;
-        smi_ = int_value;
-      } else {
-        type_ = NUMBER;
-        number_ = n;
-      }
+      type_ = with_dot ? NUMBER_WITH_DOT : NUMBER;
+      number_ = n;
     }
   }
 

@@ -156,6 +156,7 @@ bool AstValue::BooleanValue() const {
     case NUMBER_WITH_DOT:
     case NUMBER:
       return DoubleToBoolean(number_);
+    case SMI_WITH_DOT:
     case SMI:
       return smi_ != 0;
     case BOOLEAN:
@@ -195,6 +196,7 @@ void AstValue::Internalize(Isolate* isolate) {
     case NUMBER:
       value_ = isolate->factory()->NewNumber(number_, TENURED);
       break;
+    case SMI_WITH_DOT:
     case SMI:
       value_ = handle(Smi::FromInt(smi_), isolate);
       break;
