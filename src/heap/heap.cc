@@ -1595,6 +1595,8 @@ void Heap::Scavenge() {
   // Pause the inline allocation steps.
   PauseAllocationObserversScope pause_observers(this);
 
+  mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
+
   gc_state_ = SCAVENGE;
 
   // Implements Cheney's copying algorithm

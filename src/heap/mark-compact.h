@@ -315,6 +315,7 @@ class MarkCompactCollector {
     void StartSweeping();
     void StartSweepingHelper(AllocationSpace space_to_start);
     void EnsureCompleted();
+    void EnsureNewSpaceCompleted();
     bool IsSweepingCompleted();
     void SweepOrWaitUntilSweepingCompleted(Page* page);
 

@@ -4,8 +4,6 @@
 
 #include "src/heap/spaces.h"
 
-#include <utility>
-
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
@@ -350,7 +348,6 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public v8::Task {
 };
 
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {
-  ReconsiderDelayedChunks();
   if (FLAG_concurrent_sweeping) {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
         new UnmapFreeMemoryTask(this), v8::Platform::kShortRunningTask);
@@ -382,24 +379,6 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
   while ((chunk = GetMemoryChunkSafe<kNonRegular>()) != nullptr) {
     allocator_->PerformFreeMemory(chunk);
   }
-}
-
-void MemoryAllocator::Unmapper::ReconsiderDelayedChunks() {
-  std::list<MemoryChunk*> delayed_chunks(std::move(delayed_regular_chunks_));
-  // Move constructed, so the permanent list should be empty.
-  DCHECK(delayed_regular_chunks_.empty());
-  for (auto it = delayed_chunks.begin(); it != delayed_chunks.end(); ++it) {
-    AddMemoryChunkSafe<kRegular>(*it);
-  }
-}
-
-bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
-  MarkCompactCollector* mc = isolate_->heap()->mark_compact_collector();
-  // We cannot free memory chunks in new space while the sweeper is running
-  // since a sweeper thread might be stuck right before trying to lock the
-  // corresponding page.
-  return !chunk->InNewSpace() || (mc == nullptr) ||
-         mc->sweeper().IsSweepingCompleted();
 }
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,

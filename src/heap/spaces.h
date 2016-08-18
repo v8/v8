@@ -1205,12 +1205,7 @@ class MemoryAllocator {
     template <ChunkQueueType type>
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
       base::LockGuard<base::Mutex> guard(&mutex_);
-      if (type != kRegular || allocator_->CanFreeMemoryChunk(chunk)) {
-        chunks_[type].push_back(chunk);
-      } else {
-        DCHECK_EQ(type, kRegular);
-        delayed_regular_chunks_.push_back(chunk);
-      }
+      chunks_[type].push_back(chunk);
     }
 
     template <ChunkQueueType type>
@@ -1222,16 +1217,11 @@ class MemoryAllocator {
       return chunk;
     }
 
-    void ReconsiderDelayedChunks();
     void PerformFreeMemoryOnQueuedChunks();
 
     base::Mutex mutex_;
     MemoryAllocator* allocator_;
     std::list<MemoryChunk*> chunks_[kNumberOfChunkQueues];
-    // Delayed chunks cannot be processed in the current unmapping cycle because
-    // of dependencies such as an active sweeper.
-    // See MemoryAllocator::CanFreeMemoryChunk.
-    std::list<MemoryChunk*> delayed_regular_chunks_;
     base::Semaphore pending_unmapping_tasks_semaphore_;
     intptr_t concurrent_unmapping_tasks_active_;
 
@@ -1269,8 +1259,6 @@ class MemoryAllocator {
 
   template <MemoryAllocator::FreeMode mode = kFull>
   void Free(MemoryChunk* chunk);
-
-  bool CanFreeMemoryChunk(MemoryChunk* chunk);
 
   // Returns allocated spaces in bytes.
   intptr_t Size() { return size_.Value(); }
