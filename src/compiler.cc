@@ -1758,16 +1758,18 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     maybe_existing = script->FindSharedFunctionInfo(literal);
   }
 
-  // We found an existing shared function info. If it's already compiled,
-  // don't worry about compiling it, and simply return it. If it's not yet
-  // compiled, continue to decide whether to eagerly compile.
-  // Carry on if we are compiling eager to obtain code for debugging,
-  // unless we already have code with debut break slots.
+  // We found an existing shared function info. If it has any sort of code
+  // attached, don't worry about compiling and simply return it. Otherwise,
+  // continue to decide whether to eagerly compile.
+  // Note that we also carry on if we are compiling eager to obtain code for
+  // debugging, unless we already have code with debug break slots.
   Handle<SharedFunctionInfo> existing;
-  if (maybe_existing.ToHandle(&existing) && existing->is_compiled()) {
+  if (maybe_existing.ToHandle(&existing)) {
     DCHECK(!existing->is_toplevel());
-    if (!outer_info->is_debug() || existing->HasDebugCode()) {
-      return existing;
+    if (existing->HasBaselineCode() || existing->HasBytecodeArray()) {
+      if (!outer_info->is_debug() || existing->HasDebugCode()) {
+        return existing;
+      }
     }
   }
 
