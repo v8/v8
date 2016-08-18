@@ -496,8 +496,8 @@ class Scope: public ZoneObject {
   // Scope-specific information computed during parsing.
   //
   // The language mode of this scope.
-  STATIC_ASSERT(LANGUAGE_END == 3);
-  LanguageMode language_mode_ : 2;
+  STATIC_ASSERT(LANGUAGE_END == 2);
+  LanguageMode language_mode_ : 1;
   // This scope is inside a 'with' of some outer scope.
   bool scope_inside_with_ : 1;
   // This scope or a nested catch scope or with scope contain an 'eval' call. At

@@ -1845,8 +1845,8 @@ class StoreGlobalViaContextStub final : public PlatformCodeStub {
  private:
   class DepthBits : public BitField<int, 0, 4> {};
   STATIC_ASSERT(DepthBits::kMax == kMaximumDepth);
-  class LanguageModeBits : public BitField<LanguageMode, 4, 2> {};
-  STATIC_ASSERT(LANGUAGE_END == 3);
+  class LanguageModeBits : public BitField<LanguageMode, 4, 1> {};
+  STATIC_ASSERT(LANGUAGE_END == 2);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreGlobalViaContext);
   DEFINE_PLATFORM_CODE_STUB(StoreGlobalViaContext, PlatformCodeStub);
