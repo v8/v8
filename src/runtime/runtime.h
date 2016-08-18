@@ -1135,8 +1135,8 @@ class AllocateTargetSpace : public BitField<AllocationSpace, 1, 3> {};
 
 class DeclareGlobalsEvalFlag : public BitField<bool, 0, 1> {};
 class DeclareGlobalsNativeFlag : public BitField<bool, 1, 1> {};
-STATIC_ASSERT(LANGUAGE_END == 2);
-class DeclareGlobalsLanguageMode : public BitField<LanguageMode, 2, 1> {};
+STATIC_ASSERT(LANGUAGE_END == 3);
+class DeclareGlobalsLanguageMode : public BitField<LanguageMode, 2, 2> {};
 
 }  // namespace internal
 }  // namespace v8

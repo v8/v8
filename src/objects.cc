@@ -9163,15 +9163,22 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
   // using |strict_function_transition_symbol| as a key.
   if (language_mode == SLOPPY) return initial_map;
   Isolate* isolate = initial_map->GetIsolate();
+  Factory* factory = isolate->factory();
+  Handle<Symbol> transition_symbol;
 
   int map_index = Context::FunctionMapIndex(language_mode, kind);
   Handle<Map> function_map(
       Map::cast(isolate->native_context()->get(map_index)));
 
-  STATIC_ASSERT(LANGUAGE_END == 2);
-  DCHECK_EQ(STRICT, language_mode);
-  Handle<Symbol> transition_symbol =
-      isolate->factory()->strict_function_transition_symbol();
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  switch (language_mode) {
+    case STRICT:
+      transition_symbol = factory->strict_function_transition_symbol();
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
   Map* maybe_transition =
       TransitionArray::SearchSpecial(*initial_map, *transition_symbol);
   if (maybe_transition != NULL) {
@@ -16013,7 +16020,7 @@ class StringSharedKey : public HashTableKey {
       // collection.
       Script* script(Script::cast(shared->script()));
       hash ^= String::cast(script->source())->Hash();
-      STATIC_ASSERT(LANGUAGE_END == 2);
+      STATIC_ASSERT(LANGUAGE_END == 3);
       if (is_strict(language_mode)) hash ^= 0x8000;
       hash += scope_position;
     }

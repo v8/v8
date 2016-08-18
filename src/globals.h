@@ -272,7 +272,8 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 
-enum LanguageMode : uint32_t { SLOPPY, STRICT, LANGUAGE_END };
+enum LanguageMode { SLOPPY, STRICT, LANGUAGE_END = 3 };
+
 
 inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   switch (mode) {
