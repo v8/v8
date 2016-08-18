@@ -707,5 +707,337 @@ TEST_F(ValueSerializerTest, DecodeDictionaryObjectVersion0) {
       });
 }
 
+TEST_F(ValueSerializerTest, RoundTripArray) {
+  // A simple array of integers.
+  RoundTripTest("[1, 2, 3, 4, 5]", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsArray());
+    EXPECT_EQ(5, Array::Cast(*value)->Length());
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === Array.prototype"));
+    EXPECT_TRUE(
+        EvaluateScriptForResultBool("result.toString() === '1,2,3,4,5'"));
+  });
+  // A long (sparse) array.
+  RoundTripTest(
+      "(() => { var x = new Array(1000); x[500] = 42; return x; })()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        EXPECT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[500] === 42"));
+      });
+  // Duplicate reference.
+  RoundTripTest(
+      "(() => { var y = {}; return [y, y]; })()", [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === result[1]"));
+      });
+  // Duplicate reference in a sparse array.
+  RoundTripTest(
+      "(() => { var x = new Array(1000); x[1] = x[500] = {}; return x; })()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("typeof result[1] === 'object'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[1] === result[500]"));
+      });
+  // Self reference.
+  RoundTripTest(
+      "(() => { var y = []; y[0] = y; return y; })()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === result"));
+      });
+  // Self reference in a sparse array.
+  RoundTripTest(
+      "(() => { var y = new Array(1000); y[519] = y; return y; })()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[519] === result"));
+      });
+  // Array with additional properties.
+  RoundTripTest(
+      "(() => { var y = [1, 2]; y.foo = 'bar'; return y; })()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.toString() === '1,2'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.foo === 'bar'"));
+      });
+  // Sparse array with additional properties.
+  RoundTripTest(
+      "(() => { var y = new Array(1000); y.foo = 'bar'; return y; })()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "result.toString() === ','.repeat(999)"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.foo === 'bar'"));
+      });
+  // The distinction between holes and undefined elements must be maintained.
+  RoundTripTest("[,undefined]", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsArray());
+    ASSERT_EQ(2, Array::Cast(*value)->Length());
+    EXPECT_TRUE(
+        EvaluateScriptForResultBool("typeof result[0] === 'undefined'"));
+    EXPECT_TRUE(
+        EvaluateScriptForResultBool("typeof result[1] === 'undefined'"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(0)"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.hasOwnProperty(1)"));
+  });
+}
+
+TEST_F(ValueSerializerTest, DecodeArray) {
+  // A simple array of integers.
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x41, 0x05, 0x3f, 0x01, 0x49, 0x02,
+              0x3f, 0x01, 0x49, 0x04, 0x3f, 0x01, 0x49, 0x06, 0x3f, 0x01,
+              0x49, 0x08, 0x3f, 0x01, 0x49, 0x0a, 0x24, 0x00, 0x05, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsArray());
+               EXPECT_EQ(5, Array::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Array.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === '1,2,3,4,5'"));
+             });
+  // A long (sparse) array.
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x61, 0xe8, 0x07, 0x3f, 0x01, 0x49,
+              0xe8, 0x07, 0x3f, 0x01, 0x49, 0x54, 0x40, 0x01, 0xe8, 0x07},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsArray());
+               EXPECT_EQ(1000, Array::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool("result[500] === 42"));
+             });
+  // Duplicate reference.
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x41, 0x02, 0x3f, 0x01, 0x6f, 0x7b, 0x00, 0x3f,
+       0x02, 0x5e, 0x01, 0x24, 0x00, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === result[1]"));
+      });
+  // Duplicate reference in a sparse array.
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x61, 0xe8, 0x07, 0x3f, 0x01, 0x49,
+       0x02, 0x3f, 0x01, 0x6f, 0x7b, 0x00, 0x3f, 0x02, 0x49, 0xe8,
+       0x07, 0x3f, 0x02, 0x5e, 0x01, 0x40, 0x02, 0xe8, 0x07, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("typeof result[1] === 'object'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[1] === result[500]"));
+      });
+  // Self reference.
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x41, 0x01, 0x3f, 0x01, 0x5e, 0x00, 0x24,
+              0x00, 0x01, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsArray());
+               ASSERT_EQ(1, Array::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === result"));
+             });
+  // Self reference in a sparse array.
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x61, 0xe8, 0x07, 0x3f, 0x01, 0x49,
+       0x8e, 0x08, 0x3f, 0x01, 0x5e, 0x00, 0x40, 0x01, 0xe8, 0x07},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[519] === result"));
+      });
+  // Array with additional properties.
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x41, 0x02, 0x3f, 0x01, 0x49, 0x02, 0x3f,
+       0x01, 0x49, 0x04, 0x3f, 0x01, 0x53, 0x03, 0x66, 0x6f, 0x6f, 0x3f,
+       0x01, 0x53, 0x03, 0x62, 0x61, 0x72, 0x24, 0x01, 0x02, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.toString() === '1,2'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.foo === 'bar'"));
+      });
+  // Sparse array with additional properties.
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x61, 0xe8, 0x07, 0x3f, 0x01,
+              0x53, 0x03, 0x66, 0x6f, 0x6f, 0x3f, 0x01, 0x53, 0x03,
+              0x62, 0x61, 0x72, 0x40, 0x01, 0xe8, 0x07, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsArray());
+               ASSERT_EQ(1000, Array::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === ','.repeat(999)"));
+               EXPECT_TRUE(EvaluateScriptForResultBool("result.foo === 'bar'"));
+             });
+  // The distinction between holes and undefined elements must be maintained.
+  // Note that since the previous output from Chrome fails this test, an
+  // encoding using the sparse format was constructed instead.
+  DecodeTest(
+      {0xff, 0x09, 0x61, 0x02, 0x49, 0x02, 0x5f, 0x40, 0x01, 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2, Array::Cast(*value)->Length());
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("typeof result[0] === 'undefined'"));
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("typeof result[1] === 'undefined'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(0)"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.hasOwnProperty(1)"));
+      });
+}
+
+TEST_F(ValueSerializerTest, RoundTripArrayWithNonEnumerableElement) {
+  // Even though this array looks like [1,5,3], the 5 should be missing from the
+  // perspective of structured clone, which only clones properties that were
+  // enumerable.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [1,2,3];"
+      "  Object.defineProperty(x, '1', {enumerable:false, value:5});"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(3, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty('1')"));
+      });
+}
+
+TEST_F(ValueSerializerTest, RoundTripArrayWithTrickyGetters) {
+  // If an element is deleted before it is serialized, then it's deleted.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [{ get a() { delete x[1]; }}, 42];"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2, Array::Cast(*value)->Length());
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("typeof result[1] === 'undefined'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(1)"));
+      });
+  // Same for sparse arrays.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [{ get a() { delete x[1]; }}, 42];"
+      "  x.length = 1000;"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("typeof result[1] === 'undefined'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(1)"));
+      });
+  // If the length is changed, then the resulting array still has the original
+  // length, but elements that were not yet serialized are gone.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [1, { get a() { x.length = 0; }}, 3, 4];"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(4, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === 1"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(2)"));
+      });
+  // Same for sparse arrays.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [1, { get a() { x.length = 0; }}, 3, 4];"
+      "  x.length = 1000;"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === 1"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(2)"));
+      });
+  // If a getter makes a property non-enumerable, it should still be enumerated
+  // as enumeration happens once before getters are invoked.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [{ get a() {"
+      "    Object.defineProperty(x, '1', { value: 3, enumerable: false });"
+      "  }}, 2];"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[1] === 3"));
+      });
+  // Same for sparse arrays.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [{ get a() {"
+      "    Object.defineProperty(x, '1', { value: 3, enumerable: false });"
+      "  }}, 2];"
+      "  x.length = 1000;"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[1] === 3"));
+      });
+  // Getters on the array itself must also run.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [1, 2, 3];"
+      "  Object.defineProperty(x, '1', { enumerable: true, get: () => 4 });"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(3, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[1] === 4"));
+      });
+  // Same for sparse arrays.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [1, 2, 3];"
+      "  Object.defineProperty(x, '1', { enumerable: true, get: () => 4 });"
+      "  x.length = 1000;"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[1] === 4"));
+      });
+  // Even with a getter that deletes things, we don't read from the prototype.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [{ get a() { delete x[1]; } }, 2];"
+      "  x.__proto__ = Object.create(Array.prototype, { 1: { value: 6 } });"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(2, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("!(1 in result)"));
+      });
+  // Same for sparse arrays.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [{ get a() { delete x[1]; } }, 2];"
+      "  x.__proto__ = Object.create(Array.prototype, { 1: { value: 6 } });"
+      "  x.length = 1000;"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("!(1 in result)"));
+      });
+}
+
 }  // namespace
 }  // namespace v8

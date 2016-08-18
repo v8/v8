@@ -60,6 +60,16 @@ enum class SerializationTag : uint8_t {
   kBeginJSObject = 'o',
   // End of a JS object. numProperties:uint32_t
   kEndJSObject = '{',
+  // Beginning of a sparse JS array. length:uint32_t
+  // Elements and properties are written as key/value pairs, like objects.
+  kBeginSparseJSArray = 'a',
+  // End of a sparse JS array. numProperties:uint32_t length:uint32_t
+  kEndSparseJSArray = '@',
+  // Beginning of a dense JS array. length:uint32_t
+  // |length| elements, followed by properties as key/value pairs
+  kBeginDenseJSArray = 'A',
+  // End of a dense JS array. numProperties:uint32_t length:uint32_t
+  kEndDenseJSArray = '$',
 };
 
 ValueSerializer::ValueSerializer(Isolate* isolate)
@@ -253,6 +263,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 
   HandleScope scope(isolate_);
   switch (instance_type) {
+    case JS_ARRAY_TYPE:
+      return WriteJSArray(Handle<JSArray>::cast(receiver));
     case JS_OBJECT_TYPE:
     case JS_API_OBJECT_TYPE:
       return WriteJSObject(Handle<JSObject>::cast(receiver));
@@ -275,6 +287,69 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
   }
   WriteTag(SerializationTag::kEndJSObject);
   WriteVarint<uint32_t>(properties_written);
+  return Just(true);
+}
+
+Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
+  uint32_t length = 0;
+  bool valid_length = array->length()->ToArrayLength(&length);
+  DCHECK(valid_length);
+  USE(valid_length);
+
+  // To keep things simple, for now we decide between dense and sparse
+  // serialization based on elements kind. A more principled heuristic could
+  // count the elements, but would need to take care to note which indices
+  // existed (as only indices which were enumerable own properties at this point
+  // should be serialized).
+  const bool should_serialize_densely =
+      array->HasFastElements() && !array->HasFastHoleyElements();
+
+  if (should_serialize_densely) {
+    // TODO(jbroman): Distinguish between undefined and a hole (this can happen
+    // if serializing one of the elements deletes another). This requires wire
+    // format changes.
+    WriteTag(SerializationTag::kBeginDenseJSArray);
+    WriteVarint<uint32_t>(length);
+    for (uint32_t i = 0; i < length; i++) {
+      // Serializing the array's elements can have arbitrary side effects, so we
+      // cannot rely on still having fast elements, even if it did to begin
+      // with.
+      Handle<Object> element;
+      LookupIterator it(isolate_, array, i, array, LookupIterator::OWN);
+      if (!Object::GetProperty(&it).ToHandle(&element) ||
+          !WriteObject(element).FromMaybe(false)) {
+        return Nothing<bool>();
+      }
+    }
+    KeyAccumulator accumulator(isolate_, KeyCollectionMode::kOwnOnly,
+                               ENUMERABLE_STRINGS);
+    if (!accumulator.CollectOwnPropertyNames(array, array).FromMaybe(false)) {
+      return Nothing<bool>();
+    }
+    Handle<FixedArray> keys =
+        accumulator.GetKeys(GetKeysConversion::kConvertToString);
+    uint32_t properties_written;
+    if (!WriteJSObjectProperties(array, keys).To(&properties_written)) {
+      return Nothing<bool>();
+    }
+    WriteTag(SerializationTag::kEndDenseJSArray);
+    WriteVarint<uint32_t>(properties_written);
+    WriteVarint<uint32_t>(length);
+  } else {
+    WriteTag(SerializationTag::kBeginSparseJSArray);
+    WriteVarint<uint32_t>(length);
+    Handle<FixedArray> keys;
+    uint32_t properties_written;
+    if (!KeyAccumulator::GetKeys(array, KeyCollectionMode::kOwnOnly,
+                                 ENUMERABLE_STRINGS)
+             .ToHandle(&keys) ||
+        !WriteJSObjectProperties(array, keys).To(&properties_written)) {
+      return Nothing<bool>();
+    }
+    WriteTag(SerializationTag::kEndSparseJSArray);
+    WriteVarint<uint32_t>(properties_written);
+    WriteVarint<uint32_t>(length);
+  }
   return Just(true);
 }
 
@@ -454,6 +529,10 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
     }
     case SerializationTag::kBeginJSObject:
       return ReadJSObject();
+    case SerializationTag::kBeginSparseJSArray:
+      return ReadSparseJSArray();
+    case SerializationTag::kBeginDenseJSArray:
+      return ReadDenseJSArray();
     default:
       return MaybeHandle<Object>();
   }
@@ -515,6 +594,71 @@ MaybeHandle<JSObject> ValueDeserializer::ReadJSObject() {
 
   DCHECK(HasObjectWithID(id));
   return scope.CloseAndEscape(object);
+}
+
+MaybeHandle<JSArray> ValueDeserializer::ReadSparseJSArray() {
+  // If we are at the end of the stack, abort. This function may recurse.
+  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSArray>();
+
+  uint32_t length;
+  if (!ReadVarint<uint32_t>().To(&length)) return MaybeHandle<JSArray>();
+
+  uint32_t id = next_id_++;
+  HandleScope scope(isolate_);
+  Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
+  JSArray::SetLength(array, length);
+  AddObjectWithID(id, array);
+
+  uint32_t num_properties;
+  uint32_t expected_num_properties;
+  uint32_t expected_length;
+  if (!ReadJSObjectProperties(array, SerializationTag::kEndSparseJSArray)
+           .To(&num_properties) ||
+      !ReadVarint<uint32_t>().To(&expected_num_properties) ||
+      !ReadVarint<uint32_t>().To(&expected_length) ||
+      num_properties != expected_num_properties || length != expected_length) {
+    return MaybeHandle<JSArray>();
+  }
+
+  DCHECK(HasObjectWithID(id));
+  return scope.CloseAndEscape(array);
+}
+
+MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
+  // If we are at the end of the stack, abort. This function may recurse.
+  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSArray>();
+
+  uint32_t length;
+  if (!ReadVarint<uint32_t>().To(&length)) return MaybeHandle<JSArray>();
+
+  uint32_t id = next_id_++;
+  HandleScope scope(isolate_);
+  Handle<JSArray> array = isolate_->factory()->NewJSArray(
+      FAST_HOLEY_ELEMENTS, length, length, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  AddObjectWithID(id, array);
+
+  Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate_);
+  for (uint32_t i = 0; i < length; i++) {
+    Handle<Object> element;
+    if (!ReadObject().ToHandle(&element)) return MaybeHandle<JSArray>();
+    // TODO(jbroman): Distinguish between undefined and a hole.
+    if (element->IsUndefined(isolate_)) continue;
+    elements->set(i, *element);
+  }
+
+  uint32_t num_properties;
+  uint32_t expected_num_properties;
+  uint32_t expected_length;
+  if (!ReadJSObjectProperties(array, SerializationTag::kEndDenseJSArray)
+           .To(&num_properties) ||
+      !ReadVarint<uint32_t>().To(&expected_num_properties) ||
+      !ReadVarint<uint32_t>().To(&expected_length) ||
+      num_properties != expected_num_properties || length != expected_length) {
+    return MaybeHandle<JSArray>();
+  }
+
+  DCHECK(HasObjectWithID(id));
+  return scope.CloseAndEscape(array);
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
