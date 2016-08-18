@@ -2036,12 +2036,15 @@ v8_source_set("v8_libbase") {
     "src/base/build_config.h",
     "src/base/cpu.cc",
     "src/base/cpu.h",
+    "src/base/debug/stack_trace.cc",
+    "src/base/debug/stack_trace.h",
     "src/base/division-by-constant.cc",
     "src/base/division-by-constant.h",
     "src/base/file-utils.cc",
     "src/base/file-utils.h",
     "src/base/flags.h",
     "src/base/format-macros.h",
+    "src/base/free_deleter.h",
     "src/base/functional.cc",
     "src/base/functional.h",
     "src/base/hashmap.h",
@@ -2079,11 +2082,16 @@ v8_source_set("v8_libbase") {
   defines = []
 
   if (is_posix) {
-    sources += [ "src/base/platform/platform-posix.cc" ]
+    sources += [
+      "src/base/platform/platform-posix.cc",
+    ]
   }
 
   if (is_linux) {
-    sources += [ "src/base/platform/platform-linux.cc" ]
+    sources += [
+      "src/base/debug/stack_trace_posix.cc",
+      "src/base/platform/platform-linux.cc",
+    ]
 
     libs = [
       "dl",
@@ -2096,18 +2104,31 @@ v8_source_set("v8_libbase") {
         "rt",
       ]
       if (host_os == "mac") {
-        sources += [ "src/base/platform/platform-macos.cc" ]
+        sources += [
+          "src/base/debug/stack_trace_posix.cc",
+          "src/base/platform/platform-macos.cc",
+        ]
       } else {
-        sources += [ "src/base/platform/platform-linux.cc" ]
+        sources += [
+          "src/base/debug/stack_trace_posix.cc",
+          "src/base/platform/platform-linux.cc",
+        ]
       }
     } else {
-      sources += [ "src/base/platform/platform-linux.cc" ]
+      sources += [
+        "src/base/debug/stack_trace_android.cc",
+        "src/base/platform/platform-linux.cc",
+      ]
     }
   } else if (is_mac) {
-    sources += [ "src/base/platform/platform-macos.cc" ]
+    sources += [
+      "src/base/debug/stack_trace_posix.cc",
+      "src/base/platform/platform-macos.cc",
+    ]
   } else if (is_win) {
     # TODO(jochen): Add support for cygwin.
     sources += [
+      "src/base/debug/stack_trace_win.cc",
       "src/base/platform/platform-win32.cc",
       "src/base/win32-headers.h",
     ]
@@ -2115,6 +2136,8 @@ v8_source_set("v8_libbase") {
     defines += [ "_CRT_RAND_S" ]  # for rand_s()
 
     libs = [
+      "dbghelp.lib",
+      "shlwapi.lib",
       "winmm.lib",
       "ws2_32.lib",
     ]
