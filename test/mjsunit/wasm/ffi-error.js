@@ -59,3 +59,22 @@ assertThrows(function() {
   ffi.fun = 0;
   testCallFFI(ffi);
 });
+
+
+(function I64InSignatureThrows() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, 1, true);
+  builder.addFunction("function_with_invalid_signature", kSig_l_ll)
+    .addBody([           // --
+      kExprGetLocal, 0,  // --
+      kExprGetLocal, 1,  // --
+      kExprI64Sub])      // --
+    .exportFunc()
+
+  var module = builder.instantiate();
+
+  assertThrows(function() {
+      module.exports.function_with_invalid_signature(33, 88);
+    }, TypeError);
+})();

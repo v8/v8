@@ -921,7 +921,9 @@ namespace internal {
   F(DataViewSetFloat32, 4, 1)                \
   F(DataViewSetFloat64, 4, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F) F(WasmGrowMemory, 1, 1)
+#define FOR_EACH_INTRINSIC_WASM(F) \
+  F(WasmGrowMemory, 1, 1)          \
+  F(WasmThrowTypeError, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)

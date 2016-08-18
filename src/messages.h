@@ -539,7 +539,8 @@ class CallSiteUtils : public AllStatic {
   T(WasmTrapFloatUnrepresentable, "integer result unrepresentable")            \
   T(WasmTrapFuncInvalid, "invalid function")                                   \
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
-  T(WasmTrapInvalidIndex, "invalid index into function table")
+  T(WasmTrapInvalidIndex, "invalid index into function table")                 \
+  T(WasmTrapTypeError, "invalid type")
 
 class MessageTemplate {
  public:

@@ -63,6 +63,39 @@ void MergeControlToEnd(JSGraph* jsgraph, Node* node) {
   }
 }
 
+Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
+                         Handle<Context> context, Node** parameters,
+                         int parameter_count, Node** effect_ptr,
+                         Node** control_ptr) {
+  // At the moment we only allow 2 parameters. If more parameters are needed,
+  // then the size of {inputs} below has to be increased accordingly.
+  DCHECK(parameter_count <= 2);
+  const Runtime::Function* fun = Runtime::FunctionForId(f);
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      jsgraph->zone(), f, fun->nargs, Operator::kNoProperties,
+      CallDescriptor::kNoFlags);
+  // CEntryStubConstant nodes have to be created and cached in the main
+  // thread. At the moment this is only done for CEntryStubConstant(1).
+  DCHECK_EQ(1, fun->result_size);
+  Node* inputs[8];
+  int count = 0;
+  inputs[count++] = jsgraph->CEntryStubConstant(fun->result_size);
+  for (int i = 0; i < parameter_count; i++) {
+    inputs[count++] = parameters[i];
+  }
+  inputs[count++] = jsgraph->ExternalConstant(
+      ExternalReference(f, jsgraph->isolate()));         // ref
+  inputs[count++] = jsgraph->Int32Constant(fun->nargs);  // arity
+  inputs[count++] = jsgraph->HeapConstant(context);      // context
+  inputs[count++] = *effect_ptr;
+  inputs[count++] = *control_ptr;
+
+  Node* node =
+      jsgraph->graph()->NewNode(jsgraph->common()->Call(desc), count, inputs);
+  *effect_ptr = node;
+  return node;
+}
+
 }  // namespace
 
 // A helper that handles building graph fragments for trapping.
@@ -226,30 +259,11 @@ class WasmTrapHelper : public ZoneObject {
     Node* trap_position_smi = builder_->BuildChangeInt32ToSmi(trap_position_);
 
     if (module && !module->instance->context.is_null()) {
-      // Use the module context to call the runtime to throw an exception.
-      Runtime::FunctionId f = Runtime::kThrowWasmError;
-      const Runtime::Function* fun = Runtime::FunctionForId(f);
-      CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-          jsgraph()->zone(), f, fun->nargs, Operator::kNoProperties,
-          CallDescriptor::kNoFlags);
-      // CEntryStubConstant nodes have to be created and cached in the main
-      // thread. At the moment this is only done for CEntryStubConstant(1).
-      DCHECK_EQ(1, fun->result_size);
-      Node* inputs[] = {
-          jsgraph()->CEntryStubConstant(fun->result_size),  // C entry
-          trap_reason_smi,                                  // message id
-          trap_position_smi,                                // byte position
-          jsgraph()->ExternalConstant(
-              ExternalReference(f, jsgraph()->isolate())),    // ref
-          jsgraph()->Int32Constant(fun->nargs),               // arity
-          builder_->HeapConstant(module->instance->context),  // context
-          *effect_ptr,
-          *control_ptr};
-
-      Node* node = graph()->NewNode(
-          common()->Call(desc), static_cast<int>(arraysize(inputs)), inputs);
-      *effect_ptr = node;
-      *control_ptr = graph()->NewNode(common()->IfSuccess(), node);
+      Node* parameters[] = {trap_reason_smi,     // message id
+                            trap_position_smi};  // byte position
+      BuildCallToRuntime(Runtime::kThrowWasmError, jsgraph(),
+                         module->instance->context, parameters,
+                         arraysize(parameters), effect_ptr, control_ptr);
     }
     if (false) {
       // End the control flow with a throw
@@ -2187,15 +2201,11 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::LocalType type) {
     case wasm::kAstI32:
       return BuildChangeInt32ToTagged(node);
     case wasm::kAstI64:
-      // TODO(titzer): i64->JS has no good solution right now. Using lower 32
-      // bits.
-      if (jsgraph()->machine()->Is64()) {
-        // On 32 bit platforms we do not have to do the truncation because the
-        // node we get in as a parameter only contains the low word anyways.
-        node = graph()->NewNode(jsgraph()->machine()->TruncateInt64ToInt32(),
-                                node);
-      }
-      return BuildChangeInt32ToTagged(node);
+      DCHECK(module_ && !module_->instance->context.is_null());
+      // Throw a TypeError.
+      return BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
+                                module_->instance->context, nullptr, 0, effect_,
+                                control_);
     case wasm::kAstF32:
       node = graph()->NewNode(jsgraph()->machine()->ChangeFloat32ToFloat64(),
                               node);
@@ -2222,7 +2232,6 @@ Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context,
                                   node, context, effect, control);
 
   *effect_ = result;
-  *control_ = graph()->NewNode(jsgraph()->common()->IfSuccess(), result);
 
   return result;
 }
