@@ -1127,7 +1127,7 @@ bool PagedSpace::HasBeenSetUp() { return true; }
 void PagedSpace::TearDown() {
   for (auto it = begin(); it != end();) {
     Page* page = *(it++);  // Will be erased.
-    ArrayBufferTracker::FreeAll(page);
+    heap()->array_buffer_tracker()->FreeAll(page);
     heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
   }
   anchor_.set_next_page(&anchor_);
@@ -1627,6 +1627,8 @@ void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
 
 
 bool NewSpace::AddFreshPage() {
+  if (heap()->ShouldDoScavengeForReducingExternalMemory()) return false;
+
   Address top = allocation_info_.top();
   DCHECK(!Page::IsAtObjectStart(top));
   if (!to_space_.AdvancePage()) {
@@ -1819,7 +1821,7 @@ void SemiSpace::TearDown() {
   // Properly uncommit memory to keep the allocator counters in sync.
   if (is_committed()) {
     for (Page* p : *this) {
-      ArrayBufferTracker::FreeAll(p);
+      heap()->array_buffer_tracker()->FreeAll(p);
     }
     Uncommit();
   }

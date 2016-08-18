@@ -833,7 +833,7 @@ void MarkCompactCollector::Prepare() {
        space = spaces.next()) {
     space->PrepareForMarkCompact();
   }
-  heap()->account_external_memory_concurrently_freed();
+  heap()->array_buffer_tracker()->AccountForConcurrentlyFreedMemory();
 
 #ifdef VERIFY_HEAP
   if (!was_marked_incrementally_ && FLAG_verify_heap) {
@@ -3129,7 +3129,8 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
       case kObjectsNewToOld:
         success = collector_->VisitLiveObjects(page, &new_space_visitor_,
                                                kClearMarkbits);
-        ArrayBufferTracker::ProcessBuffers(
+
+        heap->array_buffer_tracker()->ProcessBuffers(
             page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
         DCHECK(success);
         break;
@@ -3156,14 +3157,14 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
           EvacuateRecordOnlyVisitor record_visitor(collector_->heap());
           success =
               collector_->VisitLiveObjects(page, &record_visitor, kKeepMarking);
-          ArrayBufferTracker::ProcessBuffers(
+          heap->array_buffer_tracker()->ProcessBuffers(
               page, ArrayBufferTracker::kUpdateForwardedKeepOthers);
           DCHECK(success);
           // We need to return failure here to indicate that we want this page
           // added to the sweeper.
           success = false;
         } else {
-          ArrayBufferTracker::ProcessBuffers(
+          heap->array_buffer_tracker()->ProcessBuffers(
               page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
         }
         break;
@@ -3367,7 +3368,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
 
   // Before we sweep objects on the page, we free dead array buffers which
   // requires valid mark bits.
-  ArrayBufferTracker::FreeDead(p);
+  p->heap()->array_buffer_tracker()->FreeDead(p);
 
   // We also release the black area markers here.
   p->ReleaseBlackAreaEndMarkerMap();
@@ -3938,7 +3939,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
           PrintIsolate(isolate(), "sweeping: released page: %p",
                        static_cast<void*>(p));
         }
-        ArrayBufferTracker::FreeAll(p);
+        heap()->array_buffer_tracker()->FreeAll(p);
         space->ReleasePage(p);
         continue;
       }

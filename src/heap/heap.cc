@@ -162,7 +162,8 @@ Heap::Heap()
       deserialization_complete_(false),
       strong_roots_list_(NULL),
       heap_iterator_depth_(0),
-      force_oom_(false) {
+      force_oom_(false),
+      array_buffer_tracker_(nullptr) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
 // easier if you can define it as part of the build environment.
@@ -312,6 +313,21 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   return SCAVENGER;
 }
 
+size_t Heap::external_memory_retained_from_new_space() {
+  // This is just an approximation.
+  return array_buffer_tracker()->retained_from_new_space();
+}
+
+bool Heap::ShouldDoScavengeForReducingExternalMemory() {
+  size_t retained_new_space = external_memory_retained_from_new_space();
+  size_t retained_old_space = external_memory() - retained_new_space;
+  float new_space_ratio =
+      static_cast<float>(new_space_.SizeOfObjects()) / retained_new_space;
+  float old_space_ratio =
+      static_cast<float>(old_space_->SizeOfObjects()) / retained_old_space;
+  // TODO(mlippautz): Add some lower bound.
+  return new_space_ratio > old_space_ratio;
+}
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
 // --log-gc to avoid the complicated preprocessor and flag testing.
@@ -1738,7 +1754,7 @@ void Heap::Scavenge() {
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
 
-  ArrayBufferTracker::FreeDeadInNewSpace(this);
+  array_buffer_tracker()->FreeDeadInNewSpace();
 
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
@@ -2024,12 +2040,12 @@ HeapObject* Heap::DoubleAlignForDeserialization(HeapObject* object, int size) {
 
 
 void Heap::RegisterNewArrayBuffer(JSArrayBuffer* buffer) {
-  ArrayBufferTracker::RegisterNew(this, buffer);
+  array_buffer_tracker()->RegisterNew(buffer);
 }
 
 
 void Heap::UnregisterArrayBuffer(JSArrayBuffer* buffer) {
-  ArrayBufferTracker::Unregister(this, buffer);
+  array_buffer_tracker()->Unregister(buffer);
 }
 
 
@@ -5383,6 +5399,8 @@ bool Heap::SetUp() {
       *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
   new_space()->AddAllocationObserver(idle_scavenge_observer_);
 
+  array_buffer_tracker_ = new ArrayBufferTracker(this);
+
   return true;
 }
 
@@ -5590,6 +5608,9 @@ void Heap::TearDown() {
 
   delete store_buffer_;
   store_buffer_ = nullptr;
+
+  delete array_buffer_tracker_;
+  array_buffer_tracker_ = nullptr;
 
   delete memory_allocator_;
   memory_allocator_ = nullptr;

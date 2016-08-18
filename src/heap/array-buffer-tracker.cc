@@ -14,7 +14,7 @@ LocalArrayBufferTracker::~LocalArrayBufferTracker() {
 }
 
 template <LocalArrayBufferTracker::FreeMode free_mode>
-void LocalArrayBufferTracker::Free() {
+LocalArrayBufferTracker::ProcessResult LocalArrayBufferTracker::Free() {
   size_t freed_memory = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
@@ -30,60 +30,71 @@ void LocalArrayBufferTracker::Free() {
       ++it;
     }
   }
-  if (freed_memory > 0) {
-    heap_->update_external_memory_concurrently_freed(
-        static_cast<intptr_t>(freed_memory));
-  }
+  return ProcessResult(freed_memory, 0);
 }
 
 template <typename Callback>
-void LocalArrayBufferTracker::Process(Callback callback) {
+LocalArrayBufferTracker::ProcessResult LocalArrayBufferTracker::Process(
+    Callback callback) {
   JSArrayBuffer* new_buffer = nullptr;
   size_t freed_memory = 0;
+  size_t promoted_memory = 0;
+  size_t len = 0;
+  Page* target_page = nullptr;
+  LocalArrayBufferTracker* tracker = nullptr;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
-    const CallbackResult result = callback(it->first, &new_buffer);
-    if (result == kKeepEntry) {
-      ++it;
-    } else if (result == kUpdateEntry) {
-      DCHECK_NOT_NULL(new_buffer);
-      Page* target_page = Page::FromAddress(new_buffer->address());
-      // We need to lock the target page because we cannot guarantee
-      // exclusive access to new space pages.
-      if (target_page->InNewSpace()) target_page->mutex()->Lock();
-      LocalArrayBufferTracker* tracker = target_page->local_tracker();
-      if (tracker == nullptr) {
-        target_page->AllocateLocalTracker();
+    switch (callback(it->first, &new_buffer)) {
+      case kKeepEntry:
+        ++it;
+        break;
+      case kUpdateEntry:
+        DCHECK_NOT_NULL(new_buffer);
+        target_page = Page::FromAddress(new_buffer->address());
+        // We need to lock the target page because we cannot guarantee
+        // exclusive access to new space pages.
+        if (target_page->InNewSpace()) target_page->mutex()->Lock();
         tracker = target_page->local_tracker();
-      }
-      DCHECK_NOT_NULL(tracker);
-      tracker->Add(new_buffer, it->second);
-      if (target_page->InNewSpace()) target_page->mutex()->Unlock();
-      it = array_buffers_.erase(it);
-    } else if (result == kRemoveEntry) {
-      const size_t len = it->second;
-      heap_->isolate()->array_buffer_allocator()->Free(
-          it->first->backing_store(), len);
-      freed_memory += len;
-      it = array_buffers_.erase(it);
-    } else {
-      UNREACHABLE();
+        if (tracker == nullptr) {
+          target_page->AllocateLocalTracker();
+          tracker = target_page->local_tracker();
+        }
+        DCHECK_NOT_NULL(tracker);
+        len = it->second;
+        tracker->Add(new_buffer, len);
+        if (target_page->InNewSpace()) {
+          target_page->mutex()->Unlock();
+        } else {
+          promoted_memory += len;
+        }
+        it = array_buffers_.erase(it);
+        break;
+      case kRemoveEntry:
+        len = it->second;
+        heap_->isolate()->array_buffer_allocator()->Free(
+            it->first->backing_store(), len);
+        freed_memory += len;
+        it = array_buffers_.erase(it);
+        break;
     }
   }
-  if (freed_memory > 0) {
-    heap_->update_external_memory_concurrently_freed(
-        static_cast<intptr_t>(freed_memory));
-  }
+  return ProcessResult(freed_memory, promoted_memory);
 }
 
-void ArrayBufferTracker::FreeDeadInNewSpace(Heap* heap) {
-  DCHECK_EQ(heap->gc_state(), Heap::HeapState::SCAVENGE);
-  for (Page* page : NewSpacePageRange(heap->new_space()->FromSpaceStart(),
-                                      heap->new_space()->FromSpaceEnd())) {
+void ArrayBufferTracker::AccountForConcurrentlyFreedMemory() {
+  heap_->update_external_memory(
+      static_cast<int64_t>(concurrently_freed_.Value()));
+  concurrently_freed_.SetValue(0);
+}
+
+void ArrayBufferTracker::FreeDeadInNewSpace() {
+  DCHECK_EQ(heap_->gc_state(), Heap::HeapState::SCAVENGE);
+  for (Page* page : NewSpacePageRange(heap_->new_space()->FromSpaceStart(),
+                                      heap_->new_space()->FromSpaceEnd())) {
     bool empty = ProcessBuffers(page, kUpdateForwardedRemoveOthers);
     CHECK(empty);
   }
-  heap->account_external_memory_concurrently_freed();
+  AccountForConcurrentlyFreedMemory();
 }
 
 void ArrayBufferTracker::FreeDead(Page* page) {
@@ -91,7 +102,13 @@ void ArrayBufferTracker::FreeDead(Page* page) {
   LocalArrayBufferTracker* tracker = page->local_tracker();
   if (tracker == nullptr) return;
   DCHECK(!page->SweepingDone());
-  tracker->Free<LocalArrayBufferTracker::kFreeDead>();
+  LocalArrayBufferTracker::ProcessResult result =
+      tracker->Free<LocalArrayBufferTracker::kFreeDead>();
+  if (page->InNewSpace()) {
+    retained_from_new_space_.Decrement(result.freed);
+  } else {
+    retained_from_old_space_.Decrement(result.freed);
+  }
   if (tracker->IsEmpty()) {
     page->ReleaseLocalTracker();
   }
@@ -100,7 +117,14 @@ void ArrayBufferTracker::FreeDead(Page* page) {
 void ArrayBufferTracker::FreeAll(Page* page) {
   LocalArrayBufferTracker* tracker = page->local_tracker();
   if (tracker == nullptr) return;
-  tracker->Free<LocalArrayBufferTracker::kFreeAll>();
+  LocalArrayBufferTracker::ProcessResult result =
+      tracker->Free<LocalArrayBufferTracker::kFreeAll>();
+  concurrently_freed_.Increment(result.freed);
+  if (page->InNewSpace()) {
+    retained_from_new_space_.Decrement(result.freed);
+  } else {
+    retained_from_old_space_.Decrement(result.freed);
+  }
   if (tracker->IsEmpty()) {
     page->ReleaseLocalTracker();
   }
@@ -111,7 +135,7 @@ bool ArrayBufferTracker::ProcessBuffers(Page* page, ProcessingMode mode) {
   if (tracker == nullptr) return true;
 
   DCHECK(page->SweepingDone());
-  tracker->Process(
+  LocalArrayBufferTracker::ProcessResult result = tracker->Process(
       [mode](JSArrayBuffer* old_buffer, JSArrayBuffer** new_buffer) {
         MapWord map_word = old_buffer->map_word();
         if (map_word.IsForwardingAddress()) {
@@ -122,6 +146,13 @@ bool ArrayBufferTracker::ProcessBuffers(Page* page, ProcessingMode mode) {
                    ? LocalArrayBufferTracker::kKeepEntry
                    : LocalArrayBufferTracker::kRemoveEntry;
       });
+  concurrently_freed_.Increment(result.freed);
+  if (page->InNewSpace()) {
+    retained_from_new_space_.Decrement(result.freed + result.promoted);
+  } else {
+    retained_from_old_space_.Decrement(result.freed);
+  }
+  retained_from_old_space_.Increment(result.promoted);
   return tracker->IsEmpty();
 }
 
