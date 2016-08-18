@@ -163,9 +163,9 @@ bool Statement::IsJump() const {
   }
 }
 
-VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
+VariableProxy::VariableProxy(Variable* var, int start_position,
                              int end_position)
-    : Expression(zone, start_position, kVariableProxy),
+    : Expression(start_position, kVariableProxy),
       bit_field_(IsThisField::encode(var->is_this()) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
@@ -175,10 +175,10 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
   BindTo(var);
 }
 
-VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
+VariableProxy::VariableProxy(const AstRawString* name,
                              Variable::Kind variable_kind, int start_position,
                              int end_position)
-    : Expression(zone, start_position, kVariableProxy),
+    : Expression(start_position, kVariableProxy),
       bit_field_(IsThisField::encode(variable_kind == Variable::THIS) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
@@ -186,8 +186,8 @@ VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
       raw_name_(name),
       next_unresolved_(nullptr) {}
 
-VariableProxy::VariableProxy(Zone* zone, const VariableProxy* copy_from)
-    : Expression(zone, copy_from->position(), kVariableProxy),
+VariableProxy::VariableProxy(const VariableProxy* copy_from)
+    : Expression(copy_from->position(), kVariableProxy),
       bit_field_(copy_from->bit_field_),
       end_position_(copy_from->end_position_),
       next_unresolved_(nullptr) {
@@ -250,9 +250,9 @@ void ForInStatement::AssignFeedbackVectorSlots(Isolate* isolate,
   for_in_feedback_slot_ = spec->AddGeneralSlot();
 }
 
-Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
-                       Expression* value, int pos)
-    : Expression(zone, pos, kAssignment),
+Assignment::Assignment(Token::Value op, Expression* target, Expression* value,
+                       int pos)
+    : Expression(pos, kAssignment),
       bit_field_(
           IsUninitializedField::encode(false) | KeyTypeField::encode(ELEMENT) |
           StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op)),
@@ -935,10 +935,9 @@ Call::CallType Call::GetCallType() const {
   return OTHER_CALL;
 }
 
-
-CaseClause::CaseClause(Zone* zone, Expression* label,
-                       ZoneList<Statement*>* statements, int pos)
-    : Expression(zone, pos, kCaseClause),
+CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements,
+                       int pos)
+    : Expression(pos, kCaseClause),
       label_(label),
       statements_(statements),
       compare_type_(Type::None()) {}

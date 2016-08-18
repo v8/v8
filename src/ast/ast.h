@@ -233,8 +233,7 @@ class Statement : public AstNode {
   bool IsJump() const;
 
  protected:
-  Statement(Zone* zone, int position, NodeType type)
-      : AstNode(position, type) {}
+  Statement(int position, NodeType type) : AstNode(position, type) {}
 };
 
 
@@ -351,7 +350,7 @@ class Expression : public AstNode {
   TypeFeedbackId test_id() const { return TypeFeedbackId(local_id(1)); }
 
  protected:
-  Expression(Zone* zone, int pos, NodeType type)
+  Expression(int pos, NodeType type)
       : AstNode(pos, type),
         bit_field_(0),
         base_id_(BailoutId::None().ToInt()) {}
@@ -399,9 +398,9 @@ class BreakableStatement : public Statement {
   BailoutId ExitId() const { return BailoutId(local_id(1)); }
 
  protected:
-  BreakableStatement(Zone* zone, ZoneList<const AstRawString*>* labels,
+  BreakableStatement(ZoneList<const AstRawString*>* labels,
                      BreakableType breakable_type, int position, NodeType type)
-      : Statement(zone, position, type),
+      : Statement(position, type),
         breakable_type_(breakable_type),
         base_id_(BailoutId::None().ToInt()),
         labels_(labels) {
@@ -445,7 +444,7 @@ class Block final : public BreakableStatement {
 
   Block(Zone* zone, ZoneList<const AstRawString*>* labels, int capacity,
         bool ignore_completion_value, int pos)
-      : BreakableStatement(zone, labels, TARGET_FOR_NAMED_ONLY, pos, kBlock),
+      : BreakableStatement(labels, TARGET_FOR_NAMED_ONLY, pos, kBlock),
         statements_(capacity, zone),
         ignore_completion_value_(ignore_completion_value),
         scope_(NULL) {}
@@ -473,8 +472,8 @@ class DoExpression final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  DoExpression(Zone* zone, Block* block, VariableProxy* result, int pos)
-      : Expression(zone, pos, kDoExpression),
+  DoExpression(Block* block, VariableProxy* result, int pos)
+      : Expression(pos, kDoExpression),
         block_(block),
         result_(result),
         represented_function_(nullptr) {
@@ -553,9 +552,9 @@ class IterationStatement : public BreakableStatement {
   Label* continue_target()  { return &continue_target_; }
 
  protected:
-  IterationStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
+  IterationStatement(ZoneList<const AstRawString*>* labels, int pos,
                      NodeType type)
-      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos, type),
+      : BreakableStatement(labels, TARGET_FOR_ANONYMOUS, pos, type),
         body_(NULL),
         yield_count_(0),
         first_yield_id_(0) {}
@@ -590,8 +589,8 @@ class DoWhileStatement final : public IterationStatement {
  private:
   friend class AstNodeFactory;
 
-  DoWhileStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos, kDoWhileStatement), cond_(NULL) {}
+  DoWhileStatement(ZoneList<const AstRawString*>* labels, int pos)
+      : IterationStatement(labels, pos, kDoWhileStatement), cond_(NULL) {}
   static int parent_num_ids() { return IterationStatement::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
@@ -617,8 +616,8 @@ class WhileStatement final : public IterationStatement {
  private:
   friend class AstNodeFactory;
 
-  WhileStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos, kWhileStatement), cond_(NULL) {}
+  WhileStatement(ZoneList<const AstRawString*>* labels, int pos)
+      : IterationStatement(labels, pos, kWhileStatement), cond_(NULL) {}
   static int parent_num_ids() { return IterationStatement::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
@@ -654,8 +653,8 @@ class ForStatement final : public IterationStatement {
  private:
   friend class AstNodeFactory;
 
-  ForStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos, kForStatement),
+  ForStatement(ZoneList<const AstRawString*>* labels, int pos)
+      : IterationStatement(labels, pos, kForStatement),
         init_(NULL),
         cond_(NULL),
         next_(NULL) {}
@@ -682,9 +681,9 @@ class ForEachStatement : public IterationStatement {
   }
 
  protected:
-  ForEachStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
+  ForEachStatement(ZoneList<const AstRawString*>* labels, int pos,
                    NodeType type)
-      : IterationStatement(zone, labels, pos, type) {}
+      : IterationStatement(labels, pos, type) {}
 };
 
 
@@ -732,8 +731,8 @@ class ForInStatement final : public ForEachStatement {
  private:
   friend class AstNodeFactory;
 
-  ForInStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : ForEachStatement(zone, labels, pos, kForInStatement),
+  ForInStatement(ZoneList<const AstRawString*>* labels, int pos)
+      : ForEachStatement(labels, pos, kForInStatement),
         each_(nullptr),
         subject_(nullptr),
         for_in_type_(SLOW_FOR_IN) {}
@@ -799,8 +798,8 @@ class ForOfStatement final : public ForEachStatement {
  private:
   friend class AstNodeFactory;
 
-  ForOfStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : ForEachStatement(zone, labels, pos, kForOfStatement),
+  ForOfStatement(ZoneList<const AstRawString*>* labels, int pos)
+      : ForEachStatement(labels, pos, kForOfStatement),
         iterator_(NULL),
         assign_iterator_(NULL),
         next_result_(NULL),
@@ -826,8 +825,8 @@ class ExpressionStatement final : public Statement {
  private:
   friend class AstNodeFactory;
 
-  ExpressionStatement(Zone* zone, Expression* expression, int pos)
-      : Statement(zone, pos, kExpressionStatement), expression_(expression) {}
+  ExpressionStatement(Expression* expression, int pos)
+      : Statement(pos, kExpressionStatement), expression_(expression) {}
 
   Expression* expression_;
 };
@@ -838,8 +837,7 @@ class JumpStatement : public Statement {
   bool IsJump() const { return true; }
 
  protected:
-  JumpStatement(Zone* zone, int pos, NodeType type)
-      : Statement(zone, pos, type) {}
+  JumpStatement(int pos, NodeType type) : Statement(pos, type) {}
 };
 
 
@@ -850,8 +848,8 @@ class ContinueStatement final : public JumpStatement {
  private:
   friend class AstNodeFactory;
 
-  ContinueStatement(Zone* zone, IterationStatement* target, int pos)
-      : JumpStatement(zone, pos, kContinueStatement), target_(target) {}
+  ContinueStatement(IterationStatement* target, int pos)
+      : JumpStatement(pos, kContinueStatement), target_(target) {}
 
   IterationStatement* target_;
 };
@@ -864,8 +862,8 @@ class BreakStatement final : public JumpStatement {
  private:
   friend class AstNodeFactory;
 
-  BreakStatement(Zone* zone, BreakableStatement* target, int pos)
-      : JumpStatement(zone, pos, kBreakStatement), target_(target) {}
+  BreakStatement(BreakableStatement* target, int pos)
+      : JumpStatement(pos, kBreakStatement), target_(target) {}
 
   BreakableStatement* target_;
 };
@@ -880,8 +878,8 @@ class ReturnStatement final : public JumpStatement {
  private:
   friend class AstNodeFactory;
 
-  ReturnStatement(Zone* zone, Expression* expression, int pos)
-      : JumpStatement(zone, pos, kReturnStatement), expression_(expression) {}
+  ReturnStatement(Expression* expression, int pos)
+      : JumpStatement(pos, kReturnStatement), expression_(expression) {}
 
   Expression* expression_;
 };
@@ -903,9 +901,9 @@ class WithStatement final : public Statement {
  private:
   friend class AstNodeFactory;
 
-  WithStatement(Zone* zone, Scope* scope, Expression* expression,
-                Statement* statement, int pos)
-      : Statement(zone, pos, kWithStatement),
+  WithStatement(Scope* scope, Expression* expression, Statement* statement,
+                int pos)
+      : Statement(pos, kWithStatement),
         base_id_(BailoutId::None().ToInt()),
         scope_(scope),
         expression_(expression),
@@ -947,8 +945,7 @@ class CaseClause final : public Expression {
   friend class AstNodeFactory;
 
   static int parent_num_ids() { return Expression::num_ids(); }
-  CaseClause(Zone* zone, Expression* label, ZoneList<Statement*>* statements,
-             int pos);
+  CaseClause(Expression* label, ZoneList<Statement*>* statements, int pos);
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* label_;
@@ -973,9 +970,8 @@ class SwitchStatement final : public BreakableStatement {
  private:
   friend class AstNodeFactory;
 
-  SwitchStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos,
-                           kSwitchStatement),
+  SwitchStatement(ZoneList<const AstRawString*>* labels, int pos)
+      : BreakableStatement(labels, TARGET_FOR_ANONYMOUS, pos, kSwitchStatement),
         tag_(NULL),
         cases_(NULL) {}
 
@@ -1016,9 +1012,9 @@ class IfStatement final : public Statement {
  private:
   friend class AstNodeFactory;
 
-  IfStatement(Zone* zone, Expression* condition, Statement* then_statement,
+  IfStatement(Expression* condition, Statement* then_statement,
               Statement* else_statement, int pos)
-      : Statement(zone, pos, kIfStatement),
+      : Statement(pos, kIfStatement),
         base_id_(BailoutId::None().ToInt()),
         condition_(condition),
         then_statement_(then_statement),
@@ -1061,8 +1057,8 @@ class TryStatement : public Statement {
   }
 
  protected:
-  TryStatement(Zone* zone, Block* try_block, int pos, NodeType type)
-      : Statement(zone, pos, type),
+  TryStatement(Block* try_block, int pos, NodeType type)
+      : Statement(pos, type),
         catch_prediction_(HandlerTable::UNCAUGHT),
         try_block_(try_block) {}
 
@@ -1097,10 +1093,10 @@ class TryCatchStatement final : public TryStatement {
  private:
   friend class AstNodeFactory;
 
-  TryCatchStatement(Zone* zone, Block* try_block, Scope* scope,
-                    Variable* variable, Block* catch_block,
+  TryCatchStatement(Block* try_block, Scope* scope, Variable* variable,
+                    Block* catch_block,
                     HandlerTable::CatchPrediction catch_prediction, int pos)
-      : TryStatement(zone, try_block, pos, kTryCatchStatement),
+      : TryStatement(try_block, pos, kTryCatchStatement),
         scope_(scope),
         variable_(variable),
         catch_block_(catch_block) {
@@ -1121,9 +1117,8 @@ class TryFinallyStatement final : public TryStatement {
  private:
   friend class AstNodeFactory;
 
-  TryFinallyStatement(Zone* zone, Block* try_block, Block* finally_block,
-                      int pos)
-      : TryStatement(zone, try_block, pos, kTryFinallyStatement),
+  TryFinallyStatement(Block* try_block, Block* finally_block, int pos)
+      : TryStatement(try_block, pos, kTryFinallyStatement),
         finally_block_(finally_block) {}
 
   Block* finally_block_;
@@ -1139,8 +1134,8 @@ class DebuggerStatement final : public Statement {
  private:
   friend class AstNodeFactory;
 
-  DebuggerStatement(Zone* zone, int pos)
-      : Statement(zone, pos, kDebuggerStatement),
+  explicit DebuggerStatement(int pos)
+      : Statement(pos, kDebuggerStatement),
         base_id_(BailoutId::None().ToInt()) {}
 
   static int parent_num_ids() { return 0; }
@@ -1157,7 +1152,7 @@ class DebuggerStatement final : public Statement {
 class EmptyStatement final : public Statement {
  private:
   friend class AstNodeFactory;
-  EmptyStatement(Zone* zone, int pos) : Statement(zone, pos, kEmptyStatement) {}
+  explicit EmptyStatement(int pos) : Statement(pos, kEmptyStatement) {}
 };
 
 
@@ -1176,8 +1171,8 @@ class SloppyBlockFunctionStatement final : public Statement {
  private:
   friend class AstNodeFactory;
 
-  SloppyBlockFunctionStatement(Zone* zone, Statement* statement, Scope* scope)
-      : Statement(zone, kNoSourcePosition, kSloppyBlockFunctionStatement),
+  SloppyBlockFunctionStatement(Statement* statement, Scope* scope)
+      : Statement(kNoSourcePosition, kSloppyBlockFunctionStatement),
         statement_(statement),
         scope_(scope),
         next_(nullptr) {}
@@ -1223,8 +1218,8 @@ class Literal final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Literal(Zone* zone, const AstValue* value, int position)
-      : Expression(zone, position, kLiteral), value_(value) {}
+  Literal(const AstValue* value, int position)
+      : Expression(position, kLiteral), value_(value) {}
 
   static int parent_num_ids() { return Expression::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
@@ -1247,8 +1242,8 @@ class MaterializedLiteral : public Expression {
   }
 
  protected:
-  MaterializedLiteral(Zone* zone, int literal_index, int pos, NodeType type)
-      : Expression(zone, pos, type),
+  MaterializedLiteral(int literal_index, int pos, NodeType type)
+      : Expression(pos, type),
         is_simple_(false),
         depth_(0),
         literal_index_(literal_index) {}
@@ -1430,9 +1425,9 @@ class ObjectLiteral final : public MaterializedLiteral {
  private:
   friend class AstNodeFactory;
 
-  ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
+  ObjectLiteral(ZoneList<Property*>* properties, int literal_index,
                 uint32_t boilerplate_properties, int pos)
-      : MaterializedLiteral(zone, literal_index, pos, kObjectLiteral),
+      : MaterializedLiteral(literal_index, pos, kObjectLiteral),
         boilerplate_properties_(boilerplate_properties),
         fast_elements_(false),
         has_elements_(false),
@@ -1483,9 +1478,9 @@ class RegExpLiteral final : public MaterializedLiteral {
  private:
   friend class AstNodeFactory;
 
-  RegExpLiteral(Zone* zone, const AstRawString* pattern, int flags,
-                int literal_index, int pos)
-      : MaterializedLiteral(zone, literal_index, pos, kRegExpLiteral),
+  RegExpLiteral(const AstRawString* pattern, int flags, int literal_index,
+                int pos)
+      : MaterializedLiteral(literal_index, pos, kRegExpLiteral),
         flags_(flags),
         pattern_(pattern) {
     set_depth(1);
@@ -1556,9 +1551,9 @@ class ArrayLiteral final : public MaterializedLiteral {
  private:
   friend class AstNodeFactory;
 
-  ArrayLiteral(Zone* zone, ZoneList<Expression*>* values,
-               int first_spread_index, int literal_index, int pos)
-      : MaterializedLiteral(zone, literal_index, pos, kArrayLiteral),
+  ArrayLiteral(ZoneList<Expression*>* values, int first_spread_index,
+               int literal_index, int pos)
+      : MaterializedLiteral(literal_index, pos, kArrayLiteral),
         first_spread_index_(first_spread_index),
         values_(values) {}
 
@@ -1632,12 +1627,10 @@ class VariableProxy final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  VariableProxy(Zone* zone, Variable* var, int start_position,
-                int end_position);
-  VariableProxy(Zone* zone, const AstRawString* name,
-                Variable::Kind variable_kind, int start_position,
-                int end_position);
-  VariableProxy(Zone* zone, const VariableProxy* copy_from);
+  VariableProxy(Variable* var, int start_position, int end_position);
+  VariableProxy(const AstRawString* name, Variable::Kind variable_kind,
+                int start_position, int end_position);
+  explicit VariableProxy(const VariableProxy* copy_from);
 
   static int parent_num_ids() { return Expression::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
@@ -1743,8 +1736,8 @@ class Property final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Property(Zone* zone, Expression* obj, Expression* key, int pos)
-      : Expression(zone, pos, kProperty),
+  Property(Expression* obj, Expression* key, int pos)
+      : Expression(pos, kProperty),
         bit_field_(IsForCallField::encode(false) |
                    IsStringAccessField::encode(false) |
                    InlineCacheStateField::encode(UNINITIALIZED)),
@@ -1871,9 +1864,9 @@ class Call final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Call(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
-       int pos, PossiblyEval possibly_eval)
-      : Expression(zone, pos, kCall),
+  Call(Expression* expression, ZoneList<Expression*>* arguments, int pos,
+       PossiblyEval possibly_eval)
+      : Expression(pos, kCall),
         bit_field_(
             IsUninitializedField::encode(false) |
             IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL)),
@@ -1945,9 +1938,8 @@ class CallNew final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  CallNew(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
-          int pos)
-      : Expression(zone, pos, kCallNew),
+  CallNew(Expression* expression, ZoneList<Expression*>* arguments, int pos)
+      : Expression(pos, kCallNew),
         is_monomorphic_(false),
         expression_(expression),
         arguments_(arguments) {}
@@ -1992,14 +1984,13 @@ class CallRuntime final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  CallRuntime(Zone* zone, const Runtime::Function* function,
+  CallRuntime(const Runtime::Function* function,
               ZoneList<Expression*>* arguments, int pos)
-      : Expression(zone, pos, kCallRuntime),
+      : Expression(pos, kCallRuntime),
         function_(function),
         arguments_(arguments) {}
-  CallRuntime(Zone* zone, int context_index, ZoneList<Expression*>* arguments,
-              int pos)
-      : Expression(zone, pos, kCallRuntime),
+  CallRuntime(int context_index, ZoneList<Expression*>* arguments, int pos)
+      : Expression(pos, kCallRuntime),
         context_index_(context_index),
         function_(NULL),
         arguments_(arguments) {}
@@ -2030,10 +2021,8 @@ class UnaryOperation final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  UnaryOperation(Zone* zone, Token::Value op, Expression* expression, int pos)
-      : Expression(zone, pos, kUnaryOperation),
-        op_(op),
-        expression_(expression) {
+  UnaryOperation(Token::Value op, Expression* expression, int pos)
+      : Expression(pos, kUnaryOperation), op_(op), expression_(expression) {
     DCHECK(Token::IsUnaryOp(op));
   }
 
@@ -2099,9 +2088,8 @@ class BinaryOperation final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  BinaryOperation(Zone* zone, Token::Value op, Expression* left,
-                  Expression* right, int pos)
-      : Expression(zone, pos, kBinaryOperation),
+  BinaryOperation(Token::Value op, Expression* left, Expression* right, int pos)
+      : Expression(pos, kBinaryOperation),
         op_(static_cast<byte>(op)),
         has_fixed_right_arg_(false),
         fixed_right_arg_value_(0),
@@ -2175,9 +2163,8 @@ class CountOperation final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  CountOperation(Zone* zone, Token::Value op, bool is_prefix, Expression* expr,
-                 int pos)
-      : Expression(zone, pos, kCountOperation),
+  CountOperation(Token::Value op, bool is_prefix, Expression* expr, int pos)
+      : Expression(pos, kCountOperation),
         bit_field_(
             IsPrefixField::encode(is_prefix) | KeyTypeField::encode(ELEMENT) |
             StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op)),
@@ -2228,9 +2215,9 @@ class CompareOperation final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  CompareOperation(Zone* zone, Token::Value op, Expression* left,
-                   Expression* right, int pos)
-      : Expression(zone, pos, kCompareOperation),
+  CompareOperation(Token::Value op, Expression* left, Expression* right,
+                   int pos)
+      : Expression(pos, kCompareOperation),
         op_(op),
         left_(left),
         right_(right),
@@ -2261,8 +2248,8 @@ class Spread final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Spread(Zone* zone, Expression* expression, int pos, int expr_pos)
-      : Expression(zone, pos, kSpread),
+  Spread(Expression* expression, int pos, int expr_pos)
+      : Expression(pos, kSpread),
         expr_pos_(expr_pos),
         expression_(expression) {}
 
@@ -2296,9 +2283,9 @@ class Conditional final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Conditional(Zone* zone, Expression* condition, Expression* then_expression,
+  Conditional(Expression* condition, Expression* then_expression,
               Expression* else_expression, int position)
-      : Expression(zone, position, kConditional),
+      : Expression(position, kConditional),
         condition_(condition),
         then_expression_(then_expression),
         else_expression_(else_expression) {}
@@ -2364,8 +2351,7 @@ class Assignment final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Assignment(Zone* zone, Token::Value op, Expression* target, Expression* value,
-             int pos);
+  Assignment(Token::Value op, Expression* target, Expression* value, int pos);
 
   static int parent_num_ids() { return Expression::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
@@ -2422,8 +2408,8 @@ class RewritableExpression final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  RewritableExpression(Zone* zone, Expression* expression)
-      : Expression(zone, expression->position(), kRewritableExpression),
+  explicit RewritableExpression(Expression* expression)
+      : Expression(expression->position(), kRewritableExpression),
         is_rewritten_(false),
         expr_(expression) {
     DCHECK(!expression->IsRewritableExpression());
@@ -2456,9 +2442,9 @@ class Yield final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Yield(Zone* zone, Expression* generator_object, Expression* expression,
-        int pos, OnException on_exception)
-      : Expression(zone, pos, kYield),
+  Yield(Expression* generator_object, Expression* expression, int pos,
+        OnException on_exception)
+      : Expression(pos, kYield),
         on_exception_(on_exception),
         yield_id_(-1),
         generator_object_(generator_object),
@@ -2479,8 +2465,8 @@ class Throw final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Throw(Zone* zone, Expression* exception, int pos)
-      : Expression(zone, pos, kThrow), exception_(exception) {}
+  Throw(Expression* exception, int pos)
+      : Expression(pos, kThrow), exception_(exception) {}
 
   Expression* exception_;
 };
@@ -2628,7 +2614,7 @@ class FunctionLiteral final : public Expression {
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, FunctionKind kind,
                   int position, bool is_function)
-      : Expression(zone, position, kFunctionLiteral),
+      : Expression(position, kFunctionLiteral),
         dont_optimize_reason_(kNoReason),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
@@ -2718,11 +2704,10 @@ class ClassLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  ClassLiteral(Zone* zone, VariableProxy* class_variable_proxy,
-               Expression* extends, FunctionLiteral* constructor,
-               ZoneList<Property*>* properties, int start_position,
-               int end_position)
-      : Expression(zone, start_position, kClassLiteral),
+  ClassLiteral(VariableProxy* class_variable_proxy, Expression* extends,
+               FunctionLiteral* constructor, ZoneList<Property*>* properties,
+               int start_position, int end_position)
+      : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         class_variable_proxy_(class_variable_proxy),
         extends_(extends),
@@ -2750,9 +2735,9 @@ class NativeFunctionLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  NativeFunctionLiteral(Zone* zone, const AstRawString* name,
-                        v8::Extension* extension, int pos)
-      : Expression(zone, pos, kNativeFunctionLiteral),
+  NativeFunctionLiteral(const AstRawString* name, v8::Extension* extension,
+                        int pos)
+      : Expression(pos, kNativeFunctionLiteral),
         name_(name),
         extension_(extension) {}
 
@@ -2764,7 +2749,7 @@ class NativeFunctionLiteral final : public Expression {
 class ThisFunction final : public Expression {
  private:
   friend class AstNodeFactory;
-  ThisFunction(Zone* zone, int pos) : Expression(zone, pos, kThisFunction) {}
+  explicit ThisFunction(int pos) : Expression(pos, kThisFunction) {}
 };
 
 
@@ -2778,9 +2763,9 @@ class SuperPropertyReference final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  SuperPropertyReference(Zone* zone, VariableProxy* this_var,
-                         Expression* home_object, int pos)
-      : Expression(zone, pos, kSuperPropertyReference),
+  SuperPropertyReference(VariableProxy* this_var, Expression* home_object,
+                         int pos)
+      : Expression(pos, kSuperPropertyReference),
         this_var_(this_var),
         home_object_(home_object) {
     DCHECK(this_var->is_this());
@@ -2804,10 +2789,9 @@ class SuperCallReference final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  SuperCallReference(Zone* zone, VariableProxy* this_var,
-                     VariableProxy* new_target_var,
+  SuperCallReference(VariableProxy* this_var, VariableProxy* new_target_var,
                      VariableProxy* this_function_var, int pos)
-      : Expression(zone, pos, kSuperCallReference),
+      : Expression(pos, kSuperCallReference),
         this_var_(this_var),
         new_target_var_(new_target_var),
         this_function_var_(this_function_var) {
@@ -2828,8 +2812,7 @@ class EmptyParentheses final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  EmptyParentheses(Zone* zone, int pos)
-      : Expression(zone, pos, kEmptyParentheses) {}
+  explicit EmptyParentheses(int pos) : Expression(pos, kEmptyParentheses) {}
 };
 
 
@@ -3022,7 +3005,7 @@ class AstNodeFactory final BASE_EMBEDDED {
 
 #define STATEMENT_WITH_LABELS(NodeType)                                     \
   NodeType* New##NodeType(ZoneList<const AstRawString*>* labels, int pos) { \
-    return new (zone_) NodeType(zone_, labels, pos);                        \
+    return new (zone_) NodeType(labels, pos);                               \
   }
   STATEMENT_WITH_LABELS(DoWhileStatement)
   STATEMENT_WITH_LABELS(WhileStatement)
@@ -3035,10 +3018,10 @@ class AstNodeFactory final BASE_EMBEDDED {
                                         int pos) {
     switch (visit_mode) {
       case ForEachStatement::ENUMERATE: {
-        return new (zone_) ForInStatement(zone_, labels, pos);
+        return new (zone_) ForInStatement(labels, pos);
       }
       case ForEachStatement::ITERATE: {
-        return new (zone_) ForOfStatement(zone_, labels, pos);
+        return new (zone_) ForOfStatement(labels, pos);
       }
     }
     UNREACHABLE();
@@ -3046,26 +3029,26 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   ExpressionStatement* NewExpressionStatement(Expression* expression, int pos) {
-    return new (zone_) ExpressionStatement(zone_, expression, pos);
+    return new (zone_) ExpressionStatement(expression, pos);
   }
 
   ContinueStatement* NewContinueStatement(IterationStatement* target, int pos) {
-    return new (zone_) ContinueStatement(zone_, target, pos);
+    return new (zone_) ContinueStatement(target, pos);
   }
 
   BreakStatement* NewBreakStatement(BreakableStatement* target, int pos) {
-    return new (zone_) BreakStatement(zone_, target, pos);
+    return new (zone_) BreakStatement(target, pos);
   }
 
   ReturnStatement* NewReturnStatement(Expression* expression, int pos) {
-    return new (zone_) ReturnStatement(zone_, expression, pos);
+    return new (zone_) ReturnStatement(expression, pos);
   }
 
   WithStatement* NewWithStatement(Scope* scope,
                                   Expression* expression,
                                   Statement* statement,
                                   int pos) {
-    return new (zone_) WithStatement(zone_, scope, expression, statement, pos);
+    return new (zone_) WithStatement(scope, expression, statement, pos);
   }
 
   IfStatement* NewIfStatement(Expression* condition,
@@ -3073,15 +3056,14 @@ class AstNodeFactory final BASE_EMBEDDED {
                               Statement* else_statement,
                               int pos) {
     return new (zone_)
-        IfStatement(zone_, condition, then_statement, else_statement, pos);
+        IfStatement(condition, then_statement, else_statement, pos);
   }
 
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,
                                           Variable* variable,
                                           Block* catch_block, int pos) {
-    return new (zone_)
-        TryCatchStatement(zone_, try_block, scope, variable, catch_block,
-                          HandlerTable::CAUGHT, pos);
+    return new (zone_) TryCatchStatement(
+        try_block, scope, variable, catch_block, HandlerTable::CAUGHT, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForReThrow(Block* try_block,
@@ -3089,9 +3071,8 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                     Variable* variable,
                                                     Block* catch_block,
                                                     int pos) {
-    return new (zone_)
-        TryCatchStatement(zone_, try_block, scope, variable, catch_block,
-                          HandlerTable::UNCAUGHT, pos);
+    return new (zone_) TryCatchStatement(
+        try_block, scope, variable, catch_block, HandlerTable::UNCAUGHT, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForPromiseReject(Block* try_block,
@@ -3099,9 +3080,8 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                           Variable* variable,
                                                           Block* catch_block,
                                                           int pos) {
-    return new (zone_)
-        TryCatchStatement(zone_, try_block, scope, variable, catch_block,
-                          HandlerTable::PROMISE, pos);
+    return new (zone_) TryCatchStatement(
+        try_block, scope, variable, catch_block, HandlerTable::PROMISE, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,
@@ -3109,75 +3089,72 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                        Variable* variable,
                                                        Block* catch_block,
                                                        int pos) {
-    return new (zone_)
-        TryCatchStatement(zone_, try_block, scope, variable, catch_block,
-                          HandlerTable::DESUGARING, pos);
+    return new (zone_) TryCatchStatement(
+        try_block, scope, variable, catch_block, HandlerTable::DESUGARING, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,
                                               Block* finally_block, int pos) {
-    return new (zone_)
-        TryFinallyStatement(zone_, try_block, finally_block, pos);
+    return new (zone_) TryFinallyStatement(try_block, finally_block, pos);
   }
 
   DebuggerStatement* NewDebuggerStatement(int pos) {
-    return new (zone_) DebuggerStatement(zone_, pos);
+    return new (zone_) DebuggerStatement(pos);
   }
 
   EmptyStatement* NewEmptyStatement(int pos) {
-    return new (zone_) EmptyStatement(zone_, pos);
+    return new (zone_) EmptyStatement(pos);
   }
 
   SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(
       Statement* statement, Scope* scope) {
-    return new (zone_) SloppyBlockFunctionStatement(zone_, statement, scope);
+    return new (zone_) SloppyBlockFunctionStatement(statement, scope);
   }
 
   CaseClause* NewCaseClause(
       Expression* label, ZoneList<Statement*>* statements, int pos) {
-    return new (zone_) CaseClause(zone_, label, statements, pos);
+    return new (zone_) CaseClause(label, statements, pos);
   }
 
   Literal* NewStringLiteral(const AstRawString* string, int pos) {
-    return new (zone_)
-        Literal(zone_, ast_value_factory_->NewString(string), pos);
+    return new (zone_) Literal(ast_value_factory_->NewString(string), pos);
   }
 
   // A JavaScript symbol (ECMA-262 edition 6).
   Literal* NewSymbolLiteral(const char* name, int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewSymbol(name), pos);
+    return new (zone_) Literal(ast_value_factory_->NewSymbol(name), pos);
   }
 
   Literal* NewNumberLiteral(double number, int pos, bool with_dot = false) {
     return new (zone_)
-        Literal(zone_, ast_value_factory_->NewNumber(number, with_dot), pos);
+        Literal(ast_value_factory_->NewNumber(number, with_dot), pos);
   }
 
   Literal* NewSmiLiteral(int number, int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewSmi(number), pos);
+    return new (zone_) Literal(ast_value_factory_->NewSmi(number), pos);
   }
 
   Literal* NewBooleanLiteral(bool b, int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewBoolean(b), pos);
+    return new (zone_) Literal(ast_value_factory_->NewBoolean(b), pos);
   }
 
   Literal* NewNullLiteral(int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewNull(), pos);
+    return new (zone_) Literal(ast_value_factory_->NewNull(), pos);
   }
 
   Literal* NewUndefinedLiteral(int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewUndefined(), pos);
+    return new (zone_) Literal(ast_value_factory_->NewUndefined(), pos);
   }
 
   Literal* NewTheHoleLiteral(int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewTheHole(), pos);
+    return new (zone_) Literal(ast_value_factory_->NewTheHole(), pos);
   }
 
   ObjectLiteral* NewObjectLiteral(
       ZoneList<ObjectLiteral::Property*>* properties, int literal_index,
       uint32_t boilerplate_properties, int pos) {
-    return new (zone_) ObjectLiteral(zone_, properties, literal_index,
-                                     boilerplate_properties, pos);
+    return new (zone_)
+        ObjectLiteral(properties, literal_index, boilerplate_properties, pos);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(
@@ -3197,26 +3174,26 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern, int flags,
                                   int literal_index, int pos) {
-    return new (zone_) RegExpLiteral(zone_, pattern, flags, literal_index, pos);
+    return new (zone_) RegExpLiteral(pattern, flags, literal_index, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
                                 int literal_index,
                                 int pos) {
-    return new (zone_) ArrayLiteral(zone_, values, -1, literal_index, pos);
+    return new (zone_) ArrayLiteral(values, -1, literal_index, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
                                 int first_spread_index, int literal_index,
                                 int pos) {
     return new (zone_)
-        ArrayLiteral(zone_, values, first_spread_index, literal_index, pos);
+        ArrayLiteral(values, first_spread_index, literal_index, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,
                                   int start_position = kNoSourcePosition,
                                   int end_position = kNoSourcePosition) {
-    return new (zone_) VariableProxy(zone_, var, start_position, end_position);
+    return new (zone_) VariableProxy(var, start_position, end_position);
   }
 
   VariableProxy* NewVariableProxy(const AstRawString* name,
@@ -3225,87 +3202,86 @@ class AstNodeFactory final BASE_EMBEDDED {
                                   int end_position = kNoSourcePosition) {
     DCHECK_NOT_NULL(name);
     return new (zone_)
-        VariableProxy(zone_, name, variable_kind, start_position, end_position);
+        VariableProxy(name, variable_kind, start_position, end_position);
   }
 
   // Recreates the VariableProxy in this Zone.
   VariableProxy* CopyVariableProxy(VariableProxy* proxy) {
-    return new (zone_) VariableProxy(zone_, proxy);
+    return new (zone_) VariableProxy(proxy);
   }
 
   Property* NewProperty(Expression* obj, Expression* key, int pos) {
-    return new (zone_) Property(zone_, obj, key, pos);
+    return new (zone_) Property(obj, key, pos);
   }
 
   Call* NewCall(Expression* expression, ZoneList<Expression*>* arguments,
                 int pos, Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
-    return new (zone_) Call(zone_, expression, arguments, pos, possibly_eval);
+    return new (zone_) Call(expression, arguments, pos, possibly_eval);
   }
 
   CallNew* NewCallNew(Expression* expression,
                       ZoneList<Expression*>* arguments,
                       int pos) {
-    return new (zone_) CallNew(zone_, expression, arguments, pos);
+    return new (zone_) CallNew(expression, arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(Runtime::FunctionId id,
                               ZoneList<Expression*>* arguments, int pos) {
-    return new (zone_)
-        CallRuntime(zone_, Runtime::FunctionForId(id), arguments, pos);
+    return new (zone_) CallRuntime(Runtime::FunctionForId(id), arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(const Runtime::Function* function,
                               ZoneList<Expression*>* arguments, int pos) {
-    return new (zone_) CallRuntime(zone_, function, arguments, pos);
+    return new (zone_) CallRuntime(function, arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(int context_index,
                               ZoneList<Expression*>* arguments, int pos) {
-    return new (zone_) CallRuntime(zone_, context_index, arguments, pos);
+    return new (zone_) CallRuntime(context_index, arguments, pos);
   }
 
   UnaryOperation* NewUnaryOperation(Token::Value op,
                                     Expression* expression,
                                     int pos) {
-    return new (zone_) UnaryOperation(zone_, op, expression, pos);
+    return new (zone_) UnaryOperation(op, expression, pos);
   }
 
   BinaryOperation* NewBinaryOperation(Token::Value op,
                                       Expression* left,
                                       Expression* right,
                                       int pos) {
-    return new (zone_) BinaryOperation(zone_, op, left, right, pos);
+    return new (zone_) BinaryOperation(op, left, right, pos);
   }
 
   CountOperation* NewCountOperation(Token::Value op,
                                     bool is_prefix,
                                     Expression* expr,
                                     int pos) {
-    return new (zone_) CountOperation(zone_, op, is_prefix, expr, pos);
+    return new (zone_) CountOperation(op, is_prefix, expr, pos);
   }
 
   CompareOperation* NewCompareOperation(Token::Value op,
                                         Expression* left,
                                         Expression* right,
                                         int pos) {
-    return new (zone_) CompareOperation(zone_, op, left, right, pos);
+    return new (zone_) CompareOperation(op, left, right, pos);
   }
 
   Spread* NewSpread(Expression* expression, int pos, int expr_pos) {
-    return new (zone_) Spread(zone_, expression, pos, expr_pos);
+    return new (zone_) Spread(expression, pos, expr_pos);
   }
 
   Conditional* NewConditional(Expression* condition,
                               Expression* then_expression,
                               Expression* else_expression,
                               int position) {
-    return new (zone_) Conditional(zone_, condition, then_expression,
-                                   else_expression, position);
+    return new (zone_)
+        Conditional(condition, then_expression, else_expression, position);
   }
 
   RewritableExpression* NewRewritableExpression(Expression* expression) {
     DCHECK_NOT_NULL(expression);
-    return new (zone_) RewritableExpression(zone_, expression);
+    return new (zone_) RewritableExpression(expression);
   }
 
   Assignment* NewAssignment(Token::Value op,
@@ -3313,7 +3289,7 @@ class AstNodeFactory final BASE_EMBEDDED {
                             Expression* value,
                             int pos) {
     DCHECK(Token::IsAssignmentOp(op));
-    Assignment* assign = new (zone_) Assignment(zone_, op, target, value, pos);
+    Assignment* assign = new (zone_) Assignment(op, target, value, pos);
     if (assign->is_compound()) {
       DCHECK(Token::IsAssignmentOp(op));
       assign->binary_operation_ =
@@ -3325,12 +3301,11 @@ class AstNodeFactory final BASE_EMBEDDED {
   Yield* NewYield(Expression* generator_object, Expression* expression, int pos,
                   Yield::OnException on_exception) {
     if (!expression) expression = NewUndefinedLiteral(pos);
-    return new (zone_)
-        Yield(zone_, generator_object, expression, pos, on_exception);
+    return new (zone_) Yield(generator_object, expression, pos, on_exception);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {
-    return new (zone_) Throw(zone_, exception, pos);
+    return new (zone_) Throw(exception, pos);
   }
 
   FunctionLiteral* NewFunctionLiteral(
@@ -3367,42 +3342,41 @@ class AstNodeFactory final BASE_EMBEDDED {
                                 FunctionLiteral* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
                                 int start_position, int end_position) {
-    return new (zone_) ClassLiteral(zone_, proxy, extends, constructor,
-                                    properties, start_position, end_position);
+    return new (zone_) ClassLiteral(proxy, extends, constructor, properties,
+                                    start_position, end_position);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,
                                                   v8::Extension* extension,
                                                   int pos) {
-    return new (zone_) NativeFunctionLiteral(zone_, name, extension, pos);
+    return new (zone_) NativeFunctionLiteral(name, extension, pos);
   }
 
   DoExpression* NewDoExpression(Block* block, Variable* result_var, int pos) {
     VariableProxy* result = NewVariableProxy(result_var, pos);
-    return new (zone_) DoExpression(zone_, block, result, pos);
+    return new (zone_) DoExpression(block, result, pos);
   }
 
   ThisFunction* NewThisFunction(int pos) {
-    return new (zone_) ThisFunction(zone_, pos);
+    return new (zone_) ThisFunction(pos);
   }
 
   SuperPropertyReference* NewSuperPropertyReference(VariableProxy* this_var,
                                                     Expression* home_object,
                                                     int pos) {
-    return new (zone_)
-        SuperPropertyReference(zone_, this_var, home_object, pos);
+    return new (zone_) SuperPropertyReference(this_var, home_object, pos);
   }
 
   SuperCallReference* NewSuperCallReference(VariableProxy* this_var,
                                             VariableProxy* new_target_var,
                                             VariableProxy* this_function_var,
                                             int pos) {
-    return new (zone_) SuperCallReference(zone_, this_var, new_target_var,
-                                          this_function_var, pos);
+    return new (zone_)
+        SuperCallReference(this_var, new_target_var, this_function_var, pos);
   }
 
   EmptyParentheses* NewEmptyParentheses(int pos) {
-    return new (zone_) EmptyParentheses(zone_, pos);
+    return new (zone_) EmptyParentheses(pos);
   }
 
   Zone* zone() const { return zone_; }
