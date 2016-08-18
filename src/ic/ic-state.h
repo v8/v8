@@ -258,7 +258,7 @@ class StoreICState final BASE_EMBEDDED {
   }
 
   class LanguageModeState : public BitField<LanguageMode, 1, 1> {};
-  STATIC_ASSERT(i::LANGUAGE_END == 2);
+  STATIC_ASSERT(i::LAST_LANGUAGE_MODE == 1);
 
   // For convenience, a statically declared encoding of strict mode extra
   // IC state.

@@ -65,7 +65,7 @@ const double kIntegerValues[] = {-V8_INFINITY, INT_MIN, -1000.0,  -42.0,
 Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
                           Type::Number(),    Type::String(), Type::Object()};
 
-STATIC_ASSERT(LANGUAGE_END == 2);
+STATIC_ASSERT(LAST_LANGUAGE_MODE == 1);
 const LanguageMode kLanguageModes[] = {SLOPPY, STRICT};
 
 }  // namespace

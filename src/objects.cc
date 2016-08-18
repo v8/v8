@@ -9168,7 +9168,7 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
   Handle<Map> function_map(
       Map::cast(isolate->native_context()->get(map_index)));
 
-  STATIC_ASSERT(LANGUAGE_END == 2);
+  STATIC_ASSERT(LAST_LANGUAGE_MODE == 1);
   DCHECK_EQ(STRICT, language_mode);
   Handle<Symbol> transition_symbol =
       isolate->factory()->strict_function_transition_symbol();
@@ -16013,7 +16013,7 @@ class StringSharedKey : public HashTableKey {
       // collection.
       Script* script(Script::cast(shared->script()));
       hash ^= String::cast(script->source())->Hash();
-      STATIC_ASSERT(LANGUAGE_END == 2);
+      STATIC_ASSERT(LAST_LANGUAGE_MODE == 1);
       if (is_strict(language_mode)) hash ^= 0x8000;
       hash += scope_position;
     }

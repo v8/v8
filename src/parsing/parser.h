@@ -175,7 +175,7 @@ class ParseInfo {
     return construct_language_mode(is_strict_mode());
   }
   void set_language_mode(LanguageMode language_mode) {
-    STATIC_ASSERT(LANGUAGE_END == 2);
+    STATIC_ASSERT(LAST_LANGUAGE_MODE == 1);
     set_strict_mode(is_strict(language_mode));
   }
 
