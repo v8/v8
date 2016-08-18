@@ -252,11 +252,11 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   }
   // Add runtime function itself.
   locations.AddParam(
-      regloc(kRuntimeCallFunctionRegister, MachineType::AnyTagged()));
+      regloc(kRuntimeCallFunctionRegister, MachineType::Pointer()));
 
   // Add runtime call argument count.
   locations.AddParam(
-      regloc(kRuntimeCallArgCountRegister, MachineType::AnyTagged()));
+      regloc(kRuntimeCallArgCountRegister, MachineType::Int32()));
 
   // Add context.
   locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
