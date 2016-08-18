@@ -175,7 +175,8 @@ void ProcessBacktrace(void* const* trace, size_t size,
 void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
-  write(STDERR_FILENO, output, strlen(output));
+  ssize_t return_val = write(STDERR_FILENO, output, strlen(output));
+  USE(return_val);
 }
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
