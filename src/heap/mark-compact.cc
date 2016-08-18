@@ -2223,14 +2223,6 @@ void MarkCompactCollector::TracePossibleWrapper(JSObject* js_object) {
   }
 }
 
-void MarkCompactCollector::RegisterExternallyReferencedObject(Object** object) {
-  DCHECK(in_use());
-  HeapObject* heap_object = HeapObject::cast(*object);
-  DCHECK(heap_->Contains(heap_object));
-  MarkBit mark_bit = ObjectMarking::MarkBitFrom(heap_object);
-  MarkObject(heap_object, mark_bit);
-}
-
 class MarkCompactCollector::ObjectStatsVisitor
     : public MarkCompactCollector::HeapObjectVisitor {
  public:

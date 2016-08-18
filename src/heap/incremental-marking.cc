@@ -1201,6 +1201,19 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
 
     if (state_ == MARKING) {
       bytes_processed = ProcessMarkingDeque(bytes_to_process);
+      if (FLAG_incremental_marking_wrappers &&
+          heap_->UsingEmbedderHeapTracer()) {
+        // This currently marks through all registered wrappers and does not
+        // respect bytes_to_process.
+        // TODO(hpayer): Integrate incremental marking of wrappers into
+        // bytes_to_process logic.
+        heap_->mark_compact_collector()
+            ->RegisterWrappersWithEmbedderHeapTracer();
+        heap_->mark_compact_collector()->embedder_heap_tracer()->AdvanceTracing(
+            0,
+            EmbedderHeapTracer::AdvanceTracingActions(
+                EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
+      }
       if (heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
         if (completion == FORCE_COMPLETION ||
             IsIdleMarkingDelayCounterLimitReached()) {
