@@ -785,7 +785,8 @@ TEST(IgnitionBaselineOnReturn) {
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   FLAG_ignition = true;
-  reinterpret_cast<i::Isolate*>(CcTest::isolate())->interpreter()->Initialize();
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->interpreter()->Initialize();
   v8::HandleScope scope(CcTest::isolate());
   InstallIsBaselineCompiledHelper(CcTest::isolate());
 
@@ -802,4 +803,37 @@ TEST(IgnitionBaselineOnReturn) {
   CHECK_EQ(false, GetGlobalProperty("is_baseline_in_function")->BooleanValue());
   CHECK_EQ(true, GetGlobalProperty("is_baseline_after_return")->BooleanValue());
   CHECK_EQ(1234.0, GetGlobalProperty("return_val")->Number());
+}
+
+TEST(IgnitionEntryTrampolineSelfHealing) {
+  FLAG_allow_natives_syntax = true;
+  FLAG_always_opt = false;
+  CcTest::InitializeVM();
+  FLAG_ignition = true;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->interpreter()->Initialize();
+  v8::HandleScope scope(CcTest::isolate());
+
+  CompileRun(
+      "function MkFun() {"
+      "  function f() { return 23 }"
+      "  return f"
+      "}"
+      "var f1 = MkFun(); f1();"
+      "var f2 = MkFun(); f2();"
+      "%BaselineFunctionOnNextCall(f1);");
+  Handle<JSFunction> f1 = Handle<JSFunction>::cast(GetGlobalProperty("f1"));
+  Handle<JSFunction> f2 = Handle<JSFunction>::cast(GetGlobalProperty("f2"));
+
+  // Function {f1} is marked for baseline.
+  CompileRun("var result1 = f1()");
+  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f1->code());
+  CHECK_EQ(*isolate->builtins()->InterpreterEntryTrampoline(), f2->code());
+  CHECK_EQ(23.0, GetGlobalProperty("result1")->Number());
+
+  // Function {f2} will self-heal now.
+  CompileRun("var result2 = f2()");
+  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f1->code());
+  CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f2->code());
+  CHECK_EQ(23.0, GetGlobalProperty("result2")->Number());
 }

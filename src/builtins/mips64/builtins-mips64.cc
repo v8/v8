@@ -1037,10 +1037,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         FieldMemOperand(a0, SharedFunctionInfo::kFunctionDataOffset));
   __ bind(&bytecode_array_loaded);
 
+  // Check whether we should continue to use the interpreter.
+  Label switch_to_different_code_kind;
+  __ ld(a0, FieldMemOperand(a0, SharedFunctionInfo::kCodeOffset));
+  __ Branch(&switch_to_different_code_kind, ne, a0,
+            Operand(masm->CodeObject()));  // Self-reference to this code.
+
   // Check function data field is actually a BytecodeArray object.
-  Label bytecode_array_not_present;
-  __ JumpIfRoot(kInterpreterBytecodeArrayRegister,
-                Heap::kUndefinedValueRootIndex, &bytecode_array_not_present);
   if (FLAG_debug_code) {
     __ SmiTst(kInterpreterBytecodeArrayRegister, a4);
     __ Assert(ne, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry, a4,
@@ -1111,10 +1114,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex));
   __ Branch(&bytecode_array_loaded);
 
-  // If the bytecode array is no longer present, then the underlying function
-  // has been switched to a different kind of code and we heal the closure by
-  // switching the code entry field over to the new code object as well.
-  __ bind(&bytecode_array_not_present);
+  // If the shared code is no longer this entry trampoline, then the underlying
+  // function has been switched to a different kind of code and we heal the
+  // closure by switching the code entry field over to the new code as well.
+  __ bind(&switch_to_different_code_kind);
   __ LeaveFrame(StackFrame::JAVA_SCRIPT);
   __ ld(a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ ld(a4, FieldMemOperand(a4, SharedFunctionInfo::kCodeOffset));
