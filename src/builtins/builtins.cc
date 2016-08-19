@@ -184,6 +184,7 @@ const char* Builtins::Lookup(byte* pc) {
   return NULL;
 }
 
+// static
 const char* Builtins::name(int index) {
   switch (index) {
 #define CASE(Name, ...) \
@@ -196,6 +197,74 @@ const char* Builtins::name(int index) {
       break;
   }
   return "";
+}
+
+// static
+Address Builtins::CppEntryOf(int index) {
+  DCHECK(0 <= index && index < builtin_count);
+  switch (index) {
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return FUNCTION_ADDR(Builtin_##Name);
+    BUILTIN_LIST_C(CASE)
+#undef CASE
+    default:
+      return nullptr;
+  }
+  UNREACHABLE();
+}
+
+// static
+bool Builtins::IsCpp(int index) {
+  DCHECK(0 <= index && index < builtin_count);
+  switch (index) {
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return true;
+#define BUILTIN_LIST_CPP(V)                                       \
+  BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+    BUILTIN_LIST_CPP(CASE)
+#undef BUILTIN_LIST_CPP
+#undef CASE
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+// static
+bool Builtins::IsApi(int index) {
+  DCHECK(0 <= index && index < builtin_count);
+  switch (index) {
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return true;
+#define BUILTIN_LIST_API(V)                                       \
+  BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+    BUILTIN_LIST_API(CASE);
+#undef BUILTIN_LIST_API
+#undef CASE
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+// static
+bool Builtins::HasCppImplementation(int index) {
+  DCHECK(0 <= index && index < builtin_count);
+  switch (index) {
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return true;
+    BUILTIN_LIST_C(CASE)
+#undef CASE
+    default:
+      return false;
+  }
+  UNREACHABLE();
 }
 
 #define DEFINE_BUILTIN_ACCESSOR(Name, ...)                                    \

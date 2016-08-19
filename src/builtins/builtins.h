@@ -600,7 +600,15 @@ class Builtins {
     return reinterpret_cast<Address>(&builtins_[name]);
   }
 
-  const char* name(int index);
+  static const char* name(int index);
+
+  // Returns the C++ entry point for builtins implemented in C++, and the null
+  // Address otherwise.
+  static Address CppEntryOf(int index);
+
+  static bool IsCpp(int index);
+  static bool IsApi(int index);
+  static bool HasCppImplementation(int index);
 
   bool is_initialized() const { return initialized_; }
 

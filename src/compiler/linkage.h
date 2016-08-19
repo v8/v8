@@ -343,8 +343,13 @@ class Linkage : public ZoneObject {
                                              CallDescriptor::Flags flags);
 
   static CallDescriptor* GetRuntimeCallDescriptor(
-      Zone* zone, Runtime::FunctionId function, int parameter_count,
+      Zone* zone, Runtime::FunctionId function, int js_parameter_count,
       Operator::Properties properties, CallDescriptor::Flags flags);
+
+  static CallDescriptor* GetCEntryStubCallDescriptor(
+      Zone* zone, int return_count, int js_parameter_count,
+      const char* debug_name, Operator::Properties properties,
+      CallDescriptor::Flags flags);
 
   static CallDescriptor* GetStubCallDescriptor(
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,

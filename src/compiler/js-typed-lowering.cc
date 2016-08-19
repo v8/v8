@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-typed-lowering.h"
 
+#include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
@@ -1582,6 +1583,8 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(target_type->AsConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+    const int builtin_index = shared->code()->builtin_index();
+    const bool is_builtin = (builtin_index != -1);
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
@@ -1613,9 +1616,58 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
 
     Node* new_target = jsgraph()->UndefinedConstant();
     Node* argument_count = jsgraph()->Int32Constant(arity);
-    if (shared->internal_formal_parameter_count() == arity ||
-        shared->internal_formal_parameter_count() ==
-            SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
+    if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
+      // Patch {node} to a direct CEntryStub call.
+      //
+      // ----------- A r g u m e n t s -----------
+      // -- 0: CEntryStub
+      // --- Stack args ---
+      // -- 1: receiver
+      // -- [2, 2 + n[: the n actual arguments passed to the builtin
+      // -- 2 + n: argc, including the receiver and implicit args (Smi)
+      // -- 2 + n + 1: target
+      // -- 2 + n + 2: new_target
+      // --- Register args ---
+      // -- 2 + n + 3: the C entry point
+      // -- 2 + n + 4: argc (Int32)
+      // -----------------------------------
+
+      // The logic contained here is mirrored in Builtins::Generate_Adaptor.
+      // Keep these in sync.
+
+      // API and CPP builtins are implemented in C++, and we can inline both.
+      // CPP builtins create a builtin exit frame, API builtins don't.
+      const bool create_builtin_exit_frame = Builtins::IsCpp(builtin_index);
+
+      Node* stub = jsgraph()->CEntryStubConstant(
+          1, kDontSaveFPRegs, kArgvOnStack, create_builtin_exit_frame);
+      node->ReplaceInput(0, stub);
+
+      const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
+      Node* argc_node = jsgraph()->Int32Constant(argc);
+
+      Zone* zone = graph()->zone();
+      node->InsertInput(zone, arity + 2, argc_node);
+      node->InsertInput(zone, arity + 3, target);
+      node->InsertInput(zone, arity + 4, new_target);
+
+      Address entry = Builtins::CppEntryOf(builtin_index);
+      ExternalReference entry_ref(ExternalReference(entry, isolate()));
+      Node* entry_node = jsgraph()->ExternalConstant(entry_ref);
+
+      node->InsertInput(zone, arity + 5, entry_node);
+      node->InsertInput(zone, arity + 6, argc_node);
+
+      const int return_count = 1;
+      Operator::Properties properties = node->op()->properties();
+      const char* debug_name = Builtins::name(builtin_index);
+      CallDescriptor* desc = Linkage::GetCEntryStubCallDescriptor(
+          graph()->zone(), return_count, argc, debug_name, properties, flags);
+
+      NodeProperties::ChangeOp(node, common()->Call(desc));
+    } else if (shared->internal_formal_parameter_count() == arity ||
+               shared->internal_formal_parameter_count() ==
+                   SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), arity + 2, new_target);
       node->InsertInput(graph()->zone(), arity + 3, argument_count);
