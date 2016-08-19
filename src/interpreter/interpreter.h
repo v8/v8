@@ -97,6 +97,11 @@ class Interpreter {
   template <class Generator>
   void DoUnaryOp(InterpreterAssembler* assembler);
 
+  // Generates code to perform the unary operation via |Generator| while
+  // gatering type feedback.
+  template <class Generator>
+  void DoUnaryOpWithFeedback(InterpreterAssembler* assembler);
+
   // Generates code to perform the comparison operation associated with
   // |compare_op|.
   void DoCompareOp(Token::Value compare_op, InterpreterAssembler* assembler);

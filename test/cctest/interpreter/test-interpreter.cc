@@ -509,6 +509,229 @@ TEST(InterpreterParameter8) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(36));
 }
 
+TEST(InterpreterBinaryOpTypeFeedback) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
+
+  struct BinaryOpExpectation {
+    Token::Value op;
+    Handle<Object> arg1;
+    Handle<Object> arg2;
+    Handle<Object> result;
+    int32_t feedback;
+  };
+
+  BinaryOpExpectation const kTestCases[] = {
+      // ADD
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(2), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(5), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(Smi::kMaxValue), isolate),
+       Handle<Smi>(Smi::FromInt(1), isolate),
+       isolate->factory()->NewHeapNumber(Smi::kMaxValue + 1.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(3.1415 + 3),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, isolate->factory()->NewHeapNumber(3.1415),
+       isolate->factory()->NewHeapNumber(1.4142),
+       isolate->factory()->NewHeapNumber(3.1415 + 1.4142),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("2"),
+       isolate->factory()->NewStringFromAsciiChecked("22"),
+       BinaryOperationFeedback::kAny},
+      // SUB
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(2), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(-1), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(Smi::kMinValue), isolate),
+       Handle<Smi>(Smi::FromInt(1), isolate),
+       isolate->factory()->NewHeapNumber(Smi::kMinValue - 1.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(3.1415 - 3),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, isolate->factory()->NewHeapNumber(3.1415),
+       isolate->factory()->NewHeapNumber(1.4142),
+       isolate->factory()->NewHeapNumber(3.1415 - 1.4142),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("1"),
+       Handle<Smi>(Smi::FromInt(1), isolate), BinaryOperationFeedback::kAny},
+      // MUL
+      {Token::Value::MUL, Handle<Smi>(Smi::FromInt(2), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(6), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::MUL, Handle<Smi>(Smi::FromInt(Smi::kMinValue), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewHeapNumber(Smi::kMinValue * 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MUL, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(3 * 3.1415),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MUL, isolate->factory()->NewHeapNumber(3.1415),
+       isolate->factory()->NewHeapNumber(1.4142),
+       isolate->factory()->NewHeapNumber(3.1415 * 1.4142),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MUL, Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("1"),
+       Handle<Smi>(Smi::FromInt(2), isolate), BinaryOperationFeedback::kAny},
+      // DIV
+      {Token::Value::DIV, Handle<Smi>(Smi::FromInt(6), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::DIV, Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewHeapNumber(3.0 / 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::DIV, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(3.1415 / 3),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::DIV, isolate->factory()->NewHeapNumber(3.1415),
+       isolate->factory()->NewHeapNumber(
+           -std::numeric_limits<double>::infinity()),
+       isolate->factory()->NewHeapNumber(-0.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::DIV, Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("1"),
+       Handle<Smi>(Smi::FromInt(2), isolate), BinaryOperationFeedback::kAny},
+      // MOD
+      {Token::Value::MOD, Handle<Smi>(Smi::FromInt(5), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::MOD, Handle<Smi>(Smi::FromInt(-4), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewHeapNumber(-0.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MOD, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(fmod(3.1415, 3.0)),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MOD, isolate->factory()->NewHeapNumber(-3.1415),
+       isolate->factory()->NewHeapNumber(-1.4142),
+       isolate->factory()->NewHeapNumber(fmod(-3.1415, -1.4142)),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MOD, Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("-2"),
+       Handle<Smi>(Smi::FromInt(1), isolate), BinaryOperationFeedback::kAny}};
+
+  for (const BinaryOpExpectation& test_case : kTestCases) {
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+
+    i::FeedbackVectorSpec feedback_spec(&zone);
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+
+    Handle<i::TypeFeedbackVector> vector =
+        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
+    Register reg(0);
+    builder.LoadLiteral(test_case.arg1)
+        .StoreAccumulatorInRegister(reg)
+        .LoadLiteral(test_case.arg2)
+        .BinaryOperation(test_case.op, reg, vector->GetIndex(slot0))
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
+    auto callable = tester.GetCallable<>();
+
+    Handle<Object> return_val = callable().ToHandleChecked();
+    Object* feedback0 = vector->Get(slot0);
+    CHECK(feedback0->IsSmi());
+    CHECK_EQ(test_case.feedback, static_cast<Smi*>(feedback0)->value());
+    CHECK(Object::Equals(test_case.result, return_val).ToChecked());
+  }
+}
+
+TEST(InterpreterUnaryOpFeedback) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
+
+  Handle<Smi> smi_one = Handle<Smi>(Smi::FromInt(1), isolate);
+  Handle<Smi> smi_max = Handle<Smi>(Smi::FromInt(Smi::kMaxValue), isolate);
+  Handle<Smi> smi_min = Handle<Smi>(Smi::FromInt(Smi::kMinValue), isolate);
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(2.1);
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked("42");
+
+  struct TestCase {
+    Token::Value op;
+    Handle<Smi> smi_feedback_value;
+    Handle<Smi> smi_to_number_feedback_value;
+    Handle<HeapNumber> number_feedback_value;
+    Handle<Object> any_feedback_value;
+  };
+  TestCase const kTestCases[] = {
+      {Token::Value::ADD, smi_one, smi_max, number, str},
+      {Token::Value::SUB, smi_one, smi_min, number, str}};
+  for (TestCase const& test_case : kTestCases) {
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 4, 0, 0);
+
+    i::FeedbackVectorSpec feedback_spec(&zone);
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+
+    Handle<i::TypeFeedbackVector> vector =
+        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
+    builder.LoadAccumulatorWithRegister(builder.Parameter(0))
+        .CountOperation(test_case.op, vector->GetIndex(slot0))
+        .LoadAccumulatorWithRegister(builder.Parameter(1))
+        .CountOperation(test_case.op, vector->GetIndex(slot1))
+        .LoadAccumulatorWithRegister(builder.Parameter(2))
+        .CountOperation(test_case.op, vector->GetIndex(slot2))
+        .LoadAccumulatorWithRegister(builder.Parameter(3))
+        .CountOperation(test_case.op, vector->GetIndex(slot3))
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
+    typedef Handle<Object> H;
+    auto callable = tester.GetCallable<H, H, H, H>();
+
+    Handle<Object> return_val =
+        callable(test_case.smi_feedback_value,
+                 test_case.smi_to_number_feedback_value,
+                 test_case.number_feedback_value, test_case.any_feedback_value)
+            .ToHandleChecked();
+    USE(return_val);
+    Object* feedback0 = vector->Get(slot0);
+    CHECK(feedback0->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
+             static_cast<Smi*>(feedback0)->value());
+
+    Object* feedback1 = vector->Get(slot1);
+    CHECK(feedback1->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kNumber,
+             static_cast<Smi*>(feedback1)->value());
+
+    Object* feedback2 = vector->Get(slot2);
+    CHECK(feedback2->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kNumber,
+             static_cast<Smi*>(feedback2)->value());
+
+    Object* feedback3 = vector->Get(slot3);
+    CHECK(feedback3->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kAny,
+             static_cast<Smi*>(feedback3)->value());
+  }
+}
+
 TEST(InterpreterBitwiseTypeFeedback) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();

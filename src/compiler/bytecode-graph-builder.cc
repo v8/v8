@@ -1215,6 +1215,18 @@ BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint() {
   return hint;
 }
 
+BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHintForIncDec() {
+  FeedbackVectorSlot slot =
+      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(0));
+  DCHECK_EQ(FeedbackVectorSlotKind::GENERAL, feedback_vector()->GetKind(slot));
+  Object* feedback = feedback_vector()->Get(slot);
+  BinaryOperationHint hint = BinaryOperationHint::kAny;
+  if (feedback->IsSmi()) {
+    hint = BinaryOperationHintFromFeedback((Smi::cast(feedback))->value());
+  }
+  return hint;
+}
+
 void BytecodeGraphBuilder::VisitAdd() {
   BuildBinaryOp(javascript()->Add(GetBinaryOperationHint()));
 }
@@ -1302,15 +1314,17 @@ void BytecodeGraphBuilder::VisitInc() {
   FrameStateBeforeAndAfter states(this);
   // Note: Use subtract -1 here instead of add 1 to ensure we always convert to
   // a number, not a string.
-  const Operator* js_op = javascript()->Subtract(BinaryOperationHint::kAny);
+  const Operator* js_op =
+      javascript()->Subtract(GetBinaryOperationHintForIncDec());
   Node* node = NewNode(js_op, environment()->LookupAccumulator(),
-                       jsgraph()->Constant(-1.0));
+                       jsgraph()->Constant(-1));
   environment()->BindAccumulator(node, &states);
 }
 
 void BytecodeGraphBuilder::VisitDec() {
   FrameStateBeforeAndAfter states(this);
-  const Operator* js_op = javascript()->Subtract(BinaryOperationHint::kAny);
+  const Operator* js_op =
+      javascript()->Subtract(GetBinaryOperationHintForIncDec());
   Node* node = NewNode(js_op, environment()->LookupAccumulator(),
                        jsgraph()->OneConstant());
   environment()->BindAccumulator(node, &states);

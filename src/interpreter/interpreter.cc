@@ -1119,6 +1119,18 @@ void Interpreter::DoUnaryOp(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+template <class Generator>
+void Interpreter::DoUnaryOpWithFeedback(InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* slot_index = __ BytecodeOperandIdx(0);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* result = Generator::Generate(assembler, value, context,
+                                     type_feedback_vector, slot_index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
 // ToName
 //
 // Cast the object referenced by the accumulator to a name.
@@ -1150,14 +1162,14 @@ void Interpreter::DoToObject(InterpreterAssembler* assembler) {
 //
 // Increments value in the accumulator by one.
 void Interpreter::DoInc(InterpreterAssembler* assembler) {
-  DoUnaryOp<IncStub>(assembler);
+  DoUnaryOpWithFeedback<IncStub>(assembler);
 }
 
 // Dec
 //
 // Decrements value in the accumulator by one.
 void Interpreter::DoDec(InterpreterAssembler* assembler) {
-  DoUnaryOp<DecStub>(assembler);
+  DoUnaryOpWithFeedback<DecStub>(assembler);
 }
 
 // LogicalNot

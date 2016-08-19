@@ -2382,7 +2382,9 @@ compiler::Node* BitwiseXorStub::Generate(CodeStubAssembler* assembler,
 // static
 compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
                                   compiler::Node* value,
-                                  compiler::Node* context) {
+                                  compiler::Node* context,
+                                  compiler::Node* type_feedback_vector,
+                                  compiler::Node* slot_id) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
@@ -2394,8 +2396,12 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
   // We might need to try again due to ToNumber conversion.
   Variable value_var(assembler, MachineRepresentation::kTagged);
   Variable result_var(assembler, MachineRepresentation::kTagged);
-  Label start(assembler, &value_var);
+  Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
+  Variable* loop_vars[] = {&value_var, &var_type_feedback};
+  Label start(assembler, 2, loop_vars);
   value_var.Bind(value);
+  var_type_feedback.Bind(
+      assembler->Int32Constant(BinaryOperationFeedback::kNone));
   assembler->Goto(&start);
   assembler->Bind(&start);
   {
@@ -2416,6 +2422,9 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
       assembler->Branch(overflow, &if_overflow, &if_notoverflow);
 
       assembler->Bind(&if_notoverflow);
+      var_type_feedback.Bind(assembler->Word32Or(
+          var_type_feedback.value(),
+          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall)));
       result_var.Bind(assembler->Projection(0, pair));
       assembler->Goto(&end);
 
@@ -2448,6 +2457,8 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
         // Convert to a Number first and try again.
         Callable callable =
             CodeFactory::NonNumberToNumber(assembler->isolate());
+        var_type_feedback.Bind(
+            assembler->Int32Constant(BinaryOperationFeedback::kAny));
         value_var.Bind(assembler->CallStub(callable, context, value));
         assembler->Goto(&start);
       }
@@ -2459,18 +2470,25 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
     Node* finc_value = var_finc_value.value();
     Node* one = assembler->Float64Constant(1.0);
     Node* finc_result = assembler->Float64Add(finc_value, one);
+    var_type_feedback.Bind(assembler->Word32Or(
+        var_type_feedback.value(),
+        assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
     result_var.Bind(assembler->ChangeFloat64ToTagged(finc_result));
     assembler->Goto(&end);
   }
 
   assembler->Bind(&end);
+  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+                            slot_id);
   return result_var.value();
 }
 
 // static
 compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
                                   compiler::Node* value,
-                                  compiler::Node* context) {
+                                  compiler::Node* context,
+                                  compiler::Node* type_feedback_vector,
+                                  compiler::Node* slot_id) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
@@ -2482,7 +2500,11 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
   // We might need to try again due to ToNumber conversion.
   Variable value_var(assembler, MachineRepresentation::kTagged);
   Variable result_var(assembler, MachineRepresentation::kTagged);
-  Label start(assembler, &value_var);
+  Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
+  Variable* loop_vars[] = {&value_var, &var_type_feedback};
+  Label start(assembler, 2, loop_vars);
+  var_type_feedback.Bind(
+      assembler->Int32Constant(BinaryOperationFeedback::kNone));
   value_var.Bind(value);
   assembler->Goto(&start);
   assembler->Bind(&start);
@@ -2504,6 +2526,9 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
       assembler->Branch(overflow, &if_overflow, &if_notoverflow);
 
       assembler->Bind(&if_notoverflow);
+      var_type_feedback.Bind(assembler->Word32Or(
+          var_type_feedback.value(),
+          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall)));
       result_var.Bind(assembler->Projection(0, pair));
       assembler->Goto(&end);
 
@@ -2536,6 +2561,8 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
         // Convert to a Number first and try again.
         Callable callable =
             CodeFactory::NonNumberToNumber(assembler->isolate());
+        var_type_feedback.Bind(
+            assembler->Int32Constant(BinaryOperationFeedback::kAny));
         value_var.Bind(assembler->CallStub(callable, context, value));
         assembler->Goto(&start);
       }
@@ -2547,11 +2574,16 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
     Node* fdec_value = var_fdec_value.value();
     Node* one = assembler->Float64Constant(1.0);
     Node* fdec_result = assembler->Float64Sub(fdec_value, one);
+    var_type_feedback.Bind(assembler->Word32Or(
+        var_type_feedback.value(),
+        assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
     result_var.Bind(assembler->ChangeFloat64ToTagged(fdec_result));
     assembler->Goto(&end);
   }
 
   assembler->Bind(&end);
+  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+                            slot_id);
   return result_var.value();
 }
 

@@ -462,6 +462,19 @@ class CodeStub BASE_EMBEDDED {
   }                                                                    \
   DEFINE_CODE_STUB(NAME, SUPER)
 
+#define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)         \
+ public:                                                                      \
+  static compiler::Node* Generate(                                            \
+      CodeStubAssembler* assembler, compiler::Node* value,                    \
+      compiler::Node* context, compiler::Node* type_feedback_vector,          \
+      compiler::Node* slot_id);                                               \
+  void GenerateAssembly(CodeStubAssembler* assembler) const override {        \
+    assembler->Return(                                                        \
+        Generate(assembler, assembler->Parameter(0), assembler->Parameter(1), \
+                 assembler->Parameter(2), assembler->Parameter(3)));          \
+  }                                                                           \
+  DEFINE_CODE_STUB(NAME, SUPER)
+
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
  public:                                      \
   Handle<Code> GenerateCode() override;       \
@@ -895,7 +908,7 @@ class IncStub final : public TurboFanCodeStub {
   explicit IncStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(Inc, TurboFanCodeStub);
+  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(Inc, TurboFanCodeStub);
 };
 
 class DecStub final : public TurboFanCodeStub {
@@ -903,7 +916,7 @@ class DecStub final : public TurboFanCodeStub {
   explicit DecStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(Dec, TurboFanCodeStub);
+  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(Dec, TurboFanCodeStub);
 };
 
 class InstanceOfStub final : public TurboFanCodeStub {
