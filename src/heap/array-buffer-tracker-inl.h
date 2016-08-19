@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-void ArrayBufferTracker::RegisterNew(JSArrayBuffer* buffer) {
+void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
   void* data = buffer->backing_store();
   if (!data) return;
 
@@ -26,18 +26,13 @@ void ArrayBufferTracker::RegisterNew(JSArrayBuffer* buffer) {
     DCHECK_NOT_NULL(tracker);
     tracker->Add(buffer, length);
   }
-  if (page->InNewSpace()) {
-    retained_from_new_space_.Increment(length);
-  } else {
-    retained_from_old_space_.Increment(length);
-  }
   // We may go over the limit of externally allocated memory here. We call the
   // api function to trigger a GC in this case.
-  reinterpret_cast<v8::Isolate*>(heap_->isolate())
+  reinterpret_cast<v8::Isolate*>(heap->isolate())
       ->AdjustAmountOfExternalAllocatedMemory(length);
 }
 
-void ArrayBufferTracker::Unregister(JSArrayBuffer* buffer) {
+void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
   void* data = buffer->backing_store();
   if (!data) return;
 
@@ -49,12 +44,7 @@ void ArrayBufferTracker::Unregister(JSArrayBuffer* buffer) {
     DCHECK_NOT_NULL(tracker);
     length = tracker->Remove(buffer);
   }
-  if (page->InNewSpace()) {
-    retained_from_new_space_.Decrement(length);
-  } else {
-    retained_from_old_space_.Decrement(length);
-  }
-  heap_->update_external_memory(-static_cast<int64_t>(length));
+  heap->update_external_memory(-static_cast<intptr_t>(length));
 }
 
 void LocalArrayBufferTracker::Add(Key key, const Value& value) {

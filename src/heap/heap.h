@@ -850,9 +850,14 @@ class Heap {
   int64_t external_memory() { return external_memory_; }
   void update_external_memory(int64_t delta) { external_memory_ += delta; }
 
-  size_t external_memory_retained_from_new_space();
+  void update_external_memory_concurrently_freed(intptr_t freed) {
+    external_memory_concurrently_freed_.Increment(freed);
+  }
 
-  bool ShouldDoScavengeForReducingExternalMemory();
+  void account_external_memory_concurrently_freed() {
+    external_memory_ -= external_memory_concurrently_freed_.Value();
+    external_memory_concurrently_freed_.SetValue(0);
+  }
 
   void DeoptMarkedAllocationSites();
 
@@ -1406,8 +1411,6 @@ class Heap {
 
   void RegisterNewArrayBuffer(JSArrayBuffer* buffer);
   void UnregisterArrayBuffer(JSArrayBuffer* buffer);
-
-  ArrayBufferTracker* array_buffer_tracker() { return array_buffer_tracker_; }
 
   // ===========================================================================
   // Allocation site tracking. =================================================
@@ -2049,6 +2052,9 @@ class Heap {
   // Caches the amount of external memory registered at the last MC.
   int64_t external_memory_at_last_mark_compact_;
 
+  // The amount of memory that has been freed concurrently.
+  base::AtomicNumber<intptr_t> external_memory_concurrently_freed_;
+
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_;
@@ -2289,9 +2295,6 @@ class Heap {
 
   // Used for testing purposes.
   bool force_oom_;
-
-  // Tracker for ArrayBuffers pointing to external memory.
-  ArrayBufferTracker* array_buffer_tracker_;
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
