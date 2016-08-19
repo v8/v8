@@ -6342,9 +6342,46 @@ TEST(DestructuringPositiveTests) {
     "[...rest]",
     "[a,b,...rest]",
     "[a,,...rest]",
+    "{arguments: x}",
+    "{eval: x}",
     NULL};
   // clang-format on
   RunParserSyncTest(context_data, data, kSuccess);
+
+  // v8:5201
+  // TODO(lpy): The two test sets below should be merged once
+  // we fix https://bugs.chromium.org/p/v8/issues/detail?id=4577
+  {
+    const char* sloppy_context_data1[][2] = {
+      {"var ", " = {};"},
+      {"function f(", ") {}"},
+      {"function f(argument1, ", ") {}"},
+      {"var f = (", ") => {};"},
+      {"var f = (argument1,", ") => {};"},
+      {"try {} catch(", ") {}"},
+      {NULL, NULL}
+    };
+    const char* data1[] = {
+      "{eval}",
+      "{x: eval}",
+      "{eval = false}",
+      NULL
+    };
+    RunParserSyncTest(sloppy_context_data1, data1, kSuccess);
+
+    const char* sloppy_context_data2[][2] = {
+      {"var ", " = {};"},
+      {"try {} catch(", ") {}"},
+      {NULL, NULL}
+    };
+    const char* data2[] = {
+      "{arguments}",
+      "{x: arguments}",
+      "{arguments = false}",
+      NULL,
+    };
+    RunParserSyncTest(sloppy_context_data2, data2, kSuccess);
+  }
 }
 
 
@@ -6457,6 +6494,7 @@ TEST(DestructuringNegativeTests) {
 
   {  // Strict mode.
     const char* context_data[][2] = {
+        {"'use strict'; var ", " = {};"},
         {"'use strict'; let ", " = {};"},
         {"'use strict'; const ", " = {};"},
         {"'use strict'; function f(", ") {}"},
@@ -6465,10 +6503,18 @@ TEST(DestructuringNegativeTests) {
 
     // clang-format off
     const char* data[] = {
+      "[arguments]",
       "[eval]",
       "{ a : arguments }",
+      "{ a : eval }",
       "[public]",
       "{ x : private }",
+      "{ x : arguments }",
+      "{ x : eval }",
+      "{ arguments }",
+      "{ eval }",
+      "{ arguments = false }"
+      "{ eval = false }",
       NULL};
     // clang-format on
     RunParserSyncTest(context_data, data, kError);

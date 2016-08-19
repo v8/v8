@@ -1975,7 +1975,6 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
   if (!in_class && !is_generator) {
     DCHECK(!IsStaticMethod(method_kind));
-
     if (peek() == Token::COLON) {
       // PropertyDefinition
       //    PropertyName ':' AssignmentExpression
@@ -2008,6 +2007,12 @@ ParserBase<Traits>::ParsePropertyDefinition(
           scanner()->FindSymbol(classifier->duplicate_finder(), 1) != 0) {
         classifier->RecordDuplicateFormalParameterError(scanner()->location());
       }
+
+      if (this->IsEvalOrArguments(*name) && is_strict(language_mode())) {
+        classifier->RecordBindingPatternError(
+            scanner()->location(), MessageTemplate::kStrictEvalArguments);
+      }
+
       if (name_token == Token::LET) {
         classifier->RecordLetPatternError(
             scanner()->location(), MessageTemplate::kLetInLexicalBinding);
