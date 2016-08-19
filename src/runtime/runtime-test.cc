@@ -7,10 +7,12 @@
 #include <memory>
 
 #include "src/arguments.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/isolate-inl.h"
+#include "src/runtime-profiler.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
 #include "src/wasm/wasm-module.h"

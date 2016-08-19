@@ -6,8 +6,10 @@
 
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/runtime-profiler.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
