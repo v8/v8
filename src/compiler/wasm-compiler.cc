@@ -66,7 +66,7 @@ void MergeControlToEnd(JSGraph* jsgraph, Node* node) {
 Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
                          Handle<Context> context, Node** parameters,
                          int parameter_count, Node** effect_ptr,
-                         Node** control_ptr) {
+                         Node* control) {
   // At the moment we only allow 2 parameters. If more parameters are needed,
   // then the size of {inputs} below has to be increased accordingly.
   DCHECK(parameter_count <= 2);
@@ -88,7 +88,7 @@ Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
   inputs[count++] = jsgraph->Int32Constant(fun->nargs);  // arity
   inputs[count++] = jsgraph->HeapConstant(context);      // context
   inputs[count++] = *effect_ptr;
-  inputs[count++] = *control_ptr;
+  inputs[count++] = control;
 
   Node* node =
       jsgraph->graph()->NewNode(jsgraph->common()->Call(desc), count, inputs);
@@ -263,7 +263,7 @@ class WasmTrapHelper : public ZoneObject {
                             trap_position_smi};  // byte position
       BuildCallToRuntime(Runtime::kThrowWasmError, jsgraph(),
                          module->instance->context, parameters,
-                         arraysize(parameters), effect_ptr, control_ptr);
+                         arraysize(parameters), effect_ptr, *control_ptr);
     }
     if (false) {
       // End the control flow with a throw
@@ -386,6 +386,40 @@ Node* WasmGraphBuilder::Int32Constant(int32_t value) {
 
 Node* WasmGraphBuilder::Int64Constant(int64_t value) {
   return jsgraph()->Int64Constant(value);
+}
+
+void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
+  // We do not generate stack checks for cctests.
+  if (module_ && !module_->instance->context.is_null()) {
+    Node* limit = graph()->NewNode(
+        jsgraph()->machine()->Load(MachineType::Pointer()),
+        jsgraph()->ExternalConstant(
+            ExternalReference::address_of_stack_limit(jsgraph()->isolate())),
+        jsgraph()->IntPtrConstant(0), *effect_, *control_);
+    Node* pointer = graph()->NewNode(jsgraph()->machine()->LoadStackPointer());
+
+    Node* check =
+        graph()->NewNode(jsgraph()->machine()->UintLessThan(), limit, pointer);
+
+    Diamond stack_check(graph(), jsgraph()->common(), check, BranchHint::kTrue);
+
+    Node* effect_true = *effect_;
+
+    Node* effect_false;
+    // Generate a call to the runtime if there is a stack check failure.
+    {
+      Node* node = BuildCallToRuntime(Runtime::kStackGuard, jsgraph(),
+                                      module_->instance->context, nullptr, 0,
+                                      effect_, stack_check.if_false);
+      effect_false = node;
+    }
+
+    Node* ephi = graph()->NewNode(jsgraph()->common()->EffectPhi(2),
+                                  effect_true, effect_false, stack_check.merge);
+
+    *control_ = stack_check.merge;
+    *effect_ = ephi;
+  }
 }
 
 Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
@@ -2205,7 +2239,7 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::LocalType type) {
       // Throw a TypeError.
       return BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
                                 module_->instance->context, nullptr, 0, effect_,
-                                control_);
+                                *control_);
     case wasm::kAstF32:
       node = graph()->NewNode(jsgraph()->machine()->ChangeFloat32ToFloat64(),
                               node);

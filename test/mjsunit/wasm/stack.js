@@ -125,3 +125,25 @@ Error.prepareStackTrace = function(error, frames) {
     ]);
   }
 })();
+
+
+(function testStackOverflow() {
+  print("testStackOverflow");
+  var builder = new WasmModuleBuilder();
+
+  var sig_index = builder.addType(kSig_v_v);
+  builder.addFunction("recursion", sig_index)
+    .addBody([
+      kExprI32Const, 0,
+      kExprCallIndirect, kArity0, sig_index
+    ])
+    .exportFunc()
+  builder.appendToTable([0]);
+
+  try {
+    builder.instantiate().exports.recursion();
+    fail("expected wasm exception");
+  } catch (e) {
+    assertEquals("Maximum call stack size exceeded", e.message, "trap reason");
+  }
+})();

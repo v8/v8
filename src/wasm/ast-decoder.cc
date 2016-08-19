@@ -559,6 +559,9 @@ class WasmFullDecoder : public WasmDecoder {
     ssa_env->control = start;
     ssa_env->effect = start;
     SetEnv("initial", ssa_env);
+    if (builder_) {
+      builder_->StackCheck(position());
+    }
   }
 
   TFNode* DefaultValue(LocalType type) {
