@@ -2132,7 +2132,8 @@ AllocationResult Heap::AllocateFillerObject(int size, bool double_align,
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   DCHECK(chunk->owner()->identity() == space);
 #endif
-  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo,
+                       ClearBlackArea::kNo);
   return obj;
 }
 
