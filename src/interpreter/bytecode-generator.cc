@@ -1119,7 +1119,6 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   Register tag = VisitForRegisterValue(stmt->tag());
 
   // Iterate over all cases and create nodes for label comparison.
-  BytecodeLabel done_label;
   for (int i = 0; i < clauses->length(); i++) {
     CaseClause* clause = clauses->at(i);
 
@@ -1140,8 +1139,8 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     switch_builder.DefaultAt(default_index);
   } else {
     // Otherwise if we have reached here none of the cases matched, so jump to
-    // done.
-    builder()->Jump(&done_label);
+    // the end.
+    switch_builder.Break();
   }
 
   // Iterate over all cases and create the case bodies.
@@ -1150,9 +1149,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     switch_builder.SetCaseTarget(i);
     VisitStatements(clause->statements());
   }
-  builder()->Bind(&done_label);
-
-  switch_builder.SetBreakTarget(done_label);
+  switch_builder.BindBreakTarget();
 }
 
 void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
@@ -1165,7 +1162,7 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
   ControlScopeForIteration execution_control(this, stmt, loop_builder);
   builder()->StackCheck(stmt->position());
   Visit(stmt->body());
-  loop_builder->SetContinueTarget();
+  loop_builder->BindContinueTarget();
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
@@ -1180,9 +1177,8 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
     VisitIterationHeader(stmt, &loop_builder);
     VisitIterationBody(stmt, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->cond());
-    // TODO(klaasb) VisitForTest for loop conditions
-    VisitForAccumulatorValue(stmt->cond());
-    loop_builder.JumpToHeaderIfTrue();
+    VisitForTest(stmt->cond(), loop_builder.header_labels(),
+                 loop_builder.break_labels(), TestFallthrough::kElse);
   }
   loop_builder.EndLoop();
 }
@@ -1197,9 +1193,10 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   VisitIterationHeader(stmt, &loop_builder);
   if (!stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
-    // TODO(klaasb) VisitForTest for loop conditions
-    VisitForAccumulatorValue(stmt->cond());
-    loop_builder.BreakIfFalse();
+    BytecodeLabels loop_body(zone());
+    VisitForTest(stmt->cond(), &loop_body, loop_builder.break_labels(),
+                 TestFallthrough::kThen);
+    loop_body.Bind(builder());
   }
   VisitIterationBody(stmt, &loop_builder);
   loop_builder.JumpToHeader();
@@ -1220,9 +1217,10 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   VisitIterationHeader(stmt, &loop_builder);
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
-    // TODO(klaasb) VisitForTest for loop conditions
-    VisitForAccumulatorValue(stmt->cond());
-    loop_builder.BreakIfFalse();
+    BytecodeLabels loop_body(zone());
+    VisitForTest(stmt->cond(), &loop_body, loop_builder.break_labels(),
+                 TestFallthrough::kThen);
+    loop_body.Bind(builder());
   }
   VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {

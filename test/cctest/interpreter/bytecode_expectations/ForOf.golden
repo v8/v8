@@ -149,7 +149,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 281
+bytecode array length: 279
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -170,7 +170,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(2), U8(1),
                 B(LdaNamedProperty), R(2), U8(3), U8(9),
-                B(JumpIfToBooleanTrue), U8(28),
+                B(JumpIfToBooleanTrue), U8(26),
                 B(LdrNamedProperty), R(2), U8(4), U8(11), R(4),
                 B(LdaSmi), U8(2),
                 B(Star), R(3),
@@ -180,8 +180,7 @@ bytecodes: [
   /*   73 S> */ B(LdaZero),
                 B(Star), R(10),
                 B(Mov), R(0), R(11),
-                B(Jump), U8(50),
-                B(Jump), U8(-54),
+                B(Jump), U8(48),
                 B(Jump), U8(34),
                 B(Star), R(14),
                 B(Ldar), R(closure),
@@ -280,9 +279,9 @@ constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [
-  [11, 117, 123],
-  [14, 83, 85],
-  [196, 206, 208],
+  [11, 115, 121],
+  [14, 81, 83],
+  [194, 204, 206],
 ]
 
 ---
@@ -438,7 +437,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 294
+bytecode array length: 292
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(8),
@@ -461,7 +460,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(1), U8(1),
                 B(LdaNamedProperty), R(1), U8(4), U8(9),
-                B(JumpIfToBooleanTrue), U8(31),
+                B(JumpIfToBooleanTrue), U8(29),
   /*   67 E> */ B(LdrNamedProperty), R(1), U8(5), U8(11), R(3),
                 B(LdaSmi), U8(2),
                 B(Star), R(2),
@@ -472,8 +471,7 @@ bytecodes: [
   /*   96 E> */ B(LdrNamedProperty), R(6), U8(6), U8(15), R(9),
                 B(LdaZero),
                 B(Star), R(8),
-                B(Jump), U8(50),
-                B(Jump), U8(-57),
+                B(Jump), U8(48),
                 B(Jump), U8(34),
                 B(Star), R(12),
                 B(Ldar), R(closure),
@@ -574,8 +572,8 @@ constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [
-  [15, 130, 136],
-  [18, 96, 98],
-  [209, 219, 221],
+  [15, 128, 134],
+  [18, 94, 96],
+  [207, 217, 219],
 ]
 

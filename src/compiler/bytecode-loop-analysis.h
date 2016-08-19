@@ -47,10 +47,10 @@ class BytecodeLoopAnalysis BASE_EMBEDDED {
   Zone* zone_;
 
   int current_loop_offset_;
+  bool found_current_backedge_;
 
   // Map from the offset of a backedge jump to the offset of the corresponding
-  // loop header. Since we assume exactly one backedge per loop, the map will
-  // have as many entries as there are loops.
+  // loop header. There might be multiple backedges for do-while loops.
   ZoneMap<int, int> backedge_to_header_;
   // Map from the offset of a loop header to the offset of its parent's loop
   // header. This map will have as many entries as there are loops in the

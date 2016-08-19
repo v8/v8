@@ -18,11 +18,14 @@ BytecodeLoopAnalysis::BytecodeLoopAnalysis(
     : bytecode_array_(bytecode_array),
       branch_analysis_(branch_analysis),
       zone_(zone),
+      current_loop_offset_(-1),
+      found_current_backedge_(false),
       backedge_to_header_(zone),
       loop_header_to_parent_(zone) {}
 
 void BytecodeLoopAnalysis::Analyze() {
   current_loop_offset_ = -1;
+  found_current_backedge_ = false;
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
   while (!iterator.done()) {
     interpreter::Bytecode bytecode = iterator.current_bytecode();
@@ -37,18 +40,36 @@ void BytecodeLoopAnalysis::Analyze() {
 }
 
 void BytecodeLoopAnalysis::AddLoopEntry(int entry_offset) {
+  if (found_current_backedge_) {
+    // We assume that all backedges of a loop must occur together and before
+    // another loop entry or an outer loop backedge.
+    // This is guaranteed by the invariants from AddBranch, such that every
+    // backedge must either go to the current loop or be the first of the
+    // backedges to the parent loop.
+    // Thus here, the current loop actually ended before and we have a loop
+    // with the same parent.
+    current_loop_offset_ = loop_header_to_parent_[current_loop_offset_];
+    found_current_backedge_ = false;
+  }
   loop_header_to_parent_[entry_offset] = current_loop_offset_;
   current_loop_offset_ = entry_offset;
 }
 
 void BytecodeLoopAnalysis::AddBranch(int origin_offset, int target_offset) {
-  // If this is a backedge, record it and update the current loop to the parent.
+  // If this is a backedge, record it.
   if (target_offset < origin_offset) {
     backedge_to_header_[origin_offset] = target_offset;
-    // Check that we are finishing the current loop. This assumes that
-    // there is one backedge for each loop.
-    DCHECK_EQ(target_offset, current_loop_offset_);
-    current_loop_offset_ = loop_header_to_parent_[target_offset];
+    // Check whether this is actually a backedge of the outer loop and we have
+    // already finished the current loop.
+    if (target_offset < current_loop_offset_) {
+      DCHECK(found_current_backedge_);
+      int parent_offset = loop_header_to_parent_[current_loop_offset_];
+      DCHECK_EQ(target_offset, parent_offset);
+      current_loop_offset_ = parent_offset;
+    } else {
+      DCHECK_EQ(target_offset, current_loop_offset_);
+      found_current_backedge_ = true;
+    }
   }
 }
 

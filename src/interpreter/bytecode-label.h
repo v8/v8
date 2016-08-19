@@ -62,6 +62,18 @@ class BytecodeLabels {
 
   void Bind(BytecodeArrayBuilder* builder);
 
+  void BindToLabel(BytecodeArrayBuilder* builder, const BytecodeLabel& target);
+
+  bool is_bound() const {
+    bool is_bound = !labels_.empty() && labels_.at(0).is_bound();
+    DCHECK(!is_bound ||
+           std::all_of(labels_.begin(), labels_.end(),
+                       [](const BytecodeLabel& l) { return l.is_bound(); }));
+    return is_bound;
+  }
+
+  bool empty() const { return labels_.empty(); }
+
  private:
   ZoneVector<BytecodeLabel> labels_;
 
