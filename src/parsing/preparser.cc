@@ -58,38 +58,34 @@ void PreParserTraits::ReportMessageAt(Scanner::Location location,
 
 
 PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
-  if (scanner->current_token() == Token::ENUM) {
-    return PreParserIdentifier::Enum();
-  } else if (scanner->current_token() == Token::AWAIT) {
-    return PreParserIdentifier::Await();
-  } else if (scanner->current_token() ==
-             Token::FUTURE_STRICT_RESERVED_WORD) {
-    return PreParserIdentifier::FutureStrictReserved();
-  } else if (scanner->current_token() == Token::LET) {
-    return PreParserIdentifier::Let();
-  } else if (scanner->current_token() == Token::STATIC) {
-    return PreParserIdentifier::Static();
-  } else if (scanner->current_token() == Token::YIELD) {
-    return PreParserIdentifier::Yield();
-  } else if (scanner->current_token() == Token::ASYNC) {
-    return PreParserIdentifier::Async();
+  switch (scanner->current_token()) {
+    case Token::ENUM:
+      return PreParserIdentifier::Enum();
+    case Token::AWAIT:
+      return PreParserIdentifier::Await();
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+      return PreParserIdentifier::FutureStrictReserved();
+    case Token::LET:
+      return PreParserIdentifier::Let();
+    case Token::STATIC:
+      return PreParserIdentifier::Static();
+    case Token::YIELD:
+      return PreParserIdentifier::Yield();
+    case Token::ASYNC:
+      return PreParserIdentifier::Async();
+    default:
+      if (scanner->UnescapedLiteralMatches("eval", 4))
+        return PreParserIdentifier::Eval();
+      if (scanner->UnescapedLiteralMatches("arguments", 9))
+        return PreParserIdentifier::Arguments();
+      if (scanner->UnescapedLiteralMatches("undefined", 9))
+        return PreParserIdentifier::Undefined();
+      if (scanner->LiteralMatches("prototype", 9))
+        return PreParserIdentifier::Prototype();
+      if (scanner->LiteralMatches("constructor", 11))
+        return PreParserIdentifier::Constructor();
+      return PreParserIdentifier::Default();
   }
-  if (scanner->UnescapedLiteralMatches("eval", 4)) {
-    return PreParserIdentifier::Eval();
-  }
-  if (scanner->UnescapedLiteralMatches("arguments", 9)) {
-    return PreParserIdentifier::Arguments();
-  }
-  if (scanner->UnescapedLiteralMatches("undefined", 9)) {
-    return PreParserIdentifier::Undefined();
-  }
-  if (scanner->LiteralMatches("prototype", 9)) {
-    return PreParserIdentifier::Prototype();
-  }
-  if (scanner->LiteralMatches("constructor", 11)) {
-    return PreParserIdentifier::Constructor();
-  }
-  return PreParserIdentifier::Default();
 }
 
 
