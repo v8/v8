@@ -2413,11 +2413,11 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   // Do not merge pending non-pattern expressions yet!
   classifier->Accumulate(
       &arrow_formals_classifier,
-      ExpressionClassifier::StandardProductions |
+      ExpressionClassifier::ExpressionProductions |
+          ExpressionClassifier::PatternProductions |
           ExpressionClassifier::FormalParametersProductions |
           ExpressionClassifier::CoverInitializedNameProduction |
-          ExpressionClassifier::AsyncArrowFormalParametersProduction |
-          ExpressionClassifier::AsyncBindingPatternProduction,
+          ExpressionClassifier::AsyncArrowFormalParametersProduction,
       false);
 
   if (!Token::IsAssignmentOp(peek())) {

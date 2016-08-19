@@ -71,11 +71,10 @@ class ExpressionClassifier {
          LetPatternProduction | AsyncBindingPatternProduction),
     FormalParametersProductions = (DistinctFormalParametersProduction |
                                    StrictModeFormalParametersProduction),
-    StandardProductions = ExpressionProductions | PatternProductions,
     AllProductions =
-        (StandardProductions | FormalParametersProductions |
-         ArrowFormalParametersProduction | CoverInitializedNameProduction |
-         AsyncArrowFormalParametersProduction | AsyncBindingPatternProduction)
+        (ExpressionProductions | PatternProductions |
+         FormalParametersProductions | ArrowFormalParametersProduction |
+         CoverInitializedNameProduction | AsyncArrowFormalParametersProduction)
   };
 
   enum FunctionProperties : unsigned {
@@ -345,8 +344,7 @@ class ExpressionClassifier {
     invalid_productions_ &= ~AssignmentPatternProduction;
   }
 
-  void Accumulate(ExpressionClassifier* inner,
-                  unsigned productions = StandardProductions,
+  void Accumulate(ExpressionClassifier* inner, unsigned productions,
                   bool merge_non_patterns = true) {
     DCHECK_EQ(inner->reported_errors_, reported_errors_);
     DCHECK_EQ(inner->reported_errors_begin_, reported_errors_end_);
