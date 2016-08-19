@@ -450,6 +450,8 @@ enum ArrayStorageAllocationMode {
 
 enum class ClearRecordedSlots { kYes, kNo };
 
+enum class ClearBlackArea { kYes, kNo };
+
 class Heap {
  public:
   // Declare all the root indices.  This defines the root list order.
@@ -673,8 +675,12 @@ class Heap {
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in
   // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
-  // pass ClearRecordedSlots::kNo.
-  void CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode);
+  // pass ClearRecordedSlots::kNo. If the filler was created in a black area
+  // we may want to clear the corresponding mark bits with ClearBlackArea::kYes,
+  // which is the default. ClearBlackArea::kNo does not clear the mark bits.
+  void CreateFillerObjectAt(
+      Address addr, int size, ClearRecordedSlots mode,
+      ClearBlackArea black_area_mode = ClearBlackArea::kYes);
 
   bool CanMoveObjectStart(HeapObject* object);
 

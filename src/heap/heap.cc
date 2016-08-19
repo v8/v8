@@ -1162,7 +1162,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
             // deserializing.
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, Map::kSize,
-                                 ClearRecordedSlots::kNo);
+                                 ClearRecordedSlots::kNo, ClearBlackArea::kNo);
             maps->Add(free_space_address);
           } else {
             perform_gc = true;
@@ -1192,7 +1192,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
             // deserializing.
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, size,
-                                 ClearRecordedSlots::kNo);
+                                 ClearRecordedSlots::kNo, ClearBlackArea::kNo);
             DCHECK(space < SerializerDeserializer::kNumberOfPreallocatedSpaces);
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
@@ -3081,8 +3081,8 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   return result;
 }
 
-void Heap::CreateFillerObjectAt(Address addr, int size,
-                                ClearRecordedSlots mode) {
+void Heap::CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode,
+                                ClearBlackArea black_area_mode) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
@@ -3103,7 +3103,8 @@ void Heap::CreateFillerObjectAt(Address addr, int size,
 
   // If the location where the filler is created is within a black area we have
   // to clear the mark bits of the filler space.
-  if (incremental_marking()->black_allocation() &&
+  if (black_area_mode == ClearBlackArea::kYes &&
+      incremental_marking()->black_allocation() &&
       Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(addr))) {
     Page* page = Page::FromAddress(addr);
     page->markbits()->ClearRange(page->AddressToMarkbitIndex(addr),
