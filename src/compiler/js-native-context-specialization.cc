@@ -319,7 +319,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   return Replace(value);
 }
 
-Reduction JSNativeContextSpecialization::ReduceNamedAccess(
+Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
     Node* node, Node* value, FeedbackNexus const& nexus, Handle<Name> name,
     AccessMode access_mode, LanguageMode language_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
@@ -393,8 +393,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   LoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Try to lower the named access based on the {receiver_maps}.
-  return ReduceNamedAccess(node, value, nexus, p.name(), AccessMode::kLoad,
-                           p.language_mode());
+  return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
+                                    AccessMode::kLoad, p.language_mode());
 }
 
 
@@ -408,8 +408,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   StoreICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Try to lower the named access based on the {receiver_maps}.
-  return ReduceNamedAccess(node, value, nexus, p.name(), AccessMode::kStore,
-                           p.language_mode());
+  return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
+                                    AccessMode::kStore, p.language_mode());
 }
 
 
