@@ -515,8 +515,7 @@ bool CompileUnoptimizedCode(CompilationInfo* info) {
 
 void InstallSharedScopeInfo(CompilationInfo* info,
                             Handle<SharedFunctionInfo> shared) {
-  Handle<ScopeInfo> scope_info =
-      ScopeInfo::Create(info->isolate(), info->zone(), info->scope());
+  Handle<ScopeInfo> scope_info = info->scope()->GetScopeInfo(info->isolate());
   shared->set_scope_info(*scope_info);
 }
 
