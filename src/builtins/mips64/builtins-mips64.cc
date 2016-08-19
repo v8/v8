@@ -1453,7 +1453,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
         __ Branch(&over, ne, t2, Operand(j));
       }
       for (int i = j - 1; i >= 0; --i) {
-        __ lw(t2, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
+        __ ld(t2, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
                                      i * kPointerSize));
         __ push(t2);
       }
@@ -1477,8 +1477,8 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     __ SmiUntag(t2);
     scope.GenerateLeaveFrame();
 
-    __ Addu(t2, t2, Operand(1));
-    __ Lsa(sp, sp, t2, kPointerSizeLog2);
+    __ Daddu(t2, t2, Operand(1));
+    __ Dlsa(sp, sp, t2, kPointerSizeLog2);
     __ Ret();
 
     __ bind(&failed);
