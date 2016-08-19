@@ -87,7 +87,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
     // scope must be a script scope.
     DCHECK_EQ(SCRIPT_SCOPE, scope_type);
   } else {
-    asm_function_ = outer_scope_->asm_module_;
     set_language_mode(outer_scope->language_mode());
     force_context_allocation_ =
         !is_function_scope() && outer_scope->has_forced_context_allocation();
@@ -111,6 +110,7 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
       params_(4, zone),
       sloppy_block_function_map_(zone) {
   SetDefaults();
+  if (outer_scope != nullptr) asm_function_ = outer_scope_->IsAsmModule();
 }
 
 ModuleScope::ModuleScope(Zone* zone, DeclarationScope* script_scope,
@@ -177,6 +177,8 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
 void DeclarationScope::SetDefaults() {
   is_declaration_scope_ = true;
   has_simple_parameters_ = true;
+  asm_module_ = false;
+  asm_function_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
   function_ = nullptr;
@@ -210,8 +212,6 @@ void Scope::SetDefaults() {
   scope_calls_eval_ = false;
   scope_uses_super_property_ = false;
   has_arguments_parameter_ = false;
-  asm_module_ = false;
-  asm_function_ = false;
   scope_nonlinear_ = false;
   is_hidden_ = false;
   is_debug_evaluate_scope_ = false;
@@ -227,6 +227,14 @@ void Scope::SetDefaults() {
 bool Scope::HasSimpleParameters() {
   DeclarationScope* scope = GetClosureScope();
   return !scope->is_function_scope() || scope->has_simple_parameters();
+}
+
+bool Scope::IsAsmModule() const {
+  return is_function_scope() && AsDeclarationScope()->asm_module();
+}
+
+bool Scope::IsAsmFunction() const {
+  return is_function_scope() && AsDeclarationScope()->asm_function();
 }
 
 Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
@@ -259,10 +267,11 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     } else if (context->IsFunctionContext()) {
       Handle<ScopeInfo> scope_info(context->closure()->shared()->scope_info(),
                                    isolate);
-      current_scope = new (zone)
+      DeclarationScope* function_scope = new (zone)
           DeclarationScope(zone, current_scope, FUNCTION_SCOPE, scope_info);
-      if (scope_info->IsAsmFunction()) current_scope->asm_function_ = true;
-      if (scope_info->IsAsmModule()) current_scope->asm_module_ = true;
+      if (scope_info->IsAsmFunction()) function_scope->set_asm_function();
+      if (scope_info->IsAsmModule()) function_scope->set_asm_module();
+      current_scope = function_scope;
     } else if (context->IsBlockContext()) {
       Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
       if (scope_info->is_declaration_scope()) {
@@ -1160,8 +1169,8 @@ void Scope::Print(int n) {
   if (is_strict(language_mode())) {
     Indent(n1, "// strict mode scope\n");
   }
-  if (asm_module_) Indent(n1, "// scope is an asm module\n");
-  if (asm_function_) Indent(n1, "// scope is an asm function\n");
+  if (IsAsmModule()) Indent(n1, "// scope is an asm module\n");
+  if (IsAsmFunction()) Indent(n1, "// scope is an asm function\n");
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (scope_uses_super_property_)
@@ -1491,8 +1500,8 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval) {
     if (inner->force_eager_compilation_) {
       force_eager_compilation_ = true;
     }
-    if (asm_module_ && inner->scope_type() == FUNCTION_SCOPE) {
-      inner->asm_function_ = true;
+    if (IsAsmModule() && inner->is_function_scope()) {
+      inner->AsDeclarationScope()->set_asm_function();
     }
   }
 }

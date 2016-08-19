@@ -1317,7 +1317,8 @@ void Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
           // Store the usage count; The actual use counter on the isolate is
           // incremented after parsing is done.
           ++use_counts_[v8::Isolate::kUseAsm];
-          this->scope()->SetAsmModule();
+          DCHECK(this->scope()->is_declaration_scope());
+          this->scope()->AsDeclarationScope()->set_asm_module();
         } else {
           // Should not change mode, but will increment UseCounter
           // if appropriate. Ditto usages below.
@@ -4307,7 +4308,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       extension_ == NULL && allow_lazy() &&
       function_type == FunctionLiteral::kDeclaration &&
       eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
-      !(FLAG_validate_asm && scope()->asm_module());
+      !(FLAG_validate_asm && scope()->IsAsmModule());
 
   DeclarationScope* main_scope = nullptr;
   if (use_temp_zone) {

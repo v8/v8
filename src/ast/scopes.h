@@ -233,9 +233,6 @@ class Scope: public ZoneObject {
     set_language_mode(language_mode);
   }
 
-  // Set the ASM module flag.
-  void SetAsmModule() { asm_module_ = true; }
-
   // Inform the scope that the scope may execute declarations nonlinearly.
   // Currently, the only nonlinear scope is a switch statement. The name is
   // more general in case something else comes up with similar control flow,
@@ -316,9 +313,8 @@ class Scope: public ZoneObject {
   bool outer_scope_calls_sloppy_eval() const {
     return outer_scope_calls_sloppy_eval_;
   }
-  bool asm_module() const { return asm_module_; }
-  bool asm_function() const { return asm_function_; }
-
+  bool IsAsmModule() const;
+  bool IsAsmFunction() const;
   // Does this scope access "super" property (super.foo).
   bool uses_super_property() const { return scope_uses_super_property_; }
   // Does this scope have the potential to execute declarations non-linearly?
@@ -514,10 +510,6 @@ class Scope: public ZoneObject {
   bool scope_uses_super_property_ : 1;
   // This scope has a parameter called "arguments".
   bool has_arguments_parameter_ : 1;
-  // This scope contains an "use asm" annotation.
-  bool asm_module_ : 1;
-  // This scope's outer context is an asm module.
-  bool asm_function_ : 1;
   // This scope's declarations might not be executed in order (e.g., switch).
   bool scope_nonlinear_ : 1;
   bool is_hidden_ : 1;
@@ -683,6 +675,11 @@ class DeclarationScope : public Scope {
              IsAccessorFunction(function_kind()) ||
              IsClassConstructor(function_kind())));
   }
+
+  bool asm_module() const { return asm_module_; }
+  void set_asm_module() { asm_module_ = true; }
+  bool asm_function() const { return asm_function_; }
+  void set_asm_function() { asm_module_ = true; }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
@@ -860,6 +857,10 @@ class DeclarationScope : public Scope {
   const FunctionKind function_kind_;
 
   bool has_simple_parameters_ : 1;
+  // This scope contains an "use asm" annotation.
+  bool asm_module_ : 1;
+  // This scope's outer context is an asm module.
+  bool asm_function_ : 1;
 
   // Info about the parameter list of a function.
   int arity_;
