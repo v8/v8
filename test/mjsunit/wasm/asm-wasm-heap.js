@@ -67,7 +67,8 @@ function RunThreeWayTest(asmfunc, expect) {
   expect(asm_module);
 
   print("Testing " + asmfunc.name + " (wasm)...");
-  var wasm_module = Wasm.instantiateModuleFromAsm(asm_source, null, buffer);
+  var wasm_module = Wasm.instantiateModuleFromAsm(
+      asm_source, stdlib, null, buffer);
   expect(wasm_module);
 }
 

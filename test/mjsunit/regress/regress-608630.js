@@ -36,7 +36,7 @@ function __f_1(asmfunc, expect) {
   var __v_5 = asmfunc(__v_3);
   expect(__v_5);
   print("Testing " + asmfunc.name + " (wasm)...");
-  var __v_6 = Wasm.instantiateModuleFromAsm(__v_1, __v_3);
+  var __v_6 = Wasm.instantiateModuleFromAsm(__v_1, {}, __v_3);
   expect(__v_6);
 }
 function __f_2() {

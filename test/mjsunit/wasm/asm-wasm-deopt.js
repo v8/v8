@@ -22,7 +22,7 @@
   }
   function test() {
     var wasm = Wasm.instantiateModuleFromAsm(
-       Module.toString(), {'deopt': deopt});
+       Module.toString(), null, {'deopt': deopt});
     wasm._main(0, 0, 0);
   }
   test();

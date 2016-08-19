@@ -428,7 +428,9 @@ AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(Variable* var) {
   if (var_info == nullptr) {
     return kNone;
   }
-  return var_info->standard_member();
+  StandardMember member = var_info->standard_member();
+  stdlib_uses_.insert(member);
+  return member;
 }
 
 bool AsmTyper::Validate() {

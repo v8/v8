@@ -20,10 +20,12 @@ namespace internal {
 class AsmJs {
  public:
   static MaybeHandle<FixedArray> ConvertAsmToWasm(i::ParseInfo* info);
+  static bool IsStdlibValid(i::Isolate* isolate, Handle<FixedArray> wasm_data,
+                            Handle<JSReceiver> stdlib);
   static MaybeHandle<Object> InstantiateAsmWasm(i::Isolate* isolate,
                                                 Handle<FixedArray> wasm_data,
                                                 Handle<JSArrayBuffer> memory,
-                                                Handle<JSObject> foreign);
+                                                Handle<JSReceiver> foreign);
 };
 
 }  // namespace internal

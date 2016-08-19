@@ -18,7 +18,7 @@ function __f_8(global, env) {
   return {'__f_9': __f_9}
 }
 function __f_5() {
-  var __v_5 = Wasm.instantiateModuleFromAsm( __f_8.toString(), {'__f_7': __f_7});
+  var __v_5 = Wasm.instantiateModuleFromAsm( __f_8.toString(), {}, {'__f_7': __f_7});
   __v_5.__f_9(0, 0, 0);
 }
 __f_5();

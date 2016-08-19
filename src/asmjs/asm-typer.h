@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_set>
 
 #include "src/allocation.h"
 #include "src/asmjs/asm-types.h"
@@ -73,6 +74,10 @@ class AsmTyper final {
 
   AsmType* TypeOf(AstNode* node) const;
   StandardMember VariableAsStandardMember(Variable* var);
+
+  typedef std::unordered_set<StandardMember, std::hash<int> > StdlibSet;
+
+  StdlibSet StdlibUses() const { return stdlib_uses_; }
 
  private:
   friend class v8::internal::wasm::AsmTyperHarnessBuilder;
@@ -320,6 +325,7 @@ class AsmTyper final {
   AsmType* fround_type_;
   AsmType* ffi_type_;
   char error_message_[kErrorMessageLimit];
+  StdlibSet stdlib_uses_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsmTyper);
 };

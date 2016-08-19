@@ -4,6 +4,8 @@
 
 // Flags: --expose-wasm
 
+var stdlib = this;
+
 (function TestStdlibConstants() {
   function Module(stdlib) {
     "use asm";
@@ -39,9 +41,35 @@
     return {caller:caller, nanCheck:nanCheck};
   }
 
-  var m =Wasm.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString(), stdlib);
   assertEquals(1, m.caller());
   assertTrue(isNaN(m.nanCheck()));
+})();
+
+
+(function TestBadNaNStdlib() {
+  function Module(stdlib) {
+    "use asm";
+    var StdlibNaN = stdlib.NaN;
+    function foo() { return +StdlibNaN; }
+    return {};
+  }
+  assertThrows(function() {
+    Wasm.instantiateModuleFromAsm(Module.toString(), { NaN: 0 });
+  });
+})();
+
+
+(function TestMissingNaNStdlib() {
+  function Module(stdlib) {
+    "use asm";
+    var StdlibNaN = stdlib.NaN;
+    function foo() { return +StdlibNaN; }
+    return {};
+  }
+  assertThrows(function() {
+    Wasm.instantiateModuleFromAsm(Module.toString(), {});
+  });
 })();
 
 
@@ -120,7 +148,7 @@
     return {caller:caller};
   }
 
-  var m = Wasm.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString(), stdlib);
   assertEquals(1, m.caller());
 })();
 
@@ -264,7 +292,7 @@
       max_f64: max_f64,
     };
   }
-  var m = Wasm.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString(), stdlib);
   var values = {
     i32: [
       0, 1, -1, 123, 456, -123, -456,
