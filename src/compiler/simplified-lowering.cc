@@ -1124,19 +1124,11 @@ class RepresentationSelector {
     if (BothInputsAre(node, Type::PlainPrimitive())) {
       if (truncation.IsUnused()) return VisitUnused(node);
     }
-    if (BothInputsAre(node, Type::Signed32OrMinusZero()) &&
-        NodeProperties::GetType(node)->Is(Type::Signed32())) {
-      // int32 + int32 = int32   ==>   signed Int32Add/Sub
-      VisitInt32Binop(node);
-      if (lower()) ChangeToPureOp(node, Int32Op(node));
-      return;
-    }
-
-    // Use truncation if available.
     if (BothInputsAre(node, type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
-        truncation.IsUsedAsWord32()) {
-      // safe-int + safe-int = x (truncated to int32)
-      // => signed Int32Add/Sub (truncated)
+        (GetUpperBound(node)->Is(Type::Signed32()) ||
+         GetUpperBound(node)->Is(Type::Unsigned32()) ||
+         truncation.IsUsedAsWord32())) {
+      // => Int32Add/Sub
       VisitWord32TruncatingBinop(node);
       if (lower()) ChangeToPureOp(node, Int32Op(node));
       return;
@@ -1387,23 +1379,17 @@ class RepresentationSelector {
 
       case IrOpcode::kNumberAdd:
       case IrOpcode::kNumberSubtract: {
-        if (BothInputsAre(node, Type::Signed32()) &&
-            NodeProperties::GetType(node)->Is(Type::Signed32())) {
-          // int32 + int32 = int32
-          // => signed Int32Add/Sub
-          VisitInt32Binop(node);
-          if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-        } else if (BothInputsAre(node,
-                                 type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
-                   truncation.IsUsedAsWord32()) {
-          // safe-int + safe-int = x (truncated to int32)
-          // => signed Int32Add/Sub (truncated)
+        if (BothInputsAre(node, type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
+            (GetUpperBound(node)->Is(Type::Signed32()) ||
+             GetUpperBound(node)->Is(Type::Unsigned32()) ||
+             truncation.IsUsedAsWord32())) {
+          // => Int32Add/Sub
           VisitWord32TruncatingBinop(node);
-          if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
+          if (lower()) ChangeToPureOp(node, Int32Op(node));
         } else {
           // => Float64Add/Sub
           VisitFloat64Binop(node);
-          if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+          if (lower()) ChangeToPureOp(node, Float64Op(node));
         }
         return;
       }
