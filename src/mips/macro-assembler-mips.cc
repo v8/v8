@@ -1914,6 +1914,66 @@ void MacroAssembler::Ins(Register rt,
   }
 }
 
+void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
+  Register scratch1 = t8;
+  Register scratch2 = t9;
+  if (IsMipsArchVariant(kMips32r2)) {
+    Label is_nan, done;
+    Register scratch1 = t8;
+    Register scratch2 = t9;
+    BranchF32(nullptr, &is_nan, eq, fs, fs);
+    Branch(USE_DELAY_SLOT, &done);
+    // For NaN input, neg_s will return the same NaN value,
+    // while the sign has to be changed separately.
+    neg_s(fd, fs);  // In delay slot.
+
+    bind(&is_nan);
+    mfc1(scratch1, fs);
+    And(scratch2, scratch1, Operand(~kBinary32SignMask));
+    And(scratch1, scratch1, Operand(kBinary32SignMask));
+    Xor(scratch1, scratch1, Operand(kBinary32SignMask));
+    Or(scratch2, scratch2, scratch1);
+    mtc1(scratch2, fd);
+    bind(&done);
+  } else {
+    mfc1(scratch1, fs);
+    And(scratch2, scratch1, Operand(~kBinary32SignMask));
+    And(scratch1, scratch1, Operand(kBinary32SignMask));
+    Xor(scratch1, scratch1, Operand(kBinary32SignMask));
+    Or(scratch2, scratch2, scratch1);
+    mtc1(scratch2, fd);
+  }
+}
+
+void MacroAssembler::Neg_d(FPURegister fd, FPURegister fs) {
+  Register scratch1 = t8;
+  Register scratch2 = t9;
+  if (IsMipsArchVariant(kMips32r2)) {
+    Label is_nan, done;
+    BranchF64(nullptr, &is_nan, eq, fs, fs);
+    Branch(USE_DELAY_SLOT, &done);
+    // For NaN input, neg_d will return the same NaN value,
+    // while the sign has to be changed separately.
+    neg_d(fd, fs);  // In delay slot.
+
+    bind(&is_nan);
+    Mfhc1(scratch1, fs);
+    And(scratch2, scratch1, Operand(~HeapNumber::kSignMask));
+    And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
+    Xor(scratch1, scratch1, Operand(HeapNumber::kSignMask));
+    Or(scratch2, scratch2, scratch1);
+    Mthc1(scratch2, fd);
+    bind(&done);
+  } else {
+    Move_d(fd, fs);
+    Mfhc1(scratch1, fs);
+    And(scratch2, scratch1, Operand(~HeapNumber::kSignMask));
+    And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
+    Xor(scratch1, scratch1, Operand(HeapNumber::kSignMask));
+    Or(scratch2, scratch2, scratch1);
+    Mthc1(scratch2, fd);
+  }
+}
 
 void MacroAssembler::Cvt_d_uw(FPURegister fd, Register rs,
                               FPURegister scratch) {
@@ -2319,7 +2379,7 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
   if (imm_bits == bit_cast<int64_t>(0.0) && has_double_zero_reg_set_) {
     mov_d(dst, kDoubleRegZero);
   } else if (imm_bits == bit_cast<int64_t>(-0.0) && has_double_zero_reg_set_) {
-    neg_d(dst, kDoubleRegZero);
+    Neg_d(dst, kDoubleRegZero);
   } else {
     uint32_t lo, hi;
     DoubleAsTwoUInt32(imm, &lo, &hi);

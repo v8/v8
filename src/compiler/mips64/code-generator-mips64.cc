@@ -1291,7 +1291,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ abs_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
       break;
     case kMips64NegS:
-      __ neg_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
+      __ Neg_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
       break;
     case kMips64SqrtS: {
       __ sqrt_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
@@ -1343,7 +1343,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ abs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kMips64NegD:
-      __ neg_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Neg_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kMips64SqrtD: {
       __ sqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
