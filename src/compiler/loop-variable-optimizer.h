@@ -45,8 +45,8 @@ class InductionVariable : public ZoneObject {
         lower_bounds_(zone),
         upper_bounds_(zone) {}
 
-  void AddUpperBound(Node* bound, ConstraintKind kind, Zone* graph_zone);
-  void AddLowerBound(Node* bound, ConstraintKind kind, Zone* graph_zone);
+  void AddUpperBound(Node* bound, ConstraintKind kind);
+  void AddLowerBound(Node* bound, ConstraintKind kind);
 
   Node* phi_;
   Node* arith_;
