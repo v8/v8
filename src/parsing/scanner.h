@@ -534,6 +534,7 @@ class Scanner {
   bool BookmarkHasBeenSet();
   bool BookmarkHasBeenReset();
   void DropBookmark();
+  void CopyToNextTokenDesc(TokenDesc* from);
   static void CopyTokenDesc(TokenDesc* to, TokenDesc* from);
 
   void ReportScannerError(const Location& location,

@@ -1598,14 +1598,9 @@ void Scanner::ResetToBookmark() {
 
   source_->ResetToBookmark();
   c0_ = bookmark_c0_;
-  StartLiteral();
-  StartRawLiteral();
-  CopyTokenDesc(&next_, &bookmark_current_);
+  CopyToNextTokenDesc(&bookmark_current_);
   current_ = next_;
-  StartLiteral();
-  StartRawLiteral();
-  CopyTokenDesc(&next_, &bookmark_next_);
-
+  CopyToNextTokenDesc(&bookmark_next_);
   bookmark_c0_ = kBookmarkWasApplied;
 }
 
@@ -1620,6 +1615,13 @@ bool Scanner::BookmarkHasBeenReset() {
 
 void Scanner::DropBookmark() { bookmark_c0_ = kNoBookmark; }
 
+void Scanner::CopyToNextTokenDesc(TokenDesc* from) {
+  StartLiteral();
+  StartRawLiteral();
+  CopyTokenDesc(&next_, from);
+  if (next_.literal_chars->length() == 0) next_.literal_chars = nullptr;
+  if (next_.raw_literal_chars->length() == 0) next_.raw_literal_chars = nullptr;
+}
 
 void Scanner::CopyTokenDesc(TokenDesc* to, TokenDesc* from) {
   DCHECK_NOT_NULL(to);
