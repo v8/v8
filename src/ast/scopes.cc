@@ -91,7 +91,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
     force_context_allocation_ =
         !is_function_scope() && outer_scope->has_forced_context_allocation();
     outer_scope_->AddInnerScope(this);
-    scope_inside_with_ = outer_scope_->scope_inside_with_ || is_with_scope();
   }
 }
 
@@ -208,7 +207,6 @@ void Scope::SetDefaults() {
 
   set_language_mode(SLOPPY);
 
-  scope_inside_with_ = false;
   scope_calls_eval_ = false;
   scope_uses_super_property_ = false;
   has_arguments_parameter_ = false;
@@ -256,10 +254,6 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
         with_scope->set_is_debug_evaluate_scope();
       }
       current_scope = with_scope;
-      // All the inner scopes are inside a with.
-      for (Scope* s = innermost_scope; s != nullptr; s = s->outer_scope()) {
-        s->scope_inside_with_ = true;
-      }
     } else if (context->IsScriptContext()) {
       Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
       DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
@@ -893,7 +887,7 @@ bool Scope::HasTrivialContext() const {
   // return true.
   for (const Scope* scope = this; scope != NULL; scope = scope->outer_scope_) {
     if (scope->is_eval_scope()) return false;
-    if (scope->scope_inside_with_) return false;
+    if (scope->InsideWithScope()) return false;
     if (scope->ContextLocalCount() > 0) return false;
     if (scope->ContextGlobalCount() > 0) return false;
   }
@@ -902,12 +896,11 @@ bool Scope::HasTrivialContext() const {
 
 
 bool Scope::HasTrivialOuterContext() const {
-  Scope* outer = outer_scope_;
-  if (outer == NULL) return true;
+  if (outer_scope_ == nullptr) return true;
   // Note that the outer context may be trivial in general, but the current
   // scope may be inside a 'with' statement in which case the outer context
   // for this scope is not trivial.
-  return !scope_inside_with_ && outer->HasTrivialContext();
+  return !is_with_scope() && outer_scope_->HasTrivialContext();
 }
 
 
@@ -1178,7 +1171,6 @@ void Scope::Print(int n) {
   }
   if (IsAsmModule()) Indent(n1, "// scope is an asm module\n");
   if (IsAsmFunction()) Indent(n1, "// scope is an asm function\n");
-  if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (scope_uses_super_property_)
     Indent(n1, "// scope uses 'super' property\n");

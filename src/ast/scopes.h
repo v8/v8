@@ -501,8 +501,6 @@ class Scope: public ZoneObject {
   // The language mode of this scope.
   STATIC_ASSERT(LANGUAGE_END == 2);
   bool is_strict_ : 1;
-  // This scope is inside a 'with' of some outer scope.
-  bool scope_inside_with_ : 1;
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_ : 1;
@@ -594,6 +592,14 @@ class Scope: public ZoneObject {
   VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
                                     ParseInfo* info = nullptr,
                                     VariableProxy* stack = nullptr);
+
+  bool InsideWithScope() const {
+    for (const Scope* scope = this; scope != nullptr;
+         scope = scope->outer_scope()) {
+      if (scope->is_with_scope()) return true;
+    }
+    return false;
+  }
 
   // Scope analysis.
   void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
