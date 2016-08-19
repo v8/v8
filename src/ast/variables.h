@@ -43,6 +43,7 @@ class Variable final : public ZoneObject {
     return force_context_allocation_;
   }
   void ForceContextAllocation() {
+    DCHECK(IsUnallocated() || IsContextSlot());
     force_context_allocation_ = true;
   }
   bool is_used() { return is_used_; }
@@ -96,6 +97,7 @@ class Variable final : public ZoneObject {
   }
 
   void AllocateTo(VariableLocation location, int index) {
+    DCHECK(IsUnallocated() || (location_ == location && index_ == index));
     location_ = location;
     index_ = index;
   }

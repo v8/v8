@@ -327,6 +327,10 @@
   'built-ins/Function/prototype/toString/unicode': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569
+  'language/eval-code/direct/export': [SKIP],
+  'language/eval-code/direct/import': [SKIP],
+  'language/eval-code/indirect/export': [SKIP],
+  'language/eval-code/indirect/import': [SKIP],
   'language/module-code/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012

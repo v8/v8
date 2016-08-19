@@ -262,11 +262,17 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       }
     } else if (context->IsScriptContext()) {
       Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+      DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
       current_scope = new (zone)
           DeclarationScope(zone, current_scope, SCRIPT_SCOPE, scope_info);
     } else if (context->IsFunctionContext()) {
       Handle<ScopeInfo> scope_info(context->closure()->shared()->scope_info(),
                                    isolate);
+      // TODO(neis): For an eval scope, we currently create an ordinary function
+      // context.  This is wrong and needs to be fixed.
+      // https://bugs.chromium.org/p/v8/issues/detail?id=5295
+      DCHECK(scope_info->scope_type() == FUNCTION_SCOPE ||
+             scope_info->scope_type() == EVAL_SCOPE);
       DeclarationScope* function_scope = new (zone)
           DeclarationScope(zone, current_scope, FUNCTION_SCOPE, scope_info);
       if (scope_info->IsAsmFunction()) function_scope->set_asm_function();
@@ -274,6 +280,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       current_scope = function_scope;
     } else if (context->IsBlockContext()) {
       Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+      DCHECK_EQ(scope_info->scope_type(), BLOCK_SCOPE);
       if (scope_info->is_declaration_scope()) {
         current_scope = new (zone)
             DeclarationScope(zone, current_scope, BLOCK_SCOPE, scope_info);

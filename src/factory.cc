@@ -760,6 +760,7 @@ Handle<Context> Factory::NewNativeContext() {
 
 Handle<Context> Factory::NewScriptContext(Handle<JSFunction> function,
                                           Handle<ScopeInfo> scope_info) {
+  DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
   Handle<FixedArray> array =
       NewFixedArray(scope_info->ContextLength(), TENURED);
   array->set_map_no_write_barrier(*script_context_map());
@@ -784,6 +785,7 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
 
 
 Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
+  DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   Handle<FixedArray> array =
       NewFixedArray(scope_info->ContextLength(), TENURED);
   array->set_map_no_write_barrier(*module_context_map());
@@ -796,6 +798,7 @@ Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
 
 Handle<Context> Factory::NewFunctionContext(int length,
                                             Handle<JSFunction> function) {
+  DCHECK(function->shared()->scope_info()->scope_type() == FUNCTION_SCOPE);
   DCHECK(length >= Context::MIN_CONTEXT_SLOTS);
   Handle<FixedArray> array = NewFixedArray(length);
   array->set_map_no_write_barrier(*function_context_map());
@@ -858,6 +861,7 @@ Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
 Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
                                          Handle<Context> previous,
                                          Handle<ScopeInfo> scope_info) {
+  DCHECK_EQ(scope_info->scope_type(), BLOCK_SCOPE);
   Handle<FixedArray> array = NewFixedArray(scope_info->ContextLength());
   array->set_map_no_write_barrier(*block_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
