@@ -8016,6 +8016,7 @@ class VisitorAdapter : public i::ObjectVisitor {
   void VisitPointers(i::Object** start, i::Object** end) override {
     UNREACHABLE();
   }
+  DISABLE_CFI_PERF
   void VisitEmbedderReference(i::Object** p, uint16_t class_id) override {
     Value* value = ToApi<Value>(i::Handle<i::Object>(p));
     visitor_->VisitPersistentHandle(

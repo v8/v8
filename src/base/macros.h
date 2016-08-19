@@ -154,6 +154,17 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISABLE_ASAN
 #endif
 
+// DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
+#if !defined(DISABLE_CFI_PERF)
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(no_sanitize)
+#define DISABLE_CFI_PERF __attribute__((no_sanitize("cfi")))
+#endif
+#endif
+#endif
+#if !defined(DISABLE_CFI_PERF)
+#define DISABLE_CFI_PERF
+#endif
 
 #if V8_CC_GNU
 #define V8_IMMEDIATE_CRASH() __builtin_trap()
