@@ -85,7 +85,7 @@ static const char* SafeMnemonic(Node* node) {
 class Escaped {
  public:
   explicit Escaped(const std::ostringstream& os,
-                   const char* escaped_chars = "<>|{}")
+                   const char* escaped_chars = "<>|{}\\")
       : str_(os.str()), escaped_chars_(escaped_chars) {}
 
   friend std::ostream& operator<<(std::ostream& os, const Escaped& e) {
@@ -134,11 +134,11 @@ class JSONGraphNodeWriter {
     node->op()->PrintTo(label, Operator::PrintVerbosity::kSilent);
     node->op()->PrintTo(title, Operator::PrintVerbosity::kVerbose);
     node->op()->PrintPropsTo(properties);
-    os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << Escaped(label, "\"")
-        << "\""
-        << ",\"title\":\"" << Escaped(title, "\"") << "\""
+    os_ << "{\"id\":" << SafeId(node) << ",\"label\":\""
+        << Escaped(label, "\"\\") << "\""
+        << ",\"title\":\"" << Escaped(title, "\"\\") << "\""
         << ",\"live\": " << (live_.IsLive(node) ? "true" : "false")
-        << ",\"properties\":\"" << Escaped(properties, "\"") << "\"";
+        << ",\"properties\":\"" << Escaped(properties, "\"\\") << "\"";
     IrOpcode::Value opcode = node->opcode();
     if (IrOpcode::IsPhiOpcode(opcode)) {
       os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
@@ -170,7 +170,7 @@ class JSONGraphNodeWriter {
       Type* type = NodeProperties::GetType(node);
       std::ostringstream type_out;
       type->PrintTo(type_out);
-      os_ << ",\"type\":\"" << Escaped(type_out, "\"") << "\"";
+      os_ << ",\"type\":\"" << Escaped(type_out, "\"\\") << "\"";
     }
     os_ << "}";
   }
