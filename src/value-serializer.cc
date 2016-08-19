@@ -717,10 +717,10 @@ void ValueDeserializer::AddObjectWithID(uint32_t id,
   }
 }
 
-static MaybeHandle<JSObject> CreateJSObjectFromKeyValuePairs(
-    Isolate* isolate, Handle<Object>* data, uint32_t num_properties) {
-  Handle<JSObject> object =
-      isolate->factory()->NewJSObject(isolate->object_function());
+static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
+                                                  Handle<JSObject> object,
+                                                  Handle<Object>* data,
+                                                  uint32_t num_properties) {
   for (unsigned i = 0; i < 2 * num_properties; i += 2) {
     Handle<Object> key = data[i];
     Handle<Object> value = data[i + 1];
@@ -730,10 +730,10 @@ static MaybeHandle<JSObject> CreateJSObjectFromKeyValuePairs(
     if (!success ||
         JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
             .is_null()) {
-      return MaybeHandle<JSObject>();
+      return Nothing<bool>();
     }
   }
-  return object;
+  return Just(true);
 }
 
 MaybeHandle<Object>
@@ -759,17 +759,51 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
           return MaybeHandle<Object>();
         }
 
-        size_t begin_properties = stack.size() - 2 * num_properties;
-        Handle<Object>* data =
-            num_properties ? &stack[begin_properties] : nullptr;
-        if (!CreateJSObjectFromKeyValuePairs(isolate_, data, num_properties)
-                 .ToHandle(&new_object)) {
+        size_t begin_properties =
+            stack.size() - 2 * static_cast<size_t>(num_properties);
+        Handle<JSObject> js_object =
+            isolate_->factory()->NewJSObject(isolate_->object_function());
+        if (num_properties &&
+            !SetPropertiesFromKeyValuePairs(
+                 isolate_, js_object, &stack[begin_properties], num_properties)
+                 .FromMaybe(false)) {
           return MaybeHandle<Object>();
         }
 
         stack.resize(begin_properties);
+        new_object = js_object;
         break;
       }
+      case SerializationTag::kEndSparseJSArray: {
+        ConsumeTag(SerializationTag::kEndSparseJSArray);
+
+        // Sparse JS Array: Read the last 2*|num_properties| from the stack.
+        uint32_t num_properties;
+        uint32_t length;
+        if (!ReadVarint<uint32_t>().To(&num_properties) ||
+            !ReadVarint<uint32_t>().To(&length) ||
+            stack.size() / 2 < num_properties) {
+          return MaybeHandle<Object>();
+        }
+
+        Handle<JSArray> js_array = isolate_->factory()->NewJSArray(0);
+        JSArray::SetLength(js_array, length);
+        size_t begin_properties =
+            stack.size() - 2 * static_cast<size_t>(num_properties);
+        if (num_properties &&
+            !SetPropertiesFromKeyValuePairs(
+                 isolate_, js_array, &stack[begin_properties], num_properties)
+                 .FromMaybe(false)) {
+          return MaybeHandle<Object>();
+        }
+
+        stack.resize(begin_properties);
+        new_object = js_array;
+        break;
+      }
+      case SerializationTag::kEndDenseJSArray:
+        // This was already broken in Chromium, and apparently wasn't missed.
+        return MaybeHandle<Object>();
       default:
         if (!ReadObject().ToHandle(&new_object)) return MaybeHandle<Object>();
         break;

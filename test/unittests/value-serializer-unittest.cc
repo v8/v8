@@ -1039,5 +1039,39 @@ TEST_F(ValueSerializerTest, RoundTripArrayWithTrickyGetters) {
       });
 }
 
+TEST_F(ValueSerializerTest, DecodeSparseArrayVersion0) {
+  // Empty (sparse) array.
+  DecodeTestForVersion0({0x40, 0x00, 0x00, 0x00},
+                        [this](Local<Value> value) {
+                          ASSERT_TRUE(value->IsArray());
+                          ASSERT_EQ(0, Array::Cast(*value)->Length());
+                        });
+  // Sparse array with a mixture of elements and properties.
+  DecodeTestForVersion0(
+      {0x55, 0x00, 0x53, 0x01, 'a',  0x55, 0x02, 0x55, 0x05, 0x53,
+       0x03, 'f',  'o',  'o',  0x53, 0x03, 'b',  'a',  'r',  0x53,
+       0x03, 'b',  'a',  'z',  0x49, 0x0b, 0x40, 0x04, 0x03, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        EXPECT_EQ(3, Array::Cast(*value)->Length());
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.toString() === 'a,,5'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!(1 in result)"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.foo === 'bar'"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.baz === -6"));
+      });
+  // Sparse array in a sparse array (sanity check of nesting).
+  DecodeTestForVersion0(
+      {0x55, 0x01, 0x55, 0x01, 0x54, 0x40, 0x01, 0x02, 0x40, 0x01, 0x02, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        EXPECT_EQ(2, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("!(0 in result)"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[1] instanceof Array"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!(0 in result[1])"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[1][1] === true"));
+      });
+}
+
 }  // namespace
 }  // namespace v8
