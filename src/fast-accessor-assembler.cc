@@ -108,6 +108,11 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::LoadObject(ValueId value,
       0, MachineType::AnyTagged()));
 }
 
+FastAccessorAssembler::ValueId FastAccessorAssembler::ToSmi(ValueId value) {
+  CHECK_EQ(kBuilding, state_);
+  return FromRaw(assembler_->SmiTag(FromId(value)));
+}
+
 void FastAccessorAssembler::ReturnValue(ValueId value) {
   CHECK_EQ(kBuilding, state_);
   assembler_->Return(FromId(value));
@@ -147,6 +152,11 @@ FastAccessorAssembler::LabelId FastAccessorAssembler::MakeLabel() {
 void FastAccessorAssembler::SetLabel(LabelId label_id) {
   CHECK_EQ(kBuilding, state_);
   assembler_->Bind(FromId(label_id));
+}
+
+void FastAccessorAssembler::Goto(LabelId label_id) {
+  CHECK_EQ(kBuilding, state_);
+  assembler_->Goto(FromId(label_id));
 }
 
 void FastAccessorAssembler::CheckNotZeroOrJump(ValueId value_id,

@@ -66,12 +66,16 @@ class FastAccessorAssembler {
   ValueId LoadValue(ValueId value_id, int offset);
   ValueId LoadObject(ValueId value_id, int offset);
 
+  // Converts a machine integer to a SMI.
+  ValueId ToSmi(ValueId value_id);
+
   // Builder / assembler functions for control flow.
   void ReturnValue(ValueId value_id);
   void CheckFlagSetOrReturnNull(ValueId value_id, int mask);
   void CheckNotZeroOrReturnNull(ValueId value_id);
   LabelId MakeLabel();
   void SetLabel(LabelId label_id);
+  void Goto(LabelId label_id);
   void CheckNotZeroOrJump(ValueId value_id, LabelId label_id);
 
   // C++ callback.

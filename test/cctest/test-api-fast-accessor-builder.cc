@@ -400,3 +400,92 @@ TEST(FastAccessorCallback) {
   CompileRun(FN_WARMUP("callbackparam", "return obj.param"));
   ExpectInt32("callbackparam()", 1000);
 }
+
+TEST(FastAccessorToSmi) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> foo = v8::ObjectTemplate::New(isolate);
+  foo->SetInternalFieldCount(1);
+
+  {
+    // Accessor load_smi.
+    auto builder = v8::experimental::FastAccessorBuilder::New(isolate);
+
+    // Read the variable and convert it to a Smi.
+    auto flags = builder->LoadValue(
+        builder->LoadInternalField(builder->GetReceiver(), 0), 0);
+    builder->ReturnValue(builder->ToSmi(flags));
+    foo->SetAccessorProperty(v8_str("load_smi"),
+                             v8::FunctionTemplate::NewWithFastHandler(
+                                 isolate, NativePropertyAccessor, builder));
+  }
+
+  // Create an instance.
+  v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
+
+  uint32_t flags;
+  obj->SetAlignedPointerInInternalField(0, &flags);
+  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+
+  // Access flags.
+  CompileRun(FN_WARMUP("load_smi", "return obj.load_smi"));
+
+  flags = 54321;
+  ExpectInt32("load_smi()", 54321);
+
+  flags = 0;
+  ExpectInt32("load_smi()", 0);
+
+  flags = 123456789;
+  ExpectInt32("load_smi()", 123456789);
+}
+
+TEST(FastAccessorGoto) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> foo = v8::ObjectTemplate::New(isolate);
+  foo->SetInternalFieldCount(1);
+
+  {
+    auto builder = v8::experimental::FastAccessorBuilder::New(isolate);
+    auto successLabel = builder->MakeLabel();
+    auto failLabel = builder->MakeLabel();
+
+    // The underlying raw assembler is clever enough to reject unreachable
+    // basic blocks, this instruction has no effect besides marking the failed
+    // return BB as reachable.
+    builder->CheckNotZeroOrJump(builder->IntegerConstant(1234), failLabel);
+
+    builder->Goto(successLabel);
+
+    builder->SetLabel(failLabel);
+    builder->ReturnValue(builder->IntegerConstant(0));
+
+    builder->SetLabel(successLabel);
+    builder->ReturnValue(builder->IntegerConstant(60707357));
+
+    foo->SetAccessorProperty(v8_str("goto_test"),
+                             v8::FunctionTemplate::NewWithFastHandler(
+                                 isolate, NativePropertyAccessor, builder));
+  }
+
+  // Create an instance.
+  v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
+
+  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+
+  // Access flags.
+  CompileRun(FN_WARMUP("test", "return obj.goto_test"));
+
+  ExpectInt32("test()", 60707357);
+}
