@@ -45,15 +45,15 @@ void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       MessageTemplate::Template message,
                                       const char* arg,
                                       ParseErrorType error_type) {
-  ReportMessageAt(location.beg_pos, location.end_pos, message, arg, error_type);
+  pre_parser_->log_->LogMessage(location.beg_pos, location.end_pos, message,
+                                arg, error_type);
 }
 
-
-void PreParserTraits::ReportMessageAt(int start_pos, int end_pos,
+void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       MessageTemplate::Template message,
-                                      const char* arg,
+                                      const AstRawString* arg,
                                       ParseErrorType error_type) {
-  pre_parser_->log_->LogMessage(start_pos, end_pos, message, arg, error_type);
+  UNREACHABLE();
 }
 
 
@@ -89,11 +89,6 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
   if (scanner->LiteralMatches("constructor", 11)) {
     return PreParserIdentifier::Constructor();
   }
-  return PreParserIdentifier::Default();
-}
-
-
-PreParserIdentifier PreParserTraits::GetNumberAsSymbol(Scanner* scanner) {
   return PreParserIdentifier::Default();
 }
 
@@ -262,9 +257,9 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
         // TC39 deemed "use strict" directives to be an error when occurring
         // in the body of a function with non-simple parameter list, on
         // 29/7/2015. https://goo.gl/ueA7Ln
-        PreParserTraits::ReportMessageAt(
-            token_loc, MessageTemplate::kIllegalLanguageModeDirective,
-            "use strict");
+        ReportMessageAt(token_loc,
+                        MessageTemplate::kIllegalLanguageModeDirective,
+                        "use strict");
         *ok = false;
         return;
       }
@@ -589,7 +584,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       }
     } else if ((require_initializer || is_pattern) &&
                (var_context != kForStatement || !PeekInOrOf())) {
-      PreParserTraits::ReportMessageAt(
+      ReportMessageAt(
           Scanner::Location(decl_pos, scanner()->location().end_pos),
           MessageTemplate::kDeclarationMissingInitializer,
           is_pattern ? "destructuring" : "const");
@@ -616,8 +611,8 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   if (Check(Token::MUL)) {
     flags |= ParseFunctionFlags::kIsGenerator;
     if (allow_harmony_restrictive_declarations()) {
-      PreParserTraits::ReportMessageAt(
-          scanner()->location(), MessageTemplate::kGeneratorInLegacyContext);
+      ReportMessageAt(scanner()->location(),
+                      MessageTemplate::kGeneratorInLegacyContext);
       *ok = false;
       return Statement::Default();
     }
@@ -884,9 +879,9 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       if (CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
         if (decl_count != 1) {
-          PreParserTraits::ReportMessageAt(
-              bindings_loc, MessageTemplate::kForInOfLoopMultiBindings,
-              ForEachStatement::VisitModeString(mode));
+          ReportMessageAt(bindings_loc,
+                          MessageTemplate::kForInOfLoopMultiBindings,
+                          ForEachStatement::VisitModeString(mode));
           *ok = false;
           return Statement::Default();
         }
@@ -898,9 +893,9 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
           if (use_counts_ != nullptr && allow_harmony_for_in()) {
             ++use_counts_[v8::Isolate::kForInInitializer];
           }
-          PreParserTraits::ReportMessageAt(
-              first_initializer_loc, MessageTemplate::kForInOfLoopInitializer,
-              ForEachStatement::VisitModeString(mode));
+          ReportMessageAt(first_initializer_loc,
+                          MessageTemplate::kForInOfLoopInitializer,
+                          ForEachStatement::VisitModeString(mode));
           *ok = false;
           return Statement::Default();
         }

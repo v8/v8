@@ -865,11 +865,31 @@ class ParserBase : public Traits {
     Traits::ReportMessageAt(source_location, message, arg, error_type);
   }
 
+  void ReportMessage(MessageTemplate::Template message, const AstRawString* arg,
+                     ParseErrorType error_type = kSyntaxError) {
+    Scanner::Location source_location = scanner()->location();
+    Traits::ReportMessageAt(source_location, message, arg, error_type);
+  }
+
   void ReportMessageAt(Scanner::Location location,
                        MessageTemplate::Template message,
+                       const char* arg = NULL,
                        ParseErrorType error_type = kSyntaxError) {
-    Traits::ReportMessageAt(location, message, reinterpret_cast<const char*>(0),
-                            error_type);
+    Traits::ReportMessageAt(location, message, arg, error_type);
+  }
+
+  void ReportMessageAt(Scanner::Location location,
+                       MessageTemplate::Template message,
+                       const AstRawString* arg,
+                       ParseErrorType error_type = kSyntaxError) {
+    Traits::ReportMessageAt(location, message, arg, error_type);
+  }
+
+  void ReportMessageAt(Scanner::Location location,
+                       MessageTemplate::Template message,
+                       ParseErrorType error_type) {
+    ReportMessageAt(location, message, static_cast<const char*>(nullptr),
+                    error_type);
   }
 
   void GetUnexpectedTokenMessage(
