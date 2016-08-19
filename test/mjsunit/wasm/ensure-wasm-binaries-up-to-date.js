@@ -7,8 +7,6 @@
 // Ensure checked in wasm binaries used by integration tests from v8 hosts
 // (such as chromium) are up to date.
 
-load('test/mjsunit/mjsunit.js');
-
 (function ensure_incrementer() {
   var buff = readbuffer("test/mjsunit/wasm/incrementer.wasm");
   var mod = new WebAssembly.Module(buff);
