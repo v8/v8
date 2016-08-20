@@ -22,11 +22,10 @@ namespace internal {
   T(StrictModeFormalParametersProduction, 5)    \
   T(ArrowFormalParametersProduction, 6)         \
   T(LetPatternProduction, 7)                    \
-  T(CoverInitializedNameProduction, 8)          \
+  T(ObjectLiteralProduction, 8)                 \
   T(TailCallExpressionProduction, 9)            \
   T(AsyncArrowFormalParametersProduction, 10)   \
   T(AsyncBindingPatternProduction, 11)
-
 
 template <typename Traits>
 class ExpressionClassifier {
@@ -74,7 +73,7 @@ class ExpressionClassifier {
     AllProductions =
         (ExpressionProductions | PatternProductions |
          FormalParametersProductions | ArrowFormalParametersProduction |
-         CoverInitializedNameProduction | AsyncArrowFormalParametersProduction)
+         ObjectLiteralProduction | AsyncArrowFormalParametersProduction)
   };
 
   enum FunctionProperties : unsigned {
@@ -187,12 +186,12 @@ class ExpressionClassifier {
     return reported_error(kLetPatternProduction);
   }
 
-  V8_INLINE bool has_cover_initialized_name() const {
-    return !is_valid(CoverInitializedNameProduction);
+  V8_INLINE bool has_object_literal_error() const {
+    return !is_valid(ObjectLiteralProduction);
   }
 
-  V8_INLINE const Error& cover_initialized_name_error() const {
-    return reported_error(kCoverInitializedNameProduction);
+  V8_INLINE const Error& object_literal_error() const {
+    return reported_error(kObjectLiteralProduction);
   }
 
   V8_INLINE bool has_tail_call_expression() const {
@@ -201,6 +200,7 @@ class ExpressionClassifier {
   V8_INLINE const Error& tail_call_expression_error() const {
     return reported_error(kTailCallExpressionProduction);
   }
+
   V8_INLINE const Error& async_arrow_formal_parameters_error() const {
     return reported_error(kAsyncArrowFormalParametersProduction);
   }
@@ -314,12 +314,12 @@ class ExpressionClassifier {
     Add(Error(loc, message, kLetPatternProduction, arg));
   }
 
-  void RecordCoverInitializedNameError(const Scanner::Location& loc,
-                                       MessageTemplate::Template message,
-                                       const char* arg = nullptr) {
-    if (has_cover_initialized_name()) return;
-    invalid_productions_ |= CoverInitializedNameProduction;
-    Add(Error(loc, message, kCoverInitializedNameProduction, arg));
+  void RecordObjectLiteralError(const Scanner::Location& loc,
+                                MessageTemplate::Template message,
+                                const char* arg = nullptr) {
+    if (has_object_literal_error()) return;
+    invalid_productions_ |= ObjectLiteralProduction;
+    Add(Error(loc, message, kObjectLiteralProduction, arg));
   }
 
   void RecordTailCallExpressionError(const Scanner::Location& loc,
@@ -330,11 +330,11 @@ class ExpressionClassifier {
     Add(Error(loc, message, kTailCallExpressionProduction, arg));
   }
 
-  void ForgiveCoverInitializedNameError() {
-    if (!(invalid_productions_ & CoverInitializedNameProduction)) return;
-    Error& e = reported_error(kCoverInitializedNameProduction);
+  void ForgiveObjectLiteralError() {
+    if (!(invalid_productions_ & ObjectLiteralProduction)) return;
+    Error& e = reported_error(kObjectLiteralProduction);
     e.kind = kUnusedError;
-    invalid_productions_ &= ~CoverInitializedNameProduction;
+    invalid_productions_ &= ~ObjectLiteralProduction;
   }
 
   void ForgiveAssignmentPatternError() {

@@ -359,9 +359,6 @@
   'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5121
-  'language/expressions/assignment/destructuring/obj-prop-__proto__dup': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4973
   'language/literals/numeric/non-octal-decimal-integer-strict': [FAIL],
 

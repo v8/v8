@@ -6342,6 +6342,7 @@ TEST(DestructuringPositiveTests) {
     "[...rest]",
     "[a,b,...rest]",
     "[a,,...rest]",
+    "{ __proto__: x, __proto__: y}",
     "{arguments: x}",
     "{eval: x}",
     NULL};
@@ -6629,6 +6630,7 @@ TEST(DestructuringAssignmentPositiveTests) {
     "{ x : [ foo()[y] = 10 ] = {} }",
     "{ x : [ y.z = 10 ] = {} }",
     "{ x : [ y[z] = 10 ] = {} }",
+    "{ z : { __proto__: x, __proto__: y } = z }"
 
     "[ x ]",
     "[ foo().x ]",
@@ -6748,6 +6750,8 @@ TEST(DestructuringAssignmentPositiveTests) {
       "var x; (true ? { x = true } = {} : { x = false } = {})",
       "var q, x; (q, { x = 10 } = {});",
       "var { x = 10 } = { x = 20 } = {};",
+      "var { __proto__: x, __proto__: y } = {}",
+      "({ __proto__: x, __proto__: y } = {})",
       "var { x = 10 } = (o = { x = 20 } = {});",
       "var x; (({ x = 10 } = { x = 20 } = {}) => x)({})",
       NULL,

@@ -910,12 +910,12 @@ class ParserBase : public Traits {
 
   void ValidateExpression(const ExpressionClassifier* classifier, bool* ok) {
     if (!classifier->is_valid_expression() ||
-        classifier->has_cover_initialized_name()) {
+        classifier->has_object_literal_error()) {
       const Scanner::Location& a = classifier->expression_error().location;
       const Scanner::Location& b =
-          classifier->cover_initialized_name_error().location;
+          classifier->object_literal_error().location;
       if (a.beg_pos < 0 || (b.beg_pos >= 0 && a.beg_pos > b.beg_pos)) {
-        ReportClassifierError(classifier->cover_initialized_name_error());
+        ReportClassifierError(classifier->object_literal_error());
       } else {
         ReportClassifierError(classifier->expression_error());
       }
@@ -1202,7 +1202,8 @@ class ParserBase : public Traits {
     explicit ObjectLiteralCheckerBase(ParserBase* parser) : parser_(parser) {}
 
     virtual void CheckProperty(Token::Value property, PropertyKind type,
-                               MethodKind method_type, bool* ok) = 0;
+                               MethodKind method_type,
+                               ExpressionClassifier* classifier, bool* ok) = 0;
 
     virtual ~ObjectLiteralCheckerBase() {}
 
@@ -1221,7 +1222,8 @@ class ParserBase : public Traits {
         : ObjectLiteralCheckerBase(parser), has_seen_proto_(false) {}
 
     void CheckProperty(Token::Value property, PropertyKind type,
-                       MethodKind method_type, bool* ok) override;
+                       MethodKind method_type, ExpressionClassifier* classifier,
+                       bool* ok) override;
 
    private:
     bool IsProto() { return this->scanner()->LiteralMatches("__proto__", 9); }
@@ -1236,7 +1238,8 @@ class ParserBase : public Traits {
         : ObjectLiteralCheckerBase(parser), has_seen_constructor_(false) {}
 
     void CheckProperty(Token::Value property, PropertyKind type,
-                       MethodKind method_type, bool* ok) override;
+                       MethodKind method_type, ExpressionClassifier* classifier,
+                       bool* ok) override;
 
    private:
     bool IsConstructor() {
@@ -1980,6 +1983,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
       //    PropertyName ':' AssignmentExpression
       if (!*is_computed_name) {
         checker->CheckProperty(name_token, kValueProperty, MethodKind::kNormal,
+                               classifier,
                                CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       }
       Consume(Token::COLON);
@@ -2044,7 +2048,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
                                ExpressionClassifier::ExpressionProductions);
         value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
                                          kNoSourcePosition);
-        classifier->RecordCoverInitializedNameError(
+        classifier->RecordObjectLiteralError(
             Scanner::Location(next_beg_pos, scanner()->location().end_pos),
             MessageTemplate::kInvalidCoverInitializedName);
 
@@ -2080,6 +2084,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     //    '*' PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'
     if (!*is_computed_name) {
       checker->CheckProperty(name_token, kMethodProperty, method_kind,
+                             classifier,
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
 
@@ -2130,6 +2135,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
     if (!*is_computed_name) {
       checker->CheckProperty(name_token, kAccessorProperty, method_kind,
+                             classifier,
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
 
@@ -2416,7 +2422,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
       ExpressionClassifier::ExpressionProductions |
           ExpressionClassifier::PatternProductions |
           ExpressionClassifier::FormalParametersProductions |
-          ExpressionClassifier::CoverInitializedNameProduction |
+          ExpressionClassifier::ObjectLiteralProduction |
           ExpressionClassifier::AsyncArrowFormalParametersProduction,
       false);
 
@@ -2433,7 +2439,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   CheckNoTailCallExpressions(classifier, CHECK_OK);
 
   if (IsValidPattern(expression) && peek() == Token::ASSIGN) {
-    classifier->ForgiveCoverInitializedNameError();
+    classifier->ForgiveObjectLiteralError();
     ValidateAssignmentPattern(classifier, CHECK_OK);
     is_destructuring_assignment = true;
   } else {
@@ -2461,7 +2467,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   classifier->Accumulate(
       &rhs_classifier,
       ExpressionClassifier::ExpressionProductions |
-          ExpressionClassifier::CoverInitializedNameProduction |
+          ExpressionClassifier::ObjectLiteralProduction |
           ExpressionClassifier::AsyncArrowFormalParametersProduction);
 
   // TODO(1231235): We try to estimate the set of properties set by
@@ -3702,7 +3708,7 @@ void ParserBase<Traits>::CheckDestructuringElement(
 template <typename Traits>
 void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
     Token::Value property, PropertyKind type, MethodKind method_type,
-    bool* ok) {
+    ExpressionClassifier* classifier, bool* ok) {
   DCHECK(!IsStaticMethod(method_type));
   DCHECK(!IsSpecialMethod(method_type) || type == kMethodProperty);
 
@@ -3710,19 +3716,18 @@ void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
 
   if (type == kValueProperty && IsProto()) {
     if (has_seen_proto_) {
-      this->parser()->ReportMessage(MessageTemplate::kDuplicateProto);
-      *ok = false;
+      classifier->RecordObjectLiteralError(
+          this->scanner()->location(), MessageTemplate::kDuplicateProto);
       return;
     }
     has_seen_proto_ = true;
-    return;
   }
 }
 
 template <typename Traits>
 void ParserBase<Traits>::ClassLiteralChecker::CheckProperty(
     Token::Value property, PropertyKind type, MethodKind method_type,
-    bool* ok) {
+    ExpressionClassifier* classifier, bool* ok) {
   DCHECK(type == kMethodProperty || type == kAccessorProperty);
 
   if (property == Token::SMI || property == Token::NUMBER) return;
