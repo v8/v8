@@ -745,11 +745,11 @@ class PreParserTraits {
   }
 
   // Reporting errors.
-  void ReportMessageAt(Scanner::Location location,
+  void ReportMessageAt(Scanner::Location source_location,
                        MessageTemplate::Template message,
                        const char* arg = NULL,
                        ParseErrorType error_type = kSyntaxError);
-  void ReportMessageAt(Scanner::Location location,
+  void ReportMessageAt(Scanner::Location source_location,
                        MessageTemplate::Template message,
                        const AstRawString* arg,
                        ParseErrorType error_type = kSyntaxError);
@@ -777,7 +777,7 @@ class PreParserTraits {
   static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList();
   }
-  static PreParserIdentifier EmptyIdentifierString() {
+  PreParserIdentifier EmptyIdentifierString() const {
     return PreParserIdentifier::Default();
   }
 
@@ -788,13 +788,13 @@ class PreParserTraits {
   }
 
   // Producing data during the recursive descent.
-  PreParserIdentifier GetSymbol(Scanner* scanner);
+  PreParserIdentifier GetSymbol(Scanner* scanner) const;
 
   PreParserIdentifier GetNextSymbol(Scanner* scanner) const {
     return PreParserIdentifier::Default();
   }
 
-  PreParserIdentifier GetNumberAsSymbol(Scanner* scanner) {
+  PreParserIdentifier GetNumberAsSymbol(Scanner* scanner) const {
     return PreParserIdentifier::Default();
   }
 
@@ -834,7 +834,7 @@ class PreParserTraits {
   }
 
   PreParserExpression ExpressionFromString(int pos, Scanner* scanner,
-                                           PreParserFactory* factory);
+                                           PreParserFactory* factory) const;
 
   PreParserExpression GetIterator(PreParserExpression iterable,
                                   PreParserFactory* factory, int pos) {
@@ -854,7 +854,7 @@ class PreParserTraits {
   }
 
   void AddParameterInitializationBlock(
-      const PreParserFormalParameters& parameters, PreParserStatementList list,
+      const PreParserFormalParameters& parameters, PreParserStatementList body,
       bool is_async, bool* ok) const {}
 
   void ParseAsyncArrowSingleExpressionBody(
@@ -878,7 +878,7 @@ class PreParserTraits {
   }
 
   V8_INLINE void ParseArrowFunctionFormalParameterList(
-      PreParserFormalParameters* parameters, PreParserExpression expression,
+      PreParserFormalParameters* parameters, PreParserExpression params,
       const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
       const Scope::Snapshot& scope_snapshot, bool* ok);
 

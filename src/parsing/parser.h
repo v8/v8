@@ -416,7 +416,7 @@ class ParserTraits {
 
   bool IsConstructor(const AstRawString* identifier) const;
 
-  bool IsDirectEvalCall(Expression* expression) {
+  bool IsDirectEvalCall(Expression* expression) const {
     if (!expression->IsCall()) return false;
     expression = expression->AsCall()->expression();
     return IsIdentifier(expression) && IsEval(AsIdentifier(expression));
@@ -515,43 +515,46 @@ class ParserTraits {
   static ZoneList<Expression*>* NullExpressionList() { return nullptr; }
 
   // Non-NULL empty string.
-  V8_INLINE const AstRawString* EmptyIdentifierString();
+  V8_INLINE const AstRawString* EmptyIdentifierString() const;
 
   // Odd-ball literal creators.
-  Literal* GetLiteralTheHole(int position, AstNodeFactory* factory);
+  Literal* GetLiteralTheHole(int position, AstNodeFactory* factory) const;
 
   // Producing data during the recursive descent.
-  const AstRawString* GetSymbol(Scanner* scanner);
-  const AstRawString* GetNextSymbol(Scanner* scanner);
-  const AstRawString* GetNumberAsSymbol(Scanner* scanner);
+  const AstRawString* GetSymbol(Scanner* scanner) const;
+  const AstRawString* GetNextSymbol(Scanner* scanner) const;
+  const AstRawString* GetNumberAsSymbol(Scanner* scanner) const;
 
-  Expression* ThisExpression(int pos);
-  Expression* NewSuperPropertyReference(AstNodeFactory* factory, int pos);
-  Expression* NewSuperCallReference(AstNodeFactory* factory, int pos);
-  Expression* NewTargetExpression(int pos);
-  Expression* FunctionSentExpression(AstNodeFactory* factory, int pos);
+  Expression* ThisExpression(int pos = kNoSourcePosition) const;
+  Expression* NewSuperPropertyReference(AstNodeFactory* factory, int pos) const;
+  Expression* NewSuperCallReference(AstNodeFactory* factory, int pos) const;
+  Expression* NewTargetExpression(int pos) const;
+  Expression* FunctionSentExpression(AstNodeFactory* factory, int pos) const;
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
-                                 AstNodeFactory* factory);
+                                 AstNodeFactory* factory) const;
   Expression* ExpressionFromIdentifier(const AstRawString* name,
                                        int start_position, int end_position,
-                                       InferName = InferName::kYes);
+                                       InferName = InferName::kYes) const;
   Expression* ExpressionFromString(int pos, Scanner* scanner,
-                                   AstNodeFactory* factory);
+                                   AstNodeFactory* factory) const;
   Expression* GetIterator(Expression* iterable, AstNodeFactory* factory,
                           int pos);
-  ZoneList<v8::internal::Expression*>* NewExpressionList(int size, Zone* zone) {
+  ZoneList<v8::internal::Expression*>* NewExpressionList(int size,
+                                                         Zone* zone) const {
     return new(zone) ZoneList<v8::internal::Expression*>(size, zone);
   }
-  ZoneList<ObjectLiteral::Property*>* NewPropertyList(int size, Zone* zone) {
+  ZoneList<ObjectLiteral::Property*>* NewPropertyList(int size,
+                                                      Zone* zone) const {
     return new(zone) ZoneList<ObjectLiteral::Property*>(size, zone);
   }
-  ZoneList<v8::internal::Statement*>* NewStatementList(int size, Zone* zone) {
+  ZoneList<v8::internal::Statement*>* NewStatementList(int size,
+                                                       Zone* zone) const {
     return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
   }
 
   V8_INLINE void AddParameterInitializationBlock(
       const ParserFormalParameters& parameters,
-      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok);
+      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) const;
 
   void ParseAsyncArrowSingleExpressionBody(
       ZoneList<Statement*>* body, bool accept_IN,
@@ -1188,7 +1191,7 @@ bool ParserTraits::IsFutureStrictReserved(
   return parser_->scanner()->IdentifierIsFutureStrictReserved(identifier);
 }
 
-const AstRawString* ParserTraits::EmptyIdentifierString() {
+const AstRawString* ParserTraits::EmptyIdentifierString() const {
   return parser_->ast_value_factory()->empty_string();
 }
 
@@ -1326,7 +1329,7 @@ void ParserTraits::DeclareFormalParameter(
 
 void ParserTraits::AddParameterInitializationBlock(
     const ParserFormalParameters& parameters,
-    ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) {
+    ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) const {
   if (!parameters.is_simple) {
     auto* init_block =
         parser_->BuildParameterInitializationBlock(parameters, ok);

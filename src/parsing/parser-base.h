@@ -126,18 +126,14 @@ struct FormalParametersBase {
 // thus it must never be used where only a single statement
 // is correct (e.g. an if statement branch w/o braces)!
 
-#define CHECK_OK  ok);                      \
-  if (!*ok) return this->EmptyExpression(); \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
-
-// Used in functions where the return type is not ExpressionT.
 #define CHECK_OK_CUSTOM(x) ok); \
   if (!*ok) return this->x();   \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
+
+// Used in functions where the return type is ExpressionT.
+#define CHECK_OK CHECK_OK_CUSTOM(EmptyExpression)
 
 
 // Common base class shared between parser and pre-parser. Traits encapsulate

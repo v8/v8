@@ -649,7 +649,7 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
 }
 
 
-const AstRawString* ParserTraits::GetSymbol(Scanner* scanner) {
+const AstRawString* ParserTraits::GetSymbol(Scanner* scanner) const {
   const AstRawString* result =
       parser_->scanner()->CurrentSymbol(parser_->ast_value_factory());
   DCHECK(result != NULL);
@@ -657,7 +657,7 @@ const AstRawString* ParserTraits::GetSymbol(Scanner* scanner) {
 }
 
 
-const AstRawString* ParserTraits::GetNumberAsSymbol(Scanner* scanner) {
+const AstRawString* ParserTraits::GetNumberAsSymbol(Scanner* scanner) const {
   double double_value = parser_->scanner()->DoubleValue();
   char array[100];
   const char* string = DoubleToCString(double_value, ArrayVector(array));
@@ -665,17 +665,17 @@ const AstRawString* ParserTraits::GetNumberAsSymbol(Scanner* scanner) {
 }
 
 
-const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) {
+const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) const {
   return parser_->scanner()->NextSymbol(parser_->ast_value_factory());
 }
 
-Expression* ParserTraits::ThisExpression(int pos) {
+Expression* ParserTraits::ThisExpression(int pos) const {
   return parser_->NewUnresolved(parser_->ast_value_factory()->this_string(),
                                 pos, pos + 4, Variable::THIS);
 }
 
 Expression* ParserTraits::NewSuperPropertyReference(AstNodeFactory* factory,
-                                                    int pos) {
+                                                    int pos) const {
   // this_function[home_object_symbol]
   VariableProxy* this_function_proxy = parser_->NewUnresolved(
       parser_->ast_value_factory()->this_function_string(), pos);
@@ -688,7 +688,7 @@ Expression* ParserTraits::NewSuperPropertyReference(AstNodeFactory* factory,
 }
 
 Expression* ParserTraits::NewSuperCallReference(AstNodeFactory* factory,
-                                                int pos) {
+                                                int pos) const {
   VariableProxy* new_target_proxy = parser_->NewUnresolved(
       parser_->ast_value_factory()->new_target_string(), pos);
   VariableProxy* this_function_proxy = parser_->NewUnresolved(
@@ -698,7 +698,7 @@ Expression* ParserTraits::NewSuperCallReference(AstNodeFactory* factory,
                                         pos);
 }
 
-Expression* ParserTraits::NewTargetExpression(int pos) {
+Expression* ParserTraits::NewTargetExpression(int pos) const {
   static const int kNewTargetStringLength = 10;
   auto proxy =
       parser_->NewUnresolved(parser_->ast_value_factory()->new_target_string(),
@@ -708,7 +708,7 @@ Expression* ParserTraits::NewTargetExpression(int pos) {
 }
 
 Expression* ParserTraits::FunctionSentExpression(AstNodeFactory* factory,
-                                                 int pos) {
+                                                 int pos) const {
   // We desugar function.sent into %_GeneratorGetInputOrDebugPos(generator).
   Zone* zone = parser_->zone();
   ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(1, zone);
@@ -722,7 +722,7 @@ Expression* ParserTraits::FunctionSentExpression(AstNodeFactory* factory,
 
 Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
                                              Scanner* scanner,
-                                             AstNodeFactory* factory) {
+                                             AstNodeFactory* factory) const {
   switch (token) {
     case Token::NULL_LITERAL:
       return factory->NewNullLiteral(pos);
@@ -748,7 +748,7 @@ Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
 Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
                                                    int start_position,
                                                    int end_position,
-                                                   InferName infer) {
+                                                   InferName infer) const {
   if (infer == InferName::kYes && parser_->fni_ != NULL) {
     parser_->fni_->PushVariableName(name);
   }
@@ -757,7 +757,7 @@ Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
 
 
 Expression* ParserTraits::ExpressionFromString(int pos, Scanner* scanner,
-                                               AstNodeFactory* factory) {
+                                               AstNodeFactory* factory) const {
   const AstRawString* symbol = GetSymbol(scanner);
   if (parser_->fni_ != NULL) parser_->fni_->PushLiteralName(symbol);
   return factory->NewStringLiteral(symbol, pos);
@@ -777,7 +777,7 @@ Expression* ParserTraits::GetIterator(Expression* iterable,
 
 
 Literal* ParserTraits::GetLiteralTheHole(int position,
-                                         AstNodeFactory* factory) {
+                                         AstNodeFactory* factory) const {
   return factory->NewTheHoleLiteral(kNoSourcePosition);
 }
 

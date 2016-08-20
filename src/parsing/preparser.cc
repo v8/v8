@@ -41,15 +41,16 @@ namespace internal {
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-void PreParserTraits::ReportMessageAt(Scanner::Location location,
+void PreParserTraits::ReportMessageAt(Scanner::Location source_location,
                                       MessageTemplate::Template message,
                                       const char* arg,
                                       ParseErrorType error_type) {
-  pre_parser_->log_->LogMessage(location.beg_pos, location.end_pos, message,
-                                arg, error_type);
+  pre_parser_->log_->LogMessage(source_location.beg_pos,
+                                source_location.end_pos, message, arg,
+                                error_type);
 }
 
-void PreParserTraits::ReportMessageAt(Scanner::Location location,
+void PreParserTraits::ReportMessageAt(Scanner::Location source_location,
                                       MessageTemplate::Template message,
                                       const AstRawString* arg,
                                       ParseErrorType error_type) {
@@ -57,7 +58,7 @@ void PreParserTraits::ReportMessageAt(Scanner::Location location,
 }
 
 
-PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
+PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) const {
   switch (scanner->current_token()) {
     case Token::ENUM:
       return PreParserIdentifier::Enum();
@@ -90,7 +91,7 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
 
 
 PreParserExpression PreParserTraits::ExpressionFromString(
-    int pos, Scanner* scanner, PreParserFactory* factory) {
+    int pos, Scanner* scanner, PreParserFactory* factory) const {
   if (scanner->UnescapedLiteralMatches("use strict", 10)) {
     return PreParserExpression::UseStrictStringLiteral();
   }
