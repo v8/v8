@@ -606,8 +606,8 @@ class PreParserTraits {
     typedef PreParserExpression YieldExpression;
     typedef PreParserExpression FunctionLiteral;
     typedef PreParserExpression ClassLiteral;
-    typedef PreParserExpression ObjectLiteralProperty;
     typedef PreParserExpression Literal;
+    typedef PreParserExpression ObjectLiteralProperty;
     typedef PreParserExpressionList ExpressionList;
     typedef PreParserExpressionList PropertyList;
     typedef PreParserIdentifier FormalParameter;
@@ -629,10 +629,6 @@ class PreParserTraits {
     return identifier.IsArguments();
   }
 
-  bool IsAwait(PreParserIdentifier identifier) const {
-    return identifier.IsAwait();
-  }
-
   bool IsEvalOrArguments(PreParserIdentifier identifier) const {
     return identifier.IsEvalOrArguments();
   }
@@ -641,12 +637,12 @@ class PreParserTraits {
     return identifier.IsUndefined();
   }
 
-  bool IsPrototype(PreParserIdentifier identifier) const {
-    return identifier.IsPrototype();
+  bool IsAwait(PreParserIdentifier identifier) const {
+    return identifier.IsAwait();
   }
 
-  bool IsConstructor(PreParserIdentifier identifier) const {
-    return identifier.IsConstructor();
+  bool IsFutureStrictReserved(PreParserIdentifier identifier) const {
+    return identifier.IsFutureStrictReserved();
   }
 
   // Returns true if the expression is of type "this.foo".
@@ -662,12 +658,16 @@ class PreParserTraits {
     return expression.AsIdentifier();
   }
 
-  bool IsDirectEvalCall(PreParserExpression expression) const {
-    return expression.IsDirectEvalCall();
+  bool IsPrototype(PreParserIdentifier identifier) const {
+    return identifier.IsPrototype();
   }
 
-  bool IsFutureStrictReserved(PreParserIdentifier identifier) const {
-    return identifier.IsFutureStrictReserved();
+  bool IsConstructor(PreParserIdentifier identifier) const {
+    return identifier.IsConstructor();
+  }
+
+  bool IsDirectEvalCall(PreParserExpression expression) const {
+    return expression.IsDirectEvalCall();
   }
 
   static bool IsBoilerplateProperty(PreParserExpression property) {
@@ -761,9 +761,6 @@ class PreParserTraits {
   static PreParserIdentifier EmptyIdentifier() {
     return PreParserIdentifier::Default();
   }
-  static PreParserIdentifier EmptyIdentifierString() {
-    return PreParserIdentifier::Default();
-  }
   static PreParserExpression EmptyExpression() {
     return PreParserExpression::Default();
   }
@@ -776,8 +773,12 @@ class PreParserTraits {
   static PreParserExpression EmptyFunctionLiteral() {
     return PreParserExpression::Default();
   }
+
   static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList();
+  }
+  static PreParserIdentifier EmptyIdentifierString() {
+    return PreParserIdentifier::Default();
   }
 
   // Odd-ball literal creators.
@@ -788,11 +789,12 @@ class PreParserTraits {
 
   // Producing data during the recursive descent.
   PreParserIdentifier GetSymbol(Scanner* scanner);
-  PreParserIdentifier GetNumberAsSymbol(Scanner* scanner) {
+
+  PreParserIdentifier GetNextSymbol(Scanner* scanner) const {
     return PreParserIdentifier::Default();
   }
 
-  PreParserIdentifier GetNextSymbol(Scanner* scanner) const {
+  PreParserIdentifier GetNumberAsSymbol(Scanner* scanner) {
     return PreParserIdentifier::Default();
   }
 
@@ -843,17 +845,56 @@ class PreParserTraits {
     return PreParserExpressionList();
   }
 
-  PreParserStatementList NewStatementList(int size, Zone* zone) const {
-    return PreParserStatementList();
-  }
-
   PreParserExpressionList NewPropertyList(int size, Zone* zone) const {
     return PreParserExpressionList();
+  }
+
+  PreParserStatementList NewStatementList(int size, Zone* zone) const {
+    return PreParserStatementList();
   }
 
   void AddParameterInitializationBlock(
       const PreParserFormalParameters& parameters, PreParserStatementList list,
       bool is_async, bool* ok) const {}
+
+  void ParseAsyncArrowSingleExpressionBody(
+      PreParserStatementList body, bool accept_IN,
+      Type::ExpressionClassifier* classifier, int pos, bool* ok);
+
+
+  void AddFormalParameter(PreParserFormalParameters* parameters,
+                          PreParserExpression pattern,
+                          PreParserExpression initializer,
+                          int initializer_end_position, bool is_rest) {
+    ++parameters->arity;
+  }
+
+  void DeclareFormalParameter(DeclarationScope* scope,
+                              PreParserIdentifier parameter,
+                              Type::ExpressionClassifier* classifier) {
+    if (!classifier->is_simple_parameter_list()) {
+      scope->SetHasNonSimpleParameters();
+    }
+  }
+
+  V8_INLINE void ParseArrowFunctionFormalParameterList(
+      PreParserFormalParameters* parameters, PreParserExpression expression,
+      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
+      const Scope::Snapshot& scope_snapshot, bool* ok);
+
+  V8_INLINE PreParserExpression ParseAsyncFunctionExpression(bool* ok);
+
+  V8_INLINE PreParserExpression ParseDoExpression(bool* ok);
+
+  void ReindexLiterals(const PreParserFormalParameters& parameters) {}
+
+  // Temporary glue; these functions will move to ParserBase.
+  PreParserExpression ParseV8Intrinsic(bool* ok);
+  PreParserExpression ParseFunctionLiteral(
+      PreParserIdentifier name, Scanner::Location function_name_location,
+      FunctionNameValidity function_name_validity, FunctionKind kind,
+      int function_token_position, FunctionLiteral::FunctionType type,
+      LanguageMode language_mode, bool* ok);
 
   V8_INLINE void SkipLazyFunctionBody(
       int* materialized_literal_count, int* expected_property_count, bool* ok,
@@ -866,61 +907,6 @@ class PreParserTraits {
       const PreParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
-  V8_INLINE void ParseArrowFunctionFormalParameterList(
-      PreParserFormalParameters* parameters, PreParserExpression expression,
-      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-      const Scope::Snapshot& scope_snapshot, bool* ok);
-
-  void ParseAsyncArrowSingleExpressionBody(
-      PreParserStatementList body, bool accept_IN,
-      Type::ExpressionClassifier* classifier, int pos, bool* ok);
-
-  V8_INLINE PreParserExpression ParseAsyncFunctionExpression(bool* ok);
-
-  void ReindexLiterals(const PreParserFormalParameters& parameters) {}
-
-  struct TemplateLiteralState {};
-
-  TemplateLiteralState OpenTemplateLiteral(int pos) {
-    return TemplateLiteralState();
-  }
-  void AddTemplateSpan(TemplateLiteralState* state, bool tail) {}
-  void AddTemplateExpression(TemplateLiteralState* state,
-                             PreParserExpression expression) {}
-  V8_INLINE PreParserExpression CloseTemplateLiteral(
-      TemplateLiteralState* state, int start, PreParserExpression tag);
-  PreParserExpression NoTemplateTag() {
-    return PreParserExpression::NoTemplateTag();
-  }
-  static bool IsTaggedTemplate(const PreParserExpression tag) {
-    return !tag.IsNoTemplateTag();
-  }
-
-  void AddFormalParameter(PreParserFormalParameters* parameters,
-                          PreParserExpression pattern,
-                          PreParserExpression initializer,
-                          int initializer_end_position, bool is_rest) {
-    ++parameters->arity;
-  }
-  void DeclareFormalParameter(DeclarationScope* scope,
-                              PreParserIdentifier parameter,
-                              Type::ExpressionClassifier* classifier) {
-    if (!classifier->is_simple_parameter_list()) {
-      scope->SetHasNonSimpleParameters();
-    }
-  }
-
-  void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
-
-  // Temporary glue; these functions will move to ParserBase.
-  PreParserExpression ParseV8Intrinsic(bool* ok);
-  V8_INLINE PreParserExpression ParseDoExpression(bool* ok);
-  PreParserExpression ParseFunctionLiteral(
-      PreParserIdentifier name, Scanner::Location function_name_location,
-      FunctionNameValidity function_name_validity, FunctionKind kind,
-      int function_token_position, FunctionLiteral::FunctionType type,
-      LanguageMode language_mode, bool* ok);
-
   PreParserExpression ParseClassLiteral(Type::ExpressionClassifier* classifier,
                                         PreParserIdentifier name,
                                         Scanner::Location class_name_location,
@@ -930,7 +916,27 @@ class PreParserTraits {
   V8_INLINE void MarkCollectedTailCallExpressions() {}
   V8_INLINE void MarkTailPosition(PreParserExpression expression) {}
 
-  PreParserExpressionList PrepareSpreadArguments(PreParserExpressionList list) {
+  void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
+
+  struct TemplateLiteralState {};
+
+  V8_INLINE TemplateLiteralState OpenTemplateLiteral(int pos) {
+    return TemplateLiteralState();
+  }
+  V8_INLINE void AddTemplateSpan(TemplateLiteralState* state, bool tail) {}
+  V8_INLINE void AddTemplateExpression(TemplateLiteralState* state,
+                                       PreParserExpression expression) {}
+  V8_INLINE PreParserExpression CloseTemplateLiteral(
+      TemplateLiteralState* state, int start, PreParserExpression tag);
+  V8_INLINE PreParserExpression NoTemplateTag() {
+    return PreParserExpression::NoTemplateTag();
+  }
+  V8_INLINE static bool IsTaggedTemplate(const PreParserExpression tag) {
+    return !tag.IsNoTemplateTag();
+  }
+
+  V8_INLINE PreParserExpressionList
+  PrepareSpreadArguments(PreParserExpressionList list) {
     return list;
   }
 
@@ -959,6 +965,8 @@ class PreParserTraits {
       PreParserExpression left, PreParserExpression right, int pos) {
     return left;
   }
+  inline PreParserExpression RewriteAwaitExpression(PreParserExpression value,
+                                                    int pos);
 
   inline void QueueDestructuringAssignmentForRewriting(
       PreParserExpression assignment) {}
@@ -971,9 +979,6 @@ class PreParserTraits {
 
   inline void RewriteNonPattern(Type::ExpressionClassifier* classifier,
                                 bool* ok);
-
-  inline PreParserExpression RewriteAwaitExpression(PreParserExpression value,
-                                                    int pos);
 
   V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
       GetReportedErrorList() const;

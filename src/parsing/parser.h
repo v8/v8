@@ -407,14 +407,14 @@ class ParserTraits {
 
   static bool IsIdentifier(Expression* expression);
 
-  bool IsPrototype(const AstRawString* identifier) const;
-
-  bool IsConstructor(const AstRawString* identifier) const;
-
   static const AstRawString* AsIdentifier(Expression* expression) {
     DCHECK(IsIdentifier(expression));
     return expression->AsVariableProxy()->raw_name();
   }
+
+  bool IsPrototype(const AstRawString* identifier) const;
+
+  bool IsConstructor(const AstRawString* identifier) const;
 
   bool IsDirectEvalCall(Expression* expression) {
     if (!expression->IsCall()) return false;
