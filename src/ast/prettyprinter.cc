@@ -13,27 +13,22 @@
 namespace v8 {
 namespace internal {
 
-CallPrinter::CallPrinter(Isolate* isolate, bool is_builtin) {
+CallPrinter::CallPrinter(Isolate* isolate, bool is_builtin)
+    : builder_(isolate) {
   isolate_ = isolate;
-  output_ = NULL;
-  size_ = 0;
-  pos_ = 0;
   position_ = 0;
+  num_prints_ = 0;
   found_ = false;
   done_ = false;
   is_builtin_ = is_builtin;
   InitializeAstVisitor(isolate);
 }
 
-
-CallPrinter::~CallPrinter() { DeleteArray(output_); }
-
-
-const char* CallPrinter::Print(FunctionLiteral* program, int position) {
-  Init();
+Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
+  num_prints_ = 0;
   position_ = position;
   Find(program);
-  return output_;
+  return builder_.Finish().ToHandleChecked();
 }
 
 
@@ -41,9 +36,9 @@ void CallPrinter::Find(AstNode* node, bool print) {
   if (done_) return;
   if (found_) {
     if (print) {
-      int start = pos_;
+      int prev_num_prints = num_prints_;
       Visit(node);
-      if (start != pos_) return;
+      if (prev_num_prints != num_prints_) return;
     }
     Print("(intermediate value)");
   } else {
@@ -51,44 +46,17 @@ void CallPrinter::Find(AstNode* node, bool print) {
   }
 }
 
-
-void CallPrinter::Init() {
-  if (size_ == 0) {
-    DCHECK(output_ == NULL);
-    const int initial_size = 256;
-    output_ = NewArray<char>(initial_size);
-    size_ = initial_size;
-  }
-  output_[0] = '\0';
-  pos_ = 0;
-}
-
-
-void CallPrinter::Print(const char* format, ...) {
+void CallPrinter::Print(const char* str) {
   if (!found_ || done_) return;
-  for (;;) {
-    va_list arguments;
-    va_start(arguments, format);
-    int n = VSNPrintF(Vector<char>(output_, size_) + pos_, format, arguments);
-    va_end(arguments);
-
-    if (n >= 0) {
-      // there was enough space - we are done
-      pos_ += n;
-      return;
-    } else {
-      // there was not enough space - allocate more and try again
-      const int slack = 32;
-      int new_size = size_ + (size_ >> 1) + slack;
-      char* new_output = NewArray<char>(new_size);
-      MemCopy(new_output, output_, pos_);
-      DeleteArray(output_);
-      output_ = new_output;
-      size_ = new_size;
-    }
-  }
+  num_prints_++;
+  builder_.AppendCString(str);
 }
 
+void CallPrinter::Print(Handle<String> str) {
+  if (!found_ || done_) return;
+  num_prints_++;
+  builder_.AppendString(str);
+}
 
 void CallPrinter::VisitBlock(Block* node) {
   FindStatements(node->statements());
@@ -236,13 +204,13 @@ void CallPrinter::VisitConditional(Conditional* node) {
 
 
 void CallPrinter::VisitLiteral(Literal* node) {
-  PrintLiteral(*node->value(), true);
+  PrintLiteral(node->value(), true);
 }
 
 
 void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   Print("/");
-  PrintLiteral(*node->pattern(), false);
+  PrintLiteral(node->pattern(), false);
   Print("/");
   if (node->flags() & RegExp::kGlobal) Print("g");
   if (node->flags() & RegExp::kIgnoreCase) Print("i");
@@ -274,7 +242,7 @@ void CallPrinter::VisitVariableProxy(VariableProxy* node) {
     // Variable names of builtins are meaningless due to minification.
     Print("(var)");
   } else {
-    PrintLiteral(*node->name(), false);
+    PrintLiteral(node->name(), false);
   }
 }
 
@@ -297,7 +265,7 @@ void CallPrinter::VisitProperty(Property* node) {
   if (literal != NULL && literal->value()->IsInternalizedString()) {
     Find(node->obj(), true);
     Print(".");
-    PrintLiteral(*literal->value(), false);
+    PrintLiteral(literal->value(), false);
   } else {
     Find(node->obj(), true);
     Print("[");
@@ -351,7 +319,9 @@ void CallPrinter::VisitUnaryOperation(UnaryOperation* node) {
   Token::Value op = node->op();
   bool needsSpace =
       op == Token::DELETE || op == Token::TYPEOF || op == Token::VOID;
-  Print("(%s%s", Token::String(op), needsSpace ? " " : "");
+  Print("(");
+  Print(Token::String(op));
+  if (needsSpace) Print(" ");
   Find(node->expression(), true);
   Print(")");
 }
@@ -359,9 +329,9 @@ void CallPrinter::VisitUnaryOperation(UnaryOperation* node) {
 
 void CallPrinter::VisitCountOperation(CountOperation* node) {
   Print("(");
-  if (node->is_prefix()) Print("%s", Token::String(node->op()));
+  if (node->is_prefix()) Print(Token::String(node->op()));
   Find(node->expression(), true);
-  if (node->is_postfix()) Print("%s", Token::String(node->op()));
+  if (node->is_postfix()) Print(Token::String(node->op()));
   Print(")");
 }
 
@@ -369,7 +339,9 @@ void CallPrinter::VisitCountOperation(CountOperation* node) {
 void CallPrinter::VisitBinaryOperation(BinaryOperation* node) {
   Print("(");
   Find(node->left(), true);
-  Print(" %s ", Token::String(node->op()));
+  Print(" ");
+  Print(Token::String(node->op()));
+  Print(" ");
   Find(node->right(), true);
   Print(")");
 }
@@ -378,7 +350,9 @@ void CallPrinter::VisitBinaryOperation(BinaryOperation* node) {
 void CallPrinter::VisitCompareOperation(CompareOperation* node) {
   Print("(");
   Find(node->left(), true);
-  Print(" %s ", Token::String(node->op()));
+  Print(" ");
+  Print(Token::String(node->op()));
+  Print(" ");
   Find(node->right(), true);
   Print(")");
 }
@@ -427,32 +401,30 @@ void CallPrinter::FindArguments(ZoneList<Expression*>* arguments) {
   }
 }
 
-
-void CallPrinter::PrintLiteral(Object* value, bool quote) {
-  Object* object = value;
-  if (object->IsString()) {
+void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
+  if (value->IsString()) {
     if (quote) Print("\"");
-    Print("%s", String::cast(object)->ToCString().get());
+    Print(Handle<String>::cast(value));
     if (quote) Print("\"");
-  } else if (object->IsNull(isolate_)) {
+  } else if (value->IsNull(isolate_)) {
     Print("null");
-  } else if (object->IsTrue(isolate_)) {
+  } else if (value->IsTrue(isolate_)) {
     Print("true");
-  } else if (object->IsFalse(isolate_)) {
+  } else if (value->IsFalse(isolate_)) {
     Print("false");
-  } else if (object->IsUndefined(isolate_)) {
+  } else if (value->IsUndefined(isolate_)) {
     Print("undefined");
-  } else if (object->IsNumber()) {
-    Print("%g", object->Number());
-  } else if (object->IsSymbol()) {
+  } else if (value->IsNumber()) {
+    Print(isolate_->factory()->NumberToString(value));
+  } else if (value->IsSymbol()) {
     // Symbols can only occur as literals if they were inserted by the parser.
-    PrintLiteral(Symbol::cast(object)->name(), false);
+    PrintLiteral(handle(Handle<Symbol>::cast(value)->name(), isolate_), false);
   }
 }
 
 
 void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
-  PrintLiteral(*value->string(), quote);
+  PrintLiteral(value->string(), quote);
 }
 
 

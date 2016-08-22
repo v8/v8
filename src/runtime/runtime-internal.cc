@@ -411,10 +411,8 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
             : new ParseInfo(&zone, location.script()));
     if (Parser::ParseStatic(info.get())) {
       CallPrinter printer(isolate, location.function()->shared()->IsBuiltin());
-      const char* string = printer.Print(info->literal(), location.start_pos());
-      if (strlen(string) > 0) {
-        return isolate->factory()->NewStringFromAsciiChecked(string);
-      }
+      Handle<String> str = printer.Print(info->literal(), location.start_pos());
+      if (str->length() > 0) return str;
     } else {
       isolate->clear_pending_exception();
     }
