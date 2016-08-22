@@ -1100,24 +1100,19 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
   Register context = esi;
   Register temp = edx;
 
-  Scope* s = scope();
-  while (s != NULL) {
-    if (s->num_heap_slots() > 0) {
-      if (s->calls_sloppy_eval()) {
-        // Check that extension is "the hole".
-        __ JumpIfNotRoot(ContextOperand(context, Context::EXTENSION_INDEX),
-                         Heap::kTheHoleValueRootIndex, slow);
-      }
-      // Load next context in chain.
-      __ mov(temp, ContextOperand(context, Context::PREVIOUS_INDEX));
-      // Walk the rest of the chain without clobbering esi.
-      context = temp;
+  int to_check = scope()->ContextChainLengthUntilOutermostSloppyEval();
+  for (Scope* s = scope(); to_check > 0; s = s->outer_scope()) {
+    if (!s->NeedsContext()) continue;
+    if (s->calls_sloppy_eval()) {
+      // Check that extension is "the hole".
+      __ JumpIfNotRoot(ContextOperand(context, Context::EXTENSION_INDEX),
+                       Heap::kTheHoleValueRootIndex, slow);
     }
-    // If no outer scope calls eval, we do not need to check more
-    // context extensions.  If we have reached an eval scope, we check
-    // all extensions from this point.
-    if (!s->outer_scope_calls_sloppy_eval()) break;
-    s = s->outer_scope();
+    // Load next context in chain.
+    __ mov(temp, ContextOperand(context, Context::PREVIOUS_INDEX));
+    // Walk the rest of the chain without clobbering esi.
+    context = temp;
+    to_check--;
   }
 
   // All extension objects were empty and it is safe to use a normal global

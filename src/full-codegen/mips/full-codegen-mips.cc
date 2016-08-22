@@ -1179,23 +1179,19 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
   Register next = a1;
   Register temp = a2;
 
-  Scope* s = scope();
-  while (s != NULL) {
-    if (s->num_heap_slots() > 0) {
-      if (s->calls_sloppy_eval()) {
-        // Check that extension is "the hole".
-        __ lw(temp, ContextMemOperand(current, Context::EXTENSION_INDEX));
-        __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
-      }
-      // Load next context in chain.
-      __ lw(next, ContextMemOperand(current, Context::PREVIOUS_INDEX));
-      // Walk the rest of the chain without clobbering cp.
-      current = next;
+  int to_check = scope()->ContextChainLengthUntilOutermostSloppyEval();
+  for (Scope* s = scope(); to_check > 0; s = s->outer_scope()) {
+    if (!s->NeedsContext()) continue;
+    if (s->calls_sloppy_eval()) {
+      // Check that extension is "the hole".
+      __ lw(temp, ContextMemOperand(current, Context::EXTENSION_INDEX));
+      __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
     }
-    // If no outer scope calls eval, we do not need to check more
-    // context extensions.
-    if (!s->outer_scope_calls_sloppy_eval()) break;
-    s = s->outer_scope();
+    // Load next context in chain.
+    __ lw(next, ContextMemOperand(current, Context::PREVIOUS_INDEX));
+    // Walk the rest of the chain without clobbering cp.
+    current = next;
+    to_check--;
   }
 
   // All extension objects were empty and it is safe to use a normal global

@@ -310,9 +310,6 @@ class Scope: public ZoneObject {
   bool calls_sloppy_eval() const {
     return scope_calls_eval_ && is_sloppy(language_mode());
   }
-  bool outer_scope_calls_sloppy_eval() const {
-    return outer_scope_calls_sloppy_eval_;
-  }
   bool IsAsmModule() const;
   bool IsAsmFunction() const;
   // Does this scope access "super" property (super.foo).
@@ -383,7 +380,11 @@ class Scope: public ZoneObject {
   bool AllowsLazyCompilationWithoutContext() const;
 
   // The number of contexts between this and scope; zero if this == scope.
-  int ContextChainLength(Scope* scope);
+  int ContextChainLength(Scope* scope) const;
+
+  // The number of contexts between this and the outermost context that has a
+  // sloppy eval call. One if this->calls_sloppy_eval().
+  int ContextChainLengthUntilOutermostSloppyEval() const;
 
   // The maximum number of nested contexts required for this scope and any inner
   // scopes.
@@ -512,7 +513,6 @@ class Scope: public ZoneObject {
   bool is_debug_evaluate_scope_ : 1;
 
   // Computed via PropagateScopeInfo.
-  bool outer_scope_calls_sloppy_eval_ : 1;
   bool inner_scope_calls_eval_ : 1;
   bool force_eager_compilation_ : 1;
   bool force_context_allocation_ : 1;
@@ -591,7 +591,7 @@ class Scope: public ZoneObject {
                                     VariableProxy* stack = nullptr);
 
   // Scope analysis.
-  void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
+  void PropagateScopeInfo();
 
   // Predicates.
   bool MustAllocate(Variable* var);

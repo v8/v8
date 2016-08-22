@@ -214,7 +214,6 @@ void Scope::SetDefaults() {
   is_hidden_ = false;
   is_debug_evaluate_scope_ = false;
 
-  outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = false;
@@ -297,7 +296,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   }
 
   script_scope->AddInnerScope(current_scope);
-  script_scope->PropagateScopeInfo(false);
+  script_scope->PropagateScopeInfo();
   return (innermost_scope == NULL) ? script_scope : innermost_scope;
 }
 
@@ -864,13 +863,7 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
 void DeclarationScope::AllocateVariables(ParseInfo* info,
                                          AstNodeFactory* factory) {
   // 1) Propagate scope information.
-  bool outer_scope_calls_sloppy_eval = false;
-  if (outer_scope_ != NULL) {
-    outer_scope_calls_sloppy_eval =
-        outer_scope_->outer_scope_calls_sloppy_eval() |
-        outer_scope_->calls_sloppy_eval();
-  }
-  PropagateScopeInfo(outer_scope_calls_sloppy_eval);
+  PropagateScopeInfo();
 
   // 2) Resolve variables.
   ResolveVariablesRecursively(info, factory);
@@ -905,16 +898,27 @@ bool Scope::AllowsLazyCompilationWithoutContext() const {
   return true;
 }
 
-
-int Scope::ContextChainLength(Scope* scope) {
+int Scope::ContextChainLength(Scope* scope) const {
   int n = 0;
-  for (Scope* s = this; s != scope; s = s->outer_scope_) {
+  for (const Scope* s = this; s != scope; s = s->outer_scope_) {
     DCHECK(s != NULL);  // scope must be in the scope chain
     if (s->NeedsContext()) n++;
   }
   return n;
 }
 
+int Scope::ContextChainLengthUntilOutermostSloppyEval() const {
+  int result = 0;
+  int length = 0;
+
+  for (const Scope* s = this; s != nullptr; s = s->outer_scope()) {
+    if (!s->NeedsContext()) continue;
+    length++;
+    if (s->calls_sloppy_eval()) result = length;
+  }
+
+  return result;
+}
 
 int Scope::MaxNestedContextChainLength() {
   int max_context_chain_length = 0;
@@ -976,7 +980,7 @@ Handle<StringSet> DeclarationScope::CollectNonLocals(
 void DeclarationScope::AnalyzePartially(DeclarationScope* migrate_to,
                                         AstNodeFactory* ast_node_factory) {
   // Gather info from inner scopes.
-  PropagateScopeInfo(false);
+  PropagateScopeInfo();
 
   // Try to resolve unresolved variables for this Scope and migrate those which
   // cannot be resolved inside. It doesn't make sense to try to resolve them in
@@ -1154,9 +1158,6 @@ void Scope::Print(int n) {
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (scope_uses_super_property_)
     Indent(n1, "// scope uses 'super' property\n");
-  if (outer_scope_calls_sloppy_eval_) {
-    Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
-  }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
@@ -1464,15 +1465,9 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
   return stack;
 }
 
-void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval) {
-  if (outer_scope_calls_sloppy_eval) {
-    outer_scope_calls_sloppy_eval_ = true;
-  }
-
-  bool calls_sloppy_eval =
-      this->calls_sloppy_eval() || outer_scope_calls_sloppy_eval_;
+void Scope::PropagateScopeInfo() {
   for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
-    inner->PropagateScopeInfo(calls_sloppy_eval);
+    inner->PropagateScopeInfo();
     if (inner->scope_calls_eval_ || inner->inner_scope_calls_eval_) {
       inner_scope_calls_eval_ = true;
     }
