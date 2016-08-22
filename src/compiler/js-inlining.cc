@@ -18,7 +18,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/type-hint-analyzer.h"
 #include "src/isolate-inl.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
 
 namespace v8 {

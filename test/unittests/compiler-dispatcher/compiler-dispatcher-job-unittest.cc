@@ -10,7 +10,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/flags.h"
 #include "src/isolate-inl.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

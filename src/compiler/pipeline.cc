@@ -69,7 +69,7 @@
 #include "src/compiler/zone-pool.h"
 #include "src/isolate-inl.h"
 #include "src/ostreams.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
 #include "src/type-info.h"
 #include "src/utils.h"

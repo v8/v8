@@ -4,12 +4,13 @@
 
 #include <utility>
 
+#include "src/compiler.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

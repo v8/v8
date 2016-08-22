@@ -15,7 +15,7 @@
 #include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen-instructions.h"
 #include "src/globals.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "src/zone.h"
 
 namespace v8 {

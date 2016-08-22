@@ -14,7 +14,7 @@
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/objects.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 
 #include "src/wasm/encoder.h"
 #include "src/wasm/module-decoder.h"

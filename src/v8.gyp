@@ -1054,6 +1054,8 @@
         'parsing/func-name-inferrer.h',
         'parsing/parameter-initializer-rewriter.cc',
         'parsing/parameter-initializer-rewriter.h',
+        'parsing/parse-info.cc',
+        'parsing/parse-info.h',
         'parsing/parser-base.h',
         'parsing/parser.cc',
         'parsing/parser.h',

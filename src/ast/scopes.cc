@@ -9,7 +9,7 @@
 #include "src/accessors.h"
 #include "src/bootstrapper.h"
 #include "src/messages.h"
-#include "src/parsing/parser.h"  // for ParseInfo
+#include "src/parsing/parse-info.h"
 
 namespace v8 {
 namespace internal {

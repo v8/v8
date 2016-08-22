@@ -12,6 +12,7 @@
 #include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/isolate-inl.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/rewriter.h"
 

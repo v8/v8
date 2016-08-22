@@ -33,13 +33,14 @@
 
 #include "src/v8.h"
 
-#include "src/ast/ast.h"
 #include "src/ast/ast-numbering.h"
 #include "src/ast/ast-value-factory.h"
+#include "src/ast/ast.h"
 #include "src/compiler.h"
 #include "src/execution.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparser.h"
 #include "src/parsing/rewriter.h"

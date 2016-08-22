@@ -14,6 +14,7 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/wasm/wasm-module.h"
 

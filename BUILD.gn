@@ -1450,6 +1450,8 @@ v8_source_set("v8_base") {
     "src/parsing/func-name-inferrer.h",
     "src/parsing/parameter-initializer-rewriter.cc",
     "src/parsing/parameter-initializer-rewriter.h",
+    "src/parsing/parse-info.cc",
+    "src/parsing/parse-info.h",
     "src/parsing/parser-base.h",
     "src/parsing/parser.cc",
     "src/parsing/parser.h",
@@ -2082,9 +2084,7 @@ v8_source_set("v8_libbase") {
   defines = []
 
   if (is_posix) {
-    sources += [
-      "src/base/platform/platform-posix.cc",
-    ]
+    sources += [ "src/base/platform/platform-posix.cc" ]
   }
 
   if (is_linux) {

@@ -8,6 +8,7 @@
 #include "src/global-handles.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/unicode-cache.h"

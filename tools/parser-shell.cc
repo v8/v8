@@ -36,11 +36,12 @@
 #include "include/libplatform/libplatform.h"
 #include "src/api.h"
 #include "src/compiler.h"
-#include "src/parsing/scanner-character-streams.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
+#include "src/parsing/scanner-character-streams.h"
 #include "tools/shell-utils.h"
 
 using namespace v8::internal;
