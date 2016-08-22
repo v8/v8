@@ -8,7 +8,6 @@
 #ifndef V8_S390_CODEGEN_S390_H_
 #define V8_S390_CODEGEN_S390_H_
 
-#include "src/ast/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

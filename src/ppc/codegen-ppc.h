@@ -5,7 +5,6 @@
 #ifndef V8_PPC_CODEGEN_PPC_H_
 #define V8_PPC_CODEGEN_PPC_H_
 
-#include "src/ast/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
