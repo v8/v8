@@ -4576,6 +4576,13 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           if (result.IsNothing() || result.FromJust()) return result;
           // Interceptor modified the store target but failed to set the
           // property.
+          // TODO(jochen): Remove after we've identified the faulty interceptor.
+          if (!store_target_map.is_null() &&
+              *store_target_map != it->GetStoreTarget()->map()) {
+            it->isolate()->PushStackTraceAndDie(
+                0xabababaa, v8::ToCData<void*>(it->GetInterceptor()->setter()),
+                nullptr, 0xabababab);
+          }
           Utils::ApiCheck(store_target_map.is_null() ||
                               *store_target_map == it->GetStoreTarget()->map(),
                           it->IsElement() ? "v8::IndexedPropertySetterCallback"
