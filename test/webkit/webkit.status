@@ -119,7 +119,7 @@
 ##############################################################################
 ['arch == arm64 and msan', {
   # Stack size too large with masm on Arm64.
-  'excessive-comma-usage': [SKIP],
+  'fast/js/excessive-comma-usage': [SKIP],
 }],  # arch == arm64 and msan
 
 ##############################################################################
