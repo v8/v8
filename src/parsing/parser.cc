@@ -2018,8 +2018,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // isn't lazily compiled. The extension structures are only
   // accessible while parsing the first time not when reparsing
   // because of lazy compilation.
-  // TODO(adamk): Should this be GetClosureScope()?
-  GetDeclarationScope()->ForceEagerCompilation();
+  GetClosureScope()->ForceEagerCompilation();
 
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
@@ -5020,7 +5019,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   if (extension_ != NULL) {
     // The extension structures are only accessible while parsing the
     // very first time not when reparsing because of lazy compilation.
-    GetDeclarationScope()->ForceEagerCompilation();
+    GetClosureScope()->ForceEagerCompilation();
   }
 
   const Runtime::Function* function = Runtime::FunctionForName(name->string());
