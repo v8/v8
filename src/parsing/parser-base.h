@@ -3460,8 +3460,9 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
     if (peek() == Token::LBRACE) {
       // Multiple statement body
       Consume(Token::LBRACE);
-      bool is_lazily_parsed =
-          (mode() == PARSE_LAZILY && scope()->AllowsLazyParsing());
+      DCHECK_EQ(scope(), formal_parameters.scope);
+      bool is_lazily_parsed = (mode() == PARSE_LAZILY &&
+                               formal_parameters.scope->AllowsLazyParsing());
       if (is_lazily_parsed) {
         body = this->NewStatementList(0, zone());
         this->SkipLazyFunctionBody(&materialized_literal_count,

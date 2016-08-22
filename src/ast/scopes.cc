@@ -135,7 +135,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
   if (scope_type == WITH_SCOPE) {
     DCHECK(scope_info.is_null());
   } else {
-    scope_calls_eval_ = scope_info->CallsEval();
+    if (scope_info->CallsEval()) RecordEvalCall();
     set_language_mode(scope_info->language_mode());
     num_heap_slots_ = scope_info->ContextLength();
   }
@@ -178,6 +178,7 @@ void DeclarationScope::SetDefaults() {
   has_simple_parameters_ = true;
   asm_module_ = false;
   asm_function_ = false;
+  force_eager_compilation_ = false;
   has_arguments_parameter_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -215,7 +216,6 @@ void Scope::SetDefaults() {
   is_debug_evaluate_scope_ = false;
 
   inner_scope_calls_eval_ = false;
-  force_eager_compilation_ = false;
   force_context_allocation_ = false;
 
   is_declaration_scope_ = false;
@@ -877,17 +877,17 @@ bool Scope::AllowsLazyParsing() const {
   // If we are inside a block scope, we must parse eagerly to find out how
   // to allocate variables on the block scope. At this point, declarations may
   // not have yet been parsed.
-  for (const Scope* scope = this; scope != NULL; scope = scope->outer_scope_) {
-    if (scope->is_block_scope()) return false;
+  for (const Scope* s = this; s != nullptr; s = s->outer_scope_) {
+    if (s->is_block_scope()) return false;
   }
-  return AllowsLazyCompilation();
+  return true;
 }
 
+bool DeclarationScope::AllowsLazyCompilation() const {
+  return !force_eager_compilation_;
+}
 
-bool Scope::AllowsLazyCompilation() const { return !force_eager_compilation_; }
-
-
-bool Scope::AllowsLazyCompilationWithoutContext() const {
+bool DeclarationScope::AllowsLazyCompilationWithoutContext() const {
   if (force_eager_compilation_) return false;
   // Disallow lazy compilation without context if any outer scope needs a
   // context.
@@ -1468,12 +1468,6 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
 void Scope::PropagateScopeInfo() {
   for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
     inner->PropagateScopeInfo();
-    if (inner->scope_calls_eval_ || inner->inner_scope_calls_eval_) {
-      inner_scope_calls_eval_ = true;
-    }
-    if (inner->force_eager_compilation_) {
-      force_eager_compilation_ = true;
-    }
     if (IsAsmModule() && inner->is_function_scope()) {
       inner->AsDeclarationScope()->set_asm_function();
     }
@@ -1487,10 +1481,9 @@ bool Scope::MustAllocate(Variable* var) {
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
   if ((var->is_this() || !var->raw_name()->IsEmpty()) &&
-      (scope_calls_eval_ || inner_scope_calls_eval_ || is_catch_scope() ||
-       is_script_scope())) {
+      (inner_scope_calls_eval_ || is_catch_scope() || is_script_scope())) {
     var->set_is_used();
-    if (scope_calls_eval_ || inner_scope_calls_eval_) var->set_maybe_assigned();
+    if (inner_scope_calls_eval_) var->set_maybe_assigned();
   }
   DCHECK(!var->has_forced_context_allocation() || var->is_used());
   // Global variables do not need to be allocated.
@@ -1512,8 +1505,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   if (var->mode() == TEMPORARY) return false;
   if (is_catch_scope()) return true;
   if (is_script_scope() && IsLexicalVariableMode(var->mode())) return true;
-  return var->has_forced_context_allocation() || scope_calls_eval_ ||
-         inner_scope_calls_eval_;
+  return var->has_forced_context_allocation() || inner_scope_calls_eval_;
 }
 
 

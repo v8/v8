@@ -221,8 +221,14 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Scope-specific info.
 
-  // Inform the scope that the corresponding code contains an eval call.
-  void RecordEvalCall() { scope_calls_eval_ = true; }
+  // Inform the scope and outer scopes that the corresponding code contains an
+  // eval call.
+  void RecordEvalCall() {
+    scope_calls_eval_ = true;
+    for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
+      scope->inner_scope_calls_eval_ = true;
+    }
+  }
 
   // Inform the scope that the corresponding code uses "super".
   void RecordSuperPropertyUsage() { scope_uses_super_property_ = true; }
@@ -367,17 +373,8 @@ class Scope: public ZoneObject {
   int ContextLocalCount() const;
   int ContextGlobalCount() const;
 
-  // Make sure this scope and all outer scopes are eagerly compiled.
-  void ForceEagerCompilation()  { force_eager_compilation_ = true; }
-
   // Determine if we can parse a function literal in this scope lazily.
   bool AllowsLazyParsing() const;
-
-  // Determine if we can use lazy compilation for this scope.
-  bool AllowsLazyCompilation() const;
-
-  // Determine if we can use lazy compilation for this scope without a context.
-  bool AllowsLazyCompilationWithoutContext() const;
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope) const;
@@ -510,9 +507,7 @@ class Scope: public ZoneObject {
   // Temporary workaround that allows masking of 'this' in debug-evalute scopes.
   bool is_debug_evaluate_scope_ : 1;
 
-  // Computed via PropagateScopeInfo.
   bool inner_scope_calls_eval_ : 1;
-  bool force_eager_compilation_ : 1;
   bool force_context_allocation_ : 1;
 
   // True if it holds 'var' declarations.
@@ -662,10 +657,9 @@ class DeclarationScope : public Scope {
 
   bool NeedsHomeObject() const {
     return scope_uses_super_property_ ||
-           ((scope_calls_eval_ || inner_scope_calls_eval_) &&
-            (IsConciseMethod(function_kind()) ||
-             IsAccessorFunction(function_kind()) ||
-             IsClassConstructor(function_kind())));
+           (inner_scope_calls_eval_ && (IsConciseMethod(function_kind()) ||
+                                        IsAccessorFunction(function_kind()) ||
+                                        IsClassConstructor(function_kind())));
   }
 
   bool asm_module() const { return asm_module_; }
@@ -832,6 +826,21 @@ class DeclarationScope : public Scope {
   Handle<StringSet> CollectNonLocals(ParseInfo* info,
                                      Handle<StringSet> non_locals);
 
+  // Determine if we can use lazy compilation for this scope.
+  bool AllowsLazyCompilation() const;
+
+  // Determine if we can use lazy compilation for this scope without a context.
+  bool AllowsLazyCompilationWithoutContext() const;
+
+  // Make sure this closure and all outer closures are eagerly compiled.
+  void ForceEagerCompilation() {
+    DCHECK_EQ(this, GetClosureScope());
+    for (DeclarationScope* s = this; !s->is_script_scope();
+         s = s->outer_scope()->GetClosureScope()) {
+      s->force_eager_compilation_ = true;
+    }
+  }
+
 #ifdef DEBUG
   void PrintParameters();
 #endif
@@ -853,6 +862,7 @@ class DeclarationScope : public Scope {
   bool asm_module_ : 1;
   // This scope's outer context is an asm module.
   bool asm_function_ : 1;
+  bool force_eager_compilation_ : 1;
   // This scope has a parameter called "arguments".
   bool has_arguments_parameter_ : 1;
 
