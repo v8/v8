@@ -326,6 +326,7 @@ AsmTyper::VariableInfo* AsmTyper::ImportLookup(Property* import) {
   if (i == stdlib->end()) {
     return nullptr;
   }
+  stdlib_uses_.insert(i->second->standard_member());
   return i->second;
 }
 
@@ -429,7 +430,6 @@ AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(Variable* var) {
     return kNone;
   }
   StandardMember member = var_info->standard_member();
-  stdlib_uses_.insert(member);
   return member;
 }
 

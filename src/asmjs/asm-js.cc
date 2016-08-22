@@ -53,8 +53,28 @@ i::MaybeHandle<i::FixedArray> CompileModule(
   return compiled_module;
 }
 
+Handle<i::Object> StdlibMathMember(i::Isolate* isolate,
+                                   Handle<JSReceiver> stdlib,
+                                   Handle<Name> name) {
+  Handle<i::Name> math_name(
+      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("Math")));
+  MaybeHandle<i::Object> maybe_math = i::Object::GetProperty(stdlib, math_name);
+  if (maybe_math.is_null()) {
+    return Handle<i::Object>();
+  }
+  Handle<i::Object> math = maybe_math.ToHandleChecked();
+  if (!math->IsJSReceiver()) {
+    return Handle<i::Object>();
+  }
+  MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(math, name);
+  if (maybe_value.is_null()) {
+    return Handle<i::Object>();
+  }
+  return maybe_value.ToHandleChecked();
+}
+
 bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
-                         i::Handle<i::Object> member_id) {
+                         Handle<i::Object> member_id) {
   int32_t member_kind;
   if (!member_id->ToInt32(&member_kind)) {
     UNREACHABLE();
@@ -62,56 +82,81 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
   switch (member_kind) {
     case wasm::AsmTyper::StandardMember::kNone:
     case wasm::AsmTyper::StandardMember::kModule:
-    case wasm::AsmTyper::StandardMember::kStdlib: {
+    case wasm::AsmTyper::StandardMember::kStdlib:
+    case wasm::AsmTyper::StandardMember::kHeap:
+    case wasm::AsmTyper::StandardMember::kFFI: {
       // Nothing to check for these.
       return true;
     }
-    case wasm::AsmTyper::StandardMember::kNaN: {
-      i::Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("NaN")));
-      i::MaybeHandle<i::Object> maybe_value =
-          i::Object::GetProperty(stdlib, name);
+    case wasm::AsmTyper::StandardMember::kInfinity: {
+      Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
+          STATIC_CHAR_VECTOR("Infinity")));
+      MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(stdlib, name);
       if (maybe_value.is_null()) {
         return false;
       }
-      i::Handle<i::Object> value = maybe_value.ToHandleChecked();
-      if (!value->IsNaN()) {
+      Handle<i::Object> value = maybe_value.ToHandleChecked();
+      return value->IsNumber() && std::isinf(value->Number());
+    }
+    case wasm::AsmTyper::StandardMember::kNaN: {
+      Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
+          STATIC_CHAR_VECTOR("NaN")));
+      MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(stdlib, name);
+      if (maybe_value.is_null()) {
         return false;
       }
-      return true;
+      Handle<i::Object> value = maybe_value.ToHandleChecked();
+      return value->IsNaN();
     }
-    case wasm::AsmTyper::StandardMember::kHeap:
-    case wasm::AsmTyper::StandardMember::kFFI:
-    case wasm::AsmTyper::StandardMember::kInfinity:
-    case wasm::AsmTyper::StandardMember::kMathAcos:
-    case wasm::AsmTyper::StandardMember::kMathAsin:
-    case wasm::AsmTyper::StandardMember::kMathAtan:
-    case wasm::AsmTyper::StandardMember::kMathCos:
-    case wasm::AsmTyper::StandardMember::kMathSin:
-    case wasm::AsmTyper::StandardMember::kMathTan:
-    case wasm::AsmTyper::StandardMember::kMathExp:
-    case wasm::AsmTyper::StandardMember::kMathLog:
-    case wasm::AsmTyper::StandardMember::kMathCeil:
-    case wasm::AsmTyper::StandardMember::kMathFloor:
-    case wasm::AsmTyper::StandardMember::kMathSqrt:
-    case wasm::AsmTyper::StandardMember::kMathAbs:
-    case wasm::AsmTyper::StandardMember::kMathClz32:
-    case wasm::AsmTyper::StandardMember::kMathMin:
-    case wasm::AsmTyper::StandardMember::kMathMax:
-    case wasm::AsmTyper::StandardMember::kMathAtan2:
-    case wasm::AsmTyper::StandardMember::kMathPow:
-    case wasm::AsmTyper::StandardMember::kMathImul:
-    case wasm::AsmTyper::StandardMember::kMathFround:
-    case wasm::AsmTyper::StandardMember::kMathE:
-    case wasm::AsmTyper::StandardMember::kMathLN10:
-    case wasm::AsmTyper::StandardMember::kMathLN2:
-    case wasm::AsmTyper::StandardMember::kMathLOG2E:
-    case wasm::AsmTyper::StandardMember::kMathLOG10E:
-    case wasm::AsmTyper::StandardMember::kMathPI:
-    case wasm::AsmTyper::StandardMember::kMathSQRT1_2:
-    case wasm::AsmTyper::StandardMember::kMathSQRT2:
-      // TODO(bradnelson) Actually check these.
-      return true;
+#define STDLIB_MATH_FUNC(CamelName, fname)                             \
+  case wasm::AsmTyper::StandardMember::k##CamelName: {                 \
+    Handle<i::Name> name(isolate->factory()->InternalizeOneByteString( \
+        STATIC_CHAR_VECTOR(#fname)));                                  \
+    Handle<i::Object> value = StdlibMathMember(isolate, stdlib, name); \
+    if (value.is_null() || !value->IsJSFunction()) {                   \
+      return false;                                                    \
+    }                                                                  \
+    Handle<i::JSFunction> func(i::JSFunction::cast(*value));           \
+    return func->shared()->code() ==                                   \
+           isolate->builtins()->builtin(Builtins::k##CamelName);       \
+  }
+      STDLIB_MATH_FUNC(MathAcos, acos)
+      STDLIB_MATH_FUNC(MathAsin, asin)
+      STDLIB_MATH_FUNC(MathAtan, atan)
+      STDLIB_MATH_FUNC(MathCos, cos)
+      STDLIB_MATH_FUNC(MathSin, sin)
+      STDLIB_MATH_FUNC(MathTan, tan)
+      STDLIB_MATH_FUNC(MathExp, exp)
+      STDLIB_MATH_FUNC(MathLog, log)
+      STDLIB_MATH_FUNC(MathCeil, ceil)
+      STDLIB_MATH_FUNC(MathFloor, floor)
+      STDLIB_MATH_FUNC(MathSqrt, sqrt)
+      STDLIB_MATH_FUNC(MathAbs, abs)
+      STDLIB_MATH_FUNC(MathClz32, clz32)
+      STDLIB_MATH_FUNC(MathMin, min)
+      STDLIB_MATH_FUNC(MathMax, max)
+      STDLIB_MATH_FUNC(MathAtan2, atan2)
+      STDLIB_MATH_FUNC(MathPow, pow)
+      STDLIB_MATH_FUNC(MathImul, imul)
+      STDLIB_MATH_FUNC(MathFround, fround)
+#undef STDLIB_MATH_FUNC
+#define STDLIB_MATH_CONST(cname, const_value)                             \
+  case wasm::AsmTyper::StandardMember::kMath##cname: {                    \
+    i::Handle<i::Name> name(isolate->factory()->InternalizeOneByteString( \
+        STATIC_CHAR_VECTOR(#cname)));                                     \
+    i::Handle<i::Object> value = StdlibMathMember(isolate, stdlib, name); \
+    return !value.is_null() && value->IsNumber() &&                       \
+           value->Number() == const_value;                                \
+  }
+      STDLIB_MATH_CONST(E, 2.718281828459045)
+      STDLIB_MATH_CONST(LN10, 2.302585092994046)
+      STDLIB_MATH_CONST(LN2, 0.6931471805599453)
+      STDLIB_MATH_CONST(LOG2E, 1.4426950408889634)
+      STDLIB_MATH_CONST(LOG10E, 0.4342944819032518)
+      STDLIB_MATH_CONST(PI, 3.141592653589793)
+      STDLIB_MATH_CONST(SQRT1_2, 0.7071067811865476)
+      STDLIB_MATH_CONST(SQRT2, 1.4142135623730951)
+#undef STDLIB_MATH_CONST
     default: { UNREACHABLE(); }
   }
   return false;
