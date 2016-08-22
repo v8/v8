@@ -1277,6 +1277,9 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
     DCHECK(!isolate->has_pending_exception());
     if (function->shared()->is_compiled()) {
       code = handle(function->shared()->code(), isolate);
+    } else if (function->shared()->HasBytecodeArray()) {
+      code = isolate->builtins()->InterpreterEntryTrampoline();
+      function->shared()->ReplaceCode(*code);
     } else {
       Zone zone(isolate->allocator());
       ParseInfo parse_info(&zone, function);
