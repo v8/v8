@@ -178,6 +178,7 @@ void DeclarationScope::SetDefaults() {
   has_simple_parameters_ = true;
   asm_module_ = false;
   asm_function_ = false;
+  has_arguments_parameter_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
   function_ = nullptr;
@@ -209,7 +210,6 @@ void Scope::SetDefaults() {
 
   scope_calls_eval_ = false;
   scope_uses_super_property_ = false;
-  has_arguments_parameter_ = false;
   scope_nonlinear_ = false;
   is_hidden_ = false;
   is_debug_evaluate_scope_ = false;

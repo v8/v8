@@ -504,8 +504,6 @@ class Scope: public ZoneObject {
   bool scope_calls_eval_ : 1;
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_ : 1;
-  // This scope has a parameter called "arguments".
-  bool has_arguments_parameter_ : 1;
   // This scope's declarations might not be executed in order (e.g., switch).
   bool scope_nonlinear_ : 1;
   bool is_hidden_ : 1;
@@ -855,6 +853,8 @@ class DeclarationScope : public Scope {
   bool asm_module_ : 1;
   // This scope's outer context is an asm module.
   bool asm_function_ : 1;
+  // This scope has a parameter called "arguments".
+  bool has_arguments_parameter_ : 1;
 
   // Info about the parameter list of a function.
   int arity_;
