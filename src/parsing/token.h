@@ -200,7 +200,7 @@ class Token {
   }
 
   static bool IsIdentifier(Value tok, LanguageMode language_mode,
-                           bool is_generator, bool is_module) {
+                           bool is_generator, bool disallow_await) {
     switch (tok) {
       case IDENTIFIER:
       case ASYNC:
@@ -213,7 +213,7 @@ class Token {
       case YIELD:
         return !is_generator && is_sloppy(language_mode);
       case AWAIT:
-        return !is_module;
+        return !disallow_await;
       default:
         return false;
     }

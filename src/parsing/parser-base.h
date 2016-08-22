@@ -1051,17 +1051,16 @@ class ParserBase : public Traits {
   IdentifierT ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
                                          bool* ok);
   // Parses an identifier or a strict mode future reserved word, and indicate
-  // whether it is strict mode future reserved. Allows passing in is_generator
+  // whether it is strict mode future reserved. Allows passing in function_kind
   // for the case of parsing the identifier in a function expression, where the
-  // relevant "is_generator" bit is of the function being parsed, not the
-  // containing
-  // function.
-  IdentifierT ParseIdentifierOrStrictReservedWord(bool is_generator,
+  // relevant "function_kind" bit is of the function being parsed, not the
+  // containing function.
+  IdentifierT ParseIdentifierOrStrictReservedWord(FunctionKind function_kind,
                                                   bool* is_strict_reserved,
                                                   bool* ok);
   IdentifierT ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
                                                   bool* ok) {
-    return ParseIdentifierOrStrictReservedWord(this->is_generator(),
+    return ParseIdentifierOrStrictReservedWord(function_state_->kind(),
                                                is_strict_reserved, ok);
   }
 
@@ -1081,7 +1080,7 @@ class ParserBase : public Traits {
                               bool* ok);
   ExpressionT ParseArrayLiteral(ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParsePropertyName(IdentifierT* name, bool* is_get, bool* is_set,
-                                bool* is_await, bool* is_computed_name,
+                                bool* is_computed_name,
                                 ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseObjectLiteral(ExpressionClassifier* classifier, bool* ok);
   ObjectLiteralPropertyT ParsePropertyDefinition(
@@ -1414,7 +1413,7 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
                                                bool* ok) {
   Token::Value next = Next();
   if (next == Token::IDENTIFIER || next == Token::ASYNC ||
-      (next == Token::AWAIT && !parsing_module_)) {
+      (next == Token::AWAIT && !parsing_module_ && !is_async_function())) {
     IdentifierT name = this->GetSymbol(scanner());
     // When this function is used to read a formal parameter, we don't always
     // know whether the function is going to be strict or sloppy.  Indeed for
@@ -1422,27 +1421,14 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
     // is actually a formal parameter.  Therefore besides the errors that we
     // must detect because we know we're in strict mode, we also record any
     // error that we might make in the future once we know the language mode.
-    if (this->IsEval(name)) {
+    if (this->IsEvalOrArguments(name)) {
       classifier->RecordStrictModeFormalParameterError(
           scanner()->location(), MessageTemplate::kStrictEvalArguments);
       if (is_strict(language_mode())) {
         classifier->RecordBindingPatternError(
             scanner()->location(), MessageTemplate::kStrictEvalArguments);
       }
-    }
-    if (this->IsArguments(name)) {
-      classifier->RecordStrictModeFormalParameterError(
-          scanner()->location(), MessageTemplate::kStrictEvalArguments);
-      if (is_strict(language_mode())) {
-        classifier->RecordBindingPatternError(
-            scanner()->location(), MessageTemplate::kStrictEvalArguments);
-      }
-    }
-    if (this->IsAwait(name)) {
-      if (is_async_function()) {
-        classifier->RecordPatternError(
-            scanner()->location(), MessageTemplate::kAwaitBindingIdentifier);
-      }
+    } else if (next == Token::AWAIT) {
       classifier->RecordAsyncArrowFormalParametersError(
           scanner()->location(), MessageTemplate::kAwaitBindingIdentifier);
     }
@@ -1479,17 +1465,18 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
   }
 }
 
-
 template <class Traits>
 typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseIdentifierOrStrictReservedWord(
-    bool is_generator, bool* is_strict_reserved, bool* ok) {
+    FunctionKind function_kind, bool* is_strict_reserved, bool* ok) {
   Token::Value next = Next();
-  if (next == Token::IDENTIFIER || (next == Token::AWAIT && !parsing_module_) ||
+  if (next == Token::IDENTIFIER || (next == Token::AWAIT && !parsing_module_ &&
+                                    !IsAsyncFunction(function_kind)) ||
       next == Token::ASYNC) {
     *is_strict_reserved = false;
   } else if (next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
-             next == Token::STATIC || (next == Token::YIELD && !is_generator)) {
+             next == Token::STATIC ||
+             (next == Token::YIELD && !IsGeneratorFunction(function_kind))) {
     *is_strict_reserved = true;
   } else {
     ReportUnexpectedToken(next);
@@ -1879,8 +1866,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
-    IdentifierT* name, bool* is_get, bool* is_set, bool* is_await,
-    bool* is_computed_name, ExpressionClassifier* classifier, bool* ok) {
+    IdentifierT* name, bool* is_get, bool* is_set, bool* is_computed_name,
+    ExpressionClassifier* classifier, bool* ok) {
   Token::Value token = peek();
   int pos = peek_position();
 
@@ -1925,9 +1912,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
     default:
       *name = ParseIdentifierName(CHECK_OK);
       scanner()->IsGetOrSet(is_get, is_set);
-      if (this->IsAwait(*name)) {
-        *is_await = true;
-      }
       break;
   }
 
@@ -1947,7 +1931,6 @@ ParserBase<Traits>::ParsePropertyDefinition(
          has_seen_constructor != nullptr);
   bool is_get = false;
   bool is_set = false;
-  bool is_await = false;
   bool is_generator = Check(Token::MUL);
   bool is_async = false;
   const bool is_static = IsStaticMethod(method_kind);
@@ -1964,9 +1947,9 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
   int next_beg_pos = scanner()->peek_location().beg_pos;
   int next_end_pos = scanner()->peek_location().end_pos;
-  ExpressionT name_expression = ParsePropertyName(
-      name, &is_get, &is_set, &is_await, is_computed_name, classifier,
-      CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+  ExpressionT name_expression =
+      ParsePropertyName(name, &is_get, &is_set, is_computed_name, classifier,
+                        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   if (fni_ != nullptr && !*is_computed_name) {
     this->PushLiteralName(fni_, *name);
@@ -1994,7 +1977,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     }
 
     if (Token::IsIdentifier(name_token, language_mode(), this->is_generator(),
-                            parsing_module_) &&
+                            parsing_module_ || is_async_function()) &&
         (peek() == Token::COMMA || peek() == Token::RBRACE ||
          peek() == Token::ASSIGN)) {
       // PropertyDefinition
@@ -2017,16 +2000,11 @@ ParserBase<Traits>::ParsePropertyDefinition(
         classifier->RecordLetPatternError(
             scanner()->location(), MessageTemplate::kLetInLexicalBinding);
       }
-      if (is_await) {
-        if (is_async_function()) {
-          classifier->RecordPatternError(
-              Scanner::Location(next_beg_pos, next_end_pos),
-              MessageTemplate::kAwaitBindingIdentifier);
-        } else {
-          classifier->RecordAsyncArrowFormalParametersError(
-              Scanner::Location(next_beg_pos, next_end_pos),
-              MessageTemplate::kAwaitBindingIdentifier);
-        }
+      if (name_token == Token::AWAIT) {
+        DCHECK(!is_async_function());
+        classifier->RecordAsyncArrowFormalParametersError(
+            Scanner::Location(next_beg_pos, next_end_pos),
+            MessageTemplate::kAwaitBindingIdentifier);
       }
       ExpressionT lhs =
           this->ExpressionFromIdentifier(*name, next_beg_pos, next_end_pos);
@@ -2069,7 +2047,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     DCHECK(!is_set);
     bool dont_care;
     name_expression = ParsePropertyName(
-        name, &dont_care, &dont_care, &dont_care, is_computed_name, classifier,
+        name, &dont_care, &dont_care, is_computed_name, classifier,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     method_kind |= MethodKind::kAsync;
   }
@@ -2126,7 +2104,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     name_token = peek();
 
     name_expression = ParsePropertyName(
-        name, &dont_care, &dont_care, &dont_care, is_computed_name, classifier,
+        name, &dont_care, &dont_care, is_computed_name, classifier,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     if (!*is_computed_name) {
@@ -3103,7 +3081,9 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
       return this->FunctionSentExpression(factory(), pos);
     }
 
-    bool is_generator = Check(Token::MUL);
+    FunctionKind function_kind = Check(Token::MUL)
+                                     ? FunctionKind::kGeneratorFunction
+                                     : FunctionKind::kNormalFunction;
     IdentifierT name = this->EmptyIdentifier();
     bool is_strict_reserved_name = false;
     Scanner::Location function_name_location = Scanner::Location::invalid();
@@ -3111,7 +3091,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
         FunctionLiteral::kAnonymousExpression;
     if (peek_any_identifier()) {
       name = ParseIdentifierOrStrictReservedWord(
-          is_generator, &is_strict_reserved_name, CHECK_OK);
+          function_kind, &is_strict_reserved_name, CHECK_OK);
       function_name_location = scanner()->location();
       function_type = FunctionLiteral::kNamedExpression;
     }
@@ -3119,9 +3099,8 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
         name, function_name_location,
         is_strict_reserved_name ? kFunctionNameIsStrictReserved
                                 : kFunctionNameValidityUnknown,
-        is_generator ? FunctionKind::kGeneratorFunction
-                     : FunctionKind::kNormalFunction,
-        function_token_position, function_type, language_mode(), CHECK_OK);
+        function_kind, function_token_position, function_type, language_mode(),
+        CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
     result = ParseSuperExpression(is_new, CHECK_OK);

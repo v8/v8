@@ -177,7 +177,6 @@ class ParserTraits {
   bool IsArguments(const AstRawString* identifier) const;
   bool IsEvalOrArguments(const AstRawString* identifier) const;
   bool IsUndefined(const AstRawString* identifier) const;
-  bool IsAwait(const AstRawString* identifier) const;
   V8_INLINE bool IsFutureStrictReserved(const AstRawString* identifier) const;
 
   // Returns true if the expression is of type "this.foo".

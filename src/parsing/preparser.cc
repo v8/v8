@@ -404,13 +404,6 @@ PreParser::Statement PreParser::ParseHoistableDeclaration(
   Identifier name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
 
-  if (V8_UNLIKELY(is_async_function() && this->IsAwait(name))) {
-    ReportMessageAt(scanner()->location(),
-                    MessageTemplate::kAwaitBindingIdentifier);
-    *ok = false;
-    return Statement::Default();
-  }
-
   ParseFunctionLiteral(name, scanner()->location(),
                        is_strict_reserved ? kFunctionNameIsStrictReserved
                                           : kFunctionNameValidityUnknown,
@@ -1163,13 +1156,8 @@ PreParser::Expression PreParser::ParseAsyncFunctionExpression(bool* ok) {
 
   if (peek_any_identifier()) {
     type = FunctionLiteral::kNamedExpression;
-    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-    if (this->IsAwait(name)) {
-      ReportMessageAt(scanner()->location(),
-                      MessageTemplate::kAwaitBindingIdentifier);
-      *ok = false;
-      return Expression::Default();
-    }
+    name = ParseIdentifierOrStrictReservedWord(FunctionKind::kAsyncFunction,
+                                               &is_strict_reserved, CHECK_OK);
   }
 
   ParseFunctionLiteral(name, scanner()->location(),

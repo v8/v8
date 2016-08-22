@@ -313,10 +313,6 @@ bool ParserTraits::IsUndefined(const AstRawString* identifier) const {
   return identifier == parser_->ast_value_factory()->undefined_string();
 }
 
-bool ParserTraits::IsAwait(const AstRawString* identifier) const {
-  return identifier == parser_->ast_value_factory()->await_string();
-}
-
 bool ParserTraits::IsPrototype(const AstRawString* identifier) const {
   return identifier == parser_->ast_value_factory()->prototype_string();
 }
@@ -2088,13 +2084,6 @@ Statement* Parser::ParseHoistableDeclaration(
     name_validity = is_strict_reserved ? kFunctionNameIsStrictReserved
                                        : kFunctionNameValidityUnknown;
     variable_name = name;
-  }
-
-  if (V8_UNLIKELY(is_async_function() && this->IsAwait(name))) {
-    ReportMessageAt(scanner()->location(),
-                    MessageTemplate::kAwaitBindingIdentifier);
-    *ok = false;
-    return nullptr;
   }
 
   FuncNameInferrer::State fni_state(fni_);
@@ -4401,13 +4390,8 @@ Expression* Parser::ParseAsyncFunctionExpression(bool* ok) {
 
   if (peek_any_identifier()) {
     type = FunctionLiteral::kNamedExpression;
-    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-    if (this->IsAwait(name)) {
-      ReportMessageAt(scanner()->location(),
-                      MessageTemplate::kAwaitBindingIdentifier);
-      *ok = false;
-      return nullptr;
-    }
+    name = ParseIdentifierOrStrictReservedWord(FunctionKind::kAsyncFunction,
+                                               &is_strict_reserved, CHECK_OK);
   }
   return ParseFunctionLiteral(name, scanner()->location(),
                               is_strict_reserved ? kFunctionNameIsStrictReserved

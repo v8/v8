@@ -7865,6 +7865,8 @@ TEST(AsyncAwaitErrors) {
     "var f = async() => await;",
     "var f = async() => { await; };",
 
+    "async function f() { return {await} }",
+
     "var asyncFn = async function*() {}",
     "async function* f() {}",
     "var O = { *async method() {} };",
