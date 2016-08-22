@@ -1598,7 +1598,10 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
 
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
-    if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
+    if (is_builtin && Builtins::HasCppImplementation(builtin_index) &&
+        (shared->internal_formal_parameter_count() == arity ||
+         shared->internal_formal_parameter_count() ==
+             SharedFunctionInfo::kDontAdaptArgumentsSentinel)) {
       // Patch {node} to a direct CEntryStub call.
 
       // Load the context from the {target}.
@@ -1710,7 +1713,10 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
 
     Node* new_target = jsgraph()->UndefinedConstant();
     Node* argument_count = jsgraph()->Int32Constant(arity);
-    if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
+    if (is_builtin && Builtins::HasCppImplementation(builtin_index) &&
+        (shared->internal_formal_parameter_count() == arity ||
+         shared->internal_formal_parameter_count() ==
+             SharedFunctionInfo::kDontAdaptArgumentsSentinel)) {
       // Patch {node} to a direct CEntryStub call.
       ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
     } else if (shared->internal_formal_parameter_count() == arity ||
