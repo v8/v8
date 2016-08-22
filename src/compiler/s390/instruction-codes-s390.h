@@ -78,7 +78,9 @@ namespace compiler {
   V(S390_CeilDouble)               \
   V(S390_TruncateDouble)           \
   V(S390_RoundDouble)              \
+  V(S390_MaxFloat)                 \
   V(S390_MaxDouble)                \
+  V(S390_MinFloat)                 \
   V(S390_MinDouble)                \
   V(S390_AbsDouble)                \
   V(S390_Cntlz32)                  \
