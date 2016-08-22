@@ -1226,7 +1226,11 @@ Object* Isolate::UnwindAndFindHandler() {
 
         // Gather information from the frame.
         code = frame->LookupCode();
-        if (code->marked_for_deoptimization()) {
+
+        // TODO(bmeurer): Turbofanned BUILTIN frames appear as OPTIMIZED, but
+        // do not have a code kind of OPTIMIZED_FUNCTION.
+        if (code->kind() == Code::OPTIMIZED_FUNCTION &&
+            code->marked_for_deoptimization()) {
           // If the target code is lazy deoptimized, we jump to the original
           // return address, but we make a note that we are throwing, so that
           // the deoptimizer can do the right thing.

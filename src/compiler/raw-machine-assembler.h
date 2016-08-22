@@ -764,6 +764,11 @@ class RawMachineAssembler {
   void DebugBreak();
   void Comment(const char* msg);
 
+  // Add success / exception successor blocks and ends the current block ending
+  // in a potentially throwing call node.
+  void Continuations(Node* call, RawMachineLabel* if_success,
+                     RawMachineLabel* if_exception);
+
   // Variables.
   Node* Phi(MachineRepresentation rep, Node* n1, Node* n2) {
     return AddNode(common()->Phi(rep, 2), n1, n2, graph()->start());

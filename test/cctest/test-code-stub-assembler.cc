@@ -1340,5 +1340,138 @@ TEST(TryProbeStubCache) {
   CHECK(queried_existing && queried_non_existing);
 }
 
+TEST(GotoIfException) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeStubAssemblerTester m(isolate, kNumParams);
+
+  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
+  Node* to_string_tag =
+      m.HeapConstant(isolate->factory()->to_string_tag_symbol());
+  Variable exception(&m, MachineRepresentation::kTagged);
+
+  Label exception_handler(&m);
+  Callable to_string = CodeFactory::ToString(isolate);
+  Node* string = m.CallStub(to_string, context, to_string_tag);
+  m.GotoIfException(string, &exception_handler, &exception);
+  m.Return(string);
+
+  m.Bind(&exception_handler);
+  m.Return(exception.value());
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  // Emulate TFJ builtin
+  code->set_flags(Code::ComputeFlags(Code::BUILTIN));
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result = ft.Call().ToHandleChecked();
+
+  // Should be a TypeError
+  CHECK(result->IsJSObject());
+
+  Handle<Object> constructor =
+      Object::GetPropertyOrElement(result,
+                                   isolate->factory()->constructor_string())
+          .ToHandleChecked();
+  CHECK(constructor->SameValue(*isolate->type_error_function()));
+}
+
+TEST(GotoIfExceptionMultiple) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 4;  // receiver, first, second, third
+  CodeStubAssemblerTester m(isolate, kNumParams);
+
+  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
+  Node* first_value = m.Parameter(0);
+  Node* second_value = m.Parameter(1);
+  Node* third_value = m.Parameter(2);
+
+  Label exception_handler1(&m);
+  Label exception_handler2(&m);
+  Label exception_handler3(&m);
+  Variable return_value(&m, MachineRepresentation::kWord32);
+  Variable error(&m, MachineRepresentation::kTagged);
+
+  return_value.Bind(m.Int32Constant(0));
+
+  // try { return ToString(param1) } catch (e) { ... }
+  Callable to_string = CodeFactory::ToString(isolate);
+  Node* string = m.CallStub(to_string, context, first_value);
+  m.GotoIfException(string, &exception_handler1, &error);
+  m.Return(string);
+
+  // try { ToString(param2); return 7 } catch (e) { ... }
+  m.Bind(&exception_handler1);
+  return_value.Bind(m.Int32Constant(7));
+  error.Bind(m.UndefinedConstant());
+  string = m.CallStub(to_string, context, second_value);
+  m.GotoIfException(string, &exception_handler2, &error);
+  m.Return(m.SmiFromWord32(return_value.value()));
+
+  // try { ToString(param3); return 7 & ~2; } catch (e) { return e; }
+  m.Bind(&exception_handler2);
+  // Return returnValue & ~2
+  error.Bind(m.UndefinedConstant());
+  string = m.CallStub(to_string, context, third_value);
+  m.GotoIfException(string, &exception_handler3, &error);
+  m.Return(m.SmiFromWord32(
+      m.Word32And(return_value.value(),
+                  m.Word32Xor(m.Int32Constant(2), m.Int32Constant(-1)))));
+
+  m.Bind(&exception_handler3);
+  m.Return(error.value());
+
+  Handle<Code> code = m.GenerateCode();
+  CHECK(!code.is_null());
+
+  // Emulate TFJ builtin
+  code->set_flags(Code::ComputeFlags(Code::BUILTIN));
+
+  FunctionTester ft(code, kNumParams);
+
+  Handle<Object> result;
+  // First handler does not throw, returns result of first value
+  result = ft.Call(isolate->factory()->undefined_value(),
+                   isolate->factory()->to_string_tag_symbol())
+               .ToHandleChecked();
+  CHECK(String::cast(*result)->IsOneByteEqualTo(OneByteVector("undefined")));
+
+  // First handler returns a number
+  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
+                   isolate->factory()->undefined_value())
+               .ToHandleChecked();
+  CHECK_EQ(7, Smi::cast(*result)->value());
+
+  // First handler throws, second handler returns a number
+  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
+                   isolate->factory()->to_primitive_symbol())
+               .ToHandleChecked();
+  CHECK_EQ(7 & ~2, Smi::cast(*result)->value());
+
+  // First handler throws, second handler throws, third handler returns thrown
+  // value.
+  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
+                   isolate->factory()->to_primitive_symbol(),
+                   isolate->factory()->unscopables_symbol())
+               .ToHandleChecked();
+
+  // Should be a TypeError
+  CHECK(result->IsJSObject());
+
+  Handle<Object> constructor =
+      Object::GetPropertyOrElement(result,
+                                   isolate->factory()->constructor_string())
+          .ToHandleChecked();
+  CHECK(constructor->SameValue(*isolate->type_error_function()));
+}
+
 }  // namespace internal
 }  // namespace v8

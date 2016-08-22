@@ -312,6 +312,26 @@ void CodeAssembler::BranchIf(Node* condition, Label* if_true, Label* if_false) {
   Goto(if_false);
 }
 
+void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
+                                    Variable* exception_var) {
+  Label success(this), exception(this, Label::kDeferred);
+  success.MergeVariables();
+  exception.MergeVariables();
+  DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
+
+  raw_assembler_->Continuations(node, success.label_, exception.label_);
+
+  Bind(&exception);
+  const Operator* op = raw_assembler_->common()->IfException();
+  Node* exception_value = raw_assembler_->AddNode(op, node, node);
+  if (exception_var != nullptr) {
+    exception_var->Bind(exception_value);
+  }
+  Goto(if_exception);
+
+  Bind(&success);
+}
+
 Node* CodeAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
                            Node** args) {
   CallPrologue();

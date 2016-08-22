@@ -85,6 +85,14 @@ void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
   current_block_ = nullptr;
 }
 
+void RawMachineAssembler::Continuations(Node* call, RawMachineLabel* if_success,
+                                        RawMachineLabel* if_exception) {
+  DCHECK_NOT_NULL(schedule_);
+  DCHECK_NOT_NULL(current_block_);
+  schedule()->AddCall(CurrentBlock(), call, Use(if_success), Use(if_exception));
+  current_block_ = nullptr;
+}
+
 void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
                                  const int32_t* case_values,
                                  RawMachineLabel** case_labels,
