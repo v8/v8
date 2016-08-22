@@ -1150,32 +1150,9 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
       context = temp;
     }
     // If no outer scope calls eval, we do not need to check more
-    // context extensions.  If we have reached an eval scope, we check
-    // all extensions from this point.
-    if (!s->outer_scope_calls_sloppy_eval() || s->is_eval_scope()) break;
+    // context extensions.
+    if (!s->outer_scope_calls_sloppy_eval()) break;
     s = s->outer_scope();
-  }
-
-  if (s != NULL && s->is_eval_scope()) {
-    // Loop up the context chain.  There is no frame effect so it is
-    // safe to use raw labels here.
-    Label next, fast;
-    if (!context.is(temp)) {
-      __ movp(temp, context);
-    }
-    // Load map for comparison into register, outside loop.
-    __ LoadRoot(kScratchRegister, Heap::kNativeContextMapRootIndex);
-    __ bind(&next);
-    // Terminate at native context.
-    __ cmpp(kScratchRegister, FieldOperand(temp, HeapObject::kMapOffset));
-    __ j(equal, &fast, Label::kNear);
-    // Check that extension is "the hole".
-    __ JumpIfNotRoot(ContextOperand(temp, Context::EXTENSION_INDEX),
-                     Heap::kTheHoleValueRootIndex, slow);
-    // Load next context in chain.
-    __ movp(temp, ContextOperand(temp, Context::PREVIOUS_INDEX));
-    __ jmp(&next);
-    __ bind(&fast);
   }
 
   // All extension objects were empty and it is safe to use a normal global

@@ -1199,28 +1199,8 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
     }
     // If no outer scope calls eval, we do not need to check more
     // context extensions.
-    if (!s->outer_scope_calls_sloppy_eval() || s->is_eval_scope()) break;
+    if (!s->outer_scope_calls_sloppy_eval()) break;
     s = s->outer_scope();
-  }
-
-  if (s->is_eval_scope()) {
-    Label loop, fast;
-    if (!current.is(next)) {
-      __ Move(next, current);
-    }
-    __ bind(&loop);
-    // Terminate at native context.
-    __ ldr(temp, FieldMemOperand(next, HeapObject::kMapOffset));
-    __ LoadRoot(ip, Heap::kNativeContextMapRootIndex);
-    __ cmp(temp, ip);
-    __ b(eq, &fast);
-    // Check that extension is "the hole".
-    __ ldr(temp, ContextMemOperand(next, Context::EXTENSION_INDEX));
-    __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
-    // Load next context in chain.
-    __ ldr(next, ContextMemOperand(next, Context::PREVIOUS_INDEX));
-    __ b(&loop);
-    __ bind(&fast);
   }
 
   // All extension objects were empty and it is safe to use a normal global

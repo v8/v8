@@ -3084,15 +3084,10 @@ const uint32_t kFullCheckRequired = -1;
 
 uint32_t AstGraphBuilder::ComputeBitsetForDynamicGlobal(Variable* variable) {
   DCHECK_EQ(DYNAMIC_GLOBAL, variable->mode());
-  bool found_eval_scope = false;
   uint32_t check_depths = 0;
   for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
     if (s->num_heap_slots() <= 0) continue;
-    // TODO(mstarzinger): If we have reached an eval scope, we check all
-    // extensions from this point. Replicated from full-codegen, figure out
-    // whether this is still needed. If not, drop {found_eval_scope} below.
-    if (s->is_eval_scope()) found_eval_scope = true;
-    if (!s->calls_sloppy_eval() && !found_eval_scope) continue;
+    if (!s->calls_sloppy_eval()) continue;
     int depth = current_scope()->ContextChainLength(s);
     if (depth > kMaxCheckDepth) return kFullCheckRequired;
     check_depths |= 1 << depth;
