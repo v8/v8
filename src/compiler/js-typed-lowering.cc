@@ -1503,6 +1503,79 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   return Changed(node);
 }
 
+namespace {
+
+void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
+                   int builtin_index, int arity, CallDescriptor::Flags flags) {
+  // Patch {node} to a direct CEntryStub call.
+  //
+  // ----------- A r g u m e n t s -----------
+  // -- 0: CEntryStub
+  // --- Stack args ---
+  // -- 1: receiver
+  // -- [2, 2 + n[: the n actual arguments passed to the builtin
+  // -- 2 + n: argc, including the receiver and implicit args (Smi)
+  // -- 2 + n + 1: target
+  // -- 2 + n + 2: new_target
+  // --- Register args ---
+  // -- 2 + n + 3: the C entry point
+  // -- 2 + n + 4: argc (Int32)
+  // -----------------------------------
+
+  // The logic contained here is mirrored in Builtins::Generate_Adaptor.
+  // Keep these in sync.
+
+  const bool is_construct = (node->opcode() == IrOpcode::kJSCallConstruct);
+
+  DCHECK(Builtins::HasCppImplementation(builtin_index));
+
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* new_target = is_construct
+                         ? NodeProperties::GetValueInput(node, arity + 1)
+                         : jsgraph->UndefinedConstant();
+
+  // API and CPP builtins are implemented in C++, and we can inline both.
+  // CPP builtins create a builtin exit frame, API builtins don't.
+  const bool has_builtin_exit_frame = Builtins::IsCpp(builtin_index);
+
+  Node* stub = jsgraph->CEntryStubConstant(1, kDontSaveFPRegs, kArgvOnStack,
+                                           has_builtin_exit_frame);
+  node->ReplaceInput(0, stub);
+
+  Zone* zone = jsgraph->zone();
+  if (is_construct) {
+    // Unify representations between construct and call nodes.
+    // Remove new target and add receiver as a stack parameter.
+    Node* receiver = jsgraph->UndefinedConstant();
+    node->RemoveInput(arity + 1);
+    node->InsertInput(zone, 1, receiver);
+  }
+
+  const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
+  Node* argc_node = jsgraph->Int32Constant(argc);
+
+  node->InsertInput(zone, arity + 2, argc_node);
+  node->InsertInput(zone, arity + 3, target);
+  node->InsertInput(zone, arity + 4, new_target);
+
+  Address entry = Builtins::CppEntryOf(builtin_index);
+  ExternalReference entry_ref(ExternalReference(entry, isolate));
+  Node* entry_node = jsgraph->ExternalConstant(entry_ref);
+
+  node->InsertInput(zone, arity + 5, entry_node);
+  node->InsertInput(zone, arity + 6, argc_node);
+
+  static const int kReturnCount = 1;
+  const char* debug_name = Builtins::name(builtin_index);
+  Operator::Properties properties = node->op()->properties();
+  CallDescriptor* desc = Linkage::GetCEntryStubCallDescriptor(
+      zone, kReturnCount, argc, debug_name, properties, flags);
+
+  NodeProperties::ChangeOp(node, jsgraph->common()->Call(desc));
+}
+
+}  // namespace
+
 Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallConstruct, node->opcode());
   CallConstructParameters const& p = CallConstructParametersOf(node->op());
@@ -1511,6 +1584,8 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type* target_type = NodeProperties::GetType(target);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
 
   // Check if {target} is a known JSFunction.
   if (target_type->IsConstant() &&
@@ -1518,21 +1593,40 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(target_type->AsConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+    const int builtin_index = shared->construct_stub()->builtin_index();
+    const bool is_builtin = (builtin_index != -1);
 
-    // Patch {node} to an indirect call via the {function}s construct stub.
-    Callable callable(handle(shared->construct_stub(), isolate()),
-                      ConstructStubDescriptor(isolate()));
-    node->RemoveInput(arity + 1);
-    node->InsertInput(graph()->zone(), 0,
-                      jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, new_target);
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
-    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(
-        node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(), callable.descriptor(), 1 + arity,
-                  CallDescriptor::kNeedsFrameState)));
+    CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+
+    if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
+      // Patch {node} to a direct CEntryStub call.
+
+      // Load the context from the {target}.
+      Node* context = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSFunctionContext()),
+          target, effect, control);
+      NodeProperties::ReplaceContextInput(node, context);
+
+      // Update the effect dependency for the {node}.
+      NodeProperties::ReplaceEffectInput(node, effect);
+
+      ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
+    } else {
+      // Patch {node} to an indirect call via the {function}s construct stub.
+      Callable callable(handle(shared->construct_stub(), isolate()),
+                        ConstructStubDescriptor(isolate()));
+      node->RemoveInput(arity + 1);
+      node->InsertInput(graph()->zone(), 0,
+                        jsgraph()->HeapConstant(callable.code()));
+      node->InsertInput(graph()->zone(), 2, new_target);
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
+      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+      node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
+      NodeProperties::ChangeOp(
+          node, common()->Call(Linkage::GetStubCallDescriptor(
+                    isolate(), graph()->zone(), callable.descriptor(),
+                    1 + arity, flags)));
+    }
     return Changed(node);
   }
 
@@ -1618,53 +1712,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     Node* argument_count = jsgraph()->Int32Constant(arity);
     if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
       // Patch {node} to a direct CEntryStub call.
-      //
-      // ----------- A r g u m e n t s -----------
-      // -- 0: CEntryStub
-      // --- Stack args ---
-      // -- 1: receiver
-      // -- [2, 2 + n[: the n actual arguments passed to the builtin
-      // -- 2 + n: argc, including the receiver and implicit args (Smi)
-      // -- 2 + n + 1: target
-      // -- 2 + n + 2: new_target
-      // --- Register args ---
-      // -- 2 + n + 3: the C entry point
-      // -- 2 + n + 4: argc (Int32)
-      // -----------------------------------
-
-      // The logic contained here is mirrored in Builtins::Generate_Adaptor.
-      // Keep these in sync.
-
-      // API and CPP builtins are implemented in C++, and we can inline both.
-      // CPP builtins create a builtin exit frame, API builtins don't.
-      const bool create_builtin_exit_frame = Builtins::IsCpp(builtin_index);
-
-      Node* stub = jsgraph()->CEntryStubConstant(
-          1, kDontSaveFPRegs, kArgvOnStack, create_builtin_exit_frame);
-      node->ReplaceInput(0, stub);
-
-      const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
-      Node* argc_node = jsgraph()->Int32Constant(argc);
-
-      Zone* zone = graph()->zone();
-      node->InsertInput(zone, arity + 2, argc_node);
-      node->InsertInput(zone, arity + 3, target);
-      node->InsertInput(zone, arity + 4, new_target);
-
-      Address entry = Builtins::CppEntryOf(builtin_index);
-      ExternalReference entry_ref(ExternalReference(entry, isolate()));
-      Node* entry_node = jsgraph()->ExternalConstant(entry_ref);
-
-      node->InsertInput(zone, arity + 5, entry_node);
-      node->InsertInput(zone, arity + 6, argc_node);
-
-      const int return_count = 1;
-      Operator::Properties properties = node->op()->properties();
-      const char* debug_name = Builtins::name(builtin_index);
-      CallDescriptor* desc = Linkage::GetCEntryStubCallDescriptor(
-          graph()->zone(), return_count, argc, debug_name, properties, flags);
-
-      NodeProperties::ChangeOp(node, common()->Call(desc));
+      ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
     } else if (shared->internal_formal_parameter_count() == arity ||
                shared->internal_formal_parameter_count() ==
                    SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
