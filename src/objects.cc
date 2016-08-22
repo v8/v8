@@ -8630,7 +8630,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
   DCHECK(getter->IsCallable() || getter->IsUndefined(isolate) ||
          getter->IsNull(isolate) || getter->IsFunctionTemplateInfo());
   DCHECK(setter->IsCallable() || setter->IsUndefined(isolate) ||
-         setter->IsNull(isolate) || getter->IsFunctionTemplateInfo());
+         setter->IsNull(isolate) || setter->IsFunctionTemplateInfo());
   it->TransitionToAccessorProperty(getter, setter, attributes);
 
   return isolate->factory()->undefined_value();
