@@ -346,18 +346,6 @@ function NewPromiseCapability(C) {
   return result;
 }
 
-// Unspecified V8-specific legacy function
-function PromiseDefer() {
-  %IncrementUseCounter(kPromiseDefer);
-  return NewPromiseCapability(this);
-}
-
-// Unspecified V8-specific legacy function
-function PromiseAccept(x) {
-  %IncrementUseCounter(kPromiseAccept);
-  return %_Call(PromiseResolve, this, x);
-}
-
 // ES#sec-promise.reject
 // Promise.reject ( x )
 function PromiseReject(r) {
@@ -441,13 +429,6 @@ function PromiseThen(onResolve, onReject) {
   var constructor = SpeciesConstructor(this, GlobalPromise);
   var resultCapability = NewPromiseCapability(constructor);
   return PerformPromiseThen(this, onResolve, onReject, resultCapability);
-}
-
-// Unspecified V8-specific legacy function
-// Chain is left around for now as an alias for then
-function PromiseChain(onResolve, onReject) {
-  %IncrementUseCounter(kPromiseChain);
-  return %_Call(PromiseThen, this, onResolve, onReject);
 }
 
 // ES#sec-promise.prototype.catch
@@ -615,7 +596,6 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
 
 %InstallToContext([
   "promise_catch", PromiseCatch,
-  "promise_chain", PromiseChain,
   "promise_create", PromiseCreate,
   "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
   "promise_reject", RejectPromise,
@@ -634,15 +614,7 @@ utils.InstallFunctions(extrasUtils, 0, [
   "rejectPromise", RejectPromise
 ]);
 
-// TODO(v8:4567): Allow experimental natives to remove function prototype
-[PromiseChain, PromiseDefer, PromiseAccept].forEach(
-    fn => %FunctionRemovePrototype(fn));
-
 utils.Export(function(to) {
-  to.PromiseChain = PromiseChain;
-  to.PromiseDefer = PromiseDefer;
-  to.PromiseAccept = PromiseAccept;
-
   to.PromiseCastResolved = PromiseCastResolved;
   to.PromiseThen = PromiseThen;
 

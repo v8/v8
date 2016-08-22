@@ -184,10 +184,6 @@ DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 
-DEFINE_BOOL(promise_extra, false, "additional V8 Promise functions")
-// Removing extra Promise functions is shipped
-DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, promise_extra, true)
-
 DEFINE_BOOL(intl_extra, false, "additional V8 Intl functions")
 // Removing extra Intl functions is shipped
 DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, intl_extra, true)

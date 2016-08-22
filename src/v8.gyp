@@ -2195,7 +2195,6 @@
           'js/harmony-atomics.js',
           'js/harmony-simd.js',
           'js/harmony-string-padding.js',
-          'js/promise-extra.js',
           'js/harmony-async-await.js'
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',

@@ -81,7 +81,6 @@ enum ContextLookupFlags {
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                           \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                         \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                         \
-  V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain)                         \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                       \
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                   \
   V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,              \

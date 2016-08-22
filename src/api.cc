@@ -6707,36 +6707,6 @@ void Promise::Resolver::Reject(Local<Value> value) {
 }
 
 
-namespace {
-
-MaybeLocal<Promise> DoChain(Value* value, Local<Context> context,
-                            Local<Function> handler) {
-  PREPARE_FOR_EXECUTION(context, Promise, Chain, Promise);
-  auto self = Utils::OpenHandle(value);
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*handler)};
-  i::Handle<i::Object> result;
-  has_pending_exception = !i::Execution::Call(isolate, isolate->promise_chain(),
-                                              self, arraysize(argv), argv)
-                               .ToHandle(&result);
-  RETURN_ON_FAILED_EXECUTION(Promise);
-  RETURN_ESCAPED(Local<Promise>::Cast(Utils::ToLocal(result)));
-}
-
-}  // namespace
-
-
-MaybeLocal<Promise> Promise::Chain(Local<Context> context,
-                                   Local<Function> handler) {
-  return DoChain(this, context, handler);
-}
-
-
-Local<Promise> Promise::Chain(Local<Function> handler) {
-  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(DoChain(this, context, handler), Promise);
-}
-
-
 MaybeLocal<Promise> Promise::Catch(Local<Context> context,
                                    Local<Function> handler) {
   PREPARE_FOR_EXECUTION(context, Promise, Catch, Promise);

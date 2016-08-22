@@ -518,7 +518,7 @@
 ##############################################################################
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.
-  'big-object-literal': [PASS, ['mode == debug', SKIP]],
+  'big-object-literal': [SKIP],
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],

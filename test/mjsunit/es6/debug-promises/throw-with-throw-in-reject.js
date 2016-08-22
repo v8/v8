@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --promise-extra
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 // Test debug events when an exception is thrown inside a Promise, which is
 // caught by a custom promise, which throws a new exception in its reject
@@ -34,7 +34,7 @@ MyPromise.prototype = new Promise(function() {});
 MyPromise.__proto__ = Promise;
 p.constructor = MyPromise;
 
-var q = p.chain(
+var q = p.then(
   function() {
     log.push("throw caught");
     throw new Error("caught");  // event
