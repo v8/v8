@@ -649,6 +649,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // the current object.
       SINGLE_CASE(kAttachedReference, kPlain, kStartOfObject, 0)
       SINGLE_CASE(kAttachedReference, kPlain, kInnerPointer, 0)
+      SINGLE_CASE(kAttachedReference, kFromCode, kStartOfObject, 0)
       SINGLE_CASE(kAttachedReference, kFromCode, kInnerPointer, 0)
       // Find a builtin and write a pointer to it to the current object.
       SINGLE_CASE(kBuiltin, kPlain, kStartOfObject, 0)
