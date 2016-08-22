@@ -117,6 +117,12 @@
 }],  # variant == ignition_turbofan and msan
 
 ##############################################################################
+['arch == arm64 and msan', {
+  # Stack size too large with masm on Arm64.
+  'excessive-comma-usage': [SKIP],
+}],  # arch == arm64 and msan
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long or getting too large call stacks.
   'fast/js/excessive-comma-usage': [SKIP],
