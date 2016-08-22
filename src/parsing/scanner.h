@@ -495,11 +495,11 @@ class Scanner {
 
   // The current and look-ahead token.
   struct TokenDesc {
-    Token::Value token;
     Location location;
     LiteralBuffer* literal_chars;
     LiteralBuffer* raw_literal_chars;
     int smi_value_;
+    Token::Value token;
   };
 
   static const int kCharacterLookaheadBufferSize = 1;
