@@ -70,6 +70,7 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
   InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
   InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);
   InstallBuiltin(isolate, holder, "includes", Builtins::kArrayIncludes, 2);
+  InstallBuiltin(isolate, holder, "indexOf", Builtins::kArrayIndexOf, 2);
 
   return *holder;
 }
@@ -542,6 +543,106 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
     }
   }
   return isolate->heap()->false_value();
+}
+
+RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, search_element, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, from_index, 2);
+
+  // Let O be ? ToObject(this value).
+  Handle<Object> receiver_obj = args.at<Object>(0);
+  if (receiver_obj->IsNull(isolate) || receiver_obj->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Array.prototype.indexOf")));
+  }
+  Handle<JSReceiver> object;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, object, Object::ToObject(isolate, args.at<Object>(0)));
+
+  // Let len be ? ToLength(? Get(O, "length")).
+  int64_t len;
+  {
+    if (object->IsJSArray()) {
+      uint32_t len32 = 0;
+      bool success = JSArray::cast(*object)->length()->ToArrayLength(&len32);
+      DCHECK(success);
+      USE(success);
+      len = len32;
+    } else {
+      Handle<Object> len_;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, len_,
+          Object::GetProperty(object, isolate->factory()->length_string()));
+
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len_,
+                                         Object::ToLength(isolate, len_));
+      len = static_cast<int64_t>(len_->Number());
+      DCHECK_EQ(len, len_->Number());
+    }
+  }
+
+  if (len == 0) return Smi::FromInt(-1);
+
+  // Let n be ? ToInteger(fromIndex). (If fromIndex is undefined, this step
+  // produces the value 0.)
+  int64_t start_from;
+  {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, from_index,
+                                       Object::ToInteger(isolate, from_index));
+    double fp = from_index->Number();
+    if (fp > len) return Smi::FromInt(-1);
+    start_from = static_cast<int64_t>(fp);
+  }
+
+  int64_t index;
+  if (start_from >= 0) {
+    index = start_from;
+  } else {
+    index = len + start_from;
+    if (index < 0) {
+      index = 0;
+    }
+  }
+
+  // If the receiver is not a special receiver type, and the length is a valid
+  // element index, perform fast operation tailored to specific ElementsKinds.
+  if (object->map()->instance_type() > LAST_SPECIAL_RECEIVER_TYPE &&
+      len < kMaxUInt32 &&
+      JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
+    Handle<JSObject> obj = Handle<JSObject>::cast(object);
+    ElementsAccessor* elements = obj->GetElementsAccessor();
+    Maybe<int64_t> result = elements->IndexOfValue(isolate, obj, search_element,
+                                                   static_cast<uint32_t>(index),
+                                                   static_cast<uint32_t>(len));
+    MAYBE_RETURN(result, isolate->heap()->exception());
+    return *isolate->factory()->NewNumberFromInt64(result.FromJust());
+  }
+
+  // Otherwise, perform slow lookups for special receiver types
+  for (; index < len; ++index) {
+    // Let elementK be the result of ? Get(O, ! ToString(k)).
+    Handle<Object> element_k;
+    {
+      Handle<Object> index_obj = isolate->factory()->NewNumberFromInt64(index);
+      bool success;
+      LookupIterator it = LookupIterator::PropertyOrElement(
+          isolate, object, index_obj, &success);
+      DCHECK(success);
+      if (!JSReceiver::HasProperty(&it).FromJust()) {
+        continue;
+      }
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_k,
+                                         Object::GetProperty(&it));
+      if (search_element->StrictEquals(*element_k)) {
+        return *index_obj;
+      }
+    }
+  }
+  return Smi::FromInt(-1);
 }
 
 }  // namespace internal

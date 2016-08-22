@@ -198,6 +198,7 @@ namespace internal {
   TFJ(ArrayIsArray, 2)                                                        \
   /* ES7 #sec-array.prototype.includes */                                     \
   TFJ(ArrayIncludes, 3)                                                       \
+  TFJ(ArrayIndexOf, 3)                                                        \
   CPP(ArrayPop)                                                               \
   CPP(ArrayPush)                                                              \
   CPP(ArrayShift)                                                             \

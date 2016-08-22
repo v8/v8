@@ -489,6 +489,26 @@ static Maybe<bool> IncludesValueSlowPath(Isolate* isolate,
   return Just(false);
 }
 
+static Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate,
+                                           Handle<JSObject> receiver,
+                                           Handle<Object> value,
+                                           uint32_t start_from,
+                                           uint32_t length) {
+  for (uint32_t k = start_from; k < length; ++k) {
+    LookupIterator it(isolate, receiver, k);
+    if (!it.IsFound()) {
+      continue;
+    }
+    Handle<Object> element_k;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, element_k, Object::GetProperty(&it), Nothing<int64_t>());
+
+    if (value->StrictEquals(*element_k)) return Just<int64_t>(k);
+  }
+
+  return Just<int64_t>(-1);
+}
+
 // Base class for element handler implementations. Contains the
 // the common logic for objects with different ElementsKinds.
 // Subclasses must specialize method for which the element
@@ -1123,6 +1143,20 @@ class ElementsAccessorBase : public ElementsAccessor {
                                        length);
   }
 
+  static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
+                                         Handle<JSObject> receiver,
+                                         Handle<Object> value,
+                                         uint32_t start_from, uint32_t length) {
+    return IndexOfValueSlowPath(isolate, receiver, value, start_from, length);
+  }
+
+  Maybe<int64_t> IndexOfValue(Isolate* isolate, Handle<JSObject> receiver,
+                              Handle<Object> value, uint32_t start_from,
+                              uint32_t length) final {
+    return Subclass::IndexOfValueImpl(isolate, receiver, value, start_from,
+                                      length);
+  }
+
   static uint32_t GetIndexForEntryImpl(FixedArrayBase* backing_store,
                                        uint32_t entry) {
     return entry;
@@ -1570,6 +1604,68 @@ class DictionaryElementsAccessor
       }
     }
     return Just(false);
+  }
+
+  static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
+                                         Handle<JSObject> receiver,
+                                         Handle<Object> value,
+                                         uint32_t start_from, uint32_t length) {
+    DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
+
+    Handle<SeededNumberDictionary> dictionary(
+        SeededNumberDictionary::cast(receiver->elements()), isolate);
+    // Iterate through entire range, as accessing elements out of order is
+    // observable.
+    for (uint32_t k = start_from; k < length; ++k) {
+      int entry = dictionary->FindEntry(k);
+      if (entry == SeededNumberDictionary::kNotFound) {
+        continue;
+      }
+
+      PropertyDetails details = GetDetailsImpl(*dictionary, entry);
+      switch (details.kind()) {
+        case kData: {
+          Object* element_k = dictionary->ValueAt(entry);
+          if (value->StrictEquals(element_k)) {
+            return Just<int64_t>(k);
+          }
+          break;
+        }
+        case kAccessor: {
+          LookupIterator it(isolate, receiver, k,
+                            LookupIterator::OWN_SKIP_INTERCEPTOR);
+          DCHECK(it.IsFound());
+          DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
+          Handle<Object> element_k;
+
+          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+              isolate, element_k, JSObject::GetPropertyWithAccessor(&it),
+              Nothing<int64_t>());
+
+          if (value->StrictEquals(*element_k)) return Just<int64_t>(k);
+
+          // Bailout to slow path if elements on prototype changed.
+          if (!JSObject::PrototypeHasNoElements(isolate, *receiver)) {
+            return IndexOfValueSlowPath(isolate, receiver, value, k + 1,
+                                        length);
+          }
+
+          // Continue if elements unchanged.
+          if (*dictionary == receiver->elements()) continue;
+
+          // Otherwise, bailout or update elements.
+          if (receiver->GetElementsKind() != DICTIONARY_ELEMENTS) {
+            // Otherwise, switch to slow path.
+            return IndexOfValueSlowPath(isolate, receiver, value, k + 1,
+                                        length);
+          }
+          dictionary = handle(
+              SeededNumberDictionary::cast(receiver->elements()), isolate);
+          break;
+        }
+      }
+    }
+    return Just<int64_t>(-1);
   }
 };
 
@@ -2277,6 +2373,33 @@ class FastSmiOrObjectElementsAccessor
         break;  // Nothing to do.
     }
   }
+
+  static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
+                                         Handle<JSObject> receiver,
+                                         Handle<Object> search_value,
+                                         uint32_t start_from, uint32_t length) {
+    DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
+    DisallowHeapAllocation no_gc;
+    FixedArrayBase* elements_base = receiver->elements();
+    Object* value = *search_value;
+
+    if (start_from >= length) return Just<int64_t>(-1);
+
+    length = std::min(static_cast<uint32_t>(elements_base->length()), length);
+
+    // Only FAST_{,HOLEY_}ELEMENTS can store non-numbers.
+    if (!value->IsNumber() && !IsFastObjectElementsKind(Subclass::kind())) {
+      return Just<int64_t>(-1);
+    }
+    // NaN can never be found by strict equality.
+    if (value->IsNaN()) return Just<int64_t>(-1);
+
+    FixedArray* elements = FixedArray::cast(receiver->elements());
+    for (uint32_t k = start_from; k < length; ++k) {
+      if (value->StrictEquals(elements->get(k))) return Just<int64_t>(k);
+    }
+    return Just<int64_t>(-1);
+  }
 };
 
 
@@ -2397,6 +2520,39 @@ class FastDoubleElementsAccessor
       UNREACHABLE();
       break;
     }
+  }
+
+  static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
+                                         Handle<JSObject> receiver,
+                                         Handle<Object> search_value,
+                                         uint32_t start_from, uint32_t length) {
+    DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
+    DisallowHeapAllocation no_gc;
+    FixedArrayBase* elements_base = receiver->elements();
+    Object* value = *search_value;
+
+    if (start_from >= length) return Just<int64_t>(-1);
+
+    length = std::min(static_cast<uint32_t>(elements_base->length()), length);
+
+    if (!value->IsNumber()) {
+      return Just<int64_t>(-1);
+    }
+    if (value->IsNaN()) {
+      return Just<int64_t>(-1);
+    }
+    double numeric_search_value = value->Number();
+    FixedDoubleArray* elements = FixedDoubleArray::cast(receiver->elements());
+
+    for (uint32_t k = start_from; k < length; ++k) {
+      if (elements->is_the_hole(k)) {
+        continue;
+      }
+      if (elements->get_scalar(k) == numeric_search_value) {
+        return Just<int64_t>(k);
+      }
+    }
+    return Just<int64_t>(-1);
   }
 };
 
@@ -2590,6 +2746,52 @@ class TypedElementsAccessor
       }
       return Just(false);
     }
+  }
+
+  static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
+                                         Handle<JSObject> receiver,
+                                         Handle<Object> value,
+                                         uint32_t start_from, uint32_t length) {
+    DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
+    DisallowHeapAllocation no_gc;
+
+    BackingStore* elements = BackingStore::cast(receiver->elements());
+    if (!value->IsNumber()) return Just<int64_t>(-1);
+
+    double search_value = value->Number();
+
+    if (!std::isfinite(search_value)) {
+      // Integral types cannot represent +Inf or NaN.
+      if (AccessorClass::kind() < FLOAT32_ELEMENTS ||
+          AccessorClass::kind() > FLOAT64_ELEMENTS) {
+        return Just<int64_t>(-1);
+      }
+    } else if (search_value < std::numeric_limits<ctype>::lowest() ||
+               search_value > std::numeric_limits<ctype>::max()) {
+      // Return false if value can't be represented in this ElementsKind.
+      return Just<int64_t>(-1);
+    }
+
+    // Prototype has no elements, and not searching for the hole --- limit
+    // search to backing store length.
+    if (static_cast<uint32_t>(elements->length()) < length) {
+      length = elements->length();
+    }
+
+    if (std::isnan(search_value)) {
+      return Just<int64_t>(-1);
+    }
+
+    ctype typed_search_value = static_cast<ctype>(search_value);
+    if (static_cast<double>(typed_search_value) != search_value) {
+      return Just<int64_t>(-1);  // Loss of precision.
+    }
+
+    for (uint32_t k = start_from; k < length; ++k) {
+      ctype element_k = elements->get_scalar(k);
+      if (element_k == typed_search_value) return Just<int64_t>(k);
+    }
+    return Just<int64_t>(-1);
   }
 };
 
@@ -2868,6 +3070,46 @@ class SloppyArgumentsElementsAccessor
       }
     }
     return Just(false);
+  }
+
+  static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
+                                         Handle<JSObject> object,
+                                         Handle<Object> value,
+                                         uint32_t start_from, uint32_t length) {
+    DCHECK(JSObject::PrototypeHasNoElements(isolate, *object));
+    Handle<Map> original_map = handle(object->map(), isolate);
+    FixedArray* parameter_map = FixedArray::cast(object->elements());
+
+    for (uint32_t k = start_from; k < length; ++k) {
+      uint32_t entry =
+          GetEntryForIndexImpl(*object, parameter_map, k, ALL_PROPERTIES);
+      if (entry == kMaxUInt32) {
+        continue;
+      }
+
+      Handle<Object> element_k = GetImpl(parameter_map, entry);
+
+      if (element_k->IsAccessorPair()) {
+        LookupIterator it(isolate, object, k, LookupIterator::OWN);
+        DCHECK(it.IsFound());
+        DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
+                                         Object::GetPropertyWithAccessor(&it),
+                                         Nothing<int64_t>());
+
+        if (value->StrictEquals(*element_k)) {
+          return Just<int64_t>(k);
+        }
+
+        if (object->map() != *original_map) {
+          // Some mutation occurred in accessor. Abort "fast" path.
+          return IndexOfValueSlowPath(isolate, object, value, k + 1, length);
+        }
+      } else if (value->StrictEquals(*element_k)) {
+        return Just<int64_t>(k);
+      }
+    }
+    return Just<int64_t>(-1);
   }
 };
 

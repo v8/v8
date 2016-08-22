@@ -17,7 +17,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ArrayIndexOf;
 var ArrayJoin;
 var ArrayPush;
 var FLAG_intl_extra;
@@ -42,7 +41,6 @@ var StringSubstr;
 var StringSubstring;
 
 utils.Import(function(from) {
-  ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
   ArrayPush = from.ArrayPush;
   IsNaN = from.IsNaN;
@@ -369,7 +367,7 @@ function getGetOption(options, caller) {
           throw %make_error(kWrongValueType);
       }
 
-      if (!IS_UNDEFINED(values) && %_Call(ArrayIndexOf, values, value) === -1) {
+      if (!IS_UNDEFINED(values) && %ArrayIndexOf(values, value, 0) === -1) {
         throw %make_range_error(kValueOutOfRange, value, caller, property);
       }
 
@@ -803,7 +801,7 @@ function canonicalizeLocaleList(locales) {
 
         var tag = canonicalizeLanguageTag(value);
 
-        if (%_Call(ArrayIndexOf, seen, tag) === -1) {
+        if (%ArrayIndexOf(seen, tag, 0) === -1) {
           %_Call(ArrayPush, seen, tag);
         }
       }
@@ -859,7 +857,7 @@ function isStructuallyValidLanguageTag(locale) {
     var value = parts[i];
     if (!IS_NULL(InternalRegExpMatch(GetLanguageVariantRE(), value)) &&
         extensions.length === 0) {
-      if (%_Call(ArrayIndexOf, variants, value) === -1) {
+      if (%ArrayIndexOf(variants, value, 0) === -1) {
         %_Call(ArrayPush, variants, value);
       } else {
         return false;
@@ -867,7 +865,7 @@ function isStructuallyValidLanguageTag(locale) {
     }
 
     if (!IS_NULL(InternalRegExpMatch(GetLanguageSingletonRE(), value))) {
-      if (%_Call(ArrayIndexOf, extensions, value) === -1) {
+      if (%ArrayIndexOf(extensions, value, 0) === -1) {
         %_Call(ArrayPush, extensions, value);
       } else {
         return false;
@@ -1005,7 +1003,7 @@ function initializeCollator(collator, locales, options) {
       'pinyin', 'reformed', 'searchjl', 'stroke', 'trad', 'unihan', 'zhuyin'
     ];
 
-    if (%_Call(ArrayIndexOf, ALLOWED_CO_VALUES, extensionMap.co) !== -1) {
+    if (%ArrayIndexOf(ALLOWED_CO_VALUES, extensionMap.co, 0) !== -1) {
       extension = '-u-co-' + extensionMap.co;
       // ICU can't tell us what the collation is, so save user's input.
       collation = extensionMap.co;
@@ -2088,7 +2086,7 @@ function LocaleConvertCase(s, locales, isToUpper) {
   }
 
   var CUSTOM_CASE_LANGUAGES = ['az', 'el', 'lt', 'tr'];
-  var langIndex = %_Call(ArrayIndexOf, CUSTOM_CASE_LANGUAGES, language);
+  var langIndex = %ArrayIndexOf(CUSTOM_CASE_LANGUAGES, language, 0);
   if (langIndex == -1) {
     // language-independent case conversion.
     return isToUpper ? %StringToUpperCaseI18N(s) : %StringToLowerCaseI18N(s);
@@ -2139,7 +2137,7 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
 
     var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 
-    var normalizationForm = %_Call(ArrayIndexOf, NORMALIZATION_FORMS, form);
+    var normalizationForm = %ArrayIndexOf(NORMALIZATION_FORMS, form, 0);
     if (normalizationForm === -1) {
       throw %make_range_error(kNormalizationForm,
           %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));
