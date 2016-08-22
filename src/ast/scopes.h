@@ -382,9 +382,6 @@ class Scope: public ZoneObject {
   // Determine if we can use lazy compilation for this scope without a context.
   bool AllowsLazyCompilationWithoutContext() const;
 
-  // True if the outer context of this scope is always the native context.
-  bool HasTrivialOuterContext() const;
-
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
 
@@ -593,17 +590,8 @@ class Scope: public ZoneObject {
                                     ParseInfo* info = nullptr,
                                     VariableProxy* stack = nullptr);
 
-  bool InsideWithScope() const {
-    for (const Scope* scope = this; scope != nullptr;
-         scope = scope->outer_scope()) {
-      if (scope->is_with_scope()) return true;
-    }
-    return false;
-  }
-
   // Scope analysis.
   void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
-  bool HasTrivialContext() const;
 
   // Predicates.
   bool MustAllocate(Variable* var);

@@ -880,30 +880,6 @@ void DeclarationScope::AllocateVariables(ParseInfo* info,
 }
 
 
-bool Scope::HasTrivialContext() const {
-  // A function scope has a trivial context if it always is the global
-  // context. We iteratively scan out the context chain to see if
-  // there is anything that makes this scope non-trivial; otherwise we
-  // return true.
-  for (const Scope* scope = this; scope != NULL; scope = scope->outer_scope_) {
-    if (scope->is_eval_scope()) return false;
-    if (scope->InsideWithScope()) return false;
-    if (scope->ContextLocalCount() > 0) return false;
-    if (scope->ContextGlobalCount() > 0) return false;
-  }
-  return true;
-}
-
-
-bool Scope::HasTrivialOuterContext() const {
-  if (outer_scope_ == nullptr) return true;
-  // Note that the outer context may be trivial in general, but the current
-  // scope may be inside a 'with' statement in which case the outer context
-  // for this scope is not trivial.
-  return !is_with_scope() && outer_scope_->HasTrivialContext();
-}
-
-
 bool Scope::AllowsLazyParsing() const {
   // If we are inside a block scope, we must parse eagerly to find out how
   // to allocate variables on the block scope. At this point, declarations may
@@ -919,7 +895,14 @@ bool Scope::AllowsLazyCompilation() const { return !force_eager_compilation_; }
 
 
 bool Scope::AllowsLazyCompilationWithoutContext() const {
-  return !force_eager_compilation_ && HasTrivialOuterContext();
+  if (force_eager_compilation_) return false;
+  // Disallow lazy compilation without context if any outer scope needs a
+  // context.
+  for (const Scope* scope = outer_scope_; scope != nullptr;
+       scope = scope->outer_scope_) {
+    if (scope->NeedsContext()) return false;
+  }
+  return true;
 }
 
 
@@ -1163,9 +1146,6 @@ void Scope::Print(int n) {
   }
 
   // Scope info.
-  if (HasTrivialOuterContext()) {
-    Indent(n1, "// scope has trivial outer context\n");
-  }
   if (is_strict(language_mode())) {
     Indent(n1, "// strict mode scope\n");
   }
