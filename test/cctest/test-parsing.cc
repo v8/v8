@@ -7803,7 +7803,6 @@ TEST(AsyncAwait) {
     "function foo(await) { return await; }",
     "function* foo() { var await = 1; return await; }",
     "function* foo(await) { return await; }",
-    "var f = (await) => await;",
     "var f = () => { var await = 1; return await; }",
     "var O = { method() { var await = 1; return await; } };",
     "var O = { method(await) { return await; } };",
@@ -7835,37 +7834,19 @@ TEST(AsyncAwaitErrors) {
   };
 
   const char* error_data[] = {
-    "var asyncFn = async function() { var await = 1; };",
-    "var asyncFn = async function() { var { await } = 1; };",
-    "var asyncFn = async function() { var [ await ] = 1; };",
     "var asyncFn = async function await() {};",
     "var asyncFn = async () => var await = 'test';",
     "var asyncFn = async await => await + 'test';",
     "var asyncFn = async function(await) {};",
-    "var asyncFn = async function() { return async (await) => {}; }",
     "var asyncFn = async (await) => 'test';",
-    "var asyncFn = async x => { var await = 1; }",
-    "var asyncFn = async x => { var { await } = 1; }",
-    "var asyncFn = async x => { var [ await ] = 1; }",
     "async function f(await) {}",
-    "async function f() { var await = 1; }",
-    "async function f() { var { await } = 1; }",
-    "async function f() { var [ await ] = 1; }",
 
     "var O = { async method(a, a) {} }",
     "var O = { async ['meth' + 'od'](a, a) {} }",
     "var O = { async 'method'(a, a) {} }",
     "var O = { async 0(a, a) {} }",
 
-    "async function f() { var O = { async [await](a, a) {} } }",
-
-    "var asyncFn = async function() { await; }",
-    "async function f() { await; }",
-    "var O = { async method() { await; } };",
     "var f = async() => await;",
-    "var f = async() => { await; };",
-
-    "async function f() { return {await} }",
 
     "var asyncFn = async function*() {}",
     "async function* f() {}",
@@ -7886,11 +7867,6 @@ TEST(AsyncAwaitErrors) {
     "class C {}; class C2 extends C { static async prototype() {} }",
 
     "var f = async() => ((async(x = await 1) => x)();",
-
-    "var asyncFn = async function() { function await() {} }",
-    "var asyncFn = async() => { function await() {} }",
-    "var O = { async method() { function await() {} } }",
-    "async function foo() { function await() {} }",
 
     // Henrique Ferreiro's bug (tm)
     "(async function foo1() { } foo2 => 1)",
@@ -7976,6 +7952,48 @@ TEST(AsyncAwaitErrors) {
 
   RunParserSyncTest(context_data, formal_parameters_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
+
+  // clang-format off
+  const char* async_body_context_data[][2] = {
+    { "async function f() {", "}" },
+    { "var f = async function() {", "}" },
+    { "var f = async() => {", "}" },
+    { "var O = { async method() {", "} }" },
+    { "'use strict'; async function f() {", "}" },
+    { "'use strict'; var f = async function() {", "}" },
+    { "'use strict'; var f = async() => {", "}" },
+    { "'use strict'; var O = { async method() {", "} }" },
+    { NULL, NULL }
+  };
+
+  const char* async_body_error_data[] = {
+    "var await = 1;",
+    "var { await } = 1;",
+    "var [ await ] = 1;",
+    "return async (await) => {};",
+    "var O = { async [await](a, a) {} }",
+    "await;",
+
+    "function await() {}",
+
+    "var f = await => 42;",
+    "var f = (await) => 42;",
+    "var f = (await, a) => 42;",
+    "var f = (...await) => 42;",
+
+    "var e = (await);",
+    "var e = (await, f);",
+    "var e = (await = 42)",
+
+    "var e = [await];",
+    "var e = {await};",
+
+    NULL
+  };
+  // clang-format on
+
+  RunParserSyncTest(async_body_context_data, async_body_error_data, kError,
+                    NULL, 0, always_flags, arraysize(always_flags));
 }
 
 TEST(AsyncAwaitModule) {

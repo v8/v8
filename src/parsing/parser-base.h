@@ -929,16 +929,8 @@ class ParserBase : public Traits {
 
   void ValidateBindingPattern(const ExpressionClassifier* classifier,
                               bool* ok) {
-    if (!classifier->is_valid_binding_pattern() ||
-        !classifier->is_valid_async_binding_pattern()) {
-      const Scanner::Location& a = classifier->binding_pattern_error().location;
-      const Scanner::Location& b =
-          classifier->async_binding_pattern_error().location;
-      if (a.beg_pos < 0 || (b.beg_pos >= 0 && a.beg_pos > b.beg_pos)) {
-        ReportClassifierError(classifier->async_binding_pattern_error());
-      } else {
-        ReportClassifierError(classifier->binding_pattern_error());
-      }
+    if (!classifier->is_valid_binding_pattern()) {
+      ReportClassifierError(classifier->binding_pattern_error());
       *ok = false;
     }
   }
@@ -2758,40 +2750,15 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
                                         position());
 
   } else if (is_async_function() && peek() == Token::AWAIT) {
-    int beg_pos = peek_position();
-    switch (PeekAhead()) {
-      case Token::RPAREN:
-      case Token::RBRACK:
-      case Token::RBRACE:
-      case Token::ASSIGN:
-      case Token::COMMA: {
-        Next();
-        IdentifierT name = this->GetSymbol(scanner());
-
-        // Possibly async arrow formals --- record ExpressionError just in case.
-        ExpressionUnexpectedToken(classifier);
-        classifier->RecordAsyncBindingPatternError(
-            Scanner::Location(beg_pos, scanner()->location().end_pos),
-            MessageTemplate::kAwaitBindingIdentifier);
-        classifier->RecordAsyncArrowFormalParametersError(
-            Scanner::Location(beg_pos, scanner()->location().end_pos),
-            MessageTemplate::kAwaitBindingIdentifier);
-
-        return this->ExpressionFromIdentifier(name, beg_pos,
-                                              scanner()->location().end_pos);
-      }
-      default:
-        break;
-    }
+    classifier->RecordFormalParameterInitializerError(
+        scanner()->peek_location(),
+        MessageTemplate::kAwaitExpressionFormalParameter);
 
     int await_pos = peek_position();
     Consume(Token::AWAIT);
 
     ExpressionT value = ParseUnaryExpression(classifier, CHECK_OK);
 
-    classifier->RecordFormalParameterInitializerError(
-        Scanner::Location(beg_pos, scanner()->location().end_pos),
-        MessageTemplate::kAwaitExpressionFormalParameter);
     return Traits::RewriteAwaitExpression(value, await_pos);
   } else {
     return this->ParsePostfixExpression(classifier, ok);
