@@ -1055,6 +1055,7 @@ class Assembler : public AssemblerBase {
 
   // 32-bit Multiply Instructions
   void m(Register r1, const MemOperand& opnd);
+  void mfy(Register r1, const MemOperand& opnd);
   void mr_z(Register r1, Register r2);
   void ml(Register r1, const MemOperand& opnd);
   void mlr(Register r1, Register r2);

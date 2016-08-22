@@ -6584,7 +6584,6 @@ EVALUATE(MR) {
   int32_t low_bits = product & 0x00000000FFFFFFFF;
   set_low_register(r1, high_bits);
   set_low_register(r1 + 1, low_bits);
-  set_low_register(r1, r1_val);
   return length;
 }
 
@@ -6940,9 +6939,22 @@ EVALUATE(S) {
 }
 
 EVALUATE(M) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(M);
+  DECODE_RX_A_INSTRUCTION(x2, b2, r1, d2_val);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2_val;
+  DCHECK(r1 % 2 == 0);
+  int32_t mem_val = ReadW(addr, instr);
+  int32_t r1_val = get_low_register<int32_t>(r1 + 1);
+  int64_t product =
+      static_cast<int64_t>(r1_val) * static_cast<int64_t>(mem_val);
+  int32_t high_bits = product >> 32;
+  r1_val = high_bits;
+  int32_t low_bits = product & 0x00000000FFFFFFFF;
+  set_low_register(r1, high_bits);
+  set_low_register(r1 + 1, low_bits);
+  return length;
 }
 
 EVALUATE(D) {
@@ -11156,9 +11168,21 @@ EVALUATE(SY) {
 }
 
 EVALUATE(MFY) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(MFY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  DCHECK(r1 % 2 == 0);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  int32_t r1_val = get_low_register<int32_t>(r1 + 1);
+  int64_t product =
+      static_cast<int64_t>(r1_val) * static_cast<int64_t>(mem_val);
+  int32_t high_bits = product >> 32;
+  r1_val = high_bits;
+  int32_t low_bits = product & 0x00000000FFFFFFFF;
+  set_low_register(r1, high_bits);
+  set_low_register(r1 + 1, low_bits);
+  return length;
 }
 
 EVALUATE(ALY) {

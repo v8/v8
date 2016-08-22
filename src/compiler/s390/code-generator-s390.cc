@@ -27,6 +27,16 @@ class S390OperandConverter final : public InstructionOperandConverter {
 
   size_t OutputCount() { return instr_->OutputCount(); }
 
+  bool Is64BitOperand(int index) {
+    return LocationOperand::cast(instr_->InputAt(index))->representation() ==
+           MachineRepresentation::kWord64;
+  }
+
+  bool Is32BitOperand(int index) {
+    return LocationOperand::cast(instr_->InputAt(index))->representation() ==
+           MachineRepresentation::kWord32;
+  }
+
   bool CompareLogical() const {
     switch (instr_->flags_condition()) {
       case kUnsignedLessThan:
@@ -104,10 +114,23 @@ class S390OperandConverter final : public InstructionOperandConverter {
     FrameOffset offset = frame_access_state()->GetFrameOffset(slot);
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
+
+  MemOperand InputStackSlot(size_t index) {
+    InstructionOperand* op = instr_->InputAt(index);
+    return SlotToMemOperand(AllocatedOperand::cast(op)->index());
+  }
 };
 
 static inline bool HasRegisterInput(Instruction* instr, int index) {
   return instr->InputAt(index)->IsRegister();
+}
+
+static inline bool HasImmediateInput(Instruction* instr, size_t index) {
+  return instr->InputAt(index)->IsImmediate();
+}
+
+static inline bool HasStackSlotInput(Instruction* instr, size_t index) {
+  return instr->InputAt(index)->IsStackSlot();
 }
 
 namespace {
@@ -287,9 +310,11 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     if (HasRegisterInput(instr, 1)) {                      \
       __ asm_instr(i.OutputRegister(), i.InputRegister(0), \
                    i.InputRegister(1));                    \
-    } else {                                               \
+    } else if (HasImmediateInput(instr, 1)) {              \
       __ asm_instr(i.OutputRegister(), i.InputRegister(0), \
                    i.InputImmediate(1));                   \
+    } else {                                               \
+      UNIMPLEMENTED();                                     \
     }                                                      \
   } while (0)
 
@@ -1223,14 +1248,54 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kS390_Mul32:
-#if V8_TARGET_ARCH_S390X
-    case kS390_Mul64:
+      if (HasRegisterInput(instr, 1)) {
+        __ Mul32(i.InputRegister(0), i.InputRegister(1));
+      } else if (HasImmediateInput(instr, 1)) {
+        __ Mul32(i.InputRegister(0), i.InputImmediate(1));
+      } else if (HasStackSlotInput(instr, 1)) {
+#ifdef V8_TARGET_ARCH_S390X
+        // Avoid endian-issue here:
+        // stg r1, 0(fp)
+        // ...
+        // msy r2, 0(fp) <-- This will read the upper 32 bits
+        __ lg(kScratchReg, i.InputStackSlot(1));
+        __ Mul32(i.InputRegister(0), kScratchReg);
+#else
+        __ Mul32(i.InputRegister(0), i.InputStackSlot(1));
 #endif
-      __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case kS390_Mul64:
+      if (HasRegisterInput(instr, 1)) {
+        __ Mul64(i.InputRegister(0), i.InputRegister(1));
+      } else if (HasImmediateInput(instr, 1)) {
+        __ Mul64(i.InputRegister(0), i.InputImmediate(1));
+      } else if (HasStackSlotInput(instr, 1)) {
+        __ Mul64(i.InputRegister(0), i.InputStackSlot(1));
+      } else {
+        UNIMPLEMENTED();
+      }
       break;
     case kS390_MulHigh32:
       __ LoadRR(r1, i.InputRegister(0));
-      __ mr_z(r0, i.InputRegister(1));
+      if (HasRegisterInput(instr, 1)) {
+        __ mr_z(r0, i.InputRegister(1));
+      } else if (HasStackSlotInput(instr, 1)) {
+#ifdef V8_TARGET_ARCH_S390X
+        // Avoid endian-issue here:
+        // stg r1, 0(fp)
+        // ...
+        // mfy r2, 0(fp) <-- This will read the upper 32 bits
+        __ lg(kScratchReg, i.InputStackSlot(1));
+        __ mr_z(r0, kScratchReg);
+#else
+        __ mfy(r0, i.InputStackSlot(1));
+#endif
+      } else {
+        UNIMPLEMENTED();
+      }
       __ LoadW(i.OutputRegister(), r0);
       break;
     case kS390_Mul32WithHigh32:
@@ -1241,7 +1306,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_MulHighU32:
       __ LoadRR(r1, i.InputRegister(0));
-      __ mlr(r0, i.InputRegister(1));
+      if (HasRegisterInput(instr, 1)) {
+        __ mlr(r0, i.InputRegister(1));
+      } else if (HasStackSlotInput(instr, 1)) {
+#ifdef V8_TARGET_ARCH_S390X
+        // Avoid endian-issue here:
+        // stg r1, 0(fp)
+        // ...
+        // mfy r2, 0(fp) <-- This will read the upper 32 bits
+        __ lg(kScratchReg, i.InputStackSlot(1));
+        __ mlr(r0, kScratchReg);
+#else
+        __ ml(r0, i.InputStackSlot(1));
+#endif
+      } else {
+        UNIMPLEMENTED();
+      }
       __ LoadlW(i.OutputRegister(), r0);
       break;
     case kS390_MulFloat:

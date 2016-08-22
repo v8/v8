@@ -35,6 +35,16 @@ class S390OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  int64_t GetImmediate(Node* node) {
+    if (node->opcode() == IrOpcode::kInt32Constant)
+      return OpParameter<int32_t>(node);
+    else if (node->opcode() == IrOpcode::kInt64Constant)
+      return OpParameter<int64_t>(node);
+    else
+      UNIMPLEMENTED();
+    return 0L;
+  }
+
   bool CanBeImmediate(Node* node, ImmediateMode mode) {
     int64_t value;
     if (node->opcode() == IrOpcode::kInt32Constant)
@@ -132,6 +142,18 @@ class S390OperandGenerator final : public OperandGenerator {
       return kMode_MRR;
     }
   }
+
+  bool CanBeBetterLeftOperand(Node* node) const {
+    return !selector()->IsLive(node);
+  }
+
+  MachineRepresentation GetRepresentation(Node* node) {
+    return sequence()->GetRepresentation(selector()->GetVirtualRegister(node));
+  }
+
+  bool Is64BitOperand(Node* node) {
+    return MachineRepresentation::kWord64 == GetRepresentation(node);
+  }
 };
 
 namespace {
@@ -182,13 +204,36 @@ void VisitBinop(InstructionSelector* selector, Node* node,
                 FlagsContinuation* cont) {
   S390OperandGenerator g(selector);
   Matcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
   InstructionOperand inputs[4];
   size_t input_count = 0;
   InstructionOperand outputs[2];
   size_t output_count = 0;
 
-  inputs[input_count++] = g.UseRegister(m.left().node());
-  inputs[input_count++] = g.UseOperand(m.right().node(), operand_mode);
+  // TODO(turbofan): match complex addressing modes.
+  if (left == right) {
+    // If both inputs refer to the same operand, enforce allocating a register
+    // for both of them to ensure that we don't end up generating code like
+    // this:
+    //
+    //   mov rax, [rbp-0x10]
+    //   add rax, [rbp-0x10]
+    //   jo label
+    InstructionOperand const input = g.UseRegister(left);
+    inputs[input_count++] = input;
+    inputs[input_count++] = input;
+  } else if (g.CanBeImmediate(right, operand_mode)) {
+    inputs[input_count++] = g.UseRegister(left);
+    inputs[input_count++] = g.UseImmediate(right);
+  } else {
+    if (node->op()->HasProperty(Operator::kCommutative) &&
+        g.CanBeBetterLeftOperand(right)) {
+      std::swap(left, right);
+    }
+    inputs[input_count++] = g.UseRegister(left);
+    inputs[input_count++] = g.UseRegister(right);
+  }
 
   if (cont->IsBranch()) {
     inputs[input_count++] = g.Label(cont->true_block());
@@ -1002,28 +1047,89 @@ void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
   VisitCompare(selector, kS390_Cmp32, high32_operand, temp_operand, cont);
 }
 
+void VisitMul(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
+  S390OperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
+  if (g.CanBeImmediate(right, kInt32Imm)) {
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
+                   g.UseImmediate(right));
+  } else {
+    if (g.CanBeBetterLeftOperand(right)) {
+      std::swap(left, right);
+    }
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
+                   g.Use(right));
+  }
+}
+
 }  // namespace
 
+void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt32MulWithOverflow(this, node, &cont);
+  }
+  VisitMul(this, node, kS390_Mul32);
+  // FlagsContinuation cont;
+  // EmitInt32MulWithOverflow(this, node, &cont);
+}
+
 void InstructionSelector::VisitInt32Mul(Node* node) {
-  VisitRRR(this, kS390_Mul32, node);
+  S390OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
+  if (g.CanBeImmediate(right, kInt32Imm) &&
+      base::bits::IsPowerOfTwo32(g.GetImmediate(right))) {
+    int power = 31 - base::bits::CountLeadingZeros32(g.GetImmediate(right));
+    Emit(kS390_ShiftLeft32, g.DefineSameAsFirst(node), g.UseRegister(left),
+         g.UseImmediate(power));
+    return;
+  }
+  VisitMul(this, node, kS390_Mul32);
 }
 
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitInt64Mul(Node* node) {
-  VisitRRR(this, kS390_Mul64, node);
+  S390OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
+  if (g.CanBeImmediate(right, kInt32Imm) &&
+      base::bits::IsPowerOfTwo64(g.GetImmediate(right))) {
+    int power = 31 - base::bits::CountLeadingZeros64(g.GetImmediate(right));
+    Emit(kS390_ShiftLeft64, g.DefineSameAsFirst(node), g.UseRegister(left),
+         g.UseImmediate(power));
+    return;
+  }
+  VisitMul(this, node, kS390_Mul64);
 }
 #endif
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   S390OperandGenerator g(this);
-  Emit(kS390_MulHigh32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  Int32BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
+  if (g.CanBeBetterLeftOperand(right)) {
+    std::swap(left, right);
+  }
+  Emit(kS390_MulHigh32, g.DefineAsRegister(node), g.UseRegister(left),
+       g.Use(right));
 }
 
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
   S390OperandGenerator g(this);
-  Emit(kS390_MulHighU32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  Int32BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
+  if (g.CanBeBetterLeftOperand(right)) {
+    std::swap(left, right);
+  }
+  Emit(kS390_MulHighU32, g.DefineAsRegister(node), g.UseRegister(left),
+       g.Use(right));
 }
 
 void InstructionSelector::VisitInt32Div(Node* node) {
@@ -1720,15 +1826,6 @@ void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
   VisitWord64Compare(this, node, &cont);
 }
 #endif
-
-void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
-    return EmitInt32MulWithOverflow(this, node, &cont);
-  }
-  FlagsContinuation cont;
-  EmitInt32MulWithOverflow(this, node, &cont);
-}
 
 void InstructionSelector::VisitFloat32Equal(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
