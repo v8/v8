@@ -2867,9 +2867,13 @@ class AstVisitor BASE_EMBEDDED {
 
 #define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()               \
  public:                                                    \
+  void VisitNoStackOverflowCheck(AstNode* node) {           \
+    GENERATE_AST_VISITOR_SWITCH()                           \
+  }                                                         \
+                                                            \
   void Visit(AstNode* node) {                               \
     if (CheckStackOverflow()) return;                       \
-    GENERATE_AST_VISITOR_SWITCH()                           \
+    VisitNoStackOverflowCheck(node);                        \
   }                                                         \
                                                             \
   void SetStackOverflow() { stack_overflow_ = true; }       \
