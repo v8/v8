@@ -1073,5 +1073,58 @@ TEST_F(ValueSerializerTest, DecodeSparseArrayVersion0) {
       });
 }
 
+TEST_F(ValueSerializerTest, RoundTripDate) {
+  RoundTripTest("new Date(1e6)", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsDate());
+    EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
+    EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
+  });
+  RoundTripTest("new Date(Date.UTC(1867, 6, 1))", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsDate());
+    EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
+  });
+  RoundTripTest("new Date(NaN)", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsDate());
+    EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
+  });
+  RoundTripTest(
+      "({ a: new Date(), get b() { return this.a; } })",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof Date"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeDate) {
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84,
+              0x2e, 0x41, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsDate());
+               EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
+               EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
+             });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x20, 0x45, 0x27, 0x89, 0x87,
+       0xc2, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsDate());
+        EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
+      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+              0xf8, 0x7f, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsDate());
+               EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
+             });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01, 0x61, 0x3f,
+       0x01, 0x44, 0x00, 0x20, 0x39, 0x50, 0x37, 0x6a, 0x75, 0x42, 0x3f,
+       0x02, 0x53, 0x01, 0x62, 0x3f, 0x02, 0x5e, 0x01, 0x7b, 0x02},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof Date"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
 }  // namespace
 }  // namespace v8

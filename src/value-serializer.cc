@@ -70,6 +70,8 @@ enum class SerializationTag : uint8_t {
   kBeginDenseJSArray = 'A',
   // End of a dense JS array. numProperties:uint32_t length:uint32_t
   kEndDenseJSArray = '$',
+  // Date. millisSinceEpoch:double
+  kDate = 'D',
 };
 
 ValueSerializer::ValueSerializer(Isolate* isolate)
@@ -268,6 +270,9 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_OBJECT_TYPE:
     case JS_API_OBJECT_TYPE:
       return WriteJSObject(Handle<JSObject>::cast(receiver));
+    case JS_DATE_TYPE:
+      WriteJSDate(JSDate::cast(*receiver));
+      return Just(true);
     default:
       UNIMPLEMENTED();
       break;
@@ -351,6 +356,11 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     WriteVarint<uint32_t>(length);
   }
   return Just(true);
+}
+
+void ValueSerializer::WriteJSDate(JSDate* date) {
+  WriteTag(SerializationTag::kDate);
+  WriteDouble(date->value()->Number());
 }
 
 Maybe<uint32_t> ValueSerializer::WriteJSObjectProperties(
@@ -533,6 +543,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
       return ReadSparseJSArray();
     case SerializationTag::kBeginDenseJSArray:
       return ReadDenseJSArray();
+    case SerializationTag::kDate:
+      return ReadJSDate();
     default:
       return MaybeHandle<Object>();
   }
@@ -659,6 +671,19 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
 
   DCHECK(HasObjectWithID(id));
   return scope.CloseAndEscape(array);
+}
+
+MaybeHandle<JSDate> ValueDeserializer::ReadJSDate() {
+  double value;
+  if (!ReadDouble().To(&value)) return MaybeHandle<JSDate>();
+  uint32_t id = next_id_++;
+  Handle<JSDate> date;
+  if (!JSDate::New(isolate_->date_function(), isolate_->date_function(), value)
+           .ToHandle(&date)) {
+    return MaybeHandle<JSDate>();
+  }
+  AddObjectWithID(id, date);
+  return date;
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
