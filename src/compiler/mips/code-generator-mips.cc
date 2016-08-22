@@ -1196,6 +1196,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ROUND_FLOAT_TO_FLOAT(round);
       break;
     }
+    case kMipsFloat32Max: {
+      Label compare_nan, done_compare;
+      __ MaxNaNCheck_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                       i.InputSingleRegister(1), &compare_nan);
+      __ Branch(&done_compare);
+      __ bind(&compare_nan);
+      __ Move(i.OutputSingleRegister(),
+              std::numeric_limits<float>::quiet_NaN());
+      __ bind(&done_compare);
+      break;
+    }
     case kMipsFloat64Max: {
       Label compare_nan, done_compare;
       __ MaxNaNCheck_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -1204,6 +1215,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&compare_nan);
       __ Move(i.OutputDoubleRegister(),
               std::numeric_limits<double>::quiet_NaN());
+      __ bind(&done_compare);
+      break;
+    }
+    case kMipsFloat32Min: {
+      Label compare_nan, done_compare;
+      __ MinNaNCheck_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                       i.InputSingleRegister(1), &compare_nan);
+      __ Branch(&done_compare);
+      __ bind(&compare_nan);
+      __ Move(i.OutputSingleRegister(),
+              std::numeric_limits<float>::quiet_NaN());
       __ bind(&done_compare);
       break;
     }

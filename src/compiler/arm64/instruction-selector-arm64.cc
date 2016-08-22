@@ -1846,11 +1846,17 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
        g.UseFixed(node->InputAt(1), d1))->MarkAsCall();
 }
 
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  VisitRRR(this, kArm64Float32Max, node);
+}
 
 void InstructionSelector::VisitFloat64Max(Node* node) {
   VisitRRR(this, kArm64Float64Max, node);
 }
 
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  VisitRRR(this, kArm64Float32Min, node);
+}
 
 void InstructionSelector::VisitFloat64Min(Node* node) {
   VisitRRR(this, kArm64Float64Min, node);

@@ -1363,9 +1363,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        0, 2);
       break;
     }
+    case kArm64Float32Max: {
+      __ Fmax(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    }
     case kArm64Float64Max: {
       __ Fmax(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
               i.InputDoubleRegister(1));
+      break;
+    }
+    case kArm64Float32Min: {
+      __ Fmin(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
       break;
     }
     case kArm64Float64Min: {

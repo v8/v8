@@ -1048,6 +1048,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // when there is a (v)mulsd depending on the result.
       __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
+    case kSSEFloat32Max: {
+      Label compare_nan, compare_swap, done_compare;
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      auto ool =
+          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(above, &done_compare, Label::kNear);
+      __ j(below, &compare_swap, Label::kNear);
+      __ movmskps(i.TempRegister(0), i.InputDoubleRegister(0));
+      __ test(i.TempRegister(0), Immediate(1));
+      __ j(zero, &done_compare, Label::kNear);
+      __ bind(&compare_swap);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ movss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ movss(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      __ bind(&done_compare);
+      __ bind(ool->exit());
+      break;
+    }
+
     case kSSEFloat64Max: {
       Label compare_nan, compare_swap, done_compare;
       if (instr->InputAt(1)->IsFPRegister()) {
@@ -1068,6 +1094,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ movsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
         __ movsd(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      __ bind(&done_compare);
+      __ bind(ool->exit());
+      break;
+    }
+    case kSSEFloat32Min: {
+      Label compare_swap, done_compare;
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      auto ool =
+          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(below, &done_compare, Label::kNear);
+      __ j(above, &compare_swap, Label::kNear);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ movmskps(i.TempRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ movss(kScratchDoubleReg, i.InputOperand(1));
+        __ movmskps(i.TempRegister(0), kScratchDoubleReg);
+      }
+      __ test(i.TempRegister(0), Immediate(1));
+      __ j(zero, &done_compare, Label::kNear);
+      __ bind(&compare_swap);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ movss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ movss(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       __ bind(&done_compare);
       __ bind(ool->exit());

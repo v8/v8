@@ -972,6 +972,13 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
        temps);
 }
 
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(kSSEFloat32Max, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+       arraysize(temps), temps);
+}
 
 void InstructionSelector::VisitFloat64Max(Node* node) {
   IA32OperandGenerator g(this);
@@ -981,6 +988,13 @@ void InstructionSelector::VisitFloat64Max(Node* node) {
        arraysize(temps), temps);
 }
 
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(kSSEFloat32Min, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+       arraysize(temps), temps);
+}
 
 void InstructionSelector::VisitFloat64Min(Node* node) {
   IA32OperandGenerator g(this);

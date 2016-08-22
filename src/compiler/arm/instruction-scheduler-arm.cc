@@ -103,7 +103,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmVmovHighF64U32:
     case kArmVmovF64U32U32:
     case kArmVmovU32U32F64:
+    case kArmFloat32Max:
     case kArmFloat64Max:
+    case kArmFloat32Min:
     case kArmFloat64Min:
     case kArmFloat64SilenceNaN:
       return kNoOpcodeFlags;

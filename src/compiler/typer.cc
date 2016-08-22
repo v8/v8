@@ -2103,6 +2103,9 @@ Type* Typer::Visitor::TypeFloat32LessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeFloat32Max(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat32Min(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Add(Node* node) { return Type::Number(); }
 

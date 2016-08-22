@@ -649,12 +649,14 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
       std::swap(left, right);
       break;
     case wasm::kExprF32Min:
-      return BuildF32Min(left, right);
+      op = m->Float32Min();
+      break;
     case wasm::kExprF64Min:
       op = m->Float64Min();
       break;
     case wasm::kExprF32Max:
-      return BuildF32Max(left, right);
+      op = m->Float32Max();
+      break;
     case wasm::kExprF64Max:
       op = m->Float64Max();
       break;
@@ -1236,46 +1238,6 @@ Node* WasmGraphBuilder::BuildF64CopySign(Node* left, Node* right) {
 
   return graph()->NewNode(m->Float64InsertHighWord32(), left, new_high_word);
 #endif
-}
-
-Node* WasmGraphBuilder::BuildF32Min(Node* left, Node* right) {
-  Diamond left_le_right(graph(), jsgraph()->common(),
-                        Binop(wasm::kExprF32Le, left, right));
-
-  Diamond right_lt_left(graph(), jsgraph()->common(),
-                        Binop(wasm::kExprF32Lt, right, left));
-
-  Diamond left_is_not_nan(graph(), jsgraph()->common(),
-                          Binop(wasm::kExprF32Eq, left, left));
-
-  return left_le_right.Phi(
-      wasm::kAstF32, left,
-      right_lt_left.Phi(
-          wasm::kAstF32, right,
-          left_is_not_nan.Phi(
-              wasm::kAstF32,
-              Binop(wasm::kExprF32Mul, right, Float32Constant(1.0)),
-              Binop(wasm::kExprF32Mul, left, Float32Constant(1.0)))));
-}
-
-Node* WasmGraphBuilder::BuildF32Max(Node* left, Node* right) {
-  Diamond left_ge_right(graph(), jsgraph()->common(),
-                        Binop(wasm::kExprF32Ge, left, right));
-
-  Diamond right_gt_left(graph(), jsgraph()->common(),
-                        Binop(wasm::kExprF32Gt, right, left));
-
-  Diamond left_is_not_nan(graph(), jsgraph()->common(),
-                          Binop(wasm::kExprF32Eq, left, left));
-
-  return left_ge_right.Phi(
-      wasm::kAstF32, left,
-      right_gt_left.Phi(
-          wasm::kAstF32, right,
-          left_is_not_nan.Phi(
-              wasm::kAstF32,
-              Binop(wasm::kExprF32Mul, right, Float32Constant(1.0)),
-              Binop(wasm::kExprF32Mul, left, Float32Constant(1.0)))));
 }
 
 Node* WasmGraphBuilder::BuildI32SConvertF32(Node* input,

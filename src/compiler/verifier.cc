@@ -1186,6 +1186,8 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat32Equal:
     case IrOpcode::kFloat32LessThan:
     case IrOpcode::kFloat32LessThanOrEqual:
+    case IrOpcode::kFloat32Max:
+    case IrOpcode::kFloat32Min:
     case IrOpcode::kFloat64Add:
     case IrOpcode::kFloat64Sub:
     case IrOpcode::kFloat64Neg:

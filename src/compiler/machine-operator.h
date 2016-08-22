@@ -104,35 +104,33 @@ class MachineOperatorBuilder final : public ZoneObject {
   // for operations that are unsupported by some back-ends.
   enum Flag : unsigned {
     kNoFlags = 0u,
-    kFloat32Max = 1u << 0,
-    kFloat32Min = 1u << 1,
-    kFloat32RoundDown = 1u << 2,
-    kFloat64RoundDown = 1u << 3,
-    kFloat32RoundUp = 1u << 4,
-    kFloat64RoundUp = 1u << 5,
-    kFloat32RoundTruncate = 1u << 6,
-    kFloat64RoundTruncate = 1u << 7,
-    kFloat32RoundTiesEven = 1u << 8,
-    kFloat64RoundTiesEven = 1u << 9,
-    kFloat64RoundTiesAway = 1u << 10,
-    kInt32DivIsSafe = 1u << 11,
-    kUint32DivIsSafe = 1u << 12,
-    kWord32ShiftIsSafe = 1u << 13,
-    kWord32Ctz = 1u << 14,
-    kWord64Ctz = 1u << 15,
-    kWord32Popcnt = 1u << 16,
-    kWord64Popcnt = 1u << 17,
-    kWord32ReverseBits = 1u << 18,
-    kWord64ReverseBits = 1u << 19,
-    kWord32ReverseBytes = 1u << 20,
-    kWord64ReverseBytes = 1u << 21,
-    kAllOptionalOps =
-        kFloat32Max | kFloat32Min | kFloat32RoundDown | kFloat64RoundDown |
-        kFloat32RoundUp | kFloat64RoundUp | kFloat32RoundTruncate |
-        kFloat64RoundTruncate | kFloat64RoundTiesAway | kFloat32RoundTiesEven |
-        kFloat64RoundTiesEven | kWord32Ctz | kWord64Ctz | kWord32Popcnt |
-        kWord64Popcnt | kWord32ReverseBits | kWord64ReverseBits |
-        kWord32ReverseBytes | kWord64ReverseBytes
+    kFloat32RoundDown = 1u << 0,
+    kFloat64RoundDown = 1u << 1,
+    kFloat32RoundUp = 1u << 2,
+    kFloat64RoundUp = 1u << 3,
+    kFloat32RoundTruncate = 1u << 4,
+    kFloat64RoundTruncate = 1u << 5,
+    kFloat32RoundTiesEven = 1u << 6,
+    kFloat64RoundTiesEven = 1u << 7,
+    kFloat64RoundTiesAway = 1u << 8,
+    kInt32DivIsSafe = 1u << 9,
+    kUint32DivIsSafe = 1u << 10,
+    kWord32ShiftIsSafe = 1u << 11,
+    kWord32Ctz = 1u << 12,
+    kWord64Ctz = 1u << 13,
+    kWord32Popcnt = 1u << 14,
+    kWord64Popcnt = 1u << 15,
+    kWord32ReverseBits = 1u << 16,
+    kWord64ReverseBits = 1u << 17,
+    kWord32ReverseBytes = 1u << 18,
+    kWord64ReverseBytes = 1u << 19,
+    kAllOptionalOps = kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
+                      kFloat64RoundUp | kFloat32RoundTruncate |
+                      kFloat64RoundTruncate | kFloat64RoundTiesAway |
+                      kFloat32RoundTiesEven | kFloat64RoundTiesEven |
+                      kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
+                      kWord32ReverseBits | kWord64ReverseBits |
+                      kWord32ReverseBytes | kWord64ReverseBytes
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -363,6 +361,9 @@ class MachineOperatorBuilder final : public ZoneObject {
   // Floating point min/max complying to EcmaScript 6 (double-precision).
   const Operator* Float64Max();
   const Operator* Float64Min();
+  // Floating point min/max complying to WebAssembly (single-precision).
+  const Operator* Float32Max();
+  const Operator* Float32Min();
 
   // Floating point abs complying to IEEE 754 (single-precision).
   const Operator* Float32Abs();

@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/wasm/wasm-interpreter.h"
+
+#include "src/utils.h"
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-external-refs.h"
@@ -323,15 +325,11 @@ static inline float ExecuteF32Sub(float a, float b, TrapReason* trap) {
 }
 
 static inline float ExecuteF32Min(float a, float b, TrapReason* trap) {
-  if (std::isnan(a)) return quiet(a);
-  if (std::isnan(b)) return quiet(b);
-  return std::min(a, b);
+  return JSMin(a, b);
 }
 
 static inline float ExecuteF32Max(float a, float b, TrapReason* trap) {
-  if (std::isnan(a)) return quiet(a);
-  if (std::isnan(b)) return quiet(b);
-  return std::max(a, b);
+  return JSMax(a, b);
 }
 
 static inline float ExecuteF32CopySign(float a, float b, TrapReason* trap) {
@@ -350,25 +348,11 @@ static inline double ExecuteF64Sub(double a, double b, TrapReason* trap) {
 }
 
 static inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
-  if (std::isnan(a)) return quiet(a);
-  if (std::isnan(b)) return quiet(b);
-  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
-    // a and b are zero, and the sign differs: return -0.0.
-    return -0.0;
-  } else {
-    return (a < b) ? a : b;
-  }
+  return JSMin(a, b);
 }
 
 static inline double ExecuteF64Max(double a, double b, TrapReason* trap) {
-  if (std::isnan(a)) return quiet(a);
-  if (std::isnan(b)) return quiet(b);
-  if ((a == 0.0) && (b == 0.0) && (copysign(1.0, a) != copysign(1.0, b))) {
-    // a and b are zero, and the sign differs: return 0.0.
-    return 0.0;
-  } else {
-    return (a > b) ? a : b;
-  }
+  return JSMax(a, b);
 }
 
 static inline double ExecuteF64CopySign(double a, double b, TrapReason* trap) {

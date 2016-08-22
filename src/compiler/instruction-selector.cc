@@ -1151,6 +1151,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitFloat32LessThan(node);
     case IrOpcode::kFloat32LessThanOrEqual:
       return VisitFloat32LessThanOrEqual(node);
+    case IrOpcode::kFloat32Max:
+      return MarkAsFloat32(node), VisitFloat32Max(node);
+    case IrOpcode::kFloat32Min:
+      return MarkAsFloat32(node), VisitFloat32Min(node);
     case IrOpcode::kFloat64Add:
       return MarkAsFloat64(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:

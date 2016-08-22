@@ -1212,6 +1212,11 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
        g.UseFixed(node->InputAt(1), f14))->MarkAsCall();
 }
 
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Float32Max, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
 
 void InstructionSelector::VisitFloat64Max(Node* node) {
   Mips64OperandGenerator g(this);
@@ -1219,6 +1224,11 @@ void InstructionSelector::VisitFloat64Max(Node* node) {
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Float32Min, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
 
 void InstructionSelector::VisitFloat64Min(Node* node) {
   Mips64OperandGenerator g(this);

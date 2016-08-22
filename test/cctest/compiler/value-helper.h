@@ -332,6 +332,7 @@ static inline void CheckFloatEq(volatile float x, volatile float y) {
     CHECK(std::isnan(y));
   } else {
     CHECK_EQ(x, y);
+    CHECK_EQ(std::signbit(x), std::signbit(y));
   }
 }
 
@@ -346,6 +347,7 @@ static inline void CheckDoubleEq(volatile double x, volatile double y) {
     CHECK(std::isnan(y));
   } else {
     CHECK_EQ(x, y);
+    CHECK_EQ(std::signbit(x), std::signbit(y));
   }
 }
 

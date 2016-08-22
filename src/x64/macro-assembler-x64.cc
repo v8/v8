@@ -2882,6 +2882,14 @@ void MacroAssembler::Movq(Register dst, XMMRegister src) {
   }
 }
 
+void MacroAssembler::Movmskps(Register dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovmskps(dst, src);
+  } else {
+    movmskps(dst, src);
+  }
+}
 
 void MacroAssembler::Movmskpd(Register dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {

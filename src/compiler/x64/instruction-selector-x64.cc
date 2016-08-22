@@ -1388,6 +1388,13 @@ void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitRO(this, node, kSSEFloat32Sqrt);
 }
 
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  VisitRRO(this, node, kSSEFloat32Max);
+}
+
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  VisitRRO(this, node, kSSEFloat32Min);
+}
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
   VisitFloatBinop(this, node, kAVXFloat64Add, kSSEFloat64Add);
