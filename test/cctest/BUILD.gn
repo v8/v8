@@ -160,4 +160,14 @@ v8_executable("generate-bytecode-expectations") {
   } else {
     deps += [ "../..:v8" ]
   }
+
+  if (is_win) {
+    # Suppress warnings about importing locally defined symbols.
+    if (is_component_build) {
+      ldflags = [
+        "/ignore:4049",
+        "/ignore:4217",
+      ]
+    }
+  }
 }
