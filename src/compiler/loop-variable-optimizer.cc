@@ -188,7 +188,7 @@ void LoopVariableOptimizer::VisitBackedge(Node* from, Node* loop) {
         NodeProperties::GetControlInput(constraint->right()) == loop) {
       auto var = induction_vars_.find(constraint->right()->id());
       if (var != induction_vars_.end()) {
-        var->second->AddUpperBound(constraint->left(), constraint->kind());
+        var->second->AddLowerBound(constraint->left(), constraint->kind());
       }
     }
   }
@@ -303,10 +303,15 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   DCHECK_EQ(IrOpcode::kLoop, NodeProperties::GetControlInput(phi)->opcode());
   Node* initial = phi->InputAt(0);
   Node* arith = phi->InputAt(1);
-  // TODO(jarin) Support subtraction.
-  if (arith->opcode() != IrOpcode::kJSAdd) {
+  InductionVariable::ArithmeticType arithmeticType;
+  if (arith->opcode() == IrOpcode::kJSAdd) {
+    arithmeticType = InductionVariable::ArithmeticType::kAddition;
+  } else if (arith->opcode() == IrOpcode::kJSSubtract) {
+    arithmeticType = InductionVariable::ArithmeticType::kSubtraction;
+  } else {
     return nullptr;
   }
+
   // TODO(jarin) Support both sides.
   if (arith->InputAt(0) != phi) {
     if (arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber ||
@@ -315,7 +320,8 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
     }
   }
   Node* incr = arith->InputAt(1);
-  return new (zone()) InductionVariable(phi, arith, incr, initial, zone());
+  return new (zone())
+      InductionVariable(phi, arith, incr, initial, zone(), arithmeticType);
 }
 
 void LoopVariableOptimizer::DetectInductionVariables(Node* loop) {
