@@ -11452,9 +11452,21 @@ EVALUATE(LLH) {
 }
 
 EVALUATE(ML) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(ML);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  DCHECK(r1 % 2 == 0);
+  uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
+  uint32_t r1_val = get_low_register<uint32_t>(r1 + 1);
+  uint64_t product =
+      static_cast<uint64_t>(r1_val) * static_cast<uint64_t>(mem_val);
+  uint32_t high_bits = product >> 32;
+  r1_val = high_bits;
+  uint32_t low_bits = product & 0x00000000FFFFFFFF;
+  set_low_register(r1, high_bits);
+  set_low_register(r1 + 1, low_bits);
+  return length;
 }
 
 EVALUATE(DL) {
