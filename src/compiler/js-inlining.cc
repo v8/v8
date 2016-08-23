@@ -434,18 +434,21 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
                                       frame_state_before, effect);
       NodeProperties::ReplaceEffectInput(node, create);
       // Insert a check of the return value to determine whether the return
-      // value
-      // or the implicit receiver should be selected as a result of the call.
+      // value or the implicit receiver should be selected as a result of the
+      // call. The check is wired into the successful control completion.
+      Node* success = graph()->NewNode(common()->IfSuccess(), node);
       Node* check = graph()->NewNode(
           javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), node,
-          context, node, start);
+          context, node, success);
       Node* select =
           graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                            check, node, create);
-      NodeProperties::ReplaceUses(node, select, check, node, node);
-      NodeProperties::ReplaceValueInput(select, node, 1);
-      NodeProperties::ReplaceValueInput(check, node, 0);
-      NodeProperties::ReplaceEffectInput(check, node);
+      NodeProperties::ReplaceUses(node, select, check, check, node);
+      // Fix-up inputs that have been mangled by the {ReplaceUses} call above.
+      NodeProperties::ReplaceValueInput(select, node, 1);  // Fix-up input.
+      NodeProperties::ReplaceValueInput(check, node, 0);   // Fix-up input.
+      NodeProperties::ReplaceEffectInput(check, node);     // Fix-up input.
+      NodeProperties::ReplaceControlInput(success, node);  // Fix-up input.
       receiver = create;  // The implicit receiver.
     }
 
