@@ -1222,6 +1222,32 @@ void PatchJSWrapper(Isolate* isolate, Handle<Code> wrapper,
                          wrapper->instruction_size());
 }
 
+Handle<FixedArray> SetupIndirectFunctionTable(
+    Isolate* isolate, Handle<FixedArray> wasm_functions,
+    Handle<FixedArray> indirect_table_template) {
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> cloned_indirect_tables =
+      factory->CopyFixedArray(indirect_table_template);
+  for (int i = 0; i < cloned_indirect_tables->length(); ++i) {
+    Handle<FixedArray> orig_metadata =
+        cloned_indirect_tables->GetValueChecked<FixedArray>(isolate, i);
+    Handle<FixedArray> cloned_metadata = factory->CopyFixedArray(orig_metadata);
+    cloned_indirect_tables->set(i, *cloned_metadata);
+
+    Handle<FixedArray> orig_table =
+        cloned_metadata->GetValueChecked<FixedArray>(isolate, kTable);
+    Handle<FixedArray> cloned_table = factory->CopyFixedArray(orig_table);
+    cloned_metadata->set(kTable, *cloned_table);
+    // Patch the cloned code to refer to the cloned kTable.
+    for (int i = 0; i < wasm_functions->length(); ++i) {
+      Handle<Code> wasm_function =
+          wasm_functions->GetValueChecked<Code>(isolate, i);
+      PatchFunctionTable(wasm_function, orig_table, cloned_table);
+    }
+  }
+  return cloned_indirect_tables;
+}
+
 Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
                                           Handle<FixedArray> original) {
   Factory* factory = isolate->factory();
@@ -1238,34 +1264,6 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
         clone_wasm_functions->GetValueChecked<Code>(isolate, i);
     Handle<Code> cloned_code = factory->CopyCode(orig_code);
     clone_wasm_functions->set(i, *cloned_code);
-  }
-
-  // Copy the outer table, each WasmIndirectFunctionTableMetadata table, and the
-  // inner kTable.
-  MaybeHandle<FixedArray> maybe_indirect_tables =
-      original->GetValue<FixedArray>(isolate, kTableOfIndirectFunctionTables);
-  Handle<FixedArray> indirect_tables, clone_indirect_tables;
-  if (maybe_indirect_tables.ToHandle(&indirect_tables)) {
-    clone_indirect_tables = factory->CopyFixedArray(indirect_tables);
-    clone->set(kTableOfIndirectFunctionTables, *clone_indirect_tables);
-    for (int i = 0; i < clone_indirect_tables->length(); ++i) {
-      Handle<FixedArray> orig_metadata =
-          clone_indirect_tables->GetValueChecked<FixedArray>(isolate, i);
-      Handle<FixedArray> clone_metadata =
-          factory->CopyFixedArray(orig_metadata);
-      clone_indirect_tables->set(i, *clone_metadata);
-
-      Handle<FixedArray> orig_table =
-          clone_metadata->GetValueChecked<FixedArray>(isolate, kTable);
-      Handle<FixedArray> clone_table = factory->CopyFixedArray(orig_table);
-      clone_metadata->set(kTable, *clone_table);
-      // Patch the cloned code to refer to the cloned kTable.
-      for (int i = 0; i < clone_wasm_functions->length(); ++i) {
-        Handle<Code> cloned_code =
-            clone_wasm_functions->GetValueChecked<Code>(isolate, i);
-        PatchFunctionTable(cloned_code, orig_table, clone_table);
-      }
-    }
   }
 
   MaybeHandle<FixedArray> maybe_orig_exports =
@@ -1369,8 +1367,10 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
   MaybeHandle<FixedArray> maybe_indirect_tables =
       compiled_module->GetValue<FixedArray>(isolate,
                                             kTableOfIndirectFunctionTables);
-  Handle<FixedArray> indirect_tables;
-  if (maybe_indirect_tables.ToHandle(&indirect_tables)) {
+  Handle<FixedArray> indirect_tables_template;
+  if (maybe_indirect_tables.ToHandle(&indirect_tables_template)) {
+    Handle<FixedArray> indirect_tables = SetupIndirectFunctionTable(
+        isolate, code_table, indirect_tables_template);
     for (int i = 0; i < indirect_tables->length(); ++i) {
       Handle<FixedArray> metadata =
           indirect_tables->GetValueChecked<FixedArray>(isolate, i);
