@@ -206,7 +206,6 @@ void DeclarationScope::SetDefaults() {
   arguments_ = nullptr;
   this_function_ = nullptr;
   arity_ = 0;
-  rest_parameter_ = nullptr;
   rest_index_ = -1;
 }
 
@@ -694,11 +693,7 @@ Variable* DeclarationScope::DeclareParameter(
   if (!is_optional && !is_rest && arity_ == params_.length()) {
     ++arity_;
   }
-  if (is_rest) {
-    DCHECK_NULL(rest_parameter_);
-    rest_parameter_ = var;
-    rest_index_ = num_parameters();
-  }
+  if (is_rest) rest_index_ = num_parameters();
   params_.Add(var, zone());
   if (name == ast_value_factory->arguments_string()) {
     has_arguments_parameter_ = true;
@@ -1543,17 +1538,13 @@ void DeclarationScope::AllocateParameterLocals() {
     DCHECK(is_arrow_scope());
   }
 
-  if (rest_parameter_ && !MustAllocate(rest_parameter_)) {
-    rest_parameter_ = nullptr;
-  }
-
   // The same parameter may occur multiple times in the parameters_ list.
   // If it does, and if it is not copied into the context object, it must
   // receive the highest parameter index for that parameter; thus iteration
   // order is relevant!
   for (int i = params_.length() - 1; i >= 0; --i) {
+    if (i == rest_index_) continue;
     Variable* var = params_[i];
-    if (var == rest_parameter_) continue;
 
     DCHECK(var->scope() == this);
     if (uses_sloppy_arguments) {
@@ -1647,7 +1638,8 @@ void DeclarationScope::AllocateLocals() {
     AllocateNonParameterLocal(function_);
   }
 
-  DCHECK(rest_parameter_ == nullptr || !rest_parameter_->IsUnallocated());
+  DCHECK(!has_rest_parameter() || !MustAllocate(params_[rest_index_]) ||
+         !params_[rest_index_]->IsUnallocated());
 
   if (new_target_ != nullptr && !MustAllocate(new_target_)) {
     new_target_ = nullptr;

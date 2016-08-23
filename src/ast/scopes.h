@@ -770,8 +770,8 @@ class DeclarationScope : public Scope {
   // A function can have at most one rest parameter. Returns Variable* or NULL.
   Variable* rest_parameter(int* index) const {
     *index = rest_index_;
-    if (rest_index_ < 0) return NULL;
-    return rest_parameter_;
+    if (rest_index_ < 0) return nullptr;
+    return params_[rest_index_];
   }
 
   bool has_rest_parameter() const { return rest_index_ >= 0; }
@@ -890,7 +890,6 @@ class DeclarationScope : public Scope {
   // Info about the parameter list of a function.
   int arity_;
   int rest_index_;
-  Variable* rest_parameter_;
   // Compiler-allocated (user-invisible) temporaries.
   ZoneList<Variable*> temps_;
   // Parameter list in source order.
