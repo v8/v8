@@ -50,32 +50,28 @@ declare_args() {
 # for the other supported configurations.
 
 if (v8_snapshot_toolchain == "") {
-
   if (current_os == host_os && current_cpu == host_cpu) {
     # This is not a cross-compile, so build the snapshot with the current
     # toolchain.
     v8_snapshot_toolchain = current_toolchain
-
   } else if (current_os == host_os && current_cpu == "x86" &&
              host_cpu == "x64") {
     # This is an x64 -> x86 cross-compile, but x64 hosts can usually run x86
     # binaries built for the same OS, so build the snapshot with the current
     # toolchain here, too.
     v8_snapshot_toolchain = current_toolchain
-
   } else if (current_os == "win" && host_os == "mac" && is_clang) {
     # This is a mac -> win cross-compile, which is only supported w/ clang.
     v8_snapshot_toolchain = "//build/toolchain/mac:clang_${v8_current_cpu}"
-
   } else if (host_cpu == "x64") {
     # This is a cross-compile from an x64 host to either a non-Intel target
-    # cpu or a different target OS. Assume the same toolchain (Clang or GCC
-    # or MSVS) for target and host, unless this is an Android build, where
-    # Clang is always used on the host.
-    if (is_clang || is_android) {
-      _clang = "clang_"
-    } else {
+    # cpu or a different target OS. Clang will always be used by default on the
+    # host, unless this is a ChromeOS build, in which case the same toolchain
+    # (Clang or GCC) will be used for target and host by default.
+    if (is_chromeos && !is_clang) {
       _clang = ""
+    } else {
+      _clang = "clang_"
     }
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "x86") {
@@ -98,4 +94,4 @@ if (v8_snapshot_toolchain == "") {
 
 assert(v8_snapshot_toolchain != "",
        "Do not know how to build a snapshot for $current_toolchain " +
-       "on $host_os $host_cpu")
+           "on $host_os $host_cpu")
