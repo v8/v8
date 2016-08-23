@@ -607,7 +607,7 @@ class ParserBase : public Traits {
   };
 
   DeclarationScope* NewScriptScope() {
-    return new (zone()) DeclarationScope(zone(), nullptr, SCRIPT_SCOPE);
+    return new (zone()) DeclarationScope(zone());
   }
 
   DeclarationScope* NewVarblockScope() {

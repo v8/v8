@@ -443,6 +443,9 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
 
  protected:
+  // Creates a script scope.
+  explicit Scope(Zone* zone);
+
   void set_language_mode(LanguageMode language_mode) {
     is_strict_ = is_strict(language_mode);
   }
@@ -657,6 +660,8 @@ class DeclarationScope : public Scope {
                    FunctionKind function_kind = kNormalFunction);
   DeclarationScope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
                    Handle<ScopeInfo> scope_info);
+  // Creates a script scope.
+  explicit DeclarationScope(Zone* zone);
 
   bool IsDeclaredParameter(const AstRawString* name) {
     // If IsSimpleParameterList is false, duplicate parameters are not allowed,

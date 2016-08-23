@@ -77,6 +77,16 @@ void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
 // ----------------------------------------------------------------------------
 // Implementation of Scope
 
+Scope::Scope(Zone* zone)
+    : zone_(zone),
+      outer_scope_(nullptr),
+      variables_(zone),
+      ordered_variables_(4, zone),
+      decls_(4, zone),
+      scope_type_(SCRIPT_SCOPE) {
+  SetDefaults();
+}
+
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
     : zone_(zone),
       outer_scope_(outer_scope),
@@ -84,17 +94,12 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
       ordered_variables_(4, zone),
       decls_(4, zone),
       scope_type_(scope_type) {
+  DCHECK_NE(SCRIPT_SCOPE, scope_type);
   SetDefaults();
-  if (outer_scope == nullptr) {
-    // If the outer scope is null, this cannot be a with scope. The outermost
-    // scope must be a script scope.
-    DCHECK_EQ(SCRIPT_SCOPE, scope_type);
-  } else {
-    set_language_mode(outer_scope->language_mode());
-    force_context_allocation_ =
-        !is_function_scope() && outer_scope->has_forced_context_allocation();
-    outer_scope_->AddInnerScope(this);
-  }
+  set_language_mode(outer_scope->language_mode());
+  force_context_allocation_ =
+      !is_function_scope() && outer_scope->has_forced_context_allocation();
+  outer_scope_->AddInnerScope(this);
 }
 
 Scope::Snapshot::Snapshot(Scope* scope)
@@ -102,6 +107,15 @@ Scope::Snapshot::Snapshot(Scope* scope)
       top_inner_scope_(scope->inner_scope_),
       top_unresolved_(scope->unresolved_),
       top_temp_(scope->GetClosureScope()->temps()->length()) {}
+
+DeclarationScope::DeclarationScope(Zone* zone)
+    : Scope(zone),
+      function_kind_(kNormalFunction),
+      temps_(4, zone),
+      params_(4, zone),
+      sloppy_block_function_map_(zone) {
+  SetDefaults();
+}
 
 DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
                                    ScopeType scope_type,
@@ -112,7 +126,7 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
       params_(4, zone),
       sloppy_block_function_map_(zone) {
   SetDefaults();
-  if (outer_scope != nullptr) asm_function_ = outer_scope_->IsAsmModule();
+  asm_function_ = outer_scope_->IsAsmModule();
 }
 
 ModuleScope::ModuleScope(Zone* zone, DeclarationScope* script_scope,
