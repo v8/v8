@@ -2429,8 +2429,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN,
   if (!is_destructuring_assignment) {
     // This may be an expression or a pattern, so we must continue to
     // accumulate expression-related errors.
-    productions |= ExpressionClassifier::ExpressionProduction |
-                   ExpressionClassifier::TailCallExpressionProduction |
+    productions |= ExpressionClassifier::ExpressionProductions |
                    ExpressionClassifier::ObjectLiteralProduction;
   }
 
