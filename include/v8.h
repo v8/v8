@@ -6464,19 +6464,18 @@ class V8_EXPORT StartupData {
  */
 typedef bool (*EntropySource)(unsigned char* buffer, size_t length);
 
-
 /**
  * ReturnAddressLocationResolver is used as a callback function when v8 is
  * resolving the location of a return address on the stack. Profilers that
  * change the return address on the stack can use this to resolve the stack
  * location to whereever the profiler stashed the original return address.
  *
- * \param return_addr_location points to a location on stack where a machine
+ * \param return_addr_location A location on stack where a machine
  *    return address resides.
- * \returns either return_addr_location, or else a pointer to the profiler's
+ * \returns Either return_addr_location, or else a pointer to the profiler's
  *    copy of the original return address.
  *
- * \note the resolver function must not cause garbage collection.
+ * \note The resolver function must not cause garbage collection.
  */
 typedef uintptr_t (*ReturnAddressLocationResolver)(
     uintptr_t return_addr_location);
