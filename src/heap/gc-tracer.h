@@ -9,7 +9,6 @@
 #include "src/base/platform/platform.h"
 #include "src/counters.h"
 #include "src/globals.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {
 namespace internal {
@@ -60,64 +59,54 @@ inline BytesAndDuration MakeBytesAndDuration(uint64_t bytes, double duration) {
 
 enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
-#define INCREMENTAL_SCOPES(F)                \
-  F(MC_INCREMENTAL_WRAPPER_PROLOGUE)         \
-  F(MC_INCREMENTAL_WRAPPER_TRACING)          \
-  F(MC_INCREMENTAL_FINALIZE)                 \
-  F(MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING) \
-  F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)        \
-  F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)
-
-#define TRACER_SCOPES(F)                      \
-  INCREMENTAL_SCOPES(F)                       \
-  F(EXTERNAL_WEAK_GLOBAL_HANDLES)             \
-  F(MC_CLEAR)                                 \
-  F(MC_CLEAR_CODE_FLUSH)                      \
-  F(MC_CLEAR_DEPENDENT_CODE)                  \
-  F(MC_CLEAR_GLOBAL_HANDLES)                  \
-  F(MC_CLEAR_MAPS)                            \
-  F(MC_CLEAR_SLOTS_BUFFER)                    \
-  F(MC_CLEAR_STORE_BUFFER)                    \
-  F(MC_CLEAR_STRING_TABLE)                    \
-  F(MC_CLEAR_WEAK_CELLS)                      \
-  F(MC_CLEAR_WEAK_COLLECTIONS)                \
-  F(MC_CLEAR_WEAK_LISTS)                      \
-  F(MC_EVACUATE)                              \
-  F(MC_EVACUATE_CANDIDATES)                   \
-  F(MC_EVACUATE_CLEAN_UP)                     \
-  F(MC_EVACUATE_COPY)                         \
-  F(MC_EVACUATE_UPDATE_POINTERS)              \
-  F(MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED) \
-  F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW)       \
-  F(MC_EVACUATE_UPDATE_POINTERS_WEAK)         \
-  F(MC_EXTERNAL_EPILOGUE)                     \
-  F(MC_EXTERNAL_PROLOGUE)                     \
-  F(MC_FINISH)                                \
-  F(MC_MARK)                                  \
-  F(MC_MARK_FINISH_INCREMENTAL)               \
-  F(MC_MARK_PREPARE_CODE_FLUSH)               \
-  F(MC_MARK_ROOTS)                            \
-  F(MC_MARK_WEAK_CLOSURE)                     \
-  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)           \
-  F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)        \
-  F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)          \
-  F(MC_MARK_WEAK_CLOSURE_HARMONY)             \
-  F(MC_MARK_WRAPPER_EPILOGUE)                 \
-  F(MC_MARK_WRAPPER_PROLOGUE)                 \
-  F(MC_MARK_WRAPPER_TRACING)                  \
-  F(MC_MARK_OBJECT_GROUPING)                  \
-  F(MC_SWEEP)                                 \
-  F(MC_SWEEP_CODE)                            \
-  F(MC_SWEEP_MAP)                             \
-  F(MC_SWEEP_OLD)                             \
-  F(SCAVENGER_CODE_FLUSH_CANDIDATES)          \
-  F(SCAVENGER_EXTERNAL_EPILOGUE)              \
-  F(SCAVENGER_EXTERNAL_PROLOGUE)              \
-  F(SCAVENGER_OBJECT_GROUPS)                  \
-  F(SCAVENGER_OLD_TO_NEW_POINTERS)            \
-  F(SCAVENGER_ROOTS)                          \
-  F(SCAVENGER_SCAVENGE)                       \
-  F(SCAVENGER_SEMISPACE)                      \
+#define TRACER_SCOPES(F)                           \
+  F(EXTERNAL_WEAK_GLOBAL_HANDLES)                  \
+  F(MC_CLEAR)                                      \
+  F(MC_CLEAR_CODE_FLUSH)                           \
+  F(MC_CLEAR_DEPENDENT_CODE)                       \
+  F(MC_CLEAR_GLOBAL_HANDLES)                       \
+  F(MC_CLEAR_MAPS)                                 \
+  F(MC_CLEAR_SLOTS_BUFFER)                         \
+  F(MC_CLEAR_STORE_BUFFER)                         \
+  F(MC_CLEAR_STRING_TABLE)                         \
+  F(MC_CLEAR_WEAK_CELLS)                           \
+  F(MC_CLEAR_WEAK_COLLECTIONS)                     \
+  F(MC_CLEAR_WEAK_LISTS)                           \
+  F(MC_EVACUATE)                                   \
+  F(MC_EVACUATE_CANDIDATES)                        \
+  F(MC_EVACUATE_CLEAN_UP)                          \
+  F(MC_EVACUATE_COPY)                              \
+  F(MC_EVACUATE_UPDATE_POINTERS)                   \
+  F(MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED)      \
+  F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW)            \
+  F(MC_EVACUATE_UPDATE_POINTERS_WEAK)              \
+  F(MC_EXTERNAL_EPILOGUE)                          \
+  F(MC_EXTERNAL_PROLOGUE)                          \
+  F(MC_FINISH)                                     \
+  F(MC_INCREMENTAL_FINALIZE)                       \
+  F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)              \
+  F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)              \
+  F(MC_MARK)                                       \
+  F(MC_MARK_FINISH_INCREMENTAL)                    \
+  F(MC_MARK_PREPARE_CODE_FLUSH)                    \
+  F(MC_MARK_ROOTS)                                 \
+  F(MC_MARK_WEAK_CLOSURE)                          \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)             \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)               \
+  F(MC_MARK_WEAK_CLOSURE_HARMONY)                  \
+  F(MC_SWEEP)                                      \
+  F(MC_SWEEP_CODE)                                 \
+  F(MC_SWEEP_MAP)                                  \
+  F(MC_SWEEP_OLD)                                  \
+  F(SCAVENGER_CODE_FLUSH_CANDIDATES)               \
+  F(SCAVENGER_EXTERNAL_EPILOGUE)                   \
+  F(SCAVENGER_EXTERNAL_PROLOGUE)                   \
+  F(SCAVENGER_OBJECT_GROUPS)                       \
+  F(SCAVENGER_OLD_TO_NEW_POINTERS)                 \
+  F(SCAVENGER_ROOTS)                               \
+  F(SCAVENGER_SCAVENGE)                            \
+  F(SCAVENGER_SEMISPACE)                           \
   F(SCAVENGER_WEAK)
 
 #define TRACE_GC(tracer, scope_id)                             \
@@ -137,12 +126,7 @@ class GCTracer {
 #define DEFINE_SCOPE(scope) scope,
       TRACER_SCOPES(DEFINE_SCOPE)
 #undef DEFINE_SCOPE
-          NUMBER_OF_SCOPES,
-
-      FIRST_INCREMENTAL_SCOPE = MC_INCREMENTAL_WRAPPER_PROLOGUE,
-      LAST_INCREMENTAL_SCOPE = MC_INCREMENTAL_EXTERNAL_PROLOGUE,
-      NUMBER_OF_INCREMENTAL_SCOPES =
-          LAST_INCREMENTAL_SCOPE - FIRST_INCREMENTAL_SCOPE + 1
+          NUMBER_OF_SCOPES
     };
 
     Scope(GCTracer* tracer, ScopeId scope);
@@ -213,7 +197,7 @@ class GCTracer {
 
     // Size of new space objects in constructor.
     intptr_t new_space_object_size;
-    // Size of survived new space objects in destructor.
+    // Size of survived new space objects in desctructor.
     intptr_t survived_new_space_object_size;
 
     // Number of incremental marking steps since creation of tracer.
@@ -255,34 +239,9 @@ class GCTracer {
     // events
     double pure_incremental_marking_duration;
 
-    // Longest incremental marking step since start of marking (start of event).
+    // Longest incremental marking step since start of marking.
+    // (value at start of event)
     double longest_incremental_marking_step;
-
-    // Number of incremental marking finalization steps since creation of
-    // tracer.
-    int cumulative_incremental_marking_finalization_steps;
-
-    // Cumulative pure duration of incremental marking steps since creation of
-    // tracer. (value at start of event)
-    double cumulative_incremental_marking_finalizaton_duration;
-
-    // Longest incremental marking finalization step since start of marking
-    // (start of event).
-    double longest_incremental_marking_finalization_step;
-
-    // Incremental marking finalization steps since
-    // - last event for SCAVENGER events
-    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
-    // events
-    int incremental_marking_finalizaton_steps;
-
-    // Duration of incremental marking finalization steps since
-    // - last event for SCAVENGER events
-    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
-    // events
-    double incremental_marking_finalization_duration;
-
-    double cumulative_incremental_scopes[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
 
     // Amounts of time spent in different scopes during GC.
     double scopes[Scope::NUMBER_OF_SCOPES];
@@ -406,17 +365,6 @@ class GCTracer {
   // Discard all recorded survival events.
   void ResetSurvivalEvents();
 
-  void AddScopeSample(Scope::ScopeId scope, double duration);
-
- private:
-  FRIEND_TEST(GCTracer, AverageSpeed);
-  FRIEND_TEST(GCTracerTest, AllocationThroughput);
-  FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughput);
-  FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughputWithProvidedTime);
-  FRIEND_TEST(GCTracerTest, OldGenerationAllocationThroughputWithProvidedTime);
-  FRIEND_TEST(GCTracerTest, RegularScope);
-  FRIEND_TEST(GCTracerTest, IncrementalScope);
-
   // Returns the average speed of the events in the buffer.
   // If the buffer is empty, the result is 0.
   // Otherwise, the result is between 1 byte/ms and 1 GB/ms.
@@ -426,6 +374,7 @@ class GCTracer {
 
   void ResetForTesting();
 
+ private:
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
   void PrintNVP() const;
@@ -505,10 +454,6 @@ class GCTracer {
   // Total marking time.
   // This timer is precise when run with --print-cumulative-gc-stat
   double cumulative_marking_duration_;
-
-  // Cumulative duration of incremental marking scopes since the creation of
-  // the tracer.
-  double cumulative_incremental_scopes_[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
 
   // Total sweeping time on the main thread.
   // This timer is precise when run with --print-cumulative-gc-stat

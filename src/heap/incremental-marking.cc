@@ -557,8 +557,6 @@ void IncrementalMarking::StartMarking() {
   state_ = MARKING;
 
   if (heap_->UsingEmbedderHeapTracer()) {
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
     heap_->mark_compact_collector()->embedder_heap_tracer()->TracePrologue();
   }
 
@@ -624,9 +622,6 @@ void IncrementalMarking::MarkRoots() {
 
 
 void IncrementalMarking::MarkObjectGroups() {
-  TRACE_GC(heap_->tracer(),
-           GCTracer::Scope::MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING);
-
   DCHECK(!heap_->UsingEmbedderHeapTracer());
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
@@ -1208,8 +1203,6 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
       bytes_processed = ProcessMarkingDeque(bytes_to_process);
       if (FLAG_incremental_marking_wrappers &&
           heap_->UsingEmbedderHeapTracer()) {
-        TRACE_GC(heap()->tracer(),
-                 GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
         // This currently marks through all registered wrappers and does not
         // respect bytes_to_process.
         // TODO(hpayer): Integrate incremental marking of wrappers into

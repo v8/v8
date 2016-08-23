@@ -814,7 +814,6 @@ void MarkCompactCollector::Prepare() {
 
   if (!was_marked_incrementally_) {
     if (heap_->UsingEmbedderHeapTracer()) {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_PROLOGUE);
       heap_->mark_compact_collector()->embedder_heap_tracer()->TracePrologue();
     }
   }
@@ -2082,14 +2081,12 @@ void MarkCompactCollector::ProcessEphemeralMarking(
   bool work_to_do = true;
   while (work_to_do) {
     if (UsingEmbedderHeapTracer()) {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
       RegisterWrappersWithEmbedderHeapTracer();
       embedder_heap_tracer()->AdvanceTracing(
           0, EmbedderHeapTracer::AdvanceTracingActions(
                  EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
     }
     if (!only_process_harmony_weak_collections) {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_OBJECT_GROUPING);
       isolate()->global_handles()->IterateObjectGroups(
           visitor, &IsUnmarkedHeapObjectWithHeap);
       MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
@@ -2368,7 +2365,6 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeralMarking(&root_visitor, true);
       if (UsingEmbedderHeapTracer()) {
-        TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
         embedder_heap_tracer()->TraceEpilogue();
       }
     }
