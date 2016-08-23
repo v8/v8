@@ -767,6 +767,7 @@ Parser::Parser(ParseInfo* info)
 void Parser::DeserializeScopeChain(
     ParseInfo* info, Handle<Context> context,
     Scope::DeserializationMode deserialization_mode) {
+  DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
   // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
   // context, which will have the "this" binding for script scopes.
   DeclarationScope* script_scope = NewScriptScope();
