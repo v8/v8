@@ -21,6 +21,7 @@ namespace internal {
 class HeapNumber;
 class Isolate;
 class JSDate;
+class JSRegExp;
 class JSValue;
 class Object;
 class Oddball;
@@ -77,6 +78,7 @@ class ValueSerializer {
   Maybe<bool> WriteJSArray(Handle<JSArray> array) WARN_UNUSED_RESULT;
   void WriteJSDate(JSDate* date);
   Maybe<bool> WriteJSValue(Handle<JSValue> value) WARN_UNUSED_RESULT;
+  void WriteJSRegExp(JSRegExp* regexp);
 
   /*
    * Reads the specified keys from the object and writes key-value pairs to the
@@ -149,6 +151,7 @@ class ValueDeserializer {
   MaybeHandle<JSArray> ReadDenseJSArray() WARN_UNUSED_RESULT;
   MaybeHandle<JSDate> ReadJSDate() WARN_UNUSED_RESULT;
   MaybeHandle<JSValue> ReadJSValue(SerializationTag tag) WARN_UNUSED_RESULT;
+  MaybeHandle<JSRegExp> ReadJSRegExp() WARN_UNUSED_RESULT;
 
   /*
    * Reads key-value pairs into the object until the specified end tag is

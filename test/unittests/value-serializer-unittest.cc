@@ -1263,5 +1263,64 @@ TEST_F(ValueSerializerTest, DecodeValueObjects) {
       });
 }
 
+TEST_F(ValueSerializerTest, RoundTripRegExp) {
+  RoundTripTest("/foo/g", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsRegExp());
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === RegExp.prototype"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.toString() === '/foo/g'"));
+  });
+  RoundTripTest("new RegExp('Qu\\xe9bec', 'i')", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsRegExp());
+    EXPECT_TRUE(
+        EvaluateScriptForResultBool("result.toString() === '/Qu\\xe9bec/i'"));
+  });
+  RoundTripTest("new RegExp('\\ud83d\\udc4a', 'ug')",
+                [this](Local<Value> value) {
+                  ASSERT_TRUE(value->IsRegExp());
+                  EXPECT_TRUE(EvaluateScriptForResultBool(
+                      "result.toString() === '/\\ud83d\\udc4a/gu'"));
+                });
+  RoundTripTest(
+      "({ a: /foo/gi, get b() { return this.a; }})",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof RegExp"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeRegExp) {
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x01},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsRegExp());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === RegExp.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === '/foo/g'"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x52, 0x07, 0x51, 0x75, 0xc3, 0xa9, 0x62,
+              0x65, 0x63, 0x02},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsRegExp());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === '/Qu\\xe9bec/i'"));
+             });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x52, 0x04, 0xf0, 0x9f, 0x91, 0x8a, 0x11, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "result.toString() === '/\\ud83d\\udc4a/gu'"));
+      });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01, 0x61,
+       0x3f, 0x01, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x03, 0x3f, 0x02,
+       0x53, 0x01, 0x62, 0x3f, 0x02, 0x5e, 0x01, 0x7b, 0x02, 0x00},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof RegExp"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
 }  // namespace
 }  // namespace v8

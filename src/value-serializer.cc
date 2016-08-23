@@ -79,6 +79,9 @@ enum class SerializationTag : uint8_t {
   kNumberObject = 'n',
   // String object, UTF-8 encoding. byteLength:uint32_t, then raw data.
   kStringObject = 's',
+  // Regular expression, UTF-8 encoding. byteLength:uint32_t, raw data,
+  // flags:uint32_t.
+  kRegExp = 'R',
 };
 
 ValueSerializer::ValueSerializer(Isolate* isolate)
@@ -283,6 +286,9 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return Just(true);
     case JS_VALUE_TYPE:
       return WriteJSValue(Handle<JSValue>::cast(receiver));
+    case JS_REGEXP_TYPE:
+      WriteJSRegExp(JSRegExp::cast(*receiver));
+      return Just(true);
     default:
       UNIMPLEMENTED();
       break;
@@ -398,6 +404,17 @@ Maybe<bool> ValueSerializer::WriteJSValue(Handle<JSValue> value) {
     return Nothing<bool>();
   }
   return Just(true);
+}
+
+void ValueSerializer::WriteJSRegExp(JSRegExp* regexp) {
+  WriteTag(SerializationTag::kRegExp);
+  v8::Local<v8::String> api_string =
+      Utils::ToLocal(handle(regexp->Pattern(), isolate_));
+  uint32_t utf8_length = api_string->Utf8Length();
+  WriteVarint(utf8_length);
+  api_string->WriteUtf8(reinterpret_cast<char*>(ReserveRawBytes(utf8_length)),
+                        utf8_length, nullptr, v8::String::NO_NULL_TERMINATION);
+  WriteVarint(static_cast<uint32_t>(regexp->GetFlags()));
 }
 
 Maybe<uint32_t> ValueSerializer::WriteJSObjectProperties(
@@ -587,6 +604,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
     case SerializationTag::kNumberObject:
     case SerializationTag::kStringObject:
       return ReadJSValue(tag);
+    case SerializationTag::kRegExp:
+      return ReadJSRegExp();
     default:
       return MaybeHandle<Object>();
   }
@@ -765,6 +784,21 @@ MaybeHandle<JSValue> ValueDeserializer::ReadJSValue(SerializationTag tag) {
   }
   AddObjectWithID(id, value);
   return value;
+}
+
+MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
+  uint32_t id = next_id_++;
+  Handle<String> pattern;
+  uint32_t raw_flags;
+  Handle<JSRegExp> regexp;
+  if (!ReadUtf8String().ToHandle(&pattern) ||
+      !ReadVarint<uint32_t>().To(&raw_flags) ||
+      !JSRegExp::New(pattern, static_cast<JSRegExp::Flags>(raw_flags))
+           .ToHandle(&regexp)) {
+    return MaybeHandle<JSRegExp>();
+  }
+  AddObjectWithID(id, regexp);
+  return regexp;
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
