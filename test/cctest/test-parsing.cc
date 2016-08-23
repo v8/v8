@@ -65,14 +65,13 @@ TEST(ScanKeywords) {
 
   KeywordToken key_token;
   i::UnicodeCache unicode_cache;
-  i::byte buffer[32];
+  char buffer[32];
   for (int i = 0; (key_token = keywords[i]).keyword != NULL; i++) {
-    const i::byte* keyword =
-        reinterpret_cast<const i::byte*>(key_token.keyword);
-    int length = i::StrLength(key_token.keyword);
+    const char* keyword = key_token.keyword;
+    size_t length = strlen(key_token.keyword);
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
     {
-      i::Utf8ToUtf16CharacterStream stream(keyword, length);
+      i::ExternalOneByteStringUtf16CharacterStream stream(keyword, length);
       i::Scanner scanner(&unicode_cache);
       scanner.Initialize(&stream);
       CHECK_EQ(key_token.token, scanner.Next());
@@ -80,7 +79,7 @@ TEST(ScanKeywords) {
     }
     // Removing characters will make keyword matching fail.
     {
-      i::Utf8ToUtf16CharacterStream stream(keyword, length - 1);
+      i::ExternalOneByteStringUtf16CharacterStream stream(keyword, length - 1);
       i::Scanner scanner(&unicode_cache);
       scanner.Initialize(&stream);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
@@ -91,7 +90,7 @@ TEST(ScanKeywords) {
     for (int j = 0; j < static_cast<int>(arraysize(chars_to_append)); ++j) {
       i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
-      i::Utf8ToUtf16CharacterStream stream(buffer, length + 1);
+      i::ExternalOneByteStringUtf16CharacterStream stream(buffer, length + 1);
       i::Scanner scanner(&unicode_cache);
       scanner.Initialize(&stream);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
@@ -101,7 +100,7 @@ TEST(ScanKeywords) {
     {
       i::MemMove(buffer, keyword, length);
       buffer[length - 1] = '_';
-      i::Utf8ToUtf16CharacterStream stream(buffer, length);
+      i::ExternalOneByteStringUtf16CharacterStream stream(buffer, length);
       i::Scanner scanner(&unicode_cache);
       scanner.Initialize(&stream);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
@@ -166,9 +165,8 @@ TEST(ScanHTMLEndComments) {
       i::GetCurrentStackPosition() - 128 * 1024);
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; tests[i]; i++) {
-    const i::byte* source =
-        reinterpret_cast<const i::byte*>(tests[i]);
-    i::Utf8ToUtf16CharacterStream stream(source, i::StrLength(tests[i]));
+    const char* source = tests[i];
+    i::ExternalOneByteStringUtf16CharacterStream stream(source);
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
@@ -184,9 +182,8 @@ TEST(ScanHTMLEndComments) {
   }
 
   for (int i = 0; fail_tests[i]; i++) {
-    const i::byte* source =
-        reinterpret_cast<const i::byte*>(fail_tests[i]);
-    i::Utf8ToUtf16CharacterStream stream(source, i::StrLength(fail_tests[i]));
+    const char* source = fail_tests[i];
+    i::ExternalOneByteStringUtf16CharacterStream stream(source);
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
@@ -344,9 +341,7 @@ TEST(StandAlonePreParser) {
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     const char* program = programs[i];
-    i::Utf8ToUtf16CharacterStream stream(
-        reinterpret_cast<const i::byte*>(program),
-        static_cast<unsigned>(strlen(program)));
+    i::ExternalOneByteStringUtf16CharacterStream stream(program);
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
@@ -380,9 +375,7 @@ TEST(StandAlonePreParserNoNatives) {
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     const char* program = programs[i];
-    i::Utf8ToUtf16CharacterStream stream(
-        reinterpret_cast<const i::byte*>(program),
-        static_cast<unsigned>(strlen(program)));
+    i::ExternalOneByteStringUtf16CharacterStream stream(program);
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
@@ -451,9 +444,7 @@ TEST(RegressChromium62639) {
   // and then used the invalid currently scanned literal. This always
   // failed in debug mode, and sometimes crashed in release mode.
 
-  i::Utf8ToUtf16CharacterStream stream(
-      reinterpret_cast<const i::byte*>(program),
-      static_cast<unsigned>(strlen(program)));
+  i::ExternalOneByteStringUtf16CharacterStream stream(program);
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
@@ -537,9 +528,8 @@ TEST(PreParseOverflow) {
 
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
 
-  i::Utf8ToUtf16CharacterStream stream(
-      reinterpret_cast<const i::byte*>(program.get()),
-      static_cast<unsigned>(kProgramSize));
+  i::ExternalOneByteStringUtf16CharacterStream stream(program.get(),
+                                                      kProgramSize);
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
@@ -607,8 +597,8 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
       end);
   i::GenericStringUtf16CharacterStream string_stream(one_byte_string, start,
                                                      end);
-  i::Utf8ToUtf16CharacterStream utf8_stream(
-      reinterpret_cast<const i::byte*>(one_byte_source), end);
+  i::ExternalOneByteStringUtf16CharacterStream utf8_stream(one_byte_source,
+                                                           end);
   utf8_stream.SeekForward(start);
 
   unsigned i = start;
@@ -715,6 +705,7 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
   CHECK_LT(c4, 0);
 }
 
+#undef CHECK_EQU
 
 TEST(CharacterStreams) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -736,63 +727,6 @@ TEST(CharacterStreams) {
   TestCharacterStream("", 0);
 }
 
-
-TEST(Utf8CharacterStream) {
-  static const unsigned kMaxUC16CharU = unibrow::Utf8::kMaxThreeByteChar;
-  static const int kMaxUC16Char = static_cast<int>(kMaxUC16CharU);
-
-  static const int kAllUtf8CharsSize =
-      (unibrow::Utf8::kMaxOneByteChar + 1) +
-      (unibrow::Utf8::kMaxTwoByteChar - unibrow::Utf8::kMaxOneByteChar) * 2 +
-      (unibrow::Utf8::kMaxThreeByteChar - unibrow::Utf8::kMaxTwoByteChar) * 3;
-  static const unsigned kAllUtf8CharsSizeU =
-      static_cast<unsigned>(kAllUtf8CharsSize);
-
-  char buffer[kAllUtf8CharsSizeU];
-  unsigned cursor = 0;
-  for (int i = 0; i <= kMaxUC16Char; i++) {
-    cursor += unibrow::Utf8::Encode(buffer + cursor, i,
-                                    unibrow::Utf16::kNoPreviousCharacter, true);
-  }
-  CHECK(cursor == kAllUtf8CharsSizeU);
-
-  i::Utf8ToUtf16CharacterStream stream(reinterpret_cast<const i::byte*>(buffer),
-                                       kAllUtf8CharsSizeU);
-  int32_t bad = unibrow::Utf8::kBadChar;
-  for (int i = 0; i <= kMaxUC16Char; i++) {
-    CHECK_EQU(i, stream.pos());
-    int32_t c = stream.Advance();
-    if (i >= 0xd800 && i <= 0xdfff) {
-      CHECK_EQ(bad, c);
-    } else {
-      CHECK_EQ(i, c);
-    }
-    CHECK_EQU(i + 1, stream.pos());
-  }
-  for (int i = kMaxUC16Char; i >= 0; i--) {
-    CHECK_EQU(i + 1, stream.pos());
-    stream.PushBack(i);
-    CHECK_EQU(i, stream.pos());
-  }
-  int i = 0;
-  while (stream.pos() < kMaxUC16CharU) {
-    CHECK_EQU(i, stream.pos());
-    int progress = static_cast<int>(stream.SeekForward(12));
-    i += progress;
-    int32_t c = stream.Advance();
-    if (i >= 0xd800 && i <= 0xdfff) {
-      CHECK_EQ(bad, c);
-    } else if (i <= kMaxUC16Char) {
-      CHECK_EQ(i, c);
-    } else {
-      CHECK_EQ(-1, c);
-    }
-    i += 1;
-    CHECK_EQU(i, stream.pos());
-  }
-}
-
-#undef CHECK_EQU
 
 void TestStreamScanner(i::Utf16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
@@ -818,8 +752,7 @@ TEST(StreamScanner) {
   v8::V8::Initialize();
 
   const char* str1 = "{ foo get for : */ <- \n\n /*foo*/ bib";
-  i::Utf8ToUtf16CharacterStream stream1(reinterpret_cast<const i::byte*>(str1),
-                                        static_cast<unsigned>(strlen(str1)));
+  i::ExternalOneByteStringUtf16CharacterStream stream1(str1);
   i::Token::Value expectations1[] = {
       i::Token::LBRACE,
       i::Token::IDENTIFIER,
@@ -837,8 +770,7 @@ TEST(StreamScanner) {
   TestStreamScanner(&stream1, expectations1, 0, 0);
 
   const char* str2 = "case default const {THIS\nPART\nSKIPPED} do";
-  i::Utf8ToUtf16CharacterStream stream2(reinterpret_cast<const i::byte*>(str2),
-                                        static_cast<unsigned>(strlen(str2)));
+  i::ExternalOneByteStringUtf16CharacterStream stream2(str2);
   i::Token::Value expectations2[] = {
       i::Token::CASE,
       i::Token::DEFAULT,
@@ -868,18 +800,14 @@ TEST(StreamScanner) {
   for (int i = 0; i <= 4; i++) {
      expectations3[6 - i] = i::Token::ILLEGAL;
      expectations3[5 - i] = i::Token::EOS;
-     i::Utf8ToUtf16CharacterStream stream3(
-         reinterpret_cast<const i::byte*>(str3),
-         static_cast<unsigned>(strlen(str3)));
+     i::ExternalOneByteStringUtf16CharacterStream stream3(str3);
      TestStreamScanner(&stream3, expectations3, 1, 1 + i);
   }
 }
 
 
 void TestScanRegExp(const char* re_source, const char* expected) {
-  i::Utf8ToUtf16CharacterStream stream(
-       reinterpret_cast<const i::byte*>(re_source),
-       static_cast<unsigned>(strlen(re_source)));
+  i::ExternalOneByteStringUtf16CharacterStream stream(re_source);
   i::HandleScope scope(CcTest::i_isolate());
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);

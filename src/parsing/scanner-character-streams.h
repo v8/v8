@@ -64,29 +64,6 @@ class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
 };
 
 
-// Utf16 stream based on a literal UTF-8 string.
-class Utf8ToUtf16CharacterStream: public BufferedUtf16CharacterStream {
- public:
-  Utf8ToUtf16CharacterStream(const byte* data, size_t length);
-  ~Utf8ToUtf16CharacterStream() override;
-
-  static size_t CopyChars(uint16_t* dest, size_t length, const byte* src,
-                          size_t* src_pos, size_t src_length);
-
- protected:
-  size_t BufferSeekForward(size_t delta) override;
-  size_t FillBuffer(size_t char_position) override;
-  void SetRawPosition(size_t char_position);
-
-  const byte* raw_data_;
-  size_t raw_data_length_;  // Measured in bytes, not characters.
-  size_t raw_data_pos_;
-  // The character position of the character at raw_data[raw_data_pos_].
-  // Not necessarily the same as pos_.
-  size_t raw_character_position_;
-};
-
-
 // ExternalStreamingStream is a wrapper around an ExternalSourceStream (see
 // include/v8.h) subclass implemented by the embedder.
 class ExternalStreamingStream : public BufferedUtf16CharacterStream {
@@ -192,6 +169,10 @@ class ExternalOneByteStringUtf16CharacterStream
                                             int start_position,
                                             int end_position);
   ~ExternalOneByteStringUtf16CharacterStream() override;
+
+  // For testing:
+  explicit ExternalOneByteStringUtf16CharacterStream(const char* data);
+  ExternalOneByteStringUtf16CharacterStream(const char* data, size_t length);
 
   bool SetBookmark() override;
   void ResetToBookmark() override;
