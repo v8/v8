@@ -2309,7 +2309,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN,
   //   ArrowFunction
   //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
-  bool is_destructuring_assignment = false;
   int lhs_beg_pos = peek_position();
 
   if (peek() == Token::YIELD && is_generator()) {
@@ -2404,21 +2403,38 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN,
     return expression;
   }
 
+  // "expression" was not itself an arrow function parameter list, but it might
+  // form part of one.  Propagate speculative formal parameter error locations
+  // (including those for binding patterns, since formal parameters can
+  // themselves contain binding patterns).
+  // Do not merge pending non-pattern expressions yet!
+  unsigned productions =
+      ExpressionClassifier::FormalParametersProductions |
+      ExpressionClassifier::AsyncArrowFormalParametersProduction |
+      ExpressionClassifier::FormalParameterInitializerProduction;
+
+  // Parenthesized identifiers and property references are allowed as part
+  // of a larger binding pattern, even though parenthesized patterns
+  // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
+  // assignment pattern errors if the parsed expression is more complex.
   if (this->IsValidReferenceExpression(expression)) {
-    arrow_formals_classifier.ForgiveAssignmentPatternError();
+    productions |= ExpressionClassifier::PatternProductions &
+                   ~ExpressionClassifier::AssignmentPatternProduction;
+  } else {
+    productions |= ExpressionClassifier::PatternProductions;
   }
 
-  // "expression" was not itself an arrow function parameter list, but it might
-  // form part of one.  Propagate speculative formal parameter error locations.
-  // Do not merge pending non-pattern expressions yet!
-  classifier->Accumulate(
-      &arrow_formals_classifier,
-      ExpressionClassifier::ExpressionProductions |
-          ExpressionClassifier::PatternProductions |
-          ExpressionClassifier::FormalParametersProductions |
-          ExpressionClassifier::ObjectLiteralProduction |
-          ExpressionClassifier::AsyncArrowFormalParametersProduction,
-      false);
+  const bool is_destructuring_assignment =
+      IsValidPattern(expression) && peek() == Token::ASSIGN;
+  if (!is_destructuring_assignment) {
+    // This may be an expression or a pattern, so we must continue to
+    // accumulate expression-related errors.
+    productions |= ExpressionClassifier::ExpressionProduction |
+                   ExpressionClassifier::TailCallExpressionProduction |
+                   ExpressionClassifier::ObjectLiteralProduction;
+  }
+
+  classifier->Accumulate(&arrow_formals_classifier, productions, false);
 
   if (!Token::IsAssignmentOp(peek())) {
     // Parsed conditional expression only (no assignment).
@@ -2432,10 +2448,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN,
 
   CheckNoTailCallExpressions(classifier, CHECK_OK);
 
-  if (IsValidPattern(expression) && peek() == Token::ASSIGN) {
-    classifier->ForgiveObjectLiteralError();
+  if (is_destructuring_assignment) {
     ValidateAssignmentPattern(classifier, CHECK_OK);
-    is_destructuring_assignment = true;
   } else {
     expression = this->CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, scanner()->location().end_pos,

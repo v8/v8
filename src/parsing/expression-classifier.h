@@ -311,20 +311,6 @@ class ExpressionClassifier {
     Add(Error(loc, message, kTailCallExpressionProduction, arg));
   }
 
-  void ForgiveObjectLiteralError() {
-    if (!(invalid_productions_ & ObjectLiteralProduction)) return;
-    Error& e = reported_error(kObjectLiteralProduction);
-    e.kind = kUnusedError;
-    invalid_productions_ &= ~ObjectLiteralProduction;
-  }
-
-  void ForgiveAssignmentPatternError() {
-    if (!(invalid_productions_ & AssignmentPatternProduction)) return;
-    Error& e = reported_error(kAssignmentPatternProduction);
-    e.kind = kUnusedError;
-    invalid_productions_ &= ~AssignmentPatternProduction;
-  }
-
   void Accumulate(ExpressionClassifier* inner, unsigned productions,
                   bool merge_non_patterns = true) {
     DCHECK_EQ(inner->reported_errors_, reported_errors_);
@@ -413,7 +399,7 @@ class ExpressionClassifier {
   }
 
  private:
-  V8_INLINE Error& reported_error(ErrorKind kind) const {
+  V8_INLINE const Error& reported_error(ErrorKind kind) const {
     if (invalid_productions_ & (1 << kind)) {
       for (int i = reported_errors_begin_; i < reported_errors_end_; i++) {
         if (reported_errors_->at(i).kind == kind)
