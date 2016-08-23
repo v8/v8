@@ -909,8 +909,8 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
 // static
 compiler::Node* AddWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* context, compiler::Node* type_feedback_vector,
-    compiler::Node* slot_id) {
+    compiler::Node* slot_id, compiler::Node* type_feedback_vector,
+    compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
@@ -1217,8 +1217,8 @@ compiler::Node* SubtractStub::Generate(CodeStubAssembler* assembler,
 // static
 compiler::Node* SubtractWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* context, compiler::Node* type_feedback_vector,
-    compiler::Node* slot_id) {
+    compiler::Node* slot_id, compiler::Node* type_feedback_vector,
+    compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
@@ -1506,8 +1506,8 @@ compiler::Node* MultiplyStub::Generate(CodeStubAssembler* assembler,
 // static
 compiler::Node* MultiplyWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* context, compiler::Node* type_feedback_vector,
-    compiler::Node* slot_id) {
+    compiler::Node* slot_id, compiler::Node* type_feedback_vector,
+    compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
@@ -1841,8 +1841,8 @@ compiler::Node* DivideStub::Generate(CodeStubAssembler* assembler,
 // static
 compiler::Node* DivideWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* dividend,
-    compiler::Node* divisor, compiler::Node* context,
-    compiler::Node* type_feedback_vector, compiler::Node* slot_id) {
+    compiler::Node* divisor, compiler::Node* slot_id,
+    compiler::Node* type_feedback_vector, compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
@@ -2176,8 +2176,8 @@ compiler::Node* ModulusStub::Generate(CodeStubAssembler* assembler,
 // static
 compiler::Node* ModulusWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* dividend,
-    compiler::Node* divisor, compiler::Node* context,
-    compiler::Node* type_feedback_vector, compiler::Node* slot_id) {
+    compiler::Node* divisor, compiler::Node* slot_id,
+    compiler::Node* type_feedback_vector, compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;

@@ -32,12 +32,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 8
+bytecode array length: 9
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
-  /*   45 S> */ B(AddSmi), U8(3), R(0),
+  /*   45 S> */ B(AddSmi), U8(3), R(0), U8(1),
   /*   59 S> */ B(Return),
 ]
 constant pool: [
@@ -51,12 +51,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 8
+bytecode array length: 9
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
-  /*   45 S> */ B(SubSmi), U8(3), R(0),
+  /*   45 S> */ B(SubSmi), U8(3), R(0), U8(1),
   /*   59 S> */ B(Return),
 ]
 constant pool: [
@@ -130,12 +130,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(BitwiseOrSmi), U8(2), R(0),
+  /*   45 S> */ B(BitwiseOrSmi), U8(2), R(0), U8(1),
   /*   59 S> */ B(Return),
 ]
 constant pool: [
@@ -169,12 +169,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(BitwiseAndSmi), U8(2), R(0),
+  /*   45 S> */ B(BitwiseAndSmi), U8(2), R(0), U8(1),
   /*   59 S> */ B(Return),
 ]
 constant pool: [
@@ -188,12 +188,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
                 B(Star), R(0),
-  /*   46 S> */ B(ShiftLeftSmi), U8(3), R(0),
+  /*   46 S> */ B(ShiftLeftSmi), U8(3), R(0), U8(1),
   /*   61 S> */ B(Return),
 ]
 constant pool: [
@@ -207,12 +207,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
                 B(Star), R(0),
-  /*   46 S> */ B(ShiftRightSmi), U8(3), R(0),
+  /*   46 S> */ B(ShiftRightSmi), U8(3), R(0), U8(1),
   /*   61 S> */ B(Return),
 ]
 constant pool: [

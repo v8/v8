@@ -441,8 +441,8 @@ class CodeStub BASE_EMBEDDED {
  public:                                                                      \
   static compiler::Node* Generate(                                            \
       CodeStubAssembler* assembler, compiler::Node* left,                     \
-      compiler::Node* right, compiler::Node* context,                         \
-      compiler::Node* type_feedback_vector, compiler::Node* slot_id);         \
+      compiler::Node* right, compiler::Node* slot_id,                         \
+      compiler::Node* type_feedback_vector, compiler::Node* context);         \
   void GenerateAssembly(CodeStubAssembler* assembler) const override {        \
     assembler->Return(                                                        \
         Generate(assembler, assembler->Parameter(0), assembler->Parameter(1), \
@@ -777,7 +777,7 @@ class AddWithFeedbackStub final : public TurboFanCodeStub {
  public:
   explicit AddWithFeedbackStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(AddWithFeedback,
                                                     TurboFanCodeStub);
 };
@@ -795,7 +795,7 @@ class SubtractWithFeedbackStub final : public TurboFanCodeStub {
   explicit SubtractWithFeedbackStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(SubtractWithFeedback,
                                                     TurboFanCodeStub);
 };
@@ -813,7 +813,7 @@ class MultiplyWithFeedbackStub final : public TurboFanCodeStub {
   explicit MultiplyWithFeedbackStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(MultiplyWithFeedback,
                                                     TurboFanCodeStub);
 };
@@ -831,7 +831,7 @@ class DivideWithFeedbackStub final : public TurboFanCodeStub {
   explicit DivideWithFeedbackStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(DivideWithFeedback,
                                                     TurboFanCodeStub);
 };
@@ -849,7 +849,7 @@ class ModulusWithFeedbackStub final : public TurboFanCodeStub {
   explicit ModulusWithFeedbackStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(ModulusWithFeedback,
                                                     TurboFanCodeStub);
 };

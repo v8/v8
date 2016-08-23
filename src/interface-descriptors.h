@@ -74,6 +74,7 @@ class PlatformInterfaceDescriptor;
   V(Compare)                           \
   V(BinaryOp)                          \
   V(BinaryOpWithAllocationSite)        \
+  V(BinaryOpWithVector)                \
   V(CountOp)                           \
   V(StringAdd)                         \
   V(StringCompare)                     \
@@ -720,6 +721,13 @@ class BinaryOpWithAllocationSiteDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kAllocationSite, kLeft, kRight)
   DECLARE_DESCRIPTOR(BinaryOpWithAllocationSiteDescriptor,
                      CallInterfaceDescriptor)
+};
+
+class BinaryOpWithVectorDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kLeft, kRight, kSlot, kVector)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(BinaryOpWithVectorDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class CountOpDescriptor final : public CallInterfaceDescriptor {

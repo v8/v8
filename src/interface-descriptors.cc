@@ -318,6 +318,21 @@ void StoreWithVectorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+FunctionType*
+BinaryOpWithVectorDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int parameter_count) {
+  DCHECK_EQ(parameter_count, kParameterCount);
+  Zone* zone = isolate->interface_descriptor_zone();
+  FunctionType* function =
+      Type::Function(AnyTagged(zone), Type::Undefined(), kParameterCount, zone)
+          ->AsFunction();
+  function->InitParameter(kLeft, AnyTagged(zone));
+  function->InitParameter(kRight, AnyTagged(zone));
+  function->InitParameter(kSlot, UntaggedIntegral32(zone));
+  function->InitParameter(kVector, AnyTagged(zone));
+  return function;
+}
+
 const Register ApiGetterDescriptor::ReceiverRegister() {
   return LoadDescriptor::ReceiverRegister();
 }

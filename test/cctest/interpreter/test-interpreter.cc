@@ -281,7 +281,7 @@ TEST(InterpreterShiftOpsSmi) {
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-        InterpreterTester tester(isolate, bytecode_array);
+        InterpreterTester tester(isolate, bytecode_array, vector);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         Handle<Object> expected_value =
@@ -321,7 +321,7 @@ TEST(InterpreterBinaryOpsSmi) {
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-        InterpreterTester tester(isolate, bytecode_array);
+        InterpreterTester tester(isolate, bytecode_array, vector);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         Handle<Object> expected_value =
@@ -362,7 +362,7 @@ TEST(InterpreterBinaryOpsHeapNumber) {
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-        InterpreterTester tester(isolate, bytecode_array);
+        InterpreterTester tester(isolate, bytecode_array, vector);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         Handle<Object> expected_value =
@@ -639,6 +639,110 @@ TEST(InterpreterBinaryOpTypeFeedback) {
     builder.LoadLiteral(test_case.arg1)
         .StoreAccumulatorInRegister(reg)
         .LoadLiteral(test_case.arg2)
+        .BinaryOperation(test_case.op, reg, vector->GetIndex(slot0))
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
+    auto callable = tester.GetCallable<>();
+
+    Handle<Object> return_val = callable().ToHandleChecked();
+    Object* feedback0 = vector->Get(slot0);
+    CHECK(feedback0->IsSmi());
+    CHECK_EQ(test_case.feedback, static_cast<Smi*>(feedback0)->value());
+    CHECK(Object::Equals(test_case.result, return_val).ToChecked());
+  }
+}
+
+TEST(InterpreterBinaryOpSmiTypeFeedback) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
+
+  struct BinaryOpExpectation {
+    Token::Value op;
+    Handle<Object> arg1;
+    int32_t arg2;
+    Handle<Object> result;
+    int32_t feedback;
+  };
+
+  BinaryOpExpectation const kTestCases[] = {
+      // ADD
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(2), isolate), 42,
+       Handle<Smi>(Smi::FromInt(44), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(2), isolate), Smi::kMaxValue,
+       isolate->factory()->NewHeapNumber(Smi::kMaxValue + 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, isolate->factory()->NewHeapNumber(3.1415), 2,
+       isolate->factory()->NewHeapNumber(3.1415 + 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, isolate->factory()->NewStringFromAsciiChecked("2"), 2,
+       isolate->factory()->NewStringFromAsciiChecked("22"),
+       BinaryOperationFeedback::kAny},
+      // SUB
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(2), isolate), 42,
+       Handle<Smi>(Smi::FromInt(-40), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(Smi::kMinValue), isolate), 1,
+       isolate->factory()->NewHeapNumber(Smi::kMinValue - 1.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, isolate->factory()->NewHeapNumber(3.1415), 2,
+       isolate->factory()->NewHeapNumber(3.1415 - 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, isolate->factory()->NewStringFromAsciiChecked("2"), 2,
+       Handle<Smi>(Smi::FromInt(0), isolate), BinaryOperationFeedback::kAny},
+      // BIT_OR
+      {Token::Value::BIT_OR, Handle<Smi>(Smi::FromInt(4), isolate), 1,
+       Handle<Smi>(Smi::FromInt(5), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::BIT_OR, isolate->factory()->NewHeapNumber(3.1415), 8,
+       Handle<Smi>(Smi::FromInt(11), isolate),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::BIT_OR, isolate->factory()->NewStringFromAsciiChecked("2"),
+       1, Handle<Smi>(Smi::FromInt(3), isolate), BinaryOperationFeedback::kAny},
+      // BIT_AND
+      {Token::Value::BIT_AND, Handle<Smi>(Smi::FromInt(3), isolate), 1,
+       Handle<Smi>(Smi::FromInt(1), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::BIT_AND, isolate->factory()->NewHeapNumber(3.1415), 2,
+       Handle<Smi>(Smi::FromInt(2), isolate), BinaryOperationFeedback::kNumber},
+      {Token::Value::BIT_AND,
+       isolate->factory()->NewStringFromAsciiChecked("2"), 1,
+       Handle<Smi>(Smi::FromInt(0), isolate), BinaryOperationFeedback::kAny},
+      // SHL
+      {Token::Value::SHL, Handle<Smi>(Smi::FromInt(3), isolate), 1,
+       Handle<Smi>(Smi::FromInt(6), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::SHL, isolate->factory()->NewHeapNumber(3.1415), 2,
+       Handle<Smi>(Smi::FromInt(12), isolate),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SHL, isolate->factory()->NewStringFromAsciiChecked("2"), 1,
+       Handle<Smi>(Smi::FromInt(4), isolate), BinaryOperationFeedback::kAny},
+      // SAR
+      {Token::Value::SAR, Handle<Smi>(Smi::FromInt(3), isolate), 1,
+       Handle<Smi>(Smi::FromInt(1), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::SAR, isolate->factory()->NewHeapNumber(3.1415), 2,
+       Handle<Smi>(Smi::FromInt(0), isolate), BinaryOperationFeedback::kNumber},
+      {Token::Value::SAR, isolate->factory()->NewStringFromAsciiChecked("2"), 1,
+       Handle<Smi>(Smi::FromInt(1), isolate), BinaryOperationFeedback::kAny}};
+
+  for (const BinaryOpExpectation& test_case : kTestCases) {
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+
+    i::FeedbackVectorSpec feedback_spec(&zone);
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+
+    Handle<i::TypeFeedbackVector> vector =
+        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
+    Register reg(0);
+    builder.LoadLiteral(test_case.arg1)
+        .StoreAccumulatorInRegister(reg)
+        .LoadLiteral(Smi::FromInt(test_case.arg2))
         .BinaryOperation(test_case.op, reg, vector->GetIndex(slot0))
         .Return();
 
@@ -1311,7 +1415,7 @@ TEST(InterpreterJumps) {
       .Return();
 
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-  InterpreterTester tester(isolate, bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
@@ -1361,7 +1465,7 @@ TEST(InterpreterConditionalJumps) {
       .Return();
 
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-  InterpreterTester tester(isolate, bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
@@ -1411,7 +1515,7 @@ TEST(InterpreterConditionalJumps2) {
       .Return();
 
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-  InterpreterTester tester(isolate, bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
@@ -1469,7 +1573,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   }
   CHECK(found_16bit_constant_jump);
 
-  InterpreterTester tester(isolate, bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_value)->value(), 256.0 / 2 * (1 + 256));

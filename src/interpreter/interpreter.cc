@@ -810,8 +810,8 @@ void Interpreter::DoBinaryOpWithFeedback(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(1);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  Node* result = Generator::Generate(assembler, lhs, rhs, context,
-                                     type_feedback_vector, slot_index);
+  Node* result = Generator::Generate(assembler, lhs, rhs, slot_index,
+                                     type_feedback_vector, context);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -987,6 +987,8 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
   Node* left = __ LoadRegister(reg_index);
   Node* raw_int = __ BytecodeOperandImm(0);
   Node* right = __ SmiTag(raw_int);
+  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
@@ -1002,6 +1004,8 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
     __ BranchIf(overflow, &slowpath, &if_notoverflow);
     __ Bind(&if_notoverflow);
     {
+      __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+                        type_feedback_vector, slot_index);
       var_result.Bind(__ Projection(0, pair));
       __ Goto(&end);
     }
@@ -1009,8 +1013,11 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
   __ Bind(&slowpath);
   {
     Node* context = __ GetContext();
-    Callable callable = CodeFactory::Add(__ isolate());
-    var_result.Bind(__ CallStub(callable, context, left, right));
+    AddWithFeedbackStub stub(__ isolate());
+    Callable callable =
+        Callable(stub.GetCode(), AddWithFeedbackStub::Descriptor(__ isolate()));
+    Node* args[] = {left, right, slot_index, type_feedback_vector, context};
+    var_result.Bind(__ CallStubN(callable, args, 1));
     __ Goto(&end);
   }
   __ Bind(&end);
@@ -1033,6 +1040,8 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
   Node* left = __ LoadRegister(reg_index);
   Node* raw_int = __ BytecodeOperandImm(0);
   Node* right = __ SmiTag(raw_int);
+  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
@@ -1048,6 +1057,8 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
     __ BranchIf(overflow, &slowpath, &if_notoverflow);
     __ Bind(&if_notoverflow);
     {
+      __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+                        type_feedback_vector, slot_index);
       var_result.Bind(__ Projection(0, pair));
       __ Goto(&end);
     }
@@ -1055,8 +1066,11 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
   __ Bind(&slowpath);
   {
     Node* context = __ GetContext();
-    Callable callable = CodeFactory::Subtract(__ isolate());
-    var_result.Bind(__ CallStub(callable, context, left, right));
+    SubtractWithFeedbackStub stub(__ isolate());
+    Callable callable = Callable(
+        stub.GetCode(), SubtractWithFeedbackStub::Descriptor(__ isolate()));
+    Node* args[] = {left, right, slot_index, type_feedback_vector, context};
+    var_result.Bind(__ CallStubN(callable, args, 1));
     __ Goto(&end);
   }
   __ Bind(&end);
@@ -1076,10 +1090,20 @@ void Interpreter::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
   Node* raw_int = __ BytecodeOperandImm(0);
   Node* right = __ SmiTag(raw_int);
   Node* context = __ GetContext();
-  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, left, &var_lhs_type_feedback);
   Node* rhs_value = __ SmiToWord32(right);
   Node* value = __ Word32Or(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
+  Node* result_type =
+      __ Select(__ WordIsSmi(result),
+                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+                __ Int32Constant(BinaryOperationFeedback::kNumber));
+  __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
+                    type_feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1094,10 +1118,20 @@ void Interpreter::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
   Node* raw_int = __ BytecodeOperandImm(0);
   Node* right = __ SmiTag(raw_int);
   Node* context = __ GetContext();
-  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, left, &var_lhs_type_feedback);
   Node* rhs_value = __ SmiToWord32(right);
   Node* value = __ Word32And(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
+  Node* result_type =
+      __ Select(__ WordIsSmi(result),
+                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+                __ Int32Constant(BinaryOperationFeedback::kNumber));
+  __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
+                    type_feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1113,11 +1147,21 @@ void Interpreter::DoShiftLeftSmi(InterpreterAssembler* assembler) {
   Node* raw_int = __ BytecodeOperandImm(0);
   Node* right = __ SmiTag(raw_int);
   Node* context = __ GetContext();
-  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, left, &var_lhs_type_feedback);
   Node* rhs_value = __ SmiToWord32(right);
   Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
   Node* value = __ Word32Shl(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
+  Node* result_type =
+      __ Select(__ WordIsSmi(result),
+                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+                __ Int32Constant(BinaryOperationFeedback::kNumber));
+  __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
+                    type_feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1133,11 +1177,21 @@ void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
   Node* raw_int = __ BytecodeOperandImm(0);
   Node* right = __ SmiTag(raw_int);
   Node* context = __ GetContext();
-  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* slot_index = __ BytecodeOperandIdx(2);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
+      context, left, &var_lhs_type_feedback);
   Node* rhs_value = __ SmiToWord32(right);
   Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
   Node* value = __ Word32Sar(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
+  Node* result_type =
+      __ Select(__ WordIsSmi(result),
+                __ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+                __ Int32Constant(BinaryOperationFeedback::kNumber));
+  __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
+                    type_feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }

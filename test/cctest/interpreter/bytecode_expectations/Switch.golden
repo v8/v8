@@ -481,7 +481,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 58
+bytecode array length: 59
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
@@ -493,9 +493,9 @@ bytecodes: [
                 B(JumpIfToBooleanTrue), U8(10),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(3),
-                B(JumpIfTrue), U8(32),
-                B(Jump), U8(34),
-  /*   77 E> */ B(AddSmi), U8(1), R(2),
+                B(JumpIfTrue), U8(33),
+                B(Jump), U8(35),
+  /*   77 E> */ B(AddSmi), U8(1), R(2), U8(1),
                 B(Star), R(1),
   /*   70 S> */ B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(1),

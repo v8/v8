@@ -327,6 +327,17 @@ void BinaryOpWithAllocationSiteDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void BinaryOpWithVectorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // register state
+  // x1 -- lhs
+  // x0 -- rhs
+  // x4 -- slot id
+  // x3 -- vector
+  Register registers[] = {x1, x0, x4, x3};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void CountOpDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {x1};

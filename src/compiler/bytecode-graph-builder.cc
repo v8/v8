@@ -1203,21 +1203,10 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* js_op) {
 
 // Helper function to create binary operation hint from the recorded type
 // feedback.
-BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint() {
-  FeedbackVectorSlot slot =
-      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
-  DCHECK_EQ(FeedbackVectorSlotKind::GENERAL, feedback_vector()->GetKind(slot));
-  Object* feedback = feedback_vector()->Get(slot);
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  if (feedback->IsSmi()) {
-    hint = BinaryOperationHintFromFeedback((Smi::cast(feedback))->value());
-  }
-  return hint;
-}
-
-BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHintForIncDec() {
-  FeedbackVectorSlot slot =
-      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(0));
+BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
+    int operand_index) {
+  FeedbackVectorSlot slot = feedback_vector()->ToSlot(
+      bytecode_iterator().GetIndexOperand(operand_index));
   DCHECK_EQ(FeedbackVectorSlotKind::GENERAL, feedback_vector()->GetKind(slot));
   Object* feedback = feedback_vector()->Get(slot);
   BinaryOperationHint hint = BinaryOperationHint::kAny;
@@ -1228,47 +1217,58 @@ BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHintForIncDec() {
 }
 
 void BytecodeGraphBuilder::VisitAdd() {
-  BuildBinaryOp(javascript()->Add(GetBinaryOperationHint()));
+  BuildBinaryOp(
+      javascript()->Add(GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitSub() {
-  BuildBinaryOp(javascript()->Subtract(GetBinaryOperationHint()));
+  BuildBinaryOp(javascript()->Subtract(
+      GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitMul() {
-  BuildBinaryOp(javascript()->Multiply(GetBinaryOperationHint()));
+  BuildBinaryOp(javascript()->Multiply(
+      GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitDiv() {
-  BuildBinaryOp(javascript()->Divide(GetBinaryOperationHint()));
+  BuildBinaryOp(
+      javascript()->Divide(GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitMod() {
-  BuildBinaryOp(javascript()->Modulus(GetBinaryOperationHint()));
+  BuildBinaryOp(
+      javascript()->Modulus(GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOr() {
-  BuildBinaryOp(javascript()->BitwiseOr(GetBinaryOperationHint()));
+  BuildBinaryOp(javascript()->BitwiseOr(
+      GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseXor() {
-  BuildBinaryOp(javascript()->BitwiseXor(GetBinaryOperationHint()));
+  BuildBinaryOp(javascript()->BitwiseXor(
+      GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseAnd() {
-  BuildBinaryOp(javascript()->BitwiseAnd(GetBinaryOperationHint()));
+  BuildBinaryOp(javascript()->BitwiseAnd(
+      GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitShiftLeft() {
-  BuildBinaryOp(javascript()->ShiftLeft(GetBinaryOperationHint()));
+  BuildBinaryOp(javascript()->ShiftLeft(
+      GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitShiftRight() {
-  BuildBinaryOp(javascript()->ShiftRight(GetBinaryOperationHint()));
+  BuildBinaryOp(javascript()->ShiftRight(
+      GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitShiftRightLogical() {
-  BuildBinaryOp(javascript()->ShiftRightLogical(GetBinaryOperationHint()));
+  BuildBinaryOp(javascript()->ShiftRightLogical(
+      GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* js_op) {
@@ -1281,33 +1281,33 @@ void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* js_op) {
 }
 
 void BytecodeGraphBuilder::VisitAddSmi() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOpWithImmediate(javascript()->Add(hint));
+  BuildBinaryOpWithImmediate(
+      javascript()->Add(GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitSubSmi() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOpWithImmediate(javascript()->Subtract(hint));
+  BuildBinaryOpWithImmediate(javascript()->Subtract(
+      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOrSmi() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOpWithImmediate(javascript()->BitwiseOr(hint));
+  BuildBinaryOpWithImmediate(javascript()->BitwiseOr(
+      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseAndSmi() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOpWithImmediate(javascript()->BitwiseAnd(hint));
+  BuildBinaryOpWithImmediate(javascript()->BitwiseAnd(
+      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitShiftLeftSmi() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOpWithImmediate(javascript()->ShiftLeft(hint));
+  BuildBinaryOpWithImmediate(javascript()->ShiftLeft(
+      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitShiftRightSmi() {
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  BuildBinaryOpWithImmediate(javascript()->ShiftRight(hint));
+  BuildBinaryOpWithImmediate(javascript()->ShiftRight(
+      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitInc() {
@@ -1315,7 +1315,7 @@ void BytecodeGraphBuilder::VisitInc() {
   // Note: Use subtract -1 here instead of add 1 to ensure we always convert to
   // a number, not a string.
   const Operator* js_op =
-      javascript()->Subtract(GetBinaryOperationHintForIncDec());
+      javascript()->Subtract(GetBinaryOperationHint(kCountOperationHintIndex));
   Node* node = NewNode(js_op, environment()->LookupAccumulator(),
                        jsgraph()->Constant(-1));
   environment()->BindAccumulator(node, &states);
@@ -1324,7 +1324,7 @@ void BytecodeGraphBuilder::VisitInc() {
 void BytecodeGraphBuilder::VisitDec() {
   FrameStateBeforeAndAfter states(this);
   const Operator* js_op =
-      javascript()->Subtract(GetBinaryOperationHintForIncDec());
+      javascript()->Subtract(GetBinaryOperationHint(kCountOperationHintIndex));
   Node* node = NewNode(js_op, environment()->LookupAccumulator(),
                        jsgraph()->OneConstant());
   environment()->BindAccumulator(node, &states);

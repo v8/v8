@@ -174,6 +174,14 @@ class BytecodeNode final : ZoneObject {
     operands_[0] = operand0;
     operands_[1] = operand1;
   }
+  void set_bytecode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+                    uint32_t operand2) {
+    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 3);
+    bytecode_ = bytecode;
+    operands_[0] = operand0;
+    operands_[1] = operand1;
+    operands_[2] = operand2;
+  }
 
   // Clone |other|.
   void Clone(const BytecodeNode* const other);

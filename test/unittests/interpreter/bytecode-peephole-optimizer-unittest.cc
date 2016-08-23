@@ -458,15 +458,17 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaSmiWithBinaryOp) {
     BytecodeNode first(Bytecode::kLdaSmi, imm_operand);
     first.source_info().Clone({3, true});
     uint32_t reg_operand = Register(0).ToOperand();
-    BytecodeNode second(operator_replacement[0], reg_operand, 1);
+    uint32_t idx_operand = 1;
+    BytecodeNode second(operator_replacement[0], reg_operand, idx_operand);
     optimizer()->Write(&first);
     optimizer()->Write(&second);
     Flush();
     CHECK_EQ(write_count(), 1);
     CHECK_EQ(last_written().bytecode(), operator_replacement[1]);
-    CHECK_EQ(last_written().operand_count(), 2);
+    CHECK_EQ(last_written().operand_count(), 3);
     CHECK_EQ(last_written().operand(0), imm_operand);
     CHECK_EQ(last_written().operand(1), reg_operand);
+    CHECK_EQ(last_written().operand(2), idx_operand);
     CHECK_EQ(last_written().source_info(), first.source_info());
     Reset();
   }
@@ -509,15 +511,17 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaZeroWithBinaryOp) {
   for (auto operator_replacement : operator_replacement_pairs) {
     BytecodeNode first(Bytecode::kLdaZero);
     uint32_t reg_operand = Register(0).ToOperand();
-    BytecodeNode second(operator_replacement[0], reg_operand, 1);
+    uint32_t idx_operand = 1;
+    BytecodeNode second(operator_replacement[0], reg_operand, idx_operand);
     optimizer()->Write(&first);
     optimizer()->Write(&second);
     Flush();
     CHECK_EQ(write_count(), 1);
     CHECK_EQ(last_written().bytecode(), operator_replacement[1]);
-    CHECK_EQ(last_written().operand_count(), 2);
+    CHECK_EQ(last_written().operand_count(), 3);
     CHECK_EQ(last_written().operand(0), 0);
     CHECK_EQ(last_written().operand(1), reg_operand);
+    CHECK_EQ(last_written().operand(2), idx_operand);
     Reset();
   }
 }
