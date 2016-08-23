@@ -1744,7 +1744,11 @@ AsmType* AsmTyper::ValidateAssignmentExpression(Assignment* assignment) {
       return value_type;
     }
 
-    DCHECK(target_info->type() != AsmType::None());
+    if (!target_info->IsMutable()) {
+      FAIL(assignment, "Can't assign to immutable symbol.");
+    }
+
+    DCHECK_NE(AsmType::None(), target_info->type());
     if (!value_type->IsA(target_info->type())) {
       FAIL(assignment, "Type mismatch in assignment.");
     }
