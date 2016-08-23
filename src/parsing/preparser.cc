@@ -41,24 +41,21 @@ namespace internal {
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-void PreParserTraits::ReportMessageAt(Scanner::Location source_location,
-                                      MessageTemplate::Template message,
-                                      const char* arg,
-                                      ParseErrorType error_type) {
-  pre_parser_->log_->LogMessage(source_location.beg_pos,
-                                source_location.end_pos, message, arg,
-                                error_type);
+void ParserBaseTraits<PreParser>::ReportMessageAt(
+    Scanner::Location source_location, MessageTemplate::Template message,
+    const char* arg, ParseErrorType error_type) {
+  delegate()->log_->LogMessage(source_location.beg_pos, source_location.end_pos,
+                               message, arg, error_type);
 }
 
-void PreParserTraits::ReportMessageAt(Scanner::Location source_location,
-                                      MessageTemplate::Template message,
-                                      const AstRawString* arg,
-                                      ParseErrorType error_type) {
+void ParserBaseTraits<PreParser>::ReportMessageAt(
+    Scanner::Location source_location, MessageTemplate::Template message,
+    const AstRawString* arg, ParseErrorType error_type) {
   UNREACHABLE();
 }
 
-
-PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) const {
+PreParserIdentifier ParserBaseTraits<PreParser>::GetSymbol(
+    Scanner* scanner) const {
   switch (scanner->current_token()) {
     case Token::ENUM:
       return PreParserIdentifier::Enum();
@@ -89,8 +86,7 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) const {
   }
 }
 
-
-PreParserExpression PreParserTraits::ExpressionFromString(
+PreParserExpression ParserBaseTraits<PreParser>::ExpressionFromString(
     int pos, Scanner* scanner, PreParserFactory* factory) const {
   if (scanner->UnescapedLiteralMatches("use strict", 10)) {
     return PreParserExpression::UseStrictStringLiteral();
@@ -98,18 +94,16 @@ PreParserExpression PreParserTraits::ExpressionFromString(
   return PreParserExpression::StringLiteral();
 }
 
-
-PreParserExpression PreParserTraits::ParseV8Intrinsic(bool* ok) {
-  return pre_parser_->ParseV8Intrinsic(ok);
+PreParserExpression ParserBaseTraits<PreParser>::ParseV8Intrinsic(bool* ok) {
+  return delegate()->ParseV8Intrinsic(ok);
 }
 
-
-PreParserExpression PreParserTraits::ParseFunctionLiteral(
+PreParserExpression ParserBaseTraits<PreParser>::ParseFunctionLiteral(
     PreParserIdentifier name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
     LanguageMode language_mode, bool* ok) {
-  return pre_parser_->ParseFunctionLiteral(
+  return delegate()->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
       function_token_position, type, language_mode, ok);
 }
@@ -154,12 +148,12 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   return kPreParseSuccess;
 }
 
-PreParserExpression PreParserTraits::ParseClassLiteral(
+PreParserExpression ParserBaseTraits<PreParser>::ParseClassLiteral(
     Type::ExpressionClassifier* classifier, PreParserIdentifier name,
     Scanner::Location class_name_location, bool name_is_strict_reserved,
     int pos, bool* ok) {
-  return pre_parser_->ParseClassLiteral(classifier, name, class_name_location,
-                                        name_is_strict_reserved, pos, ok);
+  return delegate()->ParseClassLiteral(classifier, name, class_name_location,
+                                       name_is_strict_reserved, pos, ok);
 }
 
 
@@ -1280,13 +1274,13 @@ PreParserExpression PreParser::ParseDoExpression(bool* ok) {
   return PreParserExpression::Default();
 }
 
-void PreParserTraits::ParseAsyncArrowSingleExpressionBody(
+void ParserBaseTraits<PreParser>::ParseAsyncArrowSingleExpressionBody(
     PreParserStatementList body, bool accept_IN,
     Type::ExpressionClassifier* classifier, int pos, bool* ok) {
-  Scope* scope = pre_parser_->scope();
+  Scope* scope = delegate()->scope();
   scope->ForceContextAllocation();
 
-  PreParserExpression return_value = pre_parser_->ParseAssignmentExpression(
+  PreParserExpression return_value = delegate()->ParseAssignmentExpression(
       accept_IN, classifier, CHECK_OK_CUSTOM(Void));
 
   body->Add(PreParserStatement::ExpressionStatement(return_value), zone());

@@ -297,75 +297,74 @@ class TargetScope BASE_EMBEDDED {
 // ----------------------------------------------------------------------------
 // Implementation of Parser
 
-bool ParserTraits::IsEval(const AstRawString* identifier) const {
-  return identifier == parser_->ast_value_factory()->eval_string();
+bool ParserBaseTraits<Parser>::IsEval(const AstRawString* identifier) const {
+  return identifier == delegate()->ast_value_factory()->eval_string();
 }
 
-bool ParserTraits::IsArguments(const AstRawString* identifier) const {
-  return identifier == parser_->ast_value_factory()->arguments_string();
+bool ParserBaseTraits<Parser>::IsArguments(
+    const AstRawString* identifier) const {
+  return identifier == delegate()->ast_value_factory()->arguments_string();
 }
 
-bool ParserTraits::IsEvalOrArguments(const AstRawString* identifier) const {
+bool ParserBaseTraits<Parser>::IsEvalOrArguments(
+    const AstRawString* identifier) const {
   return IsEval(identifier) || IsArguments(identifier);
 }
 
-bool ParserTraits::IsUndefined(const AstRawString* identifier) const {
-  return identifier == parser_->ast_value_factory()->undefined_string();
+bool ParserBaseTraits<Parser>::IsUndefined(
+    const AstRawString* identifier) const {
+  return identifier == delegate()->ast_value_factory()->undefined_string();
 }
 
-bool ParserTraits::IsPrototype(const AstRawString* identifier) const {
-  return identifier == parser_->ast_value_factory()->prototype_string();
+bool ParserBaseTraits<Parser>::IsPrototype(
+    const AstRawString* identifier) const {
+  return identifier == delegate()->ast_value_factory()->prototype_string();
 }
 
-
-bool ParserTraits::IsConstructor(const AstRawString* identifier) const {
-  return identifier == parser_->ast_value_factory()->constructor_string();
+bool ParserBaseTraits<Parser>::IsConstructor(
+    const AstRawString* identifier) const {
+  return identifier == delegate()->ast_value_factory()->constructor_string();
 }
 
-
-bool ParserTraits::IsThisProperty(Expression* expression) {
+bool ParserBaseTraits<Parser>::IsThisProperty(Expression* expression) {
   DCHECK(expression != NULL);
   Property* property = expression->AsProperty();
   return property != NULL && property->obj()->IsVariableProxy() &&
          property->obj()->AsVariableProxy()->is_this();
 }
 
-
-bool ParserTraits::IsIdentifier(Expression* expression) {
+bool ParserBaseTraits<Parser>::IsIdentifier(Expression* expression) {
   VariableProxy* operand = expression->AsVariableProxy();
   return operand != NULL && !operand->is_this();
 }
 
-
-void ParserTraits::PushPropertyName(FuncNameInferrer* fni,
-                                    Expression* expression) {
+void ParserBaseTraits<Parser>::PushPropertyName(FuncNameInferrer* fni,
+                                                Expression* expression) {
   if (expression->IsPropertyName()) {
     fni->PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
   } else {
     fni->PushLiteralName(
-        parser_->ast_value_factory()->anonymous_function_string());
+        delegate()->ast_value_factory()->anonymous_function_string());
   }
 }
 
-
-void ParserTraits::CheckAssigningFunctionLiteralToProperty(Expression* left,
-                                                           Expression* right) {
+void ParserBaseTraits<Parser>::CheckAssigningFunctionLiteralToProperty(
+    Expression* left, Expression* right) {
   DCHECK(left != NULL);
   if (left->IsProperty() && right->IsFunctionLiteral()) {
     right->AsFunctionLiteral()->set_pretenure();
   }
 }
 
-
-Expression* ParserTraits::MarkExpressionAsAssigned(Expression* expression) {
+Expression* ParserBaseTraits<Parser>::MarkExpressionAsAssigned(
+    Expression* expression) {
   VariableProxy* proxy =
       expression != NULL ? expression->AsVariableProxy() : NULL;
   if (proxy != NULL) proxy->set_is_assigned();
   return expression;
 }
 
-
-bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
+bool ParserBaseTraits<Parser>::ShortcutNumericLiteralBinaryExpression(
     Expression** x, Expression* y, Token::Value op, int pos,
     AstNodeFactory* factory) {
   if ((*x)->AsLiteral() && (*x)->AsLiteral()->raw_value()->IsNumber() &&
@@ -435,10 +434,8 @@ bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
   return false;
 }
 
-
-Expression* ParserTraits::BuildUnaryExpression(Expression* expression,
-                                               Token::Value op, int pos,
-                                               AstNodeFactory* factory) {
+Expression* ParserBaseTraits<Parser>::BuildUnaryExpression(
+    Expression* expression, Token::Value op, int pos, AstNodeFactory* factory) {
   DCHECK(expression != NULL);
   if (expression->IsLiteral()) {
     const AstValue* literal = expression->AsLiteral()->raw_value();
@@ -480,10 +477,11 @@ Expression* ParserTraits::BuildUnaryExpression(Expression* expression,
   return factory->NewUnaryOperation(op, expression, pos);
 }
 
-Expression* ParserTraits::BuildIteratorResult(Expression* value, bool done) {
+Expression* ParserBaseTraits<Parser>::BuildIteratorResult(Expression* value,
+                                                          bool done) {
   int pos = kNoSourcePosition;
-  AstNodeFactory* factory = parser_->factory();
-  Zone* zone = parser_->zone();
+  AstNodeFactory* factory = delegate()->factory();
+  Zone* zone = delegate()->zone();
 
   if (value == nullptr) value = factory->NewUndefinedLiteral(pos);
 
@@ -495,24 +493,21 @@ Expression* ParserTraits::BuildIteratorResult(Expression* value, bool done) {
                                  pos);
 }
 
-Expression* ParserTraits::NewThrowReferenceError(
+Expression* ParserBaseTraits<Parser>::NewThrowReferenceError(
     MessageTemplate::Template message, int pos) {
-  return parser_->NewThrowError(Runtime::kNewReferenceError, message,
-                                parser_->ast_value_factory()->empty_string(),
-                                pos);
+  return delegate()->NewThrowError(
+      Runtime::kNewReferenceError, message,
+      delegate()->ast_value_factory()->empty_string(), pos);
 }
 
-
-Expression* ParserTraits::NewThrowSyntaxError(MessageTemplate::Template message,
-                                              const AstRawString* arg,
-                                              int pos) {
-  return parser_->NewThrowError(Runtime::kNewSyntaxError, message, arg, pos);
+Expression* ParserBaseTraits<Parser>::NewThrowSyntaxError(
+    MessageTemplate::Template message, const AstRawString* arg, int pos) {
+  return delegate()->NewThrowError(Runtime::kNewSyntaxError, message, arg, pos);
 }
 
-
-Expression* ParserTraits::NewThrowTypeError(MessageTemplate::Template message,
-                                            const AstRawString* arg, int pos) {
-  return parser_->NewThrowError(Runtime::kNewTypeError, message, arg, pos);
+Expression* ParserBaseTraits<Parser>::NewThrowTypeError(
+    MessageTemplate::Template message, const AstRawString* arg, int pos) {
+  return delegate()->NewThrowError(Runtime::kNewTypeError, message, arg, pos);
 }
 
 Expression* Parser::NewThrowError(Runtime::FunctionId id,
@@ -525,68 +520,66 @@ Expression* Parser::NewThrowError(Runtime::FunctionId id,
   return factory()->NewThrow(call_constructor, pos);
 }
 
-
-void ParserTraits::ReportMessageAt(Scanner::Location source_location,
-                                   MessageTemplate::Template message,
-                                   const char* arg, ParseErrorType error_type) {
-  if (parser_->stack_overflow()) {
+void ParserBaseTraits<Parser>::ReportMessageAt(
+    Scanner::Location source_location, MessageTemplate::Template message,
+    const char* arg, ParseErrorType error_type) {
+  if (delegate()->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
     // stack overflow. The isolate allows only one pending exception at at time
     // and we want to report the stack overflow later.
     return;
   }
-  parser_->pending_error_handler_.ReportMessageAt(source_location.beg_pos,
-                                                  source_location.end_pos,
-                                                  message, arg, error_type);
+  delegate()->pending_error_handler_.ReportMessageAt(source_location.beg_pos,
+                                                     source_location.end_pos,
+                                                     message, arg, error_type);
 }
 
-
-void ParserTraits::ReportMessageAt(Scanner::Location source_location,
-                                   MessageTemplate::Template message,
-                                   const AstRawString* arg,
-                                   ParseErrorType error_type) {
-  if (parser_->stack_overflow()) {
+void ParserBaseTraits<Parser>::ReportMessageAt(
+    Scanner::Location source_location, MessageTemplate::Template message,
+    const AstRawString* arg, ParseErrorType error_type) {
+  if (delegate()->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
     // stack overflow. The isolate allows only one pending exception at at time
     // and we want to report the stack overflow later.
     return;
   }
-  parser_->pending_error_handler_.ReportMessageAt(source_location.beg_pos,
-                                                  source_location.end_pos,
-                                                  message, arg, error_type);
+  delegate()->pending_error_handler_.ReportMessageAt(source_location.beg_pos,
+                                                     source_location.end_pos,
+                                                     message, arg, error_type);
 }
 
-
-const AstRawString* ParserTraits::GetSymbol(Scanner* scanner) const {
+const AstRawString* ParserBaseTraits<Parser>::GetSymbol(
+    Scanner* scanner) const {
   const AstRawString* result =
-      parser_->scanner()->CurrentSymbol(parser_->ast_value_factory());
+      delegate()->scanner()->CurrentSymbol(delegate()->ast_value_factory());
   DCHECK(result != NULL);
   return result;
 }
 
-
-const AstRawString* ParserTraits::GetNumberAsSymbol(Scanner* scanner) const {
-  double double_value = parser_->scanner()->DoubleValue();
+const AstRawString* ParserBaseTraits<Parser>::GetNumberAsSymbol(
+    Scanner* scanner) const {
+  double double_value = delegate()->scanner()->DoubleValue();
   char array[100];
   const char* string = DoubleToCString(double_value, ArrayVector(array));
-  return parser_->ast_value_factory()->GetOneByteString(string);
+  return delegate()->ast_value_factory()->GetOneByteString(string);
 }
 
-
-const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) const {
-  return parser_->scanner()->NextSymbol(parser_->ast_value_factory());
+const AstRawString* ParserBaseTraits<Parser>::GetNextSymbol(
+    Scanner* scanner) const {
+  return delegate()->scanner()->NextSymbol(delegate()->ast_value_factory());
 }
 
-Expression* ParserTraits::ThisExpression(int pos) {
-  return parser_->NewUnresolved(parser_->ast_value_factory()->this_string(),
-                                pos, pos + 4, Variable::THIS);
+Expression* ParserBaseTraits<Parser>::ThisExpression(int pos) {
+  return delegate()->NewUnresolved(
+      delegate()->ast_value_factory()->this_string(), pos, pos + 4,
+      Variable::THIS);
 }
 
-Expression* ParserTraits::NewSuperPropertyReference(AstNodeFactory* factory,
-                                                    int pos) {
+Expression* ParserBaseTraits<Parser>::NewSuperPropertyReference(
+    AstNodeFactory* factory, int pos) {
   // this_function[home_object_symbol]
-  VariableProxy* this_function_proxy = parser_->NewUnresolved(
-      parser_->ast_value_factory()->this_function_string(), pos);
+  VariableProxy* this_function_proxy = delegate()->NewUnresolved(
+      delegate()->ast_value_factory()->this_function_string(), pos);
   Expression* home_object_symbol_literal =
       factory->NewSymbolLiteral("home_object_symbol", kNoSourcePosition);
   Expression* home_object = factory->NewProperty(
@@ -595,42 +588,41 @@ Expression* ParserTraits::NewSuperPropertyReference(AstNodeFactory* factory,
       ThisExpression(pos)->AsVariableProxy(), home_object, pos);
 }
 
-Expression* ParserTraits::NewSuperCallReference(AstNodeFactory* factory,
-                                                int pos) {
-  VariableProxy* new_target_proxy = parser_->NewUnresolved(
-      parser_->ast_value_factory()->new_target_string(), pos);
-  VariableProxy* this_function_proxy = parser_->NewUnresolved(
-      parser_->ast_value_factory()->this_function_string(), pos);
+Expression* ParserBaseTraits<Parser>::NewSuperCallReference(
+    AstNodeFactory* factory, int pos) {
+  VariableProxy* new_target_proxy = delegate()->NewUnresolved(
+      delegate()->ast_value_factory()->new_target_string(), pos);
+  VariableProxy* this_function_proxy = delegate()->NewUnresolved(
+      delegate()->ast_value_factory()->this_function_string(), pos);
   return factory->NewSuperCallReference(ThisExpression(pos)->AsVariableProxy(),
                                         new_target_proxy, this_function_proxy,
                                         pos);
 }
 
-Expression* ParserTraits::NewTargetExpression(int pos) {
+Expression* ParserBaseTraits<Parser>::NewTargetExpression(int pos) {
   static const int kNewTargetStringLength = 10;
-  auto proxy =
-      parser_->NewUnresolved(parser_->ast_value_factory()->new_target_string(),
-                             pos, pos + kNewTargetStringLength);
+  auto proxy = delegate()->NewUnresolved(
+      delegate()->ast_value_factory()->new_target_string(), pos,
+      pos + kNewTargetStringLength);
   proxy->set_is_new_target();
   return proxy;
 }
 
-Expression* ParserTraits::FunctionSentExpression(AstNodeFactory* factory,
-                                                 int pos) const {
+Expression* ParserBaseTraits<Parser>::FunctionSentExpression(
+    AstNodeFactory* factory, int pos) const {
   // We desugar function.sent into %_GeneratorGetInputOrDebugPos(generator).
-  Zone* zone = parser_->zone();
+  Zone* zone = delegate()->zone();
   ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(1, zone);
   VariableProxy* generator = factory->NewVariableProxy(
-      parser_->function_state_->generator_object_variable());
+      delegate()->function_state_->generator_object_variable());
   args->Add(generator, zone);
   return factory->NewCallRuntime(Runtime::kInlineGeneratorGetInputOrDebugPos,
                                  args, pos);
 }
 
-
-Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
-                                             Scanner* scanner,
-                                             AstNodeFactory* factory) const {
+Literal* ParserBaseTraits<Parser>::ExpressionFromLiteral(
+    Token::Value token, int pos, Scanner* scanner,
+    AstNodeFactory* factory) const {
   switch (token) {
     case Token::NULL_LITERAL:
       return factory->NewNullLiteral(pos);
@@ -653,78 +645,72 @@ Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
   return NULL;
 }
 
-Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
-                                                   int start_position,
-                                                   int end_position,
-                                                   InferName infer) {
-  if (infer == InferName::kYes && parser_->fni_ != NULL) {
-    parser_->fni_->PushVariableName(name);
+Expression* ParserBaseTraits<Parser>::ExpressionFromIdentifier(
+    const AstRawString* name, int start_position, int end_position,
+    InferName infer) {
+  if (infer == InferName::kYes && delegate()->fni_ != NULL) {
+    delegate()->fni_->PushVariableName(name);
   }
-  return parser_->NewUnresolved(name, start_position, end_position);
+  return delegate()->NewUnresolved(name, start_position, end_position);
 }
 
-
-Expression* ParserTraits::ExpressionFromString(int pos, Scanner* scanner,
-                                               AstNodeFactory* factory) const {
+Expression* ParserBaseTraits<Parser>::ExpressionFromString(
+    int pos, Scanner* scanner, AstNodeFactory* factory) const {
   const AstRawString* symbol = GetSymbol(scanner);
-  if (parser_->fni_ != NULL) parser_->fni_->PushLiteralName(symbol);
+  if (delegate()->fni_ != NULL) delegate()->fni_->PushLiteralName(symbol);
   return factory->NewStringLiteral(symbol, pos);
 }
 
-
-Expression* ParserTraits::GetIterator(Expression* iterable,
-                                      AstNodeFactory* factory, int pos) {
+Expression* ParserBaseTraits<Parser>::GetIterator(Expression* iterable,
+                                                  AstNodeFactory* factory,
+                                                  int pos) {
   Expression* iterator_symbol_literal =
       factory->NewSymbolLiteral("iterator_symbol", kNoSourcePosition);
   Expression* prop =
       factory->NewProperty(iterable, iterator_symbol_literal, pos);
-  Zone* zone = parser_->zone();
+  Zone* zone = delegate()->zone();
   ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(0, zone);
   return factory->NewCall(prop, args, pos);
 }
 
-
-Literal* ParserTraits::GetLiteralTheHole(int position,
-                                         AstNodeFactory* factory) const {
+Literal* ParserBaseTraits<Parser>::GetLiteralTheHole(
+    int position, AstNodeFactory* factory) const {
   return factory->NewTheHoleLiteral(kNoSourcePosition);
 }
 
-
-Expression* ParserTraits::ParseV8Intrinsic(bool* ok) {
-  return parser_->ParseV8Intrinsic(ok);
+Expression* ParserBaseTraits<Parser>::ParseV8Intrinsic(bool* ok) {
+  return delegate()->ParseV8Intrinsic(ok);
 }
 
-
-FunctionLiteral* ParserTraits::ParseFunctionLiteral(
+FunctionLiteral* ParserBaseTraits<Parser>::ParseFunctionLiteral(
     const AstRawString* name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
     LanguageMode language_mode, bool* ok) {
-  return parser_->ParseFunctionLiteral(
+  return delegate()->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
       function_token_position, type, language_mode, ok);
 }
 
-Expression* ParserTraits::ParseClassLiteral(
+Expression* ParserBaseTraits<Parser>::ParseClassLiteral(
     Type::ExpressionClassifier* classifier, const AstRawString* name,
     Scanner::Location class_name_location, bool name_is_strict_reserved,
     int pos, bool* ok) {
-  return parser_->ParseClassLiteral(classifier, name, class_name_location,
-                                    name_is_strict_reserved, pos, ok);
+  return delegate()->ParseClassLiteral(classifier, name, class_name_location,
+                                       name_is_strict_reserved, pos, ok);
 }
 
-void ParserTraits::MarkTailPosition(Expression* expression) {
+void ParserBaseTraits<Parser>::MarkTailPosition(Expression* expression) {
   expression->MarkTail();
 }
 
-void ParserTraits::MarkCollectedTailCallExpressions() {
-  parser_->MarkCollectedTailCallExpressions();
+void ParserBaseTraits<Parser>::MarkCollectedTailCallExpressions() {
+  delegate()->MarkCollectedTailCallExpressions();
 }
 
 Parser::Parser(ParseInfo* info)
-    : ParserBase<ParserTraits>(info->zone(), &scanner_, info->stack_limit(),
-                               info->extension(), info->ast_value_factory(),
-                               NULL, this),
+    : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
+                         info->extension(), info->ast_value_factory(), NULL),
       scanner_(info->unicode_cache()),
       reusable_preparser_(NULL),
       original_scope_(NULL),
@@ -954,7 +940,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     }
 
     if (ok) {
-      ParserTraits::RewriteDestructuringAssignments();
+      ParserBaseTraits<Parser>::RewriteDestructuringAssignments();
       result = factory()->NewScriptOrEvalFunctionLiteral(
           scope, body, function_state.materialized_literal_count(),
           function_state.expected_property_count());
@@ -2337,7 +2323,8 @@ Block* Parser::ParseVariableDeclarations(
         }
       }
 
-      ParserTraits::SetFunctionNameFromIdentifierRef(value, pattern);
+      ParserBaseTraits<Parser>::SetFunctionNameFromIdentifierRef(value,
+                                                                 pattern);
 
       // End position of the initializer is after the assignment expression.
       initializer_position = scanner()->location().end_pos;
@@ -3997,12 +3984,12 @@ void Parser::ParseArrowFunctionFormalParameters(
   AddFormalParameter(parameters, expr, initializer, end_pos, is_rest);
 }
 
-void ParserTraits::ParseAsyncArrowSingleExpressionBody(
+void ParserBaseTraits<Parser>::ParseAsyncArrowSingleExpressionBody(
     ZoneList<Statement*>* body, bool accept_IN,
     Type::ExpressionClassifier* classifier, int pos, bool* ok) {
-  parser_->DesugarAsyncFunctionBody(
-      parser_->ast_value_factory()->empty_string(), parser_->scope(), body,
-      classifier, kAsyncArrowFunction,
+  delegate()->DesugarAsyncFunctionBody(
+      delegate()->ast_value_factory()->empty_string(), delegate()->scope(),
+      body, classifier, kAsyncArrowFunction,
       Parser::FunctionBodyType::kSingleExpression, accept_IN, pos, ok);
 }
 
@@ -4043,7 +4030,7 @@ void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
   } else {
     return_value =
         ParseAssignmentExpression(accept_IN, classifier, CHECK_OK_VOID);
-    ParserTraits::RewriteNonPattern(classifier, CHECK_OK_VOID);
+    ParserBaseTraits<Parser>::RewriteNonPattern(classifier, CHECK_OK_VOID);
   }
 
   return_value = BuildPromiseResolve(return_value, return_value->position());
@@ -4070,13 +4057,13 @@ DoExpression* Parser::ParseDoExpression(bool* ok) {
   return expr;
 }
 
-void ParserTraits::ParseArrowFunctionFormalParameterList(
+void ParserBaseTraits<Parser>::ParseArrowFunctionFormalParameterList(
     ParserFormalParameters* parameters, Expression* expr,
     const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
     const Scope::Snapshot& scope_snapshot, bool* ok) {
   if (expr->IsEmptyParentheses()) return;
 
-  parser_->ParseArrowFunctionFormalParameters(
+  delegate()->ParseArrowFunctionFormalParameters(
       parameters, expr, params_loc.end_pos, CHECK_OK_VOID);
 
   scope_snapshot.Reparent(parameters->scope);
@@ -4087,7 +4074,7 @@ void ParserTraits::ParseArrowFunctionFormalParameterList(
     return;
   }
 
-  Type::ExpressionClassifier classifier(parser_);
+  Type::ExpressionClassifier classifier(delegate());
   if (!parameters->is_simple) {
     classifier.RecordNonSimpleParameter();
   }
@@ -4101,9 +4088,9 @@ void ParserTraits::ParseArrowFunctionFormalParameterList(
   DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
 }
 
-
-void ParserTraits::ReindexLiterals(const ParserFormalParameters& parameters) {
-  if (parser_->function_state_->materialized_literal_count() > 0) {
+void ParserBaseTraits<Parser>::ReindexLiterals(
+    const ParserFormalParameters& parameters) {
+  if (delegate()->function_state_->materialized_literal_count() > 0) {
     AstLiteralReindexer reindexer;
 
     for (const auto p : parameters.params) {
@@ -4112,7 +4099,7 @@ void ParserTraits::ReindexLiterals(const ParserFormalParameters& parameters) {
     }
 
     DCHECK(reindexer.count() <=
-           parser_->function_state_->materialized_literal_count());
+           delegate()->function_state_->materialized_literal_count());
   }
 }
 
@@ -4347,7 +4334,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
     if (body) {
       // If body can be inspected, rewrite queued destructuring assignments
-      ParserTraits::RewriteDestructuringAssignments();
+      ParserBaseTraits<Parser>::RewriteDestructuringAssignments();
     }
     has_duplicate_parameters =
       !formals_classifier.is_valid_formal_parameter_list_without_duplicates();
@@ -5369,9 +5356,9 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   }
 }
 
-
-ParserTraits::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {
-  return new (zone()) ParserTraits::TemplateLiteral(zone(), pos);
+ParserBaseTraits<Parser>::TemplateLiteralState Parser::OpenTemplateLiteral(
+    int pos) {
+  return new (zone()) ParserBaseTraits<Parser>::TemplateLiteral(zone(), pos);
 }
 
 
@@ -5636,9 +5623,9 @@ void Parser::MarkCollectedTailCallExpressions() {
   }
 }
 
-Expression* ParserTraits::ExpressionListToExpression(
+Expression* ParserBaseTraits<Parser>::ExpressionListToExpression(
     ZoneList<Expression*>* args) {
-  AstNodeFactory* factory = parser_->factory();
+  AstNodeFactory* factory = delegate()->factory();
   Expression* expr = args->at(0);
   for (int i = 1; i < args->length(); ++i) {
     expr = factory->NewBinaryOperation(Token::COMMA, expr, args->at(i),
@@ -5647,40 +5634,40 @@ Expression* ParserTraits::ExpressionListToExpression(
   return expr;
 }
 
-void ParserTraits::RewriteDestructuringAssignments() {
-  parser_->RewriteDestructuringAssignments();
+void ParserBaseTraits<Parser>::RewriteDestructuringAssignments() {
+  delegate()->RewriteDestructuringAssignments();
 }
 
-Expression* ParserTraits::RewriteExponentiation(Expression* left,
-                                                Expression* right, int pos) {
-  return parser_->RewriteExponentiation(left, right, pos);
+Expression* ParserBaseTraits<Parser>::RewriteExponentiation(Expression* left,
+                                                            Expression* right,
+                                                            int pos) {
+  return delegate()->RewriteExponentiation(left, right, pos);
 }
 
-Expression* ParserTraits::RewriteAssignExponentiation(Expression* left,
-                                                      Expression* right,
-                                                      int pos) {
-  return parser_->RewriteAssignExponentiation(left, right, pos);
+Expression* ParserBaseTraits<Parser>::RewriteAssignExponentiation(
+    Expression* left, Expression* right, int pos) {
+  return delegate()->RewriteAssignExponentiation(left, right, pos);
 }
 
-void ParserTraits::RewriteNonPattern(Type::ExpressionClassifier* classifier,
-                                     bool* ok) {
-  parser_->RewriteNonPattern(classifier, ok);
+void ParserBaseTraits<Parser>::RewriteNonPattern(
+    Type::ExpressionClassifier* classifier, bool* ok) {
+  delegate()->RewriteNonPattern(classifier, ok);
 }
 
-Expression* ParserTraits::RewriteAwaitExpression(Expression* value,
-                                                 int await_pos) {
+Expression* ParserBaseTraits<Parser>::RewriteAwaitExpression(Expression* value,
+                                                             int await_pos) {
   // yield %AsyncFunctionAwait(.generator_object, <operand>)
   Variable* generator_object_variable =
-      parser_->function_state_->generator_object_variable();
+      delegate()->function_state_->generator_object_variable();
 
   // If generator_object_variable is null,
   if (!generator_object_variable) return value;
 
-  auto factory = parser_->factory();
+  auto factory = delegate()->factory();
   const int nopos = kNoSourcePosition;
 
   Variable* temp_var =
-      parser_->NewTemporary(parser_->ast_value_factory()->empty_string());
+      delegate()->NewTemporary(delegate()->ast_value_factory()->empty_string());
   VariableProxy* temp_proxy = factory->NewVariableProxy(temp_var);
   Block* do_block = factory->NewBlock(nullptr, 2, false, nopos);
 
@@ -5697,7 +5684,7 @@ Expression* ParserTraits::RewriteAwaitExpression(Expression* value,
       factory->NewVariableProxy(generator_object_variable);
   async_function_await_args->Add(generator_object, zone());
   async_function_await_args->Add(temp_proxy, zone());
-  Expression* async_function_await = parser_->factory()->NewCallRuntime(
+  Expression* async_function_await = delegate()->factory()->NewCallRuntime(
       Context::ASYNC_FUNCTION_AWAIT_INDEX, async_function_await_args, nopos);
   // Wrap await to provide a break location between value evaluation and yield.
   Expression* await_assignment = factory->NewAssignment(
@@ -5711,17 +5698,16 @@ Expression* ParserTraits::RewriteAwaitExpression(Expression* value,
                            Yield::kOnExceptionRethrow);
 }
 
-ZoneList<Expression*>* ParserTraits::GetNonPatternList() const {
-  return parser_->function_state_->non_patterns_to_rewrite();
+ZoneList<Expression*>* ParserBaseTraits<Parser>::GetNonPatternList() const {
+  return delegate()->function_state_->non_patterns_to_rewrite();
 }
 
-
-ZoneList<typename ParserTraits::Type::ExpressionClassifier::Error>*
-ParserTraits::GetReportedErrorList() const {
-  return parser_->function_state_->GetReportedErrorList();
+ZoneList<typename ParserBaseTraits<Parser>::Type::ExpressionClassifier::Error>*
+ParserBaseTraits<Parser>::GetReportedErrorList() const {
+  return delegate()->function_state_->GetReportedErrorList();
 }
 
-Zone* ParserTraits::zone() const { return parser_->zone(); }
+Zone* ParserBaseTraits<Parser>::zone() const { return delegate()->zone(); }
 
 class NonPatternRewriter : public AstExpressionRewriter {
  public:
@@ -5921,21 +5907,20 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
   return factory()->NewDoExpression(do_block, result, lit->position());
 }
 
-
-void ParserTraits::QueueDestructuringAssignmentForRewriting(Expression* expr) {
+void ParserBaseTraits<Parser>::QueueDestructuringAssignmentForRewriting(
+    Expression* expr) {
   DCHECK(expr->IsRewritableExpression());
-  parser_->function_state_->AddDestructuringAssignment(
-      Parser::DestructuringAssignment(expr, parser_->scope()));
+  delegate()->function_state_->AddDestructuringAssignment(
+      Parser::DestructuringAssignment(expr, delegate()->scope()));
 }
 
-
-void ParserTraits::QueueNonPatternForRewriting(Expression* expr, bool* ok) {
+void ParserBaseTraits<Parser>::QueueNonPatternForRewriting(Expression* expr,
+                                                           bool* ok) {
   DCHECK(expr->IsRewritableExpression());
-  parser_->function_state_->AddNonPatternForRewriting(expr, ok);
+  delegate()->function_state_->AddNonPatternForRewriting(expr, ok);
 }
 
-
-void ParserTraits::SetFunctionNameFromPropertyName(
+void ParserBaseTraits<Parser>::SetFunctionNameFromPropertyName(
     ObjectLiteralProperty* property, const AstRawString* name) {
   Expression* value = property->value();
 
@@ -5951,10 +5936,10 @@ void ParserTraits::SetFunctionNameFromPropertyName(
     if (is_getter || is_setter) {
       DCHECK_NOT_NULL(name);
       const AstRawString* prefix =
-          is_getter ? parser_->ast_value_factory()->get_space_string()
-                    : parser_->ast_value_factory()->set_space_string();
+          is_getter ? delegate()->ast_value_factory()->get_space_string()
+                    : delegate()->ast_value_factory()->set_space_string();
       function->set_raw_name(
-          parser_->ast_value_factory()->NewConsString(prefix, name));
+          delegate()->ast_value_factory()->NewConsString(prefix, name));
       return;
     }
   }
@@ -5965,14 +5950,13 @@ void ParserTraits::SetFunctionNameFromPropertyName(
 
   DCHECK(!value->IsAnonymousFunctionDefinition() ||
          property->kind() == ObjectLiteralProperty::COMPUTED);
-  parser_->SetFunctionName(value, name);
+  delegate()->SetFunctionName(value, name);
 }
 
-
-void ParserTraits::SetFunctionNameFromIdentifierRef(Expression* value,
-                                                    Expression* identifier) {
+void ParserBaseTraits<Parser>::SetFunctionNameFromIdentifierRef(
+    Expression* value, Expression* identifier) {
   if (!identifier->IsVariableProxy()) return;
-  parser_->SetFunctionName(value, identifier->AsVariableProxy()->raw_name());
+  delegate()->SetFunctionName(value, identifier->AsVariableProxy()->raw_name());
 }
 
 void Parser::SetFunctionName(Expression* value, const AstRawString* name) {

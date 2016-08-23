@@ -585,13 +585,12 @@ struct PreParserFormalParameters : FormalParametersBase {
 
 class PreParser;
 
-class PreParserTraits {
+template <>
+class ParserBaseTraits<PreParser> {
  public:
-  struct Type {
-    // TODO(marja): To be removed. The Traits object should contain all the data
-    // it needs.
-    typedef PreParser* Parser;
+  typedef ParserBaseTraits<PreParser> PreParserTraits;
 
+  struct Type {
     // PreParser doesn't need to store generator variables.
     typedef void GeneratorVariable;
 
@@ -618,7 +617,12 @@ class PreParserTraits {
     typedef PreParserFactory Factory;
   };
 
-  explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
+  // TODO(nikolaos): The traits methods should not need to call methods
+  // of the implementation object.
+  PreParser* delegate() { return reinterpret_cast<PreParser*>(this); }
+  const PreParser* delegate() const {
+    return reinterpret_cast<const PreParser*>(this);
+  }
 
   // Helper functions for recursive descent.
   bool IsEval(PreParserIdentifier identifier) const {
@@ -989,9 +993,6 @@ class PreParserTraits {
   inline PreParserExpression RewriteYieldStar(PreParserExpression generator,
                                               PreParserExpression expression,
                                               int pos);
-
- private:
-  PreParser* pre_parser_;
 };
 
 
@@ -1007,7 +1008,11 @@ class PreParserTraits {
 // rather it is to speed up properly written and correct programs.
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
-class PreParser : public ParserBase<PreParserTraits> {
+class PreParser : public ParserBase<PreParser> {
+  // TODO(nikolaos): This should not be necessary. It will be removed
+  // when the traits object stops delegating to the implementation object.
+  friend class ParserBaseTraits<PreParser>;
+
  public:
   typedef PreParserIdentifier Identifier;
   typedef PreParserExpression Expression;
@@ -1020,8 +1025,8 @@ class PreParser : public ParserBase<PreParserTraits> {
 
   PreParser(Zone* zone, Scanner* scanner, AstValueFactory* ast_value_factory,
             ParserRecorder* log, uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(zone, scanner, stack_limit, NULL,
-                                    ast_value_factory, log, this),
+      : ParserBase<PreParser>(zone, scanner, stack_limit, NULL,
+                              ast_value_factory, log),
         use_counts_(nullptr) {}
 
   // Pre-parse the program from the character stream; returns true on
@@ -1075,8 +1080,6 @@ class PreParser : public ParserBase<PreParserTraits> {
                                       int* use_counts);
 
  private:
-  friend class PreParserTraits;
-
   static const int kLazyParseTrialLimit = 200;
 
   // These types form an algebra over syntactic categories that is just
@@ -1153,27 +1156,24 @@ class PreParser : public ParserBase<PreParserTraits> {
   int* use_counts_;
 };
 
-
-void PreParserTraits::MaterializeUnspreadArgumentsLiterals(int count) {
+void ParserBaseTraits<PreParser>::MaterializeUnspreadArgumentsLiterals(
+    int count) {
   for (int i = 0; i < count; ++i) {
-    pre_parser_->function_state_->NextMaterializedLiteralIndex();
+    delegate()->function_state_->NextMaterializedLiteralIndex();
   }
 }
 
-
-PreParserExpression PreParserTraits::SpreadCall(PreParserExpression function,
-                                                PreParserExpressionList args,
-                                                int pos) {
-  return pre_parser_->factory()->NewCall(function, args, pos);
+PreParserExpression ParserBaseTraits<PreParser>::SpreadCall(
+    PreParserExpression function, PreParserExpressionList args, int pos) {
+  return delegate()->factory()->NewCall(function, args, pos);
 }
 
-PreParserExpression PreParserTraits::SpreadCallNew(PreParserExpression function,
-                                                   PreParserExpressionList args,
-                                                   int pos) {
-  return pre_parser_->factory()->NewCallNew(function, args, pos);
+PreParserExpression ParserBaseTraits<PreParser>::SpreadCallNew(
+    PreParserExpression function, PreParserExpressionList args, int pos) {
+  return delegate()->factory()->NewCallNew(function, args, pos);
 }
 
-void PreParserTraits::ParseArrowFunctionFormalParameterList(
+void ParserBaseTraits<PreParser>::ParseArrowFunctionFormalParameterList(
     PreParserFormalParameters* parameters, PreParserExpression params,
     const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
     const Scope::Snapshot& scope_snapshot, bool* ok) {
@@ -1181,42 +1181,41 @@ void PreParserTraits::ParseArrowFunctionFormalParameterList(
   // lists that are too long.
 }
 
-PreParserExpression PreParserTraits::ParseAsyncFunctionExpression(bool* ok) {
-  return pre_parser_->ParseAsyncFunctionExpression(ok);
+PreParserExpression ParserBaseTraits<PreParser>::ParseAsyncFunctionExpression(
+    bool* ok) {
+  return delegate()->ParseAsyncFunctionExpression(ok);
 }
 
-PreParserExpression PreParserTraits::ParseDoExpression(bool* ok) {
-  return pre_parser_->ParseDoExpression(ok);
+PreParserExpression ParserBaseTraits<PreParser>::ParseDoExpression(bool* ok) {
+  return delegate()->ParseDoExpression(ok);
 }
 
-
-void PreParserTraits::RewriteNonPattern(Type::ExpressionClassifier* classifier,
-                                        bool* ok) {
-  pre_parser_->ValidateExpression(classifier, ok);
+void ParserBaseTraits<PreParser>::RewriteNonPattern(
+    Type::ExpressionClassifier* classifier, bool* ok) {
+  delegate()->ValidateExpression(classifier, ok);
 }
 
-PreParserExpression PreParserTraits::RewriteAwaitExpression(
+PreParserExpression ParserBaseTraits<PreParser>::RewriteAwaitExpression(
     PreParserExpression value, int pos) {
   return value;
 }
 
-ZoneList<PreParserExpression>* PreParserTraits::GetNonPatternList() const {
-  return pre_parser_->function_state_->non_patterns_to_rewrite();
+ZoneList<PreParserExpression>* ParserBaseTraits<PreParser>::GetNonPatternList()
+    const {
+  return delegate()->function_state_->non_patterns_to_rewrite();
 }
 
-
-ZoneList<typename PreParserTraits::Type::ExpressionClassifier::Error>*
-PreParserTraits::GetReportedErrorList() const {
-  return pre_parser_->function_state_->GetReportedErrorList();
+ZoneList<
+    typename ParserBaseTraits<PreParser>::Type::ExpressionClassifier::Error>*
+ParserBaseTraits<PreParser>::GetReportedErrorList() const {
+  return delegate()->function_state_->GetReportedErrorList();
 }
 
-
-Zone* PreParserTraits::zone() const {
-  return pre_parser_->function_state_->scope()->zone();
+Zone* ParserBaseTraits<PreParser>::zone() const {
+  return delegate()->function_state_->scope()->zone();
 }
 
-
-PreParserExpression PreParserTraits::RewriteYieldStar(
+PreParserExpression ParserBaseTraits<PreParser>::RewriteYieldStar(
     PreParserExpression generator, PreParserExpression expression, int pos) {
   return PreParserExpression::Default();
 }
@@ -1240,22 +1239,21 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
   return PreParserStatementList();
 }
 
-
-PreParserStatementList PreParserTraits::ParseEagerFunctionBody(
+PreParserStatementList ParserBaseTraits<PreParser>::ParseEagerFunctionBody(
     PreParserIdentifier function_name, int pos,
     const PreParserFormalParameters& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, bool* ok) {
-  return pre_parser_->ParseEagerFunctionBody(function_name, pos, parameters,
-                                             kind, function_type, ok);
+  return delegate()->ParseEagerFunctionBody(function_name, pos, parameters,
+                                            kind, function_type, ok);
 }
 
-PreParserExpression PreParserTraits::CloseTemplateLiteral(
+PreParserExpression ParserBaseTraits<PreParser>::CloseTemplateLiteral(
     TemplateLiteralState* state, int start, PreParserExpression tag) {
   if (IsTaggedTemplate(tag)) {
     // Emulate generation of array literals for tag callsite
     // 1st is array of cooked strings, second is array of raw strings
-    pre_parser_->function_state_->NextMaterializedLiteralIndex();
-    pre_parser_->function_state_->NextMaterializedLiteralIndex();
+    delegate()->function_state_->NextMaterializedLiteralIndex();
+    delegate()->function_state_->NextMaterializedLiteralIndex();
   }
   return EmptyExpression();
 }

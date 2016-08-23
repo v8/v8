@@ -137,14 +137,12 @@ struct ParserFormalParameters : FormalParametersBase {
   const Parameter& at(int i) const { return params[i]; }
 };
 
-
-class ParserTraits {
+template <>
+class ParserBaseTraits<Parser> {
  public:
-  struct Type {
-    // TODO(marja): To be removed. The Traits object should contain all the data
-    // it needs.
-    typedef v8::internal::Parser* Parser;
+  typedef ParserBaseTraits<Parser> ParserTraits;
 
+  struct Type {
     typedef Variable GeneratorVariable;
 
     typedef v8::internal::AstProperties AstProperties;
@@ -170,7 +168,12 @@ class ParserTraits {
     typedef AstNodeFactory Factory;
   };
 
-  explicit ParserTraits(Parser* parser) : parser_(parser) {}
+  // TODO(nikolaos): The traits methods should not need to call methods
+  // of the implementation object.
+  Parser* delegate() { return reinterpret_cast<Parser*>(this); }
+  const Parser* delegate() const {
+    return reinterpret_cast<const Parser*>(this);
+  }
 
   // Helper functions for recursive descent.
   bool IsEval(const AstRawString* identifier) const;
@@ -468,13 +471,9 @@ class ParserTraits {
 
   V8_INLINE Expression* RewriteYieldStar(Expression* generator,
                                          Expression* expression, int pos);
-
- private:
-  Parser* parser_;
 };
 
-
-class Parser : public ParserBase<ParserTraits> {
+class Parser : public ParserBase<Parser> {
  public:
   explicit Parser(ParseInfo* info);
   ~Parser() {
@@ -500,7 +499,9 @@ class Parser : public ParserBase<ParserTraits> {
   void HandleSourceURLComments(Isolate* isolate, Handle<Script> script);
 
  private:
-  friend class ParserTraits;
+  // TODO(nikolaos): This should not be necessary. It will be removed
+  // when the traits object stops delegating to the implementation object.
+  friend class ParserBaseTraits<Parser>;
 
   // Runtime encoding of different completion modes.
   enum CompletionKind {
@@ -962,34 +963,32 @@ class Parser : public ParserBase<ParserTraits> {
 #endif  // DEBUG
 };
 
-
-bool ParserTraits::IsFutureStrictReserved(
+bool ParserBaseTraits<Parser>::IsFutureStrictReserved(
     const AstRawString* identifier) const {
-  return parser_->scanner()->IdentifierIsFutureStrictReserved(identifier);
+  return delegate()->scanner()->IdentifierIsFutureStrictReserved(identifier);
 }
 
-const AstRawString* ParserTraits::EmptyIdentifierString() const {
-  return parser_->ast_value_factory()->empty_string();
+const AstRawString* ParserBaseTraits<Parser>::EmptyIdentifierString() const {
+  return delegate()->ast_value_factory()->empty_string();
 }
 
-
-void ParserTraits::SkipLazyFunctionBody(int* materialized_literal_count,
-                                        int* expected_property_count, bool* ok,
-                                        Scanner::BookmarkScope* bookmark) {
-  return parser_->SkipLazyFunctionBody(materialized_literal_count,
-                                       expected_property_count, ok, bookmark);
+void ParserBaseTraits<Parser>::SkipLazyFunctionBody(
+    int* materialized_literal_count, int* expected_property_count, bool* ok,
+    Scanner::BookmarkScope* bookmark) {
+  return delegate()->SkipLazyFunctionBody(
+      materialized_literal_count, expected_property_count, ok, bookmark);
 }
 
-
-ZoneList<Statement*>* ParserTraits::ParseEagerFunctionBody(
+ZoneList<Statement*>* ParserBaseTraits<Parser>::ParseEagerFunctionBody(
     const AstRawString* name, int pos, const ParserFormalParameters& parameters,
     FunctionKind kind, FunctionLiteral::FunctionType function_type, bool* ok) {
-  return parser_->ParseEagerFunctionBody(name, pos, parameters, kind,
-                                         function_type, ok);
+  return delegate()->ParseEagerFunctionBody(name, pos, parameters, kind,
+                                            function_type, ok);
 }
 
-void ParserTraits::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
-  parser_->CheckConflictingVarDeclarations(scope, ok);
+void ParserBaseTraits<Parser>::CheckConflictingVarDeclarations(Scope* scope,
+                                                               bool* ok) {
+  delegate()->CheckConflictingVarDeclarations(scope, ok);
 }
 
 
@@ -1021,80 +1020,71 @@ class CompileTimeValue: public AllStatic {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
 };
 
-
-ParserTraits::TemplateLiteralState ParserTraits::OpenTemplateLiteral(int pos) {
-  return parser_->OpenTemplateLiteral(pos);
+ParserBaseTraits<Parser>::TemplateLiteralState
+ParserBaseTraits<Parser>::OpenTemplateLiteral(int pos) {
+  return delegate()->OpenTemplateLiteral(pos);
 }
 
-
-void ParserTraits::AddTemplateSpan(TemplateLiteralState* state, bool tail) {
-  parser_->AddTemplateSpan(state, tail);
+void ParserBaseTraits<Parser>::AddTemplateSpan(TemplateLiteralState* state,
+                                               bool tail) {
+  delegate()->AddTemplateSpan(state, tail);
 }
 
-
-void ParserTraits::AddTemplateExpression(TemplateLiteralState* state,
-                                         Expression* expression) {
-  parser_->AddTemplateExpression(state, expression);
+void ParserBaseTraits<Parser>::AddTemplateExpression(
+    TemplateLiteralState* state, Expression* expression) {
+  delegate()->AddTemplateExpression(state, expression);
 }
 
-
-Expression* ParserTraits::CloseTemplateLiteral(TemplateLiteralState* state,
-                                               int start, Expression* tag) {
-  return parser_->CloseTemplateLiteral(state, start, tag);
+Expression* ParserBaseTraits<Parser>::CloseTemplateLiteral(
+    TemplateLiteralState* state, int start, Expression* tag) {
+  return delegate()->CloseTemplateLiteral(state, start, tag);
 }
 
-
-ZoneList<v8::internal::Expression*>* ParserTraits::PrepareSpreadArguments(
-    ZoneList<v8::internal::Expression*>* list) {
-  return parser_->PrepareSpreadArguments(list);
+ZoneList<v8::internal::Expression*>* ParserBaseTraits<
+    Parser>::PrepareSpreadArguments(ZoneList<v8::internal::Expression*>* list) {
+  return delegate()->PrepareSpreadArguments(list);
 }
 
-
-Expression* ParserTraits::SpreadCall(Expression* function,
-                                     ZoneList<v8::internal::Expression*>* args,
-                                     int pos) {
-  return parser_->SpreadCall(function, args, pos);
-}
-
-
-Expression* ParserTraits::SpreadCallNew(
+Expression* ParserBaseTraits<Parser>::SpreadCall(
     Expression* function, ZoneList<v8::internal::Expression*>* args, int pos) {
-  return parser_->SpreadCallNew(function, args, pos);
+  return delegate()->SpreadCall(function, args, pos);
 }
 
+Expression* ParserBaseTraits<Parser>::SpreadCallNew(
+    Expression* function, ZoneList<v8::internal::Expression*>* args, int pos) {
+  return delegate()->SpreadCallNew(function, args, pos);
+}
 
-void ParserTraits::AddFormalParameter(ParserFormalParameters* parameters,
-                                      Expression* pattern,
-                                      Expression* initializer,
-                                      int initializer_end_position,
-                                      bool is_rest) {
+void ParserBaseTraits<Parser>::AddFormalParameter(
+    ParserFormalParameters* parameters, Expression* pattern,
+    Expression* initializer, int initializer_end_position, bool is_rest) {
   bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
-  const AstRawString* name = is_simple
-                                 ? pattern->AsVariableProxy()->raw_name()
-                                 : parser_->ast_value_factory()->empty_string();
+  const AstRawString* name =
+      is_simple ? pattern->AsVariableProxy()->raw_name()
+                : delegate()->ast_value_factory()->empty_string();
   parameters->params.Add(
       ParserFormalParameters::Parameter(name, pattern, initializer,
                                         initializer_end_position, is_rest),
       parameters->scope->zone());
 }
 
-void ParserTraits::DeclareFormalParameter(
+void ParserBaseTraits<Parser>::DeclareFormalParameter(
     DeclarationScope* scope, const ParserFormalParameters::Parameter& parameter,
     Type::ExpressionClassifier* classifier) {
   bool is_duplicate = false;
   bool is_simple = classifier->is_simple_parameter_list();
   auto name = is_simple || parameter.is_rest
                   ? parameter.name
-                  : parser_->ast_value_factory()->empty_string();
+                  : delegate()->ast_value_factory()->empty_string();
   auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
   if (!is_simple) scope->SetHasNonSimpleParameters();
   bool is_optional = parameter.initializer != nullptr;
   Variable* var =
       scope->DeclareParameter(name, mode, is_optional, parameter.is_rest,
-                              &is_duplicate, parser_->ast_value_factory());
+                              &is_duplicate, delegate()->ast_value_factory());
   if (is_duplicate) {
     classifier->RecordDuplicateFormalParameterError(
-        parser_->scanner()->location());
+        delegate()->scanner()->location());
   }
   if (is_sloppy(scope->language_mode())) {
     // TODO(sigurds) Mark every parameter as maybe assigned. This is a
@@ -1104,35 +1094,36 @@ void ParserTraits::DeclareFormalParameter(
   }
 }
 
-void ParserTraits::AddParameterInitializationBlock(
+void ParserBaseTraits<Parser>::AddParameterInitializationBlock(
     const ParserFormalParameters& parameters,
     ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) {
   if (!parameters.is_simple) {
     auto* init_block =
-        parser_->BuildParameterInitializationBlock(parameters, ok);
+        delegate()->BuildParameterInitializationBlock(parameters, ok);
     if (!*ok) return;
 
     if (is_async) {
-      init_block = parser_->BuildRejectPromiseOnException(init_block);
+      init_block = delegate()->BuildRejectPromiseOnException(init_block);
     }
 
     if (init_block != nullptr) {
-      body->Add(init_block, parser_->zone());
+      body->Add(init_block, delegate()->zone());
     }
   }
 }
 
-Expression* ParserTraits::ParseAsyncFunctionExpression(bool* ok) {
-  return parser_->ParseAsyncFunctionExpression(ok);
+Expression* ParserBaseTraits<Parser>::ParseAsyncFunctionExpression(bool* ok) {
+  return delegate()->ParseAsyncFunctionExpression(ok);
 }
 
-DoExpression* ParserTraits::ParseDoExpression(bool* ok) {
-  return parser_->ParseDoExpression(ok);
+DoExpression* ParserBaseTraits<Parser>::ParseDoExpression(bool* ok) {
+  return delegate()->ParseDoExpression(ok);
 }
 
-Expression* ParserTraits::RewriteYieldStar(Expression* generator,
-                                           Expression* iterable, int pos) {
-  return parser_->RewriteYieldStar(generator, iterable, pos);
+Expression* ParserBaseTraits<Parser>::RewriteYieldStar(Expression* generator,
+                                                       Expression* iterable,
+                                                       int pos) {
+  return delegate()->RewriteYieldStar(generator, iterable, pos);
 }
 
 }  // namespace internal
