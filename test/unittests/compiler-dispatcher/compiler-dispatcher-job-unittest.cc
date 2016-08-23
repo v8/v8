@@ -92,7 +92,7 @@ TEST_F(CompilerDispatcherJobTest, StateTransitions) {
   ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToParse);
   job->Parse();
   ASSERT_TRUE(job->status() == CompileJobStatus::kParsed);
-  job->FinalizeParsingOnMainThread();
+  ASSERT_TRUE(job->FinalizeParsingOnMainThread());
   ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToCompile);
   job->ResetOnMainThread();
   ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
@@ -105,14 +105,14 @@ TEST_F(CompilerDispatcherJobTest, SyntaxError) {
 
   job->PrepareToParseOnMainThread();
   job->Parse();
-  job->FinalizeParsingOnMainThread();
-
+  ASSERT_FALSE(job->FinalizeParsingOnMainThread());
   ASSERT_TRUE(job->status() == CompileJobStatus::kFailed);
-  ASSERT_FALSE(i_isolate()->has_pending_exception());
-  job->ReportErrorsOnMainThread();
-  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
   ASSERT_TRUE(i_isolate()->has_pending_exception());
+
   i_isolate()->clear_pending_exception();
+
+  job->ResetOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
 }
 
 TEST_F(CompilerDispatcherJobTest, ScopeChain) {
@@ -133,7 +133,7 @@ TEST_F(CompilerDispatcherJobTest, ScopeChain) {
 
   job->PrepareToParseOnMainThread();
   job->Parse();
-  job->FinalizeParsingOnMainThread();
+  ASSERT_TRUE(job->FinalizeParsingOnMainThread());
   ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToCompile);
 
   const AstRawString* var_x =

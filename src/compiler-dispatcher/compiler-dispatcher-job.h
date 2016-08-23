@@ -50,19 +50,15 @@ class CompilerDispatcherJob {
   // Transition from kReadyToParse to kParsed.
   void Parse();
 
-  // Transition from kParsed to kReadyToCompile (or kFailed).
-  void FinalizeParsingOnMainThread();
-
-  // Transition from kFailed to kDone.
-  void ReportErrorsOnMainThread();
+  // Transition from kParsed to kReadyToCompile (or kFailed). Returns false
+  // when transitioning to kFailed. In that case, an exception is pending.
+  bool FinalizeParsingOnMainThread();
 
   // Transition from any state to kInitial and free all resources.
   void ResetOnMainThread();
 
  private:
   FRIEND_TEST(CompilerDispatcherJobTest, ScopeChain);
-
-  void InternalizeParsingResult();
 
   CompileJobStatus status_ = CompileJobStatus::kInitial;
   Isolate* isolate_;
@@ -76,6 +72,7 @@ class CompilerDispatcherJob {
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ParseInfo> parse_info_;
   std::unique_ptr<Parser> parser_;
+  std::unique_ptr<DeferredHandles> handles_from_parsing_;
 
   bool can_parse_on_background_thread_;
 
