@@ -228,6 +228,9 @@ class InstructionSelector final {
   void MarkAsFloat64(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kFloat64, node);
   }
+  void MarkAsSimd128(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kSimd128, node);
+  }
   void MarkAsReference(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
   }
@@ -276,6 +279,8 @@ class InstructionSelector final {
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
   MACHINE_OP_LIST(DECLARE_GENERATOR)
+  MACHINE_SIMD_RETURN_NUM_OP_LIST(DECLARE_GENERATOR)
+  MACHINE_SIMD_RETURN_SIMD_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
   void VisitFinishRegion(Node* node);

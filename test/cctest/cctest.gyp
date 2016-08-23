@@ -214,7 +214,8 @@
       'test-disasm-x64.cc',
       'test-macro-assembler-x64.cc',
       'test-log-stack-tracer.cc',
-      'test-run-wasm-relocation-x64.cc'
+      'test-run-wasm-relocation-x64.cc',
+      'wasm/test-run-wasm-simd.cc'
     ],
     'cctest_sources_arm': [  ### gcmole(arch:arm) ###
       'test-assembler-arm.cc',

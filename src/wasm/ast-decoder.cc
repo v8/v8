@@ -574,6 +574,8 @@ class WasmFullDecoder : public WasmDecoder {
         return builder_->Float32Constant(0);
       case kAstF64:
         return builder_->Float64Constant(0);
+      case kAstS128:
+        return builder_->DefaultS128Value();
       default:
         UNREACHABLE();
         return nullptr;
@@ -619,6 +621,9 @@ class WasmFullDecoder : public WasmDecoder {
           break;
         case kLocalF64:
           type = kAstF64;
+          break;
+        case kLocalS128:
+          type = kAstS128;
           break;
         default:
           error(pc_ - 1, "invalid local type");

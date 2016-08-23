@@ -1307,6 +1307,10 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUnsafePointerAdd:
       MarkAsRepresentation(MachineType::PointerRepresentation(), node);
       return VisitUnsafePointerAdd(node);
+    case IrOpcode::kCreateInt32x4:
+      return MarkAsSimd128(node), VisitCreateInt32x4(node);
+    case IrOpcode::kInt32x4ExtractLane:
+      return MarkAsWord32(node), VisitInt32x4ExtractLane(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -1647,7 +1651,6 @@ void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
 void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
   UNIMPLEMENTED();
 }
-
 #endif  // V8_TARGET_ARCH_32_BIT
 
 // 64 bit targets do not implement the following instructions.
@@ -1664,6 +1667,14 @@ void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
 #endif  // V8_TARGET_ARCH_64_BIT
+
+#if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitCreateInt32x4(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
