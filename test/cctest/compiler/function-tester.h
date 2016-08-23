@@ -6,7 +6,6 @@
 #define V8_CCTEST_COMPILER_FUNCTION_TESTER_H_
 
 #include "src/ast/ast-numbering.h"
-#include "src/ast/scopes.h"
 #include "src/compiler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"

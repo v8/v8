@@ -27,7 +27,6 @@
 
 #include "src/allocation.h"
 #include "src/ast/ast-traversal-visitor.h"
-#include "src/compiler.h"
 
 namespace v8 {
 namespace internal {

@@ -10,6 +10,7 @@
 #include "src/v8.h"
 
 #include "src/compilation-cache.h"
+#include "src/compiler.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/field-type.h"

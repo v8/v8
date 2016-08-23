@@ -33,6 +33,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
+#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/heap/spaces.h"
 #include "src/macro-assembler.h"

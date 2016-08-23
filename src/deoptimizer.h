@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/deoptimize-reason.h"
 #include "src/macro-assembler.h"
-
+#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {

@@ -5,6 +5,7 @@
 #ifndef V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 #define V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 
+#include "src/compiler.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"

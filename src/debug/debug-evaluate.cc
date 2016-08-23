@@ -5,6 +5,7 @@
 #include "src/debug/debug-evaluate.h"
 
 #include "src/accessors.h"
+#include "src/compiler.h"
 #include "src/contexts.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"

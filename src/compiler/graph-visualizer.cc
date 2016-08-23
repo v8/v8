@@ -9,13 +9,14 @@
 #include <string>
 
 #include "src/code-stubs.h"
+#include "src/compiler.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/operator.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
