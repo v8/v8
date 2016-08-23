@@ -7685,6 +7685,9 @@ TEST(AsyncAwait) {
 
     "var asyncFn = async({ foo = 1 }) => foo;",
     "var asyncFn = async({ foo = 1 } = {}) => foo;",
+
+    "function* g() { var f = async(yield); }",
+    "function* g() { var f = async(x = yield); }",
     NULL
   };
   // clang-format on
@@ -7791,6 +7794,11 @@ TEST(AsyncAwaitErrors) {
     "var O = { async method(x = await 1) { return x; } };",
 
     "var f = async(x = await) => 1;",
+
+    "function* g() { var f = async yield => 1; }",
+    "function* g() { var f = async(yield) => 1; }",
+    "function* g() { var f = async(x = yield) => 1; }",
+    "function* g() { var f = async({x = yield}) => 1; }",
 
     "class C { async constructor() {} }",
     "class C {}; class C2 extends C { async constructor() {} }",

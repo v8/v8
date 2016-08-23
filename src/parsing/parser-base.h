@@ -2897,6 +2897,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(ExpressionClassifier* classifier,
               fni_->RemoveAsyncKeywordFromEnd();
             }
             ValidateBindingPattern(&async_classifier, CHECK_OK);
+            ValidateFormalParameterInitializer(&async_classifier, CHECK_OK);
             if (!async_classifier.is_valid_async_arrow_formal_parameters()) {
               ReportClassifierError(
                   async_classifier.async_arrow_formal_parameters_error());
