@@ -907,7 +907,10 @@ void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
     if (incremental_marking()->CanBeActivated()) {
       StartIncrementalMarking(
           i::Heap::kNoGCFlags,
-          kGCCallbackFlagSynchronousPhantomCallbackProcessing, gc_reason);
+          static_cast<GCCallbackFlags>(
+              kGCCallbackFlagSynchronousPhantomCallbackProcessing |
+              kGCCallbackFlagCollectAllExternalMemory),
+          gc_reason);
     } else {
       CollectAllGarbage(i::Heap::kNoGCFlags, gc_reason,
                         kGCCallbackFlagSynchronousPhantomCallbackProcessing);
