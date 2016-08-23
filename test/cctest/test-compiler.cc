@@ -781,6 +781,10 @@ static void InstallIsBaselineCompiledHelper(v8::Isolate* isolate) {
 }
 
 TEST(IgnitionBaselineOnReturn) {
+  // TODO(4280): Remove this entire test once --ignition-preserve-bytecode is
+  // the default and the flag is removed. This test doesn't provide benefit any
+  // longer once {InterpreterActivationsFinder} is gone.
+  if (FLAG_ignition_preserve_bytecode) return;
   FLAG_allow_natives_syntax = true;
   FLAG_always_opt = false;
   CcTest::InitializeVM();

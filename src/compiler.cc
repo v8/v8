@@ -947,26 +947,28 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   }
 
   // TODO(4280): For now we disable switching to baseline code in the presence
-  // of interpreter activations of the given function. The reasons are:
-  //  1) The debugger assumes each function is either full-code or bytecode.
-  //  2) The underlying bytecode is cleared below, breaking stack unwinding.
-  InterpreterActivationsFinder activations_finder(function->shared());
-  if (HasInterpreterActivations(isolate, &activations_finder)) {
-    if (FLAG_trace_opt) {
-      OFStream os(stdout);
-      os << "[unable to switch " << Brief(*function) << " due to activations]"
-         << std::endl;
-    }
-
-    if (activations_finder.MarkActivationsForBaselineOnReturn(isolate)) {
+  // of interpreter activations of the given function. The reasons is that the
+  // underlying bytecode is cleared below. Note that this only applies in case
+  // the --ignition-preserve-bytecode flag is not passed.
+  if (!FLAG_ignition_preserve_bytecode) {
+    InterpreterActivationsFinder activations_finder(function->shared());
+    if (HasInterpreterActivations(isolate, &activations_finder)) {
       if (FLAG_trace_opt) {
         OFStream os(stdout);
-        os << "[marking " << Brief(function->shared())
-           << " for baseline recompilation on return]" << std::endl;
+        os << "[unable to switch " << Brief(*function) << " due to activations]"
+           << std::endl;
       }
-    }
 
-    return MaybeHandle<Code>();
+      if (activations_finder.MarkActivationsForBaselineOnReturn(isolate)) {
+        if (FLAG_trace_opt) {
+          OFStream os(stdout);
+          os << "[marking " << Brief(function->shared())
+             << " for baseline recompilation on return]" << std::endl;
+        }
+      }
+
+      return MaybeHandle<Code>();
+    }
   }
 
   if (FLAG_trace_opt) {
@@ -989,7 +991,8 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
 
   // TODO(4280): For now we play it safe and remove the bytecode array when we
   // switch to baseline code. We might consider keeping around the bytecode so
-  // that it can be used as the "source of truth" eventually.
+  // that it can be used as the "source of truth" eventually. Note that this
+  // only applies in case the --ignition-preserve-bytecode flag is not passed.
   if (!FLAG_ignition_preserve_bytecode) shared->ClearBytecodeArray();
 
   // Update the shared function info with the scope info.
@@ -1414,12 +1417,12 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     if (shared->is_resumable()) return false;
 
     // TODO(4280): For now we disable switching to baseline code in the presence
-    // of interpreter activations of the given function. The reasons are:
-    //  1) The debugger assumes each function is either full-code or bytecode.
-    //  2) The underlying bytecode is cleared below, breaking stack unwinding.
-    // The expensive check for activations only needs to be done when the given
-    // function has bytecode, otherwise we can be sure there are no activations.
-    if (shared->HasBytecodeArray()) {
+    // of interpreter activations of the given function. The reasons is that the
+    // underlying bytecode is cleared below. The expensive check for activations
+    // only needs to be done when the given function has bytecode, otherwise we
+    // can be sure there are no activations. Note that this only applies in case
+    // the --ignition-preserve-bytecode flag is not passed.
+    if (!FLAG_ignition_preserve_bytecode && shared->HasBytecodeArray()) {
       InterpreterActivationsFinder activations_finder(*shared);
       if (HasInterpreterActivations(info->isolate(), &activations_finder)) {
         return false;
@@ -1438,9 +1441,10 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 
     // TODO(4280): For now we play it safe and remove the bytecode array when we
     // switch to baseline code. We might consider keeping around the bytecode so
-    // that it can be used as the "source of truth" eventually.
-    if (shared->HasBytecodeArray()) {
-      if (!FLAG_ignition_preserve_bytecode) shared->ClearBytecodeArray();
+    // that it can be used as the "source of truth" eventually. Note that this
+    // only applies in case the --ignition-preserve-bytecode flag is not passed.
+    if (!FLAG_ignition_preserve_bytecode && shared->HasBytecodeArray()) {
+      shared->ClearBytecodeArray();
     }
 
     // The scope info might not have been set if a lazily compiled
