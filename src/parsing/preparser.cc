@@ -1172,10 +1172,12 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
   // Position right after terminal '}'.
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
+  DeclarationScope* scope = this->scope()->AsDeclarationScope();
+  DCHECK(scope->is_function_scope());
   log_->LogFunction(body_start, body_end,
                     function_state_->materialized_literal_count(),
                     function_state_->expected_property_count(), language_mode(),
-                    scope()->uses_super_property(), scope()->calls_eval());
+                    scope->uses_super_property(), scope->calls_eval());
 }
 
 PreParserExpression PreParser::ParseClassLiteral(

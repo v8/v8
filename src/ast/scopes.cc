@@ -199,6 +199,7 @@ void DeclarationScope::SetDefaults() {
   asm_function_ = false;
   force_eager_compilation_ = false;
   has_arguments_parameter_ = false;
+  scope_uses_super_property_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
   function_ = nullptr;
@@ -229,7 +230,6 @@ void Scope::SetDefaults() {
   set_language_mode(SLOPPY);
 
   scope_calls_eval_ = false;
-  scope_uses_super_property_ = false;
   scope_nonlinear_ = false;
   is_hidden_ = false;
   is_debug_evaluate_scope_ = false;
@@ -587,7 +587,6 @@ void Scope::PropagateUsageFlagsToScope(Scope* other) {
   DCHECK_NOT_NULL(other);
   DCHECK(!already_resolved_);
   DCHECK(!other->already_resolved_);
-  if (uses_super_property()) other->RecordSuperPropertyUsage();
   if (calls_eval()) other->RecordEvalCall();
 }
 
@@ -985,9 +984,8 @@ void DeclarationScope::AnalyzePartially(DeclarationScope* migrate_to,
   // Push scope data up to migrate_to. Note that migrate_to and this Scope
   // describe the same Scope, just in different Zones.
   PropagateUsageFlagsToScope(migrate_to);
-  if (inner_scope_calls_eval_) {
-    migrate_to->inner_scope_calls_eval_ = true;
-  }
+  if (scope_uses_super_property_) migrate_to->scope_uses_super_property_ = true;
+  if (inner_scope_calls_eval_) migrate_to->inner_scope_calls_eval_ = true;
   DCHECK(!force_eager_compilation_);
   migrate_to->set_start_position(start_position_);
   migrate_to->set_end_position(end_position_);
@@ -1146,8 +1144,9 @@ void Scope::Print(int n) {
   if (IsAsmModule()) Indent(n1, "// scope is an asm module\n");
   if (IsAsmFunction()) Indent(n1, "// scope is an asm function\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
-  if (scope_uses_super_property_)
+  if (is_declaration_scope() && AsDeclarationScope()->uses_super_property()) {
     Indent(n1, "// scope uses 'super' property\n");
+  }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");

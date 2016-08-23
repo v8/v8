@@ -231,9 +231,6 @@ class Scope: public ZoneObject {
     }
   }
 
-  // Inform the scope that the corresponding code uses "super".
-  void RecordSuperPropertyUsage() { scope_uses_super_property_ = true; }
-
   // Set the language mode flag (unless disabled by a global flag).
   void SetLanguageMode(LanguageMode language_mode) {
     DCHECK(!is_module_scope() || is_strict(language_mode));
@@ -319,8 +316,6 @@ class Scope: public ZoneObject {
   }
   bool IsAsmModule() const;
   bool IsAsmFunction() const;
-  // Does this scope access "super" property (super.foo).
-  bool uses_super_property() const { return scope_uses_super_property_; }
   // Does this scope have the potential to execute declarations non-linearly?
   bool is_nonlinear() const { return scope_nonlinear_; }
 
@@ -518,8 +513,6 @@ class Scope: public ZoneObject {
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_ : 1;
-  // This scope uses "super" property ('super.foo').
-  bool scope_uses_super_property_ : 1;
   // This scope's declarations might not be executed in order (e.g., switch).
   bool scope_nonlinear_ : 1;
   bool is_hidden_ : 1;
@@ -675,6 +668,11 @@ class DeclarationScope : public Scope {
   bool is_arrow_scope() const {
     return is_function_scope() && IsArrowFunction(function_kind_);
   }
+
+  // Inform the scope that the corresponding code uses "super".
+  void RecordSuperPropertyUsage() { scope_uses_super_property_ = true; }
+  // Does this scope access "super" property (super.foo).
+  bool uses_super_property() const { return scope_uses_super_property_; }
 
   bool NeedsHomeObject() const {
     return scope_uses_super_property_ ||
@@ -886,6 +884,8 @@ class DeclarationScope : public Scope {
   bool force_eager_compilation_ : 1;
   // This scope has a parameter called "arguments".
   bool has_arguments_parameter_ : 1;
+  // This scope uses "super" property ('super.foo').
+  bool scope_uses_super_property_ : 1;
 
   // Info about the parameter list of a function.
   int arity_;

@@ -4395,6 +4395,8 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
   if (produce_cached_parse_data()) CHECK(log_);
 
   int function_block_pos = position();
+  DeclarationScope* scope = this->scope()->AsDeclarationScope();
+  DCHECK(scope->is_function_scope());
   if (consume_cached_parse_data() && !cached_parse_data_->rejected()) {
     // If we have cached data, we use it to skip parsing the function body. The
     // data contains the information we need to construct the lazy function.
@@ -4406,14 +4408,14 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
     if (entry.is_valid() && entry.end_pos() > function_block_pos) {
       scanner()->SeekForward(entry.end_pos() - 1);
 
-      scope()->set_end_position(entry.end_pos());
+      scope->set_end_position(entry.end_pos());
       Expect(Token::RBRACE, CHECK_OK_VOID);
-      total_preparse_skipped_ += scope()->end_position() - function_block_pos;
+      total_preparse_skipped_ += scope->end_position() - function_block_pos;
       *materialized_literal_count = entry.literal_count();
       *expected_property_count = entry.property_count();
-      SetLanguageMode(scope(), entry.language_mode());
-      if (entry.uses_super_property()) scope()->RecordSuperPropertyUsage();
-      if (entry.calls_eval()) scope()->RecordEvalCall();
+      SetLanguageMode(scope, entry.language_mode());
+      if (entry.uses_super_property()) scope->RecordSuperPropertyUsage();
+      if (entry.calls_eval()) scope->RecordEvalCall();
       return;
     }
     cached_parse_data_->Reject();
@@ -4439,25 +4441,21 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
     *ok = false;
     return;
   }
-  scope()->set_end_position(logger.end());
+  scope->set_end_position(logger.end());
   Expect(Token::RBRACE, CHECK_OK_VOID);
-  total_preparse_skipped_ += scope()->end_position() - function_block_pos;
+  total_preparse_skipped_ += scope->end_position() - function_block_pos;
   *materialized_literal_count = logger.literals();
   *expected_property_count = logger.properties();
-  SetLanguageMode(scope(), logger.language_mode());
-  if (logger.uses_super_property()) {
-    scope()->RecordSuperPropertyUsage();
-  }
-  if (logger.calls_eval()) {
-    scope()->RecordEvalCall();
-  }
+  SetLanguageMode(scope, logger.language_mode());
+  if (logger.uses_super_property()) scope->RecordSuperPropertyUsage();
+  if (logger.calls_eval()) scope->RecordEvalCall();
   if (produce_cached_parse_data()) {
     DCHECK(log_);
     // Position right after terminal '}'.
     int body_end = scanner()->location().end_pos;
     log_->LogFunction(function_block_pos, body_end, *materialized_literal_count,
                       *expected_property_count, language_mode(),
-                      scope()->uses_super_property(), scope()->calls_eval());
+                      scope->uses_super_property(), scope->calls_eval());
   }
 }
 

@@ -1067,7 +1067,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
         CHECK_NOT_NULL(scope->AsDeclarationScope()->arguments());
       }
       CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
-               scope->uses_super_property());
+               scope->AsDeclarationScope()->uses_super_property());
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a
         // script scope are marked as used.
