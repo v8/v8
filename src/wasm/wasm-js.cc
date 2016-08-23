@@ -126,33 +126,6 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (result.val) delete result.val;
 }
 
-i::MaybeHandle<i::FixedArray> TranslateAsmModule(i::ParseInfo* info,
-                                                 ErrorThrower* thrower) {
-  info->set_global();
-  info->set_lazy(false);
-  info->set_allow_lazy_parsing(false);
-  info->set_toplevel(true);
-
-  if (!i::Compiler::ParseAndAnalyze(info)) {
-    return i::MaybeHandle<i::FixedArray>();
-  }
-
-  if (info->scope()->declarations()->length() == 0) {
-    thrower->Error("Asm.js validation failed: no declarations in scope");
-    return i::MaybeHandle<i::FixedArray>();
-  }
-
-  if (!info->scope()->declarations()->at(0)->IsFunctionDeclaration()) {
-    thrower->Error("Asm.js validation failed: non-function declaration");
-    return i::MaybeHandle<i::FixedArray>();
-  }
-
-  info->set_literal(
-      info->scope()->declarations()->at(0)->AsFunctionDeclaration()->fun());
-
-  return i::AsmJs::ConvertAsmToWasm(info);
-}
-
 i::MaybeHandle<i::JSObject> InstantiateModule(
     const v8::FunctionCallbackInfo<v8::Value>& args, const byte* start,
     const byte* end, ErrorThrower* thrower,
@@ -197,70 +170,6 @@ i::MaybeHandle<i::JSObject> InstantiateModule(
 
   if (result.val) delete result.val;
   return object;
-}
-
-void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  ErrorThrower thrower(isolate, "Wasm.instantiateModuleFromAsm()");
-
-  if (!args[0]->IsString()) {
-    thrower.Error("Asm module text should be a string");
-    return;
-  }
-
-  i::Factory* factory = isolate->factory();
-  i::Zone zone(isolate->allocator());
-  Local<String> source = Local<String>::Cast(args[0]);
-  i::Handle<i::Script> script = factory->NewScript(Utils::OpenHandle(*source));
-  i::ParseInfo info(&zone, script);
-
-  auto wasm_data = TranslateAsmModule(&info, &thrower);
-  if (wasm_data.is_null()) {
-    thrower.Error("asm.js failed to validate");
-    return;
-  }
-
-  i::Handle<i::JSReceiver> stdlib;
-  if (args.Length() > 1 && args[1]->IsObject()) {
-    Local<Object> obj = Local<Object>::Cast(args[1]);
-    i::Handle<i::Object> hobj =
-        i::Handle<i::Object>::cast(v8::Utils::OpenHandle(*obj));
-    if (hobj->IsJSReceiver()) {
-      stdlib = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
-    }
-  }
-
-  i::Handle<i::JSReceiver> foreign;
-  if (args.Length() > 2 && args[2]->IsObject()) {
-    Local<Object> obj = Local<Object>::Cast(args[2]);
-    i::Handle<i::Object> hobj =
-        i::Handle<i::Object>::cast(v8::Utils::OpenHandle(*obj));
-    if (hobj->IsJSReceiver()) {
-      foreign = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
-    }
-  }
-
-  i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
-  if (args.Length() > 3 && args[3]->IsArrayBuffer()) {
-    Local<Object> obj = Local<Object>::Cast(args[3]);
-    i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
-    memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
-  }
-
-  if (!i::AsmJs::IsStdlibValid(isolate, wasm_data.ToHandleChecked(), stdlib)) {
-    thrower.Error("Asm module uses missing stdlib function");
-    return;
-  }
-
-  i::MaybeHandle<i::Object> maybe_module_object = i::AsmJs::InstantiateAsmWasm(
-      isolate, wasm_data.ToHandleChecked(), memory, foreign);
-  if (maybe_module_object.is_null()) {
-    return;
-  }
-
-  args.GetReturnValue().Set(
-      v8::Utils::ToLocal(maybe_module_object.ToHandleChecked()));
 }
 
 void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -463,8 +372,6 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
     InstallFunc(isolate, wasm_object, "verifyModule", VerifyModule);
     InstallFunc(isolate, wasm_object, "verifyFunction", VerifyFunction);
     InstallFunc(isolate, wasm_object, "instantiateModule", InstantiateModule);
-    InstallFunc(isolate, wasm_object, "instantiateModuleFromAsm",
-                InstantiateModuleFromAsm);
 
     {
       // Add the Wasm.experimentalVersion property.

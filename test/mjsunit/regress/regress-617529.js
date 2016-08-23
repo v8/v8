@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --validate-asm --allow-natives-syntax
+
 function __f_71(stdlib, buffer) {
   "use asm";
   var __v_22 = new stdlib.Float64Array(buffer);
@@ -11,4 +13,5 @@ function __f_71(stdlib, buffer) {
   return {__f_26: __f_26};
 }
 
-assertThrows(function() { Wasm.instantiateModuleFromAsm( __f_71.toString()); });
+__f_71(this);
+assertTrue(%IsNotAsmWasmCode(__f_71));

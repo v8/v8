@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-wasm
+// Flags: --allow-natives-syntax --validate-asm
 
 function __f_7() {
     %DeoptimizeFunction(__f_5);
@@ -18,7 +18,8 @@ function __f_8(global, env) {
   return {'__f_9': __f_9}
 }
 function __f_5() {
-  var __v_5 = Wasm.instantiateModuleFromAsm( __f_8.toString(), {}, {'__f_7': __f_7});
+  var __v_5 = __f_8({}, {'__f_7': __f_7});
+  assertTrue(%IsAsmWasmCode(__f_8));
   __v_5.__f_9(0, 0, 0);
 }
 __f_5();

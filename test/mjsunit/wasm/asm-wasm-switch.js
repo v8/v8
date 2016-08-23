@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
+
+function assertValidAsm(func) {
+  assertTrue(%IsAsmWasmCode(func));
+}
 
 (function TestSwitch0() {
   function asmModule() {
@@ -26,7 +30,8 @@
 
     return {caller:caller};
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(5, wasm.caller());
 })();
 
@@ -55,7 +60,8 @@
 
     return {caller:caller};
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(23, wasm.caller());
 })();
 
@@ -78,7 +84,8 @@
 
     return {caller:caller};
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(42, wasm.caller());
 })();
 
@@ -105,7 +112,8 @@
 
     return {caller:caller};
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(43, wasm.caller());
 })();
 
@@ -123,7 +131,8 @@
       main: main,
     };
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(-10, wasm.main(2));
   assertEquals(-10, wasm.main(54));
 })();
@@ -141,7 +150,8 @@
       main: main,
     };
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(73, wasm.main(7));
 })();
 
@@ -165,7 +175,8 @@
       main: main,
     };
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(25, wasm.main(12));
   assertEquals(23, wasm.main(14));
   assertEquals(29, wasm.main(15));
@@ -193,7 +204,8 @@
       main: main,
     };
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(-4, wasm.main(-4));
   assertEquals(11, wasm.main(1));
   assertEquals(52, wasm.main(5));
@@ -226,7 +238,8 @@
       main: main,
     };
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(-4, wasm.main(1));
   assertEquals(23, wasm.main(2));
   assertEquals(32, wasm.main(3));
@@ -273,7 +286,8 @@
       main: main,
     };
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(12, wasm.main(2));
   assertEquals(10, wasm.main(10));
   assertEquals(54, wasm.main(3));
@@ -334,7 +348,8 @@
       main: main,
     };
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(7, wasm.main(4));
   assertEquals(16, wasm.main(10));
   assertEquals(-1, wasm.main(19));
@@ -375,7 +390,8 @@
       main: main,
     };
   }
-  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = asmModule();
+  assertValidAsm(asmModule);
   assertEquals(2, wasm.main(2));
   assertEquals(7, wasm.main(7));
   assertEquals(19, wasm.main(-1));
@@ -397,7 +413,9 @@
       }\
       return {main: main}; }");
 
-    var wasm = Wasm.instantiateModuleFromAsm(str);
+    var decl = eval('(' + str + ')');
+    var wasm = decl();
+    assertValidAsm(decl);
     return wasm;
   }
 

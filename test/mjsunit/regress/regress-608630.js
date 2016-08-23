@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
 
 var __v_5 = {};
 var __v_35 = {};
@@ -36,7 +36,9 @@ function __f_1(asmfunc, expect) {
   var __v_5 = asmfunc(__v_3);
   expect(__v_5);
   print("Testing " + asmfunc.name + " (wasm)...");
-  var __v_6 = Wasm.instantiateModuleFromAsm(__v_1, {}, __v_3);
+  var module_func = eval(__v_1);
+  var __v_6 = module_func({}, __v_3);
+  assertTrue(%IsAsmWasmCode(module_func));
   expect(__v_6);
 }
 function __f_2() {

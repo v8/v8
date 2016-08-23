@@ -4,8 +4,8 @@
 
 // Flags: --validate-asm --allow-natives-syntax
 
-function IsAlwaysOpt(module) {
-  return %GetOptimizationStatus(module) === 3;
+function assertValidAsm(func) {
+  assertTrue(%IsAsmWasmCode(func));
 }
 
 (function TestModuleArgs() {
@@ -29,15 +29,16 @@ function IsAlwaysOpt(module) {
   for (var i = 0; i < modules.length; ++i) {
     print('Module' + (i + 1));
     var module = modules[i];
-    // TODO(bradnelson): Support modules without the stdlib.
+    var m = module();
+    assertValidAsm(module);
     var m = module({});
-    assertTrue(%IsAsmWasmCode(module) || IsAlwaysOpt(module));
+    assertValidAsm(module);
     var m = module({}, {});
-    assertTrue(%IsAsmWasmCode(module) || IsAlwaysOpt(module));
+    assertValidAsm(module);
     var m = module({}, {}, heap);
-    assertTrue(%IsAsmWasmCode(module) || IsAlwaysOpt(module));
+    assertValidAsm(module);
     var m = module({}, {}, heap, {});
-    assertTrue(%IsAsmWasmCode(module) || IsAlwaysOpt(module));
+    assertValidAsm(module);
   }
 })();
 
@@ -48,40 +49,40 @@ function IsAlwaysOpt(module) {
     return { foo: foo };
   }
   var m = Module({});
-  assertFalse(%IsAsmWasmCode(Module));
+  assertTrue(%IsNotAsmWasmCode(Module));
   assertEquals(123, m.foo());
 })();
 
 (function TestBadArgTypes() {
   function Module(a, b, c) {
     "use asm";
+    var NaN = a.NaN;
     return {};
   }
   var m = Module(1, 2, 3);
-  assertFalse(%IsAsmWasmCode(Module));
+  assertTrue(%IsNotAsmWasmCode(Module));
   assertEquals({}, m);
 })();
 
 (function TestBadArgTypesMismatch() {
   function Module(a, b, c) {
     "use asm";
+    var NaN = a.NaN;
     return {};
   }
   var m = Module(1, 2);
-  assertFalse(%IsAsmWasmCode(Module));
+  assertTrue(%IsNotAsmWasmCode(Module));
   assertEquals({}, m);
 })();
 
 (function TestModuleNoStdlib() {
-  // TODO(bradnelson):
-  // Support modules like this if they don't use the whole stdlib.
   function Module() {
     "use asm";
     function foo() { return 123; }
     return { foo: foo };
   }
   var m = Module({});
-  assertFalse(%IsAsmWasmCode(Module));
+  assertValidAsm(Module);
   assertEquals(123, m.foo());
 })();
 
@@ -93,7 +94,7 @@ function IsAlwaysOpt(module) {
   }
   var heap = new ArrayBuffer(1024 * 1024);
   var m = Module({}, {}, heap);
-  assertFalse(%IsAsmWasmCode(Module));
+  assertTrue(%IsNotAsmWasmCode(Module));
   assertEquals(123, m.foo());
 })();
 
@@ -103,9 +104,8 @@ function IsAlwaysOpt(module) {
     function foo() { return 123; }
     return { foo: foo };
   }
-  // TODO(bradnelson): Support instantiation like this if stdlib is unused.
   var m = Module();
-  assertFalse(%IsAsmWasmCode(Module));
+  assertValidAsm(Module);
   assertEquals(123, m.foo());
 })();
 
@@ -116,20 +116,21 @@ function IsAlwaysOpt(module) {
     return { foo: foo };
   }
   var m = new Module({}, {});
-  assertTrue(%IsAsmWasmCode(Module) || IsAlwaysOpt(Module));
+  assertValidAsm(Module);
   assertEquals(123, m.foo());
 })();
 
 (function TestMultipleFailures() {
   function Module(stdlib) {
     "use asm";
+    var NaN = stdlib.NaN;
     function foo() { return 123; }
     return { foo: foo };
   }
   var m1 = Module(1, 2, 3);
-  assertFalse(%IsAsmWasmCode(Module));
+  assertTrue(%IsNotAsmWasmCode(Module));
   var m2 = Module(1, 2, 3);
-  assertFalse(%IsAsmWasmCode(Module));
+  assertTrue(%IsNotAsmWasmCode(Module));
   assertEquals(123, m1.foo());
   assertEquals(123, m2.foo());
 })();
@@ -138,6 +139,7 @@ function IsAlwaysOpt(module) {
   function MkModule() {
     function Module(stdlib, ffi, heap) {
       "use asm";
+      var NaN = stdlib.NaN;
       function foo() { return 123; }
       return { foo: foo };
     }
@@ -147,9 +149,9 @@ function IsAlwaysOpt(module) {
   var Module2 = MkModule();
   var heap = new ArrayBuffer(1024 * 1024);
   var m1 = Module1(1, 2, 3);
-  assertFalse(%IsAsmWasmCode(Module1));
+  assertTrue(%IsNotAsmWasmCode(Module1));
   var m2 = Module2({}, {}, heap);
-  assertFalse(%IsAsmWasmCode(Module2));
+  assertTrue(%IsNotAsmWasmCode(Module2));
   assertEquals(123, m1.foo());
   assertEquals(123, m2.foo());
 })();
@@ -158,6 +160,7 @@ function IsAlwaysOpt(module) {
   function MkModule() {
     function Module(stdlib, ffi, heap) {
       "use asm";
+      var NaN = stdlib.NaN;
       function foo() { return 123; }
       return { foo: foo };
     }
@@ -166,10 +169,10 @@ function IsAlwaysOpt(module) {
   var Module1 = MkModule();
   var Module2 = MkModule();
   var heap = new ArrayBuffer(1024 * 1024);
-  var m1 = Module1({}, {}, heap);
-  assertTrue(%IsAsmWasmCode(Module1) || IsAlwaysOpt(Module1));
+  var m1 = Module1({NaN: NaN}, {}, heap);
+  assertValidAsm(Module1);
   var m2 = Module2(1, 2, 3);
-  assertFalse(%IsAsmWasmCode(Module2));
+  assertTrue(%IsNotAsmWasmCode(Module2));
   assertEquals(123, m1.foo());
   assertEquals(123, m2.foo());
 })();
@@ -178,6 +181,7 @@ function IsAlwaysOpt(module) {
   function MkModule() {
     function Module(stdlib, ffi, heap) {
       "use asm";
+      var NaN = stdlib.NaN;
       function foo() { return 123; }
       return { foo: foo };
     }
@@ -186,12 +190,12 @@ function IsAlwaysOpt(module) {
   var Module1 = MkModule();
   var Module2 = MkModule();
   var heap = new ArrayBuffer(1024 * 1024);
-  var m1a = Module1({}, {}, heap);
-  assertTrue(%IsAsmWasmCode(Module1) || IsAlwaysOpt(Module1));
+  var m1a = Module1({NaN: NaN}, {}, heap);
+  assertValidAsm(Module1);
   var m2 = Module2(1, 2, 3);
-  assertFalse(%IsAsmWasmCode(Module2));
-  var m1b = Module1({}, {}, heap);
-  assertFalse(%IsAsmWasmCode(Module1));
+  assertTrue(%IsNotAsmWasmCode(Module2));
+  var m1b = Module1({NaN: NaN}, {}, heap);
+  assertTrue(%IsNotAsmWasmCode(Module1));
   assertEquals(123, m1a.foo());
   assertEquals(123, m1b.foo());
   assertEquals(123, m2.foo());
@@ -206,6 +210,6 @@ function IsAlwaysOpt(module) {
   var heap = new ArrayBuffer(1024 * 1024);
   var ModuleBound = Module.bind(this, {}, {}, heap);
   var m = ModuleBound();
-  assertTrue(%IsAsmWasmCode(Module) || IsAlwaysOpt(Module));
+  assertValidAsm(Module);
   assertEquals(123, m.foo());
 })();

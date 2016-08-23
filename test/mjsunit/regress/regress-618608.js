@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
 
 // /v8/test/mjsunit/regress/regress-crbug-431602.js
 // /v8/test/mjsunit/lazy-load.js
@@ -11,6 +11,19 @@
 // /v8/test/mjsunit/debug-stack-check-position.js
 
 // Begin stripped down and modified version of mjsunit.js for easy minimization in CF.
+var Wasm = {
+  instantiateModuleFromAsm: function(text, stdlib, ffi, heap) {
+    var module_decl = eval('(' + text + ')');
+    if (%IsNotAsmWasmCode(module_decl)) {
+      throw "validate failure";
+    }
+    var ret = module_decl(stdlib, ffi, heap);
+    if (%IsNotAsmWasmCode(module_decl)) {
+      throw "bad module args";
+    }
+    return ret;
+  },
+};
 function MjsUnitAssertionError(message) {}
 MjsUnitAssertionError.prototype.toString = function () { return this.message; };
 var assertSame;

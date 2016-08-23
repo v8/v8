@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
 
 var stdlib = this;
+
+function assertValidAsm(func) {
+  assertTrue(%IsAsmWasmCode(func));
+}
 
 (function TestStdlibConstants() {
   function Module(stdlib) {
@@ -41,7 +45,8 @@ var stdlib = this;
     return {caller:caller, nanCheck:nanCheck};
   }
 
-  var m = Wasm.instantiateModuleFromAsm(Module.toString(), stdlib);
+  var m = Module(stdlib);
+  assertValidAsm(Module);
   assertEquals(1, m.caller());
   assertTrue(isNaN(m.nanCheck()));
 })();
@@ -95,9 +100,9 @@ var stdlib_math_members = [
     stdlib[member] = 0;
     print(member);
     var code = Module.toString().replace('NaN', member);
-    assertThrows(function() {
-      Wasm.instantiateModuleFromAsm(code, stdlib);
-    });
+    var decl = eval('(' + code + ')');
+    decl(stdlib);
+    assertTrue(%IsNotAsmWasmCode(decl));
   }
   for (var i = 0; i < stdlib_math_members.length; ++i) {
     var member = stdlib_math_members[i];
@@ -105,9 +110,9 @@ var stdlib_math_members = [
     stdlib['Math'][member] = 0;
     print(member);
     var code = Module.toString().replace('NaN', 'Math.' + member);
-    assertThrows(function() {
-      Wasm.instantiateModuleFromAsm(code, stdlib);
-    });
+    var decl = eval('(' + code + ')');
+    decl(stdlib);
+    assertTrue(%IsNotAsmWasmCode(decl));
   }
 })();
 
@@ -121,15 +126,17 @@ var stdlib_math_members = [
   for (var i = 0; i < stdlib_root_members.length; ++i) {
     var member = stdlib_root_members[i];
     var code = Module.toString().replace('NaN', member);
-    assertThrows(function() {
-      Wasm.instantiateModuleFromAsm(code, {});
-    });
+    var decl = eval('(' + code + ')');
+    decl({});
+    assertTrue(%IsNotAsmWasmCode(decl));
   }
   for (var i = 0; i < stdlib_math_members.length; ++i) {
     var member = stdlib_math_members[i];
     var code = Module.toString().replace('NaN', 'Math.' + member);
+    var decl = eval('(' + code + ')');
     assertThrows(function() {
-      Wasm.instantiateModuleFromAsm(code, {});
+      decl({});
+      assertTrue(%IsNotAsmWasmCode(decl));
     });
   }
 })();
@@ -210,7 +217,8 @@ var stdlib_math_members = [
     return {caller:caller};
   }
 
-  var m = Wasm.instantiateModuleFromAsm(Module.toString(), stdlib);
+  var m = Module(stdlib);
+  assertValidAsm(Module);
   assertEquals(1, m.caller());
 })();
 
@@ -354,7 +362,8 @@ var stdlib_math_members = [
       max_f64: max_f64,
     };
   }
-  var m = Wasm.instantiateModuleFromAsm(Module.toString(), stdlib);
+  var m = Module(stdlib);
+  assertValidAsm(Module);
   var values = {
     i32: [
       0, 1, -1, 123, 456, -123, -456,

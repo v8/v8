@@ -56,6 +56,9 @@ i::MaybeHandle<i::FixedArray> CompileModule(
 Handle<i::Object> StdlibMathMember(i::Isolate* isolate,
                                    Handle<JSReceiver> stdlib,
                                    Handle<Name> name) {
+  if (stdlib.is_null()) {
+    return Handle<i::Object>();
+  }
   Handle<i::Name> math_name(
       isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("Math")));
   MaybeHandle<i::Object> maybe_math = i::Object::GetProperty(stdlib, math_name);
@@ -89,6 +92,9 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
       return true;
     }
     case wasm::AsmTyper::StandardMember::kInfinity: {
+      if (stdlib.is_null()) {
+        return false;
+      }
       Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
           STATIC_CHAR_VECTOR("Infinity")));
       MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(stdlib, name);
@@ -99,6 +105,9 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
       return value->IsNumber() && std::isinf(value->Number());
     }
     case wasm::AsmTyper::StandardMember::kNaN: {
+      if (stdlib.is_null()) {
+        return false;
+      }
       Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
           STATIC_CHAR_VECTOR("NaN")));
       MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(stdlib, name);
@@ -257,11 +266,8 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
       isolate, init, undefined, foreign_globals->length(), foreign_args_array);
   delete[] foreign_args_array;
 
-  if (retval.is_null()) {
-    thrower.Error(
-        "WASM.instantiateModuleFromAsm(): foreign init function failed");
-    return MaybeHandle<Object>();
-  }
+  DCHECK(!retval.is_null());
+
   return maybe_module_object;
 }
 

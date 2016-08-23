@@ -86,6 +86,10 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   DCHECK_EQ(args.length(), 4);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
+  Handle<JSReceiver> stdlib;
+  if (args[1]->IsJSReceiver()) {
+    stdlib = args.at<JSReceiver>(1);
+  }
   Handle<JSObject> foreign;
   if (args[2]->IsJSObject()) {
     foreign = args.at<i::JSObject>(2);
@@ -94,9 +98,9 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   if (args[3]->IsJSArrayBuffer()) {
     memory = args.at<i::JSArrayBuffer>(3);
   }
-  if (args[1]->IsJSObject() && function->shared()->HasAsmWasmData() &&
+  if (function->shared()->HasAsmWasmData() &&
       AsmJs::IsStdlibValid(isolate, handle(function->shared()->asm_wasm_data()),
-                           args.at<JSReceiver>(1))) {
+                           stdlib)) {
     MaybeHandle<Object> result;
     result = AsmJs::InstantiateAsmWasm(
         isolate, handle(function->shared()->asm_wasm_data()), memory, foreign);

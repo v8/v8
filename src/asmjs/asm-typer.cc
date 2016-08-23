@@ -597,7 +597,21 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   ZoneVector<Assignment*> function_pointer_tables(zone_);
   FlattenedStatements iter(zone_, fun->body());
   auto* use_asm_directive = iter.Next();
-  if (use_asm_directive == nullptr || !IsUseAsmDirective(use_asm_directive)) {
+  if (use_asm_directive == nullptr) {
+    FAIL(fun, "Missing \"use asm\".");
+  }
+  // Check for extra assignment inserted by the parser when in this form:
+  // (function Module(a, b, c) {... })
+  ExpressionStatement* estatement = use_asm_directive->AsExpressionStatement();
+  if (estatement != nullptr) {
+    Assignment* assignment = estatement->expression()->AsAssignment();
+    if (assignment != nullptr && assignment->target()->IsVariableProxy() &&
+        assignment->target()->AsVariableProxy()->var()->mode() ==
+            CONST_LEGACY) {
+      use_asm_directive = iter.Next();
+    }
+  }
+  if (!IsUseAsmDirective(use_asm_directive)) {
     FAIL(fun, "Missing \"use asm\".");
   }
   source_layout.AddUseAsm(*use_asm_directive);
