@@ -23,7 +23,8 @@ class VariableMap: public ZoneHashMap {
   Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
                     VariableMode mode, Variable::Kind kind,
                     InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
+                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
+                    bool* added = nullptr);
 
   Variable* Lookup(const AstRawString* name);
 };
@@ -447,6 +448,17 @@ class Scope: public ZoneObject {
   }
 
  private:
+  Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
+                    VariableMode mode, Variable::Kind kind,
+                    InitializationFlag initialization_flag,
+                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned) {
+    bool added;
+    Variable* var =
+        variables_.Declare(zone, scope, name, mode, kind, initialization_flag,
+                           maybe_assigned_flag, &added);
+    if (added) ordered_variables_.Add(var, zone);
+    return var;
+  }
   Zone* zone_;
 
   // Scope tree.
@@ -460,6 +472,10 @@ class Scope: public ZoneObject {
   // variables may be implicitly 'declared' by being used (possibly in
   // an inner scope) with no intervening with statements or eval calls.
   VariableMap variables_;
+  // In case of non-scopeinfo-backed scopes, this contains the variables of the
+  // map above in order of addition.
+  // TODO(verwaest): Thread through Variable.
+  ZoneList<Variable*> ordered_variables_;
   // Variables that must be looked up dynamically.
   DynamicScopePart* dynamics_;
   // Unresolved variables referred to from this scope. The proxies themselves

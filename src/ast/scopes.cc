@@ -30,14 +30,16 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                const AstRawString* name, VariableMode mode,
                                Variable::Kind kind,
                                InitializationFlag initialization_flag,
-                               MaybeAssignedFlag maybe_assigned_flag) {
+                               MaybeAssignedFlag maybe_assigned_flag,
+                               bool* added) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
   Entry* p =
       ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
                                   ZoneAllocationPolicy(zone));
-  if (p->value == NULL) {
+  if (added) *added = p->value == nullptr;
+  if (p->value == nullptr) {
     // The variable has not been declared yet -> insert it.
     DCHECK(p->key == name);
     p->value = new (zone) Variable(scope, name, mode, kind, initialization_flag,
@@ -79,6 +81,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
     : zone_(zone),
       outer_scope_(outer_scope),
       variables_(zone),
+      ordered_variables_(4, zone),
       decls_(4, zone),
       scope_type_(scope_type) {
   SetDefaults();
@@ -125,6 +128,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
+      ordered_variables_(0, zone),
       decls_(0, zone),
       scope_info_(scope_info),
       scope_type_(scope_type) {
@@ -160,6 +164,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
+      ordered_variables_(0, zone),
       decls_(0, zone),
       scope_type_(CATCH_SCOPE) {
   SetDefaults();
@@ -426,7 +431,7 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
   DCHECK(has_this_declaration());
 
   bool subclass_constructor = IsSubclassConstructor(function_kind_);
-  Variable* var = variables_.Declare(
+  Variable* var = Declare(
       zone(), this, ast_value_factory->this_string(),
       subclass_constructor ? CONST : VAR, Variable::THIS,
       subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
@@ -440,19 +445,17 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
   // Declare 'arguments' variable which exists in all non arrow functions.
   // Note that it might never be accessed, in which case it won't be
   // allocated during variable allocation.
-  arguments_ =
-      variables_.Declare(zone(), this, ast_value_factory->arguments_string(),
-                         VAR, Variable::ARGUMENTS, kCreatedInitialized);
+  arguments_ = Declare(zone(), this, ast_value_factory->arguments_string(), VAR,
+                       Variable::ARGUMENTS, kCreatedInitialized);
 
-  new_target_ =
-      variables_.Declare(zone(), this, ast_value_factory->new_target_string(),
-                         CONST, Variable::NORMAL, kCreatedInitialized);
+  new_target_ = Declare(zone(), this, ast_value_factory->new_target_string(),
+                        CONST, Variable::NORMAL, kCreatedInitialized);
 
   if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
       IsAccessorFunction(function_kind_)) {
-    this_function_ = variables_.Declare(
-        zone(), this, ast_value_factory->this_function_string(), CONST,
-        Variable::NORMAL, kCreatedInitialized);
+    this_function_ =
+        Declare(zone(), this, ast_value_factory->this_function_string(), CONST,
+                Variable::NORMAL, kCreatedInitialized);
   }
 }
 
@@ -670,8 +673,8 @@ Variable* DeclarationScope::DeclareParameter(
   if (mode == TEMPORARY) {
     var = NewTemporary(name);
   } else {
-    var = variables_.Declare(zone(), this, name, mode, Variable::NORMAL,
-                             kCreatedInitialized);
+    var = Declare(zone(), this, name, mode, Variable::NORMAL,
+                  kCreatedInitialized);
     // TODO(wingo): Avoid O(n^2) check.
     *is_duplicate = IsDeclaredParameter(name);
   }
@@ -698,15 +701,14 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // introduced during variable allocation, and TEMPORARY variables are
   // allocated via NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
-  return variables_.Declare(zone(), this, name, mode, kind, init_flag,
-                            maybe_assigned_flag);
+  return Declare(zone(), this, name, mode, kind, init_flag,
+                 maybe_assigned_flag);
 }
 
 Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
                                                  Variable::Kind kind) {
   DCHECK(is_script_scope());
-  return variables_.Declare(zone(), this, name, DYNAMIC_GLOBAL, kind,
-                            kCreatedInitialized);
+  return Declare(zone(), this, name, DYNAMIC_GLOBAL, kind, kCreatedInitialized);
 }
 
 
@@ -796,20 +798,6 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
   return nullptr;
 }
 
-class VarAndOrder {
- public:
-  VarAndOrder(Variable* var, int order) : var_(var), order_(order) { }
-  Variable* var() const { return var_; }
-  int order() const { return order_; }
-  static int Compare(const VarAndOrder* a, const VarAndOrder* b) {
-    return a->order_ - b->order_;
-  }
-
- private:
-  Variable* var_;
-  int order_;
-};
-
 void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
                                          ZoneList<Variable*>* context_locals,
                                          ZoneList<Variable*>* context_globals) {
@@ -836,20 +824,8 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
     }
   }
 
-  // Collect declared local variables.
-  ZoneList<VarAndOrder> vars(variables_.occupancy(), zone());
-  for (VariableMap::Entry* p = variables_.Start();
-       p != NULL;
-       p = variables_.Next(p)) {
-    Variable* var = reinterpret_cast<Variable*>(p->value);
-    if (var->is_used()) {
-      vars.Add(VarAndOrder(var, p->order), zone());
-    }
-  }
-  vars.Sort(VarAndOrder::Compare);
-  int var_count = vars.length();
-  for (int i = 0; i < var_count; i++) {
-    Variable* var = vars[i].var();
+  for (int i = 0; i < ordered_variables_.length(); i++) {
+    Variable* var = ordered_variables_[i];
     if (var->IsStackLocal()) {
       stack_locals->Add(var, zone());
     } else if (var->IsContextSlot()) {
@@ -1634,22 +1610,13 @@ void Scope::AllocateNonParameterLocalsAndDeclaredGlobals() {
     }
   }
 
-  ZoneList<VarAndOrder> vars(variables_.occupancy(), zone());
-  for (VariableMap::Entry* p = variables_.Start();
-       p != NULL;
-       p = variables_.Next(p)) {
-    Variable* var = reinterpret_cast<Variable*>(p->value);
-    vars.Add(VarAndOrder(var, p->order), zone());
-  }
-  vars.Sort(VarAndOrder::Compare);
-  int var_count = vars.length();
-  for (int i = 0; i < var_count; i++) {
-    AllocateNonParameterLocal(vars[i].var());
+  for (int i = 0; i < ordered_variables_.length(); i++) {
+    AllocateNonParameterLocal(ordered_variables_[i]);
   }
 
   if (FLAG_global_var_shortcuts) {
-    for (int i = 0; i < var_count; i++) {
-      AllocateDeclaredGlobal(vars[i].var());
+    for (int i = 0; i < ordered_variables_.length(); i++) {
+      AllocateDeclaredGlobal(ordered_variables_[i]);
     }
   }
 
