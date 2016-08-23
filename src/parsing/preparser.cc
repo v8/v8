@@ -94,20 +94,6 @@ PreParserExpression ParserBaseTraits<PreParser>::ExpressionFromString(
   return PreParserExpression::StringLiteral();
 }
 
-PreParserExpression ParserBaseTraits<PreParser>::ParseV8Intrinsic(bool* ok) {
-  return delegate()->ParseV8Intrinsic(ok);
-}
-
-PreParserExpression ParserBaseTraits<PreParser>::ParseFunctionLiteral(
-    PreParserIdentifier name, Scanner::Location function_name_location,
-    FunctionNameValidity function_name_validity, FunctionKind kind,
-    int function_token_position, FunctionLiteral::FunctionType type,
-    LanguageMode language_mode, bool* ok) {
-  return delegate()->ParseFunctionLiteral(
-      name, function_name_location, function_name_validity, kind,
-      function_token_position, type, language_mode, ok);
-}
-
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
     LanguageMode language_mode, FunctionKind kind, bool has_simple_parameters,
     bool parsing_module, ParserRecorder* log, Scanner::BookmarkScope* bookmark,
@@ -146,14 +132,6 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     }
   }
   return kPreParseSuccess;
-}
-
-PreParserExpression ParserBaseTraits<PreParser>::ParseClassLiteral(
-    Type::ExpressionClassifier* classifier, PreParserIdentifier name,
-    Scanner::Location class_name_location, bool name_is_strict_reserved,
-    int pos, bool* ok) {
-  return delegate()->ParseClassLiteral(classifier, name, class_name_location,
-                                       name_is_strict_reserved, pos, ok);
 }
 
 
@@ -1276,14 +1254,13 @@ PreParserExpression PreParser::ParseDoExpression(bool* ok) {
   return PreParserExpression::Default();
 }
 
-void ParserBaseTraits<PreParser>::ParseAsyncArrowSingleExpressionBody(
+void PreParser::ParseAsyncArrowSingleExpressionBody(
     PreParserStatementList body, bool accept_IN,
-    Type::ExpressionClassifier* classifier, int pos, bool* ok) {
-  Scope* scope = delegate()->scope();
-  scope->ForceContextAllocation();
+    ExpressionClassifier* classifier, int pos, bool* ok) {
+  scope()->ForceContextAllocation();
 
-  PreParserExpression return_value = delegate()->ParseAssignmentExpression(
-      accept_IN, classifier, CHECK_OK_CUSTOM(Void));
+  PreParserExpression return_value =
+      ParseAssignmentExpression(accept_IN, classifier, CHECK_OK_CUSTOM(Void));
 
   body->Add(PreParserStatement::ExpressionStatement(return_value), zone());
 }
