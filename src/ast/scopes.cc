@@ -272,10 +272,14 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       }
       current_scope = with_scope;
     } else if (context->IsScriptContext()) {
+      // If we reach a script context, it's the outermost context with scope
+      // info. The next context will be the native context. Install the scope
+      // info of this script context onto the existing script scope to avoid
+      // nesting script scopes.
       Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
-      DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
-      current_scope = new (zone)
-          DeclarationScope(zone, current_scope, SCRIPT_SCOPE, scope_info);
+      script_scope->SetScriptScopeInfo(scope_info);
+      DCHECK(context->previous()->IsNativeContext());
+      break;
     } else if (context->IsFunctionContext()) {
       Handle<ScopeInfo> scope_info(context->closure()->shared()->scope_info(),
                                    isolate);
@@ -313,9 +317,10 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     context = context->previous();
   }
 
+  if (innermost_scope == nullptr) return script_scope;
   script_scope->AddInnerScope(current_scope);
   script_scope->PropagateScopeInfo();
-  return (innermost_scope == NULL) ? script_scope : innermost_scope;
+  return innermost_scope;
 }
 
 void Scope::DeserializeScopeInfo(Isolate* isolate,
@@ -422,11 +427,7 @@ void Scope::Analyze(ParseInfo* info) {
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->already_resolved_);
 
-  // Allocate the variables.
-  {
-    AstNodeFactory ast_node_factory(info->ast_value_factory());
-    scope->AllocateVariables(info, &ast_node_factory);
-  }
+  scope->AllocateVariables(info);
 
 #ifdef DEBUG
   if (info->script_is_native() ? FLAG_print_builtin_scopes
@@ -844,13 +845,12 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
   }
 }
 
-void DeclarationScope::AllocateVariables(ParseInfo* info,
-                                         AstNodeFactory* factory) {
+void DeclarationScope::AllocateVariables(ParseInfo* info) {
   // 1) Propagate scope information.
   PropagateScopeInfo();
 
   // 2) Resolve variables.
-  ResolveVariablesRecursively(info, factory);
+  ResolveVariablesRecursively(info);
 
   // 3) Allocate variables.
   AllocateVariablesRecursively();
@@ -1229,13 +1229,9 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   return var;
 }
 
-Variable* Scope::LookupRecursive(VariableProxy* proxy,
-                                 BindingKind* binding_kind,
-                                 AstNodeFactory* factory,
+Variable* Scope::LookupRecursive(VariableProxy* proxy, bool declare_free,
                                  Scope* outer_scope_end) {
   DCHECK_NE(outer_scope_end, this);
-  DCHECK_NOT_NULL(binding_kind);
-  DCHECK_EQ(UNBOUND, *binding_kind);
   // Short-cut: whenever we find a debug-evaluate scope, just look everything up
   // dynamically. Debug-evaluate doesn't properly create scope info for the
   // lookups it does. It may not have a valid 'this' declaration, and anything
@@ -1244,8 +1240,8 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
   // TODO(yangguo): Remove once debug-evaluate creates proper ScopeInfo for the
   // scopes in which it's evaluating.
   if (is_debug_evaluate_scope_) {
-    *binding_kind = DYNAMIC_LOOKUP;
-    return nullptr;
+    if (!declare_free) return nullptr;
+    return NonLocal(proxy->raw_name(), DYNAMIC);
   }
 
   // Try to find the variable in this scope.
@@ -1254,54 +1250,58 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
   // We found a variable and we are done. (Even if there is an 'eval' in this
   // scope which introduces the same variable again, the resulting variable
   // remains the same.)
-  if (var != nullptr) {
-    *binding_kind = BOUND;
-    return var;
-  }
+  if (var != nullptr) return var;
 
   // We did not find a variable locally. Check against the function variable, if
   // any.
   if (is_function_scope()) {
     var = AsDeclarationScope()->LookupFunctionVar(proxy->raw_name());
     if (var != nullptr) {
-      *binding_kind = calls_sloppy_eval() ? BOUND_EVAL_SHADOWED : BOUND;
+      if (calls_sloppy_eval()) return NonLocal(proxy->raw_name(), DYNAMIC);
       return var;
     }
   }
 
-  if (outer_scope_ != outer_scope_end) {
-    var = outer_scope_->LookupRecursive(proxy, binding_kind, factory,
-                                        outer_scope_end);
-    if (*binding_kind == BOUND && is_function_scope()) {
-      var->ForceContextAllocation();
-    }
-    // "this" can't be shadowed by "eval"-introduced bindings or by "with"
-    // scopes.
-    // TODO(wingo): There are other variables in this category; add them.
-    if (var != nullptr && var->is_this()) return var;
-
-    if (is_with_scope()) {
-      // The current scope is a with scope, so the variable binding can not be
-      // statically resolved. However, note that it was necessary to do a lookup
-      // in the outer scope anyway, because if a binding exists in an outer
-      // scope, the associated variable has to be marked as potentially being
-      // accessed from inside of an inner with scope (the property may not be in
-      // the 'with' object).
-      if (var != nullptr && var->IsUnallocated()) {
-        DCHECK(!already_resolved_);
-        var->set_is_used();
-        var->ForceContextAllocation();
-        if (proxy->is_assigned()) var->set_maybe_assigned();
-      }
-      *binding_kind = DYNAMIC_LOOKUP;
-      return nullptr;
-    }
-  } else {
-    DCHECK(!is_with_scope());
-    DCHECK(is_function_scope() || is_script_scope() || is_eval_scope());
+  if (outer_scope_ == outer_scope_end) {
+    if (!declare_free) return nullptr;
+    DCHECK(is_script_scope());
+    // No binding has been found. Declare a variable on the global object.
+    return AsDeclarationScope()->DeclareDynamicGlobal(proxy->raw_name(),
+                                                      Variable::NORMAL);
   }
 
-  if (calls_sloppy_eval() && is_declaration_scope() && !is_script_scope()) {
+  DCHECK(!is_script_scope());
+
+  var = outer_scope_->LookupRecursive(proxy, declare_free, outer_scope_end);
+
+  // The variable could not be resolved statically.
+  if (var == nullptr) return var;
+
+  if (is_function_scope() && !var->is_dynamic()) {
+    var->ForceContextAllocation();
+  }
+  // "this" can't be shadowed by "eval"-introduced bindings or by "with"
+  // scopes.
+  // TODO(wingo): There are other variables in this category; add them.
+  if (var->is_this()) return var;
+
+  if (is_with_scope()) {
+    // The current scope is a with scope, so the variable binding can not be
+    // statically resolved. However, note that it was necessary to do a lookup
+    // in the outer scope anyway, because if a binding exists in an outer
+    // scope, the associated variable has to be marked as potentially being
+    // accessed from inside of an inner with scope (the property may not be in
+    // the 'with' object).
+    if (!var->is_dynamic() && var->IsUnallocated()) {
+      DCHECK(!already_resolved_);
+      var->set_is_used();
+      var->ForceContextAllocation();
+      if (proxy->is_assigned()) var->set_maybe_assigned();
+    }
+    return NonLocal(proxy->raw_name(), DYNAMIC);
+  }
+
+  if (calls_sloppy_eval() && is_declaration_scope()) {
     // A variable binding may have been found in an outer scope, but the current
     // scope makes a sloppy 'eval' call, so the found variable may not be the
     // correct one (the 'eval' may introduce a binding with the same name). In
@@ -1309,18 +1309,21 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
     // scopes that can host var bindings (declaration scopes) need be considered
     // here (this excludes block and catch scopes), and variable lookups at
     // script scope are always dynamic.
-    if (*binding_kind == BOUND) {
-      *binding_kind = BOUND_EVAL_SHADOWED;
-    } else if (*binding_kind == UNBOUND) {
-      *binding_kind = UNBOUND_EVAL_SHADOWED;
+    if (var->IsGlobalObjectProperty()) {
+      return NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL);
     }
+
+    if (var->is_dynamic()) return var;
+
+    Variable* invalidated = var;
+    var = NonLocal(proxy->raw_name(), DYNAMIC_LOCAL);
+    var->set_local_if_not_shadowed(invalidated);
   }
 
   return var;
 }
 
-void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
-                            AstNodeFactory* factory) {
+void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(info->script_scope()->is_script_scope());
 
   // If the proxy is already resolved there's nothing to do
@@ -1328,21 +1331,19 @@ void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
   if (proxy->is_resolved()) return;
 
   // Otherwise, try to resolve the variable.
-  BindingKind binding_kind = UNBOUND;
-  Variable* var = LookupRecursive(proxy, &binding_kind, factory);
+  Variable* var = LookupRecursive(proxy, true, nullptr);
 
-  ResolveTo(info, binding_kind, proxy, var);
+  ResolveTo(info, proxy, var);
 }
 
-void Scope::ResolveTo(ParseInfo* info, BindingKind binding_kind,
-                      VariableProxy* proxy, Variable* var) {
+void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
 #ifdef DEBUG
   if (info->script_is_native()) {
     // To avoid polluting the global object in native scripts
     //  - Variables must not be allocated to the global scope.
     CHECK_NOT_NULL(outer_scope());
     //  - Variables must be bound locally or unallocated.
-    if (BOUND != binding_kind) {
+    if (var->IsGlobalObjectProperty()) {
       // The following variable name may be minified. If so, disable
       // minification in js2c.py for better output.
       Handle<String> name = proxy->raw_name()->string();
@@ -1357,62 +1358,23 @@ void Scope::ResolveTo(ParseInfo* info, BindingKind binding_kind,
   }
 #endif
 
-  switch (binding_kind) {
-    case BOUND:
-      break;
-
-    case BOUND_EVAL_SHADOWED:
-      // We either found a variable binding that might be shadowed by eval  or
-      // gave up on it (e.g. by encountering a local with the same in the outer
-      // scope which was not promoted to a context, this can happen if we use
-      // debugger to evaluate arbitrary expressions at a break point).
-      if (var->IsGlobalObjectProperty()) {
-        var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL);
-      } else if (var->is_dynamic()) {
-        var = NonLocal(proxy->raw_name(), DYNAMIC);
-      } else {
-        Variable* invalidated = var;
-        var = NonLocal(proxy->raw_name(), DYNAMIC_LOCAL);
-        var->set_local_if_not_shadowed(invalidated);
-      }
-      break;
-
-    case UNBOUND:
-      // No binding has been found. Declare a variable on the global object.
-      var = info->script_scope()->DeclareDynamicGlobal(proxy->raw_name(),
-                                                       Variable::NORMAL);
-      break;
-
-    case UNBOUND_EVAL_SHADOWED:
-      // No binding has been found. But some scope makes a sloppy 'eval' call.
-      var = NonLocal(proxy->raw_name(), DYNAMIC_GLOBAL);
-      break;
-
-    case DYNAMIC_LOOKUP:
-      // The variable could not be resolved statically.
-      var = NonLocal(proxy->raw_name(), DYNAMIC);
-      break;
-  }
-
-  DCHECK(var != NULL);
+  DCHECK_NOT_NULL(var);
   if (proxy->is_assigned()) var->set_maybe_assigned();
-
   proxy->BindTo(var);
 }
 
-void Scope::ResolveVariablesRecursively(ParseInfo* info,
-                                        AstNodeFactory* factory) {
+void Scope::ResolveVariablesRecursively(ParseInfo* info) {
   DCHECK(info->script_scope()->is_script_scope());
 
   // Resolve unresolved variables for this scope.
   for (VariableProxy* proxy = unresolved_; proxy != nullptr;
        proxy = proxy->next_unresolved()) {
-    ResolveVariable(info, proxy, factory);
+    ResolveVariable(info, proxy);
   }
 
   // Resolve unresolved variables for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->ResolveVariablesRecursively(info, factory);
+    scope->ResolveVariablesRecursively(info);
   }
 }
 
@@ -1423,19 +1385,13 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
        proxy = next) {
     next = proxy->next_unresolved();
     if (proxy->is_resolved()) continue;
-    // Note that we pass nullptr as AstNodeFactory: this phase should not create
-    // any new AstNodes, since none of the Scopes involved are backed up by
-    // ScopeInfo.
-    BindingKind binding_kind = UNBOUND;
-    Variable* var = LookupRecursive(proxy, &binding_kind, nullptr,
-                                    max_outer_scope->outer_scope());
+    Variable* var =
+        LookupRecursive(proxy, false, max_outer_scope->outer_scope());
     if (var == nullptr) {
       proxy->set_next_unresolved(stack);
       stack = proxy;
     } else if (info != nullptr) {
-      DCHECK_NE(UNBOUND, binding_kind);
-      DCHECK_NE(UNBOUND_EVAL_SHADOWED, binding_kind);
-      ResolveTo(info, binding_kind, proxy, var);
+      ResolveTo(info, proxy, var);
     }
   }
 

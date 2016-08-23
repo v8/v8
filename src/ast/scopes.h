@@ -530,63 +530,18 @@ class Scope: public ZoneObject {
   Variable* NonLocal(const AstRawString* name, VariableMode mode);
 
   // Variable resolution.
-  // Possible results of a recursive variable lookup telling if and how a
-  // variable is bound. These are returned in the output parameter *binding_kind
-  // of the LookupRecursive function.
-  enum BindingKind {
-    // The variable reference could be statically resolved to a variable binding
-    // which is returned. There is no 'with' statement between the reference and
-    // the binding and no scope between the reference scope (inclusive) and
-    // binding scope (exclusive) makes a sloppy 'eval' call.
-    BOUND,
-
-    // The variable reference could be statically resolved to a variable binding
-    // which is returned. There is no 'with' statement between the reference and
-    // the binding, but some scope between the reference scope (inclusive) and
-    // binding scope (exclusive) makes a sloppy 'eval' call, that might
-    // possibly introduce variable bindings shadowing the found one. Thus the
-    // found variable binding is just a guess.
-    BOUND_EVAL_SHADOWED,
-
-    // The variable reference could not be statically resolved to any binding
-    // and thus should be considered referencing a global variable. NULL is
-    // returned. The variable reference is not inside any 'with' statement and
-    // no scope between the reference scope (inclusive) and script scope
-    // (exclusive) makes a sloppy 'eval' call.
-    UNBOUND,
-
-    // The variable reference could not be statically resolved to any binding
-    // NULL is returned. The variable reference is not inside any 'with'
-    // statement, but some scope between the reference scope (inclusive) and
-    // script scope (exclusive) makes a sloppy 'eval' call, that might
-    // possibly introduce a variable binding. Thus the reference should be
-    // considered referencing a global variable unless it is shadowed by an
-    // 'eval' introduced binding.
-    UNBOUND_EVAL_SHADOWED,
-
-    // The variable could not be statically resolved and needs to be looked up
-    // dynamically. NULL is returned. There are two possible reasons:
-    // * A 'with' statement has been encountered and there is no variable
-    //   binding for the name between the variable reference and the 'with'.
-    //   The variable potentially references a property of the 'with' object.
-    // * The code is being executed as part of a call to 'eval' and the calling
-    //   context chain contains either a variable binding for the name or it
-    //   contains a 'with' context.
-    DYNAMIC_LOOKUP
-  };
-
   // Lookup a variable reference given by name recursively starting with this
   // scope, and stopping when reaching the outer_scope_end scope. If the code is
   // executed because of a call to 'eval', the context parameter should be set
   // to the calling context of 'eval'.
-  Variable* LookupRecursive(VariableProxy* proxy, BindingKind* binding_kind,
-                            AstNodeFactory* factory,
-                            Scope* outer_scope_end = nullptr);
-  void ResolveTo(ParseInfo* info, BindingKind binding_kind,
-                 VariableProxy* proxy, Variable* var);
-  void ResolveVariable(ParseInfo* info, VariableProxy* proxy,
-                       AstNodeFactory* factory);
-  void ResolveVariablesRecursively(ParseInfo* info, AstNodeFactory* factory);
+  // {declare_free} indicates whether nullptr should be returned for free
+  // variables when falling off outer_scope_end, or whether they should be
+  // declared automatically as non-locals.
+  Variable* LookupRecursive(VariableProxy* proxy, bool declare_free,
+                            Scope* outer_scope_end);
+  void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
+  void ResolveVariable(ParseInfo* info, VariableProxy* proxy);
+  void ResolveVariablesRecursively(ParseInfo* info);
 
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
@@ -679,6 +634,12 @@ class DeclarationScope : public Scope {
            (inner_scope_calls_eval_ && (IsConciseMethod(function_kind()) ||
                                         IsAccessorFunction(function_kind()) ||
                                         IsClassConstructor(function_kind())));
+  }
+
+  void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
+    DCHECK(is_script_scope());
+    DCHECK(scope_info_.is_null());
+    scope_info_ = scope_info;
   }
 
   bool asm_module() const { return asm_module_; }
@@ -832,7 +793,7 @@ class DeclarationScope : public Scope {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(ParseInfo* info, AstNodeFactory* factory);
+  void AllocateVariables(ParseInfo* info);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope for lazily compiled functions. In particular, this
