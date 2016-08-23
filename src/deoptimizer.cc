@@ -1234,7 +1234,9 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Set the bytecode array pointer.
   output_offset -= kPointerSize;
-  Object* bytecode_array = shared->bytecode_array();
+  Object* bytecode_array = shared->HasDebugInfo()
+                               ? shared->GetDebugInfo()->DebugBytecodeArray()
+                               : shared->bytecode_array();
   WriteValueToOutput(bytecode_array, 0, frame_index, output_offset,
                      "bytecode array ");
 

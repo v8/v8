@@ -57,7 +57,7 @@
 
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
-  'debug-step-turbofan': [FAIL],
+  'debug-step-turbofan': [PASS, FAIL],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
