@@ -577,13 +577,13 @@ const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) const {
   return parser_->scanner()->NextSymbol(parser_->ast_value_factory());
 }
 
-Expression* ParserTraits::ThisExpression(int pos) const {
+Expression* ParserTraits::ThisExpression(int pos) {
   return parser_->NewUnresolved(parser_->ast_value_factory()->this_string(),
                                 pos, pos + 4, Variable::THIS);
 }
 
 Expression* ParserTraits::NewSuperPropertyReference(AstNodeFactory* factory,
-                                                    int pos) const {
+                                                    int pos) {
   // this_function[home_object_symbol]
   VariableProxy* this_function_proxy = parser_->NewUnresolved(
       parser_->ast_value_factory()->this_function_string(), pos);
@@ -596,7 +596,7 @@ Expression* ParserTraits::NewSuperPropertyReference(AstNodeFactory* factory,
 }
 
 Expression* ParserTraits::NewSuperCallReference(AstNodeFactory* factory,
-                                                int pos) const {
+                                                int pos) {
   VariableProxy* new_target_proxy = parser_->NewUnresolved(
       parser_->ast_value_factory()->new_target_string(), pos);
   VariableProxy* this_function_proxy = parser_->NewUnresolved(
@@ -606,7 +606,7 @@ Expression* ParserTraits::NewSuperCallReference(AstNodeFactory* factory,
                                         pos);
 }
 
-Expression* ParserTraits::NewTargetExpression(int pos) const {
+Expression* ParserTraits::NewTargetExpression(int pos) {
   static const int kNewTargetStringLength = 10;
   auto proxy =
       parser_->NewUnresolved(parser_->ast_value_factory()->new_target_string(),
@@ -656,7 +656,7 @@ Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
 Expression* ParserTraits::ExpressionFromIdentifier(const AstRawString* name,
                                                    int start_position,
                                                    int end_position,
-                                                   InferName infer) const {
+                                                   InferName infer) {
   if (infer == InferName::kYes && parser_->fni_ != NULL) {
     parser_->fni_->PushVariableName(name);
   }

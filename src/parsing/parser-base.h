@@ -606,30 +606,30 @@ class ParserBase : public Traits {
     Mode old_mode_;
   };
 
-  DeclarationScope* NewScriptScope() {
+  DeclarationScope* NewScriptScope() const {
     return new (zone()) DeclarationScope(zone());
   }
 
-  DeclarationScope* NewVarblockScope() {
+  DeclarationScope* NewVarblockScope() const {
     return new (zone()) DeclarationScope(zone(), scope(), BLOCK_SCOPE);
   }
 
-  ModuleScope* NewModuleScope(DeclarationScope* parent) {
+  ModuleScope* NewModuleScope(DeclarationScope* parent) const {
     return new (zone()) ModuleScope(zone(), parent, ast_value_factory());
   }
 
-  DeclarationScope* NewEvalScope(Scope* parent) {
+  DeclarationScope* NewEvalScope(Scope* parent) const {
     return new (zone()) DeclarationScope(zone(), parent, EVAL_SCOPE);
   }
 
-  Scope* NewScope(ScopeType scope_type) {
+  Scope* NewScope(ScopeType scope_type) const {
     return NewScopeWithParent(scope(), scope_type);
   }
 
   // This constructor should only be used when absolutely necessary. Most scopes
   // should automatically use scope() as parent, and be fine with
   // NewScope(ScopeType) above.
-  Scope* NewScopeWithParent(Scope* parent, ScopeType scope_type) {
+  Scope* NewScopeWithParent(Scope* parent, ScopeType scope_type) const {
     // Must always use the specific constructors for the blacklisted scope
     // types.
     DCHECK_NE(FUNCTION_SCOPE, scope_type);
@@ -639,7 +639,7 @@ class ParserBase : public Traits {
     return new (zone()) Scope(zone(), parent, scope_type);
   }
 
-  DeclarationScope* NewFunctionScope(FunctionKind kind) {
+  DeclarationScope* NewFunctionScope(FunctionKind kind) const {
     DCHECK(ast_value_factory());
     DeclarationScope* result =
         new (zone()) DeclarationScope(zone(), scope(), FUNCTION_SCOPE, kind);
@@ -653,8 +653,8 @@ class ParserBase : public Traits {
 
   Scanner* scanner() const { return scanner_; }
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
-  int position() { return scanner_->location().beg_pos; }
-  int peek_position() { return scanner_->peek_location().beg_pos; }
+  int position() const { return scanner_->location().beg_pos; }
+  int peek_position() const { return scanner_->peek_location().beg_pos; }
   bool stack_overflow() const { return stack_overflow_; }
   void set_stack_overflow() { stack_overflow_ = true; }
   Mode mode() const { return mode_; }

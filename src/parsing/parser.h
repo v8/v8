@@ -302,16 +302,16 @@ class ParserTraits {
   const AstRawString* GetNextSymbol(Scanner* scanner) const;
   const AstRawString* GetNumberAsSymbol(Scanner* scanner) const;
 
-  Expression* ThisExpression(int pos = kNoSourcePosition) const;
-  Expression* NewSuperPropertyReference(AstNodeFactory* factory, int pos) const;
-  Expression* NewSuperCallReference(AstNodeFactory* factory, int pos) const;
-  Expression* NewTargetExpression(int pos) const;
+  Expression* ThisExpression(int pos = kNoSourcePosition);
+  Expression* NewSuperPropertyReference(AstNodeFactory* factory, int pos);
+  Expression* NewSuperCallReference(AstNodeFactory* factory, int pos);
+  Expression* NewTargetExpression(int pos);
   Expression* FunctionSentExpression(AstNodeFactory* factory, int pos) const;
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
                                  AstNodeFactory* factory) const;
   Expression* ExpressionFromIdentifier(const AstRawString* name,
                                        int start_position, int end_position,
-                                       InferName = InferName::kYes) const;
+                                       InferName = InferName::kYes);
   Expression* ExpressionFromString(int pos, Scanner* scanner,
                                    AstNodeFactory* factory) const;
   Expression* GetIterator(Expression* iterable, AstNodeFactory* factory,
@@ -331,7 +331,7 @@ class ParserTraits {
 
   V8_INLINE void AddParameterInitializationBlock(
       const ParserFormalParameters& parameters,
-      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) const;
+      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok);
 
   void ParseAsyncArrowSingleExpressionBody(
       ZoneList<Statement*>* body, bool accept_IN,
@@ -1106,7 +1106,7 @@ void ParserTraits::DeclareFormalParameter(
 
 void ParserTraits::AddParameterInitializationBlock(
     const ParserFormalParameters& parameters,
-    ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) const {
+    ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) {
   if (!parameters.is_simple) {
     auto* init_block =
         parser_->BuildParameterInitializationBlock(parameters, ok);

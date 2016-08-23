@@ -798,21 +798,21 @@ class PreParserTraits {
     return PreParserIdentifier::Default();
   }
 
-  PreParserExpression ThisExpression(int pos = kNoSourcePosition) const {
+  PreParserExpression ThisExpression(int pos = kNoSourcePosition) {
     return PreParserExpression::This();
   }
 
   PreParserExpression NewSuperPropertyReference(PreParserFactory* factory,
-                                                int pos) const {
+                                                int pos) {
     return PreParserExpression::Default();
   }
 
   PreParserExpression NewSuperCallReference(PreParserFactory* factory,
-                                            int pos) const {
+                                            int pos) {
     return PreParserExpression::SuperCallReference();
   }
 
-  PreParserExpression NewTargetExpression(int pos) const {
+  PreParserExpression NewTargetExpression(int pos) {
     return PreParserExpression::Default();
   }
 
@@ -827,9 +827,10 @@ class PreParserTraits {
     return PreParserExpression::Default();
   }
 
-  PreParserExpression ExpressionFromIdentifier(
-      PreParserIdentifier name, int start_position, int end_position,
-      InferName = InferName::kYes) const {
+  PreParserExpression ExpressionFromIdentifier(PreParserIdentifier name,
+                                               int start_position,
+                                               int end_position,
+                                               InferName = InferName::kYes) {
     return PreParserExpression::FromIdentifier(name);
   }
 
@@ -855,7 +856,7 @@ class PreParserTraits {
 
   void AddParameterInitializationBlock(
       const PreParserFormalParameters& parameters, PreParserStatementList body,
-      bool is_async, bool* ok) const {}
+      bool is_async, bool* ok) {}
 
   void ParseAsyncArrowSingleExpressionBody(
       PreParserStatementList body, bool accept_IN,
