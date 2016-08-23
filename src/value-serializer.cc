@@ -72,6 +72,13 @@ enum class SerializationTag : uint8_t {
   kEndDenseJSArray = '$',
   // Date. millisSinceEpoch:double
   kDate = 'D',
+  // Boolean object. No data.
+  kTrueObject = 'y',
+  kFalseObject = 'x',
+  // Number object. value:double
+  kNumberObject = 'n',
+  // String object, UTF-8 encoding. byteLength:uint32_t, then raw data.
+  kStringObject = 's',
 };
 
 ValueSerializer::ValueSerializer(Isolate* isolate)
@@ -141,6 +148,7 @@ void ValueSerializer::WriteTwoByteString(Vector<const uc16> chars) {
 }
 
 uint8_t* ValueSerializer::ReserveRawBytes(size_t bytes) {
+  if (!bytes) return nullptr;
   auto old_size = buffer_.size();
   buffer_.resize(buffer_.size() + bytes);
   return &buffer_[old_size];
@@ -273,6 +281,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_DATE_TYPE:
       WriteJSDate(JSDate::cast(*receiver));
       return Just(true);
+    case JS_VALUE_TYPE:
+      return WriteJSValue(Handle<JSValue>::cast(receiver));
     default:
       UNIMPLEMENTED();
       break;
@@ -361,6 +371,33 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
 void ValueSerializer::WriteJSDate(JSDate* date) {
   WriteTag(SerializationTag::kDate);
   WriteDouble(date->value()->Number());
+}
+
+Maybe<bool> ValueSerializer::WriteJSValue(Handle<JSValue> value) {
+  Object* inner_value = value->value();
+  if (inner_value->IsTrue(isolate_)) {
+    WriteTag(SerializationTag::kTrueObject);
+  } else if (inner_value->IsFalse(isolate_)) {
+    WriteTag(SerializationTag::kFalseObject);
+  } else if (inner_value->IsNumber()) {
+    WriteTag(SerializationTag::kNumberObject);
+    WriteDouble(inner_value->Number());
+  } else if (inner_value->IsString()) {
+    // TODO(jbroman): Replace UTF-8 encoding with the same options available for
+    // ordinary strings.
+    WriteTag(SerializationTag::kStringObject);
+    v8::Local<v8::String> api_string =
+        Utils::ToLocal(handle(String::cast(inner_value), isolate_));
+    uint32_t utf8_length = api_string->Utf8Length();
+    WriteVarint(utf8_length);
+    api_string->WriteUtf8(reinterpret_cast<char*>(ReserveRawBytes(utf8_length)),
+                          utf8_length, nullptr,
+                          v8::String::NO_NULL_TERMINATION);
+  } else {
+    DCHECK(inner_value->IsSymbol());
+    return Nothing<bool>();
+  }
+  return Just(true);
 }
 
 Maybe<uint32_t> ValueSerializer::WriteJSObjectProperties(
@@ -545,6 +582,11 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
       return ReadDenseJSArray();
     case SerializationTag::kDate:
       return ReadJSDate();
+    case SerializationTag::kTrueObject:
+    case SerializationTag::kFalseObject:
+    case SerializationTag::kNumberObject:
+    case SerializationTag::kStringObject:
+      return ReadJSValue(tag);
     default:
       return MaybeHandle<Object>();
   }
@@ -684,6 +726,45 @@ MaybeHandle<JSDate> ValueDeserializer::ReadJSDate() {
   }
   AddObjectWithID(id, date);
   return date;
+}
+
+MaybeHandle<JSValue> ValueDeserializer::ReadJSValue(SerializationTag tag) {
+  uint32_t id = next_id_++;
+  Handle<JSValue> value;
+  switch (tag) {
+    case SerializationTag::kTrueObject:
+      value = Handle<JSValue>::cast(
+          isolate_->factory()->NewJSObject(isolate_->boolean_function()));
+      value->set_value(isolate_->heap()->true_value());
+      break;
+    case SerializationTag::kFalseObject:
+      value = Handle<JSValue>::cast(
+          isolate_->factory()->NewJSObject(isolate_->boolean_function()));
+      value->set_value(isolate_->heap()->false_value());
+      break;
+    case SerializationTag::kNumberObject: {
+      double number;
+      if (!ReadDouble().To(&number)) return MaybeHandle<JSValue>();
+      value = Handle<JSValue>::cast(
+          isolate_->factory()->NewJSObject(isolate_->number_function()));
+      Handle<Object> number_object = isolate_->factory()->NewNumber(number);
+      value->set_value(*number_object);
+      break;
+    }
+    case SerializationTag::kStringObject: {
+      Handle<String> string;
+      if (!ReadUtf8String().ToHandle(&string)) return MaybeHandle<JSValue>();
+      value = Handle<JSValue>::cast(
+          isolate_->factory()->NewJSObject(isolate_->string_function()));
+      value->set_value(*string);
+      break;
+    }
+    default:
+      UNREACHABLE();
+      return MaybeHandle<JSValue>();
+  }
+  AddObjectWithID(id, value);
+  return value;
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(

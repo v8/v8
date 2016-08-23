@@ -83,6 +83,10 @@ class ValueSerializerTest : public TestWithIsolate {
     functor(try_catch.Message());
   }
 
+  void InvalidEncodeTest(const char* source) {
+    InvalidEncodeTest(source, [](Local<Message>) {});
+  }
+
   template <typename OutputFunctor>
   void DecodeTest(const std::vector<uint8_t>& data,
                   const OutputFunctor& output_functor) {
@@ -1122,6 +1126,139 @@ TEST_F(ValueSerializerTest, DecodeDate) {
        0x02, 0x53, 0x01, 0x62, 0x3f, 0x02, 0x5e, 0x01, 0x7b, 0x02},
       [this](Local<Value> value) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof Date"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTest, RoundTripValueObjects) {
+  RoundTripTest("new Boolean(true)", [this](Local<Value> value) {
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === Boolean.prototype"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.valueOf() === true"));
+  });
+  RoundTripTest("new Boolean(false)", [this](Local<Value> value) {
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === Boolean.prototype"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.valueOf() === false"));
+  });
+  RoundTripTest(
+      "({ a: new Boolean(true), get b() { return this.a; }})",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof Boolean"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+  RoundTripTest("new Number(-42)", [this](Local<Value> value) {
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === Number.prototype"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.valueOf() === -42"));
+  });
+  RoundTripTest("new Number(NaN)", [this](Local<Value> value) {
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === Number.prototype"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("Number.isNaN(result.valueOf())"));
+  });
+  RoundTripTest(
+      "({ a: new Number(6), get b() { return this.a; }})",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof Number"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+  RoundTripTest("new String('Qu\\xe9bec')", [this](Local<Value> value) {
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === String.prototype"));
+    EXPECT_TRUE(
+        EvaluateScriptForResultBool("result.valueOf() === 'Qu\\xe9bec'"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.length === 6"));
+  });
+  RoundTripTest("new String('\\ud83d\\udc4a')", [this](Local<Value> value) {
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === String.prototype"));
+    EXPECT_TRUE(
+        EvaluateScriptForResultBool("result.valueOf() === '\\ud83d\\udc4a'"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.length === 2"));
+  });
+  RoundTripTest(
+      "({ a: new String(), get b() { return this.a; }})",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof String"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTest, RejectsOtherValueObjects) {
+  // This is a roundabout way of getting an instance of Symbol.
+  InvalidEncodeTest("Object.valueOf.apply(Symbol())");
+}
+
+TEST_F(ValueSerializerTest, DecodeValueObjects) {
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x79, 0x00},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === Boolean.prototype"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.valueOf() === true"));
+      });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x78, 0x00},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === Boolean.prototype"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.valueOf() === false"));
+      });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01, 0x61, 0x3f, 0x01,
+       0x79, 0x3f, 0x02, 0x53, 0x01, 0x62, 0x3f, 0x02, 0x5e, 0x01, 0x7b, 0x02},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof Boolean"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x45,
+       0xc0, 0x00},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === Number.prototype"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.valueOf() === -42"));
+      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+              0xf8, 0x7f, 0x00},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Number.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Number.isNaN(result.valueOf())"));
+             });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01, 0x61, 0x3f,
+       0x01, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x40, 0x3f,
+       0x02, 0x53, 0x01, 0x62, 0x3f, 0x02, 0x5e, 0x01, 0x7b, 0x02},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof Number"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x73, 0x07, 0x51, 0x75, 0xc3, 0xa9, 0x62,
+              0x65, 0x63, 0x00},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === String.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.valueOf() === 'Qu\\xe9bec'"));
+               EXPECT_TRUE(EvaluateScriptForResultBool("result.length === 6"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x73, 0x04, 0xf0, 0x9f, 0x91, 0x8a},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === String.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.valueOf() === '\\ud83d\\udc4a'"));
+               EXPECT_TRUE(EvaluateScriptForResultBool("result.length === 2"));
+             });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01,
+       0x61, 0x3f, 0x01, 0x73, 0x00, 0x3f, 0x02, 0x53, 0x01,
+       0x62, 0x3f, 0x02, 0x5e, 0x01, 0x7b, 0x02, 0x00},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof String"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
       });
 }
