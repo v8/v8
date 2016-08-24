@@ -589,12 +589,7 @@ void Scope::PropagateUsageFlagsToScope(Scope* other) {
   if (calls_eval()) other->RecordEvalCall();
 }
 
-
-Variable* Scope::LookupLocal(const AstRawString* name) {
-  Variable* result = variables_.Lookup(name);
-  if (result != NULL || scope_info_.is_null()) {
-    return result;
-  }
+Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
   Handle<String> name_handle = name->string();
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
