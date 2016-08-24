@@ -401,15 +401,6 @@
         'outputs': ['<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc'],
         'action': ['<(mkpeephole_exec)', '<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc' ],
         'process_outputs_as_sources': 1,
-        'conditions': [
-          ['want_separate_host_toolset_mkpeephole==1', {
-            'dependencies': ['mkpeephole#host'],
-            'toolsets': ['host'],
-          }, {
-            'dependencies': ['mkpeephole'],
-            'toolsets': ['target'],
-          }],
-        ],
       }],
       'sources': [  ### gcmole(all) ###
         '../include/v8-debug.h',
@@ -1277,6 +1268,13 @@
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
+        }],
+        ['want_separate_host_toolset_mkpeephole==1', {
+          'toolsets': ['host', 'target'],
+          'dependencies': ['mkpeephole#host'],
+        }, {
+          'toolsets': ['target'],
+          'dependencies': ['mkpeephole'],
         }],
         ['v8_target_arch=="arm"', {
           'sources': [  ### gcmole(arch:arm) ###
