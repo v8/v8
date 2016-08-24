@@ -840,8 +840,7 @@ enum SmiCheckType {
   DO_SMI_CHECK
 };
 
-
-enum ScopeType {
+enum ScopeType : uint8_t {
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.
   MODULE_SCOPE,    // The scope introduced by a module literal
