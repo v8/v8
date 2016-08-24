@@ -675,7 +675,7 @@ Variable* DeclarationScope::DeclareParameter(
     bool* is_duplicate, AstValueFactory* ast_value_factory) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope());
-  DCHECK(!has_rest_parameter());
+  DCHECK(!has_rest_);
   DCHECK(!is_optional || !is_rest);
   Variable* var;
   if (mode == TEMPORARY) {
@@ -1488,7 +1488,7 @@ void DeclarationScope::AllocateParameterLocals() {
   // order is relevant!
   for (int i = num_parameters() - 1; i >= 0; --i) {
     Variable* var = params_[i];
-    DCHECK(!has_rest_parameter() || var != rest_parameter());
+    DCHECK(!has_rest_ || var != rest_parameter());
     DCHECK_EQ(this, var->scope());
     if (uses_sloppy_arguments) {
       var->ForceContextAllocation();
@@ -1581,7 +1581,7 @@ void DeclarationScope::AllocateLocals() {
     AllocateNonParameterLocal(function_);
   }
 
-  DCHECK(!has_rest_parameter() || !MustAllocate(rest_parameter()) ||
+  DCHECK(!has_rest_ || !MustAllocate(rest_parameter()) ||
          !rest_parameter()->IsUnallocated());
 
   if (new_target_ != nullptr && !MustAllocate(new_target_)) {

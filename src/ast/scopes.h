@@ -688,37 +688,19 @@ class DeclarationScope : public Scope {
   // Returns the default function arity excluding default or rest parameters.
   int default_function_length() const { return arity_; }
 
-  // Returns the number of formal parameters, up to but not including the
-  // rest parameter index (if the function has rest parameters), i.e. it
-  // says 2 for
-  //
-  //   function foo(a, b) { ... }
-  //
-  // and
-  //
-  //   function foo(a, b, ...c) { ... }
-  //
-  // but for
-  //
-  //   function foo(a, b, c = 1) { ... }
-  //
-  // we return 3 here.
+  // Returns the number of formal parameters, excluding a possible rest
+  // parameter.  Examples:
+  //   function foo(a, b) {}         ==> 2
+  //   function foo(a, b, ...c) {}   ==> 2
+  //   function foo(a, b, c = 1) {}  ==> 3
   int num_parameters() const {
-    return has_rest_parameter() ? params_.length() - 1 : params_.length();
+    return has_rest_ ? params_.length() - 1 : params_.length();
   }
 
-  // A function can have at most one rest parameter. Returns Variable* or NULL.
-  Variable* rest_parameter(int* index) const {
-    if (!has_rest_parameter()) return nullptr;
-    *index = params_.length() - 1;
-    return rest_parameter();
-  }
+  // The function's rest parameter (nullptr if there is none).
   Variable* rest_parameter() const {
-    DCHECK(has_rest_parameter());
-    return params_[params_.length() - 1];
+    return has_rest_ ? params_[params_.length() - 1] : nullptr;
   }
-
-  bool has_rest_parameter() const { return has_rest_; }
 
   bool has_simple_parameters() const { return has_simple_parameters_; }
 

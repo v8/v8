@@ -573,9 +573,8 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   BuildArgumentsObject(scope->arguments());
 
   // Build rest arguments array if it is used.
-  int rest_index = 0;
-  Variable* rest_parameter = scope->rest_parameter(&rest_index);
-  BuildRestArgumentsArray(rest_parameter, rest_index);
+  Variable* rest_parameter = scope->rest_parameter();
+  BuildRestArgumentsArray(rest_parameter);
 
   // Build assignment to {.this_function} variable if it is used.
   BuildThisFunctionVariable(scope->this_function_var());
@@ -3213,8 +3212,7 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   return object;
 }
 
-
-Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
+Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest) {
   if (rest == nullptr) return nullptr;
 
   // Allocate and initialize a new arguments object.

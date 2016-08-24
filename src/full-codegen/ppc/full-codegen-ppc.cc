@@ -259,9 +259,8 @@ void FullCodeGenerator::Generate() {
   }
 
   // Possibly allocate RestParameters
-  int rest_index;
-  Variable* rest_param = info->scope()->rest_parameter(&rest_index);
-  if (rest_param) {
+  Variable* rest_param = info->scope()->rest_parameter();
+  if (rest_param != nullptr) {
     Comment cmnt(masm_, "[ Allocate rest parameter array");
     if (!function_in_register_r4) {
       __ LoadP(r4, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
