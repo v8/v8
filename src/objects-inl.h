@@ -2625,18 +2625,9 @@ Object** FixedArray::RawFieldOfElementAt(int index) {
 FRAME_ARRAY_FIELD_LIST(DEFINE_FRAME_ARRAY_ACCESSORS)
 #undef DEFINE_FRAME_ARRAY_ACCESSORS
 
-int FrameArray::SloppyFrameCount() const {
-  return Smi::cast(get(kSloppyFramesIndex))->value();
-}
-
-void FrameArray::SetSloppyFrameCount(int count) {
-  return set(kSloppyFramesIndex, Smi::FromInt(count));
-}
-
 bool FrameArray::IsWasmFrame(int frame_ix) const {
-  Object* obj = get(kFirstIndex + frame_ix * kElementsPerFrame +
-                    kWasmFunctionIndexOffset);
-  return obj->IsSmi();
+  const int flags = Flags(frame_ix)->value();
+  return (flags & kIsWasmFrame) != 0;
 }
 
 int FrameArray::FrameCount() const {

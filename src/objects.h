@@ -2932,7 +2932,8 @@ class ArrayList : public FixedArray {
   V(Receiver, Object)             \
   V(Function, JSFunction)         \
   V(Code, AbstractCode)           \
-  V(Offset, Smi)
+  V(Offset, Smi)                  \
+  V(Flags, Smi)
 
 // Container object for data collected during simple stack trace captures.
 class FrameArray : public FixedArray {
@@ -2943,31 +2944,35 @@ class FrameArray : public FixedArray {
   FRAME_ARRAY_FIELD_LIST(DECLARE_FRAME_ARRAY_ACCESSORS)
 #undef DECLARE_FRAME_ARRAY_ACCESSORS
 
-  inline void SetSloppyFrameCount(int count);
-  inline int SloppyFrameCount() const;
-
   inline bool IsWasmFrame(int frame_ix) const;
   inline int FrameCount() const;
 
   void ShrinkToFit();
 
+  // Flags.
+  static const int kIsWasmFrame = 1 << 0;
+  static const int kIsStrict = 1 << 1;
+  static const int kForceConstructor = 1 << 2;
+
   static Handle<FrameArray> AppendJSFrame(Handle<FrameArray> in,
                                           Handle<Object> receiver,
                                           Handle<JSFunction> function,
-                                          Handle<AbstractCode> code,
-                                          int offset);
+                                          Handle<AbstractCode> code, int offset,
+                                          int flags);
   static Handle<FrameArray> AppendWasmFrame(Handle<FrameArray> in,
                                             Handle<Object> wasm_object,
                                             int wasm_function_index,
                                             Handle<AbstractCode> code,
-                                            int offset);
+                                            int offset, int flags);
 
   DECLARE_CAST(FrameArray)
 
  private:
-  // The underlying fixed array embodies a captured stack trace. The number of
-  // sloppy frames is stored at array[kFirstIndex]. Frame i occupies indices
+  // The underlying fixed array embodies a captured stack trace. Frame i
+  // occupies indices
+  //
   // kFirstIndex + 1 + [i * kElementsPerFrame, (i + 1) * kElementsPerFrame[,
+  //
   // with internal offsets as below:
 
   static const int kWasmObjectOffset = 0;
@@ -2979,13 +2984,14 @@ class FrameArray : public FixedArray {
   static const int kCodeOffset = 2;
   static const int kOffsetOffset = 3;
 
-  static const int kElementsPerFrame = 4;
+  static const int kFlagsOffset = 4;
+
+  static const int kElementsPerFrame = 5;
 
   // Array layout indices.
 
   static const int kFrameCountIndex = 0;
-  static const int kSloppyFramesIndex = 1;
-  static const int kFirstIndex = 2;
+  static const int kFirstIndex = 1;
 
   static int LengthFor(int frame_count) {
     return kFirstIndex + frame_count * kElementsPerFrame;

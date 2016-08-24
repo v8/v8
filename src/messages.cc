@@ -499,15 +499,13 @@ MaybeHandle<FixedArray> GetStackFrames(Isolate* isolate,
 
   const int frame_count = elems->FrameCount();
 
-  int sloppy_frames = elems->SloppyFrameCount();
-
   Handle<FixedArray> frames = isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; i++) {
+    const int flags = elems->Flags(i)->value();
     Handle<AbstractCode> code(elems->Code(i), isolate);
     Handle<Smi> pc(elems->Offset(i), isolate);
-
-    sloppy_frames--;
-    Handle<Object> strict = isolate->factory()->ToBoolean(sloppy_frames < 0);
+    Handle<Object> strict =
+        isolate->factory()->ToBoolean(flags & FrameArray::kIsStrict);
 
     if (elems->IsWasmFrame(i)) {
       Handle<Object> wasm_obj(elems->WasmObject(i), isolate);
@@ -530,6 +528,10 @@ MaybeHandle<FixedArray> GetStackFrames(Isolate* isolate,
       Handle<Object> fun(elems->Function(i), isolate);
       Handle<Object> pos(Smi::FromInt(code->SourcePosition(pc->value())),
                          isolate);
+
+      if (flags & FrameArray::kForceConstructor) {
+        recv = handle(isolate->heap()->call_site_constructor_symbol());
+      }
 
       Handle<Object> callsite;
       ASSIGN_RETURN_ON_EXCEPTION(

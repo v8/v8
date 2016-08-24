@@ -10208,7 +10208,7 @@ Handle<FrameArray> FrameArray::AppendJSFrame(Handle<FrameArray> in,
                                              Handle<Object> receiver,
                                              Handle<JSFunction> function,
                                              Handle<AbstractCode> code,
-                                             int offset) {
+                                             int offset, int flags) {
   const int frame_count = in->FrameCount();
   const int new_length = LengthFor(frame_count + 1);
   Handle<FrameArray> array = EnsureSpace(in, new_length);
@@ -10216,6 +10216,7 @@ Handle<FrameArray> FrameArray::AppendJSFrame(Handle<FrameArray> in,
   array->SetFunction(frame_count, *function);
   array->SetCode(frame_count, *code);
   array->SetOffset(frame_count, Smi::FromInt(offset));
+  array->SetFlags(frame_count, Smi::FromInt(flags));
   array->set(kFrameCountIndex, Smi::FromInt(frame_count + 1));
   return array;
 }
@@ -10225,7 +10226,7 @@ Handle<FrameArray> FrameArray::AppendWasmFrame(Handle<FrameArray> in,
                                                Handle<Object> wasm_object,
                                                int wasm_function_index,
                                                Handle<AbstractCode> code,
-                                               int offset) {
+                                               int offset, int flags) {
   const int frame_count = in->FrameCount();
   const int new_length = LengthFor(frame_count + 1);
   Handle<FrameArray> array = EnsureSpace(in, new_length);
@@ -10233,6 +10234,7 @@ Handle<FrameArray> FrameArray::AppendWasmFrame(Handle<FrameArray> in,
   array->SetWasmFunctionIndex(frame_count, Smi::FromInt(wasm_function_index));
   array->SetCode(frame_count, *code);
   array->SetOffset(frame_count, Smi::FromInt(offset));
+  array->SetFlags(frame_count, Smi::FromInt(flags));
   array->set(kFrameCountIndex, Smi::FromInt(frame_count + 1));
   return array;
 }

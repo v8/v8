@@ -346,21 +346,17 @@ class StackTraceHelper {
         break;
     }
     encountered_strict_function_ = false;
-    sloppy_frames_ = 0;
   }
 
+  // Poison stack frames below the first strict mode frame.
   // The stack trace API should not expose receivers and function
   // objects on frames deeper than the top-most one with a strict mode
-  // function. The number of sloppy frames is stored as first element in
-  // the result array.
-  void CountSloppyFrames(JSFunction* fun) {
+  // function.
+  bool IsStrictFrame(JSFunction* fun) {
     if (!encountered_strict_function_) {
-      if (is_strict(fun->shared()->language_mode())) {
-        encountered_strict_function_ = true;
-      } else {
-        sloppy_frames_++;
-      }
+      encountered_strict_function_ = is_strict(fun->shared()->language_mode());
     }
+    return encountered_strict_function_;
   }
 
   // Determines whether the given stack frame should be displayed in a stack
@@ -369,8 +365,6 @@ class StackTraceHelper {
     return ShouldIncludeFrame(fun) && IsNotInNativeScript(fun) &&
            IsInSameSecurityContext(fun);
   }
-
-  int sloppy_frames() const { return sloppy_frames_; }
 
  private:
   // This mechanism excludes a number of uninteresting frames from the stack
@@ -417,7 +411,6 @@ class StackTraceHelper {
   const Handle<Object> caller_;
   bool skip_next_frame_;
 
-  int sloppy_frames_;
   bool encountered_strict_function_;
 };
 
@@ -475,23 +468,27 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
           // Filter out internal frames that we do not want to show.
           if (!helper.IsVisibleInStackTrace(*fun)) continue;
-          helper.CountSloppyFrames(*fun);
 
           Handle<Object> recv = frames[i].receiver();
           Handle<AbstractCode> abstract_code = frames[i].abstract_code();
+          const int offset = frames[i].code_offset();
+
+          bool force_constructor = false;
           if (frame->type() == StackFrame::BUILTIN) {
             // Help CallSite::IsConstructor correctly detect hand-written
             // construct stubs.
-            Code* code = Code::cast(*abstract_code);
-            if (code->is_construct_stub()) {
-              recv = handle(heap()->call_site_constructor_symbol(), this);
+            if (Code::cast(*abstract_code)->is_construct_stub()) {
+              force_constructor = true;
             }
           }
-          const int offset = frames[i].code_offset();
 
-          elements = FrameArray::AppendJSFrame(elements,
-                                               TheHoleToUndefined(this, recv),
-                                               fun, abstract_code, offset);
+          int flags = 0;
+          if (helper.IsStrictFrame(*fun)) flags |= FrameArray::kIsStrict;
+          if (force_constructor) flags |= FrameArray::kForceConstructor;
+
+          elements = FrameArray::AppendJSFrame(
+              elements, TheHoleToUndefined(this, recv), fun, abstract_code,
+              offset, flags);
         }
       } break;
 
@@ -501,32 +498,27 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
         // Filter out internal frames that we do not want to show.
         if (!helper.IsVisibleInStackTrace(*fun)) continue;
-        helper.CountSloppyFrames(*fun);
 
-        Handle<Code> code = handle(exit_frame->LookupCode(), this);
+        Handle<Object> recv(exit_frame->receiver(), this);
+        Handle<Code> code(exit_frame->LookupCode(), this);
         int offset =
             static_cast<int>(exit_frame->pc() - code->instruction_start());
 
-        // In order to help CallSite::IsConstructor detect builtin constructors,
-        // we reuse the receiver field to pass along a special symbol.
-        Handle<Object> recv;
-        if (exit_frame->IsConstructor()) {
-          recv = factory()->call_site_constructor_symbol();
-        } else {
-          recv = handle(exit_frame->receiver(), this);
-        }
+        int flags = 0;
+        if (helper.IsStrictFrame(*fun)) flags |= FrameArray::kIsStrict;
+        if (exit_frame->IsConstructor()) flags |= FrameArray::kForceConstructor;
 
-        elements = FrameArray::AppendJSFrame(
-            elements, recv, fun, Handle<AbstractCode>::cast(code), offset);
+        elements = FrameArray::AppendJSFrame(elements, recv, fun,
+                                             Handle<AbstractCode>::cast(code),
+                                             offset, flags);
       } break;
 
       case StackFrame::WASM: {
         WasmFrame* wasm_frame = WasmFrame::cast(frame);
-        Handle<Object> wasm_object = handle(wasm_frame->wasm_obj(), this);
+        Handle<Object> wasm_object(wasm_frame->wasm_obj(), this);
         const int wasm_function_index = wasm_frame->function_index();
         Code* code = wasm_frame->unchecked_code();
-        Handle<AbstractCode> abstract_code =
-            Handle<AbstractCode>(AbstractCode::cast(code), this);
+        Handle<AbstractCode> abstract_code(AbstractCode::cast(code), this);
         const int offset =
             static_cast<int>(wasm_frame->pc() - code->instruction_start());
 
@@ -536,7 +528,8 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                wasm_object->IsUndefined(this));
 
         elements = FrameArray::AppendWasmFrame(
-            elements, wasm_object, wasm_function_index, abstract_code, offset);
+            elements, wasm_object, wasm_function_index, abstract_code, offset,
+            FrameArray::kIsWasmFrame);
       } break;
 
       default:
@@ -544,7 +537,6 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
     }
   }
 
-  elements->SetSloppyFrameCount(helper.sloppy_frames());
   elements->ShrinkToFit();
 
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
