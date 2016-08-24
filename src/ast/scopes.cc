@@ -200,13 +200,13 @@ void DeclarationScope::SetDefaults() {
   force_eager_compilation_ = false;
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
+  has_rest_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
   function_ = nullptr;
   arguments_ = nullptr;
   this_function_ = nullptr;
   arity_ = 0;
-  rest_index_ = -1;
 }
 
 void Scope::SetDefaults() {
@@ -680,6 +680,7 @@ Variable* DeclarationScope::DeclareParameter(
     bool* is_duplicate, AstValueFactory* ast_value_factory) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope());
+  DCHECK(!has_rest_parameter());
   DCHECK(!is_optional || !is_rest);
   Variable* var;
   if (mode == TEMPORARY) {
@@ -693,7 +694,7 @@ Variable* DeclarationScope::DeclareParameter(
   if (!is_optional && !is_rest && arity_ == params_.length()) {
     ++arity_;
   }
-  if (is_rest) rest_index_ = num_parameters();
+  has_rest_ = is_rest;
   params_.Add(var, zone());
   if (name == ast_value_factory->arguments_string()) {
     has_arguments_parameter_ = true;
@@ -1490,11 +1491,10 @@ void DeclarationScope::AllocateParameterLocals() {
   // If it does, and if it is not copied into the context object, it must
   // receive the highest parameter index for that parameter; thus iteration
   // order is relevant!
-  for (int i = params_.length() - 1; i >= 0; --i) {
-    if (i == rest_index_) continue;
+  for (int i = num_parameters() - 1; i >= 0; --i) {
     Variable* var = params_[i];
-
-    DCHECK(var->scope() == this);
+    DCHECK(!has_rest_parameter() || var != rest_parameter());
+    DCHECK_EQ(this, var->scope());
     if (uses_sloppy_arguments) {
       var->ForceContextAllocation();
     }
@@ -1586,8 +1586,8 @@ void DeclarationScope::AllocateLocals() {
     AllocateNonParameterLocal(function_);
   }
 
-  DCHECK(!has_rest_parameter() || !MustAllocate(params_[rest_index_]) ||
-         !params_[rest_index_]->IsUnallocated());
+  DCHECK(!has_rest_parameter() || !MustAllocate(rest_parameter()) ||
+         !rest_parameter()->IsUnallocated());
 
   if (new_target_ != nullptr && !MustAllocate(new_target_)) {
     new_target_ = nullptr;

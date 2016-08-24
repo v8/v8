@@ -706,12 +706,16 @@ class DeclarationScope : public Scope {
 
   // A function can have at most one rest parameter. Returns Variable* or NULL.
   Variable* rest_parameter(int* index) const {
-    *index = rest_index_;
-    if (rest_index_ < 0) return nullptr;
-    return params_[rest_index_];
+    if (!has_rest_parameter()) return nullptr;
+    *index = params_.length() - 1;
+    return rest_parameter();
+  }
+  Variable* rest_parameter() const {
+    DCHECK(has_rest_parameter());
+    return params_[params_.length() - 1];
   }
 
-  bool has_rest_parameter() const { return rest_index_ >= 0; }
+  bool has_rest_parameter() const { return has_rest_; }
 
   bool has_simple_parameters() const { return has_simple_parameters_; }
 
@@ -819,6 +823,8 @@ class DeclarationScope : public Scope {
   // This scope's outer context is an asm module.
   bool asm_function_ : 1;
   bool force_eager_compilation_ : 1;
+  // This function scope has a rest parameter.
+  bool has_rest_ : 1;
   // This scope has a parameter called "arguments".
   bool has_arguments_parameter_ : 1;
   // This scope uses "super" property ('super.foo').
@@ -826,7 +832,6 @@ class DeclarationScope : public Scope {
 
   // Info about the parameter list of a function.
   int arity_;
-  int rest_index_;
   // Compiler-allocated (user-invisible) temporaries.
   ZoneList<Variable*> temps_;
   // Parameter list in source order.
