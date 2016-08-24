@@ -77,14 +77,20 @@ void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
 // ----------------------------------------------------------------------------
 // Implementation of Scope
 
-Scope::Scope(Zone* zone)
+Scope::Scope(Zone* zone, ScopeType scope_type)
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
       ordered_variables_(4, zone),
       decls_(4, zone),
-      scope_type_(SCRIPT_SCOPE) {
+      scope_type_(scope_type) {
+  DCHECK(scope_type == SCRIPT_SCOPE || scope_type == WITH_SCOPE);
   SetDefaults();
+#ifdef DEBUG
+  if (scope_type == WITH_SCOPE) {
+    already_resolved_ = true;
+  }
+#endif
 }
 
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
@@ -137,8 +143,7 @@ ModuleScope::ModuleScope(Zone* zone, DeclarationScope* script_scope,
   DeclareThis(ast_value_factory);
 }
 
-Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
-             Handle<ScopeInfo> scope_info)
+Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
@@ -146,26 +151,20 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
       decls_(0, zone),
       scope_info_(scope_info),
       scope_type_(scope_type) {
+  DCHECK(!scope_info.is_null());
   SetDefaults();
 #ifdef DEBUG
   already_resolved_ = true;
 #endif
-  if (scope_type == WITH_SCOPE) {
-    DCHECK(scope_info.is_null());
-  } else {
-    if (scope_info->CallsEval()) RecordEvalCall();
-    set_language_mode(scope_info->language_mode());
-    num_heap_slots_ = scope_info->ContextLength();
-  }
+  if (scope_info->CallsEval()) RecordEvalCall();
+  set_language_mode(scope_info->language_mode());
+  num_heap_slots_ = scope_info->ContextLength();
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
-
-  if (inner_scope != nullptr) AddInnerScope(inner_scope);
 }
 
-DeclarationScope::DeclarationScope(Zone* zone, Scope* inner_scope,
-                                   ScopeType scope_type,
+DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
                                    Handle<ScopeInfo> scope_info)
-    : Scope(zone, inner_scope, scope_type, scope_info),
+    : Scope(zone, scope_type, scope_info),
       function_kind_(scope_info->function_kind()),
       temps_(0, zone),
       params_(0, zone),
@@ -173,8 +172,7 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* inner_scope,
   SetDefaults();
 }
 
-Scope::Scope(Zone* zone, Scope* inner_scope,
-             const AstRawString* catch_variable_name)
+Scope::Scope(Zone* zone, const AstRawString* catch_variable_name)
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
@@ -185,7 +183,6 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
 #ifdef DEBUG
   already_resolved_ = true;
 #endif
-  if (inner_scope != nullptr) AddInnerScope(inner_scope);
   Variable* variable =
       variables_.Declare(zone, this, catch_variable_name, VAR, Variable::NORMAL,
                          kCreatedInitialized);
@@ -259,17 +256,17 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = nullptr;
   Scope* innermost_scope = nullptr;
+  Scope* outer_scope = nullptr;
   while (!context->IsNativeContext()) {
     if (context->IsWithContext() || context->IsDebugEvaluateContext()) {
       // For scope analysis, debug-evaluate is equivalent to a with scope.
-      Scope* with_scope = new (zone)
-          Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>());
+      outer_scope = new (zone) Scope(zone, WITH_SCOPE);
+
       // TODO(yangguo): Remove once debug-evaluate properly keeps track of the
       // function scope in which we are evaluating.
       if (context->IsDebugEvaluateContext()) {
-        with_scope->set_is_debug_evaluate_scope();
+        outer_scope->set_is_debug_evaluate_scope();
       }
-      current_scope = with_scope;
     } else if (context->IsScriptContext()) {
       // If we reach a script context, it's the outermost context with scope
       // info. The next context will be the native context. Install the scope
@@ -287,28 +284,31 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       // https://bugs.chromium.org/p/v8/issues/detail?id=5295
       DCHECK(scope_info->scope_type() == FUNCTION_SCOPE ||
              scope_info->scope_type() == EVAL_SCOPE);
-      DeclarationScope* function_scope = new (zone)
-          DeclarationScope(zone, current_scope, FUNCTION_SCOPE, scope_info);
-      if (scope_info->IsAsmFunction()) function_scope->set_asm_function();
-      if (scope_info->IsAsmModule()) function_scope->set_asm_module();
-      current_scope = function_scope;
+      outer_scope =
+          new (zone) DeclarationScope(zone, FUNCTION_SCOPE, scope_info);
+      if (scope_info->IsAsmFunction())
+        outer_scope->AsDeclarationScope()->set_asm_function();
+      if (scope_info->IsAsmModule())
+        outer_scope->AsDeclarationScope()->set_asm_module();
     } else if (context->IsBlockContext()) {
       Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
       DCHECK_EQ(scope_info->scope_type(), BLOCK_SCOPE);
       if (scope_info->is_declaration_scope()) {
-        current_scope = new (zone)
-            DeclarationScope(zone, current_scope, BLOCK_SCOPE, scope_info);
+        outer_scope =
+            new (zone) DeclarationScope(zone, BLOCK_SCOPE, scope_info);
       } else {
-        current_scope =
-            new (zone) Scope(zone, current_scope, BLOCK_SCOPE, scope_info);
+        outer_scope = new (zone) Scope(zone, BLOCK_SCOPE, scope_info);
       }
     } else {
       DCHECK(context->IsCatchContext());
       String* name = context->catch_name();
-      current_scope =
-          new (zone) Scope(zone, current_scope,
-                           ast_value_factory->GetString(handle(name, isolate)));
+      outer_scope = new (zone)
+          Scope(zone, ast_value_factory->GetString(handle(name, isolate)));
     }
+    if (current_scope != nullptr) {
+      outer_scope->AddInnerScope(current_scope);
+    }
+    current_scope = outer_scope;
     if (deserialization_mode == DeserializationMode::kDeserializeOffHeap) {
       current_scope->DeserializeScopeInfo(isolate, ast_value_factory);
     }

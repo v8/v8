@@ -416,8 +416,7 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
 
  protected:
-  // Creates a script scope.
-  explicit Scope(Zone* zone);
+  explicit Scope(Zone* zone, ScopeType scope_type = SCRIPT_SCOPE);
 
   void set_language_mode(LanguageMode language_mode) {
     is_strict_ = is_strict(language_mode);
@@ -542,12 +541,10 @@ class Scope: public ZoneObject {
   void AllocateVariablesRecursively();
 
   // Construct a scope based on the scope info.
-  Scope(Zone* zone, Scope* inner_scope, ScopeType type,
-        Handle<ScopeInfo> scope_info);
+  Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
-  Scope(Zone* zone, Scope* inner_scope,
-        const AstRawString* catch_variable_name);
+  Scope(Zone* zone, const AstRawString* catch_variable_name);
 
   void AddInnerScope(Scope* inner_scope) {
     inner_scope->sibling_ = inner_scope_;
@@ -582,7 +579,7 @@ class DeclarationScope : public Scope {
  public:
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
                    FunctionKind function_kind = kNormalFunction);
-  DeclarationScope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
+  DeclarationScope(Zone* zone, ScopeType scope_type,
                    Handle<ScopeInfo> scope_info);
   // Creates a script scope.
   explicit DeclarationScope(Zone* zone);
