@@ -471,7 +471,6 @@
         'ast/prettyprinter.cc',
         'ast/prettyprinter.h',
         'ast/scopeinfo.cc',
-        'ast/scopeinfo.h',
         'ast/scopes.cc',
         'ast/scopes.h',
         'ast/variables.cc',
