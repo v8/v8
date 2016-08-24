@@ -615,6 +615,9 @@ template <class T> class PersistentBase {
    */
   V8_INLINE uint16_t WrapperClassId() const;
 
+  PersistentBase(const PersistentBase& other) = delete;  // NOLINT
+  void operator=(const PersistentBase&) = delete;
+
  private:
   friend class Isolate;
   friend class Utils;
@@ -630,8 +633,6 @@ template <class T> class PersistentBase {
   friend class Object;
 
   explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
-  PersistentBase(const PersistentBase& other) = delete;  // NOLINT
-  void operator=(const PersistentBase&) = delete;
   V8_INLINE static T* New(Isolate* isolate, T* that);
 
   T* val_;
@@ -835,11 +836,12 @@ class Global : public PersistentBase<T> {
    */
   typedef void MoveOnlyTypeForCPP03;
 
+  Global(const Global&) = delete;
+  void operator=(const Global&) = delete;
+
  private:
   template <class F>
   friend class ReturnValue;
-  Global(const Global&) = delete;
-  void operator=(const Global&) = delete;
   V8_INLINE T* operator*() const { return this->val_; }
 };
 
