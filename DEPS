@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "b02fa16a7e5f43a2afb00b8cf56375a700f3ed0e",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "59daf502c36f20b5c9292f4bd9af85791f8a5884",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "702ac58e477214c635d9b541932e75a95d349352",
   "v8/third_party/icu":
@@ -26,7 +26,7 @@ deps = {
   "v8/third_party/markupsafe":
     Var("git_url") + "/chromium/src/third_party/markupsafe.git" + "@" + "484a5661041cac13bfc688a26ec5434b05d18961",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "94f86dcf676fbf08448f662273aac62951365b2c",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "99788b8b516c44d7db25cfb68695bc234fdee5ed",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "e4288c3040a32f2e7ad92f957668f2ee3d36e5a6",
   "v8/testing/gtest":
@@ -43,7 +43,7 @@ deps = {
   "v8/test/test262/harness":
     Var("git_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "82fffa46e8fedec2be06199c5f90410e7f2bffb8",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "3afb04a8153e40ff00f9eaa14337851c3ab4a368",
 }
 
 deps_os = {
