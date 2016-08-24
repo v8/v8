@@ -369,7 +369,9 @@ InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
           case FrameStateInputKind::kStackSlot:
             return g->UseUniqueSlot(input);
           case FrameStateInputKind::kAny:
-            return g->UseAny(input);
+            // Currently deopts "wrap" other operations, so the deopt's inputs
+            // are potentially needed untill the end of the deoptimising code.
+            return g->UseAnyAtEnd(input);
         }
       }
   }
