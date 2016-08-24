@@ -59,7 +59,9 @@ namespace compiler {
   V(X87Float64Mul)                 \
   V(X87Float64Div)                 \
   V(X87Float64Mod)                 \
+  V(X87Float32Max)                 \
   V(X87Float64Max)                 \
+  V(X87Float32Min)                 \
   V(X87Float64Min)                 \
   V(X87Float64Abs)                 \
   V(X87Float64Neg)                 \

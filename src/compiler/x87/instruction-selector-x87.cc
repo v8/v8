@@ -972,6 +972,12 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
   Emit(kX87Float64Mod, g.DefineAsFixed(node, stX_0), 1, temps)->MarkAsCall();
 }
 
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(0)));
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(1)));
+  Emit(kX87Float32Max, g.DefineAsFixed(node, stX_0), 0, nullptr);
+}
 
 void InstructionSelector::VisitFloat64Max(Node* node) {
   X87OperandGenerator g(this);
@@ -980,6 +986,12 @@ void InstructionSelector::VisitFloat64Max(Node* node) {
   Emit(kX87Float64Max, g.DefineAsFixed(node, stX_0), 0, nullptr);
 }
 
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(0)));
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(1)));
+  Emit(kX87Float32Min, g.DefineAsFixed(node, stX_0), 0, nullptr);
+}
 
 void InstructionSelector::VisitFloat64Min(Node* node) {
   X87OperandGenerator g(this);
