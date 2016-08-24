@@ -624,104 +624,6 @@ class ParserBaseTraits<PreParser> {
     return reinterpret_cast<const PreParser*>(this);
   }
 
-  // Helper functions for recursive descent.
-  bool IsEval(PreParserIdentifier identifier) const {
-    return identifier.IsEval();
-  }
-
-  bool IsArguments(PreParserIdentifier identifier) const {
-    return identifier.IsArguments();
-  }
-
-  bool IsEvalOrArguments(PreParserIdentifier identifier) const {
-    return identifier.IsEvalOrArguments();
-  }
-
-  bool IsUndefined(PreParserIdentifier identifier) const {
-    return identifier.IsUndefined();
-  }
-
-  bool IsAwait(PreParserIdentifier identifier) const {
-    return identifier.IsAwait();
-  }
-
-  bool IsFutureStrictReserved(PreParserIdentifier identifier) const {
-    return identifier.IsFutureStrictReserved();
-  }
-
-  // Returns true if the expression is of type "this.foo".
-  static bool IsThisProperty(PreParserExpression expression) {
-    return expression.IsThisProperty();
-  }
-
-  static bool IsIdentifier(PreParserExpression expression) {
-    return expression.IsIdentifier();
-  }
-
-  static PreParserIdentifier AsIdentifier(PreParserExpression expression) {
-    return expression.AsIdentifier();
-  }
-
-  bool IsPrototype(PreParserIdentifier identifier) const {
-    return identifier.IsPrototype();
-  }
-
-  bool IsConstructor(PreParserIdentifier identifier) const {
-    return identifier.IsConstructor();
-  }
-
-  bool IsDirectEvalCall(PreParserExpression expression) const {
-    return expression.IsDirectEvalCall();
-  }
-
-  static bool IsBoilerplateProperty(PreParserExpression property) {
-    // PreParser doesn't count boilerplate properties.
-    return false;
-  }
-
-  static bool IsArrayIndex(PreParserIdentifier string, uint32_t* index) {
-    return false;
-  }
-
-  static PreParserExpression GetPropertyValue(PreParserExpression property) {
-    return PreParserExpression::Default();
-  }
-
-  // Functions for encapsulating the differences between parsing and preparsing;
-  // operations interleaved with the recursive descent.
-  static void PushLiteralName(FuncNameInferrer* fni, PreParserIdentifier id) {
-    // PreParser should not use FuncNameInferrer.
-    UNREACHABLE();
-  }
-
-  void PushPropertyName(FuncNameInferrer* fni, PreParserExpression expression) {
-    // PreParser should not use FuncNameInferrer.
-    UNREACHABLE();
-  }
-
-  static void InferFunctionName(FuncNameInferrer* fni,
-                                PreParserExpression expression) {
-    // PreParser should not use FuncNameInferrer.
-    UNREACHABLE();
-  }
-
-  static void CheckAssigningFunctionLiteralToProperty(
-      PreParserExpression left, PreParserExpression right) {}
-
-  static PreParserExpression MarkExpressionAsAssigned(
-      PreParserExpression expression) {
-    // TODO(marja): To be able to produce the same errors, the preparser needs
-    // to start tracking which expressions are variables and which are assigned.
-    return expression;
-  }
-
-  bool ShortcutNumericLiteralBinaryExpression(PreParserExpression* x,
-                                              PreParserExpression y,
-                                              Token::Value op, int pos,
-                                              PreParserFactory* factory) {
-    return false;
-  }
-
   PreParserExpression BuildUnaryExpression(PreParserExpression expression,
                                            Token::Value op, int pos,
                                            PreParserFactory* factory) {
@@ -1135,6 +1037,111 @@ class PreParser : public ParserBase<PreParser> {
       PreParserExpression assignment) {}
   V8_INLINE void QueueNonPatternForRewriting(PreParserExpression expr,
                                              bool* ok) {}
+
+  // Helper functions for recursive descent.
+  V8_INLINE bool IsEval(PreParserIdentifier identifier) const {
+    return identifier.IsEval();
+  }
+
+  V8_INLINE bool IsArguments(PreParserIdentifier identifier) const {
+    return identifier.IsArguments();
+  }
+
+  V8_INLINE bool IsEvalOrArguments(PreParserIdentifier identifier) const {
+    return identifier.IsEvalOrArguments();
+  }
+
+  V8_INLINE bool IsUndefined(PreParserIdentifier identifier) const {
+    return identifier.IsUndefined();
+  }
+
+  V8_INLINE bool IsAwait(PreParserIdentifier identifier) const {
+    return identifier.IsAwait();
+  }
+
+  V8_INLINE bool IsFutureStrictReserved(PreParserIdentifier identifier) const {
+    return identifier.IsFutureStrictReserved();
+  }
+
+  // Returns true if the expression is of type "this.foo".
+  V8_INLINE static bool IsThisProperty(PreParserExpression expression) {
+    return expression.IsThisProperty();
+  }
+
+  V8_INLINE static bool IsIdentifier(PreParserExpression expression) {
+    return expression.IsIdentifier();
+  }
+
+  V8_INLINE static PreParserIdentifier AsIdentifier(
+      PreParserExpression expression) {
+    return expression.AsIdentifier();
+  }
+
+  V8_INLINE bool IsPrototype(PreParserIdentifier identifier) const {
+    return identifier.IsPrototype();
+  }
+
+  V8_INLINE bool IsConstructor(PreParserIdentifier identifier) const {
+    return identifier.IsConstructor();
+  }
+
+  V8_INLINE bool IsDirectEvalCall(PreParserExpression expression) const {
+    return expression.IsDirectEvalCall();
+  }
+
+  V8_INLINE static bool IsBoilerplateProperty(PreParserExpression property) {
+    // PreParser doesn't count boilerplate properties.
+    return false;
+  }
+
+  V8_INLINE static bool IsArrayIndex(PreParserIdentifier string,
+                                     uint32_t* index) {
+    return false;
+  }
+
+  V8_INLINE static PreParserExpression GetPropertyValue(
+      PreParserExpression property) {
+    return PreParserExpression::Default();
+  }
+
+  // Functions for encapsulating the differences between parsing and preparsing;
+  // operations interleaved with the recursive descent.
+  V8_INLINE static void PushLiteralName(FuncNameInferrer* fni,
+                                        PreParserIdentifier id) {
+    // PreParser should not use FuncNameInferrer.
+    UNREACHABLE();
+  }
+
+  V8_INLINE void PushPropertyName(FuncNameInferrer* fni,
+                                  PreParserExpression expression) {
+    // PreParser should not use FuncNameInferrer.
+    UNREACHABLE();
+  }
+
+  V8_INLINE static void InferFunctionName(FuncNameInferrer* fni,
+                                          PreParserExpression expression) {
+    // PreParser should not use FuncNameInferrer.
+    UNREACHABLE();
+  }
+
+  V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
+      PreParserExpression left, PreParserExpression right) {}
+
+  V8_INLINE static PreParserExpression MarkExpressionAsAssigned(
+      PreParserExpression expression) {
+    // TODO(marja): To be able to produce the same errors, the preparser needs
+    // to start tracking which expressions are variables and which are assigned.
+    return expression;
+  }
+
+  V8_INLINE bool ShortcutNumericLiteralBinaryExpression(PreParserExpression* x,
+                                                        PreParserExpression y,
+                                                        Token::Value op,
+                                                        int pos) {
+    return false;
+  }
+
+  // Preparser's private field members.
 
   int* use_counts_;
 };

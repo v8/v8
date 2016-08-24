@@ -297,76 +297,9 @@ class TargetScope BASE_EMBEDDED {
 // ----------------------------------------------------------------------------
 // Implementation of Parser
 
-bool ParserBaseTraits<Parser>::IsEval(const AstRawString* identifier) const {
-  return identifier == delegate()->ast_value_factory()->eval_string();
-}
-
-bool ParserBaseTraits<Parser>::IsArguments(
-    const AstRawString* identifier) const {
-  return identifier == delegate()->ast_value_factory()->arguments_string();
-}
-
-bool ParserBaseTraits<Parser>::IsEvalOrArguments(
-    const AstRawString* identifier) const {
-  return IsEval(identifier) || IsArguments(identifier);
-}
-
-bool ParserBaseTraits<Parser>::IsUndefined(
-    const AstRawString* identifier) const {
-  return identifier == delegate()->ast_value_factory()->undefined_string();
-}
-
-bool ParserBaseTraits<Parser>::IsPrototype(
-    const AstRawString* identifier) const {
-  return identifier == delegate()->ast_value_factory()->prototype_string();
-}
-
-bool ParserBaseTraits<Parser>::IsConstructor(
-    const AstRawString* identifier) const {
-  return identifier == delegate()->ast_value_factory()->constructor_string();
-}
-
-bool ParserBaseTraits<Parser>::IsThisProperty(Expression* expression) {
-  DCHECK(expression != NULL);
-  Property* property = expression->AsProperty();
-  return property != NULL && property->obj()->IsVariableProxy() &&
-         property->obj()->AsVariableProxy()->is_this();
-}
-
-bool ParserBaseTraits<Parser>::IsIdentifier(Expression* expression) {
-  VariableProxy* operand = expression->AsVariableProxy();
-  return operand != NULL && !operand->is_this();
-}
-
-void ParserBaseTraits<Parser>::PushPropertyName(FuncNameInferrer* fni,
-                                                Expression* expression) {
-  if (expression->IsPropertyName()) {
-    fni->PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
-  } else {
-    fni->PushLiteralName(
-        delegate()->ast_value_factory()->anonymous_function_string());
-  }
-}
-
-void ParserBaseTraits<Parser>::CheckAssigningFunctionLiteralToProperty(
-    Expression* left, Expression* right) {
-  DCHECK(left != NULL);
-  if (left->IsProperty() && right->IsFunctionLiteral()) {
-    right->AsFunctionLiteral()->set_pretenure();
-  }
-}
-
-Expression* ParserBaseTraits<Parser>::MarkExpressionAsAssigned(
-    Expression* expression) {
-  VariableProxy* proxy =
-      expression != NULL ? expression->AsVariableProxy() : NULL;
-  if (proxy != NULL) proxy->set_is_assigned();
-  return expression;
-}
-
-bool ParserBaseTraits<Parser>::ShortcutNumericLiteralBinaryExpression(
-    Expression** x, Expression* y, Token::Value op, int pos,
-    AstNodeFactory* factory) {
+bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
+                                                    Expression* y,
+                                                    Token::Value op, int pos) {
   if ((*x)->AsLiteral() && (*x)->AsLiteral()->raw_value()->IsNumber() &&
       y->AsLiteral() && y->AsLiteral()->raw_value()->IsNumber()) {
     double x_val = (*x)->AsLiteral()->raw_value()->AsNumber();
@@ -376,53 +309,53 @@ bool ParserBaseTraits<Parser>::ShortcutNumericLiteralBinaryExpression(
     bool has_dot = x_has_dot || y_has_dot;
     switch (op) {
       case Token::ADD:
-        *x = factory->NewNumberLiteral(x_val + y_val, pos, has_dot);
+        *x = factory()->NewNumberLiteral(x_val + y_val, pos, has_dot);
         return true;
       case Token::SUB:
-        *x = factory->NewNumberLiteral(x_val - y_val, pos, has_dot);
+        *x = factory()->NewNumberLiteral(x_val - y_val, pos, has_dot);
         return true;
       case Token::MUL:
-        *x = factory->NewNumberLiteral(x_val * y_val, pos, has_dot);
+        *x = factory()->NewNumberLiteral(x_val * y_val, pos, has_dot);
         return true;
       case Token::DIV:
-        *x = factory->NewNumberLiteral(x_val / y_val, pos, has_dot);
+        *x = factory()->NewNumberLiteral(x_val / y_val, pos, has_dot);
         return true;
       case Token::BIT_OR: {
         int value = DoubleToInt32(x_val) | DoubleToInt32(y_val);
-        *x = factory->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos, has_dot);
         return true;
       }
       case Token::BIT_AND: {
         int value = DoubleToInt32(x_val) & DoubleToInt32(y_val);
-        *x = factory->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos, has_dot);
         return true;
       }
       case Token::BIT_XOR: {
         int value = DoubleToInt32(x_val) ^ DoubleToInt32(y_val);
-        *x = factory->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos, has_dot);
         return true;
       }
       case Token::SHL: {
         int value = DoubleToInt32(x_val) << (DoubleToInt32(y_val) & 0x1f);
-        *x = factory->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos, has_dot);
         return true;
       }
       case Token::SHR: {
         uint32_t shift = DoubleToInt32(y_val) & 0x1f;
         uint32_t value = DoubleToUint32(x_val) >> shift;
-        *x = factory->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos, has_dot);
         return true;
       }
       case Token::SAR: {
         uint32_t shift = DoubleToInt32(y_val) & 0x1f;
         int value = ArithmeticShiftRight(DoubleToInt32(x_val), shift);
-        *x = factory->NewNumberLiteral(value, pos, has_dot);
+        *x = factory()->NewNumberLiteral(value, pos, has_dot);
         return true;
       }
       case Token::EXP: {
         double value = Pow(x_val, y_val);
         int int_value = static_cast<int>(value);
-        *x = factory->NewNumberLiteral(
+        *x = factory()->NewNumberLiteral(
             int_value == value && value != -0.0 ? int_value : value, pos,
             has_dot);
         return true;

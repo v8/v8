@@ -175,74 +175,6 @@ class ParserBaseTraits<Parser> {
     return reinterpret_cast<const Parser*>(this);
   }
 
-  // Helper functions for recursive descent.
-  bool IsEval(const AstRawString* identifier) const;
-  bool IsArguments(const AstRawString* identifier) const;
-  bool IsEvalOrArguments(const AstRawString* identifier) const;
-  bool IsUndefined(const AstRawString* identifier) const;
-  V8_INLINE bool IsFutureStrictReserved(const AstRawString* identifier) const;
-
-  // Returns true if the expression is of type "this.foo".
-  static bool IsThisProperty(Expression* expression);
-
-  static bool IsIdentifier(Expression* expression);
-
-  static const AstRawString* AsIdentifier(Expression* expression) {
-    DCHECK(IsIdentifier(expression));
-    return expression->AsVariableProxy()->raw_name();
-  }
-
-  bool IsPrototype(const AstRawString* identifier) const;
-
-  bool IsConstructor(const AstRawString* identifier) const;
-
-  bool IsDirectEvalCall(Expression* expression) const {
-    if (!expression->IsCall()) return false;
-    expression = expression->AsCall()->expression();
-    return IsIdentifier(expression) && IsEval(AsIdentifier(expression));
-  }
-
-  static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
-    return ObjectLiteral::IsBoilerplateProperty(property);
-  }
-
-  static bool IsArrayIndex(const AstRawString* string, uint32_t* index) {
-    return string->AsArrayIndex(index);
-  }
-
-  static Expression* GetPropertyValue(ObjectLiteral::Property* property) {
-    return property->value();
-  }
-
-  // Functions for encapsulating the differences between parsing and preparsing;
-  // operations interleaved with the recursive descent.
-  static void PushLiteralName(FuncNameInferrer* fni, const AstRawString* id) {
-    fni->PushLiteralName(id);
-  }
-
-  void PushPropertyName(FuncNameInferrer* fni, Expression* expression);
-
-  static void InferFunctionName(FuncNameInferrer* fni,
-                                FunctionLiteral* func_to_infer) {
-    fni->AddFunction(func_to_infer);
-  }
-
-  // If we assign a function literal to a property we pretenure the
-  // literal so it can be added as a constant function property.
-  static void CheckAssigningFunctionLiteralToProperty(Expression* left,
-                                                      Expression* right);
-
-  // Determine if the expression is a variable proxy and mark it as being used
-  // in an assignment or with a increment/decrement operator.
-  static Expression* MarkExpressionAsAssigned(Expression* expression);
-
-  // Returns true if we have a binary expression between two numeric
-  // literals. In that case, *x will be changed to an expression which is the
-  // computed value.
-  bool ShortcutNumericLiteralBinaryExpression(Expression** x, Expression* y,
-                                              Token::Value op, int pos,
-                                              AstNodeFactory* factory);
-
   // Rewrites the following types of unary expressions:
   // not <literal> -> true / false
   // + <numeric literal> -> <numeric literal>
@@ -892,6 +824,123 @@ class Parser : public ParserBase<Parser> {
                                           bool* ok);
   void SetFunctionName(Expression* value, const AstRawString* name);
 
+  // Helper functions for recursive descent.
+  V8_INLINE bool IsEval(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->eval_string();
+  }
+
+  V8_INLINE bool IsArguments(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->arguments_string();
+  }
+
+  V8_INLINE bool IsEvalOrArguments(const AstRawString* identifier) const {
+    return IsEval(identifier) || IsArguments(identifier);
+  }
+
+  V8_INLINE bool IsUndefined(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->undefined_string();
+  }
+
+  V8_INLINE bool IsFutureStrictReserved(const AstRawString* identifier) const {
+    return scanner()->IdentifierIsFutureStrictReserved(identifier);
+  }
+
+  // Returns true if the expression is of type "this.foo".
+  V8_INLINE static bool IsThisProperty(Expression* expression) {
+    DCHECK(expression != NULL);
+    Property* property = expression->AsProperty();
+    return property != NULL && property->obj()->IsVariableProxy() &&
+           property->obj()->AsVariableProxy()->is_this();
+  }
+
+  V8_INLINE static bool IsIdentifier(Expression* expression) {
+    VariableProxy* operand = expression->AsVariableProxy();
+    return operand != NULL && !operand->is_this();
+  }
+
+  V8_INLINE static const AstRawString* AsIdentifier(Expression* expression) {
+    DCHECK(IsIdentifier(expression));
+    return expression->AsVariableProxy()->raw_name();
+  }
+
+  V8_INLINE bool IsPrototype(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->prototype_string();
+  }
+
+  V8_INLINE bool IsConstructor(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->constructor_string();
+  }
+
+  V8_INLINE bool IsDirectEvalCall(Expression* expression) const {
+    if (!expression->IsCall()) return false;
+    expression = expression->AsCall()->expression();
+    return IsIdentifier(expression) && IsEval(AsIdentifier(expression));
+  }
+
+  V8_INLINE static bool IsBoilerplateProperty(
+      ObjectLiteral::Property* property) {
+    return ObjectLiteral::IsBoilerplateProperty(property);
+  }
+
+  V8_INLINE static bool IsArrayIndex(const AstRawString* string,
+                                     uint32_t* index) {
+    return string->AsArrayIndex(index);
+  }
+
+  V8_INLINE static Expression* GetPropertyValue(
+      ObjectLiteral::Property* property) {
+    return property->value();
+  }
+
+  // Functions for encapsulating the differences between parsing and preparsing;
+  // operations interleaved with the recursive descent.
+  V8_INLINE static void PushLiteralName(FuncNameInferrer* fni,
+                                        const AstRawString* id) {
+    fni->PushLiteralName(id);
+  }
+
+  V8_INLINE void PushPropertyName(FuncNameInferrer* fni,
+                                  Expression* expression) {
+    if (expression->IsPropertyName()) {
+      fni->PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
+    } else {
+      fni->PushLiteralName(ast_value_factory()->anonymous_function_string());
+    }
+  }
+
+  V8_INLINE static void InferFunctionName(FuncNameInferrer* fni,
+                                          FunctionLiteral* func_to_infer) {
+    fni->AddFunction(func_to_infer);
+  }
+
+  // If we assign a function literal to a property we pretenure the
+  // literal so it can be added as a constant function property.
+  V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
+      Expression* left, Expression* right) {
+    DCHECK(left != NULL);
+    if (left->IsProperty() && right->IsFunctionLiteral()) {
+      right->AsFunctionLiteral()->set_pretenure();
+    }
+  }
+
+  // Determine if the expression is a variable proxy and mark it as being used
+  // in an assignment or with a increment/decrement operator.
+  V8_INLINE static Expression* MarkExpressionAsAssigned(
+      Expression* expression) {
+    VariableProxy* proxy =
+        expression != NULL ? expression->AsVariableProxy() : NULL;
+    if (proxy != NULL) proxy->set_is_assigned();
+    return expression;
+  }
+
+  // Returns true if we have a binary expression between two numeric
+  // literals. In that case, *x will be changed to an expression which is the
+  // computed value.
+  bool ShortcutNumericLiteralBinaryExpression(Expression** x, Expression* y,
+                                              Token::Value op, int pos);
+
+  // Parser's private field members.
+
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
@@ -913,11 +962,6 @@ class Parser : public ParserBase<Parser> {
   void Print(AstNode* node);
 #endif  // DEBUG
 };
-
-bool ParserBaseTraits<Parser>::IsFutureStrictReserved(
-    const AstRawString* identifier) const {
-  return delegate()->scanner()->IdentifierIsFutureStrictReserved(identifier);
-}
 
 const AstRawString* ParserBaseTraits<Parser>::EmptyIdentifierString() const {
   return delegate()->ast_value_factory()->empty_string();
