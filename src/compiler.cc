@@ -1392,8 +1392,15 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 bool Compiler::EnsureBytecode(CompilationInfo* info) {
   DCHECK(ShouldUseIgnition(info));
   if (!info->shared_info()->HasBytecodeArray()) {
-    DCHECK(!info->shared_info()->is_compiled());
+    Handle<Code> original_code(info->shared_info()->code());
     if (GetUnoptimizedCode(info).is_null()) return false;
+    DCHECK(info->shared_info()->is_compiled());
+    if (original_code->kind() == Code::FUNCTION) {
+      // Generating bytecode will install the {InterpreterEntryTrampoline} as
+      // shared code on the function. To avoid an implicit tier down we restore
+      // original baseline code in case it existed beforehand.
+      info->shared_info()->ReplaceCode(*original_code);
+    }
   }
   DCHECK(info->shared_info()->HasBytecodeArray());
   return true;
