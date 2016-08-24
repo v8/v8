@@ -120,18 +120,17 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
       error, isolate->factory()->stack_trace_symbol());
   // Patch the stack trace (array of <receiver, function, code, position>).
   if (stack_trace_obj->IsJSArray()) {
-    Handle<FixedArray> stack_elements(
-        FixedArray::cast(JSArray::cast(*stack_trace_obj)->elements()));
-    DCHECK_EQ(1, stack_elements->length() % 4);
-    DCHECK(Code::cast(stack_elements->get(3))->kind() == Code::WASM_FUNCTION);
-    DCHECK(stack_elements->get(4)->IsSmi() &&
-           Smi::cast(stack_elements->get(4))->value() >= 0);
-    stack_elements->set(4, Smi::FromInt(-1 - byte_offset));
+    Handle<FrameArray> stack_elements(
+        FrameArray::cast(JSArray::cast(*stack_trace_obj)->elements()));
+    DCHECK(stack_elements->Code(0)->kind() == AbstractCode::WASM_FUNCTION);
+    DCHECK(stack_elements->Offset(0)->value() >= 0);
+    stack_elements->SetOffset(0, Smi::FromInt(-1 - byte_offset));
   }
-  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
-      error, isolate->factory()->detailed_stack_trace_symbol());
+
   // Patch the detailed stack trace (array of JSObjects with various
   // properties).
+  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
+      error, isolate->factory()->detailed_stack_trace_symbol());
   if (detailed_stack_trace_obj->IsJSArray()) {
     Handle<FixedArray> stack_elements(
         FixedArray::cast(JSArray::cast(*detailed_stack_trace_obj)->elements()));
