@@ -175,63 +175,6 @@ class ParserBaseTraits<Parser> {
     return reinterpret_cast<const Parser*>(this);
   }
 
-  // Rewrites the following types of unary expressions:
-  // not <literal> -> true / false
-  // + <numeric literal> -> <numeric literal>
-  // - <numeric literal> -> <numeric literal with value negated>
-  // ! <literal> -> true / false
-  // The following rewriting rules enable the collection of type feedback
-  // without any special stub and the multiplication is removed later in
-  // Crankshaft's canonicalization pass.
-  // + foo -> foo * 1
-  // - foo -> foo * (-1)
-  // ~ foo -> foo ^(~0)
-  Expression* BuildUnaryExpression(Expression* expression, Token::Value op,
-                                   int pos, AstNodeFactory* factory);
-
-  Expression* BuildIteratorResult(Expression* value, bool done);
-
-  // Generate AST node that throws a ReferenceError with the given type.
-  Expression* NewThrowReferenceError(MessageTemplate::Template message,
-                                     int pos);
-
-  // Generate AST node that throws a SyntaxError with the given
-  // type. The first argument may be null (in the handle sense) in
-  // which case no arguments are passed to the constructor.
-  Expression* NewThrowSyntaxError(MessageTemplate::Template message,
-                                  const AstRawString* arg, int pos);
-
-  // Generate AST node that throws a TypeError with the given
-  // type. Both arguments must be non-null (in the handle sense).
-  Expression* NewThrowTypeError(MessageTemplate::Template message,
-                                const AstRawString* arg, int pos);
-
-  // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate::Template message,
-                       const char* arg = NULL,
-                       ParseErrorType error_type = kSyntaxError);
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate::Template message,
-                       const AstRawString* arg,
-                       ParseErrorType error_type = kSyntaxError);
-
-  // "null" return type creators.
-  static const AstRawString* EmptyIdentifier() { return nullptr; }
-  static Expression* EmptyExpression() { return nullptr; }
-  static Literal* EmptyLiteral() { return nullptr; }
-  static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return nullptr; }
-  static FunctionLiteral* EmptyFunctionLiteral() { return nullptr; }
-
-  // Used in error return values.
-  static ZoneList<Expression*>* NullExpressionList() { return nullptr; }
-
-  // Non-NULL empty string.
-  V8_INLINE const AstRawString* EmptyIdentifierString() const;
-
-  // Odd-ball literal creators.
-  Literal* GetLiteralTheHole(int position, AstNodeFactory* factory) const;
-
   // Producing data during the recursive descent.
   const AstRawString* GetSymbol(Scanner* scanner) const;
   const AstRawString* GetNextSymbol(Scanner* scanner) const;
@@ -939,6 +882,101 @@ class Parser : public ParserBase<Parser> {
   bool ShortcutNumericLiteralBinaryExpression(Expression** x, Expression* y,
                                               Token::Value op, int pos);
 
+  // Rewrites the following types of unary expressions:
+  // not <literal> -> true / false
+  // + <numeric literal> -> <numeric literal>
+  // - <numeric literal> -> <numeric literal with value negated>
+  // ! <literal> -> true / false
+  // The following rewriting rules enable the collection of type feedback
+  // without any special stub and the multiplication is removed later in
+  // Crankshaft's canonicalization pass.
+  // + foo -> foo * 1
+  // - foo -> foo * (-1)
+  // ~ foo -> foo ^(~0)
+  Expression* BuildUnaryExpression(Expression* expression, Token::Value op,
+                                   int pos);
+
+  Expression* BuildIteratorResult(Expression* value, bool done);
+
+  // Generate AST node that throws a ReferenceError with the given type.
+  V8_INLINE Expression* NewThrowReferenceError(
+      MessageTemplate::Template message, int pos) {
+    return NewThrowError(Runtime::kNewReferenceError, message,
+                         ast_value_factory()->empty_string(), pos);
+  }
+
+  // Generate AST node that throws a SyntaxError with the given
+  // type. The first argument may be null (in the handle sense) in
+  // which case no arguments are passed to the constructor.
+  V8_INLINE Expression* NewThrowSyntaxError(MessageTemplate::Template message,
+                                            const AstRawString* arg, int pos) {
+    return NewThrowError(Runtime::kNewSyntaxError, message, arg, pos);
+  }
+
+  // Generate AST node that throws a TypeError with the given
+  // type. Both arguments must be non-null (in the handle sense).
+  V8_INLINE Expression* NewThrowTypeError(MessageTemplate::Template message,
+                                          const AstRawString* arg, int pos) {
+    return NewThrowError(Runtime::kNewTypeError, message, arg, pos);
+  }
+
+  // Reporting errors.
+  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
+                                 MessageTemplate::Template message,
+                                 const char* arg = NULL,
+                                 ParseErrorType error_type = kSyntaxError) {
+    if (stack_overflow()) {
+      // Suppress the error message (syntax error or such) in the presence of a
+      // stack overflow. The isolate allows only one pending exception at at
+      // time
+      // and we want to report the stack overflow later.
+      return;
+    }
+    pending_error_handler_.ReportMessageAt(source_location.beg_pos,
+                                           source_location.end_pos, message,
+                                           arg, error_type);
+  }
+
+  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
+                                 MessageTemplate::Template message,
+                                 const AstRawString* arg,
+                                 ParseErrorType error_type = kSyntaxError) {
+    if (stack_overflow()) {
+      // Suppress the error message (syntax error or such) in the presence of a
+      // stack overflow. The isolate allows only one pending exception at at
+      // time
+      // and we want to report the stack overflow later.
+      return;
+    }
+    pending_error_handler_.ReportMessageAt(source_location.beg_pos,
+                                           source_location.end_pos, message,
+                                           arg, error_type);
+  }
+
+  // "null" return type creators.
+  V8_INLINE static const AstRawString* EmptyIdentifier() { return nullptr; }
+  V8_INLINE static Expression* EmptyExpression() { return nullptr; }
+  V8_INLINE static Literal* EmptyLiteral() { return nullptr; }
+  V8_INLINE static ObjectLiteralProperty* EmptyObjectLiteralProperty() {
+    return nullptr;
+  }
+  V8_INLINE static FunctionLiteral* EmptyFunctionLiteral() { return nullptr; }
+
+  // Used in error return values.
+  V8_INLINE static ZoneList<Expression*>* NullExpressionList() {
+    return nullptr;
+  }
+
+  // Non-NULL empty string.
+  V8_INLINE const AstRawString* EmptyIdentifierString() const {
+    return ast_value_factory()->empty_string();
+  }
+
+  // Odd-ball literal creators.
+  V8_INLINE Literal* GetLiteralTheHole(int position) {
+    return factory()->NewTheHoleLiteral(kNoSourcePosition);
+  }
+
   // Parser's private field members.
 
   Scanner scanner_;
@@ -962,10 +1000,6 @@ class Parser : public ParserBase<Parser> {
   void Print(AstNode* node);
 #endif  // DEBUG
 };
-
-const AstRawString* ParserBaseTraits<Parser>::EmptyIdentifierString() const {
-  return delegate()->ast_value_factory()->empty_string();
-}
 
 
 // Support for handling complex values (array and object literals) that

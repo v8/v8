@@ -41,19 +41,6 @@ namespace internal {
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-void ParserBaseTraits<PreParser>::ReportMessageAt(
-    Scanner::Location source_location, MessageTemplate::Template message,
-    const char* arg, ParseErrorType error_type) {
-  delegate()->log_->LogMessage(source_location.beg_pos, source_location.end_pos,
-                               message, arg, error_type);
-}
-
-void ParserBaseTraits<PreParser>::ReportMessageAt(
-    Scanner::Location source_location, MessageTemplate::Template message,
-    const AstRawString* arg, ParseErrorType error_type) {
-  UNREACHABLE();
-}
-
 PreParserIdentifier ParserBaseTraits<PreParser>::GetSymbol(
     Scanner* scanner) const {
   switch (scanner->current_token()) {

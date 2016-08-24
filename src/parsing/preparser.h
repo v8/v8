@@ -624,74 +624,8 @@ class ParserBaseTraits<PreParser> {
     return reinterpret_cast<const PreParser*>(this);
   }
 
-  PreParserExpression BuildUnaryExpression(PreParserExpression expression,
-                                           Token::Value op, int pos,
-                                           PreParserFactory* factory) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression BuildIteratorResult(PreParserExpression value,
-                                          bool done) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression NewThrowReferenceError(MessageTemplate::Template message,
-                                             int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression NewThrowSyntaxError(MessageTemplate::Template message,
-                                          PreParserIdentifier arg, int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression NewThrowTypeError(MessageTemplate::Template message,
-                                        PreParserIdentifier arg, int pos) {
-    return PreParserExpression::Default();
-  }
-
-  // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate::Template message,
-                       const char* arg = NULL,
-                       ParseErrorType error_type = kSyntaxError);
-  void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate::Template message,
-                       const AstRawString* arg,
-                       ParseErrorType error_type = kSyntaxError);
-
   // A dummy function, just useful as an argument to CHECK_OK_CUSTOM.
   static void Void() {}
-
-  // "null" return type creators.
-  static PreParserIdentifier EmptyIdentifier() {
-    return PreParserIdentifier::Default();
-  }
-  static PreParserExpression EmptyExpression() {
-    return PreParserExpression::Default();
-  }
-  static PreParserExpression EmptyLiteral() {
-    return PreParserExpression::Default();
-  }
-  static PreParserExpression EmptyObjectLiteralProperty() {
-    return PreParserExpression::Default();
-  }
-  static PreParserExpression EmptyFunctionLiteral() {
-    return PreParserExpression::Default();
-  }
-
-  static PreParserExpressionList NullExpressionList() {
-    return PreParserExpressionList();
-  }
-  PreParserIdentifier EmptyIdentifierString() const {
-    return PreParserIdentifier::Default();
-  }
-
-  // Odd-ball literal creators.
-  PreParserExpression GetLiteralTheHole(int position,
-                                        PreParserFactory* factory) const {
-    return PreParserExpression::Default();
-  }
 
   // Producing data during the recursive descent.
   PreParserIdentifier GetSymbol(Scanner* scanner) const;
@@ -1139,6 +1073,76 @@ class PreParser : public ParserBase<PreParser> {
                                                         Token::Value op,
                                                         int pos) {
     return false;
+  }
+
+  V8_INLINE PreParserExpression BuildUnaryExpression(
+      PreParserExpression expression, Token::Value op, int pos) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserExpression BuildIteratorResult(PreParserExpression value,
+                                                    bool done) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserExpression
+  NewThrowReferenceError(MessageTemplate::Template message, int pos) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserExpression NewThrowSyntaxError(
+      MessageTemplate::Template message, PreParserIdentifier arg, int pos) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserExpression NewThrowTypeError(
+      MessageTemplate::Template message, PreParserIdentifier arg, int pos) {
+    return PreParserExpression::Default();
+  }
+
+  // Reporting errors.
+  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
+                                 MessageTemplate::Template message,
+                                 const char* arg = NULL,
+                                 ParseErrorType error_type = kSyntaxError) {
+    log_->LogMessage(source_location.beg_pos, source_location.end_pos, message,
+                     arg, error_type);
+  }
+
+  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
+                                 MessageTemplate::Template message,
+                                 const AstRawString* arg,
+                                 ParseErrorType error_type = kSyntaxError) {
+    UNREACHABLE();
+  }
+
+  // "null" return type creators.
+  V8_INLINE static PreParserIdentifier EmptyIdentifier() {
+    return PreParserIdentifier::Default();
+  }
+  V8_INLINE static PreParserExpression EmptyExpression() {
+    return PreParserExpression::Default();
+  }
+  V8_INLINE static PreParserExpression EmptyLiteral() {
+    return PreParserExpression::Default();
+  }
+  V8_INLINE static PreParserExpression EmptyObjectLiteralProperty() {
+    return PreParserExpression::Default();
+  }
+  V8_INLINE static PreParserExpression EmptyFunctionLiteral() {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE static PreParserExpressionList NullExpressionList() {
+    return PreParserExpressionList();
+  }
+  V8_INLINE PreParserIdentifier EmptyIdentifierString() const {
+    return PreParserIdentifier::Default();
+  }
+
+  // Odd-ball literal creators.
+  V8_INLINE PreParserExpression GetLiteralTheHole(int position) {
+    return PreParserExpression::Default();
   }
 
   // Preparser's private field members.

@@ -367,15 +367,15 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
   return false;
 }
 
-Expression* ParserBaseTraits<Parser>::BuildUnaryExpression(
-    Expression* expression, Token::Value op, int pos, AstNodeFactory* factory) {
+Expression* Parser::BuildUnaryExpression(Expression* expression,
+                                         Token::Value op, int pos) {
   DCHECK(expression != NULL);
   if (expression->IsLiteral()) {
     const AstValue* literal = expression->AsLiteral()->raw_value();
     if (op == Token::NOT) {
       // Convert the literal to a boolean condition and negate it.
       bool condition = literal->BooleanValue();
-      return factory->NewBooleanLiteral(!condition, pos);
+      return factory()->NewBooleanLiteral(!condition, pos);
     } else if (literal->IsNumber()) {
       // Compute some expressions involving only number literals.
       double value = literal->AsNumber();
@@ -384,9 +384,10 @@ Expression* ParserBaseTraits<Parser>::BuildUnaryExpression(
         case Token::ADD:
           return expression;
         case Token::SUB:
-          return factory->NewNumberLiteral(-value, pos, has_dot);
+          return factory()->NewNumberLiteral(-value, pos, has_dot);
         case Token::BIT_NOT:
-          return factory->NewNumberLiteral(~DoubleToInt32(value), pos, has_dot);
+          return factory()->NewNumberLiteral(~DoubleToInt32(value), pos,
+                                             has_dot);
         default:
           break;
       }
@@ -394,53 +395,33 @@ Expression* ParserBaseTraits<Parser>::BuildUnaryExpression(
   }
   // Desugar '+foo' => 'foo*1'
   if (op == Token::ADD) {
-    return factory->NewBinaryOperation(
-        Token::MUL, expression, factory->NewNumberLiteral(1, pos, true), pos);
+    return factory()->NewBinaryOperation(
+        Token::MUL, expression, factory()->NewNumberLiteral(1, pos, true), pos);
   }
   // The same idea for '-foo' => 'foo*(-1)'.
   if (op == Token::SUB) {
-    return factory->NewBinaryOperation(
-        Token::MUL, expression, factory->NewNumberLiteral(-1, pos), pos);
+    return factory()->NewBinaryOperation(
+        Token::MUL, expression, factory()->NewNumberLiteral(-1, pos), pos);
   }
   // ...and one more time for '~foo' => 'foo^(~0)'.
   if (op == Token::BIT_NOT) {
-    return factory->NewBinaryOperation(
-        Token::BIT_XOR, expression, factory->NewNumberLiteral(~0, pos), pos);
+    return factory()->NewBinaryOperation(
+        Token::BIT_XOR, expression, factory()->NewNumberLiteral(~0, pos), pos);
   }
-  return factory->NewUnaryOperation(op, expression, pos);
+  return factory()->NewUnaryOperation(op, expression, pos);
 }
 
-Expression* ParserBaseTraits<Parser>::BuildIteratorResult(Expression* value,
-                                                          bool done) {
+Expression* Parser::BuildIteratorResult(Expression* value, bool done) {
   int pos = kNoSourcePosition;
-  AstNodeFactory* factory = delegate()->factory();
-  Zone* zone = delegate()->zone();
 
-  if (value == nullptr) value = factory->NewUndefinedLiteral(pos);
+  if (value == nullptr) value = factory()->NewUndefinedLiteral(pos);
 
-  auto args = new (zone) ZoneList<Expression*>(2, zone);
-  args->Add(value, zone);
-  args->Add(factory->NewBooleanLiteral(done, pos), zone);
+  auto args = new (zone()) ZoneList<Expression*>(2, zone());
+  args->Add(value, zone());
+  args->Add(factory()->NewBooleanLiteral(done, pos), zone());
 
-  return factory->NewCallRuntime(Runtime::kInlineCreateIterResultObject, args,
-                                 pos);
-}
-
-Expression* ParserBaseTraits<Parser>::NewThrowReferenceError(
-    MessageTemplate::Template message, int pos) {
-  return delegate()->NewThrowError(
-      Runtime::kNewReferenceError, message,
-      delegate()->ast_value_factory()->empty_string(), pos);
-}
-
-Expression* ParserBaseTraits<Parser>::NewThrowSyntaxError(
-    MessageTemplate::Template message, const AstRawString* arg, int pos) {
-  return delegate()->NewThrowError(Runtime::kNewSyntaxError, message, arg, pos);
-}
-
-Expression* ParserBaseTraits<Parser>::NewThrowTypeError(
-    MessageTemplate::Template message, const AstRawString* arg, int pos) {
-  return delegate()->NewThrowError(Runtime::kNewTypeError, message, arg, pos);
+  return factory()->NewCallRuntime(Runtime::kInlineCreateIterResultObject, args,
+                                   pos);
 }
 
 Expression* Parser::NewThrowError(Runtime::FunctionId id,
@@ -451,34 +432,6 @@ Expression* Parser::NewThrowError(Runtime::FunctionId id,
   args->Add(factory()->NewStringLiteral(arg, pos), zone());
   CallRuntime* call_constructor = factory()->NewCallRuntime(id, args, pos);
   return factory()->NewThrow(call_constructor, pos);
-}
-
-void ParserBaseTraits<Parser>::ReportMessageAt(
-    Scanner::Location source_location, MessageTemplate::Template message,
-    const char* arg, ParseErrorType error_type) {
-  if (delegate()->stack_overflow()) {
-    // Suppress the error message (syntax error or such) in the presence of a
-    // stack overflow. The isolate allows only one pending exception at at time
-    // and we want to report the stack overflow later.
-    return;
-  }
-  delegate()->pending_error_handler_.ReportMessageAt(source_location.beg_pos,
-                                                     source_location.end_pos,
-                                                     message, arg, error_type);
-}
-
-void ParserBaseTraits<Parser>::ReportMessageAt(
-    Scanner::Location source_location, MessageTemplate::Template message,
-    const AstRawString* arg, ParseErrorType error_type) {
-  if (delegate()->stack_overflow()) {
-    // Suppress the error message (syntax error or such) in the presence of a
-    // stack overflow. The isolate allows only one pending exception at at time
-    // and we want to report the stack overflow later.
-    return;
-  }
-  delegate()->pending_error_handler_.ReportMessageAt(source_location.beg_pos,
-                                                     source_location.end_pos,
-                                                     message, arg, error_type);
 }
 
 const AstRawString* ParserBaseTraits<Parser>::GetSymbol(
@@ -604,11 +557,6 @@ Expression* ParserBaseTraits<Parser>::GetIterator(Expression* iterable,
   Zone* zone = delegate()->zone();
   ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(0, zone);
   return factory->NewCall(prop, args, pos);
-}
-
-Literal* ParserBaseTraits<Parser>::GetLiteralTheHole(
-    int position, AstNodeFactory* factory) const {
-  return factory->NewTheHoleLiteral(kNoSourcePosition);
 }
 
 void Parser::MarkTailPosition(Expression* expression) {
@@ -3967,7 +3915,8 @@ void ParserBaseTraits<Parser>::ParseArrowFunctionFormalParameterList(
   scope_snapshot.Reparent(parameters->scope);
 
   if (parameters->Arity() > Code::kMaxArguments) {
-    ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
+    delegate()->ReportMessageAt(params_loc,
+                                MessageTemplate::kMalformedArrowFunParamList);
     *ok = false;
     return;
   }
