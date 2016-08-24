@@ -44,8 +44,8 @@ function listener(event, exec_state, event_data, data) {
       assertTrue(event_data.uncaught());
       assertTrue(event_data.promise() instanceof Promise);
       if (expected_events == 1) {
-        // p1 is rejected, uncaught except for its default reject handler.
-        assertEquals(0, exec_state.frameCount());
+        // p1 is rejected, uncaught, with the error from the Promise.reject line
+        assertNotNull(event_data.sourceLineText().match("Promise.reject"));
         assertSame(p1, event_data.promise());
       } else {
         // p2 is rejected by p1's default reject handler.

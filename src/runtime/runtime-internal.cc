@@ -272,6 +272,23 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
       isolate, NewTypeError(MessageTemplate::kApplyNonFunction, object, type));
 }
 
+namespace {
+
+void PromiseRejectEvent(Isolate* isolate, Handle<JSObject> promise,
+                        Handle<JSObject> rejected_promise, Handle<Object> value,
+                        bool debug_event) {
+  if (isolate->debug()->is_active() && debug_event) {
+    isolate->debug()->OnPromiseReject(rejected_promise, value);
+  }
+  Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
+  // Do not report if we actually have a handler.
+  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate)) {
+    isolate->ReportPromiseReject(promise, value,
+                                 v8::kPromiseRejectWithNoHandler);
+  }
+}
+
+}  // namespace
 
 RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
   DCHECK(args.length() == 3);
@@ -279,16 +296,27 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   CONVERT_BOOLEAN_ARG_CHECKED(debug_event, 2);
-  if (debug_event) isolate->debug()->OnPromiseReject(promise, value);
-  Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
-  // Do not report if we actually have a handler.
-  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate)) {
-    isolate->ReportPromiseReject(promise, value,
-                                 v8::kPromiseRejectWithNoHandler);
-  }
+
+  PromiseRejectEvent(isolate, promise, promise, value, debug_event);
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
+  DCHECK(args.length() == 2);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+
+  Handle<JSObject> rejected_promise = promise;
+  if (isolate->debug()->is_active()) {
+    Handle<Object> promise_on_stack = isolate->GetPromiseOnStackOnThrow();
+    if (promise_on_stack->IsJSObject()) {
+      rejected_promise = Handle<JSObject>::cast(promise_on_stack);
+    }
+  }
+  PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   DCHECK(args.length() == 1);
