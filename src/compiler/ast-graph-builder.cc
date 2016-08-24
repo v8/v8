@@ -573,7 +573,7 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   BuildArgumentsObject(scope->arguments());
 
   // Build rest arguments array if it is used.
-  int rest_index;
+  int rest_index = 0;
   Variable* rest_parameter = scope->rest_parameter(&rest_index);
   BuildRestArgumentsArray(rest_parameter, rest_index);
 
