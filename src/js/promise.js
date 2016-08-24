@@ -216,8 +216,8 @@ function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
   }
 }
 
-function PromiseIdResolveHandler(x) { return x }
-function PromiseIdRejectHandler(r) { throw r }
+function PromiseIdResolveHandler(x) { return x; }
+function PromiseIdRejectHandler(r) { %_ReThrow(r); }
 
 function PromiseNopResolver() {}
 
