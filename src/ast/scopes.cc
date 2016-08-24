@@ -217,7 +217,6 @@ void Scope::SetDefaults() {
   inner_scope_ = nullptr;
   sibling_ = nullptr;
   unresolved_ = nullptr;
-  dynamics_ = nullptr;
 
   start_position_ = kNoSourcePosition;
   end_position_ = kNoSourcePosition;
@@ -1077,14 +1076,16 @@ static void PrintVar(int indent, Variable* var) {
   }
 }
 
-
-static void PrintMap(int indent, VariableMap* map) {
-  for (VariableMap::Entry* p = map->Start(); p != NULL; p = map->Next(p)) {
+static void PrintMap(int indent, VariableMap* map, bool locals) {
+  for (VariableMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
-    if (var == NULL) {
-      Indent(indent, "<?>\n");
-    } else {
-      PrintVar(indent, var);
+    bool local = !IsDynamicVariableMode(var->mode());
+    if (locals ? local : !local) {
+      if (var == nullptr) {
+        Indent(indent, "<?>\n");
+      } else {
+        PrintVar(indent, var);
+      }
     }
   }
 }
@@ -1173,14 +1174,10 @@ void Scope::Print(int n) {
 
   if (variables_.Start() != NULL) {
     Indent(n1, "// local vars:\n");
-    PrintMap(n1, &variables_);
-  }
+    PrintMap(n1, &variables_, true);
 
-  if (dynamics_ != NULL) {
     Indent(n1, "// dynamic vars:\n");
-    PrintMap(n1, dynamics_->GetMap(DYNAMIC));
-    PrintMap(n1, dynamics_->GetMap(DYNAMIC_LOCAL));
-    PrintMap(n1, dynamics_->GetMap(DYNAMIC_GLOBAL));
+    PrintMap(n1, &variables_, false);
   }
 
   // Print inner scopes (disable by providing negative n).
@@ -1215,17 +1212,12 @@ void Scope::CheckZones() {
 #endif  // DEBUG
 
 Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
-  if (dynamics_ == NULL) dynamics_ = new (zone()) DynamicScopePart(zone());
-  VariableMap* map = dynamics_->GetMap(mode);
-  Variable* var = map->Lookup(name);
-  if (var == NULL) {
-    // Declare a new non-local.
-    DCHECK(!IsLexicalVariableMode(mode));
-    var = map->Declare(zone(), NULL, name, mode, Variable::NORMAL,
-                       kCreatedInitialized);
-    // Allocate it by giving it a dynamic lookup.
-    var->AllocateTo(VariableLocation::LOOKUP, -1);
-  }
+  // Declare a new non-local.
+  DCHECK(IsDynamicVariableMode(mode));
+  Variable* var = variables_.Declare(zone(), NULL, name, mode, Variable::NORMAL,
+                                     kCreatedInitialized);
+  // Allocate it by giving it a dynamic lookup.
+  var->AllocateTo(VariableLocation::LOOKUP, -1);
   return var;
 }
 

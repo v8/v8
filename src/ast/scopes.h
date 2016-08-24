@@ -30,28 +30,6 @@ class VariableMap: public ZoneHashMap {
 };
 
 
-// The dynamic scope part holds hash maps for the variables that will
-// be looked up dynamically from within eval and with scopes. The objects
-// are allocated on-demand from Scope::NonLocal to avoid wasting memory
-// and setup time for scopes that don't need them.
-class DynamicScopePart : public ZoneObject {
- public:
-  explicit DynamicScopePart(Zone* zone) {
-    for (int i = 0; i < 3; i++)
-      maps_[i] = new(zone->New(sizeof(VariableMap))) VariableMap(zone);
-  }
-
-  VariableMap* GetMap(VariableMode mode) {
-    int index = mode - DYNAMIC;
-    DCHECK(index >= 0 && index < 3);
-    return maps_[index];
-  }
-
- private:
-  VariableMap *maps_[3];
-};
-
-
 // Sloppy block-scoped function declarations to var-bind
 class SloppyBlockFunctionMap : public ZoneHashMap {
  public:
@@ -474,8 +452,6 @@ class Scope: public ZoneObject {
   // map above in order of addition.
   // TODO(verwaest): Thread through Variable.
   ZoneList<Variable*> ordered_variables_;
-  // Variables that must be looked up dynamically.
-  DynamicScopePart* dynamics_;
   // Unresolved variables referred to from this scope. The proxies themselves
   // form a linked list of all unresolved proxies.
   VariableProxy* unresolved_;
