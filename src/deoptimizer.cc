@@ -434,19 +434,9 @@ void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
 
-
-bool Deoptimizer::TraceEnabledFor(BailoutType deopt_type,
-                                  StackFrame::Type frame_type) {
-  switch (deopt_type) {
-    case EAGER:
-    case SOFT:
-    case LAZY:
-      return (frame_type == StackFrame::STUB)
-          ? FLAG_trace_stub_failures
-          : FLAG_trace_deopt;
-  }
-  FATAL("Unsupported deopt type");
-  return false;
+bool Deoptimizer::TraceEnabledFor(StackFrame::Type frame_type) {
+  return (frame_type == StackFrame::STUB) ? FLAG_trace_stub_failures
+                                          : FLAG_trace_deopt;
 }
 
 
@@ -516,8 +506,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   StackFrame::Type frame_type = function == NULL
       ? StackFrame::STUB
       : StackFrame::JAVA_SCRIPT;
-  trace_scope_ = TraceEnabledFor(type, frame_type) ?
-      new CodeTracer::Scope(isolate->GetCodeTracer()) : NULL;
+  trace_scope_ = TraceEnabledFor(frame_type)
+                     ? new CodeTracer::Scope(isolate->GetCodeTracer())
+                     : NULL;
 #ifdef DEBUG
   CHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
@@ -535,18 +526,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
 }
 
 Code* Deoptimizer::FindOptimizedCode(JSFunction* function) {
-  switch (bailout_type_) {
-    case Deoptimizer::SOFT:
-    case Deoptimizer::EAGER:
-    case Deoptimizer::LAZY: {
-      Code* compiled_code = FindDeoptimizingCode(from_);
-      return (compiled_code == NULL)
-          ? static_cast<Code*>(isolate_->FindCodeObject(from_))
-          : compiled_code;
-    }
-  }
-  FATAL("Could not find code for optimized function");
-  return NULL;
+  Code* compiled_code = FindDeoptimizingCode(from_);
+  return (compiled_code == NULL)
+             ? static_cast<Code*>(isolate_->FindCodeObject(from_))
+             : compiled_code;
 }
 
 
