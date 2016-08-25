@@ -1039,6 +1039,8 @@
         'objects.h',
         'ostreams.cc',
         'ostreams.h',
+        'parsing/duplicate-finder.cc',
+        'parsing/duplicate-finder.h',
         'parsing/expression-classifier.h',
         'parsing/func-name-inferrer.cc',
         'parsing/func-name-inferrer.h',

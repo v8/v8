@@ -10,6 +10,7 @@
 #include "src/conversions.h"
 #include "src/globals.h"
 #include "src/list.h"
+#include "src/parsing/duplicate-finder.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"

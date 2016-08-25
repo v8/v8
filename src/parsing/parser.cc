@@ -15,6 +15,7 @@
 #include "src/base/platform/platform.h"
 #include "src/char-predicates-inl.h"
 #include "src/messages.h"
+#include "src/parsing/duplicate-finder.h"
 #include "src/parsing/parameter-initializer-rewriter.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"

@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class DuplicateFinder;
+
 #define ERROR_CODES(T)                       \
   T(ExpressionProduction, 0)                 \
   T(FormalParameterInitializerProduction, 1) \
