@@ -22,7 +22,8 @@ InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
-    SourcePositionMode source_position_mode, Features features)
+    SourcePositionMode source_position_mode, Features features,
+    EnableScheduling enable_scheduling)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -38,6 +39,7 @@ InstructionSelector::InstructionSelector(
       virtual_registers_(node_count,
                          InstructionOperand::kInvalidVirtualRegister, zone),
       scheduler_(nullptr),
+      enable_scheduling_(enable_scheduling),
       frame_(frame) {
   instructions_.reserve(node_count);
 }
@@ -65,8 +67,7 @@ void InstructionSelector::SelectInstructions() {
   }
 
   // Schedule the selected instructions.
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     scheduler_ = new (zone()) InstructionScheduler(zone(), sequence());
   }
 
@@ -88,8 +89,7 @@ void InstructionSelector::SelectInstructions() {
 }
 
 void InstructionSelector::StartBlock(RpoNumber rpo) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->StartBlock(rpo);
   } else {
@@ -99,8 +99,7 @@ void InstructionSelector::StartBlock(RpoNumber rpo) {
 
 
 void InstructionSelector::EndBlock(RpoNumber rpo) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->EndBlock(rpo);
   } else {
@@ -110,8 +109,7 @@ void InstructionSelector::EndBlock(RpoNumber rpo) {
 
 
 void InstructionSelector::AddInstruction(Instruction* instr) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->AddInstruction(instr);
   } else {

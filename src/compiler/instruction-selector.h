@@ -48,13 +48,17 @@ class InstructionSelector final {
   class Features;
 
   enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
+  enum EnableScheduling { kDisableScheduling, kEnableScheduling };
 
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       SourcePositionMode source_position_mode = kCallSourcePositions,
-      Features features = SupportedFeatures());
+      Features features = SupportedFeatures(),
+      EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
+                                               ? kEnableScheduling
+                                               : kDisableScheduling);
 
   // Visit code for the entire graph with the included schedule.
   void SelectInstructions();
@@ -199,6 +203,11 @@ class InstructionSelector final {
  private:
   friend class OperandGenerator;
 
+  bool UseInstructionScheduling() const {
+    return (enable_scheduling_ == kEnableScheduling) &&
+           InstructionScheduler::SchedulerSupported();
+  }
+
   void EmitTableSwitch(const SwitchInfo& sw, InstructionOperand& index_operand);
   void EmitLookupSwitch(const SwitchInfo& sw,
                         InstructionOperand& value_operand);
@@ -333,6 +342,7 @@ class InstructionSelector final {
   IntVector effect_level_;
   IntVector virtual_registers_;
   InstructionScheduler* scheduler_;
+  EnableScheduling enable_scheduling_;
   Frame* frame_;
 };
 
