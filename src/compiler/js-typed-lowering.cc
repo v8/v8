@@ -1542,16 +1542,18 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
   Node* argc_node = jsgraph->Int32Constant(argc);
 
-  node->InsertInput(zone, arity + 2, argc_node);
-  node->InsertInput(zone, arity + 3, target);
-  node->InsertInput(zone, arity + 4, new_target);
+  static const int kStubAndReceiver = 2;
+  int cursor = arity + kStubAndReceiver;
+  node->InsertInput(zone, cursor++, argc_node);
+  node->InsertInput(zone, cursor++, target);
+  node->InsertInput(zone, cursor++, new_target);
 
   Address entry = Builtins::CppEntryOf(builtin_index);
   ExternalReference entry_ref(ExternalReference(entry, isolate));
   Node* entry_node = jsgraph->ExternalConstant(entry_ref);
 
-  node->InsertInput(zone, arity + 5, entry_node);
-  node->InsertInput(zone, arity + 6, argc_node);
+  node->InsertInput(zone, cursor++, entry_node);
+  node->InsertInput(zone, cursor++, argc_node);
 
   static const int kReturnCount = 1;
   const char* debug_name = Builtins::name(builtin_index);
@@ -1560,6 +1562,12 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
       zone, kReturnCount, argc, debug_name, properties, flags);
 
   NodeProperties::ChangeOp(node, jsgraph->common()->Call(desc));
+}
+
+bool NeedsArgumentAdaptorFrame(Handle<SharedFunctionInfo> shared, int arity) {
+  static const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+  const int num_decl_parms = shared->internal_formal_parameter_count();
+  return (num_decl_parms != arity && num_decl_parms != sentinel);
 }
 
 }  // namespace
@@ -1587,9 +1595,7 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
     if (is_builtin && Builtins::HasCppImplementation(builtin_index) &&
-        (shared->internal_formal_parameter_count() == arity ||
-         shared->internal_formal_parameter_count() ==
-             SharedFunctionInfo::kDontAdaptArgumentsSentinel)) {
+        !NeedsArgumentAdaptorFrame(shared, arity)) {
       // Patch {node} to a direct CEntryStub call.
 
       // Load the context from the {target}.
@@ -1701,22 +1707,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
 
     Node* new_target = jsgraph()->UndefinedConstant();
     Node* argument_count = jsgraph()->Int32Constant(arity);
-    if (is_builtin && Builtins::HasCppImplementation(builtin_index) &&
-        (shared->internal_formal_parameter_count() == arity ||
-         shared->internal_formal_parameter_count() ==
-             SharedFunctionInfo::kDontAdaptArgumentsSentinel)) {
-      // Patch {node} to a direct CEntryStub call.
-      ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
-    } else if (shared->internal_formal_parameter_count() == arity ||
-               shared->internal_formal_parameter_count() ==
-                   SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
-      // Patch {node} to a direct call.
-      node->InsertInput(graph()->zone(), arity + 2, new_target);
-      node->InsertInput(graph()->zone(), arity + 3, argument_count);
-      NodeProperties::ChangeOp(node,
-                               common()->Call(Linkage::GetJSCallDescriptor(
-                                   graph()->zone(), false, 1 + arity, flags)));
-    } else {
+    if (NeedsArgumentAdaptorFrame(shared, arity)) {
       // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
       Callable callable = CodeFactory::ArgumentAdaptor(isolate());
       node->InsertInput(graph()->zone(), 0,
@@ -1730,6 +1721,16 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
           node, common()->Call(Linkage::GetStubCallDescriptor(
                     isolate(), graph()->zone(), callable.descriptor(),
                     1 + arity, flags)));
+    } else if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
+      // Patch {node} to a direct CEntryStub call.
+      ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
+    } else {
+      // Patch {node} to a direct call.
+      node->InsertInput(graph()->zone(), arity + 2, new_target);
+      node->InsertInput(graph()->zone(), arity + 3, argument_count);
+      NodeProperties::ChangeOp(node,
+                               common()->Call(Linkage::GetJSCallDescriptor(
+                                   graph()->zone(), false, 1 + arity, flags)));
     }
     return Changed(node);
   }
