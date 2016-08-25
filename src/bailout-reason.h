@@ -267,9 +267,7 @@ namespace internal {
   V(kWrongArgumentCountForInvokeIntrinsic,                                     \
     "Wrong number of arguments for intrinsic")                                 \
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
-    "Should not directly enter OSR-compiled function")                         \
-  V(kConversionFromImpossibleValue,                                            \
-    "Reached conversion from value with empty type (i.e., impossible type)")
+    "Should not directly enter OSR-compiled function")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
 enum BailoutReason {

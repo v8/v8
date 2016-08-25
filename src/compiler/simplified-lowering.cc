@@ -311,6 +311,9 @@ class RepresentationSelector {
       bool updated = UpdateFeedbackType(node);
       TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
       VisitNode(node, info->truncation(), nullptr);
+      TRACE("  ==> output ");
+      PrintOutputInfo(info);
+      TRACE("\n");
       if (updated) {
         for (Node* const user : node->uses()) {
           if (GetInfo(user)->visited()) {
@@ -330,6 +333,9 @@ class RepresentationSelector {
       bool updated = UpdateFeedbackType(node);
       TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
       VisitNode(node, info->truncation(), nullptr);
+      TRACE("  ==> output ");
+      PrintOutputInfo(info);
+      TRACE("\n");
       if (updated) {
         for (Node* const user : node->uses()) {
           if (GetInfo(user)->visited()) {
@@ -534,9 +540,6 @@ class RepresentationSelector {
       TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
             info->truncation().description());
       VisitNode(node, info->truncation(), nullptr);
-      TRACE("  ==> output ");
-      PrintOutputInfo(info);
-      TRACE("\n");
     }
   }
 
@@ -986,8 +989,11 @@ class RepresentationSelector {
       for (int i = 0; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
         NodeInfo* input_info = GetInfo(input);
-        MachineType machine_type(input_info->representation(),
-                                 DeoptValueSemanticOf(TypeOf(input)));
+        Type* input_type = TypeOf(input);
+        MachineRepresentation rep = input_type->IsInhabited()
+                                        ? input_info->representation()
+                                        : MachineRepresentation::kNone;
+        MachineType machine_type(rep, DeoptValueSemanticOf(input_type));
         DCHECK(machine_type.representation() !=
                    MachineRepresentation::kWord32 ||
                machine_type.semantic() == MachineSemantic::kInt32 ||
