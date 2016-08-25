@@ -27,6 +27,8 @@ class VariableMap: public ZoneHashMap {
                     bool* added = nullptr);
 
   Variable* Lookup(const AstRawString* name);
+  void Remove(Variable* var);
+  void Add(Zone* zone, Variable* var);
 };
 
 
@@ -84,7 +86,8 @@ class Scope: public ZoneObject {
     Scope* outer_scope_;
     Scope* top_inner_scope_;
     VariableProxy* top_unresolved_;
-    int top_temp_;
+    int top_local_;
+    int top_decl_;
   };
 
   // Compute top scope and allocate variables. For lazy compilation the top
@@ -437,7 +440,7 @@ class Scope: public ZoneObject {
     Variable* var =
         variables_.Declare(zone, scope, name, mode, kind, initialization_flag,
                            maybe_assigned_flag, &added);
-    if (added) ordered_variables_.Add(var, zone);
+    if (added) locals_.Add(var, zone);
     return var;
   }
   Zone* zone_;
@@ -456,7 +459,7 @@ class Scope: public ZoneObject {
   // In case of non-scopeinfo-backed scopes, this contains the variables of the
   // map above in order of addition.
   // TODO(verwaest): Thread through Variable.
-  ZoneList<Variable*> ordered_variables_;
+  ZoneList<Variable*> locals_;
   // Unresolved variables referred to from this scope. The proxies themselves
   // form a linked list of all unresolved proxies.
   VariableProxy* unresolved_;
@@ -729,17 +732,15 @@ class DeclarationScope : public Scope {
     return this_function_;
   }
 
-  // Adds a temporary variable in this scope's TemporaryScope. This is for
-  // adjusting the scope of temporaries used when desugaring parameter
+  // Adds a local variable in this scope's locals list. This is for adjusting
+  // the scope of temporaries and do-expression vars when desugaring parameter
   // initializers.
-  void AddTemporary(Variable* var) {
+  void AddLocal(Variable* var) {
     DCHECK(!already_resolved_);
     // Temporaries are only placed in ClosureScopes.
     DCHECK_EQ(GetClosureScope(), this);
-    temps_.Add(var, zone());
+    locals_.Add(var, zone());
   }
-
-  ZoneList<Variable*>* temps() { return &temps_; }
 
   void DeclareSloppyBlockFunction(const AstRawString* name,
                                   SloppyBlockFunctionStatement* statement) {
@@ -817,8 +818,6 @@ class DeclarationScope : public Scope {
 
   // Info about the parameter list of a function.
   int arity_;
-  // Compiler-allocated (user-invisible) temporaries.
-  ZoneList<Variable*> temps_;
   // Parameter list in source order.
   ZoneList<Variable*> params_;
   // Map of function names to lists of functions defined in sloppy blocks
