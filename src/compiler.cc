@@ -66,7 +66,7 @@ PARSE_INFO_GETTER(Handle<SharedFunctionInfo>, shared_info)
 // A wrapper around a CompilationInfo that detaches the Handles from
 // the underlying DeferredHandleScope and stores them in info_ on
 // destruction.
-class CompilationHandleScope BASE_EMBEDDED {
+class CompilationHandleScope final {
  public:
   explicit CompilationHandleScope(CompilationInfo* info)
       : deferred_(info->isolate()), info_(info) {}
@@ -698,9 +698,6 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 
-  // All handles below this point will be canonicalized.
-  CanonicalHandleScope canonical(isolate);
-
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
@@ -708,10 +705,6 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   }
 
   JSFunction::EnsureLiterals(info->closure());
-
-  // Reopen handles in the new CompilationHandleScope.
-  info->ReopenHandlesInNewHandleScope();
-  info->parse_info()->ReopenHandlesInNewHandleScope();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
@@ -760,12 +753,6 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
     return false;
   }
 
-  // All handles below this point will be canonicalized and allocated in a
-  // deferred handle scope that is detached and handed off to the background
-  // thread when we return.
-  CompilationHandleScope handle_scope(info);
-  CanonicalHandleScope canonical(isolate);
-
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
@@ -773,10 +760,6 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   }
 
   JSFunction::EnsureLiterals(info->closure());
-
-  // Reopen handles in the new CompilationHandleScope.
-  info->ReopenHandlesInNewHandleScope();
-  info->parse_info()->ReopenHandlesInNewHandleScope();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
   RuntimeCallTimerScope runtimeTimer(info->isolate(),
@@ -878,6 +861,22 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     parse_info->set_allow_lazy_parsing(false);
     parse_info->set_lazy(false);
   }
+
+  // In case of concurrent recompilation, all handles below this point will be
+  // allocated in a deferred handle scope that is detached and handed off to
+  // the background thread when we return.
+  std::unique_ptr<CompilationHandleScope> compilation;
+  if (mode == Compiler::CONCURRENT) {
+    compilation.reset(new CompilationHandleScope(info));
+  }
+
+  // In case of TurboFan, all handles below will be canonicalized.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (use_turbofan) canonical.reset(new CanonicalHandleScope(info->isolate()));
+
+  // Reopen handles in the new CompilationHandleScope.
+  info->ReopenHandlesInNewHandleScope();
+  parse_info->ReopenHandlesInNewHandleScope();
 
   if (mode == Compiler::CONCURRENT) {
     if (GetOptimizedCodeLater(job.get())) {
