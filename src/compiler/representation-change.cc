@@ -204,10 +204,10 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   }
   // Select the correct X -> Tagged operator.
   const Operator* op;
-  if (!output_type->IsInhabited()) {
-    // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->TheHoleConstant();
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only asisgn this representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToTagged();
   } else if (output_rep == MachineRepresentation::kBit) {
     if (output_type->Is(Type::Boolean())) {
       op = simplified()->ChangeBitToTagged();
@@ -283,10 +283,10 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
   }
   // Select the correct X -> Float32 operator.
   const Operator* op = nullptr;
-  if (!output_type->IsInhabited()) {
-    // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Float32Constant(0.0f);
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToFloat32();
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed32())) {
       // int32 -> float64 -> float32
@@ -352,10 +352,10 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
   }
   // Select the correct X -> Float64 operator.
   const Operator* op = nullptr;
-  if (!output_type->IsInhabited()) {
-    // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Float64Constant(0.0);
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToFloat64();
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeInt32ToFloat64();
@@ -435,10 +435,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
 
   // Select the correct X -> Word32 operator.
   const Operator* op = nullptr;
-  if (!output_type->IsInhabited()) {
-    // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Int32Constant(0);
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToWord32();
   } else if (output_rep == MachineRepresentation::kBit) {
     return node;  // Sloppy comparison -> word32
   } else if (output_rep == MachineRepresentation::kFloat64) {
@@ -551,10 +551,10 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   }
   // Select the correct X -> Bit operator.
   const Operator* op;
-  if (!output_type->IsInhabited()) {
-    // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Int32Constant(0);
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToBit();
   } else if (output_rep == MachineRepresentation::kTagged) {
     op = simplified()->ChangeTaggedToBit();
   } else {
@@ -566,10 +566,10 @@ Node* RepresentationChanger::GetBitRepresentationFor(
 
 Node* RepresentationChanger::GetWord64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type) {
-  if (!output_type->IsInhabited()) {
-    // This is an impossible value; it should not be used at runtime.
-    // We just provide a dummy value here.
-    return jsgraph()->Int64Constant(0);
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    return jsgraph()->graph()->NewNode(machine()->ImpossibleToFloat64(), node);
   } else if (output_rep == MachineRepresentation::kBit) {
     return node;  // Sloppy comparison -> word64
   }

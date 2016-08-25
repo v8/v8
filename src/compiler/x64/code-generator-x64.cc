@@ -866,6 +866,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDebugBreak:
       __ int3();
       break;
+    case kArchImpossible:
+      __ Abort(kConversionFromImpossibleValue);
+      break;
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.

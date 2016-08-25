@@ -493,9 +493,9 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
 
 TEST(SingleChanges) {
   CheckChange(IrOpcode::kChangeTaggedToBit, MachineRepresentation::kTagged,
-              Type::Boolean(), MachineRepresentation::kBit);
+              Type::None(), MachineRepresentation::kBit);
   CheckChange(IrOpcode::kChangeBitToTagged, MachineRepresentation::kBit,
-              Type::Boolean(), MachineRepresentation::kTagged);
+              Type::None(), MachineRepresentation::kTagged);
 
   CheckChange(IrOpcode::kChangeInt31ToTaggedSigned,
               MachineRepresentation::kWord32, Type::Signed31(),
@@ -546,7 +546,7 @@ TEST(SingleChanges) {
               Type::Unsigned32(), MachineRepresentation::kWord32);
 
   CheckChange(IrOpcode::kTruncateFloat64ToFloat32,
-              MachineRepresentation::kFloat64, Type::Number(),
+              MachineRepresentation::kFloat64, Type::None(),
               MachineRepresentation::kFloat32);
 
   // Int32,Uint32 <-> Float32 require two changes.
@@ -570,11 +570,11 @@ TEST(SingleChanges) {
   // Float32 <-> Tagged require two changes.
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
                   IrOpcode::kChangeFloat64ToTagged,
-                  MachineRepresentation::kFloat32, Type::Number(),
+                  MachineRepresentation::kFloat32, Type::None(),
                   MachineRepresentation::kTagged);
   CheckTwoChanges(IrOpcode::kChangeTaggedToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32,
-                  MachineRepresentation::kTagged, Type::Number(),
+                  MachineRepresentation::kTagged, Type::None(),
                   MachineRepresentation::kFloat32);
 }
 
@@ -587,7 +587,7 @@ TEST(SignednessInWord32) {
   CheckChange(IrOpcode::kChangeTaggedToUint32, MachineRepresentation::kTagged,
               Type::Unsigned32(), MachineRepresentation::kWord32);
   CheckChange(IrOpcode::kChangeInt32ToFloat64, MachineRepresentation::kWord32,
-              Type::Signed32(), MachineRepresentation::kFloat64);
+              Type::None(), MachineRepresentation::kFloat64);
   CheckChange(IrOpcode::kChangeFloat64ToInt32, MachineRepresentation::kFloat64,
               Type::Signed32(), MachineRepresentation::kWord32);
   CheckChange(IrOpcode::kTruncateFloat64ToWord32,
@@ -600,7 +600,7 @@ TEST(SignednessInWord32) {
 
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32,
-                  MachineRepresentation::kWord32, Type::Signed32(),
+                  MachineRepresentation::kWord32, Type::None(),
                   MachineRepresentation::kFloat32);
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
                   IrOpcode::kTruncateFloat64ToWord32,
@@ -614,11 +614,13 @@ TEST(Nops) {
 
   // X -> X is always a nop for any single representation X.
   for (size_t i = 0; i < arraysize(kMachineTypes); i++) {
-    r.CheckNop(kMachineTypes[i].representation(), Type::Number(),
+    r.CheckNop(kMachineTypes[i].representation(), Type::None(),
                kMachineTypes[i].representation());
   }
 
   // 32-bit floats.
+  r.CheckNop(MachineRepresentation::kFloat32, Type::None(),
+             MachineRepresentation::kFloat32);
   r.CheckNop(MachineRepresentation::kFloat32, Type::Number(),
              MachineRepresentation::kFloat32);
 
@@ -637,6 +639,14 @@ TEST(Nops) {
              MachineRepresentation::kWord32);
 
   // kRepBit (result of comparison) is implicitly a wordish thing.
+  r.CheckNop(MachineRepresentation::kBit, Type::None(),
+             MachineRepresentation::kWord8);
+  r.CheckNop(MachineRepresentation::kBit, Type::None(),
+             MachineRepresentation::kWord16);
+  r.CheckNop(MachineRepresentation::kBit, Type::None(),
+             MachineRepresentation::kWord32);
+  r.CheckNop(MachineRepresentation::kBit, Type::None(),
+             MachineRepresentation::kWord64);
   r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
              MachineRepresentation::kWord8);
   r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
@@ -652,39 +662,39 @@ TEST(TypeErrors) {
   RepresentationChangerTester r;
 
   // Wordish cannot be implicitly converted to/from comparison conditions.
-  r.CheckTypeError(MachineRepresentation::kWord8, Type::Number(),
+  r.CheckTypeError(MachineRepresentation::kWord8, Type::None(),
                    MachineRepresentation::kBit);
-  r.CheckTypeError(MachineRepresentation::kWord16, Type::Number(),
+  r.CheckTypeError(MachineRepresentation::kWord16, Type::None(),
                    MachineRepresentation::kBit);
-  r.CheckTypeError(MachineRepresentation::kWord32, Type::Number(),
+  r.CheckTypeError(MachineRepresentation::kWord32, Type::None(),
                    MachineRepresentation::kBit);
-  r.CheckTypeError(MachineRepresentation::kWord64, Type::Number(),
-                   MachineRepresentation::kBit);
-
-  // Floats cannot be implicitly converted to/from comparison conditions.
-  r.CheckTypeError(MachineRepresentation::kFloat64, Type::Number(),
+  r.CheckTypeError(MachineRepresentation::kWord64, Type::None(),
                    MachineRepresentation::kBit);
 
   // Floats cannot be implicitly converted to/from comparison conditions.
-  r.CheckTypeError(MachineRepresentation::kFloat32, Type::Number(),
+  r.CheckTypeError(MachineRepresentation::kFloat64, Type::None(),
                    MachineRepresentation::kBit);
-  r.CheckTypeError(MachineRepresentation::kBit, Type::Number(),
+
+  // Floats cannot be implicitly converted to/from comparison conditions.
+  r.CheckTypeError(MachineRepresentation::kFloat32, Type::None(),
+                   MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kBit, Type::None(),
                    MachineRepresentation::kFloat32);
   r.CheckTypeError(MachineRepresentation::kBit, Type::Boolean(),
                    MachineRepresentation::kFloat32);
 
   // Word64 is internal and shouldn't be implicitly converted.
-  r.CheckTypeError(MachineRepresentation::kWord64, Type::Internal(),
+  r.CheckTypeError(MachineRepresentation::kWord64, Type::None(),
                    MachineRepresentation::kTagged);
-  r.CheckTypeError(MachineRepresentation::kTagged, Type::Number(),
+  r.CheckTypeError(MachineRepresentation::kTagged, Type::None(),
                    MachineRepresentation::kWord64);
   r.CheckTypeError(MachineRepresentation::kTagged, Type::Boolean(),
                    MachineRepresentation::kWord64);
 
   // Word64 / Word32 shouldn't be implicitly converted.
-  r.CheckTypeError(MachineRepresentation::kWord64, Type::Internal(),
+  r.CheckTypeError(MachineRepresentation::kWord64, Type::None(),
                    MachineRepresentation::kWord32);
-  r.CheckTypeError(MachineRepresentation::kWord32, Type::Number(),
+  r.CheckTypeError(MachineRepresentation::kWord32, Type::None(),
                    MachineRepresentation::kWord64);
   r.CheckTypeError(MachineRepresentation::kWord32, Type::Signed32(),
                    MachineRepresentation::kWord64);
