@@ -617,6 +617,21 @@ void MemoryChunk::Unlink() {
   set_next_chunk(NULL);
 }
 
+void MemoryAllocator::ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink) {
+  DCHECK_GE(bytes_to_shrink, static_cast<size_t>(base::OS::CommitPageSize()));
+  DCHECK_EQ(0, bytes_to_shrink % base::OS::CommitPageSize());
+  Address free_start = chunk->area_end_ - bytes_to_shrink;
+  // Don't adjust the size of the page. The area is just uncomitted but not
+  // released.
+  chunk->area_end_ -= bytes_to_shrink;
+  UncommitBlock(free_start, bytes_to_shrink);
+  if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    if (chunk->reservation_.IsReserved())
+      chunk->reservation_.Guard(chunk->area_end_);
+    else
+      base::OS::Guard(chunk->area_end_, base::OS::CommitPageSize());
+  }
+}
 
 MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
                                             intptr_t commit_area_size,
@@ -762,6 +777,47 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
 void Page::ResetFreeListStatistics() {
   wasted_memory_ = 0;
   available_in_free_list_ = 0;
+}
+
+size_t Page::ShrinkToHighWaterMark() {
+  // Shrink pages to high water mark. The water mark points either to a filler
+  // or the area_end.
+  HeapObject* filler = HeapObject::FromAddress(HighWaterMark());
+  if (filler->address() == area_end()) return 0;
+  CHECK(filler->IsFiller());
+  if (!filler->IsFreeSpace()) return 0;
+
+#ifdef DEBUG
+  // Check the the filler is indeed the last filler on the page.
+  HeapObjectIterator it(this);
+  HeapObject* filler2 = nullptr;
+  for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+    filler2 = HeapObject::FromAddress(obj->address() + obj->Size());
+  }
+  if (filler2 == nullptr || filler2->address() == area_end()) return 0;
+  DCHECK(filler2->IsFiller());
+  DCHECK_EQ(filler->address(), filler2->address());
+#endif  // DEBUG
+
+  size_t unused = RoundDown(
+      static_cast<size_t>(area_end() - filler->address() - FreeSpace::kSize),
+      base::OS::CommitPageSize());
+  if (unused > 0) {
+    if (FLAG_trace_gc_verbose) {
+      PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
+                   reinterpret_cast<void*>(this),
+                   reinterpret_cast<void*>(area_end()),
+                   reinterpret_cast<void*>(area_end() - unused));
+    }
+    heap()->CreateFillerObjectAt(
+        filler->address(),
+        static_cast<int>(area_end() - filler->address() - unused),
+        ClearRecordedSlots::kNo);
+    heap()->memory_allocator()->ShrinkChunk(this, unused);
+    CHECK(filler->IsFiller());
+    CHECK_EQ(filler->address() + filler->Size(), area_end());
+  }
+  return unused;
 }
 
 void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
@@ -1235,17 +1291,25 @@ Object* PagedSpace::FindObject(Address addr) {
   return Smi::FromInt(0);
 }
 
-bool PagedSpace::Expand() {
-  int size = AreaSize();
-  if (snapshotable() && !HasPages()) {
-    size = Snapshot::SizeOfFirstPage(heap()->isolate(), identity());
+void PagedSpace::ShrinkImmortalImmovablePages() {
+  DCHECK(!heap()->deserialization_complete());
+  MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  EmptyAllocationInfo();
+  ResetFreeList();
+
+  for (Page* page : *this) {
+    DCHECK(page->IsFlagSet(Page::NEVER_EVACUATE));
+    size_t unused = page->ShrinkToHighWaterMark();
+    accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
+    AccountUncommitted(unused);
   }
+}
 
+bool PagedSpace::Expand() {
+  const int size = AreaSize();
   if (!heap()->CanExpandOldGeneration(size)) return false;
-
   Page* p = heap()->memory_allocator()->AllocatePage(size, this, executable());
   if (p == nullptr) return false;
-
   AccountCommitted(static_cast<intptr_t>(p->size()));
 
   // Pages created during bootstrapping may contain immortal immovable objects.
@@ -1336,7 +1400,6 @@ void PagedSpace::IncreaseCapacity(size_t bytes) {
 
 void PagedSpace::ReleasePage(Page* page) {
   DCHECK_EQ(page->LiveBytes(), 0);
-  DCHECK_EQ(AreaSize(), page->area_size());
   DCHECK_EQ(page->owner(), this);
 
   free_list_.EvictFreeListItems(page);
@@ -1355,10 +1418,8 @@ void PagedSpace::ReleasePage(Page* page) {
   }
 
   AccountUncommitted(static_cast<intptr_t>(page->size()));
+  accounting_stats_.ShrinkSpace(page->area_size());
   heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
-
-  DCHECK(Capacity() > 0);
-  accounting_stats_.ShrinkSpace(AreaSize());
 }
 
 #ifdef DEBUG
