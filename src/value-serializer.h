@@ -123,6 +123,13 @@ class ValueDeserializer {
   Maybe<bool> ReadHeader() WARN_UNUSED_RESULT;
 
   /*
+   * Reads the underlying wire format version. Likely mostly to be useful to
+   * legacy code reading old wire format versions. Must be called after
+   * ReadHeader.
+   */
+  uint32_t GetWireFormatVersion() const { return version_; }
+
+  /*
    * Deserializes a V8 object from the buffer.
    */
   MaybeHandle<Object> ReadObject() WARN_UNUSED_RESULT;

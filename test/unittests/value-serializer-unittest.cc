@@ -47,19 +47,13 @@ class ValueSerializerTest : public TestWithIsolate {
   }
 
   Maybe<std::vector<uint8_t>> DoEncode(Local<Value> value) {
-    // This approximates what the API implementation would do.
-    // TODO(jbroman): Use the public API once it exists.
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::HandleScope handle_scope(internal_isolate);
-    i::ValueSerializer serializer(internal_isolate);
+    Local<Context> context = serialization_context();
+    ValueSerializer serializer(isolate());
     serializer.WriteHeader();
-    if (serializer.WriteObject(Utils::OpenHandle(*value)).FromMaybe(false)) {
-      return Just(serializer.ReleaseBuffer());
+    if (!serializer.WriteValue(context, value).FromMaybe(false)) {
+      return Nothing<std::vector<uint8_t>>();
     }
-    if (internal_isolate->has_pending_exception()) {
-      internal_isolate->OptionalRescheduleException(true);
-    }
-    return Nothing<std::vector<uint8_t>>();
+    return Just(serializer.ReleaseBuffer());
   }
 
   template <typename InputFunctor, typename EncodedDataFunctor>
@@ -90,24 +84,21 @@ class ValueSerializerTest : public TestWithIsolate {
   template <typename OutputFunctor>
   void DecodeTest(const std::vector<uint8_t>& data,
                   const OutputFunctor& output_functor) {
-    Context::Scope scope(deserialization_context());
+    Local<Context> context = deserialization_context();
+    Context::Scope scope(context);
     TryCatch try_catch(isolate());
-    // TODO(jbroman): Use the public API once it exists.
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::HandleScope handle_scope(internal_isolate);
-    i::ValueDeserializer deserializer(
-        internal_isolate,
-        i::Vector<const uint8_t>(&data[0], static_cast<int>(data.size())));
+    ValueDeserializer deserializer(isolate(), &data[0],
+                                   static_cast<int>(data.size()));
+    deserializer.SetSupportsLegacyWireFormat(true);
     ASSERT_TRUE(deserializer.ReadHeader().FromMaybe(false));
     Local<Value> result;
-    ASSERT_TRUE(ToLocal<Value>(deserializer.ReadObject(), &result));
+    ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&result));
     ASSERT_FALSE(result.IsEmpty());
     ASSERT_FALSE(try_catch.HasCaught());
-    ASSERT_TRUE(deserialization_context()
-                    ->Global()
-                    ->CreateDataProperty(deserialization_context_,
-                                         StringFromUtf8("result"), result)
-                    .FromMaybe(false));
+    ASSERT_TRUE(
+        context->Global()
+            ->CreateDataProperty(context, StringFromUtf8("result"), result)
+            .FromMaybe(false));
     output_functor(result);
     ASSERT_FALSE(try_catch.HasCaught());
   }
@@ -115,43 +106,37 @@ class ValueSerializerTest : public TestWithIsolate {
   template <typename OutputFunctor>
   void DecodeTestForVersion0(const std::vector<uint8_t>& data,
                              const OutputFunctor& output_functor) {
-    Context::Scope scope(deserialization_context());
+    Local<Context> context = deserialization_context();
+    Context::Scope scope(context);
     TryCatch try_catch(isolate());
-    // TODO(jbroman): Use the public API once it exists.
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::HandleScope handle_scope(internal_isolate);
-    i::ValueDeserializer deserializer(
-        internal_isolate,
-        i::Vector<const uint8_t>(&data[0], static_cast<int>(data.size())));
-    // TODO(jbroman): Enable legacy support.
+    ValueDeserializer deserializer(isolate(), &data[0],
+                                   static_cast<int>(data.size()));
+    deserializer.SetSupportsLegacyWireFormat(true);
     ASSERT_TRUE(deserializer.ReadHeader().FromMaybe(false));
-    // TODO(jbroman): Check version 0.
+    ASSERT_EQ(0, deserializer.GetWireFormatVersion());
     Local<Value> result;
-    ASSERT_TRUE(ToLocal<Value>(
-        deserializer.ReadObjectUsingEntireBufferForLegacyFormat(), &result));
+    ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&result));
     ASSERT_FALSE(result.IsEmpty());
     ASSERT_FALSE(try_catch.HasCaught());
-    ASSERT_TRUE(deserialization_context()
-                    ->Global()
-                    ->CreateDataProperty(deserialization_context_,
-                                         StringFromUtf8("result"), result)
-                    .FromMaybe(false));
+    ASSERT_TRUE(
+        context->Global()
+            ->CreateDataProperty(context, StringFromUtf8("result"), result)
+            .FromMaybe(false));
     output_functor(result);
     ASSERT_FALSE(try_catch.HasCaught());
   }
 
   void InvalidDecodeTest(const std::vector<uint8_t>& data) {
-    Context::Scope scope(deserialization_context());
+    Local<Context> context = deserialization_context();
+    Context::Scope scope(context);
     TryCatch try_catch(isolate());
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::HandleScope handle_scope(internal_isolate);
-    i::ValueDeserializer deserializer(
-        internal_isolate,
-        i::Vector<const uint8_t>(&data[0], static_cast<int>(data.size())));
+    ValueDeserializer deserializer(isolate(), &data[0],
+                                   static_cast<int>(data.size()));
+    deserializer.SetSupportsLegacyWireFormat(true);
     Maybe<bool> header_result = deserializer.ReadHeader();
     if (header_result.IsNothing()) return;
     ASSERT_TRUE(header_result.ToChecked());
-    ASSERT_TRUE(deserializer.ReadObject().is_null());
+    ASSERT_TRUE(deserializer.ReadValue(context).IsEmpty());
   }
 
   Local<Value> EvaluateScriptForInput(const char* utf8_source) {
