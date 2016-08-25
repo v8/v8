@@ -1300,6 +1300,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lea(esp, Operand(esp, 2 * kDoubleSize));
       break;
     }
+    case kX87Float32Max: {
+      Label compare_swap, done_compare;
+      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+        __ VerifyX87StackDepth(1);
+      }
+      __ fstp(0);
+      __ fld_s(MemOperand(esp, kFloatSize));
+      __ fld_s(MemOperand(esp, 0));
+      __ fld(1);
+      __ fld(1);
+      __ FCmp();
+
+      auto ool =
+          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(below, &done_compare, Label::kNear);
+      __ j(above, &compare_swap, Label::kNear);
+      __ push(eax);
+      __ lea(esp, Operand(esp, -kFloatSize));
+      __ fld(1);
+      __ fstp_s(Operand(esp, 0));
+      __ mov(eax, MemOperand(esp, 0));
+      __ and_(eax, Immediate(0x80000000));
+      __ lea(esp, Operand(esp, kFloatSize));
+      __ pop(eax);
+      __ j(zero, &done_compare, Label::kNear);
+
+      __ bind(&compare_swap);
+      __ bind(ool->exit());
+      __ fxch(1);
+
+      __ bind(&done_compare);
+      __ fstp(0);
+      __ lea(esp, Operand(esp, 2 * kFloatSize));
+      break;
+    }
     case kX87Float64Max: {
       Label compare_swap, done_compare;
       if (FLAG_debug_code && FLAG_enable_slow_asserts) {
@@ -1334,6 +1370,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&done_compare);
       __ fstp(0);
       __ lea(esp, Operand(esp, 2 * kDoubleSize));
+      break;
+    }
+    case kX87Float32Min: {
+      Label compare_swap, done_compare;
+      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+        __ VerifyX87StackDepth(1);
+      }
+      __ fstp(0);
+      __ fld_s(MemOperand(esp, kFloatSize));
+      __ fld_s(MemOperand(esp, 0));
+      __ fld(1);
+      __ fld(1);
+      __ FCmp();
+
+      auto ool =
+          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(above, &done_compare, Label::kNear);
+      __ j(below, &compare_swap, Label::kNear);
+      __ push(eax);
+      __ lea(esp, Operand(esp, -kFloatSize));
+      __ fld(0);
+      __ fstp_s(Operand(esp, 0));
+      __ mov(eax, MemOperand(esp, 0));
+      __ and_(eax, Immediate(0x80000000));
+      __ lea(esp, Operand(esp, kFloatSize));
+      __ pop(eax);
+      __ j(zero, &done_compare, Label::kNear);
+
+      __ bind(&compare_swap);
+      __ bind(ool->exit());
+      __ fxch(1);
+
+      __ bind(&done_compare);
+      __ fstp(0);
+      __ lea(esp, Operand(esp, 2 * kFloatSize));
       break;
     }
     case kX87Float64Min: {
