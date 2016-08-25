@@ -658,6 +658,9 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 
+  // All handles below this point will be canonicalized.
+  CanonicalHandleScope canonical(isolate);
+
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
@@ -665,6 +668,10 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   }
 
   JSFunction::EnsureLiterals(info->closure());
+
+  // Reopen handles in the new CompilationHandleScope.
+  info->ReopenHandlesInNewHandleScope();
+  info->parse_info()->ReopenHandlesInNewHandleScope();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
@@ -713,9 +720,11 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
     return false;
   }
 
-  // All handles below this point will be allocated in a deferred handle scope
-  // that is detached and handed off to the background thread when we return.
+  // All handles below this point will be canonicalized and allocated in a
+  // deferred handle scope that is detached and handed off to the background
+  // thread when we return.
   CompilationHandleScope handle_scope(info);
+  CanonicalHandleScope canonical(isolate);
 
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
@@ -808,7 +817,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
-  CanonicalHandleScope canonical(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
   TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
