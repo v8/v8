@@ -686,12 +686,9 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
 }
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
-  // Create an inner HandleScope to avoid unnecessarily canonicalizing handles
-  // created as part of bytecode finalization.
-  HandleScope scope(isolate);
   AllocateDeferredConstants();
   if (HasStackOverflow()) return Handle<BytecodeArray>();
-  return scope.CloseAndEscape(builder()->ToBytecodeArray(isolate));
+  return builder()->ToBytecodeArray(isolate);
 }
 
 void BytecodeGenerator::AllocateDeferredConstants() {
