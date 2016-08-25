@@ -683,7 +683,6 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       loop_depth_(0),
       home_object_symbol_(info->isolate()->factory()->home_object_symbol()),
       prototype_string_(info->isolate()->factory()->prototype_string()) {
-  InitializeAstVisitor(info->isolate()->stack_guard()->real_climit());
 }
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
@@ -726,10 +725,12 @@ void BytecodeGenerator::AllocateDeferredConstants() {
   }
 }
 
-void BytecodeGenerator::GenerateBytecode() {
+void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
+
+  InitializeAstVisitor(stack_limit);
 
   // Initialize the incoming context.
   ContextScope incoming_context(this, scope(), false);

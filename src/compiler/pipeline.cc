@@ -562,7 +562,7 @@ class PipelineCompilationJob final : public CompilationJob {
   PipelineCompilationJob(Isolate* isolate, Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(&info_, "TurboFan"),
+      : CompilationJob(isolate, &info_, "TurboFan"),
         zone_(isolate->allocator()),
         zone_pool_(isolate->allocator()),
         parse_info_(&zone_, function),
@@ -660,7 +660,8 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   explicit PipelineWasmCompilationJob(CompilationInfo* info, Graph* graph,
                                       CallDescriptor* descriptor,
                                       SourcePositionTable* source_positions)
-      : CompilationJob(info, "TurboFan", State::kReadyToExecute),
+      : CompilationJob(info->isolate(), info, "TurboFan",
+                       State::kReadyToExecute),
         zone_pool_(info->isolate()->allocator()),
         data_(&zone_pool_, info, graph, source_positions),
         pipeline_(&data_),

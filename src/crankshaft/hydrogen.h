@@ -35,7 +35,7 @@ class Scope;
 class HCompilationJob final : public CompilationJob {
  public:
   explicit HCompilationJob(Handle<JSFunction> function)
-      : CompilationJob(&info_, "Crankshaft"),
+      : CompilationJob(function->GetIsolate(), &info_, "Crankshaft"),
         zone_(function->GetIsolate()->allocator()),
         parse_info_(&zone_, function),
         info_(&parse_info_, function),

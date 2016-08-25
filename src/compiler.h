@@ -57,8 +57,12 @@ class Compiler : public AllStatic {
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
+  // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
+  static CompilationJob* PrepareUnoptimizedCompilationJob(
+      CompilationInfo* info);
+
   // Generate and install code from previously queued compilation job.
-  static void FinalizeCompilationJob(CompilationJob* job);
+  static bool FinalizeCompilationJob(CompilationJob* job);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -557,15 +561,20 @@ class CompilationJob {
     kFailed,
   };
 
-  explicit CompilationJob(CompilationInfo* info, const char* compiler_name,
-                          State initial_state = State::kReadyToPrepare)
-      : info_(info), compiler_name_(compiler_name), state_(initial_state) {}
+  CompilationJob(Isolate* isolate, CompilationInfo* info,
+                 const char* compiler_name,
+                 State initial_state = State::kReadyToPrepare)
+      : info_(info),
+        compiler_name_(compiler_name),
+        state_(initial_state),
+        stack_limit_(isolate->stack_guard()->real_climit()) {}
   virtual ~CompilationJob() {}
 
   // Prepare the compile job. Must be called on the main thread.
   MUST_USE_RESULT Status PrepareJob();
 
-  // Executes the compile job. Can be called off the main thread.
+  // Executes the compile job. Can be called on a background thread if
+  // can_execute_on_background_thread() returns true.
   MUST_USE_RESULT Status ExecuteJob();
 
   // Finalizes the compile job. Must be called on the main thread.
@@ -589,7 +598,13 @@ class CompilationJob {
     return FAILED;
   }
 
-  void RecordOptimizationStats();
+  void RecordOptimizedCompilationStats() const;
+  void RecordUnoptimizedCompilationStats() const;
+
+  virtual bool can_execute_on_background_thread() const { return true; }
+
+  void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
+  uintptr_t stack_limit() const { return stack_limit_; }
 
   State state() const { return state_; }
   CompilationInfo* info() const { return info_; }
@@ -612,6 +627,7 @@ class CompilationJob {
   base::TimeDelta time_taken_to_finalize_;
   const char* compiler_name_;
   State state_;
+  uintptr_t stack_limit_;
 
   MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
     if (status == SUCCEEDED) {

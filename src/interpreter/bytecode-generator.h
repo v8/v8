@@ -24,7 +24,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
   explicit BytecodeGenerator(CompilationInfo* info);
 
-  void GenerateBytecode();
+  void GenerateBytecode(uintptr_t stack_limit);
   Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate);
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);

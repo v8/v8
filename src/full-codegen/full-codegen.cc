@@ -25,7 +25,31 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
-bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
+class FullCodegenCompilationJob final : public CompilationJob {
+ public:
+  explicit FullCodegenCompilationJob(CompilationInfo* info)
+      : CompilationJob(info->isolate(), info, "Full-Codegen") {}
+
+  bool can_execute_on_background_thread() const override { return false; }
+
+  CompilationJob::Status PrepareJobImpl() final { return SUCCEEDED; }
+
+  CompilationJob::Status ExecuteJobImpl() final {
+    DCHECK(ThreadId::Current().Equals(isolate()->thread_id()));
+    return FullCodeGenerator::MakeCode(info(), stack_limit()) ? SUCCEEDED
+                                                              : FAILED;
+  }
+
+  CompilationJob::Status FinalizeJobImpl() final { return SUCCEEDED; }
+};
+
+// static
+CompilationJob* FullCodeGenerator::NewCompilationJob(CompilationInfo* info) {
+  return new FullCodegenCompilationJob(info);
+}
+
+// static
+bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
   Isolate* isolate = info->isolate();
 
   DCHECK(!FLAG_minimal);
@@ -47,7 +71,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
                       CodeObjectRequired::kYes);
   if (info->will_serialize()) masm.enable_serializer();
 
-  FullCodeGenerator cgen(&masm, info);
+  FullCodeGenerator cgen(&masm, info, stack_limit);
   cgen.Generate();
   if (cgen.HasStackOverflow()) {
     DCHECK(!isolate->has_pending_exception());
@@ -157,9 +181,8 @@ bool FullCodeGenerator::MustCreateArrayLiteralWithRuntime(
          expr->values()->length() > JSArray::kInitialMaxFastElementArray;
 }
 
-
-void FullCodeGenerator::Initialize() {
-  InitializeAstVisitor(info_->isolate());
+void FullCodeGenerator::Initialize(uintptr_t stack_limit) {
+  InitializeAstVisitor(stack_limit);
   masm_->set_emit_debug_code(FLAG_debug_code);
   masm_->set_predictable_code_size(true);
 }

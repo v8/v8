@@ -22,6 +22,7 @@ namespace internal {
 class Isolate;
 class Callable;
 class CompilationInfo;
+class CompilationJob;
 
 namespace compiler {
 class Node;
@@ -42,8 +43,8 @@ class Interpreter {
   // Returns the interrupt budget which should be used for the profiler counter.
   static int InterruptBudget();
 
-  // Generate bytecode for |info|.
-  static bool MakeBytecode(CompilationInfo* info);
+  // Creates a compilation job which will generate bytecode for |info|.
+  static CompilationJob* NewCompilationJob(CompilationInfo* info);
 
   // Return bytecode handler for |bytecode|.
   Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);

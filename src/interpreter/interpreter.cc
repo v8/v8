@@ -150,14 +150,40 @@ int Interpreter::InterruptBudget() {
 }
 
 InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info)
-    : CompilationJob(info, "Ignition"), generator_(info) {}
+    : CompilationJob(info->isolate(), info, "Ignition"), generator_(info) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
+  if (FLAG_print_bytecode || FLAG_print_ast) {
+    OFStream os(stdout);
+    std::unique_ptr<char[]> name = info()->GetDebugName();
+    os << "[generating bytecode for function: " << info()->GetDebugName().get()
+       << "]" << std::endl
+       << std::flush;
+  }
+
+#ifdef DEBUG
+  if (info()->parse_info() && FLAG_print_ast) {
+    OFStream os(stdout);
+    os << "--- AST ---" << std::endl
+       << AstPrinter(info()->isolate()).PrintProgram(info()->literal())
+       << std::endl
+       << std::flush;
+  }
+#endif  // DEBUG
+
   return SUCCEEDED;
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
-  generator()->GenerateBytecode();
+  // TODO(5203): These timers aren't thread safe, move to using the CompilerJob
+  // timers.
+  RuntimeCallTimerScope runtimeTimer(info()->isolate(),
+                                     &RuntimeCallStats::CompileIgnition);
+  TimerEventScope<TimerEventCompileIgnition> timer(info()->isolate());
+  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
+      info()->isolate(), &tracing::TraceEventStatsTable::CompileIgnition);
+
+  generator()->GenerateBytecode(stack_limit());
 
   if (generator()->HasStackOverflow()) {
     return FAILED;
@@ -182,34 +208,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
   return SUCCEEDED;
 }
 
-bool Interpreter::MakeBytecode(CompilationInfo* info) {
-  RuntimeCallTimerScope runtimeTimer(info->isolate(),
-                                     &RuntimeCallStats::CompileIgnition);
-  TimerEventScope<TimerEventCompileIgnition> timer(info->isolate());
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      info->isolate(), &tracing::TraceEventStatsTable::CompileIgnition);
-
-  if (FLAG_print_bytecode || FLAG_print_ast) {
-    OFStream os(stdout);
-    std::unique_ptr<char[]> name = info->GetDebugName();
-    os << "[generating bytecode for function: " << info->GetDebugName().get()
-       << "]" << std::endl
-       << std::flush;
-  }
-
-#ifdef DEBUG
-  if (info->parse_info() && FLAG_print_ast) {
-    OFStream os(stdout);
-    os << "--- AST ---" << std::endl
-       << AstPrinter(info->isolate()).PrintProgram(info->literal()) << std::endl
-       << std::flush;
-  }
-#endif  // DEBUG
-
-  InterpreterCompilationJob job(info);
-  if (job.PrepareJob() != CompilationJob::SUCCEEDED) return false;
-  if (job.ExecuteJob() != CompilationJob::SUCCEEDED) return false;
-  return job.FinalizeJob() == CompilationJob::SUCCEEDED;
+CompilationJob* Interpreter::NewCompilationJob(CompilationInfo* info) {
+  return new InterpreterCompilationJob(info);
 }
 
 bool Interpreter::IsDispatchTableInitialized() {

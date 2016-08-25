@@ -29,7 +29,8 @@ class JumpPatchSite;
 
 class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
  public:
-  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
+  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info,
+                    uintptr_t stack_limit)
       : masm_(masm),
         info_(info),
         isolate_(info->isolate()),
@@ -50,12 +51,17 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
                                        info->SourcePositionRecordingMode()),
         ic_total_count_(0) {
     DCHECK(!info->IsStub());
-    Initialize();
+    Initialize(stack_limit);
   }
 
-  void Initialize();
+  void Initialize(uintptr_t stack_limit);
 
-  static bool MakeCode(CompilationInfo* info);
+  static CompilationJob* NewCompilationJob(CompilationInfo* info);
+
+  static bool MakeCode(CompilationInfo* info, uintptr_t stack_limit);
+  static bool MakeCode(CompilationInfo* info) {
+    return MakeCode(info, info->isolate()->stack_guard()->real_climit());
+  }
 
   // Encode bailout state and pc-offset as a BitField<type, start, size>.
   // Only use 30 bits because we encode the result as a smi.
