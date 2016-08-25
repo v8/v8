@@ -18,7 +18,6 @@
 namespace v8 {
 namespace internal {
 
-
 class PreParserIdentifier {
  public:
   PreParserIdentifier() : type_(kUnknownIdentifier) {}
@@ -588,15 +587,16 @@ class PreParser;
 template <>
 class ParserBaseTraits<PreParser> {
  public:
-  typedef ParserBaseTraits<PreParser> PreParserTraits;
-
   struct Type {
+    typedef ParserBase<PreParser> Base;
+    typedef PreParser Impl;
+
     // PreParser doesn't need to store generator variables.
     typedef void GeneratorVariable;
 
     typedef int AstProperties;
 
-    typedef v8::internal::ExpressionClassifier<PreParserTraits>
+    typedef v8::internal::ExpressionClassifier<ParserBaseTraits<PreParser>>
         ExpressionClassifier;
 
     // Return types for traversing functions.
@@ -616,66 +616,6 @@ class ParserBaseTraits<PreParser> {
     // For constructing objects returned by the traversing functions.
     typedef PreParserFactory Factory;
   };
-
-  // TODO(nikolaos): The traits methods should not need to call methods
-  // of the implementation object.
-  PreParser* delegate() { return reinterpret_cast<PreParser*>(this); }
-  const PreParser* delegate() const {
-    return reinterpret_cast<const PreParser*>(this);
-  }
-
-  // A dummy function, just useful as an argument to CHECK_OK_CUSTOM.
-  static void Void() {}
-
-  void AddParameterInitializationBlock(
-      const PreParserFormalParameters& parameters, PreParserStatementList body,
-      bool is_async, bool* ok) {}
-
-  void AddFormalParameter(PreParserFormalParameters* parameters,
-                          PreParserExpression pattern,
-                          PreParserExpression initializer,
-                          int initializer_end_position, bool is_rest) {
-    ++parameters->arity;
-  }
-
-  void DeclareFormalParameter(DeclarationScope* scope,
-                              PreParserIdentifier parameter,
-                              Type::ExpressionClassifier* classifier) {
-    if (!classifier->is_simple_parameter_list()) {
-      scope->SetHasNonSimpleParameters();
-    }
-  }
-
-  V8_INLINE void ParseArrowFunctionFormalParameterList(
-      PreParserFormalParameters* parameters, PreParserExpression params,
-      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-      const Scope::Snapshot& scope_snapshot, bool* ok);
-
-  void ReindexLiterals(const PreParserFormalParameters& parameters) {}
-
-  V8_INLINE PreParserExpression NoTemplateTag() {
-    return PreParserExpression::NoTemplateTag();
-  }
-  V8_INLINE static bool IsTaggedTemplate(const PreParserExpression tag) {
-    return !tag.IsNoTemplateTag();
-  }
-
-  inline void MaterializeUnspreadArgumentsLiterals(int count);
-
-  inline PreParserExpression ExpressionListToExpression(
-      PreParserExpressionList args) {
-    return PreParserExpression::Default();
-  }
-
-  void SetFunctionNameFromPropertyName(PreParserExpression property,
-                                       PreParserIdentifier name) {}
-  void SetFunctionNameFromIdentifierRef(PreParserExpression value,
-                                        PreParserExpression identifier) {}
-
-  V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
-      GetReportedErrorList() const;
-  V8_INLINE Zone* zone() const;
-  V8_INLINE ZoneList<PreParserExpression>* GetNonPatternList() const;
 };
 
 
@@ -693,9 +633,7 @@ class ParserBaseTraits<PreParser> {
 // it is used) are generally omitted.
 class PreParser : public ParserBase<PreParser> {
   friend class ParserBase<PreParser>;
-  // TODO(nikolaos): This should not be necessary. It will be removed
-  // when the traits object stops delegating to the implementation object.
-  friend class ParserBaseTraits<PreParser>;
+  friend class v8::internal::ExpressionClassifier<ParserBaseTraits<PreParser>>;
 
  public:
   typedef PreParserIdentifier Identifier;
@@ -762,6 +700,9 @@ class PreParser : public ParserBase<PreParser> {
                                       bool parsing_module, ParserRecorder* log,
                                       Scanner::BookmarkScope* bookmark,
                                       int* use_counts);
+
+  // A dummy function, just useful as an argument to CHECK_OK_CUSTOM.
+  static void Void() {}
 
  private:
   static const int kLazyParseTrialLimit = 200;
@@ -1139,17 +1080,74 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatementList();
   }
 
+  V8_INLINE void AddParameterInitializationBlock(
+      const PreParserFormalParameters& parameters, PreParserStatementList body,
+      bool is_async, bool* ok) {}
+
+  V8_INLINE void AddFormalParameter(PreParserFormalParameters* parameters,
+                                    PreParserExpression pattern,
+                                    PreParserExpression initializer,
+                                    int initializer_end_position,
+                                    bool is_rest) {
+    ++parameters->arity;
+  }
+
+  V8_INLINE void DeclareFormalParameter(
+      DeclarationScope* scope, PreParserIdentifier parameter,
+      Type::ExpressionClassifier* classifier) {
+    if (!classifier->is_simple_parameter_list()) {
+      scope->SetHasNonSimpleParameters();
+    }
+  }
+
+  V8_INLINE void ParseArrowFunctionFormalParameterList(
+      PreParserFormalParameters* parameters, PreParserExpression params,
+      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
+      const Scope::Snapshot& scope_snapshot, bool* ok) {
+    // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect
+    // parameter
+    // lists that are too long.
+  }
+
+  V8_INLINE void ReindexLiterals(const PreParserFormalParameters& parameters) {}
+
+  V8_INLINE PreParserExpression NoTemplateTag() {
+    return PreParserExpression::NoTemplateTag();
+  }
+
+  V8_INLINE static bool IsTaggedTemplate(const PreParserExpression tag) {
+    return !tag.IsNoTemplateTag();
+  }
+
+  V8_INLINE void MaterializeUnspreadArgumentsLiterals(int count) {
+    for (int i = 0; i < count; ++i) {
+      function_state_->NextMaterializedLiteralIndex();
+    }
+  }
+
+  V8_INLINE PreParserExpression
+  ExpressionListToExpression(PreParserExpressionList args) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE void SetFunctionNameFromPropertyName(PreParserExpression property,
+                                                 PreParserIdentifier name) {}
+  V8_INLINE void SetFunctionNameFromIdentifierRef(
+      PreParserExpression value, PreParserExpression identifier) {}
+
+  V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
+  GetReportedErrorList() const {
+    return function_state_->GetReportedErrorList();
+  }
+
+  V8_INLINE ZoneList<PreParserExpression>* GetNonPatternList() const {
+    return function_state_->non_patterns_to_rewrite();
+  }
+
   // Preparser's private field members.
 
   int* use_counts_;
 };
-
-void ParserBaseTraits<PreParser>::MaterializeUnspreadArgumentsLiterals(
-    int count) {
-  for (int i = 0; i < count; ++i) {
-    delegate()->function_state_->NextMaterializedLiteralIndex();
-  }
-}
 
 PreParserExpression PreParser::SpreadCall(PreParserExpression function,
                                           PreParserExpressionList args,
@@ -1161,29 +1159,6 @@ PreParserExpression PreParser::SpreadCallNew(PreParserExpression function,
                                              PreParserExpressionList args,
                                              int pos) {
   return factory()->NewCallNew(function, args, pos);
-}
-
-void ParserBaseTraits<PreParser>::ParseArrowFunctionFormalParameterList(
-    PreParserFormalParameters* parameters, PreParserExpression params,
-    const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-    const Scope::Snapshot& scope_snapshot, bool* ok) {
-  // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect parameter
-  // lists that are too long.
-}
-
-ZoneList<PreParserExpression>* ParserBaseTraits<PreParser>::GetNonPatternList()
-    const {
-  return delegate()->function_state_->non_patterns_to_rewrite();
-}
-
-ZoneList<
-    typename ParserBaseTraits<PreParser>::Type::ExpressionClassifier::Error>*
-ParserBaseTraits<PreParser>::GetReportedErrorList() const {
-  return delegate()->function_state_->GetReportedErrorList();
-}
-
-Zone* ParserBaseTraits<PreParser>::zone() const {
-  return delegate()->function_state_->scope()->zone();
 }
 
 PreParserStatementList PreParser::ParseEagerFunctionBody(

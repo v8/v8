@@ -140,14 +140,15 @@ struct ParserFormalParameters : FormalParametersBase {
 template <>
 class ParserBaseTraits<Parser> {
  public:
-  typedef ParserBaseTraits<Parser> ParserTraits;
-
   struct Type {
+    typedef ParserBase<Parser> Base;
+    typedef Parser Impl;
+
     typedef Variable GeneratorVariable;
 
     typedef v8::internal::AstProperties AstProperties;
 
-    typedef v8::internal::ExpressionClassifier<ParserTraits>
+    typedef v8::internal::ExpressionClassifier<ParserBaseTraits<Parser>>
         ExpressionClassifier;
 
     // Return types for traversing functions.
@@ -167,53 +168,6 @@ class ParserBaseTraits<Parser> {
     // For constructing objects returned by the traversing functions.
     typedef AstNodeFactory Factory;
   };
-
-  // TODO(nikolaos): The traits methods should not need to call methods
-  // of the implementation object.
-  Parser* delegate() { return reinterpret_cast<Parser*>(this); }
-  const Parser* delegate() const {
-    return reinterpret_cast<const Parser*>(this);
-  }
-
-  V8_INLINE void AddParameterInitializationBlock(
-      const ParserFormalParameters& parameters,
-      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok);
-
-  V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
-                                    Expression* pattern,
-                                    Expression* initializer,
-                                    int initializer_end_position, bool is_rest);
-  V8_INLINE void DeclareFormalParameter(
-      DeclarationScope* scope,
-      const ParserFormalParameters::Parameter& parameter,
-      Type::ExpressionClassifier* classifier);
-  void ParseArrowFunctionFormalParameterList(
-      ParserFormalParameters* parameters, Expression* params,
-      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-      const Scope::Snapshot& scope_snapshot, bool* ok);
-
-  void ReindexLiterals(const ParserFormalParameters& parameters);
-
-  V8_INLINE Expression* NoTemplateTag() { return NULL; }
-  V8_INLINE static bool IsTaggedTemplate(const Expression* tag) {
-    return tag != NULL;
-  }
-
-  V8_INLINE void MaterializeUnspreadArgumentsLiterals(int count) {}
-
-  Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
-
-  void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
-                                       const AstRawString* name);
-
-  void SetFunctionNameFromIdentifierRef(Expression* value,
-                                        Expression* identifier);
-
-  V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
-      GetReportedErrorList() const;
-  V8_INLINE Zone* zone() const;
-
-  V8_INLINE ZoneList<Expression*>* GetNonPatternList() const;
 };
 
 class Parser : public ParserBase<Parser> {
@@ -243,9 +197,7 @@ class Parser : public ParserBase<Parser> {
 
  private:
   friend class ParserBase<Parser>;
-  // TODO(nikolaos): This should not be necessary. It will be removed
-  // when the traits object stops delegating to the implementation object.
-  friend class ParserBaseTraits<Parser>;
+  friend class v8::internal::ExpressionClassifier<ParserBaseTraits<Parser>>;
 
   // Runtime encoding of different completion modes.
   enum CompletionKind {
@@ -1004,6 +956,88 @@ class Parser : public ParserBase<Parser> {
     return new (zone()) ZoneList<v8::internal::Statement*>(size, zone());
   }
 
+  V8_INLINE void AddParameterInitializationBlock(
+      const ParserFormalParameters& parameters,
+      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) {
+    if (parameters.is_simple) return;
+    auto* init_block = BuildParameterInitializationBlock(parameters, ok);
+    if (!*ok) return;
+    if (is_async) init_block = BuildRejectPromiseOnException(init_block);
+    if (init_block != nullptr) body->Add(init_block, zone());
+  }
+
+  V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
+                                    Expression* pattern,
+                                    Expression* initializer,
+                                    int initializer_end_position,
+                                    bool is_rest) {
+    bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
+    const AstRawString* name = is_simple
+                                   ? pattern->AsVariableProxy()->raw_name()
+                                   : ast_value_factory()->empty_string();
+    parameters->params.Add(
+        ParserFormalParameters::Parameter(name, pattern, initializer,
+                                          initializer_end_position, is_rest),
+        parameters->scope->zone());
+  }
+
+  V8_INLINE void DeclareFormalParameter(
+      DeclarationScope* scope,
+      const ParserFormalParameters::Parameter& parameter,
+      Type::ExpressionClassifier* classifier) {
+    bool is_duplicate = false;
+    bool is_simple = classifier->is_simple_parameter_list();
+    auto name = is_simple || parameter.is_rest
+                    ? parameter.name
+                    : ast_value_factory()->empty_string();
+    auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
+    if (!is_simple) scope->SetHasNonSimpleParameters();
+    bool is_optional = parameter.initializer != nullptr;
+    Variable* var =
+        scope->DeclareParameter(name, mode, is_optional, parameter.is_rest,
+                                &is_duplicate, ast_value_factory());
+    if (is_duplicate) {
+      classifier->RecordDuplicateFormalParameterError(scanner()->location());
+    }
+    if (is_sloppy(scope->language_mode())) {
+      // TODO(sigurds) Mark every parameter as maybe assigned. This is a
+      // conservative approximation necessary to account for parameters
+      // that are assigned via the arguments array.
+      var->set_maybe_assigned();
+    }
+  }
+
+  void ParseArrowFunctionFormalParameterList(
+      ParserFormalParameters* parameters, Expression* params,
+      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
+      const Scope::Snapshot& scope_snapshot, bool* ok);
+
+  void ReindexLiterals(const ParserFormalParameters& parameters);
+
+  V8_INLINE Expression* NoTemplateTag() { return NULL; }
+  V8_INLINE static bool IsTaggedTemplate(const Expression* tag) {
+    return tag != NULL;
+  }
+
+  V8_INLINE void MaterializeUnspreadArgumentsLiterals(int count) {}
+
+  Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
+
+  void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
+                                       const AstRawString* name);
+
+  void SetFunctionNameFromIdentifierRef(Expression* value,
+                                        Expression* identifier);
+
+  V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
+  GetReportedErrorList() const {
+    return function_state_->GetReportedErrorList();
+  }
+
+  V8_INLINE ZoneList<Expression*>* GetNonPatternList() const {
+    return function_state_->non_patterns_to_rewrite();
+  }
+
   // Parser's private field members.
 
   Scanner scanner_;
@@ -1056,63 +1090,6 @@ class CompileTimeValue: public AllStatic {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
 };
-
-void ParserBaseTraits<Parser>::AddFormalParameter(
-    ParserFormalParameters* parameters, Expression* pattern,
-    Expression* initializer, int initializer_end_position, bool is_rest) {
-  bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
-  const AstRawString* name =
-      is_simple ? pattern->AsVariableProxy()->raw_name()
-                : delegate()->ast_value_factory()->empty_string();
-  parameters->params.Add(
-      ParserFormalParameters::Parameter(name, pattern, initializer,
-                                        initializer_end_position, is_rest),
-      parameters->scope->zone());
-}
-
-void ParserBaseTraits<Parser>::DeclareFormalParameter(
-    DeclarationScope* scope, const ParserFormalParameters::Parameter& parameter,
-    Type::ExpressionClassifier* classifier) {
-  bool is_duplicate = false;
-  bool is_simple = classifier->is_simple_parameter_list();
-  auto name = is_simple || parameter.is_rest
-                  ? parameter.name
-                  : delegate()->ast_value_factory()->empty_string();
-  auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
-  if (!is_simple) scope->SetHasNonSimpleParameters();
-  bool is_optional = parameter.initializer != nullptr;
-  Variable* var =
-      scope->DeclareParameter(name, mode, is_optional, parameter.is_rest,
-                              &is_duplicate, delegate()->ast_value_factory());
-  if (is_duplicate) {
-    classifier->RecordDuplicateFormalParameterError(
-        delegate()->scanner()->location());
-  }
-  if (is_sloppy(scope->language_mode())) {
-    // TODO(sigurds) Mark every parameter as maybe assigned. This is a
-    // conservative approximation necessary to account for parameters
-    // that are assigned via the arguments array.
-    var->set_maybe_assigned();
-  }
-}
-
-void ParserBaseTraits<Parser>::AddParameterInitializationBlock(
-    const ParserFormalParameters& parameters,
-    ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) {
-  if (!parameters.is_simple) {
-    auto* init_block =
-        delegate()->BuildParameterInitializationBlock(parameters, ok);
-    if (!*ok) return;
-
-    if (is_async) {
-      init_block = delegate()->BuildRejectPromiseOnException(init_block);
-    }
-
-    if (init_block != nullptr) {
-      body->Add(init_block, delegate()->zone());
-    }
-  }
-}
 
 }  // namespace internal
 }  // namespace v8
