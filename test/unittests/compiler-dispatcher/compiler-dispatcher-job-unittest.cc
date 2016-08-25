@@ -215,13 +215,13 @@ TEST_F(CompilerDispatcherJobTest, CompileFailureToPrepare) {
 
 TEST_F(CompilerDispatcherJobTest, CompileFailureToFinalize) {
   std::string raw_script("() { var a = ");
-  for (int i = 0; i < 2000; i++) {
+  for (int i = 0; i < 1000; i++) {
     raw_script += "'x' + ";
   }
   raw_script += " 'x'; }";
   ScriptResource script(raw_script.c_str(), strlen(raw_script.c_str()));
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      i_isolate(), CreateFunction(i_isolate(), &script), 100));
+      i_isolate(), CreateFunction(i_isolate(), &script), 50));
 
   job->PrepareToParseOnMainThread();
   job->Parse();
