@@ -195,9 +195,8 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name)
 #ifdef DEBUG
   already_resolved_ = true;
 #endif
-  Variable* variable =
-      variables_.Declare(zone, this, catch_variable_name, VAR, Variable::NORMAL,
-                         kCreatedInitialized);
+  Variable* variable = Declare(zone, this, catch_variable_name, VAR,
+                               Variable::NORMAL, kCreatedInitialized);
   AllocateHeapSlot(variable);
 }
 
