@@ -1534,7 +1534,7 @@ bool PipelineImpl::CreateGraph() {
       RunPrintAndVerify("Escape Analysed");
     }
 
-    if (FLAG_turbo_load_elimination) {
+    if (!info()->shared_info()->asm_function() && FLAG_turbo_load_elimination) {
       Run<LoadEliminationPhase>();
       RunPrintAndVerify("Load eliminated");
     }
