@@ -1168,8 +1168,8 @@ PreParserExpression PreParser::ParseClassLiteral(
     CheckNoTailCallExpressions(&extends_classifier, CHECK_OK);
     ValidateExpression(&extends_classifier, CHECK_OK);
     if (classifier != nullptr) {
-      classifier->Accumulate(&extends_classifier,
-                             ExpressionClassifier::ExpressionProductions);
+      classifier->AccumulateFormalParameterContainmentErrors(
+          &extends_classifier);
     }
   }
 
@@ -1189,8 +1189,8 @@ PreParserExpression PreParser::ParseClassLiteral(
         &has_seen_constructor, &property_classifier, &name, CHECK_OK);
     ValidateExpression(&property_classifier, CHECK_OK);
     if (classifier != nullptr) {
-      classifier->Accumulate(&property_classifier,
-                             ExpressionClassifier::ExpressionProductions);
+      classifier->AccumulateFormalParameterContainmentErrors(
+          &property_classifier);
     }
   }
 

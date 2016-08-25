@@ -7817,8 +7817,6 @@ TEST(AsyncAwaitErrors) {
     "var f = async(x = await 1) => x;",
     "var O = { async method(x = await 1) { return x; } };",
 
-    "var f = async(x = await) => 1;",
-
     "function* g() { var f = async yield => 1; }",
     "function* g() { var f = async(yield) => 1; }",
     "function* g() { var f = async(x = yield) => 1; }",
@@ -7895,6 +7893,7 @@ TEST(AsyncAwaitErrors) {
     "var f = async(await) => 1;",
     "var f = async(await = 1) => 1;",
     "var f = async(...[await]) => 1;",
+    "var f = async(x = await) => 1;",
 
     // v8:5190
     "var f = async(1) => 1",
@@ -7902,6 +7901,12 @@ TEST(AsyncAwaitErrors) {
     "var f = async(/foo/) => 1",
     "var f = async({ foo = async(1) => 1 }) => 1",
     "var f = async({ foo = async(a) => 1 })",
+
+    "var f = async(x = async(await)) => 1;",
+    "var f = async(x = { [await]: 1 }) => 1;",
+    "var f = async(x = class extends (await) { }) => 1;",
+    "var f = async(x = class { static [await]() {} }) => 1;",
+    "var f = async({ x = await }) => 1;",
 
     NULL
   };

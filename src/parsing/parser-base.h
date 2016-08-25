@@ -1643,10 +1643,16 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
                                           Token::String(Token::ELLIPSIS));
         classifier->RecordNonSimpleParameter();
         ExpressionClassifier binding_classifier(this);
+        // TODO(adamk): The grammar for this is
+        // BindingIdentifier | BindingPattern, so
+        // ParseAssignmentExpression is overkill.
         ExpressionT expr =
             ParseAssignmentExpression(true, &binding_classifier, CHECK_OK);
-        classifier->Accumulate(&binding_classifier,
-                               ExpressionClassifier::AllProductions);
+        // This already couldn't be an expression or a pattern, so the
+        // only remaining possibility is an arrow formal parameter list.
+        classifier->Accumulate(
+            &binding_classifier,
+            ExpressionClassifier::ArrowFormalParametersProduction);
         if (!impl()->IsIdentifier(expr) && !IsValidPattern(expr)) {
           classifier->RecordArrowFormalParametersError(
               Scanner::Location(ellipsis_pos, scanner()->location().end_pos),
@@ -1733,12 +1739,18 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseExpression(
   //   Expression ',' AssignmentExpression
 
   ExpressionT result;
+
+  // No need to accumulate binding pattern-related errors, since
+  // an Expression can't be a binding pattern anyway.
+  static const unsigned kExpressionProductions =
+      ExpressionClassifier::AllProductions &
+      ~(ExpressionClassifier::BindingPatternProduction |
+        ExpressionClassifier::LetPatternProduction);
   {
     ExpressionClassifier binding_classifier(this);
     result =
         ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
-    classifier->Accumulate(&binding_classifier,
-                           ExpressionClassifier::AllProductions);
+    classifier->Accumulate(&binding_classifier, kExpressionProductions);
   }
   bool is_simple_parameter_list = impl()->IsIdentifier(result);
   bool seen_rest = false;
@@ -1763,14 +1775,15 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseExpression(
       ExpressionUnexpectedToken(classifier);
       BindingPatternUnexpectedToken(classifier);
       Consume(Token::ELLIPSIS);
+      // TODO(adamk): If is_rest is true we don't need to parse an assignment
+      // expression, the grammar is BindingIdentifier | BindingPattern.
       seen_rest = is_rest = true;
     }
     int pos = position(), expr_pos = peek_position();
     ExpressionClassifier binding_classifier(this);
     ExpressionT right =
         ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
-    classifier->Accumulate(&binding_classifier,
-                           ExpressionClassifier::AllProductions);
+    classifier->Accumulate(&binding_classifier, kExpressionProductions);
     if (is_rest) {
       if (!impl()->IsIdentifier(right) && !IsValidPattern(right)) {
         classifier->RecordArrowFormalParametersError(
@@ -1904,8 +1917,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
       ExpressionT expression =
           ParseAssignmentExpression(true, &computed_name_classifier, CHECK_OK);
       impl()->RewriteNonPattern(&computed_name_classifier, CHECK_OK);
-      classifier->Accumulate(&computed_name_classifier,
-                             ExpressionClassifier::ExpressionProductions);
+      classifier->AccumulateFormalParameterContainmentErrors(
+          &computed_name_classifier);
       Expect(Token::RBRACK, CHECK_OK);
       return expression;
     }
@@ -2019,8 +2032,7 @@ ParserBase<Impl>::ParsePropertyDefinition(
             true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
         impl()->RewriteNonPattern(&rhs_classifier,
                                   CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-        classifier->Accumulate(&rhs_classifier,
-                               ExpressionClassifier::ExpressionProductions);
+        classifier->AccumulateFormalParameterContainmentErrors(&rhs_classifier);
         value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
                                          kNoSourcePosition);
         classifier->RecordObjectLiteralError(
@@ -2387,29 +2399,25 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN,
   // (including those for binding patterns, since formal parameters can
   // themselves contain binding patterns).
   // Do not merge pending non-pattern expressions yet!
-  unsigned productions =
-      ExpressionClassifier::FormalParametersProductions |
-      ExpressionClassifier::AsyncArrowFormalParametersProduction |
-      ExpressionClassifier::FormalParameterInitializerProduction;
+  unsigned productions = ExpressionClassifier::AllProductions &
+                         ~ExpressionClassifier::ArrowFormalParametersProduction;
 
   // Parenthesized identifiers and property references are allowed as part
-  // of a larger binding pattern, even though parenthesized patterns
+  // of a larger assignment pattern, even though parenthesized patterns
   // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
   // assignment pattern errors if the parsed expression is more complex.
   if (IsValidReferenceExpression(expression)) {
-    productions |= ExpressionClassifier::PatternProductions &
-                   ~ExpressionClassifier::AssignmentPatternProduction;
-  } else {
-    productions |= ExpressionClassifier::PatternProductions;
+    productions &= ~ExpressionClassifier::AssignmentPatternProduction;
   }
 
   const bool is_destructuring_assignment =
       IsValidPattern(expression) && peek() == Token::ASSIGN;
-  if (!is_destructuring_assignment) {
-    // This may be an expression or a pattern, so we must continue to
-    // accumulate expression-related errors.
-    productions |= ExpressionClassifier::ExpressionProductions |
-                   ExpressionClassifier::ObjectLiteralProduction;
+  if (is_destructuring_assignment) {
+    // This is definitely not an expression so don't accumulate
+    // expression-related errors.
+    productions &= ~(ExpressionClassifier::ExpressionProduction |
+                     ExpressionClassifier::ObjectLiteralProduction |
+                     ExpressionClassifier::TailCallExpressionProduction);
   }
 
   classifier->Accumulate(&arrow_formals_classifier, productions, false);
@@ -2450,11 +2458,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN,
       ParseAssignmentExpression(accept_IN, &rhs_classifier, CHECK_OK);
   CheckNoTailCallExpressions(&rhs_classifier, CHECK_OK);
   impl()->RewriteNonPattern(&rhs_classifier, CHECK_OK);
-  classifier->Accumulate(
-      &rhs_classifier,
-      ExpressionClassifier::ExpressionProductions |
-          ExpressionClassifier::ObjectLiteralProduction |
-          ExpressionClassifier::AsyncArrowFormalParametersProduction);
+  classifier->AccumulateFormalParameterContainmentErrors(&rhs_classifier);
 
   // TODO(1231235): We try to estimate the set of properties set by
   // constructors. We define a new property whenever there is an
@@ -2889,8 +2893,8 @@ ParserBase<Impl>::ParseLeftHandSideExpression(ExpressionClassifier* classifier,
             // async () => ...
             return factory()->NewEmptyParentheses(pos);
           } else {
-            classifier->Accumulate(&async_classifier,
-                                   ExpressionClassifier::AllProductions);
+            classifier->AccumulateFormalParameterContainmentErrors(
+                &async_classifier);
           }
         } else {
           args = ParseArguments(&spread_pos, false, classifier, CHECK_OK);

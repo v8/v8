@@ -4677,8 +4677,8 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     CheckNoTailCallExpressions(&extends_classifier, CHECK_OK);
     RewriteNonPattern(&extends_classifier, CHECK_OK);
     if (classifier != nullptr) {
-      classifier->Accumulate(&extends_classifier,
-                             ExpressionClassifier::ExpressionProductions);
+      classifier->AccumulateFormalParameterContainmentErrors(
+          &extends_classifier);
     }
   } else {
     block_state.set_start_position(scanner()->location().end_pos);
@@ -4706,8 +4706,8 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
         &has_seen_constructor, &property_classifier, &property_name, CHECK_OK);
     RewriteNonPattern(&property_classifier, CHECK_OK);
     if (classifier != nullptr) {
-      classifier->Accumulate(&property_classifier,
-                             ExpressionClassifier::ExpressionProductions);
+      classifier->AccumulateFormalParameterContainmentErrors(
+          &property_classifier);
     }
 
     if (has_seen_constructor && constructor == nullptr) {

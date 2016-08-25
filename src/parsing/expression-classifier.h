@@ -57,23 +57,17 @@ class ExpressionClassifier {
     const char* arg;
   };
 
+  // clang-format off
   enum TargetProduction : unsigned {
 #define DEFINE_PRODUCTION(NAME, CODE) NAME = 1 << CODE,
     ERROR_CODES(DEFINE_PRODUCTION)
 #undef DEFINE_PRODUCTION
 
-        ExpressionProductions =
-            (ExpressionProduction | FormalParameterInitializerProduction |
-             TailCallExpressionProduction),
-    PatternProductions = (BindingPatternProduction |
-                          AssignmentPatternProduction | LetPatternProduction),
-    FormalParametersProductions = (DistinctFormalParametersProduction |
-                                   StrictModeFormalParametersProduction),
-    AllProductions =
-        (ExpressionProductions | PatternProductions |
-         FormalParametersProductions | ArrowFormalParametersProduction |
-         ObjectLiteralProduction | AsyncArrowFormalParametersProduction)
+#define DEFINE_ALL_PRODUCTIONS(NAME, CODE) NAME |
+    AllProductions = ERROR_CODES(DEFINE_ALL_PRODUCTIONS) /* | */ 0
+#undef DEFINE_ALL_PRODUCTIONS
   };
+  // clang-format on
 
   enum FunctionProperties : unsigned {
     NonSimpleParameter = 1 << 0
@@ -371,6 +365,20 @@ class ExpressionClassifier {
     reported_errors_->Rewind(reported_errors_end_);
     inner->reported_errors_begin_ = inner->reported_errors_end_ =
         reported_errors_end_;
+  }
+
+  // Accumulate errors that can be arbitrarily deep in an expression.
+  // These correspond to the ECMAScript spec's 'Contains' operation
+  // on productions. This includes:
+  //
+  // - YieldExpression is disallowed in arrow parameters in a generator.
+  // - AwaitExpression is disallowed in arrow parameters in an async function.
+  // - AwaitExpression is disallowed in async arrow parameters.
+  //
+  V8_INLINE void AccumulateFormalParameterContainmentErrors(
+      ExpressionClassifier* inner) {
+    Accumulate(inner, FormalParameterInitializerProduction |
+                          AsyncArrowFormalParametersProduction);
   }
 
   V8_INLINE int GetNonPatternBegin() const { return non_pattern_begin_; }
