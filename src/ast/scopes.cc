@@ -712,7 +712,8 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
 Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
                                                  Variable::Kind kind) {
   DCHECK(is_script_scope());
-  return Declare(zone(), this, name, DYNAMIC_GLOBAL, kind, kCreatedInitialized);
+  return variables_.Declare(zone(), this, name, DYNAMIC_GLOBAL, kind,
+                            kCreatedInitialized);
 }
 
 
