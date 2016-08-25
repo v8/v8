@@ -1594,17 +1594,15 @@ void DeclarationScope::AllocateLocals() {
 }
 
 void ModuleScope::AllocateModuleVariables() {
-  for (auto it = module()->regular_imports().begin();
-       it != module()->regular_imports().end(); ++it) {
-    Variable* var = LookupLocal(it->second->local_name);
+  for (const auto& it : module()->regular_imports()) {
+    Variable* var = LookupLocal(it.first);
     // TODO(neis): Use a meaningful index.
     var->AllocateTo(VariableLocation::MODULE, 42);
   }
 
-  for (auto entry : module()->exports()) {
-    if (entry->local_name == nullptr) continue;
-    Variable* var = LookupLocal(entry->local_name);
-    var->AllocateTo(VariableLocation::MODULE, 42);
+  for (const auto& it : module()->regular_exports()) {
+    Variable* var = LookupLocal(it.first);
+    var->AllocateTo(VariableLocation::MODULE, 0);
   }
 }
 
