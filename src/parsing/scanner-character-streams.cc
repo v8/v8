@@ -7,7 +7,6 @@
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/list-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/objects-inl.h"
 #include "src/unicode-inl.h"
 
