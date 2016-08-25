@@ -215,7 +215,7 @@ TEST_F(CompilerDispatcherJobTest, CompileFailureToPrepare) {
 
 TEST_F(CompilerDispatcherJobTest, CompileFailureToFinalize) {
   std::string raw_script("() { var a = ");
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 2000; i++) {
     raw_script += "'x' + ";
   }
   raw_script += " 'x'; }";
