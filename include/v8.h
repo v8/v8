@@ -880,6 +880,9 @@ class V8_EXPORT HandleScope {
     return reinterpret_cast<Isolate*>(isolate_);
   }
 
+  HandleScope(const HandleScope&) = delete;
+  void operator=(const HandleScope&) = delete;
+
  protected:
   V8_INLINE HandleScope() {}
 
@@ -895,8 +898,6 @@ class V8_EXPORT HandleScope {
 
   // Make it hard to create heap-allocated or illegal handle scopes by
   // disallowing certain operations.
-  HandleScope(const HandleScope&);
-  void operator=(const HandleScope&);
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
@@ -934,13 +935,14 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
     return Local<T>(reinterpret_cast<T*>(slot));
   }
 
+  EscapableHandleScope(const EscapableHandleScope&) = delete;
+  void operator=(const EscapableHandleScope&) = delete;
+
  private:
   internal::Object** Escape(internal::Object** escape_value);
 
   // Make it hard to create heap-allocated or illegal handle scopes by
   // disallowing certain operations.
-  EscapableHandleScope(const EscapableHandleScope&);
-  void operator=(const EscapableHandleScope&);
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
@@ -952,11 +954,12 @@ class V8_EXPORT SealHandleScope {
   SealHandleScope(Isolate* isolate);
   ~SealHandleScope();
 
+  SealHandleScope(const SealHandleScope&) = delete;
+  void operator=(const SealHandleScope&) = delete;
+
  private:
   // Make it hard to create heap-allocated or illegal handle scopes by
   // disallowing certain operations.
-  SealHandleScope(const SealHandleScope&);
-  void operator=(const SealHandleScope&);
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
@@ -1150,10 +1153,9 @@ class V8_EXPORT ScriptCompiler {
     bool rejected;
     BufferPolicy buffer_policy;
 
-   private:
-    // Prevent copying. Not implemented.
-    CachedData(const CachedData&);
-    CachedData& operator=(const CachedData&);
+    // Prevent copying.
+    CachedData(const CachedData&) = delete;
+    CachedData& operator=(const CachedData&) = delete;
   };
 
   /**
@@ -1173,11 +1175,12 @@ class V8_EXPORT ScriptCompiler {
     // alive.
     V8_INLINE const CachedData* GetCachedData() const;
 
+    // Prevent copying.
+    Source(const Source&) = delete;
+    Source& operator=(const Source&) = delete;
+
    private:
     friend class ScriptCompiler;
-    // Prevent copying. Not implemented.
-    Source(const Source&);
-    Source& operator=(const Source&);
 
     Local<String> source_string;
 
@@ -1260,11 +1263,11 @@ class V8_EXPORT ScriptCompiler {
 
     internal::StreamedSource* impl() const { return impl_; }
 
-   private:
-    // Prevent copying. Not implemented.
-    StreamedSource(const StreamedSource&);
-    StreamedSource& operator=(const StreamedSource&);
+    // Prevent copying.
+    StreamedSource(const StreamedSource&) = delete;
+    StreamedSource& operator=(const StreamedSource&) = delete;
 
+   private:
     internal::StreamedSource* impl_;
   };
 
@@ -2209,11 +2212,11 @@ class V8_EXPORT String : public Name {
      */
     virtual void Dispose() { delete this; }
 
-   private:
     // Disallow copying and assigning.
-    ExternalStringResourceBase(const ExternalStringResourceBase&);
-    void operator=(const ExternalStringResourceBase&);
+    ExternalStringResourceBase(const ExternalStringResourceBase&) = delete;
+    void operator=(const ExternalStringResourceBase&) = delete;
 
+   private:
     friend class v8::internal::Heap;
   };
 
@@ -2415,13 +2418,14 @@ class V8_EXPORT String : public Name {
     char* operator*() { return str_; }
     const char* operator*() const { return str_; }
     int length() const { return length_; }
+
+    // Disallow copying and assigning.
+    Utf8Value(const Utf8Value&) = delete;
+    void operator=(const Utf8Value&) = delete;
+
    private:
     char* str_;
     int length_;
-
-    // Disallow copying and assigning.
-    Utf8Value(const Utf8Value&);
-    void operator=(const Utf8Value&);
   };
 
   /**
@@ -2437,13 +2441,14 @@ class V8_EXPORT String : public Name {
     uint16_t* operator*() { return str_; }
     const uint16_t* operator*() const { return str_; }
     int length() const { return length_; }
+
+    // Disallow copying and assigning.
+    Value(const Value&) = delete;
+    void operator=(const Value&) = delete;
+
    private:
     uint16_t* str_;
     int length_;
-
-    // Disallow copying and assigning.
-    Value(const Value&);
-    void operator=(const Value&);
   };
 
  private:
@@ -4979,6 +4984,10 @@ class V8_EXPORT Extension {  // NOLINT
   void set_auto_enable(bool value) { auto_enable_ = value; }
   bool auto_enable() { return auto_enable_; }
 
+  // Disallow copying and assigning.
+  Extension(const Extension&) = delete;
+  void operator=(const Extension&) = delete;
+
  private:
   const char* name_;
   size_t source_length_;  // expected to initialize before source_
@@ -4986,10 +4995,6 @@ class V8_EXPORT Extension {  // NOLINT
   int dep_count_;
   const char** deps_;
   bool auto_enable_;
-
-  // Disallow copying and assigning.
-  Extension(const Extension&);
-  void operator=(const Extension&);
 };
 
 
@@ -5215,13 +5220,13 @@ class V8_EXPORT MicrotasksScope {
    */
   static bool IsRunningMicrotasks(Isolate* isolate);
 
+  // Prevent copying.
+  MicrotasksScope(const MicrotasksScope&) = delete;
+  MicrotasksScope& operator=(const MicrotasksScope&) = delete;
+
  private:
   internal::Isolate* const isolate_;
   bool run_;
-
-  // Prevent copying.
-  MicrotasksScope(const MicrotasksScope&);
-  MicrotasksScope& operator=(const MicrotasksScope&);
 };
 
 
@@ -5673,12 +5678,12 @@ class V8_EXPORT Isolate {
 
     ~Scope() { isolate_->Exit(); }
 
+    // Prevent copying of Scope objects.
+    Scope(const Scope&) = delete;
+    Scope& operator=(const Scope&) = delete;
+
    private:
     Isolate* const isolate_;
-
-    // Prevent copying of Scope objects.
-    Scope(const Scope&);
-    Scope& operator=(const Scope&);
   };
 
 
@@ -5692,14 +5697,15 @@ class V8_EXPORT Isolate {
     DisallowJavascriptExecutionScope(Isolate* isolate, OnFailure on_failure);
     ~DisallowJavascriptExecutionScope();
 
+    // Prevent copying of Scope objects.
+    DisallowJavascriptExecutionScope(const DisallowJavascriptExecutionScope&) =
+        delete;
+    DisallowJavascriptExecutionScope& operator=(
+        const DisallowJavascriptExecutionScope&) = delete;
+
    private:
     bool on_failure_;
     void* internal_;
-
-    // Prevent copying of Scope objects.
-    DisallowJavascriptExecutionScope(const DisallowJavascriptExecutionScope&);
-    DisallowJavascriptExecutionScope& operator=(
-        const DisallowJavascriptExecutionScope&);
   };
 
 
@@ -5711,14 +5717,15 @@ class V8_EXPORT Isolate {
     explicit AllowJavascriptExecutionScope(Isolate* isolate);
     ~AllowJavascriptExecutionScope();
 
+    // Prevent copying of Scope objects.
+    AllowJavascriptExecutionScope(const AllowJavascriptExecutionScope&) =
+        delete;
+    AllowJavascriptExecutionScope& operator=(
+        const AllowJavascriptExecutionScope&) = delete;
+
    private:
     void* internal_throws_;
     void* internal_assert_;
-
-    // Prevent copying of Scope objects.
-    AllowJavascriptExecutionScope(const AllowJavascriptExecutionScope&);
-    AllowJavascriptExecutionScope& operator=(
-        const AllowJavascriptExecutionScope&);
   };
 
   /**
@@ -5730,13 +5737,14 @@ class V8_EXPORT Isolate {
     explicit SuppressMicrotaskExecutionScope(Isolate* isolate);
     ~SuppressMicrotaskExecutionScope();
 
+    // Prevent copying of Scope objects.
+    SuppressMicrotaskExecutionScope(const SuppressMicrotaskExecutionScope&) =
+        delete;
+    SuppressMicrotaskExecutionScope& operator=(
+        const SuppressMicrotaskExecutionScope&) = delete;
+
    private:
     internal::Isolate* const isolate_;
-
-    // Prevent copying of Scope objects.
-    SuppressMicrotaskExecutionScope(const SuppressMicrotaskExecutionScope&);
-    SuppressMicrotaskExecutionScope& operator=(
-        const SuppressMicrotaskExecutionScope&);
   };
 
   /**
@@ -6462,14 +6470,15 @@ class V8_EXPORT Isolate {
    */
   bool IsInUse();
 
+  Isolate(const Isolate&) = delete;
+  Isolate& operator=(const Isolate&) = delete;
+
  private:
   template <class K, class V, class Traits>
   friend class PersistentValueMapBase;
 
   Isolate();
-  Isolate(const Isolate&);
   ~Isolate();
-  Isolate& operator=(const Isolate&);
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
@@ -6927,12 +6936,12 @@ class SnapshotCreator {
    */
   StartupData CreateBlob(FunctionCodeHandling function_code_handling);
 
+  // Disallow copying and assigning.
+  SnapshotCreator(const SnapshotCreator&) = delete;
+  void operator=(const SnapshotCreator&) = delete;
+
  private:
   void* data_;
-
-  // Disallow copying and assigning.
-  SnapshotCreator(const SnapshotCreator&);
-  void operator=(const SnapshotCreator&);
 };
 
 /**
@@ -7136,12 +7145,13 @@ class V8_EXPORT TryCatch {
     return handler->js_stack_comparable_address_;
   }
 
+  TryCatch(const TryCatch&) = delete;
+  void operator=(const TryCatch&) = delete;
+
  private:
   void ResetInternal();
 
   // Make it hard to create heap-allocated TryCatch blocks.
-  TryCatch(const TryCatch&);
-  void operator=(const TryCatch&);
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
@@ -7500,16 +7510,16 @@ class V8_EXPORT Locker {
    */
   static bool IsActive();
 
+  // Disallow copying and assigning.
+  Locker(const Locker&) = delete;
+  void operator=(const Locker&) = delete;
+
  private:
   void Initialize(Isolate* isolate);
 
   bool has_lock_;
   bool top_level_;
   internal::Isolate* isolate_;
-
-  // Disallow copying and assigning.
-  Locker(const Locker&);
-  void operator=(const Locker&);
 };
 
 
