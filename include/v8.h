@@ -882,6 +882,8 @@ class V8_EXPORT HandleScope {
 
   HandleScope(const HandleScope&) = delete;
   void operator=(const HandleScope&) = delete;
+  void* operator new(size_t size) = delete;
+  void operator delete(void*, size_t) = delete;
 
  protected:
   V8_INLINE HandleScope() {}
@@ -895,11 +897,6 @@ class V8_EXPORT HandleScope {
   // Uses heap_object to obtain the current Isolate.
   static internal::Object** CreateHandle(internal::HeapObject* heap_object,
                                          internal::Object* value);
-
-  // Make it hard to create heap-allocated or illegal handle scopes by
-  // disallowing certain operations.
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
   internal::Isolate* isolate_;
   internal::Object** prev_next_;
@@ -937,15 +934,11 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
 
   EscapableHandleScope(const EscapableHandleScope&) = delete;
   void operator=(const EscapableHandleScope&) = delete;
+  void* operator new(size_t size) = delete;
+  void operator delete(void*, size_t) = delete;
 
  private:
   internal::Object** Escape(internal::Object** escape_value);
-
-  // Make it hard to create heap-allocated or illegal handle scopes by
-  // disallowing certain operations.
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
-
   internal::Object** escape_slot_;
 };
 
@@ -956,13 +949,10 @@ class V8_EXPORT SealHandleScope {
 
   SealHandleScope(const SealHandleScope&) = delete;
   void operator=(const SealHandleScope&) = delete;
+  void* operator new(size_t size) = delete;
+  void operator delete(void*, size_t) = delete;
 
  private:
-  // Make it hard to create heap-allocated or illegal handle scopes by
-  // disallowing certain operations.
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
-
   internal::Isolate* const isolate_;
   internal::Object** prev_limit_;
   int prev_sealed_level_;
@@ -6470,17 +6460,16 @@ class V8_EXPORT Isolate {
    */
   bool IsInUse();
 
+  Isolate() = delete;
+  ~Isolate() = delete;
   Isolate(const Isolate&) = delete;
   Isolate& operator=(const Isolate&) = delete;
+  void* operator new(size_t size) = delete;
+  void operator delete(void*, size_t) = delete;
 
  private:
   template <class K, class V, class Traits>
   friend class PersistentValueMapBase;
-
-  Isolate();
-  ~Isolate();
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
   void SetObjectGroupId(internal::Object** object, UniqueId id);
   void SetReferenceFromGroup(UniqueId id, internal::Object** object);
@@ -7147,13 +7136,11 @@ class V8_EXPORT TryCatch {
 
   TryCatch(const TryCatch&) = delete;
   void operator=(const TryCatch&) = delete;
+  void* operator new(size_t size) = delete;
+  void operator delete(void*, size_t) = delete;
 
  private:
   void ResetInternal();
-
-  // Make it hard to create heap-allocated TryCatch blocks.
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
 
   v8::internal::Isolate* isolate_;
   v8::TryCatch* next_;
