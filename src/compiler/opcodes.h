@@ -407,12 +407,6 @@
   V(ChangeInt32ToInt64)         \
   V(ChangeUint32ToFloat64)      \
   V(ChangeUint32ToUint64)       \
-  V(ImpossibleToBit)            \
-  V(ImpossibleToWord32)         \
-  V(ImpossibleToWord64)         \
-  V(ImpossibleToFloat32)        \
-  V(ImpossibleToFloat64)        \
-  V(ImpossibleToTagged)         \
   V(TruncateFloat64ToFloat32)   \
   V(TruncateInt64ToInt32)       \
   V(RoundFloat64ToInt32)        \

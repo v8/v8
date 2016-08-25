@@ -302,16 +302,6 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* ChangeUint32ToFloat64();
   const Operator* ChangeUint32ToUint64();
 
-  // These are changes from impossible values (for example a smi-checked
-  // string).  They can safely emit an abort instruction, which should
-  // never be reached.
-  const Operator* ImpossibleToWord32();
-  const Operator* ImpossibleToWord64();
-  const Operator* ImpossibleToFloat32();
-  const Operator* ImpossibleToFloat64();
-  const Operator* ImpossibleToTagged();
-  const Operator* ImpossibleToBit();
-
   // These operators truncate or round numbers, both changing the representation
   // of the number and mapping multiple input values onto the same output value.
   const Operator* TruncateFloat64ToFloat32();
