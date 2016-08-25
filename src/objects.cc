@@ -15487,10 +15487,11 @@ bool AllocationSite::IsNestedSite() {
   return false;
 }
 
-
-void AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
+template <AllocationSiteUpdateMode update_or_check>
+bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
                                               ElementsKind to_kind) {
   Isolate* isolate = site->GetIsolate();
+  bool result = false;
 
   if (site->SitePointsToLiteral() && site->transition_info()->IsJSArray()) {
     Handle<JSArray> transition_info =
@@ -15506,6 +15507,9 @@ void AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
       uint32_t length = 0;
       CHECK(transition_info->length()->ToArrayLength(&length));
       if (length <= kMaximumArrayBytesToPretransition) {
+        if (update_or_check == AllocationSiteUpdateMode::kCheckOnly) {
+          return true;
+        }
         if (FLAG_trace_track_allocation_sites) {
           bool is_nested = site->IsNestedSite();
           PrintF(
@@ -15518,6 +15522,7 @@ void AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
         JSObject::TransitionElementsKind(transition_info, to_kind);
         site->dependent_code()->DeoptimizeDependentCodeGroup(
             isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+        result = true;
       }
     }
   } else {
@@ -15527,6 +15532,7 @@ void AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
       to_kind = GetHoleyElementsKind(to_kind);
     }
     if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
+      if (update_or_check == AllocationSiteUpdateMode::kCheckOnly) return true;
       if (FLAG_trace_track_allocation_sites) {
         PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
                reinterpret_cast<void*>(*site),
@@ -15536,8 +15542,10 @@ void AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
       site->SetElementsKind(to_kind);
       site->dependent_code()->DeoptimizeDependentCodeGroup(
           isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+      result = true;
     }
   }
+  return result;
 }
 
 
@@ -15553,13 +15561,13 @@ const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
   return NULL;
 }
 
-
-void JSObject::UpdateAllocationSite(Handle<JSObject> object,
+template <AllocationSiteUpdateMode update_or_check>
+bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
                                     ElementsKind to_kind) {
-  if (!object->IsJSArray()) return;
+  if (!object->IsJSArray()) return false;
 
   Heap* heap = object->GetHeap();
-  if (!heap->InNewSpace(*object)) return;
+  if (!heap->InNewSpace(*object)) return false;
 
   Handle<AllocationSite> site;
   {
@@ -15567,14 +15575,21 @@ void JSObject::UpdateAllocationSite(Handle<JSObject> object,
 
     AllocationMemento* memento =
         heap->FindAllocationMemento<Heap::kForRuntime>(*object);
-    if (memento == NULL) return;
+    if (memento == NULL) return false;
 
     // Walk through to the Allocation Site
     site = handle(memento->GetAllocationSite());
   }
-  AllocationSite::DigestTransitionFeedback(site, to_kind);
+  return AllocationSite::DigestTransitionFeedback<update_or_check>(site,
+                                                                   to_kind);
 }
 
+template bool
+JSObject::UpdateAllocationSite<AllocationSiteUpdateMode::kCheckOnly>(
+    Handle<JSObject> object, ElementsKind to_kind);
+
+template bool JSObject::UpdateAllocationSite<AllocationSiteUpdateMode::kUpdate>(
+    Handle<JSObject> object, ElementsKind to_kind);
 
 void JSObject::TransitionElementsKind(Handle<JSObject> object,
                                       ElementsKind to_kind) {

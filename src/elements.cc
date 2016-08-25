@@ -911,6 +911,30 @@ class ElementsAccessorBase : public ElementsAccessor {
     Subclass::GrowCapacityAndConvertImpl(object, capacity);
   }
 
+  bool GrowCapacity(Handle<JSObject> object, uint32_t index) final {
+    // This function is intended to be called from optimized code. We don't
+    // want to trigger lazy deopts there, so refuse to handle cases that would.
+    if (object->map()->is_prototype_map() ||
+        object->WouldConvertToSlowElements(index)) {
+      return false;
+    }
+    Handle<FixedArrayBase> old_elements(object->elements());
+    uint32_t new_capacity = JSObject::NewElementsCapacity(index + 1);
+    DCHECK(static_cast<uint32_t>(old_elements->length()) < new_capacity);
+    Handle<FixedArrayBase> elements =
+        ConvertElementsWithCapacity(object, old_elements, kind(), new_capacity);
+
+    DCHECK_EQ(object->GetElementsKind(), kind());
+    // Transition through the allocation site as well if present.
+    if (JSObject::UpdateAllocationSite<AllocationSiteUpdateMode::kCheckOnly>(
+            object, kind())) {
+      return false;
+    }
+
+    object->set_elements(*elements);
+    return true;
+  }
+
   void Delete(Handle<JSObject> obj, uint32_t entry) final {
     Subclass::DeleteImpl(obj, entry);
   }
