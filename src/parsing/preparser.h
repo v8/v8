@@ -627,73 +627,6 @@ class ParserBaseTraits<PreParser> {
   // A dummy function, just useful as an argument to CHECK_OK_CUSTOM.
   static void Void() {}
 
-  // Producing data during the recursive descent.
-  PreParserIdentifier GetSymbol(Scanner* scanner) const;
-
-  PreParserIdentifier GetNextSymbol(Scanner* scanner) const {
-    return PreParserIdentifier::Default();
-  }
-
-  PreParserIdentifier GetNumberAsSymbol(Scanner* scanner) const {
-    return PreParserIdentifier::Default();
-  }
-
-  PreParserExpression ThisExpression(int pos = kNoSourcePosition) {
-    return PreParserExpression::This();
-  }
-
-  PreParserExpression NewSuperPropertyReference(PreParserFactory* factory,
-                                                int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression NewSuperCallReference(PreParserFactory* factory,
-                                            int pos) {
-    return PreParserExpression::SuperCallReference();
-  }
-
-  PreParserExpression NewTargetExpression(int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression FunctionSentExpression(PreParserFactory* factory,
-                                             int pos) const {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression ExpressionFromLiteral(Token::Value token, int pos,
-                                            Scanner* scanner,
-                                            PreParserFactory* factory) const {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpression ExpressionFromIdentifier(PreParserIdentifier name,
-                                               int start_position,
-                                               int end_position,
-                                               InferName = InferName::kYes) {
-    return PreParserExpression::FromIdentifier(name);
-  }
-
-  PreParserExpression ExpressionFromString(int pos, Scanner* scanner,
-                                           PreParserFactory* factory) const;
-
-  PreParserExpression GetIterator(PreParserExpression iterable,
-                                  PreParserFactory* factory, int pos) {
-    return PreParserExpression::Default();
-  }
-
-  PreParserExpressionList NewExpressionList(int size, Zone* zone) const {
-    return PreParserExpressionList();
-  }
-
-  PreParserExpressionList NewPropertyList(int size, Zone* zone) const {
-    return PreParserExpressionList();
-  }
-
-  PreParserStatementList NewStatementList(int size, Zone* zone) const {
-    return PreParserStatementList();
-  }
-
   void AddParameterInitializationBlock(
       const PreParserFormalParameters& parameters, PreParserStatementList body,
       bool is_async, bool* ok) {}
@@ -1143,6 +1076,67 @@ class PreParser : public ParserBase<PreParser> {
   // Odd-ball literal creators.
   V8_INLINE PreParserExpression GetLiteralTheHole(int position) {
     return PreParserExpression::Default();
+  }
+
+  // Producing data during the recursive descent.
+  PreParserIdentifier GetSymbol() const;
+
+  V8_INLINE PreParserIdentifier GetNextSymbol() const {
+    return PreParserIdentifier::Default();
+  }
+
+  V8_INLINE PreParserIdentifier GetNumberAsSymbol() const {
+    return PreParserIdentifier::Default();
+  }
+
+  V8_INLINE PreParserExpression ThisExpression(int pos = kNoSourcePosition) {
+    return PreParserExpression::This();
+  }
+
+  V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserExpression NewSuperCallReference(int pos) {
+    return PreParserExpression::SuperCallReference();
+  }
+
+  V8_INLINE PreParserExpression NewTargetExpression(int pos) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserExpression FunctionSentExpression(int pos) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserExpression ExpressionFromLiteral(Token::Value token,
+                                                      int pos) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserExpression ExpressionFromIdentifier(
+      PreParserIdentifier name, int start_position, int end_position,
+      InferName infer = InferName::kYes) {
+    return PreParserExpression::FromIdentifier(name);
+  }
+
+  V8_INLINE PreParserExpression ExpressionFromString(int pos) {
+    if (scanner()->UnescapedLiteralMatches("use strict", 10)) {
+      return PreParserExpression::UseStrictStringLiteral();
+    }
+    return PreParserExpression::StringLiteral();
+  }
+
+  V8_INLINE PreParserExpressionList NewExpressionList(int size) const {
+    return PreParserExpressionList();
+  }
+
+  V8_INLINE PreParserExpressionList NewPropertyList(int size) const {
+    return PreParserExpressionList();
+  }
+
+  V8_INLINE PreParserStatementList NewStatementList(int size) const {
+    return PreParserStatementList();
   }
 
   // Preparser's private field members.

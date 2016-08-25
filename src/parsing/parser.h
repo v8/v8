@@ -175,38 +175,6 @@ class ParserBaseTraits<Parser> {
     return reinterpret_cast<const Parser*>(this);
   }
 
-  // Producing data during the recursive descent.
-  const AstRawString* GetSymbol(Scanner* scanner) const;
-  const AstRawString* GetNextSymbol(Scanner* scanner) const;
-  const AstRawString* GetNumberAsSymbol(Scanner* scanner) const;
-
-  Expression* ThisExpression(int pos = kNoSourcePosition);
-  Expression* NewSuperPropertyReference(AstNodeFactory* factory, int pos);
-  Expression* NewSuperCallReference(AstNodeFactory* factory, int pos);
-  Expression* NewTargetExpression(int pos);
-  Expression* FunctionSentExpression(AstNodeFactory* factory, int pos) const;
-  Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
-                                 AstNodeFactory* factory) const;
-  Expression* ExpressionFromIdentifier(const AstRawString* name,
-                                       int start_position, int end_position,
-                                       InferName = InferName::kYes);
-  Expression* ExpressionFromString(int pos, Scanner* scanner,
-                                   AstNodeFactory* factory) const;
-  Expression* GetIterator(Expression* iterable, AstNodeFactory* factory,
-                          int pos);
-  ZoneList<v8::internal::Expression*>* NewExpressionList(int size,
-                                                         Zone* zone) const {
-    return new(zone) ZoneList<v8::internal::Expression*>(size, zone);
-  }
-  ZoneList<ObjectLiteral::Property*>* NewPropertyList(int size,
-                                                      Zone* zone) const {
-    return new(zone) ZoneList<ObjectLiteral::Property*>(size, zone);
-  }
-  ZoneList<v8::internal::Statement*>* NewStatementList(int size,
-                                                       Zone* zone) const {
-    return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
-  }
-
   V8_INLINE void AddParameterInitializationBlock(
       const ParserFormalParameters& parameters,
       ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok);
@@ -543,6 +511,7 @@ class Parser : public ParserBase<Parser> {
   Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
                                       int pos);
 
+  Expression* GetIterator(Expression* iterable, int pos);
 
   // Initialize the components of a for-in / for-of statement.
   Statement* InitializeForEachStatement(ForEachStatement* stmt,
@@ -975,6 +944,64 @@ class Parser : public ParserBase<Parser> {
   // Odd-ball literal creators.
   V8_INLINE Literal* GetLiteralTheHole(int position) {
     return factory()->NewTheHoleLiteral(kNoSourcePosition);
+  }
+
+  // Producing data during the recursive descent.
+  V8_INLINE const AstRawString* GetSymbol() const {
+    const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
+    DCHECK(result != NULL);
+    return result;
+  }
+
+  V8_INLINE const AstRawString* GetNextSymbol() const {
+    return scanner()->NextSymbol(ast_value_factory());
+  }
+
+  V8_INLINE const AstRawString* GetNumberAsSymbol() const {
+    double double_value = scanner()->DoubleValue();
+    char array[100];
+    const char* string = DoubleToCString(double_value, ArrayVector(array));
+    return ast_value_factory()->GetOneByteString(string);
+  }
+
+  V8_INLINE Expression* ThisExpression(int pos = kNoSourcePosition) {
+    return NewUnresolved(ast_value_factory()->this_string(), pos, pos + 4,
+                         Variable::THIS);
+  }
+
+  Expression* NewSuperPropertyReference(int pos);
+  Expression* NewSuperCallReference(int pos);
+  Expression* NewTargetExpression(int pos);
+  Expression* FunctionSentExpression(int pos);
+
+  Literal* ExpressionFromLiteral(Token::Value token, int pos);
+
+  V8_INLINE Expression* ExpressionFromIdentifier(
+      const AstRawString* name, int start_position, int end_position,
+      InferName infer = InferName::kYes) {
+    if (infer == InferName::kYes && fni_ != NULL) {
+      fni_->PushVariableName(name);
+    }
+    return NewUnresolved(name, start_position, end_position);
+  }
+
+  V8_INLINE Expression* ExpressionFromString(int pos) {
+    const AstRawString* symbol = GetSymbol();
+    if (fni_ != NULL) fni_->PushLiteralName(symbol);
+    return factory()->NewStringLiteral(symbol, pos);
+  }
+
+  V8_INLINE ZoneList<v8::internal::Expression*>* NewExpressionList(
+      int size) const {
+    return new (zone()) ZoneList<v8::internal::Expression*>(size, zone());
+  }
+  V8_INLINE ZoneList<ObjectLiteral::Property*>* NewPropertyList(
+      int size) const {
+    return new (zone()) ZoneList<ObjectLiteral::Property*>(size, zone());
+  }
+  V8_INLINE ZoneList<v8::internal::Statement*>* NewStatementList(
+      int size) const {
+    return new (zone()) ZoneList<v8::internal::Statement*>(size, zone());
   }
 
   // Parser's private field members.

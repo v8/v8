@@ -434,96 +434,62 @@ Expression* Parser::NewThrowError(Runtime::FunctionId id,
   return factory()->NewThrow(call_constructor, pos);
 }
 
-const AstRawString* ParserBaseTraits<Parser>::GetSymbol(
-    Scanner* scanner) const {
-  const AstRawString* result =
-      delegate()->scanner()->CurrentSymbol(delegate()->ast_value_factory());
-  DCHECK(result != NULL);
-  return result;
-}
-
-const AstRawString* ParserBaseTraits<Parser>::GetNumberAsSymbol(
-    Scanner* scanner) const {
-  double double_value = delegate()->scanner()->DoubleValue();
-  char array[100];
-  const char* string = DoubleToCString(double_value, ArrayVector(array));
-  return delegate()->ast_value_factory()->GetOneByteString(string);
-}
-
-const AstRawString* ParserBaseTraits<Parser>::GetNextSymbol(
-    Scanner* scanner) const {
-  return delegate()->scanner()->NextSymbol(delegate()->ast_value_factory());
-}
-
-Expression* ParserBaseTraits<Parser>::ThisExpression(int pos) {
-  return delegate()->NewUnresolved(
-      delegate()->ast_value_factory()->this_string(), pos, pos + 4,
-      Variable::THIS);
-}
-
-Expression* ParserBaseTraits<Parser>::NewSuperPropertyReference(
-    AstNodeFactory* factory, int pos) {
+Expression* Parser::NewSuperPropertyReference(int pos) {
   // this_function[home_object_symbol]
-  VariableProxy* this_function_proxy = delegate()->NewUnresolved(
-      delegate()->ast_value_factory()->this_function_string(), pos);
+  VariableProxy* this_function_proxy =
+      NewUnresolved(ast_value_factory()->this_function_string(), pos);
   Expression* home_object_symbol_literal =
-      factory->NewSymbolLiteral("home_object_symbol", kNoSourcePosition);
-  Expression* home_object = factory->NewProperty(
+      factory()->NewSymbolLiteral("home_object_symbol", kNoSourcePosition);
+  Expression* home_object = factory()->NewProperty(
       this_function_proxy, home_object_symbol_literal, pos);
-  return factory->NewSuperPropertyReference(
+  return factory()->NewSuperPropertyReference(
       ThisExpression(pos)->AsVariableProxy(), home_object, pos);
 }
 
-Expression* ParserBaseTraits<Parser>::NewSuperCallReference(
-    AstNodeFactory* factory, int pos) {
-  VariableProxy* new_target_proxy = delegate()->NewUnresolved(
-      delegate()->ast_value_factory()->new_target_string(), pos);
-  VariableProxy* this_function_proxy = delegate()->NewUnresolved(
-      delegate()->ast_value_factory()->this_function_string(), pos);
-  return factory->NewSuperCallReference(ThisExpression(pos)->AsVariableProxy(),
-                                        new_target_proxy, this_function_proxy,
-                                        pos);
+Expression* Parser::NewSuperCallReference(int pos) {
+  VariableProxy* new_target_proxy =
+      NewUnresolved(ast_value_factory()->new_target_string(), pos);
+  VariableProxy* this_function_proxy =
+      NewUnresolved(ast_value_factory()->this_function_string(), pos);
+  return factory()->NewSuperCallReference(
+      ThisExpression(pos)->AsVariableProxy(), new_target_proxy,
+      this_function_proxy, pos);
 }
 
-Expression* ParserBaseTraits<Parser>::NewTargetExpression(int pos) {
+Expression* Parser::NewTargetExpression(int pos) {
   static const int kNewTargetStringLength = 10;
-  auto proxy = delegate()->NewUnresolved(
-      delegate()->ast_value_factory()->new_target_string(), pos,
-      pos + kNewTargetStringLength);
+  auto proxy = NewUnresolved(ast_value_factory()->new_target_string(), pos,
+                             pos + kNewTargetStringLength);
   proxy->set_is_new_target();
   return proxy;
 }
 
-Expression* ParserBaseTraits<Parser>::FunctionSentExpression(
-    AstNodeFactory* factory, int pos) const {
+Expression* Parser::FunctionSentExpression(int pos) {
   // We desugar function.sent into %_GeneratorGetInputOrDebugPos(generator).
-  Zone* zone = delegate()->zone();
-  ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(1, zone);
-  VariableProxy* generator = factory->NewVariableProxy(
-      delegate()->function_state_->generator_object_variable());
-  args->Add(generator, zone);
-  return factory->NewCallRuntime(Runtime::kInlineGeneratorGetInputOrDebugPos,
-                                 args, pos);
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+  VariableProxy* generator =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  args->Add(generator, zone());
+  return factory()->NewCallRuntime(Runtime::kInlineGeneratorGetInputOrDebugPos,
+                                   args, pos);
 }
 
-Literal* ParserBaseTraits<Parser>::ExpressionFromLiteral(
-    Token::Value token, int pos, Scanner* scanner,
-    AstNodeFactory* factory) const {
+Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
   switch (token) {
     case Token::NULL_LITERAL:
-      return factory->NewNullLiteral(pos);
+      return factory()->NewNullLiteral(pos);
     case Token::TRUE_LITERAL:
-      return factory->NewBooleanLiteral(true, pos);
+      return factory()->NewBooleanLiteral(true, pos);
     case Token::FALSE_LITERAL:
-      return factory->NewBooleanLiteral(false, pos);
+      return factory()->NewBooleanLiteral(false, pos);
     case Token::SMI: {
-      int value = scanner->smi_value();
-      return factory->NewSmiLiteral(value, pos);
+      int value = scanner()->smi_value();
+      return factory()->NewSmiLiteral(value, pos);
     }
     case Token::NUMBER: {
-      bool has_dot = scanner->ContainsDot();
-      double value = scanner->DoubleValue();
-      return factory->NewNumberLiteral(value, pos, has_dot);
+      bool has_dot = scanner()->ContainsDot();
+      double value = scanner()->DoubleValue();
+      return factory()->NewNumberLiteral(value, pos, has_dot);
     }
     default:
       DCHECK(false);
@@ -531,32 +497,13 @@ Literal* ParserBaseTraits<Parser>::ExpressionFromLiteral(
   return NULL;
 }
 
-Expression* ParserBaseTraits<Parser>::ExpressionFromIdentifier(
-    const AstRawString* name, int start_position, int end_position,
-    InferName infer) {
-  if (infer == InferName::kYes && delegate()->fni_ != NULL) {
-    delegate()->fni_->PushVariableName(name);
-  }
-  return delegate()->NewUnresolved(name, start_position, end_position);
-}
-
-Expression* ParserBaseTraits<Parser>::ExpressionFromString(
-    int pos, Scanner* scanner, AstNodeFactory* factory) const {
-  const AstRawString* symbol = GetSymbol(scanner);
-  if (delegate()->fni_ != NULL) delegate()->fni_->PushLiteralName(symbol);
-  return factory->NewStringLiteral(symbol, pos);
-}
-
-Expression* ParserBaseTraits<Parser>::GetIterator(Expression* iterable,
-                                                  AstNodeFactory* factory,
-                                                  int pos) {
+Expression* Parser::GetIterator(Expression* iterable, int pos) {
   Expression* iterator_symbol_literal =
-      factory->NewSymbolLiteral("iterator_symbol", kNoSourcePosition);
+      factory()->NewSymbolLiteral("iterator_symbol", kNoSourcePosition);
   Expression* prop =
-      factory->NewProperty(iterable, iterator_symbol_literal, pos);
-  Zone* zone = delegate()->zone();
-  ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(0, zone);
-  return factory->NewCall(prop, args, pos);
+      factory()->NewProperty(iterable, iterator_symbol_literal, pos);
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(0, zone());
+  return factory()->NewCall(prop, args, pos);
 }
 
 void Parser::MarkTailPosition(Expression* expression) {
@@ -1166,7 +1113,7 @@ const AstRawString* Parser::ParseModuleSpecifier(bool* ok) {
   //    StringLiteral
 
   Expect(Token::STRING, CHECK_OK);
-  return GetSymbol(scanner());
+  return GetSymbol();
 }
 
 
@@ -3019,8 +2966,7 @@ Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
   {
     assign_iterator = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(iterator),
-        GetIterator(iterable, factory(), iterable->position()),
-        iterable->position());
+        GetIterator(iterable, iterable->position()), iterable->position());
   }
 
   // !%_IsJSReceiver(result = iterator.next()) &&
@@ -4743,7 +4689,7 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
 
 
   ClassLiteralChecker checker(this);
-  ZoneList<ObjectLiteral::Property*>* properties = NewPropertyList(4, zone());
+  ZoneList<ObjectLiteral::Property*>* properties = NewPropertyList(4);
   FunctionLiteral* constructor = nullptr;
   bool has_seen_constructor = false;
 
@@ -5689,7 +5635,7 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
     if (spread == nullptr) {
       // If the element is not a spread, we're adding a single:
       // %AppendElement($R, value)
-      ZoneList<Expression*>* append_element_args = NewExpressionList(2, zone());
+      ZoneList<Expression*>* append_element_args = NewExpressionList(2);
       append_element_args->Add(factory()->NewVariableProxy(result), zone());
       append_element_args->Add(value, zone());
       do_block->statements()->Add(
@@ -5705,8 +5651,7 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
       // %AppendElement($R, each)
       Statement* append_body;
       {
-        ZoneList<Expression*>* append_element_args =
-            NewExpressionList(2, zone());
+        ZoneList<Expression*>* append_element_args = NewExpressionList(2);
         append_element_args->Add(factory()->NewVariableProxy(result), zone());
         append_element_args->Add(factory()->NewVariableProxy(each), zone());
         append_body = factory()->NewExpressionStatement(
@@ -5918,7 +5863,7 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
   Variable* var_iterator = NewTemporary(ast_value_factory()->empty_string());
   Statement* get_iterator;
   {
-    Expression* iterator = GetIterator(iterable, factory(), nopos);
+    Expression* iterator = GetIterator(iterable, nopos);
     Expression* iterator_proxy = factory()->NewVariableProxy(var_iterator);
     Expression* assignment = factory()->NewAssignment(
         Token::ASSIGN, iterator_proxy, iterator, nopos);
@@ -6127,7 +6072,7 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
   // input = function.sent;
   Statement* get_input;
   {
-    Expression* function_sent = FunctionSentExpression(factory(), nopos);
+    Expression* function_sent = FunctionSentExpression(nopos);
     Expression* input_proxy = factory()->NewVariableProxy(var_input);
     Expression* assignment = factory()->NewAssignment(
         Token::ASSIGN, input_proxy, function_sent, nopos);
