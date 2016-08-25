@@ -177,7 +177,7 @@ void FullCodeGenerator::Generate() {
   bool function_in_register_a1 = true;
 
   // Possibly allocate a local context.
-  if (info->scope()->num_heap_slots() > 0) {
+  if (info->scope()->NeedsContext()) {
     Comment cmnt(masm_, "[ Allocate context");
     // Argument to NewContext is the function, which is still in a1.
     bool need_write_barrier = true;
@@ -1207,7 +1207,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
   Register temp = t0;
 
   for (Scope* s = scope(); s != var->scope(); s = s->outer_scope()) {
-    if (s->num_heap_slots() > 0) {
+    if (s->NeedsContext()) {
       if (s->calls_sloppy_eval()) {
         // Check that extension is "the hole".
         __ lw(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));

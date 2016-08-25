@@ -8399,7 +8399,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
-  if (target_info.scope()->num_heap_slots() > 0) {
+  if (target_info.scope()->NeedsContext()) {
     TraceInline(target, caller, "target has context-allocated variables");
     return false;
   }
