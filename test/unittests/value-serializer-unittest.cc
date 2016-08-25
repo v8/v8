@@ -1559,5 +1559,58 @@ TEST_F(ValueSerializerTest, RoundTripSetWithTrickyGetters) {
       });
 }
 
+TEST_F(ValueSerializerTest, RoundTripArrayBuffer) {
+  RoundTripTest("new ArrayBuffer()", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsArrayBuffer());
+    EXPECT_EQ(0u, ArrayBuffer::Cast(*value)->ByteLength());
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === ArrayBuffer.prototype"));
+  });
+  RoundTripTest("new Uint8Array([0, 128, 255]).buffer",
+                [this](Local<Value> value) {
+                  ASSERT_TRUE(value->IsArrayBuffer());
+                  EXPECT_EQ(3u, ArrayBuffer::Cast(*value)->ByteLength());
+                  EXPECT_TRUE(EvaluateScriptForResultBool(
+                      "new Uint8Array(result).toString() === '0,128,255'"));
+                });
+  RoundTripTest(
+      "({ a: new ArrayBuffer(), get b() { return this.a; }})",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.a instanceof ArrayBuffer"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeArrayBuffer) {
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x42, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsArrayBuffer());
+               EXPECT_EQ(0u, ArrayBuffer::Cast(*value)->ByteLength());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === ArrayBuffer.prototype"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x42, 0x03, 0x00, 0x80, 0xff, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsArrayBuffer());
+               EXPECT_EQ(3u, ArrayBuffer::Cast(*value)->ByteLength());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "new Uint8Array(result).toString() === '0,128,255'"));
+             });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01,
+       0x61, 0x3f, 0x01, 0x42, 0x00, 0x3f, 0x02, 0x53, 0x01,
+       0x62, 0x3f, 0x02, 0x5e, 0x01, 0x7b, 0x02, 0x00},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.a instanceof ArrayBuffer"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeInvalidArrayBuffer) {
+  InvalidDecodeTest({0xff, 0x09, 0x42, 0xff, 0xff, 0x00});
+}
+
 }  // namespace
 }  // namespace v8

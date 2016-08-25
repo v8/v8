@@ -90,6 +90,8 @@ enum class SerializationTag : uint8_t {
   kBeginJSSet = '\'',
   // End of a JS set. length:uint32_t.
   kEndJSSet = ',',
+  // Array buffer. byteLength:uint32_t, then raw data.
+  kArrayBuffer = 'B',
 };
 
 ValueSerializer::ValueSerializer(Isolate* isolate)
@@ -156,6 +158,11 @@ void ValueSerializer::WriteTwoByteString(Vector<const uc16> chars) {
   WriteVarint<uint32_t>(chars.length() * sizeof(uc16));
   buffer_.insert(buffer_.end(), reinterpret_cast<const uint8_t*>(chars.begin()),
                  reinterpret_cast<const uint8_t*>(chars.end()));
+}
+
+void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
+  const uint8_t* begin = reinterpret_cast<const uint8_t*>(source);
+  buffer_.insert(buffer_.end(), begin, begin + length);
 }
 
 uint8_t* ValueSerializer::ReserveRawBytes(size_t bytes) {
@@ -301,6 +308,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSMap(Handle<JSMap>::cast(receiver));
     case JS_SET_TYPE:
       return WriteJSSet(Handle<JSSet>::cast(receiver));
+    case JS_ARRAY_BUFFER_TYPE:
+      return WriteJSArrayBuffer(JSArrayBuffer::cast(*receiver));
     default:
       UNIMPLEMENTED();
       break;
@@ -487,6 +496,18 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
   }
   WriteTag(SerializationTag::kEndJSSet);
   WriteVarint<uint32_t>(length);
+  return Just(true);
+}
+
+Maybe<bool> ValueSerializer::WriteJSArrayBuffer(JSArrayBuffer* array_buffer) {
+  if (array_buffer->was_neutered()) return Nothing<bool>();
+  double byte_length = array_buffer->byte_length()->Number();
+  if (byte_length > std::numeric_limits<uint32_t>::max()) {
+    return Nothing<bool>();
+  }
+  WriteTag(SerializationTag::kArrayBuffer);
+  WriteVarint<uint32_t>(byte_length);
+  WriteRawBytes(array_buffer->backing_store(), byte_length);
   return Just(true);
 }
 
@@ -683,6 +704,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
       return ReadJSMap();
     case SerializationTag::kBeginJSSet:
       return ReadJSSet();
+    case SerializationTag::kArrayBuffer:
+      return ReadJSArrayBuffer();
     default:
       return MaybeHandle<Object>();
   }
@@ -949,6 +972,24 @@ MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
   }
   DCHECK(HasObjectWithID(id));
   return scope.CloseAndEscape(set);
+}
+
+MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer() {
+  uint32_t id = next_id_++;
+  uint32_t byte_length;
+  Vector<const uint8_t> bytes;
+  if (!ReadVarint<uint32_t>().To(&byte_length) ||
+      byte_length > static_cast<size_t>(end_ - position_)) {
+    return MaybeHandle<JSArrayBuffer>();
+  }
+  const bool should_initialize = false;
+  Handle<JSArrayBuffer> array_buffer = isolate_->factory()->NewJSArrayBuffer();
+  JSArrayBuffer::SetupAllocatingData(array_buffer, isolate_, byte_length,
+                                     should_initialize);
+  memcpy(array_buffer->backing_store(), position_, byte_length);
+  position_ += byte_length;
+  AddObjectWithID(id, array_buffer);
+  return array_buffer;
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(

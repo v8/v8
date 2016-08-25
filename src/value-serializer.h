@@ -20,6 +20,7 @@ namespace internal {
 
 class HeapNumber;
 class Isolate;
+class JSArrayBuffer;
 class JSDate;
 class JSMap;
 class JSRegExp;
@@ -68,6 +69,7 @@ class ValueSerializer {
   void WriteDouble(double value);
   void WriteOneByteString(Vector<const uint8_t> chars);
   void WriteTwoByteString(Vector<const uc16> chars);
+  void WriteRawBytes(const void* source, size_t length);
   uint8_t* ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
@@ -83,6 +85,7 @@ class ValueSerializer {
   void WriteJSRegExp(JSRegExp* regexp);
   Maybe<bool> WriteJSMap(Handle<JSMap> map) WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSet(Handle<JSSet> map) WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSArrayBuffer(JSArrayBuffer* array_buffer);
 
   /*
    * Reads the specified keys from the object and writes key-value pairs to the
@@ -158,6 +161,7 @@ class ValueDeserializer {
   MaybeHandle<JSRegExp> ReadJSRegExp() WARN_UNUSED_RESULT;
   MaybeHandle<JSMap> ReadJSMap() WARN_UNUSED_RESULT;
   MaybeHandle<JSSet> ReadJSSet() WARN_UNUSED_RESULT;
+  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer() WARN_UNUSED_RESULT;
 
   /*
    * Reads key-value pairs into the object until the specified end tag is
