@@ -214,8 +214,11 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // we have already entrered JavaScript again and the external callback
   // is not the top function.
   if (scope && scope->scope_address() < handler) {
+    i::Address* external_callback_entry_ptr =
+        scope->callback_entrypoint_address();
     sample_info->external_callback_entry =
-        *scope->callback_entrypoint_address();
+        external_callback_entry_ptr == nullptr ? nullptr
+                                               : *external_callback_entry_ptr;
   }
 
   i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs->fp),
