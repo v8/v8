@@ -306,6 +306,7 @@
   V(ObjectIsSmi)                    \
   V(ObjectIsString)                 \
   V(ObjectIsUndetectable)           \
+  V(ArrayBufferWasNeutered)         \
   V(EnsureWritableFastElements)     \
   V(MaybeGrowFastElements)          \
   V(TransitionElementsKind)

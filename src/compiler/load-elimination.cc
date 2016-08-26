@@ -55,6 +55,8 @@ bool MustAlias(Node* a, Node* b) { return QueryAlias(a, b) == kMustAlias; }
 
 Reduction LoadElimination::Reduce(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kArrayBufferWasNeutered:
+      return ReduceArrayBufferWasNeutered(node);
     case IrOpcode::kCheckMaps:
       return ReduceCheckMaps(node);
     case IrOpcode::kEnsureWritableFastElements:
@@ -83,6 +85,65 @@ Reduction LoadElimination::Reduce(Node* node) {
       return ReduceOtherNode(node);
   }
   return NoChange();
+}
+
+namespace {
+
+bool IsCompatibleCheck(Node const* a, Node const* b) {
+  if (a->op() != b->op()) return false;
+  for (int i = a->op()->ValueInputCount(); --i >= 0;) {
+    if (!MustAlias(a->InputAt(i), b->InputAt(i))) return false;
+  }
+  return true;
+}
+
+}  // namespace
+
+Node* LoadElimination::AbstractChecks::Lookup(Node* node) const {
+  for (Node* const check : nodes_) {
+    if (check && IsCompatibleCheck(check, node)) {
+      return check;
+    }
+  }
+  return nullptr;
+}
+
+bool LoadElimination::AbstractChecks::Equals(AbstractChecks const* that) const {
+  if (this == that) return true;
+  for (size_t i = 0; i < arraysize(nodes_); ++i) {
+    if (Node* this_node = this->nodes_[i]) {
+      for (size_t j = 0;; ++j) {
+        if (j == arraysize(nodes_)) return false;
+        if (that->nodes_[j] == this_node) break;
+      }
+    }
+  }
+  for (size_t i = 0; i < arraysize(nodes_); ++i) {
+    if (Node* that_node = that->nodes_[i]) {
+      for (size_t j = 0;; ++j) {
+        if (j == arraysize(nodes_)) return false;
+        if (this->nodes_[j] == that_node) break;
+      }
+    }
+  }
+  return true;
+}
+
+LoadElimination::AbstractChecks const* LoadElimination::AbstractChecks::Merge(
+    AbstractChecks const* that, Zone* zone) const {
+  if (this->Equals(that)) return this;
+  AbstractChecks* copy = new (zone) AbstractChecks(zone);
+  for (Node* const this_node : this->nodes_) {
+    if (this_node == nullptr) continue;
+    for (Node* const that_node : that->nodes_) {
+      if (this_node == that_node) {
+        copy->nodes_[copy->next_index_++] = this_node;
+        break;
+      }
+    }
+  }
+  copy->next_index_ %= arraysize(nodes_);
+  return copy;
 }
 
 Node* LoadElimination::AbstractElements::Lookup(Node* object,
@@ -165,6 +226,7 @@ LoadElimination::AbstractElements::Merge(AbstractElements const* that,
           this_element.index == that_element.index &&
           this_element.value == that_element.value) {
         copy->elements_[copy->next_index_++] = this_element;
+        break;
       }
     }
   }
@@ -194,6 +256,13 @@ LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
 }
 
 bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {
+  if (this->checks_) {
+    if (!that->checks_ || !that->checks_->Equals(this->checks_)) {
+      return false;
+    }
+  } else if (that->checks_) {
+    return false;
+  }
   if (this->elements_) {
     if (!that->elements_ || !that->elements_->Equals(this->elements_)) {
       return false;
@@ -215,6 +284,12 @@ bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {
 
 void LoadElimination::AbstractState::Merge(AbstractState const* that,
                                            Zone* zone) {
+  // Merge the information we have about the checks.
+  if (this->checks_) {
+    this->checks_ =
+        that->checks_ ? that->checks_->Merge(this->checks_, zone) : nullptr;
+  }
+
   // Merge the information we have about the elements.
   if (this->elements_) {
     this->elements_ = that->elements_
@@ -232,6 +307,21 @@ void LoadElimination::AbstractState::Merge(AbstractState const* that,
       }
     }
   }
+}
+
+Node* LoadElimination::AbstractState::LookupCheck(Node* node) const {
+  return this->checks_ ? this->checks_->Lookup(node) : nullptr;
+}
+
+LoadElimination::AbstractState const* LoadElimination::AbstractState::AddCheck(
+    Node* node, Zone* zone) const {
+  AbstractState* that = new (zone) AbstractState(*this);
+  if (that->checks_) {
+    that->checks_ = that->checks_->Extend(node, zone);
+  } else {
+    that->checks_ = new (zone) AbstractChecks(node, zone);
+  }
+  return that;
 }
 
 Node* LoadElimination::AbstractState::LookupElement(Node* object,
@@ -313,6 +403,18 @@ void LoadElimination::AbstractStateForEffectNodes::Set(
   size_t const id = node->id();
   if (id >= info_for_node_.size()) info_for_node_.resize(id + 1, nullptr);
   info_for_node_[id] = state;
+}
+
+Reduction LoadElimination::ReduceArrayBufferWasNeutered(Node* node) {
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  if (Node* const check = state->LookupCheck(node)) {
+    ReplaceWithValue(node, check, effect);
+    return Replace(check);
+  }
+  state = state->AddCheck(node, zone());
+  return UpdateState(node, state);
 }
 
 Reduction LoadElimination::ReduceCheckMaps(Node* node) {

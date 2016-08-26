@@ -1695,6 +1695,9 @@ Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {
   return TypeUnaryOp(node, ObjectIsUndetectable);
 }
 
+Type* Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
+  return Type::Boolean();
+}
 
 // Machine operators.
 

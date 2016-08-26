@@ -702,6 +702,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsUndetectable:
       state = LowerObjectIsUndetectable(node, *effect, *control);
       break;
+    case IrOpcode::kArrayBufferWasNeutered:
+      state = LowerArrayBufferWasNeutered(node, *effect, *control);
+      break;
     case IrOpcode::kStringFromCharCode:
       state = LowerStringFromCharCode(node, *effect, *control);
       break;
@@ -1991,6 +1994,26 @@ EffectControlLinearizer::LowerObjectIsUndetectable(Node* node, Node* effect,
   effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
   value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2), vtrue,
                            vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerArrayBufferWasNeutered(Node* node, Node* effect,
+                                                     Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* value_bit_field = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()), value,
+      effect, control);
+  value = graph()->NewNode(
+      machine()->Word32Equal(),
+      graph()->NewNode(machine()->Word32Equal(),
+                       graph()->NewNode(machine()->Word32And(), value_bit_field,
+                                        jsgraph()->Int32Constant(
+                                            JSArrayBuffer::WasNeutered::kMask)),
+                       jsgraph()->Int32Constant(0)),
+      jsgraph()->Int32Constant(0));
 
   return ValueEffectControl(value, effect, control);
 }

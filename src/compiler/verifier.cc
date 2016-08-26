@@ -868,6 +868,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kObjectIsSmi:
     case IrOpcode::kObjectIsString:
     case IrOpcode::kObjectIsUndetectable:
+    case IrOpcode::kArrayBufferWasNeutered:
       CheckValueInputIs(node, 0, Type::Any());
       CheckUpperIs(node, Type::Boolean());
       break;

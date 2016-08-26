@@ -2347,9 +2347,9 @@ class RepresentationSelector {
       case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsSmi:
       case IrOpcode::kObjectIsString:
-      case IrOpcode::kObjectIsUndetectable: {
-        ProcessInput(node, 0, UseInfo::AnyTagged());
-        SetOutput(node, MachineRepresentation::kBit);
+      case IrOpcode::kObjectIsUndetectable:
+      case IrOpcode::kArrayBufferWasNeutered: {
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         return;
       }
       case IrOpcode::kCheckFloat64Hole: {

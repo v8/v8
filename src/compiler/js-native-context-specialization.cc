@@ -1048,20 +1048,13 @@ JSNativeContextSpecialization::BuildElementAccess(
     Node* buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
         receiver, effect, control);
-    Node* buffer_bitfield = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-        buffer, effect, control);
-    Node* check = graph()->NewNode(
-        simplified()->NumberEqual(),
-        graph()->NewNode(
-            simplified()->NumberBitwiseAnd(), buffer_bitfield,
-            jsgraph()->Constant(JSArrayBuffer::WasNeutered::kMask)),
-        jsgraph()->ZeroConstant());
+    Node* check = effect = graph()->NewNode(
+        simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
 
     // Default to zero if the {receiver}s buffer was neutered.
     length = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
-        check, length, jsgraph()->ZeroConstant());
+        common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+        check, jsgraph()->ZeroConstant(), length);
 
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       // Check that the {index} is a valid array index, we do the actual

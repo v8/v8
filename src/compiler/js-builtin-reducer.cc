@@ -930,27 +930,21 @@ Reduction JSBuiltinReducer::ReduceArrayBufferViewAccessor(
   Node* control = NodeProperties::GetControlInput(node);
   if (HasInstanceTypeWitness(receiver, effect, instance_type)) {
     // Load the {receiver}s field.
-    Node* receiver_length = effect = graph()->NewNode(
+    Node* receiver_value = effect = graph()->NewNode(
         simplified()->LoadField(access), receiver, effect, control);
 
     // Check if the {receiver}s buffer was neutered.
     Node* receiver_buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
         receiver, effect, control);
-    Node* receiver_buffer_bitfield = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-        receiver_buffer, effect, control);
-    Node* check = graph()->NewNode(
-        simplified()->NumberEqual(),
-        graph()->NewNode(
-            simplified()->NumberBitwiseAnd(), receiver_buffer_bitfield,
-            jsgraph()->Constant(JSArrayBuffer::WasNeutered::kMask)),
-        jsgraph()->ZeroConstant());
+    Node* check = effect =
+        graph()->NewNode(simplified()->ArrayBufferWasNeutered(),
+                         receiver_buffer, effect, control);
 
     // Default to zero if the {receiver}s buffer was neutered.
     Node* value = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
-        check, receiver_length, jsgraph()->ZeroConstant());
+        common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+        check, jsgraph()->ZeroConstant(), receiver_value);
 
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
