@@ -3442,7 +3442,9 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   // Math.sqrt(-Infinity) == NaN
   Label done;
   __ Move(temp, static_cast<double>(-V8_INFINITY));
+  // Set up Infinity.
   __ Neg_d(result, temp);
+  // result is overwritten if the branch is not taken.
   __ BranchF(&done, NULL, eq, temp, input);
 
   // Add +0 to convert -0 to +0.

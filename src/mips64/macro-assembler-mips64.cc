@@ -1960,10 +1960,10 @@ void MacroAssembler::Ins(Register rt,
 }
 
 void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
-  Register scratch1 = t8;
-  Register scratch2 = t9;
   if (kArchVariant == kMips64r2) {
     Label is_nan, done;
+    Register scratch1 = t8;
+    Register scratch2 = t9;
     BranchF32(nullptr, &is_nan, eq, fs, fs);
     Branch(USE_DELAY_SLOT, &done);
     // For NaN input, neg_s will return the same NaN value,
@@ -1978,20 +1978,16 @@ void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
     mtc1(scratch2, fd);
     bind(&done);
   } else {
-    mfc1(scratch1, fs);
-    And(scratch2, scratch1, Operand(~kBinary32SignMask));
-    And(scratch1, scratch1, Operand(kBinary32SignMask));
-    Xor(scratch1, scratch1, Operand(kBinary32SignMask));
-    Or(scratch2, scratch2, scratch1);
-    mtc1(scratch2, fd);
+    // r6 neg_s changes the sign for NaN-like operands as well.
+    neg_s(fd, fs);
   }
 }
 
 void MacroAssembler::Neg_d(FPURegister fd, FPURegister fs) {
-  Register scratch1 = t8;
-  Register scratch2 = t9;
   if (kArchVariant == kMips64r2) {
     Label is_nan, done;
+    Register scratch1 = t8;
+    Register scratch2 = t9;
     BranchF64(nullptr, &is_nan, eq, fs, fs);
     Branch(USE_DELAY_SLOT, &done);
     // For NaN input, neg_d will return the same NaN value,
@@ -2006,12 +2002,8 @@ void MacroAssembler::Neg_d(FPURegister fd, FPURegister fs) {
     dmtc1(scratch2, fd);
     bind(&done);
   } else {
-    dmfc1(scratch1, fs);
-    And(scratch2, scratch1, Operand(~Double::kSignMask));
-    And(scratch1, scratch1, Operand(Double::kSignMask));
-    Xor(scratch1, scratch1, Operand(Double::kSignMask));
-    Or(scratch2, scratch2, scratch1);
-    dmtc1(scratch2, fd);
+    // r6 neg_d changes the sign for NaN-like operands as well.
+    neg_d(fd, fs);
   }
 }
 
