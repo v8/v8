@@ -1100,6 +1100,7 @@ TEST_F(ValueSerializerTest, RoundTripDate) {
 }
 
 TEST_F(ValueSerializerTest, DecodeDate) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84,
               0x2e, 0x41, 0x00},
              [this](Local<Value> value) {
@@ -1120,6 +1121,28 @@ TEST_F(ValueSerializerTest, DecodeDate) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
              });
+#else
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x41, 0x2e, 0x84, 0x80, 0x00, 0x00,
+              0x00, 0x00, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsDate());
+               EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
+               EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
+             });
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x44, 0xc2, 0x87, 0x89, 0x27, 0x45, 0x20, 0x00,
+       0x00, 0x00},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsDate());
+        EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
+      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x7f, 0xf8, 0x00, 0x00, 0x00, 0x00,
+              0x00, 0x00, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsDate());
+               EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
+             });
+#endif
   DecodeTest(
       {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01, 0x61, 0x3f,
        0x01, 0x44, 0x00, 0x20, 0x39, 0x50, 0x37, 0x6a, 0x75, 0x42, 0x3f,
@@ -1212,6 +1235,7 @@ TEST_F(ValueSerializerTest, DecodeValueObjects) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof Boolean"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
       });
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest(
       {0xff, 0x09, 0x3f, 0x00, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x45,
        0xc0, 0x00},
@@ -1228,6 +1252,24 @@ TEST_F(ValueSerializerTest, DecodeValueObjects) {
                EXPECT_TRUE(EvaluateScriptForResultBool(
                    "Number.isNaN(result.valueOf())"));
              });
+#else
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x6e, 0xc0, 0x45, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x00},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === Number.prototype"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.valueOf() === -42"));
+      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x6e, 0x7f, 0xf8, 0x00, 0x00, 0x00, 0x00,
+              0x00, 0x00, 0x00},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Number.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Number.isNaN(result.valueOf())"));
+             });
+#endif
   DecodeTest(
       {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x01, 0x61, 0x3f,
        0x01, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x40, 0x3f,

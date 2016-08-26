@@ -428,7 +428,7 @@ TEST(FastAccessorToSmi) {
   // Create an instance.
   v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
 
-  uint32_t flags;
+  uintptr_t flags;
   obj->SetAlignedPointerInInternalField(0, &flags);
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
