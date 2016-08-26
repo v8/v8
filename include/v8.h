@@ -4474,8 +4474,40 @@ typedef void (*NamedPropertyEnumeratorCallback)(
 // TODO(dcarney): Deprecate and remove previous typedefs, and replace
 // GenericNamedPropertyFooCallback with just NamedPropertyFooCallback.
 /**
- * GenericNamedProperty[Getter|Setter] are used as interceptors on object.
- * See ObjectTemplate::SetNamedPropertyHandler.
+ * Interceptor for get requests on an object.
+ *
+ * Use `info.GetReturnValue().Set()` to set the return value of the
+ * intercepted get request.
+ *
+ * \param property The name of the property for which the request was
+ * intercepted.
+ * \param info Information about the intercepted request, such as
+ * isolate, receiver, return value, or whether running in `'use strict`' mode.
+ * See `PropertyCallbackInfo`.
+ *
+ * \code
+ *  void GetterCallback(
+ *    Local<Name> name,
+ *    const v8::PropertyCallbackInfo<v8::Value>& info) {
+ *      info.GetReturnValue().Set(v8_num(42));
+ *  }
+ *
+ *  v8::Local<v8::FunctionTemplate> templ =
+ *      v8::FunctionTemplate::New(isolate);
+ *  templ->InstanceTemplate()->SetHandler(
+ *      v8::NamedPropertyHandlerConfiguration(GetterCallback));
+ *  LocalContext env;
+ *  env->Global()
+ *      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+ *                                             .ToLocalChecked()
+ *                                             ->NewInstance(env.local())
+ *                                             .ToLocalChecked())
+ *      .FromJust();
+ *  v8::Local<v8::Value> result = CompileRun("obj.a = 17; obj.a");
+ *  CHECK(v8_num(42)->Equals(env.local(), result).FromJust());
+ * \endcode
+ *
+ * See also `ObjectTemplate::SetNamedPropertyHandler`.
  */
 typedef void (*GenericNamedPropertyGetterCallback)(
     Local<Name> property, const PropertyCallbackInfo<Value>& info);
