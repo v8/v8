@@ -124,12 +124,8 @@ class Scope: public ZoneObject {
 
   // Lookup a variable in this scope. Returns the variable or NULL if not found.
   Variable* LookupLocal(const AstRawString* name) {
-    Variable* result = variables_.Lookup(name);
-    if (result != nullptr || scope_info_.is_null()) return result;
-    return LookupInScopeInfo(name);
+    return variables_.Lookup(name);
   }
-
-  Variable* LookupInScopeInfo(const AstRawString* name);
 
   // Lookup a variable in this scope or outer scopes.
   // Returns the variable or NULL if not found.

@@ -286,6 +286,10 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       // nesting script scopes.
       Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
       script_scope->SetScriptScopeInfo(scope_info);
+      script_scope->DeserializeScopeInfo(isolate, ast_value_factory);
+      if (deserialization_mode == DeserializationMode::kDeserializeOffHeap) {
+        script_scope->scope_info_ = Handle<ScopeInfo>::null();
+      }
       DCHECK(context->previous()->IsNativeContext());
       break;
     } else if (context->IsFunctionContext()) {
@@ -321,8 +325,9 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       outer_scope->AddInnerScope(current_scope);
     }
     current_scope = outer_scope;
+    current_scope->DeserializeScopeInfo(isolate, ast_value_factory);
     if (deserialization_mode == DeserializationMode::kDeserializeOffHeap) {
-      current_scope->DeserializeScopeInfo(isolate, ast_value_factory);
+      current_scope->scope_info_ = Handle<ScopeInfo>::null();
     }
     if (innermost_scope == nullptr) innermost_scope = current_scope;
     context = context->previous();
@@ -398,8 +403,6 @@ void Scope::DeserializeScopeInfo(Isolate* isolate,
       result->AllocateTo(VariableLocation::CONTEXT, index);
     }
   }
-
-  scope_info_ = Handle<ScopeInfo>::null();
 }
 
 DeclarationScope* Scope::AsDeclarationScope() {
@@ -609,75 +612,9 @@ void Scope::PropagateUsageFlagsToScope(Scope* other) {
   if (calls_eval()) other->RecordEvalCall();
 }
 
-Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
-  Handle<String> name_handle = name->string();
-  // The Scope is backed up by ScopeInfo. This means it cannot operate in a
-  // heap-independent mode, and all strings must be internalized immediately. So
-  // it's ok to get the Handle<String> here.
-  // If we have a serialized scope info, we might find the variable there.
-  // There should be no local slot with the given name.
-  DCHECK(scope_info_->StackSlotIndex(*name_handle) < 0);
-
-  VariableMode mode;
-  InitializationFlag init_flag;
-  MaybeAssignedFlag maybe_assigned_flag;
-
-  VariableLocation location = VariableLocation::CONTEXT;
-  int index = ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode,
-                                          &init_flag, &maybe_assigned_flag);
-  if (index < 0) {
-    location = VariableLocation::GLOBAL;
-    index = ScopeInfo::ContextGlobalSlotIndex(scope_info_, name_handle, &mode,
-                                              &init_flag, &maybe_assigned_flag);
-    DCHECK(index < 0 || (is_script_scope() && mode == VAR));
-  }
-  if (index < 0) {
-    location = VariableLocation::LOOKUP;
-    index = scope_info_->ParameterIndex(*name_handle);
-    if (index >= 0) {
-      mode = DYNAMIC;
-      init_flag = kCreatedInitialized;
-      // Be conservative and flag parameters as maybe assigned. Better
-      // information would require ScopeInfo to serialize the maybe_assigned bit
-      // also for parameters.
-      maybe_assigned_flag = kMaybeAssigned;
-    }
-  }
-  if (index < 0 && scope_type() == MODULE_SCOPE) {
-    location = VariableLocation::MODULE;
-    index = -1;  // TODO(neis): Find module variables in scope info.
-  }
-  if (index < 0) return nullptr;  // Nowhere found.
-
-  Variable::Kind kind = Variable::NORMAL;
-  if (location == VariableLocation::CONTEXT &&
-      index == scope_info_->ReceiverContextSlotIndex()) {
-    kind = Variable::THIS;
-  }
-  // TODO(marja, rossberg): Correctly declare FUNCTION, CLASS, NEW_TARGET, and
-  // ARGUMENTS bindings as their corresponding Variable::Kind.
-
-  Variable* var = variables_.Declare(zone(), this, name, mode, kind, init_flag,
-                                     maybe_assigned_flag);
-  var->AllocateTo(location, index);
-  return var;
-}
-
 Variable* DeclarationScope::LookupFunctionVar(const AstRawString* name) {
-  if (function_ != nullptr && function_->raw_name() == name) {
-    return function_;
-  } else if (!scope_info_.is_null()) {
-    // If we are backed by a scope info, try to lookup the variable there.
-    VariableMode mode;
-    int index = scope_info_->FunctionContextSlotIndex(*(name->string()), &mode);
-    if (index < 0) return nullptr;
-    Variable* var = DeclareFunctionVar(name);
-    DCHECK_EQ(mode, var->mode());
-    var->AllocateTo(VariableLocation::CONTEXT, index);
-    return var;
-  } else {
-    return nullptr;
-  }
+  if (function_ != nullptr && function_->raw_name() == name) return function_;
+  return nullptr;
 }
 
 

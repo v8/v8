@@ -9,7 +9,6 @@
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 
-#include "src/ast/context-slot-cache.h"
 #include "src/base/accounting-allocator.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
@@ -1944,7 +1943,6 @@ Isolate::Isolate(bool enable_serializer)
       stack_trace_for_uncaught_exceptions_frame_limit_(0),
       stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
       keyed_lookup_cache_(NULL),
-      context_slot_cache_(NULL),
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
@@ -2172,8 +2170,6 @@ Isolate::~Isolate() {
 
   delete descriptor_lookup_cache_;
   descriptor_lookup_cache_ = NULL;
-  delete context_slot_cache_;
-  context_slot_cache_ = NULL;
   delete keyed_lookup_cache_;
   keyed_lookup_cache_ = NULL;
 
@@ -2324,7 +2320,6 @@ bool Isolate::Init(Deserializer* des) {
 
   compilation_cache_ = new CompilationCache(this);
   keyed_lookup_cache_ = new KeyedLookupCache();
-  context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
   unicode_cache_ = new UnicodeCache();
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);

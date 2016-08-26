@@ -6,7 +6,6 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
-#include "src/ast/context-slot-cache.h"
 #include "src/base/bits.h"
 #include "src/base/once.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1475,7 +1474,6 @@ void Heap::MarkCompactPrologue() {
   // At any old GC clear the keyed lookup cache to enable collection of unused
   // maps.
   isolate_->keyed_lookup_cache()->Clear();
-  isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
   RegExpResultsCache::Clear(string_split_cache());
   RegExpResultsCache::Clear(regexp_multiple_cache());
@@ -2890,9 +2888,6 @@ void Heap::CreateInitialObjects() {
 
   // Initialize keyed lookup cache.
   isolate_->keyed_lookup_cache()->Clear();
-
-  // Initialize context slot cache.
-  isolate_->context_slot_cache()->Clear();
 
   // Initialize descriptor cache.
   isolate_->descriptor_lookup_cache()->Clear();

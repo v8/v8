@@ -4,7 +4,6 @@
 
 #include <stdlib.h>
 
-#include "src/ast/context-slot-cache.h"
 #include "src/ast/scopes.h"
 #include "src/bootstrapper.h"
 
@@ -477,15 +476,6 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
   DCHECK_NOT_NULL(maybe_assigned_flag);
 
   if (scope_info->length() > 0) {
-    ContextSlotCache* context_slot_cache =
-        scope_info->GetIsolate()->context_slot_cache();
-    int result = context_slot_cache->Lookup(*scope_info, *name, mode, init_flag,
-                                            maybe_assigned_flag);
-    if (result != ContextSlotCache::kNotFound) {
-      DCHECK(result < scope_info->ContextLength());
-      return result;
-    }
-
     int start = scope_info->ContextLocalNameEntriesIndex();
     int end = start + scope_info->ContextLocalCount();
     for (int i = start; i < end; ++i) {
@@ -494,17 +484,11 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
         *mode = scope_info->ContextLocalMode(var);
         *init_flag = scope_info->ContextLocalInitFlag(var);
         *maybe_assigned_flag = scope_info->ContextLocalMaybeAssignedFlag(var);
-        result = Context::MIN_CONTEXT_SLOTS + var;
-
-        context_slot_cache->Update(scope_info, name, *mode, *init_flag,
-                                   *maybe_assigned_flag, result);
+        int result = Context::MIN_CONTEXT_SLOTS + var;
         DCHECK(result < scope_info->ContextLength());
         return result;
       }
     }
-    // Cache as not found. Mode, init flag and maybe assigned flag don't matter.
-    context_slot_cache->Update(scope_info, name, TEMPORARY,
-                               kNeedsInitialization, kNotAssigned, -1);
   }
 
   return -1;
