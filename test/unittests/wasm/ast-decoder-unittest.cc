@@ -207,7 +207,7 @@ TEST_F(AstDecoderTest, Float32Const) {
   byte code[] = {kExprF32Const, 0, 0, 0, 0};
   float* ptr = reinterpret_cast<float*>(code + 1);
   for (int i = 0; i < 30; i++) {
-    *ptr = i * -7.75f;
+    WriteLittleEndianValue<float>(ptr, i * -7.75f);
     EXPECT_VERIFIES(sigs.f_ff(), code);
   }
 }
@@ -216,7 +216,7 @@ TEST_F(AstDecoderTest, Float64Const) {
   byte code[] = {kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0};
   double* ptr = reinterpret_cast<double*>(code + 1);
   for (int i = 0; i < 30; i++) {
-    *ptr = i * 33.45;
+    WriteLittleEndianValue<double>(ptr, i * 33.45);
     EXPECT_VERIFIES(sigs.d_dd(), code);
   }
 }
