@@ -5845,9 +5845,9 @@ TEST(EnumReserved) {
   RunModuleParserSyncTest(context_data, kErrorSources, kError);
 }
 
-static void CheckModuleEntry(const i::ModuleDescriptor::ModuleEntry* entry,
-    const char* export_name, const char* local_name, const char* import_name,
-    const char* module_request) {
+static void CheckEntry(const i::ModuleDescriptor::Entry* entry,
+                       const char* export_name, const char* local_name,
+                       const char* import_name, const char* module_request) {
   CHECK_NOT_NULL(entry);
   if (export_name == nullptr) {
     CHECK_NULL(entry->export_name);
@@ -5914,7 +5914,7 @@ TEST(ModuleParsingInternals) {
   CHECK(outer_scope->is_script_scope());
   CHECK_NULL(outer_scope->outer_scope());
   CHECK(module_scope->is_module_scope());
-  const i::ModuleDescriptor::ModuleEntry* entry;
+  const i::ModuleDescriptor::Entry* entry;
   i::ZoneList<i::Declaration*>* declarations = module_scope->declarations();
   CHECK_EQ(13, declarations->length());
 
@@ -6001,74 +6001,73 @@ TEST(ModuleParsingInternals) {
   CHECK_NOT_NULL(descriptor);
 
   CHECK_EQ(3, descriptor->special_exports().length());
-  CheckModuleEntry(descriptor->special_exports().at(0), "b", nullptr, "a",
-                   "m.js");
-  CheckModuleEntry(descriptor->special_exports().at(1), nullptr, nullptr,
-                   nullptr, "p.js");
-  CheckModuleEntry(descriptor->special_exports().at(2), "bb", nullptr, "aa",
-                   "m.js");  // !!!
+  CheckEntry(descriptor->special_exports().at(0), "b", nullptr, "a", "m.js");
+  CheckEntry(descriptor->special_exports().at(1), nullptr, nullptr, nullptr,
+             "p.js");
+  CheckEntry(descriptor->special_exports().at(2), "bb", nullptr, "aa",
+             "m.js");  // !!!
 
   CHECK_EQ(8, descriptor->regular_exports().size());
   entry = descriptor->regular_exports()
               .find(declarations->at(3)->proxy()->raw_name())
               ->second;
-  CheckModuleEntry(entry, "foo", "foo", nullptr, nullptr);
+  CheckEntry(entry, "foo", "foo", nullptr, nullptr);
   entry = descriptor->regular_exports()
               .find(declarations->at(4)->proxy()->raw_name())
               ->second;
-  CheckModuleEntry(entry, "goo", "goo", nullptr, nullptr);
+  CheckEntry(entry, "goo", "goo", nullptr, nullptr);
   entry = descriptor->regular_exports()
               .find(declarations->at(5)->proxy()->raw_name())
               ->second;
-  CheckModuleEntry(entry, "hoo", "hoo", nullptr, nullptr);
+  CheckEntry(entry, "hoo", "hoo", nullptr, nullptr);
   entry = descriptor->regular_exports()
               .find(declarations->at(6)->proxy()->raw_name())
               ->second;
-  CheckModuleEntry(entry, "joo", "joo", nullptr, nullptr);
+  CheckEntry(entry, "joo", "joo", nullptr, nullptr);
   entry = descriptor->regular_exports()
               .find(declarations->at(7)->proxy()->raw_name())
               ->second;
-  CheckModuleEntry(entry, "default", "*default*", nullptr, nullptr);
+  CheckEntry(entry, "default", "*default*", nullptr, nullptr);
   entry = descriptor->regular_exports()
               .find(declarations->at(12)->proxy()->raw_name())
               ->second;
-  CheckModuleEntry(entry, "foob", "foob", nullptr, nullptr);
+  CheckEntry(entry, "foob", "foob", nullptr, nullptr);
   // TODO(neis): The next lines are terrible. Find a better way.
   auto name_x = declarations->at(0)->proxy()->raw_name();
   CHECK_EQ(2, descriptor->regular_exports().count(name_x));
   auto it = descriptor->regular_exports().equal_range(name_x).first;
   entry = it->second;
   if (entry->export_name->IsOneByteEqualTo("y")) {
-    CheckModuleEntry(entry, "y", "x", nullptr, nullptr);
+    CheckEntry(entry, "y", "x", nullptr, nullptr);
     entry = (++it)->second;
-    CheckModuleEntry(entry, "x", "x", nullptr, nullptr);
+    CheckEntry(entry, "x", "x", nullptr, nullptr);
   } else {
-    CheckModuleEntry(entry, "x", "x", nullptr, nullptr);
+    CheckEntry(entry, "x", "x", nullptr, nullptr);
     entry = (++it)->second;
-    CheckModuleEntry(entry, "y", "x", nullptr, nullptr);
+    CheckEntry(entry, "y", "x", nullptr, nullptr);
   }
 
   CHECK_EQ(3, descriptor->special_imports().length());
-  CheckModuleEntry(
-      descriptor->special_imports().at(0), nullptr, nullptr, nullptr, "q.js");
-  CheckModuleEntry(
-      descriptor->special_imports().at(1), nullptr, "loo", nullptr, "bar.js");
-  CheckModuleEntry(
-      descriptor->special_imports().at(2), nullptr, "foob", nullptr, "bar.js");
+  CheckEntry(descriptor->special_imports().at(0), nullptr, nullptr, nullptr,
+             "q.js");
+  CheckEntry(descriptor->special_imports().at(1), nullptr, "loo", nullptr,
+             "bar.js");
+  CheckEntry(descriptor->special_imports().at(2), nullptr, "foob", nullptr,
+             "bar.js");
 
   CHECK_EQ(4, descriptor->regular_imports().size());
   entry = descriptor->regular_imports().find(
       declarations->at(1)->proxy()->raw_name())->second;
-  CheckModuleEntry(entry, nullptr, "z", "q", "m.js");
+  CheckEntry(entry, nullptr, "z", "q", "m.js");
   entry = descriptor->regular_imports().find(
       declarations->at(2)->proxy()->raw_name())->second;
-  CheckModuleEntry(entry, nullptr, "n", "default", "n.js");
+  CheckEntry(entry, nullptr, "n", "default", "n.js");
   entry = descriptor->regular_imports().find(
       declarations->at(9)->proxy()->raw_name())->second;
-  CheckModuleEntry(entry, nullptr, "mm", "m", "m.js");
+  CheckEntry(entry, nullptr, "mm", "m", "m.js");
   entry = descriptor->regular_imports().find(
       declarations->at(10)->proxy()->raw_name())->second;
-  CheckModuleEntry(entry, nullptr, "aa", "aa", "m.js");
+  CheckEntry(entry, nullptr, "aa", "aa", "m.js");
 }
 
 

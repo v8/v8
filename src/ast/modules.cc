@@ -15,7 +15,7 @@ void ModuleDescriptor::AddImport(
   DCHECK_NOT_NULL(import_name);
   DCHECK_NOT_NULL(local_name);
   DCHECK_NOT_NULL(module_request);
-  ModuleEntry* entry = new (zone) ModuleEntry(loc);
+  Entry* entry = new (zone) Entry(loc);
   entry->local_name = local_name;
   entry->import_name = import_name;
   entry->module_request = module_request;
@@ -30,7 +30,7 @@ void ModuleDescriptor::AddStarImport(
     Scanner::Location loc, Zone* zone) {
   DCHECK_NOT_NULL(local_name);
   DCHECK_NOT_NULL(module_request);
-  ModuleEntry* entry = new (zone) ModuleEntry(loc);
+  Entry* entry = new (zone) Entry(loc);
   entry->local_name = local_name;
   entry->module_request = module_request;
   special_imports_.Add(entry, zone);
@@ -40,7 +40,7 @@ void ModuleDescriptor::AddStarImport(
 void ModuleDescriptor::AddEmptyImport(
     const AstRawString* module_request, Scanner::Location loc, Zone* zone) {
   DCHECK_NOT_NULL(module_request);
-  ModuleEntry* entry = new (zone) ModuleEntry(loc);
+  Entry* entry = new (zone) Entry(loc);
   entry->module_request = module_request;
   special_imports_.Add(entry, zone);
 }
@@ -51,7 +51,7 @@ void ModuleDescriptor::AddExport(
     Scanner::Location loc, Zone* zone) {
   DCHECK_NOT_NULL(local_name);
   DCHECK_NOT_NULL(export_name);
-  ModuleEntry* entry = new (zone) ModuleEntry(loc);
+  Entry* entry = new (zone) Entry(loc);
   entry->export_name = export_name;
   entry->local_name = local_name;
   regular_exports_.insert(std::make_pair(entry->local_name, entry));
@@ -64,7 +64,7 @@ void ModuleDescriptor::AddExport(
   DCHECK_NOT_NULL(import_name);
   DCHECK_NOT_NULL(export_name);
   DCHECK_NOT_NULL(module_request);
-  ModuleEntry* entry = new (zone) ModuleEntry(loc);
+  Entry* entry = new (zone) Entry(loc);
   entry->export_name = export_name;
   entry->import_name = import_name;
   entry->module_request = module_request;
@@ -75,14 +75,14 @@ void ModuleDescriptor::AddExport(
 void ModuleDescriptor::AddStarExport(
     const AstRawString* module_request, Scanner::Location loc, Zone* zone) {
   DCHECK_NOT_NULL(module_request);
-  ModuleEntry* entry = new (zone) ModuleEntry(loc);
+  Entry* entry = new (zone) Entry(loc);
   entry->module_request = module_request;
   special_exports_.Add(entry, zone);
 }
 
 void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {
-    ModuleEntry* entry = it->second;
+    Entry* entry = it->second;
     DCHECK_NOT_NULL(entry->local_name);
     auto import = regular_imports_.find(entry->local_name);
     if (import != regular_imports_.end()) {
@@ -103,11 +103,11 @@ void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
   }
 }
 
-const ModuleDescriptor::ModuleEntry* ModuleDescriptor::FindDuplicateExport(
+const ModuleDescriptor::Entry* ModuleDescriptor::FindDuplicateExport(
     Zone* zone) const {
   ZoneSet<const AstRawString*> export_names(zone);
   for (const auto& it : regular_exports_) {
-    const ModuleEntry* entry = it.second;
+    const Entry* entry = it.second;
     DCHECK_NOT_NULL(entry->export_name);
     if (!export_names.insert(entry->export_name).second) return entry;
   }
@@ -126,7 +126,7 @@ bool ModuleDescriptor::Validate(ModuleScope* module_scope,
 
   // Report error iff there are duplicate exports.
   {
-    const ModuleEntry* entry = FindDuplicateExport(zone);
+    const Entry* entry = FindDuplicateExport(zone);
     if (entry != nullptr) {
       error_handler->ReportMessageAt(
           entry->location.beg_pos, entry->location.end_pos,
@@ -137,7 +137,7 @@ bool ModuleDescriptor::Validate(ModuleScope* module_scope,
 
   // Report error iff there are exports of non-existent local names.
   for (const auto& it : regular_exports_) {
-    const ModuleEntry* entry = it.second;
+    const Entry* entry = it.second;
     DCHECK_NOT_NULL(entry->local_name);
     if (module_scope->LookupLocal(entry->local_name) == nullptr) {
       error_handler->ReportMessageAt(

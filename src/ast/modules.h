@@ -70,14 +70,14 @@ class ModuleDescriptor : public ZoneObject {
   bool Validate(ModuleScope* module_scope,
                 PendingCompilationErrorHandler* error_handler, Zone* zone);
 
-  struct ModuleEntry : public ZoneObject {
+  struct Entry : public ZoneObject {
     const Scanner::Location location;
     const AstRawString* export_name;
     const AstRawString* local_name;
     const AstRawString* import_name;
     const AstRawString* module_request;
 
-    explicit ModuleEntry(Scanner::Location loc)
+    explicit Entry(Scanner::Location loc)
         : location(loc),
           export_name(nullptr),
           local_name(nullptr),
@@ -86,37 +86,35 @@ class ModuleDescriptor : public ZoneObject {
   };
 
   // Empty imports and namespace imports.
-  const ZoneList<const ModuleEntry*>& special_imports() const {
+  const ZoneList<const Entry*>& special_imports() const {
     return special_imports_;
   }
 
   // All the remaining imports, indexed by local name.
-  const ZoneMap<const AstRawString*, const ModuleEntry*>& regular_imports()
-      const {
+  const ZoneMap<const AstRawString*, const Entry*>& regular_imports() const {
     return regular_imports_;
   }
 
   // Star exports and explicitly indirect exports.
-  const ZoneList<const ModuleEntry*>& special_exports() const {
+  const ZoneList<const Entry*>& special_exports() const {
     return special_exports_;
   }
 
   // All the remaining exports, indexed by local name.
-  const ZoneMultimap<const AstRawString*, ModuleEntry*>& regular_exports()
-      const {
+  const ZoneMultimap<const AstRawString*, Entry*>& regular_exports() const {
     return regular_exports_;
   }
 
  private:
   // TODO(neis): Use STL datastructure instead of ZoneList?
-  ZoneList<const ModuleEntry*> special_exports_;
-  ZoneList<const ModuleEntry*> special_imports_;
-  ZoneMultimap<const AstRawString*, ModuleEntry*> regular_exports_;
-  ZoneMap<const AstRawString*, const ModuleEntry*> regular_imports_;
+  ZoneList<const Entry*> special_exports_;
+  ZoneList<const Entry*> special_imports_;
+  ZoneMultimap<const AstRawString*, Entry*> regular_exports_;
+  ZoneMap<const AstRawString*, const Entry*> regular_imports_;
 
   // If there are multiple export entries with the same export name, return one
   // of them.  Otherwise return nullptr.
-  const ModuleEntry* FindDuplicateExport(Zone* zone) const;
+  const Entry* FindDuplicateExport(Zone* zone) const;
 
   // Find any implicitly indirect exports and make them explicit.
   //
