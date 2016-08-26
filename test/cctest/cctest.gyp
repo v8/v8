@@ -37,6 +37,7 @@
       'compiler/codegen-tester.cc',
       'compiler/codegen-tester.h',
       'compiler/code-assembler-tester.h',
+      'compiler/function-tester.cc',
       'compiler/function-tester.h',
       'compiler/graph-builder-tester.h',
       'compiler/test-basic-block-profiler.cc',

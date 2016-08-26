@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
+#include "src/compiler/node.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
