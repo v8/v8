@@ -21,6 +21,8 @@ class WasmGraphBuilder;
 
 namespace wasm {
 
+const uint32_t kMaxNumWasmLocals = 8000000;
+
 // Helpers for decoding different kinds of operands which follow bytecodes.
 struct LocalIndexOperand {
   uint32_t index;

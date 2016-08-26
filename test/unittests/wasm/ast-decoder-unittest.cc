@@ -238,6 +238,11 @@ TEST_F(AstDecoderTest, GetLocal0_local) {
   EXPECT_VERIFIES(sigs.i_v(), kCodeGetLocal0);
 }
 
+TEST_F(AstDecoderTest, TooManyLocals) {
+  AddLocals(kAstI32, 4034986500);
+  EXPECT_FAILURE(sigs.i_v(), kCodeGetLocal0);
+}
+
 TEST_F(AstDecoderTest, GetLocal0_param_n) {
   FunctionSig* array[] = {sigs.i_i(), sigs.i_ii(), sigs.i_iii()};
 
@@ -269,8 +274,23 @@ TEST_F(AstDecoderTest, GetLocal_off_end) {
   EXPECT_FAILURE(sigs.i_i(), code);
 }
 
+TEST_F(AstDecoderTest, NumLocalBelowLimit) {
+  AddLocals(kAstI32, kMaxNumWasmLocals - 1);
+  EXPECT_VERIFIES_INLINE(sigs.v_v(), WASM_NOP);
+}
+
+TEST_F(AstDecoderTest, NumLocalAtLimit) {
+  AddLocals(kAstI32, kMaxNumWasmLocals);
+  EXPECT_VERIFIES_INLINE(sigs.v_v(), WASM_NOP);
+}
+
+TEST_F(AstDecoderTest, NumLocalAboveLimit) {
+  AddLocals(kAstI32, kMaxNumWasmLocals + 1);
+  EXPECT_FAILURE_INLINE(sigs.v_v(), WASM_NOP);
+}
+
 TEST_F(AstDecoderTest, GetLocal_varint) {
-  const int kMaxLocals = 8000000;
+  const int kMaxLocals = kMaxNumWasmLocals;
   AddLocals(kAstI32, kMaxLocals);
 
   for (int index = 0; index < kMaxLocals; index = index * 11 + 5) {

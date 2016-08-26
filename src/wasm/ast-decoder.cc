@@ -661,8 +661,13 @@ class WasmFullDecoder : public WasmDecoder {
     }
     // Decode local declarations, if any.
     uint32_t entries = consume_u32v("local decls count");
+    TRACE("local decls count: %u\n", entries);
     while (entries-- > 0 && pc_ < limit_) {
       uint32_t count = consume_u32v("local count");
+      if (count > kMaxNumWasmLocals) {
+        error(pc_ - 1, "local count too large");
+        return;
+      }
       byte code = consume_u8("local type");
       LocalType type;
       switch (code) {
