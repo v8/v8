@@ -207,6 +207,7 @@ function PostNatives(utils) {
     "RegExpSubclassSearch",
     "RegExpSubclassSplit",
     "RegExpSubclassTest",
+    "RejectPromise",
     "SetIterator",
     "SetIteratorNext",
     "SetValues",

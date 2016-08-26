@@ -2463,7 +2463,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   if (is_generator()) {
     return_value = BuildIteratorResult(return_value, true);
   } else if (is_async_function()) {
-    return_value = BuildPromiseResolve(return_value, return_value->position());
+    return_value = BuildResolvePromise(return_value, return_value->position());
   }
 
   result = factory()->NewReturnStatement(return_value, loc.beg_pos);
@@ -3792,12 +3792,11 @@ void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
                                       FunctionBodyType body_type,
                                       bool accept_IN, int pos, bool* ok) {
   // function async_function() {
-  //   try {
-  //     .generator_object = %CreateGeneratorObject();
+  //   .generator_object = %CreateGeneratorObject();
+  //   BuildRejectPromiseOnException({
   //     ... function body ...
-  //   } catch (e) {
-  //     return Promise.reject(e);
-  //   }
+  //     return %ResolvePromise(.promise, expr), .promise;
+  //   })
   // }
   scope->ForceContextAllocation();
   Variable* temp =
@@ -3811,13 +3810,11 @@ void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
                                               kNoSourcePosition),
             zone());
 
-  Block* try_block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
-
-  ZoneList<Statement*>* inner_body = try_block->statements();
+  Block* block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
 
   Expression* return_value = nullptr;
   if (body_type == FunctionBodyType::kNormal) {
-    ParseStatementList(inner_body, Token::RBRACE, CHECK_OK_VOID);
+    ParseStatementList(block->statements(), Token::RBRACE, CHECK_OK_VOID);
     return_value = factory()->NewUndefinedLiteral(kNoSourcePosition);
   } else {
     return_value =
@@ -3825,11 +3822,12 @@ void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
     RewriteNonPattern(classifier, CHECK_OK_VOID);
   }
 
-  return_value = BuildPromiseResolve(return_value, return_value->position());
-  inner_body->Add(
+  return_value = BuildResolvePromise(return_value, return_value->position());
+  block->statements()->Add(
       factory()->NewReturnStatement(return_value, return_value->position()),
       zone());
-  body->Add(BuildRejectPromiseOnException(try_block), zone());
+  block = BuildRejectPromiseOnException(block, CHECK_OK_VOID);
+  body->Add(block, zone());
   scope->set_end_position(scanner()->location().end_pos);
 }
 
@@ -4387,9 +4385,67 @@ Block* Parser::BuildParameterInitializationBlock(
   return init_block;
 }
 
-Block* Parser::BuildRejectPromiseOnException(Block* block) {
-  // try { <block> } catch (error) { return Promise.reject(error); }
-  Block* try_block = block;
+Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
+  // var .promise = %CreatePromise();
+  // var .debug_is_active = %_DebugIsActive();
+  // if (.debug_is_active) %DebugPushPromise(.promise);
+  // try {
+  //   <inner_block>
+  // } catch (.catch) {
+  //   %RejectPromise(.promise, .catch);
+  //   return .promise;
+  // } finally {
+  //   if (.debug_is_active) %DebugPopPromise();
+  // }
+  Block* result = factory()->NewBlock(nullptr, 4, true, kNoSourcePosition);
+
+  // var .promise = %CreatePromise();
+  Statement* set_promise;
+  {
+    DeclareVariable(ast_value_factory()->dot_promise_string(), VAR,
+                    kNoSourcePosition, CHECK_OK);
+    Expression* create_promise = factory()->NewCallRuntime(
+        Context::PROMISE_CREATE_INDEX,
+        new (zone()) ZoneList<Expression*>(0, zone()), kNoSourcePosition);
+    Assignment* assign_promise = factory()->NewAssignment(
+        Token::INIT, BuildDotPromise(), create_promise, kNoSourcePosition);
+    set_promise =
+        factory()->NewExpressionStatement(assign_promise, kNoSourcePosition);
+  }
+  result->statements()->Add(set_promise, zone());
+
+  // var .debug_is_active = %_DebugIsActive();
+  Statement* set_debug_is_active;
+  {
+    DeclareVariable(ast_value_factory()->dot_debug_is_active_string(), VAR,
+                    kNoSourcePosition, CHECK_OK);
+    Expression* debug_is_active = factory()->NewCallRuntime(
+        Runtime::kInlineDebugIsActive,
+        new (zone()) ZoneList<Expression*>(0, zone()), kNoSourcePosition);
+    Assignment* assign_debug_is_active =
+        factory()->NewAssignment(Token::INIT, BuildDotDebugIsActive(),
+                                 debug_is_active, kNoSourcePosition);
+    set_debug_is_active = factory()->NewExpressionStatement(
+        assign_debug_is_active, kNoSourcePosition);
+  }
+  result->statements()->Add(set_debug_is_active, zone());
+
+  //   if (.debug_is_active) %DebugPushPromise(.promise);
+  Statement* conditionally_debug_push_promise;
+  {
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+    args->Add(BuildDotPromise(), zone());
+    Expression* call_push_promise = factory()->NewCallRuntime(
+        Runtime::kDebugPushPromise, args, kNoSourcePosition);
+    Statement* debug_push_promise =
+        factory()->NewExpressionStatement(call_push_promise, kNoSourcePosition);
+    conditionally_debug_push_promise = factory()->NewIfStatement(
+        BuildDotDebugIsActive(), debug_push_promise,
+        factory()->NewEmptyStatement(kNoSourcePosition), kNoSourcePosition);
+  }
+  result->statements()->Add(conditionally_debug_push_promise, zone());
+
+  // catch (.catch) { return %RejectPromise(.promise, .catch), .promise }
   Scope* catch_scope = NewScope(CATCH_SCOPE);
   catch_scope->set_is_hidden();
   Variable* catch_variable =
@@ -4397,18 +4453,40 @@ Block* Parser::BuildRejectPromiseOnException(Block* block) {
                                 kCreatedInitialized, Variable::NORMAL);
   Block* catch_block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
 
-  Expression* promise_reject = BuildPromiseReject(
+  Expression* promise_reject = BuildRejectPromise(
       factory()->NewVariableProxy(catch_variable), kNoSourcePosition);
-
   ReturnStatement* return_promise_reject =
       factory()->NewReturnStatement(promise_reject, kNoSourcePosition);
   catch_block->statements()->Add(return_promise_reject, zone());
-  TryStatement* try_catch_statement = factory()->NewTryCatchStatement(
-      try_block, catch_scope, catch_variable, catch_block, kNoSourcePosition);
 
-  block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
-  block->statements()->Add(try_catch_statement, zone());
-  return block;
+  TryStatement* try_catch_statement = factory()->NewTryCatchStatement(
+      inner_block, catch_scope, catch_variable, catch_block, kNoSourcePosition);
+
+  // There is no TryCatchFinally node, so wrap it in an outer try/finally
+  Block* outer_try_block =
+      factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+  outer_try_block->statements()->Add(try_catch_statement, zone());
+
+  // finally { if (.debug_is_active) %DebugPopPromise(); }
+  Block* finally_block =
+      factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+  {
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(0, zone());
+    Expression* call_pop_promise = factory()->NewCallRuntime(
+        Runtime::kDebugPopPromise, args, kNoSourcePosition);
+    Statement* debug_pop_promise =
+        factory()->NewExpressionStatement(call_pop_promise, kNoSourcePosition);
+    Statement* conditionally_debug_pop_promise = factory()->NewIfStatement(
+        BuildDotDebugIsActive(), debug_pop_promise,
+        factory()->NewEmptyStatement(kNoSourcePosition), kNoSourcePosition);
+    finally_block->statements()->Add(conditionally_debug_pop_promise, zone());
+  }
+
+  Statement* try_finally_statement = factory()->NewTryFinallyStatement(
+      outer_try_block, finally_block, kNoSourcePosition);
+
+  result->statements()->Add(try_finally_statement, zone());
+  return result;
 }
 
 Expression* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
@@ -4422,18 +4500,37 @@ Expression* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
                                    pos);
 }
 
-Expression* Parser::BuildPromiseResolve(Expression* value, int pos) {
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
+  // %ResolvePromise(.promise, value), .promise
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  args->Add(BuildDotPromise(), zone());
   args->Add(value, zone());
-  return factory()->NewCallRuntime(Context::PROMISE_CREATE_RESOLVED_INDEX, args,
-                                   pos);
+  Expression* call_runtime =
+      factory()->NewCallRuntime(Context::PROMISE_RESOLVE_INDEX, args, pos);
+  return factory()->NewBinaryOperation(Token::COMMA, call_runtime,
+                                       BuildDotPromise(), pos);
 }
 
-Expression* Parser::BuildPromiseReject(Expression* value, int pos) {
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+Expression* Parser::BuildRejectPromise(Expression* value, int pos) {
+  // %RejectPromiseNoDebugEvent(.promise, value, true), .promise
+  // The NoDebugEvent variant disables the additional debug event for the
+  // rejection since a debug event already happened for the exception that got
+  // us here.
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  args->Add(BuildDotPromise(), zone());
   args->Add(value, zone());
-  return factory()->NewCallRuntime(Context::PROMISE_CREATE_REJECTED_INDEX, args,
-                                   pos);
+  Expression* call_runtime = factory()->NewCallRuntime(
+      Context::REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, args, pos);
+  return factory()->NewBinaryOperation(Token::COMMA, call_runtime,
+                                       BuildDotPromise(), pos);
+}
+
+VariableProxy* Parser::BuildDotPromise() {
+  return NewUnresolved(ast_value_factory()->dot_promise_string(), VAR);
+}
+
+VariableProxy* Parser::BuildDotDebugIsActive() {
+  return NewUnresolved(ast_value_factory()->dot_debug_is_active_string(), VAR);
 }
 
 ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
@@ -4559,8 +4656,9 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
                                            CHECK_OK);
     }
 
+    // TODO(littledan): Merge the two rejection blocks into one
     if (IsAsyncFunction(kind)) {
-      init_block = BuildRejectPromiseOnException(init_block);
+      init_block = BuildRejectPromiseOnException(init_block, CHECK_OK);
     }
 
     DCHECK_NOT_NULL(init_block);

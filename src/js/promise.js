@@ -381,22 +381,6 @@ function PromiseReject(r) {
   }
 }
 
-// Shortcut Promise.reject and Promise.resolve() implementations, used by
-// Async Functions implementation.
-function PromiseCreateRejected(r) {
-  var promise = PromiseCreateAndSet(kRejected, r);
-  // This is called from the desugaring of async/await; no reason to
-  // create a redundant reject event.
-  %PromiseRejectEvent(promise, r, false);
-  return promise;
-}
-
-function PromiseCreateResolved(value) {
-  var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
-  var resolveResult = ResolvePromise(promise, value);
-  return promise;
-}
-
 function PromiseCastResolved(value) {
   if (IsPromise(value)) {
     return value;
@@ -627,8 +611,6 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "promise_reject", DoRejectPromise,
   "promise_resolve", ResolvePromise,
   "promise_then", PromiseThen,
-  "promise_create_rejected", PromiseCreateRejected,
-  "promise_create_resolved", PromiseCreateResolved
 ]);
 
 // This allows extras to create promises quickly without building extra
@@ -647,6 +629,7 @@ utils.Export(function(to) {
   to.GlobalPromise = GlobalPromise;
   to.NewPromiseCapability = NewPromiseCapability;
   to.PerformPromiseThen = PerformPromiseThen;
+  to.RejectPromise = RejectPromise;
 });
 
 })

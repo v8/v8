@@ -919,6 +919,7 @@ void FullCodeGenerator::EmitContinue(Statement* target) {
   // accumulator on the stack.
   ClearAccumulator();
   while (!current->IsContinueTarget(target)) {
+    if (HasStackOverflow()) return;
     if (current->IsTryFinally()) {
       Comment cmnt(masm(), "[ Deferred continue through finally");
       current->Exit(&context_length);
@@ -959,6 +960,7 @@ void FullCodeGenerator::EmitBreak(Statement* target) {
   // accumulator on the stack.
   ClearAccumulator();
   while (!current->IsBreakTarget(target)) {
+    if (HasStackOverflow()) return;
     if (current->IsTryFinally()) {
       Comment cmnt(masm(), "[ Deferred break through finally");
       current->Exit(&context_length);
@@ -994,6 +996,7 @@ void FullCodeGenerator::EmitUnwindAndReturn() {
   NestedStatement* current = nesting_stack_;
   int context_length = 0;
   while (current != NULL) {
+    if (HasStackOverflow()) return;
     if (current->IsTryFinally()) {
       Comment cmnt(masm(), "[ Deferred return through finally");
       current->Exit(&context_length);

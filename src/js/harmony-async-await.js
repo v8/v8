@@ -17,6 +17,7 @@ var GlobalPromise;
 var NewPromiseCapability;
 var PerformPromiseThen;
 var PromiseCastResolved;
+var RejectPromise;
 
 utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
@@ -25,6 +26,7 @@ utils.Import(function(from) {
   NewPromiseCapability = from.NewPromiseCapability;
   PromiseCastResolved = from.PromiseCastResolved;
   PerformPromiseThen = from.PerformPromiseThen;
+  RejectPromise = from.RejectPromise;
 });
 
 // -------------------------------------------------------------------
@@ -47,6 +49,14 @@ function AsyncFunctionAwait(generator, value) {
                             throwawayCapability);
 }
 
-%InstallToContext([ "async_function_await", AsyncFunctionAwait ]);
+// How the parser rejects promises from async/await desugaring
+function RejectPromiseNoDebugEvent(promise, reason) {
+  return RejectPromise(promise, reason, false);
+}
+
+%InstallToContext([
+  "async_function_await", AsyncFunctionAwait,
+  "reject_promise_no_debug_event", RejectPromiseNoDebugEvent,
+]);
 
 })
