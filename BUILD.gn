@@ -1135,6 +1135,8 @@ v8_source_set("v8_base") {
     "src/compiler/type-hint-analyzer.h",
     "src/compiler/type-hints.cc",
     "src/compiler/type-hints.h",
+    "src/compiler/typed-optimization.cc",
+    "src/compiler/typed-optimization.h",
     "src/compiler/typer.cc",
     "src/compiler/typer.h",
     "src/compiler/unwinding-info-writer.h",

@@ -723,6 +723,8 @@
         'compiler/type-hint-analyzer.h',
         'compiler/type-hints.cc',
         'compiler/type-hints.h',
+        'compiler/typed-optimization.cc',
+        'compiler/typed-optimization.h',
         'compiler/typer.cc',
         'compiler/typer.h',
         'compiler/unwinding-info-writer.h',

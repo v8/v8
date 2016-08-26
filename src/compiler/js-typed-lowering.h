@@ -75,12 +75,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
-  Reduction ReduceCheckMaps(Node* node);
-  Reduction ReduceCheckString(Node* node);
-  Reduction ReduceLoadField(Node* node);
-  Reduction ReduceNumberRoundop(Node* node);
-  Reduction ReduceSelect(Node* node);
-  Reduction ReducePhi(Node* node);
   Reduction ReduceNumberBinop(Node* node);
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);
@@ -100,8 +94,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Flags flags_;
   JSGraph* jsgraph_;
   Type* shifted_int32_ranges_[4];
-  Type* const true_type_;
-  Type* const false_type_;
   Type* const the_hole_type_;
   TypeCache const& type_cache_;
 };
