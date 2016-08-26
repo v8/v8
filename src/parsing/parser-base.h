@@ -2381,7 +2381,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN,
   // form part of one.  Propagate speculative formal parameter error locations
   // (including those for binding patterns, since formal parameters can
   // themselves contain binding patterns).
-  // Do not merge pending non-pattern expressions yet!
   unsigned productions = ExpressionClassifier::AllProductions &
                          ~ExpressionClassifier::ArrowFormalParametersProduction;
 
@@ -2402,17 +2401,15 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN,
                      ExpressionClassifier::TailCallExpressionProduction);
   }
 
-  classifier->Accumulate(&arrow_formals_classifier, productions, false);
-
   if (!Token::IsAssignmentOp(peek())) {
     // Parsed conditional expression only (no assignment).
-    // Now pending non-pattern expressions must be merged.
-    classifier->MergeNonPatterns(&arrow_formals_classifier);
+    // Pending non-pattern expressions must be merged.
+    classifier->Accumulate(&arrow_formals_classifier, productions);
     return expression;
+  } else {
+    // Pending non-pattern expressions must be discarded.
+    classifier->Accumulate(&arrow_formals_classifier, productions, false);
   }
-
-  // Now pending non-pattern expressions must be discarded.
-  arrow_formals_classifier.Discard();
 
   CheckNoTailCallExpressions(classifier, CHECK_OK);
 

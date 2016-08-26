@@ -285,7 +285,14 @@ class ExpressionClassifier {
     DCHECK_EQ(inner->reported_errors_, reported_errors_);
     DCHECK_EQ(inner->reported_errors_begin_, reported_errors_end_);
     DCHECK_EQ(inner->reported_errors_end_, reported_errors_->length());
-    if (merge_non_patterns) MergeNonPatterns(inner);
+    DCHECK_EQ(inner->non_patterns_to_rewrite_, non_patterns_to_rewrite_);
+    DCHECK_LE(non_pattern_begin_, inner->non_pattern_begin_);
+    DCHECK_LE(inner->non_pattern_begin_, non_patterns_to_rewrite_->length());
+    // Merge non-patterns from the inner classifier, or discard them.
+    if (merge_non_patterns)
+      inner->non_pattern_begin_ = non_patterns_to_rewrite_->length();
+    else
+      non_patterns_to_rewrite_->Rewind(inner->non_pattern_begin_);
     // Propagate errors from inner, but don't overwrite already recorded
     // errors.
     unsigned non_arrow_inner_invalid_productions =
@@ -374,11 +381,6 @@ class ExpressionClassifier {
     DCHECK_EQ(reported_errors_begin_, reported_errors_end_);
     DCHECK_LE(non_pattern_begin_, non_patterns_to_rewrite_->length());
     non_patterns_to_rewrite_->Rewind(non_pattern_begin_);
-  }
-
-  V8_INLINE void MergeNonPatterns(ExpressionClassifier* inner) {
-    DCHECK_LE(non_pattern_begin_, inner->non_pattern_begin_);
-    inner->non_pattern_begin_ = inner->non_patterns_to_rewrite_->length();
   }
 
  private:
