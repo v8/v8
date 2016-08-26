@@ -199,15 +199,14 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     Handle<FixedArray> array =
         isolate->factory()->NewFixedArray(max_number_of_properties);
 
-    info = *data;
-    while (info != nullptr) {
+    for (Handle<TemplateInfoT> temp(*data); *temp != nullptr;
+         temp = handle(temp->GetParent(isolate), isolate)) {
       // Accumulate accessors.
-      Object* maybe_properties = info->property_accessors();
+      Object* maybe_properties = temp->property_accessors();
       if (!maybe_properties->IsUndefined(isolate)) {
         valid_descriptors = AccessorInfo::AppendUnique(
             handle(maybe_properties, isolate), array, valid_descriptors);
       }
-      info = info->GetParent(isolate);
     }
 
     // Install accumulated accessors.
