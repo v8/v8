@@ -114,7 +114,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   int index = kVariablePartIndex;
   // Add parameters.
-  DCHECK(index == scope_info->ParameterEntriesIndex());
+  DCHECK_EQ(index, scope_info->ParameterEntriesIndex());
   if (scope->is_declaration_scope()) {
     for (int i = 0; i < parameter_count; ++i) {
       scope_info->set(index++,
@@ -131,56 +131,49 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   } else {
     first_slot_index = 0;
   }
-  DCHECK(index == scope_info->StackLocalFirstSlotIndex());
+  DCHECK_EQ(index, scope_info->StackLocalFirstSlotIndex());
   scope_info->set(index++, Smi::FromInt(first_slot_index));
-  DCHECK(index == scope_info->StackLocalEntriesIndex());
+  DCHECK_EQ(index, scope_info->StackLocalEntriesIndex());
   for (int i = 0; i < stack_local_count; ++i) {
     DCHECK(stack_locals[i]->index() == first_slot_index + i);
     scope_info->set(index++, *stack_locals[i]->name());
   }
 
-  // Due to usage analysis, context-allocated locals are not necessarily in
-  // increasing order: Some of them may be parameters which are allocated before
-  // the non-parameter locals. When the non-parameter locals are sorted
-  // according to usage, the allocated slot indices may not be in increasing
-  // order with the variable list anymore. Thus, we first need to sort them by
-  // context slot index before adding them to the ScopeInfo object.
-  context_locals.Sort(&Variable::CompareIndex);
-
-  // Add context locals' names.
-  DCHECK(index == scope_info->ContextLocalNameEntriesIndex());
-  for (int i = 0; i < context_local_count; ++i) {
-    scope_info->set(index++, *context_locals[i]->name());
-  }
-
-  // Add context globals' names.
-  DCHECK(index == scope_info->ContextGlobalNameEntriesIndex());
-  for (int i = 0; i < context_global_count; ++i) {
-    scope_info->set(index++, *context_globals[i]->name());
-  }
-
-  // Add context locals' info.
-  DCHECK(index == scope_info->ContextLocalInfoEntriesIndex());
+  // Add context locals' names and info. Info lies beyond context globals'
+  // names.
+  // Make sure to store them in the order that they appear in the context.
+  DCHECK_EQ(index, scope_info->ContextLocalNameEntriesIndex());
+  int info_index = index + context_local_count + context_global_count;
+  DCHECK_EQ(info_index, scope_info->ContextLocalInfoEntriesIndex());
   for (int i = 0; i < context_local_count; ++i) {
     Variable* var = context_locals[i];
-    uint32_t value =
+    int context_index = var->index() - Context::MIN_CONTEXT_SLOTS;
+    uint32_t info =
         ContextLocalMode::encode(var->mode()) |
         ContextLocalInitFlag::encode(var->initialization_flag()) |
         ContextLocalMaybeAssignedFlag::encode(var->maybe_assigned());
-    scope_info->set(index++, Smi::FromInt(value));
+    scope_info->set(index + context_index, *var->name());
+    scope_info->set(info_index + context_index, Smi::FromInt(info));
   }
 
-  // Add context globals' info.
-  DCHECK(index == scope_info->ContextGlobalInfoEntriesIndex());
+  index += context_local_count;
+
+  // Add context globals' names and info. Info lies beyond context locals' info.
+  DCHECK_EQ(index, scope_info->ContextGlobalNameEntriesIndex());
+  info_index = index + context_global_count + context_local_count;
+  DCHECK_EQ(info_index, scope_info->ContextGlobalInfoEntriesIndex());
   for (int i = 0; i < context_global_count; ++i) {
     Variable* var = context_globals[i];
+    scope_info->set(index + i, *var->name());
     // TODO(ishell): do we need this kind of info for globals here?
-    uint32_t value =
+    uint32_t info =
         ContextLocalMode::encode(var->mode()) |
         ContextLocalInitFlag::encode(var->initialization_flag()) |
         ContextLocalMaybeAssignedFlag::encode(var->maybe_assigned());
-    scope_info->set(index++, Smi::FromInt(value));
+    scope_info->set(info_index + i, Smi::FromInt(info));
   }
+
+  index += context_local_count + 2 * context_global_count;
 
   // If the receiver is allocated, add its index.
   DCHECK(index == scope_info->ReceiverEntryIndex());

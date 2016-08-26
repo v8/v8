@@ -64,12 +64,5 @@ bool Variable::IsStaticGlobalObjectProperty() const {
 }
 
 
-int Variable::CompareIndex(Variable* const* v, Variable* const* w) {
-  int x = (*v)->index();
-  int y = (*w)->index();
-  // Consider sorting them according to type as well?
-  return x - y;
-}
-
 }  // namespace internal
 }  // namespace v8

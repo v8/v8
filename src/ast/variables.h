@@ -117,8 +117,6 @@ class Variable final : public ZoneObject {
     index_ = index;
   }
 
-  static int CompareIndex(Variable* const* v, Variable* const* w);
-
  private:
   Scope* scope_;
   const AstRawString* name_;

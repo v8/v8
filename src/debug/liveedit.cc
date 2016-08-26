@@ -1906,17 +1906,15 @@ Handle<Object> LiveEditFunctionTracker::SerializeFunctionScope(Scope* scope) {
                                      zone_);
     current_scope->CollectStackAndContextLocals(&stack_list, &context_list,
                                                 &globals_list);
-    context_list.Sort(&Variable::CompareIndex);
-
     for (int i = 0; i < context_list.length(); i++) {
-      SetElementSloppy(scope_info_list, scope_info_length,
-                       context_list[i]->name());
-      scope_info_length++;
+      int context_index = context_list[i]->index() - Context::MIN_CONTEXT_SLOTS;
+      int location = scope_info_length + context_index * 2;
+      SetElementSloppy(scope_info_list, location, context_list[i]->name());
       SetElementSloppy(
-          scope_info_list, scope_info_length,
-          Handle<Smi>(Smi::FromInt(context_list[i]->index()), isolate_));
-      scope_info_length++;
+          scope_info_list, location + 1,
+          handle(Smi::FromInt(context_list[i]->index()), isolate_));
     }
+    scope_info_length += context_list.length() * 2;
     SetElementSloppy(scope_info_list, scope_info_length,
                      Handle<Object>(isolate_->heap()->null_value(), isolate_));
     scope_info_length++;
