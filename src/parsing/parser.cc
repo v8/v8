@@ -3866,7 +3866,7 @@ void Parser::ParseArrowFunctionFormalParameterList(
     return;
   }
 
-  Type::ExpressionClassifier classifier(this);
+  ExpressionClassifier classifier(this);
   if (!parameters->is_simple) {
     classifier.RecordNonSimpleParameter();
   }
@@ -5260,11 +5260,9 @@ uint32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
   return running_hash;
 }
 
-
-ZoneList<v8::internal::Expression*>* Parser::PrepareSpreadArguments(
-    ZoneList<v8::internal::Expression*>* list) {
-  ZoneList<v8::internal::Expression*>* args =
-      new (zone()) ZoneList<v8::internal::Expression*>(1, zone());
+ZoneList<Expression*>* Parser::PrepareSpreadArguments(
+    ZoneList<Expression*>* list) {
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
   if (list->length() == 1) {
     // Spread-call with single spread argument produces an InternalArray
     // containing the values from the array.
@@ -5291,8 +5289,8 @@ ZoneList<v8::internal::Expression*>* Parser::PrepareSpreadArguments(
     int n = list->length();
     while (i < n) {
       if (!list->at(i)->IsSpread()) {
-        ZoneList<v8::internal::Expression*>* unspread =
-            new (zone()) ZoneList<v8::internal::Expression*>(1, zone());
+        ZoneList<Expression*>* unspread =
+            new (zone()) ZoneList<Expression*>(1, zone());
 
         // Push array of unspread parameters
         while (i < n && !list->at(i)->IsSpread()) {
@@ -5307,15 +5305,15 @@ ZoneList<v8::internal::Expression*>* Parser::PrepareSpreadArguments(
       }
 
       // Push eagerly spread argument
-      ZoneList<v8::internal::Expression*>* spread_list =
-          new (zone()) ZoneList<v8::internal::Expression*>(1, zone());
+      ZoneList<Expression*>* spread_list =
+          new (zone()) ZoneList<Expression*>(1, zone());
       spread_list->Add(list->at(i++)->AsSpread()->expression(), zone());
       args->Add(factory()->NewCallRuntime(Context::SPREAD_ITERABLE_INDEX,
                                           spread_list, kNoSourcePosition),
                 zone());
     }
 
-    list = new (zone()) ZoneList<v8::internal::Expression*>(1, zone());
+    list = new (zone()) ZoneList<Expression*>(1, zone());
     list->Add(factory()->NewCallRuntime(Context::SPREAD_ARGUMENTS_INDEX, args,
                                         kNoSourcePosition),
               zone());
@@ -5324,10 +5322,8 @@ ZoneList<v8::internal::Expression*>* Parser::PrepareSpreadArguments(
   UNREACHABLE();
 }
 
-
 Expression* Parser::SpreadCall(Expression* function,
-                               ZoneList<v8::internal::Expression*>* args,
-                               int pos) {
+                               ZoneList<Expression*>* args, int pos) {
   if (function->IsSuperCallReference()) {
     // Super calls
     // $super_constructor = %_GetSuperConstructor(<this-function>)
@@ -5369,10 +5365,8 @@ Expression* Parser::SpreadCall(Expression* function,
   }
 }
 
-
 Expression* Parser::SpreadCallNew(Expression* function,
-                                  ZoneList<v8::internal::Expression*>* args,
-                                  int pos) {
+                                  ZoneList<Expression*>* args, int pos) {
   args->InsertAt(0, function, zone());
 
   return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args, pos);

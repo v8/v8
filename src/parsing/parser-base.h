@@ -140,88 +140,80 @@ struct FormalParametersBase {
 // following the Curiously Recurring Template Pattern (CRTP).
 // The structure of the parser objects is roughly the following:
 //
-//   // Common denominator, needed to avoid cyclic dependency.
-//   // Instances of this template will end up with very minimal
-//   // definitions, ideally containing just typedefs.
+//   // A structure template containing type definitions, needed to
+//   // avoid a cyclic dependency.
 //   template <typename Impl>
-//   class ParserBaseTraits;
-
+//   struct ParserTypes;
+//
 //   // The parser base object, which should just implement pure
 //   // parser behavior.  The Impl parameter is the actual derived
 //   // class (according to CRTP), which implements impure parser
 //   // behavior.
 //   template <typename Impl>
-//   class ParserBase : public ParserBaseTraits<Impl> { ... };
+//   class ParserBase { ... };
 //
 //   // And then, for each parser variant (e.g., parser, preparser, etc):
 //   class Parser;
 //
 //   template <>
-//   class ParserBaseTraits<Parser> { ... };
+//   class ParserTypes<Parser> { ... };
 //
 //   class Parser : public ParserBase<Parser> { ... };
 //
-// The traits class template encapsulates the differences between
-// parser/pre-parser implementations.  In particular:
+// The parser base object implements pure parsing, according to the
+// language grammar.  Different parser implementations may exhibit
+// different parser-driven behavior that is not considered as pure
+// parsing, e.g., early error detection and reporting, AST generation, etc.
 
-// - Return types: For example, Parser functions return Expression* and
-// PreParser functions return PreParserExpression.
-
-// - Creating parse tree nodes: Parser generates an AST during the recursive
-// descent. PreParser doesn't create a tree. Instead, it passes around minimal
-// data objects (PreParserExpression, PreParserIdentifier etc.) which contain
-// just enough data for the upper layer functions. PreParserFactory is
-// responsible for creating these dummy objects. It provides a similar kind of
-// interface as AstNodeFactory, so ParserBase doesn't need to care which one is
-// used.
-
-// The traits are expected to contain the following typedefs:
+// The ParserTypes structure encapsulates the differences in the
+// types used in parsing methods.  E.g., Parser methods use Expression*
+// and PreParser methods use PreParserExpression.  For any given parser
+// implementation class Impl, it is expected to contain the following typedefs:
+//
 // template <>
-// class ParserBaseTraits<Impl> {
-//   // In particular...
-//   struct Type {
-//     // Synonyms for ParserBase<Impl> and Impl, respectively.
-//     typedef Base;
-//     typedef Impl;
-//     typedef GeneratorVariable;
-//     typedef AstProperties;
-//     typedef ExpressionClassifier;
-//     // Return types for traversing functions.
-//     typedef Identifier;
-//     typedef Expression;
-//     typedef YieldExpression;
-//     typedef FunctionLiteral;
-//     typedef ClassLiteral;
-//     typedef Literal;
-//     typedef ObjectLiteralProperty;
-//     typedef ExpressionList;
-//     typedef PropertyList;
-//     typedef FormalParameter;
-//     typedef FormalParameters;
-//     typedef StatementList;
-//     // For constructing objects returned by the traversing functions.
-//     typedef Factory;
-//   };
-//   // ...
+// struct ParserTypes<Impl> {
+//   // Synonyms for ParserBase<Impl> and Impl, respectively.
+//   typedef Base;
+//   typedef Impl;
+//   // TODO(nikolaos): these three will probably go away, as they are
+//   // not related to pure parsing.
+//   typedef GeneratorVariable;
+//   typedef AstProperties;
+//   typedef ExpressionClassifier;
+//   // Return types for traversing functions.
+//   typedef Identifier;
+//   typedef Expression;
+//   typedef YieldExpression;
+//   typedef FunctionLiteral;
+//   typedef ClassLiteral;
+//   typedef Literal;
+//   typedef ObjectLiteralProperty;
+//   typedef ExpressionList;
+//   typedef PropertyList;
+//   typedef FormalParameter;
+//   typedef FormalParameters;
+//   typedef StatementList;
+//   // For constructing objects returned by the traversing functions.
+//   typedef Factory;
 // };
 
 template <typename Impl>
-class ParserBaseTraits;
+struct ParserTypes;
 
 template <typename Impl>
-class ParserBase : public ParserBaseTraits<Impl> {
+class ParserBase {
  public:
-  // Shorten type names defined by Traits.
-  typedef ParserBaseTraits<Impl> Traits;
-  typedef typename Traits::Type::Expression ExpressionT;
-  typedef typename Traits::Type::Identifier IdentifierT;
-  typedef typename Traits::Type::FormalParameter FormalParameterT;
-  typedef typename Traits::Type::FormalParameters FormalParametersT;
-  typedef typename Traits::Type::FunctionLiteral FunctionLiteralT;
-  typedef typename Traits::Type::Literal LiteralT;
-  typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
-  typedef typename Traits::Type::StatementList StatementListT;
-  typedef typename Traits::Type::ExpressionClassifier ExpressionClassifier;
+  // Shorten type names defined by ParserTypes<Impl>.
+  typedef ParserTypes<Impl> Types;
+  typedef typename Types::Expression ExpressionT;
+  typedef typename Types::Identifier IdentifierT;
+  typedef typename Types::FormalParameter FormalParameterT;
+  typedef typename Types::FormalParameters FormalParametersT;
+  typedef typename Types::FunctionLiteral FunctionLiteralT;
+  typedef typename Types::Literal LiteralT;
+  typedef typename Types::ObjectLiteralProperty ObjectLiteralPropertyT;
+  typedef typename Types::StatementList StatementListT;
+  typedef typename Types::ExpressionClassifier ExpressionClassifier;
 
   // All implementation-specific methods must be called through this.
   Impl* impl() { return static_cast<Impl*>(this); }
@@ -447,13 +439,12 @@ class ParserBase : public ParserBaseTraits<Impl> {
     FunctionState* outer() const { return outer_function_state_; }
 
     void set_generator_object_variable(
-        typename Traits::Type::GeneratorVariable* variable) {
+        typename Types::GeneratorVariable* variable) {
       DCHECK(variable != NULL);
       DCHECK(is_resumable());
       generator_object_variable_ = variable;
     }
-    typename Traits::Type::GeneratorVariable* generator_object_variable()
-        const {
+    typename Types::GeneratorVariable* generator_object_variable() const {
       return generator_object_variable_;
     }
 
@@ -876,7 +867,7 @@ class ParserBase : public ParserBaseTraits<Impl> {
     return Token::Precedence(token);
   }
 
-  typename Traits::Type::Factory* factory() { return &ast_node_factory_; }
+  typename Types::Factory* factory() { return &ast_node_factory_; }
 
   DeclarationScope* GetReceiverScope() const {
     return scope()->GetReceiverScope();
@@ -1091,10 +1082,10 @@ class ParserBase : public ParserBaseTraits<Impl> {
       ObjectLiteralCheckerBase* checker, bool in_class, bool has_extends,
       MethodKind kind, bool* is_computed_name, bool* has_seen_constructor,
       ExpressionClassifier* classifier, IdentifierT* name, bool* ok);
-  typename Traits::Type::ExpressionList ParseArguments(
+  typename Types::ExpressionList ParseArguments(
       Scanner::Location* first_spread_pos, bool maybe_arrow,
       ExpressionClassifier* classifier, bool* ok);
-  typename Traits::Type::ExpressionList ParseArguments(
+  typename Types::ExpressionList ParseArguments(
       Scanner::Location* first_spread_pos, ExpressionClassifier* classifier,
       bool* ok) {
     return ParseArguments(first_spread_pos, false, classifier, ok);
@@ -1260,7 +1251,7 @@ class ParserBase : public ParserBaseTraits<Impl> {
   v8::Extension* extension_;
   FuncNameInferrer* fni_;
   AstValueFactory* ast_value_factory_;  // Not owned.
-  typename Traits::Type::Factory ast_node_factory_;
+  typename Types::Factory ast_node_factory_;
   ParserRecorder* log_;
   Mode mode_;
   bool parsing_module_;
@@ -1802,7 +1793,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   //   '[' Expression? (',' Expression?)* ']'
 
   int pos = peek_position();
-  typename Traits::Type::ExpressionList values = impl()->NewExpressionList(4);
+  typename Types::ExpressionList values = impl()->NewExpressionList(4);
   int first_spread_index = -1;
   Expect(Token::LBRACK, CHECK_OK);
   while (peek() != Token::RBRACK) {
@@ -2118,7 +2109,7 @@ ParserBase<Impl>::ParsePropertyDefinition(
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
 
-    typename Traits::Type::FunctionLiteral value = impl()->ParseFunctionLiteral(
+    FunctionLiteralT value = impl()->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck,
         is_get ? FunctionKind::kGetterFunction : FunctionKind::kSetterFunction,
         kNoSourcePosition, FunctionLiteral::kAccessorOrMethod, language_mode(),
@@ -2151,7 +2142,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   // '{' (PropertyDefinition (',' PropertyDefinition)* ','? )? '}'
 
   int pos = peek_position();
-  typename Traits::Type::PropertyList properties = impl()->NewPropertyList(4);
+  typename Types::PropertyList properties = impl()->NewPropertyList(4);
   int number_of_boilerplate_properties = 0;
   bool has_computed_names = false;
   ObjectLiteralChecker checker(this);
@@ -2200,7 +2191,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::Traits::Type::ExpressionList
+typename ParserBase<Impl>::Types::ExpressionList
 ParserBase<Impl>::ParseArguments(Scanner::Location* first_spread_arg_loc,
                                  bool maybe_arrow,
                                  ExpressionClassifier* classifier, bool* ok) {
@@ -2208,7 +2199,7 @@ ParserBase<Impl>::ParseArguments(Scanner::Location* first_spread_arg_loc,
   //   '(' (AssignmentExpression)*[','] ')'
 
   Scanner::Location spread_arg = Scanner::Location::invalid();
-  typename Traits::Type::ExpressionList result = impl()->NewExpressionList(4);
+  typename Types::ExpressionList result = impl()->NewExpressionList(4);
   Expect(Token::LPAREN, CHECK_OK_CUSTOM(NullExpressionList));
   bool done = (peek() == Token::RPAREN);
   bool was_unspread = false;
@@ -2539,8 +2530,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   expression = impl()->BuildIteratorResult(expression, false);
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
-  typename Traits::Type::YieldExpression yield = factory()->NewYield(
-      generator_object, expression, pos, Yield::kOnExceptionThrow);
+  ExpressionT yield = factory()->NewYield(generator_object, expression, pos,
+                                          Yield::kOnExceptionThrow);
   return yield;
 }
 
@@ -2738,7 +2729,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
       return impl()->EmptyExpression();
     }
 
-    // Allow Traits do rewrite the expression.
+    // Allow the parser's implementation to rewrite the expression.
     return impl()->BuildUnaryExpression(expression, op, pos);
   } else if (Token::IsCountOp(op)) {
     BindingPatternUnexpectedToken(classifier);
@@ -2861,7 +2852,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(ExpressionClassifier* classifier,
           }
         }
         Scanner::Location spread_pos;
-        typename Traits::Type::ExpressionList args;
+        typename Types::ExpressionList args;
         if (V8_UNLIKELY(is_async && impl()->IsIdentifier(result))) {
           ExpressionClassifier async_classifier(this);
           args = ParseArguments(&spread_pos, true, &async_classifier, CHECK_OK);
@@ -2996,7 +2987,7 @@ ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(
     if (peek() == Token::LPAREN) {
       // NewExpression with arguments.
       Scanner::Location spread_pos;
-      typename Traits::Type::ExpressionList args =
+      typename Types::ExpressionList args =
           ParseArguments(&spread_pos, classifier, CHECK_OK);
 
       if (spread_pos.IsValid()) {
@@ -3393,7 +3384,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     return impl()->EmptyExpression();
   }
 
-  typename Traits::Type::StatementList body;
+  typename Types::StatementList body;
   int num_parameters = formal_parameters.scope->num_parameters();
   int materialized_literal_count = -1;
   int expected_property_count = -1;

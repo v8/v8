@@ -18,6 +18,14 @@
 namespace v8 {
 namespace internal {
 
+// Whereas the Parser generates AST during the recursive descent,
+// the PreParser doesn't create a tree. Instead, it passes around minimal
+// data objects (PreParserExpression, PreParserIdentifier etc.) which contain
+// just enough data for the upper layer functions. PreParserFactory is
+// responsible for creating these dummy objects. It provides a similar kind of
+// interface as AstNodeFactory, so ParserBase doesn't need to care which one is
+// used.
+
 class PreParserIdentifier {
  public:
   PreParserIdentifier() : type_(kUnknownIdentifier) {}
@@ -585,37 +593,34 @@ struct PreParserFormalParameters : FormalParametersBase {
 class PreParser;
 
 template <>
-class ParserBaseTraits<PreParser> {
- public:
-  struct Type {
-    typedef ParserBase<PreParser> Base;
-    typedef PreParser Impl;
+struct ParserTypes<PreParser> {
+  typedef ParserBase<PreParser> Base;
+  typedef PreParser Impl;
 
-    // PreParser doesn't need to store generator variables.
-    typedef void GeneratorVariable;
+  // PreParser doesn't need to store generator variables.
+  typedef void GeneratorVariable;
 
-    typedef int AstProperties;
+  typedef int AstProperties;
 
-    typedef v8::internal::ExpressionClassifier<ParserBaseTraits<PreParser>>
-        ExpressionClassifier;
+  typedef v8::internal::ExpressionClassifier<ParserTypes<PreParser>>
+      ExpressionClassifier;
 
-    // Return types for traversing functions.
-    typedef PreParserIdentifier Identifier;
-    typedef PreParserExpression Expression;
-    typedef PreParserExpression YieldExpression;
-    typedef PreParserExpression FunctionLiteral;
-    typedef PreParserExpression ClassLiteral;
-    typedef PreParserExpression Literal;
-    typedef PreParserExpression ObjectLiteralProperty;
-    typedef PreParserExpressionList ExpressionList;
-    typedef PreParserExpressionList PropertyList;
-    typedef PreParserIdentifier FormalParameter;
-    typedef PreParserFormalParameters FormalParameters;
-    typedef PreParserStatementList StatementList;
+  // Return types for traversing functions.
+  typedef PreParserIdentifier Identifier;
+  typedef PreParserExpression Expression;
+  typedef PreParserExpression YieldExpression;
+  typedef PreParserExpression FunctionLiteral;
+  typedef PreParserExpression ClassLiteral;
+  typedef PreParserExpression Literal;
+  typedef PreParserExpression ObjectLiteralProperty;
+  typedef PreParserExpressionList ExpressionList;
+  typedef PreParserExpressionList PropertyList;
+  typedef PreParserIdentifier FormalParameter;
+  typedef PreParserFormalParameters FormalParameters;
+  typedef PreParserStatementList StatementList;
 
-    // For constructing objects returned by the traversing functions.
-    typedef PreParserFactory Factory;
-  };
+  // For constructing objects returned by the traversing functions.
+  typedef PreParserFactory Factory;
 };
 
 
@@ -633,7 +638,7 @@ class ParserBaseTraits<PreParser> {
 // it is used) are generally omitted.
 class PreParser : public ParserBase<PreParser> {
   friend class ParserBase<PreParser>;
-  friend class v8::internal::ExpressionClassifier<ParserBaseTraits<PreParser>>;
+  friend class v8::internal::ExpressionClassifier<ParserTypes<PreParser>>;
 
  public:
   typedef PreParserIdentifier Identifier;
@@ -836,8 +841,7 @@ class PreParser : public ParserBase<PreParser> {
                                                  int pos) {
     return PreParserExpression::Default();
   }
-  V8_INLINE void RewriteNonPattern(Type::ExpressionClassifier* classifier,
-                                   bool* ok) {
+  V8_INLINE void RewriteNonPattern(ExpressionClassifier* classifier, bool* ok) {
     ValidateExpression(classifier, ok);
   }
 
@@ -1092,9 +1096,9 @@ class PreParser : public ParserBase<PreParser> {
     ++parameters->arity;
   }
 
-  V8_INLINE void DeclareFormalParameter(
-      DeclarationScope* scope, PreParserIdentifier parameter,
-      Type::ExpressionClassifier* classifier) {
+  V8_INLINE void DeclareFormalParameter(DeclarationScope* scope,
+                                        PreParserIdentifier parameter,
+                                        ExpressionClassifier* classifier) {
     if (!classifier->is_simple_parameter_list()) {
       scope->SetHasNonSimpleParameters();
     }
@@ -1135,7 +1139,7 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void SetFunctionNameFromIdentifierRef(
       PreParserExpression value, PreParserExpression identifier) {}
 
-  V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
+  V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
   GetReportedErrorList() const {
     return function_state_->GetReportedErrorList();
   }

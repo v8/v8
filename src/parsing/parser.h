@@ -138,36 +138,33 @@ struct ParserFormalParameters : FormalParametersBase {
 };
 
 template <>
-class ParserBaseTraits<Parser> {
- public:
-  struct Type {
-    typedef ParserBase<Parser> Base;
-    typedef Parser Impl;
+struct ParserTypes<Parser> {
+  typedef ParserBase<Parser> Base;
+  typedef Parser Impl;
 
-    typedef Variable GeneratorVariable;
+  typedef Variable GeneratorVariable;
 
-    typedef v8::internal::AstProperties AstProperties;
+  typedef v8::internal::AstProperties AstProperties;
 
-    typedef v8::internal::ExpressionClassifier<ParserBaseTraits<Parser>>
-        ExpressionClassifier;
+  typedef v8::internal::ExpressionClassifier<ParserTypes<Parser>>
+      ExpressionClassifier;
 
-    // Return types for traversing functions.
-    typedef const AstRawString* Identifier;
-    typedef v8::internal::Expression* Expression;
-    typedef Yield* YieldExpression;
-    typedef v8::internal::FunctionLiteral* FunctionLiteral;
-    typedef v8::internal::ClassLiteral* ClassLiteral;
-    typedef v8::internal::Literal* Literal;
-    typedef ObjectLiteral::Property* ObjectLiteralProperty;
-    typedef ZoneList<v8::internal::Expression*>* ExpressionList;
-    typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
-    typedef ParserFormalParameters::Parameter FormalParameter;
-    typedef ParserFormalParameters FormalParameters;
-    typedef ZoneList<v8::internal::Statement*>* StatementList;
+  // Return types for traversing functions.
+  typedef const AstRawString* Identifier;
+  typedef v8::internal::Expression* Expression;
+  typedef Yield* YieldExpression;
+  typedef v8::internal::FunctionLiteral* FunctionLiteral;
+  typedef v8::internal::ClassLiteral* ClassLiteral;
+  typedef v8::internal::Literal* Literal;
+  typedef ObjectLiteral::Property* ObjectLiteralProperty;
+  typedef ZoneList<v8::internal::Expression*>* ExpressionList;
+  typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
+  typedef ParserFormalParameters::Parameter FormalParameter;
+  typedef ParserFormalParameters FormalParameters;
+  typedef ZoneList<v8::internal::Statement*>* StatementList;
 
-    // For constructing objects returned by the traversing functions.
-    typedef AstNodeFactory Factory;
-  };
+  // For constructing objects returned by the traversing functions.
+  typedef AstNodeFactory Factory;
 };
 
 class Parser : public ParserBase<Parser> {
@@ -197,7 +194,7 @@ class Parser : public ParserBase<Parser> {
 
  private:
   friend class ParserBase<Parser>;
-  friend class v8::internal::ExpressionClassifier<ParserBaseTraits<Parser>>;
+  friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
 
   // Runtime encoding of different completion modes.
   enum CompletionKind {
@@ -480,7 +477,7 @@ class Parser : public ParserBase<Parser> {
 
   void DesugarAsyncFunctionBody(const AstRawString* function_name, Scope* scope,
                                 ZoneList<Statement*>* body,
-                                Type::ExpressionClassifier* classifier,
+                                ExpressionClassifier* classifier,
                                 FunctionKind kind, FunctionBodyType type,
                                 bool accept_IN, int pos, bool* ok);
 
@@ -623,12 +620,11 @@ class Parser : public ParserBase<Parser> {
                              pos, ok);
   }
 
-  ZoneList<v8::internal::Expression*>* PrepareSpreadArguments(
-      ZoneList<v8::internal::Expression*>* list);
-  Expression* SpreadCall(Expression* function,
-                         ZoneList<v8::internal::Expression*>* args, int pos);
-  Expression* SpreadCallNew(Expression* function,
-                            ZoneList<v8::internal::Expression*>* args, int pos);
+  ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);
+  Expression* SpreadCall(Expression* function, ZoneList<Expression*>* args,
+                         int pos);
+  Expression* SpreadCallNew(Expression* function, ZoneList<Expression*>* args,
+                            int pos);
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
   void RaiseLanguageMode(LanguageMode mode);
@@ -943,22 +939,20 @@ class Parser : public ParserBase<Parser> {
     return factory()->NewStringLiteral(symbol, pos);
   }
 
-  V8_INLINE ZoneList<v8::internal::Expression*>* NewExpressionList(
-      int size) const {
-    return new (zone()) ZoneList<v8::internal::Expression*>(size, zone());
+  V8_INLINE ZoneList<Expression*>* NewExpressionList(int size) const {
+    return new (zone()) ZoneList<Expression*>(size, zone());
   }
   V8_INLINE ZoneList<ObjectLiteral::Property*>* NewPropertyList(
       int size) const {
     return new (zone()) ZoneList<ObjectLiteral::Property*>(size, zone());
   }
-  V8_INLINE ZoneList<v8::internal::Statement*>* NewStatementList(
-      int size) const {
-    return new (zone()) ZoneList<v8::internal::Statement*>(size, zone());
+  V8_INLINE ZoneList<Statement*>* NewStatementList(int size) const {
+    return new (zone()) ZoneList<Statement*>(size, zone());
   }
 
   V8_INLINE void AddParameterInitializationBlock(
-      const ParserFormalParameters& parameters,
-      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) {
+      const ParserFormalParameters& parameters, ZoneList<Statement*>* body,
+      bool is_async, bool* ok) {
     if (parameters.is_simple) return;
     auto* init_block = BuildParameterInitializationBlock(parameters, ok);
     if (!*ok) return;
@@ -984,7 +978,7 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE void DeclareFormalParameter(
       DeclarationScope* scope,
       const ParserFormalParameters::Parameter& parameter,
-      Type::ExpressionClassifier* classifier) {
+      ExpressionClassifier* classifier) {
     bool is_duplicate = false;
     bool is_simple = classifier->is_simple_parameter_list();
     auto name = is_simple || parameter.is_rest
@@ -1029,7 +1023,7 @@ class Parser : public ParserBase<Parser> {
   void SetFunctionNameFromIdentifierRef(Expression* value,
                                         Expression* identifier);
 
-  V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
+  V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
   GetReportedErrorList() const {
     return function_state_->GetReportedErrorList();
   }

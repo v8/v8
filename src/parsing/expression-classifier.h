@@ -26,7 +26,7 @@ class DuplicateFinder;
   T(TailCallExpressionProduction, 8)         \
   T(AsyncArrowFormalParametersProduction, 9)
 
-template <typename Traits>
+template <typename Types>
 class ExpressionClassifier {
  public:
   enum ErrorKind : unsigned {
@@ -72,7 +72,7 @@ class ExpressionClassifier {
     NonSimpleParameter = 1 << 0
   };
 
-  explicit ExpressionClassifier(const typename Traits::Type::Base* base,
+  explicit ExpressionClassifier(const typename Types::Base* base,
                                 DuplicateFinder* duplicate_finder = nullptr)
       : zone_(base->impl()->zone()),
         non_patterns_to_rewrite_(base->impl()->GetNonPatternList()),
@@ -418,7 +418,7 @@ class ExpressionClassifier {
   }
 
   Zone* zone_;
-  ZoneList<typename Traits::Type::Expression>* non_patterns_to_rewrite_;
+  ZoneList<typename Types::Expression>* non_patterns_to_rewrite_;
   ZoneList<Error>* reported_errors_;
   DuplicateFinder* duplicate_finder_;
   // The uint16_t for non_pattern_begin_ will not be enough in the case,
