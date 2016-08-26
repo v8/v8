@@ -126,10 +126,18 @@ GCTracer::GCTracer(Heap* heap)
 }
 
 void GCTracer::ResetForTesting() {
+  current_ = Event(Event::START, NULL, NULL);
+  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
+  previous_ = previous_incremental_mark_compactor_event_ = current_;
   cumulative_incremental_marking_bytes_ = 0.0;
   cumulative_incremental_marking_duration_ = 0.0;
   cumulative_pure_incremental_marking_duration_ = 0.0;
   cumulative_marking_duration_ = 0.0;
+  for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
+    incremental_marking_scopes_[i].cumulative_duration = 0.0;
+    incremental_marking_scopes_[i].steps = 0;
+    incremental_marking_scopes_[i].longest_step = 0.0;
+  }
   cumulative_sweeping_duration_ = 0.0;
   allocation_time_ms_ = 0.0;
   new_space_allocation_counter_bytes_ = 0.0;
@@ -138,15 +146,16 @@ void GCTracer::ResetForTesting() {
   new_space_allocation_in_bytes_since_gc_ = 0.0;
   old_generation_allocation_in_bytes_since_gc_ = 0.0;
   combined_mark_compact_speed_cache_ = 0.0;
+  recorded_scavenges_total_.Reset();
+  recorded_scavenges_survived_.Reset();
+  recorded_compactions_.Reset();
+  recorded_mark_compacts_.Reset();
+  recorded_incremental_mark_compacts_.Reset();
+  recorded_new_generation_allocations_.Reset();
+  recorded_old_generation_allocations_.Reset();
+  recorded_context_disposal_times_.Reset();
+  recorded_survival_ratios_.Reset();
   start_counter_ = 0;
-  for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
-    incremental_marking_scopes_[i].cumulative_duration = 0.0;
-    incremental_marking_scopes_[i].steps = 0;
-    incremental_marking_scopes_[i].longest_step = 0.0;
-  }
-  current_ = Event(Event::START, NULL, NULL);
-  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
-  previous_ = previous_incremental_mark_compactor_event_ = current_;
 }
 
 void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
