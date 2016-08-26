@@ -23,9 +23,8 @@ class DuplicateFinder;
   T(StrictModeFormalParametersProduction, 5) \
   T(ArrowFormalParametersProduction, 6)      \
   T(LetPatternProduction, 7)                 \
-  T(ObjectLiteralProduction, 8)              \
-  T(TailCallExpressionProduction, 9)         \
-  T(AsyncArrowFormalParametersProduction, 10)
+  T(TailCallExpressionProduction, 8)         \
+  T(AsyncArrowFormalParametersProduction, 9)
 
 template <typename Traits>
 class ExpressionClassifier {
@@ -165,14 +164,6 @@ class ExpressionClassifier {
     return reported_error(kLetPatternProduction);
   }
 
-  V8_INLINE bool has_object_literal_error() const {
-    return !is_valid(ObjectLiteralProduction);
-  }
-
-  V8_INLINE const Error& object_literal_error() const {
-    return reported_error(kObjectLiteralProduction);
-  }
-
   V8_INLINE bool has_tail_call_expression() const {
     return !is_valid(TailCallExpressionProduction);
   }
@@ -279,14 +270,6 @@ class ExpressionClassifier {
     if (!is_valid_let_pattern()) return;
     invalid_productions_ |= LetPatternProduction;
     Add(Error(loc, message, kLetPatternProduction, arg));
-  }
-
-  void RecordObjectLiteralError(const Scanner::Location& loc,
-                                MessageTemplate::Template message,
-                                const char* arg = nullptr) {
-    if (has_object_literal_error()) return;
-    invalid_productions_ |= ObjectLiteralProduction;
-    Add(Error(loc, message, kObjectLiteralProduction, arg));
   }
 
   void RecordTailCallExpressionError(const Scanner::Location& loc,

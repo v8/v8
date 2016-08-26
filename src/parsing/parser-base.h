@@ -925,16 +925,8 @@ class ParserBase : public ParserBaseTraits<Impl> {
   }
 
   void ValidateExpression(const ExpressionClassifier* classifier, bool* ok) {
-    if (!classifier->is_valid_expression() ||
-        classifier->has_object_literal_error()) {
-      const Scanner::Location& a = classifier->expression_error().location;
-      const Scanner::Location& b =
-          classifier->object_literal_error().location;
-      if (a.beg_pos < 0 || (b.beg_pos >= 0 && a.beg_pos > b.beg_pos)) {
-        ReportClassifierError(classifier->object_literal_error());
-      } else {
-        ReportClassifierError(classifier->expression_error());
-      }
+    if (!classifier->is_valid_expression()) {
+      ReportClassifierError(classifier->expression_error());
       *ok = false;
     }
   }
@@ -2035,7 +2027,7 @@ ParserBase<Impl>::ParsePropertyDefinition(
         classifier->AccumulateFormalParameterContainmentErrors(&rhs_classifier);
         value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
                                          kNoSourcePosition);
-        classifier->RecordObjectLiteralError(
+        classifier->RecordExpressionError(
             Scanner::Location(next_beg_pos, scanner()->location().end_pos),
             MessageTemplate::kInvalidCoverInitializedName);
 
@@ -2416,7 +2408,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN,
     // This is definitely not an expression so don't accumulate
     // expression-related errors.
     productions &= ~(ExpressionClassifier::ExpressionProduction |
-                     ExpressionClassifier::ObjectLiteralProduction |
                      ExpressionClassifier::TailCallExpressionProduction);
   }
 
@@ -3668,8 +3659,8 @@ void ParserBase<Impl>::ObjectLiteralChecker::CheckProperty(
 
   if (type == kValueProperty && IsProto()) {
     if (has_seen_proto_) {
-      classifier->RecordObjectLiteralError(
-          this->scanner()->location(), MessageTemplate::kDuplicateProto);
+      classifier->RecordExpressionError(this->scanner()->location(),
+                                        MessageTemplate::kDuplicateProto);
       return;
     }
     has_seen_proto_ = true;
