@@ -415,7 +415,8 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
         r.LowerGraph();
       }
 
-      CompilationInfo info(ArrayVector("testing"), isolate, graph()->zone());
+      CompilationInfo info(ArrayVector("testing"), isolate, graph()->zone(),
+                           Code::ComputeFlags(Code::STUB));
       code_ =
           Pipeline::GenerateCodeForTesting(&info, descriptor, graph(), nullptr);
       CHECK(!code_.is_null());

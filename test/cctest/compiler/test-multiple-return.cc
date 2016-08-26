@@ -81,7 +81,7 @@ TEST(ReturnThreeValues) {
   m.Return(add, sub, mul);
 
   CompilationInfo info(ArrayVector("testing"), handles.main_isolate(),
-                       handles.main_zone());
+                       handles.main_zone(), Code::ComputeFlags(Code::STUB));
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, desc, m.graph(), m.Export());
 #ifdef ENABLE_DISASSEMBLER

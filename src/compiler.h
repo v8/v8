@@ -173,7 +173,7 @@ class CompilationInfo final {
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
   CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
-                  Code::Flags code_flags = Code::ComputeFlags(Code::STUB));
+                  Code::Flags code_flags);
   ~CompilationInfo();
 
   ParseInfo* parse_info() const { return parse_info_; }

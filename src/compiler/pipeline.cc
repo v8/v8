@@ -1726,7 +1726,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
   CompilationInfo info(ArrayVector("testing"), sequence->isolate(),
-                       sequence->zone());
+                       sequence->zone(), Code::ComputeFlags(Code::STUB));
   ZonePool zone_pool(sequence->isolate()->allocator());
   PipelineData data(&zone_pool, &info, sequence);
   PipelineImpl pipeline(&data);

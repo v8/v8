@@ -603,7 +603,8 @@ static void TestGeneralizeRepresentation(
 
   // Create new maps by generalizing representation of propX field.
   Handle<Map> field_owner(map->FindFieldOwner(property_index), isolate);
-  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone,
+                       Code::ComputeFlags(Code::STUB));
   CHECK(!info.dependencies()->HasAborted());
 
   info.dependencies()->AssumeFieldType(field_owner);
@@ -982,7 +983,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
 
   Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
-  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone,
+                       Code::ComputeFlags(Code::STUB));
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 
@@ -1067,7 +1069,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
 
   Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
-  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone,
+                       Code::ComputeFlags(Code::STUB));
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 
@@ -1598,7 +1601,8 @@ static void TestReconfigureElementsKind_GeneralizeRepresentation(
 
   Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
-  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone,
+                       Code::ComputeFlags(Code::STUB));
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 
@@ -1691,7 +1695,8 @@ static void TestReconfigureElementsKind_GeneralizeRepresentationTrivial(
 
   Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
-  CompilationInfo info(ArrayVector("testing"), isolate, &zone);
+  CompilationInfo info(ArrayVector("testing"), isolate, &zone,
+                       Code::ComputeFlags(Code::STUB));
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 
