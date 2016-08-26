@@ -1833,7 +1833,8 @@ void FullCodeGenerator::EmitOperandStackDepthCheck() {
     int expected_diff = StandardFrameConstants::kFixedFrameSizeFromFp +
                         operand_stack_depth_ * kPointerSize;
     __ sub(r3, fp, sp);
-    __ cmpi(r3, Operand(expected_diff));
+    __ mov(ip, Operand(expected_diff));
+    __ cmp(r3, ip);
     __ Assert(eq, kUnexpectedStackDepth);
   }
 }
