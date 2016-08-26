@@ -1058,11 +1058,20 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   SharedFunctionInfo* shared = translated_frame->raw_shared_info();
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
+  bool is_bottommost = (0 == frame_index);
+  bool is_topmost = (output_count_ - 1 == frame_index);
   int input_index = 0;
 
   int bytecode_offset = translated_frame->node_id().ToInt();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
+
+  // All tranlations for interpreted frames contain the accumulator and hence
+  // are assumed to be in bailout state {BailoutState::TOS_REGISTER}. However
+  // such a state is only supported for the topmost frame. We need to skip
+  // pushing the accumulator for any non-topmost frame.
+  if (!is_topmost) height_in_bytes -= kPointerSize;
+
   JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
   value_iterator++;
   input_index++;
@@ -1089,8 +1098,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
       FrameDescription(output_frame_size, parameter_count);
   output_frame->SetFrameType(StackFrame::INTERPRETED);
 
-  bool is_bottommost = (0 == frame_index);
-  bool is_topmost = (output_count_ - 1 == frame_index);
   CHECK(frame_index >= 0 && frame_index < output_count_);
   CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
@@ -1231,20 +1238,30 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
                                  output_offset);
   }
 
-  // Put the accumulator on the stack. It will be popped by the
-  // InterpreterNotifyDeopt builtin (possibly after materialization).
-  output_offset -= kPointerSize;
-  if (goto_catch_handler) {
-    // If we are lazy deopting to a catch handler, we set the accumulator to
-    // the exception (which lives in the result register).
-    intptr_t accumulator_value =
-        input_->GetRegister(FullCodeGenerator::result_register().code());
-    WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
-                       frame_index, output_offset, "accumulator ");
-    value_iterator++;
+  // Translate the accumulator register (depending on frame position).
+  if (is_topmost) {
+    // For topmost frmae, p ut the accumulator on the stack. The bailout state
+    // for interpreted frames is always set to {BailoutState::TOS_REGISTER} and
+    // the {NotifyDeoptimized} builtin pops it off the topmost frame (possibly
+    // after materialization).
+    output_offset -= kPointerSize;
+    if (goto_catch_handler) {
+      // If we are lazy deopting to a catch handler, we set the accumulator to
+      // the exception (which lives in the result register).
+      intptr_t accumulator_value =
+          input_->GetRegister(FullCodeGenerator::result_register().code());
+      WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
+                         frame_index, output_offset, "accumulator ");
+      value_iterator++;
+    } else {
+      WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
+                                   output_offset, "accumulator ");
+    }
   } else {
-    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
-                                 output_offset);
+    // For non-topmost frames, skip the accumulator translation. For those
+    // frames, the return value from the callee will become the accumulator.
+    value_iterator++;
+    input_index++;
   }
   CHECK_EQ(0u, output_offset);
 
