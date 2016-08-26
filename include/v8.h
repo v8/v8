@@ -3318,12 +3318,50 @@ class FunctionCallbackInfo {
 template<typename T>
 class PropertyCallbackInfo {
  public:
+  /**
+   * \return The isolate of the property access.
+   */
   V8_INLINE Isolate* GetIsolate() const;
+
+  /**
+   * \return The data set in the configuration, i.e., in
+   * `NamedPropertyHandlerConfiguration` or
+   * `IndexedPropertyHandlerConfiguration.`
+   */
   V8_INLINE Local<Value> Data() const;
+
   V8_INLINE Local<Object> This() const;
+
+  /**
+   * \return The object in the prototype chain of the receiver that has the
+   * interceptor. Suppose you have `x` and its prototype is `y`, and `y`
+   * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
+   * The Holder() could be a hidden object (the global object, rather
+   * than the global proxy).
+   *
+   * \note For security reasons, do not pass the object back into the runtime.
+   */
   V8_INLINE Local<Object> Holder() const;
+
+  /**
+   * \return The return value of the callback.
+   * Can be changed by calling Set().
+   * \code
+   * info.GetReturnValue().Set(...)
+   * \endcode
+   *
+   */
   V8_INLINE ReturnValue<T> GetReturnValue() const;
+
+  /**
+   * \return True if the intercepted function should throw if an error occurs.
+   * Usually, `true` corresponds to `'use strict'`.
+   *
+   * \note Always `false` when intercepting `Reflect.Set()`
+   * independent of the language mode.
+   */
   V8_INLINE bool ShouldThrowOnError() const;
+
   // This shouldn't be public, but the arm compiler needs it.
   static const int kArgsLength = 7;
 
