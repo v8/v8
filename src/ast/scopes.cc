@@ -148,9 +148,10 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
   asm_function_ = outer_scope_->IsAsmModule();
 }
 
-ModuleScope::ModuleScope(Zone* zone, DeclarationScope* script_scope,
+ModuleScope::ModuleScope(DeclarationScope* script_scope,
                          AstValueFactory* ast_value_factory)
-    : DeclarationScope(zone, script_scope, MODULE_SCOPE) {
+    : DeclarationScope(ast_value_factory->zone(), script_scope, MODULE_SCOPE) {
+  Zone* zone = ast_value_factory->zone();
   module_descriptor_ = new (zone) ModuleDescriptor(zone);
   set_language_mode(STRICT);
   DeclareThis(ast_value_factory);
@@ -617,35 +618,36 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
   // There should be no local slot with the given name.
   DCHECK(scope_info_->StackSlotIndex(*name_handle) < 0);
 
-  // Check context slot lookup.
   VariableMode mode;
-  VariableLocation location = VariableLocation::CONTEXT;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
+
+  VariableLocation location = VariableLocation::CONTEXT;
   int index = ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode,
                                           &init_flag, &maybe_assigned_flag);
   if (index < 0) {
     location = VariableLocation::GLOBAL;
     index = ScopeInfo::ContextGlobalSlotIndex(scope_info_, name_handle, &mode,
                                               &init_flag, &maybe_assigned_flag);
+    DCHECK(index < 0 || (is_script_scope() && mode == VAR));
   }
   if (index < 0) {
-    // Check parameters.
-    index = scope_info_->ParameterIndex(*name_handle);
-    if (index < 0) return NULL;
-
-    mode = DYNAMIC;
     location = VariableLocation::LOOKUP;
-    init_flag = kCreatedInitialized;
-    // Be conservative and flag parameters as maybe assigned. Better information
-    // would require ScopeInfo to serialize the maybe_assigned bit also for
-    // parameters.
-    maybe_assigned_flag = kMaybeAssigned;
-  } else {
-    DCHECK(location != VariableLocation::GLOBAL ||
-           (is_script_scope() && IsDeclaredVariableMode(mode) &&
-            !IsLexicalVariableMode(mode)));
+    index = scope_info_->ParameterIndex(*name_handle);
+    if (index >= 0) {
+      mode = DYNAMIC;
+      init_flag = kCreatedInitialized;
+      // Be conservative and flag parameters as maybe assigned. Better
+      // information would require ScopeInfo to serialize the maybe_assigned bit
+      // also for parameters.
+      maybe_assigned_flag = kMaybeAssigned;
+    }
   }
+  if (index < 0 && scope_type() == MODULE_SCOPE) {
+    location = VariableLocation::MODULE;
+    index = -1;  // TODO(neis): Find module variables in scope info.
+  }
+  if (index < 0) return nullptr;  // Nowhere found.
 
   Variable::Kind kind = Variable::NORMAL;
   if (location == VariableLocation::CONTEXT &&
@@ -822,9 +824,9 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
   return nullptr;
 }
 
-void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
-                                         ZoneList<Variable*>* context_locals,
-                                         ZoneList<Variable*>* context_globals) {
+void Scope::CollectVariables(ZoneList<Variable*>* stack_locals,
+                             ZoneList<Variable*>* context_locals,
+                             ZoneList<Variable*>* context_globals) {
   // TODO(verwaest): Just pass out locals_ directly and walk it?
   DCHECK_NOT_NULL(stack_locals);
   DCHECK_NOT_NULL(context_locals);

@@ -1904,8 +1904,7 @@ Handle<Object> LiveEditFunctionTracker::SerializeFunctionScope(Scope* scope) {
     ZoneList<Variable*> context_list(current_scope->ContextLocalCount(), zone_);
     ZoneList<Variable*> globals_list(current_scope->ContextGlobalCount(),
                                      zone_);
-    current_scope->CollectStackAndContextLocals(&stack_list, &context_list,
-                                                &globals_list);
+    current_scope->CollectVariables(&stack_list, &context_list, &globals_list);
     for (int i = 0; i < context_list.length(); i++) {
       int context_index = context_list[i]->index() - Context::MIN_CONTEXT_SLOTS;
       int location = scope_info_length + context_index * 2;

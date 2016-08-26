@@ -4507,12 +4507,10 @@ class ScopeInfo : public FixedArray {
   class FunctionKindField
       : public BitField<FunctionKind, HasSimpleParametersField::kNext, 9> {};
 
-  // BitFields representing the encoded information for context locals in the
-  // ContextLocalInfoEntries part.
-  class ContextLocalMode:      public BitField<VariableMode,         0, 3> {};
-  class ContextLocalInitFlag:  public BitField<InitializationFlag,   3, 1> {};
-  class ContextLocalMaybeAssignedFlag
-      : public BitField<MaybeAssignedFlag, 4, 1> {};
+  // Properties of variables.
+  class VariableModeField : public BitField<VariableMode, 0, 3> {};
+  class InitFlagField : public BitField<InitializationFlag, 3, 1> {};
+  class MaybeAssignedFlagField : public BitField<MaybeAssignedFlag, 4, 1> {};
 
   friend class ScopeIterator;
 };

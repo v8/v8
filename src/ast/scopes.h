@@ -340,12 +340,11 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Variable allocation.
 
-  // Collect stack and context allocated local variables in this scope. Note
-  // that the function variable - if present - is not collected and should be
-  // handled separately.
-  void CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
-                                    ZoneList<Variable*>* context_locals,
-                                    ZoneList<Variable*>* context_globals);
+  // Collect variables in this scope. Note that the function variable - if
+  // present - is not collected and should be handled separately.
+  void CollectVariables(ZoneList<Variable*>* stack_locals,
+                        ZoneList<Variable*>* context_locals,
+                        ZoneList<Variable*>* context_globals);
 
   // Result of variable allocation.
   int num_stack_slots() const { return num_stack_slots_; }
@@ -836,7 +835,7 @@ class DeclarationScope : public Scope {
 
 class ModuleScope final : public DeclarationScope {
  public:
-  ModuleScope(Zone* zone, DeclarationScope* script_scope,
+  ModuleScope(DeclarationScope* script_scope,
               AstValueFactory* ast_value_factory);
 
   ModuleDescriptor* module() const {

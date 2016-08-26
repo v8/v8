@@ -641,7 +641,7 @@ class ParserBase {
   }
 
   ModuleScope* NewModuleScope(DeclarationScope* parent) const {
-    return new (zone()) ModuleScope(zone(), parent, ast_value_factory());
+    return new (zone()) ModuleScope(parent, ast_value_factory());
   }
 
   DeclarationScope* NewEvalScope(Scope* parent) const {
