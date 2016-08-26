@@ -4480,10 +4480,26 @@ typedef void (*NamedPropertyEnumeratorCallback)(
 typedef void (*GenericNamedPropertyGetterCallback)(
     Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
-
 /**
- * Returns the value if the setter intercepts the request.
- * Otherwise, returns an empty handle.
+ * Interceptor for set requests on an object.
+ *
+ * Use `info.GetReturnValue()` to indicate whether the request was intercepted
+ * or not. If the setter successfully intercepts the request, i.e., if the
+ * request should not be further executed, call
+ * `info.GetReturnValue().Set(value)`. If the setter
+ * did not intercept the request, i.e., if the request should be handled as
+ * if no interceptor is present, do not not call `Set()`.
+ *
+ * \param property The name of the property for which the request was
+ * intercepted.
+ * \param value The value which the property will have if the request
+ * is not intercepted.
+ * \param info Information about the intercepted request, such as
+ * isolate, receiver, return value, or whether running in `'use strict'` mode.
+ * See `PropertyCallbackInfo`.
+ *
+ * See also
+ * `ObjectTemplate::SetNamedPropertyHandler.`
  */
 typedef void (*GenericNamedPropertySetterCallback)(
     Local<Name> property, Local<Value> value,
