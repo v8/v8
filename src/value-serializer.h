@@ -59,6 +59,14 @@ class ValueSerializer {
    */
   std::vector<uint8_t> ReleaseBuffer() { return std::move(buffer_); }
 
+  /*
+   * Marks an ArrayBuffer as havings its contents transferred out of band.
+   * Pass the corresponding JSArrayBuffer in the deserializing context to
+   * ValueDeserializer::TransferArrayBuffer.
+   */
+  void TransferArrayBuffer(uint32_t transfer_id,
+                           Handle<JSArrayBuffer> array_buffer);
+
  private:
   // Writing the wire format.
   void WriteTag(SerializationTag tag);
@@ -105,6 +113,9 @@ class ValueSerializer {
   IdentityMap<uint32_t> id_map_;
   uint32_t next_id_ = 0;
 
+  // A similar map, for transferred array buffers.
+  IdentityMap<uint32_t> array_buffer_transfer_map_;
+
   DISALLOW_COPY_AND_ASSIGN(ValueSerializer);
 };
 
@@ -144,6 +155,13 @@ class ValueDeserializer {
   MaybeHandle<Object> ReadObjectUsingEntireBufferForLegacyFormat()
       WARN_UNUSED_RESULT;
 
+  /*
+   * Accepts the array buffer corresponding to the one passed previously to
+   * ValueSerializer::TransferArrayBuffer.
+   */
+  void TransferArrayBuffer(uint32_t transfer_id,
+                           Handle<JSArrayBuffer> array_buffer);
+
  private:
   // Reading the wire format.
   Maybe<SerializationTag> PeekTag() const WARN_UNUSED_RESULT;
@@ -169,6 +187,7 @@ class ValueDeserializer {
   MaybeHandle<JSMap> ReadJSMap() WARN_UNUSED_RESULT;
   MaybeHandle<JSSet> ReadJSSet() WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer() WARN_UNUSED_RESULT;
+  MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer() WARN_UNUSED_RESULT;
 
   /*
    * Reads key-value pairs into the object until the specified end tag is
@@ -186,8 +205,11 @@ class ValueDeserializer {
   const uint8_t* position_;
   const uint8_t* const end_;
   uint32_t version_ = 0;
-  Handle<SeededNumberDictionary> id_map_;  // Always a global handle.
   uint32_t next_id_ = 0;
+
+  // Always global handles.
+  Handle<SeededNumberDictionary> id_map_;
+  MaybeHandle<SeededNumberDictionary> array_buffer_transfer_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueDeserializer);
 };

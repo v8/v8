@@ -70,6 +70,7 @@ namespace v8 {
 
 class AccessorSignature;
 class Array;
+class ArrayBuffer;
 class Boolean;
 class BooleanObject;
 class Context;
@@ -1689,6 +1690,14 @@ class V8_EXPORT ValueSerializer {
    */
   std::vector<uint8_t> ReleaseBuffer();
 
+  /*
+   * Marks an ArrayBuffer as havings its contents transferred out of band.
+   * Pass the corresponding JSArrayBuffer in the deserializing context to
+   * ValueDeserializer::TransferArrayBuffer.
+   */
+  void TransferArrayBuffer(uint32_t transfer_id,
+                           Local<ArrayBuffer> array_buffer);
+
  private:
   ValueSerializer(const ValueSerializer&) = delete;
   void operator=(const ValueSerializer&) = delete;
@@ -1720,6 +1729,13 @@ class V8_EXPORT ValueDeserializer {
    * Deserializes a JavaScript value from the buffer.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> ReadValue(Local<Context> context);
+
+  /*
+   * Accepts the array buffer corresponding to the one passed previously to
+   * ValueSerializer::TransferArrayBuffer.
+   */
+  void TransferArrayBuffer(uint32_t transfer_id,
+                           Local<ArrayBuffer> array_buffer);
 
   /*
    * Must be called before ReadHeader to enable support for reading the legacy

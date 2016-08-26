@@ -29,6 +29,10 @@ class ValueSerializerTest : public TestWithIsolate {
     return deserialization_context_;
   }
 
+  // Overridden in more specific fixtures.
+  virtual void BeforeEncode(ValueSerializer*) {}
+  virtual void BeforeDecode(ValueDeserializer*) {}
+
   template <typename InputFunctor, typename OutputFunctor>
   void RoundTripTest(const InputFunctor& input_functor,
                      const OutputFunctor& output_functor) {
@@ -49,6 +53,7 @@ class ValueSerializerTest : public TestWithIsolate {
   Maybe<std::vector<uint8_t>> DoEncode(Local<Value> value) {
     Local<Context> context = serialization_context();
     ValueSerializer serializer(isolate());
+    BeforeEncode(&serializer);
     serializer.WriteHeader();
     if (!serializer.WriteValue(context, value).FromMaybe(false)) {
       return Nothing<std::vector<uint8_t>>();
@@ -90,6 +95,7 @@ class ValueSerializerTest : public TestWithIsolate {
     ValueDeserializer deserializer(isolate(), &data[0],
                                    static_cast<int>(data.size()));
     deserializer.SetSupportsLegacyWireFormat(true);
+    BeforeDecode(&deserializer);
     ASSERT_TRUE(deserializer.ReadHeader().FromMaybe(false));
     Local<Value> result;
     ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&result));
@@ -112,6 +118,7 @@ class ValueSerializerTest : public TestWithIsolate {
     ValueDeserializer deserializer(isolate(), &data[0],
                                    static_cast<int>(data.size()));
     deserializer.SetSupportsLegacyWireFormat(true);
+    BeforeDecode(&deserializer);
     ASSERT_TRUE(deserializer.ReadHeader().FromMaybe(false));
     ASSERT_EQ(0, deserializer.GetWireFormatVersion());
     Local<Value> result;
@@ -133,6 +140,7 @@ class ValueSerializerTest : public TestWithIsolate {
     ValueDeserializer deserializer(isolate(), &data[0],
                                    static_cast<int>(data.size()));
     deserializer.SetSupportsLegacyWireFormat(true);
+    BeforeDecode(&deserializer);
     Maybe<bool> header_result = deserializer.ReadHeader();
     if (header_result.IsNothing()) return;
     ASSERT_TRUE(header_result.ToChecked());
@@ -1595,6 +1603,75 @@ TEST_F(ValueSerializerTest, DecodeArrayBuffer) {
 
 TEST_F(ValueSerializerTest, DecodeInvalidArrayBuffer) {
   InvalidDecodeTest({0xff, 0x09, 0x42, 0xff, 0xff, 0x00});
+}
+
+// Includes an ArrayBuffer wrapper marked for transfer from the serialization
+// context to the deserialization context.
+class ValueSerializerTestWithArrayBufferTransfer : public ValueSerializerTest {
+ protected:
+  static const size_t kTestByteLength = 4;
+
+  ValueSerializerTestWithArrayBufferTransfer() {
+    {
+      Context::Scope scope(serialization_context());
+      input_buffer_ = ArrayBuffer::New(isolate(), nullptr, 0);
+      input_buffer_->Neuter();
+    }
+    {
+      Context::Scope scope(deserialization_context());
+      output_buffer_ = ArrayBuffer::New(isolate(), kTestByteLength);
+      const uint8_t data[kTestByteLength] = {0x00, 0x01, 0x80, 0xff};
+      memcpy(output_buffer_->GetContents().Data(), data, kTestByteLength);
+    }
+  }
+
+  const Local<ArrayBuffer>& input_buffer() { return input_buffer_; }
+  const Local<ArrayBuffer>& output_buffer() { return output_buffer_; }
+
+  void BeforeEncode(ValueSerializer* serializer) override {
+    serializer->TransferArrayBuffer(0, input_buffer_);
+  }
+
+  void BeforeDecode(ValueDeserializer* deserializer) override {
+    deserializer->TransferArrayBuffer(0, output_buffer_);
+  }
+
+ private:
+  Local<ArrayBuffer> input_buffer_;
+  Local<ArrayBuffer> output_buffer_;
+};
+
+TEST_F(ValueSerializerTestWithArrayBufferTransfer,
+       RoundTripArrayBufferTransfer) {
+  RoundTripTest([this]() { return input_buffer(); },
+                [this](Local<Value> value) {
+                  ASSERT_TRUE(value->IsArrayBuffer());
+                  EXPECT_EQ(output_buffer(), value);
+                  EXPECT_TRUE(EvaluateScriptForResultBool(
+                      "new Uint8Array(result).toString() === '0,1,128,255'"));
+                });
+  RoundTripTest(
+      [this]() {
+        Local<Object> object = Object::New(isolate());
+        EXPECT_TRUE(object
+                        ->CreateDataProperty(serialization_context(),
+                                             StringFromUtf8("a"),
+                                             input_buffer())
+                        .FromMaybe(false));
+        EXPECT_TRUE(object
+                        ->CreateDataProperty(serialization_context(),
+                                             StringFromUtf8("b"),
+                                             input_buffer())
+                        .FromMaybe(false));
+        return object;
+      },
+      [this](Local<Value> value) {
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.a instanceof ArrayBuffer"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "new Uint8Array(result.a).toString() === '0,1,128,255'"));
+      });
 }
 
 }  // namespace
