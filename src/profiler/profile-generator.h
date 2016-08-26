@@ -9,6 +9,7 @@
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/compiler.h"
+#include "src/log.h"
 #include "src/profiler/strings-storage.h"
 
 namespace v8 {

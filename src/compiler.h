@@ -13,7 +13,6 @@
 #include "src/contexts.h"
 #include "src/frames.h"
 #include "src/isolate.h"
-#include "src/objects-inl.h"
 #include "src/source-position-table.h"
 #include "src/source-position.h"
 #include "src/zone.h"
@@ -337,19 +336,11 @@ class CompilationInfo final {
         (FLAG_trap_on_stub_deopt && IsStub());
   }
 
-  bool has_native_context() const {
-    return !closure().is_null() && (closure()->native_context() != nullptr);
-  }
+  bool has_native_context() const;
+  Context* native_context() const;
 
-  Context* native_context() const {
-    return has_native_context() ? closure()->native_context() : nullptr;
-  }
-
-  bool has_global_object() const { return has_native_context(); }
-
-  JSGlobalObject* global_object() const {
-    return has_global_object() ? native_context()->global_object() : nullptr;
-  }
+  bool has_global_object() const;
+  JSGlobalObject* global_object() const;
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
@@ -387,9 +378,7 @@ class CompilationInfo final {
     deferred_handles_ = deferred_handles;
   }
 
-  void ReopenHandlesInNewHandleScope() {
-    closure_ = Handle<JSFunction>(*closure_);
-  }
+  void ReopenHandlesInNewHandleScope();
 
   void AbortOptimization(BailoutReason reason) {
     DCHECK(reason != kNoReason);
@@ -435,10 +424,10 @@ class CompilationInfo final {
     // Do not remove.
     Handle<Code> inlined_code_object_root;
 
-    explicit InlinedFunctionHolder(
-        Handle<SharedFunctionInfo> inlined_shared_info)
+    InlinedFunctionHolder(Handle<SharedFunctionInfo> inlined_shared_info,
+                          Handle<Code> inlined_code_object_root)
         : shared_info(inlined_shared_info),
-          inlined_code_object_root(inlined_shared_info->code()) {}
+          inlined_code_object_root(inlined_code_object_root) {}
   };
 
   typedef std::vector<InlinedFunctionHolder> InlinedFunctionList;
@@ -446,15 +435,11 @@ class CompilationInfo final {
     return inlined_functions_;
   }
 
-  void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function) {
-    inlined_functions_.push_back(InlinedFunctionHolder(inlined_function));
-  }
+  void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function);
 
   std::unique_ptr<char[]> GetDebugName() const;
 
-  Code::Kind output_code_kind() const {
-    return Code::ExtractKindFromFlags(code_flags_);
-  }
+  Code::Kind output_code_kind() const;
 
   StackFrame::Type GetOutputStackFrameType() const;
 

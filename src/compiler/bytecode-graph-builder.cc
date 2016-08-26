@@ -8,6 +8,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/operator-properties.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

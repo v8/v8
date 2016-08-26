@@ -177,6 +177,9 @@ bool CompilationInfo::ShouldSelfOptimize() {
          !shared_info()->optimization_disabled();
 }
 
+void CompilationInfo::ReopenHandlesInNewHandleScope() {
+  closure_ = Handle<JSFunction>(*closure_);
+}
 
 bool CompilationInfo::has_simple_parameters() {
   return scope()->has_simple_parameters();
@@ -236,6 +239,30 @@ CompilationInfo::SourcePositionRecordingMode() const {
 
 bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
   return is_sloppy(parse_info()->language_mode()) && !parse_info()->is_native();
+}
+
+bool CompilationInfo::has_native_context() const {
+  return !closure().is_null() && (closure()->native_context() != nullptr);
+}
+
+Context* CompilationInfo::native_context() const {
+  return has_native_context() ? closure()->native_context() : nullptr;
+}
+
+bool CompilationInfo::has_global_object() const { return has_native_context(); }
+
+JSGlobalObject* CompilationInfo::global_object() const {
+  return has_global_object() ? native_context()->global_object() : nullptr;
+}
+
+void CompilationInfo::AddInlinedFunction(
+    Handle<SharedFunctionInfo> inlined_function) {
+  inlined_functions_.push_back(InlinedFunctionHolder(
+      inlined_function, handle(inlined_function->code())));
+}
+
+Code::Kind CompilationInfo::output_code_kind() const {
+  return Code::ExtractKindFromFlags(code_flags_);
 }
 
 // ----------------------------------------------------------------------------
