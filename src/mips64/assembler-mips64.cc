@@ -2818,13 +2818,11 @@ void Assembler::mov_s(FPURegister fd, FPURegister fs) {
 
 
 void Assembler::neg_s(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1, S, f0, fs, fd, NEG_D);
 }
 
 
 void Assembler::neg_d(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1, D, f0, fs, fd, NEG_D);
 }
 
