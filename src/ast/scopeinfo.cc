@@ -193,9 +193,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   DCHECK(index == scope_info->length());
   DCHECK(scope->num_parameters() == scope_info->ParameterCount());
-  DCHECK(scope->num_heap_slots() == scope_info->ContextLength() ||
-         (scope->num_heap_slots() == kVariablePartIndex &&
-          scope_info->ContextLength() == 0));
+  DCHECK(scope->num_heap_slots() == scope_info->ContextLength());
   return scope_info;
 }
 
