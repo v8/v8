@@ -912,7 +912,8 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  return mode >= VAR && mode <= CONST;
+  STATIC_ASSERT(VAR == 0);  // Implies that mode >= VAR.
+  return mode <= CONST;
 }
 
 
