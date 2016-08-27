@@ -340,14 +340,12 @@ void Scope::DeserializeScopeInfo(Isolate* isolate,
 
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
 
-  std::set<const AstRawString*> names_seen;
   // Internalize context local & globals variables.
   for (int var = 0; var < scope_info_->ContextLocalCount() +
                               scope_info_->ContextGlobalCount();
        ++var) {
     Handle<String> name_handle(scope_info_->ContextLocalName(var), isolate);
     const AstRawString* name = ast_value_factory->GetString(name_handle);
-    if (!names_seen.insert(name).second) continue;
     int index = Context::MIN_CONTEXT_SLOTS + var;
     VariableMode mode = scope_info_->ContextLocalMode(var);
     InitializationFlag init_flag = scope_info_->ContextLocalInitFlag(var);
@@ -360,26 +358,6 @@ void Scope::DeserializeScopeInfo(Isolate* isolate,
     if (index == scope_info_->ReceiverContextSlotIndex()) {
       kind = Variable::THIS;
     }
-
-    Variable* result = variables_.Declare(zone(), this, name, mode, kind,
-                                          init_flag, maybe_assigned_flag);
-    result->AllocateTo(location, index);
-  }
-
-  // We must read parameters from the end since for multiply declared
-  // parameters the value of the last declaration of that parameter is used
-  // inside a function (and thus we need to look at the last index). Was bug#
-  // 1110337.
-  for (int index = scope_info_->ParameterCount() - 1; index >= 0; --index) {
-    Handle<String> name_handle(scope_info_->ParameterName(index), isolate);
-    const AstRawString* name = ast_value_factory->GetString(name_handle);
-    if (!names_seen.insert(name).second) continue;
-
-    VariableMode mode = DYNAMIC;
-    InitializationFlag init_flag = kCreatedInitialized;
-    MaybeAssignedFlag maybe_assigned_flag = kMaybeAssigned;
-    VariableLocation location = VariableLocation::LOOKUP;
-    Variable::Kind kind = Variable::NORMAL;
 
     Variable* result = variables_.Declare(zone(), this, name, mode, kind,
                                           init_flag, maybe_assigned_flag);
@@ -616,7 +594,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
   // it's ok to get the Handle<String> here.
   // If we have a serialized scope info, we might find the variable there.
   // There should be no local slot with the given name.
-  DCHECK(scope_info_->StackSlotIndex(*name_handle) < 0);
+  DCHECK_LT(scope_info_->StackSlotIndex(*name_handle), 0);
 
   VariableMode mode;
   InitializationFlag init_flag;
@@ -630,18 +608,6 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
     index = ScopeInfo::ContextGlobalSlotIndex(scope_info_, name_handle, &mode,
                                               &init_flag, &maybe_assigned_flag);
     DCHECK(index < 0 || (is_script_scope() && mode == VAR));
-  }
-  if (index < 0) {
-    location = VariableLocation::LOOKUP;
-    index = scope_info_->ParameterIndex(*name_handle);
-    if (index >= 0) {
-      mode = DYNAMIC;
-      init_flag = kCreatedInitialized;
-      // Be conservative and flag parameters as maybe assigned. Better
-      // information would require ScopeInfo to serialize the maybe_assigned bit
-      // also for parameters.
-      maybe_assigned_flag = kMaybeAssigned;
-    }
   }
   if (index < 0 && scope_type() == MODULE_SCOPE) {
     location = VariableLocation::MODULE;
