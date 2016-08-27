@@ -455,6 +455,8 @@
         'ast/ast-value-factory.h',
         'ast/ast.cc',
         'ast/ast.h',
+        'ast/context-slot-cache.cc',
+        'ast/context-slot-cache.h',
         'ast/modules.cc',
         'ast/modules.h',
         'ast/prettyprinter.cc',

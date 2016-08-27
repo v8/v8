@@ -874,6 +874,10 @@ class Isolate {
     return keyed_lookup_cache_;
   }
 
+  ContextSlotCache* context_slot_cache() {
+    return context_slot_cache_;
+  }
+
   DescriptorLookupCache* descriptor_lookup_cache() {
     return descriptor_lookup_cache_;
   }
@@ -1315,6 +1319,7 @@ class Isolate {
   int stack_trace_for_uncaught_exceptions_frame_limit_;
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_;
   KeyedLookupCache* keyed_lookup_cache_;
+  ContextSlotCache* context_slot_cache_;
   DescriptorLookupCache* descriptor_lookup_cache_;
   HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
