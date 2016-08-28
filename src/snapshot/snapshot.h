@@ -67,6 +67,9 @@ class Snapshot : public AllStatic {
 
   static bool EmbedsScript(Isolate* isolate);
 
+  static uint32_t SizeOfFirstPage(Isolate* isolate, AllocationSpace space);
+
+
   // To be implemented by the snapshot source.
   static const v8::StartupData* DefaultSnapshotBlob();
 
@@ -85,16 +88,21 @@ class Snapshot : public AllStatic {
                                                int index);
 
   // Snapshot blob layout:
-  // [0] number of contexts N
-  // [1] offset to context 0
-  // [2] offset to context 1
+  // [0 - 5] pre-calculated first page sizes for paged spaces
+  // [6] number of contexts N
+  // [7] offset to context 0
+  // [8] offset to context 1
   // ...
   // ... offset to context N - 1
   // ... startup snapshot data
   // ... context 0 snapshot data
   // ... context 1 snapshot data
 
-  static const int kNumberOfContextsOffset = 0;
+  static const int kNumPagedSpaces = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
+
+  static const int kFirstPageSizesOffset = 0;
+  static const int kNumberOfContextsOffset =
+      kFirstPageSizesOffset + kNumPagedSpaces * kInt32Size;
   static const int kFirstContextOffsetOffset =
       kNumberOfContextsOffset + kInt32Size;
 
