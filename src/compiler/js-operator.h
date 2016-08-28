@@ -374,9 +374,9 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
-BinaryOperationHint BinaryOperationHintOf(const Operator* op);
+const BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
-CompareOperationHint CompareOperationHintOf(const Operator* op);
+const CompareOperationHint CompareOperationHintOf(const Operator* op);
 
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all

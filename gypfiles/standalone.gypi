@@ -378,9 +378,6 @@
         'arm_version%': '<(arm_version)',
         'host_os%': '<(host_os)',
 
-        # Print to stdout on Android.
-        'v8_android_log_stdout%': 1,
-
         'conditions': [
           ['android_ndk_root==""', {
             'variables': {

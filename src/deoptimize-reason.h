@@ -90,7 +90,7 @@ std::ostream& operator<<(std::ostream&, DeoptimizeReason);
 
 size_t hash_value(DeoptimizeReason reason);
 
-char const* DeoptimizeReasonToString(DeoptimizeReason reason);
+char const* const DeoptimizeReasonToString(DeoptimizeReason reason);
 
 }  // namespace internal
 }  // namespace v8

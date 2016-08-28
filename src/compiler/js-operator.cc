@@ -376,7 +376,7 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   return OpParameter<CreateLiteralParameters>(op);
 }
 
-BinaryOperationHint BinaryOperationHintOf(const Operator* op) {
+const BinaryOperationHint BinaryOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSBitwiseOr ||
          op->opcode() == IrOpcode::kJSBitwiseXor ||
          op->opcode() == IrOpcode::kJSBitwiseAnd ||
@@ -391,7 +391,7 @@ BinaryOperationHint BinaryOperationHintOf(const Operator* op) {
   return OpParameter<BinaryOperationHint>(op);
 }
 
-CompareOperationHint CompareOperationHintOf(const Operator* op) {
+const CompareOperationHint CompareOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSEqual ||
          op->opcode() == IrOpcode::kJSNotEqual ||
          op->opcode() == IrOpcode::kJSStrictEqual ||
