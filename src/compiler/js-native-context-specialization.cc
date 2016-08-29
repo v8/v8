@@ -13,9 +13,9 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/type-cache.h"
 #include "src/field-index-inl.h"
 #include "src/isolate-inl.h"
-#include "src/type-cache.h"
 #include "src/type-feedback-vector.h"
 
 namespace v8 {

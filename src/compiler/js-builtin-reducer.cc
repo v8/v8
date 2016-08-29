@@ -10,8 +10,8 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/type-cache.h"
 #include "src/objects-inl.h"
-#include "src/type-cache.h"
 #include "src/types.h"
 
 namespace v8 {

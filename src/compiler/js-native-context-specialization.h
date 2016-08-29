@@ -16,8 +16,6 @@ namespace internal {
 class CompilationDependencies;
 class Factory;
 class FeedbackNexus;
-class TypeCache;
-
 
 namespace compiler {
 
@@ -30,7 +28,7 @@ class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class PropertyAccessInfo;
 class SimplifiedOperatorBuilder;
-
+class TypeCache;
 
 // Specializes a given JSGraph to a given native context, potentially constant
 // folding some {LoadGlobal} nodes or strength reducing some {StoreGlobal}

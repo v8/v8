@@ -15,13 +15,13 @@ namespace internal {
 class CompilationDependencies;
 class Factory;
 class Isolate;
-class TypeCache;
 
 namespace compiler {
 
 // Forward declarations.
 class JSGraph;
 class SimplifiedOperatorBuilder;
+class TypeCache;
 
 class TypedOptimization final : public AdvancedReducer {
  public:

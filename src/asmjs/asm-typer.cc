@@ -17,7 +17,6 @@
 #include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/globals.h"
-#include "src/type-cache.h"
 #include "src/utils.h"
 
 #define FAIL(node, msg)                                        \

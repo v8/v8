@@ -16,8 +16,8 @@
 #include "src/compiler/node.h"
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/type-cache.h"
 #include "src/objects-inl.h"
-#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {

@@ -15,8 +15,6 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
-class TypeCache;
-
 
 namespace compiler {
 
@@ -26,7 +24,7 @@ class JSGraph;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
-
+class TypeCache;
 
 // Lowers JS-level operators to simplified operators based on types.
 class JSTypedLowering final : public AdvancedReducer {

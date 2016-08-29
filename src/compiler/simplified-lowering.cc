@@ -20,9 +20,9 @@
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/source-position.h"
+#include "src/compiler/type-cache.h"
 #include "src/conversions-inl.h"
 #include "src/objects.h"
-#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {

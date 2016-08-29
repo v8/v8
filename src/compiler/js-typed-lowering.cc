@@ -13,7 +13,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
-#include "src/type-cache.h"
+#include "src/compiler/type-cache.h"
 #include "src/types.h"
 
 namespace v8 {

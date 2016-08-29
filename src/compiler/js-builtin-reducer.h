@@ -14,7 +14,6 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
-class TypeCache;
 
 namespace compiler {
 
@@ -23,7 +22,7 @@ class CommonOperatorBuilder;
 struct FieldAccess;
 class JSGraph;
 class SimplifiedOperatorBuilder;
-
+class TypeCache;
 
 class JSBuiltinReducer final : public AdvancedReducer {
  public:
