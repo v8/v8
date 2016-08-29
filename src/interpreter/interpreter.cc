@@ -2260,10 +2260,10 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   }
 }
 
-// ForInDone <index> <cache_length>
+// ForInContinue <index> <cache_length>
 //
-// Returns true if the end of the enumerable properties has been reached.
-void Interpreter::DoForInDone(InterpreterAssembler* assembler) {
+// Returns false if the end of the enumerable properties has been reached.
+void Interpreter::DoForInContinue(InterpreterAssembler* assembler) {
   Node* index_reg = __ BytecodeOperandReg(0);
   Node* index = __ LoadRegister(index_reg);
   Node* cache_length_reg = __ BytecodeOperandReg(1);
@@ -2274,12 +2274,12 @@ void Interpreter::DoForInDone(InterpreterAssembler* assembler) {
   __ BranchIfWordEqual(index, cache_length, &if_true, &if_false);
   __ Bind(&if_true);
   {
-    __ SetAccumulator(__ BooleanConstant(true));
+    __ SetAccumulator(__ BooleanConstant(false));
     __ Goto(&end);
   }
   __ Bind(&if_false);
   {
-    __ SetAccumulator(__ BooleanConstant(false));
+    __ SetAccumulator(__ BooleanConstant(true));
     __ Goto(&end);
   }
   __ Bind(&end);

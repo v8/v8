@@ -1331,8 +1331,8 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // The loop
   VisitIterationHeader(stmt, &loop_builder);
   builder()->SetExpressionAsStatementPosition(stmt->each());
-  builder()->ForInDone(index, cache_length);
-  loop_builder.BreakIfTrue();
+  builder()->ForInContinue(index, cache_length);
+  loop_builder.BreakIfFalse();
   DCHECK(Register::AreContiguous(cache_type, cache_array));
   FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
   builder()->ForInNext(receiver, index, cache_type, feedback_index(slot));

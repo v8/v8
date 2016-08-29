@@ -574,11 +574,6 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
 }
 
 
-void JSGenericLowering::LowerJSForInDone(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kForInDone);
-}
-
-
 void JSGenericLowering::LowerJSForInNext(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kForInNext);
 }
@@ -587,12 +582,6 @@ void JSGenericLowering::LowerJSForInNext(Node* node) {
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kForInPrepare);
 }
-
-
-void JSGenericLowering::LowerJSForInStep(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kForInStep);
-}
-
 
 void JSGenericLowering::LowerJSLoadMessage(Node* node) {
   ExternalReference message_address =

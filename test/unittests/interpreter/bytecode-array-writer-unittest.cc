@@ -167,8 +167,8 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
       /* 11       */ B(ForInPrepare), R8(3), R8(4),
       /* 14       */ B(LdaZero),
       /* 15       */ B(Star), R8(7),
-      /* 17 63 S> */ B(ForInDone), R8(7), R8(6),
-      /* 20       */ B(JumpIfTrue), U8(23),
+      /* 17 63 S> */ B(ForInContinue), R8(7), R8(6),
+      /* 20       */ B(JumpIfFalse), U8(23),
       /* 22       */ B(ForInNext), R8(3), R8(7), R8(4), U8(1),
       /* 27       */ B(JumpIfUndefined), U8(10),
       /* 29       */ B(Star), R8(0),
@@ -207,9 +207,9 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   Write(Bytecode::kStar, R(7));
   CHECK_EQ(max_register_count(), 8);
   writer()->BindLabel(&back_jump);
-  Write(Bytecode::kForInDone, R(7), R(6), {63, true});
+  Write(Bytecode::kForInContinue, R(7), R(6), {63, true});
   CHECK_EQ(max_register_count(), 8);
-  WriteJump(Bytecode::kJumpIfTrue, &jump_end_3);
+  WriteJump(Bytecode::kJumpIfFalse, &jump_end_3);
   Write(Bytecode::kForInNext, R(3), R(7), R(4), U8(1));
   WriteJump(Bytecode::kJumpIfUndefined, &jump_for_in);
   Write(Bytecode::kStar, R(0));

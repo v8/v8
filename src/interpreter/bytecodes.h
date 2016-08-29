@@ -269,7 +269,8 @@ namespace interpreter {
   /* Complex flow control For..in */                                           \
   V(ForInPrepare, AccumulatorUse::kNone, OperandType::kReg,                    \
     OperandType::kRegOutTriple)                                                \
-  V(ForInDone, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg)   \
+  V(ForInContinue, AccumulatorUse::kWrite, OperandType::kReg,                  \
+    OperandType::kReg)                                                         \
   V(ForInNext, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,   \
     OperandType::kRegPair, OperandType::kIdx)                                  \
   V(ForInStep, AccumulatorUse::kWrite, OperandType::kReg)                      \

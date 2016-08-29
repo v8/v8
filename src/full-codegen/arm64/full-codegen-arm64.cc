@@ -1120,6 +1120,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Generate code for going to the next element by incrementing
   // the index (smi) stored on top of the stack.
   __ Bind(loop_statement.continue_label());
+  PrepareForBailoutForId(stmt->IncrementId(), BailoutState::NO_REGISTERS);
   // TODO(all): We could use a callee saved register to avoid popping.
   __ Pop(x0);
   __ Add(x0, x0, Smi::FromInt(1));

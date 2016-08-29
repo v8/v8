@@ -533,9 +533,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register index,
-                                                      Register cache_length) {
-  Output(Bytecode::kForInDone, RegisterOperand(index),
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInContinue(
+    Register index, Register cache_length) {
+  Output(Bytecode::kForInContinue, RegisterOperand(index),
          RegisterOperand(cache_length));
   return *this;
 }

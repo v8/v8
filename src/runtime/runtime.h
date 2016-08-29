@@ -204,12 +204,10 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_ERROR(F) F(ErrorToString, 1, 1)
 
 #define FOR_EACH_INTRINSIC_FORIN(F) \
-  F(ForInDone, 2, 1)                \
   F(ForInEnumerate, 1, 1)           \
   F(ForInFilter, 2, 1)              \
   F(ForInHasProperty, 2, 1)         \
-  F(ForInNext, 4, 1)                \
-  F(ForInStep, 1, 1)
+  F(ForInNext, 4, 1)
 
 #define FOR_EACH_INTRINSIC_INTERPRETER(F) \
   F(InterpreterNewClosure, 2, 1)          \

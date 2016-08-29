@@ -265,7 +265,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // Complex flow control.
   BytecodeArrayBuilder& ForInPrepare(Register receiver,
                                      Register cache_info_triple);
-  BytecodeArrayBuilder& ForInDone(Register index, Register cache_length);
+  BytecodeArrayBuilder& ForInContinue(Register index, Register cache_length);
   BytecodeArrayBuilder& ForInNext(Register receiver, Register index,
                                   Register cache_type_array_pair,
                                   int feedback_slot);

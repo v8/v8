@@ -1392,9 +1392,14 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
       Node* cache_type = environment()->Peek(3);
       Node* object = environment()->Peek(4);
 
-      // Check loop termination condition.
-      Node* exit_cond = NewNode(javascript()->ForInDone(), index, cache_length);
-      for_loop.BreakWhen(exit_cond);
+      // Check loop termination condition (we know that the {index} is always
+      // in Smi range, so we can just set the hint on the comparison below).
+      PrepareEagerCheckpoint(stmt->EntryId());
+      Node* exit_cond =
+          NewNode(javascript()->LessThan(CompareOperationHint::kSignedSmall),
+                  index, cache_length);
+      PrepareFrameState(exit_cond, BailoutId::None());
+      for_loop.BreakUnless(exit_cond);
 
       // Compute the next enumerated value.
       Node* value = NewNode(javascript()->ForInNext(), object, cache_array,
@@ -1422,9 +1427,13 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
       test_value.End();
       for_loop.EndBody();
 
-      // Increment counter and continue.
+      // Increment counter and continue (we know that the {index} is always
+      // in Smi range, so we can just set the hint on the increment below).
       index = environment()->Peek(0);
-      index = NewNode(javascript()->ForInStep(), index);
+      PrepareEagerCheckpoint(stmt->IncrementId());
+      index = NewNode(javascript()->Add(BinaryOperationHint::kSignedSmall),
+                      index, jsgraph()->OneConstant());
+      PrepareFrameState(index, BailoutId::None());
       environment()->Poke(0, index);
     }
     for_loop.EndLoop();

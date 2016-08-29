@@ -1437,13 +1437,6 @@ Type* Typer::Visitor::TypeJSForInPrepare(Node* node) {
   return Type::Tuple(cache_type, cache_array, cache_length, zone());
 }
 
-Type* Typer::Visitor::TypeJSForInDone(Node* node) { return Type::Boolean(); }
-
-Type* Typer::Visitor::TypeJSForInStep(Node* node) {
-  STATIC_ASSERT(Map::EnumLengthBits::kMax <= FixedArray::kMaxLength);
-  return Type::Range(1, FixedArray::kMaxLength + 1, zone());
-}
-
 
 Type* Typer::Visitor::TypeJSLoadMessage(Node* node) { return Type::Any(); }
 

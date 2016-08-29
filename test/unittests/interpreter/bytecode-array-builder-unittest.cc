@@ -273,11 +273,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.ReThrow().Bind(&after_rethrow);
 
   builder.ForInPrepare(reg, reg)
-      .ForInDone(reg, reg)
+      .ForInContinue(reg, reg)
       .ForInNext(reg, reg, reg, 1)
       .ForInStep(reg);
   builder.ForInPrepare(reg, wide)
-      .ForInDone(reg, other)
+      .ForInContinue(reg, other)
       .ForInNext(wide, wide, wide, 1024)
       .ForInStep(reg);
 

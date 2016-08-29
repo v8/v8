@@ -1546,13 +1546,15 @@ void BytecodeGraphBuilder::BuildForInPrepare() {
 
 void BytecodeGraphBuilder::VisitForInPrepare() { BuildForInPrepare(); }
 
-void BytecodeGraphBuilder::VisitForInDone() {
+void BytecodeGraphBuilder::VisitForInContinue() {
   FrameStateBeforeAndAfter states(this);
   Node* index =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* cache_length =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
-  Node* exit_cond = NewNode(javascript()->ForInDone(), index, cache_length);
+  Node* exit_cond =
+      NewNode(javascript()->LessThan(CompareOperationHint::kSignedSmall), index,
+              cache_length);
   environment()->BindAccumulator(exit_cond, &states);
 }
 
@@ -1579,7 +1581,8 @@ void BytecodeGraphBuilder::VisitForInStep() {
   FrameStateBeforeAndAfter states(this);
   Node* index =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  index = NewNode(javascript()->ForInStep(), index);
+  index = NewNode(javascript()->Add(BinaryOperationHint::kSignedSmall), index,
+                  jsgraph()->OneConstant());
   environment()->BindAccumulator(index, &states);
 }
 

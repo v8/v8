@@ -161,8 +161,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kCreateIterResultObject:
     case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
-    case Runtime::kForInDone:
-    case Runtime::kForInStep:
     case Runtime::kGeneratorGetContinuation:
     case Runtime::kGetSuperConstructor:
     case Runtime::kIsFunction:

@@ -465,10 +465,8 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* TypeOf();
   const Operator* InstanceOf();
 
-  const Operator* ForInDone();
   const Operator* ForInNext();
   const Operator* ForInPrepare();
-  const Operator* ForInStep();
 
   const Operator* LoadMessage();
   const Operator* StoreMessage();

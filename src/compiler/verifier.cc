@@ -635,21 +635,8 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::Any());
       break;
     }
-    case IrOpcode::kJSForInDone: {
-      // TODO(bmeurer): OSR breaks this invariant, although the node is not user
-      // visible, so we know it is safe (fullcodegen has an unsigned smi there).
-      // CheckValueInputIs(node, 0, Type::UnsignedSmall());
-      break;
-    }
     case IrOpcode::kJSForInNext: {
       CheckUpperIs(node, Type::Union(Type::Name(), Type::Undefined(), zone));
-      break;
-    }
-    case IrOpcode::kJSForInStep: {
-      // TODO(bmeurer): OSR breaks this invariant, although the node is not user
-      // visible, so we know it is safe (fullcodegen has an unsigned smi there).
-      // CheckValueInputIs(node, 0, Type::UnsignedSmall());
-      CheckUpperIs(node, Type::UnsignedSmall());
       break;
     }
 
