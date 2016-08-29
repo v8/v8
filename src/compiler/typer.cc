@@ -89,7 +89,6 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_CASE)
       SIMPLIFIED_OTHER_OP_LIST(DECLARE_CASE)
       MACHINE_OP_LIST(DECLARE_CASE)
-      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
       JS_SIMPLE_UNOP_LIST(DECLARE_CASE)
       JS_OBJECT_OP_LIST(DECLARE_CASE)
       JS_CONTEXT_OP_LIST(DECLARE_CASE)
@@ -131,6 +130,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(End)
       SIMPLIFIED_CHANGE_OP_LIST(DECLARE_CASE)
       SIMPLIFIED_CHECKED_OP_LIST(DECLARE_CASE)
+      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -152,7 +152,6 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_CASE)
       SIMPLIFIED_OTHER_OP_LIST(DECLARE_CASE)
       MACHINE_OP_LIST(DECLARE_CASE)
-      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
       JS_SIMPLE_UNOP_LIST(DECLARE_CASE)
       JS_OBJECT_OP_LIST(DECLARE_CASE)
       JS_CONTEXT_OP_LIST(DECLARE_CASE)
@@ -194,6 +193,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(End)
       SIMPLIFIED_CHANGE_OP_LIST(DECLARE_CASE)
       SIMPLIFIED_CHECKED_OP_LIST(DECLARE_CASE)
+      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -215,7 +215,6 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_OTHER_OP_LIST(DECLARE_METHOD)
   MACHINE_OP_LIST(DECLARE_METHOD)
-  MACHINE_SIMD_OP_LIST(DECLARE_METHOD)
   JS_OP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
@@ -2291,24 +2290,6 @@ Type* Typer::Visitor::TypeWord32PairShl(Node* node) { return Type::Internal(); }
 Type* Typer::Visitor::TypeWord32PairShr(Node* node) { return Type::Internal(); }
 
 Type* Typer::Visitor::TypeWord32PairSar(Node* node) { return Type::Internal(); }
-
-// SIMD type methods.
-
-#define SIMD_RETURN_SIMD(Name) \
-  Type* Typer::Visitor::Type##Name(Node* node) { return Type::Simd(); }
-MACHINE_SIMD_RETURN_SIMD_OP_LIST(SIMD_RETURN_SIMD)
-MACHINE_SIMD_GENERIC_OP_LIST(SIMD_RETURN_SIMD)
-#undef SIMD_RETURN_SIMD
-
-#define SIMD_RETURN_NUM(Name) \
-  Type* Typer::Visitor::Type##Name(Node* node) { return Type::Number(); }
-MACHINE_SIMD_RETURN_NUM_OP_LIST(SIMD_RETURN_NUM)
-#undef SIMD_RETURN_NUM
-
-#define SIMD_RETURN_BOOL(Name) \
-  Type* Typer::Visitor::Type##Name(Node* node) { return Type::Boolean(); }
-MACHINE_SIMD_RETURN_BOOL_OP_LIST(SIMD_RETURN_BOOL)
-#undef SIMD_RETURN_BOOL
 
 // Heap constants.
 
