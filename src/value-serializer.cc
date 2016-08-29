@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/conversions.h"
 #include "src/factory.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
@@ -94,7 +95,32 @@ enum class SerializationTag : uint8_t {
   kArrayBuffer = 'B',
   // Array buffer (transferred). transferID:uint32_t
   kArrayBufferTransfer = 't',
+  // View into an array buffer.
+  // subtag:ArrayBufferViewTag, byteOffset:uint32_t, byteLength:uint32_t
+  // For typed arrays, byteOffset and byteLength must be divisible by the size
+  // of the element.
+  // Note: kArrayBufferView is special, and should have an ArrayBuffer (or an
+  // ObjectReference to one) serialized just before it. This is a quirk arising
+  // from the previous stack-based implementation.
+  kArrayBufferView = 'V',
 };
+
+namespace {
+
+enum class ArrayBufferViewTag : uint8_t {
+  kInt8Array = 'b',
+  kUint8Array = 'B',
+  kUint8ClampedArray = 'C',
+  kInt16Array = 'w',
+  kUint16Array = 'W',
+  kInt32Array = 'd',
+  kUint32Array = 'D',
+  kFloat32Array = 'f',
+  kFloat64Array = 'F',
+  kDataView = '?',
+};
+
+}  // namespace
 
 ValueSerializer::ValueSerializer(Isolate* isolate)
     : isolate_(isolate),
@@ -196,6 +222,23 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
     case MUTABLE_HEAP_NUMBER_TYPE:
       WriteHeapNumber(HeapNumber::cast(*object));
       return Just(true);
+    case JS_TYPED_ARRAY_TYPE:
+    case JS_DATA_VIEW_TYPE: {
+      // Despite being JSReceivers, these have their wrapped buffer serialized
+      // first. That makes this logic a little quirky, because it needs to
+      // happen before we assign object IDs.
+      // TODO(jbroman): It may be possible to avoid materializing a typed
+      // array's buffer here.
+      Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(object);
+      if (!id_map_.Find(view)) {
+        Handle<JSArrayBuffer> buffer(
+            view->IsJSTypedArray()
+                ? Handle<JSTypedArray>::cast(view)->GetBuffer()
+                : handle(JSArrayBuffer::cast(view->buffer()), isolate_));
+        if (!WriteJSReceiver(buffer).FromMaybe(false)) return Nothing<bool>();
+      }
+      return WriteJSReceiver(view);
+    }
     default:
       if (object->IsString()) {
         WriteString(Handle<String>::cast(object));
@@ -319,6 +362,9 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSSet(Handle<JSSet>::cast(receiver));
     case JS_ARRAY_BUFFER_TYPE:
       return WriteJSArrayBuffer(JSArrayBuffer::cast(*receiver));
+    case JS_TYPED_ARRAY_TYPE:
+    case JS_DATA_VIEW_TYPE:
+      return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     default:
       UNIMPLEMENTED();
       break;
@@ -528,6 +574,28 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(JSArrayBuffer* array_buffer) {
   return Just(true);
 }
 
+Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
+  WriteTag(SerializationTag::kArrayBufferView);
+  ArrayBufferViewTag tag = ArrayBufferViewTag::kInt8Array;
+  if (view->IsJSTypedArray()) {
+    switch (JSTypedArray::cast(view)->type()) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
+    tag = ArrayBufferViewTag::k##Type##Array;           \
+    break;
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+    }
+  } else {
+    DCHECK(view->IsJSDataView());
+    tag = ArrayBufferViewTag::kDataView;
+  }
+  WriteVarint(static_cast<uint8_t>(tag));
+  WriteVarint(NumberToUint32(view->byte_offset()));
+  WriteVarint(NumberToUint32(view->byte_length()));
+  return Just(true);
+}
+
 Maybe<uint32_t> ValueSerializer::WriteJSObjectProperties(
     Handle<JSObject> object, Handle<FixedArray> keys) {
   uint32_t properties_written = 0;
@@ -688,6 +756,22 @@ void ValueDeserializer::TransferArrayBuffer(
 }
 
 MaybeHandle<Object> ValueDeserializer::ReadObject() {
+  MaybeHandle<Object> result = ReadObjectInternal();
+
+  // ArrayBufferView is special in that it consumes the value before it, even
+  // after format version 0.
+  Handle<Object> object;
+  SerializationTag tag;
+  if (result.ToHandle(&object) && V8_UNLIKELY(object->IsJSArrayBuffer()) &&
+      PeekTag().To(&tag) && tag == SerializationTag::kArrayBufferView) {
+    ConsumeTag(SerializationTag::kArrayBufferView);
+    result = ReadJSArrayBufferView(Handle<JSArrayBuffer>::cast(object));
+  }
+
+  return result;
+}
+
+MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
   SerializationTag tag;
   if (!ReadTag().To(&tag)) return MaybeHandle<Object>();
   switch (tag) {
@@ -1052,6 +1136,46 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
       JSArrayBuffer::cast(transfer_map->ValueAt(index)), isolate_);
   AddObjectWithID(id, array_buffer);
   return array_buffer;
+}
+
+MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
+    Handle<JSArrayBuffer> buffer) {
+  uint32_t buffer_byte_length = NumberToUint32(buffer->byte_length());
+  uint8_t tag;
+  uint32_t byte_offset;
+  uint32_t byte_length;
+  if (!ReadVarint<uint8_t>().To(&tag) ||
+      !ReadVarint<uint32_t>().To(&byte_offset) ||
+      !ReadVarint<uint32_t>().To(&byte_length) ||
+      byte_offset > buffer_byte_length ||
+      byte_length > buffer_byte_length - byte_offset) {
+    return MaybeHandle<JSArrayBufferView>();
+  }
+  uint32_t id = next_id_++;
+  ExternalArrayType external_array_type = kExternalInt8Array;
+  unsigned element_size = 0;
+  switch (static_cast<ArrayBufferViewTag>(tag)) {
+    case ArrayBufferViewTag::kDataView: {
+      Handle<JSDataView> data_view =
+          isolate_->factory()->NewJSDataView(buffer, byte_offset, byte_length);
+      AddObjectWithID(id, data_view);
+      return data_view;
+    }
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case ArrayBufferViewTag::k##Type##Array:              \
+    external_array_type = kExternal##Type##Array;       \
+    element_size = size;                                \
+    break;
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  }
+  if (byte_offset % element_size != 0 || byte_length % element_size != 0) {
+    return MaybeHandle<JSArrayBufferView>();
+  }
+  Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
+      external_array_type, buffer, byte_offset, byte_length / element_size);
+  AddObjectWithID(id, typed_array);
+  return typed_array;
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(

@@ -1674,5 +1674,234 @@ TEST_F(ValueSerializerTestWithArrayBufferTransfer,
       });
 }
 
+TEST_F(ValueSerializerTest, RoundTripTypedArray) {
+// Check that the right type comes out the other side for every kind of typed
+// array.
+#define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype, size)      \
+  RoundTripTest("new " #Type "Array(2)", [this](Local<Value> value) {   \
+    ASSERT_TRUE(value->Is##Type##Array());                              \
+    EXPECT_EQ(2 * size, TypedArray::Cast(*value)->ByteLength());        \
+    EXPECT_EQ(2, TypedArray::Cast(*value)->Length());                   \
+    EXPECT_TRUE(EvaluateScriptForResultBool(                            \
+        "Object.getPrototypeOf(result) === " #Type "Array.prototype")); \
+  });
+  TYPED_ARRAYS(TYPED_ARRAY_ROUND_TRIP_TEST)
+#undef TYPED_ARRAY_CASE
+
+  // Check that values of various kinds are suitably preserved.
+  RoundTripTest("new Uint8Array([1, 128, 255])", [this](Local<Value> value) {
+    EXPECT_TRUE(
+        EvaluateScriptForResultBool("result.toString() === '1,128,255'"));
+  });
+  RoundTripTest("new Int16Array([0, 256, -32768])", [this](Local<Value> value) {
+    EXPECT_TRUE(
+        EvaluateScriptForResultBool("result.toString() === '0,256,-32768'"));
+  });
+  RoundTripTest("new Float32Array([0, -0.5, NaN, Infinity])",
+                [this](Local<Value> value) {
+                  EXPECT_TRUE(EvaluateScriptForResultBool(
+                      "result.toString() === '0,-0.5,NaN,Infinity'"));
+                });
+
+  // Array buffer views sharing a buffer should do so on the other side.
+  // Similarly, multiple references to the same typed array should be resolved.
+  RoundTripTest(
+      "(() => {"
+      "  var buffer = new ArrayBuffer(32);"
+      "  return {"
+      "    u8: new Uint8Array(buffer),"
+      "    get u8_2() { return this.u8; },"
+      "    f32: new Float32Array(buffer, 4, 5),"
+      "    b: buffer,"
+      "  };"
+      "})()",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.u8 instanceof Uint8Array"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.u8 === result.u8_2"));
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.f32 instanceof Float32Array"));
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "result.u8.buffer === result.f32.buffer"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.f32.byteOffset === 4"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.f32.length === 5"));
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeTypedArray) {
+  // Check that the right type comes out the other side for every kind of typed
+  // array.
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x02, 0x00, 0x00, 0x56,
+              0x42, 0x00, 0x02},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsUint8Array());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->ByteLength());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Uint8Array.prototype"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x02, 0x00, 0x00, 0x56,
+              0x62, 0x00, 0x02},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsInt8Array());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->ByteLength());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Int8Array.prototype"));
+             });
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x04, 0x00, 0x00, 0x00,
+              0x00, 0x56, 0x57, 0x00, 0x04},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsUint16Array());
+               EXPECT_EQ(4, TypedArray::Cast(*value)->ByteLength());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Uint16Array.prototype"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x04, 0x00, 0x00, 0x00,
+              0x00, 0x56, 0x77, 0x00, 0x04},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsInt16Array());
+               EXPECT_EQ(4, TypedArray::Cast(*value)->ByteLength());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Int16Array.prototype"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x08, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x44, 0x00, 0x08},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsUint32Array());
+               EXPECT_EQ(8, TypedArray::Cast(*value)->ByteLength());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Uint32Array.prototype"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x08, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x64, 0x00, 0x08},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsInt32Array());
+               EXPECT_EQ(8, TypedArray::Cast(*value)->ByteLength());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Int32Array.prototype"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x08, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56, 0x66, 0x00, 0x08},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsFloat32Array());
+               EXPECT_EQ(8, TypedArray::Cast(*value)->ByteLength());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Float32Array.prototype"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x10, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x56, 0x46, 0x00, 0x10},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsFloat64Array());
+               EXPECT_EQ(16, TypedArray::Cast(*value)->ByteLength());
+               EXPECT_EQ(2, TypedArray::Cast(*value)->Length());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Float64Array.prototype"));
+             });
+#endif  // V8_TARGET_LITTLE_ENDIAN
+
+  // Check that values of various kinds are suitably preserved.
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x03, 0x01, 0x80, 0xff,
+              0x56, 0x42, 0x00, 0x03, 0x00},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === '1,128,255'"));
+             });
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x06, 0x00, 0x00, 0x00,
+              0x01, 0x00, 0x80, 0x56, 0x77, 0x00, 0x06},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === '0,256,-32768'"));
+             });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x10, 0x00, 0x00,
+              0x00, 0x00, 0x00, 0x00, 0x00, 0xbf, 0x00, 0x00, 0xc0, 0x7f,
+              0x00, 0x00, 0x80, 0x7f, 0x56, 0x66, 0x00, 0x10},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toString() === '0,-0.5,NaN,Infinity'"));
+             });
+#endif  // V8_TARGET_LITTLE_ENDIAN
+
+  // Array buffer views sharing a buffer should do so on the other side.
+  // Similarly, multiple references to the same typed array should be resolved.
+  DecodeTest(
+      {0xff, 0x09, 0x3f, 0x00, 0x6f, 0x3f, 0x01, 0x53, 0x02, 0x75, 0x38, 0x3f,
+       0x01, 0x3f, 0x01, 0x42, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00, 0x56, 0x42, 0x00, 0x20, 0x3f, 0x03, 0x53, 0x04, 0x75, 0x38, 0x5f,
+       0x32, 0x3f, 0x03, 0x5e, 0x02, 0x3f, 0x03, 0x53, 0x03, 0x66, 0x33, 0x32,
+       0x3f, 0x03, 0x3f, 0x03, 0x5e, 0x01, 0x56, 0x66, 0x04, 0x14, 0x3f, 0x04,
+       0x53, 0x01, 0x62, 0x3f, 0x04, 0x5e, 0x01, 0x7b, 0x04, 0x00},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.u8 instanceof Uint8Array"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.u8 === result.u8_2"));
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.f32 instanceof Float32Array"));
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "result.u8.buffer === result.f32.buffer"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.f32.byteOffset === 4"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.f32.length === 5"));
+      });
+}
+
+TEST_F(ValueSerializerTest, DecodeInvalidTypedArray) {
+  // Byte offset out of range.
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x42, 0x02, 0x00, 0x00, 0x56, 0x42, 0x03, 0x01});
+  // Byte offset in range, offset + length out of range.
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x42, 0x02, 0x00, 0x00, 0x56, 0x42, 0x01, 0x03});
+  // Byte offset not divisible by element size.
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x42, 0x04, 0x00, 0x00, 0x00, 0x00, 0x56, 0x77, 0x01, 0x02});
+  // Byte length not divisible by element size.
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x42, 0x04, 0x00, 0x00, 0x00, 0x00, 0x56, 0x77, 0x02, 0x01});
+}
+
+TEST_F(ValueSerializerTest, RoundTripDataView) {
+  RoundTripTest("new DataView(new ArrayBuffer(4), 1, 2)",
+                [this](Local<Value> value) {
+                  ASSERT_TRUE(value->IsDataView());
+                  EXPECT_EQ(1, DataView::Cast(*value)->ByteOffset());
+                  EXPECT_EQ(2, DataView::Cast(*value)->ByteLength());
+                  EXPECT_EQ(4, DataView::Cast(*value)->Buffer()->ByteLength());
+                  EXPECT_TRUE(EvaluateScriptForResultBool(
+                      "Object.getPrototypeOf(result) === DataView.prototype"));
+                });
+}
+
+TEST_F(ValueSerializerTest, DecodeDataView) {
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x3f, 0x00, 0x42, 0x04, 0x00, 0x00, 0x00,
+              0x00, 0x56, 0x3f, 0x01, 0x02},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsDataView());
+               EXPECT_EQ(1, DataView::Cast(*value)->ByteOffset());
+               EXPECT_EQ(2, DataView::Cast(*value)->ByteLength());
+               EXPECT_EQ(4, DataView::Cast(*value)->Buffer()->ByteLength());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === DataView.prototype"));
+             });
+}
+
+TEST_F(ValueSerializerTest, DecodeInvalidDataView) {
+  // Byte offset out of range.
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x42, 0x02, 0x00, 0x00, 0x56, 0x3f, 0x03, 0x01});
+  // Byte offset in range, offset + length out of range.
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x42, 0x02, 0x00, 0x00, 0x56, 0x3f, 0x01, 0x03});
+}
+
 }  // namespace
 }  // namespace v8
