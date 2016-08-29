@@ -42,6 +42,7 @@ class JSBuiltinReducer final : public AdvancedReducer {
  private:
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
+  Reduction ReduceDateGetTime(Node* node);
   Reduction ReduceMathAbs(Node* node);
   Reduction ReduceMathAcos(Node* node);
   Reduction ReduceMathAcosh(Node* node);

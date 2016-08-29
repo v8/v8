@@ -6882,6 +6882,13 @@ class Script: public Struct {
   V(Array.prototype, push, ArrayPush)                       \
   V(Array.prototype, pop, ArrayPop)                         \
   V(Array.prototype, shift, ArrayShift)                     \
+  V(Date.prototype, getDate, DateGetDate)                   \
+  V(Date.prototype, getFullYear, DateGetFullYear)           \
+  V(Date.prototype, getHours, DateGetHours)                 \
+  V(Date.prototype, getMilliseconds, DateGetMilliseconds)   \
+  V(Date.prototype, getMonth, DateGetMonth)                 \
+  V(Date.prototype, getSeconds, DateGetSeconds)             \
+  V(Date.prototype, getTime, DateGetTime)                   \
   V(Function.prototype, apply, FunctionApply)               \
   V(Function.prototype, call, FunctionCall)                 \
   V(Object.prototype, hasOwnProperty, ObjectHasOwnProperty) \

@@ -89,6 +89,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSTypedArray::length() field.
   static FieldAccess ForJSTypedArrayLength();
 
+  // Provides access to JSDate::value() field.
+  static FieldAccess ForJSDateValue();
+
   // Provides access to JSDate fields.
   static FieldAccess ForJSDateField(JSDate::FieldIndex index);
 

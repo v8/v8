@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TYPE_CACHE_H_
 #define V8_COMPILER_TYPE_CACHE_H_
 
+#include "src/date.h"
 #include "src/types.h"
 
 namespace v8 {
@@ -102,6 +103,12 @@ class TypeCache final {
   // [0, String::kMaxLength].
   Type* const kStringLengthType =
       CreateNative(CreateRange(0.0, String::kMaxLength), Type::TaggedSigned());
+
+  // The JSDate::value properties always contains a tagged number in the range
+  // [-kMaxTimeInMs, kMaxTimeInMs] or NaN.
+  Type* const kJSDateValueType = Type::Union(
+      CreateRange(-DateCache::kMaxTimeInMs, DateCache::kMaxTimeInMs),
+      Type::NaN(), zone());
 
 #define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
   Type* const k##TypeName##Array = CreateArray(k##TypeName);

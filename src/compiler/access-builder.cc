@@ -269,6 +269,17 @@ FieldAccess AccessBuilder::ForJSTypedArrayLength() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSDateValue() {
+  FieldAccess access = {kTaggedBase,
+                        JSDate::kValueOffset,
+                        MaybeHandle<Name>(),
+                        TypeCache::Get().kJSDateValueType,
+                        MachineType::AnyTagged(),
+                        kFullWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
   FieldAccess access = {kTaggedBase,
                         JSDate::kValueOffset + index * kPointerSize,
