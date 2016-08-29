@@ -2584,3 +2584,18 @@ v8_source_set("wasm_asmjs_fuzzer") {
 
 v8_fuzzer("wasm_asmjs_fuzzer") {
 }
+
+v8_source_set("wasm_code_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-code.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_fuzzer("wasm_code_fuzzer") {
+}

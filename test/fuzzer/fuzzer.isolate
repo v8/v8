@@ -10,6 +10,7 @@
       '<(PRODUCT_DIR)/v8_simple_regexp_fuzzer<(EXECUTABLE_SUFFIX)',
       '<(PRODUCT_DIR)/v8_simple_wasm_fuzzer<(EXECUTABLE_SUFFIX)',
       '<(PRODUCT_DIR)/v8_simple_wasm_asmjs_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_code_fuzzer<(EXECUTABLE_SUFFIX)',
       './fuzzer.status',
       './testcfg.py',
       './json/',
@@ -17,6 +18,7 @@
       './regexp/',
       './wasm/',
       './wasm_asmjs/',
+      './wasm_code/',
     ],
   },
   'includes': [

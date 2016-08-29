@@ -139,6 +139,32 @@
       ],
     },
     {
+      'target_name': 'v8_simple_wasm_code_fuzzer',
+      'type': 'executable',
+      'dependencies': [
+        'wasm_code_fuzzer_lib',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [
+        'fuzzer.cc',
+      ],
+    },
+    {
+      'target_name': 'wasm_code_fuzzer_lib',
+      'type': 'static_library',
+      'dependencies': [
+        'fuzzer_support',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [  ### gcmole(all) ###
+        'wasm-code.cc',
+      ],
+    },
+    {
       'target_name': 'fuzzer_support',
       'type': 'static_library',
       'dependencies': [

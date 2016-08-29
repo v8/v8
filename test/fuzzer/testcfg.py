@@ -18,7 +18,7 @@ class FuzzerVariantGenerator(testsuite.VariantGenerator):
 
 
 class FuzzerTestSuite(testsuite.TestSuite):
-  SUB_TESTS = ( 'json', 'parser', 'regexp', 'wasm', 'wasm_asmjs', )
+  SUB_TESTS = ( 'json', 'parser', 'regexp', 'wasm', 'wasm_asmjs', 'wasm_code' )
 
   def __init__(self, name, root):
     super(FuzzerTestSuite, self).__init__(name, root)
