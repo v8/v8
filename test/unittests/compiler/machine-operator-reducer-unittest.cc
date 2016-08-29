@@ -23,10 +23,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class MachineOperatorReducerTest : public TypedGraphTest {
+class MachineOperatorReducerTest : public GraphTest {
  public:
   explicit MachineOperatorReducerTest(int num_parameters = 2)
-      : TypedGraphTest(num_parameters), machine_(zone()) {}
+      : GraphTest(num_parameters), machine_(zone()) {}
 
  protected:
   Reduction Reduce(Node* node) {

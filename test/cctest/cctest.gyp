@@ -77,7 +77,6 @@
       'compiler/test-run-stubs.cc',
       'compiler/test-run-variables.cc',
       'compiler/test-run-wasm-machops.cc',
-      'compiler/test-simplified-lowering.cc',
       'cctest.cc',
       'interpreter/interpreter-tester.cc',
       'interpreter/source-position-matcher.cc',
