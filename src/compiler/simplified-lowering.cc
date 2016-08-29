@@ -1175,6 +1175,110 @@ class RepresentationSelector {
     return;
   }
 
+  void VisitSpeculativeNumberModulus(Node* node, Truncation truncation,
+                                     SimplifiedLowering* lowering) {
+    // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
+    // can only eliminate an unused speculative number operation if we know
+    // that the inputs are PlainPrimitive, which excludes everything that's
+    // might have side effects or throws during a ToNumber conversion.
+    if (BothInputsAre(node, Type::PlainPrimitive())) {
+      if (truncation.IsUnused()) return VisitUnused(node);
+    }
+    if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN()) &&
+        (truncation.IsUsedAsWord32() ||
+         NodeProperties::GetType(node)->Is(Type::Unsigned32()))) {
+      // => unsigned Uint32Mod
+      VisitWord32TruncatingBinop(node);
+      if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
+      return;
+    }
+    if (BothInputsAre(node, Type::Signed32OrMinusZeroOrNaN()) &&
+        (truncation.IsUsedAsWord32() ||
+         NodeProperties::GetType(node)->Is(Type::Signed32()))) {
+      // => signed Int32Mod
+      VisitWord32TruncatingBinop(node);
+      if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
+      return;
+    }
+
+    // Try to use type feedback.
+    NumberOperationHint hint = NumberOperationHintOf(node->op());
+
+    // Handle the case when no uint32 checks on inputs are necessary
+    // (but an overflow check is needed on the output).
+    if (BothInputsAreUnsigned32(node)) {
+      if (hint == NumberOperationHint::kSignedSmall ||
+          hint == NumberOperationHint::kSigned32) {
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kWord32, Type::Unsigned32());
+        if (lower()) ChangeToUint32OverflowOp(node);
+        return;
+      }
+    }
+
+    // Handle the case when no int32 checks on inputs are necessary
+    // (but an overflow check is needed on the output).
+    if (BothInputsAre(node, Type::Signed32())) {
+      // If both the inputs the feedback are int32, use the overflow op.
+      if (hint == NumberOperationHint::kSignedSmall ||
+          hint == NumberOperationHint::kSigned32) {
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kWord32, Type::Signed32());
+        if (lower()) ChangeToInt32OverflowOp(node);
+        return;
+      }
+    }
+
+    if (hint == NumberOperationHint::kSignedSmall ||
+        hint == NumberOperationHint::kSigned32) {
+      // If the result is truncated, we only need to check the inputs.
+      if (truncation.IsUsedAsWord32()) {
+        VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                   MachineRepresentation::kWord32);
+        if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
+      } else if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN())) {
+        VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                   MachineRepresentation::kWord32, Type::Unsigned32());
+        if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
+      } else {
+        VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                   MachineRepresentation::kWord32, Type::Signed32());
+        if (lower()) ChangeToInt32OverflowOp(node);
+      }
+      return;
+    }
+
+    if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
+        TypeOf(node->InputAt(1))->Is(Type::Unsigned32()) &&
+        (truncation.IsUsedAsWord32() ||
+         NodeProperties::GetType(node)->Is(Type::Unsigned32()))) {
+      // We can only promise Float64 truncation here, as the decision is
+      // based on the feedback types of the inputs.
+      VisitBinop(node,
+                 UseInfo(MachineRepresentation::kWord32, Truncation::Float64()),
+                 MachineRepresentation::kWord32);
+      if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
+      return;
+    }
+    if (TypeOf(node->InputAt(0))->Is(Type::Signed32()) &&
+        TypeOf(node->InputAt(1))->Is(Type::Signed32()) &&
+        (truncation.IsUsedAsWord32() ||
+         NodeProperties::GetType(node)->Is(Type::Signed32()))) {
+      // We can only promise Float64 truncation here, as the decision is
+      // based on the feedback types of the inputs.
+      VisitBinop(node,
+                 UseInfo(MachineRepresentation::kWord32, Truncation::Float64()),
+                 MachineRepresentation::kWord32);
+      if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
+      return;
+    }
+    // default case => Float64Mod
+    VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
+               MachineRepresentation::kFloat64, Type::Number());
+    if (lower()) ChangeToPureOp(node, Float64Op(node));
+    return;
+  }
+
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, Truncation truncation,
@@ -1592,104 +1696,8 @@ class RepresentationSelector {
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }
-      case IrOpcode::kSpeculativeNumberModulus: {
-        // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
-        // can only eliminate an unused speculative number operation if we know
-        // that the inputs are PlainPrimitive, which excludes everything that's
-        // might have side effects or throws during a ToNumber conversion.
-        if (BothInputsAre(node, Type::PlainPrimitive())) {
-          if (truncation.IsUnused()) return VisitUnused(node);
-        }
-        if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN()) &&
-            (truncation.IsUsedAsWord32() ||
-             NodeProperties::GetType(node)->Is(Type::Unsigned32()))) {
-          // => unsigned Uint32Mod
-          VisitWord32TruncatingBinop(node);
-          if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
-          return;
-        }
-        if (BothInputsAre(node, Type::Signed32OrMinusZeroOrNaN()) &&
-            (truncation.IsUsedAsWord32() ||
-             NodeProperties::GetType(node)->Is(Type::Signed32()))) {
-          // => signed Int32Mod
-          VisitWord32TruncatingBinop(node);
-          if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
-          return;
-        }
-
-        // Try to use type feedback.
-        NumberOperationHint hint = NumberOperationHintOf(node->op());
-
-        // Handle the case when no uint32 checks on inputs are necessary
-        // (but an overflow check is needed on the output).
-        if (BothInputsAreUnsigned32(node)) {
-          if (hint == NumberOperationHint::kSignedSmall ||
-              hint == NumberOperationHint::kSigned32) {
-            VisitBinop(node, UseInfo::TruncatingWord32(),
-                       MachineRepresentation::kWord32, Type::Unsigned32());
-            if (lower()) ChangeToUint32OverflowOp(node);
-            return;
-          }
-        }
-
-        // Handle the case when no int32 checks on inputs are necessary
-        // (but an overflow check is needed on the output).
-        if (BothInputsAre(node, Type::Signed32())) {
-          // If both the inputs the feedback are int32, use the overflow op.
-          if (hint == NumberOperationHint::kSignedSmall ||
-              hint == NumberOperationHint::kSigned32) {
-            VisitBinop(node, UseInfo::TruncatingWord32(),
-                       MachineRepresentation::kWord32, Type::Signed32());
-            if (lower()) ChangeToInt32OverflowOp(node);
-            return;
-          }
-        }
-
-        if (hint == NumberOperationHint::kSignedSmall ||
-            hint == NumberOperationHint::kSigned32) {
-          // If the result is truncated, we only need to check the inputs.
-          if (truncation.IsUsedAsWord32()) {
-            VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                       MachineRepresentation::kWord32);
-            if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
-          } else {
-            VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                       MachineRepresentation::kWord32, Type::Signed32());
-            if (lower()) ChangeToInt32OverflowOp(node);
-          }
-          return;
-        }
-
-        if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
-            TypeOf(node->InputAt(1))->Is(Type::Unsigned32()) &&
-            (truncation.IsUsedAsWord32() ||
-             NodeProperties::GetType(node)->Is(Type::Unsigned32()))) {
-          // We can only promise Float64 truncation here, as the decision is
-          // based on the feedback types of the inputs.
-          VisitBinop(node, UseInfo(MachineRepresentation::kWord32,
-                                   Truncation::Float64()),
-                     MachineRepresentation::kWord32);
-          if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
-          return;
-        }
-        if (TypeOf(node->InputAt(0))->Is(Type::Signed32()) &&
-            TypeOf(node->InputAt(1))->Is(Type::Signed32()) &&
-            (truncation.IsUsedAsWord32() ||
-             NodeProperties::GetType(node)->Is(Type::Signed32()))) {
-          // We can only promise Float64 truncation here, as the decision is
-          // based on the feedback types of the inputs.
-          VisitBinop(node, UseInfo(MachineRepresentation::kWord32,
-                                   Truncation::Float64()),
-                     MachineRepresentation::kWord32);
-          if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
-          return;
-        }
-        // default case => Float64Mod
-        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
-                   MachineRepresentation::kFloat64, Type::Number());
-        if (lower()) ChangeToPureOp(node, Float64Op(node));
-        return;
-      }
+      case IrOpcode::kSpeculativeNumberModulus:
+        return VisitSpeculativeNumberModulus(node, truncation, lowering);
       case IrOpcode::kNumberModulus: {
         if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN()) &&
             (truncation.IsUsedAsWord32() ||
