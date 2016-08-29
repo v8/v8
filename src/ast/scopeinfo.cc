@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/ast/scopeinfo.h"
-
 #include <stdlib.h>
 
 #include "src/ast/context-slot-cache.h"
@@ -16,13 +14,11 @@ namespace internal {
 
 Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
                                     Scope* scope) {
-  // Collect stack and context locals.
+  // Collect variables.
   ZoneList<Variable*> stack_locals(scope->StackLocalCount(), zone);
   ZoneList<Variable*> context_locals(scope->ContextLocalCount(), zone);
   ZoneList<Variable*> context_globals(scope->ContextGlobalCount(), zone);
-
-  scope->CollectStackAndContextLocals(&stack_locals, &context_locals,
-                                      &context_globals);
+  scope->CollectVariables(&stack_locals, &context_locals, &context_globals);
   const int stack_local_count = stack_locals.length();
   const int context_local_count = context_locals.length();
   const int context_global_count = context_globals.length();
@@ -83,13 +79,17 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
-  bool has_simple_parameters =
-      scope->is_function_scope() &&
-      scope->AsDeclarationScope()->has_simple_parameters();
-  FunctionKind function_kind =
-      scope->is_declaration_scope()
-          ? scope->AsDeclarationScope()->function_kind()
-          : kNormalFunction;
+  bool has_simple_parameters = false;
+  bool asm_module = false;
+  bool asm_function = false;
+  FunctionKind function_kind = kNormalFunction;
+  if (scope->is_function_scope()) {
+    DeclarationScope* function_scope = scope->AsDeclarationScope();
+    has_simple_parameters = function_scope->has_simple_parameters();
+    asm_module = function_scope->asm_module();
+    asm_function = function_scope->asm_function();
+    function_kind = function_scope->function_kind();
+  }
 
   // Encode the flags.
   int flags = ScopeTypeField::encode(scope->scope_type()) |
@@ -100,8 +100,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               HasNewTargetField::encode(has_new_target) |
               FunctionVariableField::encode(function_name_info) |
               FunctionVariableMode::encode(function_variable_mode) |
-              AsmModuleField::encode(scope->asm_module()) |
-              AsmFunctionField::encode(scope->asm_function()) |
+              AsmModuleField::encode(asm_module) |
+              AsmFunctionField::encode(asm_function) |
               HasSimpleParametersField::encode(has_simple_parameters) |
               FunctionKindField::encode(function_kind) |
               TypedField::encode(scope->typed());
@@ -113,7 +113,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   int index = kVariablePartIndex;
   // Add parameters.
-  DCHECK(index == scope_info->ParameterEntriesIndex());
+  DCHECK_EQ(index, scope_info->ParameterEntriesIndex());
   if (scope->is_declaration_scope()) {
     for (int i = 0; i < parameter_count; ++i) {
       scope_info->set(index++,
@@ -130,56 +130,47 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   } else {
     first_slot_index = 0;
   }
-  DCHECK(index == scope_info->StackLocalFirstSlotIndex());
+  DCHECK_EQ(index, scope_info->StackLocalFirstSlotIndex());
   scope_info->set(index++, Smi::FromInt(first_slot_index));
-  DCHECK(index == scope_info->StackLocalEntriesIndex());
+  DCHECK_EQ(index, scope_info->StackLocalEntriesIndex());
   for (int i = 0; i < stack_local_count; ++i) {
     DCHECK(stack_locals[i]->index() == first_slot_index + i);
     scope_info->set(index++, *stack_locals[i]->name());
   }
 
-  // Due to usage analysis, context-allocated locals are not necessarily in
-  // increasing order: Some of them may be parameters which are allocated before
-  // the non-parameter locals. When the non-parameter locals are sorted
-  // according to usage, the allocated slot indices may not be in increasing
-  // order with the variable list anymore. Thus, we first need to sort them by
-  // context slot index before adding them to the ScopeInfo object.
-  context_locals.Sort(&Variable::CompareIndex);
-
-  // Add context locals' names.
-  DCHECK(index == scope_info->ContextLocalNameEntriesIndex());
-  for (int i = 0; i < context_local_count; ++i) {
-    scope_info->set(index++, *context_locals[i]->name());
-  }
-
-  // Add context globals' names.
-  DCHECK(index == scope_info->ContextGlobalNameEntriesIndex());
-  for (int i = 0; i < context_global_count; ++i) {
-    scope_info->set(index++, *context_globals[i]->name());
-  }
-
-  // Add context locals' info.
-  DCHECK(index == scope_info->ContextLocalInfoEntriesIndex());
+  // Add context locals' names and info. Info lies beyond context globals'
+  // names.
+  // Make sure to store them in the order that they appear in the context.
+  DCHECK_EQ(index, scope_info->ContextLocalNameEntriesIndex());
+  int info_index = index + context_local_count + context_global_count;
+  DCHECK_EQ(info_index, scope_info->ContextLocalInfoEntriesIndex());
   for (int i = 0; i < context_local_count; ++i) {
     Variable* var = context_locals[i];
-    uint32_t value =
-        ContextLocalMode::encode(var->mode()) |
-        ContextLocalInitFlag::encode(var->initialization_flag()) |
-        ContextLocalMaybeAssignedFlag::encode(var->maybe_assigned());
-    scope_info->set(index++, Smi::FromInt(value));
+    int context_index = var->index() - Context::MIN_CONTEXT_SLOTS;
+    uint32_t info = VariableModeField::encode(var->mode()) |
+                    InitFlagField::encode(var->initialization_flag()) |
+                    MaybeAssignedFlagField::encode(var->maybe_assigned());
+    scope_info->set(index + context_index, *var->name());
+    scope_info->set(info_index + context_index, Smi::FromInt(info));
   }
 
-  // Add context globals' info.
-  DCHECK(index == scope_info->ContextGlobalInfoEntriesIndex());
+  index += context_local_count;
+
+  // Add context globals' names and info. Info lies beyond context locals' info.
+  DCHECK_EQ(index, scope_info->ContextGlobalNameEntriesIndex());
+  info_index = index + context_global_count + context_local_count;
+  DCHECK_EQ(info_index, scope_info->ContextGlobalInfoEntriesIndex());
   for (int i = 0; i < context_global_count; ++i) {
     Variable* var = context_globals[i];
+    scope_info->set(index + i, *var->name());
     // TODO(ishell): do we need this kind of info for globals here?
-    uint32_t value =
-        ContextLocalMode::encode(var->mode()) |
-        ContextLocalInitFlag::encode(var->initialization_flag()) |
-        ContextLocalMaybeAssignedFlag::encode(var->maybe_assigned());
-    scope_info->set(index++, Smi::FromInt(value));
+    uint32_t info = VariableModeField::encode(var->mode()) |
+                    InitFlagField::encode(var->initialization_flag()) |
+                    MaybeAssignedFlagField::encode(var->maybe_assigned());
+    scope_info->set(info_index + i, Smi::FromInt(info));
   }
+
+  index += context_local_count + 2 * context_global_count;
 
   // If the receiver is allocated, add its index.
   DCHECK(index == scope_info->ReceiverEntryIndex());
@@ -203,9 +194,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   DCHECK(index == scope_info->length());
   DCHECK(scope->num_parameters() == scope_info->ParameterCount());
-  DCHECK(scope->num_heap_slots() == scope_info->ContextLength() ||
-         (scope->num_heap_slots() == kVariablePartIndex &&
-          scope_info->ContextLength() == 0));
+  DCHECK(scope->num_heap_slots() == scope_info->ContextLength());
   return scope_info;
 }
 
@@ -259,9 +248,9 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   DCHECK(index == scope_info->ContextLocalNameEntriesIndex());
   scope_info->set(index++, *isolate->factory()->this_string());
   DCHECK(index == scope_info->ContextLocalInfoEntriesIndex());
-  const uint32_t value = ContextLocalMode::encode(CONST) |
-                         ContextLocalInitFlag::encode(kCreatedInitialized) |
-                         ContextLocalMaybeAssignedFlag::encode(kNotAssigned);
+  const uint32_t value = VariableModeField::encode(CONST) |
+                         InitFlagField::encode(kCreatedInitialized) |
+                         MaybeAssignedFlagField::encode(kNotAssigned);
   scope_info->set(index++, Smi::FromInt(value));
 
   // And here we record that this scopeinfo binds a receiver.
@@ -435,7 +424,7 @@ VariableMode ScopeInfo::ContextLocalMode(int var) {
   DCHECK(0 <= var && var < ContextLocalCount() + ContextGlobalCount());
   int info_index = ContextLocalInfoEntriesIndex() + var;
   int value = Smi::cast(get(info_index))->value();
-  return ContextLocalMode::decode(value);
+  return VariableModeField::decode(value);
 }
 
 
@@ -443,7 +432,7 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
   DCHECK(0 <= var && var < ContextLocalCount() + ContextGlobalCount());
   int info_index = ContextLocalInfoEntriesIndex() + var;
   int value = Smi::cast(get(info_index))->value();
-  return ContextLocalInitFlag::decode(value);
+  return InitFlagField::decode(value);
 }
 
 
@@ -451,7 +440,7 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) {
   DCHECK(0 <= var && var < ContextLocalCount() + ContextGlobalCount());
   int info_index = ContextLocalInfoEntriesIndex() + var;
   int value = Smi::cast(get(info_index))->value();
-  return ContextLocalMaybeAssignedFlag::decode(value);
+  return MaybeAssignedFlagField::decode(value);
 }
 
 bool ScopeInfo::VariableIsSynthetic(String* name) {
@@ -469,7 +458,7 @@ int ScopeInfo::StackSlotIndex(String* name) {
   if (length() > 0) {
     int first_slot_index = Smi::cast(get(StackLocalFirstSlotIndex()))->value();
     int start = StackLocalEntriesIndex();
-    int end = StackLocalEntriesIndex() + StackLocalCount();
+    int end = start + StackLocalCount();
     for (int i = start; i < end; ++i) {
       if (name == get(i)) {
         return i - start + first_slot_index;
@@ -485,8 +474,10 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
                                 InitializationFlag* init_flag,
                                 MaybeAssignedFlag* maybe_assigned_flag) {
   DCHECK(name->IsInternalizedString());
-  DCHECK(mode != NULL);
-  DCHECK(init_flag != NULL);
+  DCHECK_NOT_NULL(mode);
+  DCHECK_NOT_NULL(init_flag);
+  DCHECK_NOT_NULL(maybe_assigned_flag);
+
   if (scope_info->length() > 0) {
     ContextSlotCache* context_slot_cache =
         scope_info->GetIsolate()->context_slot_cache();
@@ -498,8 +489,7 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
     }
 
     int start = scope_info->ContextLocalNameEntriesIndex();
-    int end = scope_info->ContextLocalNameEntriesIndex() +
-              scope_info->ContextLocalCount();
+    int end = start + scope_info->ContextLocalCount();
     for (int i = start; i < end; ++i) {
       if (*name == scope_info->get(i)) {
         int var = i - start;
@@ -518,17 +508,18 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
     context_slot_cache->Update(scope_info, name, TEMPORARY,
                                kNeedsInitialization, kNotAssigned, -1);
   }
+
   return -1;
 }
-
 
 int ScopeInfo::ContextGlobalSlotIndex(Handle<ScopeInfo> scope_info,
                                       Handle<String> name, VariableMode* mode,
                                       InitializationFlag* init_flag,
                                       MaybeAssignedFlag* maybe_assigned_flag) {
   DCHECK(name->IsInternalizedString());
-  DCHECK(mode != NULL);
-  DCHECK(init_flag != NULL);
+  DCHECK_NOT_NULL(mode);
+  DCHECK_NOT_NULL(init_flag);
+  DCHECK_NOT_NULL(maybe_assigned_flag);
   if (scope_info->length() > 0) {
     // This is to ensure that ContextLocalMode() and co. queries would work.
     DCHECK_EQ(scope_info->ContextGlobalNameEntriesIndex(),
@@ -536,8 +527,7 @@ int ScopeInfo::ContextGlobalSlotIndex(Handle<ScopeInfo> scope_info,
                   scope_info->ContextLocalCount());
     int base = scope_info->ContextLocalNameEntriesIndex();
     int start = scope_info->ContextGlobalNameEntriesIndex();
-    int end = scope_info->ContextGlobalNameEntriesIndex() +
-              scope_info->ContextGlobalCount();
+    int end = start + scope_info->ContextGlobalCount();
     for (int i = start; i < end; ++i) {
       if (*name == scope_info->get(i)) {
         int var = i - base;
@@ -571,7 +561,7 @@ int ScopeInfo::ParameterIndex(String* name) {
     // inside a function (and thus we need to look
     // at the last index). Was bug# 1110337.
     int start = ParameterEntriesIndex();
-    int end = ParameterEntriesIndex() + ParameterCount();
+    int end = start + ParameterCount();
     for (int i = end - 1; i >= start; --i) {
       if (name == get(i)) {
         return i - start;

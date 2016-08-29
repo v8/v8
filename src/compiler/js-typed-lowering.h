@@ -15,8 +15,6 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
-class TypeCache;
-
 
 namespace compiler {
 
@@ -26,7 +24,7 @@ class JSGraph;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
-
+class TypeCache;
 
 // Lowers JS-level operators to simplified operators based on types.
 class JSTypedLowering final : public AdvancedReducer {
@@ -48,9 +46,6 @@ class JSTypedLowering final : public AdvancedReducer {
   friend class JSBinopReduction;
 
   Reduction ReduceJSAdd(Node* node);
-  Reduction ReduceJSModulus(Node* node);
-  Reduction ReduceJSBitwiseOr(Node* node);
-  Reduction ReduceJSMultiply(Node* node);
   Reduction ReduceJSComparison(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
@@ -78,16 +73,9 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
-  Reduction ReduceCheckMaps(Node* node);
-  Reduction ReduceCheckString(Node* node);
-  Reduction ReduceLoadField(Node* node);
-  Reduction ReduceNumberRoundop(Node* node);
-  Reduction ReduceSelect(Node* node);
-  Reduction ReduceJSSubtract(Node* node);
-  Reduction ReduceJSDivide(Node* node);
-  Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
-  Reduction ReduceUI32Shift(Node* node, Signedness signedness,
-                            const Operator* shift_op);
+  Reduction ReduceNumberBinop(Node* node);
+  Reduction ReduceInt32Binop(Node* node);
+  Reduction ReduceUI32Shift(Node* node, Signedness signedness);
 
   Factory* factory() const;
   Graph* graph() const;
@@ -104,8 +92,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Flags flags_;
   JSGraph* jsgraph_;
   Type* shifted_int32_ranges_[4];
-  Type* const true_type_;
-  Type* const false_type_;
   Type* const the_hole_type_;
   TypeCache const& type_cache_;
 };

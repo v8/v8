@@ -1566,6 +1566,10 @@ class Assembler : public AssemblerBase {
   void vmovupd(const Operand& dst, XMMRegister src) {
     vpd(0x11, src, xmm0, dst);
   }
+  void vmovmskps(Register dst, XMMRegister src) {
+    XMMRegister idst = {dst.code()};
+    vps(0x50, idst, xmm0, src);
+  }
   void vmovmskpd(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};
     vpd(0x50, idst, xmm0, src);

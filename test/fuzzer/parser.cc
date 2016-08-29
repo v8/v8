@@ -8,6 +8,7 @@
 
 #include "include/v8.h"
 #include "src/objects.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparser.h"
 #include "test/fuzzer/fuzzer-support.h"

@@ -1959,6 +1959,53 @@ void MacroAssembler::Ins(Register rt,
   ins_(rt, rs, pos, size);
 }
 
+void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
+  if (kArchVariant == kMips64r2) {
+    Label is_nan, done;
+    Register scratch1 = t8;
+    Register scratch2 = t9;
+    BranchF32(nullptr, &is_nan, eq, fs, fs);
+    Branch(USE_DELAY_SLOT, &done);
+    // For NaN input, neg_s will return the same NaN value,
+    // while the sign has to be changed separately.
+    neg_s(fd, fs);  // In delay slot.
+    bind(&is_nan);
+    mfc1(scratch1, fs);
+    And(scratch2, scratch1, Operand(~kBinary32SignMask));
+    And(scratch1, scratch1, Operand(kBinary32SignMask));
+    Xor(scratch1, scratch1, Operand(kBinary32SignMask));
+    Or(scratch2, scratch2, scratch1);
+    mtc1(scratch2, fd);
+    bind(&done);
+  } else {
+    // r6 neg_s changes the sign for NaN-like operands as well.
+    neg_s(fd, fs);
+  }
+}
+
+void MacroAssembler::Neg_d(FPURegister fd, FPURegister fs) {
+  if (kArchVariant == kMips64r2) {
+    Label is_nan, done;
+    Register scratch1 = t8;
+    Register scratch2 = t9;
+    BranchF64(nullptr, &is_nan, eq, fs, fs);
+    Branch(USE_DELAY_SLOT, &done);
+    // For NaN input, neg_d will return the same NaN value,
+    // while the sign has to be changed separately.
+    neg_d(fd, fs);  // In delay slot.
+    bind(&is_nan);
+    dmfc1(scratch1, fs);
+    And(scratch2, scratch1, Operand(~Double::kSignMask));
+    And(scratch1, scratch1, Operand(Double::kSignMask));
+    Xor(scratch1, scratch1, Operand(Double::kSignMask));
+    Or(scratch2, scratch2, scratch1);
+    dmtc1(scratch2, fd);
+    bind(&done);
+  } else {
+    // r6 neg_d changes the sign for NaN-like operands as well.
+    neg_d(fd, fs);
+  }
+}
 
 void MacroAssembler::Cvt_d_uw(FPURegister fd, FPURegister fs) {
   // Move the data from fs to t8.
@@ -2537,7 +2584,7 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
   if (imm_bits == bit_cast<int64_t>(0.0) && has_double_zero_reg_set_) {
     mov_d(dst, kDoubleRegZero);
   } else if (imm_bits == bit_cast<int64_t>(-0.0) && has_double_zero_reg_set_) {
-    neg_d(dst, kDoubleRegZero);
+    Neg_d(dst, kDoubleRegZero);
   } else {
     uint32_t lo, hi;
     DoubleAsTwoUInt32(imm, &lo, &hi);

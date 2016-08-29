@@ -1827,8 +1827,9 @@ Node* CodeStubAssembler::ChangeUint32ToTagged(Node* value) {
       if_join(this);
   Variable var_result(this, MachineRepresentation::kTagged);
   // If {value} > 2^31 - 1, we need to store it in a HeapNumber.
-  Branch(Int32LessThan(value, Int32Constant(0)), &if_overflow,
+  Branch(Uint32LessThan(Int32Constant(Smi::kMaxValue), value), &if_overflow,
          &if_not_overflow);
+
   Bind(&if_not_overflow);
   {
     if (Is64()) {

@@ -145,12 +145,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                    \
   V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                  \
-  V(ImpossibleToWord32, Operator::kNoProperties, 1, 0, 1)                    \
-  V(ImpossibleToWord64, Operator::kNoProperties, 1, 0, 1)                    \
-  V(ImpossibleToFloat32, Operator::kNoProperties, 1, 0, 1)                   \
-  V(ImpossibleToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
-  V(ImpossibleToTagged, Operator::kNoProperties, 1, 0, 1)                    \
-  V(ImpossibleToBit, Operator::kNoProperties, 1, 0, 1)                       \
   V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)              \
   V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)                  \
   V(BitcastFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
@@ -164,6 +158,8 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32Div, Operator::kNoProperties, 2, 0, 1)                            \
   V(Float32Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float32Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
+  V(Float32Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float64Acos, Operator::kNoProperties, 1, 0, 1)                           \
   V(Float64Acosh, Operator::kNoProperties, 1, 0, 1)                          \
@@ -181,8 +177,8 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float64Log1p, Operator::kNoProperties, 1, 0, 1)                          \
   V(Float64Log2, Operator::kNoProperties, 1, 0, 1)                           \
   V(Float64Log10, Operator::kNoProperties, 1, 0, 1)                          \
-  V(Float64Max, Operator::kNoProperties, 2, 0, 1)                            \
-  V(Float64Min, Operator::kNoProperties, 2, 0, 1)                            \
+  V(Float64Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
+  V(Float64Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(Float64Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float64Add, Operator::kCommutative, 2, 0, 1)                             \
   V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                            \

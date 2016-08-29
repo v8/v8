@@ -8,6 +8,7 @@
 #include "src/allocation-site-scopes.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
+#include "src/compiler.h"
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
@@ -177,6 +178,14 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
   return array;
 }
 
+Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
+                                          PretenureFlag pretenure) {
+  DCHECK_LE(0, number_of_frames);
+  Handle<FixedArray> result =
+      NewFixedArrayWithHoles(FrameArray::LengthFor(number_of_frames));
+  result->set(FrameArray::kFrameCountIndex, Smi::FromInt(0));
+  return Handle<FrameArray>::cast(result);
+}
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
   return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kMinCapacity);
@@ -760,6 +769,7 @@ Handle<Context> Factory::NewNativeContext() {
 
 Handle<Context> Factory::NewScriptContext(Handle<JSFunction> function,
                                           Handle<ScopeInfo> scope_info) {
+  DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
   Handle<FixedArray> array =
       NewFixedArray(scope_info->ContextLength(), TENURED);
   array->set_map_no_write_barrier(*script_context_map());
@@ -784,6 +794,7 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
 
 
 Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
+  DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   Handle<FixedArray> array =
       NewFixedArray(scope_info->ContextLength(), TENURED);
   array->set_map_no_write_barrier(*module_context_map());
@@ -796,6 +807,7 @@ Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
 
 Handle<Context> Factory::NewFunctionContext(int length,
                                             Handle<JSFunction> function) {
+  DCHECK(function->shared()->scope_info()->scope_type() == FUNCTION_SCOPE);
   DCHECK(length >= Context::MIN_CONTEXT_SLOTS);
   Handle<FixedArray> array = NewFixedArray(length);
   array->set_map_no_write_barrier(*function_context_map());
@@ -858,6 +870,7 @@ Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
 Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
                                          Handle<Context> previous,
                                          Handle<ScopeInfo> scope_info) {
+  DCHECK_EQ(scope_info->scope_type(), BLOCK_SCOPE);
   Handle<FixedArray> array = NewFixedArray(scope_info->ContextLength());
   array->set_map_no_write_barrier(*block_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
@@ -917,13 +930,6 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   return script;
 }
 
-Handle<StackTraceFrame> Factory::NewStackTraceFrame() {
-  Handle<StackTraceFrame> frame =
-      Handle<StackTraceFrame>::cast(NewStruct(STACK_TRACE_FRAME_TYPE));
-  frame->set_flags(0);
-  frame->set_offset(0);
-  return frame;
-}
 
 Handle<Foreign> Factory::NewForeign(Address addr, PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -1450,6 +1456,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_source_position_table(*empty_byte_array(), SKIP_WRITE_BARRIER);
   code->set_prologue_offset(prologue_offset);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
+  code->set_builtin_index(-1);
 
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     code->set_marked_for_deoptimization(false);

@@ -16,9 +16,10 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-hint-analyzer.h"
 #include "src/isolate-inl.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
 
 namespace v8 {
@@ -434,18 +435,16 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
                                       frame_state_before, effect);
       NodeProperties::ReplaceEffectInput(node, create);
       // Insert a check of the return value to determine whether the return
-      // value
-      // or the implicit receiver should be selected as a result of the call.
-      Node* check = graph()->NewNode(
-          javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), node,
-          context, node, start);
+      // value or the implicit receiver should be selected as a result of the
+      // call.
+      Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), node);
       Node* select =
           graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                            check, node, create);
-      NodeProperties::ReplaceUses(node, select, check, node, node);
-      NodeProperties::ReplaceValueInput(select, node, 1);
-      NodeProperties::ReplaceValueInput(check, node, 0);
-      NodeProperties::ReplaceEffectInput(check, node);
+      NodeProperties::ReplaceUses(node, select, node, node, node);
+      // Fix-up inputs that have been mangled by the {ReplaceUses} call above.
+      NodeProperties::ReplaceValueInput(select, node, 1);  // Fix-up input.
+      NodeProperties::ReplaceValueInput(check, node, 0);   // Fix-up input.
       receiver = create;  // The implicit receiver.
     }
 
@@ -523,6 +522,10 @@ JSOperatorBuilder* JSInliner::javascript() const {
 }
 
 CommonOperatorBuilder* JSInliner::common() const { return jsgraph()->common(); }
+
+SimplifiedOperatorBuilder* JSInliner::simplified() const {
+  return jsgraph()->simplified();
+}
 
 }  // namespace compiler
 }  // namespace internal

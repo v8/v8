@@ -338,6 +338,9 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ObjectIsString();
   const Operator* ObjectIsUndetectable();
 
+  // array-buffer-was-neutered buffer
+  const Operator* ArrayBufferWasNeutered();
+
   // ensure-writable-fast-elements object, elements
   const Operator* EnsureWritableFastElements();
 

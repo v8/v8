@@ -907,6 +907,9 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
     case LDGR:
       Format(instr, "ldgr\t'f5,'r6");
       break;
+    case MS:
+      Format(instr, "ms\t'r1,'d1('r2d,'r3)");
+      break;
     case STE:
       Format(instr, "ste\t'f1,'d1('r2d,'r3)");
       break;
@@ -1357,6 +1360,12 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
       break;
     case LEY:
       Format(instr, "ley\t'f1,'d2('r2d,'r3)");
+      break;
+    case MSG:
+      Format(instr, "msg\t'r1,'d2('r2d,'r3)");
+      break;
+    case MSY:
+      Format(instr, "msy\t'r1,'d2('r2d,'r3)");
       break;
     case STEY:
       Format(instr, "stey\t'f1,'d2('r2d,'r3)");

@@ -1000,6 +1000,7 @@ class MacroAssembler: public Assembler {
   void Movups(XMMRegister dst, XMMRegister src);
   void Movups(XMMRegister dst, const Operand& src);
   void Movups(const Operand& dst, XMMRegister src);
+  void Movmskps(Register dst, XMMRegister src);
   void Movapd(XMMRegister dst, XMMRegister src);
   void Movupd(XMMRegister dst, const Operand& src);
   void Movupd(const Operand& dst, XMMRegister src);

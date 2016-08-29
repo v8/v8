@@ -18,6 +18,7 @@
 #include "src/field-index.h"
 #include "src/flags.h"
 #include "src/list.h"
+#include "src/messages.h"
 #include "src/property-details.h"
 #include "src/unicode-decoder.h"
 #include "src/unicode.h"
@@ -75,6 +76,7 @@
 //       - BytecodeArray
 //       - FixedArray
 //         - DescriptorArray
+//         - FrameArray
 //         - LiteralsArray
 //         - HashTable
 //           - Dictionary
@@ -388,7 +390,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ALLOCATION_MEMENTO_TYPE)                                    \
   V(ALLOCATION_SITE_TYPE)                                       \
   V(SCRIPT_TYPE)                                                \
-  V(STACK_TRACE_FRAME_TYPE)                                     \
   V(TYPE_FEEDBACK_INFO_TYPE)                                    \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(BOX_TYPE)                                                   \
@@ -504,7 +505,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
   V(SCRIPT, Script, script)                                                  \
-  V(STACK_TRACE_FRAME, StackTraceFrame, stack_trace_frame)                   \
   V(ALLOCATION_SITE, AllocationSite, allocation_site)                        \
   V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
   V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)                \
@@ -676,7 +676,6 @@ enum InstanceType {
   ALLOCATION_SITE_TYPE,
   ALLOCATION_MEMENTO_TYPE,
   SCRIPT_TYPE,
-  STACK_TRACE_FRAME_TYPE,
   TYPE_FEEDBACK_INFO_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   BOX_TYPE,
@@ -864,7 +863,7 @@ enum class ComparisonResult {
   INLINE(static type* cast(Object* object));            \
   INLINE(static const type* cast(const Object* object));
 
-
+class AbstractCode;
 class AccessorPair;
 class AllocationSite;
 class AllocationSiteCreationContext;
@@ -963,6 +962,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSGeneratorObject)           \
   V(Map)                         \
   V(DescriptorArray)             \
+  V(FrameArray)                  \
   V(TransitionArray)             \
   V(LiteralsArray)               \
   V(TypeFeedbackMetadata)        \
@@ -1210,6 +1210,11 @@ class Object {
   // ES6 section 7.1.15 ToLength
   MUST_USE_RESULT static MaybeHandle<Object> ToLength(Isolate* isolate,
                                                       Handle<Object> input);
+
+  // ES6 section 7.1.17 ToIndex
+  MUST_USE_RESULT static MaybeHandle<Object> ToIndex(
+      Isolate* isolate, Handle<Object> input,
+      MessageTemplate::Template error_index);
 
   // ES6 section 7.3.9 GetMethod
   MUST_USE_RESULT static MaybeHandle<Object> GetMethod(
@@ -1845,6 +1850,8 @@ enum class KeyCollectionMode {
       static_cast<int>(v8::KeyCollectionMode::kIncludePrototypes)
 };
 
+enum class AllocationSiteUpdateMode { kUpdate, kCheckOnly };
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
@@ -2295,7 +2302,9 @@ class JSObject: public JSReceiver {
   }
 
   // These methods do not perform access checks!
-  static void UpdateAllocationSite(Handle<JSObject> object,
+  template <AllocationSiteUpdateMode update_or_check =
+                AllocationSiteUpdateMode::kUpdate>
+  static bool UpdateAllocationSite(Handle<JSObject> object,
                                    ElementsKind to_kind);
 
   // Lookup interceptors are used for handling properties controlled by host
@@ -2892,7 +2901,6 @@ class WeakFixedArray : public FixedArray {
   DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
 };
 
-
 // Generic array grows dynamically with O(1) amortized insertion.
 class ArrayList : public FixedArray {
  public:
@@ -2922,6 +2930,82 @@ class ArrayList : public FixedArray {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ArrayList);
 };
 
+#define FRAME_ARRAY_FIELD_LIST(V) \
+  V(WasmObject, Object)           \
+  V(WasmFunctionIndex, Smi)       \
+  V(Receiver, Object)             \
+  V(Function, JSFunction)         \
+  V(Code, AbstractCode)           \
+  V(Offset, Smi)                  \
+  V(Flags, Smi)
+
+// Container object for data collected during simple stack trace captures.
+class FrameArray : public FixedArray {
+ public:
+#define DECLARE_FRAME_ARRAY_ACCESSORS(name, type) \
+  inline type* name(int frame_ix) const;          \
+  inline void Set##name(int frame_ix, type* value);
+  FRAME_ARRAY_FIELD_LIST(DECLARE_FRAME_ARRAY_ACCESSORS)
+#undef DECLARE_FRAME_ARRAY_ACCESSORS
+
+  inline bool IsWasmFrame(int frame_ix) const;
+  inline int FrameCount() const;
+
+  void ShrinkToFit();
+
+  // Flags.
+  static const int kIsWasmFrame = 1 << 0;
+  static const int kIsStrict = 1 << 1;
+  static const int kForceConstructor = 1 << 2;
+
+  static Handle<FrameArray> AppendJSFrame(Handle<FrameArray> in,
+                                          Handle<Object> receiver,
+                                          Handle<JSFunction> function,
+                                          Handle<AbstractCode> code, int offset,
+                                          int flags);
+  static Handle<FrameArray> AppendWasmFrame(Handle<FrameArray> in,
+                                            Handle<Object> wasm_object,
+                                            int wasm_function_index,
+                                            Handle<AbstractCode> code,
+                                            int offset, int flags);
+
+  DECLARE_CAST(FrameArray)
+
+ private:
+  // The underlying fixed array embodies a captured stack trace. Frame i
+  // occupies indices
+  //
+  // kFirstIndex + 1 + [i * kElementsPerFrame, (i + 1) * kElementsPerFrame[,
+  //
+  // with internal offsets as below:
+
+  static const int kWasmObjectOffset = 0;
+  static const int kWasmFunctionIndexOffset = 1;
+
+  static const int kReceiverOffset = 0;
+  static const int kFunctionOffset = 1;
+
+  static const int kCodeOffset = 2;
+  static const int kOffsetOffset = 3;
+
+  static const int kFlagsOffset = 4;
+
+  static const int kElementsPerFrame = 5;
+
+  // Array layout indices.
+
+  static const int kFrameCountIndex = 0;
+  static const int kFirstIndex = 1;
+
+  static int LengthFor(int frame_count) {
+    return kFirstIndex + frame_count * kElementsPerFrame;
+  }
+
+  static Handle<FrameArray> EnsureSpace(Handle<FrameArray> array, int length);
+
+  friend class Factory;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FrameArray);
+};
 
 // DescriptorArrays are fixed arrays used to hold instance descriptors.
 // The format of the these objects is:
@@ -4404,9 +4488,9 @@ class ScopeInfo : public FixedArray {
   // Properties of scopes.
   class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
   class CallsEvalField : public BitField<bool, ScopeTypeField::kNext, 1> {};
-  STATIC_ASSERT(LANGUAGE_END == 3);
+  STATIC_ASSERT(LANGUAGE_END == 2);
   class LanguageModeField
-      : public BitField<LanguageMode, CallsEvalField::kNext, 2> {};
+      : public BitField<LanguageMode, CallsEvalField::kNext, 1> {};
   class DeclarationScopeField
       : public BitField<bool, LanguageModeField::kNext, 1> {};
   class ReceiverVariableField
@@ -4427,12 +4511,10 @@ class ScopeInfo : public FixedArray {
       : public BitField<FunctionKind, HasSimpleParametersField::kNext, 9> {};
   class TypedField : public BitField<bool, FunctionKindField::kNext, 1> {};
 
-  // BitFields representing the encoded information for context locals in the
-  // ContextLocalInfoEntries part.
-  class ContextLocalMode:      public BitField<VariableMode,         0, 3> {};
-  class ContextLocalInitFlag:  public BitField<InitializationFlag,   3, 1> {};
-  class ContextLocalMaybeAssignedFlag
-      : public BitField<MaybeAssignedFlag, 4, 1> {};
+  // Properties of variables.
+  class VariableModeField : public BitField<VariableMode, 0, 3> {};
+  class InitFlagField : public BitField<InitializationFlag, 3, 1> {};
+  class MaybeAssignedFlagField : public BitField<MaybeAssignedFlag, 4, 1> {};
 
   friend class ScopeIterator;
 };
@@ -5180,11 +5262,9 @@ class Code: public HeapObject {
   inline int profiler_ticks();
   inline void set_profiler_ticks(int ticks);
 
-  // [builtin_index]: For BUILTIN kind, tells which builtin index it has.
-  // For builtins, tells which builtin index it has.
-  // Note that builtins can have a code kind other than BUILTIN, which means
-  // that for arbitrary code objects, this index value may be random garbage.
-  // To verify in that case, compare the code object to the indexed builtin.
+  // [builtin_index]: For builtins, tells which builtin index the code object
+  // has. Note that builtins can have a code kind other than BUILTIN. The
+  // builtin index is a non-negative integer for builtins, and -1 otherwise.
   inline int builtin_index();
   inline void set_builtin_index(int id);
 
@@ -5473,9 +5553,10 @@ class Code: public HeapObject {
       : public BitField<CacheHolderFlag, HasUnwindingInfoField::kNext, 2> {};
   class KindField : public BitField<Kind, CacheHolderField::kNext, 5> {};
   STATIC_ASSERT(NUMBER_OF_KINDS <= KindField::kMax);
-  class ExtraICStateField : public BitField<ExtraICState, KindField::kNext,
-                                            PlatformSmiTagging::kSmiValueSize -
-                                                KindField::kNext + 1> {};
+  class ExtraICStateField
+      : public BitField<ExtraICState, KindField::kNext,
+                        PlatformSmiTagging::kSmiValueSize - KindField::kNext> {
+  };
 
   // KindSpecificFlags1 layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
@@ -6504,6 +6585,7 @@ class Box : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Box);
 };
 
+
 // Container for metadata stored on each prototype map.
 class PrototypeInfo : public Struct {
  public:
@@ -6788,88 +6870,6 @@ class Script: public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);
 };
 
-class StackTraceFrame : public Struct {
- public:
-  // --- Fields for JS and Wasm frames. ---
-
-  static const int kIsWasmFrame = 1 << 0;
-  static const int kForceConstructor = 1 << 1;
-  static const int kIsStrict = 1 << 2;
-
-  // [flags]
-  DECL_INT_ACCESSORS(flags)
-
-  // [abstract_code]
-  DECL_ACCESSORS(abstract_code, AbstractCode)
-
-  // [offset]
-  DECL_INT_ACCESSORS(offset)
-
-  // --- Fields for JS frames. ---
-
-  // [receiver]
-  DECL_ACCESSORS(receiver, Object)
-
-  // [function]
-  DECL_ACCESSORS(function, JSFunction)
-
-  // --- Fields for Wasm frames. ---
-
-  // [wasm_object]
-  DECL_ACCESSORS(wasm_object, Object)
-
-  // [wasm_function_index]
-  DECL_INT_ACCESSORS(wasm_function_index)
-
-  inline bool IsWasmFrame() const;
-  inline bool IsJavaScriptFrame() const;
-  inline bool IsStrict() const;
-  inline bool ForceConstructor() const;
-
-  Handle<Object> GetFileName();
-  Handle<Object> GetFunctionName();
-  Handle<Object> GetScriptNameOrSourceUrl();
-  Handle<Object> GetMethodName();
-  Handle<Object> GetTypeName();
-  Handle<Object> GetEvalOrigin();
-
-  int GetPosition();
-  // Return 1-based line number, including line offset.
-  int GetLineNumber();
-  // Return 1-based column number, including column offset if first line.
-  int GetColumnNumber();
-
-  bool IsNative();
-  bool IsToplevel();
-  bool IsEval();
-  bool IsConstructor();
-
-  Handle<String> ToString();
-
-  DECLARE_CAST(StackTraceFrame)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(StackTraceFrame)
-  DECLARE_VERIFIER(StackTraceFrame)
-
-  // Fields for all frame types.
-  static const int kFlagsOffset = HeapObject::kHeaderSize;
-  static const int kAbstractCodeOffset = kFlagsOffset + kPointerSize;
-  static const int kOffsetOffset = kAbstractCodeOffset + kPointerSize;
-
-  // Fields for JS frames.
-  static const int kReceiverOffset = kOffsetOffset + kPointerSize;
-  static const int kFunctionOffset = kReceiverOffset + kPointerSize;
-
-  // Fields for Wasm frames.
-  static const int kWasmObjectOffset = kOffsetOffset + kPointerSize;
-  static const int kWasmFunctionIndexOffset = kWasmObjectOffset + kPointerSize;
-
-  static const int kSize = kFunctionOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StackTraceFrame);
-};
 
 // List of builtin functions we want to identify to improve code
 // generation.
@@ -7314,6 +7314,9 @@ class SharedFunctionInfo: public HeapObject {
   // Whether this function was created from a FunctionDeclaration.
   DECL_BOOLEAN_ACCESSORS(is_declaration)
 
+  // Indicates that asm->wasm conversion failed and should not be re-attempted.
+  DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
+
   inline FunctionKind kind();
   inline void set_kind(FunctionKind kind);
 
@@ -7586,11 +7589,10 @@ class SharedFunctionInfo: public HeapObject {
     kIsAsyncFunction,
     kDeserialized,
     kIsDeclaration,
+    kIsAsmWasmBroken,
     kTypedFunction,
     kCompilerHintsCount,  // Pseudo entry
   };
-  // Add hints for other modes when they're added.
-  STATIC_ASSERT(LANGUAGE_END == 3);
   // kFunctionKind has to be byte-aligned
   STATIC_ASSERT((kFunctionKind % kBitsPerByte) == 0);
 // Make sure that FunctionKind and byte 2 are in sync:
@@ -8670,7 +8672,9 @@ class AllocationSite: public Struct {
 
   inline bool SitePointsToLiteral();
 
-  static void DigestTransitionFeedback(Handle<AllocationSite> site,
+  template <AllocationSiteUpdateMode update_or_check =
+                AllocationSiteUpdateMode::kUpdate>
+  static bool DigestTransitionFeedback(Handle<AllocationSite> site,
                                        ElementsKind to_kind);
 
   DECLARE_PRINTER(AllocationSite)

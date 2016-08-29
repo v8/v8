@@ -2098,7 +2098,13 @@ void Assembler::slgrk(Register r1, Register r2, Register r3) {
 // ----------------------------
 // Multiply Register-Storage (64<32)
 void Assembler::m(Register r1, const MemOperand& opnd) {
+  DCHECK(r1.code() % 2 == 0);
   rx_form(M, r1, opnd.rx(), opnd.rb(), opnd.offset());
+}
+
+void Assembler::mfy(Register r1, const MemOperand& opnd) {
+  DCHECK(r1.code() % 2 == 0);
+  rxy_form(MFY, r1, opnd.rx(), opnd.rb(), opnd.offset());
 }
 
 // Multiply Register (64<32)

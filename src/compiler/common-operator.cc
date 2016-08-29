@@ -274,6 +274,30 @@ std::ostream& operator<<(std::ostream& os,
   V(7)                       \
   V(8)
 
+#define CACHED_DEOPTIMIZE_LIST(V)                        \
+  V(Eager, MinusZero)                                    \
+  V(Eager, NoReason)                                     \
+  V(Eager, WrongMap)                                     \
+  V(Soft, InsufficientTypeFeedbackForGenericKeyedAccess) \
+  V(Soft, InsufficientTypeFeedbackForGenericNamedAccess)
+
+#define CACHED_DEOPTIMIZE_IF_LIST(V) \
+  V(DivisionByZero)                  \
+  V(Hole)                            \
+  V(MinusZero)                       \
+  V(Overflow)                        \
+  V(Smi)
+
+#define CACHED_DEOPTIMIZE_UNLESS_LIST(V) \
+  V(LostPrecision)                       \
+  V(LostPrecisionOrNaN)                  \
+  V(NoReason)                            \
+  V(NotAHeapNumber)                      \
+  V(NotAHeapNumberUndefinedBoolean)      \
+  V(NotASmi)                             \
+  V(OutOfBounds)                         \
+  V(WrongInstanceType)                   \
+  V(WrongMap)
 
 #define CACHED_PARAMETER_LIST(V) \
   V(0)                           \
@@ -426,6 +450,54 @@ struct CommonOperatorGlobalCache final {
   CACHED_MERGE_LIST(CACHED_MERGE)
 #undef CACHED_MERGE
 
+  template <DeoptimizeKind kKind, DeoptimizeReason kReason>
+  struct DeoptimizeOperator final : public Operator1<DeoptimizeParameters> {
+    DeoptimizeOperator()
+        : Operator1<DeoptimizeParameters>(               // --
+              IrOpcode::kDeoptimize,                     // opcode
+              Operator::kFoldable | Operator::kNoThrow,  // properties
+              "Deoptimize",                              // name
+              1, 1, 1, 0, 0, 1,                          // counts
+              DeoptimizeParameters(kKind, kReason)) {}   // parameter
+  };
+#define CACHED_DEOPTIMIZE(Kind, Reason)                                    \
+  DeoptimizeOperator<DeoptimizeKind::k##Kind, DeoptimizeReason::k##Reason> \
+      kDeoptimize##Kind##Reason##Operator;
+  CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
+#undef CACHED_DEOPTIMIZE
+
+  template <DeoptimizeReason kReason>
+  struct DeoptimizeIfOperator final : public Operator1<DeoptimizeReason> {
+    DeoptimizeIfOperator()
+        : Operator1<DeoptimizeReason>(                   // --
+              IrOpcode::kDeoptimizeIf,                   // opcode
+              Operator::kFoldable | Operator::kNoThrow,  // properties
+              "DeoptimizeIf",                            // name
+              2, 1, 1, 0, 1, 1,                          // counts
+              kReason) {}                                // parameter
+  };
+#define CACHED_DEOPTIMIZE_IF(Reason)                \
+  DeoptimizeIfOperator<DeoptimizeReason::k##Reason> \
+      kDeoptimizeIf##Reason##Operator;
+  CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
+#undef CACHED_DEOPTIMIZE_IF
+
+  template <DeoptimizeReason kReason>
+  struct DeoptimizeUnlessOperator final : public Operator1<DeoptimizeReason> {
+    DeoptimizeUnlessOperator()
+        : Operator1<DeoptimizeReason>(                   // --
+              IrOpcode::kDeoptimizeUnless,               // opcode
+              Operator::kFoldable | Operator::kNoThrow,  // properties
+              "DeoptimizeUnless",                        // name
+              2, 1, 1, 0, 1, 1,                          // counts
+              kReason) {}                                // parameter
+  };
+#define CACHED_DEOPTIMIZE_UNLESS(Reason)                \
+  DeoptimizeUnlessOperator<DeoptimizeReason::k##Reason> \
+      kDeoptimizeUnless##Reason##Operator;
+  CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
+#undef CACHED_DEOPTIMIZE_UNLESS
+
   template <MachineRepresentation kRep, int kInputCount>
   struct PhiOperator final : public Operator1<MachineRepresentation> {
     PhiOperator()
@@ -569,7 +641,14 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
 
 const Operator* CommonOperatorBuilder::Deoptimize(DeoptimizeKind kind,
                                                   DeoptimizeReason reason) {
-  // TODO(turbofan): Cache the most common versions of this.
+#define CACHED_DEOPTIMIZE(Kind, Reason)                 \
+  if (kind == DeoptimizeKind::k##Kind &&                \
+      reason == DeoptimizeReason::k##Reason) {          \
+    return &cache_.kDeoptimize##Kind##Reason##Operator; \
+  }
+  CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
+#undef CACHED_DEOPTIMIZE
+  // Uncached
   DeoptimizeParameters parameter(kind, reason);
   return new (zone()) Operator1<DeoptimizeParameters>(  // --
       IrOpcode::kDeoptimize,                            // opcodes
@@ -580,7 +659,16 @@ const Operator* CommonOperatorBuilder::Deoptimize(DeoptimizeKind kind,
 }
 
 const Operator* CommonOperatorBuilder::DeoptimizeIf(DeoptimizeReason reason) {
-  // TODO(turbofan): Cache the most common versions of this.
+  switch (reason) {
+#define CACHED_DEOPTIMIZE_IF(Reason) \
+  case DeoptimizeReason::k##Reason:  \
+    return &cache_.kDeoptimizeIf##Reason##Operator;
+    CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
+#undef CACHED_DEOPTIMIZE_IF
+    default:
+      break;
+  }
+  // Uncached
   return new (zone()) Operator1<DeoptimizeReason>(  // --
       IrOpcode::kDeoptimizeIf,                      // opcode
       Operator::kFoldable | Operator::kNoThrow,     // properties
@@ -591,7 +679,16 @@ const Operator* CommonOperatorBuilder::DeoptimizeIf(DeoptimizeReason reason) {
 
 const Operator* CommonOperatorBuilder::DeoptimizeUnless(
     DeoptimizeReason reason) {
-  // TODO(turbofan): Cache the most common versions of this.
+  switch (reason) {
+#define CACHED_DEOPTIMIZE_UNLESS(Reason) \
+  case DeoptimizeReason::k##Reason:      \
+    return &cache_.kDeoptimizeUnless##Reason##Operator;
+    CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
+#undef CACHED_DEOPTIMIZE_UNLESS
+    default:
+      break;
+  }
+  // Uncached
   return new (zone()) Operator1<DeoptimizeReason>(  // --
       IrOpcode::kDeoptimizeUnless,                  // opcode
       Operator::kFoldable | Operator::kNoThrow,     // properties

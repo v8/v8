@@ -52,6 +52,9 @@ class Factory final {
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<FrameArray> NewFrameArray(int number_of_frames,
+                                   PretenureFlag pretenure = NOT_TENURED);
+
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
 
@@ -291,8 +294,6 @@ class Factory final {
   Handle<AccessorInfo> NewAccessorInfo();
 
   Handle<Script> NewScript(Handle<String> source);
-
-  Handle<StackTraceFrame> NewStackTraceFrame();
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,

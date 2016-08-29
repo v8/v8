@@ -79,7 +79,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_CeilDouble:
     case kS390_TruncateDouble:
     case kS390_RoundDouble:
+    case kS390_MaxFloat:
     case kS390_MaxDouble:
+    case kS390_MinFloat:
     case kS390_MinDouble:
     case kS390_AbsDouble:
     case kS390_Cntlz32:

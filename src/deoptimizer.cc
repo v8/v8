@@ -73,13 +73,8 @@ Deoptimizer* Deoptimizer::New(JSFunction* function,
                               Address from,
                               int fp_to_sp_delta,
                               Isolate* isolate) {
-  Deoptimizer* deoptimizer = new Deoptimizer(isolate,
-                                             function,
-                                             type,
-                                             bailout_id,
-                                             from,
-                                             fp_to_sp_delta,
-                                             NULL);
+  Deoptimizer* deoptimizer = new Deoptimizer(isolate, function, type,
+                                             bailout_id, from, fp_to_sp_delta);
   CHECK(isolate->deoptimizer_data()->current_ == NULL);
   isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
@@ -439,19 +434,9 @@ void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
 
-
-bool Deoptimizer::TraceEnabledFor(BailoutType deopt_type,
-                                  StackFrame::Type frame_type) {
-  switch (deopt_type) {
-    case EAGER:
-    case SOFT:
-    case LAZY:
-      return (frame_type == StackFrame::STUB)
-          ? FLAG_trace_stub_failures
-          : FLAG_trace_deopt;
-  }
-  FATAL("Unsupported deopt type");
-  return false;
+bool Deoptimizer::TraceEnabledFor(StackFrame::Type frame_type) {
+  return (frame_type == StackFrame::STUB) ? FLAG_trace_stub_failures
+                                          : FLAG_trace_deopt;
 }
 
 
@@ -467,7 +452,7 @@ const char* Deoptimizer::MessageFor(BailoutType type) {
 
 Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
                          BailoutType type, unsigned bailout_id, Address from,
-                         int fp_to_sp_delta, Code* optimized_code)
+                         int fp_to_sp_delta)
     : isolate_(isolate),
       function_(function),
       bailout_id_(bailout_id),
@@ -510,7 +495,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       function->shared()->set_opt_count(opt_count);
     }
   }
-  compiled_code_ = FindOptimizedCode(function, optimized_code);
+  compiled_code_ = FindOptimizedCode(function);
 #if DEBUG
   DCHECK(compiled_code_ != NULL);
   if (type == EAGER || type == SOFT || type == LAZY) {
@@ -521,8 +506,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   StackFrame::Type frame_type = function == NULL
       ? StackFrame::STUB
       : StackFrame::JAVA_SCRIPT;
-  trace_scope_ = TraceEnabledFor(type, frame_type) ?
-      new CodeTracer::Scope(isolate->GetCodeTracer()) : NULL;
+  trace_scope_ = TraceEnabledFor(frame_type)
+                     ? new CodeTracer::Scope(isolate->GetCodeTracer())
+                     : NULL;
 #ifdef DEBUG
   CHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
@@ -539,21 +525,11 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   input_->SetFrameType(frame_type);
 }
 
-
-Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
-                                     Code* optimized_code) {
-  switch (bailout_type_) {
-    case Deoptimizer::SOFT:
-    case Deoptimizer::EAGER:
-    case Deoptimizer::LAZY: {
-      Code* compiled_code = FindDeoptimizingCode(from_);
-      return (compiled_code == NULL)
-          ? static_cast<Code*>(isolate_->FindCodeObject(from_))
-          : compiled_code;
-    }
-  }
-  FATAL("Could not find code for optimized function");
-  return NULL;
+Code* Deoptimizer::FindOptimizedCode(JSFunction* function) {
+  Code* compiled_code = FindDeoptimizingCode(from_);
+  return (compiled_code == NULL)
+             ? static_cast<Code*>(isolate_->FindCodeObject(from_))
+             : compiled_code;
 }
 
 
@@ -1082,11 +1058,20 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   SharedFunctionInfo* shared = translated_frame->raw_shared_info();
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
+  bool is_bottommost = (0 == frame_index);
+  bool is_topmost = (output_count_ - 1 == frame_index);
   int input_index = 0;
 
   int bytecode_offset = translated_frame->node_id().ToInt();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
+
+  // All tranlations for interpreted frames contain the accumulator and hence
+  // are assumed to be in bailout state {BailoutState::TOS_REGISTER}. However
+  // such a state is only supported for the topmost frame. We need to skip
+  // pushing the accumulator for any non-topmost frame.
+  if (!is_topmost) height_in_bytes -= kPointerSize;
+
   JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
   value_iterator++;
   input_index++;
@@ -1113,8 +1098,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
       FrameDescription(output_frame_size, parameter_count);
   output_frame->SetFrameType(StackFrame::INTERPRETED);
 
-  bool is_bottommost = (0 == frame_index);
-  bool is_topmost = (output_count_ - 1 == frame_index);
   CHECK(frame_index >= 0 && frame_index < output_count_);
   CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
@@ -1234,7 +1217,9 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Set the bytecode array pointer.
   output_offset -= kPointerSize;
-  Object* bytecode_array = shared->bytecode_array();
+  Object* bytecode_array = shared->HasDebugInfo()
+                               ? shared->GetDebugInfo()->DebugBytecodeArray()
+                               : shared->bytecode_array();
   WriteValueToOutput(bytecode_array, 0, frame_index, output_offset,
                      "bytecode array ");
 
@@ -1253,20 +1238,30 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
                                  output_offset);
   }
 
-  // Put the accumulator on the stack. It will be popped by the
-  // InterpreterNotifyDeopt builtin (possibly after materialization).
-  output_offset -= kPointerSize;
-  if (goto_catch_handler) {
-    // If we are lazy deopting to a catch handler, we set the accumulator to
-    // the exception (which lives in the result register).
-    intptr_t accumulator_value =
-        input_->GetRegister(FullCodeGenerator::result_register().code());
-    WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
-                       frame_index, output_offset, "accumulator ");
-    value_iterator++;
+  // Translate the accumulator register (depending on frame position).
+  if (is_topmost) {
+    // For topmost frmae, p ut the accumulator on the stack. The bailout state
+    // for interpreted frames is always set to {BailoutState::TOS_REGISTER} and
+    // the {NotifyDeoptimized} builtin pops it off the topmost frame (possibly
+    // after materialization).
+    output_offset -= kPointerSize;
+    if (goto_catch_handler) {
+      // If we are lazy deopting to a catch handler, we set the accumulator to
+      // the exception (which lives in the result register).
+      intptr_t accumulator_value =
+          input_->GetRegister(FullCodeGenerator::result_register().code());
+      WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
+                         frame_index, output_offset, "accumulator ");
+      value_iterator++;
+    } else {
+      WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
+                                   output_offset, "accumulator ");
+    }
   } else {
-    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
-                                 output_offset);
+    // For non-topmost frames, skip the accumulator translation. For those
+    // frames, the return value from the callee will become the accumulator.
+    value_iterator++;
+    input_index++;
   }
   CHECK_EQ(0u, output_offset);
 

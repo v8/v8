@@ -4,6 +4,8 @@
 
 #include "src/heap/spaces.h"
 
+#include <utility>
+
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
@@ -348,6 +350,7 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public v8::Task {
 };
 
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {
+  ReconsiderDelayedChunks();
   if (FLAG_concurrent_sweeping) {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
         new UnmapFreeMemoryTask(this), v8::Platform::kShortRunningTask);
@@ -379,6 +382,24 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
   while ((chunk = GetMemoryChunkSafe<kNonRegular>()) != nullptr) {
     allocator_->PerformFreeMemory(chunk);
   }
+}
+
+void MemoryAllocator::Unmapper::ReconsiderDelayedChunks() {
+  std::list<MemoryChunk*> delayed_chunks(std::move(delayed_regular_chunks_));
+  // Move constructed, so the permanent list should be empty.
+  DCHECK(delayed_regular_chunks_.empty());
+  for (auto it = delayed_chunks.begin(); it != delayed_chunks.end(); ++it) {
+    AddMemoryChunkSafe<kRegular>(*it);
+  }
+}
+
+bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
+  MarkCompactCollector* mc = isolate_->heap()->mark_compact_collector();
+  // We cannot free memory chunks in new space while the sweeper is running
+  // since a sweeper thread might be stuck right before trying to lock the
+  // corresponding page.
+  return !chunk->InNewSpace() || (mc == nullptr) ||
+         mc->sweeper().IsSweepingCompleted();
 }
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,
@@ -1258,7 +1279,7 @@ void PagedSpace::SetAllocationInfo(Address top, Address limit) {
   SetTopAndLimit(top, limit);
   if (top != nullptr && top != limit &&
       heap()->incremental_marking()->black_allocation()) {
-    Page* page = Page::FromAddress(top);
+    Page* page = Page::FromAllocationAreaAddress(top);
     page->markbits()->SetRange(page->AddressToMarkbitIndex(top),
                                page->AddressToMarkbitIndex(limit));
     page->IncrementLiveBytes(static_cast<int>(limit - top));
@@ -1270,7 +1291,7 @@ void PagedSpace::MarkAllocationInfoBlack() {
   Address current_top = top();
   Address current_limit = limit();
   if (current_top != nullptr && current_top != current_limit) {
-    Page* page = Page::FromAddress(current_top);
+    Page* page = Page::FromAllocationAreaAddress(current_top);
     page->markbits()->SetRange(page->AddressToMarkbitIndex(current_top),
                                page->AddressToMarkbitIndex(current_limit));
     page->IncrementLiveBytes(static_cast<int>(current_limit - current_top));
@@ -1289,7 +1310,7 @@ void PagedSpace::EmptyAllocationInfo() {
   }
 
   if (heap()->incremental_marking()->black_allocation()) {
-    Page* page = Page::FromAddress(current_top);
+    Page* page = Page::FromAllocationAreaAddress(current_top);
     // We have to remember the end of the current black allocation area if
     // something was allocated in the current bump pointer range.
     if (allocation_info_.original_top() != current_top) {

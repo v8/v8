@@ -158,7 +158,7 @@ void FullCodeGenerator::Generate() {
   bool function_in_register = true;
 
   // Possibly allocate a local context.
-  if (info->scope()->num_heap_slots() > 0) {
+  if (info->scope()->NeedsContext()) {
     Comment cmnt(masm_, "[ Allocate context");
     bool need_write_barrier = true;
     int slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
@@ -244,9 +244,8 @@ void FullCodeGenerator::Generate() {
   }
 
   // Possibly allocate RestParameters
-  int rest_index;
-  Variable* rest_param = info->scope()->rest_parameter(&rest_index);
-  if (rest_param) {
+  Variable* rest_param = info->scope()->rest_parameter();
+  if (rest_param != nullptr) {
     Comment cmnt(masm_, "[ Allocate rest parameter array");
     if (!function_in_register) {
       __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1136,46 +1135,19 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
   Register context = rsi;
   Register temp = rdx;
 
-  Scope* s = scope();
-  while (s != NULL) {
-    if (s->num_heap_slots() > 0) {
-      if (s->calls_sloppy_eval()) {
-        // Check that extension is "the hole".
-        __ JumpIfNotRoot(ContextOperand(context, Context::EXTENSION_INDEX),
-                         Heap::kTheHoleValueRootIndex, slow);
-      }
-      // Load next context in chain.
-      __ movp(temp, ContextOperand(context, Context::PREVIOUS_INDEX));
-      // Walk the rest of the chain without clobbering rsi.
-      context = temp;
+  int to_check = scope()->ContextChainLengthUntilOutermostSloppyEval();
+  for (Scope* s = scope(); to_check > 0; s = s->outer_scope()) {
+    if (!s->NeedsContext()) continue;
+    if (s->calls_sloppy_eval()) {
+      // Check that extension is "the hole".
+      __ JumpIfNotRoot(ContextOperand(context, Context::EXTENSION_INDEX),
+                       Heap::kTheHoleValueRootIndex, slow);
     }
-    // If no outer scope calls eval, we do not need to check more
-    // context extensions.  If we have reached an eval scope, we check
-    // all extensions from this point.
-    if (!s->outer_scope_calls_sloppy_eval() || s->is_eval_scope()) break;
-    s = s->outer_scope();
-  }
-
-  if (s != NULL && s->is_eval_scope()) {
-    // Loop up the context chain.  There is no frame effect so it is
-    // safe to use raw labels here.
-    Label next, fast;
-    if (!context.is(temp)) {
-      __ movp(temp, context);
-    }
-    // Load map for comparison into register, outside loop.
-    __ LoadRoot(kScratchRegister, Heap::kNativeContextMapRootIndex);
-    __ bind(&next);
-    // Terminate at native context.
-    __ cmpp(kScratchRegister, FieldOperand(temp, HeapObject::kMapOffset));
-    __ j(equal, &fast, Label::kNear);
-    // Check that extension is "the hole".
-    __ JumpIfNotRoot(ContextOperand(temp, Context::EXTENSION_INDEX),
-                     Heap::kTheHoleValueRootIndex, slow);
     // Load next context in chain.
-    __ movp(temp, ContextOperand(temp, Context::PREVIOUS_INDEX));
-    __ jmp(&next);
-    __ bind(&fast);
+    __ movp(temp, ContextOperand(context, Context::PREVIOUS_INDEX));
+    // Walk the rest of the chain without clobbering rsi.
+    context = temp;
+    to_check--;
   }
 
   // All extension objects were empty and it is safe to use a normal global
@@ -1191,7 +1163,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
   Register temp = rbx;
 
   for (Scope* s = scope(); s != var->scope(); s = s->outer_scope()) {
-    if (s->num_heap_slots() > 0) {
+    if (s->NeedsContext()) {
       if (s->calls_sloppy_eval()) {
         // Check that extension is "the hole".
         __ JumpIfNotRoot(ContextOperand(context, Context::EXTENSION_INDEX),

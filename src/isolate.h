@@ -7,17 +7,11 @@
 
 #include <memory>
 #include <queue>
-#include <set>
 
 #include "include/v8-debug.h"
 #include "src/allocation.h"
-#include "src/assert-scope.h"
-#include "src/base/accounting-allocator.h"
 #include "src/base/atomicops.h"
-#include "src/base/hashmap.h"
 #include "src/builtins/builtins.h"
-#include "src/cancelable-task.h"
-#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/contexts.h"
 #include "src/date.h"
 #include "src/execution.h"
@@ -28,7 +22,6 @@
 #include "src/heap/heap.h"
 #include "src/messages.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/runtime-profiler.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
 #include "src/zone.h"
@@ -36,6 +29,7 @@
 namespace v8 {
 
 namespace base {
+class AccountingAllocator;
 class RandomNumberGenerator;
 }
 
@@ -43,6 +37,7 @@ namespace internal {
 
 class BasicBlockProfiler;
 class Bootstrapper;
+class CancelableTaskManager;
 class CallInterfaceDescriptorData;
 class CodeAgingHelper;
 class CodeEventDispatcher;
@@ -70,7 +65,9 @@ class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
 class Logger;
 class MaterializedObjectStore;
+class OptimizingCompileDispatcher;
 class RegExpStack;
+class RuntimeProfiler;
 class SaveContext;
 class StatsTable;
 class StringTracker;

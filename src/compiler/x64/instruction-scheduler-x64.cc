@@ -78,7 +78,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat64Neg:
     case kSSEFloat64Sqrt:
     case kSSEFloat64Round:
+    case kSSEFloat32Max:
     case kSSEFloat64Max:
+    case kSSEFloat32Min:
     case kSSEFloat64Min:
     case kSSEFloat64ToFloat32:
     case kSSEFloat32ToInt32:
@@ -125,6 +127,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Lea:
     case kX64Dec32:
     case kX64Inc32:
+    case kX64Int32x4Create:
+    case kX64Int32x4ExtractLane:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;

@@ -26,8 +26,8 @@ void CallStatsScopedTracer::AddEndTraceEvent() {
     v8::internal::tracing::AddTraceEvent(
         TRACE_EVENT_PHASE_END, p_data_->category_group_enabled, p_data_->name,
         v8::internal::tracing::kGlobalScope, v8::internal::tracing::kNoId,
-        v8::internal::tracing::kNoId, TRACE_EVENT_FLAG_COPY,
-        "runtime-call-stat",
+        v8::internal::tracing::kNoId, TRACE_EVENT_FLAG_NONE,
+        "runtime-call-stats",
         TRACE_STR_COPY(p_data_->isolate->trace_event_stats_table()->Dump()));
   } else {
     v8::internal::tracing::AddTraceEvent(

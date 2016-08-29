@@ -23,6 +23,7 @@ class InductionVariable : public ZoneObject {
   Node* init_value() const { return init_value_; }
 
   enum ConstraintKind { kStrict, kNonStrict };
+  enum ArithmeticType { kAddition, kSubtraction };
   struct Bound {
     Bound(Node* bound, ConstraintKind kind) : bound(bound), kind(kind) {}
 
@@ -33,20 +34,23 @@ class InductionVariable : public ZoneObject {
   const ZoneVector<Bound>& lower_bounds() { return lower_bounds_; }
   const ZoneVector<Bound>& upper_bounds() { return upper_bounds_; }
 
+  ArithmeticType Type() { return arithmeticType_; }
+
  private:
   friend class LoopVariableOptimizer;
 
   InductionVariable(Node* phi, Node* arith, Node* increment, Node* init_value,
-                    Zone* zone)
+                    Zone* zone, ArithmeticType arithmeticType)
       : phi_(phi),
         arith_(arith),
         increment_(increment),
         init_value_(init_value),
         lower_bounds_(zone),
-        upper_bounds_(zone) {}
+        upper_bounds_(zone),
+        arithmeticType_(arithmeticType) {}
 
-  void AddUpperBound(Node* bound, ConstraintKind kind, Zone* graph_zone);
-  void AddLowerBound(Node* bound, ConstraintKind kind, Zone* graph_zone);
+  void AddUpperBound(Node* bound, ConstraintKind kind);
+  void AddLowerBound(Node* bound, ConstraintKind kind);
 
   Node* phi_;
   Node* arith_;
@@ -54,6 +58,7 @@ class InductionVariable : public ZoneObject {
   Node* init_value_;
   ZoneVector<Bound> lower_bounds_;
   ZoneVector<Bound> upper_bounds_;
+  ArithmeticType arithmeticType_;
 };
 
 class LoopVariableOptimizer {
@@ -101,7 +106,7 @@ class LoopVariableOptimizer {
   Graph* graph_;
   CommonOperatorBuilder* common_;
   Zone* zone_;
-  ZoneMap<int, const VariableLimits*> limits_;
+  ZoneVector<const VariableLimits*> limits_;
   ZoneMap<int, InductionVariable*> induction_vars_;
 };
 

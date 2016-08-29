@@ -77,8 +77,8 @@ Semaphore::Semaphore(int count) {
   // Unaligned native handle can later cause a failure in semaphore signal.
   // Check the alignment here to catch the failure earlier.
   // Context: crbug.com/605349.
-#if V8_OS_AIX
-  // On aix sem_t is of type int
+#if V8_OS_AIX || V8_OS_FREEBSD
+  // On aix sem_t is of type int. On FreeBSD, it's a struct of 32 bits fields.
   const uintptr_t kSemaphoreAlignmentMask = sizeof(int) - 1;
 #else
   const uintptr_t kSemaphoreAlignmentMask = sizeof(void*) - 1;

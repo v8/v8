@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 class CompilationInfo;
+class CompilationJob;
 class Isolate;
 class JSFunction;
 class ParseInfo;
@@ -28,7 +29,9 @@ enum class CompileJobStatus {
   kInitial,
   kReadyToParse,
   kParsed,
+  kReadyToAnalyse,
   kReadyToCompile,
+  kCompiled,
   kFailed,
   kDone,
 };
@@ -43,6 +46,11 @@ class CompilerDispatcherJob {
   bool can_parse_on_background_thread() const {
     return can_parse_on_background_thread_;
   }
+  // Should only be called after kReadyToCompile.
+  bool can_compile_on_background_thread() const {
+    DCHECK(compile_job_.get());
+    return can_compile_on_background_thread_;
+  }
 
   // Transition from kInitial to kReadyToParse.
   void PrepareToParseOnMainThread();
@@ -50,19 +58,26 @@ class CompilerDispatcherJob {
   // Transition from kReadyToParse to kParsed.
   void Parse();
 
-  // Transition from kParsed to kReadyToCompile (or kFailed).
-  void FinalizeParsingOnMainThread();
+  // Transition from kParsed to kReadyToAnalyse (or kFailed). Returns false
+  // when transitioning to kFailed. In that case, an exception is pending.
+  bool FinalizeParsingOnMainThread();
 
-  // Transition from kFailed to kDone.
-  void ReportErrorsOnMainThread();
+  // Transition from kReadyToAnalyse to kReadyToCompile (or kFailed). Returns
+  // false when transitioning to kFailed. In that case, an exception is pending.
+  bool PrepareToCompileOnMainThread();
+
+  // Transition from kReadyToCompile to kCompiled.
+  void Compile();
+
+  // Transition from kCompiled to kDone (or kFailed). Returns false when
+  // transitioning to kFailed. In that case, an exception is pending.
+  bool FinalizeCompilingOnMainThread();
 
   // Transition from any state to kInitial and free all resources.
   void ResetOnMainThread();
 
  private:
   FRIEND_TEST(CompilerDispatcherJobTest, ScopeChain);
-
-  void InternalizeParsingResult();
 
   CompileJobStatus status_ = CompileJobStatus::kInitial;
   Isolate* isolate_;
@@ -76,8 +91,14 @@ class CompilerDispatcherJob {
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ParseInfo> parse_info_;
   std::unique_ptr<Parser> parser_;
+  std::unique_ptr<DeferredHandles> handles_from_parsing_;
+
+  // Members required for compiling.
+  std::unique_ptr<CompilationInfo> compile_info_;
+  std::unique_ptr<CompilationJob> compile_job_;
 
   bool can_parse_on_background_thread_;
+  bool can_compile_on_background_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJob);
 };

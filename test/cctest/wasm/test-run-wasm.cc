@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include "src/base/platform/elapsed-timer.h"
-
+#include "src/utils.h"
 #include "src/wasm/wasm-macro-gen.h"
 
 #include "test/cctest/cctest.h"
@@ -603,46 +603,6 @@ WASM_EXEC_TEST(Float32Neg) {
     CHECK_EQ(0x80000000,
              bit_cast<uint32_t>(*i) ^ bit_cast<uint32_t>(r.Call(*i)));
   }
-}
-
-WASM_EXEC_TEST(Float32SubMinusZero) {
-  WasmRunner<float> r(execution_mode, MachineType::Float32());
-  BUILD(r, WASM_F32_SUB(WASM_F32(-0.0), WASM_GET_LOCAL(0)));
-
-  uint32_t sNanValue =
-      bit_cast<uint32_t>(std::numeric_limits<float>::signaling_NaN());
-  uint32_t qNanValue =
-      bit_cast<uint32_t>(std::numeric_limits<float>::quiet_NaN());
-  uint32_t payload = 0x00200000;
-
-  uint32_t expected = (qNanValue & 0xffc00000) | payload;
-  uint32_t operand = (sNanValue & 0xffc00000) | payload;
-  CHECK_EQ(expected, bit_cast<uint32_t>(r.Call(bit_cast<float>(operand))));
-
-  // Change the sign of the NaN.
-  expected |= 0x80000000;
-  operand |= 0x80000000;
-  CHECK_EQ(expected, bit_cast<uint32_t>(r.Call(bit_cast<float>(operand))));
-}
-
-WASM_EXEC_TEST(Float64SubMinusZero) {
-  WasmRunner<double> r(execution_mode, MachineType::Float64());
-  BUILD(r, WASM_F64_SUB(WASM_F64(-0.0), WASM_GET_LOCAL(0)));
-
-  uint64_t sNanValue =
-      bit_cast<uint64_t>(std::numeric_limits<double>::signaling_NaN());
-  uint64_t qNanValue =
-      bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN());
-  uint64_t payload = 0x0000123456789abc;
-
-  uint64_t expected = (qNanValue & 0xfff8000000000000) | payload;
-  uint64_t operand = (sNanValue & 0xfff8000000000000) | payload;
-  CHECK_EQ(expected, bit_cast<uint64_t>(r.Call(bit_cast<double>(operand))));
-
-  // Change the sign of the NaN.
-  expected |= 0x8000000000000000;
-  operand |= 0x8000000000000000;
-  CHECK_EQ(expected, bit_cast<uint64_t>(r.Call(bit_cast<double>(operand))));
 }
 
 WASM_EXEC_TEST(Float64Neg) {
@@ -2546,21 +2506,7 @@ WASM_EXEC_TEST(F32Min) {
   BUILD(r, WASM_F32_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) {
-      float expected;
-      if (*i < *j) {
-        expected = *i;
-      } else if (*j < *i) {
-        expected = *j;
-      } else if (*i != *i) {
-        // If *i or *j is NaN, then the result is NaN.
-        expected = *i;
-      } else {
-        expected = *j;
-      }
-
-      CHECK_FLOAT_EQ(expected, r.Call(*i, *j));
-    }
+    FOR_FLOAT32_INPUTS(j) { CHECK_DOUBLE_EQ(JSMin(*i, *j), r.Call(*i, *j)); }
   }
 }
 
@@ -2570,21 +2516,7 @@ WASM_EXEC_TEST(F64Min) {
   BUILD(r, WASM_F64_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) {
-      double result = r.Call(*i, *j);
-      if (std::isnan(*i) || std::isnan(*j)) {
-        // If one of the inputs is nan, the result should be nan.
-        CHECK(std::isnan(result));
-      } else if ((*i == 0.0) && (*j == 0.0) &&
-                 (copysign(1.0, *i) != copysign(1.0, *j))) {
-        // If one input is +0.0 and the other input is -0.0, the result should
-        // be -0.0.
-        CHECK_EQ(bit_cast<uint64_t>(-0.0), bit_cast<uint64_t>(result));
-      } else {
-        double expected = *i < *j ? *i : *j;
-        CHECK_DOUBLE_EQ(expected, result);
-      }
-    }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(JSMin(*i, *j), r.Call(*i, *j)); }
   }
 }
 
@@ -2594,21 +2526,7 @@ WASM_EXEC_TEST(F32Max) {
   BUILD(r, WASM_F32_MAX(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) {
-      float expected;
-      if (*i > *j) {
-        expected = *i;
-      } else if (*j > *i) {
-        expected = *j;
-      } else if (*i != *i) {
-        // If *i or *j is NaN, then the result is NaN.
-        expected = *i;
-      } else {
-        expected = *j;
-      }
-
-      CHECK_FLOAT_EQ(expected, r.Call(*i, *j));
-    }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(JSMax(*i, *j), r.Call(*i, *j)); }
   }
 }
 
@@ -2620,18 +2538,7 @@ WASM_EXEC_TEST(F64Max) {
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
       double result = r.Call(*i, *j);
-      if (std::isnan(*i) || std::isnan(*j)) {
-        // If one of the inputs is nan, the result should be nan.
-        CHECK(std::isnan(result));
-      } else if ((*i == 0.0) && (*j == 0.0) &&
-                 (copysign(1.0, *i) != copysign(1.0, *j))) {
-        // If one input is +0.0 and the other input is -0.0, the result should
-        // be -0.0.
-        CHECK_EQ(bit_cast<uint64_t>(0.0), bit_cast<uint64_t>(result));
-      } else {
-        double expected = *i > *j ? *i : *j;
-        CHECK_DOUBLE_EQ(expected, result);
-      }
+      CHECK_DOUBLE_EQ(JSMax(*i, *j), result);
     }
   }
 }

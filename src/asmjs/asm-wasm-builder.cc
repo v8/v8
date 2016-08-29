@@ -830,6 +830,12 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitAssignment(Assignment* expr) {
     bool as_init = false;
     if (scope_ == kModuleScope) {
+      // Skip extra assignment inserted by the parser when in this form:
+      // (function Module(a, b, c) {... })
+      if (expr->target()->IsVariableProxy() &&
+          expr->target()->AsVariableProxy()->var()->mode() == CONST_LEGACY) {
+        return;
+      }
       Property* prop = expr->value()->AsProperty();
       if (prop != nullptr) {
         VariableProxy* vp = prop->obj()->AsVariableProxy();

@@ -39,6 +39,7 @@
 #ifndef V8_SHARED
 #include "src/api.h"
 #include "src/base/cpu.h"
+#include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
@@ -2538,6 +2539,9 @@ static void DumpHeapConstants(i::Isolate* isolate) {
 
 int Shell::Main(int argc, char* argv[]) {
   std::ofstream trace_file;
+#ifndef V8_SHARED
+  v8::base::debug::EnableInProcessStackDumping();
+#endif
 #if (defined(_WIN32) || defined(_WIN64))
   UINT new_flags =
       SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;

@@ -1249,6 +1249,10 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vucomiss %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x50:
+        AppendToBuffer("vmovmskps %s,", NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x54:
         AppendToBuffer("vandps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));

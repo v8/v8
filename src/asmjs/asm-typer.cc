@@ -17,7 +17,6 @@
 #include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/globals.h"
-#include "src/type-cache.h"
 #include "src/utils.h"
 
 #define FAIL(node, msg)                                        \
@@ -326,6 +325,7 @@ AsmTyper::VariableInfo* AsmTyper::ImportLookup(Property* import) {
   if (i == stdlib->end()) {
     return nullptr;
   }
+  stdlib_uses_.insert(i->second->standard_member());
   return i->second;
 }
 
@@ -428,7 +428,8 @@ AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(Variable* var) {
   if (var_info == nullptr) {
     return kNone;
   }
-  return var_info->standard_member();
+  StandardMember member = var_info->standard_member();
+  return member;
 }
 
 bool AsmTyper::Validate() {
@@ -595,7 +596,21 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   ZoneVector<Assignment*> function_pointer_tables(zone_);
   FlattenedStatements iter(zone_, fun->body());
   auto* use_asm_directive = iter.Next();
-  if (use_asm_directive == nullptr || !IsUseAsmDirective(use_asm_directive)) {
+  if (use_asm_directive == nullptr) {
+    FAIL(fun, "Missing \"use asm\".");
+  }
+  // Check for extra assignment inserted by the parser when in this form:
+  // (function Module(a, b, c) {... })
+  ExpressionStatement* estatement = use_asm_directive->AsExpressionStatement();
+  if (estatement != nullptr) {
+    Assignment* assignment = estatement->expression()->AsAssignment();
+    if (assignment != nullptr && assignment->target()->IsVariableProxy() &&
+        assignment->target()->AsVariableProxy()->var()->mode() ==
+            CONST_LEGACY) {
+      use_asm_directive = iter.Next();
+    }
+  }
+  if (!IsUseAsmDirective(use_asm_directive)) {
     FAIL(fun, "Missing \"use asm\".");
   }
   source_layout.AddUseAsm(*use_asm_directive);
@@ -1728,7 +1743,11 @@ AsmType* AsmTyper::ValidateAssignmentExpression(Assignment* assignment) {
       return value_type;
     }
 
-    DCHECK(target_info->type() != AsmType::None());
+    if (!target_info->IsMutable()) {
+      FAIL(assignment, "Can't assign to immutable symbol.");
+    }
+
+    DCHECK_NE(AsmType::None(), target_info->type());
     if (!value_type->IsA(target_info->type())) {
       FAIL(assignment, "Type mismatch in assignment.");
     }

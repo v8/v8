@@ -306,6 +306,7 @@
   V(ObjectIsSmi)                    \
   V(ObjectIsString)                 \
   V(ObjectIsUndetectable)           \
+  V(ArrayBufferWasNeutered)         \
   V(EnsureWritableFastElements)     \
   V(MaybeGrowFastElements)          \
   V(TransitionElementsKind)
@@ -407,12 +408,6 @@
   V(ChangeInt32ToInt64)         \
   V(ChangeUint32ToFloat64)      \
   V(ChangeUint32ToUint64)       \
-  V(ImpossibleToBit)            \
-  V(ImpossibleToWord32)         \
-  V(ImpossibleToWord64)         \
-  V(ImpossibleToFloat32)        \
-  V(ImpossibleToFloat64)        \
-  V(ImpossibleToTagged)         \
   V(TruncateFloat64ToFloat32)   \
   V(TruncateInt64ToInt32)       \
   V(RoundFloat64ToInt32)        \
@@ -434,6 +429,8 @@
   V(Float32Abs)                 \
   V(Float32Sqrt)                \
   V(Float32RoundDown)           \
+  V(Float32Max)                 \
+  V(Float32Min)                 \
   V(Float64Add)                 \
   V(Float64Sub)                 \
   V(Float64Neg)                 \

@@ -207,7 +207,7 @@ TEST_F(AstDecoderTest, Float32Const) {
   byte code[] = {kExprF32Const, 0, 0, 0, 0};
   float* ptr = reinterpret_cast<float*>(code + 1);
   for (int i = 0; i < 30; i++) {
-    *ptr = i * -7.75f;
+    WriteLittleEndianValue<float>(ptr, i * -7.75f);
     EXPECT_VERIFIES(sigs.f_ff(), code);
   }
 }
@@ -216,7 +216,7 @@ TEST_F(AstDecoderTest, Float64Const) {
   byte code[] = {kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0};
   double* ptr = reinterpret_cast<double*>(code + 1);
   for (int i = 0; i < 30; i++) {
-    *ptr = i * 33.45;
+    WriteLittleEndianValue<double>(ptr, i * 33.45);
     EXPECT_VERIFIES(sigs.d_dd(), code);
   }
 }
@@ -236,6 +236,11 @@ TEST_F(AstDecoderTest, GetLocal0_param) {
 TEST_F(AstDecoderTest, GetLocal0_local) {
   AddLocals(kAstI32, 1);
   EXPECT_VERIFIES(sigs.i_v(), kCodeGetLocal0);
+}
+
+TEST_F(AstDecoderTest, TooManyLocals) {
+  AddLocals(kAstI32, 4034986500);
+  EXPECT_FAILURE(sigs.i_v(), kCodeGetLocal0);
 }
 
 TEST_F(AstDecoderTest, GetLocal0_param_n) {
@@ -269,8 +274,23 @@ TEST_F(AstDecoderTest, GetLocal_off_end) {
   EXPECT_FAILURE(sigs.i_i(), code);
 }
 
+TEST_F(AstDecoderTest, NumLocalBelowLimit) {
+  AddLocals(kAstI32, kMaxNumWasmLocals - 1);
+  EXPECT_VERIFIES_INLINE(sigs.v_v(), WASM_NOP);
+}
+
+TEST_F(AstDecoderTest, NumLocalAtLimit) {
+  AddLocals(kAstI32, kMaxNumWasmLocals);
+  EXPECT_VERIFIES_INLINE(sigs.v_v(), WASM_NOP);
+}
+
+TEST_F(AstDecoderTest, NumLocalAboveLimit) {
+  AddLocals(kAstI32, kMaxNumWasmLocals + 1);
+  EXPECT_FAILURE_INLINE(sigs.v_v(), WASM_NOP);
+}
+
 TEST_F(AstDecoderTest, GetLocal_varint) {
-  const int kMaxLocals = 8000000;
+  const int kMaxLocals = kMaxNumWasmLocals;
   AddLocals(kAstI32, kMaxLocals);
 
   for (int index = 0; index < kMaxLocals; index = index * 11 + 5) {

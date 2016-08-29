@@ -101,9 +101,7 @@ class InstructionScheduler final : public ZoneObject {
         nodes_(scheduler->zone()) {
     }
 
-    void AddNode(ScheduleGraphNode* node) {
-      nodes_.push_back(node);
-    }
+    void AddNode(ScheduleGraphNode* node);
 
     bool IsEmpty() const {
       return nodes_.empty();
@@ -125,11 +123,6 @@ class InstructionScheduler final : public ZoneObject {
     // Look for the best candidate to schedule, remove it from the queue and
     // return it.
     ScheduleGraphNode* PopBestCandidate(int cycle);
-
-   private:
-    // Compare the two nodes and return true if node1 is a better candidate than
-    // node2 (i.e. node1 should be scheduled before node2).
-    bool CompareNodes(ScheduleGraphNode *node1, ScheduleGraphNode *node2) const;
   };
 
   // A queue which pop a random node from the queue to perform stress tests on

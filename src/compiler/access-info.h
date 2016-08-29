@@ -17,9 +17,11 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
-class TypeCache;
 
 namespace compiler {
+
+// Forward declarations.
+class TypeCache;
 
 // Whether we are loading a property or storing to a property.
 enum class AccessMode { kLoad, kStore };

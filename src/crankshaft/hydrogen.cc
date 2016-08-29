@@ -9,6 +9,7 @@
 
 #include "src/allocation-site-scopes.h"
 #include "src/ast/ast-numbering.h"
+#include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/crankshaft/hydrogen-bce.h"
 #include "src/crankshaft/hydrogen-canonicalize.h"
@@ -114,7 +115,7 @@ class HOptimizedGraphBuilderWithPositions : public HOptimizedGraphBuilder {
 #undef DEF_VISIT
 };
 
-HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
+HCompilationJob::Status HCompilationJob::PrepareJobImpl() {
   if (!isolate()->use_crankshaft() ||
       info()->shared_info()->dont_crankshaft()) {
     // Crankshaft is entirely disabled.
@@ -203,7 +204,7 @@ HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
   return SUCCEEDED;
 }
 
-HCompilationJob::Status HCompilationJob::OptimizeGraphImpl() {
+HCompilationJob::Status HCompilationJob::ExecuteJobImpl() {
   DCHECK(graph_ != NULL);
   BailoutReason bailout_reason = kNoReason;
 
@@ -217,7 +218,7 @@ HCompilationJob::Status HCompilationJob::OptimizeGraphImpl() {
   return FAILED;
 }
 
-HCompilationJob::Status HCompilationJob::GenerateCodeImpl() {
+HCompilationJob::Status HCompilationJob::FinalizeJobImpl() {
   DCHECK(chunk_ != NULL);
   DCHECK(graph_ != NULL);
   {
@@ -4650,9 +4651,7 @@ void HOptimizedGraphBuilder::SetUpScope(DeclarationScope* scope) {
     environment()->Bind(scope->arguments(), arguments_object);
   }
 
-  int rest_index;
-  Variable* rest = scope->rest_parameter(&rest_index);
-  if (rest) {
+  if (scope->rest_parameter() != nullptr) {
     return Bailout(kRestParameter);
   }
 
@@ -8400,14 +8399,12 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     return false;
   }
 
-  if (target_info.scope()->num_heap_slots() > 0) {
+  if (target_info.scope()->NeedsContext()) {
     TraceInline(target, caller, "target has context-allocated variables");
     return false;
   }
 
-  int rest_index;
-  Variable* rest = target_info.scope()->rest_parameter(&rest_index);
-  if (rest) {
+  if (target_info.scope()->rest_parameter() != nullptr) {
     TraceInline(target, caller, "target uses rest parameters");
     return false;
   }

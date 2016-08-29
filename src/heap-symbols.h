@@ -128,6 +128,7 @@
   V(sourceText_string, "sourceText")                               \
   V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
+  V(stackTraceLimit_string, "stackTraceLimit")                     \
   V(strict_compare_ic_string, "===")                               \
   V(string_string, "string")                                       \
   V(String_string, "String")                                       \
@@ -161,7 +162,13 @@
   V(array_iteration_kind_symbol)            \
   V(array_iterator_next_symbol)             \
   V(array_iterator_object_symbol)           \
-  V(call_site_frame_symbol)                 \
+  V(call_site_constructor_symbol)           \
+  V(call_site_function_symbol)              \
+  V(call_site_position_symbol)              \
+  V(call_site_receiver_symbol)              \
+  V(call_site_strict_symbol)                \
+  V(call_site_wasm_obj_symbol)              \
+  V(call_site_wasm_func_index_symbol)       \
   V(class_end_position_symbol)              \
   V(class_start_position_symbol)            \
   V(detailed_stack_trace_symbol)            \

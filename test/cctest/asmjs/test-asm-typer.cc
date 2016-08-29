@@ -13,6 +13,8 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
+#include "src/compiler.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
@@ -1933,6 +1935,65 @@ TEST(B63099) {
   for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
     if (!ValidationOf(Module(kTests[ii]))
              ->FailsWithMessage("Invalid heap access index")) {
+      std::cerr << "Test:\n" << kTests[ii];
+      CHECK(false);
+    }
+  }
+}
+
+// This issue was triggered because assignments to immutable symbols (e.g., the
+// module's name, or any of the asm.js' module parameters) was not being
+// handled.
+TEST(B640194) {
+  const char* kTests[] = {
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  function f() {\n"
+      "    asm = 0;\n"
+      "  }\n"
+      "  return f;\n"
+      "}",
+      "function asm(stdlib) {\n"
+      "  'use asm';\n"
+      "  function f() {\n"
+      "    stdlib = 0;\n"
+      "  }\n"
+      "  return f;\n"
+      "}",
+      "function asm(stdlib, foreign) {\n"
+      "  'use asm';\n"
+      "  function f() {\n"
+      "    foreign = 0;\n"
+      "  }\n"
+      "  return f;\n"
+      "}",
+      "function asm(stdlib, foreign, heap) {\n"
+      "  'use asm';\n"
+      "  function f() {\n"
+      "    heap = 0;\n"
+      "  }\n"
+      "  return f;\n"
+      "}",
+      "function asm(stdlib, foreign, heap) {\n"
+      "  'use asm';\n"
+      "  var f = stdlib.Math.fround;\n"
+      "  function f() {\n"
+      "    f = 0;\n"
+      "  }\n"
+      "  return f;\n"
+      "}",
+      "function asm(stdlib, foreign, heap) {\n"
+      "  'use asm';\n"
+      "  var E = stdlib.Math.E;\n"
+      "  function f() {\n"
+      "    E = 0;\n"
+      "  }\n"
+      "  return f;\n"
+      "}",
+  };
+  for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
+    if (!ValidationOf(Module(kTests[ii]))
+             ->FailsWithMessage("Can't assign to immutable symbol")) {
       std::cerr << "Test:\n" << kTests[ii];
       CHECK(false);
     }

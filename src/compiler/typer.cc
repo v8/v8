@@ -16,8 +16,8 @@
 #include "src/compiler/node.h"
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/type-cache.h"
 #include "src/objects-inl.h"
-#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -89,7 +89,6 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_CASE)
       SIMPLIFIED_OTHER_OP_LIST(DECLARE_CASE)
       MACHINE_OP_LIST(DECLARE_CASE)
-      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
       JS_SIMPLE_UNOP_LIST(DECLARE_CASE)
       JS_OBJECT_OP_LIST(DECLARE_CASE)
       JS_CONTEXT_OP_LIST(DECLARE_CASE)
@@ -131,6 +130,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(End)
       SIMPLIFIED_CHANGE_OP_LIST(DECLARE_CASE)
       SIMPLIFIED_CHECKED_OP_LIST(DECLARE_CASE)
+      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -152,7 +152,6 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_CASE)
       SIMPLIFIED_OTHER_OP_LIST(DECLARE_CASE)
       MACHINE_OP_LIST(DECLARE_CASE)
-      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
       JS_SIMPLE_UNOP_LIST(DECLARE_CASE)
       JS_OBJECT_OP_LIST(DECLARE_CASE)
       JS_CONTEXT_OP_LIST(DECLARE_CASE)
@@ -194,6 +193,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(End)
       SIMPLIFIED_CHANGE_OP_LIST(DECLARE_CASE)
       SIMPLIFIED_CHECKED_OP_LIST(DECLARE_CASE)
+      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -215,7 +215,6 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_OTHER_OP_LIST(DECLARE_METHOD)
   MACHINE_OP_LIST(DECLARE_METHOD)
-  MACHINE_SIMD_OP_LIST(DECLARE_METHOD)
   JS_OP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
@@ -651,9 +650,24 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
   DCHECK(res != induction_vars_->induction_variables().end());
   InductionVariable* induction_var = res->second;
 
+  InductionVariable::ArithmeticType arithmetic_type = induction_var->Type();
+
   double min = -V8_INFINITY;
   double max = V8_INFINITY;
-  if (increment_type->Min() >= 0) {
+
+  double increment_min;
+  double increment_max;
+  if (arithmetic_type == InductionVariable::ArithmeticType::kAddition) {
+    increment_min = increment_type->Min();
+    increment_max = increment_type->Max();
+  } else {
+    DCHECK(arithmetic_type == InductionVariable::ArithmeticType::kSubtraction);
+    increment_min = -increment_type->Max();
+    increment_max = -increment_type->Min();
+  }
+
+  if (increment_min >= 0) {
+    // increasing sequence
     min = initial_type->Min();
     for (auto bound : induction_var->upper_bounds()) {
       Type* bound_type = TypeOrNone(bound.bound);
@@ -668,11 +682,12 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
       if (bound.kind == InductionVariable::kStrict) {
         bound_max -= 1;
       }
-      max = std::min(max, bound_max + increment_type->Max());
+      max = std::min(max, bound_max + increment_max);
     }
     // The upper bound must be at least the initial value's upper bound.
     max = std::max(max, initial_type->Max());
-  } else if (increment_type->Max() <= 0) {
+  } else if (increment_max <= 0) {
+    // decreasing sequence
     max = initial_type->Max();
     for (auto bound : induction_var->lower_bounds()) {
       Type* bound_type = TypeOrNone(bound.bound);
@@ -687,7 +702,7 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
       if (bound.kind == InductionVariable::kStrict) {
         bound_min += 1;
       }
-      min = std::max(min, bound_min + increment_type->Min());
+      min = std::max(min, bound_min + increment_min);
     }
     // The lower bound must be at most the initial value's lower bound.
     min = std::min(min, initial_type->Min());
@@ -700,8 +715,11 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     OFStream os(stdout);
     os << std::setprecision(10);
     os << "Loop (" << NodeProperties::GetControlInput(node)->id()
-       << ") variable bounds for phi " << node->id() << ": (" << min << ", "
-       << max << ")\n";
+       << ") variable bounds in "
+       << (arithmetic_type == InductionVariable::ArithmeticType::kAddition
+               ? "addition"
+               : "subtraction")
+       << " for phi " << node->id() << ": (" << min << ", " << max << ")\n";
   }
   return Type::Range(min, max, typer_->zone());
 }
@@ -1676,6 +1694,9 @@ Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {
   return TypeUnaryOp(node, ObjectIsUndetectable);
 }
 
+Type* Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
+  return Type::Boolean();
+}
 
 // Machine operators.
 
@@ -1961,28 +1982,6 @@ Type* Typer::Visitor::TypeChangeUint32ToUint64(Node* node) {
   return Type::Internal();
 }
 
-Type* Typer::Visitor::TypeImpossibleToWord32(Node* node) {
-  return Type::None();
-}
-
-Type* Typer::Visitor::TypeImpossibleToWord64(Node* node) {
-  return Type::None();
-}
-
-Type* Typer::Visitor::TypeImpossibleToFloat32(Node* node) {
-  return Type::None();
-}
-
-Type* Typer::Visitor::TypeImpossibleToFloat64(Node* node) {
-  return Type::None();
-}
-
-Type* Typer::Visitor::TypeImpossibleToTagged(Node* node) {
-  return Type::None();
-}
-
-Type* Typer::Visitor::TypeImpossibleToBit(Node* node) { return Type::None(); }
-
 Type* Typer::Visitor::TypeTruncateFloat64ToFloat32(Node* node) {
   return Type::Intersect(Type::Number(), Type::UntaggedFloat32(), zone());
 }
@@ -2084,6 +2083,9 @@ Type* Typer::Visitor::TypeFloat32LessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeFloat32Max(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat32Min(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Add(Node* node) { return Type::Number(); }
 
@@ -2289,36 +2291,9 @@ Type* Typer::Visitor::TypeWord32PairShr(Node* node) { return Type::Internal(); }
 
 Type* Typer::Visitor::TypeWord32PairSar(Node* node) { return Type::Internal(); }
 
-// SIMD type methods.
-
-#define SIMD_RETURN_SIMD(Name) \
-  Type* Typer::Visitor::Type##Name(Node* node) { return Type::Simd(); }
-MACHINE_SIMD_RETURN_SIMD_OP_LIST(SIMD_RETURN_SIMD)
-MACHINE_SIMD_GENERIC_OP_LIST(SIMD_RETURN_SIMD)
-#undef SIMD_RETURN_SIMD
-
-#define SIMD_RETURN_NUM(Name) \
-  Type* Typer::Visitor::Type##Name(Node* node) { return Type::Number(); }
-MACHINE_SIMD_RETURN_NUM_OP_LIST(SIMD_RETURN_NUM)
-#undef SIMD_RETURN_NUM
-
-#define SIMD_RETURN_BOOL(Name) \
-  Type* Typer::Visitor::Type##Name(Node* node) { return Type::Boolean(); }
-MACHINE_SIMD_RETURN_BOOL_OP_LIST(SIMD_RETURN_BOOL)
-#undef SIMD_RETURN_BOOL
-
 // Heap constants.
 
 Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
-  if (value->IsJSTypedArray()) {
-    switch (JSTypedArray::cast(*value)->type()) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                          \
-    return typer_->cache_.k##Type##Array;
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-    }
-  }
   if (Type::IsInteger(*value)) {
     return Type::Range(value->Number(), value->Number(), zone());
   }

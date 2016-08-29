@@ -34,11 +34,14 @@ class V8_EXPORT FastAccessorBuilder {
   ValueId LoadInternalFieldUnchecked(ValueId value_id, int field_no);
   ValueId LoadValue(ValueId value_id, int offset);
   ValueId LoadObject(ValueId value_id, int offset);
+  ValueId ToSmi(ValueId value_id);
+
   void ReturnValue(ValueId value_id);
   void CheckFlagSetOrReturnNull(ValueId value_id, int mask);
   void CheckNotZeroOrReturnNull(ValueId value_id);
   LabelId MakeLabel();
   void SetLabel(LabelId label_id);
+  void Goto(LabelId label_id);
   void CheckNotZeroOrJump(ValueId value_id, LabelId label_id);
   ValueId Call(v8::FunctionCallback callback, ValueId value_id);
 

@@ -866,9 +866,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDebugBreak:
       __ int3();
       break;
-    case kArchImpossible:
-      __ Abort(kConversionFromImpossibleValue);
-      break;
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.
@@ -1295,6 +1292,61 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ addq(rsp, Immediate(kDoubleSize));
       unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                        -kDoubleSize);
+      break;
+    }
+    case kSSEFloat32Max: {
+      Label compare_nan, compare_swap, done_compare;
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ Ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      auto ool =
+          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(above, &done_compare, Label::kNear);
+      __ j(below, &compare_swap, Label::kNear);
+      __ Movmskps(kScratchRegister, i.InputDoubleRegister(0));
+      __ testl(kScratchRegister, Immediate(1));
+      __ j(zero, &done_compare, Label::kNear);
+      __ bind(&compare_swap);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Movss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ Movss(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      __ bind(&done_compare);
+      __ bind(ool->exit());
+      break;
+    }
+    case kSSEFloat32Min: {
+      Label compare_swap, done_compare;
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ Ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      auto ool =
+          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(below, &done_compare, Label::kNear);
+      __ j(above, &compare_swap, Label::kNear);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Movmskps(kScratchRegister, i.InputDoubleRegister(1));
+      } else {
+        __ Movss(kScratchDoubleReg, i.InputOperand(1));
+        __ Movmskps(kScratchRegister, kScratchDoubleReg);
+      }
+      __ testl(kScratchRegister, Immediate(1));
+      __ j(zero, &done_compare, Label::kNear);
+      __ bind(&compare_swap);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Movss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ Movss(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      __ bind(&done_compare);
+      __ bind(ool->exit());
       break;
     }
     case kSSEFloat64Max: {
@@ -1975,6 +2027,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       __ xchgl(i.InputRegister(index), operand);
+      break;
+    }
+    case kX64Int32x4Create: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Movd(dst, i.InputRegister(0));
+      __ shufps(dst, dst, 0x0);
+      break;
+    }
+    case kX64Int32x4ExtractLane: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
     case kCheckedLoadInt8:

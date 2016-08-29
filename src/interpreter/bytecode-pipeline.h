@@ -47,7 +47,7 @@ class BytecodePipelineStage {
 
   // Flush the pipeline and generate a bytecode array.
   virtual Handle<BytecodeArray> ToBytecodeArray(
-      int fixed_register_count, int parameter_count,
+      Isolate* isolate, int fixed_register_count, int parameter_count,
       Handle<FixedArray> handler_table) = 0;
 };
 
@@ -173,6 +173,14 @@ class BytecodeNode final : ZoneObject {
     bytecode_ = bytecode;
     operands_[0] = operand0;
     operands_[1] = operand1;
+  }
+  void set_bytecode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+                    uint32_t operand2) {
+    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 3);
+    bytecode_ = bytecode;
+    operands_[0] = operand0;
+    operands_[1] = operand1;
+    operands_[2] = operand2;
   }
 
   // Clone |other|.

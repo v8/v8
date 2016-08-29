@@ -10,6 +10,7 @@
 #include "src/base/ieee754.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
+#include "src/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
@@ -3747,24 +3748,6 @@ TEST(RunFloat64AddP) {
   }
 }
 
-namespace {
-
-double fmax(double x, double y) {
-  if (std::isnan(x)) return x;
-  if (std::isnan(y)) return y;
-  if (std::signbit(x) < std::signbit(y)) return x;
-  return std::max(x, y);
-}
-
-double fmin(double x, double y) {
-  if (std::isnan(x)) return x;
-  if (std::isnan(y)) return y;
-  if (std::signbit(x) < std::signbit(y)) return y;
-  return std::min(x, y);
-}
-
-}  // namespace
-
 TEST(RunFloat64MaxP) {
   RawMachineAssemblerTester<int32_t> m;
   Float64BinopTester bt(&m);
@@ -3772,7 +3755,7 @@ TEST(RunFloat64MaxP) {
 
   FOR_FLOAT64_INPUTS(pl) {
     FOR_FLOAT64_INPUTS(pr) {
-      CHECK_DOUBLE_EQ(fmax(*pl, *pr), bt.call(*pl, *pr));
+      CHECK_DOUBLE_EQ(JSMax(*pl, *pr), bt.call(*pl, *pr));
     }
   }
 }
@@ -3785,11 +3768,34 @@ TEST(RunFloat64MinP) {
 
   FOR_FLOAT64_INPUTS(pl) {
     FOR_FLOAT64_INPUTS(pr) {
-      CHECK_DOUBLE_EQ(fmin(*pl, *pr), bt.call(*pl, *pr));
+      CHECK_DOUBLE_EQ(JSMin(*pl, *pr), bt.call(*pl, *pr));
     }
   }
 }
 
+TEST(RunFloat32Max) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float32BinopTester bt(&m);
+  bt.AddReturn(m.Float32Max(bt.param0, bt.param1));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      CHECK_FLOAT_EQ(JSMax(*pl, *pr), bt.call(*pl, *pr));
+    }
+  }
+}
+
+TEST(RunFloat32Min) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float32BinopTester bt(&m);
+  bt.AddReturn(m.Float32Min(bt.param0, bt.param1));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      CHECK_FLOAT_EQ(JSMin(*pl, *pr), bt.call(*pl, *pr));
+    }
+  }
+}
 
 TEST(RunFloat32SubP) {
   RawMachineAssemblerTester<int32_t> m;

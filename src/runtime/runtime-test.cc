@@ -7,10 +7,12 @@
 #include <memory>
 
 #include "src/arguments.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/isolate-inl.h"
+#include "src/runtime-profiler.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
 #include "src/wasm/wasm-module.h"
@@ -662,6 +664,37 @@ RUNTIME_FUNCTION(Runtime_InNewSpace) {
   return isolate->heap()->ToBoolean(isolate->heap()->InNewSpace(obj));
 }
 
+static bool IsAsmWasmCode(Isolate* isolate, Handle<JSFunction> function) {
+  if (!function->shared()->HasAsmWasmData()) {
+    // Doesn't have wasm data.
+    return false;
+  }
+  if (function->shared()->code() !=
+      isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
+    // Hasn't been compiled yet.
+    return false;
+  }
+  return true;
+}
+
+RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  // TODO(mstarzinger): --always-opt should still allow asm.js->wasm,
+  // but currently does not. For now, pretend asm.js->wasm is on for
+  // this case. Be more accurate once this is corrected.
+  return isolate->heap()->ToBoolean(
+      ((FLAG_always_opt || FLAG_prepare_always_opt) && FLAG_validate_asm) ||
+      IsAsmWasmCode(isolate, function));
+}
+
+RUNTIME_FUNCTION(Runtime_IsNotAsmWasmCode) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return isolate->heap()->ToBoolean(!IsAsmWasmCode(isolate, function));
+}
 
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)       \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                  \

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TYPE_CACHE_H_
-#define V8_TYPE_CACHE_H_
+#ifndef V8_COMPILER_TYPE_CACHE_H_
+#define V8_COMPILER_TYPE_CACHE_H_
 
 #include "src/types.h"
 
 namespace v8 {
 namespace internal {
+namespace compiler {
 
 class TypeCache final {
  private:
@@ -77,40 +78,6 @@ class TypeCache final {
       Type::Union(kSafeInteger, Type::MinusZero(), zone());
   Type* const kPositiveSafeInteger = CreateRange(0.0, kMaxSafeInteger);
 
-  Type* const kUntaggedUndefined =
-      Type::Intersect(Type::Undefined(), Type::Untagged(), zone());
-
-  // Asm.js related types.
-  Type* const kAsmSigned = kInt32;
-  Type* const kAsmUnsigned = kUint32;
-  Type* const kAsmInt = Type::Union(kAsmSigned, kAsmUnsigned, zone());
-  Type* const kAsmFixnum = Type::Intersect(kAsmSigned, kAsmUnsigned, zone());
-  Type* const kAsmFloat = kFloat32;
-  Type* const kAsmDouble = kFloat64;
-  Type* const kAsmFloatQ = Type::Union(kAsmFloat, kUntaggedUndefined, zone());
-  Type* const kAsmDoubleQ = Type::Union(kAsmDouble, kUntaggedUndefined, zone());
-  // Not part of the Asm.js type hierarchy, but represents a part of what
-  // intish encompasses.
-  Type* const kAsmIntQ = Type::Union(kAsmInt, kUntaggedUndefined, zone());
-  Type* const kAsmFloatDoubleQ = Type::Union(kAsmFloatQ, kAsmDoubleQ, zone());
-  // Asm.js size unions.
-  Type* const kAsmSize8 = Type::Union(kInt8, kUint8, zone());
-  Type* const kAsmSize16 = Type::Union(kInt16, kUint16, zone());
-  Type* const kAsmSize32 =
-      Type::Union(Type::Union(kInt32, kUint32, zone()), kAsmFloat, zone());
-  Type* const kAsmSize64 = kFloat64;
-  // Asm.js other types.
-  Type* const kAsmComparable = Type::Union(
-      kAsmSigned,
-      Type::Union(kAsmUnsigned, Type::Union(kAsmDouble, kAsmFloat, zone()),
-                  zone()),
-      zone());
-  Type* const kAsmIntArrayElement =
-      Type::Union(Type::Union(kInt8, kUint8, zone()),
-                  Type::Union(Type::Union(kInt16, kUint16, zone()),
-                              Type::Union(kInt32, kUint32, zone()), zone()),
-                  zone());
-
   // The FixedArray::length property always containts a smi in the range
   // [0, FixedArray::kMaxLength].
   Type* const kFixedArrayLengthType = CreateNative(
@@ -168,7 +135,8 @@ class TypeCache final {
   Zone* zone() { return &zone_; }
 };
 
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TYPE_CACHE_H_
+#endif  // V8_COMPILER_TYPE_CACHE_H_

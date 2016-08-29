@@ -28,7 +28,7 @@ LoopVariableOptimizer::LoopVariableOptimizer(Graph* graph,
     : graph_(graph),
       common_(common),
       zone_(zone),
-      limits_(zone),
+      limits_(graph->NodeCount(), zone),
       induction_vars_(zone) {}
 
 void LoopVariableOptimizer::Run() {
@@ -40,14 +40,13 @@ void LoopVariableOptimizer::Run() {
     queue.pop();
     queued.Set(node, false);
 
-    DCHECK(limits_.find(node->id()) == limits_.end());
+    DCHECK_NULL(limits_[node->id()]);
     bool all_inputs_visited = true;
     int inputs_end = (node->opcode() == IrOpcode::kLoop)
                          ? kFirstBackedge
                          : node->op()->ControlInputCount();
     for (int i = 0; i < inputs_end; i++) {
-      auto input = limits_.find(NodeProperties::GetControlInput(node, i)->id());
-      if (input == limits_.end()) {
+      if (limits_[NodeProperties::GetControlInput(node, i)->id()] == nullptr) {
         all_inputs_visited = false;
         break;
       }
@@ -55,7 +54,7 @@ void LoopVariableOptimizer::Run() {
     if (!all_inputs_visited) continue;
 
     VisitNode(node);
-    DCHECK(limits_.find(node->id()) != limits_.end());
+    DCHECK_NOT_NULL(limits_[node->id()]);
 
     // Queue control outputs.
     for (Edge edge : node->use_edges()) {
@@ -149,8 +148,7 @@ class LoopVariableOptimizer::VariableLimits : public ZoneObject {
 };
 
 void InductionVariable::AddUpperBound(Node* bound,
-                                      InductionVariable::ConstraintKind kind,
-                                      Zone* graph_zone) {
+                                      InductionVariable::ConstraintKind kind) {
   if (FLAG_trace_turbo_loop) {
     OFStream os(stdout);
     os << "New upper bound for " << phi()->id() << " (loop "
@@ -161,8 +159,7 @@ void InductionVariable::AddUpperBound(Node* bound,
 }
 
 void InductionVariable::AddLowerBound(Node* bound,
-                                      InductionVariable::ConstraintKind kind,
-                                      Zone* graph_zone) {
+                                      InductionVariable::ConstraintKind kind) {
   if (FLAG_trace_turbo_loop) {
     OFStream os(stdout);
     os << "New lower bound for " << phi()->id() << " (loop "
@@ -183,16 +180,14 @@ void LoopVariableOptimizer::VisitBackedge(Node* from, Node* loop) {
         NodeProperties::GetControlInput(constraint->left()) == loop) {
       auto var = induction_vars_.find(constraint->left()->id());
       if (var != induction_vars_.end()) {
-        var->second->AddUpperBound(constraint->right(), constraint->kind(),
-                                   graph()->zone());
+        var->second->AddUpperBound(constraint->right(), constraint->kind());
       }
     }
     if (constraint->right()->opcode() == IrOpcode::kPhi &&
         NodeProperties::GetControlInput(constraint->right()) == loop) {
       auto var = induction_vars_.find(constraint->right()->id());
       if (var != induction_vars_.end()) {
-        var->second->AddUpperBound(constraint->left(), constraint->kind(),
-                                   graph()->zone());
+        var->second->AddLowerBound(constraint->left(), constraint->kind());
       }
     }
   }
@@ -307,10 +302,15 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   DCHECK_EQ(IrOpcode::kLoop, NodeProperties::GetControlInput(phi)->opcode());
   Node* initial = phi->InputAt(0);
   Node* arith = phi->InputAt(1);
-  // TODO(jarin) Support subtraction.
-  if (arith->opcode() != IrOpcode::kJSAdd) {
+  InductionVariable::ArithmeticType arithmeticType;
+  if (arith->opcode() == IrOpcode::kJSAdd) {
+    arithmeticType = InductionVariable::ArithmeticType::kAddition;
+  } else if (arith->opcode() == IrOpcode::kJSSubtract) {
+    arithmeticType = InductionVariable::ArithmeticType::kSubtraction;
+  } else {
     return nullptr;
   }
+
   // TODO(jarin) Support both sides.
   if (arith->InputAt(0) != phi) {
     if (arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber ||
@@ -319,7 +319,8 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
     }
   }
   Node* incr = arith->InputAt(1);
-  return new (zone()) InductionVariable(phi, arith, incr, initial, zone());
+  return new (zone())
+      InductionVariable(phi, arith, incr, initial, zone(), arithmeticType);
 }
 
 void LoopVariableOptimizer::DetectInductionVariables(Node* loop) {

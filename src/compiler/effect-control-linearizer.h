@@ -122,6 +122,8 @@ class EffectControlLinearizer {
                                          Node* control);
   ValueEffectControl LowerObjectIsUndetectable(Node* node, Node* effect,
                                                Node* control);
+  ValueEffectControl LowerArrayBufferWasNeutered(Node* node, Node* effect,
+                                                 Node* control);
   ValueEffectControl LowerStringCharCodeAt(Node* node, Node* effect,
                                            Node* control);
   ValueEffectControl LowerStringFromCharCode(Node* node, Node* effect,

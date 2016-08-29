@@ -63,6 +63,7 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
 
 }  // namespace
 
+// ECMA 402 6.2.3
 RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
@@ -73,6 +74,8 @@ RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   v8::String::Utf8Value locale_id(v8::Utils::ToLocal(locale_id_str));
 
   // Return value which denotes invalid language tag.
+  // TODO(jshin): Can uloc_{for,to}TanguageTag fail even for structually valid
+  // language tags? If not, just add CHECK instead of returning 'invalid-tag'.
   const char* const kInvalidTag = "invalid-tag";
 
   UErrorCode error = U_ZERO_ERROR;

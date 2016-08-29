@@ -58,7 +58,9 @@ namespace compiler {
   V(SSEFloat64Mul)                 \
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
+  V(SSEFloat32Max)                 \
   V(SSEFloat64Max)                 \
+  V(SSEFloat32Min)                 \
   V(SSEFloat64Min)                 \
   V(SSEFloat64Abs)                 \
   V(SSEFloat64Neg)                 \

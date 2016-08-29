@@ -600,9 +600,8 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
 // Used to build a list of global declaration initial value pairs.
 class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
  public:
-  GlobalDeclarationsBuilder(Isolate* isolate, Zone* zone)
-      : isolate_(isolate),
-        declarations_(0, zone),
+  explicit GlobalDeclarationsBuilder(Zone* zone)
+      : declarations_(0, zone),
         constant_pool_entry_(0),
         has_constant_pool_entry_(false) {}
 
@@ -619,14 +618,14 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   Handle<FixedArray> AllocateDeclarationPairs(CompilationInfo* info) {
     DCHECK(has_constant_pool_entry_);
     int array_index = 0;
-    Handle<FixedArray> pairs = isolate_->factory()->NewFixedArray(
+    Handle<FixedArray> pairs = info->isolate()->factory()->NewFixedArray(
         static_cast<int>(declarations_.size() * 2), TENURED);
     for (std::pair<FeedbackVectorSlot, FunctionLiteral*> declaration :
          declarations_) {
       FunctionLiteral* func = declaration.second;
       Handle<Object> initial_value;
       if (func == nullptr) {
-        initial_value = isolate_->factory()->undefined_value();
+        initial_value = info->isolate()->factory()->undefined_value();
       } else {
         initial_value =
             Compiler::GetSharedFunctionInfo(func, info->script(), info);
@@ -657,15 +656,13 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   bool empty() { return declarations_.empty(); }
 
  private:
-  Isolate* isolate_;
   ZoneVector<std::pair<FeedbackVectorSlot, FunctionLiteral*>> declarations_;
   size_t constant_pool_entry_;
   bool has_constant_pool_entry_;
 };
 
 BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
-    : isolate_(info->isolate()),
-      zone_(info->zone()),
+    : zone_(info->zone()),
       builder_(new (zone()) BytecodeArrayBuilder(
           info->isolate(), info->zone(), info->num_parameters_including_this(),
           info->scope()->MaxNestedContextChainLength(),
@@ -673,8 +670,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
           info->SourcePositionRecordingMode())),
       info_(info),
       scope_(info->scope()),
-      globals_builder_(new (zone()) GlobalDeclarationsBuilder(info->isolate(),
-                                                              info->zone())),
+      globals_builder_(new (zone()) GlobalDeclarationsBuilder(info->zone())),
       global_declarations_(0, info->zone()),
       function_literals_(0, info->zone()),
       native_function_literals_(0, info->zone()),
@@ -684,24 +680,18 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       register_allocator_(nullptr),
       generator_resume_points_(info->literal()->yield_count(), info->zone()),
       generator_state_(),
-      loop_depth_(0) {
-  InitializeAstVisitor(isolate()->stack_guard()->real_climit());
+      loop_depth_(0),
+      home_object_symbol_(info->isolate()->factory()->home_object_symbol()),
+      prototype_string_(info->isolate()->factory()->prototype_string()) {
 }
 
-Handle<BytecodeArray> BytecodeGenerator::MakeBytecode() {
-  // Create an inner HandleScope to avoid unnecessarily canonicalizing handles
-  // created as part of bytecode finalization.
-  HandleScope scope(isolate());
-
-  GenerateBytecode();
-  FinalizeBytecode();
-
+Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
+  AllocateDeferredConstants();
   if (HasStackOverflow()) return Handle<BytecodeArray>();
-
-  return scope.CloseAndEscape(builder()->ToBytecodeArray());
+  return builder()->ToBytecodeArray(isolate);
 }
 
-void BytecodeGenerator::FinalizeBytecode() {
+void BytecodeGenerator::AllocateDeferredConstants() {
   // Build global declaration pair arrays.
   for (GlobalDeclarationsBuilder* globals_builder : global_declarations_) {
     Handle<FixedArray> declarations =
@@ -732,10 +722,12 @@ void BytecodeGenerator::FinalizeBytecode() {
   }
 }
 
-void BytecodeGenerator::GenerateBytecode() {
+void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
+
+  InitializeAstVisitor(stack_limit);
 
   // Initialize the incoming context.
   ContextScope incoming_context(this, scope(), false);
@@ -777,8 +769,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   VisitArgumentsObject(scope()->arguments());
 
   // Build rest arguments array if it is used.
-  int rest_index;
-  Variable* rest_parameter = scope()->rest_parameter(&rest_index);
+  Variable* rest_parameter = scope()->rest_parameter();
   VisitRestArgumentsArray(rest_parameter);
 
   // Build assignment to {.this_function} variable if it is used.
@@ -876,7 +867,10 @@ void BytecodeGenerator::VisitGeneratorPrologue() {
   BuildIndexedJump(generator_state_, 0, generator_resume_points_.size(),
                    generator_resume_points_);
 
-  builder()->Bind(&regular_call);
+  builder()
+      ->Bind(&regular_call)
+      .LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
+      .StoreAccumulatorInRegister(generator_state_);
   // This is a regular call. Fall through to the ordinary function prologue,
   // after which we will run into the generator object creation and other extra
   // code inserted by the parser.
@@ -1022,7 +1016,7 @@ void BytecodeGenerator::VisitDeclarations(
 
   // Push and reset globals builder.
   global_declarations_.push_back(globals_builder());
-  globals_builder_ = new (zone()) GlobalDeclarationsBuilder(isolate(), zone());
+  globals_builder_ = new (zone()) GlobalDeclarationsBuilder(zone());
 }
 
 void BytecodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
@@ -1118,7 +1112,6 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   Register tag = VisitForRegisterValue(stmt->tag());
 
   // Iterate over all cases and create nodes for label comparison.
-  BytecodeLabel done_label;
   for (int i = 0; i < clauses->length(); i++) {
     CaseClause* clause = clauses->at(i);
 
@@ -1139,8 +1132,8 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     switch_builder.DefaultAt(default_index);
   } else {
     // Otherwise if we have reached here none of the cases matched, so jump to
-    // done.
-    builder()->Jump(&done_label);
+    // the end.
+    switch_builder.Break();
   }
 
   // Iterate over all cases and create the case bodies.
@@ -1149,9 +1142,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     switch_builder.SetCaseTarget(i);
     VisitStatements(clause->statements());
   }
-  builder()->Bind(&done_label);
-
-  switch_builder.SetBreakTarget(done_label);
+  switch_builder.BindBreakTarget();
 }
 
 void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
@@ -1164,7 +1155,7 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
   ControlScopeForIteration execution_control(this, stmt, loop_builder);
   builder()->StackCheck(stmt->position());
   Visit(stmt->body());
-  loop_builder->SetContinueTarget();
+  loop_builder->BindContinueTarget();
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
@@ -1179,9 +1170,8 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
     VisitIterationHeader(stmt, &loop_builder);
     VisitIterationBody(stmt, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->cond());
-    // TODO(klaasb) VisitForTest for loop conditions
-    VisitForAccumulatorValue(stmt->cond());
-    loop_builder.JumpToHeaderIfTrue();
+    VisitForTest(stmt->cond(), loop_builder.header_labels(),
+                 loop_builder.break_labels(), TestFallthrough::kElse);
   }
   loop_builder.EndLoop();
 }
@@ -1196,9 +1186,10 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   VisitIterationHeader(stmt, &loop_builder);
   if (!stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
-    // TODO(klaasb) VisitForTest for loop conditions
-    VisitForAccumulatorValue(stmt->cond());
-    loop_builder.BreakIfFalse();
+    BytecodeLabels loop_body(zone());
+    VisitForTest(stmt->cond(), &loop_body, loop_builder.break_labels(),
+                 TestFallthrough::kThen);
+    loop_body.Bind(builder());
   }
   VisitIterationBody(stmt, &loop_builder);
   loop_builder.JumpToHeader();
@@ -1219,9 +1210,10 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   VisitIterationHeader(stmt, &loop_builder);
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
-    // TODO(klaasb) VisitForTest for loop conditions
-    VisitForAccumulatorValue(stmt->cond());
-    loop_builder.BreakIfFalse();
+    BytecodeLabels loop_body(zone());
+    VisitForTest(stmt->cond(), &loop_body, loop_builder.break_labels(),
+                 TestFallthrough::kThen);
+    loop_body.Bind(builder());
   }
   VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {
@@ -1494,11 +1486,10 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
   register_allocator()->PrepareForConsecutiveAllocations(2);
   Register literal = register_allocator()->NextConsecutiveRegister();
   Register prototype = register_allocator()->NextConsecutiveRegister();
-  Handle<String> name = isolate()->factory()->prototype_string();
   FeedbackVectorSlot slot = expr->PrototypeSlot();
   builder()
       ->StoreAccumulatorInRegister(literal)
-      .LoadNamedProperty(literal, name, feedback_index(slot))
+      .LoadNamedProperty(literal, prototype_string(), feedback_index(slot))
       .StoreAccumulatorInRegister(prototype);
 
   VisitClassLiteralProperties(expr, literal, prototype);
@@ -1616,7 +1607,7 @@ void BytecodeGenerator::VisitClassLiteralStaticPrototypeWithComputedName(
     Register key) {
   BytecodeLabel done;
   builder()
-      ->LoadLiteral(isolate()->factory()->prototype_string())
+      ->LoadLiteral(prototype_string())
       .CompareOperation(Token::Value::EQ_STRICT, key)
       .JumpIfFalse(&done)
       .CallRuntime(Runtime::kThrowStaticPrototypeError, Register(0), 0)
@@ -3169,7 +3160,7 @@ void BytecodeGenerator::VisitNewLocalFunctionContext() {
     builder()
         ->LoadAccumulatorWithRegister(Register::function_closure())
         .StoreAccumulatorInRegister(closure)
-        .LoadLiteral(scope->GetScopeInfo(isolate()))
+        .LoadLiteral(scope->scope_info())
         .StoreAccumulatorInRegister(scope_info)
         .CallRuntime(Runtime::kNewScriptContext, closure, 2);
   } else {
@@ -3212,22 +3203,18 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
   DCHECK(scope->is_block_scope());
 
   VisitFunctionClosureForContext();
-
-  builder()->CreateBlockContext(scope->GetScopeInfo(isolate()));
+  builder()->CreateBlockContext(scope->scope_info());
   execution_result()->SetResultInAccumulator();
 }
 
 void BytecodeGenerator::VisitNewLocalWithContext() {
   AccumulatorResultScope accumulator_execution_result(this);
 
-  register_allocator()->PrepareForConsecutiveAllocations(2);
-  Register extension_object = register_allocator()->NextConsecutiveRegister();
-  Register closure = register_allocator()->NextConsecutiveRegister();
+  Register extension_object = register_allocator()->NewRegister();
 
   builder()->CastAccumulatorToJSObject(extension_object);
   VisitFunctionClosureForContext();
-  builder()->StoreAccumulatorInRegister(closure).CallRuntime(
-      Runtime::kPushWithContext, extension_object, 2);
+  builder()->CreateWithContext(extension_object);
   execution_result()->SetResultInAccumulator();
 }
 
@@ -3235,19 +3222,10 @@ void BytecodeGenerator::VisitNewLocalCatchContext(Variable* variable) {
   AccumulatorResultScope accumulator_execution_result(this);
   DCHECK(variable->IsContextSlot());
 
-  // Allocate a new local block context.
-  register_allocator()->PrepareForConsecutiveAllocations(3);
-  Register name = register_allocator()->NextConsecutiveRegister();
-  Register exception = register_allocator()->NextConsecutiveRegister();
-  Register closure = register_allocator()->NextConsecutiveRegister();
-
-  builder()
-      ->StoreAccumulatorInRegister(exception)
-      .LoadLiteral(variable->name())
-      .StoreAccumulatorInRegister(name);
+  Register exception = register_allocator()->NewRegister();
+  builder()->StoreAccumulatorInRegister(exception);
   VisitFunctionClosureForContext();
-  builder()->StoreAccumulatorInRegister(closure).CallRuntime(
-      Runtime::kPushCatchContext, name, 3);
+  builder()->CreateCatchContext(exception, variable->name());
   execution_result()->SetResultInAccumulator();
 }
 
@@ -3268,11 +3246,11 @@ void BytecodeGenerator::VisitSetHomeObject(Register value, Register home_object,
                                            int slot_number) {
   Expression* expr = property->value();
   if (FunctionLiteral::NeedsHomeObject(expr)) {
-    Handle<Name> name = isolate()->factory()->home_object_symbol();
     FeedbackVectorSlot slot = property->GetSlot(slot_number);
     builder()
         ->LoadAccumulatorWithRegister(home_object)
-        .StoreNamedProperty(value, name, feedback_index(slot), language_mode());
+        .StoreNamedProperty(value, home_object_symbol(), feedback_index(slot),
+                            language_mode());
   }
 }
 

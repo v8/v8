@@ -8,9 +8,11 @@
 #include <memory>
 
 #include "src/allocation.h"
-#include "src/ast/ast.h"
 #include "src/bailout-reason.h"
 #include "src/compilation-dependencies.h"
+#include "src/contexts.h"
+#include "src/frames.h"
+#include "src/isolate.h"
 #include "src/source-position-table.h"
 #include "src/source-position.h"
 #include "src/zone.h"
@@ -54,8 +56,12 @@ class Compiler : public AllStatic {
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
+  // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
+  static CompilationJob* PrepareUnoptimizedCompilationJob(
+      CompilationInfo* info);
+
   // Generate and install code from previously queued compilation job.
-  static void FinalizeCompilationJob(CompilationJob* job);
+  static bool FinalizeCompilationJob(CompilationJob* job);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -167,7 +173,7 @@ class CompilationInfo final {
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
   CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
-                  Code::Flags code_flags = Code::ComputeFlags(Code::STUB));
+                  Code::Flags code_flags);
   ~CompilationInfo();
 
   ParseInfo* parse_info() const { return parse_info_; }
@@ -330,19 +336,11 @@ class CompilationInfo final {
         (FLAG_trap_on_stub_deopt && IsStub());
   }
 
-  bool has_native_context() const {
-    return !closure().is_null() && (closure()->native_context() != nullptr);
-  }
+  bool has_native_context() const;
+  Context* native_context() const;
 
-  Context* native_context() const {
-    return has_native_context() ? closure()->native_context() : nullptr;
-  }
-
-  bool has_global_object() const { return has_native_context(); }
-
-  JSGlobalObject* global_object() const {
-    return has_global_object() ? native_context()->global_object() : nullptr;
-  }
+  bool has_global_object() const;
+  JSGlobalObject* global_object() const;
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
@@ -380,9 +378,7 @@ class CompilationInfo final {
     deferred_handles_ = deferred_handles;
   }
 
-  void ReopenHandlesInNewHandleScope() {
-    closure_ = Handle<JSFunction>(*closure_);
-  }
+  void ReopenHandlesInNewHandleScope();
 
   void AbortOptimization(BailoutReason reason) {
     DCHECK(reason != kNoReason);
@@ -428,10 +424,10 @@ class CompilationInfo final {
     // Do not remove.
     Handle<Code> inlined_code_object_root;
 
-    explicit InlinedFunctionHolder(
-        Handle<SharedFunctionInfo> inlined_shared_info)
+    InlinedFunctionHolder(Handle<SharedFunctionInfo> inlined_shared_info,
+                          Handle<Code> inlined_code_object_root)
         : shared_info(inlined_shared_info),
-          inlined_code_object_root(inlined_shared_info->code()) {}
+          inlined_code_object_root(inlined_code_object_root) {}
   };
 
   typedef std::vector<InlinedFunctionHolder> InlinedFunctionList;
@@ -439,15 +435,11 @@ class CompilationInfo final {
     return inlined_functions_;
   }
 
-  void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function) {
-    inlined_functions_.push_back(InlinedFunctionHolder(inlined_function));
-  }
+  void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function);
 
   std::unique_ptr<char[]> GetDebugName() const;
 
-  Code::Kind output_code_kind() const {
-    return Code::ExtractKindFromFlags(code_flags_);
-  }
+  Code::Kind output_code_kind() const;
 
   StackFrame::Type GetOutputStackFrameType() const;
 
@@ -537,62 +529,98 @@ class CompilationInfo final {
 // A base class for compilation jobs intended to run concurrent to the main
 // thread. The job is split into three phases which are called in sequence on
 // different threads and with different limitations:
-//  1) CreateGraph:   Runs on main thread. No major limitations.
-//  2) OptimizeGraph: Runs concurrently. No heap allocation or handle derefs.
-//  3) GenerateCode:  Runs on main thread. No dependency changes.
+//  1) PrepareJob:   Runs on main thread. No major limitations.
+//  2) ExecuteJob:   Runs concurrently. No heap allocation or handle derefs.
+//  3) FinalizeJob:  Runs on main thread. No dependency changes.
 //
-// Each of the three phases can either fail or succeed. Apart from their return
-// value, the status of the phase last run can be checked using {last_status()}
-// as well. When failing we distinguish between the following levels:
-//  a) AbortOptimization: Persistent failure, disable future optimization.
-//  b) RetryOptimzation: Transient failure, try again next time.
+// Each of the three phases can either fail or succeed. The current state of
+// the job can be checked using {state()}.
 class CompilationJob {
  public:
-  explicit CompilationJob(CompilationInfo* info, const char* compiler_name)
-      : info_(info), compiler_name_(compiler_name), last_status_(SUCCEEDED) {}
+  enum Status { SUCCEEDED, FAILED };
+  enum class State {
+    kReadyToPrepare,
+    kReadyToExecute,
+    kReadyToFinalize,
+    kSucceeded,
+    kFailed,
+  };
+
+  CompilationJob(Isolate* isolate, CompilationInfo* info,
+                 const char* compiler_name,
+                 State initial_state = State::kReadyToPrepare)
+      : info_(info),
+        compiler_name_(compiler_name),
+        state_(initial_state),
+        stack_limit_(isolate->stack_guard()->real_climit()) {}
   virtual ~CompilationJob() {}
 
-  enum Status { FAILED, SUCCEEDED };
+  // Prepare the compile job. Must be called on the main thread.
+  MUST_USE_RESULT Status PrepareJob();
 
-  MUST_USE_RESULT Status CreateGraph();
-  MUST_USE_RESULT Status OptimizeGraph();
-  MUST_USE_RESULT Status GenerateCode();
+  // Executes the compile job. Can be called on a background thread if
+  // can_execute_on_background_thread() returns true.
+  MUST_USE_RESULT Status ExecuteJob();
 
-  Status last_status() const { return last_status_; }
+  // Finalizes the compile job. Must be called on the main thread.
+  MUST_USE_RESULT Status FinalizeJob();
+
+  // Report a transient failure, try again next time. Should only be called on
+  // optimization compilation jobs.
+  Status RetryOptimization(BailoutReason reason) {
+    DCHECK(info_->IsOptimizing());
+    info_->RetryOptimization(reason);
+    state_ = State::kFailed;
+    return FAILED;
+  }
+
+  // Report a persistent failure, disable future optimization on the function.
+  // Should only be called on optimization compilation jobs.
+  Status AbortOptimization(BailoutReason reason) {
+    DCHECK(info_->IsOptimizing());
+    info_->AbortOptimization(reason);
+    state_ = State::kFailed;
+    return FAILED;
+  }
+
+  void RecordOptimizedCompilationStats() const;
+  void RecordUnoptimizedCompilationStats() const;
+
+  virtual bool can_execute_on_background_thread() const { return true; }
+
+  void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
+  uintptr_t stack_limit() const { return stack_limit_; }
+
+  State state() const { return state_; }
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() const { return info()->isolate(); }
 
-  Status RetryOptimization(BailoutReason reason) {
-    info_->RetryOptimization(reason);
-    return SetLastStatus(FAILED);
-  }
-
-  Status AbortOptimization(BailoutReason reason) {
-    info_->AbortOptimization(reason);
-    return SetLastStatus(FAILED);
-  }
-
-  void RecordOptimizationStats();
-
  protected:
-  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
-
   // Overridden by the actual implementation.
-  virtual Status CreateGraphImpl() = 0;
-  virtual Status OptimizeGraphImpl() = 0;
-  virtual Status GenerateCodeImpl() = 0;
+  virtual Status PrepareJobImpl() = 0;
+  virtual Status ExecuteJobImpl() = 0;
+  virtual Status FinalizeJobImpl() = 0;
+
+  // Registers weak object to optimized code dependencies.
+  // TODO(turbofan): Move this to pipeline.cc once Crankshaft dies.
+  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
 
  private:
   CompilationInfo* info_;
-  base::TimeDelta time_taken_to_create_graph_;
-  base::TimeDelta time_taken_to_optimize_;
-  base::TimeDelta time_taken_to_codegen_;
+  base::TimeDelta time_taken_to_prepare_;
+  base::TimeDelta time_taken_to_execute_;
+  base::TimeDelta time_taken_to_finalize_;
   const char* compiler_name_;
-  Status last_status_;
+  State state_;
+  uintptr_t stack_limit_;
 
-  MUST_USE_RESULT Status SetLastStatus(Status status) {
-    last_status_ = status;
-    return last_status_;
+  MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
+    if (status == SUCCEEDED) {
+      state_ = next_state;
+    } else {
+      state_ = State::kFailed;
+    }
+    return status;
   }
 };
 

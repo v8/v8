@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_CODE_GENERATOR_H_
 #define V8_COMPILER_CODE_GENERATOR_H_
 
+#include "src/compiler.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/unwinding-info-writer.h"

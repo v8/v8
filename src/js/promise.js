@@ -44,7 +44,7 @@ var lastMicrotaskId = 0;
 
 // ES#sec-createresolvingfunctions
 // CreateResolvingFunctions ( promise )
-function CreateResolvingFunctions(promise) {
+function CreateResolvingFunctions(promise, debugEvent) {
   var alreadyResolved = false;
 
   // ES#sec-promise-resolve-functions
@@ -60,7 +60,7 @@ function CreateResolvingFunctions(promise) {
   var reject = reason => {
     if (alreadyResolved === true) return;
     alreadyResolved = true;
-    RejectPromise(promise, reason);
+    RejectPromise(promise, reason, debugEvent);
   };
 
   return {
@@ -83,7 +83,8 @@ var GlobalPromise = function Promise(executor) {
   }
 
   var promise = PromiseInit(%_NewObject(GlobalPromise, new.target));
-  var callbacks = CreateResolvingFunctions(promise);
+  // Calling the reject function would be a new exception, so debugEvent = true
+  var callbacks = CreateResolvingFunctions(promise, true);
   var debug_is_active = DEBUG_IS_ACTIVE;
   try {
     if (debug_is_active) %DebugPushPromise(promise);
@@ -215,8 +216,8 @@ function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
   }
 }
 
-function PromiseIdResolveHandler(x) { return x }
-function PromiseIdRejectHandler(r) { throw r }
+function PromiseIdResolveHandler(x) { return x; }
+function PromiseIdRejectHandler(r) { %_ReThrow(r); }
 
 function PromiseNopResolver() {}
 
@@ -238,14 +239,16 @@ function PromiseCreate() {
 // Promise Resolve Functions, steps 6-13
 function ResolvePromise(promise, resolution) {
   if (resolution === promise) {
-    return RejectPromise(promise, %make_type_error(kPromiseCyclic, resolution));
+    return RejectPromise(promise,
+                         %make_type_error(kPromiseCyclic, resolution),
+                         true);
   }
   if (IS_RECEIVER(resolution)) {
     // 25.4.1.3.2 steps 8-12
     try {
       var then = resolution.then;
     } catch (e) {
-      return RejectPromise(promise, e);
+      return RejectPromise(promise, e, true);
     }
 
     // Resolution is a native promise and if it's already resolved or
@@ -268,7 +271,8 @@ function ResolvePromise(promise, resolution) {
           // Revoke previously triggered reject event.
           %PromiseRevokeReject(resolution);
         }
-        RejectPromise(promise, thenableValue);
+        // Don't cause a debug event as this case is forwarding a rejection
+        RejectPromise(promise, thenableValue, false);
         SET_PRIVATE(resolution, promiseHasHandlerSymbol, true);
         return;
       }
@@ -283,7 +287,9 @@ function ResolvePromise(promise, resolution) {
         if (instrumenting) {
           %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
         }
-        var callbacks = CreateResolvingFunctions(promise);
+        // These resolving functions simply forward the exception, so
+        // don't create a new debugEvent.
+        var callbacks = CreateResolvingFunctions(promise, false);
         try {
           %_Call(then, resolution, callbacks.resolve, callbacks.reject);
         } catch (e) {
@@ -305,26 +311,35 @@ function ResolvePromise(promise, resolution) {
 
 // ES#sec-rejectpromise
 // RejectPromise ( promise, reason )
-function RejectPromise(promise, reason) {
+function RejectPromise(promise, reason, debugEvent) {
   // Check promise status to confirm that this reject has an effect.
   // Call runtime for callbacks to the debugger or for unhandled reject.
+  // The debugEvent parameter sets whether a debug ExceptionEvent should
+  // be triggered. It should be set to false when forwarding a rejection
+  // rather than creating a new one.
   if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
-    var debug_is_active = DEBUG_IS_ACTIVE;
-    if (debug_is_active ||
+    // This check is redundant with checks in the runtime, but it may help
+    // avoid unnecessary runtime calls.
+    if ((debugEvent && DEBUG_IS_ACTIVE) ||
         !HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
-      %PromiseRejectEvent(promise, reason, debug_is_active);
+      %PromiseRejectEvent(promise, reason, debugEvent);
     }
   }
   FulfillPromise(promise, kRejected, reason, promiseRejectReactionsSymbol)
 }
 
+// Export to bindings
+function DoRejectPromise(promise, reason) {
+  return RejectPromise(promise, reason, true);
+}
+
 // ES#sec-newpromisecapability
 // NewPromiseCapability ( C )
-function NewPromiseCapability(C) {
+function NewPromiseCapability(C, debugEvent) {
   if (C === GlobalPromise) {
     // Optimized case, avoid extra closure.
     var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
-    var callbacks = CreateResolvingFunctions(promise);
+    var callbacks = CreateResolvingFunctions(promise, debugEvent);
     return {
       promise: promise,
       resolve: callbacks.resolve,
@@ -346,18 +361,6 @@ function NewPromiseCapability(C) {
   return result;
 }
 
-// Unspecified V8-specific legacy function
-function PromiseDefer() {
-  %IncrementUseCounter(kPromiseDefer);
-  return NewPromiseCapability(this);
-}
-
-// Unspecified V8-specific legacy function
-function PromiseAccept(x) {
-  %IncrementUseCounter(kPromiseAccept);
-  return %_Call(PromiseResolve, this, x);
-}
-
 // ES#sec-promise.reject
 // Promise.reject ( x )
 function PromiseReject(r) {
@@ -367,27 +370,15 @@ function PromiseReject(r) {
   if (this === GlobalPromise) {
     // Optimized case, avoid extra closure.
     var promise = PromiseCreateAndSet(kRejected, r);
-    // The debug event for this would always be an uncaught promise reject,
-    // which is usually simply noise. Do not trigger that debug event.
-    %PromiseRejectEvent(promise, r, false);
+    // Trigger debug events if the debugger is on, as Promise.reject is
+    // equivalent to throwing an exception directly.
+    %PromiseRejectEventFromStack(promise, r);
     return promise;
   } else {
-    var promiseCapability = NewPromiseCapability(this);
+    var promiseCapability = NewPromiseCapability(this, true);
     %_Call(promiseCapability.reject, UNDEFINED, r);
     return promiseCapability.promise;
   }
-}
-
-// Shortcut Promise.reject and Promise.resolve() implementations, used by
-// Async Functions implementation.
-function PromiseCreateRejected(r) {
-  return %_Call(PromiseReject, GlobalPromise, r);
-}
-
-function PromiseCreateResolved(value) {
-  var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
-  var resolveResult = ResolvePromise(promise, value);
-  return promise;
 }
 
 function PromiseCastResolved(value) {
@@ -439,15 +430,10 @@ function PromiseThen(onResolve, onReject) {
   }
 
   var constructor = SpeciesConstructor(this, GlobalPromise);
-  var resultCapability = NewPromiseCapability(constructor);
+  // Pass false for debugEvent so .then chaining does not trigger
+  // redundant ExceptionEvents.
+  var resultCapability = NewPromiseCapability(constructor, false);
   return PerformPromiseThen(this, onResolve, onReject, resultCapability);
-}
-
-// Unspecified V8-specific legacy function
-// Chain is left around for now as an alias for then
-function PromiseChain(onResolve, onReject) {
-  %IncrementUseCounter(kPromiseChain);
-  return %_Call(PromiseThen, this, onResolve, onReject);
 }
 
 // ES#sec-promise.prototype.catch
@@ -473,7 +459,8 @@ function PromiseResolve(x) {
     return promise;
   }
 
-  var promiseCapability = NewPromiseCapability(this);
+  // debugEvent is not so meaningful here as it will be resolved
+  var promiseCapability = NewPromiseCapability(this, true);
   var resolveResult = %_Call(promiseCapability.resolve, UNDEFINED, x);
   return promiseCapability.promise;
 }
@@ -485,7 +472,9 @@ function PromiseAll(iterable) {
     throw %make_type_error(kCalledOnNonObject, "Promise.all");
   }
 
-  var deferred = NewPromiseCapability(this);
+  // false debugEvent so that forwarding the rejection through all does not
+  // trigger redundant ExceptionEvents
+  var deferred = NewPromiseCapability(this, false);
   var resolutions = new InternalArray();
   var count;
 
@@ -536,7 +525,9 @@ function PromiseRace(iterable) {
     throw %make_type_error(kCalledOnNonObject, PromiseRace);
   }
 
-  var deferred = NewPromiseCapability(this);
+  // false debugEvent so that forwarding the rejection through race does not
+  // trigger redundant ExceptionEvents
+  var deferred = NewPromiseCapability(this, false);
   try {
     for (var value of iterable) {
       this.resolve(value).then(deferred.resolve, deferred.reject);
@@ -615,14 +606,11 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
 
 %InstallToContext([
   "promise_catch", PromiseCatch,
-  "promise_chain", PromiseChain,
   "promise_create", PromiseCreate,
   "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
-  "promise_reject", RejectPromise,
+  "promise_reject", DoRejectPromise,
   "promise_resolve", ResolvePromise,
   "promise_then", PromiseThen,
-  "promise_create_rejected", PromiseCreateRejected,
-  "promise_create_resolved", PromiseCreateResolved
 ]);
 
 // This allows extras to create promises quickly without building extra
@@ -631,24 +619,17 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
 utils.InstallFunctions(extrasUtils, 0, [
   "createPromise", PromiseCreate,
   "resolvePromise", ResolvePromise,
-  "rejectPromise", RejectPromise
+  "rejectPromise", DoRejectPromise
 ]);
 
-// TODO(v8:4567): Allow experimental natives to remove function prototype
-[PromiseChain, PromiseDefer, PromiseAccept].forEach(
-    fn => %FunctionRemovePrototype(fn));
-
 utils.Export(function(to) {
-  to.PromiseChain = PromiseChain;
-  to.PromiseDefer = PromiseDefer;
-  to.PromiseAccept = PromiseAccept;
-
   to.PromiseCastResolved = PromiseCastResolved;
   to.PromiseThen = PromiseThen;
 
   to.GlobalPromise = GlobalPromise;
   to.NewPromiseCapability = NewPromiseCapability;
   to.PerformPromiseThen = PerformPromiseThen;
+  to.RejectPromise = RejectPromise;
 });
 
 })

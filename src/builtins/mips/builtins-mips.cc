@@ -1045,10 +1045,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         FieldMemOperand(a0, SharedFunctionInfo::kFunctionDataOffset));
   __ bind(&bytecode_array_loaded);
 
+  // Check whether we should continue to use the interpreter.
+  Label switch_to_different_code_kind;
+  __ lw(a0, FieldMemOperand(a0, SharedFunctionInfo::kCodeOffset));
+  __ Branch(&switch_to_different_code_kind, ne, a0,
+            Operand(masm->CodeObject()));  // Self-reference to this code.
+
   // Check function data field is actually a BytecodeArray object.
-  Label bytecode_array_not_present;
-  __ JumpIfRoot(kInterpreterBytecodeArrayRegister,
-                Heap::kUndefinedValueRootIndex, &bytecode_array_not_present);
   if (FLAG_debug_code) {
     __ SmiTst(kInterpreterBytecodeArrayRegister, t0);
     __ Assert(ne, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry, t0,
@@ -1119,10 +1122,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex));
   __ Branch(&bytecode_array_loaded);
 
-  // If the bytecode array is no longer present, then the underlying function
-  // has been switched to a different kind of code and we heal the closure by
-  // switching the code entry field over to the new code object as well.
-  __ bind(&bytecode_array_not_present);
+  // If the shared code is no longer this entry trampoline, then the underlying
+  // function has been switched to a different kind of code and we heal the
+  // closure by switching the code entry field over to the new code as well.
+  __ bind(&switch_to_different_code_kind);
   __ LeaveFrame(StackFrame::JAVA_SCRIPT);
   __ lw(t0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(t0, FieldMemOperand(t0, SharedFunctionInfo::kCodeOffset));
@@ -1444,23 +1447,47 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   Label failed;
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    // Preserve argument count for later compare.
+    __ Move(t4, a0);
     // Push a copy of the target function and the new target.
     // Push function as parameter to the runtime call.
     __ SmiTag(a0);
     __ Push(a0, a1, a3, a1);
 
     // Copy arguments from caller (stdlib, foreign, heap).
-    for (int i = 2; i >= 0; --i) {
-      __ lw(a3, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
-                                   i * kPointerSize));
-      __ push(a3);
+    Label args_done;
+    for (int j = 0; j < 4; ++j) {
+      Label over;
+      if (j < 3) {
+        __ Branch(&over, ne, t4, Operand(j));
+      }
+      for (int i = j - 1; i >= 0; --i) {
+        __ lw(t4, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
+                                     i * kPointerSize));
+        __ push(t4);
+      }
+      for (int i = 0; i < 3 - j; ++i) {
+        __ PushRoot(Heap::kUndefinedValueRootIndex);
+      }
+      if (j < 3) {
+        __ jmp(&args_done);
+        __ bind(&over);
+      }
     }
+    __ bind(&args_done);
+
     // Call runtime, on success unwind frame, and parent frame.
     __ CallRuntime(Runtime::kInstantiateAsmJs, 4);
     // A smi 0 is returned on failure, an object on success.
-    __ JumpIfSmi(a0, &failed);
+    __ JumpIfSmi(v0, &failed);
+
+    __ Drop(2);
+    __ pop(t4);
+    __ SmiUntag(t4);
     scope.GenerateLeaveFrame();
-    __ Drop(4);
+
+    __ Addu(t4, t4, Operand(1));
+    __ Lsa(sp, sp, t4, kPointerSizeLog2);
     __ Ret();
 
     __ bind(&failed);

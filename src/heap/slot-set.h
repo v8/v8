@@ -194,9 +194,15 @@ class SlotSet : public Malloced {
   }
 
   void MaskCell(int bucket_index, int cell_index, uint32_t mask) {
-    uint32_t* cells = bucket[bucket_index];
-    if (cells != nullptr && cells[cell_index] != 0) {
-      cells[cell_index] &= mask;
+    if (bucket_index < kBuckets) {
+      uint32_t* cells = bucket[bucket_index];
+      if (cells != nullptr && cells[cell_index] != 0) {
+        cells[cell_index] &= mask;
+      }
+    } else {
+      // GCC bug 59124: Emits wrong warnings
+      // "array subscript is above array bounds"
+      UNREACHABLE();
     }
   }
 

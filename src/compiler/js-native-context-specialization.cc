@@ -13,9 +13,9 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/type-cache.h"
 #include "src/field-index-inl.h"
 #include "src/isolate-inl.h"
-#include "src/type-cache.h"
 #include "src/type-feedback-vector.h"
 
 namespace v8 {
@@ -319,7 +319,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   return Replace(value);
 }
 
-Reduction JSNativeContextSpecialization::ReduceNamedAccess(
+Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
     Node* node, Node* value, FeedbackNexus const& nexus, Handle<Name> name,
     AccessMode access_mode, LanguageMode language_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
@@ -393,8 +393,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   LoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Try to lower the named access based on the {receiver_maps}.
-  return ReduceNamedAccess(node, value, nexus, p.name(), AccessMode::kLoad,
-                           p.language_mode());
+  return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
+                                    AccessMode::kLoad, p.language_mode());
 }
 
 
@@ -408,8 +408,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   StoreICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Try to lower the named access based on the {receiver_maps}.
-  return ReduceNamedAccess(node, value, nexus, p.name(), AccessMode::kStore,
-                           p.language_mode());
+  return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
+                                    AccessMode::kStore, p.language_mode());
 }
 
 
@@ -1048,20 +1048,13 @@ JSNativeContextSpecialization::BuildElementAccess(
     Node* buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
         receiver, effect, control);
-    Node* buffer_bitfield = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-        buffer, effect, control);
-    Node* check = graph()->NewNode(
-        simplified()->NumberEqual(),
-        graph()->NewNode(
-            simplified()->NumberBitwiseAnd(), buffer_bitfield,
-            jsgraph()->Constant(JSArrayBuffer::WasNeutered::kMask)),
-        jsgraph()->ZeroConstant());
+    Node* check = effect = graph()->NewNode(
+        simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
 
     // Default to zero if the {receiver}s buffer was neutered.
     length = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
-        check, length, jsgraph()->ZeroConstant());
+        common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+        check, jsgraph()->ZeroConstant(), length);
 
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       // Check that the {index} is a valid array index, we do the actual

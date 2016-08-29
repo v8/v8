@@ -13,6 +13,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -906,7 +907,10 @@ void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
     if (incremental_marking()->CanBeActivated()) {
       StartIncrementalMarking(
           i::Heap::kNoGCFlags,
-          kGCCallbackFlagSynchronousPhantomCallbackProcessing, gc_reason);
+          static_cast<GCCallbackFlags>(
+              kGCCallbackFlagSynchronousPhantomCallbackProcessing |
+              kGCCallbackFlagCollectAllExternalMemory),
+          gc_reason);
     } else {
       CollectAllGarbage(i::Heap::kNoGCFlags, gc_reason,
                         kGCCallbackFlagSynchronousPhantomCallbackProcessing);
@@ -1146,7 +1150,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
             // deserializing.
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, Map::kSize,
-                                 ClearRecordedSlots::kNo);
+                                 ClearRecordedSlots::kNo, ClearBlackArea::kNo);
             maps->Add(free_space_address);
           } else {
             perform_gc = true;
@@ -1176,7 +1180,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
             // deserializing.
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, size,
-                                 ClearRecordedSlots::kNo);
+                                 ClearRecordedSlots::kNo, ClearBlackArea::kNo);
             DCHECK(space < SerializerDeserializer::kNumberOfPreallocatedSpaces);
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
@@ -2131,7 +2135,8 @@ AllocationResult Heap::AllocateFillerObject(int size, bool double_align,
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   DCHECK(chunk->owner()->identity() == space);
 #endif
-  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
+  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo,
+                       ClearBlackArea::kNo);
   return obj;
 }
 
@@ -3065,8 +3070,8 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   return result;
 }
 
-void Heap::CreateFillerObjectAt(Address addr, int size,
-                                ClearRecordedSlots mode) {
+void Heap::CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode,
+                                ClearBlackArea black_area_mode) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
@@ -3087,7 +3092,8 @@ void Heap::CreateFillerObjectAt(Address addr, int size,
 
   // If the location where the filler is created is within a black area we have
   // to clear the mark bits of the filler space.
-  if (incremental_marking()->black_allocation() &&
+  if (black_area_mode == ClearBlackArea::kYes &&
+      incremental_marking()->black_allocation() &&
       Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(addr))) {
     Page* page = Page::FromAddress(addr);
     page->markbits()->ClearRange(page->AddressToMarkbitIndex(addr),
@@ -5454,7 +5460,15 @@ void Heap::TracePossibleWrapper(JSObject* js_object) {
 }
 
 void Heap::RegisterExternallyReferencedObject(Object** object) {
-  mark_compact_collector()->RegisterExternallyReferencedObject(object);
+  HeapObject* heap_object = HeapObject::cast(*object);
+  DCHECK(Contains(heap_object));
+  if (FLAG_incremental_marking_wrappers && incremental_marking()->IsMarking()) {
+    IncrementalMarking::MarkGrey(this, heap_object);
+  } else {
+    DCHECK(mark_compact_collector()->in_use());
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(heap_object);
+    mark_compact_collector()->MarkObject(heap_object, mark_bit);
+  }
 }
 
 void Heap::TearDown() {

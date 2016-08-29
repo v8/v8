@@ -63,13 +63,14 @@
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/tail-call-optimization.h"
 #include "src/compiler/type-hint-analyzer.h"
+#include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
 #include "src/compiler/verifier.h"
 #include "src/compiler/zone-pool.h"
 #include "src/isolate-inl.h"
 #include "src/ostreams.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
 #include "src/type-info.h"
 #include "src/utils.h"
@@ -562,7 +563,7 @@ class PipelineCompilationJob final : public CompilationJob {
   PipelineCompilationJob(Isolate* isolate, Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(&info_, "TurboFan"),
+      : CompilationJob(isolate, &info_, "TurboFan"),
         zone_(isolate->allocator()),
         zone_pool_(isolate->allocator()),
         parse_info_(&zone_, function),
@@ -573,9 +574,9 @@ class PipelineCompilationJob final : public CompilationJob {
         linkage_(nullptr) {}
 
  protected:
-  Status CreateGraphImpl() final;
-  Status OptimizeGraphImpl() final;
-  Status GenerateCodeImpl() final;
+  Status PrepareJobImpl() final;
+  Status ExecuteJobImpl() final;
+  Status FinalizeJobImpl() final;
 
  private:
   Zone zone_;
@@ -590,7 +591,7 @@ class PipelineCompilationJob final : public CompilationJob {
   DISALLOW_COPY_AND_ASSIGN(PipelineCompilationJob);
 };
 
-PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
+PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
   if (info()->shared_info()->asm_function()) {
     if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
     info()->MarkAsFunctionContextSpecializing();
@@ -633,12 +634,12 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
   return SUCCEEDED;
 }
 
-PipelineCompilationJob::Status PipelineCompilationJob::OptimizeGraphImpl() {
+PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
   if (!pipeline_.OptimizeGraph(linkage_)) return FAILED;
   return SUCCEEDED;
 }
 
-PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
+PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
   Handle<Code> code = pipeline_.GenerateCode(linkage_);
   if (code.is_null()) {
     if (info()->bailout_reason() == kNoReason) {
@@ -660,16 +661,17 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   explicit PipelineWasmCompilationJob(CompilationInfo* info, Graph* graph,
                                       CallDescriptor* descriptor,
                                       SourcePositionTable* source_positions)
-      : CompilationJob(info, "TurboFan"),
+      : CompilationJob(info->isolate(), info, "TurboFan",
+                       State::kReadyToExecute),
         zone_pool_(info->isolate()->allocator()),
         data_(&zone_pool_, info, graph, source_positions),
         pipeline_(&data_),
         linkage_(descriptor) {}
 
  protected:
-  Status CreateGraphImpl() final;
-  Status OptimizeGraphImpl() final;
-  Status GenerateCodeImpl() final;
+  Status PrepareJobImpl() final;
+  Status ExecuteJobImpl() final;
+  Status FinalizeJobImpl() final;
 
  private:
   ZonePool zone_pool_;
@@ -679,12 +681,13 @@ class PipelineWasmCompilationJob final : public CompilationJob {
 };
 
 PipelineWasmCompilationJob::Status
-PipelineWasmCompilationJob::CreateGraphImpl() {
+PipelineWasmCompilationJob::PrepareJobImpl() {
+  UNREACHABLE();  // Prepare should always be skipped for WasmCompilationJob.
   return SUCCEEDED;
 }
 
 PipelineWasmCompilationJob::Status
-PipelineWasmCompilationJob::OptimizeGraphImpl() {
+PipelineWasmCompilationJob::ExecuteJobImpl() {
   if (FLAG_trace_turbo) {
     TurboJsonFile json_of(info(), std::ios_base::trunc);
     json_of << "{\"function\":\"" << info()->GetDebugName().get()
@@ -698,7 +701,7 @@ PipelineWasmCompilationJob::OptimizeGraphImpl() {
 }
 
 PipelineWasmCompilationJob::Status
-PipelineWasmCompilationJob::GenerateCodeImpl() {
+PipelineWasmCompilationJob::FinalizeJobImpl() {
   pipeline_.GenerateCode(&linkage_);
   return SUCCEEDED;
 }
@@ -920,6 +923,12 @@ struct TypedLoweringPhase {
     JSTypedLowering typed_lowering(&graph_reducer, data->info()->dependencies(),
                                    typed_lowering_flags, data->jsgraph(),
                                    temp_zone);
+    TypedOptimization typed_optimization(
+        &graph_reducer, data->info()->dependencies(),
+        data->info()->is_deoptimization_enabled()
+            ? TypedOptimization::kDeoptimizationEnabled
+            : TypedOptimization::kNoFlags,
+        data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -929,6 +938,7 @@ struct TypedLoweringPhase {
     if (data->info()->is_deoptimization_enabled()) {
       AddReducer(data, &graph_reducer, &create_lowering);
     }
+    AddReducer(data, &graph_reducer, &typed_optimization);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
@@ -1533,7 +1543,7 @@ bool PipelineImpl::CreateGraph() {
       RunPrintAndVerify("Escape Analysed");
     }
 
-    if (FLAG_turbo_load_elimination) {
+    if (!info()->shared_info()->asm_function() && FLAG_turbo_load_elimination) {
       Run<LoadEliminationPhase>();
       RunPrintAndVerify("Load eliminated");
     }
@@ -1716,7 +1726,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
   CompilationInfo info(ArrayVector("testing"), sequence->isolate(),
-                       sequence->zone());
+                       sequence->zone(), Code::ComputeFlags(Code::STUB));
   ZonePool zone_pool(sequence->isolate()->allocator());
   PipelineData data(&zone_pool, &info, sequence);
   PipelineImpl pipeline(&data);

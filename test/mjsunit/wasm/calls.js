@@ -40,28 +40,6 @@ function assertFunction(module, func) {
   return exp;
 }
 
-(function I64SubTest() {
-
-  var builder = new WasmModuleBuilder();
-
-  builder.addMemory(1, 1, true);
-  builder.addFunction("sub", kSig_l_ll)
-    .addBody([           // --
-      kExprGetLocal, 0,  // --
-      kExprGetLocal, 1,  // --
-      kExprI64Sub])      // --
-    .exportFunc()
-
-  var module = builder.instantiate();
-  assertModule(module, kPageSize);
-
-  // Check the properties of the sub function.
-  var sub = assertFunction(module, "sub");
-  assertEquals(-55, sub(33, 88));
-  assertEquals(-55555, sub(33333, 88888));
-  assertEquals(-5555555, sub(3333333, 8888888));
-})();
-
 (function SubTest() {
 
   var builder = new WasmModuleBuilder();

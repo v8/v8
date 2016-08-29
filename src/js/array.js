@@ -1135,72 +1135,6 @@ function ArrayMap(f, receiver) {
 }
 
 
-// For .indexOf, we don't need to pass in the number of arguments
-// at the callsite since ToInteger(undefined) == 0; however, for
-// .lastIndexOf, we need to pass it, since the behavior for passing
-// undefined is 0 but for not including the argument is length-1.
-function InnerArrayIndexOf(array, element, index, length) {
-  if (length == 0) return -1;
-  if (IS_UNDEFINED(index)) {
-    index = 0;
-  } else {
-    index = INVERT_NEG_ZERO(TO_INTEGER(index));
-    // If index is negative, index from the end of the array.
-    if (index < 0) {
-      index = length + index;
-      // If index is still negative, search the entire array.
-      if (index < 0) index = 0;
-    }
-  }
-  var min = index;
-  var max = length;
-  if (UseSparseVariant(array, length, IS_ARRAY(array), max - min)) {
-    %NormalizeElements(array);
-    var indices = %GetArrayKeys(array, length);
-    if (IS_NUMBER(indices)) {
-      // It's an interval.
-      max = indices;  // Capped by length already.
-      // Fall through to loop below.
-    } else {
-      if (indices.length == 0) return -1;
-      // Get all the keys in sorted order.
-      var sortedKeys = GetSortedArrayKeys(array, indices);
-      var n = sortedKeys.length;
-      var i = 0;
-      while (i < n && sortedKeys[i] < index) i++;
-      while (i < n) {
-        var key = sortedKeys[i];
-        if (array[key] === element) return key;
-        i++;
-      }
-      return -1;
-    }
-  }
-  // Lookup through the array.
-  if (!IS_UNDEFINED(element)) {
-    for (var i = min; i < max; i++) {
-      if (array[i] === element) return i;
-    }
-    return -1;
-  }
-  // Lookup through the array.
-  for (var i = min; i < max; i++) {
-    if (IS_UNDEFINED(array[i]) && i in array) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-
-function ArrayIndexOf(element, index) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.indexOf");
-
-  var length = TO_LENGTH(this.length);
-  return InnerArrayIndexOf(this, element, index, length);
-}
-
-
 function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
   if (length == 0) return -1;
   if (argumentsLength < 2) {
@@ -1626,7 +1560,7 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "some", getFunction("some", ArraySome, 1),
   "every", getFunction("every", ArrayEvery, 1),
   "map", getFunction("map", ArrayMap, 1),
-  "indexOf", getFunction("indexOf", ArrayIndexOf, 1),
+  "indexOf", getFunction("indexOf", null, 1),
   "lastIndexOf", getFunction("lastIndexOf", ArrayLastIndexOf, 1),
   "reduce", getFunction("reduce", ArrayReduce, 1),
   "reduceRight", getFunction("reduceRight", ArrayReduceRight, 1),
@@ -1645,7 +1579,7 @@ utils.InstallGetter(GlobalArray, speciesSymbol, ArraySpecies);
 // exposed to user code.
 // Adding only the functions that are actually used.
 utils.SetUpLockedPrototype(InternalArray, GlobalArray(), [
-  "indexOf", getFunction("indexOf", ArrayIndexOf),
+  "indexOf", getFunction("indexOf", null),
   "join", getFunction("join", ArrayJoin),
   "pop", getFunction("pop", ArrayPop),
   "push", getFunction("push", ArrayPush),
@@ -1677,7 +1611,6 @@ utils.SetUpLockedPrototype(extrasUtils.InternalPackedArray, GlobalArray(), [
 
 utils.Export(function(to) {
   to.ArrayFrom = ArrayFrom;
-  to.ArrayIndexOf = ArrayIndexOf;
   to.ArrayJoin = ArrayJoin;
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
@@ -1688,7 +1621,6 @@ utils.Export(function(to) {
   to.InnerArrayFind = InnerArrayFind;
   to.InnerArrayFindIndex = InnerArrayFindIndex;
   to.InnerArrayForEach = InnerArrayForEach;
-  to.InnerArrayIndexOf = InnerArrayIndexOf;
   to.InnerArrayJoin = InnerArrayJoin;
   to.InnerArrayLastIndexOf = InnerArrayLastIndexOf;
   to.InnerArrayReduce = InnerArrayReduce;

@@ -19,11 +19,11 @@ BytecodePeepholeOptimizer::BytecodePeepholeOptimizer(
 
 // override
 Handle<BytecodeArray> BytecodePeepholeOptimizer::ToBytecodeArray(
-    int fixed_register_count, int parameter_count,
+    Isolate* isolate, int fixed_register_count, int parameter_count,
     Handle<FixedArray> handler_table) {
   Flush();
-  return next_stage_->ToBytecodeArray(fixed_register_count, parameter_count,
-                                      handler_table);
+  return next_stage_->ToBytecodeArray(isolate, fixed_register_count,
+                                      parameter_count, handler_table);
 }
 
 // override
@@ -139,7 +139,8 @@ void TransformLdaSmiBinaryOpToBinaryOpWithSmi(Bytecode new_bytecode,
                                               BytecodeNode* const last,
                                               BytecodeNode* const current) {
   DCHECK_EQ(last->bytecode(), Bytecode::kLdaSmi);
-  current->set_bytecode(new_bytecode, last->operand(0), current->operand(0));
+  current->set_bytecode(new_bytecode, last->operand(0), current->operand(0),
+                        current->operand(1));
   if (last->source_info().is_valid()) {
     current->source_info().Clone(last->source_info());
   }
@@ -149,7 +150,8 @@ void TransformLdaZeroBinaryOpToBinaryOpWithZero(Bytecode new_bytecode,
                                                 BytecodeNode* const last,
                                                 BytecodeNode* const current) {
   DCHECK_EQ(last->bytecode(), Bytecode::kLdaZero);
-  current->set_bytecode(new_bytecode, 0, current->operand(0));
+  current->set_bytecode(new_bytecode, 0, current->operand(0),
+                        current->operand(1));
   if (last->source_info().is_valid()) {
     current->source_info().Clone(last->source_info());
   }

@@ -8,6 +8,7 @@
 #include "src/api-natives.h"
 #include "src/base/ieee754.h"
 #include "src/code-stubs.h"
+#include "src/compiler.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
 #include "src/extensions/gc-extension.h"
@@ -209,7 +210,6 @@ class Genesis BASE_EMBEDDED {
   HARMONY_INPROGRESS(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_STAGED(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
-  DECLARE_FEATURE_INITIALIZATION(promise_extra, "")
   DECLARE_FEATURE_INITIALIZATION(intl_extra, "")
   DECLARE_FEATURE_INITIALIZATION(harmony_types, "")
 #undef DECLARE_FEATURE_INITIALIZATION
@@ -2178,7 +2178,6 @@ void Genesis::InitializeExperimentalGlobal() {
   HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
-  FEATURE_INITIALIZE_GLOBAL(promise_extra, "")
   FEATURE_INITIALIZE_GLOBAL(intl_extra, "")
 #undef FEATURE_INITIALIZE_GLOBAL
 }
@@ -2764,7 +2763,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_named_captures)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_property)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(promise_extra)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(intl_extra)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_explicit_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
@@ -3353,8 +3351,6 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_regexp_named_captures_natives[] = {nullptr};
   static const char* harmony_regexp_property_natives[] = {nullptr};
   static const char* harmony_function_sent_natives[] = {nullptr};
-  static const char* promise_extra_natives[] = {"native promise-extra.js",
-                                                nullptr};
   static const char* intl_extra_natives[] = {"native intl-extra.js", nullptr};
   static const char* harmony_object_values_entries_natives[] = {nullptr};
   static const char* harmony_object_own_property_descriptors_natives[] = {
@@ -3390,7 +3386,6 @@ bool Genesis::InstallExperimentalNatives() {
     HARMONY_STAGED(INSTALL_EXPERIMENTAL_NATIVES);
     HARMONY_SHIPPING(INSTALL_EXPERIMENTAL_NATIVES);
     INSTALL_EXPERIMENTAL_NATIVES(intl_extra, "");
-    INSTALL_EXPERIMENTAL_NATIVES(promise_extra, "");
     INSTALL_EXPERIMENTAL_NATIVES(harmony_types, "");
 #undef INSTALL_EXPERIMENTAL_NATIVES
   }

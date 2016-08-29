@@ -12,17 +12,13 @@
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class TypeCache;
-
-
 namespace compiler {
 
 // Forward declarations.
 class RepresentationChanger;
 class RepresentationSelector;
 class SourcePositionTable;
+class TypeCache;
 
 class SimplifiedLowering final {
  public:

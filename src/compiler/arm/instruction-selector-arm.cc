@@ -252,14 +252,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.Label(cont->false_block());
   }
 
-  if (cont->IsDeoptimize()) {
-    // If we can deoptimize as a result of the binop, we need to make sure that
-    // the deopt inputs are not overwritten by the binop result. One way
-    // to achieve that is to declare the output register as same-as-first.
-    outputs[output_count++] = g.DefineSameAsFirst(node);
-  } else {
-    outputs[output_count++] = g.DefineAsRegister(node);
-  }
+  outputs[output_count++] = g.DefineAsRegister(node);
   if (cont->IsSet()) {
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
@@ -1476,12 +1469,20 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
        g.UseFixed(node->InputAt(1), d1))->MarkAsCall();
 }
 
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  VisitRRR(this, kArmFloat32Max, node);
+}
+
 void InstructionSelector::VisitFloat64Max(Node* node) {
   VisitRRR(this, kArmFloat64Max, node);
 }
 
 void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
   VisitRR(this, kArmFloat64SilenceNaN, node);
+}
+
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  VisitRRR(this, kArmFloat32Min, node);
 }
 
 void InstructionSelector::VisitFloat64Min(Node* node) {

@@ -11,13 +11,21 @@ namespace internal {
 namespace interpreter {
 
 BytecodeLabel* BytecodeLabels::New() {
+  DCHECK(!is_bound());
   labels_.push_back(BytecodeLabel());
   return &labels_.back();
 }
 
 void BytecodeLabels::Bind(BytecodeArrayBuilder* builder) {
-  for (auto label : labels_) {
+  for (auto& label : labels_) {
     builder->Bind(&label);
+  }
+}
+
+void BytecodeLabels::BindToLabel(BytecodeArrayBuilder* builder,
+                                 const BytecodeLabel& target) {
+  for (auto& label : labels_) {
+    builder->Bind(target, &label);
   }
 }
 

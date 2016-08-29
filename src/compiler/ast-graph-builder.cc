@@ -539,8 +539,7 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
     env.RawParameterBind(0, jsgraph()->TheHoleConstant());
   }
 
-  // Build local context only if there are context allocated variables.
-  if (scope->num_heap_slots() > 0) {
+  if (scope->NeedsContext()) {
     // Push a new inner context scope for the current activation.
     Node* inner_context = BuildLocalActivationContext(GetFunctionContext());
     ContextScope top_context(this, scope, inner_context);
@@ -573,9 +572,8 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   BuildArgumentsObject(scope->arguments());
 
   // Build rest arguments array if it is used.
-  int rest_index;
-  Variable* rest_parameter = scope->rest_parameter(&rest_index);
-  BuildRestArgumentsArray(rest_parameter, rest_index);
+  Variable* rest_parameter = scope->rest_parameter();
+  BuildRestArgumentsArray(rest_parameter);
 
   // Build assignment to {.this_function} variable if it is used.
   BuildThisFunctionVariable(scope->this_function_var());
@@ -1045,7 +1043,7 @@ void AstGraphBuilder::VisitForValues(ZoneList<Expression*>* exprs) {
 void AstGraphBuilder::VisitForValue(Expression* expr) {
   AstValueContext for_value(this);
   if (!CheckStackOverflow()) {
-    AstVisitor<AstGraphBuilder>::Visit(expr);
+    VisitNoStackOverflowCheck(expr);
   } else {
     ast_context()->ProduceValue(expr, jsgraph()->UndefinedConstant());
   }
@@ -1055,7 +1053,7 @@ void AstGraphBuilder::VisitForValue(Expression* expr) {
 void AstGraphBuilder::VisitForEffect(Expression* expr) {
   AstEffectContext for_effect(this);
   if (!CheckStackOverflow()) {
-    AstVisitor<AstGraphBuilder>::Visit(expr);
+    VisitNoStackOverflowCheck(expr);
   } else {
     ast_context()->ProduceValue(expr, jsgraph()->UndefinedConstant());
   }
@@ -1065,7 +1063,7 @@ void AstGraphBuilder::VisitForEffect(Expression* expr) {
 void AstGraphBuilder::VisitForTest(Expression* expr) {
   AstTestContext for_condition(this, expr->test_id());
   if (!CheckStackOverflow()) {
-    AstVisitor<AstGraphBuilder>::Visit(expr);
+    VisitNoStackOverflowCheck(expr);
   } else {
     ast_context()->ProduceValue(expr, jsgraph()->UndefinedConstant());
   }
@@ -1075,7 +1073,7 @@ void AstGraphBuilder::VisitForTest(Expression* expr) {
 void AstGraphBuilder::Visit(Expression* expr) {
   // Reuses enclosing AstContext.
   if (!CheckStackOverflow()) {
-    AstVisitor<AstGraphBuilder>::Visit(expr);
+    VisitNoStackOverflowCheck(expr);
   } else {
     ast_context()->ProduceValue(expr, jsgraph()->UndefinedConstant());
   }
@@ -2452,7 +2450,10 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       args->length() + 2, feedback, receiver_hint, expr->tail_call_mode());
   PrepareEagerCheckpoint(possibly_eval ? expr->EvalId() : expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
-  environment()->Push(value->InputAt(0));  // The callee passed to the call.
+  // The callee passed to the call, we just need to push something here to
+  // satisfy the bailout location contract. The fullcodegen code will not
+  // ever look at this value, so we just push optimized_out here.
+  environment()->Push(jsgraph()->OptimizedOutConstant());
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   environment()->Drop(1);
   ast_context()->ProduceValue(expr, value);
@@ -3084,15 +3085,10 @@ const uint32_t kFullCheckRequired = -1;
 
 uint32_t AstGraphBuilder::ComputeBitsetForDynamicGlobal(Variable* variable) {
   DCHECK_EQ(DYNAMIC_GLOBAL, variable->mode());
-  bool found_eval_scope = false;
   uint32_t check_depths = 0;
   for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
-    if (s->num_heap_slots() <= 0) continue;
-    // TODO(mstarzinger): If we have reached an eval scope, we check all
-    // extensions from this point. Replicated from full-codegen, figure out
-    // whether this is still needed. If not, drop {found_eval_scope} below.
-    if (s->is_eval_scope()) found_eval_scope = true;
-    if (!s->calls_sloppy_eval() && !found_eval_scope) continue;
+    if (!s->NeedsContext()) continue;
+    if (!s->calls_sloppy_eval()) continue;
     int depth = current_scope()->ContextChainLength(s);
     if (depth > kMaxCheckDepth) return kFullCheckRequired;
     check_depths |= 1 << depth;
@@ -3105,7 +3101,7 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicContext(Variable* variable) {
   DCHECK_EQ(DYNAMIC_LOCAL, variable->mode());
   uint32_t check_depths = 0;
   for (Scope* s = current_scope(); s != nullptr; s = s->outer_scope()) {
-    if (s->num_heap_slots() <= 0) continue;
+    if (!s->NeedsContext()) continue;
     if (!s->calls_sloppy_eval() && s != variable->scope()) continue;
     int depth = current_scope()->ContextChainLength(s);
     if (depth > kMaxCheckDepth) return kFullCheckRequired;
@@ -3218,8 +3214,7 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   return object;
 }
 
-
-Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
+Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest) {
   if (rest == nullptr) return nullptr;
 
   // Allocate and initialize a new arguments object.

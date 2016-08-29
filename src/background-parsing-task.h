@@ -10,6 +10,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/compiler.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 
 namespace v8 {
@@ -38,10 +39,9 @@ struct StreamedSource {
   std::unique_ptr<ParseInfo> info;
   std::unique_ptr<Parser> parser;
 
- private:
-  // Prevent copying. Not implemented.
-  StreamedSource(const StreamedSource&);
-  StreamedSource& operator=(const StreamedSource&);
+  // Prevent copying.
+  StreamedSource(const StreamedSource&) = delete;
+  StreamedSource& operator=(const StreamedSource&) = delete;
 };
 
 

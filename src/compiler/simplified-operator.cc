@@ -458,6 +458,13 @@ struct SimplifiedOperatorGlobalCache final {
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
 
+  struct ArrayBufferWasNeuteredOperator final : public Operator {
+    ArrayBufferWasNeuteredOperator()
+        : Operator(IrOpcode::kArrayBufferWasNeutered, Operator::kEliminatable,
+                   "ArrayBufferWasNeutered", 1, 1, 1, 1, 1, 0) {}
+  };
+  ArrayBufferWasNeuteredOperator kArrayBufferWasNeutered;
+
   template <CheckForMinusZeroMode kMode>
   struct ChangeFloat64ToTaggedOperator final
       : public Operator1<CheckForMinusZeroMode> {
@@ -614,6 +621,7 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 PURE_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
+GET_FROM_CACHE(ArrayBufferWasNeutered)
 #undef GET_FROM_CACHE
 
 const Operator* SimplifiedOperatorBuilder::ChangeFloat64ToTagged(

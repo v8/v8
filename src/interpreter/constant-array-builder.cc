@@ -70,11 +70,12 @@ STATIC_CONST_MEMBER_DEFINITION const size_t
 STATIC_CONST_MEMBER_DEFINITION const size_t
     ConstantArrayBuilder::k32BitCapacity;
 
-ConstantArrayBuilder::ConstantArrayBuilder(Isolate* isolate, Zone* zone)
-    : isolate_(isolate),
-      constants_map_(zone),
+ConstantArrayBuilder::ConstantArrayBuilder(Zone* zone,
+                                           Handle<Object> the_hole_value)
+    : constants_map_(zone),
       smi_map_(zone),
-      smi_pairs_(zone) {
+      smi_pairs_(zone),
+      the_hole_value_(the_hole_value) {
   idx_slice_[0] =
       new (zone) ConstantArraySlice(zone, 0, k8BitCapacity, OperandSize::kByte);
   idx_slice_[1] = new (zone) ConstantArraySlice(
@@ -111,18 +112,18 @@ Handle<Object> ConstantArrayBuilder::At(size_t index) const {
     return slice->At(index);
   } else {
     DCHECK_LT(index, slice->capacity());
-    return isolate_->factory()->the_hole_value();
+    return the_hole_value();
   }
 }
 
-Handle<FixedArray> ConstantArrayBuilder::ToFixedArray() {
+Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
   // First insert reserved SMI values.
   for (auto reserved_smi : smi_pairs_) {
     InsertAllocatedEntry(reserved_smi.second,
-                         handle(reserved_smi.first, isolate_));
+                         handle(reserved_smi.first, isolate));
   }
 
-  Handle<FixedArray> fixed_array = isolate_->factory()->NewFixedArray(
+  Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
       static_cast<int>(size()), PretenureFlag::TENURED);
   int array_index = 0;
   for (const ConstantArraySlice* slice : idx_slice_) {
@@ -144,7 +145,7 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray() {
         std::min(static_cast<size_t>(fixed_array->length() - array_index),
                  slice->capacity() - slice->size());
     for (size_t i = 0; i < padding; i++) {
-      fixed_array->set(array_index++, *isolate_->factory()->the_hole_value());
+      fixed_array->set(array_index++, *the_hole_value());
     }
   }
   DCHECK_EQ(array_index, fixed_array->length());
@@ -197,12 +198,12 @@ ConstantArrayBuilder::OperandSizeToSlice(OperandSize operand_size) const {
 }
 
 size_t ConstantArrayBuilder::AllocateEntry() {
-  return AllocateIndex(isolate_->factory()->the_hole_value());
+  return AllocateIndex(the_hole_value());
 }
 
 void ConstantArrayBuilder::InsertAllocatedEntry(size_t index,
                                                 Handle<Object> object) {
-  DCHECK_EQ(isolate_->heap()->the_hole_value(), *At(index));
+  DCHECK_EQ(the_hole_value().address(), At(index).address());
   ConstantArraySlice* slice = IndexToSlice(index);
   slice->InsertAt(index, object);
 }

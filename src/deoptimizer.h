@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/deoptimize-reason.h"
 #include "src/macro-assembler.h"
-
+#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
@@ -383,8 +383,7 @@ class Deoptimizer : public Malloced {
     bool needs_frame;
   };
 
-  static bool TraceEnabledFor(BailoutType deopt_type,
-                              StackFrame::Type frame_type);
+  static bool TraceEnabledFor(StackFrame::Type frame_type);
   static const char* MessageFor(BailoutType type);
 
   int output_count() const { return output_count_; }
@@ -514,14 +513,9 @@ class Deoptimizer : public Malloced {
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
 
-  Deoptimizer(Isolate* isolate,
-              JSFunction* function,
-              BailoutType type,
-              unsigned bailout_id,
-              Address from,
-              int fp_to_sp_delta,
-              Code* optimized_code);
-  Code* FindOptimizedCode(JSFunction* function, Code* optimized_code);
+  Deoptimizer(Isolate* isolate, JSFunction* function, BailoutType type,
+              unsigned bailout_id, Address from, int fp_to_sp_delta);
+  Code* FindOptimizedCode(JSFunction* function);
   void PrintFunctionName();
   void DeleteFrameDescriptions();
 

@@ -662,6 +662,7 @@ bool GlobalHandles::IsWeak(Object** location) {
   return Node::FromLocation(location)->IsWeak();
 }
 
+DISABLE_CFI_PERF
 void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     Node* node = it.node();
@@ -789,6 +790,7 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v) {
 }
 
 
+DISABLE_CFI_PERF
 bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
                                         WeakSlotCallbackWithHeap can_skip) {
   ComputeObjectGroupsAndImplicitReferences();
@@ -1146,6 +1148,7 @@ void GlobalHandles::IterateStrongRoots(ObjectVisitor* v) {
 }
 
 
+DISABLE_CFI_PERF
 void GlobalHandles::IterateAllRoots(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     if (it.node()->IsRetainer()) {
@@ -1155,6 +1158,7 @@ void GlobalHandles::IterateAllRoots(ObjectVisitor* v) {
 }
 
 
+DISABLE_CFI_PERF
 void GlobalHandles::IterateAllRootsWithClassIds(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     if (it.node()->IsRetainer() && it.node()->has_wrapper_class_id()) {
@@ -1165,6 +1169,7 @@ void GlobalHandles::IterateAllRootsWithClassIds(ObjectVisitor* v) {
 }
 
 
+DISABLE_CFI_PERF
 void GlobalHandles::IterateAllRootsInNewSpaceWithClassIds(ObjectVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
@@ -1176,6 +1181,7 @@ void GlobalHandles::IterateAllRootsInNewSpaceWithClassIds(ObjectVisitor* v) {
 }
 
 
+DISABLE_CFI_PERF
 void GlobalHandles::IterateWeakRootsInNewSpaceWithClassIds(ObjectVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];

@@ -12,23 +12,21 @@
 namespace v8 {
 namespace internal {
 
+class DuplicateFinder;
 
-#define ERROR_CODES(T)                          \
-  T(ExpressionProduction, 0)                    \
-  T(FormalParameterInitializerProduction, 1)    \
-  T(BindingPatternProduction, 2)                \
-  T(AssignmentPatternProduction, 3)             \
-  T(DistinctFormalParametersProduction, 4)      \
-  T(StrictModeFormalParametersProduction, 5)    \
-  T(ArrowFormalParametersProduction, 6)         \
-  T(LetPatternProduction, 7)                    \
-  T(CoverInitializedNameProduction, 8)          \
-  T(TailCallExpressionProduction, 9)            \
-  T(AsyncArrowFormalParametersProduction, 10)   \
-  T(AsyncBindingPatternProduction, 11)
+#define ERROR_CODES(T)                       \
+  T(ExpressionProduction, 0)                 \
+  T(FormalParameterInitializerProduction, 1) \
+  T(BindingPatternProduction, 2)             \
+  T(AssignmentPatternProduction, 3)          \
+  T(DistinctFormalParametersProduction, 4)   \
+  T(StrictModeFormalParametersProduction, 5) \
+  T(ArrowFormalParametersProduction, 6)      \
+  T(LetPatternProduction, 7)                 \
+  T(TailCallExpressionProduction, 8)         \
+  T(AsyncArrowFormalParametersProduction, 9)
 
-
-template <typename Traits>
+template <typename Types>
 class ExpressionClassifier {
  public:
   enum ErrorKind : unsigned {
@@ -58,45 +56,27 @@ class ExpressionClassifier {
     const char* arg;
   };
 
+  // clang-format off
   enum TargetProduction : unsigned {
 #define DEFINE_PRODUCTION(NAME, CODE) NAME = 1 << CODE,
     ERROR_CODES(DEFINE_PRODUCTION)
 #undef DEFINE_PRODUCTION
 
-    ExpressionProductions =
-        (ExpressionProduction | FormalParameterInitializerProduction |
-         TailCallExpressionProduction),
-    PatternProductions =
-        (BindingPatternProduction | AssignmentPatternProduction |
-         LetPatternProduction | AsyncBindingPatternProduction),
-    FormalParametersProductions = (DistinctFormalParametersProduction |
-                                   StrictModeFormalParametersProduction),
-    StandardProductions = ExpressionProductions | PatternProductions,
-    AllProductions =
-        (StandardProductions | FormalParametersProductions |
-         ArrowFormalParametersProduction | CoverInitializedNameProduction |
-         AsyncArrowFormalParametersProduction | AsyncBindingPatternProduction)
+#define DEFINE_ALL_PRODUCTIONS(NAME, CODE) NAME |
+    AllProductions = ERROR_CODES(DEFINE_ALL_PRODUCTIONS) /* | */ 0
+#undef DEFINE_ALL_PRODUCTIONS
   };
+  // clang-format on
 
   enum FunctionProperties : unsigned {
     NonSimpleParameter = 1 << 0
   };
 
-  explicit ExpressionClassifier(const Traits* t)
-      : zone_(t->zone()),
-        non_patterns_to_rewrite_(t->GetNonPatternList()),
-        reported_errors_(t->GetReportedErrorList()),
-        duplicate_finder_(nullptr),
-        invalid_productions_(0),
-        function_properties_(0) {
-    reported_errors_begin_ = reported_errors_end_ = reported_errors_->length();
-    non_pattern_begin_ = non_patterns_to_rewrite_->length();
-  }
-
-  ExpressionClassifier(const Traits* t, DuplicateFinder* duplicate_finder)
-      : zone_(t->zone()),
-        non_patterns_to_rewrite_(t->GetNonPatternList()),
-        reported_errors_(t->GetReportedErrorList()),
+  explicit ExpressionClassifier(const typename Types::Base* base,
+                                DuplicateFinder* duplicate_finder = nullptr)
+      : zone_(base->impl()->zone()),
+        non_patterns_to_rewrite_(base->impl()->GetNonPatternList()),
+        reported_errors_(base->impl()->GetReportedErrorList()),
         duplicate_finder_(duplicate_finder),
         invalid_productions_(0),
         function_properties_(0) {
@@ -152,10 +132,6 @@ class ExpressionClassifier {
     return is_valid(AsyncArrowFormalParametersProduction);
   }
 
-  bool is_valid_async_binding_pattern() const {
-    return is_valid(AsyncBindingPatternProduction);
-  }
-
   V8_INLINE const Error& expression_error() const {
     return reported_error(kExpressionProduction);
   }
@@ -188,26 +164,15 @@ class ExpressionClassifier {
     return reported_error(kLetPatternProduction);
   }
 
-  V8_INLINE bool has_cover_initialized_name() const {
-    return !is_valid(CoverInitializedNameProduction);
-  }
-
-  V8_INLINE const Error& cover_initialized_name_error() const {
-    return reported_error(kCoverInitializedNameProduction);
-  }
-
   V8_INLINE bool has_tail_call_expression() const {
     return !is_valid(TailCallExpressionProduction);
   }
   V8_INLINE const Error& tail_call_expression_error() const {
     return reported_error(kTailCallExpressionProduction);
   }
+
   V8_INLINE const Error& async_arrow_formal_parameters_error() const {
     return reported_error(kAsyncArrowFormalParametersProduction);
-  }
-
-  V8_INLINE const Error& async_binding_pattern_error() const {
-    return reported_error(kAsyncBindingPatternProduction);
   }
 
   V8_INLINE bool is_simple_parameter_list() const {
@@ -281,14 +246,6 @@ class ExpressionClassifier {
     Add(Error(loc, message, kAsyncArrowFormalParametersProduction, arg));
   }
 
-  void RecordAsyncBindingPatternError(const Scanner::Location& loc,
-                                      MessageTemplate::Template message,
-                                      const char* arg = nullptr) {
-    if (!is_valid_async_binding_pattern()) return;
-    invalid_productions_ |= AsyncBindingPatternProduction;
-    Add(Error(loc, message, kAsyncBindingPatternProduction, arg));
-  }
-
   void RecordDuplicateFormalParameterError(const Scanner::Location& loc) {
     if (!is_valid_formal_parameter_list_without_duplicates()) return;
     invalid_productions_ |= DistinctFormalParametersProduction;
@@ -315,14 +272,6 @@ class ExpressionClassifier {
     Add(Error(loc, message, kLetPatternProduction, arg));
   }
 
-  void RecordCoverInitializedNameError(const Scanner::Location& loc,
-                                       MessageTemplate::Template message,
-                                       const char* arg = nullptr) {
-    if (has_cover_initialized_name()) return;
-    invalid_productions_ |= CoverInitializedNameProduction;
-    Add(Error(loc, message, kCoverInitializedNameProduction, arg));
-  }
-
   void RecordTailCallExpressionError(const Scanner::Location& loc,
                                      MessageTemplate::Template message,
                                      const char* arg = nullptr) {
@@ -331,27 +280,19 @@ class ExpressionClassifier {
     Add(Error(loc, message, kTailCallExpressionProduction, arg));
   }
 
-  void ForgiveCoverInitializedNameError() {
-    if (!(invalid_productions_ & CoverInitializedNameProduction)) return;
-    Error& e = reported_error(kCoverInitializedNameProduction);
-    e.kind = kUnusedError;
-    invalid_productions_ &= ~CoverInitializedNameProduction;
-  }
-
-  void ForgiveAssignmentPatternError() {
-    if (!(invalid_productions_ & AssignmentPatternProduction)) return;
-    Error& e = reported_error(kAssignmentPatternProduction);
-    e.kind = kUnusedError;
-    invalid_productions_ &= ~AssignmentPatternProduction;
-  }
-
-  void Accumulate(ExpressionClassifier* inner,
-                  unsigned productions = StandardProductions,
+  void Accumulate(ExpressionClassifier* inner, unsigned productions,
                   bool merge_non_patterns = true) {
     DCHECK_EQ(inner->reported_errors_, reported_errors_);
     DCHECK_EQ(inner->reported_errors_begin_, reported_errors_end_);
     DCHECK_EQ(inner->reported_errors_end_, reported_errors_->length());
-    if (merge_non_patterns) MergeNonPatterns(inner);
+    DCHECK_EQ(inner->non_patterns_to_rewrite_, non_patterns_to_rewrite_);
+    DCHECK_LE(non_pattern_begin_, inner->non_pattern_begin_);
+    DCHECK_LE(inner->non_pattern_begin_, non_patterns_to_rewrite_->length());
+    // Merge non-patterns from the inner classifier, or discard them.
+    if (merge_non_patterns)
+      inner->non_pattern_begin_ = non_patterns_to_rewrite_->length();
+    else
+      non_patterns_to_rewrite_->Rewind(inner->non_pattern_begin_);
     // Propagate errors from inner, but don't overwrite already recorded
     // errors.
     unsigned non_arrow_inner_invalid_productions =
@@ -416,6 +357,20 @@ class ExpressionClassifier {
         reported_errors_end_;
   }
 
+  // Accumulate errors that can be arbitrarily deep in an expression.
+  // These correspond to the ECMAScript spec's 'Contains' operation
+  // on productions. This includes:
+  //
+  // - YieldExpression is disallowed in arrow parameters in a generator.
+  // - AwaitExpression is disallowed in arrow parameters in an async function.
+  // - AwaitExpression is disallowed in async arrow parameters.
+  //
+  V8_INLINE void AccumulateFormalParameterContainmentErrors(
+      ExpressionClassifier* inner) {
+    Accumulate(inner, FormalParameterInitializerProduction |
+                          AsyncArrowFormalParametersProduction);
+  }
+
   V8_INLINE int GetNonPatternBegin() const { return non_pattern_begin_; }
 
   V8_INLINE void Discard() {
@@ -428,13 +383,8 @@ class ExpressionClassifier {
     non_patterns_to_rewrite_->Rewind(non_pattern_begin_);
   }
 
-  V8_INLINE void MergeNonPatterns(ExpressionClassifier* inner) {
-    DCHECK_LE(non_pattern_begin_, inner->non_pattern_begin_);
-    inner->non_pattern_begin_ = inner->non_patterns_to_rewrite_->length();
-  }
-
  private:
-  V8_INLINE Error& reported_error(ErrorKind kind) const {
+  V8_INLINE const Error& reported_error(ErrorKind kind) const {
     if (invalid_productions_ & (1 << kind)) {
       for (int i = reported_errors_begin_; i < reported_errors_end_; i++) {
         if (reported_errors_->at(i).kind == kind)
@@ -470,7 +420,7 @@ class ExpressionClassifier {
   }
 
   Zone* zone_;
-  ZoneList<typename Traits::Type::Expression>* non_patterns_to_rewrite_;
+  ZoneList<typename Types::Expression>* non_patterns_to_rewrite_;
   ZoneList<Error>* reported_errors_;
   DuplicateFinder* duplicate_finder_;
   // The uint16_t for non_pattern_begin_ will not be enough in the case,

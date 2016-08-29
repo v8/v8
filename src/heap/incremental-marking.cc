@@ -557,6 +557,8 @@ void IncrementalMarking::StartMarking() {
   state_ = MARKING;
 
   if (heap_->UsingEmbedderHeapTracer()) {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
     heap_->mark_compact_collector()->embedder_heap_tracer()->TracePrologue();
   }
 
@@ -622,6 +624,9 @@ void IncrementalMarking::MarkRoots() {
 
 
 void IncrementalMarking::MarkObjectGroups() {
+  TRACE_GC(heap_->tracer(),
+           GCTracer::Scope::MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING);
+
   DCHECK(!heap_->UsingEmbedderHeapTracer());
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
@@ -739,6 +744,7 @@ void IncrementalMarking::RetainMaps() {
 
 
 void IncrementalMarking::FinalizeIncrementally() {
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE_BODY);
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
 
@@ -772,7 +778,6 @@ void IncrementalMarking::FinalizeIncrementally() {
   double end = heap_->MonotonicallyIncreasingTimeInMs();
   double delta = end - start;
   heap_->tracer()->AddMarkingTime(delta);
-  heap_->tracer()->AddIncrementalMarkingFinalizationStep(delta);
   if (FLAG_trace_incremental_marking) {
     PrintF(
         "[IncrementalMarking] Finalize incrementally round %d, "
@@ -1176,6 +1181,7 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
     HistogramTimerScope incremental_marking_scope(
         heap_->isolate()->counters()->gc_incremental_marking());
     TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
     double start = heap_->MonotonicallyIncreasingTimeInMs();
 
     // The marking speed is driven either by the allocation rate or by the rate
@@ -1201,6 +1207,21 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
 
     if (state_ == MARKING) {
       bytes_processed = ProcessMarkingDeque(bytes_to_process);
+      if (FLAG_incremental_marking_wrappers &&
+          heap_->UsingEmbedderHeapTracer()) {
+        TRACE_GC(heap()->tracer(),
+                 GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
+        // This currently marks through all registered wrappers and does not
+        // respect bytes_to_process.
+        // TODO(hpayer): Integrate incremental marking of wrappers into
+        // bytes_to_process logic.
+        heap_->mark_compact_collector()
+            ->RegisterWrappersWithEmbedderHeapTracer();
+        heap_->mark_compact_collector()->embedder_heap_tracer()->AdvanceTracing(
+            0,
+            EmbedderHeapTracer::AdvanceTracingActions(
+                EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
+      }
       if (heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
         if (completion == FORCE_COMPLETION ||
             IsIdleMarkingDelayCounterLimitReached()) {

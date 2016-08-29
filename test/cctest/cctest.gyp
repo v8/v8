@@ -37,6 +37,7 @@
       'compiler/codegen-tester.cc',
       'compiler/codegen-tester.h',
       'compiler/code-assembler-tester.h',
+      'compiler/function-tester.cc',
       'compiler/function-tester.h',
       'compiler/graph-builder-tester.h',
       'compiler/test-basic-block-profiler.cc',
@@ -192,6 +193,7 @@
       'wasm/test-run-wasm-js.cc',
       'wasm/test-run-wasm-module.cc',
       'wasm/test-run-wasm-relocation.cc',
+      'wasm/test-run-wasm-try-catch.cc',
       'wasm/test-signatures.h',
       'wasm/test-wasm-function-name-table.cc',
       'wasm/test-wasm-stack.cc',
@@ -214,7 +216,8 @@
       'test-disasm-x64.cc',
       'test-macro-assembler-x64.cc',
       'test-log-stack-tracer.cc',
-      'test-run-wasm-relocation-x64.cc'
+      'test-run-wasm-relocation-x64.cc',
+      'wasm/test-run-wasm-simd.cc'
     ],
     'cctest_sources_arm': [  ### gcmole(arch:arm) ###
       'test-assembler-arm.cc',

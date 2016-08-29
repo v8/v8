@@ -137,7 +137,7 @@ class BytecodeGraphBuilder {
 
   // Helper function to create binary operation hint from the recorded
   // type feedback.
-  BinaryOperationHint GetBinaryOperationHint();
+  BinaryOperationHint GetBinaryOperationHint(int operand_index);
 
   // Control flow plumbing.
   void BuildJump();
@@ -257,6 +257,10 @@ class BytecodeGraphBuilder {
 
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;
+
+  static int const kBinaryOperationHintIndex = 1;
+  static int const kCountOperationHintIndex = 0;
+  static int const kBinaryOperationSmiHintIndex = 2;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphBuilder);
 };

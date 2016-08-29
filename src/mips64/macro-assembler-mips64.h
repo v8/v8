@@ -880,6 +880,8 @@ class MacroAssembler: public Assembler {
   void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dextm(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dextu(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Neg_s(FPURegister fd, FPURegister fs);
+  void Neg_d(FPURegister fd, FPURegister fs);
 
   // MIPS64 R6 instruction macros.
   void Bovc(Register rt, Register rs, Label* L);

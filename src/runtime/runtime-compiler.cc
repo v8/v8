@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/asmjs/asm-js.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
@@ -85,6 +86,10 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   DCHECK_EQ(args.length(), 4);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
+  Handle<JSReceiver> stdlib;
+  if (args[1]->IsJSReceiver()) {
+    stdlib = args.at<JSReceiver>(1);
+  }
   Handle<JSObject> foreign;
   if (args[2]->IsJSObject()) {
     foreign = args.at<i::JSObject>(2);
@@ -93,7 +98,9 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   if (args[3]->IsJSArrayBuffer()) {
     memory = args.at<i::JSArrayBuffer>(3);
   }
-  if (args[1]->IsJSObject()) {
+  if (function->shared()->HasAsmWasmData() &&
+      AsmJs::IsStdlibValid(isolate, handle(function->shared()->asm_wasm_data()),
+                           stdlib)) {
     MaybeHandle<Object> result;
     result = AsmJs::InstantiateAsmWasm(
         isolate, handle(function->shared()->asm_wasm_data()), memory, foreign);
@@ -101,8 +108,20 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
       return *result.ToHandleChecked();
     }
   }
-  // Remove wasm data and return a smi 0 to indicate failure.
-  function->shared()->ClearAsmWasmData();
+  // Remove wasm data, mark as broken for asm->wasm,
+  // replace code with CompileLazy, and return a smi 0 to indicate failure.
+  if (function->shared()->HasAsmWasmData()) {
+    function->shared()->ClearAsmWasmData();
+  }
+  function->shared()->set_is_asm_wasm_broken(true);
+  DCHECK(function->code() ==
+         isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
+  function->ReplaceCode(isolate->builtins()->builtin(Builtins::kCompileLazy));
+  if (function->shared()->code() ==
+      isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
+    function->shared()->ReplaceCode(
+        isolate->builtins()->builtin(Builtins::kCompileLazy));
+  }
   return Smi::FromInt(0);
 }
 

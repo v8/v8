@@ -165,16 +165,18 @@ namespace interpreter {
     OperandType::kIdx)                                                         \
                                                                                \
   /* Binary operators with immediate operands */                               \
-  V(AddSmi, AccumulatorUse::kWrite, OperandType::kImm, OperandType::kReg)      \
-  V(SubSmi, AccumulatorUse::kWrite, OperandType::kImm, OperandType::kReg)      \
+  V(AddSmi, AccumulatorUse::kWrite, OperandType::kImm, OperandType::kReg,      \
+    OperandType::kIdx)                                                         \
+  V(SubSmi, AccumulatorUse::kWrite, OperandType::kImm, OperandType::kReg,      \
+    OperandType::kIdx)                                                         \
   V(BitwiseOrSmi, AccumulatorUse::kWrite, OperandType::kImm,                   \
-    OperandType::kReg)                                                         \
+    OperandType::kReg, OperandType::kIdx)                                      \
   V(BitwiseAndSmi, AccumulatorUse::kWrite, OperandType::kImm,                  \
-    OperandType::kReg)                                                         \
+    OperandType::kReg, OperandType::kIdx)                                      \
   V(ShiftLeftSmi, AccumulatorUse::kWrite, OperandType::kImm,                   \
-    OperandType::kReg)                                                         \
+    OperandType::kReg, OperandType::kIdx)                                      \
   V(ShiftRightSmi, AccumulatorUse::kWrite, OperandType::kImm,                  \
-    OperandType::kReg)                                                         \
+    OperandType::kReg, OperandType::kIdx)                                      \
                                                                                \
   /* Unary Operators */                                                        \
   V(Inc, AccumulatorUse::kReadWrite, OperandType::kIdx)                        \
@@ -235,8 +237,11 @@ namespace interpreter {
                                                                                \
   /* Context allocation */                                                     \
   V(CreateBlockContext, AccumulatorUse::kReadWrite, OperandType::kIdx)         \
+  V(CreateCatchContext, AccumulatorUse::kReadWrite, OperandType::kReg,         \
+    OperandType::kIdx)                                                         \
   /* TODO(klaasb) rename Idx or add unsigned Imm OperandType? */               \
   V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kIdx)          \
+  V(CreateWithContext, AccumulatorUse::kReadWrite, OperandType::kReg)          \
                                                                                \
   /* Arguments allocation */                                                   \
   V(CreateMappedArguments, AccumulatorUse::kWrite)                             \

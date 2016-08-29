@@ -150,7 +150,9 @@ namespace compiler {
   V(Mips64Float64ExtractHighWord32) \
   V(Mips64Float64InsertLowWord32)   \
   V(Mips64Float64InsertHighWord32)  \
+  V(Mips64Float32Max)               \
   V(Mips64Float64Max)               \
+  V(Mips64Float32Min)               \
   V(Mips64Float64Min)               \
   V(Mips64Float64SilenceNaN)        \
   V(Mips64Push)                     \

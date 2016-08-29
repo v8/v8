@@ -137,9 +137,6 @@
   'intl402/DateTimeFormat/12.1.1_1': [FAIL],
   'intl402/NumberFormat/11.1.1_1': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4727
-  'built-ins/TypedArrays/length-arg-is-symbol-throws': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4784
   'built-ins/TypedArray/prototype/set/typedarray-arg-negative-integer-offset-throws': [FAIL],
   'built-ins/TypedArray/prototype/set/array-arg-negative-integer-offset-throws': [FAIL],
@@ -330,10 +327,17 @@
   'built-ins/Function/prototype/toString/unicode': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569
+  'language/eval-code/direct/export': [SKIP],
+  'language/eval-code/direct/import': [SKIP],
+  'language/eval-code/indirect/export': [SKIP],
+  'language/eval-code/indirect/import': [SKIP],
   'language/module-code/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012
-  'intl402/Intl/getCanonicalLocales/*': [FAIL],
+  # http://bugs.icu-project.org/trac/ticket/12671
+  'intl402/Intl/getCanonicalLocales/weird-cases': [FAIL],
+  # https://github.com/tc39/test262/issues/743
+  'intl402/Intl/getCanonicalLocales/main': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5115
   'language/statements/class/subclass/class-definition-null-proto-missing-return-override': [FAIL],
@@ -354,40 +358,6 @@
   'annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5120
-  'built-ins/DataView/negative-bytelength-throws': [FAIL],
-  'built-ins/DataView/prototype/getFloat32/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getFloat64/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getInt16/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getInt32/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getInt8/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getUint16/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getUint32/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/getUint8/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setFloat32/no-value-arg': [FAIL],
-  'built-ins/DataView/prototype/setFloat32/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setFloat64/no-value-arg': [FAIL],
-  'built-ins/DataView/prototype/setFloat64/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setInt16/no-value-arg': [FAIL],
-  'built-ins/DataView/prototype/setInt16/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setInt32/no-value-arg': [FAIL],
-  'built-ins/DataView/prototype/setInt32/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setInt8/no-value-arg': [FAIL],
-  'built-ins/DataView/prototype/setInt8/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setUint16/no-value-arg': [FAIL],
-  'built-ins/DataView/prototype/setUint16/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setUint32/no-value-arg': [FAIL],
-  'built-ins/DataView/prototype/setUint32/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setUint8/no-value-arg': [FAIL],
-  'built-ins/DataView/prototype/setUint8/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/toindex-byteoffset': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5121
-  'language/expressions/assignment/destructuring/obj-prop-__proto__dup': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5124
-  'built-ins/TypedArrays/length-arg-toindex-length': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4973
   'language/literals/numeric/non-octal-decimal-integer-strict': [FAIL],
@@ -520,7 +490,24 @@
   'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
 
   # https://github.com/tc39/test262/issues/694
+  'built-ins/TypedArrays/length-arg-toindex-length': [FAIL],
+
+  # https://github.com/tc39/test262/issues/696
   'language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing': [FAIL],
+
+  # https://github.com/tc39/test262/issues/685
+  'built-ins/DataView/prototype/setUint8/range-check-after-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setUint16/range-check-after-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setUint32/range-check-after-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setInt8/range-check-after-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setInt16/range-check-after-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setInt32/range-check-after-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setFloat32/range-check-after-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setFloat64/range-check-after-value-conversion': [FAIL],
+
+  # https://github.com/tc39/test262/issues/686
+  'built-ins/DataView/prototype/setFloat32/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setFloat64/toindex-byteoffset': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 

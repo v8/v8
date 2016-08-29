@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --validate-asm --allow-natives-syntax
 
 (function __f_54() {
   function __f_41(stdlib, __v_35) {
@@ -14,5 +14,6 @@
     }
     return {__f_21:__f_21};
   }
-  assertThrows(function() {Wasm.instantiateModuleFromAsm(__f_41.toString())});
+  __f_41();
+  assertTrue(%IsNotAsmWasmCode(__f_41));
 })();

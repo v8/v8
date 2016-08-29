@@ -61,7 +61,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat64Mul:
     case kSSEFloat64Div:
     case kSSEFloat64Mod:
+    case kSSEFloat32Max:
     case kSSEFloat64Max:
+    case kSSEFloat32Min:
     case kSSEFloat64Min:
     case kSSEFloat64Abs:
     case kSSEFloat64Neg:

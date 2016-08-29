@@ -406,6 +406,10 @@ class CodeAssembler {
   Node* CallJS(Callable const& callable, Node* context, Node* function,
                Node* receiver, Node* arg1, Node* arg2, size_t result_size = 1);
 
+  // Exception handling support.
+  void GotoIfException(Node* node, Label* if_exception,
+                       Variable* exception_var = nullptr);
+
   // Branching helpers.
   void BranchIf(Node* condition, Label* if_true, Label* if_false);
 

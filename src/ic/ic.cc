@@ -22,6 +22,7 @@
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/prototype.h"
+#include "src/runtime-profiler.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"

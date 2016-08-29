@@ -16,8 +16,6 @@ namespace internal {
 class CompilationDependencies;
 class Factory;
 class FeedbackNexus;
-class TypeCache;
-
 
 namespace compiler {
 
@@ -30,7 +28,7 @@ class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class PropertyAccessInfo;
 class SimplifiedOperatorBuilder;
-
+class TypeCache;
 
 // Specializes a given JSGraph to a given native context, potentially constant
 // folding some {LoadGlobal} nodes or strength reducing some {StoreGlobal}
@@ -71,10 +69,11 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               KeyedICNexus const& nexus, AccessMode access_mode,
                               LanguageMode language_mode,
                               KeyedAccessStoreMode store_mode);
-  Reduction ReduceNamedAccess(Node* node, Node* value,
-                              FeedbackNexus const& nexus, Handle<Name> name,
-                              AccessMode access_mode,
-                              LanguageMode language_mode);
+  Reduction ReduceNamedAccessFromNexus(Node* node, Node* value,
+                                       FeedbackNexus const& nexus,
+                                       Handle<Name> name,
+                                       AccessMode access_mode,
+                                       LanguageMode language_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               MapHandleList const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,

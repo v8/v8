@@ -16,7 +16,6 @@
 #include "src/parsing/parser.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
-#include "src/vm-state.h"
 
 using ::v8::Boolean;
 using ::v8::BooleanObject;

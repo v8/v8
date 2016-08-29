@@ -102,10 +102,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit closure operations.
   builder.CreateClosure(0, NOT_TENURED);
 
-  builder.CreateBlockContext(factory->NewScopeInfo(1));
-
   // Emit create context operation.
+  builder.CreateBlockContext(factory->NewScopeInfo(1));
+  builder.CreateCatchContext(reg, name);
   builder.CreateFunctionContext(1);
+  builder.CreateWithContext(reg);
 
   // Emit literal creation operations.
   builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0)
@@ -376,7 +377,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Return();
 
   // Generate BytecodeArray.
-  Handle<BytecodeArray> the_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),
            builder.fixed_and_temporary_register_count() * kPointerSize);
 
@@ -465,7 +466,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
         }
         builder.Return();
 
-        Handle<BytecodeArray> the_array = builder.ToBytecodeArray();
+        Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
         int total_registers = locals + contexts + temps;
         CHECK_EQ(the_array->frame_size(), total_registers * kPointerSize);
       }
@@ -538,7 +539,7 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
       .LoadLiteral(heap_num_2_copy)
       .Return();
 
-  Handle<BytecodeArray> array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   // Should only have one entry for each identical constant.
   CHECK_EQ(array->constant_pool()->length(), 3);
 }
@@ -591,7 +592,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   builder.Bind(&far0).Bind(&far1).Bind(&far2).Bind(&far3).Bind(&far4);
   builder.Return();
 
-  Handle<BytecodeArray> array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   DCHECK_EQ(array->length(), 40 + kFarJumpDistance - 20 + 1);
 
   BytecodeArrayIterator iterator(array);
@@ -711,7 +712,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   builder.Bind(&end);
   builder.Return();
 
-  Handle<BytecodeArray> array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   BytecodeArrayIterator iterator(array);
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
   CHECK_EQ(iterator.GetImmediateOperand(0), 0);
@@ -806,7 +807,7 @@ TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
       .Bind(&after_jump1)
       .Return();
 
-  Handle<BytecodeArray> array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   BytecodeArrayIterator iterator(array);
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
   CHECK_EQ(iterator.GetImmediateOperand(0), 2);
@@ -839,7 +840,7 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   }
   builder.Return();
 
-  Handle<BytecodeArray> array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   BytecodeArrayIterator iterator(array);
   for (int i = 0; i < kRepeats; i++) {
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);

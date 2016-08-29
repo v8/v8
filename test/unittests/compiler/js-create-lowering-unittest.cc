@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-create-lowering.h"
 #include "src/code-factory.h"
+#include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"

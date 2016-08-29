@@ -431,7 +431,6 @@ action("js2c_experimental") {
     "src/js/harmony-atomics.js",
     "src/js/harmony-simd.js",
     "src/js/harmony-string-padding.js",
-    "src/js/promise-extra.js",
   ]
 
   outputs = [
@@ -869,7 +868,6 @@ v8_source_set("v8_base") {
     "src/ast/prettyprinter.cc",
     "src/ast/prettyprinter.h",
     "src/ast/scopeinfo.cc",
-    "src/ast/scopeinfo.h",
     "src/ast/scopes.cc",
     "src/ast/scopes.h",
     "src/ast/variables.cc",
@@ -1133,10 +1131,14 @@ v8_source_set("v8_base") {
     "src/compiler/store-store-elimination.h",
     "src/compiler/tail-call-optimization.cc",
     "src/compiler/tail-call-optimization.h",
+    "src/compiler/type-cache.cc",
+    "src/compiler/type-cache.h",
     "src/compiler/type-hint-analyzer.cc",
     "src/compiler/type-hint-analyzer.h",
     "src/compiler/type-hints.cc",
     "src/compiler/type-hints.h",
+    "src/compiler/typed-optimization.cc",
+    "src/compiler/typed-optimization.h",
     "src/compiler/typer.cc",
     "src/compiler/typer.h",
     "src/compiler/unwinding-info-writer.h",
@@ -1445,11 +1447,15 @@ v8_source_set("v8_base") {
     "src/objects.h",
     "src/ostreams.cc",
     "src/ostreams.h",
+    "src/parsing/duplicate-finder.cc",
+    "src/parsing/duplicate-finder.h",
     "src/parsing/expression-classifier.h",
     "src/parsing/func-name-inferrer.cc",
     "src/parsing/func-name-inferrer.h",
     "src/parsing/parameter-initializer-rewriter.cc",
     "src/parsing/parameter-initializer-rewriter.h",
+    "src/parsing/parse-info.cc",
+    "src/parsing/parse-info.h",
     "src/parsing/parser-base.h",
     "src/parsing/parser.cc",
     "src/parsing/parser.h",
@@ -1600,8 +1606,6 @@ v8_source_set("v8_base") {
     "src/transitions-inl.h",
     "src/transitions.cc",
     "src/transitions.h",
-    "src/type-cache.cc",
-    "src/type-cache.h",
     "src/type-feedback-vector-inl.h",
     "src/type-feedback-vector.cc",
     "src/type-feedback-vector.h",
@@ -2036,12 +2040,15 @@ v8_source_set("v8_libbase") {
     "src/base/build_config.h",
     "src/base/cpu.cc",
     "src/base/cpu.h",
+    "src/base/debug/stack_trace.cc",
+    "src/base/debug/stack_trace.h",
     "src/base/division-by-constant.cc",
     "src/base/division-by-constant.h",
     "src/base/file-utils.cc",
     "src/base/file-utils.h",
     "src/base/flags.h",
     "src/base/format-macros.h",
+    "src/base/free_deleter.h",
     "src/base/functional.cc",
     "src/base/functional.h",
     "src/base/hashmap.h",
@@ -2083,7 +2090,10 @@ v8_source_set("v8_libbase") {
   }
 
   if (is_linux) {
-    sources += [ "src/base/platform/platform-linux.cc" ]
+    sources += [
+      "src/base/debug/stack_trace_posix.cc",
+      "src/base/platform/platform-linux.cc",
+    ]
 
     libs = [
       "dl",
@@ -2096,18 +2106,31 @@ v8_source_set("v8_libbase") {
         "rt",
       ]
       if (host_os == "mac") {
-        sources += [ "src/base/platform/platform-macos.cc" ]
+        sources += [
+          "src/base/debug/stack_trace_posix.cc",
+          "src/base/platform/platform-macos.cc",
+        ]
       } else {
-        sources += [ "src/base/platform/platform-linux.cc" ]
+        sources += [
+          "src/base/debug/stack_trace_posix.cc",
+          "src/base/platform/platform-linux.cc",
+        ]
       }
     } else {
-      sources += [ "src/base/platform/platform-linux.cc" ]
+      sources += [
+        "src/base/debug/stack_trace_android.cc",
+        "src/base/platform/platform-linux.cc",
+      ]
     }
   } else if (is_mac) {
-    sources += [ "src/base/platform/platform-macos.cc" ]
+    sources += [
+      "src/base/debug/stack_trace_posix.cc",
+      "src/base/platform/platform-macos.cc",
+    ]
   } else if (is_win) {
     # TODO(jochen): Add support for cygwin.
     sources += [
+      "src/base/debug/stack_trace_win.cc",
       "src/base/platform/platform-win32.cc",
       "src/base/win32-headers.h",
     ]
@@ -2115,6 +2138,8 @@ v8_source_set("v8_libbase") {
     defines += [ "_CRT_RAND_S" ]  # for rand_s()
 
     libs = [
+      "dbghelp.lib",
+      "shlwapi.lib",
       "winmm.lib",
       "ws2_32.lib",
     ]
@@ -2432,6 +2457,16 @@ v8_executable("v8_parser_shell") {
 
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
+  }
+
+  if (is_win) {
+    # Suppress warnings about importing locally defined symbols.
+    if (is_component_build) {
+      ldflags = [
+        "/ignore:4049",
+        "/ignore:4217",
+      ]
+    }
   }
 }
 

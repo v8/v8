@@ -9,14 +9,12 @@
 #include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-wasm-builder.h"
 #include "src/assert-scope.h"
-#include "src/ast/ast.h"
-#include "src/ast/scopes.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/objects.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 
 #include "src/wasm/encoder.h"
 #include "src/wasm/module-decoder.h"
@@ -55,6 +53,124 @@ i::MaybeHandle<i::FixedArray> CompileModule(
   return compiled_module;
 }
 
+Handle<i::Object> StdlibMathMember(i::Isolate* isolate,
+                                   Handle<JSReceiver> stdlib,
+                                   Handle<Name> name) {
+  if (stdlib.is_null()) {
+    return Handle<i::Object>();
+  }
+  Handle<i::Name> math_name(
+      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("Math")));
+  MaybeHandle<i::Object> maybe_math = i::Object::GetProperty(stdlib, math_name);
+  if (maybe_math.is_null()) {
+    return Handle<i::Object>();
+  }
+  Handle<i::Object> math = maybe_math.ToHandleChecked();
+  if (!math->IsJSReceiver()) {
+    return Handle<i::Object>();
+  }
+  MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(math, name);
+  if (maybe_value.is_null()) {
+    return Handle<i::Object>();
+  }
+  return maybe_value.ToHandleChecked();
+}
+
+bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
+                         Handle<i::Object> member_id) {
+  int32_t member_kind;
+  if (!member_id->ToInt32(&member_kind)) {
+    UNREACHABLE();
+  }
+  switch (member_kind) {
+    case wasm::AsmTyper::StandardMember::kNone:
+    case wasm::AsmTyper::StandardMember::kModule:
+    case wasm::AsmTyper::StandardMember::kStdlib:
+    case wasm::AsmTyper::StandardMember::kHeap:
+    case wasm::AsmTyper::StandardMember::kFFI: {
+      // Nothing to check for these.
+      return true;
+    }
+    case wasm::AsmTyper::StandardMember::kInfinity: {
+      if (stdlib.is_null()) {
+        return false;
+      }
+      Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
+          STATIC_CHAR_VECTOR("Infinity")));
+      MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(stdlib, name);
+      if (maybe_value.is_null()) {
+        return false;
+      }
+      Handle<i::Object> value = maybe_value.ToHandleChecked();
+      return value->IsNumber() && std::isinf(value->Number());
+    }
+    case wasm::AsmTyper::StandardMember::kNaN: {
+      if (stdlib.is_null()) {
+        return false;
+      }
+      Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
+          STATIC_CHAR_VECTOR("NaN")));
+      MaybeHandle<i::Object> maybe_value = i::Object::GetProperty(stdlib, name);
+      if (maybe_value.is_null()) {
+        return false;
+      }
+      Handle<i::Object> value = maybe_value.ToHandleChecked();
+      return value->IsNaN();
+    }
+#define STDLIB_MATH_FUNC(CamelName, fname)                             \
+  case wasm::AsmTyper::StandardMember::k##CamelName: {                 \
+    Handle<i::Name> name(isolate->factory()->InternalizeOneByteString( \
+        STATIC_CHAR_VECTOR(#fname)));                                  \
+    Handle<i::Object> value = StdlibMathMember(isolate, stdlib, name); \
+    if (value.is_null() || !value->IsJSFunction()) {                   \
+      return false;                                                    \
+    }                                                                  \
+    Handle<i::JSFunction> func(i::JSFunction::cast(*value));           \
+    return func->shared()->code() ==                                   \
+           isolate->builtins()->builtin(Builtins::k##CamelName);       \
+  }
+      STDLIB_MATH_FUNC(MathAcos, acos)
+      STDLIB_MATH_FUNC(MathAsin, asin)
+      STDLIB_MATH_FUNC(MathAtan, atan)
+      STDLIB_MATH_FUNC(MathCos, cos)
+      STDLIB_MATH_FUNC(MathSin, sin)
+      STDLIB_MATH_FUNC(MathTan, tan)
+      STDLIB_MATH_FUNC(MathExp, exp)
+      STDLIB_MATH_FUNC(MathLog, log)
+      STDLIB_MATH_FUNC(MathCeil, ceil)
+      STDLIB_MATH_FUNC(MathFloor, floor)
+      STDLIB_MATH_FUNC(MathSqrt, sqrt)
+      STDLIB_MATH_FUNC(MathAbs, abs)
+      STDLIB_MATH_FUNC(MathClz32, clz32)
+      STDLIB_MATH_FUNC(MathMin, min)
+      STDLIB_MATH_FUNC(MathMax, max)
+      STDLIB_MATH_FUNC(MathAtan2, atan2)
+      STDLIB_MATH_FUNC(MathPow, pow)
+      STDLIB_MATH_FUNC(MathImul, imul)
+      STDLIB_MATH_FUNC(MathFround, fround)
+#undef STDLIB_MATH_FUNC
+#define STDLIB_MATH_CONST(cname, const_value)                             \
+  case wasm::AsmTyper::StandardMember::kMath##cname: {                    \
+    i::Handle<i::Name> name(isolate->factory()->InternalizeOneByteString( \
+        STATIC_CHAR_VECTOR(#cname)));                                     \
+    i::Handle<i::Object> value = StdlibMathMember(isolate, stdlib, name); \
+    return !value.is_null() && value->IsNumber() &&                       \
+           value->Number() == const_value;                                \
+  }
+      STDLIB_MATH_CONST(E, 2.718281828459045)
+      STDLIB_MATH_CONST(LN10, 2.302585092994046)
+      STDLIB_MATH_CONST(LN2, 0.6931471805599453)
+      STDLIB_MATH_CONST(LOG2E, 1.4426950408889634)
+      STDLIB_MATH_CONST(LOG10E, 0.4342944819032518)
+      STDLIB_MATH_CONST(PI, 3.141592653589793)
+      STDLIB_MATH_CONST(SQRT1_2, 0.7071067811865476)
+      STDLIB_MATH_CONST(SQRT2, 1.4142135623730951)
+#undef STDLIB_MATH_CONST
+    default: { UNREACHABLE(); }
+  }
+  return false;
+}
+
 }  // namespace
 
 MaybeHandle<FixedArray> AsmJs::ConvertAsmToWasm(ParseInfo* info) {
@@ -76,16 +192,37 @@ MaybeHandle<FixedArray> AsmJs::ConvertAsmToWasm(ParseInfo* info) {
                     internal::wasm::kAsmJsOrigin);
   DCHECK(!compiled.is_null());
 
-  Handle<FixedArray> result = info->isolate()->factory()->NewFixedArray(2);
+  wasm::AsmTyper::StdlibSet uses = typer.StdlibUses();
+  Handle<FixedArray> uses_array =
+      info->isolate()->factory()->NewFixedArray(static_cast<int>(uses.size()));
+  int count = 0;
+  for (auto i : uses) {
+    uses_array->set(count++, Smi::FromInt(i));
+  }
+
+  Handle<FixedArray> result = info->isolate()->factory()->NewFixedArray(3);
   result->set(0, *compiled.ToHandleChecked());
   result->set(1, *foreign_globals);
+  result->set(2, *uses_array);
   return result;
+}
+
+bool AsmJs::IsStdlibValid(i::Isolate* isolate, Handle<FixedArray> wasm_data,
+                          Handle<JSReceiver> stdlib) {
+  i::Handle<i::FixedArray> uses(i::FixedArray::cast(wasm_data->get(2)));
+  for (int i = 0; i < uses->length(); ++i) {
+    if (!IsStdlibMemberValid(isolate, stdlib,
+                             uses->GetValueChecked<i::Object>(isolate, i))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                                               Handle<FixedArray> wasm_data,
                                               Handle<JSArrayBuffer> memory,
-                                              Handle<JSObject> foreign) {
+                                              Handle<JSReceiver> foreign) {
   i::Handle<i::FixedArray> compiled(i::FixedArray::cast(wasm_data->get(0)));
   i::Handle<i::FixedArray> foreign_globals(
       i::FixedArray::cast(wasm_data->get(1)));
@@ -129,11 +266,8 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
       isolate, init, undefined, foreign_globals->length(), foreign_args_array);
   delete[] foreign_args_array;
 
-  if (retval.is_null()) {
-    thrower.Error(
-        "WASM.instantiateModuleFromAsm(): foreign init function failed");
-    return MaybeHandle<Object>();
-  }
+  DCHECK(!retval.is_null());
+
   return maybe_module_object;
 }
 

@@ -24,6 +24,7 @@
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
 #include "src/char-predicates-inl.h"
@@ -68,6 +69,7 @@
 #include "src/unicode-inl.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
+#include "src/value-serializer.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
@@ -2830,6 +2832,113 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
       !ToLocal<String>(i::Object::ToString(isolate, maybe), &result);
   RETURN_ON_FAILED_EXECUTION(String);
   RETURN_ESCAPED(result);
+}
+
+// --- V a l u e   S e r i a l i z a t i o n ---
+
+struct ValueSerializer::PrivateData {
+  explicit PrivateData(i::Isolate* i) : isolate(i), serializer(i) {}
+  i::Isolate* isolate;
+  i::ValueSerializer serializer;
+};
+
+ValueSerializer::ValueSerializer(Isolate* isolate)
+    : private_(new PrivateData(reinterpret_cast<i::Isolate*>(isolate))) {}
+
+ValueSerializer::~ValueSerializer() { delete private_; }
+
+void ValueSerializer::WriteHeader() { private_->serializer.WriteHeader(); }
+
+Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
+                                        Local<Value> value) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, ValueSerializer, WriteValue, bool);
+  i::Handle<i::Object> object = Utils::OpenHandle(*value);
+  Maybe<bool> result = private_->serializer.WriteObject(object);
+  if (result.IsNothing()) {
+    has_pending_exception = private_->isolate->has_pending_exception();
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  }
+  return result;
+}
+
+std::vector<uint8_t> ValueSerializer::ReleaseBuffer() {
+  return private_->serializer.ReleaseBuffer();
+}
+
+void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
+                                          Local<ArrayBuffer> array_buffer) {
+  private_->serializer.TransferArrayBuffer(transfer_id,
+                                           Utils::OpenHandle(*array_buffer));
+}
+
+struct ValueDeserializer::PrivateData {
+  PrivateData(i::Isolate* i, i::Vector<const uint8_t> data)
+      : isolate(i), deserializer(i, data) {}
+  i::Isolate* isolate;
+  i::ValueDeserializer deserializer;
+  bool supports_legacy_wire_format = false;
+};
+
+ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
+                                     size_t size) {
+  if (base::IsValueInRangeForNumericType<int>(size)) {
+    private_ =
+        new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
+                        i::Vector<const uint8_t>(data, static_cast<int>(size)));
+  } else {
+    private_ = nullptr;
+  }
+}
+
+ValueDeserializer::~ValueDeserializer() { delete private_; }
+
+Maybe<bool> ValueDeserializer::ReadHeader() {
+  // TODO(jbroman): Today, all wire formats are "legacy". When a more supported
+  // format is added, compare the version of the internal serializer to the
+  // minimum non-legacy version number.
+  if (!private_ || !private_->deserializer.ReadHeader().FromMaybe(false) ||
+      !private_->supports_legacy_wire_format) {
+    delete private_;
+    private_ = nullptr;
+    return Nothing<bool>();
+  }
+  return Just(true);
+}
+
+void ValueDeserializer::SetSupportsLegacyWireFormat(
+    bool supports_legacy_wire_format) {
+  if (!private_) return;
+  private_->supports_legacy_wire_format = supports_legacy_wire_format;
+}
+
+uint32_t ValueDeserializer::GetWireFormatVersion() const {
+  CHECK(private_);
+  return private_->deserializer.GetWireFormatVersion();
+}
+
+MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
+  CHECK(private_);
+  PREPARE_FOR_EXECUTION(context, ValueDeserializer, ReadValue, Value);
+  i::MaybeHandle<i::Object> result;
+  if (GetWireFormatVersion() > 0) {
+    result = private_->deserializer.ReadObject();
+  } else {
+    result =
+        private_->deserializer.ReadObjectUsingEntireBufferForLegacyFormat();
+  }
+  Local<Value> value;
+  if (!ToLocal(result, &value)) {
+    has_pending_exception = private_->isolate->has_pending_exception();
+    RETURN_ON_FAILED_EXECUTION(Value);
+    return MaybeLocal<Value>();
+  }
+  RETURN_ESCAPED(value);
+}
+
+void ValueDeserializer::TransferArrayBuffer(uint32_t transfer_id,
+                                            Local<ArrayBuffer> array_buffer) {
+  private_->deserializer.TransferArrayBuffer(transfer_id,
+                                             Utils::OpenHandle(*array_buffer));
 }
 
 // --- D a t a ---
@@ -6707,36 +6816,6 @@ void Promise::Resolver::Reject(Local<Value> value) {
 }
 
 
-namespace {
-
-MaybeLocal<Promise> DoChain(Value* value, Local<Context> context,
-                            Local<Function> handler) {
-  PREPARE_FOR_EXECUTION(context, Promise, Chain, Promise);
-  auto self = Utils::OpenHandle(value);
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*handler)};
-  i::Handle<i::Object> result;
-  has_pending_exception = !i::Execution::Call(isolate, isolate->promise_chain(),
-                                              self, arraysize(argv), argv)
-                               .ToHandle(&result);
-  RETURN_ON_FAILED_EXECUTION(Promise);
-  RETURN_ESCAPED(Local<Promise>::Cast(Utils::ToLocal(result)));
-}
-
-}  // namespace
-
-
-MaybeLocal<Promise> Promise::Chain(Local<Context> context,
-                                   Local<Function> handler) {
-  return DoChain(this, context, handler);
-}
-
-
-Local<Promise> Promise::Chain(Local<Function> handler) {
-  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(DoChain(this, context, handler), Promise);
-}
-
-
 MaybeLocal<Promise> Promise::Catch(Local<Context> context,
                                    Local<Function> handler) {
   PREPARE_FOR_EXECUTION(context, Promise, Catch, Promise);
@@ -8016,6 +8095,7 @@ class VisitorAdapter : public i::ObjectVisitor {
   void VisitPointers(i::Object** start, i::Object** end) override {
     UNREACHABLE();
   }
+  DISABLE_CFI_PERF
   void VisitEmbedderReference(i::Object** p, uint16_t class_id) override {
     Value* value = ToApi<Value>(i::Handle<i::Object>(p));
     visitor_->VisitPersistentHandle(

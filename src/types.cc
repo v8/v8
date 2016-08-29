@@ -248,7 +248,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case TRANSITION_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case SCRIPT_TYPE:
-    case STACK_TRACE_FRAME_TYPE:
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
       return kOtherInternal & kTaggedPointer;

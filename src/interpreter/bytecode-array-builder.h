@@ -34,7 +34,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
       SourcePositionTableBuilder::RecordingMode source_position_mode =
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
-  Handle<BytecodeArray> ToBytecodeArray();
+  Handle<BytecodeArray> ToBytecodeArray(Isolate* isolate);
 
   // Get the number of parameters expected by function.
   int parameter_count() const {
@@ -139,8 +139,17 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // in the accumulator.
   BytecodeArrayBuilder& CreateBlockContext(Handle<ScopeInfo> scope_info);
 
+  // Create a new context for a catch block with |exception| and |name| and the
+  // closure in the accumulator.
+  BytecodeArrayBuilder& CreateCatchContext(Register exception,
+                                           Handle<String> name);
+
   // Create a new context with size |slots|.
   BytecodeArrayBuilder& CreateFunctionContext(int slots);
+
+  // Creates a new context for a with-statement with the |object| in a register
+  // and the closure in the accumulator.
+  BytecodeArrayBuilder& CreateWithContext(Register object);
 
   // Create a new arguments object in the accumulator.
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);
@@ -363,7 +372,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   void LeaveBasicBlock() { return_seen_in_block_ = false; }
 
-  Isolate* isolate() const { return isolate_; }
   BytecodeArrayWriter* bytecode_array_writer() {
     return &bytecode_array_writer_;
   }
@@ -378,7 +386,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
     return &handler_table_builder_;
   }
 
-  Isolate* isolate_;
   Zone* zone_;
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;

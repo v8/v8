@@ -3329,50 +3329,9 @@ void MacroAssembler::CopyBytes(Register src, Register dst, Register length,
   LoadP(scratch, MemOperand(src));
   addi(src, src, Operand(kPointerSize));
   subi(length, length, Operand(kPointerSize));
-  if (CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) {
-    // currently false for PPC - but possible future opt
-    StoreP(scratch, MemOperand(dst));
-    addi(dst, dst, Operand(kPointerSize));
-  } else {
-#if V8_TARGET_LITTLE_ENDIAN
-    stb(scratch, MemOperand(dst, 0));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 1));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 2));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 3));
-#if V8_TARGET_ARCH_PPC64
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 4));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 5));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 6));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 7));
-#endif
-#else
-#if V8_TARGET_ARCH_PPC64
-    stb(scratch, MemOperand(dst, 7));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 6));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 5));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 4));
-    ShiftRightImm(scratch, scratch, Operand(8));
-#endif
-    stb(scratch, MemOperand(dst, 3));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 2));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 1));
-    ShiftRightImm(scratch, scratch, Operand(8));
-    stb(scratch, MemOperand(dst, 0));
-#endif
-    addi(dst, dst, Operand(kPointerSize));
-  }
+
+  StoreP(scratch, MemOperand(dst));
+  addi(dst, dst, Operand(kPointerSize));
   bdnz(&word_loop);
 
   // Copy the last bytes if any left.

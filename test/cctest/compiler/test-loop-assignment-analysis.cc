@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/ast/scopes.h"
+#include "src/compiler.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/rewriter.h"
 #include "test/cctest/cctest.h"

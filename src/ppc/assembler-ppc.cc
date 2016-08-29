@@ -1231,6 +1231,21 @@ void Assembler::lwax(Register rt, const MemOperand& src) {
 }
 
 
+void Assembler::ldbrx(Register dst, const MemOperand& src) {
+  x_form(EXT2 | LDBRX, src.ra(), dst, src.rb(), LeaveRC);
+}
+
+
+void Assembler::lwbrx(Register dst, const MemOperand& src) {
+  x_form(EXT2 | LWBRX, src.ra(), dst, src.rb(), LeaveRC);
+}
+
+
+void Assembler::lhbrx(Register dst, const MemOperand& src) {
+  x_form(EXT2 | LHBRX, src.ra(), dst, src.rb(), LeaveRC);
+}
+
+
 void Assembler::stb(Register dst, const MemOperand& src) {
   DCHECK(!src.ra_.is(r0));
   d_form(STB, dst, src.ra(), src.offset(), true);

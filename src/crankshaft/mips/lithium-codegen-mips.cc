@@ -171,7 +171,7 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
   Comment(";;; Prologue begin");
 
   // Possibly allocate a local context.
-  if (info()->scope()->num_heap_slots() > 0) {
+  if (info()->scope()->NeedsContext()) {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is in a1.
@@ -3442,10 +3442,10 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   // Math.sqrt(-Infinity) == NaN
   Label done;
   __ Move(temp, static_cast<double>(-V8_INFINITY));
-  __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, temp, input);
-  // Set up Infinity in the delay slot.
+  // Set up Infinity.
+  __ Neg_d(result, temp);
   // result is overwritten if the branch is not taken.
-  __ neg_d(result, temp);
+  __ BranchF(&done, NULL, eq, temp, input);
 
   // Add +0 to convert -0 to +0.
   __ add_d(result, input, kDoubleRegZero);

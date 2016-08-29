@@ -22,9 +22,9 @@ namespace interpreter {
 class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
  public:
   BytecodeArrayWriterUnittest()
-      : constant_array_builder_(isolate(), zone()),
+      : constant_array_builder_(zone(), isolate()->factory()->the_hole_value()),
         bytecode_array_writer_(
-            isolate(), zone(), &constant_array_builder_,
+            zone(), &constant_array_builder_,
             SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS) {}
   ~BytecodeArrayWriterUnittest() override {}
 
@@ -137,8 +137,8 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
     CHECK_EQ(bytecodes()->at(i), bytes[i]);
   }
 
-  Handle<BytecodeArray> bytecode_array =
-      writer()->ToBytecodeArray(0, 0, factory()->empty_fixed_array());
+  Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
+      isolate(), 0, 0, factory()->empty_fixed_array());
   CHECK_EQ(bytecodes()->size(), arraysize(bytes));
 
   PositionTableEntry expected_positions[] = {
@@ -235,8 +235,8 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
              static_cast<int>(expected_bytes[i]));
   }
 
-  Handle<BytecodeArray> bytecode_array =
-      writer()->ToBytecodeArray(0, 0, factory()->empty_fixed_array());
+  Handle<BytecodeArray> bytecode_array = writer()->ToBytecodeArray(
+      isolate(), 0, 0, factory()->empty_fixed_array());
   SourcePositionTableIterator source_iterator(
       bytecode_array->source_position_table());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {

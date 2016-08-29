@@ -8,14 +8,12 @@
 #include "src/accessors.h"
 #include "src/allocation.h"
 #include "src/ast/ast-type-bounds.h"
-#include "src/ast/ast.h"
-#include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
 #include "src/compiler.h"
 #include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen-instructions.h"
 #include "src/globals.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -32,11 +30,12 @@ class HTracer;
 class LAllocator;
 class LChunk;
 class LiveRange;
+class Scope;
 
 class HCompilationJob final : public CompilationJob {
  public:
   explicit HCompilationJob(Handle<JSFunction> function)
-      : CompilationJob(&info_, "Crankshaft"),
+      : CompilationJob(function->GetIsolate(), &info_, "Crankshaft"),
         zone_(function->GetIsolate()->allocator()),
         parse_info_(&zone_, function),
         info_(&parse_info_, function),
@@ -44,9 +43,9 @@ class HCompilationJob final : public CompilationJob {
         chunk_(nullptr) {}
 
  protected:
-  virtual Status CreateGraphImpl();
-  virtual Status OptimizeGraphImpl();
-  virtual Status GenerateCodeImpl();
+  virtual Status PrepareJobImpl();
+  virtual Status ExecuteJobImpl();
+  virtual Status FinalizeJobImpl();
 
  private:
   Zone zone_;

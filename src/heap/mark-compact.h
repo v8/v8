@@ -500,8 +500,6 @@ class MarkCompactCollector {
 
   void TracePossibleWrapper(JSObject* js_object);
 
-  void RegisterExternallyReferencedObject(Object** object);
-
  private:
   class EvacuateNewSpacePageVisitor;
   class EvacuateNewSpaceVisitor;

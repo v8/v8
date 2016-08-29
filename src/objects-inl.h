@@ -709,6 +709,8 @@ bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
 
 bool HeapObject::IsDescriptorArray() const { return IsFixedArray(); }
 
+bool HeapObject::IsFrameArray() const { return IsFixedArray(); }
+
 bool HeapObject::IsArrayList() const { return IsFixedArray(); }
 
 bool Object::IsLayoutDescriptor() const {
@@ -2610,6 +2612,29 @@ Object** FixedArray::RawFieldOfElementAt(int index) {
   return HeapObject::RawField(this, OffsetOfElementAt(index));
 }
 
+#define DEFINE_FRAME_ARRAY_ACCESSORS(name, type)                              \
+  type* FrameArray::name(int frame_ix) const {                                \
+    Object* obj =                                                             \
+        get(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset);    \
+    return type::cast(obj);                                                   \
+  }                                                                           \
+                                                                              \
+  void FrameArray::Set##name(int frame_ix, type* value) {                     \
+    set(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset, value); \
+  }
+FRAME_ARRAY_FIELD_LIST(DEFINE_FRAME_ARRAY_ACCESSORS)
+#undef DEFINE_FRAME_ARRAY_ACCESSORS
+
+bool FrameArray::IsWasmFrame(int frame_ix) const {
+  const int flags = Flags(frame_ix)->value();
+  return (flags & kIsWasmFrame) != 0;
+}
+
+int FrameArray::FrameCount() const {
+  const int frame_count = Smi::cast(get(kFrameCountIndex))->value();
+  DCHECK_LE(0, frame_count);
+  return frame_count;
+}
 
 bool DescriptorArray::IsEmpty() {
   DCHECK(length() >= kFirstIndex ||
@@ -3223,6 +3248,7 @@ CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(Float32x4)
 CAST_ACCESSOR(Foreign)
+CAST_ACCESSOR(FrameArray)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)
@@ -5818,29 +5844,6 @@ void Script::set_origin_options(ScriptOriginOptions origin_options) {
             (origin_options.Flags() << kOriginOptionsShift));
 }
 
-SMI_ACCESSORS(StackTraceFrame, flags, kFlagsOffset)
-ACCESSORS(StackTraceFrame, abstract_code, AbstractCode, kAbstractCodeOffset)
-SMI_ACCESSORS(StackTraceFrame, offset, kOffsetOffset)
-ACCESSORS_CHECKED(StackTraceFrame, receiver, Object, kReceiverOffset,
-                  !IsWasmFrame())
-ACCESSORS_CHECKED(StackTraceFrame, function, JSFunction, kFunctionOffset,
-                  !IsWasmFrame())
-ACCESSORS_CHECKED(StackTraceFrame, wasm_object, Object, kWasmObjectOffset,
-                  IsWasmFrame())
-SMI_ACCESSORS_CHECKED(StackTraceFrame, wasm_function_index,
-                      kWasmFunctionIndexOffset, IsWasmFrame())
-
-bool StackTraceFrame::IsWasmFrame() const {
-  return ((flags() & kIsWasmFrame) != 0);
-}
-
-bool StackTraceFrame::IsJavaScriptFrame() const { return !IsWasmFrame(); }
-
-bool StackTraceFrame::IsStrict() const { return ((flags() & kIsStrict) != 0); }
-
-bool StackTraceFrame::ForceConstructor() const {
-  return ((flags() & kForceConstructor) != 0);
-}
 
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayIndex)
@@ -6038,14 +6041,14 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 
 
 LanguageMode SharedFunctionInfo::language_mode() {
-  STATIC_ASSERT(LANGUAGE_END == 3);
+  STATIC_ASSERT(LANGUAGE_END == 2);
   return construct_language_mode(
       BooleanBit::get(compiler_hints(), kStrictModeFunction));
 }
 
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
-  STATIC_ASSERT(LANGUAGE_END == 3);
+  STATIC_ASSERT(LANGUAGE_END == 2);
   // We only allow language mode transitions that set the same language mode
   // again or go up in the chain:
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
@@ -6103,6 +6106,8 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_setter_function,
                kIsSetterFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_default_constructor,
                kIsDefaultConstructor)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
+               kIsAsmWasmBroken)
 
 inline bool SharedFunctionInfo::is_resumable() const {
   return is_generator() || is_async();

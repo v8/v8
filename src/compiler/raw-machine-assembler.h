@@ -458,7 +458,12 @@ class RawMachineAssembler {
   Node* Float32GreaterThanOrEqual(Node* a, Node* b) {
     return Float32LessThanOrEqual(b, a);
   }
-
+  Node* Float32Max(Node* a, Node* b) {
+    return AddNode(machine()->Float32Max(), a, b);
+  }
+  Node* Float32Min(Node* a, Node* b) {
+    return AddNode(machine()->Float32Min(), a, b);
+  }
   Node* Float64Add(Node* a, Node* b) {
     return AddNode(machine()->Float64Add(), a, b);
   }
@@ -758,6 +763,11 @@ class RawMachineAssembler {
   void Deoptimize(Node* state);
   void DebugBreak();
   void Comment(const char* msg);
+
+  // Add success / exception successor blocks and ends the current block ending
+  // in a potentially throwing call node.
+  void Continuations(Node* call, RawMachineLabel* if_success,
+                     RawMachineLabel* if_exception);
 
   // Variables.
   Node* Phi(MachineRepresentation rep, Node* n1, Node* n2) {

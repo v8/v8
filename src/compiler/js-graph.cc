@@ -29,14 +29,22 @@ Node* JSGraph::ToNumberBuiltinConstant() {
                 HeapConstant(isolate()->builtins()->ToNumber()));
 }
 
-Node* JSGraph::CEntryStubConstant(int result_size) {
-  if (result_size == 1) {
-    return CACHED(kCEntryStubConstant,
-                  HeapConstant(CEntryStub(isolate(), 1).GetCode()));
+Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
+                                  ArgvMode argv_mode, bool builtin_exit_frame) {
+  if (save_doubles == kDontSaveFPRegs && argv_mode == kArgvOnStack &&
+      result_size == 1) {
+    CachedNode key = builtin_exit_frame
+                         ? kCEntryStubWithBuiltinExitFrameConstant
+                         : kCEntryStubConstant;
+    return CACHED(key,
+                  HeapConstant(CEntryStub(isolate(), result_size, save_doubles,
+                                          argv_mode, builtin_exit_frame)
+                                   .GetCode()));
   }
-  return HeapConstant(CEntryStub(isolate(), result_size).GetCode());
+  CEntryStub stub(isolate(), result_size, save_doubles, argv_mode,
+                  builtin_exit_frame);
+  return HeapConstant(stub.GetCode());
 }
-
 
 Node* JSGraph::EmptyFixedArrayConstant() {
   return CACHED(kEmptyFixedArrayConstant,

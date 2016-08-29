@@ -59,6 +59,7 @@ void SerializedData::AllocateData(int size) {
 //  - during deserialization to populate it.
 //  - during normal GC to keep its content alive.
 //  - not during serialization. The partial serializer adds to it explicitly.
+DISABLE_CFI_PERF
 void SerializerDeserializer::Iterate(Isolate* isolate, ObjectVisitor* visitor) {
   List<Object*>* cache = isolate->partial_snapshot_cache();
   for (int i = 0;; ++i) {

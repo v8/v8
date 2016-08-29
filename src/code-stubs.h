@@ -441,8 +441,8 @@ class CodeStub BASE_EMBEDDED {
  public:                                                                      \
   static compiler::Node* Generate(                                            \
       CodeStubAssembler* assembler, compiler::Node* left,                     \
-      compiler::Node* right, compiler::Node* context,                         \
-      compiler::Node* type_feedback_vector, compiler::Node* slot_id);         \
+      compiler::Node* right, compiler::Node* slot_id,                         \
+      compiler::Node* type_feedback_vector, compiler::Node* context);         \
   void GenerateAssembly(CodeStubAssembler* assembler) const override {        \
     assembler->Return(                                                        \
         Generate(assembler, assembler->Parameter(0), assembler->Parameter(1), \
@@ -460,6 +460,19 @@ class CodeStub BASE_EMBEDDED {
     assembler->Return(Generate(assembler, assembler->Parameter(0),     \
                                assembler->Parameter(1)));              \
   }                                                                    \
+  DEFINE_CODE_STUB(NAME, SUPER)
+
+#define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)         \
+ public:                                                                      \
+  static compiler::Node* Generate(                                            \
+      CodeStubAssembler* assembler, compiler::Node* value,                    \
+      compiler::Node* context, compiler::Node* type_feedback_vector,          \
+      compiler::Node* slot_id);                                               \
+  void GenerateAssembly(CodeStubAssembler* assembler) const override {        \
+    assembler->Return(                                                        \
+        Generate(assembler, assembler->Parameter(0), assembler->Parameter(1), \
+                 assembler->Parameter(2), assembler->Parameter(3)));          \
+  }                                                                           \
   DEFINE_CODE_STUB(NAME, SUPER)
 
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
@@ -764,7 +777,7 @@ class AddWithFeedbackStub final : public TurboFanCodeStub {
  public:
   explicit AddWithFeedbackStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(AddWithFeedback,
                                                     TurboFanCodeStub);
 };
@@ -782,7 +795,7 @@ class SubtractWithFeedbackStub final : public TurboFanCodeStub {
   explicit SubtractWithFeedbackStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(SubtractWithFeedback,
                                                     TurboFanCodeStub);
 };
@@ -800,7 +813,7 @@ class MultiplyWithFeedbackStub final : public TurboFanCodeStub {
   explicit MultiplyWithFeedbackStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(MultiplyWithFeedback,
                                                     TurboFanCodeStub);
 };
@@ -818,7 +831,7 @@ class DivideWithFeedbackStub final : public TurboFanCodeStub {
   explicit DivideWithFeedbackStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(DivideWithFeedback,
                                                     TurboFanCodeStub);
 };
@@ -836,7 +849,7 @@ class ModulusWithFeedbackStub final : public TurboFanCodeStub {
   explicit ModulusWithFeedbackStub(Isolate* isolate)
       : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(ModulusWithFeedback,
                                                     TurboFanCodeStub);
 };
@@ -895,7 +908,7 @@ class IncStub final : public TurboFanCodeStub {
   explicit IncStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(Inc, TurboFanCodeStub);
+  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(Inc, TurboFanCodeStub);
 };
 
 class DecStub final : public TurboFanCodeStub {
@@ -903,7 +916,7 @@ class DecStub final : public TurboFanCodeStub {
   explicit DecStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(Dec, TurboFanCodeStub);
+  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(Dec, TurboFanCodeStub);
 };
 
 class InstanceOfStub final : public TurboFanCodeStub {
@@ -1845,8 +1858,8 @@ class StoreGlobalViaContextStub final : public PlatformCodeStub {
  private:
   class DepthBits : public BitField<int, 0, 4> {};
   STATIC_ASSERT(DepthBits::kMax == kMaximumDepth);
-  class LanguageModeBits : public BitField<LanguageMode, 4, 2> {};
-  STATIC_ASSERT(LANGUAGE_END == 3);
+  class LanguageModeBits : public BitField<LanguageMode, 4, 1> {};
+  STATIC_ASSERT(LANGUAGE_END == 2);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreGlobalViaContext);
   DEFINE_PLATFORM_CODE_STUB(StoreGlobalViaContext, PlatformCodeStub);

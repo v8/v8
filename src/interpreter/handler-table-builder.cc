@@ -13,13 +13,12 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-HandlerTableBuilder::HandlerTableBuilder(Isolate* isolate, Zone* zone)
-    : isolate_(isolate), entries_(zone) {}
+HandlerTableBuilder::HandlerTableBuilder(Zone* zone) : entries_(zone) {}
 
-Handle<HandlerTable> HandlerTableBuilder::ToHandlerTable() {
+Handle<HandlerTable> HandlerTableBuilder::ToHandlerTable(Isolate* isolate) {
   int handler_table_size = static_cast<int>(entries_.size());
   Handle<HandlerTable> table =
-      Handle<HandlerTable>::cast(isolate_->factory()->NewFixedArray(
+      Handle<HandlerTable>::cast(isolate->factory()->NewFixedArray(
           HandlerTable::LengthForRange(handler_table_size), TENURED));
   for (int i = 0; i < handler_table_size; ++i) {
     Entry& entry = entries_[i];

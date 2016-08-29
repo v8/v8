@@ -184,10 +184,6 @@ DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 
-DEFINE_BOOL(promise_extra, false, "additional V8 Promise functions")
-// Removing extra Promise functions is shipped
-DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, promise_extra, true)
-
 DEFINE_BOOL(intl_extra, false, "additional V8 Intl functions")
 // Removing extra Intl functions is shipped
 DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, intl_extra, true)
@@ -747,6 +743,8 @@ DEFINE_BOOL(age_code, true,
             "track un-executed functions to age code and flush only "
             "old code (required for code flushing)")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
+DEFINE_BOOL(incremental_marking_wrappers, true,
+            "use incremental marking for marking wrappers")
 DEFINE_INT(min_progress_during_incremental_marking_finalization, 32,
            "keep finalizing incremental marking as long as we discover at "
            "least this many unmarked objects")

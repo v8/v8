@@ -187,7 +187,9 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord16:
       opcode = load_rep.IsSigned() ? kX87Movsxwl : kX87Movzxwl;
       break;
-    case MachineRepresentation::kTagged:  // Fall through.
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:         // Fall through.
     case MachineRepresentation::kWord32:
       opcode = kX87Movl;
       break;
@@ -271,7 +273,9 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord16:
         opcode = kX87Movw;
         break;
-      case MachineRepresentation::kTagged:  // Fall through.
+      case MachineRepresentation::kTaggedSigned:   // Fall through.
+      case MachineRepresentation::kTaggedPointer:  // Fall through.
+      case MachineRepresentation::kTagged:         // Fall through.
       case MachineRepresentation::kWord32:
         opcode = kX87Movl;
         break;
@@ -333,10 +337,12 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kFloat64:
       opcode = kCheckedLoadFloat64;
       break;
-    case MachineRepresentation::kBit:      // Fall through.
-    case MachineRepresentation::kTagged:   // Fall through.
-    case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kBit:            // Fall through.
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:         // Fall through.
+    case MachineRepresentation::kWord64:         // Fall through.
+    case MachineRepresentation::kSimd128:        // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -380,10 +386,12 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kFloat64:
       opcode = kCheckedStoreFloat64;
       break;
-    case MachineRepresentation::kBit:      // Fall through.
-    case MachineRepresentation::kTagged:   // Fall through.
-    case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kBit:            // Fall through.
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:         // Fall through.
+    case MachineRepresentation::kWord64:         // Fall through.
+    case MachineRepresentation::kSimd128:        // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -964,6 +972,12 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
   Emit(kX87Float64Mod, g.DefineAsFixed(node, stX_0), 1, temps)->MarkAsCall();
 }
 
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(0)));
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(1)));
+  Emit(kX87Float32Max, g.DefineAsFixed(node, stX_0), 0, nullptr);
+}
 
 void InstructionSelector::VisitFloat64Max(Node* node) {
   X87OperandGenerator g(this);
@@ -972,6 +986,12 @@ void InstructionSelector::VisitFloat64Max(Node* node) {
   Emit(kX87Float64Max, g.DefineAsFixed(node, stX_0), 0, nullptr);
 }
 
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(0)));
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(1)));
+  Emit(kX87Float32Min, g.DefineAsFixed(node, stX_0), 0, nullptr);
+}
 
 void InstructionSelector::VisitFloat64Min(Node* node) {
   X87OperandGenerator g(this);

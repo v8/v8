@@ -9,7 +9,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ArrayIndexOf;
 var ArrayJoin;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
@@ -23,7 +22,6 @@ var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
 
 utils.Import(function(from) {
-  ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
   IsRegExp = from.IsRegExp;
   MaxSimple = from.MaxSimple;
@@ -132,7 +130,7 @@ function StringNormalize(formArg) {  // length == 0
   var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
 
   var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
-  var normalizationForm = %_Call(ArrayIndexOf, NORMALIZATION_FORMS, form);
+  var normalizationForm = %ArrayIndexOf(NORMALIZATION_FORMS, form, 0);
   if (normalizationForm === -1) {
     throw %make_range_error(kNormalizationForm,
                          %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));

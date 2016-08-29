@@ -56,7 +56,8 @@ namespace internal {
   F(FixedArrayGet, 2, 1)             \
   F(FixedArraySet, 3, 1)             \
   F(ArraySpeciesConstructor, 1, 1)   \
-  F(ArrayIncludes_Slow, 3, 1)
+  F(ArrayIncludes_Slow, 3, 1)        \
+  F(ArrayIndexOf, 3, 1)
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F)           \
   F(ThrowNotIntegerSharedTypedArrayError, 1, 1) \
@@ -303,6 +304,7 @@ namespace internal {
   F(NewTypeError, 2, 1)                             \
   F(OrdinaryHasInstance, 2, 1)                      \
   F(PromiseRejectEvent, 3, 1)                       \
+  F(PromiseRejectEventFromStack, 2, 1)              \
   F(PromiseRevokeReject, 1, 1)                      \
   F(PromoteScheduledException, 0, 1)                \
   F(ReThrow, 1, 1)                                  \
@@ -885,7 +887,9 @@ namespace internal {
   F(HasFixedUint8ClampedElements, 1, 1)       \
   F(SpeciesProtector, 0, 1)                   \
   F(SerializeWasmModule, 1, 1)                \
-  F(DeserializeWasmModule, 1, 1)
+  F(DeserializeWasmModule, 1, 1)              \
+  F(IsAsmWasmCode, 1, 1)                      \
+  F(IsNotAsmWasmCode, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \
@@ -920,7 +924,9 @@ namespace internal {
   F(DataViewSetFloat32, 4, 1)                \
   F(DataViewSetFloat64, 4, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F) F(WasmGrowMemory, 1, 1)
+#define FOR_EACH_INTRINSIC_WASM(F) \
+  F(WasmGrowMemory, 1, 1)          \
+  F(WasmThrowTypeError, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
@@ -1134,8 +1140,8 @@ class AllocateTargetSpace : public BitField<AllocationSpace, 1, 3> {};
 
 class DeclareGlobalsEvalFlag : public BitField<bool, 0, 1> {};
 class DeclareGlobalsNativeFlag : public BitField<bool, 1, 1> {};
-STATIC_ASSERT(LANGUAGE_END == 3);
-class DeclareGlobalsLanguageMode : public BitField<LanguageMode, 2, 2> {};
+STATIC_ASSERT(LANGUAGE_END == 2);
+class DeclareGlobalsLanguageMode : public BitField<LanguageMode, 2, 1> {};
 
 }  // namespace internal
 }  // namespace v8

@@ -6206,54 +6206,6 @@ TEST(OldSpaceAllocationCounter) {
 }
 
 
-TEST(NewSpaceAllocationThroughput) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  GCTracer* tracer = heap->tracer();
-  tracer->ResetForTesting();
-  int time1 = 100;
-  size_t counter1 = 1000;
-  tracer->SampleAllocation(time1, counter1, 0);
-  int time2 = 200;
-  size_t counter2 = 2000;
-  tracer->SampleAllocation(time2, counter2, 0);
-  size_t throughput =
-      tracer->NewSpaceAllocationThroughputInBytesPerMillisecond();
-  CHECK_EQ((counter2 - counter1) / (time2 - time1), throughput);
-  int time3 = 1000;
-  size_t counter3 = 30000;
-  tracer->SampleAllocation(time3, counter3, 0);
-  throughput = tracer->NewSpaceAllocationThroughputInBytesPerMillisecond();
-  CHECK_EQ((counter3 - counter1) / (time3 - time1), throughput);
-}
-
-
-TEST(NewSpaceAllocationThroughput2) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  GCTracer* tracer = heap->tracer();
-  tracer->ResetForTesting();
-  int time1 = 100;
-  size_t counter1 = 1000;
-  tracer->SampleAllocation(time1, counter1, 0);
-  int time2 = 200;
-  size_t counter2 = 2000;
-  tracer->SampleAllocation(time2, counter2, 0);
-  size_t throughput =
-      tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(100);
-  CHECK_EQ((counter2 - counter1) / (time2 - time1), throughput);
-  int time3 = 1000;
-  size_t counter3 = 30000;
-  tracer->SampleAllocation(time3, counter3, 0);
-  throughput = tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(100);
-  CHECK_EQ((counter3 - counter1) / (time3 - time1), throughput);
-}
-
-
 static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = CcTest::i_isolate();
   Object* message =
@@ -6365,55 +6317,6 @@ TEST(RemoveCodeFromSharedFunctionInfoButNotFromClosure) {
       "g2();"
       "check(g1, g2);");
 }
-
-TEST(OldGenerationAllocationThroughput) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  GCTracer* tracer = heap->tracer();
-  tracer->ResetForTesting();
-  int time1 = 100;
-  size_t counter1 = 1000;
-  tracer->SampleAllocation(time1, 0, counter1);
-  int time2 = 200;
-  size_t counter2 = 2000;
-  tracer->SampleAllocation(time2, 0, counter2);
-  size_t throughput = static_cast<size_t>(
-      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100));
-  CHECK_EQ((counter2 - counter1) / (time2 - time1), throughput);
-  int time3 = 1000;
-  size_t counter3 = 30000;
-  tracer->SampleAllocation(time3, 0, counter3);
-  throughput = static_cast<size_t>(
-      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100));
-  CHECK_EQ((counter3 - counter1) / (time3 - time1), throughput);
-}
-
-
-TEST(AllocationThroughput) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  GCTracer* tracer = heap->tracer();
-  tracer->ResetForTesting();
-  int time1 = 100;
-  size_t counter1 = 1000;
-  tracer->SampleAllocation(time1, counter1, counter1);
-  int time2 = 200;
-  size_t counter2 = 2000;
-  tracer->SampleAllocation(time2, counter2, counter2);
-  size_t throughput = static_cast<size_t>(
-      tracer->AllocationThroughputInBytesPerMillisecond(100));
-  CHECK_EQ(2 * (counter2 - counter1) / (time2 - time1), throughput);
-  int time3 = 1000;
-  size_t counter3 = 30000;
-  tracer->SampleAllocation(time3, counter3, counter3);
-  throughput = tracer->AllocationThroughputInBytesPerMillisecond(100);
-  CHECK_EQ(2 * (counter3 - counter1) / (time3 - time1), throughput);
-}
-
 
 TEST(ContextMeasure) {
   CcTest::InitializeVM();

@@ -3697,6 +3697,36 @@ void MacroAssembler::mov(Register dst, const Operand& src) {
 #endif
 }
 
+void MacroAssembler::Mul32(Register dst, const MemOperand& src1) {
+  if (is_uint12(src1.offset())) {
+    ms(dst, src1);
+  } else if (is_int20(src1.offset())) {
+    msy(dst, src1);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+void MacroAssembler::Mul32(Register dst, Register src1) { msr(dst, src1); }
+
+void MacroAssembler::Mul32(Register dst, const Operand& src1) {
+  msfi(dst, src1);
+}
+
+void MacroAssembler::Mul64(Register dst, const MemOperand& src1) {
+  if (is_int20(src1.offset())) {
+    msg(dst, src1);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+void MacroAssembler::Mul64(Register dst, Register src1) { msgr(dst, src1); }
+
+void MacroAssembler::Mul64(Register dst, const Operand& src1) {
+  msgfi(dst, src1);
+}
+
 void MacroAssembler::Mul(Register dst, Register src1, Register src2) {
   if (dst.is(src2)) {
     MulP(dst, src1);

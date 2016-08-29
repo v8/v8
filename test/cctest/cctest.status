@@ -327,11 +327,6 @@
 ##############################################################################
 ['variant == turbofan', {
 
-  # TODO(bmeurer): TurboFan embeds strong references to all kinds of objects
-  # via deoptimization data (Crankshaft also does this, but lack proper test
-  # coverage).
-  'test-heap/ObjectsInOptimizedCodeAreWeak': [FAIL],
-
   # TurboFan cpu profiler result is different.
   'test-cpu-profiler/CollectDeoptEvents': [FAIL],
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],

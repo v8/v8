@@ -109,5 +109,12 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   return *isolate->factory()->NewNumberFromInt(old_size /
                                                wasm::WasmModule::kPageSize);
 }
+
+RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kWasmTrapTypeError));
+}
 }  // namespace internal
 }  // namespace v8

@@ -401,15 +401,6 @@
         'outputs': ['<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc'],
         'action': ['<(mkpeephole_exec)', '<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc' ],
         'process_outputs_as_sources': 1,
-        'conditions': [
-          ['want_separate_host_toolset_mkpeephole==1', {
-            'dependencies': ['mkpeephole#host'],
-            'toolsets': ['host'],
-          }, {
-            'dependencies': ['mkpeephole'],
-            'toolsets': ['target'],
-          }],
-        ],
       }],
       'sources': [  ### gcmole(all) ###
         '../include/v8-debug.h',
@@ -471,7 +462,6 @@
         'ast/prettyprinter.cc',
         'ast/prettyprinter.h',
         'ast/scopeinfo.cc',
-        'ast/scopeinfo.h',
         'ast/scopes.cc',
         'ast/scopes.h',
         'ast/variables.cc',
@@ -729,10 +719,14 @@
         'compiler/store-store-elimination.h',
         'compiler/tail-call-optimization.cc',
         'compiler/tail-call-optimization.h',
+        'compiler/type-cache.cc',
+        'compiler/type-cache.h',
         'compiler/type-hint-analyzer.cc',
         'compiler/type-hint-analyzer.h',
         'compiler/type-hints.cc',
         'compiler/type-hints.h',
+        'compiler/typed-optimization.cc',
+        'compiler/typed-optimization.h',
         'compiler/typer.cc',
         'compiler/typer.h',
         'compiler/unwinding-info-writer.h',
@@ -1049,11 +1043,15 @@
         'objects.h',
         'ostreams.cc',
         'ostreams.h',
+        'parsing/duplicate-finder.cc',
+        'parsing/duplicate-finder.h',
         'parsing/expression-classifier.h',
         'parsing/func-name-inferrer.cc',
         'parsing/func-name-inferrer.h',
         'parsing/parameter-initializer-rewriter.cc',
         'parsing/parameter-initializer-rewriter.h',
+        'parsing/parse-info.cc',
+        'parsing/parse-info.h',
         'parsing/parser-base.h',
         'parsing/parser.cc',
         'parsing/parser.h',
@@ -1206,8 +1204,6 @@
         'transitions-inl.h',
         'transitions.cc',
         'transitions.h',
-        'type-cache.cc',
-        'type-cache.h',
         'type-feedback-vector-inl.h',
         'type-feedback-vector.cc',
         'type-feedback-vector.h',
@@ -1276,6 +1272,13 @@
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
+        }],
+        ['want_separate_host_toolset_mkpeephole==1', {
+          'toolsets': ['host', 'target'],
+          'dependencies': ['mkpeephole#host'],
+        }, {
+          'toolsets': ['target'],
+          'dependencies': ['mkpeephole'],
         }],
         ['v8_target_arch=="arm"', {
           'sources': [  ### gcmole(arch:arm) ###
@@ -1767,10 +1770,13 @@
         'base/cpu.h',
         'base/division-by-constant.cc',
         'base/division-by-constant.h',
+        'base/debug/stack_trace.cc',
+        'base/debug/stack_trace.h',
         'base/file-utils.cc',
         'base/file-utils.h',
         'base/flags.h',
         'base/format-macros.h',
+        'base/free_deleter.h',
         'base/functional.cc',
         'base/functional.h',
         'base/hashmap.h',
@@ -1817,14 +1823,16 @@
               ],
             },
             'sources': [
+              'base/debug/stack_trace_posix.cc',
               'base/platform/platform-linux.cc',
-              'base/platform/platform-posix.cc'
+              'base/platform/platform-posix.cc',
             ],
           }
         ],
         ['OS=="android"', {
             'sources': [
-              'base/platform/platform-posix.cc'
+              'base/debug/stack_trace_android.cc',
+              'base/platform/platform-posix.cc',
             ],
             'link_settings': {
               'target_conditions': [
@@ -1878,8 +1886,9 @@
               ],
             },
             'sources': [
+              'base/debug/stack_trace_posix.cc',
               'base/platform/platform-posix.cc',
-              'base/qnx-math.h',
+              'base/qnx-math.h'
             ],
             'target_conditions': [
               ['_toolset=="host" and host_os=="linux"', {
@@ -1906,8 +1915,9 @@
                 '-L/usr/local/lib -lexecinfo',
             ]},
             'sources': [
+              'base/debug/stack_trace_posix.cc',
               'base/platform/platform-freebsd.cc',
-              'base/platform/platform-posix.cc'
+              'base/platform/platform-posix.cc',
             ],
           }
         ],
@@ -1928,8 +1938,9 @@
                 '-L/usr/pkg/lib -Wl,-R/usr/pkg/lib -lexecinfo',
             ]},
             'sources': [
+              'base/debug/stack_trace_posix.cc',
               'base/platform/platform-openbsd.cc',
-              'base/platform/platform-posix.cc'
+              'base/platform/platform-posix.cc',
             ],
           }
         ],
@@ -1945,15 +1956,17 @@
                 '-lnsl -lrt',
             ]},
             'sources': [
+              'base/debug/stack_trace_posix.cc',
               'base/platform/platform-solaris.cc',
-              'base/platform/platform-posix.cc'
+              'base/platform/platform-posix.cc',
             ],
           }
         ],
         ['OS=="mac"', {
           'sources': [
+            'base/debug/stack_trace_posix.cc',
             'base/platform/platform-macos.cc',
-            'base/platform/platform-posix.cc'
+            'base/platform/platform-posix.cc',
           ]},
         ],
         ['OS=="win"', {
@@ -1971,11 +1984,13 @@
               'conditions': [
                 ['build_env=="Cygwin"', {
                   'sources': [
+                    'base/debug/stack_trace_posix.cc',
                     'base/platform/platform-cygwin.cc',
-                    'base/platform/platform-posix.cc'
+                    'base/platform/platform-posix.cc',
                   ],
                 }, {
                   'sources': [
+                    'base/debug/stack_trace_win.cc',
                     'base/platform/platform-win32.cc',
                     'base/win32-headers.h',
                   ],
@@ -1986,12 +2001,18 @@
               },
             }, {
               'sources': [
+                'base/debug/stack_trace_win.cc',
                 'base/platform/platform-win32.cc',
                 'base/win32-headers.h',
               ],
               'msvs_disabled_warnings': [4351, 4355, 4800],
               'link_settings':  {
-                'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],
+                'libraries': [
+                  '-ldbghelp.lib',
+                  '-lshlwapi.lib',
+                  '-lwinmm.lib',
+                  '-lws2_32.lib'
+                ],
               },
             }],
           ],
@@ -2175,7 +2196,6 @@
           'js/harmony-atomics.js',
           'js/harmony-simd.js',
           'js/harmony-string-padding.js',
-          'js/promise-extra.js',
           'js/harmony-async-await.js'
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',

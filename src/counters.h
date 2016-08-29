@@ -657,7 +657,9 @@ class RuntimeCallTimer {
   V(UnboundScript_GetName)                                 \
   V(UnboundScript_GetSourceMappingURL)                     \
   V(UnboundScript_GetSourceURL)                            \
-  V(Value_TypeOf)
+  V(Value_TypeOf)                                          \
+  V(ValueDeserializer_ReadValue)                           \
+  V(ValueSerializer_WriteValue)
 
 #define FOR_EACH_MANUAL_COUNTER(V)                  \
   V(AccessorGetterCallback)                         \

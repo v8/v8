@@ -17,7 +17,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ArrayIndexOf;
 var ArrayJoin;
 var ArrayPush;
 var FLAG_intl_extra;
@@ -42,7 +41,6 @@ var StringSubstr;
 var StringSubstring;
 
 utils.Import(function(from) {
-  ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
   ArrayPush = from.ArrayPush;
   IsNaN = from.IsNaN;
@@ -369,7 +367,7 @@ function getGetOption(options, caller) {
           throw %make_error(kWrongValueType);
       }
 
-      if (!IS_UNDEFINED(values) && %_Call(ArrayIndexOf, values, value) === -1) {
+      if (!IS_UNDEFINED(values) && %ArrayIndexOf(values, value, 0) === -1) {
         throw %make_range_error(kValueOutOfRange, value, caller, property);
       }
 
@@ -384,6 +382,9 @@ function getGetOption(options, caller) {
 
 
 /**
+ * Ecma 402 9.2.5
+ * TODO(jshin): relevantExtensionKeys and localeData need to be taken into
+ * account per spec.
  * Compares a BCP 47 language priority list requestedLocales against the locales
  * in availableLocales and determines the best available language to meet the
  * request. Two algorithms are available to match the locales: the Lookup
@@ -467,6 +468,11 @@ function bestFitMatcher(service, requestedLocales) {
  * Parses Unicode extension into key - value map.
  * Returns empty object if the extension string is invalid.
  * We are not concerned with the validity of the values at this point.
+ * 'attribute' in RFC 6047 is not supported. Keys without explicit
+ * values are assigned UNDEFINED.
+ * TODO(jshin): Fix the handling of 'attribute' (in RFC 6047, but none
+ * has been defined so that it's not used) and boolean keys without
+ * an explicit value.
  */
 function parseExtension(extension) {
   var extensionSplit = %StringSplit(extension, '-', kMaxUint32);
@@ -480,20 +486,32 @@ function parseExtension(extension) {
   // Key is {2}alphanum, value is {3,8}alphanum.
   // Some keys may not have explicit values (booleans).
   var extensionMap = {};
-  var previousKey = UNDEFINED;
+  var key = UNDEFINED;
+  var value = UNDEFINED;
   for (var i = 2; i < extensionSplit.length; ++i) {
     var length = extensionSplit[i].length;
     var element = extensionSplit[i];
     if (length === 2) {
-      extensionMap[element] = UNDEFINED;
-      previousKey = element;
-    } else if (length >= 3 && length <=8 && !IS_UNDEFINED(previousKey)) {
-      extensionMap[previousKey] = element;
-      previousKey = UNDEFINED;
+      if (!IS_UNDEFINED(key)) {
+        if (!(key in extensionMap)) {
+          extensionMap[key] = value;
+        }
+        value = UNDEFINED;
+      }
+      key = element;
+    } else if (length >= 3 && length <= 8 && !IS_UNDEFINED(key)) {
+      if (IS_UNDEFINED(value)) {
+        value = element;
+      } else {
+        value = value + "-" + element;
+      }
     } else {
       // There is a value that's too long, or that doesn't have a key.
       return {};
     }
+  }
+  if (!IS_UNDEFINED(key) && !(key in extensionMap)) {
+    extensionMap[key] = value;
   }
 
   return extensionMap;
@@ -567,6 +585,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
  * Given an array-like, outputs an Array with the numbered
  * properties copied over and defined
  * configurable: false, writable: false, enumerable: true.
+ * When |expandable| is true, the result array can be expanded.
  */
 function freezeArray(input) {
   var array = [];
@@ -584,6 +603,12 @@ function freezeArray(input) {
   return array;
 }
 
+/* Make JS array[] out of InternalArray */
+function makeArray(input) {
+  var array = [];
+  %MoveArrayContents(input, array);
+  return array;
+}
 
 /**
  * It's sometimes desireable to leave user requested locale instead of ICU
@@ -718,6 +743,7 @@ function toTitleCaseTimezoneLocation(location) {
 
 /**
  * Canonicalizes the language tag, or throws in case the tag is invalid.
+ * ECMA 402 9.2.1 steps 7.c ii ~ v.
  */
 function canonicalizeLanguageTag(localeID) {
   // null is typeof 'object' so we have to do extra check.
@@ -735,11 +761,14 @@ function canonicalizeLanguageTag(localeID) {
 
   var localeString = TO_STRING(localeID);
 
-  if (isValidLanguageTag(localeString) === false) {
+  if (isStructuallyValidLanguageTag(localeString) === false) {
     throw %make_range_error(kInvalidLanguageTag, localeString);
   }
 
+  // ECMA 402 6.2.3
   var tag = %CanonicalizeLanguageTag(localeString);
+  // TODO(jshin): This should not happen because the structual validity
+  // is already checked. If that's the case, remove this.
   if (tag === 'invalid-tag') {
     throw %make_range_error(kInvalidLanguageTag, localeString);
   }
@@ -749,20 +778,22 @@ function canonicalizeLanguageTag(localeID) {
 
 
 /**
- * Returns an array where all locales are canonicalized and duplicates removed.
+ * Returns an InternalArray where all locales are canonicalized and duplicates
+ * removed.
  * Throws on locales that are not well formed BCP47 tags.
+ * ECMA 402 8.2.1 steps 1 (ECMA 402 9.2.1) and 2.
  */
-function initializeLocaleList(locales) {
+function canonicalizeLocaleList(locales) {
   var seen = new InternalArray();
   if (!IS_UNDEFINED(locales)) {
     // We allow single string localeID.
     if (typeof locales === 'string') {
       %_Call(ArrayPush, seen, canonicalizeLanguageTag(locales));
-      return freezeArray(seen);
+      return seen;
     }
 
     var o = TO_OBJECT(locales);
-    var len = TO_UINT32(o.length);
+    var len = TO_LENGTH(o.length);
 
     for (var k = 0; k < len; k++) {
       if (k in o) {
@@ -770,27 +801,37 @@ function initializeLocaleList(locales) {
 
         var tag = canonicalizeLanguageTag(value);
 
-        if (%_Call(ArrayIndexOf, seen, tag) === -1) {
+        if (%ArrayIndexOf(seen, tag, 0) === -1) {
           %_Call(ArrayPush, seen, tag);
         }
       }
     }
   }
 
-  return freezeArray(seen);
+  return seen;
 }
 
+function initializeLocaleList(locales) {
+  return freezeArray(canonicalizeLocaleList(locales));
+}
 
 /**
- * Validates the language tag. Section 2.2.9 of the bcp47 spec
- * defines a valid tag.
+ * Check the structual Validity of the language tag per ECMA 402 6.2.2:
+ *   - Well-formed per RFC 5646 2.1
+ *   - There are no duplicate variant subtags
+ *   - There are no duplicate singletion (extension) subtags
+ *
+ * One extra-check is done (from RFC 5646 2.2.9): the tag is compared
+ * against the list of grandfathered tags. However, subtags for
+ * primary/extended language, script, region, variant are not checked
+ * against the IANA language subtag registry.
  *
  * ICU is too permissible and lets invalid tags, like
  * hant-cmn-cn, through.
  *
  * Returns false if the language tag is invalid.
  */
-function isValidLanguageTag(locale) {
+function isStructuallyValidLanguageTag(locale) {
   // Check if it's well-formed, including grandfadered tags.
   if (IS_NULL(InternalRegExpMatch(GetLanguageTagRE(), locale))) {
     return false;
@@ -816,7 +857,7 @@ function isValidLanguageTag(locale) {
     var value = parts[i];
     if (!IS_NULL(InternalRegExpMatch(GetLanguageVariantRE(), value)) &&
         extensions.length === 0) {
-      if (%_Call(ArrayIndexOf, variants, value) === -1) {
+      if (%ArrayIndexOf(variants, value, 0) === -1) {
         %_Call(ArrayPush, variants, value);
       } else {
         return false;
@@ -824,7 +865,7 @@ function isValidLanguageTag(locale) {
     }
 
     if (!IS_NULL(InternalRegExpMatch(GetLanguageSingletonRE(), value))) {
-      if (%_Call(ArrayIndexOf, extensions, value) === -1) {
+      if (%ArrayIndexOf(extensions, value, 0) === -1) {
         %_Call(ArrayPush, extensions, value);
       } else {
         return false;
@@ -885,6 +926,16 @@ var resolvedAccessor = {
   }
 };
 
+// ECMA 402 section 8.2.1
+InstallFunction(Intl, 'getCanonicalLocales', function(locales) {
+    if (!IS_UNDEFINED(new.target)) {
+      throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
+    }
+
+    return makeArray(canonicalizeLocaleList(locales));
+  }
+);
+
 /**
  * Initializes the given object so it's a valid Collator instance.
  * Useful for subclassing.
@@ -917,6 +968,9 @@ function initializeCollator(collator, locales, options) {
 
   var locale = resolveLocale('collator', locales, options);
 
+  // TODO(jshin): ICU now can take kb, kc, etc. Switch over to using ICU
+  // directly. See Collator::InitializeCollator and
+  // Collator::CreateICUCollator in src/i18n.cc
   // ICU can't take kb, kc... parameters through localeID, so we need to pass
   // them as options.
   // One exception is -co- which has to be part of the extension, but only for
@@ -949,7 +1003,7 @@ function initializeCollator(collator, locales, options) {
       'pinyin', 'reformed', 'searchjl', 'stroke', 'trad', 'unihan', 'zhuyin'
     ];
 
-    if (%_Call(ArrayIndexOf, ALLOWED_CO_VALUES, extensionMap.co) !== -1) {
+    if (%ArrayIndexOf(ALLOWED_CO_VALUES, extensionMap.co, 0) !== -1) {
       extension = '-u-co-' + extensionMap.co;
       // ICU can't tell us what the collation is, so save user's input.
       collation = extensionMap.co;
@@ -1664,21 +1718,13 @@ InstallFunction(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
     }
 
     /**
-     * Maps ICU calendar names into LDML type.
+     * Maps ICU calendar names to LDML/BCP47 types for key 'ca'.
+     * See typeMap section in third_party/icu/source/data/misc/keyTypeData.txt
+     * and
+     * http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
      */
     var ICU_CALENDAR_MAP = {
       'gregorian': 'gregory',
-      'japanese': 'japanese',
-      'buddhist': 'buddhist',
-      'roc': 'roc',
-      'persian': 'persian',
-      'islamic-civil': 'islamicc',
-      'islamic': 'islamic',
-      'hebrew': 'hebrew',
-      'chinese': 'chinese',
-      'indian': 'indian',
-      'coptic': 'coptic',
-      'ethiopic': 'ethiopic',
       'ethiopic-amete-alem': 'ethioaa'
     };
 
@@ -1686,8 +1732,7 @@ InstallFunction(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
     var fromPattern = fromLDMLString(format[resolvedSymbol][patternSymbol]);
     var userCalendar = ICU_CALENDAR_MAP[format[resolvedSymbol].calendar];
     if (IS_UNDEFINED(userCalendar)) {
-      // Use ICU name if we don't have a match. It shouldn't happen, but
-      // it would be too strict to throw for this.
+      // No match means that ICU's legacy name is identical to LDML/BCP type.
       userCalendar = format[resolvedSymbol].calendar;
     }
 
@@ -2041,7 +2086,7 @@ function LocaleConvertCase(s, locales, isToUpper) {
   }
 
   var CUSTOM_CASE_LANGUAGES = ['az', 'el', 'lt', 'tr'];
-  var langIndex = %_Call(ArrayIndexOf, CUSTOM_CASE_LANGUAGES, language);
+  var langIndex = %ArrayIndexOf(CUSTOM_CASE_LANGUAGES, language, 0);
   if (langIndex == -1) {
     // language-independent case conversion.
     return isToUpper ? %StringToUpperCaseI18N(s) : %StringToLowerCaseI18N(s);
@@ -2092,7 +2137,7 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
 
     var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 
-    var normalizationForm = %_Call(ArrayIndexOf, NORMALIZATION_FORMS, form);
+    var normalizationForm = %ArrayIndexOf(NORMALIZATION_FORMS, form, 0);
     if (normalizationForm === -1) {
       throw %make_range_error(kNormalizationForm,
           %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));

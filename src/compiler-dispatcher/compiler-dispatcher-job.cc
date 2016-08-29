@@ -5,9 +5,11 @@
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 
 #include "src/assert-scope.h"
+#include "src/compiler.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/unicode-cache.h"
@@ -22,7 +24,8 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
     : isolate_(isolate),
       function_(Handle<JSFunction>::cast(
           isolate_->global_handles()->Create(*function))),
-      max_stack_size_(max_stack_size) {
+      max_stack_size_(max_stack_size),
+      can_compile_on_background_thread_(false) {
   HandleScope scope(isolate_);
   Handle<SharedFunctionInfo> shared(function_->shared(), isolate_);
   Handle<Script> script(Script::cast(shared->script()), isolate_);
@@ -118,7 +121,7 @@ void CompilerDispatcherJob::Parse() {
   status_ = CompileJobStatus::kParsed;
 }
 
-void CompilerDispatcherJob::FinalizeParsingOnMainThread() {
+bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kParsed);
 
@@ -129,22 +132,111 @@ void CompilerDispatcherJob::FinalizeParsingOnMainThread() {
 
   if (parse_info_->literal() == nullptr) {
     status_ = CompileJobStatus::kFailed;
-    return;
+  } else {
+    status_ = CompileJobStatus::kReadyToAnalyse;
   }
 
-  InternalizeParsingResult();
+  DeferredHandleScope scope(isolate_);
+  {
+    // Create a canonical handle scope before internalizing parsed values if
+    // compiling bytecode. This is required for off-thread bytecode generation.
+    std::unique_ptr<CanonicalHandleScope> canonical;
+    if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate_));
 
-  status_ = CompileJobStatus::kReadyToCompile;
+    Handle<SharedFunctionInfo> shared(function_->shared(), isolate_);
+    Handle<Script> script(Script::cast(shared->script()), isolate_);
+
+    parse_info_->set_script(script);
+    parse_info_->set_context(handle(function_->context(), isolate_));
+    parse_info_->set_shared_info(handle(function_->shared(), isolate_));
+
+    // Do the parsing tasks which need to be done on the main thread. This will
+    // also handle parse errors.
+    parser_->Internalize(isolate_, script, parse_info_->literal() == nullptr);
+    parser_->HandleSourceURLComments(isolate_, script);
+
+    parse_info_->set_character_stream(nullptr);
+    parse_info_->set_unicode_cache(nullptr);
+    parser_.reset();
+    unicode_cache_.reset();
+    character_stream_.reset();
+  }
+  handles_from_parsing_.reset(scope.Detach());
+
+  return status_ != CompileJobStatus::kFailed;
 }
 
-void CompilerDispatcherJob::ReportErrorsOnMainThread() {
+bool CompilerDispatcherJob::PrepareToCompileOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
-  DCHECK(status() == CompileJobStatus::kFailed);
+  DCHECK(status() == CompileJobStatus::kReadyToAnalyse);
 
-  // Internalizing the parsing result will throw the error.
-  InternalizeParsingResult();
+  compile_info_.reset(new CompilationInfo(parse_info_.get(), function_));
+
+  DeferredHandleScope scope(isolate_);
+  {
+    // Create a canonical handle scope before ast numbering if compiling
+    // bytecode. This is required for off-thread bytecode generation.
+    std::unique_ptr<CanonicalHandleScope> canonical;
+    if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate_));
+
+    if (Compiler::Analyze(parse_info_.get())) {
+      compile_job_.reset(
+          Compiler::PrepareUnoptimizedCompilationJob(compile_info_.get()));
+    }
+  }
+  compile_info_->set_deferred_handles(scope.Detach());
+
+  if (!compile_job_.get()) {
+    if (!isolate_->has_pending_exception()) isolate_->StackOverflow();
+    status_ = CompileJobStatus::kFailed;
+    return false;
+  }
+
+  can_compile_on_background_thread_ =
+      compile_job_->can_execute_on_background_thread();
+  status_ = CompileJobStatus::kReadyToCompile;
+  return true;
+}
+
+void CompilerDispatcherJob::Compile() {
+  DCHECK(status() == CompileJobStatus::kReadyToCompile);
+  DCHECK(can_compile_on_background_thread_ ||
+         ThreadId::Current().Equals(isolate_->thread_id()));
+
+  // Disallowing of handle dereference and heap access dealt with in
+  // CompilationJob::ExecuteJob.
+
+  uintptr_t stack_limit =
+      reinterpret_cast<uintptr_t>(&stack_limit) - max_stack_size_ * KB;
+  compile_job_->set_stack_limit(stack_limit);
+
+  CompilationJob::Status status = compile_job_->ExecuteJob();
+  USE(status);
+
+  // Always transition to kCompiled - errors will be reported by
+  // FinalizeCompilingOnMainThread.
+  status_ = CompileJobStatus::kCompiled;
+}
+
+bool CompilerDispatcherJob::FinalizeCompilingOnMainThread() {
+  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+  DCHECK(status() == CompileJobStatus::kCompiled);
+
+  if (compile_job_->state() == CompilationJob::State::kFailed ||
+      !Compiler::FinalizeCompilationJob(compile_job_.release())) {
+    if (!isolate_->has_pending_exception()) isolate_->StackOverflow();
+    status_ = CompileJobStatus::kFailed;
+    return false;
+  }
+
+  zone_.reset();
+  parse_info_.reset();
+  compile_info_.reset();
+  compile_job_.reset();
+  handles_from_parsing_.reset();
 
   status_ = CompileJobStatus::kDone;
+  return true;
 }
 
 void CompilerDispatcherJob::ResetOnMainThread() {
@@ -155,6 +247,9 @@ void CompilerDispatcherJob::ResetOnMainThread() {
   character_stream_.reset();
   parse_info_.reset();
   zone_.reset();
+  handles_from_parsing_.reset();
+  compile_info_.reset();
+  compile_job_.reset();
 
   if (!source_.is_null()) {
     i::GlobalHandles::Destroy(Handle<Object>::cast(source_).location());
@@ -162,36 +257,6 @@ void CompilerDispatcherJob::ResetOnMainThread() {
   }
 
   status_ = CompileJobStatus::kInitial;
-}
-
-void CompilerDispatcherJob::InternalizeParsingResult() {
-  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
-  DCHECK(status() == CompileJobStatus::kParsed ||
-         status() == CompileJobStatus::kFailed);
-
-  HandleScope scope(isolate_);
-
-  // Create a canonical handle scope before internalizing parsed values if
-  // compiling bytecode. This is required for off-thread bytecode generation.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate_));
-
-  Handle<SharedFunctionInfo> shared(function_->shared(), isolate_);
-  Handle<Script> script(Script::cast(shared->script()), isolate_);
-
-  parse_info_->set_script(script);
-  parse_info_->set_context(handle(function_->context(), isolate_));
-
-  // Do the parsing tasks which need to be done on the main thread. This will
-  // also handle parse errors.
-  parser_->Internalize(isolate_, script, parse_info_->literal() == nullptr);
-  parser_->HandleSourceURLComments(isolate_, script);
-
-  parse_info_->set_character_stream(nullptr);
-  parse_info_->set_unicode_cache(nullptr);
-  parser_.reset();
-  unicode_cache_.reset();
-  character_stream_.reset();
 }
 
 }  // namespace internal

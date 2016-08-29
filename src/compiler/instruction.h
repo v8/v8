@@ -856,10 +856,7 @@ class Instruction final {
     reference_map_ = nullptr;
   }
 
-  bool IsNop() const {
-    return arch_opcode() == kArchNop && InputCount() == 0 &&
-           OutputCount() == 0 && TempCount() == 0;
-  }
+  bool IsNop() const { return arch_opcode() == kArchNop; }
 
   bool IsDeoptimizeCall() const {
     return arch_opcode() == ArchOpcode::kArchDeoptimize ||

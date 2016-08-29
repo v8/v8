@@ -986,6 +986,89 @@ TEST_F(InstructionSelectorTest, CombineShiftsWithDivMod) {
   }
 }
 
+TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
+  // For each case, test that the conversion is merged into the load
+  // operation.
+  // ChangeInt32ToInt64(Load_Uint8) -> Lbu
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Uint8(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kMips64Lbu, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Int8) -> Lb
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Int8(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kMips64Lb, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Uint16) -> Lhu
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Uint16(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kMips64Lhu, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Int16) -> Lh
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Int16(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kMips64Lh, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Uint32) -> Lw
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Uint32(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kMips64Lw, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+  // ChangeInt32ToInt64(Load_Int32) -> Lw
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeInt32ToInt64(
+        m.Load(MachineType::Int32(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kMips64Lw, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+  }
+}
+
 
 // ----------------------------------------------------------------------------
 // Loads and stores.

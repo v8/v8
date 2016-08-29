@@ -11,9 +11,9 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/type-cache.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
-#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {

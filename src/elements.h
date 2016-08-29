@@ -114,6 +114,9 @@ class ElementsAccessor {
                                       Handle<Map> map) = 0;
   virtual void GrowCapacityAndConvert(Handle<JSObject> object,
                                       uint32_t capacity) = 0;
+  // Unlike GrowCapacityAndConvert do not attempt to convert the backing store
+  // and simply return false in this case.
+  virtual bool GrowCapacity(Handle<JSObject> object, uint32_t index) = 0;
 
   static void InitializeOncePerProcess();
   static void TearDown();
@@ -159,6 +162,13 @@ class ElementsAccessor {
   virtual Maybe<bool> IncludesValue(Isolate* isolate, Handle<JSObject> receiver,
                                     Handle<Object> value, uint32_t start,
                                     uint32_t length) = 0;
+
+  // Check an Object's own elements for the index of an element (using SameValue
+  // semantics)
+  virtual Maybe<int64_t> IndexOfValue(Isolate* isolate,
+                                      Handle<JSObject> receiver,
+                                      Handle<Object> value, uint32_t start,
+                                      uint32_t length) = 0;
 
  protected:
   friend class LookupIterator;
