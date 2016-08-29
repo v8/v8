@@ -1305,8 +1305,6 @@ class RepresentationSelector {
         // tho Start doesn't really produce a value, we have to say Tagged
         // here, otherwise the input conversion will fail.
         return VisitLeaf(node, MachineRepresentation::kTagged);
-      case IrOpcode::kDead:
-        return VisitLeaf(node, MachineRepresentation::kNone);
       case IrOpcode::kParameter: {
         // TODO(titzer): use representation from linkage.
         ProcessInput(node, 0, UseInfo::None());
@@ -1317,8 +1315,6 @@ class RepresentationSelector {
         return VisitLeaf(node, MachineRepresentation::kWord32);
       case IrOpcode::kInt64Constant:
         return VisitLeaf(node, MachineRepresentation::kWord64);
-      case IrOpcode::kFloat32Constant:
-        return VisitLeaf(node, MachineRepresentation::kFloat32);
       case IrOpcode::kFloat64Constant:
         return VisitLeaf(node, MachineRepresentation::kFloat64);
       case IrOpcode::kExternalConstant:
@@ -1328,12 +1324,6 @@ class RepresentationSelector {
       case IrOpcode::kHeapConstant:
         return VisitLeaf(node, MachineRepresentation::kTagged);
 
-      case IrOpcode::kDeoptimizeIf:
-      case IrOpcode::kDeoptimizeUnless:
-        ProcessInput(node, 0, UseInfo::Bool());
-        ProcessInput(node, 1, UseInfo::AnyTagged());
-        ProcessRemainingInputs(node, 2);
-        return;
       case IrOpcode::kBranch:
         ProcessInput(node, 0, UseInfo::Bool());
         EnqueueInput(node, NodeProperties::FirstControlIndex(node));
@@ -1684,15 +1674,7 @@ class RepresentationSelector {
           }
         }
         // Number x Number => Float64Div
-        if (BothInputsAre(node, Type::NumberOrUndefined())) {
-          VisitFloat64Binop(node);
-          if (lower()) ChangeToPureOp(node, Float64Op(node));
-          return;
-        }
-        // Checked float64 x float64 => float64
-        DCHECK_EQ(IrOpcode::kSpeculativeNumberDivide, node->opcode());
-        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
-                   MachineRepresentation::kFloat64, Type::Number());
+        VisitFloat64Binop(node);
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }
@@ -2417,158 +2399,11 @@ class RepresentationSelector {
         return;
       }
 
-      //------------------------------------------------------------------
-      // Machine-level operators.
-      //------------------------------------------------------------------
-      case IrOpcode::kLoad: {
-        // TODO(jarin) Eventually, we should get rid of all machine stores
-        // from the high-level phases, then this becomes UNREACHABLE.
-        LoadRepresentation rep = LoadRepresentationOf(node->op());
-        ProcessInput(node, 0, UseInfo::AnyTagged());   // tagged pointer
-        ProcessInput(node, 1, UseInfo::PointerInt());  // index
-        ProcessRemainingInputs(node, 2);
-        return SetOutput(node, rep.representation());
-      }
-      case IrOpcode::kStore: {
-        // TODO(jarin) Eventually, we should get rid of all machine stores
-        // from the high-level phases, then this becomes UNREACHABLE.
-        StoreRepresentation rep = StoreRepresentationOf(node->op());
-        ProcessInput(node, 0, UseInfo::AnyTagged());   // tagged pointer
-        ProcessInput(node, 1, UseInfo::PointerInt());  // index
-        ProcessInput(node, 2,
-                     TruncatingUseInfoFromRepresentation(rep.representation()));
-        ProcessRemainingInputs(node, 3);
-        return SetOutput(node, MachineRepresentation::kNone);
-      }
-      case IrOpcode::kWord32Shr:
-        // We output unsigned int32 for shift right because JavaScript.
-        return VisitBinop(node, UseInfo::TruncatingWord32(),
-                          MachineRepresentation::kWord32);
-      case IrOpcode::kWord32And:
-      case IrOpcode::kWord32Or:
-      case IrOpcode::kWord32Xor:
-      case IrOpcode::kWord32Shl:
-      case IrOpcode::kWord32Sar:
-        // We use signed int32 as the output type for these word32 operations,
-        // though the machine bits are the same for either signed or unsigned,
-        // because JavaScript considers the result from these operations signed.
-        return VisitBinop(node, UseInfo::TruncatingWord32(),
-                          MachineRepresentation::kWord32);
-      case IrOpcode::kWord32Equal:
-        return VisitBinop(node, UseInfo::TruncatingWord32(),
-                          MachineRepresentation::kBit);
-
-      case IrOpcode::kWord32Clz:
-        return VisitUnop(node, UseInfo::TruncatingWord32(),
-                         MachineRepresentation::kWord32);
-
-      case IrOpcode::kInt32Add:
-      case IrOpcode::kInt32Sub:
-      case IrOpcode::kInt32Mul:
-      case IrOpcode::kInt32MulHigh:
-      case IrOpcode::kInt32Div:
-      case IrOpcode::kInt32Mod:
-        return VisitInt32Binop(node);
-      case IrOpcode::kUint32Div:
-      case IrOpcode::kUint32Mod:
-      case IrOpcode::kUint32MulHigh:
-        return VisitUint32Binop(node);
-      case IrOpcode::kInt32LessThan:
-      case IrOpcode::kInt32LessThanOrEqual:
-        return VisitInt32Cmp(node);
-
-      case IrOpcode::kUint32LessThan:
-      case IrOpcode::kUint32LessThanOrEqual:
-        return VisitUint32Cmp(node);
-
-      case IrOpcode::kInt64Add:
-      case IrOpcode::kInt64Sub:
-      case IrOpcode::kInt64Mul:
-      case IrOpcode::kInt64Div:
-      case IrOpcode::kInt64Mod:
-        return VisitInt64Binop(node);
-      case IrOpcode::kInt64LessThan:
-      case IrOpcode::kInt64LessThanOrEqual:
-        return VisitInt64Cmp(node);
-
-      case IrOpcode::kUint64LessThan:
-        return VisitUint64Cmp(node);
-
-      case IrOpcode::kUint64Div:
-      case IrOpcode::kUint64Mod:
-        return VisitUint64Binop(node);
-
-      case IrOpcode::kWord64And:
-      case IrOpcode::kWord64Or:
-      case IrOpcode::kWord64Xor:
-      case IrOpcode::kWord64Shl:
-      case IrOpcode::kWord64Shr:
-      case IrOpcode::kWord64Sar:
-        return VisitBinop(node, UseInfo::TruncatingWord64(),
-                          MachineRepresentation::kWord64);
-      case IrOpcode::kWord64Equal:
-        return VisitBinop(node, UseInfo::TruncatingWord64(),
-                          MachineRepresentation::kBit);
-
-      case IrOpcode::kChangeInt32ToInt64:
-        return VisitUnop(node, UseInfo::TruncatingWord32(),
-                         MachineRepresentation::kWord64);
-      case IrOpcode::kChangeUint32ToUint64:
-        return VisitUnop(node, UseInfo::TruncatingWord32(),
-                         MachineRepresentation::kWord64);
-      case IrOpcode::kTruncateFloat64ToFloat32:
-        return VisitUnop(node, UseInfo::TruncatingFloat64(),
-                         MachineRepresentation::kFloat32);
-      case IrOpcode::kTruncateFloat64ToWord32:
-        return VisitUnop(node, UseInfo::TruncatingFloat64(),
-                         MachineRepresentation::kWord32);
-
-      case IrOpcode::kChangeInt32ToFloat64:
-        return VisitUnop(node, UseInfo::TruncatingWord32(),
-                         MachineRepresentation::kFloat64);
-      case IrOpcode::kChangeUint32ToFloat64:
-        return VisitUnop(node, UseInfo::TruncatingWord32(),
-                         MachineRepresentation::kFloat64);
-      case IrOpcode::kFloat64Add:
-      case IrOpcode::kFloat64Sub:
-      case IrOpcode::kFloat64Mul:
-      case IrOpcode::kFloat64Div:
-      case IrOpcode::kFloat64Mod:
-      case IrOpcode::kFloat64Min:
-        return VisitFloat64Binop(node);
-      case IrOpcode::kFloat64Abs:
-      case IrOpcode::kFloat64Sqrt:
-      case IrOpcode::kFloat64RoundDown:
-      case IrOpcode::kFloat64RoundTruncate:
-      case IrOpcode::kFloat64RoundTiesAway:
-      case IrOpcode::kFloat64RoundUp:
-        return VisitUnop(node, UseInfo::TruncatingFloat64(),
-                         MachineRepresentation::kFloat64);
-      case IrOpcode::kFloat64SilenceNaN:
-        return VisitUnop(node, UseInfo::TruncatingFloat64(),
-                         MachineRepresentation::kFloat64);
-      case IrOpcode::kFloat64Equal:
-      case IrOpcode::kFloat64LessThan:
-      case IrOpcode::kFloat64LessThanOrEqual:
-        return VisitFloat64Cmp(node);
-      case IrOpcode::kFloat64ExtractLowWord32:
-      case IrOpcode::kFloat64ExtractHighWord32:
-        return VisitUnop(node, UseInfo::TruncatingFloat64(),
-                         MachineRepresentation::kWord32);
-      case IrOpcode::kFloat64InsertLowWord32:
-      case IrOpcode::kFloat64InsertHighWord32:
-        return VisitBinop(node, UseInfo::TruncatingFloat64(),
-                          UseInfo::TruncatingWord32(),
-                          MachineRepresentation::kFloat64);
       case IrOpcode::kNumberSilenceNaN:
         VisitUnop(node, UseInfo::TruncatingFloat64(),
                   MachineRepresentation::kFloat64);
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         return;
-      case IrOpcode::kLoadStackPointer:
-      case IrOpcode::kLoadFramePointer:
-      case IrOpcode::kLoadParentFramePointer:
-        return VisitLeaf(node, MachineType::PointerRepresentation());
       case IrOpcode::kStateValues:
         return VisitStateValues(node);
       case IrOpcode::kTypeGuard: {
@@ -2583,31 +2418,50 @@ class RepresentationSelector {
         return;
       }
 
-      // The following opcodes are not produced before representation
-      // inference runs, so we do not have any real test coverage.
-      // Simply fail here.
-      case IrOpcode::kChangeFloat64ToInt32:
-      case IrOpcode::kChangeFloat64ToUint32:
-      case IrOpcode::kTruncateInt64ToInt32:
-      case IrOpcode::kChangeFloat32ToFloat64:
-      case IrOpcode::kCheckedInt32Add:
-      case IrOpcode::kCheckedInt32Sub:
-      case IrOpcode::kCheckedUint32ToInt32:
-      case IrOpcode::kCheckedFloat64ToInt32:
-      case IrOpcode::kCheckedTaggedToInt32:
-      case IrOpcode::kCheckedTaggedToFloat64:
-      case IrOpcode::kPlainPrimitiveToWord32:
-      case IrOpcode::kPlainPrimitiveToFloat64:
-      case IrOpcode::kLoopExit:
-      case IrOpcode::kLoopExitValue:
-      case IrOpcode::kLoopExitEffect:
-        FATAL("Representation inference: unsupported opcodes.");
-        break;
-
-      default:
+      // Operators with all inputs tagged and no or tagged output have uniform
+      // handling.
+      case IrOpcode::kEnd:
+      case IrOpcode::kReturn:
+      case IrOpcode::kIfSuccess:
+      case IrOpcode::kIfException:
+      case IrOpcode::kIfTrue:
+      case IrOpcode::kIfFalse:
+      case IrOpcode::kDeoptimize:
+      case IrOpcode::kEffectPhi:
+      case IrOpcode::kTerminate:
+      case IrOpcode::kFrameState:
+      case IrOpcode::kCheckpoint:
+      case IrOpcode::kLoop:
+      case IrOpcode::kMerge:
+      case IrOpcode::kThrow:
+      case IrOpcode::kBeginRegion:
+      case IrOpcode::kFinishRegion:
+      case IrOpcode::kOsrValue:
+      case IrOpcode::kProjection:
+      case IrOpcode::kObjectState:
+// All JavaScript operators except JSToNumber have uniform handling.
+#define OPCODE_CASE(name) case IrOpcode::k##name:
+        JS_SIMPLE_BINOP_LIST(OPCODE_CASE)
+        JS_OTHER_UNOP_LIST(OPCODE_CASE)
+        JS_OBJECT_OP_LIST(OPCODE_CASE)
+        JS_CONTEXT_OP_LIST(OPCODE_CASE)
+        JS_OTHER_OP_LIST(OPCODE_CASE)
+#undef OPCODE_CASE
+      case IrOpcode::kJSToBoolean:
+      case IrOpcode::kJSToInteger:
+      case IrOpcode::kJSToLength:
+      case IrOpcode::kJSToName:
+      case IrOpcode::kJSToObject:
+      case IrOpcode::kJSToString:
         VisitInputs(node);
         // Assume the output is tagged.
         return SetOutput(node, MachineRepresentation::kTagged);
+
+      default:
+        V8_Fatal(__FILE__, __LINE__,
+                 "Representation inference: unsupported opcode %s\n.",
+                 node->op()->mnemonic());
+        break;
     }
     UNREACHABLE();
   }
