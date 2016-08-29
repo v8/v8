@@ -350,11 +350,9 @@ void RelocInfo::update_wasm_memory_reference(
   DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
   if (IsWasmMemoryReference(rmode_)) {
     Address updated_reference;
-    DCHECK(old_size == 0 || Memory::IsAddressInRange(
-                                old_base, wasm_memory_reference(), old_size));
     updated_reference = new_base + (wasm_memory_reference() - old_base);
-    DCHECK(new_size == 0 ||
-           Memory::IsAddressInRange(new_base, updated_reference, new_size));
+    // The reference is not checked here but at runtime. Validity of references
+    // may change over time.
     unchecked_update_wasm_memory_reference(updated_reference,
                                            icache_flush_mode);
   } else if (IsWasmMemorySizeReference(rmode_)) {
