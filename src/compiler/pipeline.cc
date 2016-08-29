@@ -1074,14 +1074,13 @@ struct EffectControlLinearizationPhase {
 };
 
 // The store-store elimination greatly benefits from doing a common operator
-// reducer just before it, to eliminate conditional deopts with a constant
-// condition.
+// reducer and dead code elimination just before it, to eliminate conditional
+// deopts with a constant condition.
 
 struct DeadCodeEliminationPhase {
-  static const char* phase_name() { return "common operator reducer"; }
+  static const char* phase_name() { return "dead code elimination"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    // Run the common operator reducer.
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
@@ -1594,7 +1593,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   RunPrintAndVerify("Effect and control linearized", true);
 
   Run<DeadCodeEliminationPhase>();
-  RunPrintAndVerify("Common operator reducer", true);
+  RunPrintAndVerify("Dead code elimination", true);
 
   if (FLAG_turbo_store_elimination) {
     Run<StoreStoreEliminationPhase>();
