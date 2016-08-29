@@ -276,7 +276,7 @@ void GCTracer::Stop(GarbageCollector collector) {
     recorded_incremental_mark_compacts_.Push(
         MakeBytesAndDuration(current_.start_object_size, duration));
     combined_mark_compact_speed_cache_ = 0.0;
-    for (int i = 0; i <= Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
+    for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
       incremental_marking_scopes_[i].ResetCurrentCycle();
     }
   } else {
@@ -285,7 +285,7 @@ void GCTracer::Stop(GarbageCollector collector) {
     recorded_mark_compacts_.Push(
         MakeBytesAndDuration(current_.start_object_size, duration));
     combined_mark_compact_speed_cache_ = 0.0;
-    for (int i = 0; i <= Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
+    for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
       incremental_marking_scopes_[i].ResetCurrentCycle();
     }
   }
