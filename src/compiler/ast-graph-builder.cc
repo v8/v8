@@ -2450,7 +2450,10 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       args->length() + 2, feedback, receiver_hint, expr->tail_call_mode());
   PrepareEagerCheckpoint(possibly_eval ? expr->EvalId() : expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
-  environment()->Push(value->InputAt(0));  // The callee passed to the call.
+  // The callee passed to the call, we just need to push something here to
+  // satisfy the bailout location contract. The fullcodegen code will not
+  // ever look at this value, so we just push optimized_out here.
+  environment()->Push(jsgraph()->OptimizedOutConstant());
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   environment()->Drop(1);
   ast_context()->ProduceValue(expr, value);
