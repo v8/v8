@@ -696,6 +696,110 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                  maybe_assigned_flag);
 }
 
+Variable* Scope::DeclareVariable(
+    Declaration* declaration, VariableMode mode, InitializationFlag init,
+    bool allow_harmony_restrictive_generators,
+    bool* sloppy_mode_block_scope_function_redefinition, bool* ok) {
+  DCHECK(IsDeclaredVariableMode(mode) && mode != CONST_LEGACY);
+  DCHECK(!already_resolved_);
+
+  if (mode == VAR && !is_declaration_scope()) {
+    return GetDeclarationScope()->DeclareVariable(
+        declaration, mode, init, allow_harmony_restrictive_generators,
+        sloppy_mode_block_scope_function_redefinition, ok);
+  }
+  DCHECK(!is_catch_scope());
+  DCHECK(!is_with_scope());
+  DCHECK(is_declaration_scope() ||
+         (IsLexicalVariableMode(mode) && is_block_scope()));
+
+  VariableProxy* proxy = declaration->proxy();
+  DCHECK(proxy->raw_name() != NULL);
+  const AstRawString* name = proxy->raw_name();
+  bool is_function_declaration = declaration->IsFunctionDeclaration();
+
+  Variable* var = nullptr;
+  if (is_eval_scope() && is_sloppy(language_mode()) && mode == VAR) {
+    // In a var binding in a sloppy direct eval, pollute the enclosing scope
+    // with this new binding by doing the following:
+    // The proxy is bound to a lookup variable to force a dynamic declaration
+    // using the DeclareEvalVar or DeclareEvalFunction runtime functions.
+    Variable::Kind kind = Variable::NORMAL;
+    // TODO(sigurds) figure out if kNotAssigned is OK here
+    var = new (zone()) Variable(this, name, mode, kind, init, kNotAssigned);
+    var->AllocateTo(VariableLocation::LOOKUP, -1);
+  } else {
+    // Declare the variable in the declaration scope.
+    var = LookupLocal(name);
+    if (var == NULL) {
+      // Declare the name.
+      Variable::Kind kind = Variable::NORMAL;
+      if (is_function_declaration) {
+        kind = Variable::FUNCTION;
+      }
+      var = DeclareLocal(name, mode, init, kind, kNotAssigned);
+    } else if (IsLexicalVariableMode(mode) ||
+               IsLexicalVariableMode(var->mode())) {
+      // Allow duplicate function decls for web compat, see bug 4693.
+      bool duplicate_allowed = false;
+      if (is_sloppy(language_mode()) && is_function_declaration &&
+          var->is_function()) {
+        DCHECK(IsLexicalVariableMode(mode) &&
+               IsLexicalVariableMode(var->mode()));
+        // If the duplication is allowed, then the var will show up
+        // in the SloppyBlockFunctionMap and the new FunctionKind
+        // will be a permitted duplicate.
+        FunctionKind function_kind =
+            declaration->AsFunctionDeclaration()->fun()->kind();
+        duplicate_allowed =
+            GetDeclarationScope()->sloppy_block_function_map()->Lookup(
+                const_cast<AstRawString*>(name), name->hash()) != nullptr &&
+            !IsAsyncFunction(function_kind) &&
+            !(allow_harmony_restrictive_generators &&
+              IsGeneratorFunction(function_kind));
+      }
+      if (duplicate_allowed) {
+        *sloppy_mode_block_scope_function_redefinition = true;
+      } else {
+        // The name was declared in this scope before; check for conflicting
+        // re-declarations. We have a conflict if either of the declarations
+        // is not a var (in script scope, we also have to ignore legacy const
+        // for compatibility). There is similar code in runtime.cc in the
+        // Declare functions. The function CheckConflictingVarDeclarations
+        // checks for var and let bindings from different scopes whereas this
+        // is a check for conflicting declarations within the same scope. This
+        // check also covers the special case
+        //
+        // function () { let x; { var x; } }
+        //
+        // because the var declaration is hoisted to the function scope where
+        // 'x' is already bound.
+        DCHECK(IsDeclaredVariableMode(var->mode()));
+        // In harmony we treat re-declarations as early errors. See
+        // ES5 16 for a definition of early errors.
+        *ok = false;
+        return nullptr;
+      }
+    } else if (mode == VAR) {
+      var->set_maybe_assigned();
+    }
+  }
+  DCHECK_NOT_NULL(var);
+
+  // We add a declaration node for every declaration. The compiler
+  // will only generate code if necessary. In particular, declarations
+  // for inner local variables that do not represent functions won't
+  // result in any generated code.
+  //
+  // This will lead to multiple declaration nodes for the
+  // same variable if it is declared several times. This is not a
+  // semantic issue, but it may be a performance issue since it may
+  // lead to repeated DeclareEvalVar or DeclareEvalFunction calls.
+  decls_.Add(declaration, zone());
+  proxy->BindTo(var);
+  return var;
+}
+
 Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
                                                  Variable::Kind kind) {
   DCHECK(is_script_scope());
@@ -734,12 +838,6 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
   scope->AddLocal(var);
   return var;
 }
-
-void Scope::AddDeclaration(Declaration* declaration) {
-  DCHECK(!already_resolved_);
-  decls_.Add(declaration, zone());
-}
-
 
 Declaration* Scope::CheckConflictingVarDeclarations() {
   int length = decls_.length();

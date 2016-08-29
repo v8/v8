@@ -1674,109 +1674,26 @@ Variable* Parser::Declare(Declaration* declaration,
                           DeclarationDescriptor::Kind declaration_kind,
                           VariableMode mode, InitializationFlag init, bool* ok,
                           Scope* scope) {
-  DCHECK(IsDeclaredVariableMode(mode) && mode != CONST_LEGACY);
-
-  VariableProxy* proxy = declaration->proxy();
-  DCHECK(proxy->raw_name() != NULL);
-  const AstRawString* name = proxy->raw_name();
-
-  if (scope == nullptr) scope = this->scope();
-  if (mode == VAR) scope = scope->GetDeclarationScope();
-  DCHECK(!scope->is_catch_scope());
-  DCHECK(!scope->is_with_scope());
-  DCHECK(scope->is_declaration_scope() ||
-         (IsLexicalVariableMode(mode) && scope->is_block_scope()));
-
-  bool is_function_declaration = declaration->IsFunctionDeclaration();
-
-  Variable* var = NULL;
-  if (scope->is_eval_scope() && is_sloppy(scope->language_mode()) &&
-      mode == VAR) {
-    // In a var binding in a sloppy direct eval, pollute the enclosing scope
-    // with this new binding by doing the following:
-    // The proxy is bound to a lookup variable to force a dynamic declaration
-    // using the DeclareEvalVar or DeclareEvalFunction runtime functions.
-    Variable::Kind kind = Variable::NORMAL;
-    // TODO(sigurds) figure out if kNotAssigned is OK here
-    var = new (zone()) Variable(scope, name, mode, kind, init, kNotAssigned);
-    var->AllocateTo(VariableLocation::LOOKUP, -1);
-  } else {
-    // Declare the variable in the declaration scope.
-    var = scope->LookupLocal(name);
-    if (var == NULL) {
-      // Declare the name.
-      Variable::Kind kind = Variable::NORMAL;
-      if (is_function_declaration) {
-        kind = Variable::FUNCTION;
-      }
-      var = scope->DeclareLocal(name, mode, init, kind, kNotAssigned);
-    } else if (IsLexicalVariableMode(mode) ||
-               IsLexicalVariableMode(var->mode())) {
-      // Allow duplicate function decls for web compat, see bug 4693.
-      bool duplicate_allowed = false;
-      if (is_sloppy(scope->language_mode()) && is_function_declaration &&
-          var->is_function()) {
-        DCHECK(IsLexicalVariableMode(mode) &&
-               IsLexicalVariableMode(var->mode()));
-        // If the duplication is allowed, then the var will show up
-        // in the SloppyBlockFunctionMap and the new FunctionKind
-        // will be a permitted duplicate.
-        FunctionKind function_kind =
-            declaration->AsFunctionDeclaration()->fun()->kind();
-        duplicate_allowed =
-            scope->GetDeclarationScope()->sloppy_block_function_map()->Lookup(
-                const_cast<AstRawString*>(name), name->hash()) != nullptr &&
-            !IsAsyncFunction(function_kind) &&
-            !(allow_harmony_restrictive_generators() &&
-              IsGeneratorFunction(function_kind));
-      }
-      if (duplicate_allowed) {
-        ++use_counts_[v8::Isolate::kSloppyModeBlockScopedFunctionRedefinition];
-      } else {
-        // The name was declared in this scope before; check for conflicting
-        // re-declarations. We have a conflict if either of the declarations
-        // is not a var (in script scope, we also have to ignore legacy const
-        // for compatibility). There is similar code in runtime.cc in the
-        // Declare functions. The function CheckConflictingVarDeclarations
-        // checks for var and let bindings from different scopes whereas this
-        // is a check for conflicting declarations within the same scope. This
-        // check also covers the special case
-        //
-        // function () { let x; { var x; } }
-        //
-        // because the var declaration is hoisted to the function scope where
-        // 'x' is already bound.
-        DCHECK(IsDeclaredVariableMode(var->mode()));
-        // In harmony we treat re-declarations as early errors. See
-        // ES5 16 for a definition of early errors.
-        if (declaration_kind == DeclarationDescriptor::NORMAL) {
-          ReportMessage(MessageTemplate::kVarRedeclaration, name);
-        } else {
-          ReportMessage(MessageTemplate::kParamDupe);
-        }
-        *ok = false;
-        return nullptr;
-      }
-    } else if (mode == VAR) {
-      var->set_maybe_assigned();
+  if (scope == nullptr) {
+    scope = this->scope();
+  }
+  bool sloppy_mode_block_scope_function_redefinition = false;
+  Variable* variable = scope->DeclareVariable(
+      declaration, mode, init, allow_harmony_restrictive_generators(),
+      &sloppy_mode_block_scope_function_redefinition, ok);
+  if (!*ok) {
+    if (declaration_kind == DeclarationDescriptor::NORMAL) {
+      ReportMessage(MessageTemplate::kVarRedeclaration,
+                    declaration->proxy()->raw_name());
+    } else {
+      ReportMessage(MessageTemplate::kParamDupe);
     }
   }
-  DCHECK_NOT_NULL(var);
-
-  // We add a declaration node for every declaration. The compiler
-  // will only generate code if necessary. In particular, declarations
-  // for inner local variables that do not represent functions won't
-  // result in any generated code.
-  //
-  // This will lead to multiple declaration nodes for the
-  // same variable if it is declared several times. This is not a
-  // semantic issue, but it may be a performance issue since it may
-  // lead to repeated DeclareEvalVar or DeclareEvalFunction calls.
-  scope->AddDeclaration(declaration);
-  proxy->BindTo(var);
-  return var;
+  if (sloppy_mode_block_scope_function_redefinition) {
+    ++use_counts_[v8::Isolate::kSloppyModeBlockScopedFunctionRedefinition];
+  }
+  return variable;
 }
-
 
 // Language extension which is only enabled for source files loaded
 // through the API's extension mechanism.  A native function
@@ -5044,8 +4961,8 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
             factory()->NewVariableDeclaration(proxy, scope, kNoSourcePosition);
         Declare(declaration, DeclarationDescriptor::NORMAL, VAR,
                 DefaultInitializationFlag(VAR), ok, scope);
-        DCHECK(ok);  // Based on the preceding check, this should not fail
-        if (!ok) return;
+        DCHECK(*ok);  // Based on the preceding check, this should not fail
+        if (!*ok) return;
       }
 
       // Read from the local lexical scope and write to the function scope

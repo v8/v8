@@ -141,6 +141,12 @@ class Scope: public ZoneObject {
                          InitializationFlag init_flag, Variable::Kind kind,
                          MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
+  Variable* DeclareVariable(Declaration* declaration, VariableMode mode,
+                            InitializationFlag init,
+                            bool allow_harmony_restrictive_generators,
+                            bool* sloppy_mode_block_scope_function_redefinition,
+                            bool* ok);
+
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
 
@@ -184,11 +190,6 @@ class Scope: public ZoneObject {
   // names.
   // TODO(verwaest): Move to DeclarationScope?
   Variable* NewTemporary(const AstRawString* name);
-
-  // Adds the specific declaration node to the list of declarations in
-  // this scope. The declarations are processed as part of entering
-  // the scope; see codegen.cc:ProcessDeclarations.
-  void AddDeclaration(Declaration* declaration);
 
   // ---------------------------------------------------------------------------
   // Illegal redeclaration support.
