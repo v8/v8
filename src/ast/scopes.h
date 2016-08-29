@@ -150,6 +150,8 @@ class Scope: public ZoneObject {
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
 
+  ZoneList<Variable*>* locals() { return &locals_; }
+
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
@@ -341,20 +343,12 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Variable allocation.
 
-  // Collect variables in this scope. Note that the function variable - if
-  // present - is not collected and should be handled separately.
-  void CollectVariables(ZoneList<Variable*>* stack_locals,
-                        ZoneList<Variable*>* context_locals,
-                        ZoneList<Variable*>* context_globals);
-
   // Result of variable allocation.
   int num_stack_slots() const { return num_stack_slots_; }
   int num_heap_slots() const { return num_heap_slots_; }
-  int num_global_slots() const { return num_global_slots_; }
 
   int StackLocalCount() const;
   int ContextLocalCount() const;
-  int ContextGlobalCount() const;
 
   // Determine if we can parse a function literal in this scope lazily.
   bool AllowsLazyParsing() const;
@@ -484,7 +478,6 @@ class Scope: public ZoneObject {
   // Computed via AllocateVariables.
   int num_stack_slots_;
   int num_heap_slots_;
-  int num_global_slots_;
 
   // The scope type.
   const ScopeType scope_type_;

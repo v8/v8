@@ -839,8 +839,8 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
   DCHECK(!context()->IsEffect());
   DCHECK(!context()->IsTest());
 
-  if (proxy != NULL && (proxy->var()->IsUnallocatedOrGlobalSlot() ||
-                        proxy->var()->IsLookupSlot())) {
+  if (proxy != NULL &&
+      (proxy->var()->IsUnallocated() || proxy->var()->IsLookupSlot())) {
     EmitVariableLoad(proxy, INSIDE_TYPEOF);
     PrepareForBailout(proxy, BailoutState::TOS_REGISTER);
   } else {

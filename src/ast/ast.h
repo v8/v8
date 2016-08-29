@@ -1790,15 +1790,6 @@ class Call final : public Expression {
     return !target_.is_null();
   }
 
-  bool global_call() const {
-    VariableProxy* proxy = expression_->AsVariableProxy();
-    return proxy != NULL && proxy->var()->IsUnallocatedOrGlobalSlot();
-  }
-
-  bool known_global_function() const {
-    return global_call() && !target_.is_null();
-  }
-
   Handle<JSFunction> target() { return target_; }
 
   Handle<AllocationSite> allocation_site() { return allocation_site_; }

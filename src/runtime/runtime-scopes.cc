@@ -665,8 +665,6 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   Handle<Context> result =
       isolate->factory()->NewScriptContext(closure, scope_info);
 
-  result->InitializeGlobalSlots();
-
   DCHECK(function->context() == isolate->context());
   DCHECK(*global_object == result->global_object());
 

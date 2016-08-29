@@ -83,18 +83,14 @@ bool Expression::IsNullLiteral() const {
 }
 
 bool Expression::IsUndefinedLiteral() const {
-  if (IsLiteral()) {
-    if (AsLiteral()->raw_value()->IsUndefined()) {
-      return true;
-    }
-  }
+  if (IsLiteral() && AsLiteral()->raw_value()->IsUndefined()) return true;
 
   const VariableProxy* var_proxy = AsVariableProxy();
-  if (var_proxy == NULL) return false;
+  if (var_proxy == nullptr) return false;
   Variable* var = var_proxy->var();
   // The global identifier "undefined" is immutable. Everything
   // else could be reassigned.
-  return var != NULL && var->IsUnallocatedOrGlobalSlot() &&
+  return var != NULL && var->IsUnallocated() &&
          var_proxy->raw_name()->IsOneByteEqualTo("undefined");
 }
 
@@ -913,7 +909,7 @@ Call::CallType Call::GetCallType() const {
   if (proxy != NULL) {
     if (is_possibly_eval()) {
       return POSSIBLY_EVAL_CALL;
-    } else if (proxy->var()->IsUnallocatedOrGlobalSlot()) {
+    } else if (proxy->var()->IsUnallocated()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {
       return LOOKUP_SLOT_CALL;

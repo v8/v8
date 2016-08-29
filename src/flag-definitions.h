@@ -1190,8 +1190,6 @@ DEFINE_BOOL(unbox_double_fields, V8_DOUBLE_FIELDS_UNBOXING,
             "enable in-object double fields unboxing (64-bit only)")
 DEFINE_IMPLICATION(unbox_double_fields, track_double_fields)
 
-DEFINE_BOOL(global_var_shortcuts, false, "use ic-less global loads and stores")
-
 
 // Cleanup...
 #undef FLAG_FULL

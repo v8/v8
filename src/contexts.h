@@ -423,9 +423,6 @@ class Context: public FixedArray {
 
   inline bool HasSameSecurityTokenAs(Context* that);
 
-  // Initializes global variable bindings in given script context.
-  void InitializeGlobalSlots();
-
   // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);
   void RemoveOptimizedFunction(JSFunction* function);

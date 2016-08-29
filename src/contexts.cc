@@ -387,25 +387,6 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 }
 
 
-void Context::InitializeGlobalSlots() {
-  DCHECK(IsScriptContext());
-  DisallowHeapAllocation no_gc;
-
-  ScopeInfo* scope_info = this->scope_info();
-
-  int context_globals = scope_info->ContextGlobalCount();
-  if (context_globals > 0) {
-    PropertyCell* empty_cell = GetHeap()->empty_property_cell();
-
-    int context_locals = scope_info->ContextLocalCount();
-    int index = Context::MIN_CONTEXT_SLOTS + context_locals;
-    for (int i = 0; i < context_globals; i++) {
-      set(index++, empty_cell);
-    }
-  }
-}
-
-
 void Context::AddOptimizedFunction(JSFunction* function) {
   DCHECK(IsNativeContext());
   Isolate* isolate = GetIsolate();

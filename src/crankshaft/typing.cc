@@ -84,14 +84,16 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
                     store_.LookupBounds(parameter_index(i)).lower);
     }
 
-    ZoneList<Variable*> local_vars(locals, zone());
-    ZoneList<Variable*> context_vars(scope_->ContextLocalCount(), zone());
-    ZoneList<Variable*> global_vars(scope_->ContextGlobalCount(), zone());
-    scope_->CollectVariables(&local_vars, &context_vars, &global_vars);
-    for (int i = 0; i < locals; i++) {
-      PrintObserved(local_vars.at(i),
-                    frame->GetExpression(i),
-                    store_.LookupBounds(stack_local_index(i)).lower);
+    ZoneList<Variable*>* local_vars = scope_->locals();
+    int local_index = 0;
+    for (int i = 0; i < local_vars->length(); i++) {
+      Variable* var = local_vars->at(i);
+      if (var->IsStackLocal()) {
+        PrintObserved(
+            var, frame->GetExpression(local_index),
+            store_.LookupBounds(stack_local_index(local_index)).lower);
+        local_index++;
+      }
     }
   }
 #endif  // OBJECT_PRINT

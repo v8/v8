@@ -71,10 +71,6 @@ class Variable final : public ZoneObject {
   bool IsStackLocal() const { return location() == VariableLocation::LOCAL; }
   bool IsStackAllocated() const { return IsParameter() || IsStackLocal(); }
   bool IsContextSlot() const { return location() == VariableLocation::CONTEXT; }
-  bool IsGlobalSlot() const { return location() == VariableLocation::GLOBAL; }
-  bool IsUnallocatedOrGlobalSlot() const {
-    return IsUnallocated() || IsGlobalSlot();
-  }
   bool IsLookupSlot() const { return location() == VariableLocation::LOOKUP; }
   bool IsGlobalObjectProperty() const;
   bool IsStaticGlobalObjectProperty() const;

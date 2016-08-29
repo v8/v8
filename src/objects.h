@@ -4360,16 +4360,6 @@ class ScopeInfo : public FixedArray {
                               VariableMode* mode, InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
 
-  // Similar to ContextSlotIndex() but this method searches only among
-  // global slots of the serialized scope info. Returns the context slot index
-  // for a given slot name if the slot is present; otherwise returns a
-  // value < 0. The name must be an internalized string. If the slot is present
-  // and mode != NULL, sets *mode to the corresponding mode for that variable.
-  static int ContextGlobalSlotIndex(Handle<ScopeInfo> scope_info,
-                                    Handle<String> name, VariableMode* mode,
-                                    InitializationFlag* init_flag,
-                                    MaybeAssignedFlag* maybe_assigned_flag);
-
   // Lookup the name of a certain context slot by its index.
   String* ContextSlotName(int slot_index);
 
@@ -4413,8 +4403,7 @@ class ScopeInfo : public FixedArray {
   V(Flags)                                   \
   V(ParameterCount)                          \
   V(StackLocalCount)                         \
-  V(ContextLocalCount)                       \
-  V(ContextGlobalCount)
+  V(ContextLocalCount)
 
 #define FIELD_ACCESSORS(name)       \
   inline void Set##name(int value); \
@@ -4441,8 +4430,8 @@ class ScopeInfo : public FixedArray {
   //    this scope are located on a stack at slots starting from this index.
   // 3. StackLocalEntries:
   //    Contains the names of local variables that are allocated on the stack,
-  //    in increasing order of the stack slot index. First local variable has
-  //    a stack slot index defined in StackLocalFirstSlot (point 2 above).
+  //    in increasing order of the stack slot index. First local variable has a
+  //    stack slot index defined in StackLocalFirstSlot (point 2 above).
   //    One slot is used per stack local, so in total this part occupies
   //    StackLocalCount() slots in the array.
   // 4. ContextLocalNameEntries:
@@ -4468,9 +4457,7 @@ class ScopeInfo : public FixedArray {
   int StackLocalFirstSlotIndex();
   int StackLocalEntriesIndex();
   int ContextLocalNameEntriesIndex();
-  int ContextGlobalNameEntriesIndex();
   int ContextLocalInfoEntriesIndex();
-  int ContextGlobalInfoEntriesIndex();
   int ReceiverEntryIndex();
   int FunctionNameEntryIndex();
 

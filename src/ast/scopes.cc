@@ -232,7 +232,6 @@ void Scope::SetDefaults() {
 
   num_stack_slots_ = 0;
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
-  num_global_slots_ = 0;
 
   set_language_mode(SLOPPY);
 
@@ -340,10 +339,8 @@ void Scope::DeserializeScopeInfo(Isolate* isolate,
 
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
 
-  // Internalize context local & globals variables.
-  for (int var = 0; var < scope_info_->ContextLocalCount() +
-                              scope_info_->ContextGlobalCount();
-       ++var) {
+  // Internalize context local variables.
+  for (int var = 0; var < scope_info_->ContextLocalCount(); ++var) {
     Handle<String> name_handle(scope_info_->ContextLocalName(var), isolate);
     const AstRawString* name = ast_value_factory->GetString(name_handle);
     int index = Context::MIN_CONTEXT_SLOTS + var;
@@ -351,9 +348,7 @@ void Scope::DeserializeScopeInfo(Isolate* isolate,
     InitializationFlag init_flag = scope_info_->ContextLocalInitFlag(var);
     MaybeAssignedFlag maybe_assigned_flag =
         scope_info_->ContextLocalMaybeAssignedFlag(var);
-    VariableLocation location = var < scope_info_->ContextLocalCount()
-                                    ? VariableLocation::CONTEXT
-                                    : VariableLocation::GLOBAL;
+    VariableLocation location = VariableLocation::CONTEXT;
     Variable::Kind kind = Variable::NORMAL;
     if (index == scope_info_->ReceiverContextSlotIndex()) {
       kind = Variable::THIS;
@@ -603,12 +598,6 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
   VariableLocation location = VariableLocation::CONTEXT;
   int index = ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode,
                                           &init_flag, &maybe_assigned_flag);
-  if (index < 0) {
-    location = VariableLocation::GLOBAL;
-    index = ScopeInfo::ContextGlobalSlotIndex(scope_info_, name_handle, &mode,
-                                              &init_flag, &maybe_assigned_flag);
-    DCHECK(index < 0 || (is_script_scope() && mode == VAR));
-  }
   if (index < 0 && scope_type() == MODULE_SCOPE) {
     location = VariableLocation::MODULE;
     index = -1;  // TODO(neis): Find module variables in scope info.
@@ -886,26 +875,6 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
     }
   }
   return nullptr;
-}
-
-void Scope::CollectVariables(ZoneList<Variable*>* stack_locals,
-                             ZoneList<Variable*>* context_locals,
-                             ZoneList<Variable*>* context_globals) {
-  // TODO(verwaest): Just pass out locals_ directly and walk it?
-  DCHECK_NOT_NULL(stack_locals);
-  DCHECK_NOT_NULL(context_locals);
-  DCHECK_NOT_NULL(context_globals);
-
-  for (int i = 0; i < locals_.length(); i++) {
-    Variable* var = locals_[i];
-    if (var->IsStackLocal()) {
-      stack_locals->Add(var, zone());
-    } else if (var->IsContextSlot()) {
-      context_locals->Add(var, zone());
-    } else if (var->IsGlobalSlot()) {
-      context_globals->Add(var, zone());
-    }
-  }
 }
 
 void DeclarationScope::AllocateVariables(ParseInfo* info) {
@@ -1214,8 +1183,7 @@ void Scope::Print(int n) {
   }
   if (num_heap_slots_ > 0) {
     Indent(n1, "// ");
-    PrintF("%d heap slots (including %d global slots)\n", num_heap_slots_,
-           num_global_slots_);
+    PrintF("%d heap slots\n", num_heap_slots_);
   }
 
   // Print locals.
@@ -1566,8 +1534,6 @@ void DeclarationScope::AllocateParameter(Variable* var, int index) {
         var->AllocateTo(VariableLocation::PARAMETER, index);
       }
     }
-  } else {
-    DCHECK(!var->IsGlobalSlot());
   }
 }
 
@@ -1589,30 +1555,9 @@ void Scope::AllocateNonParameterLocal(Variable* var) {
   }
 }
 
-void Scope::AllocateDeclaredGlobal(Variable* var) {
-  DCHECK(var->scope() == this);
-  if (var->IsUnallocated()) {
-    if (var->IsStaticGlobalObjectProperty()) {
-      DCHECK_EQ(-1, var->index());
-      DCHECK(var->name()->IsString());
-      var->AllocateTo(VariableLocation::GLOBAL, num_heap_slots_++);
-      num_global_slots_++;
-    } else {
-      // There must be only DYNAMIC_GLOBAL in the script scope.
-      DCHECK(!is_script_scope() || DYNAMIC_GLOBAL == var->mode());
-    }
-  }
-}
-
 void Scope::AllocateNonParameterLocalsAndDeclaredGlobals() {
   for (int i = 0; i < locals_.length(); i++) {
     AllocateNonParameterLocal(locals_[i]);
-  }
-
-  if (FLAG_global_var_shortcuts) {
-    for (int i = 0; i < locals_.length(); i++) {
-      AllocateDeclaredGlobal(locals_[i]);
-    }
   }
 
   if (is_declaration_scope()) {
@@ -1712,12 +1657,9 @@ int Scope::ContextLocalCount() const {
       is_function_scope() ? AsDeclarationScope()->function_var() : nullptr;
   bool is_function_var_in_context =
       function != nullptr && function->IsContextSlot();
-  return num_heap_slots() - Context::MIN_CONTEXT_SLOTS - num_global_slots() -
+  return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
          (is_function_var_in_context ? 1 : 0);
 }
-
-
-int Scope::ContextGlobalCount() const { return num_global_slots(); }
 
 }  // namespace internal
 }  // namespace v8

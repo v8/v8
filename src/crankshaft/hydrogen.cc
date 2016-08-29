@@ -10590,7 +10590,7 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
     return ast_context()->ReturnInstruction(instr, expr->id());
   } else if (proxy != NULL) {
     Variable* var = proxy->var();
-    if (var->IsUnallocatedOrGlobalSlot()) {
+    if (var->IsUnallocated()) {
       Bailout(kDeleteWithGlobalVariable);
     } else if (var->IsStackAllocated() || var->IsContextSlot()) {
       // Result of deleting non-global variables is false.  'this' is not really

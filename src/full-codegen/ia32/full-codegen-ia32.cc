@@ -1189,7 +1189,7 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
                                                TypeofMode typeof_mode) {
 #ifdef DEBUG
   Variable* var = proxy->var();
-  DCHECK(var->IsUnallocatedOrGlobalSlot() ||
+  DCHECK(var->IsUnallocated() ||
          (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
 #endif
   __ mov(LoadGlobalDescriptor::SlotRegister(),
@@ -2931,7 +2931,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         // "delete this" is allowed.
         bool is_this = var->is_this();
         DCHECK(is_sloppy(language_mode()) || is_this);
-        if (var->IsUnallocatedOrGlobalSlot()) {
+        if (var->IsUnallocated()) {
           __ mov(eax, NativeContextOperand());
           __ push(ContextOperand(eax, Context::EXTENSION_INDEX));
           __ push(Immediate(var->name()));

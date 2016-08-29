@@ -627,8 +627,7 @@ void AstGraphBuilder::ClearNonLiveSlotsInFrameStates() {
 // Gets the bailout id just before reading a variable proxy, but only for
 // unallocated variables.
 static BailoutId BeforeId(VariableProxy* proxy) {
-  return proxy->var()->IsUnallocatedOrGlobalSlot() ? proxy->BeforeId()
-                                                   : BailoutId::None();
+  return proxy->var()->IsUnallocated() ? proxy->BeforeId() : BailoutId::None();
 }
 
 static const char* GetDebugParameterName(Zone* zone, DeclarationScope* scope,

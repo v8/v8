@@ -1900,22 +1900,19 @@ Handle<Object> LiveEditFunctionTracker::SerializeFunctionScope(Scope* scope) {
   Scope* current_scope = scope;
   while (current_scope != NULL) {
     HandleScope handle_scope(isolate_);
-    ZoneList<Variable*> stack_list(current_scope->StackLocalCount(), zone_);
-    ZoneList<Variable*> context_list(current_scope->ContextLocalCount(), zone_);
-    ZoneList<Variable*> globals_list(current_scope->ContextGlobalCount(),
-                                     zone_);
-    current_scope->CollectVariables(&stack_list, &context_list, &globals_list);
-    for (int i = 0; i < context_list.length(); i++) {
-      int context_index = context_list[i]->index() - Context::MIN_CONTEXT_SLOTS;
+    ZoneList<Variable*>* locals = current_scope->locals();
+    for (int i = 0; i < locals->length(); i++) {
+      Variable* var = locals->at(i);
+      if (!var->IsContextSlot()) continue;
+      int context_index = var->index() - Context::MIN_CONTEXT_SLOTS;
       int location = scope_info_length + context_index * 2;
-      SetElementSloppy(scope_info_list, location, context_list[i]->name());
-      SetElementSloppy(
-          scope_info_list, location + 1,
-          handle(Smi::FromInt(context_list[i]->index()), isolate_));
+      SetElementSloppy(scope_info_list, location, var->name());
+      SetElementSloppy(scope_info_list, location + 1,
+                       handle(Smi::FromInt(var->index()), isolate_));
     }
-    scope_info_length += context_list.length() * 2;
+    scope_info_length += current_scope->ContextLocalCount() * 2;
     SetElementSloppy(scope_info_list, scope_info_length,
-                     Handle<Object>(isolate_->heap()->null_value(), isolate_));
+                     isolate_->factory()->null_value());
     scope_info_length++;
 
     current_scope = current_scope->outer_scope();
