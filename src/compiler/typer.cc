@@ -2294,15 +2294,6 @@ Type* Typer::Visitor::TypeWord32PairSar(Node* node) { return Type::Internal(); }
 // Heap constants.
 
 Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
-  if (value->IsJSTypedArray()) {
-    switch (JSTypedArray::cast(*value)->type()) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                          \
-    return typer_->cache_.k##Type##Array;
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-    }
-  }
   if (Type::IsInteger(*value)) {
     return Type::Range(value->Number(), value->Number(), zone());
   }
