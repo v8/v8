@@ -5761,23 +5761,27 @@ enum class MemoryPressureLevel { kNone, kModerate, kCritical };
 class V8_EXPORT EmbedderHeapTracer {
  public:
   enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
+
   struct AdvanceTracingActions {
     explicit AdvanceTracingActions(ForceCompletionAction force_completion_)
         : force_completion(force_completion_) {}
 
     ForceCompletionAction force_completion;
   };
+
   /**
-   * V8 will call this method with internal fields of found wrappers.
-   * Embedder is expected to store them in it's marking deque and trace
-   * reachable wrappers from them when asked by AdvanceTracing method.
+   * V8 will call this method with internal fields of found wrappers. The
+   * embedder is expected to store them in its marking deque and trace
+   * reachable wrappers from them when called through |AdvanceTracing|.
    */
   virtual void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& internal_fields) = 0;
+
   /**
-   * V8 will call this method at the beginning of the gc cycle.
+   * V8 will call this method at the beginning of a GC cycle.
    */
   virtual void TracePrologue() = 0;
+
   /**
    * Embedder is expected to trace its heap starting from wrappers reported by
    * RegisterV8References method, and call
@@ -5788,9 +5792,11 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual bool AdvanceTracing(double deadline_in_ms,
                               AdvanceTracingActions actions) = 0;
+
   /**
-   * V8 will call this method at the end of the gc cycle. Allocation is *not*
-   * allowed in the TraceEpilogue.
+   * V8 will call this method at the end of a GC cycle.
+   *
+   * Note that allocation is *not* allowed within |TraceEpilogue|.
    */
   virtual void TraceEpilogue() = 0;
 
@@ -5804,6 +5810,11 @@ class V8_EXPORT EmbedderHeapTracer {
    * Throw away all intermediate data and reset to the initial state.
    */
   virtual void AbortTracing() {}
+
+  /**
+   * Returns the number of wrappers that are still to be traced by the embedder.
+   */
+  virtual size_t NumberOfWrappersToTrace() { return 0; }
 
  protected:
   virtual ~EmbedderHeapTracer() = default;
