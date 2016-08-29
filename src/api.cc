@@ -2265,8 +2265,8 @@ v8::TryCatch::TryCatch()
   ResetInternal();
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ =
-      reinterpret_cast<void*>(v8::internal::SimulatorStack::RegisterCTryCatch(
-          isolate_, v8::internal::GetCurrentStackPosition()));
+      reinterpret_cast<void*>(i::SimulatorStack::RegisterCTryCatch(
+          isolate_, i::GetCurrentStackPosition()));
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -2282,8 +2282,8 @@ v8::TryCatch::TryCatch(v8::Isolate* isolate)
   ResetInternal();
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ =
-      reinterpret_cast<void*>(v8::internal::SimulatorStack::RegisterCTryCatch(
-          isolate_, v8::internal::GetCurrentStackPosition()));
+      reinterpret_cast<void*>(i::SimulatorStack::RegisterCTryCatch(
+          isolate_, i::GetCurrentStackPosition()));
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -2302,7 +2302,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->RestorePendingMessageFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    v8::internal::SimulatorStack::UnregisterCTryCatch(isolate_);
+    i::SimulatorStack::UnregisterCTryCatch(isolate_);
     reinterpret_cast<Isolate*>(isolate_)->ThrowException(exc);
     DCHECK(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
@@ -2313,7 +2313,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->CancelScheduledExceptionFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    v8::internal::SimulatorStack::UnregisterCTryCatch(isolate_);
+    i::SimulatorStack::UnregisterCTryCatch(isolate_);
   }
 }
 
@@ -7412,27 +7412,24 @@ v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
 void Isolate::SetObjectGroupId(internal::Object** object, UniqueId id) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
   internal_isolate->global_handles()->SetObjectGroupId(
-      v8::internal::Handle<v8::internal::Object>(object).location(),
-      id);
+      i::Handle<i::Object>(object).location(), id);
 }
 
 
 void Isolate::SetReferenceFromGroup(UniqueId id, internal::Object** object) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
   internal_isolate->global_handles()->SetReferenceFromGroup(
-      id,
-      v8::internal::Handle<v8::internal::Object>(object).location());
+      id, i::Handle<i::Object>(object).location());
 }
 
 
 void Isolate::SetReference(internal::Object** parent,
                            internal::Object** child) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Object** parent_location =
-      v8::internal::Handle<v8::internal::Object>(parent).location();
+  i::Object** parent_location = i::Handle<i::Object>(parent).location();
   internal_isolate->global_handles()->SetReference(
       reinterpret_cast<i::HeapObject**>(parent_location),
-      v8::internal::Handle<v8::internal::Object>(child).location());
+      i::Handle<i::Object>(child).location());
 }
 
 
