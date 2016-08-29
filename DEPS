@@ -204,6 +204,28 @@ hooks = [
     ],
   },
   {
+    "name": "wasm_fuzzer",
+    "pattern": ".",
+    "action": [ "download_from_google_storage",
+                "--no_resume",
+                "--no_auth",
+                "-u",
+                "--bucket", "v8-wasm-fuzzer",
+                "-s", "v8/test/fuzzer/wasm.tar.gz.sha1",
+    ],
+  },
+  {
+    "name": "wasm_asmjs_fuzzer",
+    "pattern": ".",
+    "action": [ "download_from_google_storage",
+                "--no_resume",
+                "--no_auth",
+                "-u",
+                "--bucket", "v8-wasm-asmjs-fuzzer",
+                "-s", "v8/test/fuzzer/wasm_asmjs.tar.gz.sha1",
+    ],
+  },
+  {
     # Downloads the current stable linux sysroot to build/linux/ if needed.
     # This sysroot updates at about the same rate that the chrome build deps
     # change.

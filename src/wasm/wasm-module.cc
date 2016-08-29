@@ -1664,15 +1664,21 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                               Handle<JSArrayBuffer>::null())
           .ToHandleChecked();
 
-  return CallFunction(isolate, instance, &thrower, "main", 0, nullptr);
+  return CallFunction(isolate, instance, &thrower, asm_js ? "caller" : "main",
+                      0, nullptr, asm_js);
 }
 
 int32_t CallFunction(Isolate* isolate, Handle<JSObject> instance,
                      ErrorThrower* thrower, const char* name, int argc,
-                     Handle<Object> argv[]) {
-  Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
-  Handle<JSObject> exports_object = Handle<JSObject>::cast(
-      JSObject::GetProperty(instance, exports).ToHandleChecked());
+                     Handle<Object> argv[], bool asm_js) {
+  Handle<JSObject> exports_object;
+  if (asm_js) {
+    exports_object = instance;
+  } else {
+    Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
+    exports_object = Handle<JSObject>::cast(
+        JSObject::GetProperty(instance, exports).ToHandleChecked());
+  }
   Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked(name);
   PropertyDescriptor desc;
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(

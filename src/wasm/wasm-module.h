@@ -410,7 +410,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 
 int32_t CallFunction(Isolate* isolate, Handle<JSObject> instance,
                      ErrorThrower* thrower, const char* name, int argc,
-                     Handle<Object> argv[]);
+                     Handle<Object> argv[], bool asm_js = false);
 }  // namespace testing
 }  // namespace wasm
 }  // namespace internal
