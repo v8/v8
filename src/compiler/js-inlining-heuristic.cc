@@ -65,7 +65,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   if (info_->shared_info()->asm_function()) return NoChange();
   if (function->shared()->asm_function()) return NoChange();
 
-  // Stop inlinining once the maximum allowed level is reached.
+  // Stop inlining once the maximum allowed level is reached.
   int level = 0;
   for (Node* frame_state = NodeProperties::GetFrameStateInput(node);
        frame_state->opcode() == IrOpcode::kFrameState;

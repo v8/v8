@@ -21,63 +21,67 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-description('Test that if an arrity check causes a stack overflow, the exception goes to the right catch');
+// Flags: --allow-natives-syntax
+
+var stackOverflowIn20ArgFn = false, gotRegexCatch = false, gotDateCatch = false;
 
 function funcWith20Args(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8,
                         arg9, arg10, arg11, arg12, arg13, arg14, arg15,
                         arg16, arg17, arg18, arg19, arg20)
 {
-    debug("ERROR: Shouldn't arrive in 20 arg function!");
+    assertUnreachable("shouldn't arrive in non-inlined 20 arg function after stack overflow");
 }
 
-var gotRightCatch = false, gotWrongCatch1 = false, gotWrongCatch2 = false;
+// If we should run with --turbo, then make sure {funcWith20Args} does
+// not get inlined.
+%NeverOptimizeFunction(funcWith20Args);
 
-function test1()
+function mutual_recursion_1()
 {
     try {
-        test2();
+        mutual_recursion_2();
     } catch (err) {
         // Should get here because of stack overflow,
-        // now cause a stack overflow exception due to arrity processing
+        // now cause a stack overflow exception due to arity processing
         try {
             var dummy = new RegExp('a|b|c');
         } catch(err) {
-            // (1) It is dendent on the stack size if we arrive here, in (2) or
+            // (1) It is dependent on the stack size if we arrive here, in (2) or
             // both.
-            gotWrongCatch1 = true;
+            gotRegexCatch = true;
         }
 
         try {
             funcWith20Args(1, 2, 3);
         } catch (err2) {
-            gotRightCatch = true;
+            stackOverflowIn20ArgFn = true;
         }
     }
 }
 
-function test2()
+function mutual_recursion_2()
 {
     try {
         var dummy = new Date();
     } catch(err) {
-        // (2) It is dendent on the stack size if we arrive here, in (1) or
+        // (2) It is dependent on the stack size if we arrive here, in (1) or
         // both.
-        gotWrongCatch2 = true;
+        gotDateCatch = true;
     }
 
     try {
-        test1();
+        mutual_recursion_1();
     } catch (err) {
         // Should get here because of stack overflow,
-        // now cause a stack overflow exception due to arrity processing
+        // now cause a stack overflow exception due to arity processing
         try {
             funcWith20Args(1, 2, 3, 4, 5, 6);
         } catch (err2) {
-            gotRightCatch = true;
+            stackOverflowIn20ArgFn = true;
         }
     }
 }
 
-test1();
+mutual_recursion_1();
 
-shouldBeTrue("gotRightCatch");
+assertTrue(stackOverflowIn20ArgFn);
