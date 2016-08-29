@@ -37,9 +37,11 @@ MachineType reptyp(Representation representation) {
     case Representation::kInteger32:
       return MachineType::Int32();
     case Representation::kSmi:
+      return MachineType::TaggedSigned();
     case Representation::kTagged:
-    case Representation::kHeapObject:
       return MachineType::AnyTagged();
+    case Representation::kHeapObject:
+      return MachineType::TaggedPointer();
     case Representation::kDouble:
       return MachineType::Float64();
     case Representation::kExternal:

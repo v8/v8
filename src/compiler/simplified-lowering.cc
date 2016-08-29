@@ -1031,7 +1031,7 @@ class RepresentationSelector {
       MachineRepresentation field_representation, Type* field_type,
       Node* value) {
     if (base_taggedness == kTaggedBase &&
-        field_representation == MachineRepresentation::kTagged) {
+        CanBeTaggedPointer(field_representation)) {
       Type* value_type = NodeProperties::GetType(value);
       if (field_type->Is(Type::TaggedSigned()) ||
           value_type->Is(Type::TaggedSigned())) {

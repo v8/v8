@@ -820,7 +820,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
                type == MachineType::Uint32()) {
       translation->StoreUint32StackSlot(LocationOperand::cast(op)->index());
-    } else if (type.representation() == MachineRepresentation::kTagged) {
+    } else if (IsAnyTagged(type.representation())) {
       translation->StoreStackSlot(LocationOperand::cast(op)->index());
     } else {
       CHECK(false);
@@ -842,7 +842,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
                type == MachineType::Uint32()) {
       translation->StoreUint32Register(converter.ToRegister(op));
-    } else if (type.representation() == MachineRepresentation::kTagged) {
+    } else if (IsAnyTagged(type.representation())) {
       translation->StoreRegister(converter.ToRegister(op));
     } else {
       CHECK(false);
@@ -861,7 +861,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     Handle<Object> constant_object;
     switch (constant.type()) {
       case Constant::kInt32:
-        if (type.representation() == MachineRepresentation::kTagged) {
+        if (type.representation() == MachineRepresentation::kTagged ||
+            type.representation() == MachineRepresentation::kTaggedSigned) {
           // When pointers are 4 bytes, we can use int32 constants to represent
           // Smis.
           DCHECK_EQ(4, kPointerSize);
@@ -883,7 +884,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
       case Constant::kInt64:
         // When pointers are 8 bytes, we can use int64 constants to represent
         // Smis.
-        DCHECK_EQ(type.representation(), MachineRepresentation::kTagged);
+        DCHECK(type.representation() == MachineRepresentation::kTagged ||
+               type.representation() == MachineRepresentation::kTaggedSigned);
         DCHECK_EQ(8, kPointerSize);
         constant_object =
             handle(reinterpret_cast<Smi*>(constant.ToInt64()), isolate());
@@ -891,16 +893,16 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         break;
       case Constant::kFloat32:
         DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
-               type.representation() == MachineRepresentation::kTagged);
+               CanBeTaggedPointer(type.representation()));
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat32());
         break;
       case Constant::kFloat64:
         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
-               type.representation() == MachineRepresentation::kTagged);
+               CanBeTaggedPointer(type.representation()));
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());
         break;
       case Constant::kHeapObject:
-        DCHECK(type.representation() == MachineRepresentation::kTagged);
+        DCHECK(CanBeTaggedPointer(type.representation()));
         constant_object = constant.ToHeapObject();
         break;
       default:

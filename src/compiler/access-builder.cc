@@ -230,7 +230,7 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewBuffer() {
                         JSArrayBufferView::kBufferOffset,
                         MaybeHandle<Name>(),
                         Type::TaggedPointer(),
-                        MachineType::AnyTagged(),
+                        MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
   return access;
 }
@@ -366,7 +366,7 @@ FieldAccess AccessBuilder::ForDescriptorArrayEnumCache() {
                         DescriptorArray::kEnumCacheOffset,
                         Handle<Name>(),
                         Type::TaggedPointer(),
-                        MachineType::AnyTagged(),
+                        MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
   return access;
 }
@@ -378,7 +378,7 @@ FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCache() {
                         DescriptorArray::kEnumCacheBridgeCacheOffset,
                         Handle<Name>(),
                         Type::TaggedPointer(),
-                        MachineType::AnyTagged(),
+                        MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
   return access;
 }
@@ -404,9 +404,12 @@ FieldAccess AccessBuilder::ForMapBitField3() {
 
 // static
 FieldAccess AccessBuilder::ForMapDescriptors() {
-  FieldAccess access = {
-      kTaggedBase,           Map::kDescriptorsOffset,  Handle<Name>(),
-      Type::TaggedPointer(), MachineType::AnyTagged(), kPointerWriteBarrier};
+  FieldAccess access = {kTaggedBase,
+                        Map::kDescriptorsOffset,
+                        Handle<Name>(),
+                        Type::TaggedPointer(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
   return access;
 }
 
@@ -422,9 +425,12 @@ FieldAccess AccessBuilder::ForMapInstanceType() {
 
 // static
 FieldAccess AccessBuilder::ForMapPrototype() {
-  FieldAccess access = {
-      kTaggedBase,           Map::kPrototypeOffset,    Handle<Name>(),
-      Type::TaggedPointer(), MachineType::AnyTagged(), kPointerWriteBarrier};
+  FieldAccess access = {kTaggedBase,
+                        Map::kPrototypeOffset,
+                        Handle<Name>(),
+                        Type::TaggedPointer(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
   return access;
 }
 
@@ -610,9 +616,17 @@ FieldAccess AccessBuilder::ForPropertyCellValue() {
 
 // static
 FieldAccess AccessBuilder::ForPropertyCellValue(Type* type) {
+  // Extract representation dimension of {type} into MachineType {r}.
+  MachineType r = MachineType::AnyTagged();
+  WriteBarrierKind w = kFullWriteBarrier;
+  if (type->Is(Type::TaggedSigned())) {
+    r = MachineType::TaggedSigned();
+    w = kNoWriteBarrier;
+  } else if (type->Is(Type::TaggedPointer())) {
+    r = MachineType::TaggedPointer();
+  }
   FieldAccess access = {
-      kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(),
-      type,        MachineType::AnyTagged(),   kFullWriteBarrier};
+      kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(), type, r, w};
   return access;
 }
 
@@ -630,6 +644,7 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
   switch (kind) {
     case FAST_SMI_ELEMENTS:
       access.type = TypeCache::Get().kSmi;
+      access.machine_type = MachineType::TaggedSigned();
       access.write_barrier_kind = kNoWriteBarrier;
       break;
     case FAST_HOLEY_SMI_ELEMENTS:
