@@ -37,10 +37,11 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
         Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
     Code* code =
         isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
-    FixedArray* deopt_data = code->deoptimization_data();
-    DCHECK(deopt_data->length() == 2);
-    module_object = Handle<JSObject>::cast(handle(deopt_data->get(0), isolate));
-    CHECK(!module_object->IsNull(isolate));
+    Object* undefined = *isolate->factory()->undefined_value();
+    Object* owning_instance = wasm::GetOwningWasmInstance(undefined, code);
+    CHECK_NOT_NULL(owning_instance);
+    CHECK_NE(owning_instance, undefined);
+    module_object = handle(JSObject::cast(owning_instance), isolate);
   }
 
   Address old_mem_start, new_mem_start;

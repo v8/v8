@@ -144,6 +144,18 @@ Handle<JSFunction> WrapExportCodeAsJSFunction(
   return function;
 }
 
+Object* GetOwningWasmInstance(Object* undefined, Code* code) {
+  DCHECK(code->kind() == Code::WASM_FUNCTION);
+  DisallowHeapAllocation no_gc;
+  FixedArray* deopt_data = code->deoptimization_data();
+  DCHECK_NOT_NULL(deopt_data);
+  DCHECK(deopt_data->length() == 2);
+  Object* weak_link = deopt_data->get(0);
+  if (weak_link == undefined) return undefined;
+  WeakCell* cell = WeakCell::cast(weak_link);
+  return cell->value();
+}
+
 namespace {
 // Internal constants for the layout of the module object.
 const int kWasmModuleFunctionTable = 0;
@@ -431,6 +443,24 @@ void FlushAssemblyCache(Isolate* isolate, Handle<FixedArray> functions) {
     Handle<Code> code = functions->GetValueChecked<Code>(isolate, i);
     Assembler::FlushICache(isolate, code->instruction_start(),
                            code->instruction_size());
+  }
+}
+
+void SetRuntimeSupport(Isolate* isolate, Handle<JSObject> js_object) {
+  Handle<FixedArray> functions = Handle<FixedArray>(
+      FixedArray::cast(js_object->GetInternalField(kWasmModuleCodeTable)));
+  Handle<WeakCell> weak_link = isolate->factory()->NewWeakCell(js_object);
+
+  for (int i = FLAG_skip_compiling_wasm_funcs; i < functions->length(); ++i) {
+    Handle<Code> code = functions->GetValueChecked<Code>(isolate, i);
+    DCHECK(code->deoptimization_data() == nullptr ||
+           code->deoptimization_data()->length() == 0);
+    Handle<FixedArray> deopt_data =
+        isolate->factory()->NewFixedArray(2, TENURED);
+    deopt_data->set(0, *weak_link);
+    deopt_data->set(1, Smi::FromInt(static_cast<int>(i)));
+    deopt_data->set_length(2);
+    code->set_deoptimization_data(*deopt_data);
   }
 }
 
@@ -872,21 +902,6 @@ void SetDebugSupport(Factory* factory, Handle<FixedArray> compiled_module,
   if (!module_bytes_string.is_null()) {
     js_object->SetInternalField(kWasmModuleBytesString,
                                 *module_bytes_string.ToHandleChecked());
-  }
-  Handle<FixedArray> functions = Handle<FixedArray>(
-      FixedArray::cast(js_object->GetInternalField(kWasmModuleCodeTable)));
-
-  for (int i = FLAG_skip_compiling_wasm_funcs; i < functions->length(); ++i) {
-    Handle<Code> code = functions->GetValueChecked<Code>(isolate, i);
-    DCHECK(code->deoptimization_data() == nullptr ||
-           code->deoptimization_data()->length() == 0);
-    Handle<FixedArray> deopt_data = factory->NewFixedArray(2, TENURED);
-    if (!js_object.is_null()) {
-      deopt_data->set(0, *js_object);
-    }
-    deopt_data->set(1, Smi::FromInt(static_cast<int>(i)));
-    deopt_data->set_length(2);
-    code->set_deoptimization_data(*deopt_data);
   }
 
   MaybeHandle<ByteArray> function_name_table =
@@ -1397,6 +1412,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
   }
 
   SetDebugSupport(factory, compiled_module, js_object);
+  SetRuntimeSupport(isolate, js_object);
 
   FlushAssemblyCache(isolate, code_table);
 

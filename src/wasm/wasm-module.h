@@ -401,6 +401,13 @@ void PopulateFunctionTable(Handle<FixedArray> table, uint32_t table_size,
 Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
                                             Handle<FixedArray> compiled_module);
 
+// Assumed to be called with a code object associated to a wasm module instance.
+// Intended to be called from runtime functions.
+// Returns undefined if the runtime support was not setup, nullptr if the
+// instance
+// was collected, or the instance object owning the Code object
+Object* GetOwningWasmInstance(Object* undefined, Code* code);
+
 namespace testing {
 
 // Decode, verify, and run the function labeled "main" in the
