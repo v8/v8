@@ -2548,6 +2548,7 @@ ParserBase<Impl>::ParseTailCallExpression(ExpressionClassifier* classifier,
   CheckNoTailCallExpressions(classifier, CHECK_OK);
 
   Scanner::Location loc(pos, scanner()->location().end_pos);
+
   if (!expression->IsCall()) {
     Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
     impl()->ReportMessageAt(sub_loc,
@@ -2564,6 +2565,12 @@ ParserBase<Impl>::ParseTailCallExpression(ExpressionClassifier* classifier,
   }
   if (!is_strict(language_mode())) {
     impl()->ReportMessageAt(loc, MessageTemplate::kUnexpectedSloppyTailCall);
+    *ok = false;
+    return impl()->EmptyExpression();
+  }
+  if (is_resumable()) {
+    Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
+    impl()->ReportMessageAt(sub_loc, MessageTemplate::kUnexpectedTailCall);
     *ok = false;
     return impl()->EmptyExpression();
   }

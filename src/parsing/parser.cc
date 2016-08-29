@@ -2369,7 +2369,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           function_state_, ReturnExprContext::kInsideValidReturnStatement);
       return_value = ParseExpression(true, CHECK_OK);
 
-      if (allow_tailcalls() && !is_sloppy(language_mode())) {
+      if (allow_tailcalls() && !is_sloppy(language_mode()) && !is_resumable()) {
         // ES6 14.6.1 Static Semantics: IsInTailPosition
         function_state_->AddImplicitTailCallExpression(return_value);
       }
