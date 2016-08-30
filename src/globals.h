@@ -732,13 +732,12 @@ enum CpuFeature {
   POPCNT,
   ATOM,
   // ARM
-  VFP3,
-  ARMv7,
-  ARMv8,
-  SUDIV,
+  // - Standard configurations. The baseline is ARMv6+VFPv2.
+  ARMv7,        // ARMv7-A + VFPv3-D32 + NEON
+  ARMv7_SUDIV,  // ARMv7-A + VFPv4-D32 + NEON + SUDIV
+  ARMv8,        // ARMv8-A (+ all of the above)
+  // - Additional tuning flags.
   MOVW_MOVT_IMMEDIATE_LOADS,
-  VFP32DREGS,
-  NEON,
   // MIPS, MIPS64
   FPU,
   FP64FPU,
@@ -758,7 +757,13 @@ enum CpuFeature {
   // PPC/S390
   UNALIGNED_ACCESSES,
 
-  NUMBER_OF_CPU_FEATURES
+  NUMBER_OF_CPU_FEATURES,
+
+  // ARM feature aliases (based on the standard configurations above).
+  VFP3 = ARMv7,
+  NEON = ARMv7,
+  VFP32DREGS = ARMv7,
+  SUDIV = ARMv7_SUDIV
 };
 
 // Defines hints about receiver values based on structural knowledge.

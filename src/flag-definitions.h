@@ -119,31 +119,27 @@ struct MaybeBoolFlag {
 #else
 #define DEBUG_BOOL false
 #endif
-#if (defined CAN_USE_VFP3_INSTRUCTIONS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
-#define ENABLE_VFP3_DEFAULT true
+
+// Supported ARM configurations are:
+//  "armv6":       ARMv6 + VFPv2
+//  "armv7":       ARMv7 + VFPv3-D32 + NEON
+//  "armv7+sudiv": ARMv7 + VFPv4-D32 + NEON + SUDIV
+//  "armv8":       ARMv8 (including all of the above)
+#if !defined(ARM_TEST_NO_FEATURE_PROBE) ||                            \
+    (defined(CAN_USE_ARMV8_INSTRUCTIONS) &&                           \
+     defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(CAN_USE_SUDIV) && \
+     defined(CAN_USE_NEON) && defined(CAN_USE_VFP3_INSTRUCTIONS))
+#define ARM_ARCH_DEFAULT "armv8"
+#elif defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(CAN_USE_SUDIV) && \
+    defined(CAN_USE_NEON) && defined(CAN_USE_VFP3_INSTRUCTIONS)
+#define ARM_ARCH_DEFAULT "armv7+sudiv"
+#elif defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(CAN_USE_NEON) && \
+    defined(CAN_USE_VFP3_INSTRUCTIONS)
+#define ARM_ARCH_DEFAULT "armv7"
 #else
-#define ENABLE_VFP3_DEFAULT false
+#define ARM_ARCH_DEFAULT "armv6"
 #endif
-#if (defined CAN_USE_ARMV7_INSTRUCTIONS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
-#define ENABLE_ARMV7_DEFAULT true
-#else
-#define ENABLE_ARMV7_DEFAULT false
-#endif
-#if (defined CAN_USE_ARMV8_INSTRUCTIONS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
-#define ENABLE_ARMV8_DEFAULT true
-#else
-#define ENABLE_ARMV8_DEFAULT false
-#endif
-#if (defined CAN_USE_VFP32DREGS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
-#define ENABLE_32DREGS_DEFAULT true
-#else
-#define ENABLE_32DREGS_DEFAULT false
-#endif
-#if (defined CAN_USE_NEON) || !(defined ARM_TEST_NO_FEATURE_PROBE)
-# define ENABLE_NEON_DEFAULT true
-#else
-# define ENABLE_NEON_DEFAULT false
-#endif
+
 #ifdef V8_OS_WIN
 # define ENABLE_LOG_COLOUR false
 #else
@@ -561,35 +557,29 @@ DEFINE_BOOL(enable_bmi2, true, "enable use of BMI2 instructions if available")
 DEFINE_BOOL(enable_lzcnt, true, "enable use of LZCNT instruction if available")
 DEFINE_BOOL(enable_popcnt, true,
             "enable use of POPCNT instruction if available")
-DEFINE_BOOL(enable_vfp3, ENABLE_VFP3_DEFAULT,
-            "enable use of VFP3 instructions if available")
-DEFINE_BOOL(enable_armv7, ENABLE_ARMV7_DEFAULT,
-            "enable use of ARMv7 instructions if available (ARM only)")
-DEFINE_BOOL(enable_armv8, ENABLE_ARMV8_DEFAULT,
-            "enable use of ARMv8 instructions if available (ARM 32-bit only)")
-DEFINE_BOOL(enable_neon, ENABLE_NEON_DEFAULT,
-            "enable use of NEON instructions if available (ARM only)")
-DEFINE_BOOL(enable_sudiv, true,
-            "enable use of SDIV and UDIV instructions if available (ARM only)")
+DEFINE_STRING(arm_arch, ARM_ARCH_DEFAULT,
+              "generate instructions for the selected ARM architecture if "
+              "available: armv6, armv7, armv7+sudiv or armv8")
 DEFINE_BOOL(enable_movw_movt, false,
-            "enable loading 32-bit constant by means of movw/movt "
-            "instruction pairs (ARM only)")
-DEFINE_BOOL(enable_32dregs, ENABLE_32DREGS_DEFAULT,
-            "enable use of d16-d31 registers on ARM - this requires VFP3")
+            "prefer to load 32-bit constants using movw/movt instruction pairs "
+            "(ARM only)")
 DEFINE_BOOL(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
 DEFINE_BOOL(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS/PPC only)")
 DEFINE_STRING(mcpu, "auto", "enable optimization for specific cpu")
 
+// Deprecated ARM flags (replaced by arm_arch).
+DEFINE_MAYBE_BOOL(enable_armv7, "deprecated (use --arm_arch instead)")
+DEFINE_MAYBE_BOOL(enable_vfp3, "deprecated (use --arm_arch instead)")
+DEFINE_MAYBE_BOOL(enable_32dregs, "deprecated (use --arm_arch instead)")
+DEFINE_MAYBE_BOOL(enable_neon, "deprecated (use --arm_arch instead)")
+DEFINE_MAYBE_BOOL(enable_sudiv, "deprecated (use --arm_arch instead)")
+DEFINE_MAYBE_BOOL(enable_armv8, "deprecated (use --arm_arch instead)")
+
 // regexp-macro-assembler-*.cc
 DEFINE_BOOL(enable_regexp_unaligned_accesses, true,
             "enable unaligned accesses for the regexp engine")
-
-DEFINE_IMPLICATION(enable_armv8, enable_vfp3)
-DEFINE_IMPLICATION(enable_armv8, enable_neon)
-DEFINE_IMPLICATION(enable_armv8, enable_32dregs)
-DEFINE_IMPLICATION(enable_armv8, enable_sudiv)
 
 // bootstrapper.cc
 DEFINE_STRING(expose_natives_as, NULL, "expose natives in global object")
