@@ -1903,5 +1903,97 @@ TEST_F(ValueSerializerTest, DecodeInvalidDataView) {
       {0xff, 0x09, 0x42, 0x02, 0x00, 0x00, 0x56, 0x3f, 0x01, 0x03});
 }
 
+class ValueSerializerTestWithSharedArrayBufferTransfer
+    : public ValueSerializerTest {
+ protected:
+  static const size_t kTestByteLength = 4;
+
+  ValueSerializerTestWithSharedArrayBufferTransfer() {
+    const uint8_t data[kTestByteLength] = {0x00, 0x01, 0x80, 0xff};
+    memcpy(data_, data, kTestByteLength);
+    {
+      Context::Scope scope(serialization_context());
+      input_buffer_ =
+          SharedArrayBuffer::New(isolate(), &data_, kTestByteLength);
+    }
+    {
+      Context::Scope scope(deserialization_context());
+      output_buffer_ =
+          SharedArrayBuffer::New(isolate(), &data_, kTestByteLength);
+    }
+  }
+
+  const Local<SharedArrayBuffer>& input_buffer() { return input_buffer_; }
+  const Local<SharedArrayBuffer>& output_buffer() { return output_buffer_; }
+
+  void BeforeEncode(ValueSerializer* serializer) override {
+    serializer->TransferSharedArrayBuffer(0, input_buffer_);
+  }
+
+  void BeforeDecode(ValueDeserializer* deserializer) override {
+    deserializer->TransferSharedArrayBuffer(0, output_buffer_);
+  }
+
+  static void SetUpTestCase() {
+    flag_was_enabled_ = i::FLAG_harmony_sharedarraybuffer;
+    i::FLAG_harmony_sharedarraybuffer = true;
+    ValueSerializerTest::SetUpTestCase();
+  }
+
+  static void TearDownTestCase() {
+    ValueSerializerTest::TearDownTestCase();
+    i::FLAG_harmony_sharedarraybuffer = flag_was_enabled_;
+    flag_was_enabled_ = false;
+  }
+
+ private:
+  static bool flag_was_enabled_;
+  uint8_t data_[kTestByteLength];
+  Local<SharedArrayBuffer> input_buffer_;
+  Local<SharedArrayBuffer> output_buffer_;
+};
+
+bool ValueSerializerTestWithSharedArrayBufferTransfer::flag_was_enabled_ =
+    false;
+
+TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
+       RoundTripSharedArrayBufferTransfer) {
+  RoundTripTest([this]() { return input_buffer(); },
+                [this](Local<Value> value) {
+                  ASSERT_TRUE(value->IsSharedArrayBuffer());
+                  EXPECT_EQ(output_buffer(), value);
+                  EXPECT_TRUE(EvaluateScriptForResultBool(
+                      "new Uint8Array(result).toString() === '0,1,128,255'"));
+                });
+  RoundTripTest(
+      [this]() {
+        Local<Object> object = Object::New(isolate());
+        EXPECT_TRUE(object
+                        ->CreateDataProperty(serialization_context(),
+                                             StringFromUtf8("a"),
+                                             input_buffer())
+                        .FromMaybe(false));
+        EXPECT_TRUE(object
+                        ->CreateDataProperty(serialization_context(),
+                                             StringFromUtf8("b"),
+                                             input_buffer())
+                        .FromMaybe(false));
+        return object;
+      },
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "result.a instanceof SharedArrayBuffer"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "new Uint8Array(result.a).toString() === '0,1,128,255'"));
+      });
+}
+
+TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
+       SharedArrayBufferMustBeTransferred) {
+  // A SharedArrayBuffer which was not marked for transfer should fail encoding.
+  InvalidEncodeTest("new SharedArrayBuffer(32)");
+}
+
 }  // namespace
 }  // namespace v8

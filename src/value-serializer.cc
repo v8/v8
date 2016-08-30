@@ -103,6 +103,8 @@ enum class SerializationTag : uint8_t {
   // ObjectReference to one) serialized just before it. This is a quirk arising
   // from the previous stack-based implementation.
   kArrayBufferView = 'V',
+  // Shared array buffer (transferred). transferID:uint32_t
+  kSharedArrayBufferTransfer = 'u',
 };
 
 namespace {
@@ -557,12 +559,15 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
 Maybe<bool> ValueSerializer::WriteJSArrayBuffer(JSArrayBuffer* array_buffer) {
   uint32_t* transfer_entry = array_buffer_transfer_map_.Find(array_buffer);
   if (transfer_entry) {
-    DCHECK(array_buffer->was_neutered());
-    WriteTag(SerializationTag::kArrayBufferTransfer);
+    DCHECK(array_buffer->was_neutered() || array_buffer->is_shared());
+    WriteTag(array_buffer->is_shared()
+                 ? SerializationTag::kSharedArrayBufferTransfer
+                 : SerializationTag::kArrayBufferTransfer);
     WriteVarint(*transfer_entry);
     return Just(true);
   }
 
+  if (array_buffer->is_shared()) return Nothing<bool>();
   if (array_buffer->was_neutered()) return Nothing<bool>();
   double byte_length = array_buffer->byte_length()->Number();
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
@@ -832,8 +837,14 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
       return ReadJSSet();
     case SerializationTag::kArrayBuffer:
       return ReadJSArrayBuffer();
-    case SerializationTag::kArrayBufferTransfer:
-      return ReadTransferredJSArrayBuffer();
+    case SerializationTag::kArrayBufferTransfer: {
+      const bool is_shared = false;
+      return ReadTransferredJSArrayBuffer(is_shared);
+    }
+    case SerializationTag::kSharedArrayBufferTransfer: {
+      const bool is_shared = true;
+      return ReadTransferredJSArrayBuffer(is_shared);
+    }
     default:
       return MaybeHandle<Object>();
   }
@@ -1120,7 +1131,8 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer() {
   return array_buffer;
 }
 
-MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
+MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer(
+    bool is_shared) {
   uint32_t id = next_id_++;
   uint32_t transfer_id;
   Handle<SeededNumberDictionary> transfer_map;
@@ -1134,6 +1146,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
   }
   Handle<JSArrayBuffer> array_buffer(
       JSArrayBuffer::cast(transfer_map->ValueAt(index)), isolate_);
+  DCHECK_EQ(is_shared, array_buffer->is_shared());
   AddObjectWithID(id, array_buffer);
   return array_buffer;
 }

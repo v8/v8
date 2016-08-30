@@ -1698,6 +1698,12 @@ class V8_EXPORT ValueSerializer {
   void TransferArrayBuffer(uint32_t transfer_id,
                            Local<ArrayBuffer> array_buffer);
 
+  /*
+   * Similar to TransferArrayBuffer, but for SharedArrayBuffer.
+   */
+  void TransferSharedArrayBuffer(uint32_t transfer_id,
+                                 Local<SharedArrayBuffer> shared_array_buffer);
+
  private:
   ValueSerializer(const ValueSerializer&) = delete;
   void operator=(const ValueSerializer&) = delete;
@@ -1736,6 +1742,13 @@ class V8_EXPORT ValueDeserializer {
    */
   void TransferArrayBuffer(uint32_t transfer_id,
                            Local<ArrayBuffer> array_buffer);
+
+  /*
+   * Similar to TransferArrayBuffer, but for SharedArrayBuffer.
+   * transfer_id exists in the same namespace as unshared ArrayBuffer objects.
+   */
+  void TransferSharedArrayBuffer(uint32_t transfer_id,
+                                 Local<SharedArrayBuffer> shared_array_buffer);
 
   /*
    * Must be called before ReadHeader to enable support for reading the legacy

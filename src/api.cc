@@ -2871,6 +2871,12 @@ void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
                                            Utils::OpenHandle(*array_buffer));
 }
 
+void ValueSerializer::TransferSharedArrayBuffer(
+    uint32_t transfer_id, Local<SharedArrayBuffer> shared_array_buffer) {
+  private_->serializer.TransferArrayBuffer(
+      transfer_id, Utils::OpenHandle(*shared_array_buffer));
+}
+
 struct ValueDeserializer::PrivateData {
   PrivateData(i::Isolate* i, i::Vector<const uint8_t> data)
       : isolate(i), deserializer(i, data) {}
@@ -2939,6 +2945,12 @@ void ValueDeserializer::TransferArrayBuffer(uint32_t transfer_id,
                                             Local<ArrayBuffer> array_buffer) {
   private_->deserializer.TransferArrayBuffer(transfer_id,
                                              Utils::OpenHandle(*array_buffer));
+}
+
+void ValueDeserializer::TransferSharedArrayBuffer(
+    uint32_t transfer_id, Local<SharedArrayBuffer> shared_array_buffer) {
+  private_->deserializer.TransferArrayBuffer(
+      transfer_id, Utils::OpenHandle(*shared_array_buffer));
 }
 
 // --- D a t a ---
