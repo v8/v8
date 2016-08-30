@@ -501,7 +501,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
         Handle<Object> recv(exit_frame->receiver(), this);
         Handle<Code> code(exit_frame->LookupCode(), this);
-        int offset =
+        const int offset =
             static_cast<int>(exit_frame->pc() - code->instruction_start());
 
         int flags = 0;
@@ -1395,36 +1395,20 @@ Object* Isolate::PromoteScheduledException() {
 
 
 void Isolate::PrintCurrentStackTrace(FILE* out) {
-  StackTraceFrameIterator it(this);
-  while (!it.done()) {
+  for (StackTraceFrameIterator it(this); !it.done(); it.Advance()) {
+    if (!it.is_javascript()) continue;
+
     HandleScope scope(this);
-    // Find code position if recorded in relocation info.
-    StandardFrame* frame = it.frame();
-    AbstractCode* abstract_code;
-    int code_offset;
-    if (frame->is_interpreted()) {
-      InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
-      abstract_code = AbstractCode::cast(iframe->GetBytecodeArray());
-      code_offset = iframe->GetBytecodeOffset();
-    } else {
-      DCHECK(frame->is_java_script() || frame->is_wasm());
-      Code* code = frame->LookupCode();
-      abstract_code = AbstractCode::cast(code);
-      code_offset = static_cast<int>(frame->pc() - code->instruction_start());
-    }
-    int pos = abstract_code->SourcePosition(code_offset);
-    JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-    Handle<Object> pos_obj(Smi::FromInt(pos), this);
-    // Fetch function and receiver.
-    Handle<JSFunction> fun(js_frame->function(), this);
-    Handle<Object> recv(js_frame->receiver(), this);
-    // Advance to the next JavaScript frame and determine if the
-    // current frame is the top-level frame.
-    it.Advance();
-    Handle<Object> is_top_level = factory()->ToBoolean(it.done());
-    // Generate and print stack trace line.
-    Handle<String> line =
-        Execution::GetStackTraceLine(recv, fun, pos_obj, is_top_level);
+    JavaScriptFrame* frame = it.javascript_frame();
+
+    Handle<Object> receiver(frame->receiver(), this);
+    Handle<JSFunction> function(frame->function(), this);
+    Handle<AbstractCode> code(AbstractCode::cast(frame->LookupCode()), this);
+    const int offset =
+        static_cast<int>(frame->pc() - code->instruction_start());
+
+    JSStackFrame site(this, receiver, function, code, offset);
+    Handle<String> line = site.ToString().ToHandleChecked();
     if (line->length() > 0) {
       line->PrintOn(out);
       PrintF(out, "\n");

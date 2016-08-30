@@ -19,6 +19,8 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class AbstractCode;
+class FrameArray;
 class JSMessageObject;
 class LookupIterator;
 class SourceInfo;
@@ -42,38 +44,142 @@ class MessageLocation {
   Handle<JSFunction> function_;
 };
 
-
-class CallSite {
+class StackFrameBase {
  public:
-  CallSite(Isolate* isolate, Handle<JSObject> call_site_obj);
+  virtual ~StackFrameBase() {}
 
-  Handle<Object> GetFileName();
-  Handle<Object> GetFunctionName();
-  Handle<Object> GetScriptNameOrSourceUrl();
-  Handle<Object> GetMethodName();
-  Handle<Object> GetTypeName();
-  Handle<Object> GetEvalOrigin();
+  virtual Handle<Object> GetReceiver() const = 0;
+  virtual Handle<Object> GetFunction() const = 0;
+
+  virtual Handle<Object> GetFileName() = 0;
+  virtual Handle<Object> GetFunctionName() = 0;
+  virtual Handle<Object> GetScriptNameOrSourceUrl() = 0;
+  virtual Handle<Object> GetMethodName() = 0;
+  virtual Handle<Object> GetTypeName() = 0;
+  virtual Handle<Object> GetEvalOrigin() = 0;
+
+  virtual int GetPosition() const = 0;
   // Return 1-based line number, including line offset.
-  int GetLineNumber();
+  virtual int GetLineNumber() = 0;
   // Return 1-based column number, including column offset if first line.
-  int GetColumnNumber();
-  bool IsNative();
-  bool IsToplevel();
-  bool IsEval();
-  bool IsConstructor();
+  virtual int GetColumnNumber() = 0;
 
-  bool IsJavaScript() { return !fun_.is_null(); }
-  bool IsWasm() { return !wasm_obj_.is_null(); }
+  virtual bool IsNative() = 0;
+  virtual bool IsToplevel() = 0;
+  virtual bool IsEval() = 0;
+  virtual bool IsConstructor() = 0;
+  virtual bool IsStrict() const = 0;
 
-  int wasm_func_index() const { return wasm_func_index_; }
+  virtual MaybeHandle<String> ToString() = 0;
+};
+
+class JSStackFrame : public StackFrameBase {
+ public:
+  JSStackFrame(Isolate* isolate, Handle<Object> receiver,
+               Handle<JSFunction> function, Handle<AbstractCode> code,
+               int offset);
+  virtual ~JSStackFrame() {}
+
+  Handle<Object> GetReceiver() const override { return receiver_; }
+  Handle<Object> GetFunction() const override;
+
+  Handle<Object> GetFileName() override;
+  Handle<Object> GetFunctionName() override;
+  Handle<Object> GetScriptNameOrSourceUrl() override;
+  Handle<Object> GetMethodName() override;
+  Handle<Object> GetTypeName() override;
+  Handle<Object> GetEvalOrigin() override;
+
+  int GetPosition() const override;
+  int GetLineNumber() override;
+  int GetColumnNumber() override;
+
+  bool IsNative() override;
+  bool IsToplevel() override;
+  bool IsEval() override;
+  bool IsConstructor() override;
+  bool IsStrict() const override { return is_strict_; }
+
+  MaybeHandle<String> ToString() override;
+
+ private:
+  JSStackFrame();
+  void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
+
+  bool HasScript() const;
+  Handle<Script> GetScript() const;
+
+  Isolate* isolate_;
+
+  Handle<Object> receiver_;
+  Handle<JSFunction> function_;
+  Handle<AbstractCode> code_;
+  int offset_;
+
+  bool force_constructor_;
+  bool is_strict_;
+
+  friend class FrameArrayIterator;
+};
+
+class WasmStackFrame : public StackFrameBase {
+ public:
+  virtual ~WasmStackFrame() {}
+
+  Handle<Object> GetReceiver() const override { return wasm_obj_; }
+  Handle<Object> GetFunction() const override;
+
+  Handle<Object> GetFileName() override { return Null(); }
+  Handle<Object> GetFunctionName() override;
+  Handle<Object> GetScriptNameOrSourceUrl() override { return Null(); }
+  Handle<Object> GetMethodName() override { return Null(); }
+  Handle<Object> GetTypeName() override { return Null(); }
+  Handle<Object> GetEvalOrigin() override { return Null(); }
+
+  int GetPosition() const override;
+  int GetLineNumber() override { return wasm_func_index_; }
+  int GetColumnNumber() override { return -1; }
+
+  bool IsNative() override { return false; }
+  bool IsToplevel() override { return false; }
+  bool IsEval() override { return false; }
+  bool IsConstructor() override { return false; }
+  bool IsStrict() const override { return false; }
+
+  MaybeHandle<String> ToString() override;
+
+ private:
+  void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
+  Handle<Object> Null() const;
+
+  Isolate* isolate_;
+
+  Handle<Object> wasm_obj_;
+  uint32_t wasm_func_index_;
+  Handle<AbstractCode> code_;
+  int offset_;
+
+  friend class FrameArrayIterator;
+};
+
+class FrameArrayIterator {
+ public:
+  FrameArrayIterator(Isolate* isolate, Handle<FrameArray> array,
+                     int frame_ix = 0);
+
+  StackFrameBase* Frame();
+
+  bool HasNext() const;
+  void Next();
 
  private:
   Isolate* isolate_;
-  Handle<Object> receiver_;
-  Handle<JSFunction> fun_;
-  int32_t pos_ = -1;
-  Handle<JSObject> wasm_obj_;
-  uint32_t wasm_func_index_ = static_cast<uint32_t>(-1);
+
+  Handle<FrameArray> array_;
+  int next_frame_ix_;
+
+  WasmStackFrame wasm_frame_;
+  JSStackFrame js_frame_;
 };
 
 // Determines how stack trace collection skips frames.
@@ -105,16 +211,6 @@ class ErrorUtils : public AllStatic {
   static MaybeHandle<Object> FormatStackTrace(Isolate* isolate,
                                               Handle<JSObject> error,
                                               Handle<Object> stack_trace);
-};
-
-class CallSiteUtils : public AllStatic {
- public:
-  static MaybeHandle<Object> Construct(Isolate* isolate,
-                                       Handle<Object> receiver,
-                                       Handle<Object> fun, Handle<Object> pos,
-                                       Handle<Object> strict_mode);
-
-  static MaybeHandle<String> ToString(Isolate* isolate, Handle<Object> recv);
 };
 
 #define MESSAGE_TEMPLATES(T)                                                   \
