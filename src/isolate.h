@@ -1165,6 +1165,8 @@ class Isolate {
 
   bool IsIsolateInBackground() { return is_isolate_in_background_; }
 
+  void PrintWithTimestamp(const char* format, ...);
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectPrototype(Object* object);

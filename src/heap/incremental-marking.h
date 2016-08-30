@@ -146,14 +146,7 @@ class IncrementalMarking {
                 ForceMarkingAction marking = DO_NOT_FORCE_MARKING,
                 ForceCompletionAction completion = FORCE_COMPLETION);
 
-  inline void RestartIfNotMarking() {
-    if (state_ == COMPLETE) {
-      state_ = MARKING;
-      if (FLAG_trace_incremental_marking) {
-        PrintF("[IncrementalMarking] Restarting (new grey objects)\n");
-      }
-    }
-  }
+  inline void RestartIfNotMarking();
 
   static void RecordWriteFromCode(HeapObject* obj, Object** slot,
                                   Isolate* isolate);

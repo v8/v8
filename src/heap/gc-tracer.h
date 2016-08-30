@@ -382,6 +382,8 @@ class GCTracer {
   // Discard all recorded survival events.
   void ResetSurvivalEvents();
 
+  void NotifyIncrementalMarkingStart();
+
   V8_INLINE void AddScopeSample(Scope::ScopeId scope, double duration) {
     DCHECK(scope < Scope::NUMBER_OF_SCOPES);
     if (scope >= Scope::FIRST_INCREMENTAL_SCOPE &&
@@ -476,6 +478,8 @@ class GCTracer {
   // of the initial atomic sweeping pause. Make sure that it accumulates
   // all sweeping operations performed on the main thread.
   double cumulative_sweeping_duration_;
+
+  double incremental_marking_start_time_;
 
   // Timestamp and allocation counter at the last sampled allocation event.
   double allocation_time_ms_;

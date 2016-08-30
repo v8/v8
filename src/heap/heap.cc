@@ -808,7 +808,7 @@ void Heap::ScheduleIdleScavengeIfNeeded(int bytes_allocated) {
 
 void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] (%s).\n", gc_reason);
+    isolate()->PrintWithTimestamp("[IncrementalMarking] (%s).\n", gc_reason);
   }
 
   HistogramTimerScope incremental_marking_scope(
@@ -4081,10 +4081,10 @@ double Heap::YoungGenerationMutatorUtilization() {
       tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects);
   double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
   if (FLAG_trace_mutator_utilization) {
-    PrintIsolate(isolate(),
-                 "Young generation mutator utilization = %.3f ("
-                 "mutator_speed=%.f, gc_speed=%.f)\n",
-                 result, mutator_speed, gc_speed);
+    isolate()->PrintWithTimestamp(
+        "Young generation mutator utilization = %.3f ("
+        "mutator_speed=%.f, gc_speed=%.f)\n",
+        result, mutator_speed, gc_speed);
   }
   return result;
 }
@@ -4097,10 +4097,10 @@ double Heap::OldGenerationMutatorUtilization() {
       tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
   double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
   if (FLAG_trace_mutator_utilization) {
-    PrintIsolate(isolate(),
-                 "Old generation mutator utilization = %.3f ("
-                 "mutator_speed=%.f, gc_speed=%.f)\n",
-                 result, mutator_speed, gc_speed);
+    isolate()->PrintWithTimestamp(
+        "Old generation mutator utilization = %.3f ("
+        "mutator_speed=%.f, gc_speed=%.f)\n",
+        result, mutator_speed, gc_speed);
   }
   return result;
 }
@@ -4328,8 +4328,7 @@ void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
 
   if ((FLAG_trace_idle_notification && action.type > DO_NOTHING) ||
       FLAG_trace_idle_notification_verbose) {
-    PrintIsolate(isolate_, "%8.0f ms: ", isolate()->time_millis_since_init());
-    PrintF(
+    isolate_->PrintWithTimestamp(
         "Idle notification: requested idle time %.2f ms, used idle time %.2f "
         "ms, deadline usage %.2f ms [",
         idle_time_in_ms, idle_time_in_ms - deadline_difference,
@@ -5195,11 +5194,11 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
   double factor = HeapGrowingFactor(gc_speed, mutator_speed);
 
   if (FLAG_trace_gc_verbose) {
-    PrintIsolate(isolate_,
-                 "Heap growing factor %.1f based on mu=%.3f, speed_ratio=%.f "
-                 "(gc=%.f, mutator=%.f)\n",
-                 factor, kTargetMutatorUtilization, gc_speed / mutator_speed,
-                 gc_speed, mutator_speed);
+    isolate_->PrintWithTimestamp(
+        "Heap growing factor %.1f based on mu=%.3f, speed_ratio=%.f "
+        "(gc=%.f, mutator=%.f)\n",
+        factor, kTargetMutatorUtilization, gc_speed / mutator_speed, gc_speed,
+        mutator_speed);
   }
 
   if (IsMemoryConstrainedDevice()) {
@@ -5223,10 +5222,10 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
       CalculateOldGenerationAllocationLimit(factor, old_gen_size);
 
   if (FLAG_trace_gc_verbose) {
-    PrintIsolate(isolate_, "Grow: old size: %" V8PRIdPTR
-                           " KB, new limit: %" V8PRIdPTR " KB (%.1f)\n",
-                 old_gen_size / KB, old_generation_allocation_limit_ / KB,
-                 factor);
+    isolate_->PrintWithTimestamp("Grow: old size: %" V8PRIdPTR
+                                 " KB, new limit: %" V8PRIdPTR " KB (%.1f)\n",
+                                 old_gen_size / KB,
+                                 old_generation_allocation_limit_ / KB, factor);
   }
 }
 
@@ -5238,12 +5237,12 @@ void Heap::DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
   intptr_t limit = CalculateOldGenerationAllocationLimit(factor, old_gen_size);
   if (limit < old_generation_allocation_limit_) {
     if (FLAG_trace_gc_verbose) {
-      PrintIsolate(isolate_,
-                   "Dampen: old size: %" V8PRIdPTR " KB, old limit: %" V8PRIdPTR
-                   " KB, "
-                   "new limit: %" V8PRIdPTR " KB (%.1f)\n",
-                   old_gen_size / KB, old_generation_allocation_limit_ / KB,
-                   limit / KB, factor);
+      isolate_->PrintWithTimestamp(
+          "Dampen: old size: %" V8PRIdPTR " KB, old limit: %" V8PRIdPTR
+          " KB, "
+          "new limit: %" V8PRIdPTR " KB (%.1f)\n",
+          old_gen_size / KB, old_generation_allocation_limit_ / KB, limit / KB,
+          factor);
     }
     old_generation_allocation_limit_ = limit;
   }

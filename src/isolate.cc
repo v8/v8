@@ -3136,6 +3136,15 @@ void Isolate::IsolateInForegroundNotification() {
   is_isolate_in_background_ = false;
 }
 
+void Isolate::PrintWithTimestamp(const char* format, ...) {
+  base::OS::Print("[%d:%p] %8.0f ms: ", base::OS::GetCurrentProcessId(),
+                  static_cast<void*>(this), time_millis_since_init());
+  va_list arguments;
+  va_start(arguments, format);
+  base::OS::VPrint(format, arguments);
+  va_end(arguments);
+}
+
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   StackGuard* stack_guard = isolate_->stack_guard();
 #ifdef USE_SIMULATOR
