@@ -3627,7 +3627,7 @@ class V8_EXPORT Proxy : public Object {
   void Revoke();
 
   /**
-   * Creates a new empty Map.
+   * Creates a new Proxy for the target object.
    */
   static MaybeLocal<Proxy> New(Local<Context> context,
                                Local<Object> local_target,
