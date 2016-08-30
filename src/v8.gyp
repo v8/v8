@@ -1274,10 +1274,8 @@
           'toolsets': ['target'],
         }],
         ['want_separate_host_toolset_mkpeephole==1', {
-          'toolsets': ['host', 'target'],
           'dependencies': ['mkpeephole#host'],
         }, {
-          'toolsets': ['target'],
           'dependencies': ['mkpeephole'],
         }],
         ['v8_target_arch=="arm"', {
