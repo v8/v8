@@ -1184,9 +1184,9 @@ PreParserExpression PreParser::ParseClassLiteral(
                                     // property names here.
     Identifier name;
     ExpressionClassifier property_classifier(this);
-    ParsePropertyDefinition(
-        &checker, in_class, has_extends, MethodKind::kNormal, &is_computed_name,
-        &has_seen_constructor, &property_classifier, &name, CHECK_OK);
+    ParsePropertyDefinition(&checker, in_class, has_extends, &is_computed_name,
+                            &has_seen_constructor, &property_classifier, &name,
+                            CHECK_OK);
     ValidateExpression(&property_classifier, CHECK_OK);
     if (classifier != nullptr) {
       classifier->AccumulateFormalParameterContainmentErrors(
