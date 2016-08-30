@@ -399,7 +399,7 @@ int Scope::num_parameters() const {
   return is_declaration_scope() ? AsDeclarationScope()->num_parameters() : 0;
 }
 
-void Scope::Analyze(ParseInfo* info) {
+void DeclarationScope::Analyze(ParseInfo* info) {
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();
 
@@ -411,7 +411,7 @@ void Scope::Analyze(ParseInfo* info) {
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->already_resolved_);
 
-  scope->AllocateVariables(info);
+  scope->AllocateVariables(info, false /* for_debugger */);
 
 #ifdef DEBUG
   if (info->script_is_native() ? FLAG_print_builtin_scopes
@@ -421,6 +421,21 @@ void Scope::Analyze(ParseInfo* info) {
   scope->CheckScopePositions();
   scope->CheckZones();
 #endif
+}
+
+void DeclarationScope::AnalyzeForDebugger(ParseInfo* info) {
+  DCHECK(info->literal() != NULL);
+  DeclarationScope* scope = info->literal()->scope();
+
+  // We are compiling one of three cases:
+  // 1) top-level code,
+  // 2) a function/eval/module on the top-level
+  // 3) a function/eval in a scope that was already resolved.
+  DCHECK(scope->scope_type() == SCRIPT_SCOPE ||
+         scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
+         scope->outer_scope()->already_resolved_);
+
+  scope->AllocateVariables(info, true /* for_debugger */);
 }
 
 void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
@@ -877,17 +892,12 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
   return nullptr;
 }
 
-void DeclarationScope::AllocateVariables(ParseInfo* info) {
-  // 1) Propagate scope information.
+void DeclarationScope::AllocateVariables(ParseInfo* info, bool for_debugger) {
   PropagateScopeInfo();
-
-  // 2) Resolve variables.
   ResolveVariablesRecursively(info);
-
-  // 3) Allocate variables.
   AllocateVariablesRecursively();
+  AllocateScopeInfosRecursively(info->isolate(), for_debugger);
 }
-
 
 bool Scope::AllowsLazyParsing() const {
   // If we are inside a block scope, we must parse eagerly to find out how
@@ -972,15 +982,6 @@ DeclarationScope* Scope::GetReceiverScope() {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
-}
-
-
-
-Handle<ScopeInfo> Scope::GetScopeInfo(Isolate* isolate) {
-  if (scope_info_.is_null()) {
-    scope_info_ = ScopeInfo::Create(isolate, zone(), this);
-  }
-  return scope_info_;
 }
 
 Handle<StringSet> DeclarationScope::CollectNonLocals(
@@ -1642,6 +1643,17 @@ void Scope::AllocateVariablesRecursively() {
   DCHECK(num_heap_slots_ == 0 || num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
 }
 
+void Scope::AllocateScopeInfosRecursively(Isolate* isolate, bool for_debugger) {
+  DCHECK(scope_info_.is_null());
+  if (for_debugger || NeedsScopeInfo()) {
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this);
+  }
+
+  // Allocate ScopeInfos for inner scopes.
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    scope->AllocateScopeInfosRecursively(isolate, for_debugger);
+  }
+}
 
 int Scope::StackLocalCount() const {
   Variable* function =

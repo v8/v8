@@ -1046,7 +1046,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       info.set_global();
       CHECK(parser.Parse(&info));
       CHECK(i::Rewriter::Rewrite(&info));
-      i::Scope::Analyze(&info);
+      i::DeclarationScope::Analyze(&info);
       CHECK(info.literal() != NULL);
 
       i::DeclarationScope* script_scope = info.literal()->scope();

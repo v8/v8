@@ -166,7 +166,7 @@ void FullCodeGenerator::Generate() {
     // Argument to NewContext is the function, which is still in edi.
     if (info->scope()->is_script_scope()) {
       __ push(edi);
-      __ Push(info->scope()->GetScopeInfo(info->isolate()));
+      __ Push(info->scope()->scope_info());
       __ CallRuntime(Runtime::kNewScriptContext);
       PrepareForBailoutForId(BailoutId::ScriptContext(),
                              BailoutState::TOS_REGISTER);

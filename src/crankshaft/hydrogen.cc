@@ -4702,7 +4702,7 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
         }
         AddInstruction(function);
         // Allocate a block context and store it to the stack frame.
-        HValue* scope_info = Add<HConstant>(scope->GetScopeInfo(isolate()));
+        HValue* scope_info = Add<HConstant>(scope->scope_info());
         Add<HPushArguments>(scope_info, function);
         HInstruction* inner_context = Add<HCallRuntime>(
             Runtime::FunctionForId(Runtime::kPushBlockContext), 2);

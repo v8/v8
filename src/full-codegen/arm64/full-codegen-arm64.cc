@@ -176,7 +176,7 @@ void FullCodeGenerator::Generate() {
     bool need_write_barrier = true;
     int slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     if (info->scope()->is_script_scope()) {
-      __ Mov(x10, Operand(info->scope()->GetScopeInfo(info->isolate())));
+      __ Mov(x10, Operand(info->scope()->scope_info()));
       __ Push(x1, x10);
       __ CallRuntime(Runtime::kNewScriptContext);
       PrepareForBailoutForId(BailoutId::ScriptContext(),

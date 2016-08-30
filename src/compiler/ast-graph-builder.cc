@@ -3180,7 +3180,7 @@ Node* AstGraphBuilder::BuildLocalScriptContext(Scope* scope) {
   DCHECK(scope->is_script_scope());
 
   // Allocate a new local context.
-  Handle<ScopeInfo> scope_info = scope->GetScopeInfo(isolate());
+  Handle<ScopeInfo> scope_info = scope->scope_info();
   const Operator* op = javascript()->CreateScriptContext(scope_info);
   Node* local_context = NewNode(op, GetFunctionClosure());
   PrepareFrameState(local_context, BailoutId::ScriptContext(),
@@ -3194,7 +3194,7 @@ Node* AstGraphBuilder::BuildLocalBlockContext(Scope* scope) {
   DCHECK(scope->is_block_scope());
 
   // Allocate a new local context.
-  Handle<ScopeInfo> scope_info = scope->GetScopeInfo(isolate());
+  Handle<ScopeInfo> scope_info = scope->scope_info();
   const Operator* op = javascript()->CreateBlockContext(scope_info);
   Node* local_context = NewNode(op, GetFunctionClosureForContext());
 

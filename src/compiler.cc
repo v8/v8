@@ -565,7 +565,7 @@ bool CompileUnoptimizedCode(CompilationInfo* info) {
 
 void InstallSharedScopeInfo(CompilationInfo* info,
                             Handle<SharedFunctionInfo> shared) {
-  Handle<ScopeInfo> scope_info = info->scope()->GetScopeInfo(info->isolate());
+  Handle<ScopeInfo> scope_info = info->scope()->scope_info();
   shared->set_scope_info(*scope_info);
 }
 
@@ -1331,7 +1331,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 bool Compiler::Analyze(ParseInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   if (!Rewriter::Rewrite(info)) return false;
-  Scope::Analyze(info);
+  DeclarationScope::Analyze(info);
   if (!Renumber(info)) return false;
   DCHECK_NOT_NULL(info->scope());
   return true;

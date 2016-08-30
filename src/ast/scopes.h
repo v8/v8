@@ -90,11 +90,6 @@ class Scope: public ZoneObject {
     int top_decl_;
   };
 
-  // Compute top scope and allocate variables. For lazy compilation the top
-  // scope only contains the single lazily compiled function, so this
-  // doesn't re-allocate variables repeatedly.
-  static void Analyze(ParseInfo* info);
-
   enum class DeserializationMode { kDeserializeOffHeap, kKeepScopeInfo };
 
   static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
@@ -379,10 +374,7 @@ class Scope: public ZoneObject {
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
 
-  // Creates a scope info if it doesn't already exist.
-  Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
-
-  // GetScopeInfo() must have been called once to create the ScopeInfo.
+  // Analyze() must have been called once to create the ScopeInfo.
   Handle<ScopeInfo> scope_info() {
     DCHECK(!scope_info_.is_null());
     return scope_info_;
@@ -437,6 +429,17 @@ class Scope: public ZoneObject {
     if (added) locals_.Add(var, zone);
     return var;
   }
+
+  // This method should only be invoked on scopes created during parsing (i.e.,
+  // not deserialized from a context). Also, since NeedsContext() is only
+  // returning a valid result after variables are resolved, NeedsScopeInfo()
+  // should also be invoked after resolution.
+  bool NeedsScopeInfo() const {
+    DCHECK(!already_resolved_);
+    return NeedsContext() || is_script_scope() || is_function_scope() ||
+           is_eval_scope() || is_module_scope();
+  }
+
   Zone* zone_;
 
   // Scope tree.
@@ -541,6 +544,8 @@ class Scope: public ZoneObject {
   void AllocateDeclaredGlobal(Variable* var);
   void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
+
+  void AllocateScopeInfosRecursively(Isolate* isolate, bool for_debugger);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
@@ -744,15 +749,13 @@ class DeclarationScope : public Scope {
     return &sloppy_block_function_map_;
   }
 
-  // Resolve and fill in the allocation information for all variables
-  // in this scopes. Must be called *after* all scopes have been
-  // processed (parsed) to ensure that unresolved variables can be
-  // resolved properly.
-  //
-  // In the case of code compiled and run using 'eval', the context
-  // parameter is the context in which eval was called.  In all other
-  // cases the context parameter is an empty handle.
-  void AllocateVariables(ParseInfo* info);
+  // Compute top scope and allocate variables. For lazy compilation the top
+  // scope only contains the single lazily compiled function, so this
+  // doesn't re-allocate variables repeatedly.
+  static void Analyze(ParseInfo* info);
+
+  // Version used by the debugger that creates extra ScopeInfos.
+  static void AnalyzeForDebugger(ParseInfo* info);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope for lazily compiled functions. In particular, this
@@ -790,6 +793,16 @@ class DeclarationScope : public Scope {
 
  private:
   void AllocateParameter(Variable* var, int index);
+
+  // Resolve and fill in the allocation information for all variables
+  // in this scopes. Must be called *after* all scopes have been
+  // processed (parsed) to ensure that unresolved variables can be
+  // resolved properly.
+  //
+  // In the case of code compiled and run using 'eval', the context
+  // parameter is the context in which eval was called.  In all other
+  // cases the context parameter is an empty handle.
+  void AllocateVariables(ParseInfo* info, bool for_debugger);
 
   void SetDefaults();
 

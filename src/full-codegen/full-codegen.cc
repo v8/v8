@@ -1873,7 +1873,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     {
       if (needs_block_context_) {
         Comment cmnt(masm(), "[ Extend block context");
-        codegen_->PushOperand(scope->GetScopeInfo(codegen->isolate()));
+        codegen_->PushOperand(scope->scope_info());
         codegen_->PushFunctionArgumentForContextAllocation();
         codegen_->CallRuntimeWithOperands(Runtime::kPushBlockContext);
 
