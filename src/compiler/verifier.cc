@@ -361,8 +361,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kHeapConstant:
       // Constants have no inputs.
       CHECK_EQ(0, input_count);
-      // Type can be anything represented as a heap pointer.
-      CheckTypeIs(node, Type::TaggedPointer());
       break;
     case IrOpcode::kExternalConstant:
       // Constants have no inputs.
@@ -861,7 +859,6 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kAllocate:
       CheckValueInputIs(node, 0, Type::PlainNumber());
-      CheckTypeIs(node, Type::TaggedPointer());
       break;
     case IrOpcode::kEnsureWritableFastElements:
       CheckValueInputIs(node, 0, Type::Any());
@@ -1018,11 +1015,9 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kCheckTaggedSigned:
       CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::TaggedSigned());
       break;
     case IrOpcode::kCheckTaggedPointer:
       CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::TaggedPointer());
       break;
 
     case IrOpcode::kCheckedInt32Add:

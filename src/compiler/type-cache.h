@@ -23,25 +23,19 @@ class TypeCache final {
 
   TypeCache() : zone_(&allocator) {}
 
-  Type* const kInt8 =
-      CreateNative(CreateRange<int8_t>(), Type::UntaggedIntegral8());
-  Type* const kUint8 =
-      CreateNative(CreateRange<uint8_t>(), Type::UntaggedIntegral8());
+  Type* const kInt8 = CreateRange<int8_t>();
+  Type* const kUint8 = CreateRange<uint8_t>();
   Type* const kUint8Clamped = kUint8;
-  Type* const kInt16 =
-      CreateNative(CreateRange<int16_t>(), Type::UntaggedIntegral16());
-  Type* const kUint16 =
-      CreateNative(CreateRange<uint16_t>(), Type::UntaggedIntegral16());
-  Type* const kInt32 =
-      CreateNative(Type::Signed32(), Type::UntaggedIntegral32());
-  Type* const kUint32 =
-      CreateNative(Type::Unsigned32(), Type::UntaggedIntegral32());
-  Type* const kFloat32 = CreateNative(Type::Number(), Type::UntaggedFloat32());
-  Type* const kFloat64 = CreateNative(Type::Number(), Type::UntaggedFloat64());
+  Type* const kInt16 = CreateRange<int16_t>();
+  Type* const kUint16 = CreateRange<uint16_t>();
+  Type* const kInt32 = Type::Signed32();
+  Type* const kUint32 = Type::Unsigned32();
+  Type* const kFloat32 = Type::Number();
+  Type* const kFloat64 = Type::Number();
 
-  Type* const kSmi = CreateNative(Type::SignedSmall(), Type::TaggedSigned());
+  Type* const kSmi = Type::SignedSmall();
   Type* const kHoleySmi = Type::Union(kSmi, Type::Hole(), zone());
-  Type* const kHeapNumber = CreateNative(Type::Number(), Type::TaggedPointer());
+  Type* const kHeapNumber = Type::Number();
 
   Type* const kSingletonZero = CreateRange(0.0, 0.0);
   Type* const kSingletonOne = CreateRange(1.0, 1.0);
@@ -81,28 +75,24 @@ class TypeCache final {
 
   // The FixedArray::length property always containts a smi in the range
   // [0, FixedArray::kMaxLength].
-  Type* const kFixedArrayLengthType = CreateNative(
-      CreateRange(0.0, FixedArray::kMaxLength), Type::TaggedSigned());
+  Type* const kFixedArrayLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
   // The FixedDoubleArray::length property always containts a smi in the range
   // [0, FixedDoubleArray::kMaxLength].
-  Type* const kFixedDoubleArrayLengthType = CreateNative(
-      CreateRange(0.0, FixedDoubleArray::kMaxLength), Type::TaggedSigned());
+  Type* const kFixedDoubleArrayLengthType =
+      CreateRange(0.0, FixedDoubleArray::kMaxLength);
 
   // The JSArray::length property always contains a tagged number in the range
   // [0, kMaxUInt32].
-  Type* const kJSArrayLengthType =
-      CreateNative(Type::Unsigned32(), Type::Tagged());
+  Type* const kJSArrayLengthType = Type::Unsigned32();
 
   // The JSTyped::length property always contains a tagged number in the range
   // [0, kMaxSmiValue].
-  Type* const kJSTypedArrayLengthType =
-      CreateNative(Type::UnsignedSmall(), Type::TaggedSigned());
+  Type* const kJSTypedArrayLengthType = Type::UnsignedSmall();
 
   // The String::length property always contains a smi in the range
   // [0, String::kMaxLength].
-  Type* const kStringLengthType =
-      CreateNative(CreateRange(0.0, String::kMaxLength), Type::TaggedSigned());
+  Type* const kStringLengthType = CreateRange(0.0, String::kMaxLength);
 
   // The JSDate::day property always contains a tagged number in the range
   // [1, 31] or NaN.
@@ -157,10 +147,6 @@ class TypeCache final {
     Type* arg2 = Type::Union(Type::Unsigned32(), Type::Undefined(), zone());
     Type* arg3 = arg2;
     return Type::Function(array, arg1, arg2, arg3, zone());
-  }
-
-  Type* CreateNative(Type* semantic, Type* representation) {
-    return Type::Intersect(semantic, representation, zone());
   }
 
   template <typename T>

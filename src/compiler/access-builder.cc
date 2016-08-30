@@ -333,7 +333,7 @@ FieldAccess AccessBuilder::ForFixedArrayLength() {
                         FixedArray::kLengthOffset,
                         MaybeHandle<Name>(),
                         TypeCache::Get().kFixedArrayLengthType,
-                        MachineType::AnyTagged(),
+                        MachineType::TaggedSigned(),
                         kNoWriteBarrier};
   return access;
 }
@@ -449,7 +449,7 @@ FieldAccess AccessBuilder::ForStringLength() {
                         String::kLengthOffset,
                         Handle<Name>(),
                         TypeCache::Get().kStringLengthType,
-                        MachineType::AnyTagged(),
+                        MachineType::TaggedSigned(),
                         kNoWriteBarrier};
   return access;
 }

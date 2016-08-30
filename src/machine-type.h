@@ -169,7 +169,7 @@ class MachineType {
     return MachineType(MachineRepresentation::kBit, MachineSemantic::kNone);
   }
 
-  static MachineType TypeForRepresentation(MachineRepresentation& rep,
+  static MachineType TypeForRepresentation(const MachineRepresentation& rep,
                                            bool isSigned = true) {
     switch (rep) {
       case MachineRepresentation::kNone:
@@ -192,6 +192,10 @@ class MachineType {
         return MachineType::Simd128();
       case MachineRepresentation::kTagged:
         return MachineType::AnyTagged();
+      case MachineRepresentation::kTaggedSigned:
+        return MachineType::TaggedSigned();
+      case MachineRepresentation::kTaggedPointer:
+        return MachineType::TaggedPointer();
       default:
         UNREACHABLE();
         return MachineType::None();
