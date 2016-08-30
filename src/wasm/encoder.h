@@ -136,12 +136,56 @@ class WasmFunctionBuilder : public ZoneObject {
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
   friend class WasmModuleBuilder;
+  friend class WasmTemporary;
   WasmModuleBuilder* builder_;
   LocalDeclEncoder locals_;
   uint32_t signature_index_;
   bool exported_;
   ZoneVector<uint8_t> body_;
   ZoneVector<char> name_;
+  ZoneVector<uint32_t> i32_temps_;
+  ZoneVector<uint32_t> i64_temps_;
+  ZoneVector<uint32_t> f32_temps_;
+  ZoneVector<uint32_t> f64_temps_;
+};
+
+class WasmTemporary {
+ public:
+  WasmTemporary(WasmFunctionBuilder* builder, LocalType type) {
+    switch (type) {
+      case kAstI32:
+        temporary_ = &builder->i32_temps_;
+        break;
+      case kAstI64:
+        temporary_ = &builder->i64_temps_;
+        break;
+      case kAstF32:
+        temporary_ = &builder->f32_temps_;
+        break;
+      case kAstF64:
+        temporary_ = &builder->f64_temps_;
+        break;
+      default:
+        UNREACHABLE();
+        temporary_ = nullptr;
+    }
+    if (temporary_->size() == 0) {
+      // Allocate a new temporary.
+      index_ = builder->AddLocal(type);
+    } else {
+      // Reuse a previous temporary.
+      index_ = temporary_->back();
+      temporary_->pop_back();
+    }
+  }
+  ~WasmTemporary() {
+    temporary_->push_back(index_);  // return the temporary to the list.
+  }
+  uint32_t index() { return index_; }
+
+ private:
+  ZoneVector<uint32_t>* temporary_;
+  uint32_t index_;
 };
 
 // TODO(titzer): kill!

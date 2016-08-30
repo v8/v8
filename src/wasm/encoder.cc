@@ -56,7 +56,11 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       signature_index_(0),
       exported_(0),
       body_(builder->zone()),
-      name_(builder->zone()) {}
+      name_(builder->zone()),
+      i32_temps_(builder->zone()),
+      i64_temps_(builder->zone()),
+      f32_temps_(builder->zone()),
+      f64_temps_(builder->zone()) {}
 
 void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
   byte buffer[8];

@@ -1099,11 +1099,11 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       case AsmTyper::kMathAbs: {
         if (call_type == kAstI32) {
-          uint32_t tmp = current_function_builder_->AddLocal(kAstI32);
+          WasmTemporary tmp(current_function_builder_, kAstI32);
 
           // if set_local(tmp, x) < 0
           Visit(call->arguments()->at(0));
-          current_function_builder_->EmitSetLocal(tmp);
+          current_function_builder_->EmitSetLocal(tmp.index());
           byte code[] = {WASM_I8(0)};
           current_function_builder_->EmitCode(code, sizeof(code));
           current_function_builder_->Emit(kExprI32LtS);
@@ -1111,12 +1111,12 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
           // then (0 - tmp)
           current_function_builder_->EmitCode(code, sizeof(code));
-          current_function_builder_->EmitGetLocal(tmp);
+          current_function_builder_->EmitGetLocal(tmp.index());
           current_function_builder_->Emit(kExprI32Sub);
 
           // else tmp
           current_function_builder_->Emit(kExprElse);
-          current_function_builder_->EmitGetLocal(tmp);
+          current_function_builder_->EmitGetLocal(tmp.index());
           // end
           current_function_builder_->Emit(kExprEnd);
 
@@ -1134,25 +1134,25 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       case AsmTyper::kMathMin: {
         // TODO(bradnelson): Change wasm to match Math.min in asm.js mode.
         if (call_type == kAstI32) {
-          uint32_t tmp_x = current_function_builder_->AddLocal(kAstI32);
-          uint32_t tmp_y = current_function_builder_->AddLocal(kAstI32);
+          WasmTemporary tmp_x(current_function_builder_, kAstI32);
+          WasmTemporary tmp_y(current_function_builder_, kAstI32);
 
           // if set_local(tmp_x, x) < set_local(tmp_y, y)
           Visit(call->arguments()->at(0));
-          current_function_builder_->EmitSetLocal(tmp_x);
+          current_function_builder_->EmitSetLocal(tmp_x.index());
 
           Visit(call->arguments()->at(1));
-          current_function_builder_->EmitSetLocal(tmp_y);
+          current_function_builder_->EmitSetLocal(tmp_y.index());
 
           current_function_builder_->Emit(kExprI32LeS);
           current_function_builder_->Emit(kExprIf);
 
           // then tmp_x
-          current_function_builder_->EmitGetLocal(tmp_x);
+          current_function_builder_->EmitGetLocal(tmp_x.index());
 
           // else tmp_y
           current_function_builder_->Emit(kExprElse);
-          current_function_builder_->EmitGetLocal(tmp_y);
+          current_function_builder_->EmitGetLocal(tmp_y.index());
           current_function_builder_->Emit(kExprEnd);
 
         } else if (call_type == kAstF32) {
@@ -1169,26 +1169,26 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       case AsmTyper::kMathMax: {
         // TODO(bradnelson): Change wasm to match Math.max in asm.js mode.
         if (call_type == kAstI32) {
-          uint32_t tmp_x = current_function_builder_->AddLocal(kAstI32);
-          uint32_t tmp_y = current_function_builder_->AddLocal(kAstI32);
+          WasmTemporary tmp_x(current_function_builder_, kAstI32);
+          WasmTemporary tmp_y(current_function_builder_, kAstI32);
 
           // if set_local(tmp_x, x) < set_local(tmp_y, y)
           Visit(call->arguments()->at(0));
 
-          current_function_builder_->EmitSetLocal(tmp_x);
+          current_function_builder_->EmitSetLocal(tmp_x.index());
 
           Visit(call->arguments()->at(1));
-          current_function_builder_->EmitSetLocal(tmp_y);
+          current_function_builder_->EmitSetLocal(tmp_y.index());
 
           current_function_builder_->Emit(kExprI32LeS);
           current_function_builder_->Emit(kExprIf);
 
           // then tmp_y
-          current_function_builder_->EmitGetLocal(tmp_y);
+          current_function_builder_->EmitGetLocal(tmp_y.index());
 
           // else tmp_x
           current_function_builder_->Emit(kExprElse);
-          current_function_builder_->EmitGetLocal(tmp_x);
+          current_function_builder_->EmitGetLocal(tmp_x.index());
           current_function_builder_->Emit(kExprEnd);
 
         } else if (call_type == kAstF32) {
