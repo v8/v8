@@ -1590,10 +1590,10 @@ class RepresentationSelector {
         }
         if (BothInputsAreSigned32(node)) {
           if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
-          // => signed Int32Div
-          VisitInt32Binop(node);
-          if (lower()) DeferReplacement(node, lowering->Int32Div(node));
-          return;
+            // => signed Int32Div
+            VisitInt32Binop(node);
+            if (lower()) DeferReplacement(node, lowering->Int32Div(node));
+            return;
           }
           if (truncation.IsUsedAsWord32()) {
             // => signed Int32Div
