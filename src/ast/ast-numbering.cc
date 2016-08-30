@@ -362,6 +362,7 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
   node->set_base_id(ReserveIdRange(CompareOperation::num_ids()));
   Visit(node->left());
   Visit(node->right());
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -436,6 +437,7 @@ void AstNumberingVisitor::VisitCaseClause(CaseClause* node) {
   node->set_base_id(ReserveIdRange(CaseClause::num_ids()));
   if (!node->is_default()) Visit(node->label());
   VisitStatements(node->statements());
+  ReserveFeedbackSlots(node);
 }
 
 

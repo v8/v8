@@ -147,6 +147,18 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
   return BinaryOperationHint::kNone;
 }
 
+// Helper function to transform the feedback to CompareOperationHint.
+CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
+  switch (type_feedback) {
+    case CompareOperationFeedback::kSignedSmall:
+      return CompareOperationHint::kSignedSmall;
+    case CompareOperationFeedback::kNumber:
+      return CompareOperationHint::kNumber;
+    default:
+      return CompareOperationHint::kAny;
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

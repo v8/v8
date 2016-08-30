@@ -230,7 +230,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& Delete(Register object, LanguageMode language_mode);
 
   // Tests.
-  BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg);
+  BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
+                                         int feedback_slot = kNoFeedbackSlot);
 
   // Casts accumulator and stores result in accumulator.
   BytecodeArrayBuilder& CastAccumulatorToBoolean();
@@ -399,6 +400,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayWriter bytecode_array_writer_;
   BytecodePipelineStage* pipeline_;
   BytecodeSourceInfo latest_source_info_;
+
+  static int const kNoFeedbackSlot = 0;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };

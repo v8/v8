@@ -84,6 +84,11 @@ class Interpreter {
   template <class Generator>
   void DoBinaryOpWithFeedback(InterpreterAssembler* assembler);
 
+  // Generates code to perform the comparison via |Generator| while gathering
+  // type feedback.
+  template <class Generator>
+  void DoCompareOpWithFeedback(InterpreterAssembler* assembler);
+
   // Generates code to perform the bitwise binary operation corresponding to
   // |bitwise_op| while gathering type feedback.
   void DoBitwiseBinaryOp(Token::Value bitwise_op,

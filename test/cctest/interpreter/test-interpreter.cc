@@ -1671,22 +1671,32 @@ TEST(InterpreterSmiComparisons) {
       for (size_t j = 0; j < arraysize(inputs); j++) {
         HandleAndZoneScope handles;
         Isolate* isolate = handles.main_isolate();
+        Zone zone(isolate->allocator());
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
+
+        FeedbackVectorSpec feedback_spec(&zone);
+        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        Handle<i::TypeFeedbackVector> vector =
+            NewTypeFeedbackVector(isolate, &feedback_spec);
 
         Register r0(0);
         builder.LoadLiteral(Smi::FromInt(inputs[i]))
             .StoreAccumulatorInRegister(r0)
             .LoadLiteral(Smi::FromInt(inputs[j]))
-            .CompareOperation(comparison, r0)
+            .CompareOperation(comparison, r0, vector->GetIndex(slot))
             .Return();
 
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-        InterpreterTester tester(isolate, bytecode_array);
+        InterpreterTester tester(isolate, bytecode_array, vector);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
         CHECK_EQ(return_value->BooleanValue(),
                  CompareC(comparison, inputs[i], inputs[j]));
+        Object* feedback = vector->Get(slot);
+        CHECK(feedback->IsSmi());
+        CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
+                 static_cast<Smi*>(feedback)->value());
       }
     }
   }
@@ -1708,22 +1718,32 @@ TEST(InterpreterHeapNumberComparisons) {
         HandleAndZoneScope handles;
         Isolate* isolate = handles.main_isolate();
         Factory* factory = isolate->factory();
+        Zone zone(isolate->allocator());
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
+
+        FeedbackVectorSpec feedback_spec(&zone);
+        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        Handle<i::TypeFeedbackVector> vector =
+            NewTypeFeedbackVector(isolate, &feedback_spec);
 
         Register r0(0);
         builder.LoadLiteral(factory->NewHeapNumber(inputs[i]))
             .StoreAccumulatorInRegister(r0)
             .LoadLiteral(factory->NewHeapNumber(inputs[j]))
-            .CompareOperation(comparison, r0)
+            .CompareOperation(comparison, r0, vector->GetIndex(slot))
             .Return();
 
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-        InterpreterTester tester(isolate, bytecode_array);
+        InterpreterTester tester(isolate, bytecode_array, vector);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
         CHECK_EQ(return_value->BooleanValue(),
                  CompareC(comparison, inputs[i], inputs[j]));
+        Object* feedback = vector->Get(slot);
+        CHECK(feedback->IsSmi());
+        CHECK_EQ(BinaryOperationFeedback::kNumber,
+                 static_cast<Smi*>(feedback)->value());
       }
     }
   }
@@ -1734,6 +1754,7 @@ TEST(InterpreterStringComparisons) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();
+  Zone zone(isolate->allocator());
 
   std::string inputs[] = {"A", "abc", "z", "", "Foo!", "Foo"};
 
@@ -1744,21 +1765,31 @@ TEST(InterpreterStringComparisons) {
         CanonicalHandleScope canonical(isolate);
         const char* lhs = inputs[i].c_str();
         const char* rhs = inputs[j].c_str();
+
+        FeedbackVectorSpec feedback_spec(&zone);
+        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        Handle<i::TypeFeedbackVector> vector =
+            NewTypeFeedbackVector(isolate, &feedback_spec);
+
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
         Register r0(0);
         builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs))
             .StoreAccumulatorInRegister(r0)
             .LoadLiteral(factory->NewStringFromAsciiChecked(rhs))
-            .CompareOperation(comparison, r0)
+            .CompareOperation(comparison, r0, vector->GetIndex(slot))
             .Return();
 
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-        InterpreterTester tester(isolate, bytecode_array);
+        InterpreterTester tester(isolate, bytecode_array, vector);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
         CHECK_EQ(return_value->BooleanValue(),
                  CompareC(comparison, inputs[i], inputs[j]));
+        Object* feedback = vector->Get(slot);
+        CHECK(feedback->IsSmi());
+        CHECK_EQ(BinaryOperationFeedback::kAny,
+                 static_cast<Smi*>(feedback)->value());
       }
     }
   }
@@ -1789,6 +1820,12 @@ TEST(InterpreterMixedComparisons) {
           Isolate* isolate = handles.main_isolate();
           Factory* factory = isolate->factory();
           BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
+          Zone zone(isolate->allocator());
+
+          FeedbackVectorSpec feedback_spec(&zone);
+          FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+          Handle<i::TypeFeedbackVector> vector =
+              NewTypeFeedbackVector(isolate, &feedback_spec);
 
           Register r0(0);
           if (pass == 0) {
@@ -1796,25 +1833,29 @@ TEST(InterpreterMixedComparisons) {
             builder.LoadLiteral(factory->NewNumber(lhs))
                 .StoreAccumulatorInRegister(r0)
                 .LoadLiteral(factory->NewStringFromAsciiChecked(rhs_cstr))
-                .CompareOperation(comparison, r0)
+                .CompareOperation(comparison, r0, vector->GetIndex(slot))
                 .Return();
           } else {
             // Comparison with HeapNumber on the rhs and String on the lhs
             builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs_cstr))
                 .StoreAccumulatorInRegister(r0)
                 .LoadLiteral(factory->NewNumber(rhs))
-                .CompareOperation(comparison, r0)
+                .CompareOperation(comparison, r0, vector->GetIndex(slot))
                 .Return();
           }
 
           Handle<BytecodeArray> bytecode_array =
               builder.ToBytecodeArray(isolate);
-          InterpreterTester tester(isolate, bytecode_array);
+          InterpreterTester tester(isolate, bytecode_array, vector);
           auto callable = tester.GetCallable<>();
           Handle<Object> return_value = callable().ToHandleChecked();
           CHECK(return_value->IsBoolean());
           CHECK_EQ(return_value->BooleanValue(),
                    CompareC(comparison, lhs, rhs, true));
+          Object* feedback = vector->Get(slot);
+          CHECK(feedback->IsSmi());
+          CHECK_EQ(BinaryOperationFeedback::kAny,
+                   static_cast<Smi*>(feedback)->value());
         }
       }
     }
@@ -1910,7 +1951,7 @@ TEST(InterpreterInstanceOf) {
     builder.LoadLiteral(cases[i]);
     builder.StoreAccumulatorInRegister(r0)
         .LoadLiteral(func)
-        .CompareOperation(Token::Value::INSTANCEOF, r0)
+        .CompareOperation(Token::Value::INSTANCEOF, r0, 0)
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1940,7 +1981,7 @@ TEST(InterpreterTestIn) {
     builder.LoadLiteral(factory->NewStringFromAsciiChecked(properties[i]))
         .StoreAccumulatorInRegister(r0)
         .LoadLiteral(Handle<Object>::cast(array))
-        .CompareOperation(Token::Value::IN, r0)
+        .CompareOperation(Token::Value::IN, r0, 0)
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);

@@ -737,6 +737,20 @@ static bool IsTypeof(Expression* expr) {
   return maybe_unary != NULL && maybe_unary->op() == Token::TYPEOF;
 }
 
+void CompareOperation::AssignFeedbackVectorSlots(
+    Isolate* isolate, FeedbackVectorSpec* spec,
+    FeedbackVectorSlotCache* cache_) {
+  // Feedback vector slot is only used by interpreter for binary operations.
+  // Full-codegen uses AstId to record type feedback.
+  switch (op()) {
+    // instanceof and in do not collect type feedback.
+    case Token::INSTANCEOF:
+    case Token::IN:
+      return;
+    default:
+      type_feedback_slot_ = spec->AddGeneralSlot();
+  }
+}
 
 // Check for the pattern: typeof <expression> equals <string literal>.
 static bool MatchLiteralCompareTypeof(Expression* left,
@@ -937,6 +951,12 @@ CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements,
       label_(label),
       statements_(statements),
       compare_type_(Type::None()) {}
+
+void CaseClause::AssignFeedbackVectorSlots(Isolate* isolate,
+                                           FeedbackVectorSpec* spec,
+                                           FeedbackVectorSlotCache* cache) {
+  type_feedback_slot_ = spec->AddGeneralSlot();
+}
 
 uint32_t Literal::Hash() {
   return raw_value()->IsString()

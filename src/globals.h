@@ -1161,6 +1161,12 @@ class BinaryOperationFeedback {
   enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
 };
 
+// TODO(epertoso): consider unifying this with BinaryOperationFeedback.
+class CompareOperationFeedback {
+ public:
+  enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -1123,7 +1123,9 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
     // Perform label comparison as if via '===' with tag.
     VisitForAccumulatorValue(clause->label());
-    builder()->CompareOperation(Token::Value::EQ_STRICT, tag);
+    builder()->CompareOperation(
+        Token::Value::EQ_STRICT, tag,
+        feedback_index(clause->CompareOperationFeedbackSlot()));
     switch_builder.Case(i);
   }
 
@@ -3031,7 +3033,8 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Register lhs = VisitForRegisterValue(expr->left());
   VisitForAccumulatorValue(expr->right());
   builder()->SetExpressionPosition(expr);
-  builder()->CompareOperation(expr->op(), lhs);
+  FeedbackVectorSlot slot = expr->CompareOperationFeedbackSlot();
+  builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
   execution_result()->SetResultInAccumulator();
 }
 

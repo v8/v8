@@ -942,6 +942,16 @@ class CaseClause final : public Expression {
   Type* compare_type() { return compare_type_; }
   void set_compare_type(Type* type) { compare_type_ = type; }
 
+  // CaseClause will have both a slot in the feedback vector and the
+  // TypeFeedbackId to record the type information. TypeFeedbackId is used by
+  // full codegen and the feedback vector slot is used by interpreter.
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 FeedbackVectorSlotCache* cache);
+
+  FeedbackVectorSlot CompareOperationFeedbackSlot() {
+    return type_feedback_slot_;
+  }
+
  private:
   friend class AstNodeFactory;
 
@@ -953,6 +963,7 @@ class CaseClause final : public Expression {
   Label body_target_;
   ZoneList<Statement*>* statements_;
   Type* compare_type_;
+  FeedbackVectorSlot type_feedback_slot_;
 };
 
 
@@ -2199,6 +2210,16 @@ class CompareOperation final : public Expression {
   Type* combined_type() const { return combined_type_; }
   void set_combined_type(Type* type) { combined_type_ = type; }
 
+  // CompareOperation will have both a slot in the feedback vector and the
+  // TypeFeedbackId to record the type information. TypeFeedbackId is used
+  // by full codegen and the feedback vector slot is used by interpreter.
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 FeedbackVectorSlotCache* cache);
+
+  FeedbackVectorSlot CompareOperationFeedbackSlot() const {
+    return type_feedback_slot_;
+  }
+
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
   bool IsLiteralCompareUndefined(Expression** expr);
@@ -2225,6 +2246,7 @@ class CompareOperation final : public Expression {
   Expression* right_;
 
   Type* combined_type_;
+  FeedbackVectorSlot type_feedback_slot_;
 };
 
 

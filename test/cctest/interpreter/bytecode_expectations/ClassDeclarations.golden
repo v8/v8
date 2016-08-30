@@ -124,7 +124,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 123
+bytecode array length: 124
 bytecodes: [
                 B(CreateFunctionContext), U8(2),
                 B(PushContext), R(3),
@@ -161,7 +161,7 @@ bytecodes: [
   /*  106 E> */ B(LdaContextSlot), R(context), U8(5),
                 B(ToName), R(7),
                 B(LdaConstant), U8(3),
-                B(TestEqualStrict), R(7),
+                B(TestEqualStrict), R(7), U8(0),
                 B(Mov), R(4), R(6),
                 B(JumpIfToBooleanFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),

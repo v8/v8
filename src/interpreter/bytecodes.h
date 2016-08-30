@@ -208,13 +208,20 @@ namespace interpreter {
     OperandType::kMaybeReg, OperandType::kRegCount)                            \
                                                                                \
   /* Test Operators */                                                         \
-  V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg)                  \
-  V(TestNotEqual, AccumulatorUse::kReadWrite, OperandType::kReg)               \
-  V(TestEqualStrict, AccumulatorUse::kReadWrite, OperandType::kReg)            \
-  V(TestLessThan, AccumulatorUse::kReadWrite, OperandType::kReg)               \
-  V(TestGreaterThan, AccumulatorUse::kReadWrite, OperandType::kReg)            \
-  V(TestLessThanOrEqual, AccumulatorUse::kReadWrite, OperandType::kReg)        \
-  V(TestGreaterThanOrEqual, AccumulatorUse::kReadWrite, OperandType::kReg)     \
+  V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
+    OperandType::kIdx)                                                         \
+  V(TestNotEqual, AccumulatorUse::kReadWrite, OperandType::kReg,               \
+    OperandType::kIdx)                                                         \
+  V(TestEqualStrict, AccumulatorUse::kReadWrite, OperandType::kReg,            \
+    OperandType::kIdx)                                                         \
+  V(TestLessThan, AccumulatorUse::kReadWrite, OperandType::kReg,               \
+    OperandType::kIdx)                                                         \
+  V(TestGreaterThan, AccumulatorUse::kReadWrite, OperandType::kReg,            \
+    OperandType::kIdx)                                                         \
+  V(TestLessThanOrEqual, AccumulatorUse::kReadWrite, OperandType::kReg,        \
+    OperandType::kIdx)                                                         \
+  V(TestGreaterThanOrEqual, AccumulatorUse::kReadWrite, OperandType::kReg,     \
+    OperandType::kIdx)                                                         \
   V(TestInstanceOf, AccumulatorUse::kReadWrite, OperandType::kReg)             \
   V(TestIn, AccumulatorUse::kReadWrite, OperandType::kReg)                     \
                                                                                \

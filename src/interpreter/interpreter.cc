@@ -816,6 +816,80 @@ void Interpreter::DoBinaryOpWithFeedback(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+template <class Generator>
+void Interpreter::DoCompareOpWithFeedback(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+
+  // TODO(interpreter): the only reason this check is here is because we
+  // sometimes emit comparisons that shouldn't collect feedback (e.g.
+  // try-finally blocks and generators), and we could get rid of this by
+  // introducing Smi equality tests.
+  Label skip_feedback_update(assembler);
+  __ GotoIf(__ WordEqual(slot_index, __ IntPtrConstant(0)),
+            &skip_feedback_update);
+
+  Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
+  Label lhs_is_smi(assembler), lhs_is_not_smi(assembler),
+      gather_rhs_type(assembler), do_compare(assembler);
+  __ Branch(__ WordIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
+
+  __ Bind(&lhs_is_smi);
+  var_type_feedback.Bind(
+      __ Int32Constant(CompareOperationFeedback::kSignedSmall));
+  __ Goto(&gather_rhs_type);
+
+  __ Bind(&lhs_is_not_smi);
+  {
+    Label lhs_is_number(assembler), lhs_is_not_number(assembler);
+    Node* lhs_map = __ LoadMap(lhs);
+    __ Branch(__ WordEqual(lhs_map, __ HeapNumberMapConstant()), &lhs_is_number,
+              &lhs_is_not_number);
+
+    __ Bind(&lhs_is_number);
+    var_type_feedback.Bind(__ Int32Constant(CompareOperationFeedback::kNumber));
+    __ Goto(&gather_rhs_type);
+
+    __ Bind(&lhs_is_not_number);
+    var_type_feedback.Bind(__ Int32Constant(CompareOperationFeedback::kAny));
+    __ Goto(&do_compare);
+  }
+
+  __ Bind(&gather_rhs_type);
+  {
+    Label rhs_is_smi(assembler);
+    __ GotoIf(__ WordIsSmi(rhs), &rhs_is_smi);
+
+    Node* rhs_map = __ LoadMap(rhs);
+    Node* rhs_type =
+        __ Select(__ WordEqual(rhs_map, __ HeapNumberMapConstant()),
+                  __ Int32Constant(CompareOperationFeedback::kNumber),
+                  __ Int32Constant(CompareOperationFeedback::kAny));
+    var_type_feedback.Bind(__ Word32Or(var_type_feedback.value(), rhs_type));
+    __ Goto(&do_compare);
+
+    __ Bind(&rhs_is_smi);
+    var_type_feedback.Bind(
+        __ Word32Or(var_type_feedback.value(),
+                    __ Int32Constant(CompareOperationFeedback::kSignedSmall)));
+    __ Goto(&do_compare);
+  }
+
+  __ Bind(&do_compare);
+  __ UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+                    slot_index);
+  __ Goto(&skip_feedback_update);
+
+  __ Bind(&skip_feedback_update);
+  Node* result = Generator::Generate(assembler, lhs, rhs, context);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
 // Add <src>
 //
 // Add register <src> to accumulator.
@@ -1520,35 +1594,35 @@ void Interpreter::DoNew(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp<EqualStub>(assembler);
+  DoCompareOpWithFeedback<EqualStub>(assembler);
 }
 
 // TestNotEqual <src>
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp<NotEqualStub>(assembler);
+  DoCompareOpWithFeedback<NotEqualStub>(assembler);
 }
 
 // TestEqualStrict <src>
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp<StrictEqualStub>(assembler);
+  DoCompareOpWithFeedback<StrictEqualStub>(assembler);
 }
 
 // TestLessThan <src>
 //
 // Test if the value in the <src> register is less than the accumulator.
 void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
-  DoBinaryOp<LessThanStub>(assembler);
+  DoCompareOpWithFeedback<LessThanStub>(assembler);
 }
 
 // TestGreaterThan <src>
 //
 // Test if the value in the <src> register is greater than the accumulator.
 void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
-  DoBinaryOp<GreaterThanStub>(assembler);
+  DoCompareOpWithFeedback<GreaterThanStub>(assembler);
 }
 
 // TestLessThanOrEqual <src>
@@ -1556,7 +1630,7 @@ void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp<LessThanOrEqualStub>(assembler);
+  DoCompareOpWithFeedback<LessThanOrEqualStub>(assembler);
 }
 
 // TestGreaterThanOrEqual <src>
@@ -1564,7 +1638,7 @@ void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp<GreaterThanOrEqualStub>(assembler);
+  DoCompareOpWithFeedback<GreaterThanOrEqualStub>(assembler);
 }
 
 // TestIn <src>

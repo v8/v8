@@ -139,6 +139,10 @@ class BytecodeGraphBuilder {
   // type feedback.
   BinaryOperationHint GetBinaryOperationHint(int operand_index);
 
+  // Helper function to create compare operation hint from the recorded
+  // type feedback.
+  CompareOperationHint GetCompareOperationHint();
+
   // Control flow plumbing.
   void BuildJump();
   void BuildConditionalJump(Node* condition);

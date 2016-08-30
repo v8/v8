@@ -175,9 +175,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf() {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
-                                                             Register reg) {
-  Output(BytecodeForCompareOperation(op), RegisterOperand(reg));
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
+    Token::Value op, Register reg, int feedback_slot) {
+  if (op == Token::INSTANCEOF || op == Token::IN) {
+    Output(BytecodeForCompareOperation(op), RegisterOperand(reg));
+  } else {
+    Output(BytecodeForCompareOperation(op), RegisterOperand(reg),
+           UnsignedOperand(feedback_slot));
+  }
   return *this;
 }
 

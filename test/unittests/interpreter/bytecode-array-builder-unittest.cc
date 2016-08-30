@@ -43,8 +43,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadLiteral(Smi::FromInt(0))
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
-      .CompareOperation(Token::Value::NE, reg)  // Prevent peephole optimization
-                                                // LdaSmi, Star -> LdrSmi.
+      .CompareOperation(Token::Value::NE, reg,
+                        1)  // Prevent peephole optimization
+                            // LdaSmi, Star -> LdrSmi.
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(10000000))
       .StoreAccumulatorInRegister(reg)
@@ -174,15 +175,15 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.New(wide, wide, 0);
 
   // Emit test operator invocations.
-  builder.CompareOperation(Token::Value::EQ, reg)
-      .CompareOperation(Token::Value::NE, reg)
-      .CompareOperation(Token::Value::EQ_STRICT, reg)
-      .CompareOperation(Token::Value::LT, reg)
-      .CompareOperation(Token::Value::GT, reg)
-      .CompareOperation(Token::Value::LTE, reg)
-      .CompareOperation(Token::Value::GTE, reg)
-      .CompareOperation(Token::Value::INSTANCEOF, reg)
-      .CompareOperation(Token::Value::IN, reg);
+  builder.CompareOperation(Token::Value::EQ, reg, 1)
+      .CompareOperation(Token::Value::NE, reg, 2)
+      .CompareOperation(Token::Value::EQ_STRICT, reg, 3)
+      .CompareOperation(Token::Value::LT, reg, 4)
+      .CompareOperation(Token::Value::GT, reg, 5)
+      .CompareOperation(Token::Value::LTE, reg, 6)
+      .CompareOperation(Token::Value::GTE, reg, 7)
+      .CompareOperation(Token::Value::INSTANCEOF, reg, 8)
+      .CompareOperation(Token::Value::IN, reg, 9);
 
   // Emit cast operator invocations.
   builder.CastAccumulatorToNumber(reg)
@@ -223,9 +224,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
-  builder.CompareOperation(Token::Value::EQ, reg)
+  builder.CompareOperation(Token::Value::EQ, reg, 1)
       .JumpIfTrue(&start)
-      .CompareOperation(Token::Value::EQ, reg)
+      .CompareOperation(Token::Value::EQ, reg, 2)
       .JumpIfFalse(&start);
   // Perform an operation that returns a non-boolean operation to
   // generate JumpIfToBooleanTrue/False.
@@ -247,9 +248,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .JumpIfNotHole(&start);
     // Perform an operation that returns boolean value to
     // generate JumpIfTrue/False
-    builder.CompareOperation(Token::Value::EQ, reg)
+    builder.CompareOperation(Token::Value::EQ, reg, 1)
         .JumpIfTrue(&start)
-        .CompareOperation(Token::Value::EQ, reg)
+        .CompareOperation(Token::Value::EQ, reg, 2)
         .JumpIfFalse(&start);
     // Perform an operation that returns a non-boolean operation to
     // generate JumpIfToBooleanTrue/False.
@@ -350,9 +351,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
-  builder.CompareOperation(Token::Value::EQ, reg)
+  builder.CompareOperation(Token::Value::EQ, reg, 1)
       .JumpIfTrue(&start)
-      .CompareOperation(Token::Value::EQ, reg)
+      .CompareOperation(Token::Value::EQ, reg, 2)
       .JumpIfFalse(&start);
 
   // Perform an operation that returns a non-boolean operation to
@@ -563,9 +564,9 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
   builder.Jump(&near0)
       .Bind(&after_jump0)
-      .CompareOperation(Token::Value::EQ, reg)
+      .CompareOperation(Token::Value::EQ, reg, 1)
       .JumpIfTrue(&near1)
-      .CompareOperation(Token::Value::EQ, reg)
+      .CompareOperation(Token::Value::EQ, reg, 2)
       .JumpIfFalse(&near2)
       .BinaryOperation(Token::Value::ADD, reg, 1)
       .JumpIfTrue(&near3)
@@ -578,26 +579,26 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
       .Bind(&near4)
       .Jump(&far0)
       .Bind(&after_jump1)
-      .CompareOperation(Token::Value::EQ, reg)
+      .CompareOperation(Token::Value::EQ, reg, 3)
       .JumpIfTrue(&far1)
-      .CompareOperation(Token::Value::EQ, reg)
+      .CompareOperation(Token::Value::EQ, reg, 4)
       .JumpIfFalse(&far2)
       .BinaryOperation(Token::Value::ADD, reg, 3)
       .JumpIfTrue(&far3)
       .BinaryOperation(Token::Value::ADD, reg, 4)
       .JumpIfFalse(&far4);
-  for (int i = 0; i < kFarJumpDistance - 20; i++) {
+  for (int i = 0; i < kFarJumpDistance - 22; i++) {
     builder.Debugger();
   }
   builder.Bind(&far0).Bind(&far1).Bind(&far2).Bind(&far3).Bind(&far4);
   builder.Return();
 
   Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
-  DCHECK_EQ(array->length(), 40 + kFarJumpDistance - 20 + 1);
+  DCHECK_EQ(array->length(), 44 + kFarJumpDistance - 22 + 1);
 
   BytecodeArrayIterator iterator(array);
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 20);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 22);
   iterator.Advance();
 
   // Ignore compare operation.
@@ -605,7 +606,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
   CHECK_EQ(iterator.current_bytecode(),
            PeepholeToBoolean(Bytecode::kJumpIfToBooleanTrue));
-  CHECK_EQ(iterator.GetImmediateOperand(0), 16);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 17);
   iterator.Advance();
 
   // Ignore compare operation.
@@ -641,7 +642,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   CHECK_EQ(iterator.current_bytecode(),
            PeepholeToBoolean(Bytecode::kJumpIfToBooleanTrueConstant));
   CHECK_EQ(*iterator.GetConstantForIndexOperand(0),
-           Smi::FromInt(kFarJumpDistance - 4));
+           Smi::FromInt(kFarJumpDistance - 5));
   iterator.Advance();
 
   // Ignore compare operation.
@@ -650,7 +651,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   CHECK_EQ(iterator.current_bytecode(),
            PeepholeToBoolean(Bytecode::kJumpIfToBooleanFalseConstant));
   CHECK_EQ(*iterator.GetConstantForIndexOperand(0),
-           Smi::FromInt(kFarJumpDistance - 8));
+           Smi::FromInt(kFarJumpDistance - 10));
   iterator.Advance();
 
   // Ignore add operation.
@@ -658,7 +659,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanTrueConstant);
   CHECK_EQ(*iterator.GetConstantForIndexOperand(0),
-           Smi::FromInt(kFarJumpDistance - 13));
+           Smi::FromInt(kFarJumpDistance - 15));
   iterator.Advance();
 
   // Ignore add operation.
@@ -667,7 +668,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   CHECK_EQ(iterator.current_bytecode(),
            Bytecode::kJumpIfToBooleanFalseConstant);
   CHECK_EQ(*iterator.GetConstantForIndexOperand(0),
-           Smi::FromInt(kFarJumpDistance - 18));
+           Smi::FromInt(kFarJumpDistance - 20));
   iterator.Advance();
 }
 
@@ -682,10 +683,10 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   builder.Bind(&label0)
       .Jump(&label0)
       .Bind(&label1)
-      .CompareOperation(Token::Value::EQ, reg)
+      .CompareOperation(Token::Value::EQ, reg, 1)
       .JumpIfTrue(&label1)
       .Bind(&label2)
-      .CompareOperation(Token::Value::EQ, reg)
+      .CompareOperation(Token::Value::EQ, reg, 2)
       .JumpIfFalse(&label2)
       .Bind(&label3)
       .BinaryOperation(Token::Value::ADD, reg, 1)
@@ -705,8 +706,8 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
 
   builder.BinaryOperation(Token::Value::ADD, reg, 1).JumpIfFalse(&label4);
   builder.BinaryOperation(Token::Value::ADD, reg, 2).JumpIfTrue(&label3);
-  builder.CompareOperation(Token::Value::EQ, reg).JumpIfFalse(&label2);
-  builder.CompareOperation(Token::Value::EQ, reg).JumpIfTrue(&label1);
+  builder.CompareOperation(Token::Value::EQ, reg, 1).JumpIfFalse(&label2);
+  builder.CompareOperation(Token::Value::EQ, reg, 2).JumpIfTrue(&label1);
   builder.Jump(&label0);
   BytecodeLabel end;
   builder.Bind(&end);
@@ -722,14 +723,14 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   CHECK_EQ(iterator.current_bytecode(),
            PeepholeToBoolean(Bytecode::kJumpIfToBooleanTrue));
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  CHECK_EQ(iterator.GetImmediateOperand(0), -2);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -3);
   iterator.Advance();
   // Ignore compare operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(),
            PeepholeToBoolean(Bytecode::kJumpIfToBooleanFalse));
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  CHECK_EQ(iterator.GetImmediateOperand(0), -2);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -3);
   iterator.Advance();
   // Ignore binary operation.
   iterator.Advance();
@@ -772,18 +773,18 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   CHECK_EQ(iterator.current_bytecode(),
            PeepholeToBoolean(Bytecode::kJumpIfToBooleanFalse));
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kDouble);
-  CHECK_EQ(iterator.GetImmediateOperand(0), -411);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -413);
   iterator.Advance();
   // Ignore compare operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(),
            PeepholeToBoolean(Bytecode::kJumpIfToBooleanTrue));
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kDouble);
-  CHECK_EQ(iterator.GetImmediateOperand(0), -421);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -425);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kDouble);
-  CHECK_EQ(iterator.GetImmediateOperand(0), -427);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -431);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();

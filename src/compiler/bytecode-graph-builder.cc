@@ -1217,6 +1217,24 @@ BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
   return hint;
 }
 
+// Helper function to create compare operation hint from the recorded type
+// feedback.
+CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
+  int slot_index = bytecode_iterator().GetIndexOperand(1);
+  if (slot_index == 0) {
+    return CompareOperationHint::kAny;
+  }
+  FeedbackVectorSlot slot =
+      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
+  DCHECK_EQ(FeedbackVectorSlotKind::GENERAL, feedback_vector()->GetKind(slot));
+  Object* feedback = feedback_vector()->Get(slot);
+  CompareOperationHint hint = CompareOperationHint::kAny;
+  if (feedback->IsSmi()) {
+    hint = CompareOperationHintFromFeedback((Smi::cast(feedback))->value());
+  }
+  return hint;
+}
+
 void BytecodeGraphBuilder::VisitAdd() {
   BuildBinaryOp(
       javascript()->Add(GetBinaryOperationHint(kBinaryOperationHintIndex)));
@@ -1380,38 +1398,31 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* js_op) {
 }
 
 void BytecodeGraphBuilder::VisitTestEqual() {
-  CompareOperationHint hint = CompareOperationHint::kAny;
-  BuildCompareOp(javascript()->Equal(hint));
+  BuildCompareOp(javascript()->Equal(GetCompareOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitTestNotEqual() {
-  CompareOperationHint hint = CompareOperationHint::kAny;
-  BuildCompareOp(javascript()->NotEqual(hint));
+  BuildCompareOp(javascript()->NotEqual(GetCompareOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitTestEqualStrict() {
-  CompareOperationHint hint = CompareOperationHint::kAny;
-  BuildCompareOp(javascript()->StrictEqual(hint));
+  BuildCompareOp(javascript()->StrictEqual(GetCompareOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThan() {
-  CompareOperationHint hint = CompareOperationHint::kAny;
-  BuildCompareOp(javascript()->LessThan(hint));
+  BuildCompareOp(javascript()->LessThan(GetCompareOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThan() {
-  CompareOperationHint hint = CompareOperationHint::kAny;
-  BuildCompareOp(javascript()->GreaterThan(hint));
+  BuildCompareOp(javascript()->GreaterThan(GetCompareOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThanOrEqual() {
-  CompareOperationHint hint = CompareOperationHint::kAny;
-  BuildCompareOp(javascript()->LessThanOrEqual(hint));
+  BuildCompareOp(javascript()->LessThanOrEqual(GetCompareOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
-  CompareOperationHint hint = CompareOperationHint::kAny;
-  BuildCompareOp(javascript()->GreaterThanOrEqual(hint));
+  BuildCompareOp(javascript()->GreaterThanOrEqual(GetCompareOperationHint()));
 }
 
 void BytecodeGraphBuilder::VisitTestIn() {
