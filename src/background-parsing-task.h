@@ -26,6 +26,14 @@ struct StreamedSource {
                  ScriptCompiler::StreamedSource::Encoding encoding)
       : source_stream(source_stream), encoding(encoding) {}
 
+  void Release() {
+    parser.reset();
+    info.reset();
+    zone.reset();
+    cached_data.reset();
+    source_stream.reset();
+  }
+
   // Internal implementation of v8::ScriptCompiler::StreamedSource.
   std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream;
   ScriptCompiler::StreamedSource::Encoding encoding;
