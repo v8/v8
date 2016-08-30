@@ -58,9 +58,8 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
     old_size = 0;
     // TODO(gdeepti): Fix bounds check to take into account size of memtype.
     new_size = delta_pages * wasm::WasmModule::kPageSize;
-    if (delta_pages > wasm::WasmModule::kMaxMemPages) {
-      return *isolate->factory()->NewNumberFromInt(-1);
-    }
+    // The code generated in the wasm compiler guarantees this precondition.
+    DCHECK(delta_pages <= wasm::WasmModule::kMaxMemPages);
     new_mem_start =
         static_cast<Address>(isolate->array_buffer_allocator()->Allocate(
             static_cast<uint32_t>(new_size)));

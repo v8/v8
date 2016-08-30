@@ -117,3 +117,14 @@ function testGrowMemoryTrapMaxPages() {
 }
 
 testGrowMemoryTrapMaxPages();
+
+function testGrowMemoryTrapsWithNonSmiInput() {
+  var builder = genGrowMemoryBuilder();
+  var module = builder.instantiate();
+  function growMem(pages) { return module.exports.grow_memory(pages); }
+  // The parameter of grow_memory is unsigned. Therefore -1 stands for
+  // UINT32_MIN, which cannot be represented as SMI.
+  assertEquals(-1, growMem(-1));
+};
+
+testGrowMemoryTrapsWithNonSmiInput();

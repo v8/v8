@@ -1668,13 +1668,18 @@ Node* WasmGraphBuilder::BuildFloatToIntConversionInstruction(
 }
 
 Node* WasmGraphBuilder::BuildGrowMemory(Node* input) {
+  Diamond check_input_range(
+      graph(), jsgraph()->common(),
+      graph()->NewNode(
+          jsgraph()->machine()->Uint32LessThanOrEqual(), input,
+          jsgraph()->Uint32Constant(wasm::WasmModule::kMaxMemPages)),
+      BranchHint::kTrue);
+
   Runtime::FunctionId function_id = Runtime::kWasmGrowMemory;
   const Runtime::Function* function = Runtime::FunctionForId(function_id);
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       jsgraph()->zone(), function_id, function->nargs, Operator::kNoThrow,
       CallDescriptor::kNoFlags);
-  Node** control_ptr = control_;
-  Node** effect_ptr = effect_;
   wasm::ModuleEnv* module = module_;
   input = BuildChangeUint32ToSmi(input);
   Node* inputs[] = {
@@ -1683,13 +1688,19 @@ Node* WasmGraphBuilder::BuildGrowMemory(Node* input) {
           ExternalReference(function_id, jsgraph()->isolate())),  // ref
       jsgraph()->Int32Constant(function->nargs),                  // arity
       jsgraph()->HeapConstant(module->instance->context),         // context
-      *effect_ptr,
-      *control_ptr};
-  Node* node = graph()->NewNode(jsgraph()->common()->Call(desc),
+      *effect_,
+      check_input_range.if_true};
+  Node* call = graph()->NewNode(jsgraph()->common()->Call(desc),
                                 static_cast<int>(arraysize(inputs)), inputs);
-  *effect_ptr = node;
-  node = BuildChangeSmiToInt32(node);
-  return node;
+
+  Node* result = BuildChangeSmiToInt32(call);
+
+  result = check_input_range.Phi(MachineRepresentation::kWord32, result,
+                                 jsgraph()->Int32Constant(-1));
+  *effect_ = graph()->NewNode(jsgraph()->common()->EffectPhi(2), call, *effect_,
+                              check_input_range.merge);
+  *control_ = check_input_range.merge;
+  return result;
 }
 
 Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right,
