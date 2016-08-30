@@ -1141,9 +1141,9 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
 MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
     Handle<JSArrayBuffer> buffer) {
   uint32_t buffer_byte_length = NumberToUint32(buffer->byte_length());
-  uint8_t tag;
-  uint32_t byte_offset;
-  uint32_t byte_length;
+  uint8_t tag = 0;
+  uint32_t byte_offset = 0;
+  uint32_t byte_length = 0;
   if (!ReadVarint<uint8_t>().To(&tag) ||
       !ReadVarint<uint32_t>().To(&byte_offset) ||
       !ReadVarint<uint32_t>().To(&byte_length) ||
