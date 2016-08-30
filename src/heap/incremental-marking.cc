@@ -1200,8 +1200,8 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
 
     bytes_scanned_ += bytes_to_process;
 
-    // TODO(hpayer): Do not account for sweeping finalization while marking.
     if (state_ == SWEEPING) {
+      TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL_SWEEPING);
       FinalizeSweeping();
     }
 

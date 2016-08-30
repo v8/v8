@@ -580,6 +580,7 @@ void GCTracer::PrintNVP() const {
           "incremental.finalize.external.prologue=%.1f "
           "incremental.finalize.external.epilogue=%.1f "
           "incremental.finalize.object_grouping=%.1f "
+          "incremental.sweeping=%.1f "
           "incremental.wrapper_prologue=%.1f "
           "incremental.wrapper_tracing=%.1f "
           "incremental_wrapper_tracing_longest_step=%.1f "
@@ -659,6 +660,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING],
+          current_.scopes[Scope::MC_INCREMENTAL_SWEEPING],
           current_.scopes[Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_WRAPPER_TRACING],
           current_
