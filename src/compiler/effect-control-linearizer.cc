@@ -1670,8 +1670,8 @@ EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
       break;
     }
     case CheckTaggedInputMode::kNumberOrOddball: {
-      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                      check_number, control);
+      Node* branch =
+          graph()->NewNode(common()->Branch(), check_number, control);
 
       Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
       Node* etrue = effect;
@@ -1713,8 +1713,7 @@ EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
   Node* value = node->InputAt(0);
 
   Node* check = ObjectIsSmi(value);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+  Node* branch = graph()->NewNode(common()->Branch(), check, control);
 
   // In the Smi case, just convert to int32 and then float64.
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
