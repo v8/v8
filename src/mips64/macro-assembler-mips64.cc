@@ -1960,7 +1960,11 @@ void MacroAssembler::Ins(Register rt,
 }
 
 void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
-  if (kArchVariant == kMips64r2) {
+  if (kArchVariant == kMips64r6) {
+    // r6 neg_s changes the sign for NaN-like operands as well.
+    neg_s(fd, fs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
     Label is_nan, done;
     Register scratch1 = t8;
     Register scratch2 = t9;
@@ -1977,14 +1981,15 @@ void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
     Or(scratch2, scratch2, scratch1);
     mtc1(scratch2, fd);
     bind(&done);
-  } else {
-    // r6 neg_s changes the sign for NaN-like operands as well.
-    neg_s(fd, fs);
   }
 }
 
 void MacroAssembler::Neg_d(FPURegister fd, FPURegister fs) {
-  if (kArchVariant == kMips64r2) {
+  if (kArchVariant == kMips64r6) {
+    // r6 neg_d changes the sign for NaN-like operands as well.
+    neg_d(fd, fs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
     Label is_nan, done;
     Register scratch1 = t8;
     Register scratch2 = t9;
@@ -2001,9 +2006,6 @@ void MacroAssembler::Neg_d(FPURegister fd, FPURegister fs) {
     Or(scratch2, scratch2, scratch1);
     dmtc1(scratch2, fd);
     bind(&done);
-  } else {
-    // r6 neg_d changes the sign for NaN-like operands as well.
-    neg_d(fd, fs);
   }
 }
 
