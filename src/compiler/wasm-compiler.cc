@@ -2197,11 +2197,11 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::LocalType type) {
     case wasm::kAstI32:
       return BuildChangeInt32ToTagged(node);
     case wasm::kAstI64:
-      DCHECK(module_ && !module_->instance->context.is_null());
-      // Throw a TypeError.
+      // Throw a TypeError. The native context is good enough here because we
+      // only throw a TypeError.
       return BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
-                                module_->instance->context, nullptr, 0, effect_,
-                                *control_);
+                                jsgraph()->isolate()->native_context(), nullptr,
+                                0, effect_, *control_);
     case wasm::kAstF32:
       node = graph()->NewNode(jsgraph()->machine()->ChangeFloat32ToFloat64(),
                               node);
