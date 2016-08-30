@@ -670,13 +670,13 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   FunctionLiteral* result = NULL;
   {
     Scope* outer = original_scope_;
+    DCHECK_NOT_NULL(outer);
     // If there's a chance that there's a reference to global 'this', predeclare
     // it as a dynamic global on the script scope.
     if (outer->GetReceiverScope()->is_script_scope()) {
       info->script_scope()->DeclareDynamicGlobal(
           ast_value_factory()->this_string(), Variable::THIS);
     }
-    DCHECK(outer);
     if (info->is_eval()) {
       if (!outer->is_script_scope() || is_strict(info->language_mode())) {
         parsing_mode = PARSE_EAGERLY;
@@ -839,17 +839,17 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
 
   {
     // Parse the function literal.
-    Scope* scope = original_scope_;
-    DCHECK(scope);
+    Scope* outer = original_scope_;
+    DCHECK(outer);
     // If there's a chance that there's a reference to global 'this', predeclare
     // it as a dynamic global on the script scope.
-    if (info->is_arrow() && scope->GetReceiverScope()->is_script_scope()) {
+    if (info->is_arrow() && outer->GetReceiverScope()->is_script_scope()) {
       info->script_scope()->DeclareDynamicGlobal(
           ast_value_factory()->this_string(), Variable::THIS);
     }
-    FunctionState function_state(&function_state_, &scope_state_, scope,
+    FunctionState function_state(&function_state_, &scope_state_, outer,
                                  info->function_kind());
-    DCHECK(is_sloppy(scope->language_mode()) ||
+    DCHECK(is_sloppy(outer->language_mode()) ||
            is_strict(info->language_mode()));
     FunctionLiteral::FunctionType function_type = ComputeFunctionType(info);
     bool ok = true;
@@ -927,7 +927,7 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
         }
       }
     } else if (info->is_default_constructor()) {
-      DCHECK_EQ(this->scope(), scope);
+      DCHECK_EQ(scope(), outer);
       result = DefaultConstructor(
           raw_name, IsSubclassConstructor(info->function_kind()),
           info->start_position(), info->end_position(), info->language_mode());
