@@ -15,14 +15,17 @@ namespace compiler {
 
 namespace {
 
-BinaryOperationHint ToBinaryOperationHint(BinaryOpICState::Kind kind) {
+BinaryOperationHint ToBinaryOperationHint(Token::Value op,
+                                          BinaryOpICState::Kind kind) {
   switch (kind) {
     case BinaryOpICState::NONE:
       return BinaryOperationHint::kNone;
     case BinaryOpICState::SMI:
       return BinaryOperationHint::kSignedSmall;
     case BinaryOpICState::INT32:
-      return BinaryOperationHint::kSigned32;
+      return (Token::IsTruncatingBinaryOp(op) && SmiValuesAre31Bits())
+                 ? BinaryOperationHint::kNumberOrOddball
+                 : BinaryOperationHint::kSigned32;
     case BinaryOpICState::NUMBER:
       return BinaryOperationHint::kNumberOrOddball;
     case BinaryOpICState::STRING:
@@ -66,7 +69,7 @@ bool TypeHintAnalysis::GetBinaryOperationHint(TypeFeedbackId id,
   Handle<Code> code = i->second;
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpICState state(code->GetIsolate(), code->extra_ic_state());
-  *hint = ToBinaryOperationHint(state.kind());
+  *hint = ToBinaryOperationHint(state.op(), state.kind());
   return true;
 }
 
