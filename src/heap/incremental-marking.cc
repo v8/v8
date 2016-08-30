@@ -1045,9 +1045,7 @@ double IncrementalMarking::AdvanceIncrementalMarking(
 
   intptr_t step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
       GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs,
-      heap()
-          ->tracer()
-          ->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
+      heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
   double remaining_time_in_ms = 0.0;
   intptr_t bytes_processed = 0;
 
