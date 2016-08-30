@@ -2194,10 +2194,9 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   }
   has_pending_exception = result.is_null();
   if (has_pending_exception) isolate->ReportPendingMessages();
-
-  source->Release();
-
   RETURN_ON_FAILED_EXECUTION(Script);
+
+  source->info->clear_script();  // because script goes out of scope.
 
   Local<UnboundScript> generic = ToApiHandle<UnboundScript>(result);
   if (generic.IsEmpty()) return Local<Script>();
