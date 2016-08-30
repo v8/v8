@@ -1336,24 +1336,23 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathClz32:
           return t->cache_.kZeroToThirtyTwo;
         // Date functions.
-        case kDateGetFullYear:
-          return Type::Union(Type::Range(-271821.0, 275760.0, t->zone()),
-                             Type::NaN(), t->zone());
         case kDateGetDate:
-          return Type::Union(Type::Range(1.0, 31.0, t->zone()), Type::NaN(),
-                             t->zone());
+          return t->cache_.kJSDateDayType;
+        case kDateGetDay:
+          return t->cache_.kJSDateWeekdayType;
+        case kDateGetFullYear:
+          return t->cache_.kJSDateYearType;
         case kDateGetHours:
-          return Type::Union(Type::Range(0.0, 23.0, t->zone()), Type::NaN(),
-                             t->zone());
+          return t->cache_.kJSDateHourType;
         case kDateGetMilliseconds:
-          return Type::Union(Type::Range(0.0, 59.0, t->zone()), Type::NaN(),
+          return Type::Union(Type::Range(0.0, 999.0, t->zone()), Type::NaN(),
                              t->zone());
+        case kDateGetMinutes:
+          return t->cache_.kJSDateMinuteType;
         case kDateGetMonth:
-          return Type::Union(Type::Range(0.0, 11.0, t->zone()), Type::NaN(),
-                             t->zone());
+          return t->cache_.kJSDateMonthType;
         case kDateGetSeconds:
-          return Type::Union(Type::Range(0.0, 59.0, t->zone()), Type::NaN(),
-                             t->zone());
+          return t->cache_.kJSDateSecondType;
         case kDateGetTime:
           return t->cache_.kJSDateValueType;
         // Number functions.

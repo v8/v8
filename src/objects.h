@@ -6870,9 +6870,11 @@ class Script: public Struct {
   V(Array.prototype, pop, ArrayPop)                         \
   V(Array.prototype, shift, ArrayShift)                     \
   V(Date.prototype, getDate, DateGetDate)                   \
+  V(Date.prototype, getDay, DateGetDay)                     \
   V(Date.prototype, getFullYear, DateGetFullYear)           \
   V(Date.prototype, getHours, DateGetHours)                 \
   V(Date.prototype, getMilliseconds, DateGetMilliseconds)   \
+  V(Date.prototype, getMinutes, DateGetMinutes)             \
   V(Date.prototype, getMonth, DateGetMonth)                 \
   V(Date.prototype, getSeconds, DateGetSeconds)             \
   V(Date.prototype, getTime, DateGetTime)                   \

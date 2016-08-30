@@ -104,11 +104,45 @@ class TypeCache final {
   Type* const kStringLengthType =
       CreateNative(CreateRange(0.0, String::kMaxLength), Type::TaggedSigned());
 
-  // The JSDate::value properties always contains a tagged number in the range
+  // The JSDate::day property always contains a tagged number in the range
+  // [1, 31] or NaN.
+  Type* const kJSDateDayType =
+      Type::Union(CreateRange(1, 31.0), Type::NaN(), zone());
+
+  // The JSDate::hour property always contains a tagged number in the range
+  // [0, 23] or NaN.
+  Type* const kJSDateHourType =
+      Type::Union(CreateRange(0, 23.0), Type::NaN(), zone());
+
+  // The JSDate::minute property always contains a tagged number in the range
+  // [0, 59] or NaN.
+  Type* const kJSDateMinuteType =
+      Type::Union(CreateRange(0, 59.0), Type::NaN(), zone());
+
+  // The JSDate::month property always contains a tagged number in the range
+  // [0, 11] or NaN.
+  Type* const kJSDateMonthType =
+      Type::Union(CreateRange(0, 11.0), Type::NaN(), zone());
+
+  // The JSDate::second property always contains a tagged number in the range
+  // [0, 59] or NaN.
+  Type* const kJSDateSecondType = kJSDateMinuteType;
+
+  // The JSDate::value property always contains a tagged number in the range
   // [-kMaxTimeInMs, kMaxTimeInMs] or NaN.
   Type* const kJSDateValueType = Type::Union(
       CreateRange(-DateCache::kMaxTimeInMs, DateCache::kMaxTimeInMs),
       Type::NaN(), zone());
+
+  // The JSDate::weekday property always contains a tagged number in the range
+  // [0, 6] or NaN.
+  Type* const kJSDateWeekdayType =
+      Type::Union(CreateRange(0, 6.0), Type::NaN(), zone());
+
+  // The JSDate::year property always contains a tagged number in the signed
+  // small range or NaN.
+  Type* const kJSDateYearType =
+      Type::Union(Type::SignedSmall(), Type::NaN(), zone());
 
 #define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
   Type* const k##TypeName##Array = CreateArray(k##TypeName);
