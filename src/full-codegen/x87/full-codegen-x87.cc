@@ -1052,6 +1052,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Generate code for going to the next element by incrementing the
   // index (smi) stored on top of the stack.
   __ bind(loop_statement.continue_label());
+  PrepareForBailoutForId(stmt->IncrementId(), BailoutState::NO_REGISTERS);
   __ add(Operand(esp, 0 * kPointerSize), Immediate(Smi::FromInt(1)));
 
   EmitBackEdgeBookkeeping(stmt, &loop);
