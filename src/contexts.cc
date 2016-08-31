@@ -178,7 +178,7 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it) {
 
 static PropertyAttributes GetAttributesForMode(VariableMode mode) {
   DCHECK(IsDeclaredVariableMode(mode));
-  return IsImmutableVariableMode(mode) ? READ_ONLY : NONE;
+  return mode == CONST ? READ_ONLY : NONE;
 }
 
 Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
@@ -307,10 +307,11 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       }
 
       // Check the slot corresponding to the intermediate context holding
-      // only the function name variable.
-      if (follow_context_chain && context->IsFunctionContext()) {
-        VariableMode mode;
-        int function_index = scope_info->FunctionContextSlotIndex(*name, &mode);
+      // only the function name variable. It's conceptually (and spec-wise)
+      // in an outer scope of the function's declaration scope.
+      if (follow_context_chain && (flags & STOP_AT_DECLARATION_SCOPE) == 0 &&
+          context->IsFunctionContext()) {
+        int function_index = scope_info->FunctionContextSlotIndex(*name);
         if (function_index >= 0) {
           if (FLAG_trace_contexts) {
             PrintF("=> found intermediate function in context slot %d\n",
@@ -318,9 +319,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
           }
           *index = function_index;
           *attributes = READ_ONLY;
-          DCHECK(mode == CONST_LEGACY || mode == CONST);
           *init_flag = kCreatedInitialized;
-          *variable_mode = mode;
+          *variable_mode = CONST;
           return context;
         }
       }

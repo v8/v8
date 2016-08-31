@@ -605,8 +605,10 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
   if (estatement != nullptr) {
     Assignment* assignment = estatement->expression()->AsAssignment();
     if (assignment != nullptr && assignment->target()->IsVariableProxy() &&
-        assignment->target()->AsVariableProxy()->var()->mode() ==
-            CONST_LEGACY) {
+        assignment->target()
+            ->AsVariableProxy()
+            ->var()
+            ->is_sloppy_function_name()) {
       use_asm_directive = iter.Next();
     }
   }

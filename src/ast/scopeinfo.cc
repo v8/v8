@@ -76,7 +76,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   // Determine use and location of the function variable if it is present.
   VariableAllocationInfo function_name_info;
-  VariableMode function_variable_mode;
   if (scope->is_function_scope() &&
       scope->AsDeclarationScope()->function_var() != nullptr) {
     Variable* var = scope->AsDeclarationScope()->function_var();
@@ -88,10 +87,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
       DCHECK(var->IsStackLocal());
       function_name_info = STACK;
     }
-    function_variable_mode = var->mode();
   } else {
     function_name_info = NONE;
-    function_variable_mode = VAR;
   }
 
   const bool has_function_name = function_name_info != NONE;
@@ -127,7 +124,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               ReceiverVariableField::encode(receiver_info) |
               HasNewTargetField::encode(has_new_target) |
               FunctionVariableField::encode(function_name_info) |
-              FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(asm_module) |
               AsmFunctionField::encode(asm_function) |
               HasSimpleParametersField::encode(has_simple_parameters) |
@@ -254,7 +250,6 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   const bool has_simple_parameters = true;
   const VariableAllocationInfo receiver_info = CONTEXT;
   const VariableAllocationInfo function_name_info = NONE;
-  const VariableMode function_variable_mode = VAR;
   const bool has_function_name = false;
   const bool has_receiver = true;
   const int parameter_count = 0;
@@ -272,7 +267,6 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
               DeclarationScopeField::encode(true) |
               ReceiverVariableField::encode(receiver_info) |
               FunctionVariableField::encode(function_name_info) |
-              FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(false) | AsmFunctionField::encode(false) |
               HasSimpleParametersField::encode(has_simple_parameters) |
               FunctionKindField::encode(FunctionKind::kNormalFunction);
@@ -625,14 +619,11 @@ int ScopeInfo::ReceiverContextSlotIndex() {
   return -1;
 }
 
-
-int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
+int ScopeInfo::FunctionContextSlotIndex(String* name) {
   DCHECK(name->IsInternalizedString());
-  DCHECK_NOT_NULL(mode);
   if (length() > 0) {
     if (FunctionVariableField::decode(Flags()) == CONTEXT &&
         FunctionName() == name) {
-      *mode = FunctionVariableMode::decode(Flags());
       return Smi::cast(get(FunctionNameEntryIndex() + 1))->value();
     }
   }

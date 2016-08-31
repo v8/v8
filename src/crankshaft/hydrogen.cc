@@ -6956,9 +6956,6 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       case VariableLocation::PARAMETER:
       case VariableLocation::LOCAL:
-        if (var->mode() == CONST_LEGACY)  {
-          return Bailout(kUnsupportedConstCompoundAssignment);
-        }
         if (var->mode() == CONST) {
           return Bailout(kNonInitializerAssignmentToConst);
         }
@@ -6988,9 +6985,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
             mode = HStoreContextSlot::kCheckDeoptimize;
             break;
           case CONST:
-            return Bailout(kNonInitializerAssignmentToConst);
-          case CONST_LEGACY:
-            if (is_strict(function_language_mode())) {
+            if (var->throw_on_const_assignment(function_language_mode())) {
               return Bailout(kNonInitializerAssignmentToConst);
             } else {
               return ast_context()->ReturnValue(Pop());
@@ -7062,25 +7057,12 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
 
     if (var->mode() == CONST) {
       if (expr->op() != Token::INIT) {
-        return Bailout(kNonInitializerAssignmentToConst);
-      }
-    } else if (var->mode() == CONST_LEGACY) {
-      if (expr->op() != Token::INIT) {
-        if (is_strict(function_language_mode())) {
+        if (var->throw_on_const_assignment(function_language_mode())) {
           return Bailout(kNonInitializerAssignmentToConst);
         } else {
           CHECK_ALIVE(VisitForValue(expr->value()));
           return ast_context()->ReturnValue(Pop());
         }
-      }
-
-      // TODO(adamk): Is this required? Legacy const variables are always
-      // initialized before use.
-      if (var->IsStackAllocated()) {
-        // We insert a use of the old value to detect unsupported uses of const
-        // variables (e.g. initialization inside a loop).
-        HValue* old_value = environment()->Lookup(var);
-        Add<HUseConst>(old_value);
       }
     }
 
@@ -7137,10 +7119,10 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
               mode = HStoreContextSlot::kCheckDeoptimize;
               break;
             case CONST:
-              // This case is checked statically so no need to
-              // perform checks here
-              UNREACHABLE();
-            case CONST_LEGACY:
+              // If we reached this point, the only possibility
+              // is a sloppy assignment to a function name.
+              DCHECK(function_language_mode() == SLOPPY &&
+                     !var->throw_on_const_assignment(SLOPPY));
               return ast_context()->ReturnValue(Pop());
             default:
               mode = HStoreContextSlot::kNoCheck;
@@ -10751,9 +10733,6 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
   if (proxy != NULL) {
     Variable* var = proxy->var();
-    if (var->mode() == CONST_LEGACY)  {
-      return Bailout(kUnsupportedCountOperationWithConst);
-    }
     if (var->mode() == CONST) {
       return Bailout(kNonInitializerAssignmentToConst);
     }

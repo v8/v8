@@ -242,10 +242,6 @@ namespace internal {
   V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                            \
     "Unexpected type for RegExp data, FixedArray expected")                    \
   V(kUnexpectedValue, "Unexpected value")                                      \
-  V(kUnsupportedConstCompoundAssignment,                                       \
-    "Unsupported const compound assignment")                                   \
-  V(kUnsupportedCountOperationWithConst,                                       \
-    "Unsupported count operation with const")                                  \
   V(kUnsupportedDoubleImmediate, "Unsupported double immediate")               \
   V(kUnsupportedLetCompoundAssignment, "Unsupported let compound assignment")  \
   V(kUnsupportedLookupSlotInDeclaration,                                       \

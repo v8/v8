@@ -833,7 +833,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       // Skip extra assignment inserted by the parser when in this form:
       // (function Module(a, b, c) {... })
       if (expr->target()->IsVariableProxy() &&
-          expr->target()->AsVariableProxy()->var()->mode() == CONST_LEGACY) {
+          expr->target()->AsVariableProxy()->var()->is_sloppy_function_name()) {
         return;
       }
       Property* prop = expr->value()->AsProperty();

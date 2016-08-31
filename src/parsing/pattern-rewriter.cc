@@ -140,13 +140,6 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // which the variable or constant is declared. Only function variables have
   // an initial value in the declaration (because they are initialized upon
   // entering the function).
-  //
-  // If we have a legacy const declaration, in an inner scope, the proxy
-  // is always bound to the declared variable (independent of possibly
-  // surrounding 'with' statements).
-  // For let/const declarations in harmony mode, we can also immediately
-  // pre-resolve the proxy because it resides in the same scope as the
-  // declaration.
   const AstRawString* name = pattern->raw_name();
   VariableProxy* proxy = descriptor_->scope->NewUnresolved(
       factory(), name, parser_->scanner()->location().beg_pos,

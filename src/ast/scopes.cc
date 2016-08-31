@@ -415,11 +415,9 @@ void Scope::DeserializeScopeInfo(Isolate* isolate,
   if (scope_info_->HasFunctionName()) {
     Handle<String> name_handle(scope_info_->FunctionName(), isolate);
     const AstRawString* name = ast_value_factory->GetString(name_handle);
-    VariableMode mode;
-    int index = scope_info_->FunctionContextSlotIndex(*name_handle, &mode);
+    int index = scope_info_->FunctionContextSlotIndex(*name_handle);
     if (index >= 0) {
       Variable* result = AsDeclarationScope()->DeclareFunctionVar(name);
-      DCHECK_EQ(mode, result->mode());
       result->AllocateTo(VariableLocation::CONTEXT, index);
     }
   }
@@ -518,9 +516,11 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
 Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
   DCHECK(is_function_scope());
   DCHECK_NULL(function_);
-  VariableMode mode = is_strict(language_mode()) ? CONST : CONST_LEGACY;
-  function_ = new (zone())
-      Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
+  Variable::Kind kind = is_sloppy(language_mode())
+                            ? Variable::SLOPPY_FUNCTION_NAME
+                            : Variable::NORMAL;
+  function_ =
+      new (zone()) Variable(this, name, CONST, kind, kCreatedInitialized);
   return function_;
 }
 
@@ -682,11 +682,9 @@ Variable* DeclarationScope::LookupFunctionVar(const AstRawString* name) {
     return function_;
   } else if (!scope_info_.is_null()) {
     // If we are backed by a scope info, try to lookup the variable there.
-    VariableMode mode;
-    int index = scope_info_->FunctionContextSlotIndex(*(name->string()), &mode);
+    int index = scope_info_->FunctionContextSlotIndex(*(name->string()));
     if (index < 0) return nullptr;
     Variable* var = DeclareFunctionVar(name);
-    DCHECK_EQ(mode, var->mode());
     var->AllocateTo(VariableLocation::CONTEXT, index);
     return var;
   } else {
@@ -748,7 +746,7 @@ Variable* Scope::DeclareVariable(
     Declaration* declaration, VariableMode mode, InitializationFlag init,
     bool allow_harmony_restrictive_generators,
     bool* sloppy_mode_block_scope_function_redefinition, bool* ok) {
-  DCHECK(IsDeclaredVariableMode(mode) && mode != CONST_LEGACY);
+  DCHECK(IsDeclaredVariableMode(mode));
   DCHECK(!already_resolved_);
 
   if (mode == VAR && !is_declaration_scope()) {

@@ -2083,7 +2083,6 @@ void BytecodeGenerator::BuildThrowIfNotHole(Handle<String> name) {
 
 void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
                                                             Token::Value op) {
-  DCHECK(variable->mode() != CONST_LEGACY);
   if (op != Token::INIT) {
     // Perform an initialization check for let/const declared variables.
     // E.g. let x = (x = 20); is not allowed.
@@ -2128,17 +2127,11 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
-      if ((mode == CONST || mode == CONST_LEGACY) && op != Token::INIT) {
-        if (mode == CONST || is_strict(language_mode())) {
-          builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
-                                 0);
-        }
-        // Non-initializing assignments to legacy constants are ignored
-        // in sloppy mode. Break here to avoid storing into variable.
-        break;
+      if (mode != CONST || op == Token::INIT) {
+        builder()->StoreAccumulatorInRegister(destination);
+      } else if (variable->throw_on_const_assignment(language_mode())) {
+        builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(), 0);
       }
-
-      builder()->StoreAccumulatorInRegister(destination);
       break;
     }
     case VariableLocation::GLOBAL:
@@ -2185,21 +2178,14 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
-      if ((mode == CONST || mode == CONST_LEGACY) && op != Token::INIT) {
-        if (mode == CONST || is_strict(language_mode())) {
-          builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
-                                 0);
-        }
-        // Non-initializing assignments to legacy constants are ignored
-        // in sloppy mode. Break here to avoid storing into variable.
-        break;
+      if (mode != CONST || op == Token::INIT) {
+        builder()->StoreContextSlot(context_reg, variable->index());
+      } else if (variable->throw_on_const_assignment(language_mode())) {
+        builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(), 0);
       }
-
-      builder()->StoreContextSlot(context_reg, variable->index());
       break;
     }
     case VariableLocation::LOOKUP: {
-      DCHECK_NE(CONST_LEGACY, variable->mode());
       builder()->StoreLookupSlot(variable->name(), language_mode());
       break;
     }

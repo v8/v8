@@ -536,7 +536,7 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
   // TODO(mstarzinger): For now we cannot assume that the {this} parameter is
   // not {the_hole}, because for derived classes {this} has a TDZ and the
   // JSConstructStubForDerived magically passes {the_hole} as a receiver.
-  if (scope->has_this_declaration() && scope->receiver()->is_const_mode()) {
+  if (scope->has_this_declaration() && scope->receiver()->mode() == CONST) {
     env.RawParameterBind(0, jsgraph()->TheHoleConstant());
   }
 
@@ -3442,15 +3442,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
       // Local var, const, or let variable.
-      if (mode == CONST_LEGACY && op != Token::INIT) {
-        // Non-initializing assignment to legacy const is
-        // - exception in strict mode.
-        // - ignored in sloppy mode.
-        if (is_strict(language_mode())) {
-          return BuildThrowConstAssignError(bailout_id);
-        }
-        return value;
-      } else if (mode == LET && op == Token::INIT) {
+      if (mode == LET && op == Token::INIT) {
         // No initialization check needed because scoping guarantees it. Note
         // that we still perform a lookup to keep the variable live, because
         // baseline code might contain debug code that inspects the variable.
@@ -3473,6 +3465,16 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         if (current->op() != the_hole->op() && variable->is_this()) {
           value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
         }
+      } else if (mode == CONST && op != Token::INIT &&
+                 variable->is_sloppy_function_name()) {
+        // Non-initializing assignment to sloppy function names is
+        // - exception in strict mode.
+        // - ignored in sloppy mode.
+        DCHECK(!variable->binding_needs_init());
+        if (variable->throw_on_const_assignment(language_mode())) {
+          return BuildThrowConstAssignError(bailout_id);
+        }
+        return value;
       } else if (mode == CONST && op != Token::INIT) {
         if (variable->binding_needs_init()) {
           Node* current = environment()->Lookup(variable);
@@ -3490,16 +3492,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     case VariableLocation::CONTEXT: {
       // Context variable (potentially up the context chain).
       int depth = current_scope()->ContextChainLength(variable->scope());
-      if (mode == CONST_LEGACY && op != Token::INIT) {
-        // Non-initializing assignment to legacy const is
-        // - exception in strict mode.
-        // - ignored in sloppy mode.
-        if (is_strict(language_mode())) {
-          return BuildThrowConstAssignError(bailout_id);
-        }
-        return value;
-      } else if (mode == LET && op != Token::INIT &&
-                 variable->binding_needs_init()) {
+      if (mode == LET && op != Token::INIT && variable->binding_needs_init()) {
         // Perform an initialization check for let declared variables.
         const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);
@@ -3515,6 +3508,16 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           Node* current = NewNode(op, current_context());
           value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
         }
+      } else if (mode == CONST && op != Token::INIT &&
+                 variable->is_sloppy_function_name()) {
+        // Non-initializing assignment to sloppy function names is
+        // - exception in strict mode.
+        // - ignored in sloppy mode.
+        DCHECK(!variable->binding_needs_init());
+        if (variable->throw_on_const_assignment(language_mode())) {
+          return BuildThrowConstAssignError(bailout_id);
+        }
+        return value;
       } else if (mode == CONST && op != Token::INIT) {
         if (variable->binding_needs_init()) {
           const Operator* op =

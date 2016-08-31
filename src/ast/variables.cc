@@ -16,7 +16,6 @@ namespace internal {
 const char* Variable::Mode2String(VariableMode mode) {
   switch (mode) {
     case VAR: return "VAR";
-    case CONST_LEGACY: return "CONST_LEGACY";
     case LET: return "LET";
     case CONST: return "CONST";
     case DYNAMIC: return "DYNAMIC";

@@ -884,8 +884,6 @@ enum VariableMode : uint8_t {
   // User declared variables:
   VAR,  // declared via 'var', and 'function' declarations
 
-  CONST_LEGACY,  // declared via legacy 'const' declarations
-
   LET,  // declared via 'let' declarations (first lexical)
 
   CONST,  // declared via 'const' declarations (last lexical)
@@ -922,11 +920,6 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
   return mode >= LET && mode <= CONST;
-}
-
-
-inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_LEGACY;
 }
 
 enum VariableLocation : uint8_t {

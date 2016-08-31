@@ -247,7 +247,7 @@ bool JSGlobalObjectSpecialization::LookupInScriptContextTable(
   Handle<Context> script_context = ScriptContextTable::GetContext(
       script_context_table, lookup_result.context_index);
   result->context = script_context;
-  result->immutable = IsImmutableVariableMode(lookup_result.mode);
+  result->immutable = lookup_result.mode == CONST;
   result->index = lookup_result.slot_index;
   return true;
 }
