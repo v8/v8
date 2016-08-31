@@ -71,6 +71,7 @@ class PropertyAccessInfo final {
   static PropertyAccessInfo DataField(
       MapList const& receiver_maps, FieldIndex field_index,
       MachineRepresentation field_representation, Type* field_type,
+      MaybeHandle<Map> field_map = MaybeHandle<Map>(),
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
   static PropertyAccessInfo AccessorConstant(MapList const& receiver_maps,
@@ -97,6 +98,7 @@ class PropertyAccessInfo final {
   MachineRepresentation field_representation() const {
     return field_representation_;
   }
+  MaybeHandle<Map> field_map() const { return field_map_; }
   MapList const& receiver_maps() const { return receiver_maps_; }
 
  private:
@@ -107,7 +109,8 @@ class PropertyAccessInfo final {
   PropertyAccessInfo(MaybeHandle<JSObject> holder,
                      MaybeHandle<Map> transition_map, FieldIndex field_index,
                      MachineRepresentation field_representation,
-                     Type* field_type, MapList const& receiver_maps);
+                     Type* field_type, MaybeHandle<Map> field_map,
+                     MapList const& receiver_maps);
 
   Kind kind_;
   MapList receiver_maps_;
@@ -117,6 +120,7 @@ class PropertyAccessInfo final {
   FieldIndex field_index_;
   MachineRepresentation field_representation_;
   Type* field_type_;
+  MaybeHandle<Map> field_map_;
 };
 
 

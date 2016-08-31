@@ -97,9 +97,6 @@ MaybeHandle<Map> GetStableMapFromObjectType(Type* object_type) {
     Handle<Map> object_map(
         Handle<HeapObject>::cast(object_type->AsConstant()->Value())->map());
     if (object_map->is_stable()) return object_map;
-  } else if (object_type->IsClass()) {
-    Handle<Map> object_map = object_type->AsClass()->Map();
-    if (object_map->is_stable()) return object_map;
   }
   return MaybeHandle<Map>();
 }
@@ -107,11 +104,8 @@ MaybeHandle<Map> GetStableMapFromObjectType(Type* object_type) {
 }  // namespace
 
 Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
-  // The CheckMaps(o, ...map...) can be eliminated if map is stable and
-  // either
-  //  (a) o has type Constant(object) and map == object->map, or
-  //  (b) o has type Class(map),
-  // and either
+  // The CheckMaps(o, ...map...) can be eliminated if map is stable,
+  // o has type Constant(object) and map == object->map, and either
   //  (1) map cannot transition further, or
   //  (2) we can add a code dependency on the stability of map
   //      (to guard the Constant type information).
@@ -151,10 +145,8 @@ Reduction TypedOptimization::ReduceLoadField(Node* node) {
   FieldAccess const& access = FieldAccessOf(node->op());
   if (access.base_is_tagged == kTaggedBase &&
       access.offset == HeapObject::kMapOffset) {
-    // We can replace LoadField[Map](o) with map if is stable and either
-    //  (a) o has type Constant(object) and map == object->map, or
-    //  (b) o has type Class(map),
-    // and either
+    // We can replace LoadField[Map](o) with map if is stable, and
+    // o has type Constant(object) and map == object->map, and either
     //  (1) map cannot transition further, or
     //  (2) deoptimization is enabled and we can add a code dependency on the
     //      stability of map (to guard the Constant type information).

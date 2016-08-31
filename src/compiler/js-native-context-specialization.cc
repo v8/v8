@@ -906,6 +906,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         }
         field_access.machine_type = MachineType::Float64();
       }
+      // TODO(turbofan): Track the field_map (if any) on the {field_access} and
+      // use it in LoadElimination to eliminate map checks.
       value = effect = graph()->NewNode(simplified()->LoadField(field_access),
                                         storage, effect, control);
     } else {
@@ -956,14 +958,12 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         // Ensure that {value} is a HeapObject.
         value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
                                           value, effect, control);
-        if (field_type->NumClasses() == 1) {
+        Handle<Map> field_map;
+        if (access_info.field_map().ToHandle(&field_map)) {
           // Emit a map check for the value.
-          Node* field_map =
-              jsgraph()->Constant(field_type->Classes().Current());
           effect = graph()->NewNode(simplified()->CheckMaps(1), value,
-                                    field_map, effect, control);
-        } else {
-          DCHECK_EQ(0, field_type->NumClasses());
+                                    jsgraph()->HeapConstant(field_map), effect,
+                                    control);
         }
       } else {
         // DCHECK(field_type->Is(Type::Tagged()));

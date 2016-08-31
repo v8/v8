@@ -81,9 +81,11 @@ PropertyAccessInfo PropertyAccessInfo::DataConstant(
 PropertyAccessInfo PropertyAccessInfo::DataField(
     MapList const& receiver_maps, FieldIndex field_index,
     MachineRepresentation field_representation, Type* field_type,
-    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
+    MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
+    MaybeHandle<Map> transition_map) {
   return PropertyAccessInfo(holder, transition_map, field_index,
-                            field_representation, field_type, receiver_maps);
+                            field_representation, field_type, field_map,
+                            receiver_maps);
 }
 
 // static
@@ -119,14 +121,15 @@ PropertyAccessInfo::PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
 PropertyAccessInfo::PropertyAccessInfo(
     MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, MachineRepresentation field_representation,
-    Type* field_type, MapList const& receiver_maps)
+    Type* field_type, MaybeHandle<Map> field_map, MapList const& receiver_maps)
     : kind_(kDataField),
       receiver_maps_(receiver_maps),
       transition_map_(transition_map),
       holder_(holder),
       field_index_(field_index),
       field_representation_(field_representation),
-      field_type_(field_type) {}
+      field_type_(field_type),
+      field_map_(field_map) {}
 
 bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
   if (this->kind_ != that->kind_) return false;
@@ -293,9 +296,10 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           Representation details_representation = details.representation();
           FieldIndex field_index = FieldIndex::ForPropertyIndex(
               *map, index, details_representation.IsDouble());
-          Type* field_type = Type::Tagged();
+          Type* field_type = Type::NonInternal();
           MachineRepresentation field_representation =
               MachineRepresentation::kTagged;
+          MaybeHandle<Map> field_map;
           if (details_representation.IsSmi()) {
             field_type = type_cache_.kSmi;
             field_representation = MachineRepresentation::kTaggedSigned;
@@ -306,27 +310,28 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             // Extract the field type from the property details (make sure its
             // representation is TaggedPointer to reflect the heap object case).
             field_representation = MachineRepresentation::kTaggedPointer;
-            field_type = descriptors->GetFieldType(number)->Convert(zone());
-            if (field_type->Is(Type::None())) {
+            Handle<FieldType> descriptors_field_type(
+                descriptors->GetFieldType(number), isolate());
+            if (descriptors_field_type->IsNone()) {
               // Store is not safe if the field type was cleared.
               if (access_mode == AccessMode::kStore) return false;
 
               // The field type was cleared by the GC, so we don't know anything
               // about the contents now.
-              // TODO(bmeurer): It would be awesome to make this saner in the
-              // runtime/GC interaction.
-              field_type = Type::Any();
-            } else if (!Type::Any()->Is(field_type)) {
+            } else if (descriptors_field_type->IsClass()) {
               // Add proper code dependencies in case of stable field map(s).
-              field_representation = MachineRepresentation::kTaggedPointer;
               Handle<Map> field_owner_map(map->FindFieldOwner(number),
                                           isolate());
               dependencies()->AssumeFieldType(field_owner_map);
+
+              // Remember the field map, and try to infer a useful type.
+              field_type = Type::For(descriptors_field_type->AsClass());
+              field_map = descriptors_field_type->AsClass();
             }
           }
           *access_info = PropertyAccessInfo::DataField(
               MapList{receiver_map}, field_index, field_representation,
-              field_type, holder);
+              field_type, field_map, holder);
           return true;
         }
         case ACCESSOR_CONSTANT: {
@@ -484,7 +489,8 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
     Representation details_representation = details.representation();
     FieldIndex field_index = FieldIndex::ForPropertyIndex(
         *transition_map, index, details_representation.IsDouble());
-    Type* field_type = Type::Tagged();
+    Type* field_type = Type::NonInternal();
+    MaybeHandle<Map> field_map;
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (details_representation.IsSmi()) {
       field_type = type_cache_.kSmi;
@@ -496,23 +502,27 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       // Extract the field type from the property details (make sure its
       // representation is TaggedPointer to reflect the heap object case).
       field_representation = MachineRepresentation::kTaggedPointer;
-      field_type =
-          transition_map->instance_descriptors()->GetFieldType(number)->Convert(
-              zone());
-      if (field_type->Is(Type::None())) {
+      Handle<FieldType> descriptors_field_type(
+          transition_map->instance_descriptors()->GetFieldType(number),
+          isolate());
+      if (descriptors_field_type->IsNone()) {
         // Store is not safe if the field type was cleared.
         return false;
-      } else if (!Type::Any()->Is(field_type)) {
+      } else if (descriptors_field_type->IsClass()) {
         // Add proper code dependencies in case of stable field map(s).
         Handle<Map> field_owner_map(transition_map->FindFieldOwner(number),
                                     isolate());
         dependencies()->AssumeFieldType(field_owner_map);
+
+        // Remember the field map, and try to infer a useful type.
+        field_type = Type::For(descriptors_field_type->AsClass());
+        field_map = descriptors_field_type->AsClass();
       }
     }
     dependencies()->AssumeMapNotDeprecated(transition_map);
     *access_info = PropertyAccessInfo::DataField(
-        MapList{map}, field_index, field_representation, field_type, holder,
-        transition_map);
+        MapList{map}, field_index, field_representation, field_type, field_map,
+        holder, transition_map);
     return true;
   }
   return false;

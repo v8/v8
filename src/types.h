@@ -764,6 +764,11 @@ class Type {
     return Of(*value, zone);
   }
 
+  static Type* For(i::Map* map) {
+    return BitsetType::New(BitsetType::ExpandInternals(BitsetType::Lub(map)));
+  }
+  static Type* For(i::Handle<i::Map> map) { return For(*map); }
+
   // Extraction of components.
   static Type* Representation(Type* t, Zone* zone);
   static Type* Semantic(Type* t, Zone* zone);

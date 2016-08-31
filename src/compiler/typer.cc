@@ -1453,10 +1453,9 @@ Type* Typer::Visitor::TypeJSForInNext(Node* node) {
 
 Type* Typer::Visitor::TypeJSForInPrepare(Node* node) {
   STATIC_ASSERT(Map::EnumLengthBits::kMax <= FixedArray::kMaxLength);
-  Factory* const f = isolate()->factory();
-  Type* const cache_type = Type::Union(
-      typer_->cache_.kSmi, Type::Class(f->meta_map(), zone()), zone());
-  Type* const cache_array = Type::Class(f->fixed_array_map(), zone());
+  Type* const cache_type =
+      Type::Union(typer_->cache_.kSmi, Type::OtherInternal(), zone());
+  Type* const cache_array = Type::OtherInternal();
   Type* const cache_length = typer_->cache_.kFixedArrayLengthType;
   return Type::Tuple(cache_type, cache_array, cache_length, zone());
 }
