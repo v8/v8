@@ -4175,12 +4175,20 @@ void Heap::ReduceNewSpaceSize() {
   }
 }
 
+bool Heap::MarkingDequesAreEmpty() {
+  return mark_compact_collector()->marking_deque()->IsEmpty() &&
+         (!UsingEmbedderHeapTracer() ||
+          (mark_compact_collector()->wrappers_to_trace() == 0 &&
+           mark_compact_collector()
+                   ->embedder_heap_tracer()
+                   ->NumberOfWrappersToTrace() == 0));
+}
 
 void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
   if (incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->finalize_marking_completed() &&
-        mark_compact_collector()->marking_deque()->IsEmpty()))) {
+        MarkingDequesAreEmpty()))) {
     FinalizeIncrementalMarking(comment);
   } else if (incremental_marking()->IsComplete() ||
              (mark_compact_collector()->marking_deque()->IsEmpty())) {
@@ -4195,14 +4203,14 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
       tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
   if (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
       (!incremental_marking()->finalize_marking_completed() &&
-       mark_compact_collector()->marking_deque()->IsEmpty() &&
+       MarkingDequesAreEmpty() &&
        gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
            idle_time_in_ms))) {
     FinalizeIncrementalMarking(
         "Idle notification: finalize incremental marking");
     return true;
   } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_deque()->IsEmpty() &&
+             (MarkingDequesAreEmpty() &&
               gc_idle_time_handler_->ShouldDoFinalIncrementalMarkCompact(
                   idle_time_in_ms, size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {

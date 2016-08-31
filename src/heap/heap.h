@@ -763,14 +763,6 @@ class Heap {
   // Returns false if not able to reserve.
   bool ReserveSpace(Reservation* reservations, List<Address>* maps);
 
-  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
-
-  bool UsingEmbedderHeapTracer();
-
-  void TracePossibleWrapper(JSObject* js_object);
-
-  void RegisterExternallyReferencedObject(Object** object);
-
   //
   // Support for the API.
   //
@@ -1172,6 +1164,18 @@ class Heap {
   void RegisterReservationsForBlackAllocation(Reservation* reservations);
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
+
+  // ===========================================================================
+  // Embedder heap tracer support. =============================================
+  // ===========================================================================
+
+  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
+
+  bool UsingEmbedderHeapTracer();
+
+  void TracePossibleWrapper(JSObject* js_object);
+
+  void RegisterExternallyReferencedObject(Object** object);
 
   // ===========================================================================
   // External string table API. ================================================
@@ -1587,6 +1591,10 @@ class Heap {
   inline bool ShouldFinalizeIncrementalMarking() const {
     return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
   }
+
+  // Checks whether both, the internal marking deque, and the embedder provided
+  // one are empty. Avoid in fast path as it potentially calls through the API.
+  bool MarkingDequesAreEmpty();
 
   void PreprocessStackTraces();
 

@@ -490,15 +490,23 @@ class MarkCompactCollector {
 
   Sweeper& sweeper() { return sweeper_; }
 
-  void RegisterWrappersWithEmbedderHeapTracer();
+  // ===========================================================================
+  // Embedder heap tracer support. =============================================
+  // ===========================================================================
 
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
-
   EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
-
   bool UsingEmbedderHeapTracer() { return embedder_heap_tracer(); }
 
+  // In order to avoid running out of memory we force tracing wrappers if there
+  // are too many of them.
+  bool RequiresImmediateWrapperProcessing();
+
+  void RegisterWrappersWithEmbedderHeapTracer();
+
   void TracePossibleWrapper(JSObject* js_object);
+
+  size_t wrappers_to_trace() { return wrappers_to_trace_.size(); }
 
  private:
   class EvacuateNewSpacePageVisitor;
