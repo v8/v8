@@ -1677,6 +1677,7 @@ Variable* Parser::Declare(Declaration* declaration,
     } else {
       ReportMessage(MessageTemplate::kParamDupe);
     }
+    return nullptr;
   }
   if (sloppy_mode_block_scope_function_redefinition) {
     ++use_counts_[v8::Isolate::kSloppyModeBlockScopedFunctionRedefinition];
