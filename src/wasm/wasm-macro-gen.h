@@ -580,6 +580,12 @@ class LocalDeclEncoder {
 #define WASM_I64_REINTERPRET_F64(x) x, kExprI64ReinterpretF64
 
 //------------------------------------------------------------------------------
+// Memory Operations.
+//------------------------------------------------------------------------------
+#define WASM_GROW_MEMORY(x) x, kExprGrowMemory
+#define WASM_MEMORY_SIZE kExprMemorySize
+
+//------------------------------------------------------------------------------
 // Simd Operations.
 //------------------------------------------------------------------------------
 #define WASM_SIMD_I32x4_SPLAT(x) x, kSimdPrefix, kExprI32x4Splat & 0xff

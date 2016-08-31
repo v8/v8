@@ -256,3 +256,18 @@ TEST(Run_WasmModule_Serialization) {
     new_ctx->Exit();
   }
 }
+
+TEST(Run_WasmModule_GrowMemoryInIf) {
+  TestSignatures sigs;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f_index);
+  f->SetSignature(sigs.i_v());
+  ExportAsMain(f);
+  byte code[] = {WASM_IF_ELSE(WASM_I32V(0), WASM_GROW_MEMORY(WASM_I32V(1)),
+                              WASM_I32V(12))};
+  f->EmitCode(code, sizeof(code));
+  TestModule(&zone, builder, 12);
+}

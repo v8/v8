@@ -1675,6 +1675,8 @@ Node* WasmGraphBuilder::BuildGrowMemory(Node* input) {
           jsgraph()->Uint32Constant(wasm::WasmModule::kMaxMemPages)),
       BranchHint::kTrue);
 
+  check_input_range.Chain(*control_);
+
   Runtime::FunctionId function_id = Runtime::kWasmGrowMemory;
   const Runtime::Function* function = Runtime::FunctionForId(function_id);
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
