@@ -123,10 +123,12 @@ class PreParserIdentifier {
 
 class PreParserExpression {
  public:
-  PreParserExpression() : code_(TypeField::encode(kExpression)) {}
+  PreParserExpression() : code_(TypeField::encode(kEmpty)) {}
+
+  static PreParserExpression Empty() { return PreParserExpression(); }
 
   static PreParserExpression Default() {
-    return PreParserExpression();
+    return PreParserExpression(TypeField::encode(kExpression));
   }
 
   static PreParserExpression Spread(PreParserExpression expression) {
@@ -206,6 +208,8 @@ class PreParserExpression {
         ExpressionTypeField::encode(kNoTemplateTagExpression));
   }
 
+  bool IsEmpty() const { return TypeField::decode(code_) == kEmpty; }
+
   bool IsIdentifier() const {
     return TypeField::decode(code_) == kIdentifierExpression;
   }
@@ -282,7 +286,7 @@ class PreParserExpression {
            ExpressionTypeField::decode(code_) == kNoTemplateTagExpression;
   }
 
-  bool IsSpreadExpression() const {
+  bool IsSpread() const {
     return TypeField::decode(code_) == kSpreadExpression;
   }
 
@@ -305,6 +309,7 @@ class PreParserExpression {
 
  private:
   enum Type {
+    kEmpty,
     kExpression,
     kIdentifierExpression,
     kStringLiteralExpression,
@@ -999,7 +1004,7 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserIdentifier::Default();
   }
   V8_INLINE static PreParserExpression EmptyExpression() {
-    return PreParserExpression::Default();
+    return PreParserExpression::Empty();
   }
   V8_INLINE static PreParserExpression EmptyLiteral() {
     return PreParserExpression::Default();
@@ -1009,6 +1014,10 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE static PreParserExpression EmptyFunctionLiteral() {
     return PreParserExpression::Default();
+  }
+
+  V8_INLINE static bool IsEmptyExpression(PreParserExpression expr) {
+    return expr.IsEmpty();
   }
 
   V8_INLINE static PreParserExpressionList NullExpressionList() {

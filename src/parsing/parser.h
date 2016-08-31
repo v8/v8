@@ -881,6 +881,10 @@ class Parser : public ParserBase<Parser> {
   }
   V8_INLINE static FunctionLiteral* EmptyFunctionLiteral() { return nullptr; }
 
+  V8_INLINE static bool IsEmptyExpression(Expression* expr) {
+    return expr == nullptr;
+  }
+
   // Used in error return values.
   V8_INLINE static ZoneList<Expression*>* NullExpressionList() {
     return nullptr;

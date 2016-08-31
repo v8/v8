@@ -1616,39 +1616,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::RPAREN));
         return factory()->NewEmptyParentheses(beg_pos);
-      } else if (Check(Token::ELLIPSIS)) {
-        // (...x)=>x.  The continuation that looks for the => is in
-        // ParseAssignmentExpression.
-        int ellipsis_pos = position();
-        int expr_pos = peek_position();
-        classifier->RecordExpressionError(scanner()->location(),
-                                          MessageTemplate::kUnexpectedToken,
-                                          Token::String(Token::ELLIPSIS));
-        classifier->RecordNonSimpleParameter();
-        ExpressionClassifier binding_classifier(this);
-        // TODO(adamk): The grammar for this is
-        // BindingIdentifier | BindingPattern, so
-        // ParseAssignmentExpression is overkill.
-        ExpressionT expr =
-            ParseAssignmentExpression(true, &binding_classifier, CHECK_OK);
-        // This already couldn't be an expression or a pattern, so the
-        // only remaining possibility is an arrow formal parameter list.
-        classifier->Accumulate(
-            &binding_classifier,
-            ExpressionClassifier::ArrowFormalParametersProduction);
-        if (!impl()->IsIdentifier(expr) && !IsValidPattern(expr)) {
-          classifier->RecordArrowFormalParametersError(
-              Scanner::Location(ellipsis_pos, scanner()->location().end_pos),
-              MessageTemplate::kInvalidRestParameter);
-        }
-        if (peek() == Token::COMMA) {
-          impl()->ReportMessageAt(scanner()->peek_location(),
-                                  MessageTemplate::kParamAfterRest);
-          *ok = false;
-          return impl()->EmptyExpression();
-        }
-        Expect(Token::RPAREN, CHECK_OK);
-        return factory()->NewSpread(expr, ellipsis_pos, expr_pos);
       }
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
@@ -1721,66 +1688,57 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseExpression(
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
 
-  ExpressionT result;
-
-  // No need to accumulate binding pattern-related errors, since
-  // an Expression can't be a binding pattern anyway.
-  static const unsigned kExpressionProductions =
-      ExpressionClassifier::AllProductions &
-      ~(ExpressionClassifier::BindingPatternProduction |
-        ExpressionClassifier::LetPatternProduction);
-  {
-    ExpressionClassifier binding_classifier(this);
-    result =
-        ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
-    classifier->Accumulate(&binding_classifier, kExpressionProductions);
-  }
-  bool is_simple_parameter_list = impl()->IsIdentifier(result);
-  bool seen_rest = false;
-  while (peek() == Token::COMMA) {
+  ExpressionT result = impl()->EmptyExpression();
+  while (true) {
     CheckNoTailCallExpressions(classifier, CHECK_OK);
-    if (seen_rest) {
-      // At this point the production can't possibly be valid, but we don't know
-      // which error to signal.
-      classifier->RecordArrowFormalParametersError(
-          scanner()->peek_location(), MessageTemplate::kParamAfterRest);
+    int comma_pos = position();
+    ExpressionClassifier binding_classifier(this);
+    ExpressionT right;
+    if (Check(Token::ELLIPSIS)) {
+      // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
+      // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
+      // valid expression.
+      binding_classifier.RecordExpressionError(
+          scanner()->location(), MessageTemplate::kUnexpectedToken,
+          Token::String(Token::ELLIPSIS));
+      int ellipsis_pos = position();
+      int pattern_pos = peek_position();
+      ExpressionT pattern =
+          ParsePrimaryExpression(&binding_classifier, CHECK_OK);
+      ValidateBindingPattern(&binding_classifier, CHECK_OK);
+      right = factory()->NewSpread(pattern, ellipsis_pos, pattern_pos);
+    } else {
+      right =
+          ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
     }
-    Consume(Token::COMMA);
-    bool is_rest = false;
+    // No need to accumulate binding pattern-related errors, since
+    // an Expression can't be a binding pattern anyway.
+    classifier->Accumulate(
+        &binding_classifier,
+        ExpressionClassifier::AllProductions &
+            ~(ExpressionClassifier::BindingPatternProduction |
+              ExpressionClassifier::LetPatternProduction));
+    if (!impl()->IsIdentifier(right)) classifier->RecordNonSimpleParameter();
+    if (impl()->IsEmptyExpression(result)) {
+      // First time through the loop.
+      result = right;
+    } else {
+      result =
+          factory()->NewBinaryOperation(Token::COMMA, result, right, comma_pos);
+    }
+
+    if (!Check(Token::COMMA)) break;
+
+    if (right->IsSpread()) {
+      classifier->RecordArrowFormalParametersError(
+          scanner()->location(), MessageTemplate::kParamAfterRest);
+    }
+
     if (allow_harmony_trailing_commas() && peek() == Token::RPAREN &&
         PeekAhead() == Token::ARROW) {
       // a trailing comma is allowed at the end of an arrow parameter list
       break;
-    } else if (peek() == Token::ELLIPSIS) {
-      // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
-      // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
-      // valid expression or binding pattern.
-      ExpressionUnexpectedToken(classifier);
-      BindingPatternUnexpectedToken(classifier);
-      Consume(Token::ELLIPSIS);
-      // TODO(adamk): If is_rest is true we don't need to parse an assignment
-      // expression, the grammar is BindingIdentifier | BindingPattern.
-      seen_rest = is_rest = true;
     }
-    int pos = position(), expr_pos = peek_position();
-    ExpressionClassifier binding_classifier(this);
-    ExpressionT right =
-        ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
-    classifier->Accumulate(&binding_classifier, kExpressionProductions);
-    if (is_rest) {
-      if (!impl()->IsIdentifier(right) && !IsValidPattern(right)) {
-        classifier->RecordArrowFormalParametersError(
-            Scanner::Location(pos, scanner()->location().end_pos),
-            MessageTemplate::kInvalidRestParameter);
-      }
-      right = factory()->NewSpread(right, pos, expr_pos);
-    }
-    is_simple_parameter_list =
-        is_simple_parameter_list && impl()->IsIdentifier(right);
-    result = factory()->NewBinaryOperation(Token::COMMA, result, right, pos);
-  }
-  if (!is_simple_parameter_list || seen_rest) {
-    classifier->RecordNonSimpleParameter();
   }
 
   return result;
