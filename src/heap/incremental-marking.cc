@@ -1049,12 +1049,10 @@ double IncrementalMarking::AdvanceIncrementalMarking(
       GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs,
       heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
   double remaining_time_in_ms = 0.0;
-  intptr_t bytes_processed = 0;
 
   do {
-    bytes_processed =
-        Step(step_size_in_bytes, step_actions.completion_action,
-             step_actions.force_marking, step_actions.force_completion);
+    Step(step_size_in_bytes, step_actions.completion_action,
+         step_actions.force_marking, step_actions.force_completion);
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
   } while (!heap_->mark_compact_collector()->marking_deque()->IsEmpty() &&
