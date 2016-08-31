@@ -399,7 +399,7 @@ int Scope::num_parameters() const {
   return is_declaration_scope() ? AsDeclarationScope()->num_parameters() : 0;
 }
 
-void DeclarationScope::Analyze(ParseInfo* info) {
+void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();
 
@@ -411,7 +411,7 @@ void DeclarationScope::Analyze(ParseInfo* info) {
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->already_resolved_);
 
-  scope->AllocateVariables(info, false /* for_debugger */);
+  scope->AllocateVariables(info, mode);
 
 #ifdef DEBUG
   if (info->script_is_native() ? FLAG_print_builtin_scopes
@@ -421,21 +421,6 @@ void DeclarationScope::Analyze(ParseInfo* info) {
   scope->CheckScopePositions();
   scope->CheckZones();
 #endif
-}
-
-void DeclarationScope::AnalyzeForDebugger(ParseInfo* info) {
-  DCHECK(info->literal() != NULL);
-  DeclarationScope* scope = info->literal()->scope();
-
-  // We are compiling one of three cases:
-  // 1) top-level code,
-  // 2) a function/eval/module on the top-level
-  // 3) a function/eval in a scope that was already resolved.
-  DCHECK(scope->scope_type() == SCRIPT_SCOPE ||
-         scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
-         scope->outer_scope()->already_resolved_);
-
-  scope->AllocateVariables(info, true /* for_debugger */);
 }
 
 void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
@@ -892,11 +877,11 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
   return nullptr;
 }
 
-void DeclarationScope::AllocateVariables(ParseInfo* info, bool for_debugger) {
+void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
   PropagateScopeInfo();
   ResolveVariablesRecursively(info);
   AllocateVariablesRecursively();
-  AllocateScopeInfosRecursively(info->isolate(), for_debugger);
+  AllocateScopeInfosRecursively(info->isolate(), mode);
 }
 
 bool Scope::AllowsLazyParsing() const {
@@ -1643,15 +1628,15 @@ void Scope::AllocateVariablesRecursively() {
   DCHECK(num_heap_slots_ == 0 || num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
 }
 
-void Scope::AllocateScopeInfosRecursively(Isolate* isolate, bool for_debugger) {
+void Scope::AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode) {
   DCHECK(scope_info_.is_null());
-  if (for_debugger || NeedsScopeInfo()) {
+  if (mode == AnalyzeMode::kDebugger || NeedsScopeInfo()) {
     scope_info_ = ScopeInfo::Create(isolate, zone(), this);
   }
 
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->AllocateScopeInfosRecursively(isolate, for_debugger);
+    scope->AllocateScopeInfosRecursively(isolate, mode);
   }
 }
 

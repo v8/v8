@@ -1331,7 +1331,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 bool Compiler::Analyze(ParseInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   if (!Rewriter::Rewrite(info)) return false;
-  DeclarationScope::Analyze(info);
+  DeclarationScope::Analyze(info, AnalyzeMode::kRegular);
   if (!Renumber(info)) return false;
   DCHECK_NOT_NULL(info->scope());
   return true;

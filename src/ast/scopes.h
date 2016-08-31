@@ -40,6 +40,7 @@ class SloppyBlockFunctionMap : public ZoneHashMap {
                SloppyBlockFunctionStatement* statement);
 };
 
+enum class AnalyzeMode { kRegular, kDebugger };
 
 // Global invariants after AST construction: Each reference (i.e. identifier)
 // to a JavaScript variable (including global properties) is represented by a
@@ -545,7 +546,7 @@ class Scope: public ZoneObject {
   void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
-  void AllocateScopeInfosRecursively(Isolate* isolate, bool for_debugger);
+  void AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
@@ -752,10 +753,7 @@ class DeclarationScope : public Scope {
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
-  static void Analyze(ParseInfo* info);
-
-  // Version used by the debugger that creates extra ScopeInfos.
-  static void AnalyzeForDebugger(ParseInfo* info);
+  static void Analyze(ParseInfo* info, AnalyzeMode mode);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope for lazily compiled functions. In particular, this
@@ -802,7 +800,7 @@ class DeclarationScope : public Scope {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(ParseInfo* info, bool for_debugger);
+  void AllocateVariables(ParseInfo* info, AnalyzeMode mode);
 
   void SetDefaults();
 
