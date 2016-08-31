@@ -443,6 +443,7 @@ def ProcessOptions(options):
         latest_timestamp = os.path.getmtime(gn_config_dir)
         latest_config = gn_config
     if latest_config:
+      print(">>> Latest GN build found is %s" % latest_config)
       options.outdir = os.path.join(DEFAULT_OUT_GN, latest_config)
 
   build_config_path = os.path.join(
