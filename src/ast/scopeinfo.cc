@@ -11,6 +11,13 @@
 namespace v8 {
 namespace internal {
 
+// An entry in ModuleVariableEntries consists of several slots:
+enum ModuleVariableEntryOffset {
+  kModuleVariableNameOffset,
+  kModuleVariableIndexOffset,
+  kModuleVariablePropertiesOffset,
+  kModuleVariableEntryLength  // Sentinel value.
+};
 
 Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
                                     Scope* scope) {
@@ -18,6 +25,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   ZoneList<Variable*>* locals = scope->locals();
   int stack_local_count = 0;
   int context_local_count = 0;
+  int module_vars_count = 0;
   // Stack allocated block scope variables are allocated in the parent
   // declaration scope, but are recorded in the block scope's scope info. First
   // slot index indicates at which offset a particular scope starts in the
@@ -25,13 +33,22 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   int first_slot_index = 0;
   for (int i = 0; i < locals->length(); i++) {
     Variable* var = locals->at(i);
-    if (var->IsStackLocal()) {
-      if (stack_local_count == 0) first_slot_index = var->index();
-      stack_local_count++;
-    } else if (var->IsContextSlot()) {
-      context_local_count++;
+    switch (var->location()) {
+      case VariableLocation::LOCAL:
+        if (stack_local_count == 0) first_slot_index = var->index();
+        stack_local_count++;
+        break;
+      case VariableLocation::CONTEXT:
+        context_local_count++;
+        break;
+      case VariableLocation::MODULE:
+        module_vars_count++;
+        break;
+      default:
+        break;
     }
   }
+  DCHECK(module_vars_count == 0 || scope->is_module_scope());
 
   // Make sure we allocate the correct amount.
   DCHECK_EQ(scope->ContextLocalCount(), context_local_count);
@@ -82,7 +99,10 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   const int parameter_count = scope->num_parameters();
   const int length = kVariablePartIndex + parameter_count +
                      (1 + stack_local_count) + 2 * context_local_count +
-                     (has_receiver ? 1 : 0) + (has_function_name ? 2 : 0);
+                     (has_receiver ? 1 : 0) + (has_function_name ? 2 : 0) +
+                     (scope->is_module_scope()
+                          ? 2 + kModuleVariableEntryLength * module_vars_count
+                          : 0);
 
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
@@ -113,6 +133,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               HasSimpleParametersField::encode(has_simple_parameters) |
               FunctionKindField::encode(function_kind);
   scope_info->SetFlags(flags);
+
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
   scope_info->SetContextLocalCount(context_local_count);
@@ -127,10 +148,10 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
     }
   }
 
-  // Add stack locals' names, context locals' names and info. We are assuming
-  // that the stack locals' slots are allocated in increasing order, so we can
-  // simply add them to the ScopeInfo object. Context locals are added using
-  // their index.
+  // Add stack locals' names, context locals' names and info, module variables'
+  // names and info. We are assuming that the stack locals' slots are allocated
+  // in increasing order, so we can simply add them to the ScopeInfo object.
+  // Context locals are added using their index.
   DCHECK_EQ(index, scope_info->StackLocalFirstSlotIndex());
   scope_info->set(index++, Smi::FromInt(first_slot_index));
   DCHECK_EQ(index, scope_info->StackLocalEntriesIndex());
@@ -138,26 +159,48 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   int stack_local_base = index;
   int context_local_base = stack_local_base + stack_local_count;
   int context_local_info_base = context_local_base + context_local_count;
+  int module_var_entry = scope_info->ModuleVariableEntriesIndex();
 
   for (int i = 0; i < locals->length(); ++i) {
     Variable* var = locals->at(i);
-    if (var->IsStackLocal()) {
-      int local_index = var->index() - first_slot_index;
-      DCHECK_LE(0, local_index);
-      DCHECK_LT(local_index, stack_local_count);
-      scope_info->set(stack_local_base + local_index, *var->name());
-    } else if (var->IsContextSlot()) {
-      // Due to duplicate parameters, context locals aren't guaranteed to come
-      // in order.
-      int local_index = var->index() - Context::MIN_CONTEXT_SLOTS;
-      DCHECK_LE(0, local_index);
-      DCHECK_LT(local_index, context_local_count);
-      uint32_t info = VariableModeField::encode(var->mode()) |
-                      InitFlagField::encode(var->initialization_flag()) |
-                      MaybeAssignedFlagField::encode(var->maybe_assigned());
-      scope_info->set(context_local_base + local_index, *var->name());
-      scope_info->set(context_local_info_base + local_index,
-                      Smi::FromInt(info));
+    switch (var->location()) {
+      case VariableLocation::LOCAL: {
+        int local_index = var->index() - first_slot_index;
+        DCHECK_LE(0, local_index);
+        DCHECK_LT(local_index, stack_local_count);
+        scope_info->set(stack_local_base + local_index, *var->name());
+        break;
+      }
+      case VariableLocation::CONTEXT: {
+        // Due to duplicate parameters, context locals aren't guaranteed to come
+        // in order.
+        int local_index = var->index() - Context::MIN_CONTEXT_SLOTS;
+        DCHECK_LE(0, local_index);
+        DCHECK_LT(local_index, context_local_count);
+        uint32_t info = VariableModeField::encode(var->mode()) |
+                        InitFlagField::encode(var->initialization_flag()) |
+                        MaybeAssignedFlagField::encode(var->maybe_assigned());
+        scope_info->set(context_local_base + local_index, *var->name());
+        scope_info->set(context_local_info_base + local_index,
+                        Smi::FromInt(info));
+        break;
+      }
+      case VariableLocation::MODULE: {
+        scope_info->set(module_var_entry + kModuleVariableNameOffset,
+                        *var->name());
+        scope_info->set(module_var_entry + kModuleVariableIndexOffset,
+                        Smi::FromInt(var->index()));
+        uint32_t properties =
+            VariableModeField::encode(var->mode()) |
+            InitFlagField::encode(var->initialization_flag()) |
+            MaybeAssignedFlagField::encode(var->maybe_assigned());
+        scope_info->set(module_var_entry + kModuleVariablePropertiesOffset,
+                        Smi::FromInt(properties));
+        module_var_entry += kModuleVariableEntryLength;
+        break;
+      }
+      default:
+        break;
     }
   }
 
@@ -181,6 +224,19 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
     scope_info->set(index++, Smi::FromInt(var_index));
     DCHECK(function_name_info != CONTEXT ||
            var_index == scope_info->ContextLength() - 1);
+  }
+
+  // Module-specific information (only for module scopes).
+  if (scope->is_module_scope()) {
+    Handle<ModuleInfo> module_info =
+        ModuleInfo::New(isolate, scope->AsModuleScope()->module());
+    DCHECK_EQ(index, scope_info->ModuleInfoEntryIndex());
+    scope_info->set(index++, *module_info);
+    DCHECK_EQ(index, scope_info->ModuleVariableCountIndex());
+    scope_info->set(index++, Smi::FromInt(module_vars_count));
+    DCHECK_EQ(index, scope_info->ModuleVariableEntriesIndex());
+    // The variable entries themselves have already been written above.
+    index += kModuleVariableEntryLength * module_vars_count;
   }
 
   DCHECK_EQ(index, scope_info->length());
@@ -367,6 +423,10 @@ String* ScopeInfo::FunctionName() {
   return String::cast(get(FunctionNameEntryIndex()));
 }
 
+ModuleInfo* ScopeInfo::ModuleDescriptorInfo() {
+  DCHECK(scope_type() == MODULE_SCOPE);
+  return static_cast<ModuleInfo*>(get(ModuleInfoEntryIndex()));
+}
 
 String* ScopeInfo::ParameterName(int var) {
   DCHECK_LE(0, var);
@@ -461,6 +521,32 @@ int ScopeInfo::StackSlotIndex(String* name) {
   return -1;
 }
 
+int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
+                           InitializationFlag* init_flag,
+                           MaybeAssignedFlag* maybe_assigned_flag) {
+  DCHECK_EQ(scope_type(), MODULE_SCOPE);
+  DCHECK(name->IsInternalizedString());
+  DCHECK_NOT_NULL(mode);
+  DCHECK_NOT_NULL(init_flag);
+  DCHECK_NOT_NULL(maybe_assigned_flag);
+
+  int module_vars_count = Smi::cast(get(ModuleVariableCountIndex()))->value();
+  int entry = ModuleVariableEntriesIndex();
+  for (int i = 0; i < module_vars_count; ++i) {
+    if (*name == get(entry + kModuleVariableNameOffset)) {
+      int index = Smi::cast(get(entry + kModuleVariableIndexOffset))->value();
+      int properties =
+          Smi::cast(get(entry + kModuleVariablePropertiesOffset))->value();
+      *mode = VariableModeField::decode(properties);
+      *init_flag = InitFlagField::decode(properties);
+      *maybe_assigned_flag = MaybeAssignedFlagField::decode(properties);
+      return index;
+    }
+    entry += kModuleVariableEntryLength;
+  }
+
+  return -1;
+}
 
 int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
                                 Handle<String> name, VariableMode* mode,
@@ -579,19 +665,26 @@ int ScopeInfo::ContextLocalNameEntriesIndex() {
   return StackLocalEntriesIndex() + StackLocalCount();
 }
 
-
 int ScopeInfo::ContextLocalInfoEntriesIndex() {
   return ContextLocalNameEntriesIndex() + ContextLocalCount();
 }
-
 
 int ScopeInfo::ReceiverEntryIndex() {
   return ContextLocalInfoEntriesIndex() + ContextLocalCount();
 }
 
-
 int ScopeInfo::FunctionNameEntryIndex() {
   return ReceiverEntryIndex() + (HasAllocatedReceiver() ? 1 : 0);
+}
+
+int ScopeInfo::ModuleInfoEntryIndex() {
+  return FunctionNameEntryIndex() + (HasFunctionName() ? 2 : 0);
+}
+
+int ScopeInfo::ModuleVariableCountIndex() { return ModuleInfoEntryIndex() + 1; }
+
+int ScopeInfo::ModuleVariableEntriesIndex() {
+  return ModuleVariableCountIndex() + 1;
 }
 
 #ifdef DEBUG
@@ -638,6 +731,32 @@ void ScopeInfo::Print() {
 }
 #endif  // DEBUG
 
+Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
+  // Serialize special exports.
+  Handle<FixedArray> special_exports =
+      isolate->factory()->NewFixedArray(descr->special_exports().length());
+  {
+    int i = 0;
+    for (auto entry : descr->special_exports()) {
+      special_exports->set(i++, *entry->Serialize(isolate));
+    }
+  }
+
+  // Serialize regular exports.
+  Handle<FixedArray> regular_exports = isolate->factory()->NewFixedArray(
+      static_cast<int>(descr->regular_exports().size()));
+  {
+    int i = 0;
+    for (const auto& it : descr->regular_exports()) {
+      regular_exports->set(i++, *it.second->Serialize(isolate));
+    }
+  }
+
+  Handle<ModuleInfo> result = isolate->factory()->NewModuleInfo();
+  result->set(kSpecialExportsIndex, *special_exports);
+  result->set(kRegularExportsIndex, *regular_exports);
+  return result;
+}
 
 }  // namespace internal
 }  // namespace v8

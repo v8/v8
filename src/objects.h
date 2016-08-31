@@ -94,6 +94,7 @@
 //         - TemplateList
 //         - TransitionArray
 //         - ScopeInfo
+//         - ModuleInfo
 //         - ScriptContextTable
 //         - WeakFixedArray
 //       - FixedDoubleArray
@@ -879,6 +880,8 @@ class LayoutDescriptor;
 class LiteralsArray;
 class LookupIterator;
 class FieldType;
+class ModuleDescriptor;
+class ModuleInfo;
 class ObjectHashTable;
 class ObjectVisitor;
 class PropertyCell;
@@ -979,6 +982,7 @@ template <class C> inline bool Is(Object* obj);
   V(ScriptContextTable)          \
   V(NativeContext)               \
   V(ScopeInfo)                   \
+  V(ModuleInfo)                  \
   V(JSBoundFunction)             \
   V(JSFunction)                  \
   V(Code)                        \
@@ -4317,6 +4321,8 @@ class ScopeInfo : public FixedArray {
   // Return the function_name if present.
   String* FunctionName();
 
+  ModuleInfo* ModuleDescriptorInfo();
+
   // Return the name of the given parameter.
   String* ParameterName(int var);
 
@@ -4360,6 +4366,12 @@ class ScopeInfo : public FixedArray {
                               VariableMode* mode, InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
 
+  // Lookup metadata of a MODULE-allocated variable.  Return a negative value if
+  // there is no module variable with the given name.
+  int ModuleIndex(Handle<String> name, VariableMode* mode,
+                  InitializationFlag* init_flag,
+                  MaybeAssignedFlag* maybe_assigned_flag);
+
   // Lookup the name of a certain context slot by its index.
   String* ContextSlotName(int slot_index);
 
@@ -4394,11 +4406,10 @@ class ScopeInfo : public FixedArray {
   // The layout of the static part of a ScopeInfo is as follows. Each entry is
   // numeric and occupies one array slot.
   // 1. A set of properties of the scope
-  // 2. The number of parameters. This only applies to function scopes. For
-  //    non-function scopes this is 0.
-  // 3. The number of non-parameter variables allocated on the stack.
-  // 4. The number of non-parameter and parameter variables allocated in the
-  //    context.
+// 2. The number of parameters. For non-function scopes this is 0.
+// 3. The number of non-parameter variables allocated on the stack.
+// 4. The number of non-parameter and parameter variables allocated in the
+//    context.
 #define FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(V) \
   V(Flags)                                   \
   V(ParameterCount)                          \
@@ -4445,14 +4456,18 @@ class ScopeInfo : public FixedArray {
   //    the context locals in ContextLocalNameEntries. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount()
   //    slots in the array.
-  // 6. RecieverEntryIndex:
+  // 6. ReceiverEntry:
   //    If the scope binds a "this" value, one slot is reserved to hold the
   //    context or stack slot index for the variable.
-  // 7. FunctionNameEntryIndex:
+  // 7. FunctionNameEntry:
   //    If the scope belongs to a named function expression this part contains
   //    information about the function variable. It always occupies two array
   //    slots:  a. The name of the function variable.
   //            b. The context or stack slot index for the variable.
+  // 8. ModuleInfoEntry, ModuleVariableCount, and ModuleVariableEntries:
+  //    For a module scope, this part contains the ModuleInfo, the number of
+  //    MODULE-allocated variables, and the metadata of those variables.  For
+  //    non-module scopes it is empty.
   int ParameterEntriesIndex();
   int StackLocalFirstSlotIndex();
   int StackLocalEntriesIndex();
@@ -4460,6 +4475,9 @@ class ScopeInfo : public FixedArray {
   int ContextLocalInfoEntriesIndex();
   int ReceiverEntryIndex();
   int FunctionNameEntryIndex();
+  int ModuleInfoEntryIndex();
+  int ModuleVariableCountIndex();
+  int ModuleVariableEntriesIndex();
 
   int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
              VariableLocation* location, InitializationFlag* init_flag,
@@ -4502,6 +4520,18 @@ class ScopeInfo : public FixedArray {
   friend class ScopeIterator;
 };
 
+// ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
+class ModuleInfo : public FixedArray {
+ public:
+  DECLARE_CAST(ModuleInfo)
+  static Handle<ModuleInfo> New(Isolate* isolate, ModuleDescriptor* descr);
+  inline FixedArray* special_exports() const;
+  inline FixedArray* regular_exports() const;
+
+ private:
+  friend class Factory;
+  enum { kSpecialExportsIndex, kRegularExportsIndex, kLength };
+};
 
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program

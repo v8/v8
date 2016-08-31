@@ -792,6 +792,9 @@ bool HeapObject::IsScopeInfo() const {
   return map() == GetHeap()->scope_info_map();
 }
 
+bool HeapObject::IsModuleInfo() const {
+  return map() == GetHeap()->module_info_map();
+}
 
 TYPE_CHECKER(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)
 TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
@@ -3281,6 +3284,7 @@ CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(Map)
+CAST_ACCESSOR(ModuleInfo)
 CAST_ACCESSOR(Name)
 CAST_ACCESSOR(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
@@ -7916,6 +7920,13 @@ bool ScopeInfo::HasSimpleParameters() {
 FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(SCOPE_INFO_FIELD_ACCESSORS)
 #undef SCOPE_INFO_FIELD_ACCESSORS
 
+FixedArray* ModuleInfo::special_exports() const {
+  return FixedArray::cast(get(kSpecialExportsIndex));
+}
+
+FixedArray* ModuleInfo::regular_exports() const {
+  return FixedArray::cast(get(kRegularExportsIndex));
+}
 
 void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.

@@ -839,6 +839,8 @@ class ModuleScope final : public DeclarationScope {
  public:
   ModuleScope(DeclarationScope* script_scope,
               AstValueFactory* ast_value_factory);
+  ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
+              AstValueFactory* ast_value_factory);
 
   ModuleDescriptor* module() const {
     DCHECK_NOT_NULL(module_descriptor_);

@@ -557,6 +557,8 @@ class Factory final {
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);
 
+  Handle<ModuleInfo> NewModuleInfo();
+
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
 

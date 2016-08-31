@@ -164,6 +164,36 @@ ModuleScope::ModuleScope(DeclarationScope* script_scope,
   DeclareThis(ast_value_factory);
 }
 
+ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
+                         AstValueFactory* avfactory)
+    : DeclarationScope(avfactory->zone(), MODULE_SCOPE, scope_info) {
+  Zone* zone = avfactory->zone();
+  ModuleInfo* module_info = scope_info->ModuleDescriptorInfo();
+
+  set_language_mode(STRICT);
+  module_descriptor_ = new (zone) ModuleDescriptor(zone);
+
+  // Deserialize special exports.
+  Handle<FixedArray> special_exports = handle(module_info->special_exports());
+  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+    Handle<FixedArray> serialized_entry(
+        FixedArray::cast(special_exports->get(i)), isolate);
+    module_descriptor_->AddSpecialExport(
+        ModuleDescriptor::Entry::Deserialize(isolate, avfactory,
+                                             serialized_entry),
+        avfactory->zone());
+  }
+
+  // Deserialize regular exports.
+  Handle<FixedArray> regular_exports = handle(module_info->regular_exports());
+  for (int i = 0, n = regular_exports->length(); i < n; ++i) {
+    Handle<FixedArray> serialized_entry(
+        FixedArray::cast(regular_exports->get(i)), isolate);
+    module_descriptor_->AddRegularExport(ModuleDescriptor::Entry::Deserialize(
+        isolate, avfactory, serialized_entry));
+  }
+}
+
 Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
     : zone_(zone),
       outer_scope_(nullptr),
@@ -328,6 +358,11 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       } else {
         outer_scope = new (zone) Scope(zone, BLOCK_SCOPE, scope_info);
       }
+    } else if (context->IsModuleContext()) {
+      ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+      DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
+      outer_scope = new (zone) ModuleScope(
+          isolate, Handle<ScopeInfo>(scope_info), ast_value_factory);
     } else {
       DCHECK(context->IsCatchContext());
       String* name = context->catch_name();
@@ -427,6 +462,12 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
   DCHECK(scope->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->already_resolved_);
+
+  // For modules, we want to start variable allocation at the surrounding script
+  // scope.
+  if (scope->is_module_scope()) {
+    scope = scope->outer_scope()->AsDeclarationScope();
+  }
 
   scope->AllocateVariables(info, mode);
 
@@ -617,7 +658,8 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
                                           &init_flag, &maybe_assigned_flag);
   if (index < 0 && scope_type() == MODULE_SCOPE) {
     location = VariableLocation::MODULE;
-    index = -1;  // TODO(neis): Find module variables in scope info.
+    index = scope_info_->ModuleIndex(name_handle, &mode, &init_flag,
+                                     &maybe_assigned_flag);
   }
   if (index < 0) return nullptr;  // Nowhere found.
 

@@ -49,7 +49,8 @@ class Variable final : public ZoneObject {
     return ForceContextAllocationField::decode(bit_field_);
   }
   void ForceContextAllocation() {
-    DCHECK(IsUnallocated() || IsContextSlot());
+    DCHECK(IsUnallocated() || IsContextSlot() ||
+           location() == VariableLocation::MODULE);
     bit_field_ = ForceContextAllocationField::update(bit_field_, true);
   }
   bool is_used() { return IsUsedField::decode(bit_field_); }

@@ -1393,6 +1393,12 @@ Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   return scope_info;
 }
 
+Handle<ModuleInfo> Factory::NewModuleInfo() {
+  Handle<FixedArray> array = NewFixedArray(ModuleInfo::kLength, TENURED);
+  array->set_map_no_write_barrier(*module_info_map());
+  Handle<ModuleInfo> module_info = Handle<ModuleInfo>::cast(array);
+  return module_info;
+}
 
 Handle<JSObject> Factory::NewExternal(void* value) {
   Handle<Foreign> foreign = NewForeign(static_cast<Address>(value));

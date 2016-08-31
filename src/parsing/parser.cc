@@ -566,6 +566,7 @@ void Parser::DeserializeScopeChain(
     scope = Scope::DeserializeScopeChain(info->isolate(), zone(), *context,
                                          script_scope, ast_value_factory(),
                                          deserialization_mode);
+    DCHECK(!info->is_module() || scope->is_module_scope());
     if (info->context().is_null()) {
       DCHECK(deserialization_mode ==
              Scope::DeserializationMode::kDeserializeOffHeap);
