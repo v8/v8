@@ -1907,14 +1907,15 @@ Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
   return body;
 }
 
-
-Block* Parser::DeclarationParsingResult::BuildInitializationBlock(
+Block* Parser::BuildInitializationBlock(
+    DeclarationParsingResult* parsing_result,
     ZoneList<const AstRawString*>* names, bool* ok) {
-  Block* result = descriptor.parser->factory()->NewBlock(
-      NULL, 1, true, descriptor.declaration_pos);
-  for (auto declaration : declarations) {
+  Block* result = factory()->NewBlock(
+      NULL, 1, true, parsing_result->descriptor.declaration_pos);
+  for (auto declaration : parsing_result->declarations) {
     PatternRewriter::DeclareAndInitializeVariables(
-        result, &descriptor, &declaration, names, CHECK_OK);
+        this, result, &(parsing_result->descriptor), &declaration, names,
+        CHECK_OK);
   }
   return result;
 }
@@ -1963,7 +1964,6 @@ Block* Parser::ParseVariableDeclarations(
   // ConstBinding ::
   //   BindingPattern '=' AssignmentExpression
 
-  parsing_result->descriptor.parser = this;
   parsing_result->descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
   parsing_result->descriptor.declaration_pos = peek_position();
   parsing_result->descriptor.initialization_pos = peek_position();
@@ -2084,7 +2084,8 @@ Block* Parser::ParseVariableDeclarations(
       // and adding VariableProxies to the Scope (see bug 4699).
       DCHECK_NOT_NULL(init_block);
       PatternRewriter::DeclareAndInitializeVariables(
-          init_block, &parsing_result->descriptor, &decl, names, CHECK_OK);
+          this, init_block, &parsing_result->descriptor, &decl, names,
+          CHECK_OK);
     }
     first_declaration = false;
   } while (peek() == Token::COMMA);
@@ -2632,7 +2633,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
         if (pattern != nullptr) {
           DeclarationDescriptor descriptor;
           descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
-          descriptor.parser = this;
           descriptor.scope = scope();
           descriptor.hoist_scope = nullptr;
           descriptor.mode = LET;
@@ -2649,7 +2649,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
           Block* init_block =
               factory()->NewBlock(nullptr, 8, true, kNoSourcePosition);
           PatternRewriter::DeclareAndInitializeVariables(
-              init_block, &descriptor, &decl, &bound_names, CHECK_OK);
+              this, init_block, &descriptor, &decl, &bound_names, CHECK_OK);
           catch_block->statements()->Add(init_block, zone());
         } else {
           bound_names.Add(name, zone());
@@ -3378,7 +3378,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
                 parsing_result.descriptor.mode == VariableMode::VAR;
 
             PatternRewriter::DeclareAndInitializeVariables(
-                each_initialization_block, &descriptor, &decl,
+                this, each_initialization_block, &descriptor, &decl,
                 bound_names_are_lexical || is_for_var_of ? &bound_names
                                                          : nullptr,
                 CHECK_OK);
@@ -3453,8 +3453,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       } else {
         bound_names_are_lexical =
             IsLexicalVariableMode(parsing_result.descriptor.mode);
-        init = parsing_result.BuildInitializationBlock(
-            bound_names_are_lexical ? &bound_names : nullptr, CHECK_OK);
+        init = BuildInitializationBlock(
+            &parsing_result, bound_names_are_lexical ? &bound_names : nullptr,
+            CHECK_OK);
       }
     } else {
       int lhs_beg_pos = peek_position();
@@ -4235,7 +4236,6 @@ Block* Parser::BuildParameterInitializationBlock(
     if (parameter.is_rest && parameter.pattern->IsVariableProxy()) break;
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
-    descriptor.parser = this;
     descriptor.scope = scope();
     descriptor.hoist_scope = nullptr;
     descriptor.mode = LET;
@@ -4288,8 +4288,8 @@ Block* Parser::BuildParameterInitializationBlock(
     BlockState block_state(&scope_state_, param_scope);
     DeclarationParsingResult::Declaration decl(
         parameter.pattern, initializer_position, initial_value);
-    PatternRewriter::DeclareAndInitializeVariables(param_block, &descriptor,
-                                                   &decl, nullptr, CHECK_OK);
+    PatternRewriter::DeclareAndInitializeVariables(
+        this, param_block, &descriptor, &decl, nullptr, CHECK_OK);
 
     if (param_block != init_block) {
       param_scope = block_state.FinalizedBlockScope();

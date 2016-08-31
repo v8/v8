@@ -12,7 +12,8 @@ namespace v8 {
 namespace internal {
 
 void Parser::PatternRewriter::DeclareAndInitializeVariables(
-    Block* block, const DeclarationDescriptor* declaration_descriptor,
+    Parser* parser, Block* block,
+    const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZoneList<const AstRawString*>* names, bool* ok) {
   PatternRewriter rewriter;
@@ -20,7 +21,7 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
   DCHECK(block->ignore_completion_value());
 
   rewriter.scope_ = declaration_descriptor->scope;
-  rewriter.parser_ = declaration_descriptor->parser;
+  rewriter.parser_ = parser;
   rewriter.context_ = BINDING;
   rewriter.pattern_ = declaration->pattern;
   rewriter.initializer_position_ = declaration->initializer_position;

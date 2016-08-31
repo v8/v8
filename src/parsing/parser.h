@@ -295,54 +295,21 @@ class Parser : public ParserBase<Parser> {
                                    bool default_export, bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
+  Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
+                                  ZoneList<const AstRawString*>* names,
+                                  bool* ok);
+
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 ZoneList<const AstRawString*>* names,
                                 bool* ok);
   DoExpression* ParseDoExpression(bool* ok);
   Expression* ParseYieldStarExpression(bool* ok);
 
-  struct DeclarationDescriptor {
-    enum Kind { NORMAL, PARAMETER };
-    Parser* parser;
-    Scope* scope;
-    Scope* hoist_scope;
-    VariableMode mode;
-    int declaration_pos;
-    int initialization_pos;
-    Kind declaration_kind;
-  };
-
-  struct DeclarationParsingResult {
-    struct Declaration {
-      Declaration(Expression* pattern, int initializer_position,
-                  Expression* initializer)
-          : pattern(pattern),
-            initializer_position(initializer_position),
-            initializer(initializer) {}
-
-      Expression* pattern;
-      int initializer_position;
-      Expression* initializer;
-    };
-
-    DeclarationParsingResult()
-        : declarations(4),
-          first_initializer_loc(Scanner::Location::invalid()),
-          bindings_loc(Scanner::Location::invalid()) {}
-
-    Block* BuildInitializationBlock(ZoneList<const AstRawString*>* names,
-                                    bool* ok);
-
-    DeclarationDescriptor descriptor;
-    List<Declaration> declarations;
-    Scanner::Location first_initializer_loc;
-    Scanner::Location bindings_loc;
-  };
-
   class PatternRewriter final : public AstVisitor<PatternRewriter> {
    public:
     static void DeclareAndInitializeVariables(
-        Block* block, const DeclarationDescriptor* declaration_descriptor,
+        Parser* parser, Block* block,
+        const DeclarationDescriptor* declaration_descriptor,
         const DeclarationParsingResult::Declaration* declaration,
         ZoneList<const AstRawString*>* names, bool* ok);
 

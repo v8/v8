@@ -632,6 +632,40 @@ class ParserBase {
     Mode old_mode_;
   };
 
+  struct DeclarationDescriptor {
+    enum Kind { NORMAL, PARAMETER };
+    Scope* scope;
+    Scope* hoist_scope;
+    VariableMode mode;
+    int declaration_pos;
+    int initialization_pos;
+    Kind declaration_kind;
+  };
+
+  struct DeclarationParsingResult {
+    struct Declaration {
+      Declaration(ExpressionT pattern, int initializer_position,
+                  ExpressionT initializer)
+          : pattern(pattern),
+            initializer_position(initializer_position),
+            initializer(initializer) {}
+
+      ExpressionT pattern;
+      int initializer_position;
+      ExpressionT initializer;
+    };
+
+    DeclarationParsingResult()
+        : declarations(4),
+          first_initializer_loc(Scanner::Location::invalid()),
+          bindings_loc(Scanner::Location::invalid()) {}
+
+    DeclarationDescriptor descriptor;
+    List<Declaration> declarations;
+    Scanner::Location first_initializer_loc;
+    Scanner::Location bindings_loc;
+  };
+
   DeclarationScope* NewScriptScope() const {
     return new (zone()) DeclarationScope(zone());
   }
