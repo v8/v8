@@ -251,6 +251,16 @@ bool Scope::HasSimpleParameters() {
   return !scope->is_function_scope() || scope->has_simple_parameters();
 }
 
+void DeclarationScope::set_asm_module() {
+  asm_module_ = true;
+  // Mark any existing inner function scopes as asm function scopes.
+  for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
+    if (inner->is_function_scope()) {
+      inner->AsDeclarationScope()->set_asm_function();
+    }
+  }
+}
+
 bool Scope::IsAsmModule() const {
   return is_function_scope() && AsDeclarationScope()->asm_module();
 }
@@ -329,7 +339,6 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
 
   if (innermost_scope == nullptr) return script_scope;
   script_scope->AddInnerScope(current_scope);
-  script_scope->PropagateScopeInfo();
   return innermost_scope;
 }
 
@@ -878,7 +887,6 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
 }
 
 void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
-  PropagateScopeInfo();
   ResolveVariablesRecursively(info);
   AllocateVariablesRecursively();
   AllocateScopeInfosRecursively(info->isolate(), mode);
@@ -981,9 +989,6 @@ Handle<StringSet> DeclarationScope::CollectNonLocals(
 
 void DeclarationScope::AnalyzePartially(DeclarationScope* migrate_to,
                                         AstNodeFactory* ast_node_factory) {
-  // Gather info from inner scopes.
-  PropagateScopeInfo();
-
   // Try to resolve unresolved variables for this Scope and migrate those which
   // cannot be resolved inside. It doesn't make sense to try to resolve them in
   // the outer Scopes here, because they are incomplete.
@@ -1402,16 +1407,6 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
 
   return stack;
 }
-
-void Scope::PropagateScopeInfo() {
-  for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
-    inner->PropagateScopeInfo();
-    if (IsAsmModule() && inner->is_function_scope()) {
-      inner->AsDeclarationScope()->set_asm_function();
-    }
-  }
-}
-
 
 bool Scope::MustAllocate(Variable* var) {
   DCHECK(var->location() != VariableLocation::MODULE);
