@@ -104,6 +104,7 @@ class WasmModuleBuilder {
   constructor() {
     this.types = [];
     this.imports = [];
+    this.globals = [];
     this.functions = [];
     this.exports = [];
     this.table = [];
@@ -136,6 +137,11 @@ class WasmModuleBuilder {
     // TODO: canonicalize types?
     this.types.push(type);
     return this.types.length - 1;
+  }
+
+  addGlobal(local_type) {
+    this.globals.push(local_type);
+    return this.globals.length - 1;
   }
 
   addFunction(name, type) {
@@ -188,6 +194,18 @@ class WasmModuleBuilder {
           for (let result of type.results) {
             section.emit_u8(result);
           }
+        }
+      });
+    }
+
+    if (wasm.globals.length > 0) {
+      if (debug) print ("emitting globals @ " + binary.length);
+      binary.emit_section(kDeclGlobals, section => {
+        section.emit_varint(wasm.globals.length);
+        for (let global_type of wasm.globals) {
+          section.emit_varint(0);  // length of global name
+          section.emit_u8(global_type);
+          section.emit_u8(false);  // we do not support exported globals
         }
       });
     }

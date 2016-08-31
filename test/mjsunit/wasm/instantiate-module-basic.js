@@ -153,3 +153,26 @@ promise.then(module => CheckInstance(new WebAssembly.Instance(module)));
   assertEquals(42, outval_1);
   assertEquals(1000, outval_2);
 })();
+
+(function GlobalsArePrivateToTheInstance() {
+  var builder = new WasmModuleBuilder();
+  builder.addGlobal(kAstI32);
+  builder.addFunction("read", kSig_i_v)
+    .addBody([
+      kExprGetGlobal, 0])
+    .exportFunc();
+
+  builder.addFunction("write", kSig_v_i)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprSetGlobal, 0])
+    .exportFunc();
+
+  var module = new WebAssembly.Module(builder.toBuffer());
+  var i1 = new WebAssembly.Instance(module);
+  var i2 = new WebAssembly.Instance(module);
+  i1.exports.write(1);
+  i2.exports.write(2);
+  assertEquals(1, i1.exports.read());
+  assertEquals(2, i2.exports.read());
+})();
