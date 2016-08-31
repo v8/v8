@@ -10,6 +10,8 @@
 
 #include "src/base/adapters.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/compilation-info.h"
+#include "src/compiler.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/basic-block-instrumentor.h"

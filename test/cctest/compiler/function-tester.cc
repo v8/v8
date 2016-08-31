@@ -5,6 +5,7 @@
 #include "test/cctest/compiler/function-tester.h"
 
 #include "src/ast/ast-numbering.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"

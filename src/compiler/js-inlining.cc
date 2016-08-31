@@ -6,7 +6,7 @@
 
 #include "src/ast/ast-numbering.h"
 #include "src/ast/ast.h"
-#include "src/ast/scopes.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"

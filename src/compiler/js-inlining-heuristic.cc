@@ -4,7 +4,7 @@
 
 #include "src/compiler/js-inlining-heuristic.h"
 
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/node-matchers.h"
 #include "src/objects-inl.h"
 

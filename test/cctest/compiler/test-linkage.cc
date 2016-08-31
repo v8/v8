@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/code-stubs.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/parsing/parse-info.h"
 #include "src/zone.h"

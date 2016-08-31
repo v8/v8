@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 #define V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 
-#include "src/compiler.h"
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/bytecode-loop-analysis.h"
 #include "src/compiler/js-graph.h"
@@ -16,6 +15,9 @@
 
 namespace v8 {
 namespace internal {
+
+class CompilationInfo;
+
 namespace compiler {
 
 // The BytecodeGraphBuilder produces a high-level IR graph based on

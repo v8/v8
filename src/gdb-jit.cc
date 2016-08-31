@@ -9,7 +9,6 @@
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
-#include "src/compiler.h"
 #include "src/frames-inl.h"
 #include "src/frames.h"
 #include "src/global-handles.h"

@@ -939,6 +939,8 @@ v8_source_set("v8_base") {
     "src/compilation-cache.h",
     "src/compilation-dependencies.cc",
     "src/compilation-dependencies.h",
+    "src/compilation-info.cc",
+    "src/compilation-info.h",
     "src/compilation-statistics.cc",
     "src/compilation-statistics.h",
     "src/compiler-dispatcher/compiler-dispatcher-job.cc",

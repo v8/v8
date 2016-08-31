@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ast/scopes.h"
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"

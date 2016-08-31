@@ -4,7 +4,6 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
-#include "src/compiler.h"
 #include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-dead-code-optimizer.h"

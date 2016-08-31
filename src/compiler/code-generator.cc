@@ -6,6 +6,7 @@
 
 #include "src/address-map.h"
 #include "src/base/adapters.h"
+#include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
@@ -62,6 +63,8 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
   }
   CreateFrameAccessState(frame);
 }
+
+Isolate* CodeGenerator::isolate() const { return info_->isolate(); }
 
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   FinishFrame(frame);

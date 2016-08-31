@@ -4,6 +4,7 @@
 
 #include "src/compiler/bytecode-graph-builder.h"
 
+#include "src/compilation-info.h"
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/operator-properties.h"

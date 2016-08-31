@@ -5,6 +5,7 @@
 #include "src/compiler/ast-graph-builder.h"
 
 #include "src/ast/scopes.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/control-builders.h"

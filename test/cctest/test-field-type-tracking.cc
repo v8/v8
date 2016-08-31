@@ -11,6 +11,7 @@
 
 #include "src/compilation-cache.h"
 #include "src/compilation-dependencies.h"
+#include "src/compilation-info.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/field-type.h"

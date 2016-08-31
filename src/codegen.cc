@@ -12,7 +12,7 @@
 
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/debug/debug.h"
 #include "src/eh-frame.h"
 #include "src/parsing/parser.h"

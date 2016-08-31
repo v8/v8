@@ -9,6 +9,7 @@
 
 #include "src/ast/prettyprinter.h"
 #include "src/code-factory.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/factory.h"
 #include "src/interpreter/bytecode-flags.h"

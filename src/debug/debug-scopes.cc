@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "src/ast/scopes.h"
-#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"

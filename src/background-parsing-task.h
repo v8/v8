@@ -7,9 +7,9 @@
 
 #include <memory>
 
+#include "include/v8.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
-#include "src/compiler.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 

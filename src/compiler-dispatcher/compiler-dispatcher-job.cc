@@ -5,6 +5,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 
 #include "src/assert-scope.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"

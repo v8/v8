@@ -533,6 +533,8 @@
         'compilation-cache.h',
         'compilation-dependencies.cc',
         'compilation-dependencies.h',
+        'compilation-info.cc',
+        'compilation-info.h',
         'compilation-statistics.cc',
         'compilation-statistics.h',
         'compiler/access-builder.cc',

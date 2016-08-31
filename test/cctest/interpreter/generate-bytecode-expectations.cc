@@ -13,7 +13,6 @@
 #include "include/v8.h"
 
 #include "src/base/logging.h"
-#include "src/compiler.h"
 #include "src/interpreter/interpreter.h"
 
 #ifdef V8_OS_POSIX

@@ -6,7 +6,6 @@
 
 #include "src/ast/ast.h"
 #include "src/code-stubs.h"
-#include "src/compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
