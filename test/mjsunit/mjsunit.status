@@ -531,6 +531,12 @@
 }],  # 'system == windows'
 
 ##############################################################################
+['system == macos', {
+  # BUG(v8:5333)
+  'big-object-literal': [SKIP],
+}],  # 'system == macos'
+
+##############################################################################
 ['arch == s390 or arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
