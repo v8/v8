@@ -167,9 +167,8 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 void MacroAssembler::InNewSpace(Register object, Register scratch, Condition cc,
                                 Label* condition_met,
                                 Label::Distance distance) {
-  const int mask =
-      (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
-  CheckPageFlag(object, scratch, mask, cc, condition_met, distance);
+  CheckPageFlag(object, scratch, MemoryChunk::kIsInNewSpaceMask, cc,
+                condition_met, distance);
 }
 
 

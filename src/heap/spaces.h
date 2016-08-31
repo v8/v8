@@ -227,62 +227,75 @@ class FreeListCategory {
 // any heap object.
 class MemoryChunk {
  public:
-  enum MemoryChunkFlags {
-    IS_EXECUTABLE,
-    POINTERS_TO_HERE_ARE_INTERESTING,
-    POINTERS_FROM_HERE_ARE_INTERESTING,
-    IN_FROM_SPACE,  // Mutually exclusive with IN_TO_SPACE.
-    IN_TO_SPACE,    // All pages in new space has one of these two set.
-    NEW_SPACE_BELOW_AGE_MARK,
-    EVACUATION_CANDIDATE,
-    NEVER_EVACUATE,  // May contain immortal immutables.
+  enum Flag {
+    NO_FLAGS = 0u,
+    IS_EXECUTABLE = 1u << 0,
+    POINTERS_TO_HERE_ARE_INTERESTING = 1u << 1,
+    POINTERS_FROM_HERE_ARE_INTERESTING = 1u << 2,
+    // A page in new space has one of the next to flags set.
+    IN_FROM_SPACE = 1u << 3,
+    IN_TO_SPACE = 1u << 4,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 5,
+    EVACUATION_CANDIDATE = 1u << 6,
+    NEVER_EVACUATE = 1u << 7,
 
     // Large objects can have a progress bar in their page header. These object
     // are scanned in increments and will be kept black while being scanned.
     // Even if the mutator writes to them they will be kept black and a white
     // to grey transition is performed in the value.
-    HAS_PROGRESS_BAR,
+    HAS_PROGRESS_BAR = 1u << 8,
 
     // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
     // from new to old space during evacuation.
-    PAGE_NEW_OLD_PROMOTION,
+    PAGE_NEW_OLD_PROMOTION = 1u << 9,
 
     // |PAGE_NEW_NEW_PROMOTION|: A page tagged with this flag has been moved
     // within the new space during evacuation.
-    PAGE_NEW_NEW_PROMOTION,
+    PAGE_NEW_NEW_PROMOTION = 1u << 10,
 
     // This flag is intended to be used for testing. Works only when both
     // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
     // are set. It forces the page to become an evacuation candidate at next
     // candidates selection cycle.
-    FORCE_EVACUATION_CANDIDATE_FOR_TESTING,
+    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 11,
 
     // This flag is intended to be used for testing.
-    NEVER_ALLOCATE_ON_PAGE,
+    NEVER_ALLOCATE_ON_PAGE = 1u << 12,
 
     // The memory chunk is already logically freed, however the actual freeing
     // still has to be performed.
-    PRE_FREED,
+    PRE_FREED = 1u << 13,
 
     // |POOLED|: When actually freeing this chunk, only uncommit and do not
     // give up the reservation as we still reuse the chunk at some point.
-    POOLED,
+    POOLED = 1u << 14,
 
     // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
     //   has been aborted and needs special handling by the sweeper.
-    COMPACTION_WAS_ABORTED,
+    COMPACTION_WAS_ABORTED = 1u << 15,
 
     // |COMPACTION_WAS_ABORTED_FOR_TESTING|: During stress testing evacuation
     // on pages is sometimes aborted. The flag is used to avoid repeatedly
     // triggering on the same page.
-    COMPACTION_WAS_ABORTED_FOR_TESTING,
+    COMPACTION_WAS_ABORTED_FOR_TESTING = 1u << 16,
 
     // |ANCHOR|: Flag is set if page is an anchor.
-    ANCHOR,
-
-    // Last flag, keep at bottom.
-    NUM_MEMORY_CHUNK_FLAGS
+    ANCHOR = 1u << 17,
   };
+  typedef base::Flags<Flag, uintptr_t> Flags;
+
+  static const int kPointersToHereAreInterestingMask =
+      POINTERS_TO_HERE_ARE_INTERESTING;
+
+  static const int kPointersFromHereAreInterestingMask =
+      POINTERS_FROM_HERE_ARE_INTERESTING;
+
+  static const int kEvacuationCandidateMask = EVACUATION_CANDIDATE;
+
+  static const int kIsInNewSpaceMask = IN_FROM_SPACE | IN_TO_SPACE;
+
+  static const int kSkipEvacuationSlotsRecordingMask =
+      kEvacuationCandidateMask | kIsInNewSpaceMask;
 
   // |kSweepingDone|: The page state when sweeping is complete or sweeping must
   //   not be performed on that page. Sweeper threads that are done with their
@@ -300,17 +313,6 @@ class MemoryChunk {
   // whether we have hit the limit and should do some more marking.
   static const int kWriteBarrierCounterGranularity = 500;
 
-  static const int kPointersToHereAreInterestingMask =
-      1 << POINTERS_TO_HERE_ARE_INTERESTING;
-
-  static const int kPointersFromHereAreInterestingMask =
-      1 << POINTERS_FROM_HERE_ARE_INTERESTING;
-
-  static const int kEvacuationCandidateMask = 1 << EVACUATION_CANDIDATE;
-
-  static const int kSkipEvacuationSlotsRecordingMask =
-      (1 << EVACUATION_CANDIDATE) | (1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE);
-
   static const intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
 
@@ -320,25 +322,21 @@ class MemoryChunk {
 
   static const intptr_t kFlagsOffset = kSizeOffset + kPointerSize;
 
-  static const intptr_t kLiveBytesOffset =
+  static const size_t kWriteBarrierCounterOffset =
       kSizeOffset + kPointerSize  // size_t size
-      + kIntptrSize               // intptr_t flags_
+      + kIntptrSize               // Flags flags_
       + kPointerSize              // Address area_start_
       + kPointerSize              // Address area_end_
       + 2 * kPointerSize          // base::VirtualMemory reservation_
       + kPointerSize              // Address owner_
       + kPointerSize              // Heap* heap_
-      + kIntSize;                 // int progress_bar_
-
-  static const size_t kOldToNewSlotsOffset =
-      kLiveBytesOffset + kIntSize;  // int live_byte_count_
-
-  static const size_t kWriteBarrierCounterOffset =
-      kOldToNewSlotsOffset + kPointerSize  // SlotSet* old_to_new_slots_;
-      + kPointerSize                       // SlotSet* old_to_old_slots_;
-      + kPointerSize   // TypedSlotSet* typed_old_to_new_slots_;
-      + kPointerSize   // TypedSlotSet* typed_old_to_old_slots_;
-      + kPointerSize;  // SkipList* skip_list_;
+      + kIntSize                  // int progress_bar_
+      + kIntSize                  // int live_bytes_count_
+      + kPointerSize              // SlotSet* old_to_new_slots_;
+      + kPointerSize              // SlotSet* old_to_old_slots_;
+      + kPointerSize              // TypedSlotSet* typed_old_to_new_slots_;
+      + kPointerSize              // TypedSlotSet* typed_old_to_old_slots_;
+      + kPointerSize;             // SkipList* skip_list_;
 
   static const size_t kMinHeaderSize =
       kWriteBarrierCounterOffset +
@@ -351,7 +349,7 @@ class MemoryChunk {
       + kPointerSize      // AtomicValue prev_chunk_
       // FreeListCategory categories_[kNumberOfCategories]
       + FreeListCategory::kSize * kNumberOfCategories +
-      kPointerSize  // LocalArrayBufferTracker* local_tracker_;
+      kPointerSize  // LocalArrayBufferTracker* local_tracker_
       // std::unordered_set<Address>* black_area_end_marker_map_
       + kPointerSize;
 
@@ -518,22 +516,18 @@ class MemoryChunk {
 
   void PrintMarkbits() { markbits()->Print(); }
 
-  void SetFlag(int flag) { flags_ |= static_cast<uintptr_t>(1) << flag; }
-
-  void ClearFlag(int flag) { flags_ &= ~(static_cast<uintptr_t>(1) << flag); }
-
-  bool IsFlagSet(int flag) {
-    return (flags_ & (static_cast<uintptr_t>(1) << flag)) != 0;
-  }
+  void SetFlag(Flag flag) { flags_ |= flag; }
+  void ClearFlag(Flag flag) { flags_ &= ~Flags(flag); }
+  bool IsFlagSet(Flag flag) { return flags_ & flag; }
 
   // Set or clear multiple flags at a time. The flags in the mask are set to
   // the value in "flags", the rest retain the current value in |flags_|.
-  void SetFlags(intptr_t flags, intptr_t mask) {
-    flags_ = (flags_ & ~mask) | (flags & mask);
+  void SetFlags(uintptr_t flags, uintptr_t mask) {
+    flags_ = (flags_ & ~Flags(mask)) | (Flags(flags) & Flags(mask));
   }
 
   // Return all current flags.
-  intptr_t GetFlags() { return flags_; }
+  uintptr_t GetFlags() { return flags_; }
 
   bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
 
@@ -557,9 +551,7 @@ class MemoryChunk {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
-  bool InNewSpace() {
-    return (flags_ & ((1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE))) != 0;
-  }
+  bool InNewSpace() { return (flags_ & kIsInNewSpaceMask) != 0; }
 
   bool InToSpace() { return IsFlagSet(IN_TO_SPACE); }
 
@@ -634,7 +626,7 @@ class MemoryChunk {
   base::VirtualMemory* reserved_memory() { return &reservation_; }
 
   size_t size_;
-  intptr_t flags_;
+  Flags flags_;
 
   // Start and end of allocatable memory on this chunk.
   Address area_start_;
@@ -700,6 +692,8 @@ class MemoryChunk {
   friend class MemoryChunkValidator;
 };
 
+DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::Flags)
+
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.
 //
@@ -712,8 +706,8 @@ class Page : public MemoryChunk {
 
   // Page flags copied from from-space to to-space when flipping semispaces.
   static const intptr_t kCopyOnFlipFlagsMask =
-      (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
-      (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+      static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
+      static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
 
   // Maximum object size that gets allocated into regular pages. Objects larger
   // than that size are allocated in large object space and are never moved in
@@ -981,10 +975,6 @@ class Space : public Malloced {
 class MemoryChunkValidator {
   // Computed offsets should match the compiler generated ones.
   STATIC_ASSERT(MemoryChunk::kSizeOffset == offsetof(MemoryChunk, size_));
-  STATIC_ASSERT(MemoryChunk::kLiveBytesOffset ==
-                offsetof(MemoryChunk, live_byte_count_));
-  STATIC_ASSERT(MemoryChunk::kOldToNewSlotsOffset ==
-                offsetof(MemoryChunk, old_to_new_slots_));
   STATIC_ASSERT(MemoryChunk::kWriteBarrierCounterOffset ==
                 offsetof(MemoryChunk, write_barrier_counter_));
 
