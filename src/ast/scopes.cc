@@ -129,12 +129,18 @@ Scope::Snapshot::Snapshot(Scope* scope)
       top_local_(scope->GetClosureScope()->locals_.length()),
       top_decl_(scope->GetClosureScope()->decls_.length()) {}
 
-DeclarationScope::DeclarationScope(Zone* zone)
+DeclarationScope::DeclarationScope(Zone* zone,
+                                   AstValueFactory* ast_value_factory)
     : Scope(zone),
       function_kind_(kNormalFunction),
       params_(4, zone),
       sloppy_block_function_map_(zone) {
+  DCHECK_EQ(scope_type_, SCRIPT_SCOPE);
   SetDefaults();
+
+  // Make sure that if we don't find the global 'this', it won't be declared as
+  // a regular dynamic global by predeclaring it with the right variable kind.
+  DeclareDynamicGlobal(ast_value_factory->this_string(), Variable::THIS);
 }
 
 DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
@@ -144,6 +150,7 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
       function_kind_(function_kind),
       params_(4, zone),
       sloppy_block_function_map_(zone) {
+  DCHECK_NE(scope_type, SCRIPT_SCOPE);
   SetDefaults();
   asm_function_ = outer_scope_->IsAsmModule();
 }
@@ -182,6 +189,7 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
       function_kind_(scope_info->function_kind()),
       params_(0, zone),
       sloppy_block_function_map_(zone) {
+  DCHECK_NE(scope_type, SCRIPT_SCOPE);
   SetDefaults();
 }
 
@@ -419,13 +427,6 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
   DCHECK(scope->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->already_resolved_);
-
-  // If there's a chance that there's a reference to global 'this', predeclare
-  // it as a dynamic global on the script scope.
-  if (scope->GetReceiverScope()->is_script_scope()) {
-    info->script_scope()->DeclareDynamicGlobal(
-        info->ast_value_factory()->this_string(), Variable::THIS);
-  }
 
   scope->AllocateVariables(info, mode);
 

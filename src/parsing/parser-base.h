@@ -667,7 +667,7 @@ class ParserBase {
   };
 
   DeclarationScope* NewScriptScope() const {
-    return new (zone()) DeclarationScope(zone());
+    return new (zone()) DeclarationScope(zone(), ast_value_factory());
   }
 
   DeclarationScope* NewVarblockScope() const {

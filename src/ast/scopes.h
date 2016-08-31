@@ -587,7 +587,7 @@ class DeclarationScope : public Scope {
   DeclarationScope(Zone* zone, ScopeType scope_type,
                    Handle<ScopeInfo> scope_info);
   // Creates a script scope.
-  explicit DeclarationScope(Zone* zone);
+  DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory);
 
   bool IsDeclaredParameter(const AstRawString* name) {
     // If IsSimpleParameterList is false, duplicate parameters are not allowed,
