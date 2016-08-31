@@ -3184,6 +3184,13 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     return false;
   }
 
+  if (IsAllocationFoldingDominator()) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s), already dominator\n", id(),
+             Mnemonic(), dominator->id(), dominator->Mnemonic());
+    }
+    return false;
+  }
 
   if (!IsFoldable(dominator_allocate)) {
     if (FLAG_trace_allocation_folding) {
@@ -3235,17 +3242,6 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     }
   }
 
-  if (IsAllocationFoldingDominator()) {
-    DeleteAndReplaceWith(dominator_allocate);
-    if (FLAG_trace_allocation_folding) {
-      PrintF(
-          "#%d (%s) folded dominator into #%d (%s), new dominator size: %d\n",
-          id(), Mnemonic(), dominator_allocate->id(),
-          dominator_allocate->Mnemonic(), new_dominator_size);
-    }
-    return true;
-  }
-
   if (!dominator_allocate->IsAllocationFoldingDominator()) {
     HAllocate* first_alloc =
         HAllocate::New(isolate, zone, dominator_allocate->context(),
@@ -3280,6 +3276,8 @@ std::ostream& HAllocate::PrintDataTo(std::ostream& os) const {  // NOLINT
   if (IsOldSpaceAllocation()) os << "P";
   if (MustAllocateDoubleAligned()) os << "A";
   if (MustPrefillWithFiller()) os << "F";
+  if (IsAllocationFoldingDominator()) os << "d";
+  if (IsAllocationFolded()) os << "f";
   return os << ")";
 }
 

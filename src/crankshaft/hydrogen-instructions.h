@@ -4935,7 +4935,7 @@ class HAllocate final : public HTemplateInstruction<3> {
         static_cast<HAllocate::Flags>(flags_ | ALLOCATION_FOLDING_DOMINATOR);
   }
 
-  bool IsAllocationFoldingDominator() {
+  bool IsAllocationFoldingDominator() const {
     return (flags_ & ALLOCATION_FOLDING_DOMINATOR) != 0;
   }
 
@@ -4946,7 +4946,7 @@ class HAllocate final : public HTemplateInstruction<3> {
     SetOperandAt(2, dominator);
   }
 
-  bool IsAllocationFolded() { return (flags_ & ALLOCATION_FOLDED) != 0; }
+  bool IsAllocationFolded() const { return (flags_ & ALLOCATION_FOLDED) != 0; }
 
   bool HandleSideEffectDominator(GVNFlag side_effect,
                                  HValue* dominator) override;
