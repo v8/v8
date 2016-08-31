@@ -12,7 +12,9 @@ namespace internal {
 namespace compiler {
 
 // Foward declarations.
+class CommonOperatorBuilder;
 struct FieldAccess;
+class Graph;
 class JSGraph;
 
 class LoadElimination final : public AdvancedReducer {
@@ -206,7 +208,9 @@ class LoadElimination final : public AdvancedReducer {
 
   static int FieldIndexOf(FieldAccess const& access);
 
+  CommonOperatorBuilder* common() const;
   AbstractState const* empty_state() const { return &empty_state_; }
+  Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return node_states_.zone(); }
 

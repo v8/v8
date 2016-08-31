@@ -878,11 +878,13 @@ class RepresentationSelector {
       bool is_word64 = GetInfo(node->InputAt(0))->representation() ==
                        MachineRepresentation::kWord64;
 #ifdef DEBUG
-      // Check that all the inputs agree on being Word64.
-      DCHECK_EQ(IrOpcode::kPhi, node->opcode());  // This only works for phis.
-      for (int i = 1; i < node->op()->ValueInputCount(); i++) {
-        DCHECK_EQ(is_word64, GetInfo(node->InputAt(i))->representation() ==
-                                 MachineRepresentation::kWord64);
+      if (node->opcode() != IrOpcode::kTypeGuard) {
+        // Check that all the inputs agree on being Word64.
+        DCHECK_EQ(IrOpcode::kPhi, node->opcode());  // This only works for phis.
+        for (int i = 1; i < node->op()->ValueInputCount(); i++) {
+          DCHECK_EQ(is_word64, GetInfo(node->InputAt(i))->representation() ==
+                                   MachineRepresentation::kWord64);
+        }
       }
 #endif
       return is_word64 ? MachineRepresentation::kWord64

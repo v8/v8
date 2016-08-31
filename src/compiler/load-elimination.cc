@@ -4,6 +4,7 @@
 
 #include "src/compiler/load-elimination.h"
 
+#include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -521,16 +522,21 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
   int field_index = FieldIndexOf(access);
   if (field_index >= 0) {
-    if (Node* const replacement = state->LookupField(object, field_index)) {
-      // Make sure the {replacement} has at least as good type
-      // as the original {node}.
-      if (!replacement->IsDead() &&
-          NodeProperties::GetType(replacement)
-              ->Is(NodeProperties::GetType(node))) {
+    if (Node* replacement = state->LookupField(object, field_index)) {
+      // Make sure we don't resurrect dead {replacement} nodes.
+      if (!replacement->IsDead()) {
+        // We might need to guard the {replacement} if the type of the
+        // {node} is more precise than the type of the {replacement}.
+        Type* const node_type = NodeProperties::GetType(node);
+        if (!NodeProperties::GetType(replacement)->Is(node_type)) {
+          replacement = graph()->NewNode(common()->TypeGuard(node_type),
+                                         replacement, control);
+        }
         ReplaceWithValue(node, replacement, effect);
         return Replace(replacement);
       }
@@ -568,14 +574,19 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const index = NodeProperties::GetValueInput(node, 1);
   Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (Node* const replacement = state->LookupElement(object, index)) {
-    // Make sure the {replacement} has at least as good type
-    // as the original {node}.
-    if (!replacement->IsDead() &&
-        NodeProperties::GetType(replacement)
-            ->Is(NodeProperties::GetType(node))) {
+  if (Node* replacement = state->LookupElement(object, index)) {
+    // Make sure we don't resurrect dead {replacement} nodes.
+    if (!replacement->IsDead()) {
+      // We might need to guard the {replacement} if the type of the
+      // {node} is more precise than the type of the {replacement}.
+      Type* const node_type = NodeProperties::GetType(node);
+      if (!NodeProperties::GetType(replacement)->Is(node_type)) {
+        replacement = graph()->NewNode(common()->TypeGuard(node_type),
+                                       replacement, control);
+      }
       ReplaceWithValue(node, replacement, effect);
       return Replace(replacement);
     }
@@ -804,6 +815,12 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
   if (field_index >= static_cast<int>(kMaxTrackedFields)) return -1;
   return field_index;
 }
+
+CommonOperatorBuilder* LoadElimination::common() const {
+  return jsgraph()->common();
+}
+
+Graph* LoadElimination::graph() const { return jsgraph()->graph(); }
 
 }  // namespace compiler
 }  // namespace internal

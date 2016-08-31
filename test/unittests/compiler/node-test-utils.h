@@ -83,6 +83,8 @@ Matcher<Node*> IsReturn2(const Matcher<Node*>& value_matcher,
                          const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
                            const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsTypeGuard(const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher);
 Matcher<Node*> IsHeapConstant(Handle<HeapObject> value);
