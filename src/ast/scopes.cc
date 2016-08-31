@@ -420,6 +420,13 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->already_resolved_);
 
+  // If there's a chance that there's a reference to global 'this', predeclare
+  // it as a dynamic global on the script scope.
+  if (scope->GetReceiverScope()->is_script_scope()) {
+    info->script_scope()->DeclareDynamicGlobal(
+        info->ast_value_factory()->this_string(), Variable::THIS);
+  }
+
   scope->AllocateVariables(info, mode);
 
 #ifdef DEBUG
