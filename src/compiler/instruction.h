@@ -105,8 +105,8 @@ class InstructionOperand {
 
   bool InterferesWith(const InstructionOperand& that) const;
 
-  void Print(const RegisterConfiguration* config) const;
-  void Print() const;
+  void Print(std::ostream& os, const RegisterConfiguration* config) const;
+  void Print(std::ostream& os) const;
 
  protected:
   explicit InstructionOperand(Kind kind) : value_(KindField::encode(kind)) {}
@@ -672,8 +672,8 @@ class MoveOperands final : public ZoneObject {
     return source_.IsInvalid();
   }
 
-  void Print(const RegisterConfiguration* config) const;
-  void Print() const;
+  void Print(std::ostream& os, const RegisterConfiguration* config) const;
+  void Print(std::ostream& os) const;
 
  private:
   InstructionOperand source_;
@@ -912,8 +912,8 @@ class Instruction final {
     block_ = block;
   }
 
-  void Print(const RegisterConfiguration* config) const;
-  void Print() const;
+  void Print(std::ostream& os, const RegisterConfiguration* config) const;
+  void Print(std::ostream& os) const;
 
  private:
   explicit Instruction(InstructionCode opcode);
@@ -1441,11 +1441,12 @@ class InstructionSequence final : public ZoneObject {
     }
     return false;
   }
-  void Print(const RegisterConfiguration* config) const;
-  void Print() const;
+  void Print(std::ostream& os, const RegisterConfiguration* config) const;
+  void Print(std::ostream& os) const;
 
-  void PrintBlock(const RegisterConfiguration* config, int block_id) const;
-  void PrintBlock(int block_id) const;
+  void PrintBlock(std::ostream& os, const RegisterConfiguration* config,
+                  int block_id) const;
+  void PrintBlock(std::ostream& os, int block_id) const;
 
   void ValidateEdgeSplitForm() const;
   void ValidateDeferredBlockExitPaths() const;

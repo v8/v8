@@ -68,15 +68,17 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& that) const {
   return EqualsCanonicalized(that);
 }
 
-void InstructionOperand::Print(const RegisterConfiguration* config) const {
-  OFStream os(stdout);
+void InstructionOperand::Print(std::ostream& os,
+                               const RegisterConfiguration* config) const {
   PrintableInstructionOperand wrapper;
   wrapper.register_configuration_ = config;
   wrapper.op_ = *this;
   os << wrapper << std::endl;
 }
 
-void InstructionOperand::Print() const { Print(GetRegConfig()); }
+void InstructionOperand::Print(std::ostream& os) const {
+  Print(os, GetRegConfig());
+}
 
 std::ostream& operator<<(std::ostream& os,
                          const PrintableInstructionOperand& printable) {
@@ -199,8 +201,8 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-void MoveOperands::Print(const RegisterConfiguration* config) const {
-  OFStream os(stdout);
+void MoveOperands::Print(std::ostream& os,
+                         const RegisterConfiguration* config) const {
   PrintableInstructionOperand wrapper;
   wrapper.register_configuration_ = config;
   wrapper.op_ = destination();
@@ -209,7 +211,7 @@ void MoveOperands::Print(const RegisterConfiguration* config) const {
   os << wrapper << std::endl;
 }
 
-void MoveOperands::Print() const { Print(GetRegConfig()); }
+void MoveOperands::Print(std::ostream& os) const { Print(os, GetRegConfig()); }
 
 std::ostream& operator<<(std::ostream& os,
                          const PrintableMoveOperands& printable) {
@@ -314,16 +316,15 @@ bool Instruction::AreMovesRedundant() const {
   return true;
 }
 
-
-void Instruction::Print(const RegisterConfiguration* config) const {
-  OFStream os(stdout);
+void Instruction::Print(std::ostream& os,
+                        const RegisterConfiguration* config) const {
   PrintableInstruction wrapper;
   wrapper.instr_ = this;
   wrapper.register_configuration_ = config;
   os << wrapper << std::endl;
 }
 
-void Instruction::Print() const { Print(GetRegConfig()); }
+void Instruction::Print(std::ostream& os) const { Print(os, GetRegConfig()); }
 
 std::ostream& operator<<(std::ostream& os,
                          const PrintableParallelMove& printable) {
@@ -874,20 +875,21 @@ void InstructionSequence::SetSourcePosition(const Instruction* instr,
   source_positions_.insert(std::make_pair(instr, value));
 }
 
-
-void InstructionSequence::Print(const RegisterConfiguration* config) const {
-  OFStream os(stdout);
+void InstructionSequence::Print(std::ostream& os,
+                                const RegisterConfiguration* config) const {
   PrintableInstructionSequence wrapper;
   wrapper.register_configuration_ = config;
   wrapper.sequence_ = this;
   os << wrapper << std::endl;
 }
 
-void InstructionSequence::Print() const { Print(GetRegConfig()); }
+void InstructionSequence::Print(std::ostream& os) const {
+  Print(os, GetRegConfig());
+}
 
-void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
+void InstructionSequence::PrintBlock(std::ostream& os,
+                                     const RegisterConfiguration* config,
                                      int block_id) const {
-  OFStream os(stdout);
   RpoNumber rpo = RpoNumber::FromInt(block_id);
   const InstructionBlock* block = InstructionBlockAt(rpo);
   CHECK(block->rpo_number() == rpo);
@@ -936,8 +938,8 @@ void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
   os << "\n";
 }
 
-void InstructionSequence::PrintBlock(int block_id) const {
-  PrintBlock(GetRegConfig(), block_id);
+void InstructionSequence::PrintBlock(std::ostream& os, int block_id) const {
+  PrintBlock(os, GetRegConfig(), block_id);
 }
 
 FrameStateDescriptor::FrameStateDescriptor(
@@ -1021,7 +1023,7 @@ std::ostream& operator<<(std::ostream& os,
     os << "CST#" << i << ": v" << it->first << " = " << it->second << "\n";
   }
   for (int i = 0; i < code.InstructionBlockCount(); i++) {
-    printable.sequence_->PrintBlock(printable.register_configuration_, i);
+    printable.sequence_->PrintBlock(os, printable.register_configuration_, i);
   }
   return os;
 }
