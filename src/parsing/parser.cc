@@ -277,17 +277,14 @@ class TargetScope BASE_EMBEDDED {
 // thus it must never be used where only a single statement
 // is correct (e.g. an if statement branch w/o braces)!
 
-#define CHECK_OK  ok);      \
-  if (!*ok) return nullptr; \
+#define CHECK_OK_VALUE(x) ok); \
+  if (!*ok) return x;          \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-#define CHECK_OK_VOID  ok); \
-  if (!*ok) return;         \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
+#define CHECK_OK CHECK_OK_VALUE(nullptr)
+#define CHECK_OK_VOID CHECK_OK_VALUE(this->Void())
 
 #define CHECK_FAILED /**/); \
   if (failed_) return nullptr;  \
@@ -3255,8 +3252,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       int each_beg_pos = scanner()->location().beg_pos;
       int each_end_pos = scanner()->location().end_pos;
 
-      if (CheckInOrOf(&mode, ok)) {
-        if (!*ok) return nullptr;
+      if (CheckInOrOf(&mode)) {
         if (parsing_result.declarations.length() != 1) {
           ReportMessageAt(parsing_result.bindings_loc,
                           MessageTemplate::kForInOfLoopMultiBindings,
@@ -3450,7 +3446,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       int lhs_end_pos = scanner()->location().end_pos;
       ForEachStatement::VisitMode mode = ForEachStatement::ENUMERATE;
 
-      bool is_for_each = CheckInOrOf(&mode, CHECK_OK);
+      bool is_for_each = CheckInOrOf(&mode);
       bool is_destructuring = is_for_each && (expression->IsArrayLiteral() ||
                                               expression->IsObjectLiteral());
 
@@ -3964,22 +3960,23 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (formals.has_rest) arity--;
 
     // Eager or lazy parse?
-    // If is_lazily_parsed, we'll parse lazy. If we can set a bookmark, we'll
-    // pass it to SkipLazyFunctionBody, which may use it to abort lazy
-    // parsing if it suspect that wasn't a good idea. If so, or if we didn't
-    // try to lazy parse in the first place, we'll have to parse eagerly.
-    Scanner::BookmarkScope bookmark(scanner());
+    // If is_lazily_parsed, we'll parse lazily. We'll call SkipLazyFunctionBody,
+    // which may decide to abort lazy parsing if it suspects that wasn't a good
+    // idea. If so (in which case the parser is expected to have backtracked),
+    // or if we didn't try to lazy parse in the first place, we'll have to parse
+    // eagerly.
     if (is_lazily_parsed) {
-      Scanner::BookmarkScope* maybe_bookmark =
-          bookmark.Set() ? &bookmark : nullptr;
-      SkipLazyFunctionBody(&materialized_literal_count,
-                           &expected_property_count, /*CHECK_OK*/ ok,
-                           maybe_bookmark);
+      Scanner::BookmarkScope bookmark(scanner());
+      bool may_abort = bookmark.Set();
+      LazyParsingResult result =
+          SkipLazyFunctionBody(&materialized_literal_count,
+                               &expected_property_count, may_abort, CHECK_OK);
 
       materialized_literal_count += formals.materialized_literals_count +
                                     function_state.materialized_literal_count();
 
-      if (bookmark.HasBeenReset()) {
+      if (result == kLazyParsingAborted) {
+        bookmark.Reset();
         // Trigger eager (re-)parsing, just below this block.
         is_lazily_parsed = false;
 
@@ -4079,10 +4076,9 @@ Expression* Parser::ParseAsyncFunctionExpression(bool* ok) {
                               language_mode(), CHECK_OK);
 }
 
-void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
-                                  int* expected_property_count, bool* ok,
-                                  Scanner::BookmarkScope* bookmark) {
-  DCHECK_IMPLIES(bookmark, bookmark->HasBeenSet());
+Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
+    int* materialized_literal_count, int* expected_property_count,
+    bool may_abort, bool* ok) {
   if (produce_cached_parse_data()) CHECK(log_);
 
   int function_block_pos = position();
@@ -4100,14 +4096,14 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
       scanner()->SeekForward(entry.end_pos() - 1);
 
       scope->set_end_position(entry.end_pos());
-      Expect(Token::RBRACE, CHECK_OK_VOID);
+      Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
       total_preparse_skipped_ += scope->end_position() - function_block_pos;
       *materialized_literal_count = entry.literal_count();
       *expected_property_count = entry.property_count();
       SetLanguageMode(scope, entry.language_mode());
       if (entry.uses_super_property()) scope->RecordSuperPropertyUsage();
       if (entry.calls_eval()) scope->RecordEvalCall();
-      return;
+      return kLazyParsingComplete;
     }
     cached_parse_data_->Reject();
   }
@@ -4115,25 +4111,26 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
   // AST. This gathers the data needed to build a lazy function.
   SingletonLogger logger;
   PreParser::PreParseResult result =
-      ParseLazyFunctionBodyWithPreParser(&logger, bookmark);
-  if (bookmark && bookmark->HasBeenReset()) {
-    return;  // Return immediately if pre-parser devided to abort parsing.
+      ParseLazyFunctionBodyWithPreParser(&logger, may_abort);
+  // Return immediately if pre-parser decided to abort parsing.
+  if (result == PreParser::kPreParseAbort) {
+    return kLazyParsingAborted;
   }
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
     set_stack_overflow();
     *ok = false;
-    return;
+    return kLazyParsingComplete;
   }
   if (logger.has_error()) {
     ReportMessageAt(Scanner::Location(logger.start(), logger.end()),
                     logger.message(), logger.argument_opt(),
                     logger.error_type());
     *ok = false;
-    return;
+    return kLazyParsingComplete;
   }
   scope->set_end_position(logger.end());
-  Expect(Token::RBRACE, CHECK_OK_VOID);
+  Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
   total_preparse_skipped_ += scope->end_position() - function_block_pos;
   *materialized_literal_count = logger.literals();
   *expected_property_count = logger.properties();
@@ -4148,6 +4145,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
                       *expected_property_count, language_mode(),
                       scope->uses_super_property(), scope->calls_eval());
   }
+  return kLazyParsingComplete;
 }
 
 
@@ -4599,9 +4597,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   return result;
 }
 
-
 PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
-    SingletonLogger* logger, Scanner::BookmarkScope* bookmark) {
+    SingletonLogger* logger, bool may_abort) {
   // This function may be called on a background thread too; record only the
   // main thread preparse times.
   if (pre_parse_timer_ != NULL) {
@@ -4628,7 +4625,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
       language_mode(), function_state_->kind(),
       scope()->AsDeclarationScope()->has_simple_parameters(), parsing_module_,
-      logger, bookmark, use_counts_);
+      logger, may_abort, use_counts_);
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }

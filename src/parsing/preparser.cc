@@ -29,18 +29,14 @@ namespace internal {
 // thus it must never be used where only a single statement
 // is correct (e.g. an if statement branch w/o braces)!
 
-#define CHECK_OK  ok);                   \
-  if (!*ok) return Statement::Default(); \
+#define CHECK_OK_VALUE(x) ok); \
+  if (!*ok) return x;          \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-// Used in functions where the return type is not ExpressionT.
-#define CHECK_OK_CUSTOM(x) ok); \
-  if (!*ok) return this->x();   \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
+#define CHECK_OK CHECK_OK_VALUE(Statement::Default())
+#define CHECK_OK_VOID CHECK_OK_VALUE(this->Void())
 
 PreParserIdentifier PreParser::GetSymbol() const {
   switch (scanner()->current_token()) {
@@ -75,8 +71,7 @@ PreParserIdentifier PreParser::GetSymbol() const {
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
     LanguageMode language_mode, FunctionKind kind, bool has_simple_parameters,
-    bool parsing_module, ParserRecorder* log, Scanner::BookmarkScope* bookmark,
-    int* use_counts) {
+    bool parsing_module, ParserRecorder* log, bool may_abort, int* use_counts) {
   parsing_module_ = parsing_module;
   log_ = log;
   use_counts_ = use_counts;
@@ -93,10 +88,10 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
   int start_position = peek_position();
-  ParseLazyFunctionLiteralBody(&ok, bookmark);
+  LazyParsingResult result = ParseLazyFunctionLiteralBody(may_abort, &ok);
   use_counts_ = nullptr;
-  if (bookmark && bookmark->HasBeenReset()) {
-    // Do nothing, as we've just aborted scanning this function.
+  if (result == kLazyParsingAborted) {
+    return kPreParseAbort;
   } else if (stack_overflow()) {
     return kPreParseStackOverflow;
   } else if (!ok) {
@@ -107,7 +102,6 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
       int end_pos = scanner()->location().end_pos;
       CheckStrictOctalLiteral(start_position, end_pos, &ok);
       CheckDecimalLiteralWithLeadingZero(use_counts, start_position, end_pos);
-      if (!ok) return kPreParseSuccess;
     }
   }
   return kPreParseSuccess;
@@ -171,15 +165,12 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
   return ParseStatement(kAllowLabelledFunctionStatement, ok);
 }
 
-
-void PreParser::ParseStatementList(int end_token, bool* ok,
-                                   Scanner::BookmarkScope* bookmark) {
+PreParser::LazyParsingResult PreParser::ParseStatementList(int end_token,
+                                                           bool may_abort,
+                                                           bool* ok) {
   // SourceElements ::
   //   (Statement)* <end_token>
 
-  // Bookkeeping for trial parse if bookmark is set:
-  DCHECK_IMPLIES(bookmark, bookmark->HasBeenSet());
-  bool maybe_reset = bookmark != nullptr;
   int count_statements = 0;
 
   bool directive_prologue = true;
@@ -189,7 +180,8 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
     }
     bool starts_with_identifier = peek() == Token::IDENTIFIER;
     Scanner::Location token_loc = scanner()->peek_location();
-    Statement statement = ParseStatementListItem(CHECK_OK_CUSTOM(Void));
+    Statement statement =
+        ParseStatementListItem(CHECK_OK_VALUE(kLazyParsingComplete));
 
     if (directive_prologue) {
       bool use_strict_found = statement.IsUseStrictLiteral();
@@ -209,7 +201,7 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
                         MessageTemplate::kIllegalLanguageModeDirective,
                         "use strict");
         *ok = false;
-        return;
+        return kLazyParsingComplete;
       }
     }
 
@@ -218,15 +210,15 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
     // Our current definition of 'long and trivial' is:
     // - over 200 statements
     // - all starting with an identifier (i.e., no if, for, while, etc.)
-    if (maybe_reset && (!starts_with_identifier ||
-                        ++count_statements > kLazyParseTrialLimit)) {
-      if (count_statements > kLazyParseTrialLimit) {
-        bookmark->Reset();
-        return;
+    if (may_abort) {
+      if (!starts_with_identifier) {
+        may_abort = false;
+      } else if (++count_statements > kLazyParseTrialLimit) {
+        return kLazyParsingAborted;
       }
-      maybe_reset = false;
     }
   }
+  return kLazyParsingComplete;
 }
 
 
@@ -815,8 +807,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
                                 &is_binding_pattern, &first_initializer_loc,
                                 &bindings_loc, CHECK_OK);
       if (is_lexical) has_lexical = true;
-      if (CheckInOrOf(&mode, ok)) {
-        if (!*ok) return Statement::Default();
+      if (CheckInOrOf(&mode)) {
         if (decl_count != 1) {
           ReportMessageAt(bindings_loc,
                           MessageTemplate::kForInOfLoopMultiBindings,
@@ -860,7 +851,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       ExpressionClassifier classifier(this);
       Expression lhs = ParseExpressionCoverGrammar(false, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
-      bool is_for_each = CheckInOrOf(&mode, CHECK_OK);
+      bool is_for_each = CheckInOrOf(&mode);
       bool is_destructuring = is_for_each &&
                               (lhs->IsArrayLiteral() || lhs->IsObjectLiteral());
 
@@ -1020,12 +1011,7 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
 
 // Redefinition of CHECK_OK for parsing expressions.
 #undef CHECK_OK
-#define CHECK_OK  ok);                     \
-  if (!*ok) return Expression::Default();  \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
-
+#define CHECK_OK CHECK_OK_VALUE(Expression::Default())
 
 PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
@@ -1062,7 +1048,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   Expect(Token::LBRACE, CHECK_OK);
   if (is_lazily_parsed) {
-    ParseLazyFunctionLiteralBody(CHECK_OK);
+    ParseLazyFunctionLiteralBody(false, CHECK_OK);
   } else {
     ParseStatementList(Token::RBRACE, CHECK_OK);
   }
@@ -1116,12 +1102,12 @@ PreParser::Expression PreParser::ParseAsyncFunctionExpression(bool* ok) {
   return Expression::Default();
 }
 
-void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
-                                             Scanner::BookmarkScope* bookmark) {
+PreParser::LazyParsingResult PreParser::ParseLazyFunctionLiteralBody(
+    bool may_abort, bool* ok) {
   int body_start = position();
-  ParseStatementList(Token::RBRACE, ok, bookmark);
-  if (!*ok) return;
-  if (bookmark && bookmark->HasBeenReset()) return;
+  LazyParsingResult result = ParseStatementList(
+      Token::RBRACE, may_abort, CHECK_OK_VALUE(kLazyParsingComplete));
+  if (result == kLazyParsingAborted) return result;
 
   // Position right after terminal '}'.
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
@@ -1132,6 +1118,7 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
                     function_state_->materialized_literal_count(),
                     function_state_->expected_property_count(), language_mode(),
                     scope->uses_super_property(), scope->calls_eval());
+  return kLazyParsingComplete;
 }
 
 PreParserExpression PreParser::ParseClassLiteral(
@@ -1228,7 +1215,7 @@ void PreParser::ParseAsyncArrowSingleExpressionBody(PreParserStatementList body,
   scope()->ForceContextAllocation();
 
   PreParserExpression return_value =
-      ParseAssignmentExpression(accept_IN, CHECK_OK_CUSTOM(Void));
+      ParseAssignmentExpression(accept_IN, CHECK_OK_VOID);
 
   body->Add(PreParserStatement::ExpressionStatement(return_value), zone());
 }

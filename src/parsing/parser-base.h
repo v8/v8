@@ -126,8 +126,8 @@ struct FormalParametersBase {
 // thus it must never be used where only a single statement
 // is correct (e.g. an if statement branch w/o braces)!
 
-#define CHECK_OK_CUSTOM(x) ok); \
-  if (!*ok) return impl()->x(); \
+#define CHECK_OK_CUSTOM(x, ...) ok);       \
+  if (!*ok) return impl()->x(__VA_ARGS__); \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
@@ -273,6 +273,7 @@ class ParserBase {
  protected:
   friend class v8::internal::ExpressionClassifier<ParserTypes<Impl>>;
 
+  // clang-format off
   enum AllowRestrictedIdentifiers {
     kAllowRestrictedIdentifiers,
     kDontAllowRestrictedIdentifiers
@@ -283,11 +284,17 @@ class ParserBase {
     PARSE_EAGERLY
   };
 
+  enum LazyParsingResult {
+    kLazyParsingComplete,
+    kLazyParsingAborted
+  };
+
   enum VariableDeclarationContext {
     kStatementListItem,
     kStatement,
     kForStatement
   };
+  // clang-format on
 
   class Checkpoint;
   class ObjectLiteralCheckerBase;
@@ -785,8 +792,12 @@ class ParserBase {
     Expect(Token::SEMICOLON, ok);
   }
 
-  // A dummy function, just useful as an argument to CHECK_OK_CUSTOM.
+  // Dummy functions, just useful as arguments to CHECK_OK_CUSTOM.
   static void Void() {}
+  template <typename T>
+  static T Return(T result) {
+    return result;
+  }
 
   bool is_any_identifier(Token::Value token) {
     return token == Token::IDENTIFIER || token == Token::ENUM ||
@@ -820,7 +831,7 @@ class ParserBase {
     }
   }
 
-  bool CheckInOrOf(ForEachStatement::VisitMode* visit_mode, bool* ok) {
+  bool CheckInOrOf(ForEachStatement::VisitMode* visit_mode) {
     if (Check(Token::IN)) {
       *visit_mode = ForEachStatement::ENUMERATE;
       return true;
@@ -3484,12 +3495,15 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     return impl()->EmptyExpression();
   }
 
-  typename Types::StatementList body;
+  typename Types::StatementList body = impl()->NullStatementList();
   int num_parameters = formal_parameters.scope->num_parameters();
   int materialized_literal_count = -1;
   int expected_property_count = -1;
 
   FunctionKind arrow_kind = is_async ? kAsyncArrowFunction : kArrowFunction;
+  FunctionLiteral::EagerCompileHint eager_compile_hint =
+      FunctionLiteral::kShouldLazyCompile;
+  bool should_be_used_once_hint = false;
   {
     FunctionState function_state(&function_state_, &scope_state_,
                                  formal_parameters.scope, arrow_kind);
@@ -3508,14 +3522,30 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       bool is_lazily_parsed = (mode() == PARSE_LAZILY &&
                                formal_parameters.scope->AllowsLazyParsing());
       if (is_lazily_parsed) {
-        body = impl()->NewStatementList(0);
-        impl()->SkipLazyFunctionBody(&materialized_literal_count,
-                                     &expected_property_count, CHECK_OK);
+        Scanner::BookmarkScope bookmark(scanner());
+        bool may_abort = bookmark.Set();
+        LazyParsingResult result = impl()->SkipLazyFunctionBody(
+            &materialized_literal_count, &expected_property_count, may_abort,
+            CHECK_OK);
+
         if (formal_parameters.materialized_literals_count > 0) {
           materialized_literal_count +=
               formal_parameters.materialized_literals_count;
         }
-      } else {
+
+        if (result == kLazyParsingAborted) {
+          bookmark.Reset();
+          // Trigger eager (re-)parsing, just below this block.
+          is_lazily_parsed = false;
+
+          // This is probably an initialization function. Inform the compiler it
+          // should also eager-compile this function, and that we expect it to
+          // be used once.
+          eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
+          should_be_used_once_hint = true;
+        }
+      }
+      if (!is_lazily_parsed) {
         body = impl()->ParseEagerFunctionBody(
             impl()->EmptyIdentifier(), kNoSourcePosition, formal_parameters,
             arrow_kind, FunctionLiteral::kAnonymousExpression, CHECK_OK);
@@ -3576,12 +3606,14 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       impl()->EmptyIdentifierString(), formal_parameters.scope, body,
       materialized_literal_count, expected_property_count, num_parameters,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldLazyCompile, arrow_kind,
+      FunctionLiteral::kAnonymousExpression, eager_compile_hint, arrow_kind,
       formal_parameters.scope->start_position());
 
   function_literal->set_function_token_position(
       formal_parameters.scope->start_position());
+  if (should_be_used_once_hint) {
+    function_literal->set_should_be_used_once_hint();
+  }
 
   if (fni_ != NULL) impl()->InferFunctionName(fni_, function_literal);
 
@@ -3732,7 +3764,6 @@ void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
         MessageTemplate::kInvalidDestructuringTarget);
   }
 }
-
 
 #undef CHECK_OK
 #undef CHECK_OK_CUSTOM

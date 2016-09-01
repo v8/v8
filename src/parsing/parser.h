@@ -510,16 +510,14 @@ class Parser : public ParserBase<Parser> {
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.
-  //
-  // If bookmark is set, the (pre-)parser may decide to abort skipping
+  // If may_abort == true, the (pre-)parser may decide to abort skipping
   // in order to force the function to be eagerly parsed, after all.
-  // In this case, it'll reset the scanner using the bookmark.
-  void SkipLazyFunctionBody(int* materialized_literal_count,
-                            int* expected_property_count, bool* ok,
-                            Scanner::BookmarkScope* bookmark = nullptr);
+  LazyParsingResult SkipLazyFunctionBody(int* materialized_literal_count,
+                                         int* expected_property_count,
+                                         bool may_abort, bool* ok);
 
   PreParser::PreParseResult ParseLazyFunctionBodyWithPreParser(
-      SingletonLogger* logger, Scanner::BookmarkScope* bookmark = nullptr);
+      SingletonLogger* logger, bool may_abort);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
@@ -849,6 +847,7 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE static ZoneList<Expression*>* NullExpressionList() {
     return nullptr;
   }
+  V8_INLINE static ZoneList<Statement*>* NullStatementList() { return nullptr; }
 
   // Non-NULL empty string.
   V8_INLINE const AstRawString* EmptyIdentifierString() const {

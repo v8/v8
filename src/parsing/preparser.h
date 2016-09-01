@@ -296,6 +296,7 @@ class PreParserExpression {
   // More dummy implementations of things PreParser doesn't need to track:
   void set_index(int index) {}  // For YieldExpressions
   void set_should_eager_compile() {}
+  void set_should_be_used_once_hint() {}
 
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
@@ -642,6 +643,7 @@ class PreParser : public ParserBase<PreParser> {
 
   enum PreParseResult {
     kPreParseStackOverflow,
+    kPreParseAbort,
     kPreParseSuccess
   };
 
@@ -698,11 +700,7 @@ class PreParser : public ParserBase<PreParser> {
                                       FunctionKind kind,
                                       bool has_simple_parameters,
                                       bool parsing_module, ParserRecorder* log,
-                                      Scanner::BookmarkScope* bookmark,
-                                      int* use_counts);
-
-  // A dummy function, just useful as an argument to CHECK_OK_CUSTOM.
-  static void Void() {}
+                                      bool may_abort, int* use_counts);
 
  private:
   static const int kLazyParseTrialLimit = 200;
@@ -717,8 +715,12 @@ class PreParser : public ParserBase<PreParser> {
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
   Statement ParseStatementListItem(bool* ok);
-  void ParseStatementList(int end_token, bool* ok,
-                          Scanner::BookmarkScope* bookmark = nullptr);
+  V8_INLINE void ParseStatementList(int end_token, bool* ok) {
+    LazyParsingResult result = ParseStatementList(end_token, false, ok);
+    USE(result);  // The result is just used in debug modes.
+    DCHECK_EQ(result, kLazyParsingComplete);
+  }
+  LazyParsingResult ParseStatementList(int end_token, bool may_abort, bool* ok);
   Statement ParseStatement(AllowLabelledFunctionStatement allow_function,
                            bool* ok);
   Statement ParseSubStatement(AllowLabelledFunctionStatement allow_function,
@@ -764,18 +766,18 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
-  V8_INLINE void SkipLazyFunctionBody(
-      int* materialized_literal_count, int* expected_property_count, bool* ok,
-      Scanner::BookmarkScope* bookmark = nullptr) {
+  V8_INLINE LazyParsingResult
+  SkipLazyFunctionBody(int* materialized_literal_count,
+                       int* expected_property_count, bool may_abort, bool* ok) {
     UNREACHABLE();
+    return kLazyParsingComplete;
   }
   Expression ParseFunctionLiteral(
       Identifier name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_pos, FunctionLiteral::FunctionType function_type,
       LanguageMode language_mode, bool* ok);
-  void ParseLazyFunctionLiteralBody(bool* ok,
-                                    Scanner::BookmarkScope* bookmark = nullptr);
+  LazyParsingResult ParseLazyFunctionLiteralBody(bool may_abort, bool* ok);
 
   PreParserExpression ParseClassLiteral(PreParserIdentifier name,
                                         Scanner::Location class_name_location,
@@ -1008,6 +1010,9 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList();
+  }
+  V8_INLINE static PreParserStatementList NullStatementList() {
+    return PreParserStatementList();
   }
   V8_INLINE PreParserIdentifier EmptyIdentifierString() const {
     return PreParserIdentifier::Default();
