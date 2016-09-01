@@ -117,7 +117,7 @@
       'V8 Linux - beta branch - debug': 'gn_debug_x86',
       'V8 Linux - stable branch': 'gn_release_x86',
       'V8 Linux - stable branch - debug': 'gn_debug_x86',
-      'V8 Linux64 - beta branch': 'gyp_release_x64',
+      'V8 Linux64 - beta branch': 'gn_release_x64',
       'V8 Linux64 - beta branch - debug': 'gn_debug_x64',
       'V8 Linux64 - stable branch': 'gn_release_x64',
       'V8 Linux64 - stable branch - debug': 'gn_debug_x64',
