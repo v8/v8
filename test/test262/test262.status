@@ -600,6 +600,7 @@
   'built-ins/String/prototype/normalize/return-normalized-string-using-default-parameter': [SKIP],
 
   # Case-conversion is not fully compliant to the Unicode spec with i18n off.
+  'built-ins/String/prototype/toLocaleLowerCase/Final_Sigma_U180E': [FAIL],
   'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
   'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
   'built-ins/String/prototype/toLowerCase/special_casing_conditional': [FAIL],
