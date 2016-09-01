@@ -215,8 +215,8 @@ TEST(Run_WasmModule_Serialization) {
     MaybeHandle<FixedArray> compiled_module =
         module->CompileFunctions(isolate, &thrower);
     CHECK(!compiled_module.is_null());
-    Handle<JSObject> module_obj =
-        CreateCompiledModuleObject(isolate, compiled_module.ToHandleChecked());
+    Handle<JSObject> module_obj = CreateCompiledModuleObject(
+        isolate, compiled_module.ToHandleChecked(), ModuleOrigin::kWasmOrigin);
     v8::Local<v8::Object> v8_module_obj = v8::Utils::ToLocal(module_obj);
     CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
 

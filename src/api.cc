@@ -7040,8 +7040,9 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
   if (!maybe_compiled_part.ToHandle(&compiled_part)) {
     return MaybeLocal<WasmCompiledModule>();
   }
-  return Local<WasmCompiledModule>::Cast(Utils::ToLocal(
-      i::wasm::CreateCompiledModuleObject(i_isolate, compiled_part)));
+  return Local<WasmCompiledModule>::Cast(
+      Utils::ToLocal(i::wasm::CreateCompiledModuleObject(
+          i_isolate, compiled_part, i::wasm::ModuleOrigin::kWasmOrigin)));
 }
 
 // static

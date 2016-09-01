@@ -1629,15 +1629,48 @@ int GetNumberOfFunctions(JSObject* wasm) {
   return ByteArray::cast(func_names_obj)->get_int(0);
 }
 
-Handle<JSObject> CreateCompiledModuleObject(
-    Isolate* isolate, Handle<FixedArray> compiled_module) {
-  Handle<JSFunction> module_cons(
-      isolate->native_context()->wasm_module_constructor());
-  Handle<JSObject> module_obj = isolate->factory()->NewJSObject(module_cons);
+Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
+                                            Handle<FixedArray> compiled_module,
+                                            ModuleOrigin origin) {
+  Handle<JSObject> module_obj;
+  if (origin == ModuleOrigin::kWasmOrigin) {
+    Handle<JSFunction> module_cons(
+        isolate->native_context()->wasm_module_constructor());
+    module_obj = isolate->factory()->NewJSObject(module_cons);
+  } else {
+    DCHECK(origin == ModuleOrigin::kAsmJsOrigin);
+    Handle<Map> map = isolate->factory()->NewMap(
+        JS_OBJECT_TYPE, JSObject::kHeaderSize + kPointerSize);
+    module_obj = isolate->factory()->NewJSObjectFromMap(map, TENURED);
+  }
   module_obj->SetInternalField(0, *compiled_module);
-  Handle<Symbol> module_sym(isolate->native_context()->wasm_module_sym());
-  Object::SetProperty(module_obj, module_sym, module_obj, STRICT).Check();
+  if (origin == ModuleOrigin::kWasmOrigin) {
+    Handle<Symbol> module_sym(isolate->native_context()->wasm_module_sym());
+    Object::SetProperty(module_obj, module_sym, module_obj, STRICT).Check();
+  }
   return module_obj;
+}
+
+MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
+                                                  const byte* start,
+                                                  const byte* end,
+                                                  ErrorThrower* thrower,
+                                                  ModuleOrigin origin) {
+  MaybeHandle<JSObject> nothing;
+  Zone zone(isolate->allocator());
+  ModuleResult result =
+      DecodeWasmModule(isolate, &zone, start, end, false, origin);
+  std::unique_ptr<const WasmModule> decoded_module(result.val);
+  if (result.failed()) {
+    thrower->Failed("Wasm decoding failed", result);
+    return nothing;
+  }
+  MaybeHandle<FixedArray> compiled_module =
+      decoded_module->CompileFunctions(isolate, thrower);
+  if (compiled_module.is_null()) return nothing;
+
+  return CreateCompiledModuleObject(isolate, compiled_module.ToHandleChecked(),
+                                    origin);
 }
 
 namespace testing {

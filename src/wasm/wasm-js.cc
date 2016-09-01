@@ -195,20 +195,9 @@ static i::MaybeHandle<i::JSObject> CreateModuleObject(
   if (buffer.start == nullptr) return i::MaybeHandle<i::JSObject>();
 
   DCHECK(source->IsArrayBuffer() || source->IsTypedArray());
-  i::Zone zone(i_isolate->allocator());
-  i::wasm::ModuleResult result = i::wasm::DecodeWasmModule(
-      i_isolate, &zone, buffer.start, buffer.end, false, i::wasm::kWasmOrigin);
-  std::unique_ptr<const i::wasm::WasmModule> decoded_module(result.val);
-  if (result.failed()) {
-    thrower->Failed("", result);
-    return nothing;
-  }
-  i::MaybeHandle<i::FixedArray> compiled_module =
-      decoded_module->CompileFunctions(i_isolate, thrower);
-  if (compiled_module.is_null()) return nothing;
-
-  return i::wasm::CreateCompiledModuleObject(i_isolate,
-                                             compiled_module.ToHandleChecked());
+  return i::wasm::CreateModuleObjectFromBytes(
+      i_isolate, buffer.start, buffer.end, thrower,
+      i::wasm::ModuleOrigin::kWasmOrigin);
 }
 
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {

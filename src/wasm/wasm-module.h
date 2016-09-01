@@ -399,7 +399,14 @@ void PopulateFunctionTable(Handle<FixedArray> table, uint32_t table_size,
                            const std::vector<Handle<Code>>* code_table);
 
 Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
-                                            Handle<FixedArray> compiled_module);
+                                            Handle<FixedArray> compiled_module,
+                                            ModuleOrigin origin);
+
+MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
+                                                  const byte* start,
+                                                  const byte* end,
+                                                  ErrorThrower* thrower,
+                                                  ModuleOrigin origin);
 
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.

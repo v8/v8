@@ -769,7 +769,8 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   if (!maybe_compiled_module.ToHandle(&compiled_module)) {
     return isolate->heap()->undefined_value();
   }
-  return *wasm::CreateCompiledModuleObject(isolate, compiled_module);
+  return *wasm::CreateCompiledModuleObject(isolate, compiled_module,
+                                           wasm::ModuleOrigin::kWasmOrigin);
 }
 
 }  // namespace internal

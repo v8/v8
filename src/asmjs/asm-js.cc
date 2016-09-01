@@ -30,29 +30,6 @@ namespace v8 {
 namespace internal {
 
 namespace {
-i::MaybeHandle<i::FixedArray> CompileModule(
-    i::Isolate* isolate, const byte* start, const byte* end,
-    ErrorThrower* thrower,
-    internal::wasm::ModuleOrigin origin = i::wasm::kWasmOrigin) {
-  // Decode but avoid a redundant pass over function bodies for verification.
-  // Verification will happen during compilation.
-  i::Zone zone(isolate->allocator());
-  internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
-      isolate, &zone, start, end, false, origin);
-
-  i::MaybeHandle<i::FixedArray> compiled_module;
-  if (result.failed() && origin == internal::wasm::kAsmJsOrigin) {
-    thrower->Error("Asm.js converted module failed to decode");
-  } else if (result.failed()) {
-    thrower->Failed("", result);
-  } else {
-    compiled_module = result.val->CompileFunctions(isolate, thrower);
-  }
-
-  if (result.val) delete result.val;
-  return compiled_module;
-}
-
 Handle<i::Object> StdlibMathMember(i::Isolate* isolate,
                                    Handle<JSReceiver> stdlib,
                                    Handle<Name> name) {
@@ -187,9 +164,9 @@ MaybeHandle<FixedArray> AsmJs::ConvertAsmToWasm(ParseInfo* info) {
   i::Handle<i::FixedArray> foreign_globals;
   auto module = builder.Run(&foreign_globals);
 
-  i::MaybeHandle<i::FixedArray> compiled =
-      CompileModule(info->isolate(), module->begin(), module->end(), &thrower,
-                    internal::wasm::kAsmJsOrigin);
+  i::MaybeHandle<i::JSObject> compiled = wasm::CreateModuleObjectFromBytes(
+      info->isolate(), module->begin(), module->end(), &thrower,
+      internal::wasm::kAsmJsOrigin);
   DCHECK(!compiled.is_null());
 
   wasm::AsmTyper::StdlibSet uses = typer.StdlibUses();
@@ -223,7 +200,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                                               Handle<FixedArray> wasm_data,
                                               Handle<JSArrayBuffer> memory,
                                               Handle<JSReceiver> foreign) {
-  i::Handle<i::FixedArray> compiled(i::FixedArray::cast(wasm_data->get(0)));
+  i::Handle<i::JSObject> module(i::JSObject::cast(wasm_data->get(0)));
+  i::Handle<i::FixedArray> compiled(
+      i::FixedArray::cast(module->GetInternalField(0)));
   i::Handle<i::FixedArray> foreign_globals(
       i::FixedArray::cast(wasm_data->get(1)));
 
