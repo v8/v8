@@ -89,8 +89,8 @@
       'V8 Arm - builder': 'gyp_release_arm',
       'V8 Arm - debug builder': 'gyp_debug_arm',
       'V8 Android Arm - builder': 'gyp_release_android_arm',
-      'V8 Linux - arm - sim': 'gyp_release_simulate_arm',
-      'V8 Linux - arm - sim - debug': 'gyp_debug_simulate_arm',
+      'V8 Linux - arm - sim': 'gn_release_simulate_arm',
+      'V8 Linux - arm - sim - debug': 'gn_debug_simulate_arm',
       # Arm64.
       'V8 Android Arm64 - builder': 'gyp_release_android_arm64',
       'V8 Linux - arm64 - sim': 'gn_release_simulate_arm64',
@@ -121,10 +121,10 @@
       'V8 Linux64 - beta branch - debug': 'gn_debug_x64',
       'V8 Linux64 - stable branch': 'gn_release_x64',
       'V8 Linux64 - stable branch - debug': 'gn_debug_x64',
-      'V8 arm - sim - beta branch': 'gyp_release_simulate_arm',
-      'V8 arm - sim - beta branch - debug': 'gyp_debug_simulate_arm',
-      'V8 arm - sim - stable branch': 'gyp_release_simulate_arm',
-      'V8 arm - sim - stable branch - debug': 'gyp_debug_simulate_arm',
+      'V8 arm - sim - beta branch': 'gn_release_simulate_arm',
+      'V8 arm - sim - beta branch - debug': 'gn_debug_simulate_arm',
+      'V8 arm - sim - stable branch': 'gn_release_simulate_arm',
+      'V8 arm - sim - stable branch - debug': 'gn_debug_simulate_arm',
       'V8 mips64el - sim - beta branch': 'gyp_release_simulate_mips64el',
       'V8 mips64el - sim - stable branch': 'gyp_release_simulate_mips64el',
       'V8 mipsel - sim - beta branch': 'gyp_release_simulate_mipsel',
@@ -171,10 +171,10 @@
       'v8_mac64_rel': 'gn_release_x64_trybot',
       'v8_mac64_dbg': 'gn_debug_x64_minimal_symbols',
       'v8_mac64_asan_rel': 'gyp_release_x64_asan',
-      'v8_linux_arm_rel_ng': 'gyp_release_simulate_arm_trybot',
-      'v8_linux_arm_dbg': 'gyp_debug_simulate_arm',
-      'v8_linux_arm_armv8a_rel': 'gyp_release_simulate_arm_trybot',
-      'v8_linux_arm_armv8a_dbg': 'gyp_debug_simulate_arm',
+      'v8_linux_arm_rel_ng': 'gn_release_simulate_arm_trybot',
+      'v8_linux_arm_dbg': 'gn_debug_simulate_arm',
+      'v8_linux_arm_armv8a_rel': 'gn_release_simulate_arm_trybot',
+      'v8_linux_arm_armv8a_dbg': 'gn_debug_simulate_arm',
       'v8_linux_arm64_rel_ng': 'gn_release_simulate_arm64_trybot',
       'v8_linux_arm64_dbg': 'gn_debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_dbg': 'gn_debug_simulate_arm64',
@@ -204,12 +204,18 @@
 
 
     # GN debug configs for simulators.
+    'gn_debug_simulate_arm': [
+      'gn', 'debug_bot', 'simulate_arm', 'swarming'],
     'gn_debug_simulate_arm64': [
       'gn', 'debug_bot', 'simulate_arm64', 'swarming'],
     'gn_debug_simulate_arm64_no_snap': [
       'gn', 'debug_bot', 'simulate_arm64', 'swarming', 'v8_snapshot_none'],
 
     # GN release configs for simulators.
+    'gn_release_simulate_arm': [
+      'gn', 'release_bot', 'simulate_arm', 'swarming'],
+    'gn_release_simulate_arm_trybot': [
+      'gn', 'release_trybot', 'simulate_arm', 'swarming'],
     'gn_release_simulate_arm64': [
       'gn', 'release_bot', 'simulate_arm64', 'swarming'],
     'gn_release_simulate_arm64_msan': [
@@ -281,8 +287,6 @@
       'gyp', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
 
     # Gyp debug configs for simulators.
-    'gyp_debug_simulate_arm': [
-      'gyp', 'debug_bot', 'simulate_arm', 'swarming'],
     'gyp_debug_simulate_arm_asan_edge': [
       'gyp', 'debug_bot', 'simulate_arm', 'asan', 'edge'],
     'gyp_debug_simulate_arm64_asan_edge': [
@@ -327,10 +331,6 @@
       'v8_snapshot_none'],
 
     # Gyp release configs for simulators.
-    'gyp_release_simulate_arm': [
-      'gyp', 'release_bot', 'simulate_arm', 'swarming'],
-    'gyp_release_simulate_arm_trybot': [
-      'gyp', 'release_trybot', 'simulate_arm', 'swarming'],
     'gyp_release_simulate_mipsel': [
       'gyp', 'release_bot', 'simulate_mipsel', 'swarming'],
     'gyp_release_simulate_mips64el': [
