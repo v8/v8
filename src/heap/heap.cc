@@ -964,7 +964,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
 
   if (collector == SCAVENGER && !incremental_marking()->IsStopped()) {
     if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] Scavenge during marking.\n");
+      isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Scavenge during marking.\n");
     }
   }
 
@@ -976,7 +977,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
         !mark_compact_collector()->marking_deque_.IsEmpty() &&
         !FLAG_gc_global) {
       if (FLAG_trace_incremental_marking) {
-        PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
+        isolate()->PrintWithTimestamp(
+            "[IncrementalMarking] Delaying MarkSweep.\n");
       }
       collector = SCAVENGER;
       collector_reason = "incremental marking delaying mark-sweep";

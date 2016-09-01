@@ -487,9 +487,16 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 
 void IncrementalMarking::Start(const char* reason) {
   if (FLAG_trace_incremental_marking) {
+    int old_generation_size_mb =
+        static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
+    int old_generation_limit_mb =
+        static_cast<int>(heap()->old_generation_allocation_limit() / MB);
     heap()->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Start (%s)\n",
-        (reason == nullptr) ? "unknown reason" : reason);
+        "[IncrementalMarking] Start (%s): old generation %dMB, limit %dMB, "
+        "slack %dMB\n",
+        (reason == nullptr) ? "unknown reason" : reason, old_generation_size_mb,
+        old_generation_limit_mb,
+        Max(0, old_generation_limit_mb - old_generation_size_mb));
   }
   DCHECK(FLAG_incremental_marking);
   DCHECK(state_ == STOPPED);
@@ -959,7 +966,15 @@ void IncrementalMarking::Hurry() {
 void IncrementalMarking::Stop() {
   if (IsStopped()) return;
   if (FLAG_trace_incremental_marking) {
-    heap()->isolate()->PrintWithTimestamp("[IncrementalMarking] Stopping.\n");
+    int old_generation_size_mb =
+        static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
+    int old_generation_limit_mb =
+        static_cast<int>(heap()->old_generation_allocation_limit() / MB);
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Stopping: old generation %dMB, limit %dMB, "
+        "overshoot %dMB\n",
+        old_generation_size_mb, old_generation_limit_mb,
+        Max(0, old_generation_size_mb - old_generation_limit_mb));
   }
 
   heap_->new_space()->RemoveAllocationObserver(&observer_);
