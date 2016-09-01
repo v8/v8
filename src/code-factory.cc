@@ -82,10 +82,6 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
 
 // static
 Callable CodeFactory::KeyedLoadIC_Megamorphic(Isolate* isolate) {
-  if (FLAG_tf_load_ic_stub) {
-    return Callable(isolate->builtins()->KeyedLoadIC_Megamorphic_TF(),
-                    LoadWithVectorDescriptor(isolate));
-  }
   return Callable(isolate->builtins()->KeyedLoadIC_Megamorphic(),
                   LoadWithVectorDescriptor(isolate));
 }

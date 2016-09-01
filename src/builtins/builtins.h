@@ -51,8 +51,6 @@ namespace internal {
   ASM(Abort)                                                                  \
   /* Handlers */                                                              \
   ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \
-  TFS(KeyedLoadIC_Megamorphic_TF, KEYED_LOAD_IC, kNoExtraICState,             \
-      LoadWithVector)                                                         \
   ASM(KeyedLoadIC_Miss)                                                       \
   ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                         \
   ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)              \
