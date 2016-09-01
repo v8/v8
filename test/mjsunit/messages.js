@@ -123,6 +123,11 @@ test(function() {
 }, "First argument to String.prototype.startsWith " +
    "must not be a regular expression", TypeError);
 
+// kFlagsGetterNonObject
+test(function() {
+  Object.getOwnPropertyDescriptor(RegExp.prototype, "flags").get.call(1);
+}, "RegExp.prototype.flags getter called on non-object 1", TypeError);
+
 // kFunctionBind
 test(function() {
   Function.prototype.bind.call(1);

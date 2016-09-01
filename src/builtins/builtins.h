@@ -493,29 +493,6 @@ namespace internal {
                                                                               \
   /* RegExp */                                                                \
   CPP(RegExpConstructor)                                                      \
-  CPP(RegExpPrototypeCapture1Getter)                                          \
-  CPP(RegExpPrototypeCapture2Getter)                                          \
-  CPP(RegExpPrototypeCapture3Getter)                                          \
-  CPP(RegExpPrototypeCapture4Getter)                                          \
-  CPP(RegExpPrototypeCapture5Getter)                                          \
-  CPP(RegExpPrototypeCapture6Getter)                                          \
-  CPP(RegExpPrototypeCapture7Getter)                                          \
-  CPP(RegExpPrototypeCapture8Getter)                                          \
-  CPP(RegExpPrototypeCapture9Getter)                                          \
-  CPP(RegExpPrototypeFlagsGetter)                                             \
-  CPP(RegExpPrototypeGlobalGetter)                                            \
-  CPP(RegExpPrototypeIgnoreCaseGetter)                                        \
-  CPP(RegExpPrototypeInputGetter)                                             \
-  CPP(RegExpPrototypeInputSetter)                                             \
-  CPP(RegExpPrototypeLastMatchGetter)                                         \
-  CPP(RegExpPrototypeLastParenGetter)                                         \
-  CPP(RegExpPrototypeLeftContextGetter)                                       \
-  CPP(RegExpPrototypeMultilineGetter)                                         \
-  CPP(RegExpPrototypeRightContextGetter)                                      \
-  CPP(RegExpPrototypeSourceGetter)                                            \
-  CPP(RegExpPrototypeSpeciesGetter)                                           \
-  CPP(RegExpPrototypeStickyGetter)                                            \
-  CPP(RegExpPrototypeUnicodeGetter)                                           \
                                                                               \
   /* SharedArrayBuffer */                                                     \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                \
