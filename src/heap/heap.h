@@ -1679,10 +1679,6 @@ class Heap {
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
-  // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
-  // Re-visit incremental marking heuristics.
-  bool IsHighSurvivalRate() { return high_survival_rate_period_length_ > 0; }
-
   void ConfigureInitialOldGenerationSize();
 
   bool HasLowYoungGenerationAllocationRate();

@@ -30,13 +30,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       observer_(*this, kAllocatedThreshold),
       state_(STOPPED),
       is_compacting_(false),
-      steps_count_(0),
-      old_generation_space_available_at_start_of_incremental_(0),
-      old_generation_space_used_at_start_of_incremental_(0),
-      bytes_rescanned_(0),
       should_hurry_(false),
-      marking_speed_(0),
-      bytes_scanned_(0),
       allocated_(0),
       write_barriers_invoked_since_last_step_(0),
       idle_marking_delay_counter_(0),
@@ -81,9 +75,11 @@ void IncrementalMarking::RecordWriteFromCode(HeapObject* obj, Object** slot,
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   int counter = chunk->write_barrier_counter();
   if (counter < (MemoryChunk::kWriteBarrierCounterGranularity / 2)) {
-    marking->write_barriers_invoked_since_last_step_ +=
-        MemoryChunk::kWriteBarrierCounterGranularity -
-        chunk->write_barrier_counter();
+    marking->write_barriers_invoked_since_last_step_ =
+        Min(kMaxWriteBarrierCounter,
+            marking->write_barriers_invoked_since_last_step_ +
+                MemoryChunk::kWriteBarrierCounterGranularity -
+                chunk->write_barrier_counter());
     chunk->set_write_barrier_counter(
         MemoryChunk::kWriteBarrierCounterGranularity);
   }
@@ -463,21 +459,6 @@ void IncrementalMarking::ActivateGeneratedStub(Code* stub) {
     RecordWriteStub::Patch(stub, RecordWriteStub::INCREMENTAL_COMPACTION);
   } else {
     RecordWriteStub::Patch(stub, RecordWriteStub::INCREMENTAL);
-  }
-}
-
-
-void IncrementalMarking::NotifyOfHighPromotionRate() {
-  if (IsMarking()) {
-    if (marking_speed_ < kFastMarking) {
-      if (FLAG_trace_gc) {
-        heap()->isolate()->PrintWithTimestamp(
-            "Increasing marking speed to %d "
-            "due to high promotion rate\n",
-            static_cast<int>(kFastMarking));
-      }
-      marking_speed_ = kFastMarking;
-    }
   }
 }
 
@@ -1069,86 +1050,10 @@ void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
     heap()->StartIncrementalMarking(Heap::kNoGCFlags, kNoGCCallbackFlags,
                                     "old space step");
   } else {
-    Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
+    Step(allocated, GC_VIA_STACK_GUARD);
   }
 }
 
-
-void IncrementalMarking::SpeedUp() {
-  bool speed_up = false;
-
-  if ((steps_count_ % kMarkingSpeedAccellerationInterval) == 0) {
-    if (FLAG_trace_incremental_marking) {
-      heap()->isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Speed up marking after %d steps\n",
-          static_cast<int>(kMarkingSpeedAccellerationInterval));
-    }
-    speed_up = true;
-  }
-
-  bool space_left_is_very_small =
-      (old_generation_space_available_at_start_of_incremental_ < 10 * MB);
-
-  bool only_1_nth_of_space_that_was_available_still_left =
-      (SpaceLeftInOldSpace() * (marking_speed_ + 1) <
-       old_generation_space_available_at_start_of_incremental_);
-
-  if (space_left_is_very_small ||
-      only_1_nth_of_space_that_was_available_still_left) {
-    if (FLAG_trace_incremental_marking)
-      heap()->isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Speed up marking because of low space left\n");
-    speed_up = true;
-  }
-
-  bool size_of_old_space_multiplied_by_n_during_marking =
-      (heap_->PromotedTotalSize() >
-       (marking_speed_ + 1) *
-           old_generation_space_used_at_start_of_incremental_);
-  if (size_of_old_space_multiplied_by_n_during_marking) {
-    speed_up = true;
-    if (FLAG_trace_incremental_marking) {
-      heap()->isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Speed up marking because of heap size "
-          "increase\n");
-    }
-  }
-
-  int64_t promoted_during_marking =
-      heap_->PromotedTotalSize() -
-      old_generation_space_used_at_start_of_incremental_;
-  intptr_t delay = marking_speed_ * MB;
-  intptr_t scavenge_slack = heap_->MaxSemiSpaceSize();
-
-  // We try to scan at at least twice the speed that we are allocating.
-  if (promoted_during_marking > bytes_scanned_ / 2 + scavenge_slack + delay) {
-    if (FLAG_trace_incremental_marking) {
-      heap()->isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Speed up marking because marker was not "
-          "keeping up\n");
-    }
-    speed_up = true;
-  }
-
-  if (speed_up) {
-    if (state_ != MARKING) {
-      if (FLAG_trace_incremental_marking) {
-        heap()->isolate()->PrintWithTimestamp(
-            "[IncrementalMarking] Postponing speeding up marking until marking "
-            "starts\n");
-      }
-    } else {
-      marking_speed_ += kMarkingSpeedAccelleration;
-      marking_speed_ = static_cast<int>(
-          Min(kMaxMarkingSpeed, static_cast<intptr_t>(marking_speed_ * 1.3)));
-      if (FLAG_trace_incremental_marking) {
-        heap()->isolate()->PrintWithTimestamp(
-            "[IncrementalMarking] Marking speed increased to %d\n",
-            marking_speed_);
-      }
-    }
-  }
-}
 
 void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
@@ -1158,7 +1063,6 @@ void IncrementalMarking::FinalizeSweeping() {
     heap_->mark_compact_collector()->EnsureSweepingCompleted();
   }
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
-    bytes_scanned_ = 0;
     StartMarking();
   }
 }
@@ -1196,21 +1100,23 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
     double start = heap_->MonotonicallyIncreasingTimeInMs();
 
+    // Make sure that the step size is large enough to justify the overhead
+    // of interrupting the generated code to perform the step.
+    intptr_t min_bytes_to_process = GCIdleTimeHandler::EstimateMarkingStepSize(
+        kMinIncrementalStepDurationInMs,
+        heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
     // The marking speed is driven either by the allocation rate or by the rate
     // at which we are having to check the color of objects in the write
     // barrier.
     // It is possible for a tight non-allocating loop to run a lot of write
     // barriers before we get here and check them (marking can only take place
-    // on
-    // allocation), so to reduce the lumpiness we don't use the write barriers
-    // invoked since last step directly to determine the amount of work to do.
-    intptr_t bytes_to_process =
-        marking_speed_ *
-        Max(allocated_, write_barriers_invoked_since_last_step_);
+    // on allocation).
+    intptr_t bytes_to_process = Max(
+        min_bytes_to_process, kBytesToMarkPerAllocatedByte * allocated_ +
+                                  kBytesToMarkPerWriteBarrier *
+                                      write_barriers_invoked_since_last_step_);
     allocated_ = 0;
     write_barriers_invoked_since_last_step_ = 0;
-
-    bytes_scanned_ += bytes_to_process;
 
     if (state_ == SWEEPING) {
       TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL_SWEEPING);
@@ -1260,12 +1166,6 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
       }
     }
 
-    steps_count_++;
-
-    // Speed up marking if we are marking too slow or if we are almost done
-    // with marking.
-    SpeedUp();
-
     double end = heap_->MonotonicallyIncreasingTimeInMs();
     double duration = (end - start);
     // Note that we report zero bytes here when sweeping was in progress or
@@ -1278,14 +1178,7 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
 
 
 void IncrementalMarking::ResetStepCounters() {
-  steps_count_ = 0;
-  old_generation_space_available_at_start_of_incremental_ =
-      SpaceLeftInOldSpace();
-  old_generation_space_used_at_start_of_incremental_ =
-      heap_->PromotedTotalSize();
-  bytes_rescanned_ = 0;
-  marking_speed_ = kInitialMarkingSpeed;
-  bytes_scanned_ = 0;
+  allocated_ = 0;
   write_barriers_invoked_since_last_step_ = 0;
 }
 

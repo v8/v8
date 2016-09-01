@@ -1305,13 +1305,6 @@ bool Heap::PerformGarbageCollection(
 
   int start_new_space_size = Heap::new_space()->SizeAsInt();
 
-  if (IsHighSurvivalRate()) {
-    // We speed up the incremental marker if it is running so that it
-    // does not fall behind the rate of promotion, which would cause a
-    // constantly growing old space.
-    incremental_marking()->NotifyOfHighPromotionRate();
-  }
-
   {
     Heap::PretenuringScope pretenuring_scope(this);
 
