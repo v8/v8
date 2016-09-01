@@ -187,6 +187,14 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {
   CHECK_NULL(assigned);
 }
 
+TEST_F(WasmLoopAssignmentAnalyzerTest, regress_642867) {
+  static const byte code[] = {
+      WASM_LOOP(WASM_ZERO, kExprSetLocal, 0xfa, 0xff, 0xff, 0xff,
+                0x0f)};  // local index LEB128 0xfffffffa
+  // Just make sure that the analysis does not crash.
+  Analyze(code, code + arraysize(code));
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

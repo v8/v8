@@ -1851,7 +1851,7 @@ class WasmFullDecoder : public WasmDecoder {
         case kExprSetLocal: {
           LocalIndexOperand operand(this, pc);
           if (assigned->length() > 0 &&
-              static_cast<int>(operand.index) < assigned->length()) {
+              operand.index < static_cast<uint32_t>(assigned->length())) {
             // Unverified code might have an out-of-bounds index.
             assigned->Add(operand.index);
           }
