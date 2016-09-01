@@ -2849,7 +2849,7 @@ Node* SimplifiedLowering::Float64Sign(Node* const node) {
       graph()->NewNode(
           common()->Select(MachineRepresentation::kFloat64),
           graph()->NewNode(machine()->Float64LessThan(), zero, input), one,
-          zero));
+          input));
 }
 
 Node* SimplifiedLowering::Int32Abs(Node* const node) {
