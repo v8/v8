@@ -15,6 +15,14 @@ namespace internal {
 namespace compiler {
 
 // static
+FieldAccess AccessBuilder::ForExternalDoubleValue() {
+  FieldAccess access = {kUntaggedBase,          0,
+                        MaybeHandle<Name>(),    Type::Number(),
+                        MachineType::Float64(), kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForMap() {
   FieldAccess access = {
       kTaggedBase,           HeapObject::kMapOffset,   MaybeHandle<Name>(),

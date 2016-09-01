@@ -18,6 +18,12 @@ namespace compiler {
 class AccessBuilder final : public AllStatic {
  public:
   // ===========================================================================
+  // Access to external values (based on external references).
+
+  // Provides access to a double field identified by an external reference.
+  static FieldAccess ForExternalDoubleValue();
+
+  // ===========================================================================
   // Access to heap object fields and elements (based on tagged pointer).
 
   // Provides access to HeapObject::map() field.
