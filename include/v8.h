@@ -4556,11 +4556,26 @@ typedef void (*GenericNamedPropertySetterCallback)(
     Local<Name> property, Local<Value> value,
     const PropertyCallbackInfo<Value>& info);
 
-
 /**
- * Returns a non-empty handle if the interceptor intercepts the request.
- * The result is an integer encoding property attributes (like v8::None,
- * v8::DontEnum, etc.)
+ * Intercepts all requests that query the attributes of the
+ * property, e.g., getOwnPropertyDescriptor(), propertyIsEnumerable(), and
+ * defineProperty().
+ *
+ * Use `info.GetReturnValue().Set(value)` to set the property attributes. The
+ * value is an interger encoding a `v8::PropertyAttribute`.
+ *
+ * \param property The name of the property for which the request was
+ * intercepted.
+ * \param info Information about the intercepted request, such as
+ * isolate, receiver, return value, or whether running in `'use strict'` mode.
+ * See `PropertyCallbackInfo`.
+ *
+ * \note Some functions query the property attributes internally, even though
+ * they do not return the attributes. For example, `hasOwnProperty()` can
+ * trigger this interceptor depending on the state of the object.
+ *
+ * See also
+ * `ObjectTemplate::SetNamedPropertyHandler.`
  */
 typedef void (*GenericNamedPropertyQueryCallback)(
     Local<Name> property, const PropertyCallbackInfo<Integer>& info);

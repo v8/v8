@@ -346,6 +346,102 @@ void InterceptorHasOwnPropertyGetterGC(
 
 }  // namespace
 
+int query_counter_int = 0;
+
+namespace {
+void QueryCallback(Local<Name> property,
+                   const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  query_counter_int++;
+}
+
+}  // namespace
+
+// Examples that show when the query callback is triggered.
+THREADED_TEST(QueryInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(0, 0, QueryCallback));
+  LocalContext env;
+  env->Global()
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
+      .FromJust();
+  CHECK_EQ(query_counter_int, 0);
+  v8::Local<Value> result =
+      v8_compile("Object.getOwnPropertyDescriptor(obj, 'x');")
+          ->Run(env.local())
+          .ToLocalChecked();
+  CHECK_EQ(query_counter_int, 1);
+  CHECK_EQ(v8::PropertyAttribute::None,
+           static_cast<v8::PropertyAttribute>(
+               result->Int32Value(env.local()).FromJust()));
+
+  v8_compile("Object.defineProperty(obj, 'not_enum', {value: 17});")
+      ->Run(env.local())
+      .ToLocalChecked();
+  CHECK_EQ(query_counter_int, 2);
+
+  v8_compile(
+      "Object.defineProperty(obj, 'enum', {value: 17, enumerable: true, "
+      "writable: true});")
+      ->Run(env.local())
+      .ToLocalChecked();
+  CHECK_EQ(query_counter_int, 3);
+
+  CHECK(v8_compile("obj.propertyIsEnumerable('enum');")
+            ->Run(env.local())
+            .ToLocalChecked()
+            ->BooleanValue(env.local())
+            .FromJust());
+  CHECK_EQ(query_counter_int, 4);
+
+  CHECK(!v8_compile("obj.propertyIsEnumerable('not_enum');")
+             ->Run(env.local())
+             .ToLocalChecked()
+             ->BooleanValue(env.local())
+             .FromJust());
+  CHECK_EQ(query_counter_int, 5);
+
+  CHECK(v8_compile("obj.hasOwnProperty('enum');")
+            ->Run(env.local())
+            .ToLocalChecked()
+            ->BooleanValue(env.local())
+            .FromJust());
+  CHECK_EQ(query_counter_int, 5);
+
+  CHECK(v8_compile("obj.hasOwnProperty('not_enum');")
+            ->Run(env.local())
+            .ToLocalChecked()
+            ->BooleanValue(env.local())
+            .FromJust());
+  CHECK_EQ(query_counter_int, 5);
+
+  CHECK(!v8_compile("obj.hasOwnProperty('x');")
+             ->Run(env.local())
+             .ToLocalChecked()
+             ->BooleanValue(env.local())
+             .FromJust());
+  CHECK_EQ(query_counter_int, 6);
+
+  CHECK(!v8_compile("obj.propertyIsEnumerable('undef');")
+             ->Run(env.local())
+             .ToLocalChecked()
+             ->BooleanValue(env.local())
+             .FromJust());
+  CHECK_EQ(query_counter_int, 7);
+
+  v8_compile("Object.defineProperty(obj, 'enum', {value: 42});")
+      ->Run(env.local())
+      .ToLocalChecked();
+  CHECK_EQ(query_counter_int, 8);
+
+  v8_compile("Object.isFrozen('obj.x');")->Run(env.local()).ToLocalChecked();
+  CHECK_EQ(query_counter_int, 8);
+}
 
 THREADED_TEST(InterceptorHasOwnProperty) {
   LocalContext context;
