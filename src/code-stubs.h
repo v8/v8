@@ -564,7 +564,7 @@ class CodeStubDescriptor {
     return call_descriptor().GetRegisterParameter(index);
   }
 
-  Type* GetParameterType(int index) const {
+  MachineType GetParameterType(int index) const {
     return call_descriptor().GetParameterType(index);
   }
 
@@ -3225,6 +3225,7 @@ class ToObjectStub final : public TurboFanCodeStub {
 #undef DEFINE_CODE_STUB_BASE
 
 extern Representation RepresentationFromType(Type* type);
+extern Representation RepresentationFromMachineType(MachineType type);
 
 }  // namespace internal
 }  // namespace v8

@@ -24,36 +24,6 @@ LinkageLocation regloc(Register reg, MachineType type) {
   return LinkageLocation::ForRegister(reg.code(), type);
 }
 
-MachineType reptyp(Representation representation) {
-  switch (representation.kind()) {
-    case Representation::kInteger8:
-      return MachineType::Int8();
-    case Representation::kUInteger8:
-      return MachineType::Uint8();
-    case Representation::kInteger16:
-      return MachineType::Int16();
-    case Representation::kUInteger16:
-      return MachineType::Uint16();
-    case Representation::kInteger32:
-      return MachineType::Int32();
-    case Representation::kSmi:
-      return MachineType::TaggedSigned();
-    case Representation::kTagged:
-      return MachineType::AnyTagged();
-    case Representation::kHeapObject:
-      return MachineType::TaggedPointer();
-    case Representation::kDouble:
-      return MachineType::Float64();
-    case Representation::kExternal:
-      return MachineType::Pointer();
-    case Representation::kNone:
-    case Representation::kNumRepresentations:
-      break;
-  }
-  UNREACHABLE();
-  return MachineType::None();
-}
-
 }  // namespace
 
 
@@ -382,8 +352,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     if (i < register_parameter_count) {
       // The first parameters go in registers.
       Register reg = descriptor.GetRegisterParameter(i);
-      MachineType type =
-          reptyp(RepresentationFromType(descriptor.GetParameterType(i)));
+      MachineType type = descriptor.GetParameterType(i);
       locations.AddParam(regloc(reg, type));
     } else {
       // The rest of the parameters go on the stack.
@@ -452,8 +421,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
     if (i < register_parameter_count) {
       // The first parameters go in registers.
       Register reg = descriptor.GetRegisterParameter(i);
-      MachineType type =
-          reptyp(RepresentationFromType(descriptor.GetParameterType(i)));
+      MachineType type = descriptor.GetParameterType(i);
       locations.AddParam(regloc(reg, type));
     } else {
       // The rest of the parameters go on the stack.

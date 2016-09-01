@@ -59,7 +59,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
     return parameters_[parameter];
   }
   Representation GetParameterRepresentation(int parameter) {
-    return RepresentationFromType(descriptor_.GetParameterType(parameter));
+    return RepresentationFromMachineType(
+        descriptor_.GetParameterType(parameter));
   }
   bool IsParameterCountRegister(int index) const {
     return descriptor_.GetRegisterParameter(index)

@@ -5854,5 +5854,21 @@ Representation RepresentationFromType(Type* type) {
   return Representation::Tagged();
 }
 
+Representation RepresentationFromMachineType(MachineType type) {
+  if (type == MachineType::Int32()) {
+    return Representation::Integer32();
+  }
+
+  if (type == MachineType::TaggedSigned()) {
+    return Representation::Smi();
+  }
+
+  if (type == MachineType::Pointer()) {
+    return Representation::External();
+  }
+
+  return Representation::Tagged();
+}
+
 }  // namespace internal
 }  // namespace v8

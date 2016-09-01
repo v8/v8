@@ -2175,7 +2175,8 @@ class HCallWithDescriptor final : public HInstruction {
     } else {
       int par_index = index - 2;
       DCHECK(par_index < GetParameterCount());
-      return RepresentationFromType(descriptor_.GetParameterType(par_index));
+      return RepresentationFromMachineType(
+          descriptor_.GetParameterType(par_index));
     }
   }
 

@@ -106,46 +106,50 @@ class PlatformInterfaceDescriptor;
 
 class CallInterfaceDescriptorData {
  public:
-  CallInterfaceDescriptorData()
-      : register_param_count_(-1), function_type_(nullptr) {}
+  CallInterfaceDescriptorData() : register_param_count_(-1), param_count_(-1) {}
 
   // A copy of the passed in registers and param_representations is made
   // and owned by the CallInterfaceDescriptorData.
 
-  void InitializePlatformIndependent(FunctionType* function_type) {
-    function_type_ = function_type;
-  }
-
-  // TODO(mvstanton): Instead of taking parallel arrays register and
-  // param_representations, how about a struct that puts the representation
-  // and register side by side (eg, RegRep(r1, Representation::Tagged()).
-  // The same should go for the CodeStubDescriptor class.
   void InitializePlatformSpecific(
       int register_parameter_count, const Register* registers,
       PlatformInterfaceDescriptor* platform_descriptor = NULL);
 
-  bool IsInitialized() const { return register_param_count_ >= 0; }
+  // if machine_types is null, then an array of size
+  // (register_parameter_count + extra_parameter_count) will be created
+  // with MachineType::AnyTagged() for each member.
+  //
+  // if machine_types is not null, then it should be of the size
+  // register_parameter_count. Those members of the parameter array
+  // will be initialized from {machine_types}, and the rest initialized
+  // to MachineType::AnyTagged().
+  void InitializePlatformIndependent(int parameter_count,
+                                     int extra_parameter_count,
+                                     const MachineType* machine_types);
 
-  int param_count() const { return function_type_->Arity(); }
+  bool IsInitialized() const {
+    return register_param_count_ >= 0 && param_count_ >= 0;
+  }
+
+  int param_count() const { return param_count_; }
   int register_param_count() const { return register_param_count_; }
   Register register_param(int index) const { return register_params_[index]; }
   Register* register_params() const { return register_params_.get(); }
-  Type* param_type(int index) const { return function_type_->Parameter(index); }
+  MachineType param_type(int index) const { return machine_types_[index]; }
   PlatformInterfaceDescriptor* platform_specific_descriptor() const {
     return platform_specific_descriptor_;
   }
 
  private:
   int register_param_count_;
+  int param_count_;
 
   // The Register params are allocated dynamically by the
   // InterfaceDescriptor, and freed on destruction. This is because static
   // arrays of Registers cause creation of runtime static initializers
   // which we don't want.
   std::unique_ptr<Register[]> register_params_;
-
-  // Specifies types for parameters and return
-  FunctionType* function_type_;
+  std::unique_ptr<MachineType[]> machine_types_;
 
   PlatformInterfaceDescriptor* platform_specific_descriptor_;
 
@@ -186,7 +190,7 @@ class CallInterfaceDescriptor {
     return data()->register_param(index);
   }
 
-  Type* GetParameterType(int index) const {
+  MachineType GetParameterType(int index) const {
     DCHECK(index < data()->param_count());
     return data()->param_type(index);
   }
@@ -200,19 +204,16 @@ class CallInterfaceDescriptor {
 
   const char* DebugName(Isolate* isolate) const;
 
-  static FunctionType* BuildDefaultFunctionType(Isolate* isolate,
-                                                int parameter_count);
-
  protected:
   const CallInterfaceDescriptorData* data() const { return data_; }
 
-  virtual FunctionType* BuildCallInterfaceDescriptorFunctionType(
-      Isolate* isolate, int register_param_count) {
-    return BuildDefaultFunctionType(isolate, register_param_count);
-  }
-
   virtual void InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
     UNREACHABLE();
+  }
+
+  virtual void InitializePlatformIndependent(
+      CallInterfaceDescriptorData* data) {
+    data->InitializePlatformIndependent(data->register_param_count(), 0, NULL);
   }
 
   void Initialize(Isolate* isolate, CallDescriptors::Key key) {
@@ -222,9 +223,7 @@ class CallInterfaceDescriptor {
       CallInterfaceDescriptorData* d = isolate->call_descriptor_data(key);
       DCHECK(d == data());  // d should be a modifiable pointer to data().
       InitializePlatformSpecific(d);
-      FunctionType* function_type = BuildCallInterfaceDescriptorFunctionType(
-          isolate, d->register_param_count());
-      d->InitializePlatformIndependent(function_type);
+      InitializePlatformIndependent(d);
     }
   }
 
@@ -264,22 +263,18 @@ class CallInterfaceDescriptor {
                                                                                \
  public:
 
-#define DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(name, base) \
-  DECLARE_DESCRIPTOR(name, base)                                 \
- protected:                                                      \
-  FunctionType* BuildCallInterfaceDescriptorFunctionType(        \
-      Isolate* isolate, int register_param_count) override;      \
-                                                                 \
+#define DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(name, base)        \
+  DECLARE_DESCRIPTOR(name, base)                                        \
+ protected:                                                             \
+  void InitializePlatformIndependent(CallInterfaceDescriptorData* data) \
+      override;                                                         \
+                                                                        \
  public:
 
 #define DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(name, base, arg) \
   DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                  \
  protected:                                                                 \
-  FunctionType* BuildCallInterfaceDescriptorFunctionType(                   \
-      Isolate* isolate, int register_param_count) override {                \
-    return BuildCallInterfaceDescriptorFunctionTypeWithArg(                 \
-        isolate, register_param_count, arg);                                \
-  }                                                                         \
+  int extra_args() const override { return arg; }                           \
                                                                             \
  public:
 
@@ -312,11 +307,12 @@ class OnStackArgsDescriptorBase : public CallInterfaceDescriptor {
   static CallInterfaceDescriptor ForArgs(Isolate* isolate, int parameter_count);
 
  protected:
+  virtual int extra_args() const { return 0; }
   OnStackArgsDescriptorBase(Isolate* isolate, CallDescriptors::Key key)
       : CallInterfaceDescriptor(isolate, key) {}
   void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override;
-  FunctionType* BuildCallInterfaceDescriptorFunctionTypeWithArg(
-      Isolate* isolate, int register_parameter_count, int parameter_count);
+  void InitializePlatformIndependent(
+      CallInterfaceDescriptorData* data) override;
 };
 
 class OnStackWith1ArgsDescriptor : public OnStackArgsDescriptorBase {
@@ -795,11 +791,12 @@ class ApiCallbackDescriptorBase : public CallInterfaceDescriptor {
   static CallInterfaceDescriptor ForArgs(Isolate* isolate, int argc);
 
  protected:
+  virtual int extra_args() const { return 0; }
   ApiCallbackDescriptorBase(Isolate* isolate, CallDescriptors::Key key)
       : CallInterfaceDescriptor(isolate, key) {}
   void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override;
-  FunctionType* BuildCallInterfaceDescriptorFunctionTypeWithArg(
-      Isolate* isolate, int parameter_count, int argc);
+  void InitializePlatformIndependent(
+      CallInterfaceDescriptorData* data) override;
 };
 
 class ApiCallbackWith0ArgsDescriptor : public ApiCallbackDescriptorBase {
