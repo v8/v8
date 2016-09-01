@@ -123,12 +123,16 @@ class IncrementalMarking {
   // heavy (color-checking) write barriers have been invoked.
   static const intptr_t kAllocatedThreshold = 65536;
   static const intptr_t kWriteBarriersInvokedThreshold = 32768;
-  // Cap the write barrier counter to avoid overflows.
-  static const intptr_t kMaxWriteBarrierCounter = 1 << 20;
-  // These constants are arbitrary and chosen based on benchmarks.
-  static const intptr_t kBytesToMarkPerAllocatedByte = 3;
-  static const intptr_t kBytesToMarkPerWriteBarrier = 10;
-  static const intptr_t kMinIncrementalStepDurationInMs = 1;
+  // Start off by marking this many times more memory than has been allocated.
+  static const intptr_t kInitialMarkingSpeed = 1;
+  // But if we are promoting a lot of data we need to mark faster to keep up
+  // with the data that is entering the old space through promotion.
+  static const intptr_t kFastMarking = 3;
+  // After this many steps we increase the marking/allocating factor.
+  static const intptr_t kMarkingSpeedAccellerationInterval = 1024;
+  // This is how much we increase the marking/allocating factor by.
+  static const intptr_t kMarkingSpeedAccelleration = 2;
+  static const intptr_t kMaxMarkingSpeed = 1000;
 
   // This is the upper bound for how many times we allow finalization of
   // incremental marking to be postponed.
@@ -182,6 +186,8 @@ class IncrementalMarking {
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
   void ActivateGeneratedStub(Code* stub);
+
+  void NotifyOfHighPromotionRate();
 
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
@@ -249,6 +255,8 @@ class IncrementalMarking {
 
   int64_t SpaceLeftInOldSpace();
 
+  void SpeedUp();
+
   void ResetStepCounters();
 
   void StartMarking();
@@ -293,7 +301,13 @@ class IncrementalMarking {
   State state_;
   bool is_compacting_;
 
+  int steps_count_;
+  int64_t old_generation_space_available_at_start_of_incremental_;
+  int64_t old_generation_space_used_at_start_of_incremental_;
+  int64_t bytes_rescanned_;
   bool should_hurry_;
+  int marking_speed_;
+  intptr_t bytes_scanned_;
   intptr_t allocated_;
   intptr_t write_barriers_invoked_since_last_step_;
   size_t idle_marking_delay_counter_;
