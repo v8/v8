@@ -9,6 +9,12 @@
   # Bots are ordered by appearance on waterfall.
   'masters': {
     'developer_default': {
+      'arm.debug': 'default_debug_arm',
+      'arm.optdebug': 'default_optdebug_arm',
+      'arm.release': 'default_release_arm',
+      'arm64.debug': 'default_debug_arm64',
+      'arm64.optdebug': 'default_optdebug_arm64',
+      'arm64.release': 'default_release_arm64',
       'x64.debug': 'default_debug_x64',
       'x64.optdebug': 'default_optdebug_x64',
       'x64.release': 'default_release_x64',
@@ -189,6 +195,20 @@
   # gyp/gn, release/debug, arch type, other values alphabetically.
   'configs': {
     # Developer default configs.
+    'default_debug_arm': [
+      'gn', 'debug', 'simulate_arm', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_arm': [
+      'gn', 'debug', 'simulate_arm', 'v8_enable_slow_dchecks'],
+    'default_release_arm': [
+      'gn', 'release', 'simulate_arm'],
+    'default_debug_arm64': [
+      'gn', 'debug', 'simulate_arm64', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_arm64': [
+      'gn', 'debug', 'simulate_arm64', 'v8_enable_slow_dchecks'],
+    'default_release_arm64': [
+      'gn', 'release', 'simulate_arm64'],
     'default_debug_x64': [
       'gn', 'debug', 'x64', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_x64': [
