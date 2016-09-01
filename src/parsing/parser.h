@@ -159,6 +159,7 @@ struct ParserTypes<Parser> {
   typedef ParserFormalParameters::Parameter FormalParameter;
   typedef ParserFormalParameters FormalParameters;
   typedef ZoneList<v8::internal::Statement*>* StatementList;
+  typedef v8::internal::Block* Block;
 
   // For constructing objects returned by the traversing functions.
   typedef AstNodeFactory Factory;
@@ -295,6 +296,10 @@ class Parser : public ParserBase<Parser> {
   Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                                   ZoneList<const AstRawString*>* names,
                                   bool* ok);
+  void DeclareAndInitializeVariables(
+      Block* block, const DeclarationDescriptor* declaration_descriptor,
+      const DeclarationParsingResult::Declaration* declaration,
+      ZoneList<const AstRawString*>* names, bool* ok);
 
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 ZoneList<const AstRawString*>* names,
@@ -383,10 +388,6 @@ class Parser : public ParserBase<Parser> {
     DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
   };
 
-  Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                   DeclarationParsingResult* parsing_result,
-                                   ZoneList<const AstRawString*>* names,
-                                   bool* ok);
   Statement* ParseExpressionOrLabelledStatement(
       ZoneList<const AstRawString*>* labels,
       AllowLabelledFunctionStatement allow_function, bool* ok);
@@ -719,6 +720,11 @@ class Parser : public ParserBase<Parser> {
     fni->PushLiteralName(id);
   }
 
+  V8_INLINE static void PushVariableName(FuncNameInferrer* fni,
+                                         const AstRawString* id) {
+    fni->PushVariableName(id);
+  }
+
   V8_INLINE void PushPropertyName(FuncNameInferrer* fni,
                                   Expression* expression) {
     if (expression->IsPropertyName()) {
@@ -838,6 +844,7 @@ class Parser : public ParserBase<Parser> {
     return nullptr;
   }
   V8_INLINE static FunctionLiteral* EmptyFunctionLiteral() { return nullptr; }
+  V8_INLINE static Block* NullBlock() { return nullptr; }
 
   V8_INLINE static bool IsEmptyExpression(Expression* expr) {
     return expr == nullptr;
@@ -913,6 +920,11 @@ class Parser : public ParserBase<Parser> {
   }
   V8_INLINE ZoneList<Statement*>* NewStatementList(int size) const {
     return new (zone()) ZoneList<Statement*>(size, zone());
+  }
+
+  V8_INLINE Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,
+                            bool ignore_completion_value, int pos) {
+    return factory()->NewBlock(labels, capacity, ignore_completion_value, pos);
   }
 
   V8_INLINE void AddParameterInitializationBlock(

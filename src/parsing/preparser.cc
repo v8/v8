@@ -423,116 +423,10 @@ PreParser::Statement PreParser::ParseVariableStatement(
   // VariableStatement ::
   //   VariableDeclarations ';'
 
-  Statement result = ParseVariableDeclarations(
-      var_context, nullptr, nullptr, nullptr, nullptr, nullptr, CHECK_OK);
+  Statement result =
+      ParseVariableDeclarations(var_context, nullptr, nullptr, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
-}
-
-
-// If the variable declaration declares exactly one non-const
-// variable, then *var is set to that variable. In all other cases,
-// *var is untouched; in particular, it is the caller's responsibility
-// to initialize it properly. This mechanism is also used for the parsing
-// of 'for-in' loops.
-PreParser::Statement PreParser::ParseVariableDeclarations(
-    VariableDeclarationContext var_context, int* num_decl, bool* is_lexical,
-    bool* is_binding_pattern, Scanner::Location* first_initializer_loc,
-    Scanner::Location* bindings_loc, bool* ok) {
-  // VariableDeclarations ::
-  //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
-  //
-  // The ES6 Draft Rev3 specifies the following grammar for const declarations
-  //
-  // ConstDeclaration ::
-  //   const ConstBinding (',' ConstBinding)* ';'
-  // ConstBinding ::
-  //   Identifier '=' AssignmentExpression
-  //
-  // TODO(ES6):
-  // ConstBinding ::
-  //   BindingPattern '=' AssignmentExpression
-  bool require_initializer = false;
-  bool lexical = false;
-  bool is_pattern = false;
-  if (peek() == Token::VAR) {
-    Consume(Token::VAR);
-  } else if (peek() == Token::CONST) {
-    // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
-    //
-    // ConstDeclaration : const ConstBinding (',' ConstBinding)* ';'
-    //
-    // * It is a Syntax Error if the code that matches this production is not
-    //   contained in extended code.
-    //
-    // However disallowing const in sloppy mode will break compatibility with
-    // existing pages. Therefore we keep allowing const with the old
-    // non-harmony semantics in sloppy mode.
-    Consume(Token::CONST);
-    DCHECK(var_context != kStatement);
-    require_initializer = true;
-    lexical = true;
-  } else if (peek() == Token::LET) {
-    Consume(Token::LET);
-    DCHECK(var_context != kStatement);
-    lexical = true;
-  } else {
-    *ok = false;
-    return Statement::Default();
-  }
-
-  // The scope of a var/const declared variable anywhere inside a function
-  // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). The scope
-  // of a let declared variable is the scope of the immediately enclosing
-  // block.
-  int nvars = 0;  // the number of variables declared
-  int bindings_start = peek_position();
-  do {
-    // Parse binding pattern.
-    if (nvars > 0) Consume(Token::COMMA);
-    int decl_pos = peek_position();
-    PreParserExpression pattern = PreParserExpression::Default();
-    {
-      ExpressionClassifier pattern_classifier(this);
-      pattern = ParsePrimaryExpression(CHECK_OK);
-
-      ValidateBindingPattern(CHECK_OK);
-      if (lexical) ValidateLetPattern(CHECK_OK);
-    }
-
-    is_pattern = pattern.IsObjectLiteral() || pattern.IsArrayLiteral();
-
-    Scanner::Location variable_loc = scanner()->location();
-    nvars++;
-    if (Check(Token::ASSIGN)) {
-      ExpressionClassifier classifier(this);
-      ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
-      ValidateExpression(CHECK_OK);
-
-      variable_loc.end_pos = scanner()->location().end_pos;
-      if (first_initializer_loc && !first_initializer_loc->IsValid()) {
-        *first_initializer_loc = variable_loc;
-      }
-    } else if ((require_initializer || is_pattern) &&
-               (var_context != kForStatement || !PeekInOrOf())) {
-      ReportMessageAt(
-          Scanner::Location(decl_pos, scanner()->location().end_pos),
-          MessageTemplate::kDeclarationMissingInitializer,
-          is_pattern ? "destructuring" : "const");
-      *ok = false;
-      return Statement::Default();
-    }
-  } while (peek() == Token::COMMA);
-
-  if (bindings_loc) {
-    *bindings_loc =
-        Scanner::Location(bindings_start, scanner()->location().end_pos);
-  }
-
-  if (num_decl != nullptr) *num_decl = nvars;
-  if (is_lexical != nullptr) *is_lexical = lexical;
-  if (is_binding_pattern != nullptr) *is_binding_pattern = is_pattern;
-  return Statement::Default();
 }
 
 PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
@@ -798,32 +692,35 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
     ForEachStatement::VisitMode mode;
     if (peek() == Token::VAR || peek() == Token::CONST ||
         (peek() == Token::LET && IsNextLetKeyword())) {
-      int decl_count;
-      bool is_lexical;
-      bool is_binding_pattern;
-      Scanner::Location first_initializer_loc = Scanner::Location::invalid();
-      Scanner::Location bindings_loc = Scanner::Location::invalid();
-      ParseVariableDeclarations(kForStatement, &decl_count, &is_lexical,
-                                &is_binding_pattern, &first_initializer_loc,
-                                &bindings_loc, CHECK_OK);
-      if (is_lexical) has_lexical = true;
+      DeclarationParsingResult parsing_result;
+
+      ParseVariableDeclarations(kForStatement, &parsing_result, nullptr,
+                                CHECK_OK);
+      if (parsing_result.descriptor.mode == CONST ||
+          parsing_result.descriptor.mode == LET) {
+        has_lexical = true;
+      }
       if (CheckInOrOf(&mode)) {
-        if (decl_count != 1) {
-          ReportMessageAt(bindings_loc,
+        if (!*ok) return Statement::Default();
+        if (parsing_result.declarations.length() != 1) {
+          ReportMessageAt(parsing_result.bindings_loc,
                           MessageTemplate::kForInOfLoopMultiBindings,
                           ForEachStatement::VisitModeString(mode));
           *ok = false;
           return Statement::Default();
         }
-        if (first_initializer_loc.IsValid() &&
+        bool is_binding_pattern =
+            parsing_result.declarations[0].pattern.IsObjectLiteral() ||
+            parsing_result.declarations[0].pattern.IsArrayLiteral();
+        if (parsing_result.first_initializer_loc.IsValid() &&
             (is_strict(language_mode()) || mode == ForEachStatement::ITERATE ||
-             is_lexical || is_binding_pattern || allow_harmony_for_in())) {
+             has_lexical || is_binding_pattern || allow_harmony_for_in())) {
           // Only increment the use count if we would have let this through
           // without the flag.
           if (use_counts_ != nullptr && allow_harmony_for_in()) {
             ++use_counts_[v8::Isolate::kForInInitializer];
           }
-          ReportMessageAt(first_initializer_loc,
+          ReportMessageAt(parsing_result.first_initializer_loc,
                           MessageTemplate::kForInOfLoopInitializer,
                           ForEachStatement::VisitModeString(mode));
           *ok = false;

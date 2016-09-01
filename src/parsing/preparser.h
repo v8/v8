@@ -614,6 +614,7 @@ struct ParserTypes<PreParser> {
   typedef PreParserIdentifier FormalParameter;
   typedef PreParserFormalParameters FormalParameters;
   typedef PreParserStatementList StatementList;
+  typedef PreParserStatement Block;
 
   // For constructing objects returned by the traversing functions.
   typedef PreParserFactory Factory;
@@ -736,12 +737,6 @@ class PreParser : public ParserBase<PreParser> {
   Statement ParseBlock(bool* ok);
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
                                    bool* ok);
-  Statement ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                      int* num_decl, bool* is_lexical,
-                                      bool* is_binding_pattern,
-                                      Scanner::Location* first_initializer_loc,
-                                      Scanner::Location* bindings_loc,
-                                      bool* ok);
   Statement ParseExpressionOrLabelledStatement(
       AllowLabelledFunctionStatement allow_function, bool* ok);
   Statement ParseIfStatement(bool* ok);
@@ -838,6 +833,12 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void RewriteNonPattern(bool* ok) { ValidateExpression(ok); }
 
+  V8_INLINE void DeclareAndInitializeVariables(
+      PreParserStatement block,
+      const DeclarationDescriptor* declaration_descriptor,
+      const DeclarationParsingResult::Declaration* declaration,
+      ZoneList<const AstRawString*>* names, bool* ok) {}
+
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       PreParserExpression assignment) {}
   V8_INLINE void QueueNonPatternForRewriting(PreParserExpression expr,
@@ -913,6 +914,12 @@ class PreParser : public ParserBase<PreParser> {
   // operations interleaved with the recursive descent.
   V8_INLINE static void PushLiteralName(FuncNameInferrer* fni,
                                         PreParserIdentifier id) {
+    // PreParser should not use FuncNameInferrer.
+    UNREACHABLE();
+  }
+
+  V8_INLINE static void PushVariableName(FuncNameInferrer* fni,
+                                         PreParserIdentifier id) {
     // PreParser should not use FuncNameInferrer.
     UNREACHABLE();
   }
@@ -1011,15 +1018,25 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList();
   }
+
   V8_INLINE static PreParserStatementList NullStatementList() {
     return PreParserStatementList();
   }
+
+  V8_INLINE static PreParserStatement NullBlock() {
+    return PreParserStatement::Default();
+  }
+
   V8_INLINE PreParserIdentifier EmptyIdentifierString() const {
     return PreParserIdentifier::Default();
   }
 
   // Odd-ball literal creators.
   V8_INLINE PreParserExpression GetLiteralTheHole(int position) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserExpression GetLiteralUndefined(int position) {
     return PreParserExpression::Default();
   }
 
@@ -1082,6 +1099,12 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserStatementList NewStatementList(int size) const {
     return PreParserStatementList();
+  }
+
+  V8_INLINE static PreParserStatement NewBlock(
+      ZoneList<const AstRawString*>* labels, int capacity,
+      bool ignore_completion_value, int pos) {
+    return PreParserStatement::Default();
   }
 
   V8_INLINE void AddParameterInitializationBlock(

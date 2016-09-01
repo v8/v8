@@ -214,6 +214,7 @@ class ParserBase {
   typedef typename Types::StatementList StatementListT;
   typedef typename v8::internal::ExpressionClassifier<Types>
       ExpressionClassifier;
+  typedef typename Types::Block BlockT;
 
   // All implementation-specific methods must be called through this.
   Impl* impl() { return static_cast<Impl*>(this); }
@@ -1176,6 +1177,11 @@ class ParserBase {
   void CheckArityRestrictions(int param_count, FunctionKind function_type,
                               bool has_rest, int formals_start_pos,
                               int formals_end_pos, bool* ok);
+
+  BlockT ParseVariableDeclarations(VariableDeclarationContext var_context,
+                                   DeclarationParsingResult* parsing_result,
+                                   ZoneList<const AstRawString*>* names,
+                                   bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -3407,6 +3413,154 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters,
     auto parameter = parameters->at(i);
     impl()->DeclareFormalParameter(parameters->scope, parameter);
   }
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
+    VariableDeclarationContext var_context,
+    DeclarationParsingResult* parsing_result,
+    ZoneList<const AstRawString*>* names, bool* ok) {
+  // VariableDeclarations ::
+  //   ('var' | 'const' | 'let') (Identifier ('=' AssignmentExpression)?)+[',']
+  //
+  // ES6:
+  // FIXME(marja, nikolaos): Add an up-to-date comment about ES6 variable
+  // declaration syntax.
+
+  DeclarationParsingResult temp_result;
+  if (parsing_result == nullptr) {
+    parsing_result = &temp_result;
+  }
+  parsing_result->descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
+  parsing_result->descriptor.declaration_pos = peek_position();
+  parsing_result->descriptor.initialization_pos = peek_position();
+
+  BlockT init_block = impl()->NullBlock();
+  if (var_context != kForStatement) {
+    init_block = impl()->NewBlock(nullptr, 1, true,
+                                  parsing_result->descriptor.declaration_pos);
+  }
+
+  switch (peek()) {
+    case Token::VAR:
+      parsing_result->descriptor.mode = VAR;
+      Consume(Token::VAR);
+      break;
+    case Token::CONST:
+      Consume(Token::CONST);
+      DCHECK(var_context != kStatement);
+      parsing_result->descriptor.mode = CONST;
+      break;
+    case Token::LET:
+      Consume(Token::LET);
+      DCHECK(var_context != kStatement);
+      parsing_result->descriptor.mode = LET;
+      break;
+    default:
+      UNREACHABLE();  // by current callers
+      break;
+  }
+
+  parsing_result->descriptor.scope = scope();
+  parsing_result->descriptor.hoist_scope = nullptr;
+
+  // The scope of a var/const declared variable anywhere inside a function
+  // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). The scope
+  // of a let declared variable is the scope of the immediately enclosing
+  // block.
+  int bindings_start = peek_position();
+  do {
+    // Parse binding pattern.
+    FuncNameInferrer::State fni_state(fni_);
+
+    ExpressionT pattern = impl()->EmptyExpression();
+    int decl_pos = peek_position();
+    {
+      ExpressionClassifier pattern_classifier(this);
+      pattern = ParsePrimaryExpression(CHECK_OK_CUSTOM(NullBlock));
+
+      ValidateBindingPattern(CHECK_OK_CUSTOM(NullBlock));
+      if (IsLexicalVariableMode(parsing_result->descriptor.mode)) {
+        ValidateLetPattern(CHECK_OK_CUSTOM(NullBlock));
+      }
+    }
+
+    Scanner::Location variable_loc = scanner()->location();
+    bool single_name = impl()->IsIdentifier(pattern);
+
+    if (single_name && fni_ != nullptr) {
+      impl()->PushVariableName(fni_, impl()->AsIdentifier(pattern));
+    }
+
+    ExpressionT value = impl()->EmptyExpression();
+    int initializer_position = kNoSourcePosition;
+    if (Check(Token::ASSIGN)) {
+      ExpressionClassifier classifier(this);
+      value = ParseAssignmentExpression(var_context != kForStatement,
+                                        CHECK_OK_CUSTOM(NullBlock));
+      impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullBlock));
+      variable_loc.end_pos = scanner()->location().end_pos;
+
+      if (!parsing_result->first_initializer_loc.IsValid()) {
+        parsing_result->first_initializer_loc = variable_loc;
+      }
+
+      // Don't infer if it is "a = function(){...}();"-like expression.
+      if (single_name && fni_ != nullptr) {
+        if (!value->IsCall() && !value->IsCallNew()) {
+          fni_->Infer();
+        } else {
+          fni_->RemoveLastFunction();
+        }
+      }
+
+      impl()->SetFunctionNameFromIdentifierRef(value, pattern);
+
+      // End position of the initializer is after the assignment expression.
+      initializer_position = scanner()->location().end_pos;
+    } else {
+      if (var_context != kForStatement || !PeekInOrOf()) {
+        // ES6 'const' and binding patterns require initializers.
+        if (parsing_result->descriptor.mode == CONST ||
+            !impl()->IsIdentifier(pattern)) {
+          impl()->ReportMessageAt(
+              Scanner::Location(decl_pos, scanner()->location().end_pos),
+              MessageTemplate::kDeclarationMissingInitializer,
+              !impl()->IsIdentifier(pattern) ? "destructuring" : "const");
+          *ok = false;
+          return impl()->NullBlock();
+        }
+        // 'let x' initializes 'x' to undefined.
+        if (parsing_result->descriptor.mode == LET) {
+          value = impl()->GetLiteralUndefined(position());
+        }
+      }
+
+      // End position of the initializer is after the variable.
+      initializer_position = position();
+    }
+
+    typename DeclarationParsingResult::Declaration decl(
+        pattern, initializer_position, value);
+    if (var_context == kForStatement) {
+      // Save the declaration for further handling in ParseForStatement.
+      parsing_result->declarations.Add(decl);
+    } else {
+      // Immediately declare the variable otherwise. This avoids O(N^2)
+      // behavior (where N is the number of variables in a single
+      // declaration) in the PatternRewriter having to do with removing
+      // and adding VariableProxies to the Scope (see bug 4699).
+      impl()->DeclareAndInitializeVariables(init_block,
+                                            &parsing_result->descriptor, &decl,
+                                            names, CHECK_OK_CUSTOM(NullBlock));
+    }
+  } while (Check(Token::COMMA));
+
+  parsing_result->bindings_loc =
+      Scanner::Location(bindings_start, scanner()->location().end_pos);
+
+  DCHECK(*ok);
+  return init_block;
 }
 
 template <typename Impl>

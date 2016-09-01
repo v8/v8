@@ -1904,6 +1904,14 @@ Block* Parser::BuildInitializationBlock(
   return result;
 }
 
+void Parser::DeclareAndInitializeVariables(
+    Block* block, const DeclarationDescriptor* declaration_descriptor,
+    const DeclarationParsingResult::Declaration* declaration,
+    ZoneList<const AstRawString*>* names, bool* ok) {
+  DCHECK_NOT_NULL(block);
+  PatternRewriter::DeclareAndInitializeVariables(
+      this, block, declaration_descriptor, declaration, names, ok);
+}
 
 Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
                                       ZoneList<const AstRawString*>* names,
@@ -1929,157 +1937,6 @@ Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
   ExpectSemicolon(CHECK_OK);
   return result;
 }
-
-Block* Parser::ParseVariableDeclarations(
-    VariableDeclarationContext var_context,
-    DeclarationParsingResult* parsing_result,
-    ZoneList<const AstRawString*>* names, bool* ok) {
-  // VariableDeclarations ::
-  //   ('var' | 'const' | 'let') (Identifier ('=' AssignmentExpression)?)+[',']
-  //
-  // The ES6 Draft Rev3 specifies the following grammar for const declarations
-  //
-  // ConstDeclaration ::
-  //   const ConstBinding (',' ConstBinding)* ';'
-  // ConstBinding ::
-  //   Identifier '=' AssignmentExpression
-  //
-  // TODO(ES6):
-  // ConstBinding ::
-  //   BindingPattern '=' AssignmentExpression
-
-  parsing_result->descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
-  parsing_result->descriptor.declaration_pos = peek_position();
-  parsing_result->descriptor.initialization_pos = peek_position();
-  parsing_result->descriptor.mode = VAR;
-
-  Block* init_block = nullptr;
-  if (var_context != kForStatement) {
-    init_block = factory()->NewBlock(
-        NULL, 1, true, parsing_result->descriptor.declaration_pos);
-  }
-
-  if (peek() == Token::VAR) {
-    Consume(Token::VAR);
-  } else if (peek() == Token::CONST) {
-    Consume(Token::CONST);
-    DCHECK(var_context != kStatement);
-    parsing_result->descriptor.mode = CONST;
-  } else if (peek() == Token::LET) {
-    Consume(Token::LET);
-    DCHECK(var_context != kStatement);
-    parsing_result->descriptor.mode = LET;
-  } else {
-    UNREACHABLE();  // by current callers
-  }
-
-  parsing_result->descriptor.scope = scope();
-  parsing_result->descriptor.hoist_scope = nullptr;
-
-
-  bool first_declaration = true;
-  int bindings_start = peek_position();
-  do {
-    FuncNameInferrer::State fni_state(fni_);
-
-    // Parse name.
-    if (!first_declaration) Consume(Token::COMMA);
-
-    Expression* pattern;
-    int decl_pos = peek_position();
-    {
-      ExpressionClassifier pattern_classifier(this);
-      pattern = ParsePrimaryExpression(CHECK_OK);
-      ValidateBindingPattern(CHECK_OK);
-      if (IsLexicalVariableMode(parsing_result->descriptor.mode)) {
-        ValidateLetPattern(CHECK_OK);
-      }
-    }
-
-    Scanner::Location variable_loc = scanner()->location();
-    const AstRawString* single_name =
-        pattern->IsVariableProxy() ? pattern->AsVariableProxy()->raw_name()
-                                   : nullptr;
-    if (single_name != nullptr) {
-      if (fni_ != NULL) fni_->PushVariableName(single_name);
-    }
-
-    Expression* value = NULL;
-    int initializer_position = kNoSourcePosition;
-    if (Check(Token::ASSIGN)) {
-      ExpressionClassifier classifier(this);
-      value = ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
-      RewriteNonPattern(CHECK_OK);
-      variable_loc.end_pos = scanner()->location().end_pos;
-
-      if (!parsing_result->first_initializer_loc.IsValid()) {
-        parsing_result->first_initializer_loc = variable_loc;
-      }
-
-      // Don't infer if it is "a = function(){...}();"-like expression.
-      if (single_name) {
-        if (fni_ != NULL && value->AsCall() == NULL &&
-            value->AsCallNew() == NULL) {
-          fni_->Infer();
-        } else {
-          fni_->RemoveLastFunction();
-        }
-      }
-
-      SetFunctionNameFromIdentifierRef(value, pattern);
-
-      // End position of the initializer is after the assignment expression.
-      initializer_position = scanner()->location().end_pos;
-    } else {
-      // Initializers may be either required or implied unless this is a
-      // for-in/of iteration variable.
-      if (var_context != kForStatement || !PeekInOrOf()) {
-        // ES6 'const' and binding patterns require initializers.
-        if (parsing_result->descriptor.mode == CONST ||
-            !pattern->IsVariableProxy()) {
-          ReportMessageAt(
-              Scanner::Location(decl_pos, scanner()->location().end_pos),
-              MessageTemplate::kDeclarationMissingInitializer,
-              !pattern->IsVariableProxy() ? "destructuring" : "const");
-          *ok = false;
-          return nullptr;
-        }
-
-        // 'let x' initializes 'x' to undefined.
-        if (parsing_result->descriptor.mode == LET) {
-          value = GetLiteralUndefined(position());
-        }
-      }
-
-      // End position of the initializer is after the variable.
-      initializer_position = position();
-    }
-
-    DeclarationParsingResult::Declaration decl(pattern, initializer_position,
-                                               value);
-    if (var_context == kForStatement) {
-      // Save the declaration for further handling in ParseForStatement.
-      parsing_result->declarations.Add(decl);
-    } else {
-      // Immediately declare the variable otherwise. This avoids O(N^2)
-      // behavior (where N is the number of variables in a single
-      // declaration) in the PatternRewriter having to do with removing
-      // and adding VariableProxies to the Scope (see bug 4699).
-      DCHECK_NOT_NULL(init_block);
-      PatternRewriter::DeclareAndInitializeVariables(
-          this, init_block, &parsing_result->descriptor, &decl, names,
-          CHECK_OK);
-    }
-    first_declaration = false;
-  } while (peek() == Token::COMMA);
-
-  parsing_result->bindings_loc =
-      Scanner::Location(bindings_start, scanner()->location().end_pos);
-
-  DCHECK(*ok);
-  return init_block;
-}
-
 
 static bool ContainsLabel(ZoneList<const AstRawString*>* labels,
                           const AstRawString* label) {
