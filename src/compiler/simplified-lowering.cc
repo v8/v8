@@ -2461,9 +2461,10 @@ class RepresentationSelector {
         return SetOutput(node, MachineRepresentation::kTagged);
 
       default:
-        V8_Fatal(__FILE__, __LINE__,
-                 "Representation inference: unsupported opcode %s\n.",
-                 node->op()->mnemonic());
+        V8_Fatal(
+            __FILE__, __LINE__,
+            "Representation inference: unsupported opcode %i (%s), node #%i\n.",
+            node->opcode(), node->op()->mnemonic(), node->id());
         break;
     }
     UNREACHABLE();
