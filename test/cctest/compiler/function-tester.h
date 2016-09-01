@@ -43,10 +43,7 @@ class FunctionTester : public InitializedHandleScope {
   v8::Local<v8::Message> CheckThrowsReturnMessage(Handle<Object> a,
                                                   Handle<Object> b);
   void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b,
-                 Handle<Object> c, Handle<Object> d) {
-    Handle<Object> result = Call(a, b, c, d).ToHandleChecked();
-    CHECK(expected->SameValue(*result));
-  }
+                 Handle<Object> c, Handle<Object> d);
 
   void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b,
                  Handle<Object> c) {
@@ -96,15 +93,8 @@ class FunctionTester : public InitializedHandleScope {
     CheckCall(false_value(), Val(a), Val(b));
   }
 
-  Handle<JSFunction> NewFunction(const char* source) {
-    return Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(CompileRun(source))));
-  }
-
-  Handle<JSObject> NewObject(const char* source) {
-    return Handle<JSObject>::cast(v8::Utils::OpenHandle(
-        *v8::Local<v8::Object>::Cast(CompileRun(source))));
-  }
+  Handle<JSFunction> NewFunction(const char* source);
+  Handle<JSObject> NewObject(const char* source);
 
   Handle<String> Val(const char* string);
   Handle<Object> Val(double value);
@@ -116,14 +106,7 @@ class FunctionTester : public InitializedHandleScope {
   Handle<Object> true_value();
   Handle<Object> false_value();
 
-  static Handle<JSFunction> ForMachineGraph(Graph* graph, int param_count) {
-    JSFunction* p = NULL;
-    {  // because of the implicit handle scope of FunctionTester.
-      FunctionTester f(graph, param_count);
-      p = *f.function;
-    }
-    return Handle<JSFunction>(p);  // allocated in outer handle scope.
-  }
+  static Handle<JSFunction> ForMachineGraph(Graph* graph, int param_count);
 
  private:
   uint32_t flags_;

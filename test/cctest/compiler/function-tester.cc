@@ -98,6 +98,23 @@ v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
   return try_catch.Message();
 }
 
+void FunctionTester::CheckCall(Handle<Object> expected, Handle<Object> a,
+                               Handle<Object> b, Handle<Object> c,
+                               Handle<Object> d) {
+  Handle<Object> result = Call(a, b, c, d).ToHandleChecked();
+  CHECK(expected->SameValue(*result));
+}
+
+Handle<JSFunction> FunctionTester::NewFunction(const char* source) {
+  return Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+}
+
+Handle<JSObject> FunctionTester::NewObject(const char* source) {
+  return Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(CompileRun(source))));
+}
+
 Handle<String> FunctionTester::Val(const char* string) {
   return isolate->factory()->InternalizeUtf8String(string);
 }
@@ -128,6 +145,16 @@ Handle<Object> FunctionTester::true_value() {
 
 Handle<Object> FunctionTester::false_value() {
   return isolate->factory()->false_value();
+}
+
+Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
+                                                   int param_count) {
+  JSFunction* p = NULL;
+  {  // because of the implicit handle scope of FunctionTester.
+    FunctionTester f(graph, param_count);
+    p = *f.function;
+  }
+  return Handle<JSFunction>(p);  // allocated in outer handle scope.
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
