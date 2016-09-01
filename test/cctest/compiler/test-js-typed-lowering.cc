@@ -463,10 +463,9 @@ TEST(JSToNumber_replacement) {
 TEST(JSToNumberOfConstant) {
   JSTypedLoweringTester R;
 
-  const Operator* ops[] = {
-      R.common.NumberConstant(0), R.common.NumberConstant(-1),
-      R.common.NumberConstant(0.1), R.common.Int32Constant(1177),
-      R.common.Float64Constant(0.99)};
+  const Operator* ops[] = {R.common.NumberConstant(0),
+                           R.common.NumberConstant(-1),
+                           R.common.NumberConstant(0.1)};
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     Node* n = R.graph.NewNode(ops[i]);

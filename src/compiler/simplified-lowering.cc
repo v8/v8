@@ -1317,8 +1317,6 @@ class RepresentationSelector {
         return VisitLeaf(node, MachineRepresentation::kWord32);
       case IrOpcode::kInt64Constant:
         return VisitLeaf(node, MachineRepresentation::kWord64);
-      case IrOpcode::kFloat64Constant:
-        return VisitLeaf(node, MachineRepresentation::kFloat64);
       case IrOpcode::kExternalConstant:
         return VisitLeaf(node, MachineType::PointerRepresentation());
       case IrOpcode::kNumberConstant:

@@ -580,14 +580,14 @@ Type* Typer::Visitor::TypeRelocatableInt64Constant(Node* node) {
 }
 
 Type* Typer::Visitor::TypeFloat32Constant(Node* node) {
-  return Type::Intersect(Type::Of(OpParameter<float>(node), zone()),
-                         Type::UntaggedFloat32(), zone());
+  UNREACHABLE();
+  return nullptr;
 }
 
 
 Type* Typer::Visitor::TypeFloat64Constant(Node* node) {
-  return Type::Intersect(Type::Of(OpParameter<double>(node), zone()),
-                         Type::UntaggedFloat64(), zone());
+  UNREACHABLE();
+  return nullptr;
 }
 
 
