@@ -141,6 +141,7 @@ void ValidateAtomicIndex(CodeStubAssembler* a, compiler::Node* index_word,
   using namespace compiler;
   // Check if the index is in bounds. If not, throw RangeError.
   CodeStubAssembler::Label if_inbounds(a), if_notinbounds(a);
+  // TODO(jkummerow): Use unsigned comparison instead of "i<0 || i>length".
   a->Branch(
       a->WordOr(a->Int32LessThan(index_word, a->Int32Constant(0)),
                 a->Int32GreaterThanOrEqual(index_word, array_length_word)),
