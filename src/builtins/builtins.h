@@ -491,6 +491,9 @@ namespace internal {
   CPP(ReflectSet)                                                             \
   CPP(ReflectSetPrototypeOf)                                                  \
                                                                               \
+  /* RegExp */                                                                \
+  CPP(RegExpConstructor)                                                      \
+                                                                              \
   /* SharedArrayBuffer */                                                     \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                \
   TFJ(AtomicsLoad, 3)                                                         \
