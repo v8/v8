@@ -1028,9 +1028,6 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
       case VariableLocation::CONTEXT:
         SNPrintF(buf + pos, " context[%d]", var->index());
         break;
-      case VariableLocation::GLOBAL:
-        SNPrintF(buf + pos, " global[%d]", var->index());
-        break;
       case VariableLocation::LOOKUP:
         SNPrintF(buf + pos, " lookup");
         break;

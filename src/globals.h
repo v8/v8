@@ -943,12 +943,6 @@ enum VariableLocation : uint8_t {
   // corresponding scope.
   CONTEXT,
 
-  // An indexed slot in a script context that contains a respective global
-  // property cell.  name() is the variable name, index() is the variable
-  // index in the context object on the heap, starting at 0.  scope() is the
-  // corresponding script scope.
-  GLOBAL,
-
   // A named slot in a heap context.  name() is the variable name in the
   // context object on the heap, with lookup starting at the current
   // context.  index() is invalid.

@@ -901,7 +901,6 @@ void BytecodeGenerator::VisitBlockDeclarationsAndStatements(Block* stmt) {
 void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
@@ -948,7 +947,6 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
       globals_builder()->AddFunctionDeclaration(slot, decl->fun());
@@ -1953,7 +1951,6 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       BuildHoleCheckForVariableLoad(variable);
       break;
     }
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       builder()->LoadGlobal(feedback_index(slot), typeof_mode);
       break;
@@ -2134,7 +2131,6 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
       }
       break;
     }
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       builder()->StoreGlobal(variable->name(), feedback_index(slot),
                              language_mode());
@@ -2832,7 +2828,6 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
     Variable* variable = proxy->var();
     DCHECK(is_sloppy(language_mode()) || variable->is_this());
     switch (variable->location()) {
-      case VariableLocation::GLOBAL:
       case VariableLocation::UNALLOCATED: {
         // Global var, let, const or variables not explicitly declared.
         Register native_context = register_allocator()->NewRegister();

@@ -5632,7 +5632,6 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   DCHECK(current_block()->HasPredecessor());
   Variable* variable = expr->var();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       if (IsLexicalVariableMode(variable->mode())) {
         // TODO(rossberg): should this be an DCHECK?
@@ -6948,7 +6947,6 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     CHECK_ALIVE(VisitForValue(operation));
 
     switch (var->location()) {
-      case VariableLocation::GLOBAL:
       case VariableLocation::UNALLOCATED:
         HandleGlobalVariableAssignment(var, Top(), expr->AssignmentSlot(),
                                        expr->AssignmentId());
@@ -7070,7 +7068,6 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
 
     // Handle the assignment.
     switch (var->location()) {
-      case VariableLocation::GLOBAL:
       case VariableLocation::UNALLOCATED:
         CHECK_ALIVE(VisitForValue(expr->value()));
         HandleGlobalVariableAssignment(var, Top(), expr->AssignmentSlot(),
@@ -10745,7 +10742,6 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
     Push(after);
 
     switch (var->location()) {
-      case VariableLocation::GLOBAL:
       case VariableLocation::UNALLOCATED:
         HandleGlobalVariableAssignment(var, after, expr->CountSlot(),
                                        expr->AssignmentId());
@@ -12150,7 +12146,6 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
@@ -12190,7 +12185,6 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());

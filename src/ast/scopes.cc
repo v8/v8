@@ -1105,9 +1105,6 @@ static void PrintLocation(Variable* var) {
     case VariableLocation::CONTEXT:
       PrintF("context[%d]", var->index());
       break;
-    case VariableLocation::GLOBAL:
-      PrintF("global[%d]", var->index());
-      break;
     case VariableLocation::LOOKUP:
       PrintF("lookup");
       break;

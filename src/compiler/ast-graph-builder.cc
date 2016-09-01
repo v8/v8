@@ -1083,7 +1083,6 @@ void AstGraphBuilder::Visit(Expression* expr) {
 void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
@@ -1123,7 +1122,6 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
 void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       Handle<SharedFunctionInfo> function = Compiler::GetSharedFunctionInfo(
           decl->fun(), info()->script(), info());
@@ -3330,7 +3328,6 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                                          TypeofMode typeof_mode) {
   Node* the_hole = jsgraph()->TheHoleConstant();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       // Global var, const, or let variable.
       Handle<Name> name = variable->name();
@@ -3392,7 +3389,6 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
                                            BailoutId bailout_id,
                                            OutputFrameStateCombine combine) {
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
@@ -3431,7 +3427,6 @@ Node* AstGraphBuilder::BuildVariableAssignment(
   Node* the_hole = jsgraph()->TheHoleConstant();
   VariableMode mode = variable->mode();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       // Global var, const, or let variable.
       Handle<Name> name = variable->name();

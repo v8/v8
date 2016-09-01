@@ -727,7 +727,6 @@ void FullCodeGenerator::VisitVariableDeclaration(
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
@@ -778,7 +777,6 @@ void FullCodeGenerator::VisitFunctionDeclaration(
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
   switch (variable->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
@@ -1251,7 +1249,6 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
   // Three cases: global variables, lookup variables, and all other types of
   // variables.
   switch (var->location()) {
-    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       Comment cmnt(masm_, "[ Global variable");
       EmitGlobalVariableLoad(proxy, typeof_mode);
