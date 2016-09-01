@@ -601,21 +601,13 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
     return KeyedLoadSloppyArgumentsStub(isolate).GetCode();
   }
-  bool is_js_array = instance_type == JS_ARRAY_TYPE;
   if (elements_kind == DICTIONARY_ELEMENTS) {
-    if (FLAG_tf_load_ic_stub) {
-      int config = KeyedLoadElementsKind::encode(elements_kind) |
-                   KeyedLoadConvertHole::encode(false) |
-                   KeyedLoadIsJsArray::encode(is_js_array) |
-                   LoadHandlerTypeBit::encode(kLoadICHandlerForElements);
-      return handle(Smi::FromInt(config), isolate);
-    }
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadDictionaryElementStub);
     return LoadDictionaryElementStub(isolate).GetCode();
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsFixedTypedArrayElementsKind(elements_kind));
-  // TODO(jkummerow): Use IsHoleyElementsKind(elements_kind).
+  bool is_js_array = instance_type == JS_ARRAY_TYPE;
   bool convert_hole_to_undefined =
       is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
       *receiver_map == isolate->get_initial_js_array_map(elements_kind);
