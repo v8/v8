@@ -677,9 +677,11 @@ class RuntimeCallTimer {
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
   V(GC)                                             \
+  V(GenericNamedPropertyDefinerCallback)            \
   V(GenericNamedPropertyDeleterCallback)            \
   V(GenericNamedPropertyQueryCallback)              \
   V(GenericNamedPropertySetterCallback)             \
+  V(IndexedPropertyDefinerCallback)                 \
   V(IndexedPropertyDeleterCallback)                 \
   V(IndexedPropertyGetterCallback)                  \
   V(IndexedPropertyQueryCallback)                   \
