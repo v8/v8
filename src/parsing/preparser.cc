@@ -401,8 +401,9 @@ PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
   bool is_strict_reserved = false;
   Identifier name =
       ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-  ParseClassLiteral(nullptr, name, scanner()->location(), is_strict_reserved,
-                    pos, CHECK_OK);
+  ExpressionClassifier no_classifier(this);
+  ParseClassLiteral(name, scanner()->location(), is_strict_reserved, pos,
+                    CHECK_OK);
   return Statement::Default();
 }
 
@@ -501,12 +502,10 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     PreParserExpression pattern = PreParserExpression::Default();
     {
       ExpressionClassifier pattern_classifier(this);
-      pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+      pattern = ParsePrimaryExpression(CHECK_OK);
 
-      ValidateBindingPattern(&pattern_classifier, CHECK_OK);
-      if (lexical) {
-        ValidateLetPattern(&pattern_classifier, CHECK_OK);
-      }
+      ValidateBindingPattern(CHECK_OK);
+      if (lexical) ValidateLetPattern(CHECK_OK);
     }
 
     is_pattern = pattern.IsObjectLiteral() || pattern.IsArrayLiteral();
@@ -515,9 +514,8 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     nvars++;
     if (Check(Token::ASSIGN)) {
       ExpressionClassifier classifier(this);
-      ParseAssignmentExpression(var_context != kForStatement, &classifier,
-                                CHECK_OK);
-      ValidateExpression(&classifier, CHECK_OK);
+      ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
+      ValidateExpression(CHECK_OK);
 
       variable_loc.end_pos = scanner()->location().end_pos;
       if (first_initializer_loc && !first_initializer_loc->IsValid()) {
@@ -582,8 +580,8 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
 
   bool starts_with_identifier = peek_any_identifier();
   ExpressionClassifier classifier(this);
-  Expression expr = ParseExpression(true, &classifier, CHECK_OK);
-  ValidateExpression(&classifier, CHECK_OK);
+  Expression expr = ParseExpressionCoverGrammar(true, CHECK_OK);
+  ValidateExpression(CHECK_OK);
 
   // Even if the expression starts with an identifier, it is not necessarily an
   // identifier. For example, "foo + bar" starts with an identifier but is not
@@ -843,8 +841,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
 
         if (mode == ForEachStatement::ITERATE) {
           ExpressionClassifier classifier(this);
-          ParseAssignmentExpression(true, &classifier, CHECK_OK);
-          RewriteNonPattern(&classifier, CHECK_OK);
+          ParseAssignmentExpression(true, CHECK_OK);
+          RewriteNonPattern(CHECK_OK);
         } else {
           ParseExpression(true, CHECK_OK);
         }
@@ -860,16 +858,16 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
     } else {
       int lhs_beg_pos = peek_position();
       ExpressionClassifier classifier(this);
-      Expression lhs = ParseExpression(false, &classifier, CHECK_OK);
+      Expression lhs = ParseExpressionCoverGrammar(false, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
       bool is_for_each = CheckInOrOf(&mode, CHECK_OK);
       bool is_destructuring = is_for_each &&
                               (lhs->IsArrayLiteral() || lhs->IsObjectLiteral());
 
       if (is_destructuring) {
-        ValidateAssignmentPattern(&classifier, CHECK_OK);
+        ValidateAssignmentPattern(CHECK_OK);
       } else {
-        ValidateExpression(&classifier, CHECK_OK);
+        ValidateExpression(CHECK_OK);
       }
 
       if (is_for_each) {
@@ -881,8 +879,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
 
         if (mode == ForEachStatement::ITERATE) {
           ExpressionClassifier classifier(this);
-          ParseAssignmentExpression(true, &classifier, CHECK_OK);
-          RewriteNonPattern(&classifier, CHECK_OK);
+          ParseAssignmentExpression(true, CHECK_OK);
+          RewriteNonPattern(CHECK_OK);
         } else {
           ParseExpression(true, CHECK_OK);
         }
@@ -974,8 +972,8 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     Expect(Token::LPAREN, CHECK_OK);
     Scope* catch_scope = NewScope(CATCH_SCOPE);
     ExpressionClassifier pattern_classifier(this);
-    ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
-    ValidateBindingPattern(&pattern_classifier, CHECK_OK);
+    ParsePrimaryExpression(CHECK_OK);
+    ValidateBindingPattern(CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     {
       CollectExpressionsInTailPositionToListScope
@@ -1050,7 +1048,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int start_position = scanner()->location().beg_pos;
   function_scope->set_start_position(start_position);
   PreParserFormalParameters formals(function_scope);
-  ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
+  ParseFormalParameterList(&formals, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
 
@@ -1079,8 +1077,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
                     function_name_location, CHECK_OK);
   const bool allow_duplicate_parameters =
       is_sloppy(language_mode) && formals.is_simple && !IsConciseMethod(kind);
-  ValidateFormalParameters(&formals_classifier, language_mode,
-                           allow_duplicate_parameters, CHECK_OK);
+  ValidateFormalParameters(language_mode, allow_duplicate_parameters, CHECK_OK);
 
   if (is_strict(language_mode)) {
     int end_position = scanner()->location().end_pos;
@@ -1138,9 +1135,8 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
 }
 
 PreParserExpression PreParser::ParseClassLiteral(
-    ExpressionClassifier* classifier, PreParserIdentifier name,
-    Scanner::Location class_name_location, bool name_is_strict_reserved,
-    int pos, bool* ok) {
+    PreParserIdentifier name, Scanner::Location class_name_location,
+    bool name_is_strict_reserved, int pos, bool* ok) {
   // All parts of a ClassDeclaration and ClassExpression are strict code.
   if (name_is_strict_reserved) {
     ReportMessageAt(class_name_location,
@@ -1164,13 +1160,10 @@ PreParserExpression PreParser::ParseClassLiteral(
   bool has_extends = Check(Token::EXTENDS);
   if (has_extends) {
     ExpressionClassifier extends_classifier(this);
-    ParseLeftHandSideExpression(&extends_classifier, CHECK_OK);
-    CheckNoTailCallExpressions(&extends_classifier, CHECK_OK);
-    ValidateExpression(&extends_classifier, CHECK_OK);
-    if (classifier != nullptr) {
-      classifier->AccumulateFormalParameterContainmentErrors(
-          &extends_classifier);
-    }
+    ParseLeftHandSideExpression(CHECK_OK);
+    CheckNoTailCallExpressions(CHECK_OK);
+    ValidateExpression(CHECK_OK);
+    impl()->AccumulateFormalParameterContainmentErrors();
   }
 
   ClassLiteralChecker checker(this);
@@ -1185,13 +1178,9 @@ PreParserExpression PreParser::ParseClassLiteral(
     Identifier name;
     ExpressionClassifier property_classifier(this);
     ParsePropertyDefinition(&checker, in_class, has_extends, &is_computed_name,
-                            &has_seen_constructor, &property_classifier, &name,
-                            CHECK_OK);
-    ValidateExpression(&property_classifier, CHECK_OK);
-    if (classifier != nullptr) {
-      classifier->AccumulateFormalParameterContainmentErrors(
-          &property_classifier);
-    }
+                            &has_seen_constructor, &name, CHECK_OK);
+    ValidateExpression(CHECK_OK);
+    impl()->AccumulateFormalParameterContainmentErrors();
   }
 
   Expect(Token::RBRACE, CHECK_OK);
@@ -1212,8 +1201,8 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   Scanner::Location spread_pos;
   ExpressionClassifier classifier(this);
-  ParseArguments(&spread_pos, &classifier, ok);
-  ValidateExpression(&classifier, CHECK_OK);
+  ParseArguments(&spread_pos, ok);
+  ValidateExpression(CHECK_OK);
 
   DCHECK(!spread_pos.IsValid());
 
@@ -1233,13 +1222,13 @@ PreParserExpression PreParser::ParseDoExpression(bool* ok) {
   return PreParserExpression::Default();
 }
 
-void PreParser::ParseAsyncArrowSingleExpressionBody(
-    PreParserStatementList body, bool accept_IN,
-    ExpressionClassifier* classifier, int pos, bool* ok) {
+void PreParser::ParseAsyncArrowSingleExpressionBody(PreParserStatementList body,
+                                                    bool accept_IN, int pos,
+                                                    bool* ok) {
   scope()->ForceContextAllocation();
 
   PreParserExpression return_value =
-      ParseAssignmentExpression(accept_IN, classifier, CHECK_OK_CUSTOM(Void));
+      ParseAssignmentExpression(accept_IN, CHECK_OK_CUSTOM(Void));
 
   body->Add(PreParserStatement::ExpressionStatement(return_value), zone());
 }

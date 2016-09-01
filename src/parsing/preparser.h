@@ -6,14 +6,7 @@
 #define V8_PARSING_PREPARSER_H
 
 #include "src/ast/scopes.h"
-#include "src/bailout-reason.h"
-#include "src/base/hashmap.h"
-#include "src/messages.h"
-#include "src/parsing/expression-classifier.h"
-#include "src/parsing/func-name-inferrer.h"
 #include "src/parsing/parser-base.h"
-#include "src/parsing/scanner.h"
-#include "src/parsing/token.h"
 
 namespace v8 {
 namespace internal {
@@ -607,9 +600,6 @@ struct ParserTypes<PreParser> {
 
   typedef int AstProperties;
 
-  typedef v8::internal::ExpressionClassifier<ParserTypes<PreParser>>
-      ExpressionClassifier;
-
   // Return types for traversing functions.
   typedef PreParserIdentifier Identifier;
   typedef PreParserExpression Expression;
@@ -787,8 +777,7 @@ class PreParser : public ParserBase<PreParser> {
   void ParseLazyFunctionLiteralBody(bool* ok,
                                     Scanner::BookmarkScope* bookmark = nullptr);
 
-  PreParserExpression ParseClassLiteral(ExpressionClassifier* classifier,
-                                        PreParserIdentifier name,
+  PreParserExpression ParseClassLiteral(PreParserIdentifier name,
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
                                         bool* ok);
@@ -810,7 +799,6 @@ class PreParser : public ParserBase<PreParser> {
 
   void ParseAsyncArrowSingleExpressionBody(PreParserStatementList body,
                                            bool accept_IN,
-                                           ExpressionClassifier* classifier,
                                            int pos, bool* ok);
 
   V8_INLINE PreParserExpressionList
@@ -846,9 +834,7 @@ class PreParser : public ParserBase<PreParser> {
                                                  int pos) {
     return PreParserExpression::Default();
   }
-  V8_INLINE void RewriteNonPattern(ExpressionClassifier* classifier, bool* ok) {
-    ValidateExpression(classifier, ok);
-  }
+  V8_INLINE void RewriteNonPattern(bool* ok) { ValidateExpression(ok); }
 
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       PreParserExpression assignment) {}
@@ -1106,9 +1092,8 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE void DeclareFormalParameter(DeclarationScope* scope,
-                                        PreParserIdentifier parameter,
-                                        ExpressionClassifier* classifier) {
-    if (!classifier->is_simple_parameter_list()) {
+                                        PreParserIdentifier parameter) {
+    if (!classifier()->is_simple_parameter_list()) {
       scope->SetHasNonSimpleParameters();
     }
   }

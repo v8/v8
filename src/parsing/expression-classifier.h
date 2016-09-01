@@ -7,7 +7,6 @@
 
 #include "src/messages.h"
 #include "src/parsing/scanner.h"
-#include "src/parsing/token.h"
 
 namespace v8 {
 namespace internal {
@@ -25,6 +24,28 @@ class DuplicateFinder;
   T(LetPatternProduction, 7)                 \
   T(TailCallExpressionProduction, 8)         \
   T(AsyncArrowFormalParametersProduction, 9)
+
+// Expression classifiers serve two purposes:
+//
+// 1) They keep track of error messages that are pending (and other
+//    related information), waiting for the parser to decide whether
+//    the parsed expression is a pattern or not.
+// 2) They keep track of expressions that may need to be rewritten, if
+//    the parser decides that they are not patterns.  (A different
+//    mechanism implements the rewriting of patterns.)
+//
+// Expression classifiers are used by the parser in a stack fashion.
+// Each new classifier is pushed on top of the stack.  This happens
+// automatically by the class's constructor.  While on top of the
+// stack, the classifier records pending error messages and tracks the
+// pending non-patterns of the expression that is being parsed.
+//
+// At the end of its life, a classifier is either "accumulated" to the
+// one that is below it on the stack, or is "discarded".  The former
+// is achieved by calling the method Accumulate.  The latter is
+// achieved automatically by the destructor, but it can happen earlier
+// by calling the method Discard.  Both actions result in removing the
+// classifier from the parser's stack.
 
 template <typename Types>
 class ExpressionClassifier {
@@ -72,19 +93,25 @@ class ExpressionClassifier {
     NonSimpleParameter = 1 << 0
   };
 
-  explicit ExpressionClassifier(const typename Types::Base* base,
+  explicit ExpressionClassifier(typename Types::Base* base,
                                 DuplicateFinder* duplicate_finder = nullptr)
-      : zone_(base->impl()->zone()),
+      : base_(base),
+        previous_(base->classifier_),
+        zone_(base->impl()->zone()),
         non_patterns_to_rewrite_(base->impl()->GetNonPatternList()),
         reported_errors_(base->impl()->GetReportedErrorList()),
         duplicate_finder_(duplicate_finder),
         invalid_productions_(0),
         function_properties_(0) {
+    base->classifier_ = this;
     reported_errors_begin_ = reported_errors_end_ = reported_errors_->length();
     non_pattern_begin_ = non_patterns_to_rewrite_->length();
   }
 
-  ~ExpressionClassifier() { Discard(); }
+  V8_INLINE ~ExpressionClassifier() {
+    Discard();
+    if (base_->classifier_ == this) base_->classifier_ = previous_;
+  }
 
   V8_INLINE bool is_valid(unsigned productions) const {
     return (invalid_productions_ & productions) == 0;
@@ -357,20 +384,6 @@ class ExpressionClassifier {
         reported_errors_end_;
   }
 
-  // Accumulate errors that can be arbitrarily deep in an expression.
-  // These correspond to the ECMAScript spec's 'Contains' operation
-  // on productions. This includes:
-  //
-  // - YieldExpression is disallowed in arrow parameters in a generator.
-  // - AwaitExpression is disallowed in arrow parameters in an async function.
-  // - AwaitExpression is disallowed in async arrow parameters.
-  //
-  V8_INLINE void AccumulateFormalParameterContainmentErrors(
-      ExpressionClassifier* inner) {
-    Accumulate(inner, FormalParameterInitializerProduction |
-                          AsyncArrowFormalParametersProduction);
-  }
-
   V8_INLINE int GetNonPatternBegin() const { return non_pattern_begin_; }
 
   V8_INLINE void Discard() {
@@ -382,6 +395,8 @@ class ExpressionClassifier {
     DCHECK_LE(non_pattern_begin_, non_patterns_to_rewrite_->length());
     non_patterns_to_rewrite_->Rewind(non_pattern_begin_);
   }
+
+  ExpressionClassifier* previous() const { return previous_; }
 
  private:
   V8_INLINE const Error& reported_error(ErrorKind kind) const {
@@ -419,6 +434,8 @@ class ExpressionClassifier {
     reported_errors_end_++;
   }
 
+  typename Types::Base* base_;
+  ExpressionClassifier* previous_;
   Zone* zone_;
   ZoneList<typename Types::Expression>* non_patterns_to_rewrite_;
   ZoneList<Error>* reported_errors_;
@@ -441,6 +458,8 @@ class ExpressionClassifier {
   // stack overflow while parsing.
   uint16_t reported_errors_begin_;
   uint16_t reported_errors_end_;
+
+  DISALLOW_COPY_AND_ASSIGN(ExpressionClassifier);
 };
 
 

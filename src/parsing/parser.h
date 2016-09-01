@@ -146,9 +146,6 @@ struct ParserTypes<Parser> {
 
   typedef v8::internal::AstProperties AstProperties;
 
-  typedef v8::internal::ExpressionClassifier<ParserTypes<Parser>>
-      ExpressionClassifier;
-
   // Return types for traversing functions.
   typedef const AstRawString* Identifier;
   typedef v8::internal::Expression* Expression;
@@ -444,7 +441,6 @@ class Parser : public ParserBase<Parser> {
 
   void DesugarAsyncFunctionBody(const AstRawString* function_name, Scope* scope,
                                 ZoneList<Statement*>* body,
-                                ExpressionClassifier* classifier,
                                 FunctionKind kind, FunctionBodyType type,
                                 bool accept_IN, int pos, bool* ok);
 
@@ -456,8 +452,7 @@ class Parser : public ParserBase<Parser> {
       int function_token_position, FunctionLiteral::FunctionType type,
       LanguageMode language_mode, bool* ok);
 
-  Expression* ParseClassLiteral(ExpressionClassifier* classifier,
-                                const AstRawString* name,
+  Expression* ParseClassLiteral(const AstRawString* name,
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved, int pos,
                                 bool* ok);
@@ -579,12 +574,10 @@ class Parser : public ParserBase<Parser> {
 
   void ParseAsyncArrowSingleExpressionBody(ZoneList<Statement*>* body,
                                            bool accept_IN,
-                                           ExpressionClassifier* classifier,
                                            int pos, bool* ok) {
-    DesugarAsyncFunctionBody(ast_value_factory()->empty_string(), scope(), body,
-                             classifier, kAsyncArrowFunction,
-                             FunctionBodyType::kSingleExpression, accept_IN,
-                             pos, ok);
+    DesugarAsyncFunctionBody(
+        ast_value_factory()->empty_string(), scope(), body, kAsyncArrowFunction,
+        FunctionBodyType::kSingleExpression, accept_IN, pos, ok);
   }
 
   ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);
@@ -611,7 +604,7 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE Expression* RewriteSpreads(ArrayLiteral* lit);
 
   // Rewrite expressions that are not used as patterns
-  V8_INLINE void RewriteNonPattern(ExpressionClassifier* classifier, bool* ok);
+  V8_INLINE void RewriteNonPattern(bool* ok);
 
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       Expression* assignment);
@@ -953,10 +946,9 @@ class Parser : public ParserBase<Parser> {
 
   V8_INLINE void DeclareFormalParameter(
       DeclarationScope* scope,
-      const ParserFormalParameters::Parameter& parameter,
-      ExpressionClassifier* classifier) {
+      const ParserFormalParameters::Parameter& parameter) {
     bool is_duplicate = false;
-    bool is_simple = classifier->is_simple_parameter_list();
+    bool is_simple = classifier()->is_simple_parameter_list();
     auto name = is_simple || parameter.is_rest
                     ? parameter.name
                     : ast_value_factory()->empty_string();
@@ -967,7 +959,7 @@ class Parser : public ParserBase<Parser> {
         scope->DeclareParameter(name, mode, is_optional, parameter.is_rest,
                                 &is_duplicate, ast_value_factory());
     if (is_duplicate) {
-      classifier->RecordDuplicateFormalParameterError(scanner()->location());
+      classifier()->RecordDuplicateFormalParameterError(scanner()->location());
     }
     if (is_sloppy(scope->language_mode())) {
       // TODO(sigurds) Mark every parameter as maybe assigned. This is a
