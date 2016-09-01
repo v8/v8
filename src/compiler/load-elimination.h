@@ -52,6 +52,8 @@ class LoadElimination final : public AdvancedReducer {
     bool Equals(AbstractChecks const* that) const;
     AbstractChecks const* Merge(AbstractChecks const* that, Zone* zone) const;
 
+    void Print() const;
+
    private:
     Node* nodes_[kMaxTrackedChecks];
     size_t next_index_ = 0;
@@ -85,6 +87,8 @@ class LoadElimination final : public AdvancedReducer {
     bool Equals(AbstractElements const* that) const;
     AbstractElements const* Merge(AbstractElements const* that,
                                   Zone* zone) const;
+
+    void Print() const;
 
    private:
     struct Element {
@@ -137,6 +141,8 @@ class LoadElimination final : public AdvancedReducer {
       return copy;
     }
 
+    void Print() const;
+
    private:
     ZoneMap<Node*, Node*> info_for_node_;
   };
@@ -168,6 +174,8 @@ class LoadElimination final : public AdvancedReducer {
 
     AbstractState const* AddCheck(Node* node, Zone* zone) const;
     Node* LookupCheck(Node* node) const;
+
+    void Print() const;
 
    private:
     AbstractChecks const* checks_ = nullptr;

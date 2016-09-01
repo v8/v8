@@ -22,28 +22,38 @@ Aliasing QueryAlias(Node* a, Node* b) {
   if (!NodeProperties::GetType(a)->Maybe(NodeProperties::GetType(b))) {
     return kNoAlias;
   }
-  if (b->opcode() == IrOpcode::kAllocate) {
-    switch (a->opcode()) {
-      case IrOpcode::kAllocate:
-      case IrOpcode::kHeapConstant:
-      case IrOpcode::kParameter:
-        return kNoAlias;
-      case IrOpcode::kFinishRegion:
-        return QueryAlias(a->InputAt(0), b);
-      default:
-        break;
+  switch (b->opcode()) {
+    case IrOpcode::kAllocate: {
+      switch (a->opcode()) {
+        case IrOpcode::kAllocate:
+        case IrOpcode::kHeapConstant:
+        case IrOpcode::kParameter:
+          return kNoAlias;
+        default:
+          break;
+      }
+      break;
     }
+    case IrOpcode::kFinishRegion:
+      return QueryAlias(a, b->InputAt(0));
+    default:
+      break;
   }
-  if (a->opcode() == IrOpcode::kAllocate) {
-    switch (b->opcode()) {
-      case IrOpcode::kHeapConstant:
-      case IrOpcode::kParameter:
-        return kNoAlias;
-      case IrOpcode::kFinishRegion:
-        return QueryAlias(a, b->InputAt(0));
-      default:
-        break;
+  switch (a->opcode()) {
+    case IrOpcode::kAllocate: {
+      switch (b->opcode()) {
+        case IrOpcode::kHeapConstant:
+        case IrOpcode::kParameter:
+          return kNoAlias;
+        default:
+          break;
+      }
+      break;
     }
+    case IrOpcode::kFinishRegion:
+      return QueryAlias(a->InputAt(0), b);
+    default:
+      break;
   }
   return kMayAlias;
 }
@@ -55,6 +65,32 @@ bool MustAlias(Node* a, Node* b) { return QueryAlias(a, b) == kMustAlias; }
 }  // namespace
 
 Reduction LoadElimination::Reduce(Node* node) {
+  if (FLAG_trace_turbo_load_elimination) {
+    if (node->op()->EffectInputCount() > 0) {
+      PrintF(" visit #%d:%s", node->id(), node->op()->mnemonic());
+      if (node->op()->ValueInputCount() > 0) {
+        PrintF("(");
+        for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+          if (i > 0) PrintF(", ");
+          Node* const value = NodeProperties::GetValueInput(node, i);
+          PrintF("#%d:%s", value->id(), value->op()->mnemonic());
+        }
+        PrintF(")");
+      }
+      PrintF("\n");
+      for (int i = 0; i < node->op()->EffectInputCount(); ++i) {
+        Node* const effect = NodeProperties::GetEffectInput(node, i);
+        if (AbstractState const* const state = node_states_.Get(effect)) {
+          PrintF("  state[%i]: #%d:%s\n", i, effect->id(),
+                 effect->op()->mnemonic());
+          state->Print();
+        } else {
+          PrintF("  no state[%i]: #%d:%s\n", i, effect->id(),
+                 effect->op()->mnemonic());
+        }
+      }
+    }
+  }
   switch (node->opcode()) {
     case IrOpcode::kArrayBufferWasNeutered:
       return ReduceArrayBufferWasNeutered(node);
@@ -147,6 +183,14 @@ LoadElimination::AbstractChecks const* LoadElimination::AbstractChecks::Merge(
   return copy;
 }
 
+void LoadElimination::AbstractChecks::Print() const {
+  for (Node* const node : nodes_) {
+    if (node != nullptr) {
+      PrintF("    #%d:%s\n", node->id(), node->op()->mnemonic());
+    }
+  }
+}
+
 Node* LoadElimination::AbstractElements::Lookup(Node* object,
                                                 Node* index) const {
   for (Element const element : elements_) {
@@ -235,6 +279,17 @@ LoadElimination::AbstractElements::Merge(AbstractElements const* that,
   return copy;
 }
 
+void LoadElimination::AbstractElements::Print() const {
+  for (Element const& element : elements_) {
+    if (element.object) {
+      PrintF("    #%d:%s @ #%d:%s -> #%d:%s\n", element.object->id(),
+             element.object->op()->mnemonic(), element.index->id(),
+             element.index->op()->mnemonic(), element.value->id(),
+             element.value->op()->mnemonic());
+    }
+  }
+}
+
 Node* LoadElimination::AbstractField::Lookup(Node* object) const {
   for (auto pair : info_for_node_) {
     if (MustAlias(object, pair.first)) return pair.second;
@@ -254,6 +309,14 @@ LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
     }
   }
   return this;
+}
+
+void LoadElimination::AbstractField::Print() const {
+  for (auto pair : info_for_node_) {
+    PrintF("    #%d:%s -> #%d:%s\n", pair.first->id(),
+           pair.first->op()->mnemonic(), pair.second->id(),
+           pair.second->op()->mnemonic());
+  }
 }
 
 bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {
@@ -390,6 +453,23 @@ Node* LoadElimination::AbstractState::LookupField(Node* object,
     return this_field->Lookup(object);
   }
   return nullptr;
+}
+
+void LoadElimination::AbstractState::Print() const {
+  if (checks_) {
+    PrintF("   checks:\n");
+    checks_->Print();
+  }
+  if (elements_) {
+    PrintF("   elements:\n");
+    elements_->Print();
+  }
+  for (size_t i = 0; i < arraysize(fields_); ++i) {
+    if (AbstractField const* const field = fields_[i]) {
+      PrintF("   field %zu:\n", i);
+      field->Print();
+    }
+  }
 }
 
 LoadElimination::AbstractState const*

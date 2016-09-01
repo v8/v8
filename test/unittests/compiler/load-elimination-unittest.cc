@@ -417,6 +417,65 @@ TEST_F(LoadEliminationTest, LoadElementWithTypeMismatch) {
   EXPECT_THAT(r.replacement(), IsTypeGuard(value, control));
 }
 
+TEST_F(LoadEliminationTest, AliasAnalysisForFinishRegion) {
+  Node* value0 = Parameter(Type::Signed32(), 0);
+  Node* value1 = Parameter(Type::Signed32(), 1);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  FieldAccess const access = {kTaggedBase,
+                              kPointerSize,
+                              MaybeHandle<Name>(),
+                              Type::Signed32(),
+                              MachineType::AnyTagged(),
+                              kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
+
+  load_elimination.Reduce(effect);
+
+  effect = graph()->NewNode(
+      common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  load_elimination.Reduce(effect);
+
+  Node* object0 = effect =
+      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+                       jsgraph()->Constant(16), effect, control);
+  load_elimination.Reduce(effect);
+
+  Node* region0 = effect =
+      graph()->NewNode(common()->FinishRegion(), object0, effect);
+  load_elimination.Reduce(effect);
+
+  effect = graph()->NewNode(
+      common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  load_elimination.Reduce(effect);
+
+  Node* object1 = effect =
+      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+                       jsgraph()->Constant(16), effect, control);
+  load_elimination.Reduce(effect);
+
+  Node* region1 = effect =
+      graph()->NewNode(common()->FinishRegion(), object1, effect);
+  load_elimination.Reduce(effect);
+
+  effect = graph()->NewNode(simplified()->StoreField(access), region0, value0,
+                            effect, control);
+  load_elimination.Reduce(effect);
+
+  effect = graph()->NewNode(simplified()->StoreField(access), region1, value1,
+                            effect, control);
+  load_elimination.Reduce(effect);
+
+  Node* load = graph()->NewNode(simplified()->LoadField(access), region0,
+                                effect, control);
+  EXPECT_CALL(editor, ReplaceWithValue(load, value0, effect, _));
+  Reduction r = load_elimination.Reduce(load);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(value0, r.replacement());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
