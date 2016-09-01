@@ -603,6 +603,7 @@
   'built-ins/String/prototype/toLocaleLowerCase/Final_Sigma_U180E': [FAIL],
   'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
   'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toLowerCase/Final_Sigma_U180E': [FAIL],
   'built-ins/String/prototype/toLowerCase/special_casing_conditional': [FAIL],
   'built-ins/String/prototype/toLowerCase/supplementary_plane': [FAIL],
   'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': [FAIL],
