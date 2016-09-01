@@ -461,12 +461,6 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->already_resolved_);
 
-  // For modules, we want to start variable allocation at the surrounding script
-  // scope.
-  if (scope->is_module_scope()) {
-    scope = scope->outer_scope()->AsDeclarationScope();
-  }
-
   scope->AllocateVariables(info, mode);
 
 #ifdef DEBUG
