@@ -3784,6 +3784,98 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   return result;
 }
 
+struct v8::PropertyDescriptor::PrivateData {
+  PrivateData() : desc() {}
+  i::PropertyDescriptor desc;
+};
+
+v8::PropertyDescriptor::PropertyDescriptor() : private_(new PrivateData()) {}
+
+// DataDescriptor
+v8::PropertyDescriptor::PropertyDescriptor(v8::Local<v8::Value> value)
+    : private_(new PrivateData()) {
+  private_->desc.set_value(Utils::OpenHandle(*value, true));
+}
+
+// DataDescriptor with writable field
+v8::PropertyDescriptor::PropertyDescriptor(v8::Local<v8::Value> value,
+                                           bool writable)
+    : private_(new PrivateData()) {
+  private_->desc.set_value(Utils::OpenHandle(*value, true));
+  private_->desc.set_writable(writable);
+}
+
+// AccessorDescriptor
+v8::PropertyDescriptor::PropertyDescriptor(v8::Local<v8::Value> get,
+                                           v8::Local<v8::Value> set)
+    : private_(new PrivateData()) {
+  DCHECK(get.IsEmpty() || get->IsUndefined() || get->IsFunction());
+  DCHECK(set.IsEmpty() || set->IsUndefined() || set->IsFunction());
+  private_->desc.set_get(Utils::OpenHandle(*get, true));
+  private_->desc.set_set(Utils::OpenHandle(*set, true));
+}
+
+v8::PropertyDescriptor::~PropertyDescriptor() { delete private_; }
+
+v8::Local<Value> v8::PropertyDescriptor::value() const {
+  DCHECK(private_->desc.has_value());
+  return Utils::ToLocal(private_->desc.value());
+}
+
+v8::Local<Value> v8::PropertyDescriptor::get() const {
+  DCHECK(private_->desc.has_get());
+  return Utils::ToLocal(private_->desc.get());
+}
+
+v8::Local<Value> v8::PropertyDescriptor::set() const {
+  DCHECK(private_->desc.has_set());
+  return Utils::ToLocal(private_->desc.set());
+}
+
+bool v8::PropertyDescriptor::has_value() const {
+  return private_->desc.has_value();
+}
+bool v8::PropertyDescriptor::has_get() const {
+  return private_->desc.has_get();
+}
+bool v8::PropertyDescriptor::has_set() const {
+  return private_->desc.has_set();
+}
+
+bool v8::PropertyDescriptor::writable() const {
+  DCHECK(private_->desc.has_writable());
+  return private_->desc.writable();
+}
+
+bool v8::PropertyDescriptor::has_writable() const {
+  return private_->desc.has_writable();
+}
+
+void v8::PropertyDescriptor::set_enumerable(bool enumerable) {
+  private_->desc.set_enumerable(enumerable);
+}
+
+bool v8::PropertyDescriptor::enumerable() const {
+  DCHECK(private_->desc.has_enumerable());
+  return private_->desc.enumerable();
+}
+
+bool v8::PropertyDescriptor::has_enumerable() const {
+  return private_->desc.has_enumerable();
+}
+
+void v8::PropertyDescriptor::set_configurable(bool configurable) {
+  private_->desc.set_configurable(configurable);
+}
+
+bool v8::PropertyDescriptor::configurable() const {
+  DCHECK(private_->desc.has_configurable());
+  return private_->desc.configurable();
+}
+
+bool v8::PropertyDescriptor::has_configurable() const {
+  return private_->desc.has_configurable();
+}
 
 Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
                                           v8::Local<Name> key,
@@ -3793,13 +3885,6 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-
-  if (self->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()),
-                          i::Handle<i::JSObject>::cast(self))) {
-    isolate->ReportFailedAccessCheck(i::Handle<i::JSObject>::cast(self));
-    return Nothing<bool>();
-  }
 
   i::PropertyDescriptor desc;
   desc.set_writable(!(attributes & v8::ReadOnly));
@@ -3813,6 +3898,19 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   return success;
 }
 
+Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
+                                       v8::Local<Name> key,
+                                       PropertyDescriptor& descriptor) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object, DefineProperty, bool);
+  i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
+  i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
+
+  Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
+      isolate, self, key_obj, &descriptor.get_private()->desc,
+      i::Object::DONT_THROW);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return success;
+}
 
 MUST_USE_RESULT
 static i::MaybeHandle<i::Object> DefineObjectProperty(

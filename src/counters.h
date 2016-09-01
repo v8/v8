@@ -572,6 +572,7 @@ class RuntimeCallTimer {
   V(Object_CallAsFunction)                                 \
   V(Object_CreateDataProperty)                             \
   V(Object_DefineOwnProperty)                              \
+  V(Object_DefineProperty)                                 \
   V(Object_Delete)                                         \
   V(Object_DeleteProperty)                                 \
   V(Object_ForceSet)                                       \

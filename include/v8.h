@@ -96,6 +96,7 @@ class ObjectTemplate;
 class Platform;
 class Primitive;
 class Promise;
+class PropertyDescriptor;
 class Proxy;
 class RawOperationDescriptor;
 class Script;
@@ -2810,6 +2811,22 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Name> key, Local<Value> value,
       PropertyAttribute attributes = None);
 
+  // Implements Object.DefineProperty(O, P, Attributes), see Ecma-262 19.1.2.4.
+  //
+  // The defineProperty function is used to add an own property or
+  // update the attributes of an existing own property of an object.
+  //
+  // Both data and accessor descriptors can be used.
+  //
+  // In general, CreateDataProperty is faster, however, does not allow
+  // for specifying attributes or an accessor descriptor.
+  //
+  // The PropertyDescriptor can change when redefining a property.
+  //
+  // Returns true on success.
+  V8_WARN_UNUSED_RESULT Maybe<bool> DefineProperty(
+      Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
+
   // Sets an own property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //
@@ -3627,6 +3644,78 @@ class V8_EXPORT Promise : public Object {
   static void CheckCast(Value* obj);
 };
 
+/**
+ * An instance of a Property Descriptor, see Ecma-262 6.2.4.
+ *
+ * Properties in a descriptor are present or absent. If you do not set
+ * `enumerable`, `configurable`, and `writable`, they are absent. If `value`,
+ * `get`, or `set` are absent, but you must specify them in the constructor, use
+ * empty handles.
+ *
+ * Accessors `get` and `set` must be callable or undefined if they are present.
+ *
+ * \note Only query properties if they are present, i.e., call `x()` only if
+ * `has_x()` returns true.
+ *
+ * \code
+ * // var desc = {writable: false}
+ * v8::PropertyDescriptor d(Local<Value>()), false);
+ * d.value(); // error, value not set
+ * if (d.has_writable()) {
+ *   d.writable(); // false
+ * }
+ *
+ * // var desc = {value: undefined}
+ * v8::PropertyDescriptor d(v8::Undefined(isolate));
+ *
+ * // var desc = {get: undefined}
+ * v8::PropertyDescriptor d(v8::Undefined(isolate), Local<Value>()));
+ * \endcode
+ */
+class V8_EXPORT PropertyDescriptor {
+ public:
+  // GenericDescriptor
+  PropertyDescriptor();
+
+  // DataDescriptor
+  PropertyDescriptor(Local<Value> value);
+
+  // DataDescriptor with writable property
+  PropertyDescriptor(Local<Value> value, bool writable);
+
+  // AccessorDescriptor
+  PropertyDescriptor(Local<Value> get, Local<Value> set);
+
+  ~PropertyDescriptor();
+
+  Local<Value> value() const;
+  bool has_value() const;
+
+  Local<Value> get() const;
+  bool has_get() const;
+  Local<Value> set() const;
+  bool has_set() const;
+
+  void set_enumerable(bool enumerable);
+  bool enumerable() const;
+  bool has_enumerable() const;
+
+  void set_configurable(bool configurable);
+  bool configurable() const;
+  bool has_configurable() const;
+
+  bool writable() const;
+  bool has_writable() const;
+
+  struct PrivateData;
+  PrivateData* get_private() const { return private_; }
+
+  PropertyDescriptor(const PropertyDescriptor&) = delete;
+  void operator=(const PropertyDescriptor&) = delete;
+
+ private:
+  PrivateData* private_;
+};
 
 /**
  * An instance of the built-in Proxy constructor (ECMA-262, 6th Edition,
@@ -4492,6 +4581,7 @@ typedef void (*NamedPropertyEnumeratorCallback)(
 
 // TODO(dcarney): Deprecate and remove previous typedefs, and replace
 // GenericNamedPropertyFooCallback with just NamedPropertyFooCallback.
+
 /**
  * Interceptor for get requests on an object.
  *
