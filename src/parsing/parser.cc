@@ -3861,6 +3861,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
     // Parsing the body may change the language mode in our scope.
     language_mode = scope->language_mode();
+    scope->DeclareArguments(ast_value_factory());
+    if (main_scope != scope) {
+      main_scope->DeclareArguments(ast_value_factory());
+    }
 
     // Validate name and parameter names. We can do this only after parsing the
     // function, since the function can declare itself strict.

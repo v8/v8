@@ -6444,10 +6444,9 @@ TEST(DestructuringPositiveTests) {
   RunParserSyncTest(context_data, data, kSuccess);
 
   // v8:5201
-  // TODO(lpy): The two test sets below should be merged once
-  // we fix https://bugs.chromium.org/p/v8/issues/detail?id=4577
   {
-    const char* sloppy_context_data1[][2] = {
+    // clang-format off
+    const char* sloppy_context_data[][2] = {
       {"var ", " = {};"},
       {"function f(", ") {}"},
       {"function f(argument1, ", ") {}"},
@@ -6456,26 +6455,17 @@ TEST(DestructuringPositiveTests) {
       {"try {} catch(", ") {}"},
       {NULL, NULL}
     };
-    const char* data1[] = {
+    const char* data[] = {
+      "{arguments}",
       "{eval}",
+      "{x: arguments}",
       "{x: eval}",
+      "{arguments = false}",
       "{eval = false}",
       NULL
     };
-    RunParserSyncTest(sloppy_context_data1, data1, kSuccess);
-
-    const char* sloppy_context_data2[][2] = {
-      {"var ", " = {};"},
-      {"try {} catch(", ") {}"},
-      {NULL, NULL}
-    };
-    const char* data2[] = {
-      "{arguments}",
-      "{x: arguments}",
-      "{arguments = false}",
-      NULL,
-    };
-    RunParserSyncTest(sloppy_context_data2, data2, kSuccess);
+    // clang-format on
+    RunParserSyncTest(sloppy_context_data, data, kSuccess);
   }
 }
 
@@ -8329,4 +8319,39 @@ TEST(TrailingCommasInParametersErrors) {
   static const ParserFlag always_flags[] = {kAllowHarmonyTrailingCommas};
   RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
+}
+
+TEST(ArgumentsRedeclaration) {
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      { "function f(", ") {}" },
+      { NULL, NULL }
+    };
+    const char* success_data[] = {
+      "{arguments}",
+      "{arguments = false}",
+      "arg1, arguments",
+      "arg1, ...arguments",
+      NULL
+    };
+    // clang-format on
+    RunParserSyncTest(context_data, success_data, kSuccess);
+  }
+
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      { "function f() {", "}" },
+      { NULL, NULL }
+    };
+    const char* data[] = {
+      "const arguments = 1",
+      "let arguments",
+      "var arguments",
+      NULL
+    };
+    // clang-format on
+    RunParserSyncTest(context_data, data, kSuccess);
+  }
 }
