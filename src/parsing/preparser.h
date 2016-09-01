@@ -599,19 +599,13 @@ struct ParserTypes<PreParser> {
   // PreParser doesn't need to store generator variables.
   typedef void GeneratorVariable;
 
-  typedef int AstProperties;
-
   // Return types for traversing functions.
   typedef PreParserIdentifier Identifier;
   typedef PreParserExpression Expression;
-  typedef PreParserExpression YieldExpression;
   typedef PreParserExpression FunctionLiteral;
-  typedef PreParserExpression ClassLiteral;
-  typedef PreParserExpression Literal;
   typedef PreParserExpression ObjectLiteralProperty;
   typedef PreParserExpressionList ExpressionList;
   typedef PreParserExpressionList PropertyList;
-  typedef PreParserIdentifier FormalParameter;
   typedef PreParserFormalParameters FormalParameters;
   typedef PreParserStatementList StatementList;
   typedef PreParserStatement Block;

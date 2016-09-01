@@ -175,23 +175,19 @@ struct FormalParametersBase {
 //   // Synonyms for ParserBase<Impl> and Impl, respectively.
 //   typedef Base;
 //   typedef Impl;
-//   // TODO(nikolaos): these two will probably go away, as they are
+//   // TODO(nikolaos): this one will probably go away, as it is
 //   // not related to pure parsing.
 //   typedef GeneratorVariable;
-//   typedef AstProperties;
 //   // Return types for traversing functions.
 //   typedef Identifier;
 //   typedef Expression;
-//   typedef YieldExpression;
 //   typedef FunctionLiteral;
-//   typedef ClassLiteral;
-//   typedef Literal;
 //   typedef ObjectLiteralProperty;
 //   typedef ExpressionList;
 //   typedef PropertyList;
-//   typedef FormalParameter;
 //   typedef FormalParameters;
 //   typedef StatementList;
+//   typedef Block;
 //   // For constructing objects returned by the traversing functions.
 //   typedef Factory;
 // };
@@ -204,17 +200,17 @@ class ParserBase {
  public:
   // Shorten type names defined by ParserTypes<Impl>.
   typedef ParserTypes<Impl> Types;
-  typedef typename Types::Expression ExpressionT;
   typedef typename Types::Identifier IdentifierT;
-  typedef typename Types::FormalParameter FormalParameterT;
-  typedef typename Types::FormalParameters FormalParametersT;
+  typedef typename Types::Expression ExpressionT;
   typedef typename Types::FunctionLiteral FunctionLiteralT;
-  typedef typename Types::Literal LiteralT;
   typedef typename Types::ObjectLiteralProperty ObjectLiteralPropertyT;
+  typedef typename Types::ExpressionList ExpressionListT;
+  typedef typename Types::PropertyList PropertyListT;
+  typedef typename Types::FormalParameters FormalParametersT;
   typedef typename Types::StatementList StatementListT;
+  typedef typename Types::Block BlockT;
   typedef typename v8::internal::ExpressionClassifier<Types>
       ExpressionClassifier;
-  typedef typename Types::Block BlockT;
 
   // All implementation-specific methods must be called through this.
   Impl* impl() { return static_cast<Impl*>(this); }
@@ -1145,10 +1141,10 @@ class ParserBase {
       ObjectLiteralCheckerBase* checker, bool in_class, bool has_extends,
       bool* is_computed_name, bool* has_seen_constructor, IdentifierT* name,
       bool* ok);
-  typename Types::ExpressionList ParseArguments(
-      Scanner::Location* first_spread_pos, bool maybe_arrow, bool* ok);
-  typename Types::ExpressionList ParseArguments(
-      Scanner::Location* first_spread_pos, bool* ok) {
+  ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
+                                 bool maybe_arrow, bool* ok);
+  ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
+                                 bool* ok) {
     return ParseArguments(first_spread_pos, false, ok);
   }
 
@@ -1828,7 +1824,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   //   '[' Expression? (',' Expression?)* ']'
 
   int pos = peek_position();
-  typename Types::ExpressionList values = impl()->NewExpressionList(4);
+  ExpressionListT values = impl()->NewExpressionList(4);
   int first_spread_index = -1;
   Expect(Token::LBRACK, CHECK_OK);
   while (peek() != Token::RBRACK) {
@@ -2245,7 +2241,7 @@ ParserBase<Impl>::ParsePropertyDefinition(ObjectLiteralCheckerBase* checker,
                                CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       }
 
-      typename Types::FunctionLiteral value = impl()->ParseFunctionLiteral(
+      FunctionLiteralT value = impl()->ParseFunctionLiteral(
           *name, scanner()->location(), kSkipFunctionNameCheck,
           is_get ? FunctionKind::kGetterFunction
                  : FunctionKind::kSetterFunction,
@@ -2280,7 +2276,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   // '{' (PropertyDefinition (',' PropertyDefinition)* ','? )? '}'
 
   int pos = peek_position();
-  typename Types::PropertyList properties = impl()->NewPropertyList(4);
+  PropertyListT properties = impl()->NewPropertyList(4);
   int number_of_boilerplate_properties = 0;
   bool has_computed_names = false;
   ObjectLiteralChecker checker(this);
@@ -2329,14 +2325,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::Types::ExpressionList
-ParserBase<Impl>::ParseArguments(Scanner::Location* first_spread_arg_loc,
-                                 bool maybe_arrow, bool* ok) {
+typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
+    Scanner::Location* first_spread_arg_loc, bool maybe_arrow, bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
   Scanner::Location spread_arg = Scanner::Location::invalid();
-  typename Types::ExpressionList result = impl()->NewExpressionList(4);
+  ExpressionListT result = impl()->NewExpressionList(4);
   Expect(Token::LPAREN, CHECK_OK_CUSTOM(NullExpressionList));
   bool done = (peek() == Token::RPAREN);
   bool was_unspread = false;
@@ -2978,7 +2973,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
           }
         }
         Scanner::Location spread_pos;
-        typename Types::ExpressionList args;
+        ExpressionListT args;
         if (V8_UNLIKELY(is_async && impl()->IsIdentifier(result))) {
           ExpressionClassifier async_classifier(this);
           args = ParseArguments(&spread_pos, true, CHECK_OK);
@@ -3111,8 +3106,7 @@ ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
     if (peek() == Token::LPAREN) {
       // NewExpression with arguments.
       Scanner::Location spread_pos;
-      typename Types::ExpressionList args =
-          ParseArguments(&spread_pos, CHECK_OK);
+      ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
 
       if (spread_pos.IsValid()) {
         args = impl()->PrepareSpreadArguments(args);
@@ -3649,7 +3643,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     return impl()->EmptyExpression();
   }
 
-  typename Types::StatementList body = impl()->NullStatementList();
+  StatementListT body = impl()->NullStatementList();
   int num_parameters = formal_parameters.scope->num_parameters();
   int materialized_literal_count = -1;
   int expected_property_count = -1;

@@ -144,19 +144,13 @@ struct ParserTypes<Parser> {
 
   typedef Variable GeneratorVariable;
 
-  typedef v8::internal::AstProperties AstProperties;
-
   // Return types for traversing functions.
   typedef const AstRawString* Identifier;
   typedef v8::internal::Expression* Expression;
-  typedef Yield* YieldExpression;
   typedef v8::internal::FunctionLiteral* FunctionLiteral;
-  typedef v8::internal::ClassLiteral* ClassLiteral;
-  typedef v8::internal::Literal* Literal;
   typedef ObjectLiteral::Property* ObjectLiteralProperty;
   typedef ZoneList<v8::internal::Expression*>* ExpressionList;
   typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
-  typedef ParserFormalParameters::Parameter FormalParameter;
   typedef ParserFormalParameters FormalParameters;
   typedef ZoneList<v8::internal::Statement*>* StatementList;
   typedef v8::internal::Block* Block;
