@@ -716,7 +716,7 @@ class Page : public MemoryChunk {
   // account.
   // TODO(hpayer): This limit should be way smaller but we currently have
   // short living objects >256K.
-  static const int kMaxRegularHeapObjectSize = 600 * KB;
+  static const int kMaxRegularHeapObjectSize = 512 * KB - Page::kHeaderSize;
 
   static inline Page* ConvertNewToOld(Page* old_page, PagedSpace* new_owner);
 
