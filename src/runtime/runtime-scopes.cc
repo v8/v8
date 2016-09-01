@@ -294,9 +294,8 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
       DCHECK(context->IsBlockContext());
       object = isolate->factory()->NewJSObject(
           isolate->context_extension_function());
-      Handle<HeapObject> extension =
-          isolate->factory()->NewSloppyBlockWithEvalContextExtension(
-              handle(context->scope_info()), object);
+      Handle<HeapObject> extension = isolate->factory()->NewContextExtension(
+          handle(context->scope_info()), object);
       context->set_extension(*extension);
     } else {
       object = handle(context->extension_object(), isolate);

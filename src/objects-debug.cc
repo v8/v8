@@ -911,10 +911,8 @@ void PrototypeInfo::PrototypeInfoVerify() {
   CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
 }
 
-
-void SloppyBlockWithEvalContextExtension::
-    SloppyBlockWithEvalContextExtensionVerify() {
-  CHECK(IsSloppyBlockWithEvalContextExtension());
+void ContextExtension::ContextExtensionVerify() {
+  CHECK(IsContextExtension());
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kExtensionOffset);
 }

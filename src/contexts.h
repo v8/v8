@@ -298,8 +298,8 @@ class ScriptContextTable : public FixedArray {
 //
 // [ previous  ]  A pointer to the previous context.
 //
-// [ extension ]  A pointer to an extension JSObject, or "the hole". Used to
-//                implement 'with' statements and dynamic declarations
+// [ extension ]  A pointer to a ContextExtension object, or "the hole". Used
+//                to implement 'with' statements and dynamic declarations
 //                (through 'eval'). The object in a 'with' statement is
 //                stored in the extension slot of a 'with' context.
 //                Dynamically declared variables/functions are also added
@@ -308,8 +308,8 @@ class ScriptContextTable : public FixedArray {
 //                For script and block contexts, contains the respective
 //                ScopeInfo. For block contexts representing sloppy declaration
 //                block scopes, it may also be a struct being a
-//                SloppyBlockWithEvalContextExtension, pairing the ScopeInfo
-//                with an extension object.
+//                ContextExtension, pairing the ScopeInfo with an extension
+//                object.
 //
 // [ native_context ]  A pointer to the native context.
 //

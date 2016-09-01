@@ -395,7 +395,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(BOX_TYPE)                                                   \
   V(PROTOTYPE_INFO_TYPE)                                        \
-  V(SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION_TYPE)              \
+  V(CONTEXT_EXTENSION_TYPE)                                     \
                                                                 \
   V(FIXED_ARRAY_TYPE)                                           \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
@@ -513,9 +513,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)                      \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
-  V(SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION,                                \
-    SloppyBlockWithEvalContextExtension,                                     \
-    sloppy_block_with_eval_context_extension)
+  V(CONTEXT_EXTENSION, ContextExtension, context_extension)
 
 // We use the full 8 bits of the instance_type field to encode heap object
 // instance types.  The high-order bit (bit 7) is set if the object is not a
@@ -689,7 +687,7 @@ enum InstanceType {
   TRANSITION_ARRAY_TYPE,
   PROPERTY_CELL_TYPE,
   PROTOTYPE_INFO_TYPE,
-  SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION_TYPE,
+  CONTEXT_EXTENSION_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -6653,28 +6651,29 @@ class PrototypeInfo : public Struct {
 
 
 // Pair used to store both a ScopeInfo and an extension object in the extension
-// slot of a block context. Needed in the rare case where a declaration block
-// scope (a "varblock" as used to desugar parameter destructuring) also contains
-// a sloppy direct eval. (In no other case both are needed at the same time.)
-class SloppyBlockWithEvalContextExtension : public Struct {
+// slot of a block, catch, or with context. Needed in the rare case where a
+// declaration block scope (a "varblock" as used to desugar parameter
+// destructuring) also contains a sloppy direct eval, or for with and catch
+// scopes. (In no other case both are needed at the same time.)
+class ContextExtension : public Struct {
  public:
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
   // [extension]: Extension object.
-  DECL_ACCESSORS(extension, JSObject)
+  DECL_ACCESSORS(extension, Object)
 
-  DECLARE_CAST(SloppyBlockWithEvalContextExtension)
+  DECLARE_CAST(ContextExtension)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(SloppyBlockWithEvalContextExtension)
-  DECLARE_VERIFIER(SloppyBlockWithEvalContextExtension)
+  DECLARE_PRINTER(ContextExtension)
+  DECLARE_VERIFIER(ContextExtension)
 
   static const int kScopeInfoOffset = HeapObject::kHeaderSize;
   static const int kExtensionOffset = kScopeInfoOffset + kPointerSize;
   static const int kSize = kExtensionOffset + kPointerSize;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SloppyBlockWithEvalContextExtension);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ContextExtension);
 };
 
 

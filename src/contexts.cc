@@ -64,8 +64,8 @@ bool Context::is_declaration_context() {
   Object* ext = extension();
   // If we have the special extension, we immediately know it must be a
   // declaration scope. That's just a small performance shortcut.
-  return ext->IsSloppyBlockWithEvalContextExtension()
-      || ScopeInfo::cast(ext)->is_declaration_scope();
+  return ext->IsContextExtension() ||
+         ScopeInfo::cast(ext)->is_declaration_scope();
 }
 
 
@@ -93,8 +93,8 @@ JSObject* Context::extension_object() {
   HeapObject* object = extension();
   if (object->IsTheHole(GetIsolate())) return nullptr;
   if (IsBlockContext()) {
-    if (!object->IsSloppyBlockWithEvalContextExtension()) return nullptr;
-    object = SloppyBlockWithEvalContextExtension::cast(object)->extension();
+    if (!object->IsContextExtension()) return nullptr;
+    object = JSObject::cast(ContextExtension::cast(object)->extension());
   }
   DCHECK(object->IsJSContextExtensionObject() ||
          (IsNativeContext() && object->IsJSGlobalObject()));
@@ -112,9 +112,9 @@ JSReceiver* Context::extension_receiver() {
 ScopeInfo* Context::scope_info() {
   DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext());
   HeapObject* object = extension();
-  if (object->IsSloppyBlockWithEvalContextExtension()) {
+  if (object->IsContextExtension()) {
     DCHECK(IsBlockContext());
-    object = SloppyBlockWithEvalContextExtension::cast(object)->scope_info();
+    object = ContextExtension::cast(object)->scope_info();
   }
   return ScopeInfo::cast(object);
 }

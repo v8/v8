@@ -5692,10 +5692,8 @@ ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
 SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 
-ACCESSORS(SloppyBlockWithEvalContextExtension, scope_info, ScopeInfo,
-          kScopeInfoOffset)
-ACCESSORS(SloppyBlockWithEvalContextExtension, extension, JSObject,
-          kExtensionOffset)
+ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
+ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
