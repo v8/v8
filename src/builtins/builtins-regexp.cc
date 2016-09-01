@@ -148,5 +148,249 @@ BUILTIN(RegExpConstructor) {
                            RegExpInitialize(isolate, regexp, pattern, flags));
 }
 
+#define APPEND_CHAR_FOR_FLAG(flag, c)                                        \
+  do {                                                                       \
+    Handle<Object> property;                                                 \
+    Handle<Name> name = isolate->factory()->flag##_string();                 \
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, property,                    \
+                                       JSReceiver::GetProperty(recv, name)); \
+    if (property->BooleanValue()) {                                          \
+      builder.AppendCharacter(c);                                            \
+    }                                                                        \
+  } while (false);
+
+// ES6 21.2.5.3.
+BUILTIN(RegExpPrototypeFlagsGetter) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSReceiver, recv, "get RegExp.prototype.flags");
+
+  IncrementalStringBuilder builder(isolate);
+
+  APPEND_CHAR_FOR_FLAG(global, 'g');
+  APPEND_CHAR_FOR_FLAG(ignoreCase, 'i');
+  APPEND_CHAR_FOR_FLAG(multiline, 'm');
+  APPEND_CHAR_FOR_FLAG(unicode, 'u');
+  APPEND_CHAR_FOR_FLAG(sticky, 'y');
+
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
+}
+
+#undef APPEND_CHAR_FOR_FLAG
+
+// ES6 21.2.5.10.
+BUILTIN(RegExpPrototypeSourceGetter) {
+  HandleScope scope(isolate);
+
+  Handle<Object> recv = args.receiver();
+  if (!recv->IsJSRegExp()) {
+    // TODO(littledan): Remove this RegExp compat workaround
+    Handle<JSFunction> regexp_fun = isolate->regexp_function();
+    if (*recv == regexp_fun->prototype()) {
+      isolate->CountUsage(v8::Isolate::kRegExpPrototypeSourceGetter);
+      return *isolate->factory()->NewStringFromAsciiChecked("(?:)");
+    }
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kRegExpNonRegExp,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "RegExp.prototype.source")));
+  }
+
+  Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(recv);
+  return regexp->source();
+}
+
+// ES6 21.2.4.2.
+BUILTIN(RegExpPrototypeSpeciesGetter) {
+  HandleScope scope(isolate);
+  return *args.receiver();
+}
+
+#define REGEXP_FLAG_GETTER(name, counter, getter)                              \
+  BUILTIN(RegExpPrototype##name##Getter) {                                     \
+    HandleScope scope(isolate);                                                \
+    Handle<Object> recv = args.receiver();                                     \
+    if (!recv->IsJSRegExp()) {                                                 \
+      /* TODO(littledan): Remove this RegExp compat workaround */              \
+      Handle<JSFunction> regexp_fun = isolate->regexp_function();              \
+      if (*recv == regexp_fun->prototype()) {                                  \
+        isolate->CountUsage(v8::Isolate::kRegExpPrototype##counter##Getter);   \
+        return isolate->heap()->undefined_value();                             \
+      }                                                                        \
+      THROW_NEW_ERROR_RETURN_FAILURE(                                          \
+          isolate, NewTypeError(MessageTemplate::kRegExpNonRegExp,             \
+                                isolate->factory()->NewStringFromAsciiChecked( \
+                                    getter)));                                 \
+    }                                                                          \
+    Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(recv);                    \
+    const bool ret = (regexp->GetFlags() & JSRegExp::k##name) != 0;            \
+    return *isolate->factory()->ToBoolean(ret);                                \
+  }
+
+// ES6 21.2.5.4.
+REGEXP_FLAG_GETTER(Global, OldFlag, "RegExp.prototype.global")
+
+// ES6 21.2.5.5.
+REGEXP_FLAG_GETTER(IgnoreCase, OldFlag, "RegExp.prototype.ignoreCase")
+
+// ES6 21.2.5.7.
+REGEXP_FLAG_GETTER(Multiline, OldFlag, "RegExp.prototype.multiline")
+
+// ES6 21.2.5.12.
+REGEXP_FLAG_GETTER(Sticky, Sticky, "RegExp.prototype.sticky")
+
+// ES6 21.2.5.15.
+REGEXP_FLAG_GETTER(Unicode, Unicode, "RegExp.prototype.unicode")
+
+#undef REGEXP_FLAG_GETTER
+
+namespace {
+
+// Constants for accessing RegExpLastMatchInfo.
+// TODO(jgruber): Currently, RegExpLastMatchInfo is still a JSObject maintained
+// and accessed from JS. This is a crutch until all RegExp logic is ported, then
+// we can take care of RegExpLastMatchInfo.
+const int kNumberOfCapturesIndex = 0;
+const int kLastSubjectIndex = 1;
+const int kLastInputIndex = 2;
+const int kFirstCaptureIndex = 3;
+
+Handle<Object> GetLastMatchField(Isolate* isolate, int index) {
+  Handle<JSFunction> global_regexp = isolate->regexp_function();
+  Handle<Object> last_match_info_obj = JSReceiver::GetDataProperty(
+      global_regexp, isolate->factory()->regexp_last_match_info_symbol());
+
+  Handle<JSReceiver> last_match_info =
+      Handle<JSReceiver>::cast(last_match_info_obj);
+  return JSReceiver::GetElement(isolate, last_match_info, index)
+      .ToHandleChecked();
+}
+
+void SetLastMatchField(Isolate* isolate, int index, Handle<Object> value) {
+  Handle<JSFunction> global_regexp = isolate->regexp_function();
+  Handle<Object> last_match_info_obj = JSReceiver::GetDataProperty(
+      global_regexp, isolate->factory()->regexp_last_match_info_symbol());
+
+  Handle<JSReceiver> last_match_info =
+      Handle<JSReceiver>::cast(last_match_info_obj);
+  JSReceiver::SetElement(isolate, last_match_info, index, value, SLOPPY)
+      .ToHandleChecked();
+}
+
+int GetLastMatchNumberOfCaptures(Isolate* isolate) {
+  Handle<Object> obj = GetLastMatchField(isolate, kNumberOfCapturesIndex);
+  return Handle<Smi>::cast(obj)->value();
+}
+
+Handle<String> GetLastMatchSubject(Isolate* isolate) {
+  return Handle<String>::cast(GetLastMatchField(isolate, kLastSubjectIndex));
+}
+
+Handle<Object> GetLastMatchInput(Isolate* isolate) {
+  return GetLastMatchField(isolate, kLastInputIndex);
+}
+
+int GetLastMatchCapture(Isolate* isolate, int i) {
+  Handle<Object> obj = GetLastMatchField(isolate, kFirstCaptureIndex + i);
+  return Handle<Smi>::cast(obj)->value();
+}
+
+Object* GenericCaptureGetter(Isolate* isolate, int capture) {
+  HandleScope scope(isolate);
+  const int index = capture * 2;
+  if (index >= GetLastMatchNumberOfCaptures(isolate)) {
+    return isolate->heap()->empty_string();
+  }
+
+  const int match_start = GetLastMatchCapture(isolate, index);
+  const int match_end = GetLastMatchCapture(isolate, index + 1);
+  if (match_start == -1 || match_end == -1) {
+    return isolate->heap()->empty_string();
+  }
+
+  Handle<String> last_subject = GetLastMatchSubject(isolate);
+  return *isolate->factory()->NewSubString(last_subject, match_start,
+                                           match_end);
+}
+
+}  // namespace
+
+// The properties $1..$9 are the first nine capturing substrings of the last
+// successful match, or ''.  The function RegExpMakeCaptureGetter will be
+// called with indices from 1 to 9.
+#define DEFINE_CAPTURE_GETTER(i)               \
+  BUILTIN(RegExpPrototypeCapture##i##Getter) { \
+    HandleScope scope(isolate);                \
+    return GenericCaptureGetter(isolate, i);   \
+  }
+DEFINE_CAPTURE_GETTER(1)
+DEFINE_CAPTURE_GETTER(2)
+DEFINE_CAPTURE_GETTER(3)
+DEFINE_CAPTURE_GETTER(4)
+DEFINE_CAPTURE_GETTER(5)
+DEFINE_CAPTURE_GETTER(6)
+DEFINE_CAPTURE_GETTER(7)
+DEFINE_CAPTURE_GETTER(8)
+DEFINE_CAPTURE_GETTER(9)
+#undef DEFINE_CAPTURE_GETTER
+
+// The properties `input` and `$_` are aliases for each other.  When this
+// value is set the value it is set to is coerced to a string.
+// Getter and setter for the input.
+
+BUILTIN(RegExpPrototypeInputGetter) {
+  HandleScope scope(isolate);
+  Handle<Object> obj = GetLastMatchInput(isolate);
+  return obj->IsUndefined(isolate) ? isolate->heap()->empty_string()
+                                   : String::cast(*obj);
+}
+
+BUILTIN(RegExpPrototypeInputSetter) {
+  HandleScope scope(isolate);
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+  Handle<String> str;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str,
+                                     Object::ToString(isolate, value));
+  SetLastMatchField(isolate, kLastInputIndex, str);
+  return isolate->heap()->undefined_value();
+}
+
+// Getters for the static properties lastMatch, lastParen, leftContext, and
+// rightContext of the RegExp constructor.  The properties are computed based
+// on the captures array of the last successful match and the subject string
+// of the last successful match.
+BUILTIN(RegExpPrototypeLastMatchGetter) {
+  HandleScope scope(isolate);
+  return GenericCaptureGetter(isolate, 0);
+}
+
+BUILTIN(RegExpPrototypeLastParenGetter) {
+  HandleScope scope(isolate);
+  const int length = GetLastMatchNumberOfCaptures(isolate);
+  if (length <= 2) return isolate->heap()->empty_string();  // No captures.
+
+  DCHECK_EQ(0, length % 2);
+  const int last_capture = (length / 2) - 1;
+
+  // We match the SpiderMonkey behavior: return the substring defined by the
+  // last pair (after the first pair) of elements of the capture array even if
+  // it is empty.
+  return GenericCaptureGetter(isolate, last_capture);
+}
+
+BUILTIN(RegExpPrototypeLeftContextGetter) {
+  HandleScope scope(isolate);
+  const int start_index = GetLastMatchCapture(isolate, 0);
+  Handle<String> last_subject = GetLastMatchSubject(isolate);
+  return *isolate->factory()->NewSubString(last_subject, 0, start_index);
+}
+
+BUILTIN(RegExpPrototypeRightContextGetter) {
+  HandleScope scope(isolate);
+  const int start_index = GetLastMatchCapture(isolate, 1);
+  Handle<String> last_subject = GetLastMatchSubject(isolate);
+  const int len = last_subject->length();
+  return *isolate->factory()->NewSubString(last_subject, start_index, len);
+}
+
 }  // namespace internal
 }  // namespace v8
