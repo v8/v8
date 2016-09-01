@@ -80,24 +80,6 @@ Handle<Object> PropertyCallbackArguments::Call(
   return GetReturnValue<Object>(isolate);
 }
 
-Handle<Object> PropertyCallbackArguments::Call(
-    GenericNamedPropertyDefinerCallback f, Handle<Name> name,
-    const v8::PropertyDescriptor& desc) {
-  Isolate* isolate = this->isolate();
-  RuntimeCallTimerScope timer(
-      isolate, &RuntimeCallStats::GenericNamedPropertyDefinerCallback);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate,
-      &tracing::TraceEventStatsTable::GenericNamedPropertyDefinerCallback);
-  VMState<EXTERNAL> state(isolate);
-  ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-  PropertyCallbackInfo<v8::Value> info(begin());
-  LOG(isolate,
-      ApiNamedPropertyAccess("interceptor-named-define", holder(), *name));
-  f(v8::Utils::ToLocal(name), desc, info);
-  return GetReturnValue<Object>(isolate);
-}
-
 Handle<Object> PropertyCallbackArguments::Call(IndexedPropertySetterCallback f,
                                                uint32_t index,
                                                Handle<Object> value) {
@@ -112,23 +94,6 @@ Handle<Object> PropertyCallbackArguments::Call(IndexedPropertySetterCallback f,
   LOG(isolate,
       ApiIndexedPropertyAccess("interceptor-indexed-set", holder(), index));
   f(index, v8::Utils::ToLocal(value), info);
-  return GetReturnValue<Object>(isolate);
-}
-
-Handle<Object> PropertyCallbackArguments::Call(
-    IndexedPropertyDefinerCallback f, uint32_t index,
-    const v8::PropertyDescriptor& desc) {
-  Isolate* isolate = this->isolate();
-  RuntimeCallTimerScope timer(
-      isolate, &RuntimeCallStats::IndexedPropertyDefinerCallback);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::IndexedPropertyDefinerCallback);
-  VMState<EXTERNAL> state(isolate);
-  ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-  PropertyCallbackInfo<v8::Value> info(begin());
-  LOG(isolate,
-      ApiIndexedPropertyAccess("interceptor-indexed-define", holder(), index));
-  f(index, desc, info);
   return GetReturnValue<Object>(isolate);
 }
 

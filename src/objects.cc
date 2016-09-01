@@ -1677,71 +1677,6 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
   return Just(result);
 }
 
-Maybe<bool> DefinePropertyWithInterceptorInternal(
-    LookupIterator* it, Handle<InterceptorInfo> interceptor,
-    Object::ShouldThrow should_throw, PropertyDescriptor& desc) {
-  Isolate* isolate = it->isolate();
-  // Make sure that the top context does not change when doing callbacks or
-  // interceptor calls.
-  AssertNoContextChange ncc(isolate);
-
-  if (interceptor->definer()->IsUndefined(isolate)) return Just(false);
-
-  Handle<JSObject> holder = it->GetHolder<JSObject>();
-  bool result;
-  Handle<Object> receiver = it->GetReceiver();
-  if (!receiver->IsJSReceiver()) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
-                                     Object::ConvertReceiver(isolate, receiver),
-                                     Nothing<bool>());
-  }
-  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *holder, should_throw);
-
-  std::unique_ptr<v8::PropertyDescriptor> descriptor(
-      new v8::PropertyDescriptor());
-  if (PropertyDescriptor::IsAccessorDescriptor(&desc)) {
-    descriptor.reset(new v8::PropertyDescriptor(
-        v8::Utils::ToLocal(desc.get()), v8::Utils::ToLocal(desc.set())));
-  } else if (PropertyDescriptor::IsDataDescriptor(&desc)) {
-    if (desc.has_writable()) {
-      descriptor.reset(new v8::PropertyDescriptor(
-          v8::Utils::ToLocal(desc.value()), desc.writable()));
-    } else {
-      descriptor.reset(
-          new v8::PropertyDescriptor(v8::Utils::ToLocal(desc.value())));
-    }
-  }
-  if (desc.has_enumerable()) {
-    descriptor->set_enumerable(desc.enumerable());
-  }
-  if (desc.has_configurable()) {
-    descriptor->set_configurable(desc.configurable());
-  }
-
-  if (it->IsElement()) {
-    uint32_t index = it->index();
-    v8::IndexedPropertyDefinerCallback definer =
-        v8::ToCData<v8::IndexedPropertyDefinerCallback>(interceptor->definer());
-    result = !args.Call(definer, index, *descriptor).is_null();
-  } else {
-    Handle<Name> name = it->name();
-    DCHECK(!name->IsPrivate());
-
-    if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
-      return Just(false);
-    }
-
-    v8::GenericNamedPropertyDefinerCallback definer =
-        v8::ToCData<v8::GenericNamedPropertyDefinerCallback>(
-            interceptor->definer());
-    result = !args.Call(definer, name, *descriptor).is_null();
-  }
-
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
-  return Just(result);
-}
-
 }  // namespace
 
 MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
@@ -6596,35 +6531,6 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
       isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
       RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
       return Just(true);
-    }
-    it.Next();
-  }
-
-  // Handle interceptor
-  if (it.state() == LookupIterator::INTERCEPTOR) {
-    Handle<Map> store_target_map;
-    if (it.GetReceiver()->IsJSObject()) {
-      store_target_map = handle(it.GetStoreTarget()->map(), it.isolate());
-    }
-    if (it.HolderIsReceiverOrHiddenPrototype()) {
-      Maybe<bool> result = DefinePropertyWithInterceptorInternal(
-          &it, it.GetInterceptor(), should_throw, *desc);
-      if (result.IsNothing() || result.FromJust()) {
-        return result;
-      }
-      // Interceptor modified the store target but failed to set the
-      // property.
-      if (!store_target_map.is_null() &&
-          *store_target_map != it.GetStoreTarget()->map()) {
-        it.isolate()->PushStackTraceAndDie(
-            0xabababaa, v8::ToCData<void*>(it.GetInterceptor()->setter()),
-            nullptr, 0xabababab);
-      }
-      Utils::ApiCheck(store_target_map.is_null() ||
-                          *store_target_map == it.GetStoreTarget()->map(),
-                      it.IsElement() ? "v8::IndexedPropertySetterCallback"
-                                     : "v8::NamedPropertySetterCallback",
-                      "Interceptor silently changed store target.");
     }
     it.Next();
   }

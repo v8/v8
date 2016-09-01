@@ -1506,10 +1506,10 @@ void ObjectTemplate::SetAccessor(v8::Local<Name> name,
 }
 
 template <typename Getter, typename Setter, typename Query, typename Deleter,
-          typename Enumerator, typename Definer>
+          typename Enumerator>
 static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* isolate, Getter getter, Setter setter, Query query,
-    Deleter remover, Enumerator enumerator, Definer definer, Local<Value> data,
+    Deleter remover, Enumerator enumerator, Local<Value> data,
     PropertyHandlerFlags flags) {
   auto obj = i::Handle<i::InterceptorInfo>::cast(
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE));
@@ -1520,7 +1520,6 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
   if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
-  if (definer != 0) SET_FIELD_WRAPPED(obj, set_definer, definer);
   obj->set_can_intercept_symbols(
       !(static_cast<int>(flags) &
         static_cast<int>(PropertyHandlerFlags::kOnlyInterceptStrings)));
@@ -1537,35 +1536,39 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
 }
 
 template <typename Getter, typename Setter, typename Query, typename Deleter,
-          typename Enumerator, typename Definer>
-static void ObjectTemplateSetNamedPropertyHandler(
-    ObjectTemplate* templ, Getter getter, Setter setter, Query query,
-    Deleter remover, Enumerator enumerator, Definer definer, Local<Value> data,
-    PropertyHandlerFlags flags) {
+          typename Enumerator>
+static void ObjectTemplateSetNamedPropertyHandler(ObjectTemplate* templ,
+                                                  Getter getter, Setter setter,
+                                                  Query query, Deleter remover,
+                                                  Enumerator enumerator,
+                                                  Local<Value> data,
+                                                  PropertyHandlerFlags flags) {
   i::Isolate* isolate = Utils::OpenHandle(templ)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, templ);
   EnsureNotInstantiated(cons, "ObjectTemplateSetNamedPropertyHandler");
   auto obj = CreateInterceptorInfo(isolate, getter, setter, query, remover,
-                                   enumerator, definer, data, flags);
+                                   enumerator, data, flags);
   cons->set_named_property_handler(*obj);
 }
+
 
 void ObjectTemplate::SetNamedPropertyHandler(
     NamedPropertyGetterCallback getter, NamedPropertySetterCallback setter,
     NamedPropertyQueryCallback query, NamedPropertyDeleterCallback remover,
     NamedPropertyEnumeratorCallback enumerator, Local<Value> data) {
   ObjectTemplateSetNamedPropertyHandler(
-      this, getter, setter, query, remover, enumerator, nullptr, data,
+      this, getter, setter, query, remover, enumerator, data,
       PropertyHandlerFlags::kOnlyInterceptStrings);
 }
+
 
 void ObjectTemplate::SetHandler(
     const NamedPropertyHandlerConfiguration& config) {
   ObjectTemplateSetNamedPropertyHandler(
       this, config.getter, config.setter, config.query, config.deleter,
-      config.enumerator, config.definer, config.data, config.flags);
+      config.enumerator, config.data, config.flags);
 }
 
 
@@ -1625,14 +1628,13 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   SET_FIELD_WRAPPED(info, set_callback, callback);
   auto named_interceptor = CreateInterceptorInfo(
       isolate, named_handler.getter, named_handler.setter, named_handler.query,
-      named_handler.deleter, named_handler.enumerator, named_handler.definer,
-      named_handler.data, named_handler.flags);
+      named_handler.deleter, named_handler.enumerator, named_handler.data,
+      named_handler.flags);
   info->set_named_interceptor(*named_interceptor);
   auto indexed_interceptor = CreateInterceptorInfo(
       isolate, indexed_handler.getter, indexed_handler.setter,
       indexed_handler.query, indexed_handler.deleter,
-      indexed_handler.enumerator, indexed_handler.definer, indexed_handler.data,
-      indexed_handler.flags);
+      indexed_handler.enumerator, indexed_handler.data, indexed_handler.flags);
   info->set_indexed_interceptor(*indexed_interceptor);
 
   if (data.IsEmpty()) {
@@ -1653,7 +1655,7 @@ void ObjectTemplate::SetHandler(
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetHandler");
   auto obj = CreateInterceptorInfo(
       isolate, config.getter, config.setter, config.query, config.deleter,
-      config.enumerator, config.definer, config.data, config.flags);
+      config.enumerator, config.data, config.flags);
   cons->set_indexed_property_handler(*obj);
 }
 
