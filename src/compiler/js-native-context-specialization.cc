@@ -966,7 +966,6 @@ JSNativeContextSpecialization::BuildPropertyAccess(
                                     control);
         }
       } else {
-        // DCHECK(field_type->Is(Type::Tagged()));
         DCHECK(rep == MachineRepresentation::kTagged);
       }
       Handle<Map> transition_map;

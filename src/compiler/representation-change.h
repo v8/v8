@@ -139,6 +139,12 @@ class UseInfo {
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());
   }
+  static UseInfo TaggedSigned() {
+    return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any());
+  }
+  static UseInfo TaggedPointer() {
+    return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any());
+  }
 
   // Possibly deoptimizing conversions.
   static UseInfo CheckedSignedSmallAsWord32() {

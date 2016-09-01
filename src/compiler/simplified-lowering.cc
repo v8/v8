@@ -1031,12 +1031,12 @@ class RepresentationSelector {
   WriteBarrierKind WriteBarrierKindFor(
       BaseTaggedness base_taggedness,
       MachineRepresentation field_representation, Type* field_type,
-      Node* value) {
+      MachineRepresentation value_representation, Node* value) {
     if (base_taggedness == kTaggedBase &&
         CanBeTaggedPointer(field_representation)) {
       Type* value_type = NodeProperties::GetType(value);
-      if (field_type->Is(Type::TaggedSigned()) ||
-          value_type->Is(Type::TaggedSigned())) {
+      if (field_representation == MachineRepresentation::kTaggedSigned ||
+          value_representation == MachineRepresentation::kTaggedSigned) {
         // Write barriers are only for stores of heap objects.
         return kNoWriteBarrier;
       }
@@ -1062,8 +1062,8 @@ class RepresentationSelector {
           return kMapWriteBarrier;
         }
       }
-      if (field_type->Is(Type::TaggedPointer()) ||
-          value_type->Is(Type::TaggedPointer())) {
+      if (field_representation == MachineRepresentation::kTaggedPointer ||
+          value_representation == MachineRepresentation::kTaggedPointer) {
         // Write barriers for heap objects are cheaper.
         return kPointerWriteBarrier;
       }
@@ -1084,13 +1084,14 @@ class RepresentationSelector {
   WriteBarrierKind WriteBarrierKindFor(
       BaseTaggedness base_taggedness,
       MachineRepresentation field_representation, int field_offset,
-      Type* field_type, Node* value) {
+      Type* field_type, MachineRepresentation value_representation,
+      Node* value) {
     if (base_taggedness == kTaggedBase &&
         field_offset == HeapObject::kMapOffset) {
       return kMapWriteBarrier;
     }
     return WriteBarrierKindFor(base_taggedness, field_representation,
-                               field_type, value);
+                               field_type, value_representation, value);
   }
 
   Graph* graph() const { return jsgraph_->graph(); }
@@ -2171,15 +2172,16 @@ class RepresentationSelector {
         FieldAccess access = FieldAccessOf(node->op());
         MachineRepresentation const representation =
             access.machine_type.representation();
-        // TODO(bmeurer): Introduce an appropriate tagged-signed machine rep.
         VisitUnop(node, UseInfoForBasePointer(access), representation);
         return;
       }
       case IrOpcode::kStoreField: {
         FieldAccess access = FieldAccessOf(node->op());
+        NodeInfo* input_info = GetInfo(node->InputAt(1));
         WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
             access.base_is_tagged, access.machine_type.representation(),
-            access.offset, access.type, node->InputAt(1));
+            access.offset, access.type, input_info->representation(),
+            node->InputAt(1));
         ProcessInput(node, 0, UseInfoForBasePointer(access));
         ProcessInput(node, 1, TruncatingUseInfoFromRepresentation(
                                   access.machine_type.representation()));
@@ -2251,9 +2253,10 @@ class RepresentationSelector {
       }
       case IrOpcode::kStoreElement: {
         ElementAccess access = ElementAccessOf(node->op());
+        NodeInfo* input_info = GetInfo(node->InputAt(2));
         WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
             access.base_is_tagged, access.machine_type.representation(),
-            access.type, node->InputAt(2));
+            access.type, input_info->representation(), node->InputAt(2));
         ProcessInput(node, 0, UseInfoForBasePointer(access));  // base
         ProcessInput(node, 1, UseInfo::TruncatingWord32());    // index
         ProcessInput(node, 2,
