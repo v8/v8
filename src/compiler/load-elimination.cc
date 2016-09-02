@@ -216,7 +216,8 @@ LoadElimination::AbstractElements::Kill(Node* object, Node* index,
         DCHECK_NOT_NULL(element.index);
         DCHECK_NOT_NULL(element.value);
         if (!MayAlias(object, element.object) ||
-            !MayAlias(index, element.index)) {
+            !NodeProperties::GetType(index)->Maybe(
+                NodeProperties::GetType(element.index))) {
           that->elements_[that->next_index_++] = element;
         }
       }
