@@ -324,17 +324,8 @@ class StackTraceHelper {
         mode_(mode),
         caller_(caller),
         skip_next_frame_(true) {
-    // The caller parameter can be used to skip a specific set of frames in the
-    // stack trace. It can be:
-    // * null, when called from a standard error constructor. We unconditionally
-    //   skip the top frame, which is always a builtin-exit frame for the error
-    //   constructor builtin.
-    // * a JSFunction, when called by the user from Error.captureStackTrace().
-    //   We skip each frame until encountering the caller function.
-    // * For any other value, all frames are included in the trace.
     switch (mode_) {
       case SKIP_FIRST:
-        DCHECK(caller_.is_null());
         skip_next_frame_ = true;
         break;
       case SKIP_UNTIL_SEEN:
