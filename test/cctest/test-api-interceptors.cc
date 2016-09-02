@@ -239,6 +239,26 @@ void CheckThisNamedPropertyHandler(
             .FromJust());
 }
 
+void CheckThisIndexedPropertyDefiner(
+    uint32_t index, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyDefiner));
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()
+            ->Equals(info.GetIsolate()->GetCurrentContext(), bottom)
+            .FromJust());
+}
+
+void CheckThisNamedPropertyDefiner(
+    Local<Name> property, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDefiner));
+  ApiTestFuzzer::Fuzz();
+  CHECK(info.This()
+            ->Equals(info.GetIsolate()->GetCurrentContext(), bottom)
+            .FromJust());
+}
+
 void CheckThisIndexedPropertySetter(
     uint32_t index, Local<Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -1199,6 +1219,435 @@ THREADED_TEST(NamedPropertyHandlerGetter) {
             .FromJust());
 }
 
+namespace {
+void NotInterceptingPropertyDefineCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // Do not intercept by not calling info.GetReturnValue().Set()
+}
+
+void InterceptingPropertyDefineCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // intercept the callback by setting a non-empty handle
+  info.GetReturnValue().Set(name);
+}
+
+void CheckDescriptorInDefineCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(!desc.has_writable());
+  CHECK(!desc.has_value());
+  CHECK(!desc.has_enumerable());
+  CHECK(desc.has_configurable());
+  CHECK(!desc.configurable());
+  CHECK(desc.has_get());
+  CHECK(desc.get()->IsFunction());
+  CHECK(desc.has_set());
+  CHECK(desc.set()->IsUndefined());
+  // intercept the callback by setting a non-empty handle
+  info.GetReturnValue().Set(name);
+}
+}  // namespace
+
+THREADED_TEST(PropertyDefinerCallback) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+
+  {  // Intercept defineProperty()
+    v8::Local<v8::FunctionTemplate> templ =
+        v8::FunctionTemplate::New(CcTest::isolate());
+    templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+        0, 0, 0, 0, 0, NotInterceptingPropertyDefineCallback));
+    env->Global()
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
+        .FromJust();
+    const char* code =
+        "obj.x = 17; "
+        "Object.defineProperty(obj, 'x', {value: 42});"
+        "obj.x;";
+    CHECK_EQ(42, v8_compile(code)
+                     ->Run(env.local())
+                     .ToLocalChecked()
+                     ->Int32Value(env.local())
+                     .FromJust());
+  }
+
+  {  // Intercept defineProperty() for correct accessor descriptor
+    v8::Local<v8::FunctionTemplate> templ =
+        v8::FunctionTemplate::New(CcTest::isolate());
+    templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+        0, 0, 0, 0, 0, CheckDescriptorInDefineCallback));
+    env->Global()
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
+        .FromJust();
+    const char* code =
+        "obj.x = 17; "
+        "Object.defineProperty(obj, 'x', {"
+        "get: function(){ return 42; }, "
+        "set: undefined,"
+        "configurable: 0"
+        "});"
+        "obj.x;";
+    CHECK_EQ(17, v8_compile(code)
+                     ->Run(env.local())
+                     .ToLocalChecked()
+                     ->Int32Value(env.local())
+                     .FromJust());
+  }
+
+  {  // Do not intercept defineProperty()
+    v8::Local<v8::FunctionTemplate> templ2 =
+        v8::FunctionTemplate::New(CcTest::isolate());
+    templ2->InstanceTemplate()->SetHandler(
+        v8::NamedPropertyHandlerConfiguration(
+            0, 0, 0, 0, 0, InterceptingPropertyDefineCallback));
+    env->Global()
+        ->Set(env.local(), v8_str("obj"), templ2->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
+        .FromJust();
+
+    const char* code =
+        "obj.x = 17; "
+        "Object.defineProperty(obj, 'x', {value: 42});"
+        "obj.x;";
+    CHECK_EQ(17, v8_compile(code)
+                     ->Run(env.local())
+                     .ToLocalChecked()
+                     ->Int32Value(env.local())
+                     .FromJust());
+  }
+}
+
+namespace {
+void NotInterceptingPropertyDefineCallbackIndexed(
+    uint32_t index, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // Do not intercept by not calling info.GetReturnValue().Set()
+}
+
+void InterceptingPropertyDefineCallbackIndexed(
+    uint32_t index, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // intercept the callback by setting a non-empty handle
+  info.GetReturnValue().Set(index);
+}
+
+void CheckDescriptorInDefineCallbackIndexed(
+    uint32_t index, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(!desc.has_writable());
+  CHECK(!desc.has_value());
+  CHECK(desc.has_enumerable());
+  CHECK(desc.enumerable());
+  CHECK(!desc.has_configurable());
+  CHECK(desc.has_get());
+  CHECK(desc.get()->IsFunction());
+  CHECK(desc.has_set());
+  CHECK(desc.set()->IsUndefined());
+  // intercept the callback by setting a non-empty handle
+  info.GetReturnValue().Set(index);
+}
+}  // namespace
+
+THREADED_TEST(PropertyDefinerCallbackIndexed) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+
+  {  // Intercept defineProperty()
+    v8::Local<v8::FunctionTemplate> templ =
+        v8::FunctionTemplate::New(CcTest::isolate());
+    templ->InstanceTemplate()->SetHandler(
+        v8::IndexedPropertyHandlerConfiguration(
+            0, 0, 0, 0, 0, NotInterceptingPropertyDefineCallbackIndexed));
+    env->Global()
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
+        .FromJust();
+    const char* code =
+        "obj[2] = 17; "
+        "Object.defineProperty(obj, 2, {value: 42});"
+        "obj[2];";
+    CHECK_EQ(42, v8_compile(code)
+                     ->Run(env.local())
+                     .ToLocalChecked()
+                     ->Int32Value(env.local())
+                     .FromJust());
+  }
+
+  {  // Intercept defineProperty() for correct accessor descriptor
+    v8::Local<v8::FunctionTemplate> templ =
+        v8::FunctionTemplate::New(CcTest::isolate());
+    templ->InstanceTemplate()->SetHandler(
+        v8::IndexedPropertyHandlerConfiguration(
+            0, 0, 0, 0, 0, CheckDescriptorInDefineCallbackIndexed));
+    env->Global()
+        ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
+        .FromJust();
+    const char* code =
+        "obj[2] = 17; "
+        "Object.defineProperty(obj, 2, {"
+        "get: function(){ return 42; }, "
+        "set: undefined,"
+        "enumerable: true"
+        "});"
+        "obj[2];";
+    CHECK_EQ(17, v8_compile(code)
+                     ->Run(env.local())
+                     .ToLocalChecked()
+                     ->Int32Value(env.local())
+                     .FromJust());
+  }
+
+  {  // Do not intercept defineProperty()
+    v8::Local<v8::FunctionTemplate> templ2 =
+        v8::FunctionTemplate::New(CcTest::isolate());
+    templ2->InstanceTemplate()->SetHandler(
+        v8::IndexedPropertyHandlerConfiguration(
+            0, 0, 0, 0, 0, InterceptingPropertyDefineCallbackIndexed));
+    env->Global()
+        ->Set(env.local(), v8_str("obj"), templ2->GetFunction(env.local())
+                                              .ToLocalChecked()
+                                              ->NewInstance(env.local())
+                                              .ToLocalChecked())
+        .FromJust();
+
+    const char* code =
+        "obj[2] = 17; "
+        "Object.defineProperty(obj, 2, {value: 42});"
+        "obj[2];";
+    CHECK_EQ(17, v8_compile(code)
+                     ->Run(env.local())
+                     .ToLocalChecked()
+                     ->Int32Value(env.local())
+                     .FromJust());
+  }
+}
+
+// Test that freeze() is intercepted.
+THREADED_TEST(PropertyDefinerCallbackForFreeze) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      0, 0, 0, 0, 0, InterceptingPropertyDefineCallback));
+  env->Global()
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
+      .FromJust();
+  const char* code =
+      "obj.x = 17; "
+      "Object.freeze(obj.x); "
+      "Object.isFrozen(obj.x);";
+
+  CHECK(v8_compile(code)
+            ->Run(env.local())
+            .ToLocalChecked()
+            ->BooleanValue(env.local())
+            .FromJust());
+}
+
+// Check that the descriptor passed to the callback is enumerable.
+namespace {
+void CheckEnumerablePropertyDefineCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(desc.has_value());
+  CHECK_EQ(42, desc.value()
+                   ->Int32Value(info.GetIsolate()->GetCurrentContext())
+                   .FromJust());
+  CHECK(desc.has_enumerable());
+  CHECK(desc.enumerable());
+  CHECK(!desc.has_writable());
+
+  // intercept the callback by setting a non-empty handle
+  info.GetReturnValue().Set(name);
+}
+}  // namespace
+THREADED_TEST(PropertyDefinerCallbackEnumerable) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      0, 0, 0, 0, 0, CheckEnumerablePropertyDefineCallback));
+  env->Global()
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
+      .FromJust();
+  const char* code =
+      "obj.x = 17; "
+      "Object.defineProperty(obj, 'x', {value: 42, enumerable: true});"
+      "obj.x;";
+  CHECK_EQ(17, v8_compile(code)
+                   ->Run(env.local())
+                   .ToLocalChecked()
+                   ->Int32Value(env.local())
+                   .FromJust());
+}
+
+// Check that the descriptor passed to the callback is configurable.
+namespace {
+void CheckConfigurablePropertyDefineCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(desc.has_value());
+  CHECK_EQ(42, desc.value()
+                   ->Int32Value(info.GetIsolate()->GetCurrentContext())
+                   .FromJust());
+  CHECK(desc.has_configurable());
+  CHECK(desc.configurable());
+
+  // intercept the callback by setting a non-empty handle
+  info.GetReturnValue().Set(name);
+}
+}  // namespace
+THREADED_TEST(PropertyDefinerCallbackConfigurable) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      0, 0, 0, 0, 0, CheckConfigurablePropertyDefineCallback));
+  env->Global()
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
+      .FromJust();
+  const char* code =
+      "obj.x = 17; "
+      "Object.defineProperty(obj, 'x', {value: 42, configurable: true});"
+      "obj.x;";
+  CHECK_EQ(17, v8_compile(code)
+                   ->Run(env.local())
+                   .ToLocalChecked()
+                   ->Int32Value(env.local())
+                   .FromJust());
+}
+
+// Check that the descriptor passed to the callback is writable.
+namespace {
+void CheckWritablePropertyDefineCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(desc.has_writable());
+  CHECK(desc.writable());
+
+  // intercept the callback by setting a non-empty handle
+  info.GetReturnValue().Set(name);
+}
+}  // namespace
+THREADED_TEST(PropertyDefinerCallbackWritable) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      0, 0, 0, 0, 0, CheckWritablePropertyDefineCallback));
+  env->Global()
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
+      .FromJust();
+  const char* code =
+      "obj.x = 17; "
+      "Object.defineProperty(obj, 'x', {value: 42, writable: true});"
+      "obj.x;";
+  CHECK_EQ(17, v8_compile(code)
+                   ->Run(env.local())
+                   .ToLocalChecked()
+                   ->Int32Value(env.local())
+                   .FromJust());
+}
+
+// Check that the descriptor passed to the callback has a getter.
+namespace {
+void CheckGetterPropertyDefineCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(desc.has_get());
+  CHECK(!desc.has_set());
+  // intercept the callback by setting a non-empty handle
+  info.GetReturnValue().Set(name);
+}
+}  // namespace
+THREADED_TEST(PropertyDefinerCallbackWithGetter) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      0, 0, 0, 0, 0, CheckGetterPropertyDefineCallback));
+  env->Global()
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
+      .FromJust();
+  const char* code =
+      "obj.x = 17;"
+      "Object.defineProperty(obj, 'x', {get: function() {return 42;}});"
+      "obj.x;";
+  CHECK_EQ(17, v8_compile(code)
+                   ->Run(env.local())
+                   .ToLocalChecked()
+                   ->Int32Value(env.local())
+                   .FromJust());
+}
+
+// Check that the descriptor passed to the callback has a setter.
+namespace {
+void CheckSetterPropertyDefineCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(desc.has_set());
+  CHECK(!desc.has_get());
+  // intercept the callback by setting a non-empty handle
+  info.GetReturnValue().Set(name);
+}
+}  // namespace
+THREADED_TEST(PropertyDefinerCallbackWithSetter) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      0, 0, 0, 0, 0, CheckSetterPropertyDefineCallback));
+  env->Global()
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
+      .FromJust();
+  const char* code =
+      "Object.defineProperty(obj, 'x', {set: function() {return 42;}});"
+      "obj.x = 17;";
+  CHECK_EQ(17, v8_compile(code)
+                   ->Run(env.local())
+                   .ToLocalChecked()
+                   ->Int32Value(env.local())
+                   .FromJust());
+}
 
 int echo_indexed_call_count = 0;
 
@@ -1246,12 +1695,12 @@ THREADED_TEST(PropertyHandlerInPrototype) {
   templ->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
       CheckThisIndexedPropertyHandler, CheckThisIndexedPropertySetter,
       CheckThisIndexedPropertyQuery, CheckThisIndexedPropertyDeleter,
-      CheckThisIndexedPropertyEnumerator));
+      CheckThisIndexedPropertyEnumerator, CheckThisIndexedPropertyDefiner));
 
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       CheckThisNamedPropertyHandler, CheckThisNamedPropertySetter,
       CheckThisNamedPropertyQuery, CheckThisNamedPropertyDeleter,
-      CheckThisNamedPropertyEnumerator));
+      CheckThisNamedPropertyEnumerator, CheckThisNamedPropertyDefiner));
 
   bottom = templ->GetFunction(env.local())
                .ToLocalChecked()
@@ -1288,6 +1737,10 @@ THREADED_TEST(PropertyHandlerInPrototype) {
 
   // Enumerators.
   CompileRun("for (var p in obj) ;");
+
+  // Indexed and named definer.
+  CompileRun("Object.defineProperty(obj, 2, {});");
+  CompileRun("Object.defineProperty(obj, 'z', {});");
 }
 
 
