@@ -56,13 +56,12 @@ namespace interpreter {
 #define REPEAT_64_UNIQUE_VARS() REPEAT_32_UNIQUE_VARS() REPEAT_32_UNIQUE_VARS()
 #define REPEAT_128_UNIQUE_VARS() REPEAT_64_UNIQUE_VARS() REPEAT_64_UNIQUE_VARS()
 
-#define REPEAT_250_UNIQUE_VARS() \
+#define REPEAT_249_UNIQUE_VARS() \
   REPEAT_128_UNIQUE_VARS()       \
   REPEAT_64_UNIQUE_VARS()        \
   REPEAT_32_UNIQUE_VARS()        \
   REPEAT_16_UNIQUE_VARS()        \
   REPEAT_8_UNIQUE_VARS()         \
-  UNIQUE_VAR()                   \
   UNIQUE_VAR()
 
 static const char* kGoldenFileDirectory =
@@ -1354,7 +1353,7 @@ TEST(ContextVariables) {
     "{ let b = 2; return function() { a + b; }; }\n",
 
     "'use strict';\n"
-    REPEAT_250_UNIQUE_VARS()
+    REPEAT_249_UNIQUE_VARS()
     "eval();\n"
     "var b = 100;\n"
     "return b\n",
