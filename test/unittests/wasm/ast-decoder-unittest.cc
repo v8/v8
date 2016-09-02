@@ -1093,6 +1093,40 @@ TEST_F(AstDecoderTest, LoadMemOffset) {
   }
 }
 
+TEST_F(AstDecoderTest, LoadMemAlignment) {
+  struct {
+    WasmOpcode instruction;
+    uint32_t maximum_aligment;
+  } values[] = {
+      {kExprI32LoadMem8U, 0},   // --
+      {kExprI32LoadMem8S, 0},   // --
+      {kExprI32LoadMem16U, 1},  // --
+      {kExprI32LoadMem16S, 1},  // --
+      {kExprI64LoadMem8U, 0},   // --
+      {kExprI64LoadMem8S, 0},   // --
+      {kExprI64LoadMem16U, 1},  // --
+      {kExprI64LoadMem16S, 1},  // --
+      {kExprI64LoadMem32U, 2},  // --
+      {kExprI64LoadMem32S, 2},  // --
+      {kExprI32LoadMem, 2},     // --
+      {kExprI64LoadMem, 3},     // --
+      {kExprF32LoadMem, 2},     // --
+      {kExprF64LoadMem, 3},     // --
+  };
+
+  for (int i = 0; i < arraysize(values); i++) {
+    for (byte alignment = 0; alignment <= 4; alignment++) {
+      byte code[] = {kExprI8Const, 0, static_cast<byte>(values[i].instruction),
+                     alignment, ZERO_OFFSET};
+      if (static_cast<uint32_t>(alignment) <= values[i].maximum_aligment) {
+        EXPECT_VERIFIES(sigs.v_i(), code);
+      } else {
+        EXPECT_FAILURE(sigs.v_i(), code);
+      }
+    }
+  }
+}
+
 TEST_F(AstDecoderTest, StoreMemOffset) {
   for (int offset = 0; offset < 128; offset += 7) {
     byte code[] = {WASM_STORE_MEM_OFFSET(MachineType::Int32(), offset,

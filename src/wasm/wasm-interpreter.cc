@@ -1444,7 +1444,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
 
 #define LOAD_CASE(name, ctype, mtype)                                       \
   case kExpr##name: {                                                       \
-    MemoryAccessOperand operand(&decoder, code->at(pc));                    \
+    MemoryAccessOperand operand(&decoder, code->at(pc), sizeof(ctype));     \
     uint32_t index = Pop().to<uint32_t>();                                  \
     size_t effective_mem_size = instance()->mem_size - sizeof(mtype);       \
     if (operand.offset > effective_mem_size ||                              \
@@ -1476,7 +1476,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
 
 #define STORE_CASE(name, ctype, mtype)                                        \
   case kExpr##name: {                                                         \
-    MemoryAccessOperand operand(&decoder, code->at(pc));                      \
+    MemoryAccessOperand operand(&decoder, code->at(pc), sizeof(ctype));       \
     WasmVal val = Pop();                                                      \
     uint32_t index = Pop().to<uint32_t>();                                    \
     size_t effective_mem_size = instance()->mem_size - sizeof(mtype);         \

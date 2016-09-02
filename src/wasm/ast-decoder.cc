@@ -401,7 +401,7 @@ class WasmDecoder : public Decoder {
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
       {
-        MemoryAccessOperand operand(this, pc);
+        MemoryAccessOperand operand(this, pc, UINT32_MAX);
         return 1 + operand.length;
       }
       case kExprBr:
@@ -1378,7 +1378,9 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   int DecodeLoadMem(LocalType type, MachineType mem_type) {
-    MemoryAccessOperand operand(this, pc_);
+    MemoryAccessOperand operand(this, pc_,
+                                ElementSizeLog2Of(mem_type.representation()));
+
     Value index = Pop(0, kAstI32);
     TFNode* node = BUILD(LoadMem, type, mem_type, index.node, operand.offset,
                          operand.alignment, position());
@@ -1387,7 +1389,8 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   int DecodeStoreMem(LocalType type, MachineType mem_type) {
-    MemoryAccessOperand operand(this, pc_);
+    MemoryAccessOperand operand(this, pc_,
+                                ElementSizeLog2Of(mem_type.representation()));
     Value val = Pop(1, type);
     Value index = Pop(0, kAstI32);
     BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
