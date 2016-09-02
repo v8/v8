@@ -205,7 +205,7 @@ namespace interpreter {
                                                                                \
   /* New operator */                                                           \
   V(New, AccumulatorUse::kReadWrite, OperandType::kReg,                        \
-    OperandType::kMaybeReg, OperandType::kRegCount)                            \
+    OperandType::kMaybeReg, OperandType::kRegCount, OperandType::kIdx)         \
                                                                                \
   /* Test Operators */                                                         \
   V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg,                  \

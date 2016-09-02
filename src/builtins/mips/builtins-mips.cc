@@ -1201,17 +1201,19 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
+    MacroAssembler* masm, CallableType construct_type) {
   // ----------- S t a t e -------------
   // -- a0 : argument count (not including receiver)
   // -- a3 : new target
   // -- a1 : constructor to call
-  // -- a2 : address of the first argument
+  // -- a2 : allocation site feedback if available, undefined otherwise.
+  // -- t4 : address of the first argument
   // -----------------------------------
 
   // Find the address of the last argument.
   __ sll(t0, a0, kPointerSizeLog2);
-  __ Subu(t0, a2, Operand(t0));
+  __ Subu(t0, t4, Operand(t0));
 
   // Push a slot for the receiver.
   __ push(zero_reg);
@@ -1220,14 +1222,27 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   Label loop_header, loop_check;
   __ Branch(&loop_check);
   __ bind(&loop_header);
-  __ lw(t1, MemOperand(a2));
-  __ Addu(a2, a2, Operand(-kPointerSize));
+  __ lw(t1, MemOperand(t4));
+  __ Addu(t4, t4, Operand(-kPointerSize));
   __ push(t1);
   __ bind(&loop_check);
-  __ Branch(&loop_header, gt, a2, Operand(t0));
+  __ Branch(&loop_header, gt, t4, Operand(t0));
 
-  // Call the constructor with a0, a1, and a3 unmodified.
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  __ AssertUndefinedOrAllocationSite(a2, t0);
+  if (construct_type == CallableType::kJSFunction) {
+    __ AssertFunction(a1);
+
+    // Tail call to the function-specific construct stub (still in the caller
+    // context at this point).
+    __ lw(t0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(t0, FieldMemOperand(t0, SharedFunctionInfo::kConstructStubOffset));
+    __ Addu(at, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ Jump(at);
+  } else {
+    DCHECK_EQ(construct_type, CallableType::kAny);
+    // Call the constructor with a0, a1, and a3 unmodified.
+    __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  }
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

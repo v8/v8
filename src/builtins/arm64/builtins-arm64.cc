@@ -1188,6 +1188,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   __ lsl(x3, x3, kPointerSizeLog2);
   __ sub(x4, x2, x3);
 
+  // TODO(mythria): Add a stack check before pushing arguments.
   // Push the arguments.
   Label loop_header, loop_check;
   __ Mov(x5, jssp);
@@ -1215,12 +1216,14 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
+    MacroAssembler* masm, CallableType construct_type) {
   // ----------- S t a t e -------------
   // -- x0 : argument count (not including receiver)
   // -- x3 : new target
   // -- x1 : constructor to call
-  // -- x2 : address of the first argument
+  // -- x2 : allocation site feedback if available, undefined otherwise
+  // -- x4 : address of the first argument
   // -----------------------------------
 
   // Find the address of the last argument.
@@ -1230,24 +1233,38 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // Set stack pointer and where to stop.
   __ Mov(x6, jssp);
   __ Claim(x5, 1);
-  __ sub(x4, x6, x5);
+  __ sub(x7, x6, x5);
 
   // Push a slot for the receiver.
   __ Str(xzr, MemOperand(x6, -kPointerSize, PreIndex));
 
   Label loop_header, loop_check;
+  // TODO(mythria): Add a stack check before pushing arguments.
   // Push the arguments.
   __ B(&loop_check);
   __ Bind(&loop_header);
   // TODO(rmcilroy): Push two at a time once we ensure we keep stack aligned.
-  __ Ldr(x5, MemOperand(x2, -kPointerSize, PostIndex));
+  __ Ldr(x5, MemOperand(x4, -kPointerSize, PostIndex));
   __ Str(x5, MemOperand(x6, -kPointerSize, PreIndex));
   __ Bind(&loop_check);
-  __ Cmp(x6, x4);
+  __ Cmp(x6, x7);
   __ B(gt, &loop_header);
 
-  // Call the constructor with x0, x1, and x3 unmodified.
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  __ AssertUndefinedOrAllocationSite(x2, x6);
+  if (construct_type == CallableType::kJSFunction) {
+    __ AssertFunction(x1);
+
+    // Tail call to the function-specific construct stub (still in the caller
+    // context at this point).
+    __ Ldr(x4, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+    __ Ldr(x4, FieldMemOperand(x4, SharedFunctionInfo::kConstructStubOffset));
+    __ Add(x4, x4, Code::kHeaderSize - kHeapObjectTag);
+    __ Br(x4);
+  } else {
+    DCHECK_EQ(construct_type, CallableType::kAny);
+    // Call the constructor with x0, x1, and x3 unmodified.
+    __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  }
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

@@ -123,9 +123,10 @@ namespace internal {
   ASM(InterpreterMarkBaselineOnReturn)                                        \
   ASM(InterpreterPushArgsAndCall)                                             \
   ASM(InterpreterPushArgsAndCallFunction)                                     \
-  ASM(InterpreterPushArgsAndConstruct)                                        \
   ASM(InterpreterPushArgsAndTailCall)                                         \
   ASM(InterpreterPushArgsAndTailCallFunction)                                 \
+  ASM(InterpreterPushArgsAndConstruct)                                        \
+  ASM(InterpreterPushArgsAndConstructFunction)                                \
   ASM(InterpreterEnterBytecodeDispatch)                                       \
   ASM(InterpreterOnStackReplacement)                                          \
                                                                               \
@@ -618,6 +619,7 @@ class Builtins {
   Handle<Code> InterpreterPushArgsAndCall(
       TailCallMode tail_call_mode,
       CallableType function_type = CallableType::kAny);
+  Handle<Code> InterpreterPushArgsAndConstruct(CallableType function_type);
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
@@ -670,6 +672,9 @@ class Builtins {
   static void Generate_InterpreterPushArgsAndCallImpl(
       MacroAssembler* masm, TailCallMode tail_call_mode,
       CallableType function_type);
+
+  static void Generate_InterpreterPushArgsAndConstructImpl(
+      MacroAssembler* masm, CallableType function_type);
 
   static void Generate_DatePrototype_GetField(MacroAssembler* masm,
                                               int field_index);
