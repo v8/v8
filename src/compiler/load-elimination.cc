@@ -505,7 +505,8 @@ Reduction LoadElimination::ReduceCheckMaps(Node* node) {
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
   int const map_input_count = node->op()->ValueInputCount() - 1;
-  if (Node* const object_map = state->LookupField(object, 0)) {
+  if (Node* const object_map =
+          state->LookupField(object, FieldIndexOf(HeapObject::kMapOffset))) {
     for (int i = 0; i < map_input_count; ++i) {
       Node* map = NodeProperties::GetValueInput(node, 1 + i);
       if (map == object_map) return Replace(effect);
@@ -513,7 +514,8 @@ Reduction LoadElimination::ReduceCheckMaps(Node* node) {
   }
   if (map_input_count == 1) {
     Node* const map0 = NodeProperties::GetValueInput(node, 1);
-    state = state->AddField(object, 0, map0, zone());
+    state = state->AddField(object, FieldIndexOf(HeapObject::kMapOffset), map0,
+                            zone());
   }
   return UpdateState(node, state);
 }
@@ -525,7 +527,8 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
   Node* fixed_array_map = jsgraph()->FixedArrayMapConstant();
-  if (Node* const elements_map = state->LookupField(elements, 0)) {
+  if (Node* const elements_map =
+          state->LookupField(elements, FieldIndexOf(HeapObject::kMapOffset))) {
     // Check if the {elements} already have the fixed array map.
     if (elements_map == fixed_array_map) {
       ReplaceWithValue(node, elements, effect);
@@ -533,11 +536,14 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
     }
   }
   // We know that the resulting elements have the fixed array map.
-  state = state->AddField(node, 0, fixed_array_map, zone());
+  state = state->AddField(node, FieldIndexOf(HeapObject::kMapOffset),
+                          fixed_array_map, zone());
   // Kill the previous elements on {object}.
-  state = state->KillField(object, 2, zone());
+  state =
+      state->KillField(object, FieldIndexOf(JSObject::kElementsOffset), zone());
   // Add the new elements on {object}.
-  state = state->AddField(object, 2, node, zone());
+  state = state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
+                          zone());
   return UpdateState(node, state);
 }
 
@@ -550,20 +556,25 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
   if (flags & GrowFastElementsFlag::kDoubleElements) {
     // We know that the resulting elements have the fixed double array map.
     Node* fixed_double_array_map = jsgraph()->FixedDoubleArrayMapConstant();
-    state = state->AddField(node, 0, fixed_double_array_map, zone());
+    state = state->AddField(node, FieldIndexOf(HeapObject::kMapOffset),
+                            fixed_double_array_map, zone());
   } else {
     // We know that the resulting elements have the fixed array map.
     Node* fixed_array_map = jsgraph()->FixedArrayMapConstant();
-    state = state->AddField(node, 0, fixed_array_map, zone());
+    state = state->AddField(node, FieldIndexOf(HeapObject::kMapOffset),
+                            fixed_array_map, zone());
   }
   if (flags & GrowFastElementsFlag::kArrayObject) {
     // Kill the previous Array::length on {object}.
-    state = state->KillField(object, 3, zone());
+    state =
+        state->KillField(object, FieldIndexOf(JSArray::kLengthOffset), zone());
   }
   // Kill the previous elements on {object}.
-  state = state->KillField(object, 2, zone());
+  state =
+      state->KillField(object, FieldIndexOf(JSObject::kElementsOffset), zone());
   // Add the new elements on {object}.
-  state = state->AddField(object, 2, node, zone());
+  state = state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
+                          zone());
   return UpdateState(node, state);
 }
 
@@ -574,18 +585,22 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (Node* const object_map = state->LookupField(object, 0)) {
+  if (Node* const object_map =
+          state->LookupField(object, FieldIndexOf(HeapObject::kMapOffset))) {
     if (target_map == object_map) {
       // The {object} already has the {target_map}, so this TransitionElements
       // {node} is fully redundant (independent of what {source_map} is).
       return Replace(effect);
     }
-    state = state->KillField(object, 0, zone());
+    state =
+        state->KillField(object, FieldIndexOf(HeapObject::kMapOffset), zone());
     if (source_map == object_map) {
-      state = state->AddField(object, 0, target_map, zone());
+      state = state->AddField(object, FieldIndexOf(HeapObject::kMapOffset),
+                              target_map, zone());
     }
   } else {
-    state = state->KillField(object, 0, zone());
+    state =
+        state->KillField(object, FieldIndexOf(HeapObject::kMapOffset), zone());
   }
   ElementsTransition transition = ElementsTransitionOf(node->op());
   switch (transition) {
@@ -593,7 +608,8 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
       break;
     case ElementsTransition::kSlowTransition:
       // Kill the elements as well.
-      state = state->KillField(object, 2, zone());
+      state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
+                               zone());
       break;
   }
   return UpdateState(node, state);
@@ -812,23 +828,28 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
         switch (current->opcode()) {
           case IrOpcode::kEnsureWritableFastElements: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
-            state = state->KillField(object, 2, zone());
+            state = state->KillField(
+                object, FieldIndexOf(JSObject::kElementsOffset), zone());
             break;
           }
           case IrOpcode::kMaybeGrowFastElements: {
             GrowFastElementsFlags flags =
                 GrowFastElementsFlagsOf(current->op());
             Node* const object = NodeProperties::GetValueInput(current, 0);
-            state = state->KillField(object, 2, zone());
+            state = state->KillField(
+                object, FieldIndexOf(JSObject::kElementsOffset), zone());
             if (flags & GrowFastElementsFlag::kArrayObject) {
-              state = state->KillField(object, 3, zone());
+              state = state->KillField(
+                  object, FieldIndexOf(JSArray::kLengthOffset), zone());
             }
             break;
           }
           case IrOpcode::kTransitionElementsKind: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
-            state = state->KillField(object, 0, zone());
-            state = state->KillField(object, 2, zone());
+            state = state->KillField(
+                object, FieldIndexOf(HeapObject::kMapOffset), zone());
+            state = state->KillField(
+                object, FieldIndexOf(JSObject::kElementsOffset), zone());
             break;
           }
           case IrOpcode::kStoreField: {
@@ -863,6 +884,14 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
 }
 
 // static
+int LoadElimination::FieldIndexOf(int offset) {
+  DCHECK_EQ(0, offset % kPointerSize);
+  int field_index = offset / kPointerSize;
+  if (field_index >= static_cast<int>(kMaxTrackedFields)) return -1;
+  return field_index;
+}
+
+// static
 int LoadElimination::FieldIndexOf(FieldAccess const& access) {
   MachineRepresentation rep = access.machine_type.representation();
   switch (rep) {
@@ -891,10 +920,7 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
       break;
   }
   DCHECK_EQ(kTaggedBase, access.base_is_tagged);
-  DCHECK_EQ(0, access.offset % kPointerSize);
-  int field_index = access.offset / kPointerSize;
-  if (field_index >= static_cast<int>(kMaxTrackedFields)) return -1;
-  return field_index;
+  return FieldIndexOf(access.offset);
 }
 
 CommonOperatorBuilder* LoadElimination::common() const {

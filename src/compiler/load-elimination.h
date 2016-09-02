@@ -214,6 +214,7 @@ class LoadElimination final : public AdvancedReducer {
   AbstractState const* ComputeLoopState(Node* node,
                                         AbstractState const* state) const;
 
+  static int FieldIndexOf(int offset);
   static int FieldIndexOf(FieldAccess const& access);
 
   CommonOperatorBuilder* common() const;
