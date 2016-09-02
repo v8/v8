@@ -233,13 +233,10 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
                                          int feedback_slot = kNoFeedbackSlot);
 
-  // Casts accumulator and stores result in accumulator.
-  BytecodeArrayBuilder& CastAccumulatorToBoolean();
-
-  // Casts accumulator and stores result in register |out|.
-  BytecodeArrayBuilder& CastAccumulatorToJSObject(Register out);
-  BytecodeArrayBuilder& CastAccumulatorToName(Register out);
-  BytecodeArrayBuilder& CastAccumulatorToNumber(Register out);
+  // Converts accumulator and stores result in register |out|.
+  BytecodeArrayBuilder& ConvertAccumulatorToObject(Register out);
+  BytecodeArrayBuilder& ConvertAccumulatorToName(Register out);
+  BytecodeArrayBuilder& ConvertAccumulatorToNumber(Register out);
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);

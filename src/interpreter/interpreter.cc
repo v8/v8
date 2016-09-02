@@ -1303,7 +1303,7 @@ void Interpreter::DoUnaryOpWithFeedback(InterpreterAssembler* assembler) {
 
 // ToName
 //
-// Cast the object referenced by the accumulator to a name.
+// Convert the object referenced by the accumulator to a name.
 void Interpreter::DoToName(InterpreterAssembler* assembler) {
   Node* result = BuildUnaryOp(CodeFactory::ToName(isolate_), assembler);
   __ StoreRegister(result, __ BytecodeOperandReg(0));
@@ -1312,7 +1312,7 @@ void Interpreter::DoToName(InterpreterAssembler* assembler) {
 
 // ToNumber
 //
-// Cast the object referenced by the accumulator to a number.
+// Convert the object referenced by the accumulator to a number.
 void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
   Node* result = BuildUnaryOp(CodeFactory::ToNumber(isolate_), assembler);
   __ StoreRegister(result, __ BytecodeOperandReg(0));
@@ -1321,7 +1321,7 @@ void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
 
 // ToObject
 //
-// Cast the object referenced by the accumulator to a JSObject.
+// Convert the object referenced by the accumulator to a JSReceiver.
 void Interpreter::DoToObject(InterpreterAssembler* assembler) {
   Node* result = BuildUnaryOp(CodeFactory::ToObject(isolate_), assembler);
   __ StoreRegister(result, __ BytecodeOperandReg(0));

@@ -185,10 +185,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::INSTANCEOF, reg, 8)
       .CompareOperation(Token::Value::IN, reg, 9);
 
-  // Emit cast operator invocations.
-  builder.CastAccumulatorToNumber(reg)
-      .CastAccumulatorToJSObject(reg)
-      .CastAccumulatorToName(reg);
+  // Emit conversion operator invocations.
+  builder.ConvertAccumulatorToNumber(reg)
+      .ConvertAccumulatorToObject(reg)
+      .ConvertAccumulatorToName(reg);
 
   // Emit control flow. Return must be the last instruction.
   BytecodeLabel start;
