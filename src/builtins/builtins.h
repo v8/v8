@@ -245,6 +245,22 @@ namespace internal {
   CPP(DataViewPrototypeGetBuffer)                                             \
   CPP(DataViewPrototypeGetByteLength)                                         \
   CPP(DataViewPrototypeGetByteOffset)                                         \
+  CPP(DataViewPrototypeGetInt8)                                               \
+  CPP(DataViewPrototypeSetInt8)                                               \
+  CPP(DataViewPrototypeGetUint8)                                              \
+  CPP(DataViewPrototypeSetUint8)                                              \
+  CPP(DataViewPrototypeGetInt16)                                              \
+  CPP(DataViewPrototypeSetInt16)                                              \
+  CPP(DataViewPrototypeGetUint16)                                             \
+  CPP(DataViewPrototypeSetUint16)                                             \
+  CPP(DataViewPrototypeGetInt32)                                              \
+  CPP(DataViewPrototypeSetInt32)                                              \
+  CPP(DataViewPrototypeGetUint32)                                             \
+  CPP(DataViewPrototypeSetUint32)                                             \
+  CPP(DataViewPrototypeGetFloat32)                                            \
+  CPP(DataViewPrototypeSetFloat32)                                            \
+  CPP(DataViewPrototypeGetFloat64)                                            \
+  CPP(DataViewPrototypeSetFloat64)                                            \
                                                                               \
   /* Date */                                                                  \
   CPP(DateConstructor)                                                        \
