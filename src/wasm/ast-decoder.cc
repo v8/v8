@@ -509,7 +509,7 @@ class WasmFullDecoder : public WasmDecoder {
     }
 
     if (ssa_env_->go()) {
-      TRACE("  @%-6d #xx:%-20s|", startrel(pc_), "ImplicitReturn");
+      TRACE("  @%-8d #xx:%-20s|", startrel(pc_), "ImplicitReturn");
       DoReturn();
       if (failed()) return TraceFailed();
       TRACE("\n");
@@ -707,8 +707,10 @@ class WasmFullDecoder : public WasmDecoder {
     while (true) {  // decoding loop.
       unsigned len = 1;
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
-      TRACE("  @%-6d #%02x:%-20s|", startrel(pc_), opcode,
-            WasmOpcodes::ShortOpcodeName(opcode));
+      if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
+        TRACE("  @%-8d #%02x:%-20s|", startrel(pc_), opcode,
+              WasmOpcodes::ShortOpcodeName(opcode));
+      }
 
       FunctionSig* sig = WasmOpcodes::Signature(opcode);
       if (sig) {
@@ -1271,6 +1273,8 @@ class WasmFullDecoder : public WasmDecoder {
             len++;
             byte simd_index = *(pc_ + 1);
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
+            TRACE("  @%-4d #%02x #%02x:%-20s|", startrel(pc_), kSimdPrefix,
+                  simd_index, WasmOpcodes::ShortOpcodeName(opcode));
             DecodeSimdOpcode(opcode);
             break;
           }
@@ -1285,6 +1289,9 @@ class WasmFullDecoder : public WasmDecoder {
         for (size_t i = 0; i < stack_.size(); ++i) {
           Value& val = stack_[i];
           WasmOpcode opcode = static_cast<WasmOpcode>(*val.pc);
+          if (WasmOpcodes::IsPrefixOpcode(opcode)) {
+            opcode = static_cast<WasmOpcode>(opcode << 8 | *(val.pc + 1));
+          }
           PrintF(" %c@%d:%s", WasmOpcodes::ShortNameOf(val.type),
                  static_cast<int>(val.pc - start_),
                  WasmOpcodes::ShortOpcodeName(opcode));
