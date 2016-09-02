@@ -1954,9 +1954,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     token = peek();
     if (SetPropertyKindFromToken(token, kind)) {
       *name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'async'
-      if (fni_ != nullptr) {
-        impl()->PushLiteralName(fni_, *name);
-      }
+      impl()->PushLiteralName(*name);
       return factory()->NewStringLiteral(*name, pos);
     }
     *kind = PropertyKind::kMethodProperty;
@@ -1972,9 +1970,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     token = peek();
     if (SetPropertyKindFromToken(token, kind)) {
       *name = impl()->GetSymbol();
-      if (fni_ != nullptr) {
-        impl()->PushLiteralName(fni_, *name);
-      }
+      impl()->PushLiteralName(*name);
       return factory()->NewStringLiteral(*name, pos);
     }
     scanner()->IsGetOrSet(is_get, is_set);
@@ -2048,9 +2044,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     return expression;
   }
 
-  if (fni_ != nullptr) {
-    impl()->PushLiteralName(fni_, *name);
-  }
+  impl()->PushLiteralName(*name);
 
   uint32_t index;
   return impl()->IsArrayIndex(*name, &index)
@@ -3044,7 +3038,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         IdentifierT name = ParseIdentifierName(CHECK_OK);
         result = factory()->NewProperty(
             result, factory()->NewStringLiteral(name, pos), pos);
-        if (fni_ != NULL) impl()->PushLiteralName(fni_, name);
+        impl()->PushLiteralName(name);
         break;
       }
 
@@ -3270,9 +3264,7 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
         ExpressionT index = ParseExpressionCoverGrammar(true, CHECK_OK);
         impl()->RewriteNonPattern(CHECK_OK);
         expression = factory()->NewProperty(expression, index, pos);
-        if (fni_ != NULL) {
-          impl()->PushPropertyName(fni_, index);
-        }
+        impl()->PushPropertyName(index);
         Expect(Token::RBRACK, CHECK_OK);
         break;
       }
@@ -3287,9 +3279,7 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
         IdentifierT name = ParseIdentifierName(CHECK_OK);
         expression = factory()->NewProperty(
             expression, factory()->NewStringLiteral(name, pos), pos);
-        if (fni_ != NULL) {
-          impl()->PushLiteralName(fni_, name);
-        }
+        impl()->PushLiteralName(name);
         break;
       }
       case Token::TEMPLATE_SPAN:
@@ -3482,8 +3472,8 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
     Scanner::Location variable_loc = scanner()->location();
     bool single_name = impl()->IsIdentifier(pattern);
 
-    if (single_name && fni_ != nullptr) {
-      impl()->PushVariableName(fni_, impl()->AsIdentifier(pattern));
+    if (single_name) {
+      impl()->PushVariableName(impl()->AsIdentifier(pattern));
     }
 
     ExpressionT value = impl()->EmptyExpression();
@@ -3763,7 +3753,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     function_literal->set_should_be_used_once_hint();
   }
 
-  if (fni_ != NULL) impl()->InferFunctionName(fni_, function_literal);
+  impl()->InferFunctionName(function_literal);
 
   return function_literal;
 }

@@ -1779,7 +1779,8 @@ Statement* Parser::ParseHoistableDeclaration(
   }
 
   FuncNameInferrer::State fni_state(fni_);
-  if (fni_ != NULL) fni_->PushEnclosingName(name);
+  DCHECK_NOT_NULL(fni_);
+  fni_->PushEnclosingName(name);
   FunctionLiteral* fun = ParseFunctionLiteral(
       name, scanner()->location(), name_validity,
       is_generator ? FunctionKind::kGeneratorFunction
@@ -3905,7 +3906,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
 
-  if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
+  if (should_infer_name) {
+    DCHECK_NOT_NULL(fni_);
+    fni_->AddFunction(function_literal);
+  }
   return function_literal;
 }
 
@@ -4568,7 +4572,8 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
       properties->Add(property, zone());
     }
 
-    if (fni_ != nullptr) fni_->Infer();
+    DCHECK_NOT_NULL(fni_);
+    fni_->Infer();
 
     if (property_name != ast_value_factory()->constructor_string()) {
       SetFunctionNameFromPropertyName(property, property_name);

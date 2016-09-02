@@ -709,28 +709,27 @@ class Parser : public ParserBase<Parser> {
 
   // Functions for encapsulating the differences between parsing and preparsing;
   // operations interleaved with the recursive descent.
-  V8_INLINE static void PushLiteralName(FuncNameInferrer* fni,
-                                        const AstRawString* id) {
-    fni->PushLiteralName(id);
+  V8_INLINE void PushLiteralName(const AstRawString* id) {
+    DCHECK_NOT_NULL(fni_);
+    fni_->PushLiteralName(id);
   }
 
-  V8_INLINE static void PushVariableName(FuncNameInferrer* fni,
-                                         const AstRawString* id) {
-    fni->PushVariableName(id);
+  V8_INLINE void PushVariableName(const AstRawString* id) {
+    DCHECK_NOT_NULL(fni_);
+    fni_->PushVariableName(id);
   }
 
-  V8_INLINE void PushPropertyName(FuncNameInferrer* fni,
-                                  Expression* expression) {
+  V8_INLINE void PushPropertyName(Expression* expression) {
+    DCHECK_NOT_NULL(fni_);
     if (expression->IsPropertyName()) {
-      fni->PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
+      fni_->PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
     } else {
-      fni->PushLiteralName(ast_value_factory()->anonymous_function_string());
+      fni_->PushLiteralName(ast_value_factory()->anonymous_function_string());
     }
   }
 
-  V8_INLINE static void InferFunctionName(FuncNameInferrer* fni,
-                                          FunctionLiteral* func_to_infer) {
-    fni->AddFunction(func_to_infer);
+  V8_INLINE void InferFunctionName(FunctionLiteral* func_to_infer) {
+    fni_->AddFunction(func_to_infer);
   }
 
   // If we assign a function literal to a property we pretenure the
@@ -893,7 +892,7 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE Expression* ExpressionFromIdentifier(
       const AstRawString* name, int start_position, int end_position,
       InferName infer = InferName::kYes) {
-    if (infer == InferName::kYes && fni_ != NULL) {
+    if (infer == InferName::kYes) {
       fni_->PushVariableName(name);
     }
     return NewUnresolved(name, start_position, end_position);
@@ -901,7 +900,7 @@ class Parser : public ParserBase<Parser> {
 
   V8_INLINE Expression* ExpressionFromString(int pos) {
     const AstRawString* symbol = GetSymbol();
-    if (fni_ != NULL) fni_->PushLiteralName(symbol);
+    fni_->PushLiteralName(symbol);
     return factory()->NewStringLiteral(symbol, pos);
   }
 
