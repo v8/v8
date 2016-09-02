@@ -200,9 +200,17 @@ TEST(Run_WasmModule_Serialization) {
   ZoneBuffer buffer(&zone);
   builder->WriteTo(buffer);
 
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  ErrorThrower thrower(isolate, "");
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      CcTest::InitIsolateOnce()->array_buffer_allocator();
 
+  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  v8::HandleScope new_scope(v8_isolate);
+  v8::Local<v8::Context> new_ctx = v8::Context::New(v8_isolate);
+  new_ctx->Enter();
+
+  ErrorThrower thrower(isolate, "");
   v8::WasmCompiledModule::SerializedModule data;
   {
     HandleScope scope(isolate);
@@ -225,10 +233,8 @@ TEST(Run_WasmModule_Serialization) {
     data = v8_compiled_module->Serialize();
   }
 
-  v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = isolate->array_buffer_allocator();
 
-  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
   isolate = reinterpret_cast<Isolate*>(v8_isolate);
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);
@@ -255,6 +261,24 @@ TEST(Run_WasmModule_Serialization) {
     CHECK(result == 42);
     new_ctx->Exit();
   }
+}
+
+TEST(Run_WasmModule_MemSize_GrowMem) {
+  static const int kPageSize = 0x10000;
+  // Initial memory size = 16 + GrowMemory(10)
+  static const int kExpectedValue = kPageSize * 26;
+  TestSignatures sigs;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
+
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f_index);
+  f->SetSignature(sigs.i_v());
+  ExportAsMain(f);
+  byte code[] = {WASM_GROW_MEMORY(WASM_I8(10)), WASM_MEMORY_SIZE};
+  f->EmitCode(code, sizeof(code));
+  TestModule(&zone, builder, kExpectedValue);
 }
 
 TEST(Run_WasmModule_GrowMemoryInIf) {

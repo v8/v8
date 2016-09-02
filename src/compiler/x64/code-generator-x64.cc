@@ -2458,7 +2458,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
             if (value == 0) {
               __ xorl(dst, dst);
             } else {
-              __ movl(dst, Immediate(value));
+              if (src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+                __ movl(dst, Immediate(value, src.rmode()));
+              } else {
+                __ movl(dst, Immediate(value));
+              }
             }
           }
           break;

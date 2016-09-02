@@ -128,3 +128,19 @@ function testGrowMemoryTrapsWithNonSmiInput() {
 };
 
 testGrowMemoryTrapsWithNonSmiInput();
+
+function testGrowMemoryCurrentMemory() {
+  var builder = genGrowMemoryBuilder();
+  builder.addMemory(1, 1, false);
+  builder.addFunction("memory_size", kSig_i_v)
+      .addBody([kExprMemorySize])
+      .exportFunc();
+  var module = builder.instantiate();
+  function growMem(pages) { return module.exports.grow_memory(pages); }
+  function MemSize() { return module.exports.memory_size(); }
+  assertEquals(65536, MemSize());
+  assertEquals(1, growMem(1));
+  assertEquals(131072, MemSize());
+}
+
+testGrowMemoryCurrentMemory();
