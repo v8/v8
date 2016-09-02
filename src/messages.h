@@ -633,7 +633,14 @@ class ErrorUtils : public AllStatic {
   T(WasmTrapFuncInvalid, "invalid function")                                   \
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
   T(WasmTrapInvalidIndex, "invalid index into function table")                 \
-  T(WasmTrapTypeError, "invalid type")
+  T(WasmTrapTypeError, "invalid type")                                         \
+  /* DataCloneError messages */                                                \
+  T(DataCloneError, "% could not be cloned.")                                  \
+  T(DataCloneErrorNeuteredArrayBuffer,                                         \
+    "An ArrayBuffer is neutered and could not be cloned.")                     \
+  T(DataCloneErrorSharedArrayBufferNotTransferred,                             \
+    "A SharedArrayBuffer could not be cloned. SharedArrayBuffer must be "      \
+    "transferred.")
 
 class MessageTemplate {
  public:

@@ -2836,13 +2836,18 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
 // --- V a l u e   S e r i a l i z a t i o n ---
 
 struct ValueSerializer::PrivateData {
-  explicit PrivateData(i::Isolate* i) : isolate(i), serializer(i) {}
+  explicit PrivateData(i::Isolate* i, ValueSerializer::Delegate* delegate)
+      : isolate(i), serializer(i, delegate) {}
   i::Isolate* isolate;
   i::ValueSerializer serializer;
 };
 
 ValueSerializer::ValueSerializer(Isolate* isolate)
-    : private_(new PrivateData(reinterpret_cast<i::Isolate*>(isolate))) {}
+    : ValueSerializer(isolate, nullptr) {}
+
+ValueSerializer::ValueSerializer(Isolate* isolate, Delegate* delegate)
+    : private_(
+          new PrivateData(reinterpret_cast<i::Isolate*>(isolate), delegate)) {}
 
 ValueSerializer::~ValueSerializer() { delete private_; }
 

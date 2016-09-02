@@ -12,6 +12,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/identity-map.h"
+#include "src/messages.h"
 #include "src/vector.h"
 #include "src/zone.h"
 
@@ -41,7 +42,7 @@ enum class SerializationTag : uint8_t;
  */
 class ValueSerializer {
  public:
-  explicit ValueSerializer(Isolate* isolate);
+  ValueSerializer(Isolate* isolate, v8::ValueSerializer::Delegate* delegate);
   ~ValueSerializer();
 
   /*
@@ -105,7 +106,16 @@ class ValueSerializer {
   Maybe<uint32_t> WriteJSObjectProperties(
       Handle<JSObject> object, Handle<FixedArray> keys) WARN_UNUSED_RESULT;
 
+  /*
+   * Asks the delegate to handle an error that occurred during data cloning, by
+   * throwing an exception appropriate for the host.
+   */
+  void ThrowDataCloneError(MessageTemplate::Template template_index);
+  V8_NOINLINE void ThrowDataCloneError(MessageTemplate::Template template_index,
+                                       Handle<Object> arg0);
+
   Isolate* const isolate_;
+  v8::ValueSerializer::Delegate* const delegate_;
   std::vector<uint8_t> buffer_;
   Zone zone_;
 

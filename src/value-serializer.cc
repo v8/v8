@@ -124,8 +124,10 @@ enum class ArrayBufferViewTag : uint8_t {
 
 }  // namespace
 
-ValueSerializer::ValueSerializer(Isolate* isolate)
+ValueSerializer::ValueSerializer(Isolate* isolate,
+                                 v8::ValueSerializer::Delegate* delegate)
     : isolate_(isolate),
+      delegate_(delegate),
       zone_(isolate->allocator()),
       id_map_(isolate->heap(), &zone_),
       array_buffer_transfer_map_(isolate->heap(), &zone_) {}
@@ -247,9 +249,10 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
         return Just(true);
       } else if (object->IsJSReceiver()) {
         return WriteJSReceiver(Handle<JSReceiver>::cast(object));
+      } else {
+        ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+        return Nothing<bool>();
       }
-      UNIMPLEMENTED();
-      return Nothing<bool>();
   }
 }
 
@@ -337,11 +340,12 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
   // Eliminate callable and exotic objects, which should not be serialized.
   InstanceType instance_type = receiver->map()->instance_type();
   if (receiver->IsCallable() || instance_type <= LAST_SPECIAL_RECEIVER_TYPE) {
+    ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
     return Nothing<bool>();
   }
 
   // If we are at the end of the stack, abort. This function may recurse.
-  if (StackLimitCheck(isolate_).HasOverflowed()) return Nothing<bool>();
+  STACK_CHECK(isolate_, Nothing<bool>());
 
   HandleScope scope(isolate_);
   switch (instance_type) {
@@ -368,8 +372,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_DATA_VIEW_TYPE:
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     default:
-      UNIMPLEMENTED();
-      break;
+      ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
+      return Nothing<bool>();
   }
   return Nothing<bool>();
 }
@@ -479,6 +483,7 @@ Maybe<bool> ValueSerializer::WriteJSValue(Handle<JSValue> value) {
                           v8::String::NO_NULL_TERMINATION);
   } else {
     DCHECK(inner_value->IsSymbol());
+    ThrowDataCloneError(MessageTemplate::kDataCloneError, value);
     return Nothing<bool>();
   }
   return Just(true);
@@ -567,10 +572,18 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(JSArrayBuffer* array_buffer) {
     return Just(true);
   }
 
-  if (array_buffer->is_shared()) return Nothing<bool>();
-  if (array_buffer->was_neutered()) return Nothing<bool>();
+  if (array_buffer->is_shared()) {
+    ThrowDataCloneError(
+        MessageTemplate::kDataCloneErrorSharedArrayBufferNotTransferred);
+    return Nothing<bool>();
+  }
+  if (array_buffer->was_neutered()) {
+    ThrowDataCloneError(MessageTemplate::kDataCloneErrorNeuteredArrayBuffer);
+    return Nothing<bool>();
+  }
   double byte_length = array_buffer->byte_length()->Number();
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
+    ThrowDataCloneError(MessageTemplate::kDataCloneError, handle(array_buffer));
     return Nothing<bool>();
   }
   WriteTag(SerializationTag::kArrayBuffer);
@@ -627,6 +640,24 @@ Maybe<uint32_t> ValueSerializer::WriteJSObjectProperties(
     properties_written++;
   }
   return Just(properties_written);
+}
+
+void ValueSerializer::ThrowDataCloneError(
+    MessageTemplate::Template template_index) {
+  return ThrowDataCloneError(template_index,
+                             isolate_->factory()->empty_string());
+}
+
+void ValueSerializer::ThrowDataCloneError(
+    MessageTemplate::Template template_index, Handle<Object> arg0) {
+  Handle<String> message =
+      MessageTemplate::FormatMessage(isolate_, template_index, arg0);
+  if (delegate_) {
+    delegate_->ThrowDataCloneError(Utils::ToLocal(message));
+  } else {
+    isolate_->Throw(
+        *isolate_->factory()->NewError(isolate_->error_function(), message));
+  }
 }
 
 ValueDeserializer::ValueDeserializer(Isolate* isolate,
@@ -887,7 +918,7 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
 
 MaybeHandle<JSObject> ValueDeserializer::ReadJSObject() {
   // If we are at the end of the stack, abort. This function may recurse.
-  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSObject>();
+  STACK_CHECK(isolate_, MaybeHandle<JSObject>());
 
   uint32_t id = next_id_++;
   HandleScope scope(isolate_);
@@ -910,7 +941,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadJSObject() {
 
 MaybeHandle<JSArray> ValueDeserializer::ReadSparseJSArray() {
   // If we are at the end of the stack, abort. This function may recurse.
-  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSArray>();
+  STACK_CHECK(isolate_, MaybeHandle<JSArray>());
 
   uint32_t length;
   if (!ReadVarint<uint32_t>().To(&length)) return MaybeHandle<JSArray>();
@@ -938,7 +969,7 @@ MaybeHandle<JSArray> ValueDeserializer::ReadSparseJSArray() {
 
 MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   // If we are at the end of the stack, abort. This function may recurse.
-  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSArray>();
+  STACK_CHECK(isolate_, MaybeHandle<JSArray>());
 
   uint32_t length;
   if (!ReadVarint<uint32_t>().To(&length)) return MaybeHandle<JSArray>();
@@ -1042,7 +1073,7 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
 
 MaybeHandle<JSMap> ValueDeserializer::ReadJSMap() {
   // If we are at the end of the stack, abort. This function may recurse.
-  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSMap>();
+  STACK_CHECK(isolate_, MaybeHandle<JSMap>());
 
   HandleScope scope(isolate_);
   uint32_t id = next_id_++;
@@ -1079,7 +1110,7 @@ MaybeHandle<JSMap> ValueDeserializer::ReadJSMap() {
 
 MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
   // If we are at the end of the stack, abort. This function may recurse.
-  if (StackLimitCheck(isolate_).HasOverflowed()) return MaybeHandle<JSSet>();
+  STACK_CHECK(isolate_, MaybeHandle<JSSet>());
 
   HandleScope scope(isolate_);
   uint32_t id = next_id_++;
