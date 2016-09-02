@@ -1569,7 +1569,7 @@ Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   index = Type::Intersect(index, Type::Integral32(), zone());
   if (!index->IsInhabited() || !length->IsInhabited()) return Type::None();
   double min = std::max(index->Min(), 0.0);
-  double max = std::min(index->Max(), length->Min() - 1);
+  double max = std::min(index->Max(), length->Max() - 1);
   if (max < min) return Type::None();
   return Type::Range(min, max, zone());
 }

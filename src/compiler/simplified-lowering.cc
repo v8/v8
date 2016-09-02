@@ -2090,20 +2090,19 @@ class RepresentationSelector {
 
       case IrOpcode::kCheckBounds: {
         Type* index_type = TypeOf(node->InputAt(0));
+        Type* length_type = TypeOf(node->InputAt(1));
         if (index_type->Is(Type::Unsigned32())) {
           VisitBinop(node, UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
+          if (lower() && index_type->Max() < length_type->Min()) {
+            // The bounds check is redundant if we already know that
+            // the index is within the bounds of [0.0, length[.
+            DeferReplacement(node, node->InputAt(0));
+          }
         } else {
           VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
                      UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
-        }
-        if (lower()) {
-          // The bounds check is redundant if we already know that
-          // the index is within the bounds of [0.0, length[.
-          if (index_type->Is(NodeProperties::GetType(node))) {
-            DeferReplacement(node, node->InputAt(0));
-          }
         }
         return;
       }
