@@ -15,12 +15,12 @@
       'arm64.debug': 'default_debug_arm64',
       'arm64.optdebug': 'default_optdebug_arm64',
       'arm64.release': 'default_release_arm64',
+      'ia32.debug': 'default_debug_x86',
+      'ia32.optdebug': 'default_optdebug_x86',
+      'ia32.release': 'default_release_x86',
       'x64.debug': 'default_debug_x64',
       'x64.optdebug': 'default_optdebug_x64',
       'x64.release': 'default_release_x64',
-      'x86.debug': 'default_debug_x86',
-      'x86.optdebug': 'default_optdebug_x86',
-      'x86.release': 'default_release_x86',
     },
 
     'client.dart.fyi': {
