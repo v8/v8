@@ -148,6 +148,36 @@ BUILTIN(RegExpConstructor) {
                            RegExpInitialize(isolate, regexp, pattern, flags));
 }
 
+BUILTIN(RegExpPrototypeCompile) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSRegExp, regexp, "RegExp.prototype.compile");
+
+  Handle<Object> pattern = args.atOrUndefined(isolate, 1);
+  Handle<Object> flags = args.atOrUndefined(isolate, 2);
+
+  if (pattern->IsJSRegExp()) {
+    Handle<JSRegExp> pattern_regexp = Handle<JSRegExp>::cast(pattern);
+
+    if (!flags->IsUndefined(isolate)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kRegExpFlags));
+    }
+
+    flags = PatternFlags(isolate, pattern_regexp);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, pattern,
+        Object::GetProperty(pattern, isolate->factory()->source_string()));
+  }
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, regexp, RegExpInitialize(isolate, regexp, pattern, flags));
+
+  // Return undefined for compatibility with JSC.
+  // See http://crbug.com/585775 for web compat details.
+
+  return isolate->heap()->undefined_value();
+}
+
 #define APPEND_CHAR_FOR_FLAG(flag, c)                                        \
   do {                                                                       \
     Handle<Object> property;                                                 \
@@ -197,6 +227,43 @@ BUILTIN(RegExpPrototypeSourceGetter) {
 
   Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(recv);
   return regexp->source();
+}
+
+BUILTIN(RegExpPrototypeToString) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSReceiver, recv, "RegExp.prototype.toString");
+
+  if (*recv == isolate->regexp_function()->prototype()) {
+    isolate->CountUsage(v8::Isolate::kRegExpPrototypeToString);
+  }
+
+  IncrementalStringBuilder builder(isolate);
+
+  builder.AppendCharacter('/');
+  {
+    Handle<Object> source;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, source,
+        JSReceiver::GetProperty(recv, isolate->factory()->source_string()));
+    Handle<String> source_str;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, source_str,
+                                       Object::ToString(isolate, source));
+    builder.AppendString(source_str);
+  }
+
+  builder.AppendCharacter('/');
+  {
+    Handle<Object> flags;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, flags,
+        JSReceiver::GetProperty(recv, isolate->factory()->flags_string()));
+    Handle<String> flags_str;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, flags_str,
+                                       Object::ToString(isolate, flags));
+    builder.AppendString(flags_str);
+  }
+
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
 // ES6 21.2.4.2.

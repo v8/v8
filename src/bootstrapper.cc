@@ -1636,6 +1636,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kRegExpPrototypeStickyGetter, false);
       SimpleInstallGetter(proto, factory->unicode_string(),
                           Builtins::kRegExpPrototypeUnicodeGetter, false);
+
+      SimpleInstallFunction(proto, "compile", Builtins::kRegExpPrototypeCompile,
+                            2, false, DONT_ENUM);
+      SimpleInstallFunction(proto, factory->toString_string(),
+                            Builtins::kRegExpPrototypeToString, 0, false,
+                            DONT_ENUM);
     }
 
     {

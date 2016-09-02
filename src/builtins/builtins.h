@@ -491,6 +491,8 @@ namespace internal {
                                                                               \
   /* RegExp */                                                                \
   CPP(RegExpConstructor)                                                      \
+  CPP(RegExpPrototypeCompile)                                                 \
+  CPP(RegExpPrototypeToString)                                                \
   CPP(RegExpPrototypeCapture1Getter)                                          \
   CPP(RegExpPrototypeCapture2Getter)                                          \
   CPP(RegExpPrototypeCapture3Getter)                                          \

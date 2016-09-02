@@ -71,36 +71,6 @@ function RegExpInitialize(object, pattern, flags) {
 }
 
 
-function PatternFlags(pattern) {
-  return (REGEXP_GLOBAL(pattern) ? 'g' : '') +
-         (REGEXP_IGNORE_CASE(pattern) ? 'i' : '') +
-         (REGEXP_MULTILINE(pattern) ? 'm' : '') +
-         (REGEXP_UNICODE(pattern) ? 'u' : '') +
-         (REGEXP_STICKY(pattern) ? 'y' : '');
-}
-
-
-// ES#sec-regexp.prototype.compile RegExp.prototype.compile (pattern, flags)
-function RegExpCompileJS(pattern, flags) {
-  if (!IS_REGEXP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        "RegExp.prototype.compile", this);
-  }
-
-  if (IS_REGEXP(pattern)) {
-    if (!IS_UNDEFINED(flags)) throw %make_type_error(kRegExpFlags);
-
-    flags = PatternFlags(pattern);
-    pattern = REGEXP_SOURCE(pattern);
-  }
-
-  RegExpInitialize(this, pattern, flags);
-
-  // Return undefined for compatibility with JSC.
-  // See http://crbug.com/585775 for web compat details.
-}
-
-
 function DoRegExpExec(regexp, string, index) {
   return %_RegExpExec(regexp, string, index, RegExpLastMatchInfo);
 }
@@ -332,18 +302,6 @@ function TrimRegExp(regexp) {
                                       : REGEXP_MULTILINE(regexp) ? "m" : ""));
   }
   return regexp_val;
-}
-
-
-function RegExpToString() {
-  if (!IS_RECEIVER(this)) {
-    throw %make_type_error(
-        kIncompatibleMethodReceiver, 'RegExp.prototype.toString', this);
-  }
-  if (this === GlobalRegExp.prototype) {
-    %IncrementUseCounter(kRegExpPrototypeToString);
-  }
-  return '/' + TO_STRING(this.source) + '/' + TO_STRING(this.flags);
 }
 
 
@@ -929,8 +887,6 @@ function RegExpSubclassSearch(string) {
 utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "exec", RegExpSubclassExecJS,
   "test", RegExpSubclassTest,
-  "toString", RegExpToString,
-  "compile", RegExpCompileJS,
   matchSymbol, RegExpSubclassMatch,
   replaceSymbol, RegExpSubclassReplace,
   searchSymbol, RegExpSubclassSearch,
