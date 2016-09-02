@@ -193,9 +193,8 @@ const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 const size_t kReservedCodeRangePages = 0;
 #endif
 
-// The external allocation limit should be below 256 MB on all architectures
-// to avoid that resource-constrained embedders run low on memory.
-const int kExternalAllocationLimit = 192 * 1024 * 1024;
+// Trigger an incremental GCs once the external memory reaches this limit.
+const int kExternalAllocationSoftLimit = 64 * MB;
 
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 

@@ -71,7 +71,7 @@ class IdleScavengeObserver : public AllocationObserver {
 
 Heap::Heap()
     : external_memory_(0),
-      external_memory_limit_(kExternalAllocationLimit),
+      external_memory_limit_(kExternalAllocationSoftLimit),
       external_memory_at_last_mark_compact_(0),
       isolate_(nullptr),
       code_range_size_(0),
@@ -903,6 +903,14 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
 
 
 void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
+  if (external_memory_ >
+      (external_memory_at_last_mark_compact_ + external_memory_hard_limit())) {
+    CollectAllGarbage(
+        kReduceMemoryFootprintMask | kFinalizeIncrementalMarkingMask, gc_reason,
+        static_cast<GCCallbackFlags>(kGCCallbackFlagCollectAllAvailableGarbage |
+                                     kGCCallbackFlagCollectAllExternalMemory));
+    return;
+  }
   if (incremental_marking()->IsStopped()) {
     if (incremental_marking()->CanBeActivated()) {
       StartIncrementalMarking(
@@ -917,11 +925,15 @@ void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
     }
   } else {
     // Incremental marking is turned on an has already been started.
-
-    // TODO(mlippautz): Compute the time slice for incremental marking based on
-    // memory pressure.
-    double deadline = MonotonicallyIncreasingTimeInMs() +
-                      FLAG_external_allocation_limit_incremental_time;
+    const double pressure =
+        static_cast<double>(external_memory_ -
+                            external_memory_at_last_mark_compact_ -
+                            kExternalAllocationSoftLimit) /
+        external_memory_hard_limit();
+    DCHECK_GE(1, pressure);
+    const double kMaxStepSizeOnExternalLimit = 25;
+    const double deadline = MonotonicallyIncreasingTimeInMs() +
+                            pressure * kMaxStepSizeOnExternalLimit;
     incremental_marking()->AdvanceIncrementalMarking(
         deadline,
         IncrementalMarking::StepActions(IncrementalMarking::GC_VIA_STACK_GUARD,
@@ -1362,7 +1374,7 @@ bool Heap::PerformGarbageCollection(
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
     external_memory_at_last_mark_compact_ = external_memory_;
-    external_memory_limit_ = external_memory_ + kExternalAllocationLimit;
+    external_memory_limit_ = external_memory_ + kExternalAllocationSoftLimit;
     SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_size_configured_) {

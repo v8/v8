@@ -916,11 +916,6 @@ DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "Test mode only flag. It allows an unit test to select evacuation "
             "candidates pages (requires --stress_compaction).")
 
-// api.cc
-DEFINE_INT(external_allocation_limit_incremental_time, 1,
-           "Time spent in incremental marking steps (in ms) once the external "
-           "allocation limit is reached")
-
 DEFINE_BOOL(disable_old_api_accessors, false,
             "Disable old-style API accessors whose setters trigger through the "
             "prototype chain")

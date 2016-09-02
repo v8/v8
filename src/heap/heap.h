@@ -841,6 +841,8 @@ class Heap {
     global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
   }
 
+  int64_t external_memory_hard_limit() { return MaxOldGenerationSize() / 2; }
+
   int64_t external_memory() { return external_memory_; }
   void update_external_memory(int64_t delta) { external_memory_ += delta; }
 
