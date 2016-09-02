@@ -66,6 +66,7 @@
   # This tests only the type system, no point in running several variants.
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],
   'test-types/*': [PASS, NO_VARIANTS],
+  'test-ast-types/*': [PASS, NO_VARIANTS],
 
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, NO_VARIANTS],

@@ -2419,8 +2419,8 @@ TEST(FieldTypeConvertSimple) {
 
   Zone zone(isolate->allocator());
 
-  CHECK_EQ(FieldType::Any()->Convert(&zone), Type::NonInternal());
-  CHECK_EQ(FieldType::None()->Convert(&zone), Type::None());
+  CHECK_EQ(FieldType::Any()->Convert(&zone), AstType::NonInternal());
+  CHECK_EQ(FieldType::None()->Convert(&zone), AstType::None());
 }
 
 // TODO(ishell): add this test once IS_ACCESSOR_FIELD_SUPPORTED is supported.

@@ -6,10 +6,10 @@
 #define V8_TYPE_INFO_H_
 
 #include "src/allocation.h"
+#include "src/ast/ast-types.h"
 #include "src/contexts.h"
 #include "src/globals.h"
 #include "src/parsing/token.h"
-#include "src/types.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -77,20 +77,15 @@ class TypeFeedbackOracle: public ZoneObject {
   uint16_t ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
-  void BinaryType(TypeFeedbackId id,
-                  Type** left,
-                  Type** right,
-                  Type** result,
-                  Maybe<int>* fixed_right_arg,
+  void BinaryType(TypeFeedbackId id, AstType** left, AstType** right,
+                  AstType** result, Maybe<int>* fixed_right_arg,
                   Handle<AllocationSite>* allocation_site,
                   Token::Value operation);
 
-  void CompareType(TypeFeedbackId id,
-                   Type** left,
-                   Type** right,
-                   Type** combined);
+  void CompareType(TypeFeedbackId id, AstType** left, AstType** right,
+                   AstType** combined);
 
-  Type* CountType(TypeFeedbackId id);
+  AstType* CountType(TypeFeedbackId id);
 
   Zone* zone() const { return zone_; }
   Isolate* isolate() const { return isolate_; }

@@ -10,30 +10,26 @@
 #include "src/isolate.h"
 // FIXME(mstarzinger, marja): This is weird, but required because of the missing
 // (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/ast/ast-types.h"
 #include "src/objects-inl.h"
-#include "src/types.h"
 // FIXME(mstarzinger, marja): This is weird, but required because of the missing
 // (disallowed) include: src/type-feedback-vector.h ->
 // src/type-feedback-vector-inl.h
 #include "src/type-feedback-vector-inl.h"
+#include "test/cctest/ast-types-fuzz.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/types-fuzz.h"
 
 using namespace v8::internal;
 
-
 // Testing auxiliaries (breaking the Type abstraction).
-
 
 static bool IsInteger(double x) {
   return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
 }
 
-
 static bool IsInteger(i::Object* x) {
   return x->IsNumber() && IsInteger(x->Number());
 }
-
 
 typedef uint32_t bitset;
 
@@ -53,12 +49,14 @@ struct Tests {
         zone(isolate->allocator()),
         T(&zone, isolate, isolate->random_number_generator()) {}
 
-  bool IsBitset(Type* type) { return type->IsBitsetForTesting(); }
-  bool IsUnion(Type* type) { return type->IsUnionForTesting(); }
-  BitsetType::bitset AsBitset(Type* type) { return type->AsBitsetForTesting(); }
-  UnionType* AsUnion(Type* type) { return type->AsUnionForTesting(); }
+  bool IsBitset(AstType* type) { return type->IsBitsetForTesting(); }
+  bool IsUnion(AstType* type) { return type->IsUnionForTesting(); }
+  AstBitsetType::bitset AsBitset(AstType* type) {
+    return type->AsBitsetForTesting();
+  }
+  AstUnionType* AsUnion(AstType* type) { return type->AsUnionForTesting(); }
 
-  bool Equal(Type* type1, Type* type2) {
+  bool Equal(AstType* type1, AstType* type2) {
     return type1->Equals(type2) &&
            this->IsBitset(type1) == this->IsBitset(type2) &&
            this->IsUnion(type1) == this->IsUnion(type2) &&
@@ -71,9 +69,11 @@ struct Tests {
                 this->AsUnion(type2)->LengthForTesting());
   }
 
-  void CheckEqual(Type* type1, Type* type2) { CHECK(Equal(type1, type2)); }
+  void CheckEqual(AstType* type1, AstType* type2) {
+    CHECK(Equal(type1, type2));
+  }
 
-  void CheckSub(Type* type1, Type* type2) {
+  void CheckSub(AstType* type1, AstType* type2) {
     CHECK(type1->Is(type2));
     CHECK(!type2->Is(type1));
     if (this->IsBitset(type1) && this->IsBitset(type2)) {
@@ -81,15 +81,15 @@ struct Tests {
     }
   }
 
-  void CheckSubOrEqual(Type* type1, Type* type2) {
+  void CheckSubOrEqual(AstType* type1, AstType* type2) {
     CHECK(type1->Is(type2));
     if (this->IsBitset(type1) && this->IsBitset(type2)) {
-      CHECK((this->AsBitset(type1) | this->AsBitset(type2))
-            == this->AsBitset(type2));
+      CHECK((this->AsBitset(type1) | this->AsBitset(type2)) ==
+            this->AsBitset(type2));
     }
   }
 
-  void CheckUnordered(Type* type1, Type* type2) {
+  void CheckUnordered(AstType* type1, AstType* type2) {
     CHECK(!type1->Is(type2));
     CHECK(!type2->Is(type1));
     if (this->IsBitset(type1) && this->IsBitset(type2)) {
@@ -97,12 +97,12 @@ struct Tests {
     }
   }
 
-  void CheckOverlap(Type* type1, Type* type2) {
+  void CheckOverlap(AstType* type1, AstType* type2) {
     CHECK(type1->Maybe(type2));
     CHECK(type2->Maybe(type1));
   }
 
-  void CheckDisjoint(Type* type1, Type* type2) {
+  void CheckDisjoint(AstType* type1, AstType* type2) {
     CHECK(!type1->Is(type2));
     CHECK(!type2->Is(type1));
     CHECK(!type1->Maybe(type2));
@@ -111,10 +111,11 @@ struct Tests {
 
   void IsSomeType() {
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* t = *it;
+      AstType* t = *it;
       CHECK(1 ==
-          this->IsBitset(t) + t->IsClass() + t->IsConstant() + t->IsRange() +
-          this->IsUnion(t) + t->IsArray() + t->IsFunction() + t->IsContext());
+            this->IsBitset(t) + t->IsClass() + t->IsConstant() + t->IsRange() +
+                this->IsUnion(t) + t->IsArray() + t->IsFunction() +
+                t->IsContext());
     }
   }
 
@@ -129,9 +130,9 @@ struct Tests {
     // Union(T1, T2) is bitset for bitsets T1,T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* union12 = T.Union(type1, type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* union12 = T.Union(type1, type2);
         CHECK(!(this->IsBitset(type1) && this->IsBitset(type2)) ||
               this->IsBitset(union12));
       }
@@ -140,9 +141,9 @@ struct Tests {
     // Intersect(T1, T2) is bitset for bitsets T1,T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* intersect12 = T.Intersect(type1, type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* intersect12 = T.Intersect(type1, type2);
         CHECK(!(this->IsBitset(type1) && this->IsBitset(type2)) ||
               this->IsBitset(intersect12));
       }
@@ -151,9 +152,9 @@ struct Tests {
     // Union(T1, T2) is bitset if T2 is bitset and T1->Is(T2)
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* union12 = T.Union(type1, type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* union12 = T.Union(type1, type2);
         CHECK(!(this->IsBitset(type2) && type1->Is(type2)) ||
               this->IsBitset(union12));
       }
@@ -162,13 +163,12 @@ struct Tests {
     // Union(T1, T2) is bitwise disjunction for bitsets T1,T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* union12 = T.Union(type1, type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* union12 = T.Union(type1, type2);
         if (this->IsBitset(type1) && this->IsBitset(type2)) {
-          CHECK(
-              (this->AsBitset(type1) | this->AsBitset(type2)) ==
-              this->AsBitset(union12));
+          CHECK((this->AsBitset(type1) | this->AsBitset(type2)) ==
+                this->AsBitset(union12));
         }
       }
     }
@@ -176,10 +176,10 @@ struct Tests {
     // Intersect(T1, T2) is bitwise conjunction for bitsets T1,T2 (modulo None)
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         if (this->IsBitset(type1) && this->IsBitset(type2)) {
-          Type* intersect12 = T.Intersect(type1, type2);
+          AstType* intersect12 = T.Intersect(type1, type2);
           bitset bits = this->AsBitset(type1) & this->AsBitset(type2);
           CHECK(bits == this->AsBitset(intersect12));
         }
@@ -195,26 +195,27 @@ struct Tests {
       counter++;
       printf("Counter: %i\n", counter);
       fflush(stdout);
-      Type* type1 = *it1;
-      Type* representation = T.Representation(type1);
-      Type* semantic = T.Semantic(type1);
-      Type* composed = T.Union(representation, semantic);
+      AstType* type1 = *it1;
+      AstType* representation = T.Representation(type1);
+      AstType* semantic = T.Semantic(type1);
+      AstType* composed = T.Union(representation, semantic);
       CHECK(type1->Equals(composed));
     }
 
     // Pointwiseness of Union.
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* representation1 = T.Representation(type1);
-        Type* semantic1 = T.Semantic(type1);
-        Type* representation2 = T.Representation(type2);
-        Type* semantic2 = T.Semantic(type2);
-        Type* direct_union = T.Union(type1, type2);
-        Type* representation_union = T.Union(representation1, representation2);
-        Type* semantic_union = T.Union(semantic1, semantic2);
-        Type* composed_union = T.Union(representation_union, semantic_union);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* representation1 = T.Representation(type1);
+        AstType* semantic1 = T.Semantic(type1);
+        AstType* representation2 = T.Representation(type2);
+        AstType* semantic2 = T.Semantic(type2);
+        AstType* direct_union = T.Union(type1, type2);
+        AstType* representation_union =
+            T.Union(representation1, representation2);
+        AstType* semantic_union = T.Union(semantic1, semantic2);
+        AstType* composed_union = T.Union(representation_union, semantic_union);
         CHECK(direct_union->Equals(composed_union));
       }
     }
@@ -222,17 +223,17 @@ struct Tests {
     // Pointwiseness of Intersect.
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* representation1 = T.Representation(type1);
-        Type* semantic1 = T.Semantic(type1);
-        Type* representation2 = T.Representation(type2);
-        Type* semantic2 = T.Semantic(type2);
-        Type* direct_intersection = T.Intersect(type1, type2);
-        Type* representation_intersection =
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* representation1 = T.Representation(type1);
+        AstType* semantic1 = T.Semantic(type1);
+        AstType* representation2 = T.Representation(type2);
+        AstType* semantic2 = T.Semantic(type2);
+        AstType* direct_intersection = T.Intersect(type1, type2);
+        AstType* representation_intersection =
             T.Intersect(representation1, representation2);
-        Type* semantic_intersection = T.Intersect(semantic1, semantic2);
-        Type* composed_intersection =
+        AstType* semantic_intersection = T.Intersect(semantic1, semantic2);
+        AstType* composed_intersection =
             T.Union(representation_intersection, semantic_intersection);
         CHECK(direct_intersection->Equals(composed_intersection));
       }
@@ -241,12 +242,12 @@ struct Tests {
     // Pointwiseness of Is.
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* representation1 = T.Representation(type1);
-        Type* semantic1 = T.Semantic(type1);
-        Type* representation2 = T.Representation(type2);
-        Type* semantic2 = T.Semantic(type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* representation1 = T.Representation(type1);
+        AstType* semantic1 = T.Semantic(type1);
+        AstType* representation2 = T.Representation(type2);
+        AstType* semantic2 = T.Semantic(type2);
         bool representation_is = representation1->Is(representation2);
         bool semantic_is = semantic1->Is(semantic2);
         bool direct_is = type1->Is(type2);
@@ -259,14 +260,14 @@ struct Tests {
     // Constructor
     for (MapIterator mt = T.maps.begin(); mt != T.maps.end(); ++mt) {
       Handle<i::Map> map = *mt;
-      Type* type = T.Class(map);
+      AstType* type = T.Class(map);
       CHECK(type->IsClass());
     }
 
     // Map attribute
     for (MapIterator mt = T.maps.begin(); mt != T.maps.end(); ++mt) {
       Handle<i::Map> map = *mt;
-      Type* type = T.Class(map);
+      AstType* type = T.Class(map);
       CHECK(*map == *type->AsClass()->Map());
     }
 
@@ -275,8 +276,8 @@ struct Tests {
       for (MapIterator mt2 = T.maps.begin(); mt2 != T.maps.end(); ++mt2) {
         Handle<i::Map> map1 = *mt1;
         Handle<i::Map> map2 = *mt2;
-        Type* type1 = T.Class(map1);
-        Type* type2 = T.Class(map2);
+        AstType* type1 = T.Class(map1);
+        AstType* type2 = T.Class(map2);
         CHECK(Equal(type1, type2) == (*map1 == *map2));
       }
     }
@@ -286,14 +287,14 @@ struct Tests {
     // Constructor
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       Handle<i::Object> value = *vt;
-      Type* type = T.Constant(value);
+      AstType* type = T.Constant(value);
       CHECK(type->IsConstant());
     }
 
     // Value attribute
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       Handle<i::Object> value = *vt;
-      Type* type = T.Constant(value);
+      AstType* type = T.Constant(value);
       CHECK(*value == *type->AsConstant()->Value());
     }
 
@@ -302,8 +303,8 @@ struct Tests {
       for (ValueIterator vt2 = T.values.begin(); vt2 != T.values.end(); ++vt2) {
         Handle<i::Object> value1 = *vt1;
         Handle<i::Object> value2 = *vt2;
-        Type* type1 = T.Constant(value1);
-        Type* type2 = T.Constant(value2);
+        AstType* type1 = T.Constant(value1);
+        AstType* type2 = T.Constant(value2);
         CHECK(Equal(type1, type2) == (*value1 == *value2));
       }
     }
@@ -350,7 +351,7 @@ struct Tests {
     CHECK(!T.Constant(fac->NewNumber(-10.1))->Is(T.Integral32));
     CHECK(T.Constant(fac->NewNumber(10e60))->Is(T.PlainNumber));
     CHECK(!T.Constant(fac->NewNumber(10e60))->Is(T.Integral32));
-    CHECK(T.Constant(fac->NewNumber(-1.0*0.0))->Is(T.MinusZero));
+    CHECK(T.Constant(fac->NewNumber(-1.0 * 0.0))->Is(T.MinusZero));
     CHECK(T.Constant(fac->NewNumber(std::numeric_limits<double>::quiet_NaN()))
               ->Is(T.NaN));
     CHECK(T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.PlainNumber));
@@ -366,7 +367,7 @@ struct Tests {
         double min = (*i)->Number();
         double max = (*j)->Number();
         if (min > max) std::swap(min, max);
-        Type* type = T.Range(min, max);
+        AstType* type = T.Range(min, max);
         CHECK(type->IsRange());
       }
     }
@@ -377,7 +378,7 @@ struct Tests {
         double min = (*i)->Number();
         double max = (*j)->Number();
         if (min > max) std::swap(min, max);
-        Type* type = T.Range(min, max);
+        AstType* type = T.Range(min, max);
         CHECK(min == type->AsRange()->Min());
         CHECK(max == type->AsRange()->Max());
       }
@@ -385,22 +386,19 @@ struct Tests {
 
     // Functionality & Injectivity:
     // Range(min1, max1) = Range(min2, max2) <=> min1 = min2 /\ max1 = max2
-    for (ValueIterator i1 = T.integers.begin();
-        i1 != T.integers.end(); ++i1) {
-      for (ValueIterator j1 = i1;
-          j1 != T.integers.end(); ++j1) {
-        for (ValueIterator i2 = T.integers.begin();
-            i2 != T.integers.end(); ++i2) {
-          for (ValueIterator j2 = i2;
-              j2 != T.integers.end(); ++j2) {
+    for (ValueIterator i1 = T.integers.begin(); i1 != T.integers.end(); ++i1) {
+      for (ValueIterator j1 = i1; j1 != T.integers.end(); ++j1) {
+        for (ValueIterator i2 = T.integers.begin(); i2 != T.integers.end();
+             ++i2) {
+          for (ValueIterator j2 = i2; j2 != T.integers.end(); ++j2) {
             double min1 = (*i1)->Number();
             double max1 = (*j1)->Number();
             double min2 = (*i2)->Number();
             double max2 = (*j2)->Number();
             if (min1 > max1) std::swap(min1, max1);
             if (min2 > max2) std::swap(min2, max2);
-            Type* type1 = T.Range(min1, max1);
-            Type* type2 = T.Range(min2, max2);
+            AstType* type1 = T.Range(min1, max1);
+            AstType* type2 = T.Range(min2, max2);
             CHECK(Equal(type1, type2) == (min1 == min2 && max1 == max2));
           }
         }
@@ -411,25 +409,25 @@ struct Tests {
   void Context() {
     // Constructor
     for (int i = 0; i < 20; ++i) {
-      Type* type = T.Random();
-      Type* context = T.Context(type);
+      AstType* type = T.Random();
+      AstType* context = T.Context(type);
       CHECK(context->IsContext());
     }
 
     // Attributes
     for (int i = 0; i < 20; ++i) {
-      Type* type = T.Random();
-      Type* context = T.Context(type);
+      AstType* type = T.Random();
+      AstType* context = T.Context(type);
       CheckEqual(type, context->AsContext()->Outer());
     }
 
     // Functionality & Injectivity: Context(T1) = Context(T2) iff T1 = T2
     for (int i = 0; i < 20; ++i) {
       for (int j = 0; j < 20; ++j) {
-        Type* type1 = T.Random();
-        Type* type2 = T.Random();
-        Type* context1 = T.Context(type1);
-        Type* context2 = T.Context(type2);
+        AstType* type1 = T.Random();
+        AstType* type2 = T.Random();
+        AstType* context1 = T.Context(type1);
+        AstType* context2 = T.Context(type2);
         CHECK(Equal(context1, context2) == Equal(type1, type2));
       }
     }
@@ -438,25 +436,25 @@ struct Tests {
   void Array() {
     // Constructor
     for (int i = 0; i < 20; ++i) {
-      Type* type = T.Random();
-      Type* array = T.Array1(type);
+      AstType* type = T.Random();
+      AstType* array = T.Array1(type);
       CHECK(array->IsArray());
     }
 
     // Attributes
     for (int i = 0; i < 20; ++i) {
-      Type* type = T.Random();
-      Type* array = T.Array1(type);
+      AstType* type = T.Random();
+      AstType* array = T.Array1(type);
       CheckEqual(type, array->AsArray()->Element());
     }
 
     // Functionality & Injectivity: Array(T1) = Array(T2) iff T1 = T2
     for (int i = 0; i < 20; ++i) {
       for (int j = 0; j < 20; ++j) {
-        Type* type1 = T.Random();
-        Type* type2 = T.Random();
-        Type* array1 = T.Array1(type1);
-        Type* array2 = T.Array1(type2);
+        AstType* type1 = T.Random();
+        AstType* type2 = T.Random();
+        AstType* array1 = T.Array1(type1);
+        AstType* array2 = T.Array1(type2);
         CHECK(Equal(array1, array2) == Equal(type1, type2));
       }
     }
@@ -467,12 +465,12 @@ struct Tests {
     for (int i = 0; i < 20; ++i) {
       for (int j = 0; j < 20; ++j) {
         for (int k = 0; k < 20; ++k) {
-          Type* type1 = T.Random();
-          Type* type2 = T.Random();
-          Type* type3 = T.Random();
-          Type* function0 = T.Function0(type1, type2);
-          Type* function1 = T.Function1(type1, type2, type3);
-          Type* function2 = T.Function2(type1, type2, type3);
+          AstType* type1 = T.Random();
+          AstType* type2 = T.Random();
+          AstType* type3 = T.Random();
+          AstType* function0 = T.Function0(type1, type2);
+          AstType* function1 = T.Function1(type1, type2, type3);
+          AstType* function2 = T.Function2(type1, type2, type3);
           CHECK(function0->IsFunction());
           CHECK(function1->IsFunction());
           CHECK(function2->IsFunction());
@@ -484,12 +482,12 @@ struct Tests {
     for (int i = 0; i < 20; ++i) {
       for (int j = 0; j < 20; ++j) {
         for (int k = 0; k < 20; ++k) {
-          Type* type1 = T.Random();
-          Type* type2 = T.Random();
-          Type* type3 = T.Random();
-          Type* function0 = T.Function0(type1, type2);
-          Type* function1 = T.Function1(type1, type2, type3);
-          Type* function2 = T.Function2(type1, type2, type3);
+          AstType* type1 = T.Random();
+          AstType* type2 = T.Random();
+          AstType* type3 = T.Random();
+          AstType* function0 = T.Function0(type1, type2);
+          AstType* function1 = T.Function1(type1, type2, type3);
+          AstType* function2 = T.Function2(type1, type2, type3);
           CHECK_EQ(0, function0->AsFunction()->Arity());
           CHECK_EQ(1, function1->AsFunction()->Arity());
           CHECK_EQ(2, function2->AsFunction()->Arity());
@@ -510,17 +508,17 @@ struct Tests {
     for (int i = 0; i < 20; ++i) {
       for (int j = 0; j < 20; ++j) {
         for (int k = 0; k < 20; ++k) {
-          Type* type1 = T.Random();
-          Type* type2 = T.Random();
-          Type* type3 = T.Random();
-          Type* function01 = T.Function0(type1, type2);
-          Type* function02 = T.Function0(type1, type3);
-          Type* function03 = T.Function0(type3, type2);
-          Type* function11 = T.Function1(type1, type2, type2);
-          Type* function12 = T.Function1(type1, type2, type3);
-          Type* function21 = T.Function2(type1, type2, type2);
-          Type* function22 = T.Function2(type1, type2, type3);
-          Type* function23 = T.Function2(type1, type3, type2);
+          AstType* type1 = T.Random();
+          AstType* type2 = T.Random();
+          AstType* type3 = T.Random();
+          AstType* function01 = T.Function0(type1, type2);
+          AstType* function02 = T.Function0(type1, type3);
+          AstType* function03 = T.Function0(type3, type2);
+          AstType* function11 = T.Function1(type1, type2, type2);
+          AstType* function12 = T.Function1(type1, type2, type3);
+          AstType* function21 = T.Function2(type1, type2, type2);
+          AstType* function22 = T.Function2(type1, type2, type3);
+          AstType* function23 = T.Function2(type1, type3, type2);
           CHECK(Equal(function01, function02) == Equal(type2, type3));
           CHECK(Equal(function01, function03) == Equal(type1, type3));
           CHECK(Equal(function11, function12) == Equal(type2, type3));
@@ -535,8 +533,8 @@ struct Tests {
     // Constant(V)->Is(Of(V))
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       Handle<i::Object> value = *vt;
-      Type* const_type = T.Constant(value);
-      Type* of_type = T.Of(value);
+      AstType* const_type = T.Constant(value);
+      AstType* of_type = T.Of(value);
       CHECK(const_type->Is(of_type));
     }
 
@@ -544,9 +542,9 @@ struct Tests {
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
         Handle<i::Object> value = *vt;
-        Type* type = *it;
-        Type* const_type = T.Constant(value);
-        Type* of_type = T.Of(value);
+        AstType* type = *it;
+        AstType* const_type = T.Constant(value);
+        AstType* of_type = T.Of(value);
         CHECK(!of_type->Is(type) || const_type->Is(type));
       }
     }
@@ -555,11 +553,11 @@ struct Tests {
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
         Handle<i::Object> value = *vt;
-        Type* type = *it;
-        Type* const_type = T.Constant(value);
-        Type* of_type = T.Of(value);
-        CHECK(!const_type->Is(type) ||
-              of_type->Is(type) || type->Maybe(const_type));
+        AstType* type = *it;
+        AstType* const_type = T.Constant(value);
+        AstType* of_type = T.Of(value);
+        CHECK(!const_type->Is(type) || of_type->Is(type) ||
+              type->Maybe(const_type));
       }
     }
   }
@@ -568,16 +566,16 @@ struct Tests {
     // Constant(V)->NowIs(NowOf(V))
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       Handle<i::Object> value = *vt;
-      Type* const_type = T.Constant(value);
-      Type* nowof_type = T.NowOf(value);
+      AstType* const_type = T.Constant(value);
+      AstType* nowof_type = T.NowOf(value);
       CHECK(const_type->NowIs(nowof_type));
     }
 
     // NowOf(V)->Is(Of(V))
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       Handle<i::Object> value = *vt;
-      Type* nowof_type = T.NowOf(value);
-      Type* of_type = T.Of(value);
+      AstType* nowof_type = T.NowOf(value);
+      AstType* of_type = T.Of(value);
       CHECK(nowof_type->Is(of_type));
     }
 
@@ -585,9 +583,9 @@ struct Tests {
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
         Handle<i::Object> value = *vt;
-        Type* type = *it;
-        Type* const_type = T.Constant(value);
-        Type* nowof_type = T.NowOf(value);
+        AstType* type = *it;
+        AstType* const_type = T.Constant(value);
+        AstType* nowof_type = T.NowOf(value);
         CHECK(!nowof_type->NowIs(type) || const_type->NowIs(type));
       }
     }
@@ -597,11 +595,11 @@ struct Tests {
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
         Handle<i::Object> value = *vt;
-        Type* type = *it;
-        Type* const_type = T.Constant(value);
-        Type* nowof_type = T.NowOf(value);
-        CHECK(!const_type->NowIs(type) ||
-              nowof_type->NowIs(type) || type->Maybe(const_type));
+        AstType* type = *it;
+        AstType* const_type = T.Constant(value);
+        AstType* nowof_type = T.NowOf(value);
+        CHECK(!const_type->NowIs(type) || nowof_type->NowIs(type) ||
+              type->Maybe(const_type));
       }
     }
 
@@ -610,11 +608,11 @@ struct Tests {
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
         Handle<i::Object> value = *vt;
-        Type* type = *it;
-        Type* const_type = T.Constant(value);
-        Type* nowof_type = T.NowOf(value);
-        CHECK(!const_type->Is(type) ||
-              nowof_type->Is(type) || type->Maybe(const_type));
+        AstType* type = *it;
+        AstType* const_type = T.Constant(value);
+        AstType* nowof_type = T.NowOf(value);
+        CHECK(!const_type->Is(type) || nowof_type->Is(type) ||
+              type->Maybe(const_type));
       }
     }
   }
@@ -624,10 +622,10 @@ struct Tests {
     // TODO(neis): Need to ignore representation for this to be true.
     /*
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       if (this->IsBitset(type) && type->Is(T.Number) &&
           !type->Is(T.None) && !type->Is(T.NaN)) {
-        Type* range = T.Range(
+        AstType* range = T.Range(
             isolate->factory()->NewNumber(type->Min()),
             isolate->factory()->NewNumber(type->Max()));
         CHECK(range->Is(type));
@@ -637,7 +635,7 @@ struct Tests {
 
     // If b is regular numeric bitset, then b->Min() and b->Max() are integers.
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       if (this->IsBitset(type) && type->Is(T.Number) && !type->Is(T.NaN)) {
         CHECK(IsInteger(type->Min()) && IsInteger(type->Max()));
       }
@@ -647,8 +645,8 @@ struct Tests {
     // b1->Min() >= b2->Min() and b1->Max() <= b2->Max().
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         if (this->IsBitset(type1) && type1->Is(type2) && type2->Is(T.Number) &&
             !type1->Is(T.NaN) && !type2->Is(T.NaN)) {
           CHECK(type1->Min() >= type2->Min());
@@ -659,9 +657,9 @@ struct Tests {
 
     // Lub(Range(x,y))->Min() <= x and y <= Lub(Range(x,y))->Max()
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       if (type->IsRange()) {
-        Type* lub = BitsetType::NewForTesting(BitsetType::Lub(type));
+        AstType* lub = AstBitsetType::NewForTesting(AstBitsetType::Lub(type));
         CHECK(lub->Min() <= type->Min() && type->Max() <= lub->Max());
       }
     }
@@ -669,7 +667,7 @@ struct Tests {
     // Rangification: If T->Is(Range(-inf,+inf)) and T is inhabited, then
     // T->Is(Range(T->Min(), T->Max())).
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(!type->Is(T.Integer) || !type->IsInhabited() ||
             type->Is(T.Range(type->Min(), type->Max())));
     }
@@ -678,17 +676,17 @@ struct Tests {
   void BitsetGlb() {
     // Lower: (T->BitsetGlb())->Is(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      Type* glb = BitsetType::NewForTesting(BitsetType::Glb(type));
+      AstType* type = *it;
+      AstType* glb = AstBitsetType::NewForTesting(AstBitsetType::Glb(type));
       CHECK(glb->Is(type));
     }
 
     // Greatest: If T1->IsBitset() and T1->Is(T2), then T1->Is(T2->BitsetGlb())
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* glb2 = BitsetType::NewForTesting(BitsetType::Glb(type2));
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* glb2 = AstBitsetType::NewForTesting(AstBitsetType::Glb(type2));
         CHECK(!this->IsBitset(type1) || !type1->Is(type2) || type1->Is(glb2));
       }
     }
@@ -696,10 +694,10 @@ struct Tests {
     // Monotonicity: T1->Is(T2) implies (T1->BitsetGlb())->Is(T2->BitsetGlb())
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* glb1 = BitsetType::NewForTesting(BitsetType::Glb(type1));
-        Type* glb2 = BitsetType::NewForTesting(BitsetType::Glb(type2));
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* glb1 = AstBitsetType::NewForTesting(AstBitsetType::Glb(type1));
+        AstType* glb2 = AstBitsetType::NewForTesting(AstBitsetType::Glb(type2));
         CHECK(!type1->Is(type2) || glb1->Is(glb2));
       }
     }
@@ -708,17 +706,17 @@ struct Tests {
   void BitsetLub() {
     // Upper: T->Is(T->BitsetLub())
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      Type* lub = BitsetType::NewForTesting(BitsetType::Lub(type));
+      AstType* type = *it;
+      AstType* lub = AstBitsetType::NewForTesting(AstBitsetType::Lub(type));
       CHECK(type->Is(lub));
     }
 
     // Least: If T2->IsBitset() and T1->Is(T2), then (T1->BitsetLub())->Is(T2)
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* lub1 = BitsetType::NewForTesting(BitsetType::Lub(type1));
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* lub1 = AstBitsetType::NewForTesting(AstBitsetType::Lub(type1));
         CHECK(!this->IsBitset(type2) || !type1->Is(type2) || lub1->Is(type2));
       }
     }
@@ -726,10 +724,10 @@ struct Tests {
     // Monotonicity: T1->Is(T2) implies (T1->BitsetLub())->Is(T2->BitsetLub())
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* lub1 = BitsetType::NewForTesting(BitsetType::Lub(type1));
-        Type* lub2 = BitsetType::NewForTesting(BitsetType::Lub(type2));
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* lub1 = AstBitsetType::NewForTesting(AstBitsetType::Lub(type1));
+        AstType* lub2 = AstBitsetType::NewForTesting(AstBitsetType::Lub(type2));
         CHECK(!type1->Is(type2) || lub1->Is(lub2));
       }
     }
@@ -738,31 +736,31 @@ struct Tests {
   void Is1() {
     // Least Element (Bottom): None->Is(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(T.None->Is(type));
     }
 
     // Greatest Element (Top): T->Is(Any)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(type->Is(T.Any));
     }
 
     // Bottom Uniqueness: T->Is(None) implies T = None
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       if (type->Is(T.None)) CheckEqual(type, T.None);
     }
 
     // Top Uniqueness: Any->Is(T) implies T = Any
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       if (T.Any->Is(type)) CheckEqual(type, T.Any);
     }
 
     // Reflexivity: T->Is(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(type->Is(type));
     }
 
@@ -770,9 +768,9 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
           CHECK(!(type1->Is(type2) && type2->Is(type3)) || type1->Is(type3));
         }
       }
@@ -781,8 +779,8 @@ struct Tests {
     // Antisymmetry: T1->Is(T2) and T2->Is(T1) iff T1 = T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         CHECK((type1->Is(type2) && type2->Is(type1)) == Equal(type1, type2));
       }
     }
@@ -790,8 +788,8 @@ struct Tests {
     // (In-)Compatibilities.
     for (TypeIterator i = T.types.begin(); i != T.types.end(); ++i) {
       for (TypeIterator j = T.types.begin(); j != T.types.end(); ++j) {
-        Type* type1 = *i;
-        Type* type2 = *j;
+        AstType* type1 = *i;
+        AstType* type2 = *j;
         CHECK(!type1->Is(type2) || this->IsBitset(type2) ||
               this->IsUnion(type2) || this->IsUnion(type1) ||
               (type1->IsClass() && type2->IsClass()) ||
@@ -813,29 +811,26 @@ struct Tests {
       for (MapIterator mt2 = T.maps.begin(); mt2 != T.maps.end(); ++mt2) {
         Handle<i::Map> map1 = *mt1;
         Handle<i::Map> map2 = *mt2;
-        Type* class_type1 = T.Class(map1);
-        Type* class_type2 = T.Class(map2);
+        AstType* class_type1 = T.Class(map1);
+        AstType* class_type2 = T.Class(map2);
         CHECK(class_type1->Is(class_type2) == (*map1 == *map2));
       }
     }
 
     // Range(X1, Y1)->Is(Range(X2, Y2)) iff X1 >= X2 /\ Y1 <= Y2
-    for (ValueIterator i1 = T.integers.begin();
-        i1 != T.integers.end(); ++i1) {
-      for (ValueIterator j1 = i1;
-          j1 != T.integers.end(); ++j1) {
-        for (ValueIterator i2 = T.integers.begin();
-             i2 != T.integers.end(); ++i2) {
-          for (ValueIterator j2 = i2;
-               j2 != T.integers.end(); ++j2) {
+    for (ValueIterator i1 = T.integers.begin(); i1 != T.integers.end(); ++i1) {
+      for (ValueIterator j1 = i1; j1 != T.integers.end(); ++j1) {
+        for (ValueIterator i2 = T.integers.begin(); i2 != T.integers.end();
+             ++i2) {
+          for (ValueIterator j2 = i2; j2 != T.integers.end(); ++j2) {
             double min1 = (*i1)->Number();
             double max1 = (*j1)->Number();
             double min2 = (*i2)->Number();
             double max2 = (*j2)->Number();
             if (min1 > max1) std::swap(min1, max1);
             if (min2 > max2) std::swap(min2, max2);
-            Type* type1 = T.Range(min1, max1);
-            Type* type2 = T.Range(min2, max2);
+            AstType* type1 = T.Range(min1, max1);
+            AstType* type2 = T.Range(min2, max2);
             CHECK(type1->Is(type2) == (min1 >= min2 && max1 <= max2));
           }
         }
@@ -847,8 +842,8 @@ struct Tests {
       for (ValueIterator vt2 = T.values.begin(); vt2 != T.values.end(); ++vt2) {
         Handle<i::Object> value1 = *vt1;
         Handle<i::Object> value2 = *vt2;
-        Type* const_type1 = T.Constant(value1);
-        Type* const_type2 = T.Constant(value2);
+        AstType* const_type1 = T.Constant(value1);
+        AstType* const_type2 = T.Constant(value2);
         CHECK(const_type1->Is(const_type2) == (*value1 == *value2));
       }
     }
@@ -856,10 +851,10 @@ struct Tests {
     // Context(T1)->Is(Context(T2)) iff T1 = T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* outer1 = *it1;
-        Type* outer2 = *it2;
-        Type* type1 = T.Context(outer1);
-        Type* type2 = T.Context(outer2);
+        AstType* outer1 = *it1;
+        AstType* outer2 = *it2;
+        AstType* type1 = T.Context(outer1);
+        AstType* type2 = T.Context(outer2);
         CHECK(type1->Is(type2) == outer1->Equals(outer2));
       }
     }
@@ -867,10 +862,10 @@ struct Tests {
     // Array(T1)->Is(Array(T2)) iff T1 = T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* element1 = *it1;
-        Type* element2 = *it2;
-        Type* type1 = T.Array1(element1);
-        Type* type2 = T.Array1(element2);
+        AstType* element1 = *it1;
+        AstType* element2 = *it2;
+        AstType* type1 = T.Array1(element1);
+        AstType* type2 = T.Array1(element2);
         CHECK(type1->Is(type2) == element1->Equals(element2));
       }
     }
@@ -878,23 +873,22 @@ struct Tests {
     // Function0(S1, T1)->Is(Function0(S2, T2)) iff S1 = S2 and T1 = T2
     for (TypeIterator i = T.types.begin(); i != T.types.end(); ++i) {
       for (TypeIterator j = T.types.begin(); j != T.types.end(); ++j) {
-        Type* result1 = *i;
-        Type* receiver1 = *j;
-        Type* type1 = T.Function0(result1, receiver1);
-        Type* result2 = T.Random();
-        Type* receiver2 = T.Random();
-        Type* type2 = T.Function0(result2, receiver2);
+        AstType* result1 = *i;
+        AstType* receiver1 = *j;
+        AstType* type1 = T.Function0(result1, receiver1);
+        AstType* result2 = T.Random();
+        AstType* receiver2 = T.Random();
+        AstType* type2 = T.Function0(result2, receiver2);
         CHECK(type1->Is(type2) ==
-            (result1->Equals(result2) && receiver1->Equals(receiver2)));
+              (result1->Equals(result2) && receiver1->Equals(receiver2)));
       }
     }
-
 
     // Range-specific subtyping
 
     // If IsInteger(v) then Constant(v)->Is(Range(v, v)).
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       if (type->IsConstant() && IsInteger(*type->AsConstant()->Value())) {
         CHECK(type->Is(T.Range(type->AsConstant()->Value()->Number(),
                                type->AsConstant()->Value()->Number())));
@@ -904,8 +898,8 @@ struct Tests {
     // If Constant(x)->Is(Range(min,max)) then IsInteger(v) and min <= x <= max.
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         if (type1->IsConstant() && type2->IsRange() && type1->Is(type2)) {
           double x = type1->AsConstant()->Value()->Number();
           double min = type2->AsRange()->Min();
@@ -917,13 +911,12 @@ struct Tests {
 
     // Lub(Range(x,y))->Is(T.Union(T.Integral32, T.OtherNumber))
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       if (type->IsRange()) {
-        Type* lub = BitsetType::NewForTesting(BitsetType::Lub(type));
+        AstType* lub = AstBitsetType::NewForTesting(AstBitsetType::Lub(type));
         CHECK(lub->Is(T.PlainNumber));
       }
     }
-
 
     // Subtyping between concrete basic types
 
@@ -1000,31 +993,31 @@ struct Tests {
   void NowIs() {
     // Least Element (Bottom): None->NowIs(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(T.None->NowIs(type));
     }
 
     // Greatest Element (Top): T->NowIs(Any)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(type->NowIs(T.Any));
     }
 
     // Bottom Uniqueness: T->NowIs(None) implies T = None
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       if (type->NowIs(T.None)) CheckEqual(type, T.None);
     }
 
     // Top Uniqueness: Any->NowIs(T) implies T = Any
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       if (T.Any->NowIs(type)) CheckEqual(type, T.Any);
     }
 
     // Reflexivity: T->NowIs(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(type->NowIs(type));
     }
 
@@ -1032,9 +1025,9 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
           CHECK(!(type1->NowIs(type2) && type2->NowIs(type3)) ||
                 type1->NowIs(type3));
         }
@@ -1044,8 +1037,8 @@ struct Tests {
     // Antisymmetry: T1->NowIs(T2) and T2->NowIs(T1) iff T1 = T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         CHECK((type1->NowIs(type2) && type2->NowIs(type1)) ==
               Equal(type1, type2));
       }
@@ -1054,8 +1047,8 @@ struct Tests {
     // T1->Is(T2) implies T1->NowIs(T2)
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         CHECK(!type1->Is(type2) || type1->NowIs(type2));
       }
     }
@@ -1065,8 +1058,8 @@ struct Tests {
       for (ValueIterator vt2 = T.values.begin(); vt2 != T.values.end(); ++vt2) {
         Handle<i::Object> value1 = *vt1;
         Handle<i::Object> value2 = *vt2;
-        Type* const_type1 = T.Constant(value1);
-        Type* const_type2 = T.Constant(value2);
+        AstType* const_type1 = T.Constant(value1);
+        AstType* const_type2 = T.Constant(value2);
         CHECK(const_type1->NowIs(const_type2) == (*value1 == *value2));
       }
     }
@@ -1076,8 +1069,8 @@ struct Tests {
       for (MapIterator mt2 = T.maps.begin(); mt2 != T.maps.end(); ++mt2) {
         Handle<i::Map> map1 = *mt1;
         Handle<i::Map> map2 = *mt2;
-        Type* class_type1 = T.Class(map1);
-        Type* class_type2 = T.Class(map2);
+        AstType* class_type1 = T.Class(map1);
+        AstType* class_type2 = T.Class(map2);
         CHECK(class_type1->NowIs(class_type2) == (*map1 == *map2));
       }
     }
@@ -1087,11 +1080,11 @@ struct Tests {
       for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
         Handle<i::Map> map = *mt;
         Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        Type* class_type = T.Class(map);
+        AstType* const_type = T.Constant(value);
+        AstType* class_type = T.Class(map);
         CHECK((value->IsHeapObject() &&
-               i::HeapObject::cast(*value)->map() == *map)
-              == const_type->NowIs(class_type));
+               i::HeapObject::cast(*value)->map() == *map) ==
+              const_type->NowIs(class_type));
       }
     }
 
@@ -1100,8 +1093,8 @@ struct Tests {
       for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
         Handle<i::Map> map = *mt;
         Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        Type* class_type = T.Class(map);
+        AstType* const_type = T.Constant(value);
+        AstType* class_type = T.Class(map);
         CHECK(!class_type->NowIs(const_type));
       }
     }
@@ -1111,9 +1104,9 @@ struct Tests {
     // T->Contains(V) iff Constant(V)->Is(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Type* type = *it;
+        AstType* type = *it;
         Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
+        AstType* const_type = T.Constant(value);
         CHECK(type->Contains(value) == const_type->Is(type));
       }
     }
@@ -1123,9 +1116,9 @@ struct Tests {
     // T->NowContains(V) iff Constant(V)->NowIs(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Type* type = *it;
+        AstType* type = *it;
         Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
+        AstType* const_type = T.Constant(value);
         CHECK(type->NowContains(value) == const_type->NowIs(type));
       }
     }
@@ -1133,7 +1126,7 @@ struct Tests {
     // T->Contains(V) implies T->NowContains(V)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Type* type = *it;
+        AstType* type = *it;
         Handle<i::Object> value = *vt;
         CHECK(!type->Contains(value) || type->NowContains(value));
       }
@@ -1142,9 +1135,9 @@ struct Tests {
     // NowOf(V)->Is(T) implies T->NowContains(V)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Type* type = *it;
+        AstType* type = *it;
         Handle<i::Object> value = *vt;
-        Type* nowof_type = T.Of(value);
+        AstType* nowof_type = T.Of(value);
         CHECK(!nowof_type->NowIs(type) || type->NowContains(value));
       }
     }
@@ -1153,27 +1146,27 @@ struct Tests {
   void Maybe() {
     // T->Maybe(Any) iff T inhabited
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(type->Maybe(T.Any) == type->IsInhabited());
     }
 
     // T->Maybe(None) never
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(!type->Maybe(T.None));
     }
 
     // Reflexivity upto Inhabitation: T->Maybe(T) iff T inhabited
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
+      AstType* type = *it;
       CHECK(type->Maybe(type) == type->IsInhabited());
     }
 
     // Symmetry: T1->Maybe(T2) iff T2->Maybe(T1)
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         CHECK(type1->Maybe(type2) == type2->Maybe(type1));
       }
     }
@@ -1181,8 +1174,8 @@ struct Tests {
     // T1->Maybe(T2) implies T1, T2 inhabited
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         CHECK(!type1->Maybe(type2) ||
               (type1->IsInhabited() && type2->IsInhabited()));
       }
@@ -1191,9 +1184,9 @@ struct Tests {
     // T1->Maybe(T2) implies Intersect(T1, T2) inhabited
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* intersect12 = T.Intersect(type1, type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* intersect12 = T.Intersect(type1, type2);
         CHECK(!type1->Maybe(type2) || intersect12->IsInhabited());
       }
     }
@@ -1201,8 +1194,8 @@ struct Tests {
     // T1->Is(T2) and T1 inhabited implies T1->Maybe(T2)
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         CHECK(!(type1->Is(type2) && type1->IsInhabited()) ||
               type1->Maybe(type2));
       }
@@ -1213,8 +1206,8 @@ struct Tests {
       for (ValueIterator vt2 = T.values.begin(); vt2 != T.values.end(); ++vt2) {
         Handle<i::Object> value1 = *vt1;
         Handle<i::Object> value2 = *vt2;
-        Type* const_type1 = T.Constant(value1);
-        Type* const_type2 = T.Constant(value2);
+        AstType* const_type1 = T.Constant(value1);
+        AstType* const_type2 = T.Constant(value2);
         CHECK(const_type1->Maybe(const_type2) == (*value1 == *value2));
       }
     }
@@ -1224,8 +1217,8 @@ struct Tests {
       for (MapIterator mt2 = T.maps.begin(); mt2 != T.maps.end(); ++mt2) {
         Handle<i::Map> map1 = *mt1;
         Handle<i::Map> map2 = *mt2;
-        Type* class_type1 = T.Class(map1);
-        Type* class_type2 = T.Class(map2);
+        AstType* class_type1 = T.Class(map1);
+        AstType* class_type2 = T.Class(map2);
         CHECK(class_type1->Maybe(class_type2) == (*map1 == *map2));
       }
     }
@@ -1237,8 +1230,8 @@ struct Tests {
       for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
         Handle<i::Map> map = *mt;
         Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        Type* class_type = T.Class(map);
+        AstType* const_type = T.Constant(value);
+        AstType* class_type = T.Class(map);
         CHECK(!const_type->Maybe(class_type));
       }
     }
@@ -1251,8 +1244,8 @@ struct Tests {
       for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
         Handle<i::Map> map = *mt;
         Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        Type* class_type = T.Class(map);
+        AstType* const_type = T.Constant(value);
+        AstType* class_type = T.Class(map);
         CHECK(!class_type->Maybe(const_type));
       }
     }
@@ -1307,40 +1300,40 @@ struct Tests {
     CheckDisjoint(T.SignedFunction1, T.NumberFunction2);
     CheckDisjoint(T.NumberFunction1, T.NumberFunction2);
     CheckDisjoint(T.SignedFunction1, T.MethodFunction);
-    CheckOverlap(T.ObjectConstant1, T.ObjectClass);  // !!!
-    CheckOverlap(T.ObjectConstant2, T.ObjectClass);  // !!!
+    CheckOverlap(T.ObjectConstant1, T.ObjectClass);                // !!!
+    CheckOverlap(T.ObjectConstant2, T.ObjectClass);                // !!!
     CheckOverlap(T.NumberClass, T.Intersect(T.Number, T.Tagged));  // !!!
   }
 
   void Union1() {
     // Identity: Union(T, None) = T
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      Type* union_type = T.Union(type, T.None);
+      AstType* type = *it;
+      AstType* union_type = T.Union(type, T.None);
       CheckEqual(union_type, type);
     }
 
     // Domination: Union(T, Any) = Any
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      Type* union_type = T.Union(type, T.Any);
+      AstType* type = *it;
+      AstType* union_type = T.Union(type, T.Any);
       CheckEqual(union_type, T.Any);
     }
 
     // Idempotence: Union(T, T) = T
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      Type* union_type = T.Union(type, type);
+      AstType* type = *it;
+      AstType* union_type = T.Union(type, type);
       CheckEqual(union_type, type);
     }
 
     // Commutativity: Union(T1, T2) = Union(T2, T1)
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* union12 = T.Union(type1, type2);
-        Type* union21 = T.Union(type2, type1);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* union12 = T.Union(type1, type2);
+        AstType* union21 = T.Union(type2, type1);
         CheckEqual(union12, union21);
       }
     }
@@ -1353,13 +1346,13 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* union12 = T.Union(type1, type2);
-          Type* union23 = T.Union(type2, type3);
-          Type* union1_23 = T.Union(type1, union23);
-          Type* union12_3 = T.Union(union12, type3);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* union12 = T.Union(type1, type2);
+          AstType* union23 = T.Union(type2, type3);
+          AstType* union1_23 = T.Union(type1, union23);
+          AstType* union12_3 = T.Union(union12, type3);
           CheckEqual(union1_23, union12_3);
         }
       }
@@ -1369,9 +1362,9 @@ struct Tests {
     // Meet: T1->Is(Union(T1, T2)) and T2->Is(Union(T1, T2))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* union12 = T.Union(type1, type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* union12 = T.Union(type1, type2);
         CHECK(type1->Is(union12));
         CHECK(type2->Is(union12));
       }
@@ -1380,9 +1373,9 @@ struct Tests {
     // Upper Boundedness: T1->Is(T2) implies Union(T1, T2) = T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* union12 = T.Union(type1, type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* union12 = T.Union(type1, type2);
         if (type1->Is(type2)) CheckEqual(union12, type2);
       }
     }
@@ -1395,11 +1388,11 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* union13 = T.Union(type1, type3);
-          Type* union23 = T.Union(type2, type3);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* union13 = T.Union(type1, type3);
+          AstType* union23 = T.Union(type2, type3);
           CHECK(!type1->Is(type2) || union13->Is(union23));
         }
       }
@@ -1417,10 +1410,10 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* union12 = T.Union(type1, type2);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* union12 = T.Union(type1, type2);
           CHECK(!(type1->Is(type3) && type2->Is(type3)) || union12->Is(type3));
         }
       }
@@ -1434,10 +1427,10 @@ struct Tests {
       HandleScope scope(isolate);
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = it2; it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* union23 = T.Union(type2, type3);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* union23 = T.Union(type2, type3);
           CHECK(!(type1->Is(type2) || type1->Is(type3)) || type1->Is(union23));
         }
       }
@@ -1454,13 +1447,12 @@ struct Tests {
     // Constant-constant
     CheckSub(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.Object);
     CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant), T.OtherObject);
-    CheckUnordered(
-        T.Union(T.ObjectConstant1, T.ObjectConstant2), T.ObjectClass);
+    CheckUnordered(T.Union(T.ObjectConstant1, T.ObjectConstant2),
+                   T.ObjectClass);
     CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant), T.OtherObject);
-    CheckDisjoint(
-        T.Union(T.ObjectConstant1, T.ArrayConstant), T.Number);
-    CheckOverlap(
-        T.Union(T.ObjectConstant1, T.ArrayConstant), T.ObjectClass);  // !!!
+    CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayConstant), T.Number);
+    CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant),
+                 T.ObjectClass);  // !!!
 
     // Bitset-array
     CHECK(this->IsBitset(T.Union(T.AnyArray, T.Receiver)));
@@ -1490,8 +1482,8 @@ struct Tests {
     CheckDisjoint(T.Union(T.ObjectClass, T.String), T.Number);
 
     // Bitset-constant
-    CheckSub(
-        T.Union(T.ObjectConstant1, T.Signed32), T.Union(T.Object, T.Number));
+    CheckSub(T.Union(T.ObjectConstant1, T.Signed32),
+             T.Union(T.Object, T.Number));
     CheckSub(T.Union(T.ObjectConstant1, T.OtherObject), T.Object);
     CheckUnordered(T.Union(T.ObjectConstant1, T.String), T.OtherObject);
     CheckOverlap(T.Union(T.ObjectConstant1, T.String), T.Object);
@@ -1504,54 +1496,44 @@ struct Tests {
              T.Union(T.Receiver, T.Object));
     CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass), T.ArrayConstant);
     CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectConstant2);
-    CheckOverlap(
-        T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectClass);  // !!!
+    CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayClass),
+                 T.ObjectClass);  // !!!
 
     // Bitset-union
-    CheckSub(
-        T.NaN,
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number));
-    CheckSub(
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Signed32),
-        T.Union(T.ObjectConstant1, T.Union(T.Number, T.ArrayClass)));
+    CheckSub(T.NaN,
+             T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number));
+    CheckSub(T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Signed32),
+             T.Union(T.ObjectConstant1, T.Union(T.Number, T.ArrayClass)));
 
     // Class-union
-    CheckSub(
-        T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)),
-        T.Object);
-    CheckEqual(
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant2), T.ArrayClass),
-        T.Union(T.ArrayClass, T.ObjectConstant2));
+    CheckSub(T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)),
+             T.Object);
+    CheckEqual(T.Union(T.Union(T.ArrayClass, T.ObjectConstant2), T.ArrayClass),
+               T.Union(T.ArrayClass, T.ObjectConstant2));
 
     // Constant-union
+    CheckEqual(T.Union(T.ObjectConstant1,
+                       T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+               T.Union(T.ObjectConstant2, T.ObjectConstant1));
     CheckEqual(
-        T.Union(
-            T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2)),
-        T.Union(T.ObjectConstant2, T.ObjectConstant1));
-    CheckEqual(
-        T.Union(
-            T.Union(T.ArrayConstant, T.ObjectConstant2), T.ObjectConstant1),
-        T.Union(
-            T.ObjectConstant2, T.Union(T.ArrayConstant, T.ObjectConstant1)));
+        T.Union(T.Union(T.ArrayConstant, T.ObjectConstant2), T.ObjectConstant1),
+        T.Union(T.ObjectConstant2,
+                T.Union(T.ArrayConstant, T.ObjectConstant1)));
 
     // Array-union
-    CheckEqual(
-        T.Union(T.AnyArray, T.Union(T.NumberArray, T.AnyArray)),
-        T.Union(T.AnyArray, T.NumberArray));
+    CheckEqual(T.Union(T.AnyArray, T.Union(T.NumberArray, T.AnyArray)),
+               T.Union(T.AnyArray, T.NumberArray));
     CheckSub(T.Union(T.AnyArray, T.NumberArray), T.OtherObject);
 
     // Function-union
-    CheckEqual(
-        T.Union(T.NumberFunction1, T.NumberFunction2),
-        T.Union(T.NumberFunction2, T.NumberFunction1));
+    CheckEqual(T.Union(T.NumberFunction1, T.NumberFunction2),
+               T.Union(T.NumberFunction2, T.NumberFunction1));
     CheckSub(T.Union(T.SignedFunction1, T.MethodFunction), T.Object);
 
     // Union-union
-    CheckEqual(
-        T.Union(
-            T.Union(T.ObjectConstant2, T.ObjectConstant1),
-            T.Union(T.ObjectConstant1, T.ObjectConstant2)),
-        T.Union(T.ObjectConstant2, T.ObjectConstant1));
+    CheckEqual(T.Union(T.Union(T.ObjectConstant2, T.ObjectConstant1),
+                       T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+               T.Union(T.ObjectConstant2, T.ObjectConstant1));
     CheckEqual(T.Union(T.Union(T.Number, T.ArrayClass),
                        T.Union(T.SignedSmall, T.Receiver)),
                T.Union(T.Number, T.Receiver));
@@ -1560,32 +1542,32 @@ struct Tests {
   void Intersect() {
     // Identity: Intersect(T, Any) = T
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      Type* intersect_type = T.Intersect(type, T.Any);
+      AstType* type = *it;
+      AstType* intersect_type = T.Intersect(type, T.Any);
       CheckEqual(intersect_type, type);
     }
 
     // Domination: Intersect(T, None) = None
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      Type* intersect_type = T.Intersect(type, T.None);
+      AstType* type = *it;
+      AstType* intersect_type = T.Intersect(type, T.None);
       CheckEqual(intersect_type, T.None);
     }
 
     // Idempotence: Intersect(T, T) = T
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      Type* intersect_type = T.Intersect(type, type);
+      AstType* type = *it;
+      AstType* intersect_type = T.Intersect(type, type);
       CheckEqual(intersect_type, type);
     }
 
     // Commutativity: Intersect(T1, T2) = Intersect(T2, T1)
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* intersect12 = T.Intersect(type1, type2);
-        Type* intersect21 = T.Intersect(type2, type1);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* intersect12 = T.Intersect(type1, type2);
+        AstType* intersect21 = T.Intersect(type2, type1);
         CheckEqual(intersect12, intersect21);
       }
     }
@@ -1601,13 +1583,13 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* intersect12 = T.Intersect(type1, type2);
-          Type* intersect23 = T.Intersect(type2, type3);
-          Type* intersect1_23 = T.Intersect(type1, intersect23);
-          Type* intersect12_3 = T.Intersect(intersect12, type3);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* intersect12 = T.Intersect(type1, type2);
+          AstType* intersect23 = T.Intersect(type2, type3);
+          AstType* intersect1_23 = T.Intersect(type1, intersect23);
+          AstType* intersect12_3 = T.Intersect(intersect12, type3);
           CheckEqual(intersect1_23, intersect12_3);
         }
       }
@@ -1623,9 +1605,9 @@ struct Tests {
     /*
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* intersect12 = T.Intersect(type1, type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* intersect12 = T.Intersect(type1, type2);
         CHECK(intersect12->Is(type1));
         CHECK(intersect12->Is(type2));
       }
@@ -1635,9 +1617,9 @@ struct Tests {
     // Lower Boundedness: T1->Is(T2) implies Intersect(T1, T2) = T1
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* intersect12 = T.Intersect(type1, type2);
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        AstType* intersect12 = T.Intersect(type1, type2);
         if (type1->Is(type2)) CheckEqual(intersect12, type1);
       }
     }
@@ -1651,11 +1633,11 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* intersect13 = T.Intersect(type1, type3);
-          Type* intersect23 = T.Intersect(type2, type3);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* intersect13 = T.Intersect(type1, type3);
+          AstType* intersect23 = T.Intersect(type2, type3);
           CHECK(!type1->Is(type2) || intersect13->Is(intersect23));
         }
       }
@@ -1671,10 +1653,10 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* intersect12 = T.Intersect(type1, type2);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* intersect12 = T.Intersect(type1, type2);
           CHECK(!(type1->Is(type3) || type2->Is(type3)) ||
                 intersect12->Is(type3));
         }
@@ -1687,10 +1669,10 @@ struct Tests {
       HandleScope scope(isolate);
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* intersect23 = T.Intersect(type2, type3);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* intersect23 = T.Intersect(type2, type3);
           CHECK(!(type1->Is(type2) && type1->Is(type3)) ||
                 type1->Is(intersect23));
         }
@@ -1710,9 +1692,8 @@ struct Tests {
     CheckEqual(T.Semantic(T.Intersect(T.NumberFunction1, T.Proxy)), T.None);
 
     // Bitset-union
-    CheckEqual(
-        T.Intersect(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass)),
-        T.Union(T.ObjectConstant1, T.ObjectClass));
+    CheckEqual(T.Intersect(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass)),
+               T.Union(T.ObjectConstant1, T.ObjectClass));
     CheckEqual(T.Semantic(T.Intersect(T.Union(T.ArrayClass, T.ObjectConstant1),
                                       T.Number)),
                T.None);
@@ -1722,50 +1703,40 @@ struct Tests {
     CHECK(T.Intersect(T.ArrayClass, T.ObjectConstant2)->IsInhabited());
 
     // Array-union
-    CheckEqual(
-        T.Intersect(T.NumberArray, T.Union(T.NumberArray, T.ArrayClass)),
-        T.NumberArray);
-    CheckEqual(
-        T.Intersect(T.AnyArray, T.Union(T.Object, T.SmiConstant)),
-        T.AnyArray);
-    CHECK(
-        !T.Intersect(T.Union(T.AnyArray, T.ArrayConstant), T.NumberArray)
-            ->IsInhabited());
+    CheckEqual(T.Intersect(T.NumberArray, T.Union(T.NumberArray, T.ArrayClass)),
+               T.NumberArray);
+    CheckEqual(T.Intersect(T.AnyArray, T.Union(T.Object, T.SmiConstant)),
+               T.AnyArray);
+    CHECK(!T.Intersect(T.Union(T.AnyArray, T.ArrayConstant), T.NumberArray)
+               ->IsInhabited());
 
     // Function-union
     CheckEqual(
         T.Intersect(T.MethodFunction, T.Union(T.String, T.MethodFunction)),
         T.MethodFunction);
-    CheckEqual(
-        T.Intersect(T.NumberFunction1, T.Union(T.Object, T.SmiConstant)),
-        T.NumberFunction1);
-    CHECK(
-        !T.Intersect(T.Union(T.MethodFunction, T.Name), T.NumberFunction2)
-            ->IsInhabited());
+    CheckEqual(T.Intersect(T.NumberFunction1, T.Union(T.Object, T.SmiConstant)),
+               T.NumberFunction1);
+    CHECK(!T.Intersect(T.Union(T.MethodFunction, T.Name), T.NumberFunction2)
+               ->IsInhabited());
 
     // Class-union
     CheckEqual(
         T.Intersect(T.ArrayClass, T.Union(T.ObjectConstant2, T.ArrayClass)),
         T.ArrayClass);
-    CheckEqual(
-        T.Intersect(T.ArrayClass, T.Union(T.Object, T.SmiConstant)),
-        T.ArrayClass);
-    CHECK(
-        T.Intersect(T.Union(T.ObjectClass, T.ArrayConstant), T.ArrayClass)
-            ->IsInhabited());  // !!!
+    CheckEqual(T.Intersect(T.ArrayClass, T.Union(T.Object, T.SmiConstant)),
+               T.ArrayClass);
+    CHECK(T.Intersect(T.Union(T.ObjectClass, T.ArrayConstant), T.ArrayClass)
+              ->IsInhabited());  // !!!
 
     // Constant-union
-    CheckEqual(
-        T.Intersect(
-            T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2)),
-        T.ObjectConstant1);
-    CheckEqual(
-        T.Intersect(T.SmiConstant, T.Union(T.Number, T.ObjectConstant2)),
-        T.SmiConstant);
+    CheckEqual(T.Intersect(T.ObjectConstant1,
+                           T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+               T.ObjectConstant1);
+    CheckEqual(T.Intersect(T.SmiConstant, T.Union(T.Number, T.ObjectConstant2)),
+               T.SmiConstant);
     CHECK(
-        T.Intersect(
-            T.Union(T.ArrayConstant, T.ObjectClass), T.ObjectConstant1)
-                ->IsInhabited());  // !!!
+        T.Intersect(T.Union(T.ArrayConstant, T.ObjectClass), T.ObjectConstant1)
+            ->IsInhabited());  // !!!
 
     // Union-union
     CheckEqual(T.Intersect(T.Union(T.Number, T.ArrayClass),
@@ -1774,22 +1745,16 @@ struct Tests {
     CheckEqual(T.Intersect(T.Union(T.Number, T.ObjectClass),
                            T.Union(T.Signed32, T.OtherObject)),
                T.Union(T.Signed32, T.ObjectClass));
+    CheckEqual(T.Intersect(T.Union(T.ObjectConstant2, T.ObjectConstant1),
+                           T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+               T.Union(T.ObjectConstant2, T.ObjectConstant1));
     CheckEqual(
-        T.Intersect(
-            T.Union(T.ObjectConstant2, T.ObjectConstant1),
-            T.Union(T.ObjectConstant1, T.ObjectConstant2)),
-        T.Union(T.ObjectConstant2, T.ObjectConstant1));
-    CheckEqual(
-        T.Intersect(
-            T.Union(
-                T.ArrayClass,
-                T.Union(T.ObjectConstant2, T.ObjectConstant1)),
-            T.Union(
-                T.ObjectConstant1,
-                T.Union(T.ArrayConstant, T.ObjectConstant2))),
-        T.Union(
-            T.ArrayConstant,
-            T.Union(T.ObjectConstant2, T.ObjectConstant1)));  // !!!
+        T.Intersect(T.Union(T.ArrayClass,
+                            T.Union(T.ObjectConstant2, T.ObjectConstant1)),
+                    T.Union(T.ObjectConstant1,
+                            T.Union(T.ArrayConstant, T.ObjectConstant2))),
+        T.Union(T.ArrayConstant,
+                T.Union(T.ObjectConstant2, T.ObjectConstant1)));  // !!!
   }
 
   void Distributivity() {
@@ -1803,14 +1768,14 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* union12 = T.Union(type1, type2);
-          Type* union13 = T.Union(type1, type3);
-          Type* intersect23 = T.Intersect(type2, type3);
-          Type* union1_23 = T.Union(type1, intersect23);
-          Type* intersect12_13 = T.Intersect(union12, union13);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* union12 = T.Union(type1, type2);
+          AstType* union13 = T.Union(type1, type3);
+          AstType* intersect23 = T.Intersect(type2, type3);
+          AstType* union1_23 = T.Union(type1, intersect23);
+          AstType* intersect12_13 = T.Intersect(union12, union13);
           CHECK(Equal(union1_23, intersect12_13));
         }
       }
@@ -1826,14 +1791,14 @@ struct Tests {
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* intersect12 = T.Intersect(type1, type2);
-          Type* intersect13 = T.Intersect(type1, type3);
-          Type* union23 = T.Union(type2, type3);
-          Type* intersect1_23 = T.Intersect(type1, union23);
-          Type* union12_13 = T.Union(intersect12, intersect13);
+          AstType* type1 = *it1;
+          AstType* type2 = *it2;
+          AstType* type3 = *it3;
+          AstType* intersect12 = T.Intersect(type1, type2);
+          AstType* intersect13 = T.Intersect(type1, type3);
+          AstType* union23 = T.Union(type2, type3);
+          AstType* intersect1_23 = T.Intersect(type1, union23);
+          AstType* union12_13 = T.Union(intersect12, intersect13);
           CHECK(Equal(intersect1_23, union12_13));
         }
       }
@@ -1844,9 +1809,9 @@ struct Tests {
   void GetRange() {
     // GetRange(Range(a, b)) = Range(a, b).
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      Type* type1 = *it1;
+      AstType* type1 = *it1;
       if (type1->IsRange()) {
-        RangeType* range = type1->GetRange()->AsRange();
+        AstRangeType* range = type1->GetRange()->AsRange();
         CHECK(type1->Min() == range->Min());
         CHECK(type1->Max() == range->Max());
       }
@@ -1855,10 +1820,10 @@ struct Tests {
     // GetRange(Union(Constant(x), Range(min,max))) == Range(min, max).
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
         if (type1->IsConstant() && type2->IsRange()) {
-          Type* u = T.Union(type1, type2);
+          AstType* u = T.Union(type1, type2);
 
           CHECK(type2->Min() == u->GetRange()->Min());
           CHECK(type2->Max() == u->GetRange()->Max());
@@ -1866,56 +1831,70 @@ struct Tests {
       }
     }
   }
+
+  void HTypeFromType() {
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        AstType* type1 = *it1;
+        AstType* type2 = *it2;
+        HType htype1 = HType::FromType(type1);
+        HType htype2 = HType::FromType(type2);
+        CHECK(!type1->Is(type2) || htype1.IsSubtypeOf(htype2));
+      }
+    }
+  }
 };
 
-TEST(IsSomeType_zone) { Tests().IsSomeType(); }
+TEST(AstIsSomeType_zone) { Tests().IsSomeType(); }
 
-TEST(PointwiseRepresentation_zone) { Tests().PointwiseRepresentation(); }
+TEST(AstPointwiseRepresentation_zone) { Tests().PointwiseRepresentation(); }
 
-TEST(BitsetType_zone) { Tests().Bitset(); }
+TEST(AstBitsetType_zone) { Tests().Bitset(); }
 
-TEST(ClassType_zone) { Tests().Class(); }
+TEST(AstClassType_zone) { Tests().Class(); }
 
-TEST(ConstantType_zone) { Tests().Constant(); }
+TEST(AstConstantType_zone) { Tests().Constant(); }
 
-TEST(RangeType_zone) { Tests().Range(); }
+TEST(AstRangeType_zone) { Tests().Range(); }
 
-TEST(ArrayType_zone) { Tests().Array(); }
+TEST(AstArrayType_zone) { Tests().Array(); }
 
-TEST(FunctionType_zone) { Tests().Function(); }
+TEST(AstFunctionType_zone) { Tests().Function(); }
 
-TEST(Of_zone) { Tests().Of(); }
+TEST(AstOf_zone) { Tests().Of(); }
 
-TEST(NowOf_zone) { Tests().NowOf(); }
+TEST(AstNowOf_zone) { Tests().NowOf(); }
 
-TEST(MinMax_zone) { Tests().MinMax(); }
+TEST(AstMinMax_zone) { Tests().MinMax(); }
 
-TEST(BitsetGlb_zone) { Tests().BitsetGlb(); }
+TEST(AstBitsetGlb_zone) { Tests().BitsetGlb(); }
 
-TEST(BitsetLub_zone) { Tests().BitsetLub(); }
+TEST(AstBitsetLub_zone) { Tests().BitsetLub(); }
 
-TEST(Is1_zone) { Tests().Is1(); }
+TEST(AstIs1_zone) { Tests().Is1(); }
 
-TEST(Is2_zone) { Tests().Is2(); }
+TEST(AstIs2_zone) { Tests().Is2(); }
 
-TEST(NowIs_zone) { Tests().NowIs(); }
+TEST(AstNowIs_zone) { Tests().NowIs(); }
 
-TEST(Contains_zone) { Tests().Contains(); }
+TEST(AstContains_zone) { Tests().Contains(); }
 
-TEST(NowContains_zone) { Tests().NowContains(); }
+TEST(AstNowContains_zone) { Tests().NowContains(); }
 
-TEST(Maybe_zone) { Tests().Maybe(); }
+TEST(AstMaybe_zone) { Tests().Maybe(); }
 
-TEST(Union1_zone) { Tests().Union1(); }
+TEST(AstUnion1_zone) { Tests().Union1(); }
 
-TEST(Union2_zone) { Tests().Union2(); }
+TEST(AstUnion2_zone) { Tests().Union2(); }
 
-TEST(Union3_zone) { Tests().Union3(); }
+TEST(AstUnion3_zone) { Tests().Union3(); }
 
-TEST(Union4_zone) { Tests().Union4(); }
+TEST(AstUnion4_zone) { Tests().Union4(); }
 
-TEST(Intersect_zone) { Tests().Intersect(); }
+TEST(AstIntersect_zone) { Tests().Intersect(); }
 
-TEST(Distributivity_zone) { Tests().Distributivity(); }
+TEST(AstDistributivity_zone) { Tests().Distributivity(); }
 
-TEST(GetRange_zone) { Tests().GetRange(); }
+TEST(AstGetRange_zone) { Tests().GetRange(); }
+
+TEST(AstHTypeFromType_zone) { Tests().HTypeFromType(); }

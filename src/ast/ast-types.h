@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TYPES_H_
-#define V8_TYPES_H_
+#ifndef V8_AST_AST_TYPES_H_
+#define V8_AST_AST_TYPES_H_
 
 #include "src/conversions.h"
 #include "src/handles.h"
@@ -144,20 +144,19 @@ namespace internal {
 // respective map. Only structured types require allocation.
 // Note that the bitset representation is closed under both Union and Intersect.
 
-
 // -----------------------------------------------------------------------------
 // Values for bitset types
 
 // clang-format off
 
-#define MASK_BITSET_TYPE_LIST(V) \
+#define AST_MASK_BITSET_TYPE_LIST(V) \
   V(Representation, 0xffc00000u) \
   V(Semantic,       0x003ffffeu)
 
-#define REPRESENTATION(k) ((k) & BitsetType::kRepresentation)
-#define SEMANTIC(k)       ((k) & BitsetType::kSemantic)
+#define AST_REPRESENTATION(k) ((k) & AstBitsetType::kRepresentation)
+#define AST_SEMANTIC(k)       ((k) & AstBitsetType::kSemantic)
 
-#define REPRESENTATION_BITSET_TYPE_LIST(V)    \
+#define AST_REPRESENTATION_BITSET_TYPE_LIST(V)    \
   V(None,               0)                    \
   V(UntaggedBit,        1u << 22 | kSemantic) \
   V(UntaggedIntegral8,  1u << 23 | kSemantic) \
@@ -177,33 +176,39 @@ namespace internal {
   V(Untagged,           kUntaggedNumber | kUntaggedPointer)        \
   V(Tagged,             kTaggedSigned | kTaggedPointer)
 
-#define INTERNAL_BITSET_TYPE_LIST(V)                                      \
-  V(OtherUnsigned31, 1u << 1 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherUnsigned32, 1u << 2 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherSigned32,   1u << 3 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherNumber,     1u << 4 | REPRESENTATION(kTagged | kUntaggedNumber))
+#define AST_INTERNAL_BITSET_TYPE_LIST(V)                                      \
+  V(OtherUnsigned31, 1u << 1 | AST_REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherUnsigned32, 1u << 2 | AST_REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherSigned32,   1u << 3 | AST_REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherNumber,     1u << 4 | AST_REPRESENTATION(kTagged | kUntaggedNumber))
 
-#define SEMANTIC_BITSET_TYPE_LIST(V) \
-  V(Negative31,          1u << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(Null,                1u << 6  | REPRESENTATION(kTaggedPointer)) \
-  V(Undefined,           1u << 7  | REPRESENTATION(kTaggedPointer)) \
-  V(Boolean,             1u << 8  | REPRESENTATION(kTaggedPointer)) \
-  V(Unsigned30,          1u << 9  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(MinusZero,           1u << 10 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(NaN,                 1u << 11 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(Symbol,              1u << 12 | REPRESENTATION(kTaggedPointer)) \
-  V(InternalizedString,  1u << 13 | REPRESENTATION(kTaggedPointer)) \
-  V(OtherString,         1u << 14 | REPRESENTATION(kTaggedPointer)) \
-  V(Simd,                1u << 15 | REPRESENTATION(kTaggedPointer)) \
-  V(OtherObject,         1u << 17 | REPRESENTATION(kTaggedPointer)) \
-  V(OtherUndetectable,   1u << 16 | REPRESENTATION(kTaggedPointer)) \
-  V(Proxy,               1u << 18 | REPRESENTATION(kTaggedPointer)) \
-  V(Function,            1u << 19 | REPRESENTATION(kTaggedPointer)) \
-  V(Hole,                1u << 20 | REPRESENTATION(kTaggedPointer)) \
-  V(OtherInternal,       1u << 21 | REPRESENTATION(kTagged | kUntagged)) \
+#define AST_SEMANTIC_BITSET_TYPE_LIST(V)                                \
+  V(Negative31,          1u << 5  |                                     \
+                         AST_REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Null,                1u << 6  | AST_REPRESENTATION(kTaggedPointer)) \
+  V(Undefined,           1u << 7  | AST_REPRESENTATION(kTaggedPointer)) \
+  V(Boolean,             1u << 8  | AST_REPRESENTATION(kTaggedPointer)) \
+  V(Unsigned30,          1u << 9  |                                     \
+                         AST_REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(MinusZero,           1u << 10 |                                     \
+                         AST_REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(NaN,                 1u << 11 |                                     \
+                         AST_REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Symbol,              1u << 12 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(InternalizedString,  1u << 13 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(OtherString,         1u << 14 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(Simd,                1u << 15 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(OtherObject,         1u << 17 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(OtherUndetectable,   1u << 16 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(Proxy,               1u << 18 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(Function,            1u << 19 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(Hole,                1u << 20 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(OtherInternal,       1u << 21 |                                     \
+                         AST_REPRESENTATION(kTagged | kUntagged))       \
   \
   V(Signed31,                   kUnsigned30 | kNegative31) \
-  V(Signed32,                   kSigned31 | kOtherUnsigned31 | kOtherSigned32) \
+  V(Signed32,                   kSigned31 | kOtherUnsigned31 |          \
+                                kOtherSigned32)                         \
   V(Signed32OrMinusZero,        kSigned32 | kMinusZero) \
   V(Signed32OrMinusZeroOrNaN,   kSigned32 | kMinusZero | kNaN) \
   V(Negative32,                 kNegative31 | kOtherSigned32) \
@@ -261,28 +266,28 @@ namespace internal {
  * occur as part of PlainNumber.
  */
 
-#define PROPER_BITSET_TYPE_LIST(V) \
-  REPRESENTATION_BITSET_TYPE_LIST(V) \
-  SEMANTIC_BITSET_TYPE_LIST(V)
+#define AST_PROPER_BITSET_TYPE_LIST(V)   \
+  AST_REPRESENTATION_BITSET_TYPE_LIST(V) \
+  AST_SEMANTIC_BITSET_TYPE_LIST(V)
 
-#define BITSET_TYPE_LIST(V)          \
-  MASK_BITSET_TYPE_LIST(V)           \
-  REPRESENTATION_BITSET_TYPE_LIST(V) \
-  INTERNAL_BITSET_TYPE_LIST(V)       \
-  SEMANTIC_BITSET_TYPE_LIST(V)
+#define AST_BITSET_TYPE_LIST(V)          \
+  AST_MASK_BITSET_TYPE_LIST(V)           \
+  AST_REPRESENTATION_BITSET_TYPE_LIST(V) \
+  AST_INTERNAL_BITSET_TYPE_LIST(V)       \
+  AST_SEMANTIC_BITSET_TYPE_LIST(V)
 
-class Type;
+class AstType;
 
 // -----------------------------------------------------------------------------
 // Bitset types (internal).
 
-class BitsetType {
+class AstBitsetType {
  public:
   typedef uint32_t bitset;  // Internal
 
   enum : uint32_t {
 #define DECLARE_TYPE(type, value) k##type = (value),
-    BITSET_TYPE_LIST(DECLARE_TYPE)
+    AST_BITSET_TYPE_LIST(DECLARE_TYPE)
 #undef DECLARE_TYPE
         kUnusedEOL = 0
   };
@@ -295,11 +300,11 @@ class BitsetType {
   }
 
   static bool IsInhabited(bitset bits) {
-    return SEMANTIC(bits) != kNone && REPRESENTATION(bits) != kNone;
+    return AST_SEMANTIC(bits) != kNone && AST_REPRESENTATION(bits) != kNone;
   }
 
   static bool SemanticIsInhabited(bitset bits) {
-    return SEMANTIC(bits) != kNone;
+    return AST_SEMANTIC(bits) != kNone;
   }
 
   static bool Is(bitset bits1, bitset bits2) {
@@ -309,9 +314,9 @@ class BitsetType {
   static double Min(bitset);
   static double Max(bitset);
 
-  static bitset Glb(Type* type);  // greatest lower bound that's a bitset
+  static bitset Glb(AstType* type);  // greatest lower bound that's a bitset
   static bitset Glb(double min, double max);
-  static bitset Lub(Type* type);  // least upper bound that's a bitset
+  static bitset Lub(AstType* type);  // least upper bound that's a bitset
   static bitset Lub(i::Map* map);
   static bitset Lub(i::Object* value);
   static bitset Lub(double value);
@@ -326,17 +331,17 @@ class BitsetType {
 
   static bitset NumberBits(bitset bits);
 
-  static bool IsBitset(Type* type) {
+  static bool IsBitset(AstType* type) {
     return reinterpret_cast<uintptr_t>(type) & 1;
   }
 
-  static Type* NewForTesting(bitset bits) { return New(bits); }
+  static AstType* NewForTesting(bitset bits) { return New(bits); }
 
  private:
-  friend class Type;
+  friend class AstType;
 
-  static Type* New(bitset bits) {
-    return reinterpret_cast<Type*>(static_cast<uintptr_t>(bits | 1u));
+  static AstType* New(bitset bits) {
+    return reinterpret_cast<AstType*>(static_cast<uintptr_t>(bits | 1u));
   }
 
   struct Boundary {
@@ -351,9 +356,9 @@ class BitsetType {
 
 // -----------------------------------------------------------------------------
 // Superclass for non-bitset types (internal).
-class TypeBase {
+class AstTypeBase {
  protected:
-  friend class Type;
+  friend class AstType;
 
   enum Kind {
     kClass,
@@ -367,18 +372,20 @@ class TypeBase {
   };
 
   Kind kind() const { return kind_; }
-  explicit TypeBase(Kind kind) : kind_(kind) {}
+  explicit AstTypeBase(Kind kind) : kind_(kind) {}
 
-  static bool IsKind(Type* type, Kind kind) {
-    if (BitsetType::IsBitset(type)) return false;
-    TypeBase* base = reinterpret_cast<TypeBase*>(type);
+  static bool IsKind(AstType* type, Kind kind) {
+    if (AstBitsetType::IsBitset(type)) return false;
+    AstTypeBase* base = reinterpret_cast<AstTypeBase*>(type);
     return base->kind() == kind;
   }
 
-  // The hacky conversion to/from Type*.
-  static Type* AsType(TypeBase* type) { return reinterpret_cast<Type*>(type); }
-  static TypeBase* FromType(Type* type) {
-    return reinterpret_cast<TypeBase*>(type);
+  // The hacky conversion to/from AstType*.
+  static AstType* AsType(AstTypeBase* type) {
+    return reinterpret_cast<AstType*>(type);
+  }
+  static AstTypeBase* FromType(AstType* type) {
+    return reinterpret_cast<AstTypeBase*>(type);
   }
 
  private:
@@ -388,61 +395,61 @@ class TypeBase {
 // -----------------------------------------------------------------------------
 // Class types.
 
-class ClassType : public TypeBase {
+class AstClassType : public AstTypeBase {
  public:
   i::Handle<i::Map> Map() { return map_; }
 
  private:
-  friend class Type;
-  friend class BitsetType;
+  friend class AstType;
+  friend class AstBitsetType;
 
-  static Type* New(i::Handle<i::Map> map, Zone* zone) {
-    return AsType(new (zone->New(sizeof(ClassType)))
-                      ClassType(BitsetType::Lub(*map), map));
+  static AstType* New(i::Handle<i::Map> map, Zone* zone) {
+    return AsType(new (zone->New(sizeof(AstClassType)))
+                      AstClassType(AstBitsetType::Lub(*map), map));
   }
 
-  static ClassType* cast(Type* type) {
+  static AstClassType* cast(AstType* type) {
     DCHECK(IsKind(type, kClass));
-    return static_cast<ClassType*>(FromType(type));
+    return static_cast<AstClassType*>(FromType(type));
   }
 
-  ClassType(BitsetType::bitset bitset, i::Handle<i::Map> map)
-      : TypeBase(kClass), bitset_(bitset), map_(map) {}
+  AstClassType(AstBitsetType::bitset bitset, i::Handle<i::Map> map)
+      : AstTypeBase(kClass), bitset_(bitset), map_(map) {}
 
-  BitsetType::bitset Lub() { return bitset_; }
+  AstBitsetType::bitset Lub() { return bitset_; }
 
-  BitsetType::bitset bitset_;
+  AstBitsetType::bitset bitset_;
   Handle<i::Map> map_;
 };
 
 // -----------------------------------------------------------------------------
 // Constant types.
 
-class ConstantType : public TypeBase {
+class AstConstantType : public AstTypeBase {
  public:
   i::Handle<i::Object> Value() { return object_; }
 
  private:
-  friend class Type;
-  friend class BitsetType;
+  friend class AstType;
+  friend class AstBitsetType;
 
-  static Type* New(i::Handle<i::Object> value, Zone* zone) {
-    BitsetType::bitset bitset = BitsetType::Lub(*value);
-    return AsType(new (zone->New(sizeof(ConstantType)))
-                      ConstantType(bitset, value));
+  static AstType* New(i::Handle<i::Object> value, Zone* zone) {
+    AstBitsetType::bitset bitset = AstBitsetType::Lub(*value);
+    return AsType(new (zone->New(sizeof(AstConstantType)))
+                      AstConstantType(bitset, value));
   }
 
-  static ConstantType* cast(Type* type) {
+  static AstConstantType* cast(AstType* type) {
     DCHECK(IsKind(type, kConstant));
-    return static_cast<ConstantType*>(FromType(type));
+    return static_cast<AstConstantType*>(FromType(type));
   }
 
-  ConstantType(BitsetType::bitset bitset, i::Handle<i::Object> object)
-      : TypeBase(kConstant), bitset_(bitset), object_(object) {}
+  AstConstantType(AstBitsetType::bitset bitset, i::Handle<i::Object> object)
+      : AstTypeBase(kConstant), bitset_(bitset), object_(object) {}
 
-  BitsetType::bitset Lub() { return bitset_; }
+  AstBitsetType::bitset Lub() { return bitset_; }
 
-  BitsetType::bitset bitset_;
+  AstBitsetType::bitset bitset_;
   Handle<i::Object> object_;
 };
 // TODO(neis): Also cache value if numerical.
@@ -451,13 +458,14 @@ class ConstantType : public TypeBase {
 // -----------------------------------------------------------------------------
 // Range types.
 
-class RangeType : public TypeBase {
+class AstRangeType : public AstTypeBase {
  public:
   struct Limits {
     double min;
     double max;
     Limits(double min, double max) : min(min), max(max) {}
-    explicit Limits(RangeType* range) : min(range->Min()), max(range->Max()) {}
+    explicit Limits(AstRangeType* range)
+        : min(range->Min()), max(range->Max()) {}
     bool IsEmpty();
     static Limits Empty() { return Limits(1, 0); }
     static Limits Intersect(Limits lhs, Limits rhs);
@@ -468,12 +476,12 @@ class RangeType : public TypeBase {
   double Max() { return limits_.max; }
 
  private:
-  friend class Type;
-  friend class BitsetType;
-  friend class UnionType;
+  friend class AstType;
+  friend class AstBitsetType;
+  friend class AstUnionType;
 
-  static Type* New(double min, double max, BitsetType::bitset representation,
-                   Zone* zone) {
+  static AstType* New(double min, double max,
+                      AstBitsetType::bitset representation, Zone* zone) {
     return New(Limits(min, max), representation, zone);
   }
 
@@ -481,95 +489,100 @@ class RangeType : public TypeBase {
     return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
   }
 
-  static Type* New(Limits lim, BitsetType::bitset representation, Zone* zone) {
+  static AstType* New(Limits lim, AstBitsetType::bitset representation,
+                      Zone* zone) {
     DCHECK(IsInteger(lim.min) && IsInteger(lim.max));
     DCHECK(lim.min <= lim.max);
-    DCHECK(REPRESENTATION(representation) == representation);
-    BitsetType::bitset bits =
-        SEMANTIC(BitsetType::Lub(lim.min, lim.max)) | representation;
+    DCHECK(AST_REPRESENTATION(representation) == representation);
+    AstBitsetType::bitset bits =
+        AST_SEMANTIC(AstBitsetType::Lub(lim.min, lim.max)) | representation;
 
-    return AsType(new (zone->New(sizeof(RangeType))) RangeType(bits, lim));
+    return AsType(new (zone->New(sizeof(AstRangeType)))
+                      AstRangeType(bits, lim));
   }
 
-  static RangeType* cast(Type* type) {
+  static AstRangeType* cast(AstType* type) {
     DCHECK(IsKind(type, kRange));
-    return static_cast<RangeType*>(FromType(type));
+    return static_cast<AstRangeType*>(FromType(type));
   }
 
-  RangeType(BitsetType::bitset bitset, Limits limits)
-      : TypeBase(kRange), bitset_(bitset), limits_(limits) {}
+  AstRangeType(AstBitsetType::bitset bitset, Limits limits)
+      : AstTypeBase(kRange), bitset_(bitset), limits_(limits) {}
 
-  BitsetType::bitset Lub() { return bitset_; }
+  AstBitsetType::bitset Lub() { return bitset_; }
 
-  BitsetType::bitset bitset_;
+  AstBitsetType::bitset bitset_;
   Limits limits_;
 };
 
 // -----------------------------------------------------------------------------
 // Context types.
 
-class ContextType : public TypeBase {
+class AstContextType : public AstTypeBase {
  public:
-  Type* Outer() { return outer_; }
+  AstType* Outer() { return outer_; }
 
  private:
-  friend class Type;
+  friend class AstType;
 
-  static Type* New(Type* outer, Zone* zone) {
-    return AsType(new (zone->New(sizeof(ContextType))) ContextType(outer));
+  static AstType* New(AstType* outer, Zone* zone) {
+    return AsType(new (zone->New(sizeof(AstContextType)))
+                      AstContextType(outer));  // NOLINT
   }
 
-  static ContextType* cast(Type* type) {
+  static AstContextType* cast(AstType* type) {
     DCHECK(IsKind(type, kContext));
-    return static_cast<ContextType*>(FromType(type));
+    return static_cast<AstContextType*>(FromType(type));
   }
 
-  explicit ContextType(Type* outer) : TypeBase(kContext), outer_(outer) {}
+  explicit AstContextType(AstType* outer)
+      : AstTypeBase(kContext), outer_(outer) {}
 
-  Type* outer_;
+  AstType* outer_;
 };
 
 // -----------------------------------------------------------------------------
 // Array types.
 
-class ArrayType : public TypeBase {
+class AstArrayType : public AstTypeBase {
  public:
-  Type* Element() { return element_; }
+  AstType* Element() { return element_; }
 
  private:
-  friend class Type;
+  friend class AstType;
 
-  explicit ArrayType(Type* element) : TypeBase(kArray), element_(element) {}
+  explicit AstArrayType(AstType* element)
+      : AstTypeBase(kArray), element_(element) {}
 
-  static Type* New(Type* element, Zone* zone) {
-    return AsType(new (zone->New(sizeof(ArrayType))) ArrayType(element));
+  static AstType* New(AstType* element, Zone* zone) {
+    return AsType(new (zone->New(sizeof(AstArrayType))) AstArrayType(element));
   }
 
-  static ArrayType* cast(Type* type) {
+  static AstArrayType* cast(AstType* type) {
     DCHECK(IsKind(type, kArray));
-    return static_cast<ArrayType*>(FromType(type));
+    return static_cast<AstArrayType*>(FromType(type));
   }
 
-  Type* element_;
+  AstType* element_;
 };
 
 // -----------------------------------------------------------------------------
 // Superclass for types with variable number of type fields.
-class StructuralType : public TypeBase {
+class AstStructuralType : public AstTypeBase {
  public:
   int LengthForTesting() { return Length(); }
 
  protected:
-  friend class Type;
+  friend class AstType;
 
   int Length() { return length_; }
 
-  Type* Get(int i) {
+  AstType* Get(int i) {
     DCHECK(0 <= i && i < this->Length());
     return elements_[i];
   }
 
-  void Set(int i, Type* type) {
+  void Set(int i, AstType* type) {
     DCHECK(0 <= i && i < this->Length());
     elements_[i] = type;
   }
@@ -579,70 +592,74 @@ class StructuralType : public TypeBase {
     length_ = length;
   }
 
-  StructuralType(Kind kind, int length, i::Zone* zone)
-      : TypeBase(kind), length_(length) {
-    elements_ = reinterpret_cast<Type**>(zone->New(sizeof(Type*) * length));
+  AstStructuralType(Kind kind, int length, i::Zone* zone)
+      : AstTypeBase(kind), length_(length) {
+    elements_ =
+        reinterpret_cast<AstType**>(zone->New(sizeof(AstType*) * length));
   }
 
  private:
   int length_;
-  Type** elements_;
+  AstType** elements_;
 };
 
 // -----------------------------------------------------------------------------
 // Function types.
 
-class FunctionType : public StructuralType {
+class AstFunctionType : public AstStructuralType {
  public:
   int Arity() { return this->Length() - 2; }
-  Type* Result() { return this->Get(0); }
-  Type* Receiver() { return this->Get(1); }
-  Type* Parameter(int i) { return this->Get(2 + i); }
+  AstType* Result() { return this->Get(0); }
+  AstType* Receiver() { return this->Get(1); }
+  AstType* Parameter(int i) { return this->Get(2 + i); }
 
-  void InitParameter(int i, Type* type) { this->Set(2 + i, type); }
+  void InitParameter(int i, AstType* type) { this->Set(2 + i, type); }
 
  private:
-  friend class Type;
+  friend class AstType;
 
-  FunctionType(Type* result, Type* receiver, int arity, Zone* zone)
-      : StructuralType(kFunction, 2 + arity, zone) {
+  AstFunctionType(AstType* result, AstType* receiver, int arity, Zone* zone)
+      : AstStructuralType(kFunction, 2 + arity, zone) {
     Set(0, result);
     Set(1, receiver);
   }
 
-  static Type* New(Type* result, Type* receiver, int arity, Zone* zone) {
-    return AsType(new (zone->New(sizeof(FunctionType)))
-                      FunctionType(result, receiver, arity, zone));
+  static AstType* New(AstType* result, AstType* receiver, int arity,
+                      Zone* zone) {
+    return AsType(new (zone->New(sizeof(AstFunctionType)))
+                      AstFunctionType(result, receiver, arity, zone));
   }
 
-  static FunctionType* cast(Type* type) {
+  static AstFunctionType* cast(AstType* type) {
     DCHECK(IsKind(type, kFunction));
-    return static_cast<FunctionType*>(FromType(type));
+    return static_cast<AstFunctionType*>(FromType(type));
   }
 };
 
 // -----------------------------------------------------------------------------
 // Tuple types.
 
-class TupleType : public StructuralType {
+class AstTupleType : public AstStructuralType {
  public:
   int Arity() { return this->Length(); }
-  Type* Element(int i) { return this->Get(i); }
+  AstType* Element(int i) { return this->Get(i); }
 
-  void InitElement(int i, Type* type) { this->Set(i, type); }
+  void InitElement(int i, AstType* type) { this->Set(i, type); }
 
  private:
-  friend class Type;
+  friend class AstType;
 
-  TupleType(int length, Zone* zone) : StructuralType(kTuple, length, zone) {}
+  AstTupleType(int length, Zone* zone)
+      : AstStructuralType(kTuple, length, zone) {}
 
-  static Type* New(int length, Zone* zone) {
-    return AsType(new (zone->New(sizeof(TupleType))) TupleType(length, zone));
+  static AstType* New(int length, Zone* zone) {
+    return AsType(new (zone->New(sizeof(AstTupleType)))
+                      AstTupleType(length, zone));
   }
 
-  static TupleType* cast(Type* type) {
+  static AstTupleType* cast(AstType* type) {
     DCHECK(IsKind(type, kTuple));
-    return static_cast<TupleType*>(FromType(type));
+    return static_cast<AstTupleType*>(FromType(type));
   }
 };
 
@@ -653,93 +670,100 @@ class TupleType : public StructuralType {
 // - at most one field is a bitset, and it must go into index 0
 // - no field is a union
 // - no field is a subtype of any other field
-class UnionType : public StructuralType {
+class AstUnionType : public AstStructuralType {
  private:
-  friend Type;
-  friend BitsetType;
+  friend AstType;
+  friend AstBitsetType;
 
-  UnionType(int length, Zone* zone) : StructuralType(kUnion, length, zone) {}
+  AstUnionType(int length, Zone* zone)
+      : AstStructuralType(kUnion, length, zone) {}
 
-  static Type* New(int length, Zone* zone) {
-    return AsType(new (zone->New(sizeof(UnionType))) UnionType(length, zone));
+  static AstType* New(int length, Zone* zone) {
+    return AsType(new (zone->New(sizeof(AstUnionType)))
+                      AstUnionType(length, zone));
   }
 
-  static UnionType* cast(Type* type) {
+  static AstUnionType* cast(AstType* type) {
     DCHECK(IsKind(type, kUnion));
-    return static_cast<UnionType*>(FromType(type));
+    return static_cast<AstUnionType*>(FromType(type));
   }
 
   bool Wellformed();
 };
 
-class Type {
+class AstType {
  public:
-  typedef BitsetType::bitset bitset;  // Internal
+  typedef AstBitsetType::bitset bitset;  // Internal
 
 // Constructors.
 #define DEFINE_TYPE_CONSTRUCTOR(type, value) \
-  static Type* type() { return BitsetType::New(BitsetType::k##type); }
-  PROPER_BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
+  static AstType* type() { return AstBitsetType::New(AstBitsetType::k##type); }
+  AST_PROPER_BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
 #undef DEFINE_TYPE_CONSTRUCTOR
 
-  static Type* SignedSmall() {
-    return BitsetType::New(BitsetType::SignedSmall());
+  static AstType* SignedSmall() {
+    return AstBitsetType::New(AstBitsetType::SignedSmall());
   }
-  static Type* UnsignedSmall() {
-    return BitsetType::New(BitsetType::UnsignedSmall());
+  static AstType* UnsignedSmall() {
+    return AstBitsetType::New(AstBitsetType::UnsignedSmall());
   }
 
-  static Type* Class(i::Handle<i::Map> map, Zone* zone) {
-    return ClassType::New(map, zone);
+  static AstType* Class(i::Handle<i::Map> map, Zone* zone) {
+    return AstClassType::New(map, zone);
   }
-  static Type* Constant(i::Handle<i::Object> value, Zone* zone) {
-    return ConstantType::New(value, zone);
+  static AstType* Constant(i::Handle<i::Object> value, Zone* zone) {
+    return AstConstantType::New(value, zone);
   }
-  static Type* Range(double min, double max, Zone* zone) {
-    return RangeType::New(min, max, REPRESENTATION(BitsetType::kTagged |
-                                                   BitsetType::kUntaggedNumber),
-                          zone);
+  static AstType* Range(double min, double max, Zone* zone) {
+    return AstRangeType::New(min, max,
+                             AST_REPRESENTATION(AstBitsetType::kTagged |
+                                                AstBitsetType::kUntaggedNumber),
+                             zone);
   }
-  static Type* Context(Type* outer, Zone* zone) {
-    return ContextType::New(outer, zone);
+  static AstType* Context(AstType* outer, Zone* zone) {
+    return AstContextType::New(outer, zone);
   }
-  static Type* Array(Type* element, Zone* zone) {
-    return ArrayType::New(element, zone);
+  static AstType* Array(AstType* element, Zone* zone) {
+    return AstArrayType::New(element, zone);
   }
-  static Type* Function(Type* result, Type* receiver, int arity, Zone* zone) {
-    return FunctionType::New(result, receiver, arity, zone);
+  static AstType* Function(AstType* result, AstType* receiver, int arity,
+                           Zone* zone) {
+    return AstFunctionType::New(result, receiver, arity, zone);
   }
-  static Type* Function(Type* result, Zone* zone) {
+  static AstType* Function(AstType* result, Zone* zone) {
     return Function(result, Any(), 0, zone);
   }
-  static Type* Function(Type* result, Type* param0, Zone* zone) {
-    Type* function = Function(result, Any(), 1, zone);
+  static AstType* Function(AstType* result, AstType* param0, Zone* zone) {
+    AstType* function = Function(result, Any(), 1, zone);
     function->AsFunction()->InitParameter(0, param0);
     return function;
   }
-  static Type* Function(Type* result, Type* param0, Type* param1, Zone* zone) {
-    Type* function = Function(result, Any(), 2, zone);
+  static AstType* Function(AstType* result, AstType* param0, AstType* param1,
+                           Zone* zone) {
+    AstType* function = Function(result, Any(), 2, zone);
     function->AsFunction()->InitParameter(0, param0);
     function->AsFunction()->InitParameter(1, param1);
     return function;
   }
-  static Type* Function(Type* result, Type* param0, Type* param1, Type* param2,
-                        Zone* zone) {
-    Type* function = Function(result, Any(), 3, zone);
+  static AstType* Function(AstType* result, AstType* param0, AstType* param1,
+                           AstType* param2, Zone* zone) {
+    AstType* function = Function(result, Any(), 3, zone);
     function->AsFunction()->InitParameter(0, param0);
     function->AsFunction()->InitParameter(1, param1);
     function->AsFunction()->InitParameter(2, param2);
     return function;
   }
-  static Type* Function(Type* result, int arity, Type** params, Zone* zone) {
-    Type* function = Function(result, Any(), arity, zone);
+  static AstType* Function(AstType* result, int arity, AstType** params,
+                           Zone* zone) {
+    AstType* function = Function(result, Any(), arity, zone);
     for (int i = 0; i < arity; ++i) {
       function->AsFunction()->InitParameter(i, params[i]);
     }
     return function;
   }
-  static Type* Tuple(Type* first, Type* second, Type* third, Zone* zone) {
-    Type* tuple = TupleType::New(3, zone);
+  static AstType* Tuple(AstType* first, AstType* second, AstType* third,
+                        Zone* zone) {
+    AstType* tuple = AstTupleType::New(3, zone);
     tuple->AsTuple()->InitElement(0, first);
     tuple->AsTuple()->InitElement(1, second);
     tuple->AsTuple()->InitElement(2, third);
@@ -747,38 +771,41 @@ class Type {
   }
 
 #define CONSTRUCT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
-  static Type* Name(Isolate* isolate, Zone* zone);
+  static AstType* Name(Isolate* isolate, Zone* zone);
   SIMD128_TYPES(CONSTRUCT_SIMD_TYPE)
 #undef CONSTRUCT_SIMD_TYPE
 
-  static Type* Union(Type* type1, Type* type2, Zone* zone);
-  static Type* Intersect(Type* type1, Type* type2, Zone* zone);
+  static AstType* Union(AstType* type1, AstType* type2, Zone* zone);
+  static AstType* Intersect(AstType* type1, AstType* type2, Zone* zone);
 
-  static Type* Of(double value, Zone* zone) {
-    return BitsetType::New(BitsetType::ExpandInternals(BitsetType::Lub(value)));
+  static AstType* Of(double value, Zone* zone) {
+    return AstBitsetType::New(
+        AstBitsetType::ExpandInternals(AstBitsetType::Lub(value)));
   }
-  static Type* Of(i::Object* value, Zone* zone) {
-    return BitsetType::New(BitsetType::ExpandInternals(BitsetType::Lub(value)));
+  static AstType* Of(i::Object* value, Zone* zone) {
+    return AstBitsetType::New(
+        AstBitsetType::ExpandInternals(AstBitsetType::Lub(value)));
   }
-  static Type* Of(i::Handle<i::Object> value, Zone* zone) {
+  static AstType* Of(i::Handle<i::Object> value, Zone* zone) {
     return Of(*value, zone);
   }
 
-  static Type* For(i::Map* map) {
-    return BitsetType::New(BitsetType::ExpandInternals(BitsetType::Lub(map)));
+  static AstType* For(i::Map* map) {
+    return AstBitsetType::New(
+        AstBitsetType::ExpandInternals(AstBitsetType::Lub(map)));
   }
-  static Type* For(i::Handle<i::Map> map) { return For(*map); }
+  static AstType* For(i::Handle<i::Map> map) { return For(*map); }
 
   // Extraction of components.
-  static Type* Representation(Type* t, Zone* zone);
-  static Type* Semantic(Type* t, Zone* zone);
+  static AstType* Representation(AstType* t, Zone* zone);
+  static AstType* Semantic(AstType* t, Zone* zone);
 
   // Predicates.
-  bool IsInhabited() { return BitsetType::IsInhabited(this->BitsetLub()); }
+  bool IsInhabited() { return AstBitsetType::IsInhabited(this->BitsetLub()); }
 
-  bool Is(Type* that) { return this == that || this->SlowIs(that); }
-  bool Maybe(Type* that);
-  bool Equals(Type* that) { return this->Is(that) && that->Is(this); }
+  bool Is(AstType* that) { return this == that || this->SlowIs(that); }
+  bool Maybe(AstType* that);
+  bool Equals(AstType* that) { return this->Is(that) && that->Is(this); }
 
   // Equivalent to Constant(val)->Is(this), but avoiding allocation.
   bool Contains(i::Object* val);
@@ -786,32 +813,32 @@ class Type {
 
   // State-dependent versions of the above that consider subtyping between
   // a constant and its map class.
-  static Type* NowOf(i::Object* value, Zone* zone);
-  static Type* NowOf(i::Handle<i::Object> value, Zone* zone) {
+  static AstType* NowOf(i::Object* value, Zone* zone);
+  static AstType* NowOf(i::Handle<i::Object> value, Zone* zone) {
     return NowOf(*value, zone);
   }
-  bool NowIs(Type* that);
+  bool NowIs(AstType* that);
   bool NowContains(i::Object* val);
   bool NowContains(i::Handle<i::Object> val) { return this->NowContains(*val); }
 
   bool NowStable();
 
   // Inspection.
-  bool IsRange() { return IsKind(TypeBase::kRange); }
-  bool IsClass() { return IsKind(TypeBase::kClass); }
-  bool IsConstant() { return IsKind(TypeBase::kConstant); }
-  bool IsContext() { return IsKind(TypeBase::kContext); }
-  bool IsArray() { return IsKind(TypeBase::kArray); }
-  bool IsFunction() { return IsKind(TypeBase::kFunction); }
-  bool IsTuple() { return IsKind(TypeBase::kTuple); }
+  bool IsRange() { return IsKind(AstTypeBase::kRange); }
+  bool IsClass() { return IsKind(AstTypeBase::kClass); }
+  bool IsConstant() { return IsKind(AstTypeBase::kConstant); }
+  bool IsContext() { return IsKind(AstTypeBase::kContext); }
+  bool IsArray() { return IsKind(AstTypeBase::kArray); }
+  bool IsFunction() { return IsKind(AstTypeBase::kFunction); }
+  bool IsTuple() { return IsKind(AstTypeBase::kTuple); }
 
-  ClassType* AsClass() { return ClassType::cast(this); }
-  ConstantType* AsConstant() { return ConstantType::cast(this); }
-  RangeType* AsRange() { return RangeType::cast(this); }
-  ContextType* AsContext() { return ContextType::cast(this); }
-  ArrayType* AsArray() { return ArrayType::cast(this); }
-  FunctionType* AsFunction() { return FunctionType::cast(this); }
-  TupleType* AsTuple() { return TupleType::cast(this); }
+  AstClassType* AsClass() { return AstClassType::cast(this); }
+  AstConstantType* AsConstant() { return AstConstantType::cast(this); }
+  AstRangeType* AsRange() { return AstRangeType::cast(this); }
+  AstContextType* AsContext() { return AstContextType::cast(this); }
+  AstArrayType* AsArray() { return AstArrayType::cast(this); }
+  AstFunctionType* AsFunction() { return AstFunctionType::cast(this); }
+  AstTupleType* AsTuple() { return AstTupleType::cast(this); }
 
   // Minimum and maximum of a numeric type.
   // These functions do not distinguish between -0 and +0.  If the type equals
@@ -822,7 +849,7 @@ class Type {
 
   // Extracts a range from the type: if the type is a range or a union
   // containing a range, that range is returned; otherwise, NULL is returned.
-  Type* GetRange();
+  AstType* GetRange();
 
   static bool IsInteger(i::Object* x);
   static bool IsInteger(double x) {
@@ -840,15 +867,15 @@ class Type {
     void Advance();
 
    private:
-    friend class Type;
+    friend class AstType;
 
     Iterator() : index_(-1) {}
-    explicit Iterator(Type* type) : type_(type), index_(-1) { Advance(); }
+    explicit Iterator(AstType* type) : type_(type), index_(-1) { Advance(); }
 
-    inline bool matches(Type* type);
-    inline Type* get_type();
+    inline bool matches(AstType* type);
+    inline AstType* get_type();
 
-    Type* type_;
+    AstType* type_;
     int index_;
   };
 
@@ -875,112 +902,123 @@ class Type {
   bool IsBitsetForTesting() { return IsBitset(); }
   bool IsUnionForTesting() { return IsUnion(); }
   bitset AsBitsetForTesting() { return AsBitset(); }
-  UnionType* AsUnionForTesting() { return AsUnion(); }
+  AstUnionType* AsUnionForTesting() { return AsUnion(); }
 
  private:
   // Friends.
   template <class>
   friend class Iterator;
-  friend BitsetType;
-  friend UnionType;
+  friend AstBitsetType;
+  friend AstUnionType;
 
   // Internal inspection.
-  bool IsKind(TypeBase::Kind kind) { return TypeBase::IsKind(this, kind); }
+  bool IsKind(AstTypeBase::Kind kind) {
+    return AstTypeBase::IsKind(this, kind);
+  }
 
   bool IsNone() { return this == None(); }
   bool IsAny() { return this == Any(); }
-  bool IsBitset() { return BitsetType::IsBitset(this); }
-  bool IsUnion() { return IsKind(TypeBase::kUnion); }
+  bool IsBitset() { return AstBitsetType::IsBitset(this); }
+  bool IsUnion() { return IsKind(AstTypeBase::kUnion); }
 
   bitset AsBitset() {
     DCHECK(this->IsBitset());
-    return reinterpret_cast<BitsetType*>(this)->Bitset();
+    return reinterpret_cast<AstBitsetType*>(this)->Bitset();
   }
-  UnionType* AsUnion() { return UnionType::cast(this); }
+  AstUnionType* AsUnion() { return AstUnionType::cast(this); }
 
   bitset Representation();
 
   // Auxiliary functions.
-  bool SemanticMaybe(Type* that);
+  bool SemanticMaybe(AstType* that);
 
-  bitset BitsetGlb() { return BitsetType::Glb(this); }
-  bitset BitsetLub() { return BitsetType::Lub(this); }
+  bitset BitsetGlb() { return AstBitsetType::Glb(this); }
+  bitset BitsetLub() { return AstBitsetType::Lub(this); }
 
-  bool SlowIs(Type* that);
-  bool SemanticIs(Type* that);
+  bool SlowIs(AstType* that);
+  bool SemanticIs(AstType* that);
 
-  static bool Overlap(RangeType* lhs, RangeType* rhs);
-  static bool Contains(RangeType* lhs, RangeType* rhs);
-  static bool Contains(RangeType* range, ConstantType* constant);
-  static bool Contains(RangeType* range, i::Object* val);
+  static bool Overlap(AstRangeType* lhs, AstRangeType* rhs);
+  static bool Contains(AstRangeType* lhs, AstRangeType* rhs);
+  static bool Contains(AstRangeType* range, AstConstantType* constant);
+  static bool Contains(AstRangeType* range, i::Object* val);
 
-  static int UpdateRange(Type* type, UnionType* result, int size, Zone* zone);
+  static int UpdateRange(AstType* type, AstUnionType* result, int size,
+                         Zone* zone);
 
-  static RangeType::Limits IntersectRangeAndBitset(Type* range, Type* bits,
-                                                   Zone* zone);
-  static RangeType::Limits ToLimits(bitset bits, Zone* zone);
+  static AstRangeType::Limits IntersectRangeAndBitset(AstType* range,
+                                                      AstType* bits,
+                                                      Zone* zone);
+  static AstRangeType::Limits ToLimits(bitset bits, Zone* zone);
 
-  bool SimplyEquals(Type* that);
+  bool SimplyEquals(AstType* that);
 
-  static int AddToUnion(Type* type, UnionType* result, int size, Zone* zone);
-  static int IntersectAux(Type* type, Type* other, UnionType* result, int size,
-                          RangeType::Limits* limits, Zone* zone);
-  static Type* NormalizeUnion(Type* unioned, int size, Zone* zone);
-  static Type* NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone);
+  static int AddToUnion(AstType* type, AstUnionType* result, int size,
+                        Zone* zone);
+  static int IntersectAux(AstType* type, AstType* other, AstUnionType* result,
+                          int size, AstRangeType::Limits* limits, Zone* zone);
+  static AstType* NormalizeUnion(AstType* unioned, int size, Zone* zone);
+  static AstType* NormalizeRangeAndBitset(AstType* range, bitset* bits,
+                                          Zone* zone);
 };
 
 // -----------------------------------------------------------------------------
 // Type bounds. A simple struct to represent a pair of lower/upper types.
 
-struct Bounds {
-  Type* lower;
-  Type* upper;
+struct AstBounds {
+  AstType* lower;
+  AstType* upper;
 
-  Bounds()
+  AstBounds()
       :  // Make sure accessing uninitialized bounds crashes big-time.
         lower(nullptr),
         upper(nullptr) {}
-  explicit Bounds(Type* t) : lower(t), upper(t) {}
-  Bounds(Type* l, Type* u) : lower(l), upper(u) { DCHECK(lower->Is(upper)); }
+  explicit AstBounds(AstType* t) : lower(t), upper(t) {}
+  AstBounds(AstType* l, AstType* u) : lower(l), upper(u) {
+    DCHECK(lower->Is(upper));
+  }
 
   // Unrestricted bounds.
-  static Bounds Unbounded() { return Bounds(Type::None(), Type::Any()); }
+  static AstBounds Unbounded() {
+    return AstBounds(AstType::None(), AstType::Any());
+  }
 
   // Meet: both b1 and b2 are known to hold.
-  static Bounds Both(Bounds b1, Bounds b2, Zone* zone) {
-    Type* lower = Type::Union(b1.lower, b2.lower, zone);
-    Type* upper = Type::Intersect(b1.upper, b2.upper, zone);
+  static AstBounds Both(AstBounds b1, AstBounds b2, Zone* zone) {
+    AstType* lower = AstType::Union(b1.lower, b2.lower, zone);
+    AstType* upper = AstType::Intersect(b1.upper, b2.upper, zone);
     // Lower bounds are considered approximate, correct as necessary.
     if (!lower->Is(upper)) lower = upper;
-    return Bounds(lower, upper);
+    return AstBounds(lower, upper);
   }
 
   // Join: either b1 or b2 is known to hold.
-  static Bounds Either(Bounds b1, Bounds b2, Zone* zone) {
-    Type* lower = Type::Intersect(b1.lower, b2.lower, zone);
-    Type* upper = Type::Union(b1.upper, b2.upper, zone);
-    return Bounds(lower, upper);
+  static AstBounds Either(AstBounds b1, AstBounds b2, Zone* zone) {
+    AstType* lower = AstType::Intersect(b1.lower, b2.lower, zone);
+    AstType* upper = AstType::Union(b1.upper, b2.upper, zone);
+    return AstBounds(lower, upper);
   }
 
-  static Bounds NarrowLower(Bounds b, Type* t, Zone* zone) {
-    Type* lower = Type::Union(b.lower, t, zone);
+  static AstBounds NarrowLower(AstBounds b, AstType* t, Zone* zone) {
+    AstType* lower = AstType::Union(b.lower, t, zone);
     // Lower bounds are considered approximate, correct as necessary.
     if (!lower->Is(b.upper)) lower = b.upper;
-    return Bounds(lower, b.upper);
+    return AstBounds(lower, b.upper);
   }
-  static Bounds NarrowUpper(Bounds b, Type* t, Zone* zone) {
-    Type* lower = b.lower;
-    Type* upper = Type::Intersect(b.upper, t, zone);
+  static AstBounds NarrowUpper(AstBounds b, AstType* t, Zone* zone) {
+    AstType* lower = b.lower;
+    AstType* upper = AstType::Intersect(b.upper, t, zone);
     // Lower bounds are considered approximate, correct as necessary.
     if (!lower->Is(upper)) lower = upper;
-    return Bounds(lower, upper);
+    return AstBounds(lower, upper);
   }
 
-  bool Narrows(Bounds that) {
+  bool Narrows(AstBounds that) {
     return that.lower->Is(this->lower) && this->upper->Is(that.upper);
   }
 };
+
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TYPES_H_
+#endif  // V8_AST_AST_TYPES_H_

@@ -191,15 +191,13 @@ Handle<AllocationSite> TypeFeedbackOracle::GetCallNewAllocationSite(
   return Handle<AllocationSite>::null();
 }
 
-
-void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
-                                     Type** left_type,
-                                     Type** right_type,
-                                     Type** combined_type) {
+void TypeFeedbackOracle::CompareType(TypeFeedbackId id, AstType** left_type,
+                                     AstType** right_type,
+                                     AstType** combined_type) {
   Handle<Object> info = GetInfo(id);
   if (!info->IsCode()) {
     // For some comparisons we don't have ICs, e.g. LiteralCompareTypeof.
-    *left_type = *right_type = *combined_type = Type::None();
+    *left_type = *right_type = *combined_type = AstType::None();
     return;
   }
   Handle<Code> code = Handle<Code>::cast(info);
@@ -216,11 +214,8 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
   }
 }
 
-
-void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
-                                    Type** left,
-                                    Type** right,
-                                    Type** result,
+void TypeFeedbackOracle::BinaryType(TypeFeedbackId id, AstType** left,
+                                    AstType** right, AstType** result,
                                     Maybe<int>* fixed_right_arg,
                                     Handle<AllocationSite>* allocation_site,
                                     Token::Value op) {
@@ -230,7 +225,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
     // operations covered by the BinaryOpIC we should always have them.
     DCHECK(op < BinaryOpICState::FIRST_TOKEN ||
            op > BinaryOpICState::LAST_TOKEN);
-    *left = *right = *result = Type::None();
+    *left = *right = *result = AstType::None();
     *fixed_right_arg = Nothing<int>();
     *allocation_site = Handle<AllocationSite>::null();
     return;
@@ -253,10 +248,9 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   }
 }
 
-
-Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
+AstType* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
-  if (!object->IsCode()) return Type::None();
+  if (!object->IsCode()) return AstType::None();
   Handle<Code> code = Handle<Code>::cast(object);
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpICState state(isolate(), code->extra_ic_state());

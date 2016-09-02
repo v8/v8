@@ -950,7 +950,7 @@ CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements,
     : Expression(pos, kCaseClause),
       label_(label),
       statements_(statements),
-      compare_type_(Type::None()) {}
+      compare_type_(AstType::None()) {}
 
 void CaseClause::AssignFeedbackVectorSlots(Isolate* isolate,
                                            FeedbackVectorSpec* spec,

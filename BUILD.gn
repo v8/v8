@@ -857,6 +857,8 @@ v8_source_set("v8_base") {
     "src/ast/ast-numbering.h",
     "src/ast/ast-traversal-visitor.h",
     "src/ast/ast-type-bounds.h",
+    "src/ast/ast-types.cc",
+    "src/ast/ast-types.h",
     "src/ast/ast-value-factory.cc",
     "src/ast/ast-value-factory.h",
     "src/ast/ast.cc",

@@ -5837,20 +5837,20 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
 InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {}
 
-Representation RepresentationFromType(Type* type) {
-  if (type->Is(Type::UntaggedIntegral())) {
+Representation RepresentationFromType(AstType* type) {
+  if (type->Is(AstType::UntaggedIntegral())) {
     return Representation::Integer32();
   }
 
-  if (type->Is(Type::TaggedSigned())) {
+  if (type->Is(AstType::TaggedSigned())) {
     return Representation::Smi();
   }
 
-  if (type->Is(Type::UntaggedPointer())) {
+  if (type->Is(AstType::UntaggedPointer())) {
     return Representation::External();
   }
 
-  DCHECK(!type->Is(Type::Untagged()));
+  DCHECK(!type->Is(AstType::Untagged()));
   return Representation::Tagged();
 }
 

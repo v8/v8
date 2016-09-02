@@ -335,7 +335,7 @@ template <>
 HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
   info()->MarkAsSavesCallerDoubles();
   HValue* number = GetParameter(Descriptor::kArgument);
-  return BuildNumberToString(number, Type::Number());
+  return BuildNumberToString(number, AstType::Number());
 }
 
 
@@ -1263,26 +1263,26 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   HValue* left = GetParameter(Descriptor::kLeft);
   HValue* right = GetParameter(Descriptor::kRight);
 
-  Type* left_type = state.GetLeftType();
-  Type* right_type = state.GetRightType();
-  Type* result_type = state.GetResultType();
+  AstType* left_type = state.GetLeftType();
+  AstType* right_type = state.GetRightType();
+  AstType* result_type = state.GetResultType();
 
-  DCHECK(!left_type->Is(Type::None()) && !right_type->Is(Type::None()) &&
-         (state.HasSideEffects() || !result_type->Is(Type::None())));
+  DCHECK(!left_type->Is(AstType::None()) && !right_type->Is(AstType::None()) &&
+         (state.HasSideEffects() || !result_type->Is(AstType::None())));
 
   HValue* result = NULL;
   HAllocationMode allocation_mode(NOT_TENURED);
-  if (state.op() == Token::ADD &&
-      (left_type->Maybe(Type::String()) || right_type->Maybe(Type::String())) &&
-      !left_type->Is(Type::String()) && !right_type->Is(Type::String())) {
+  if (state.op() == Token::ADD && (left_type->Maybe(AstType::String()) ||
+                                   right_type->Maybe(AstType::String())) &&
+      !left_type->Is(AstType::String()) && !right_type->Is(AstType::String())) {
     // For the generic add stub a fast case for string addition is performance
     // critical.
-    if (left_type->Maybe(Type::String())) {
+    if (left_type->Maybe(AstType::String())) {
       IfBuilder if_leftisstring(this);
       if_leftisstring.If<HIsStringAndBranch>(left);
       if_leftisstring.Then();
       {
-        Push(BuildBinaryOperation(state.op(), left, right, Type::String(),
+        Push(BuildBinaryOperation(state.op(), left, right, AstType::String(),
                                   right_type, result_type,
                                   state.fixed_right_arg(), allocation_mode));
       }
@@ -1300,7 +1300,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       if_rightisstring.Then();
       {
         Push(BuildBinaryOperation(state.op(), left, right, left_type,
-                                  Type::String(), result_type,
+                                  AstType::String(), result_type,
                                   state.fixed_right_arg(), allocation_mode));
       }
       if_rightisstring.Else();
@@ -1341,9 +1341,9 @@ HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
   HValue* left = GetParameter(Descriptor::kLeft);
   HValue* right = GetParameter(Descriptor::kRight);
 
-  Type* left_type = state.GetLeftType();
-  Type* right_type = state.GetRightType();
-  Type* result_type = state.GetResultType();
+  AstType* left_type = state.GetLeftType();
+  AstType* right_type = state.GetRightType();
+  AstType* result_type = state.GetResultType();
   HAllocationMode allocation_mode(allocation_site);
 
   return BuildBinaryOperation(state.op(), left, right, left_type, right_type,
@@ -1364,7 +1364,7 @@ HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
   if_inputissmi.Then();
   {
     // Convert the input smi to a string.
-    Push(BuildNumberToString(input, Type::SignedSmall()));
+    Push(BuildNumberToString(input, AstType::SignedSmall()));
   }
   if_inputissmi.Else();
   {

@@ -1396,7 +1396,7 @@ class HGraphBuilder {
                                    ElementsKind to_kind,
                                    bool is_jsarray);
 
-  HValue* BuildNumberToString(HValue* object, Type* type);
+  HValue* BuildNumberToString(HValue* object, AstType* type);
   HValue* BuildToNumber(HValue* input);
   HValue* BuildToObject(HValue* receiver);
 
@@ -1500,8 +1500,8 @@ class HGraphBuilder {
                         HValue** shift_amount);
 
   HValue* BuildBinaryOperation(Token::Value op, HValue* left, HValue* right,
-                               Type* left_type, Type* right_type,
-                               Type* result_type, Maybe<int> fixed_right_arg,
+                               AstType* left_type, AstType* right_type,
+                               AstType* result_type, Maybe<int> fixed_right_arg,
                                HAllocationMode allocation_mode,
                                BailoutId opt_id = BailoutId::None());
 
@@ -1514,8 +1514,8 @@ class HGraphBuilder {
 
   HValue* AddLoadJSBuiltin(int context_index);
 
-  HValue* EnforceNumberType(HValue* number, Type* expected);
-  HValue* TruncateToNumber(HValue* value, Type** expected);
+  HValue* EnforceNumberType(HValue* number, AstType* expected);
+  HValue* TruncateToNumber(HValue* value, AstType** expected);
 
   void FinishExitWithHardDeoptimization(DeoptimizeReason reason);
 
@@ -2707,8 +2707,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   };
 
   HControlInstruction* BuildCompareInstruction(
-      Token::Value op, HValue* left, HValue* right, Type* left_type,
-      Type* right_type, Type* combined_type, SourcePosition left_position,
+      Token::Value op, HValue* left, HValue* right, AstType* left_type,
+      AstType* right_type, AstType* combined_type, SourcePosition left_position,
       SourcePosition right_position, PushBeforeSimulateBehavior push_sim_result,
       BailoutId bailout_id);
 

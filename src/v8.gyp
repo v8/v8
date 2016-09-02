@@ -451,6 +451,8 @@
         'ast/ast-numbering.h',
         'ast/ast-traversal-visitor.h',
         'ast/ast-type-bounds.h',
+        'ast/ast-types.cc',
+        'ast/ast-types.h',
         'ast/ast-value-factory.cc',
         'ast/ast-value-factory.h',
         'ast/ast.cc',

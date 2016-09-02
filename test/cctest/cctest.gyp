@@ -174,6 +174,7 @@
       'test-trace-event.cc',
       'test-transitions.cc',
       'test-typedarrays.cc',
+      'test-ast-types.cc',
       'test-types.cc',
       'test-unbound-queue.cc',
       'test-unboxed-doubles.cc',
