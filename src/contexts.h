@@ -298,18 +298,29 @@ class ScriptContextTable : public FixedArray {
 //
 // [ previous  ]  A pointer to the previous context.
 //
-// [ extension ]  A pointer to a ContextExtension object, or "the hole". Used
-//                to implement 'with' statements and dynamic declarations
-//                (through 'eval'). The object in a 'with' statement is
-//                stored in the extension slot of a 'with' context.
-//                Dynamically declared variables/functions are also added
-//                to lazily allocated extension object. Context::Lookup
-//                searches the extension object for properties.
-//                For script and block contexts, contains the respective
-//                ScopeInfo. For block contexts representing sloppy declaration
-//                block scopes, it may also be a struct being a
-//                ContextExtension, pairing the ScopeInfo with an extension
-//                object.
+// [ extension ]  Additional data.
+//
+//                For script contexts, it contains the respective ScopeInfo.
+//
+//                For catch contexts, it contains a ContextExtension object
+//                consisting of the ScopeInfo and the name of the catch
+//                variable.
+//
+//                For module contexts, it contains the module object.
+//
+//                For block contexts, it contains either the respective
+//                ScopeInfo or a ContextExtension object consisting of the
+//                ScopeInfo and an "extension object" (see below).
+//
+//                For with contexts, it contains a ContextExtension object
+//                consisting of the ScopeInfo and an "extension object".
+//
+//                An "extension object" is used to dynamically extend a context
+//                with additional variables, namely in the implementation of the
+//                'with' construct and the 'eval' construct.  For instance,
+//                Context::Lookup also searches the extension object for
+//                properties.  (Storing the extension object is the original
+//                purpose of this context slot, hence the name.)
 //
 // [ native_context ]  A pointer to the native context.
 //
