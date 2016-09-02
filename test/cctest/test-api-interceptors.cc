@@ -4338,6 +4338,9 @@ THREADED_TEST(NonMaskingInterceptorOwnProperty) {
   ExpectInt32("obj.whatever", 239);
 
   CompileRun("obj.whatever = 4;");
+
+  // obj.whatever exists, thus it is not affected by the non-masking
+  // interceptor.
   ExpectInt32("obj.whatever", 4);
 
   CompileRun("delete obj.whatever;");
