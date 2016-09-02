@@ -9,6 +9,7 @@
 
 #include "src/allocation-site-scopes.h"
 #include "src/ast/ast-numbering.h"
+#include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/crankshaft/hydrogen-bce.h"
@@ -42,7 +43,6 @@
 // GetRootConstructor
 #include "src/ic/ic-inl.h"
 #include "src/isolate-inl.h"
-#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
 
 #if V8_TARGET_ARCH_IA32

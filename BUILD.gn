@@ -863,6 +863,8 @@ v8_source_set("v8_base") {
     "src/ast/ast-value-factory.h",
     "src/ast/ast.cc",
     "src/ast/ast.h",
+    "src/ast/compile-time-value.cc",
+    "src/ast/compile-time-value.h",
     "src/ast/context-slot-cache.cc",
     "src/ast/context-slot-cache.h",
     "src/ast/modules.cc",

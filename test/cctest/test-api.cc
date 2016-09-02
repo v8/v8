@@ -47,7 +47,7 @@
 #include "src/execution.h"
 #include "src/futex-emulation.h"
 #include "src/objects.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/preparse-data.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"

@@ -38,7 +38,6 @@
 #include "src/heap/spaces.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
-#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/deserializer.h"

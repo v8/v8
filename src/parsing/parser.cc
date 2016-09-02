@@ -3450,48 +3450,6 @@ DebuggerStatement* Parser::ParseDebuggerStatement(bool* ok) {
 }
 
 
-bool CompileTimeValue::IsCompileTimeValue(Expression* expression) {
-  if (expression->IsLiteral()) return true;
-  MaterializedLiteral* lit = expression->AsMaterializedLiteral();
-  return lit != NULL && lit->is_simple();
-}
-
-
-Handle<FixedArray> CompileTimeValue::GetValue(Isolate* isolate,
-                                              Expression* expression) {
-  Factory* factory = isolate->factory();
-  DCHECK(IsCompileTimeValue(expression));
-  Handle<FixedArray> result = factory->NewFixedArray(2, TENURED);
-  ObjectLiteral* object_literal = expression->AsObjectLiteral();
-  if (object_literal != NULL) {
-    DCHECK(object_literal->is_simple());
-    if (object_literal->fast_elements()) {
-      result->set(kLiteralTypeSlot, Smi::FromInt(OBJECT_LITERAL_FAST_ELEMENTS));
-    } else {
-      result->set(kLiteralTypeSlot, Smi::FromInt(OBJECT_LITERAL_SLOW_ELEMENTS));
-    }
-    result->set(kElementsSlot, *object_literal->constant_properties());
-  } else {
-    ArrayLiteral* array_literal = expression->AsArrayLiteral();
-    DCHECK(array_literal != NULL && array_literal->is_simple());
-    result->set(kLiteralTypeSlot, Smi::FromInt(ARRAY_LITERAL));
-    result->set(kElementsSlot, *array_literal->constant_elements());
-  }
-  return result;
-}
-
-
-CompileTimeValue::LiteralType CompileTimeValue::GetLiteralType(
-    Handle<FixedArray> value) {
-  Smi* literal_type = Smi::cast(value->get(kLiteralTypeSlot));
-  return static_cast<LiteralType>(literal_type->value());
-}
-
-
-Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
-  return Handle<FixedArray>(FixedArray::cast(value->get(kElementsSlot)));
-}
-
 void Parser::ParseArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr, int end_pos,
     bool* ok) {

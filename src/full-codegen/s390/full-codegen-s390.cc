@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_S390
 
 #include "src/full-codegen/full-codegen.h"
+#include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
@@ -13,7 +14,6 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/ic/ic.h"
-#include "src/parsing/parser.h"
 
 #include "src/s390/code-stubs-s390.h"
 #include "src/s390/macro-assembler-s390.h"

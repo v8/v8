@@ -457,6 +457,8 @@
         'ast/ast-value-factory.h',
         'ast/ast.cc',
         'ast/ast.h',
+        'ast/compile-time-value.cc',
+        'ast/compile-time-value.h',
         'ast/context-slot-cache.cc',
         'ast/context-slot-cache.h',
         'ast/modules.cc',

@@ -4,6 +4,7 @@
 
 #include "src/compiler/ast-graph-builder.h"
 
+#include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -17,7 +18,6 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-hint-analyzer.h"
-#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {

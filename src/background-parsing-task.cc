@@ -3,10 +3,18 @@
 // found in the LICENSE file.
 
 #include "src/background-parsing-task.h"
+
 #include "src/debug/debug.h"
+#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {
+
+void StreamedSource::Release() {
+  parser.reset();
+  info.reset();
+  zone.reset();
+}
 
 BackgroundParsingTask::BackgroundParsingTask(
     StreamedSource* source, ScriptCompiler::CompileOptions options,

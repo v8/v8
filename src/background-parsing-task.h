@@ -11,11 +11,12 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
+#include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {
 
+class Parser;
 class ScriptData;
 
 // Internal representation of v8::ScriptCompiler::StreamedSource. Contains all
@@ -26,11 +27,7 @@ struct StreamedSource {
                  ScriptCompiler::StreamedSource::Encoding encoding)
       : source_stream(source_stream), encoding(encoding) {}
 
-  void Release() {
-    parser.reset();
-    info.reset();
-    zone.reset();
-  }
+  void Release();
 
   // Internal implementation of v8::ScriptCompiler::StreamedSource.
   std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream;

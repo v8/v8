@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/full-codegen/full-codegen.h"
+#include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
@@ -14,7 +15,6 @@
 #include "src/debug/debug.h"
 #include "src/ia32/frames-ia32.h"
 #include "src/ic/ic.h"
-#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {

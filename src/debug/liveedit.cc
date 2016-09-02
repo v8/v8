@@ -14,7 +14,6 @@
 #include "src/global-handles.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/parsing/parser.h"
 #include "src/source-position-table.h"
 #include "src/v8.h"
 #include "src/v8memory.h"

@@ -15,7 +15,6 @@
 #include "src/compilation-info.h"
 #include "src/debug/debug.h"
 #include "src/eh-frame.h"
-#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

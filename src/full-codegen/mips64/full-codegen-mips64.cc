@@ -13,6 +13,7 @@
 // next call: mov(a0, v0). This is not needed on the other architectures.
 
 #include "src/full-codegen/full-codegen.h"
+#include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
@@ -21,7 +22,6 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/ic/ic.h"
-#include "src/parsing/parser.h"
 
 #include "src/mips64/code-stubs-mips64.h"
 #include "src/mips64/macro-assembler-mips64.h"
