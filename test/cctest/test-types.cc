@@ -113,8 +113,7 @@ struct Tests {
       Type* t = *it;
       CHECK(1 ==
             this->IsBitset(t) + t->IsConstant() + t->IsRange() +
-                this->IsUnion(t) + t->IsArray() + t->IsFunction() +
-                t->IsContext());
+                this->IsUnion(t) + t->IsArray() + t->IsFunction());
     }
   }
 
@@ -375,33 +374,6 @@ struct Tests {
             CHECK(Equal(type1, type2) == (min1 == min2 && max1 == max2));
           }
         }
-      }
-    }
-  }
-
-  void Context() {
-    // Constructor
-    for (int i = 0; i < 20; ++i) {
-      Type* type = T.Random();
-      Type* context = T.Context(type);
-      CHECK(context->IsContext());
-    }
-
-    // Attributes
-    for (int i = 0; i < 20; ++i) {
-      Type* type = T.Random();
-      Type* context = T.Context(type);
-      CheckEqual(type, context->AsContext()->Outer());
-    }
-
-    // Functionality & Injectivity: Context(T1) = Context(T2) iff T1 = T2
-    for (int i = 0; i < 20; ++i) {
-      for (int j = 0; j < 20; ++j) {
-        Type* type1 = T.Random();
-        Type* type2 = T.Random();
-        Type* context1 = T.Context(type1);
-        Type* context2 = T.Context(type2);
-        CHECK(Equal(context1, context2) == Equal(type1, type2));
       }
     }
   }
@@ -714,7 +686,6 @@ struct Tests {
               (type1->IsConstant() && type2->IsRange()) ||
               (this->IsBitset(type1) && type2->IsRange()) ||
               (type1->IsRange() && type2->IsRange()) ||
-              (type1->IsContext() && type2->IsContext()) ||
               (type1->IsArray() && type2->IsArray()) ||
               (type1->IsFunction() && type2->IsFunction()) ||
               !type1->IsInhabited());
@@ -754,17 +725,6 @@ struct Tests {
         Type* const_type1 = T.Constant(value1);
         Type* const_type2 = T.Constant(value2);
         CHECK(const_type1->Is(const_type2) == (*value1 == *value2));
-      }
-    }
-
-    // Context(T1)->Is(Context(T2)) iff T1 = T2
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* outer1 = *it1;
-        Type* outer2 = *it2;
-        Type* type1 = T.Context(outer1);
-        Type* type2 = T.Context(outer2);
-        CHECK(type1->Is(type2) == outer1->Equals(outer2));
       }
     }
 

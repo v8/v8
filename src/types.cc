@@ -146,7 +146,6 @@ Type::bitset BitsetType::Lub(Type* type) {
   }
   if (type->IsConstant()) return type->AsConstant()->Lub();
   if (type->IsRange()) return type->AsRange()->Lub();
-  if (type->IsContext()) return kOtherInternal & kTaggedPointer;
   if (type->IsArray()) return kOtherObject;
   if (type->IsFunction()) return kFunction;
   if (type->IsTuple()) return kOtherInternal;
@@ -411,10 +410,6 @@ bool Type::SimplyEquals(Type* that) {
   if (this->IsConstant()) {
     return that->IsConstant()
         && *this->AsConstant()->Value() == *that->AsConstant()->Value();
-  }
-  if (this->IsContext()) {
-    return that->IsContext()
-        && this->AsContext()->Outer()->Equals(that->AsContext()->Outer());
   }
   if (this->IsArray()) {
     return that->IsArray()
@@ -1107,10 +1102,6 @@ void Type::PrintTo(std::ostream& os, PrintDimension dim) {
          << ")";
       os.flags(saved_flags);
       os.precision(saved_precision);
-    } else if (this->IsContext()) {
-      os << "Context(";
-      this->AsContext()->Outer()->PrintTo(os, dim);
-      os << ")";
     } else if (this->IsUnion()) {
       os << "(";
       for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {

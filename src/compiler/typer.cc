@@ -227,7 +227,6 @@ class Typer::Visitor : public Reducer {
     return TypeOrNone(operand_node);
   }
 
-  Type* WrapContextTypeForInput(Node* node);
   Type* Weaken(Node* node, Type* current_type, Type* previous_type);
 
   Zone* zone() { return typer_->zone(); }
@@ -1227,11 +1226,15 @@ Type* Typer::Visitor::TypeJSInstanceOf(Node* node) { return Type::Boolean(); }
 
 Type* Typer::Visitor::TypeJSLoadContext(Node* node) {
   ContextAccess const& access = ContextAccessOf(node->op());
-  if (access.index() == Context::EXTENSION_INDEX) {
-    return Type::TaggedPointer();
+  switch (access.index()) {
+    case Context::PREVIOUS_INDEX:
+    case Context::NATIVE_CONTEXT_INDEX:
+      return Type::OtherInternal();
+    case Context::CLOSURE_INDEX:
+      return Type::Function();
+    default:
+      return Type::Any();
   }
-  // Since contexts are mutable, we just return the top.
-  return Type::Any();
 }
 
 
@@ -1241,41 +1244,25 @@ Type* Typer::Visitor::TypeJSStoreContext(Node* node) {
 }
 
 
-Type* Typer::Visitor::WrapContextTypeForInput(Node* node) {
-  Type* outer = TypeOrNone(NodeProperties::GetContextInput(node));
-  if (outer->Is(Type::None())) {
-    return Type::None();
-  } else {
-    DCHECK(outer->Maybe(Type::OtherInternal()));
-    return Type::Context(outer, zone());
-  }
-}
-
-
 Type* Typer::Visitor::TypeJSCreateFunctionContext(Node* node) {
-  return WrapContextTypeForInput(node);
+  return Type::OtherInternal();
 }
-
 
 Type* Typer::Visitor::TypeJSCreateCatchContext(Node* node) {
-  return WrapContextTypeForInput(node);
+  return Type::OtherInternal();
 }
-
 
 Type* Typer::Visitor::TypeJSCreateWithContext(Node* node) {
-  return WrapContextTypeForInput(node);
+  return Type::OtherInternal();
 }
-
 
 Type* Typer::Visitor::TypeJSCreateBlockContext(Node* node) {
-  return WrapContextTypeForInput(node);
+  return Type::OtherInternal();
 }
-
 
 Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
-  return WrapContextTypeForInput(node);
+  return Type::OtherInternal();
 }
-
 
 // JS other operators.
 

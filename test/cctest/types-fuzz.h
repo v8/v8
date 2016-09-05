@@ -155,8 +155,6 @@ class Types {
 
   Type* Range(double min, double max) { return Type::Range(min, max, zone_); }
 
-  Type* Context(Type* outer) { return Type::Context(outer, zone_); }
-
   Type* Array1(Type* element) { return Type::Array(element, zone_); }
 
   Type* Function0(Type* result, Type* receiver) {
@@ -222,18 +220,12 @@ class Types {
         if (min > max) std::swap(min, max);
         return Type::Range(min, max, zone_);
       }
-      case 3: {  // context
-        int depth = rng_->NextInt(3);
-        Type* type = Type::Internal();
-        for (int i = 0; i < depth; ++i) type = Type::Context(type, zone_);
-        return type;
-      }
-      case 4: {  // array
+      case 3: {  // array
         Type* element = Fuzz(depth / 2);
         return Type::Array(element, zone_);
       }
-      case 5:
-      case 6: {  // function
+      case 4:
+      case 5: {  // function
         Type* result = Fuzz(depth / 2);
         Type* receiver = Fuzz(depth / 2);
         int arity = rng_->NextInt(3);

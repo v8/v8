@@ -610,10 +610,10 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSCreateScriptContext: {
       // Type is Context, and operand is Internal.
       Node* context = NodeProperties::GetContextInput(node);
-      // TODO(rossberg): This should really be Is(Internal), but the typer
-      // currently can't do backwards propagation.
-      CheckTypeMaybe(context, Type::Internal());
-      if (typing == TYPED) CHECK(NodeProperties::GetType(node)->IsContext());
+      // TODO(bmeurer): This should say CheckTypeIs, but we don't have type
+      // OtherInternal on certain contexts, i.e. those from OsrValue inputs.
+      CheckTypeMaybe(context, Type::OtherInternal());
+      CheckTypeIs(node, Type::OtherInternal());
       break;
     }
 

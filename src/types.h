@@ -48,12 +48,11 @@ namespace internal {
 //   Constant(x) < T  iff instance_type(map(x)) < T
 //   Array(T) < Array
 //   Function(R, S, T0, T1, ...) < Function
-//   Context(T) < Internal
 //
 // Both structural Array and Function types are invariant in all parameters;
 // relaxing this would make Union and Intersect operations more involved.
-// There is no subtyping relation between Array, Function, or Context types
-// and respective Constant types, since these types cannot be reconstructed
+// There is no subtyping relation between Array or Function types and
+// respective Constant types, since these types cannot be reconstructed
 // for arbitrary heap values.
 //
 //
@@ -349,7 +348,6 @@ class TypeBase {
 
   enum Kind {
     kConstant,
-    kContext,
     kArray,
     kFunction,
     kTuple,
@@ -464,30 +462,6 @@ class RangeType : public TypeBase {
 
   BitsetType::bitset bitset_;
   Limits limits_;
-};
-
-// -----------------------------------------------------------------------------
-// Context types.
-
-class ContextType : public TypeBase {
- public:
-  Type* Outer() { return outer_; }
-
- private:
-  friend class Type;
-
-  static Type* New(Type* outer, Zone* zone) {
-    return AsType(new (zone->New(sizeof(ContextType))) ContextType(outer));
-  }
-
-  static ContextType* cast(Type* type) {
-    DCHECK(IsKind(type, kContext));
-    return static_cast<ContextType*>(FromType(type));
-  }
-
-  explicit ContextType(Type* outer) : TypeBase(kContext), outer_(outer) {}
-
-  Type* outer_;
 };
 
 // -----------------------------------------------------------------------------
@@ -658,9 +632,6 @@ class Type {
                                                    BitsetType::kUntaggedNumber),
                           zone);
   }
-  static Type* Context(Type* outer, Zone* zone) {
-    return ContextType::New(outer, zone);
-  }
   static Type* Array(Type* element, Zone* zone) {
     return ArrayType::New(element, zone);
   }
@@ -740,14 +711,12 @@ class Type {
   // Inspection.
   bool IsRange() { return IsKind(TypeBase::kRange); }
   bool IsConstant() { return IsKind(TypeBase::kConstant); }
-  bool IsContext() { return IsKind(TypeBase::kContext); }
   bool IsArray() { return IsKind(TypeBase::kArray); }
   bool IsFunction() { return IsKind(TypeBase::kFunction); }
   bool IsTuple() { return IsKind(TypeBase::kTuple); }
 
   ConstantType* AsConstant() { return ConstantType::cast(this); }
   RangeType* AsRange() { return RangeType::cast(this); }
-  ContextType* AsContext() { return ContextType::cast(this); }
   ArrayType* AsArray() { return ArrayType::cast(this); }
   FunctionType* AsFunction() { return FunctionType::cast(this); }
   TupleType* AsTuple() { return TupleType::cast(this); }
