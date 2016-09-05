@@ -1480,7 +1480,8 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // Create a catch scope that binds the exception.
   Node* exception = try_control.GetExceptionNode();
   Handle<String> name = stmt->variable()->name();
-  const Operator* op = javascript()->CreateCatchContext(name);
+  Handle<ScopeInfo> scope_info = stmt->scope()->scope_info();
+  const Operator* op = javascript()->CreateCatchContext(name, scope_info);
   Node* context = NewNode(op, exception, GetFunctionClosureForContext());
 
   // Evaluate the catch-block.

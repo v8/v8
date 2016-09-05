@@ -1333,6 +1333,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   { Comment cmnt(masm_, "[ Extend catch context");
     PushOperand(stmt->variable()->name());
     PushOperand(result_register());
+    PushOperand(stmt->scope()->scope_info());
     PushFunctionArgumentForContextAllocation();
     CallRuntimeWithOperands(Runtime::kPushCatchContext);
     StoreToFrameField(StandardFrameConstants::kContextOffset,

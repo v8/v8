@@ -475,7 +475,7 @@ namespace internal {
   F(NewScriptContext, 2, 1)             \
   F(NewFunctionContext, 1, 1)           \
   F(PushWithContext, 2, 1)              \
-  F(PushCatchContext, 3, 1)             \
+  F(PushCatchContext, 4, 1)             \
   F(PushBlockContext, 2, 1)             \
   F(DeleteLookupSlot, 1, 1)             \
   F(LoadLookupSlot, 1, 1)               \

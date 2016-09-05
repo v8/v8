@@ -224,17 +224,22 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
   SetDefaults();
 }
 
-Scope::Scope(Zone* zone, const AstRawString* catch_variable_name)
+Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
+             Handle<ScopeInfo> scope_info)
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
       locals_(0, zone),
       decls_(0, zone),
+      scope_info_(scope_info),
       scope_type_(CATCH_SCOPE) {
   SetDefaults();
 #ifdef DEBUG
   already_resolved_ = true;
 #endif
+  // Cache the catch variable, even though it's also available via the
+  // scope_info, as the parser expects that a catch scope always has the catch
+  // variable as first and only variable.
   Variable* variable = Declare(zone, this, catch_variable_name, VAR,
                                Variable::NORMAL, kCreatedInitialized);
   AllocateHeapSlot(variable);
@@ -368,7 +373,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       DCHECK(context->IsCatchContext());
       String* name = context->catch_name();
       outer_scope = new (zone)
-          Scope(zone, ast_value_factory->GetString(handle(name, isolate)));
+          Scope(zone, ast_value_factory->GetString(handle(name, isolate)),
+                Handle<ScopeInfo>(context->scope_info()));
     }
     if (current_scope != nullptr) {
       outer_scope->AddInnerScope(current_scope);

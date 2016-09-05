@@ -199,6 +199,10 @@ class AccessBuilder final : public AllStatic {
   static FieldAccess ForPropertyCellValue();
   static FieldAccess ForPropertyCellValue(Type* type);
 
+  // Provides access to ContextExtension fields.
+  static FieldAccess ForContextExtensionScopeInfo();
+  static FieldAccess ForContextExtensionExtension();
+
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
   static ElementAccess ForFixedArrayElement(ElementsKind kind);

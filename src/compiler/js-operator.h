@@ -178,6 +178,33 @@ std::ostream& operator<<(std::ostream&, ContextAccess const&);
 
 ContextAccess const& ContextAccessOf(Operator const*);
 
+// Defines the name and ScopeInfo for a new catch context. This is used as a
+// parameter by the JSCreateCatchContext operator.
+class CreateCatchContextParameters final {
+ public:
+  CreateCatchContextParameters(Handle<String> catch_name,
+                               Handle<ScopeInfo> scope_info);
+
+  Handle<String> catch_name() const { return catch_name_; }
+  Handle<ScopeInfo> scope_info() const { return scope_info_; }
+
+ private:
+  Handle<String> const catch_name_;
+  Handle<ScopeInfo> const scope_info_;
+};
+
+bool operator==(CreateCatchContextParameters const& lhs,
+                CreateCatchContextParameters const& rhs);
+bool operator!=(CreateCatchContextParameters const& lhs,
+                CreateCatchContextParameters const& rhs);
+
+size_t hash_value(CreateCatchContextParameters const& parameters);
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateCatchContextParameters const& parameters);
+
+CreateCatchContextParameters const& CreateCatchContextParametersOf(
+    Operator const*);
 
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSStoreNamed operators.
@@ -481,7 +508,8 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* StackCheck();
 
   const Operator* CreateFunctionContext(int slot_count);
-  const Operator* CreateCatchContext(const Handle<String>& name);
+  const Operator* CreateCatchContext(const Handle<String>& name,
+                                     const Handle<ScopeInfo>& scope_info);
   const Operator* CreateWithContext();
   const Operator* CreateBlockContext(const Handle<ScopeInfo>& scpope_info);
   const Operator* CreateModuleContext();

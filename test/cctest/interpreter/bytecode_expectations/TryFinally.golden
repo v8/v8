@@ -3,7 +3,7 @@
 #
 
 ---
-pool type: string
+pool type: mixed
 execute: yes
 wrap: yes
 
@@ -55,7 +55,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 81
+bytecode array length: 82
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
@@ -64,10 +64,10 @@ bytecodes: [
                 B(Mov), R(context), R(5),
   /*   51 S> */ B(LdaSmi), U8(2),
                 B(Star), R(0),
-                B(Jump), U8(26),
+                B(Jump), U8(27),
                 B(Star), R(6),
                 B(Ldar), R(closure),
-  /*   53 E> */ B(CreateCatchContext), R(6), U8(0),
+  /*   53 E> */ B(CreateCatchContext), R(6), U8(0), U8(1),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
                 B(Ldar), R(5),
@@ -96,10 +96,11 @@ bytecodes: [
   /*   99 S> */ B(Return),
 ]
 constant pool: [
-  "e",
+  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  InstanceType::FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [8, 41, 47],
+  [8, 42, 48],
   [11, 15, 17],
 ]
 
@@ -111,7 +112,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 106
+bytecode array length: 108
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(4),
@@ -119,10 +120,10 @@ bytecodes: [
                 B(Mov), R(context), R(6),
   /*   55 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-                B(Jump), U8(26),
+                B(Jump), U8(27),
                 B(Star), R(7),
                 B(Ldar), R(closure),
-  /*   57 E> */ B(CreateCatchContext), R(7), U8(0),
+  /*   57 E> */ B(CreateCatchContext), R(7), U8(0), U8(1),
                 B(Star), R(6),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
                 B(Ldar), R(6),
@@ -130,10 +131,10 @@ bytecodes: [
   /*   74 S> */ B(LdaSmi), U8(2),
                 B(Star), R(0),
                 B(PopContext), R(1),
-                B(Jump), U8(26),
+                B(Jump), U8(27),
                 B(Star), R(6),
                 B(Ldar), R(closure),
-  /*   76 E> */ B(CreateCatchContext), R(6), U8(0),
+  /*   76 E> */ B(CreateCatchContext), R(6), U8(0), U8(2),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
                 B(Ldar), R(5),
@@ -162,11 +163,13 @@ bytecodes: [
   /*  123 S> */ B(Return),
 ]
 constant pool: [
-  "e",
+  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  InstanceType::FIXED_ARRAY_TYPE,
+  InstanceType::FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [4, 66, 72],
-  [7, 40, 42],
+  [4, 68, 74],
+  [7, 41, 43],
   [10, 14, 16],
 ]
 

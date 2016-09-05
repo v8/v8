@@ -157,6 +157,37 @@ ContextAccess const& ContextAccessOf(Operator const* op) {
   return OpParameter<ContextAccess>(op);
 }
 
+CreateCatchContextParameters::CreateCatchContextParameters(
+    Handle<String> catch_name, Handle<ScopeInfo> scope_info)
+    : catch_name_(catch_name), scope_info_(scope_info) {}
+
+bool operator==(CreateCatchContextParameters const& lhs,
+                CreateCatchContextParameters const& rhs) {
+  return lhs.catch_name().location() == rhs.catch_name().location() &&
+         lhs.scope_info().location() == rhs.scope_info().location();
+}
+
+bool operator!=(CreateCatchContextParameters const& lhs,
+                CreateCatchContextParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CreateCatchContextParameters const& parameters) {
+  return base::hash_combine(parameters.catch_name().location(),
+                            parameters.scope_info().location());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateCatchContextParameters const& parameters) {
+  return os << Brief(*parameters.catch_name()) << ", "
+            << Brief(*parameters.scope_info());
+}
+
+CreateCatchContextParameters const& CreateCatchContextParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateCatchContext, op->opcode());
+  return OpParameter<CreateCatchContextParameters>(op);
+}
 
 bool operator==(NamedAccess const& lhs, NamedAccess const& rhs) {
   return lhs.name().location() == rhs.name().location() &&
@@ -809,14 +840,14 @@ const Operator* JSOperatorBuilder::CreateFunctionContext(int slot_count) {
       slot_count);                                                  // parameter
 }
 
-
 const Operator* JSOperatorBuilder::CreateCatchContext(
-    const Handle<String>& name) {
-  return new (zone()) Operator1<Handle<String>>(                 // --
+    const Handle<String>& name, const Handle<ScopeInfo>& scope_info) {
+  CreateCatchContextParameters parameters(name, scope_info);
+  return new (zone()) Operator1<CreateCatchContextParameters>(
       IrOpcode::kJSCreateCatchContext, Operator::kNoProperties,  // opcode
       "JSCreateCatchContext",                                    // name
       2, 1, 1, 1, 1, 2,                                          // counts
-      name);                                                     // parameter
+      parameters);                                               // parameter
 }
 
 

@@ -1386,7 +1386,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   try_control_builder.EndTry();
 
   // Create a catch scope that binds the exception.
-  VisitNewLocalCatchContext(stmt->variable());
+  VisitNewLocalCatchContext(stmt->variable(), stmt->scope());
   builder()->StoreAccumulatorInRegister(context);
 
   // If requested, clear message object as we enter the catch block.
@@ -3210,14 +3210,16 @@ void BytecodeGenerator::VisitNewLocalWithContext() {
   execution_result()->SetResultInAccumulator();
 }
 
-void BytecodeGenerator::VisitNewLocalCatchContext(Variable* variable) {
+void BytecodeGenerator::VisitNewLocalCatchContext(Variable* variable,
+                                                  Scope* scope) {
   AccumulatorResultScope accumulator_execution_result(this);
   DCHECK(variable->IsContextSlot());
 
   Register exception = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(exception);
   VisitFunctionClosureForContext();
-  builder()->CreateCatchContext(exception, variable->name());
+  builder()->CreateCatchContext(exception, variable->name(),
+                                scope->scope_info());
   execution_result()->SetResultInAccumulator();
 }
 

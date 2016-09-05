@@ -110,10 +110,11 @@ JSReceiver* Context::extension_receiver() {
 
 
 ScopeInfo* Context::scope_info() {
-  DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext());
+  DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext() ||
+         IsCatchContext());
   HeapObject* object = extension();
   if (object->IsContextExtension()) {
-    DCHECK(IsBlockContext());
+    DCHECK(IsBlockContext() || IsCatchContext());
     object = ContextExtension::cast(object)->scope_info();
   }
   return ScopeInfo::cast(object);
@@ -122,7 +123,7 @@ ScopeInfo* Context::scope_info() {
 
 String* Context::catch_name() {
   DCHECK(IsCatchContext());
-  return String::cast(extension());
+  return String::cast(ContextExtension::cast(extension())->extension());
 }
 
 

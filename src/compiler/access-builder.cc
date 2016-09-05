@@ -633,6 +633,25 @@ FieldAccess AccessBuilder::ForPropertyCellValue(Type* type) {
 }
 
 // static
+FieldAccess AccessBuilder::ForContextExtensionScopeInfo() {
+  FieldAccess access = {kTaggedBase,
+                        ContextExtension::kScopeInfoOffset,
+                        Handle<Name>(),
+                        Type::OtherInternal(),
+                        MachineType::AnyTagged(),
+                        kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForContextExtensionExtension() {
+  FieldAccess access = {
+      kTaggedBase, ContextExtension::kExtensionOffset, Handle<Name>(),
+      Type::Any(), MachineType::AnyTagged(),           kFullWriteBarrier};
+  return access;
+}
+
+// static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
   ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Tagged(),
                           MachineType::AnyTagged(), kFullWriteBarrier};

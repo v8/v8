@@ -1993,19 +1993,22 @@ void Interpreter::DoCreateBlockContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// CreateCatchContext <exception> <index>
+// CreateCatchContext <exception> <name_idx> <scope_info_idx>
 //
 // Creates a new context for a catch block with the |exception| in a register,
-// the variable name at |index| and the closure in the accumulator.
+// the variable name at |name_idx|, the ScopeInfo at |scope_info_idx|, and the
+// closure in the accumulator.
 void Interpreter::DoCreateCatchContext(InterpreterAssembler* assembler) {
   Node* exception_reg = __ BytecodeOperandReg(0);
   Node* exception = __ LoadRegister(exception_reg);
-  Node* index = __ BytecodeOperandIdx(1);
-  Node* name = __ LoadConstantPoolEntry(index);
+  Node* name_idx = __ BytecodeOperandIdx(1);
+  Node* name = __ LoadConstantPoolEntry(name_idx);
+  Node* scope_info_idx = __ BytecodeOperandIdx(2);
+  Node* scope_info = __ LoadConstantPoolEntry(scope_info_idx);
   Node* closure = __ GetAccumulator();
   Node* context = __ GetContext();
   __ SetAccumulator(__ CallRuntime(Runtime::kPushCatchContext, context, name,
-                                   exception, closure));
+                                   exception, scope_info, closure));
   __ Dispatch();
 }
 

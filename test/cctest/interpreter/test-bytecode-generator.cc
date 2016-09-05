@@ -1250,7 +1250,7 @@ TEST(TopLevelObjectLiterals) {
 TEST(TryCatch) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
-                                      ConstantPoolType::kString);
+                                      ConstantPoolType::kMixed);
 
   const char* snippets[] = {
       "try { return 1; } catch(e) { return 2; }\n",
@@ -1267,7 +1267,7 @@ TEST(TryCatch) {
 TEST(TryFinally) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
-                                      ConstantPoolType::kString);
+                                      ConstantPoolType::kMixed);
   const char* snippets[] = {
       "var a = 1;\n"
       "try { a = 2; } finally { a = 3; }\n",

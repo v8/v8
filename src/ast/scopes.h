@@ -539,7 +539,8 @@ class Scope: public ZoneObject {
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
-  Scope(Zone* zone, const AstRawString* catch_variable_name);
+  Scope(Zone* zone, const AstRawString* catch_variable_name,
+        Handle<ScopeInfo> scope_info);
 
   void AddInnerScope(Scope* inner_scope) {
     inner_scope->sibling_ = inner_scope_;

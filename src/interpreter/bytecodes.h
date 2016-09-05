@@ -245,7 +245,7 @@ namespace interpreter {
   /* Context allocation */                                                     \
   V(CreateBlockContext, AccumulatorUse::kReadWrite, OperandType::kIdx)         \
   V(CreateCatchContext, AccumulatorUse::kReadWrite, OperandType::kReg,         \
-    OperandType::kIdx)                                                         \
+    OperandType::kIdx, OperandType::kIdx)                                      \
   /* TODO(klaasb) rename Idx or add unsigned Imm OperandType? */               \
   V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kIdx)          \
   V(CreateWithContext, AccumulatorUse::kReadWrite, OperandType::kReg)          \

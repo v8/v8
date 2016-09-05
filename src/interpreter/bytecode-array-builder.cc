@@ -350,10 +350,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateBlockContext(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateCatchContext(
-    Register exception, Handle<String> name) {
+    Register exception, Handle<String> name, Handle<ScopeInfo> scope_info) {
   size_t name_index = GetConstantPoolEntry(name);
+  size_t scope_info_index = GetConstantPoolEntry(scope_info);
   Output(Bytecode::kCreateCatchContext, RegisterOperand(exception),
-         UnsignedOperand(name_index));
+         UnsignedOperand(name_index), UnsignedOperand(scope_info_index));
   return *this;
 }
 

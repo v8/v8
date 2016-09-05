@@ -701,13 +701,14 @@ RUNTIME_FUNCTION(Runtime_PushWithContext) {
 
 RUNTIME_FUNCTION(Runtime_PushCatchContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 3);
   Handle<Context> current(isolate->context());
   Handle<Context> context = isolate->factory()->NewCatchContext(
-      function, current, name, thrown_object);
+      function, current, scope_info, name, thrown_object);
   isolate->set_context(*context);
   return *context;
 }
