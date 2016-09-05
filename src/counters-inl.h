@@ -14,8 +14,10 @@ RuntimeCallTimerScope::RuntimeCallTimerScope(
     HeapObject* heap_object, RuntimeCallStats::CounterId counter_id) {
   if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
     isolate_ = heap_object->GetIsolate();
-    RuntimeCallStats::Enter(isolate_, &timer_, counter_id);
+    RuntimeCallStats::Enter(isolate_->counters()->runtime_call_stats(), &timer_,
+                            counter_id);
   }
+  // TODO(lpy): Add a tracing equivalent for the runtime call stats.
 }
 
 }  // namespace internal

@@ -362,8 +362,6 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
                                      &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::DeoptimizeCode);
   if (FLAG_trace_deopt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[deoptimize all code in all contexts]\n");
@@ -385,8 +383,6 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
                                      &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::DeoptimizeCode);
   if (FLAG_trace_deopt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[deoptimize marked code in all contexts]\n");
@@ -420,8 +416,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
                                      &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::DeoptimizeCode);
   Code* code = function->code();
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     // Mark the code for deoptimization and unlink any functions that also

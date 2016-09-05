@@ -182,8 +182,6 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
                                      &RuntimeCallStats::CompileIgnition);
   TimerEventScope<TimerEventCompileIgnition> timer(info()->isolate());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      info()->isolate(), &tracing::TraceEventStatsTable::CompileIgnition);
 
   generator()->GenerateBytecode(stack_limit());
 

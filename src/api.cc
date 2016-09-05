@@ -79,9 +79,6 @@ namespace v8 {
 #define LOG_API(isolate, class_name, function_name)                       \
   i::RuntimeCallTimerScope _runtime_timer(                                \
       isolate, &i::RuntimeCallStats::API_##class_name##_##function_name); \
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(                          \
-      isolate, &internal::tracing::TraceEventStatsTable::                 \
-                   API_##class_name##_##function_name);                   \
   LOG(isolate, ApiEntryCall("v8::" #class_name "::" #function_name))
 
 #define ENTER_V8(isolate) i::VMState<v8::OTHER> __state__((isolate))
@@ -9187,9 +9184,6 @@ void InvokeAccessorGetterCallback(
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               &RuntimeCallStats::AccessorGetterCallback);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate,
-      &internal::tracing::TraceEventStatsTable::AccessorGetterCallback);
   Address getter_address = reinterpret_cast<Address>(reinterpret_cast<intptr_t>(
       getter));
   VMState<EXTERNAL> state(isolate);
@@ -9203,9 +9197,6 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               &RuntimeCallStats::InvokeFunctionCallback);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate,
-      &internal::tracing::TraceEventStatsTable::InvokeFunctionCallback);
   Address callback_address =
       reinterpret_cast<Address>(reinterpret_cast<intptr_t>(callback));
   VMState<EXTERNAL> state(isolate);

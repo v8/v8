@@ -11,8 +11,10 @@
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
 #include "src/globals.h"
+#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -770,66 +772,56 @@ class RuntimeCallStats {
 
   // Starting measuring the time for a function. This will establish the
   // connection to the parent counter for properly calculating the own times.
-  static void Enter(Isolate* isolate, RuntimeCallTimer* timer,
+  static void Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                     CounterId counter_id);
 
   // Leave a scope for a measured runtime function. This will properly add
   // the time delta to the current_counter and subtract the delta from its
   // parent.
-  static void Leave(Isolate* isolate, RuntimeCallTimer* timer);
+  static void Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer);
 
   // Set counter id for the innermost measurement. It can be used to refine
   // event kind when a runtime entry counter is too generic.
-  static void CorrectCurrentCounterId(Isolate* isolate, CounterId counter_id);
+  static void CorrectCurrentCounterId(RuntimeCallStats* stats,
+                                      CounterId counter_id);
 
   void Reset();
-  void Print(std::ostream& os);
+  V8_NOINLINE void Print(std::ostream& os);
+  V8_NOINLINE const char* Dump();
 
-  RuntimeCallStats() { Reset(); }
+  RuntimeCallStats() {
+    Reset();
+    in_use_ = false;
+  }
+
   RuntimeCallTimer* current_timer() { return current_timer_; }
+  bool InUse() { return in_use_; }
 
  private:
+  std::stringstream buffer_;
+  std::unique_ptr<char[]> buffer_c_str_;
+  size_t len_ = 0;
   // Counter to track recursive time events.
   RuntimeCallTimer* current_timer_ = NULL;
+  bool in_use_;
 };
 
-#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name) \
-  do {                                                  \
-    if (FLAG_runtime_call_stats) {                      \
-      RuntimeCallStats::CorrectCurrentCounterId(        \
-          isolate, &RuntimeCallStats::counter_name);    \
-    }                                                   \
+#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name)                  \
+  do {                                                                   \
+    if (FLAG_runtime_call_stats) {                                       \
+      RuntimeCallStats::CorrectCurrentCounterId(                         \
+          isolate->counters()->runtime_call_stats(),                     \
+          &RuntimeCallStats::counter_name);                              \
+    }                                                                    \
+    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())) { \
+      RuntimeCallStats::CorrectCurrentCounterId(                         \
+          isolate->counters()->tracing_runtime_call_stats(),             \
+          &RuntimeCallStats::counter_name);                              \
+    }                                                                    \
   } while (false)
 
 #define TRACE_HANDLER_STATS(isolate, counter_name) \
   TRACE_RUNTIME_CALL_STATS(isolate, Handler_##counter_name)
-
-// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
-// the time of C++ scope.
-class RuntimeCallTimerScope {
- public:
-  inline RuntimeCallTimerScope(Isolate* isolate,
-                               RuntimeCallStats::CounterId counter_id) {
-    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
-      isolate_ = isolate;
-      RuntimeCallStats::Enter(isolate_, &timer_, counter_id);
-    }
-  }
-  // This constructor is here just to avoid calling GetIsolate() when the
-  // stats are disabled and the isolate is not directly available.
-  inline RuntimeCallTimerScope(HeapObject* heap_object,
-                               RuntimeCallStats::CounterId counter_id);
-
-  inline ~RuntimeCallTimerScope() {
-    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
-      RuntimeCallStats::Leave(isolate_, &timer_);
-    }
-  }
-
- private:
-  Isolate* isolate_;
-  RuntimeCallTimer timer_;
-};
 
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
   /* Generic range histograms */                                              \
@@ -1173,6 +1165,9 @@ class Counters {
   void ResetCounters();
   void ResetHistograms();
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
+  RuntimeCallStats* tracing_runtime_call_stats() {
+    return &tracing_runtime_call_stats_;
+  }
 
  private:
 #define HR(name, caption, min, max, num_buckets) Histogram name##_;
@@ -1235,12 +1230,59 @@ class Counters {
 #undef SC
 
   RuntimeCallStats runtime_call_stats_;
+  RuntimeCallStats tracing_runtime_call_stats_;
 
   friend class Isolate;
 
   explicit Counters(Isolate* isolate);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
+};
+
+// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
+// the time of C++ scope.
+class RuntimeCallTimerScope {
+ public:
+  inline RuntimeCallTimerScope(Isolate* isolate,
+                               RuntimeCallStats::CounterId counter_id) {
+    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
+      isolate_ = isolate;
+      RuntimeCallStats::Enter(isolate_->counters()->runtime_call_stats(),
+                              &timer_, counter_id);
+    }
+    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())) {
+      isolate_for_tracing_ = isolate;
+      RuntimeCallStats::Enter(
+          isolate_for_tracing_->counters()->tracing_runtime_call_stats(),
+          &trace_event_timer_, counter_id);
+    }
+  }
+  // This constructor is here just to avoid calling GetIsolate() when the
+  // stats are disabled and the isolate is not directly available.
+  inline RuntimeCallTimerScope(HeapObject* heap_object,
+                               RuntimeCallStats::CounterId counter_id);
+
+  inline ~RuntimeCallTimerScope() {
+    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
+      RuntimeCallStats::Leave(isolate_->counters()->runtime_call_stats(),
+                              &timer_);
+    }
+    if (V8_UNLIKELY(isolate_for_tracing_ != nullptr)) {
+      RuntimeCallStats::Leave(
+          isolate_for_tracing_->counters()->tracing_runtime_call_stats(),
+          &trace_event_timer_);
+      isolate_for_tracing_ = nullptr;
+    }
+  }
+
+ private:
+  Isolate* isolate_;
+  // TODO(lpy): --runtime-call-stats and tracing should be mutually exclusive
+  // with tracing taking precendence. We need to add checks, and use a single
+  // isolate reference and a timer for both.
+  Isolate* isolate_for_tracing_ = nullptr;
+  RuntimeCallTimer timer_;
+  RuntimeCallTimer trace_event_timer_;
 };
 
 }  // namespace internal

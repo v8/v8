@@ -26,9 +26,11 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    RuntimeCallStats::Enter(tracer_->heap_->isolate(), &timer_,
-                            &RuntimeCallStats::GC);
+    RuntimeCallStats::Enter(
+        tracer_->heap_->isolate()->counters()->runtime_call_stats(), &timer_,
+        &RuntimeCallStats::GC);
   }
+  // TODO(lpy): Add a tracing equivalent for the runtime call stats.
 }
 
 GCTracer::Scope::~Scope() {
@@ -36,8 +38,10 @@ GCTracer::Scope::~Scope() {
       scope_, tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_);
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    RuntimeCallStats::Leave(tracer_->heap_->isolate(), &timer_);
+    RuntimeCallStats::Leave(
+        tracer_->heap_->isolate()->counters()->runtime_call_stats(), &timer_);
   }
+  // TODO(lpy): Add a tracing equivalent for the runtime call stats.
 }
 
 const char* GCTracer::Scope::Name(ScopeId id) {
@@ -206,8 +210,10 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
       start_time, used_memory);
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    RuntimeCallStats::Enter(heap_->isolate(), &timer_, &RuntimeCallStats::GC);
+    RuntimeCallStats::Enter(heap_->isolate()->counters()->runtime_call_stats(),
+                            &timer_, &RuntimeCallStats::GC);
   }
+  // TODO(lpy): Add a tracing equivalent for the runtime call stats.
 }
 
 void GCTracer::MergeBaseline(const Event& baseline) {
@@ -310,8 +316,10 @@ void GCTracer::Stop(GarbageCollector collector) {
 
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    RuntimeCallStats::Leave(heap_->isolate(), &timer_);
+    RuntimeCallStats::Leave(heap_->isolate()->counters()->runtime_call_stats(),
+                            &timer_);
   }
+  // TODO(lpy): Add a tracing equivalent for the runtime call stats.
 }
 
 

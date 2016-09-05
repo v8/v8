@@ -89,8 +89,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
                                      &RuntimeCallStats::CompileFullCode);
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileFullCode");
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::CompileFullCode);
 
   Handle<Script> script = info->script();
   if (!script->IsUndefined(isolate) &&

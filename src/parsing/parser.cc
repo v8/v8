@@ -588,8 +588,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   HistogramTimerScope timer_scope(isolate->counters()->parse(), true);
   RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::Parse);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.Parse");
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::Parse);
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
@@ -755,8 +753,6 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
   RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::ParseLazy);
   HistogramTimerScope timer_scope(isolate->counters()->parse_lazy());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseLazy");
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::ParseLazy);
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
