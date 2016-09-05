@@ -36,7 +36,6 @@ class CodeSerializer : public Serializer {
     UNREACHABLE();
   }
 
-  virtual bool SkipOver(Object* obj) { return false; }
   void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
                         WhereToPoint where_to_point);
 
@@ -73,8 +72,6 @@ class WasmCompiledModuleSerializer : public CodeSerializer {
       UNREACHABLE();
     }
   }
-
-  bool SkipOver(Object* obj) override { return obj->IsWeakCell(); };
 
  private:
   WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash)
