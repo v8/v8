@@ -36,9 +36,9 @@
 namespace v8 {
 namespace internal {
 
-class Types {
+class AstTypes {
  public:
-  Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
+  AstTypes(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
       : zone_(zone), isolate_(isolate), rng_(rng) {
 #define DECLARE_TYPE(name, value) \
   name = AstType::name();         \

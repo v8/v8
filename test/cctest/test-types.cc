@@ -21,6 +21,7 @@
 
 using namespace v8::internal;
 
+namespace {
 
 // Testing auxiliaries (breaking the Type abstraction).
 
@@ -39,7 +40,6 @@ typedef uint32_t bitset;
 
 struct Tests {
   typedef Types::TypeVector::iterator TypeIterator;
-  typedef Types::MapVector::iterator MapIterator;
   typedef Types::ValueVector::iterator ValueIterator;
 
   Isolate* isolate;
@@ -62,7 +62,6 @@ struct Tests {
     return type1->Equals(type2) &&
            this->IsBitset(type1) == this->IsBitset(type2) &&
            this->IsUnion(type1) == this->IsUnion(type2) &&
-           type1->NumClasses() == type2->NumClasses() &&
            type1->NumConstants() == type2->NumConstants() &&
            (!this->IsBitset(type1) ||
             this->AsBitset(type1) == this->AsBitset(type2)) &&
@@ -113,8 +112,9 @@ struct Tests {
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* t = *it;
       CHECK(1 ==
-          this->IsBitset(t) + t->IsClass() + t->IsConstant() + t->IsRange() +
-          this->IsUnion(t) + t->IsArray() + t->IsFunction() + t->IsContext());
+            this->IsBitset(t) + t->IsConstant() + t->IsRange() +
+                this->IsUnion(t) + t->IsArray() + t->IsFunction() +
+                t->IsContext());
     }
   }
 
@@ -193,8 +193,6 @@ struct Tests {
     int counter = 0;
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       counter++;
-      printf("Counter: %i\n", counter);
-      fflush(stdout);
       Type* type1 = *it1;
       Type* representation = T.Representation(type1);
       Type* semantic = T.Semantic(type1);
@@ -251,33 +249,6 @@ struct Tests {
         bool semantic_is = semantic1->Is(semantic2);
         bool direct_is = type1->Is(type2);
         CHECK(direct_is == (semantic_is && representation_is));
-      }
-    }
-  }
-
-  void Class() {
-    // Constructor
-    for (MapIterator mt = T.maps.begin(); mt != T.maps.end(); ++mt) {
-      Handle<i::Map> map = *mt;
-      Type* type = T.Class(map);
-      CHECK(type->IsClass());
-    }
-
-    // Map attribute
-    for (MapIterator mt = T.maps.begin(); mt != T.maps.end(); ++mt) {
-      Handle<i::Map> map = *mt;
-      Type* type = T.Class(map);
-      CHECK(*map == *type->AsClass()->Map());
-    }
-
-    // Functionality & Injectivity: Class(M1) = Class(M2) iff M1 = M2
-    for (MapIterator mt1 = T.maps.begin(); mt1 != T.maps.end(); ++mt1) {
-      for (MapIterator mt2 = T.maps.begin(); mt2 != T.maps.end(); ++mt2) {
-        Handle<i::Map> map1 = *mt1;
-        Handle<i::Map> map2 = *mt2;
-        Type* type1 = T.Class(map1);
-        Type* type2 = T.Class(map2);
-        CHECK(Equal(type1, type2) == (*map1 == *map2));
       }
     }
   }
@@ -564,61 +535,6 @@ struct Tests {
     }
   }
 
-  void NowOf() {
-    // Constant(V)->NowIs(NowOf(V))
-    for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-      Handle<i::Object> value = *vt;
-      Type* const_type = T.Constant(value);
-      Type* nowof_type = T.NowOf(value);
-      CHECK(const_type->NowIs(nowof_type));
-    }
-
-    // NowOf(V)->Is(Of(V))
-    for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-      Handle<i::Object> value = *vt;
-      Type* nowof_type = T.NowOf(value);
-      Type* of_type = T.Of(value);
-      CHECK(nowof_type->Is(of_type));
-    }
-
-    // If NowOf(V)->NowIs(T), then Constant(V)->NowIs(T)
-    for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-      for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-        Handle<i::Object> value = *vt;
-        Type* type = *it;
-        Type* const_type = T.Constant(value);
-        Type* nowof_type = T.NowOf(value);
-        CHECK(!nowof_type->NowIs(type) || const_type->NowIs(type));
-      }
-    }
-
-    // If Constant(V)->NowIs(T),
-    // then NowOf(V)->NowIs(T) or T->Maybe(Constant(V))
-    for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-      for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-        Handle<i::Object> value = *vt;
-        Type* type = *it;
-        Type* const_type = T.Constant(value);
-        Type* nowof_type = T.NowOf(value);
-        CHECK(!const_type->NowIs(type) ||
-              nowof_type->NowIs(type) || type->Maybe(const_type));
-      }
-    }
-
-    // If Constant(V)->Is(T),
-    // then NowOf(V)->Is(T) or T->Maybe(Constant(V))
-    for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-      for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-        Handle<i::Object> value = *vt;
-        Type* type = *it;
-        Type* const_type = T.Constant(value);
-        Type* nowof_type = T.NowOf(value);
-        CHECK(!const_type->Is(type) ||
-              nowof_type->Is(type) || type->Maybe(const_type));
-      }
-    }
-  }
-
   void MinMax() {
     // If b is regular numeric bitset, then Range(b->Min(), b->Max())->Is(b).
     // TODO(neis): Need to ignore representation for this to be true.
@@ -794,7 +710,6 @@ struct Tests {
         Type* type2 = *j;
         CHECK(!type1->Is(type2) || this->IsBitset(type2) ||
               this->IsUnion(type2) || this->IsUnion(type1) ||
-              (type1->IsClass() && type2->IsClass()) ||
               (type1->IsConstant() && type2->IsConstant()) ||
               (type1->IsConstant() && type2->IsRange()) ||
               (this->IsBitset(type1) && type2->IsRange()) ||
@@ -808,17 +723,6 @@ struct Tests {
   }
 
   void Is2() {
-    // Class(M1)->Is(Class(M2)) iff M1 = M2
-    for (MapIterator mt1 = T.maps.begin(); mt1 != T.maps.end(); ++mt1) {
-      for (MapIterator mt2 = T.maps.begin(); mt2 != T.maps.end(); ++mt2) {
-        Handle<i::Map> map1 = *mt1;
-        Handle<i::Map> map2 = *mt2;
-        Type* class_type1 = T.Class(map1);
-        Type* class_type2 = T.Class(map2);
-        CHECK(class_type1->Is(class_type2) == (*map1 == *map2));
-      }
-    }
-
     // Range(X1, Y1)->Is(Range(X2, Y2)) iff X1 >= X2 /\ Y1 <= Y2
     for (ValueIterator i1 = T.integers.begin();
         i1 != T.integers.end(); ++i1) {
@@ -959,13 +863,6 @@ struct Tests {
 
     // Subtyping between concrete structural types
 
-    CheckSub(T.ObjectClass, T.Object);
-    CheckSub(T.ArrayClass, T.OtherObject);
-    CheckSub(T.UninitializedClass, T.Internal);
-    CheckUnordered(T.ObjectClass, T.ArrayClass);
-    CheckUnordered(T.UninitializedClass, T.Null);
-    CheckUnordered(T.UninitializedClass, T.Undefined);
-
     CheckSub(T.SmiConstant, T.SignedSmall);
     CheckSub(T.SmiConstant, T.Signed32);
     CheckSub(T.SmiConstant, T.Number);
@@ -980,12 +877,6 @@ struct Tests {
     CheckUnordered(T.UninitializedConstant, T.Null);
     CheckUnordered(T.UninitializedConstant, T.Undefined);
 
-    CheckUnordered(T.ObjectConstant1, T.ObjectClass);
-    CheckUnordered(T.ObjectConstant2, T.ObjectClass);
-    CheckUnordered(T.ObjectConstant1, T.ArrayClass);
-    CheckUnordered(T.ObjectConstant2, T.ArrayClass);
-    CheckUnordered(T.ArrayConstant, T.ObjectClass);
-
     CheckSub(T.NumberArray, T.OtherObject);
     CheckSub(T.NumberArray, T.Receiver);
     CheckSub(T.NumberArray, T.Object);
@@ -997,116 +888,6 @@ struct Tests {
     CheckUnordered(T.NumberFunction1, T.NumberFunction2);
   }
 
-  void NowIs() {
-    // Least Element (Bottom): None->NowIs(T)
-    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      CHECK(T.None->NowIs(type));
-    }
-
-    // Greatest Element (Top): T->NowIs(Any)
-    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      CHECK(type->NowIs(T.Any));
-    }
-
-    // Bottom Uniqueness: T->NowIs(None) implies T = None
-    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      if (type->NowIs(T.None)) CheckEqual(type, T.None);
-    }
-
-    // Top Uniqueness: Any->NowIs(T) implies T = Any
-    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      if (T.Any->NowIs(type)) CheckEqual(type, T.Any);
-    }
-
-    // Reflexivity: T->NowIs(T)
-    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      Type* type = *it;
-      CHECK(type->NowIs(type));
-    }
-
-    // Transitivity: T1->NowIs(T2) and T2->NowIs(T3) implies T1->NowIs(T3)
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          CHECK(!(type1->NowIs(type2) && type2->NowIs(type3)) ||
-                type1->NowIs(type3));
-        }
-      }
-    }
-
-    // Antisymmetry: T1->NowIs(T2) and T2->NowIs(T1) iff T1 = T2
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        CHECK((type1->NowIs(type2) && type2->NowIs(type1)) ==
-              Equal(type1, type2));
-      }
-    }
-
-    // T1->Is(T2) implies T1->NowIs(T2)
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        CHECK(!type1->Is(type2) || type1->NowIs(type2));
-      }
-    }
-
-    // Constant(V1)->NowIs(Constant(V2)) iff V1 = V2
-    for (ValueIterator vt1 = T.values.begin(); vt1 != T.values.end(); ++vt1) {
-      for (ValueIterator vt2 = T.values.begin(); vt2 != T.values.end(); ++vt2) {
-        Handle<i::Object> value1 = *vt1;
-        Handle<i::Object> value2 = *vt2;
-        Type* const_type1 = T.Constant(value1);
-        Type* const_type2 = T.Constant(value2);
-        CHECK(const_type1->NowIs(const_type2) == (*value1 == *value2));
-      }
-    }
-
-    // Class(M1)->NowIs(Class(M2)) iff M1 = M2
-    for (MapIterator mt1 = T.maps.begin(); mt1 != T.maps.end(); ++mt1) {
-      for (MapIterator mt2 = T.maps.begin(); mt2 != T.maps.end(); ++mt2) {
-        Handle<i::Map> map1 = *mt1;
-        Handle<i::Map> map2 = *mt2;
-        Type* class_type1 = T.Class(map1);
-        Type* class_type2 = T.Class(map2);
-        CHECK(class_type1->NowIs(class_type2) == (*map1 == *map2));
-      }
-    }
-
-    // Constant(V)->NowIs(Class(M)) iff V has map M
-    for (MapIterator mt = T.maps.begin(); mt != T.maps.end(); ++mt) {
-      for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Handle<i::Map> map = *mt;
-        Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        Type* class_type = T.Class(map);
-        CHECK((value->IsHeapObject() &&
-               i::HeapObject::cast(*value)->map() == *map)
-              == const_type->NowIs(class_type));
-      }
-    }
-
-    // Class(M)->NowIs(Constant(V)) never
-    for (MapIterator mt = T.maps.begin(); mt != T.maps.end(); ++mt) {
-      for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Handle<i::Map> map = *mt;
-        Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        Type* class_type = T.Class(map);
-        CHECK(!class_type->NowIs(const_type));
-      }
-    }
-  }
-
   void Contains() {
     // T->Contains(V) iff Constant(V)->Is(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
@@ -1115,37 +896,6 @@ struct Tests {
         Handle<i::Object> value = *vt;
         Type* const_type = T.Constant(value);
         CHECK(type->Contains(value) == const_type->Is(type));
-      }
-    }
-  }
-
-  void NowContains() {
-    // T->NowContains(V) iff Constant(V)->NowIs(T)
-    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Type* type = *it;
-        Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        CHECK(type->NowContains(value) == const_type->NowIs(type));
-      }
-    }
-
-    // T->Contains(V) implies T->NowContains(V)
-    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Type* type = *it;
-        Handle<i::Object> value = *vt;
-        CHECK(!type->Contains(value) || type->NowContains(value));
-      }
-    }
-
-    // NowOf(V)->Is(T) implies T->NowContains(V)
-    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Type* type = *it;
-        Handle<i::Object> value = *vt;
-        Type* nowof_type = T.Of(value);
-        CHECK(!nowof_type->NowIs(type) || type->NowContains(value));
       }
     }
   }
@@ -1219,45 +969,6 @@ struct Tests {
       }
     }
 
-    // Class(M1)->Maybe(Class(M2)) iff M1 = M2
-    for (MapIterator mt1 = T.maps.begin(); mt1 != T.maps.end(); ++mt1) {
-      for (MapIterator mt2 = T.maps.begin(); mt2 != T.maps.end(); ++mt2) {
-        Handle<i::Map> map1 = *mt1;
-        Handle<i::Map> map2 = *mt2;
-        Type* class_type1 = T.Class(map1);
-        Type* class_type2 = T.Class(map2);
-        CHECK(class_type1->Maybe(class_type2) == (*map1 == *map2));
-      }
-    }
-
-    // Constant(V)->Maybe(Class(M)) never
-    // This does NOT hold!
-    /*
-    for (MapIterator mt = T.maps.begin(); mt != T.maps.end(); ++mt) {
-      for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Handle<i::Map> map = *mt;
-        Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        Type* class_type = T.Class(map);
-        CHECK(!const_type->Maybe(class_type));
-      }
-    }
-    */
-
-    // Class(M)->Maybe(Constant(V)) never
-    // This does NOT hold!
-    /*
-    for (MapIterator mt = T.maps.begin(); mt != T.maps.end(); ++mt) {
-      for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Handle<i::Map> map = *mt;
-        Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        Type* class_type = T.Class(map);
-        CHECK(!class_type->Maybe(const_type));
-      }
-    }
-    */
-
     // Basic types
     CheckDisjoint(T.Boolean, T.Null);
     CheckDisjoint(T.Undefined, T.Null);
@@ -1281,11 +992,6 @@ struct Tests {
     CheckDisjoint(T.Object, T.Proxy);
 
     // Structural types
-    CheckOverlap(T.ObjectClass, T.Object);
-    CheckOverlap(T.ArrayClass, T.Object);
-    CheckOverlap(T.ObjectClass, T.ObjectClass);
-    CheckOverlap(T.ArrayClass, T.ArrayClass);
-    CheckDisjoint(T.ObjectClass, T.ArrayClass);
     CheckOverlap(T.SmiConstant, T.SignedSmall);
     CheckOverlap(T.SmiConstant, T.Signed32);
     CheckOverlap(T.SmiConstant, T.Number);
@@ -1296,9 +1002,6 @@ struct Tests {
     CheckOverlap(T.ObjectConstant1, T.ObjectConstant1);
     CheckDisjoint(T.ObjectConstant1, T.ObjectConstant2);
     CheckDisjoint(T.ObjectConstant1, T.ArrayConstant);
-    CheckOverlap(T.ObjectConstant1, T.ArrayClass);
-    CheckOverlap(T.ObjectConstant2, T.ArrayClass);
-    CheckOverlap(T.ArrayConstant, T.ObjectClass);
     CheckOverlap(T.NumberArray, T.Receiver);
     CheckDisjoint(T.NumberArray, T.AnyArray);
     CheckDisjoint(T.NumberArray, T.StringArray);
@@ -1307,9 +1010,6 @@ struct Tests {
     CheckDisjoint(T.SignedFunction1, T.NumberFunction2);
     CheckDisjoint(T.NumberFunction1, T.NumberFunction2);
     CheckDisjoint(T.SignedFunction1, T.MethodFunction);
-    CheckOverlap(T.ObjectConstant1, T.ObjectClass);  // !!!
-    CheckOverlap(T.ObjectConstant2, T.ObjectClass);  // !!!
-    CheckOverlap(T.NumberClass, T.Intersect(T.Number, T.Tagged));  // !!!
   }
 
   void Union1() {
@@ -1445,22 +1145,12 @@ struct Tests {
   }
 
   void Union4() {
-    // Class-class
-    CheckSub(T.Union(T.ObjectClass, T.ArrayClass), T.Object);
-    CheckOverlap(T.Union(T.ObjectClass, T.ArrayClass), T.OtherObject);
-    CheckOverlap(T.Union(T.ObjectClass, T.ArrayClass), T.Receiver);
-    CheckDisjoint(T.Union(T.ObjectClass, T.ArrayClass), T.Number);
-
     // Constant-constant
     CheckSub(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.Object);
     CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant), T.OtherObject);
-    CheckUnordered(
-        T.Union(T.ObjectConstant1, T.ObjectConstant2), T.ObjectClass);
     CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant), T.OtherObject);
     CheckDisjoint(
         T.Union(T.ObjectConstant1, T.ArrayConstant), T.Number);
-    CheckOverlap(
-        T.Union(T.ObjectConstant1, T.ArrayConstant), T.ObjectClass);  // !!!
 
     // Bitset-array
     CHECK(this->IsBitset(T.Union(T.AnyArray, T.Receiver)));
@@ -1481,14 +1171,6 @@ struct Tests {
     CheckOverlap(T.Union(T.NumberFunction2, T.String), T.Object);
     CheckDisjoint(T.Union(T.NumberFunction1, T.String), T.Number);
 
-    // Bitset-class
-    CheckSub(T.Union(T.ObjectClass, T.SignedSmall),
-             T.Union(T.Object, T.Number));
-    CheckSub(T.Union(T.ObjectClass, T.OtherObject), T.Object);
-    CheckUnordered(T.Union(T.ObjectClass, T.String), T.OtherObject);
-    CheckOverlap(T.Union(T.ObjectClass, T.String), T.Object);
-    CheckDisjoint(T.Union(T.ObjectClass, T.String), T.Number);
-
     // Bitset-constant
     CheckSub(
         T.Union(T.ObjectConstant1, T.Signed32), T.Union(T.Object, T.Number));
@@ -1496,32 +1178,6 @@ struct Tests {
     CheckUnordered(T.Union(T.ObjectConstant1, T.String), T.OtherObject);
     CheckOverlap(T.Union(T.ObjectConstant1, T.String), T.Object);
     CheckDisjoint(T.Union(T.ObjectConstant1, T.String), T.Number);
-
-    // Class-constant
-    CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass), T.Object);
-    CheckUnordered(T.ObjectClass, T.Union(T.ObjectConstant1, T.ArrayClass));
-    CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass),
-             T.Union(T.Receiver, T.Object));
-    CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass), T.ArrayConstant);
-    CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectConstant2);
-    CheckOverlap(
-        T.Union(T.ObjectConstant1, T.ArrayClass), T.ObjectClass);  // !!!
-
-    // Bitset-union
-    CheckSub(
-        T.NaN,
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number));
-    CheckSub(
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Signed32),
-        T.Union(T.ObjectConstant1, T.Union(T.Number, T.ArrayClass)));
-
-    // Class-union
-    CheckSub(
-        T.Union(T.ObjectClass, T.Union(T.ObjectConstant1, T.ObjectClass)),
-        T.Object);
-    CheckEqual(
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant2), T.ArrayClass),
-        T.Union(T.ArrayClass, T.ObjectConstant2));
 
     // Constant-union
     CheckEqual(
@@ -1552,9 +1208,6 @@ struct Tests {
             T.Union(T.ObjectConstant2, T.ObjectConstant1),
             T.Union(T.ObjectConstant1, T.ObjectConstant2)),
         T.Union(T.ObjectConstant2, T.ObjectConstant1));
-    CheckEqual(T.Union(T.Union(T.Number, T.ArrayClass),
-                       T.Union(T.SignedSmall, T.Receiver)),
-               T.Union(T.Number, T.Receiver));
   }
 
   void Intersect() {
@@ -1590,48 +1243,6 @@ struct Tests {
       }
     }
 
-    // Associativity:
-    // Intersect(T1, Intersect(T2, T3)) = Intersect(Intersect(T1, T2), T3)
-    // This does NOT hold.  For example:
-    // (Class(..stringy1..) /\ Class(..stringy2..)) /\ Constant(..string..) =
-    // None
-    // Class(..stringy1..) /\ (Class(..stringy2..) /\ Constant(..string..)) =
-    // Constant(..string..)
-    /*
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* intersect12 = T.Intersect(type1, type2);
-          Type* intersect23 = T.Intersect(type2, type3);
-          Type* intersect1_23 = T.Intersect(type1, intersect23);
-          Type* intersect12_3 = T.Intersect(intersect12, type3);
-          CheckEqual(intersect1_23, intersect12_3);
-        }
-      }
-    }
-    */
-
-    // Join: Intersect(T1, T2)->Is(T1) and Intersect(T1, T2)->Is(T2)
-    // This does NOT hold.  For example:
-    // Class(..stringy..) /\ Constant(..string..) = Constant(..string..)
-    // Currently, not even the disjunction holds:
-    // Class(Internal/TaggedPtr) /\ (Any/Untagged \/ Context(..)) =
-    // Class(Internal/TaggedPtr) \/ Context(..)
-    /*
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        Type* type1 = *it1;
-        Type* type2 = *it2;
-        Type* intersect12 = T.Intersect(type1, type2);
-        CHECK(intersect12->Is(type1));
-        CHECK(intersect12->Is(type2));
-      }
-    }
-    */
-
     // Lower Boundedness: T1->Is(T2) implies Intersect(T1, T2) = T1
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
@@ -1641,46 +1252,6 @@ struct Tests {
         if (type1->Is(type2)) CheckEqual(intersect12, type1);
       }
     }
-
-    // Monotonicity: T1->Is(T2) implies Intersect(T1, T3)->Is(Intersect(T2, T3))
-    // This does NOT hold.  For example:
-    // Class(OtherObject/TaggedPtr) <= Any/TaggedPtr
-    // Class(OtherObject/TaggedPtr) /\ Any/UntaggedInt1 = Class(..)
-    // Any/TaggedPtr /\ Any/UntaggedInt1 = None
-    /*
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* intersect13 = T.Intersect(type1, type3);
-          Type* intersect23 = T.Intersect(type2, type3);
-          CHECK(!type1->Is(type2) || intersect13->Is(intersect23));
-        }
-      }
-    }
-    */
-
-    // Monotonicity: T1->Is(T3) or T2->Is(T3) implies Intersect(T1, T2)->Is(T3)
-    // This does NOT hold.  For example:
-    // Class(..stringy..) <= Class(..stringy..)
-    // Class(..stringy..) /\ Constant(..string..) = Constant(..string..)
-    // Constant(..string..) </= Class(..stringy..)
-    /*
-    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
-          Type* type1 = *it1;
-          Type* type2 = *it2;
-          Type* type3 = *it3;
-          Type* intersect12 = T.Intersect(type1, type2);
-          CHECK(!(type1->Is(type3) || type2->Is(type3)) ||
-                intersect12->Is(type3));
-        }
-      }
-    }
-    */
 
     // Monotonicity: T1->Is(T2) and T1->Is(T3) implies T1->Is(Intersect(T2, T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
@@ -1697,10 +1268,6 @@ struct Tests {
       }
     }
 
-    // Bitset-class
-    CheckEqual(T.Intersect(T.ObjectClass, T.Object), T.ObjectClass);
-    CheckEqual(T.Semantic(T.Intersect(T.ObjectClass, T.Number)), T.None);
-
     // Bitset-array
     CheckEqual(T.Intersect(T.NumberArray, T.Object), T.NumberArray);
     CheckEqual(T.Semantic(T.Intersect(T.AnyArray, T.Proxy)), T.None);
@@ -1709,22 +1276,7 @@ struct Tests {
     CheckEqual(T.Intersect(T.MethodFunction, T.Object), T.MethodFunction);
     CheckEqual(T.Semantic(T.Intersect(T.NumberFunction1, T.Proxy)), T.None);
 
-    // Bitset-union
-    CheckEqual(
-        T.Intersect(T.Object, T.Union(T.ObjectConstant1, T.ObjectClass)),
-        T.Union(T.ObjectConstant1, T.ObjectClass));
-    CheckEqual(T.Semantic(T.Intersect(T.Union(T.ArrayClass, T.ObjectConstant1),
-                                      T.Number)),
-               T.None);
-
-    // Class-constant
-    CHECK(T.Intersect(T.ObjectConstant1, T.ObjectClass)->IsInhabited());  // !!!
-    CHECK(T.Intersect(T.ArrayClass, T.ObjectConstant2)->IsInhabited());
-
     // Array-union
-    CheckEqual(
-        T.Intersect(T.NumberArray, T.Union(T.NumberArray, T.ArrayClass)),
-        T.NumberArray);
     CheckEqual(
         T.Intersect(T.AnyArray, T.Union(T.Object, T.SmiConstant)),
         T.AnyArray);
@@ -1743,17 +1295,6 @@ struct Tests {
         !T.Intersect(T.Union(T.MethodFunction, T.Name), T.NumberFunction2)
             ->IsInhabited());
 
-    // Class-union
-    CheckEqual(
-        T.Intersect(T.ArrayClass, T.Union(T.ObjectConstant2, T.ArrayClass)),
-        T.ArrayClass);
-    CheckEqual(
-        T.Intersect(T.ArrayClass, T.Union(T.Object, T.SmiConstant)),
-        T.ArrayClass);
-    CHECK(
-        T.Intersect(T.Union(T.ObjectClass, T.ArrayConstant), T.ArrayClass)
-            ->IsInhabited());  // !!!
-
     // Constant-union
     CheckEqual(
         T.Intersect(
@@ -1762,34 +1303,13 @@ struct Tests {
     CheckEqual(
         T.Intersect(T.SmiConstant, T.Union(T.Number, T.ObjectConstant2)),
         T.SmiConstant);
-    CHECK(
-        T.Intersect(
-            T.Union(T.ArrayConstant, T.ObjectClass), T.ObjectConstant1)
-                ->IsInhabited());  // !!!
 
     // Union-union
-    CheckEqual(T.Intersect(T.Union(T.Number, T.ArrayClass),
-                           T.Union(T.SignedSmall, T.Receiver)),
-               T.Union(T.SignedSmall, T.ArrayClass));
-    CheckEqual(T.Intersect(T.Union(T.Number, T.ObjectClass),
-                           T.Union(T.Signed32, T.OtherObject)),
-               T.Union(T.Signed32, T.ObjectClass));
     CheckEqual(
         T.Intersect(
             T.Union(T.ObjectConstant2, T.ObjectConstant1),
             T.Union(T.ObjectConstant1, T.ObjectConstant2)),
         T.Union(T.ObjectConstant2, T.ObjectConstant1));
-    CheckEqual(
-        T.Intersect(
-            T.Union(
-                T.ArrayClass,
-                T.Union(T.ObjectConstant2, T.ObjectConstant1)),
-            T.Union(
-                T.ObjectConstant1,
-                T.Union(T.ArrayConstant, T.ObjectConstant2))),
-        T.Union(
-            T.ArrayConstant,
-            T.Union(T.ObjectConstant2, T.ObjectConstant1)));  // !!!
   }
 
   void Distributivity() {
@@ -1868,54 +1388,48 @@ struct Tests {
   }
 };
 
-TEST(IsSomeType_zone) { Tests().IsSomeType(); }
+}  // namespace
 
-TEST(PointwiseRepresentation_zone) { Tests().PointwiseRepresentation(); }
+TEST(IsSomeType) { Tests().IsSomeType(); }
 
-TEST(BitsetType_zone) { Tests().Bitset(); }
+TEST(PointwiseRepresentation) { Tests().PointwiseRepresentation(); }
 
-TEST(ClassType_zone) { Tests().Class(); }
+TEST(BitsetType) { Tests().Bitset(); }
 
-TEST(ConstantType_zone) { Tests().Constant(); }
+TEST(ConstantType) { Tests().Constant(); }
 
-TEST(RangeType_zone) { Tests().Range(); }
+TEST(RangeType) { Tests().Range(); }
 
-TEST(ArrayType_zone) { Tests().Array(); }
+TEST(ArrayType) { Tests().Array(); }
 
-TEST(FunctionType_zone) { Tests().Function(); }
+TEST(FunctionType) { Tests().Function(); }
 
-TEST(Of_zone) { Tests().Of(); }
+TEST(Of) { Tests().Of(); }
 
-TEST(NowOf_zone) { Tests().NowOf(); }
+TEST(MinMax) { Tests().MinMax(); }
 
-TEST(MinMax_zone) { Tests().MinMax(); }
+TEST(BitsetGlb) { Tests().BitsetGlb(); }
 
-TEST(BitsetGlb_zone) { Tests().BitsetGlb(); }
+TEST(BitsetLub) { Tests().BitsetLub(); }
 
-TEST(BitsetLub_zone) { Tests().BitsetLub(); }
+TEST(Is1) { Tests().Is1(); }
 
-TEST(Is1_zone) { Tests().Is1(); }
+TEST(Is2) { Tests().Is2(); }
 
-TEST(Is2_zone) { Tests().Is2(); }
+TEST(Contains) { Tests().Contains(); }
 
-TEST(NowIs_zone) { Tests().NowIs(); }
+TEST(Maybe) { Tests().Maybe(); }
 
-TEST(Contains_zone) { Tests().Contains(); }
+TEST(Union1) { Tests().Union1(); }
 
-TEST(NowContains_zone) { Tests().NowContains(); }
+TEST(Union2) { Tests().Union2(); }
 
-TEST(Maybe_zone) { Tests().Maybe(); }
+TEST(Union3) { Tests().Union3(); }
 
-TEST(Union1_zone) { Tests().Union1(); }
+TEST(Union4) { Tests().Union4(); }
 
-TEST(Union2_zone) { Tests().Union2(); }
+TEST(Intersect) { Tests().Intersect(); }
 
-TEST(Union3_zone) { Tests().Union3(); }
+TEST(Distributivity) { Tests().Distributivity(); }
 
-TEST(Union4_zone) { Tests().Union4(); }
-
-TEST(Intersect_zone) { Tests().Intersect(); }
-
-TEST(Distributivity_zone) { Tests().Distributivity(); }
-
-TEST(GetRange_zone) { Tests().GetRange(); }
+TEST(GetRange) { Tests().GetRange(); }

@@ -21,6 +21,8 @@
 
 using namespace v8::internal;
 
+namespace {
+
 // Testing auxiliaries (breaking the Type abstraction).
 
 static bool IsInteger(double x) {
@@ -34,14 +36,14 @@ static bool IsInteger(i::Object* x) {
 typedef uint32_t bitset;
 
 struct Tests {
-  typedef Types::TypeVector::iterator TypeIterator;
-  typedef Types::MapVector::iterator MapIterator;
-  typedef Types::ValueVector::iterator ValueIterator;
+  typedef AstTypes::TypeVector::iterator TypeIterator;
+  typedef AstTypes::MapVector::iterator MapIterator;
+  typedef AstTypes::ValueVector::iterator ValueIterator;
 
   Isolate* isolate;
   HandleScope scope;
   Zone zone;
-  Types T;
+  AstTypes T;
 
   Tests()
       : isolate(CcTest::InitIsolateOnce()),
@@ -1844,6 +1846,8 @@ struct Tests {
     }
   }
 };
+
+}  // namespace
 
 TEST(AstIsSomeType_zone) { Tests().IsSomeType(); }
 

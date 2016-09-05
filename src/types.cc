@@ -144,7 +144,6 @@ Type::bitset BitsetType::Lub(Type* type) {
     }
     return bitset;
   }
-  if (type->IsClass()) return type->AsClass()->Lub();
   if (type->IsConstant()) return type->AsConstant()->Lub();
   if (type->IsRange()) return type->AsRange()->Lub();
   if (type->IsContext()) return kOtherInternal & kTaggedPointer;
@@ -409,10 +408,6 @@ double BitsetType::Max(bitset bits) {
 
 bool Type::SimplyEquals(Type* that) {
   DisallowHeapAllocation no_allocation;
-  if (this->IsClass()) {
-    return that->IsClass()
-        && *this->AsClass()->Map() == *that->AsClass()->Map();
-  }
   if (this->IsConstant()) {
     return that->IsConstant()
         && *this->AsConstant()->Value() == *that->AsConstant()->Value();
@@ -524,52 +519,6 @@ bool Type::SemanticIs(Type* that) {
   return this->SimplyEquals(that);
 }
 
-// Most precise _current_ type of a value (usually its class).
-Type* Type::NowOf(i::Object* value, Zone* zone) {
-  if (value->IsSmi() ||
-      i::HeapObject::cast(value)->map()->instance_type() == HEAP_NUMBER_TYPE) {
-    return Of(value, zone);
-  }
-  return Class(i::handle(i::HeapObject::cast(value)->map()), zone);
-}
-
-bool Type::NowContains(i::Object* value) {
-  DisallowHeapAllocation no_allocation;
-  if (this->IsAny()) return true;
-  if (value->IsHeapObject()) {
-    i::Map* map = i::HeapObject::cast(value)->map();
-    for (Iterator<i::Map> it = this->Classes(); !it.Done(); it.Advance()) {
-      if (*it.Current() == map) return true;
-    }
-  }
-  return this->Contains(value);
-}
-
-bool Type::NowIs(Type* that) {
-  DisallowHeapAllocation no_allocation;
-
-  // TODO(rossberg): this is incorrect for
-  //   Union(Constant(V), T)->NowIs(Class(M))
-  // but fuzzing does not cover that!
-  if (this->IsConstant()) {
-    i::Object* object = *this->AsConstant()->Value();
-    if (object->IsHeapObject()) {
-      i::Map* map = i::HeapObject::cast(object)->map();
-      for (Iterator<i::Map> it = that->Classes(); !it.Done(); it.Advance()) {
-        if (*it.Current() == map) return true;
-      }
-    }
-  }
-  return this->Is(that);
-}
-
-
-// Check if [this] contains only (currently) stable classes.
-bool Type::NowStable() {
-  DisallowHeapAllocation no_allocation;
-  return !this->IsClass() || this->AsClass()->Map()->is_stable();
-}
-
 
 // Check if [this] and [that] overlap.
 bool Type::Maybe(Type* that) {
@@ -606,8 +555,6 @@ bool Type::SemanticMaybe(Type* that) {
     return false;
 
   if (this->IsBitset() && that->IsBitset()) return true;
-
-  if (this->IsClass() != that->IsClass()) return true;
 
   if (this->IsRange()) {
     if (that->IsConstant()) {
@@ -830,10 +777,6 @@ int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
       }
       return size;
     }
-    if (rhs->IsClass()) {
-      *lims =
-          RangeType::Limits::Union(RangeType::Limits(lhs->AsRange()), *lims);
-    }
     if (rhs->IsConstant() && Contains(lhs->AsRange(), rhs->AsConstant())) {
       return AddToUnion(rhs, result, size, zone);
     }
@@ -852,9 +795,6 @@ int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
   }
   if (lhs->IsBitset() || rhs->IsBitset()) {
     return AddToUnion(lhs->IsBitset() ? rhs : lhs, result, size, zone);
-  }
-  if (lhs->IsClass() != rhs->IsClass()) {
-    return AddToUnion(lhs->IsClass() ? rhs : lhs, result, size, zone);
   }
   if (lhs->SimplyEquals(rhs)) {
     return AddToUnion(lhs, result, size, zone);
@@ -1031,21 +971,6 @@ Type* Type::Semantic(Type* t, Zone* zone) {
 // -----------------------------------------------------------------------------
 // Iteration.
 
-int Type::NumClasses() {
-  DisallowHeapAllocation no_allocation;
-  if (this->IsClass()) {
-    return 1;
-  } else if (this->IsUnion()) {
-    int result = 0;
-    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
-      if (this->AsUnion()->Get(i)->IsClass()) ++result;
-    }
-    return result;
-  } else {
-    return 0;
-  }
-}
-
 int Type::NumConstants() {
   DisallowHeapAllocation no_allocation;
   if (this->IsConstant()) {
@@ -1074,14 +999,6 @@ template <class T>
 struct TypeImplIteratorAux {
   static bool matches(Type* type);
   static i::Handle<T> current(Type* type);
-};
-
-template <>
-struct TypeImplIteratorAux<i::Map> {
-  static bool matches(Type* type) { return type->IsClass(); }
-  static i::Handle<i::Map> current(Type* type) {
-    return type->AsClass()->Map();
-  }
 };
 
 template <>
@@ -1181,10 +1098,6 @@ void Type::PrintTo(std::ostream& os, PrintDimension dim) {
   if (dim != REPRESENTATION_DIM) {
     if (this->IsBitset()) {
       BitsetType::Print(os, SEMANTIC(this->AsBitset()));
-    } else if (this->IsClass()) {
-      os << "Class(" << static_cast<void*>(*this->AsClass()->Map()) << " < ";
-      BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
-      os << ")";
     } else if (this->IsConstant()) {
       os << "Constant(" << Brief(*this->AsConstant()->Value()) << ")";
     } else if (this->IsRange()) {
@@ -1262,17 +1175,9 @@ BitsetType::bitset BitsetType::UnsignedSmall() {
   return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
 }
 
-#define CONSTRUCT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
-  Type* Type::Name(Isolate* isolate, Zone* zone) {                   \
-    return Class(i::handle(isolate->heap()->name##_map()), zone);    \
-  }
-SIMD128_TYPES(CONSTRUCT_SIMD_TYPE)
-#undef CONSTRUCT_SIMD_TYPE
-
 // -----------------------------------------------------------------------------
 // Instantiations.
 
-template class Type::Iterator<i::Map>;
 template class Type::Iterator<i::Object>;
 
 }  // namespace internal

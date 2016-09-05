@@ -45,7 +45,6 @@ namespace internal {
 //   OtherUndetectable < Object
 //   DetectableReceiver = Receiver - OtherUndetectable
 //
-//   Class(map) < T   iff instance_type(map) < T
 //   Constant(x) < T  iff instance_type(map(x)) < T
 //   Array(T) < Array
 //   Function(R, S, T0, T1, ...) < Function
@@ -56,12 +55,6 @@ namespace internal {
 // There is no subtyping relation between Array, Function, or Context types
 // and respective Constant types, since these types cannot be reconstructed
 // for arbitrary heap values.
-// Note also that Constant(x) < Class(map(x)) does _not_ hold, since x's map can
-// change! (Its instance type cannot, however.)
-// TODO(rossberg): the latter is not currently true for proxies, because of fix,
-// but will hold once we implement direct proxies.
-// However, we also define a 'temporal' variant of the subtyping relation that
-// considers the _current_ state only, i.e., Constant(x) <_now Class(map(x)).
 //
 //
 // REPRESENTATIONAL DIMENSION
@@ -140,10 +133,9 @@ namespace internal {
 // IMPLEMENTATION
 //
 // Internally, all 'primitive' types, and their unions, are represented as
-// bitsets. Bit 0 is reserved for tagging. Class is a heap pointer to the
-// respective map. Only structured types require allocation.
+// bitsets. Bit 0 is reserved for tagging. Only structured types require
+// allocation.
 // Note that the bitset representation is closed under both Union and Intersect.
-
 
 // -----------------------------------------------------------------------------
 // Values for bitset types
@@ -356,7 +348,6 @@ class TypeBase {
   friend class Type;
 
   enum Kind {
-    kClass,
     kConstant,
     kContext,
     kArray,
@@ -383,36 +374,6 @@ class TypeBase {
 
  private:
   Kind kind_;
-};
-
-// -----------------------------------------------------------------------------
-// Class types.
-
-class ClassType : public TypeBase {
- public:
-  i::Handle<i::Map> Map() { return map_; }
-
- private:
-  friend class Type;
-  friend class BitsetType;
-
-  static Type* New(i::Handle<i::Map> map, Zone* zone) {
-    return AsType(new (zone->New(sizeof(ClassType)))
-                      ClassType(BitsetType::Lub(*map), map));
-  }
-
-  static ClassType* cast(Type* type) {
-    DCHECK(IsKind(type, kClass));
-    return static_cast<ClassType*>(FromType(type));
-  }
-
-  ClassType(BitsetType::bitset bitset, i::Handle<i::Map> map)
-      : TypeBase(kClass), bitset_(bitset), map_(map) {}
-
-  BitsetType::bitset Lub() { return bitset_; }
-
-  BitsetType::bitset bitset_;
-  Handle<i::Map> map_;
 };
 
 // -----------------------------------------------------------------------------
@@ -689,9 +650,6 @@ class Type {
     return BitsetType::New(BitsetType::UnsignedSmall());
   }
 
-  static Type* Class(i::Handle<i::Map> map, Zone* zone) {
-    return ClassType::New(map, zone);
-  }
   static Type* Constant(i::Handle<i::Object> value, Zone* zone) {
     return ConstantType::New(value, zone);
   }
@@ -746,11 +704,6 @@ class Type {
     return tuple;
   }
 
-#define CONSTRUCT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
-  static Type* Name(Isolate* isolate, Zone* zone);
-  SIMD128_TYPES(CONSTRUCT_SIMD_TYPE)
-#undef CONSTRUCT_SIMD_TYPE
-
   static Type* Union(Type* type1, Type* type2, Zone* zone);
   static Type* Intersect(Type* type1, Type* type2, Zone* zone);
 
@@ -784,28 +737,14 @@ class Type {
   bool Contains(i::Object* val);
   bool Contains(i::Handle<i::Object> val) { return this->Contains(*val); }
 
-  // State-dependent versions of the above that consider subtyping between
-  // a constant and its map class.
-  static Type* NowOf(i::Object* value, Zone* zone);
-  static Type* NowOf(i::Handle<i::Object> value, Zone* zone) {
-    return NowOf(*value, zone);
-  }
-  bool NowIs(Type* that);
-  bool NowContains(i::Object* val);
-  bool NowContains(i::Handle<i::Object> val) { return this->NowContains(*val); }
-
-  bool NowStable();
-
   // Inspection.
   bool IsRange() { return IsKind(TypeBase::kRange); }
-  bool IsClass() { return IsKind(TypeBase::kClass); }
   bool IsConstant() { return IsKind(TypeBase::kConstant); }
   bool IsContext() { return IsKind(TypeBase::kContext); }
   bool IsArray() { return IsKind(TypeBase::kArray); }
   bool IsFunction() { return IsKind(TypeBase::kFunction); }
   bool IsTuple() { return IsKind(TypeBase::kTuple); }
 
-  ClassType* AsClass() { return ClassType::cast(this); }
   ConstantType* AsConstant() { return ConstantType::cast(this); }
   RangeType* AsRange() { return RangeType::cast(this); }
   ContextType* AsContext() { return ContextType::cast(this); }
@@ -829,7 +768,6 @@ class Type {
     return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
   }
 
-  int NumClasses();
   int NumConstants();
 
   template <class T>
@@ -852,10 +790,6 @@ class Type {
     int index_;
   };
 
-  Iterator<i::Map> Classes() {
-    if (this->IsBitset()) return Iterator<i::Map>();
-    return Iterator<i::Map>(this);
-  }
   Iterator<i::Object> Constants() {
     if (this->IsBitset()) return Iterator<i::Object>();
     return Iterator<i::Object>(this);

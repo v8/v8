@@ -36,11 +36,10 @@
 namespace v8 {
 namespace internal {
 
-
 class Types {
  public:
   Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : zone_(zone), isolate_(isolate), rng_(rng) {
+      : zone_(zone), rng_(rng) {
 #define DECLARE_TYPE(name, value) \
   name = Type::name();            \
   types.push_back(name);
@@ -52,22 +51,6 @@ class Types {
 
     object_map = isolate->factory()->NewMap(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    array_map = isolate->factory()->NewMap(
-        JS_ARRAY_TYPE, JSArray::kSize);
-    number_map = isolate->factory()->NewMap(
-        HEAP_NUMBER_TYPE, HeapNumber::kSize);
-    uninitialized_map = isolate->factory()->uninitialized_map();
-    ObjectClass = Type::Class(object_map, zone);
-    ArrayClass = Type::Class(array_map, zone);
-    NumberClass = Type::Class(number_map, zone);
-    UninitializedClass = Type::Class(uninitialized_map, zone);
-
-    maps.push_back(object_map);
-    maps.push_back(array_map);
-    maps.push_back(uninitialized_map);
-    for (MapVector::iterator it = maps.begin(); it != maps.end(); ++it) {
-      types.push_back(Type::Class(*it, zone));
-    }
 
     smi = handle(Smi::FromInt(666), isolate);
     signed32 = isolate->factory()->NewHeapNumber(0x40000000);
@@ -121,9 +104,6 @@ class Types {
   }
 
   Handle<i::Map> object_map;
-  Handle<i::Map> array_map;
-  Handle<i::Map> number_map;
-  Handle<i::Map> uninitialized_map;
 
   Handle<i::Smi> smi;
   Handle<i::HeapNumber> signed32;
@@ -141,11 +121,6 @@ class Types {
 #undef DECLARE_TYPE
   Type* SignedSmall;
   Type* UnsignedSmall;
-
-  Type* ObjectClass;
-  Type* ArrayClass;
-  Type* NumberClass;
-  Type* UninitializedClass;
 
   Type* SmiConstant;
   Type* Signed32Constant;
@@ -166,19 +141,13 @@ class Types {
   Type* MethodFunction;
 
   typedef std::vector<Type*> TypeVector;
-  typedef std::vector<Handle<i::Map> > MapVector;
   typedef std::vector<Handle<i::Object> > ValueVector;
 
   TypeVector types;
-  MapVector maps;
   ValueVector values;
   ValueVector integers;  // "Integer" values used for range limits.
 
   Type* Of(Handle<i::Object> value) { return Type::Of(value, zone_); }
-
-  Type* NowOf(Handle<i::Object> value) { return Type::NowOf(value, zone_); }
-
-  Type* Class(Handle<i::Map> map) { return Type::Class(map, zone_); }
 
   Type* Constant(Handle<i::Object> value) {
     return Type::Constant(value, zone_);
@@ -241,15 +210,11 @@ class Types {
         }
         return result;
       }
-      case 1: {  // class
-        int i = rng_->NextInt(static_cast<int>(maps.size()));
-        return Type::Class(maps[i], zone_);
-      }
-      case 2: {  // constant
+      case 1: {  // constant
         int i = rng_->NextInt(static_cast<int>(values.size()));
         return Type::Constant(values[i], zone_);
       }
-      case 3: {  // range
+      case 2: {  // range
         int i = rng_->NextInt(static_cast<int>(integers.size()));
         int j = rng_->NextInt(static_cast<int>(integers.size()));
         double min = integers[i]->Number();
@@ -257,18 +222,18 @@ class Types {
         if (min > max) std::swap(min, max);
         return Type::Range(min, max, zone_);
       }
-      case 4: {  // context
+      case 3: {  // context
         int depth = rng_->NextInt(3);
         Type* type = Type::Internal();
         for (int i = 0; i < depth; ++i) type = Type::Context(type, zone_);
         return type;
       }
-      case 5: {  // array
+      case 4: {  // array
         Type* element = Fuzz(depth / 2);
         return Type::Array(element, zone_);
       }
-      case 6:
-      case 7: {  // function
+      case 5:
+      case 6: {  // function
         Type* result = Fuzz(depth / 2);
         Type* receiver = Fuzz(depth / 2);
         int arity = rng_->NextInt(3);
@@ -278,20 +243,6 @@ class Types {
           type->AsFunction()->InitParameter(i, parameter);
         }
         return type;
-      }
-      case 8: {  // simd
-        static const int num_simd_types =
-            #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) +1
-            SIMD128_TYPES(COUNT_SIMD_TYPE);
-            #undef COUNT_SIMD_TYPE
-        Type* (*simd_constructors[num_simd_types])(Isolate*, Zone*) = {
-          #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
-          &Type::Name,
-            SIMD128_TYPES(COUNT_SIMD_TYPE)
-          #undef COUNT_SIMD_TYPE
-        };
-        return simd_constructors[rng_->NextInt(num_simd_types)](isolate_,
-                                                                zone_);
       }
       default: {  // union
         int n = rng_->NextInt(10);
@@ -310,7 +261,6 @@ class Types {
 
  private:
   Zone* zone_;
-  Isolate* isolate_;
   v8::base::RandomNumberGenerator* rng_;
 };
 
