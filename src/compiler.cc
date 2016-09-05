@@ -1336,6 +1336,7 @@ bool Compiler::EnsureBytecode(CompilationInfo* info) {
   if (!info->shared_info()->HasBytecodeArray()) {
     Handle<Code> original_code(info->shared_info()->code());
     if (GetUnoptimizedCode(info).is_null()) return false;
+    if (info->shared_info()->HasAsmWasmData()) return false;
     DCHECK(info->shared_info()->is_compiled());
     if (original_code->kind() == Code::FUNCTION) {
       // Generating bytecode will install the {InterpreterEntryTrampoline} as
