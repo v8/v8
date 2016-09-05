@@ -1295,7 +1295,7 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
     if (function->shared()->HasBuiltinFunctionId()) {
       switch (function->shared()->builtin_function_id()) {
         case kMathRandom:
-          return Type::OrderedNumber();
+          return Type::PlainNumber();
         case kMathFloor:
         case kMathCeil:
         case kMathRound:
