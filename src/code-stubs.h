@@ -3224,7 +3224,6 @@ class ToObjectStub final : public TurboFanCodeStub {
 #undef DEFINE_CODE_STUB
 #undef DEFINE_CODE_STUB_BASE
 
-extern Representation RepresentationFromType(Type* type);
 extern Representation RepresentationFromMachineType(MachineType type);
 
 }  // namespace internal
