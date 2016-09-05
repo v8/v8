@@ -1438,6 +1438,7 @@ v8_source_set("v8_base") {
     "src/log-utils.h",
     "src/log.cc",
     "src/log.h",
+    "src/lookup-inl.h",
     "src/lookup.cc",
     "src/lookup.h",
     "src/machine-type.cc",

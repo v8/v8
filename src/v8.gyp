@@ -1034,6 +1034,7 @@
         'log-utils.h',
         'log.cc',
         'log.h',
+        'lookup-inl.h',
         'lookup.cc',
         'lookup.h',
         'macro-assembler.h',

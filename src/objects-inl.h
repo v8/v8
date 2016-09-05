@@ -27,7 +27,7 @@
 #include "src/isolate.h"
 #include "src/keys.h"
 #include "src/layout-descriptor-inl.h"
-#include "src/lookup.h"
+#include "src/lookup-inl.h"
 #include "src/objects.h"
 #include "src/property.h"
 #include "src/prototype.h"
