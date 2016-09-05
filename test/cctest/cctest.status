@@ -360,10 +360,6 @@
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
-  # BUG(rmcilroy,4680): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
-  'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [FAIL],
-  'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [FAIL],
-
   # BUG(4680): Missing type feedback makes optimistic optimizations fail.
   'test-cpu-profiler/CollectDeoptEvents': [FAIL],
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
@@ -407,8 +403,6 @@
   'test-heap/OptimizedPretenuringNestedObjectLiterals': [FAIL],
   'test-heap/OptimizedPretenuringObjectArrayLiterals': [FAIL],
   'test-heap/Regress169209': [FAIL],
-  'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [FAIL],
-  'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [FAIL],
   'test-heap/TestCodeFlushing': [FAIL],
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
