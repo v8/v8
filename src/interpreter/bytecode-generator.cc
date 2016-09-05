@@ -946,6 +946,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 
 void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
+  DCHECK(variable->mode() == LET || variable->mode() == VAR);
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
@@ -955,8 +956,6 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
       VisitForAccumulatorValue(decl->fun());
-      DCHECK(variable->mode() == LET || variable->mode() == VAR ||
-             variable->mode() == CONST);
       VisitVariableAssignment(variable, Token::INIT,
                               FeedbackVectorSlot::Invalid());
       break;
