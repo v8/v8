@@ -6,6 +6,8 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/execution.h"
+#include "src/isolate.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 
@@ -24,7 +26,7 @@ class Processor final : public AstVisitor<Processor> {
         closure_scope_(closure_scope),
         factory_(ast_value_factory) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
-    InitializeAstVisitor(isolate);
+    InitializeAstVisitor(isolate->stack_guard()->climit());
   }
 
   Processor(Parser* parser, DeclarationScope* closure_scope, Variable* result,

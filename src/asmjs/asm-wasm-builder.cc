@@ -68,7 +68,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
                          ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
         imported_function_table_(this) {
-    InitializeAstVisitor(isolate);
+    InitializeAstVisitor(isolate->stack_guard()->real_climit());
   }
 
   void InitializeInitFunction() {

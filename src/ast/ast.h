@@ -11,9 +11,7 @@
 #include "src/ast/variables.h"
 #include "src/bailout-reason.h"
 #include "src/base/flags.h"
-#include "src/factory.h"
 #include "src/globals.h"
-#include "src/isolate.h"
 #include "src/list.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
@@ -117,6 +115,7 @@ class Module;
 class BreakableStatement;
 class Expression;
 class IterationStatement;
+class Isolate;
 class MaterializedLiteral;
 class Statement;
 class TypeFeedbackOracle;
@@ -2904,11 +2903,6 @@ class AstVisitor BASE_EMBEDDED {
   }                                                         \
                                                             \
  private:                                                   \
-  void InitializeAstVisitor(Isolate* isolate) {             \
-    stack_limit_ = isolate->stack_guard()->real_climit();   \
-    stack_overflow_ = false;                                \
-  }                                                         \
-                                                            \
   void InitializeAstVisitor(uintptr_t stack_limit) {        \
     stack_limit_ = stack_limit;                             \
     stack_overflow_ = false;                                \
@@ -2937,11 +2931,6 @@ class AstVisitor BASE_EMBEDDED {
   }                                                   \
                                                       \
  private:                                             \
-  void InitializeAstRewriter(Isolate* isolate) {      \
-    InitializeAstVisitor(isolate);                    \
-    replacement_ = nullptr;                           \
-  }                                                   \
-                                                      \
   void InitializeAstRewriter(uintptr_t stack_limit) { \
     InitializeAstVisitor(stack_limit);                \
     replacement_ = nullptr;                           \

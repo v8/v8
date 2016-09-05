@@ -5,6 +5,7 @@
 #include "src/ast/modules.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
+#include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 namespace internal {

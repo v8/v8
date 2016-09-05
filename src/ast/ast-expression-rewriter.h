@@ -21,9 +21,6 @@ namespace internal {
 // methods so they can be specialized by subclasses.
 class AstExpressionRewriter : public AstVisitor<AstExpressionRewriter> {
  public:
-  explicit AstExpressionRewriter(Isolate* isolate) {
-    InitializeAstRewriter(isolate);
-  }
   explicit AstExpressionRewriter(uintptr_t stack_limit) {
     InitializeAstRewriter(stack_limit);
   }

@@ -28,7 +28,6 @@ namespace internal {
 template <class Subclass>
 class AstTraversalVisitor : public AstVisitor<Subclass> {
  public:
-  explicit AstTraversalVisitor(Isolate* isolate, AstNode* root = nullptr);
   explicit AstTraversalVisitor(uintptr_t stack_limit, AstNode* root = nullptr);
 
   void Run() {
@@ -88,12 +87,6 @@ class AstTraversalVisitor : public AstVisitor<Subclass> {
     if (HasStackOverflow()) return; \
   } while (false)
 
-template <class Subclass>
-AstTraversalVisitor<Subclass>::AstTraversalVisitor(Isolate* isolate,
-                                                   AstNode* root)
-    : root_(root), depth_(0) {
-  InitializeAstVisitor(isolate);
-}
 
 template <class Subclass>
 AstTraversalVisitor<Subclass>::AstTraversalVisitor(uintptr_t stack_limit,
