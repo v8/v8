@@ -61,7 +61,7 @@
       'V8 Mac GC Stress': 'gn_debug_x86',
       'V8 Mac64 ASAN': 'gyp_release_x64_asan',
       # Sanitizers.
-      'V8 Linux64 ASAN': 'gyp_release_x64_asan',
+      'V8 Linux64 ASAN': 'gn_release_x64_asan',
       'V8 Linux64 TSAN': 'gn_release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'gn_release_simulate_arm64_msan',
       # Clusterfuzz.
@@ -159,7 +159,7 @@
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
       'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_avx2_dbg': 'gn_debug_x64_trybot',
-      'v8_linux64_asan_rel_ng': 'gyp_release_x64_asan_minimal_symbols',
+      'v8_linux64_asan_rel_ng': 'gn_release_x64_asan_minimal_symbols',
       'v8_linux64_msan_rel': 'gn_release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
           'gyp_release_x64_asan_minimal_symbols_coverage',
@@ -249,6 +249,11 @@
     # GN release configs for x64.
     'gn_release_x64': [
       'gn', 'release_bot', 'x64', 'swarming'],
+    'gn_release_x64_asan': [
+      'gn', 'release_bot', 'x64', 'asan', 'lsan', 'swarming'],
+    'gn_release_x64_asan_minimal_symbols': [
+      'gn', 'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols',
+      'swarming'],
     'gn_release_x64_internal': [
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_minimal_symbols': [
@@ -372,9 +377,6 @@
       'gyp', 'release_bot', 'x64', 'swarming'],
     'gyp_release_x64_asan': [
       'gyp', 'release_bot', 'x64', 'asan', 'lsan', 'swarming'],
-    'gyp_release_x64_asan_minimal_symbols': [
-      'gyp', 'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols',
-      'swarming'],
     'gyp_release_x64_asan_minimal_symbols_coverage': [
       'gyp', 'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan',
       'minimal_symbols', 'swarming'],

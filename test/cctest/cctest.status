@@ -151,6 +151,12 @@
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
+
+  # BUG(v8:5243).
+  'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
+  'test-cpu-profiler/JsNativeJsSample': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
