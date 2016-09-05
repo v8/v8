@@ -122,19 +122,223 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
 // it is used) are generally omitted.
 
 
+PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
+  // ECMA 262 6th Edition
+  // StatementListItem[Yield, Return] :
+  //   Statement[?Yield, ?Return]
+  //   Declaration[?Yield]
+  //
+  // Declaration[Yield] :
+  //   HoistableDeclaration[?Yield]
+  //   ClassDeclaration[?Yield]
+  //   LexicalDeclaration[In, ?Yield]
+  //
+  // HoistableDeclaration[Yield, Default] :
+  //   FunctionDeclaration[?Yield, ?Default]
+  //   GeneratorDeclaration[?Yield, ?Default]
+  //
+  // LexicalDeclaration[In, Yield] :
+  //   LetOrConst BindingList[?In, ?Yield] ;
+
+  switch (peek()) {
+    case Token::FUNCTION:
+      return ParseHoistableDeclaration(ok);
+    case Token::CLASS:
+      return ParseClassDeclaration(ok);
+    case Token::CONST:
+      return ParseVariableStatement(kStatementListItem, ok);
+    case Token::LET:
+      if (IsNextLetKeyword()) {
+        return ParseVariableStatement(kStatementListItem, ok);
+      }
+      break;
+    case Token::ASYNC:
+      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+          !scanner()->HasAnyLineTerminatorAfterNext()) {
+        Consume(Token::ASYNC);
+        return ParseAsyncFunctionDeclaration(ok);
+      }
+    /* falls through */
+    default:
+      break;
+  }
+  return ParseStatement(kAllowLabelledFunctionStatement, ok);
+}
+
+PreParser::LazyParsingResult PreParser::ParseStatementList(int end_token,
+                                                           bool may_abort,
+                                                           bool* ok) {
+  // SourceElements ::
+  //   (Statement)* <end_token>
+
+  int count_statements = 0;
+
+  bool directive_prologue = true;
+  while (peek() != end_token) {
+    if (directive_prologue && peek() != Token::STRING) {
+      directive_prologue = false;
+    }
+    bool starts_with_identifier = peek() == Token::IDENTIFIER;
+    Scanner::Location token_loc = scanner()->peek_location();
+    Statement statement =
+        ParseStatementListItem(CHECK_OK_VALUE(kLazyParsingComplete));
+
+    if (directive_prologue) {
+      bool use_strict_found = statement.IsUseStrictLiteral();
+
+      if (use_strict_found) {
+        scope()->SetLanguageMode(
+            static_cast<LanguageMode>(scope()->language_mode() | STRICT));
+      } else if (!statement.IsStringLiteral()) {
+        directive_prologue = false;
+      }
+
+      if (use_strict_found && !scope()->HasSimpleParameters()) {
+        // TC39 deemed "use strict" directives to be an error when occurring
+        // in the body of a function with non-simple parameter list, on
+        // 29/7/2015. https://goo.gl/ueA7Ln
+        ReportMessageAt(token_loc,
+                        MessageTemplate::kIllegalLanguageModeDirective,
+                        "use strict");
+        *ok = false;
+        return kLazyParsingComplete;
+      }
+    }
+
+    // If we're allowed to reset to a bookmark, we will do so when we see a long
+    // and trivial function.
+    // Our current definition of 'long and trivial' is:
+    // - over 200 statements
+    // - all starting with an identifier (i.e., no if, for, while, etc.)
+    if (may_abort) {
+      if (!starts_with_identifier) {
+        may_abort = false;
+      } else if (++count_statements > kLazyParseTrialLimit) {
+        return kLazyParsingAborted;
+      }
+    }
+  }
+  return kLazyParsingComplete;
+}
+
+
+PreParser::Statement PreParser::ParseStatement(
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
+  // Statement ::
+  //   EmptyStatement
+  //   ...
+
+  if (peek() == Token::SEMICOLON) {
+    Next();
+    return Statement::Default();
+  }
+  return ParseSubStatement(allow_function, ok);
+}
+
 PreParser::Statement PreParser::ParseScopedStatement(bool legacy, bool* ok) {
   if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
       (legacy && allow_harmony_restrictive_declarations())) {
-    return ParseStatement(nullptr, kDisallowLabelledFunctionStatement, ok);
+    return ParseSubStatement(kDisallowLabelledFunctionStatement, ok);
   } else {
     BlockState block_state(&scope_state_);
     return ParseFunctionDeclaration(ok);
   }
 }
 
+PreParser::Statement PreParser::ParseSubStatement(
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
+  // Statement ::
+  //   Block
+  //   VariableStatement
+  //   EmptyStatement
+  //   ExpressionStatement
+  //   IfStatement
+  //   IterationStatement
+  //   ContinueStatement
+  //   BreakStatement
+  //   ReturnStatement
+  //   WithStatement
+  //   LabelledStatement
+  //   SwitchStatement
+  //   ThrowStatement
+  //   TryStatement
+  //   DebuggerStatement
+
+  // Note: Since labels can only be used by 'break' and 'continue'
+  // statements, which themselves are only valid within blocks,
+  // iterations or 'switch' statements (i.e., BreakableStatements),
+  // labels can be simply ignored in all other cases; except for
+  // trivial labeled break statements 'label: break label' which is
+  // parsed into an empty statement.
+
+  // Keep the source position of the statement
+  switch (peek()) {
+    case Token::LBRACE:
+      return ParseBlock(ok);
+
+    case Token::SEMICOLON:
+      Next();
+      return Statement::Default();
+
+    case Token::IF:
+      return ParseIfStatement(ok);
+
+    case Token::DO:
+      return ParseDoWhileStatement(ok);
+
+    case Token::WHILE:
+      return ParseWhileStatement(ok);
+
+    case Token::FOR:
+      return ParseForStatement(ok);
+
+    case Token::CONTINUE:
+      return ParseContinueStatement(ok);
+
+    case Token::BREAK:
+      return ParseBreakStatement(ok);
+
+    case Token::RETURN:
+      return ParseReturnStatement(ok);
+
+    case Token::WITH:
+      return ParseWithStatement(ok);
+
+    case Token::SWITCH:
+      return ParseSwitchStatement(ok);
+
+    case Token::THROW:
+      return ParseThrowStatement(ok);
+
+    case Token::TRY:
+      return ParseTryStatement(ok);
+
+    case Token::FUNCTION:
+      // FunctionDeclaration only allowed as a StatementListItem, not in
+      // an arbitrary Statement position. Exceptions such as
+      // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+      // are handled by calling ParseScopedStatement rather than
+      // ParseSubStatement directly.
+      ReportMessageAt(scanner()->peek_location(),
+                      is_strict(language_mode())
+                          ? MessageTemplate::kStrictFunction
+                          : MessageTemplate::kSloppyFunction);
+      *ok = false;
+      return Statement::Default();
+
+    case Token::DEBUGGER:
+      return ParseDebuggerStatement(ok);
+
+    case Token::VAR:
+      return ParseVariableStatement(kStatement, ok);
+
+    default:
+      return ParseExpressionOrLabelledStatement(allow_function, ok);
+  }
+}
+
 PreParser::Statement PreParser::ParseHoistableDeclaration(
-    int pos, ParseFunctionFlags flags, ZoneList<const AstRawString*>* names,
-    bool default_export, bool* ok) {
+    int pos, ParseFunctionFlags flags, bool* ok) {
   const bool is_generator = flags & ParseFunctionFlags::kIsGenerator;
   const bool is_async = flags & ParseFunctionFlags::kIsAsync;
   DCHECK(!is_generator || !is_async);
@@ -154,8 +358,7 @@ PreParser::Statement PreParser::ParseHoistableDeclaration(
   return Statement::FunctionDeclaration();
 }
 
-PreParser::Statement PreParser::ParseAsyncFunctionDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
+PreParser::Statement PreParser::ParseAsyncFunctionDeclaration(bool* ok) {
   // AsyncFunctionDeclaration ::
   //   async [no LineTerminator here] function BindingIdentifier[Await]
   //       ( FormalParameters[Await] ) { AsyncFunctionBody }
@@ -163,11 +366,10 @@ PreParser::Statement PreParser::ParseAsyncFunctionDeclaration(
   int pos = position();
   Expect(Token::FUNCTION, CHECK_OK);
   ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
-  return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
+  return ParseHoistableDeclaration(pos, flags, ok);
 }
 
-PreParser::Statement PreParser::ParseHoistableDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
+PreParser::Statement PreParser::ParseHoistableDeclaration(bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
   // GeneratorDeclaration ::
@@ -180,11 +382,13 @@ PreParser::Statement PreParser::ParseHoistableDeclaration(
   if (Check(Token::MUL)) {
     flags |= ParseFunctionFlags::kIsGenerator;
   }
-  return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
+  return ParseHoistableDeclaration(pos, flags, ok);
 }
 
-PreParser::Statement PreParser::ParseClassDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
+
+PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
+  Expect(Token::CLASS, CHECK_OK);
+
   int pos = position();
   bool is_strict_reserved = false;
   Identifier name =
@@ -195,8 +399,8 @@ PreParser::Statement PreParser::ParseClassDeclaration(
   return Statement::Default();
 }
 
-PreParser::Statement PreParser::ParseBlock(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+
+PreParser::Statement PreParser::ParseBlock(bool* ok) {
   // Block ::
   //   '{' StatementList '}'
 
@@ -212,14 +416,15 @@ PreParser::Statement PreParser::ParseBlock(
   return final;
 }
 
+
 PreParser::Statement PreParser::ParseVariableStatement(
     VariableDeclarationContext var_context,
-    ZoneList<const AstRawString*>* names, bool* ok) {
+    bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
   Statement result =
-      ParseVariableDeclarations(var_context, nullptr, names, CHECK_OK);
+      ParseVariableDeclarations(var_context, nullptr, nullptr, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -237,11 +442,10 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
       return Statement::Default();
     }
   }
-  return ParseHoistableDeclaration(pos, flags, nullptr, false, ok);
+  return ParseHoistableDeclaration(pos, flags, ok);
 }
 
 PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
-    ZoneList<const AstRawString*>* names,
     AllowLabelledFunctionStatement allow_function, bool* ok) {
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
@@ -285,7 +489,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
       }
     }
     Statement statement =
-        ParseStatement(nullptr, kDisallowLabelledFunctionStatement, ok);
+        ParseStatement(kDisallowLabelledFunctionStatement, ok);
     return statement.IsJumpStatement() ? Statement::Default() : statement;
     // Preparsing is disabled for extensions (because the extension details
     // aren't passed to lazily compiled functions), so we don't
@@ -296,8 +500,8 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
   return Statement::ExpressionStatement(expr);
 }
 
-PreParser::Statement PreParser::ParseIfStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+
+PreParser::Statement PreParser::ParseIfStatement(bool* ok) {
   // IfStatement ::
   //   'if' '(' Expression ')' Statement ('else' Statement)?
 
@@ -335,8 +539,8 @@ PreParser::Statement PreParser::ParseContinueStatement(bool* ok) {
   return Statement::Jump();
 }
 
-PreParser::Statement PreParser::ParseBreakStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+
+PreParser::Statement PreParser::ParseBreakStatement(bool* ok) {
   // BreakStatement ::
   //   'break' [no line terminator] Identifier? ';'
 
@@ -389,8 +593,8 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   return Statement::Jump();
 }
 
-PreParser::Statement PreParser::ParseWithStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+
+PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
   Expect(Token::WITH, CHECK_OK);
@@ -409,8 +613,8 @@ PreParser::Statement PreParser::ParseWithStatement(
   return Statement::Default();
 }
 
-PreParser::Statement PreParser::ParseSwitchStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+
+PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
   // SwitchStatement ::
   //   'switch' '(' Expression ')' '{' CaseClause* '}'
 
@@ -445,8 +649,8 @@ PreParser::Statement PreParser::ParseSwitchStatement(
   return Statement::Default();
 }
 
-PreParser::Statement PreParser::ParseDoWhileStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+
+PreParser::Statement PreParser::ParseDoWhileStatement(bool* ok) {
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
 
@@ -460,8 +664,8 @@ PreParser::Statement PreParser::ParseDoWhileStatement(
   return Statement::Default();
 }
 
-PreParser::Statement PreParser::ParseWhileStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+
+PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
 
@@ -473,8 +677,8 @@ PreParser::Statement PreParser::ParseWhileStatement(
   return Statement::Default();
 }
 
-PreParser::Statement PreParser::ParseForStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+
+PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
@@ -640,7 +844,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   {
     ReturnExprScope no_tail_calls(function_state_,
                                   ReturnExprContext::kInsideTryBlock);
-    ParseBlock(nullptr, CHECK_OK);
+    ParseBlock(CHECK_OK);
   }
 
   Token::Value tok = peek();
@@ -666,7 +870,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
       BlockState block_state(&scope_state_, catch_scope);
       {
         BlockState block_state(&scope_state_);
-        ParseBlock(nullptr, CHECK_OK);
+        ParseBlock(CHECK_OK);
       }
     }
     catch_block_exists = true;
@@ -674,7 +878,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   }
   if (tok == Token::FINALLY) {
     Consume(Token::FINALLY);
-    ParseBlock(nullptr, CHECK_OK);
+    ParseBlock(CHECK_OK);
     if (FLAG_harmony_explicit_tailcalls && catch_block_exists &&
         tail_call_expressions_in_catch_block.has_explicit_tail_calls()) {
       // TODO(ishell): update chapter number.
@@ -715,7 +919,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
   // Parse function body.
-  PreParserStatementList body;
   bool outer_is_script_scope = scope()->is_script_scope();
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
@@ -744,7 +947,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   if (is_lazily_parsed) {
     ParseLazyFunctionLiteralBody(false, CHECK_OK);
   } else {
-    ParseStatementList(body, Token::RBRACE, CHECK_OK);
+    ParseStatementList(Token::RBRACE, CHECK_OK);
   }
   Expect(Token::RBRACE, CHECK_OK);
 
@@ -799,9 +1002,8 @@ PreParser::Expression PreParser::ParseAsyncFunctionExpression(bool* ok) {
 PreParser::LazyParsingResult PreParser::ParseLazyFunctionLiteralBody(
     bool may_abort, bool* ok) {
   int body_start = position();
-  PreParserStatementList body;
   LazyParsingResult result = ParseStatementList(
-      body, Token::RBRACE, may_abort, CHECK_OK_VALUE(kLazyParsingComplete));
+      Token::RBRACE, may_abort, CHECK_OK_VALUE(kLazyParsingComplete));
   if (result == kLazyParsingAborted) return result;
 
   // Position right after terminal '}'.

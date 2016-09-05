@@ -161,11 +161,6 @@ class PreParserExpression {
                                IsUseStrictField::encode(true));
   }
 
-  static PreParserExpression UseAsmStringLiteral() {
-    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
-                               IsUseAsmField::encode(true));
-  }
-
   static PreParserExpression This() {
     return PreParserExpression(TypeField::encode(kExpression) |
                                ExpressionTypeField::encode(kThisExpression));
@@ -237,11 +232,6 @@ class PreParserExpression {
   bool IsUseStrictLiteral() const {
     return TypeField::decode(code_) == kStringLiteralExpression &&
            IsUseStrictField::decode(code_);
-  }
-
-  bool IsUseAsmLiteral() const {
-    return TypeField::decode(code_) == kStringLiteralExpression &&
-           IsUseAsmField::decode(code_);
   }
 
   bool IsThis() const {
@@ -351,7 +341,6 @@ class PreParserExpression {
   // of the Type field, so they can share the storage.
   typedef BitField<ExpressionType, TypeField::kNext, 3> ExpressionTypeField;
   typedef BitField<bool, TypeField::kNext, 1> IsUseStrictField;
-  typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseAsmField;
   typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 10>
       IdentifierTypeField;
   typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
@@ -370,18 +359,13 @@ class PreParserList {
   PreParserList* operator->() { return this; }
   void Add(T, void*) { ++length_; }
   int length() const { return length_; }
-  static PreParserList Null() { return PreParserList(-1); }
-  bool IsNull() const { return length_ == -1; }
-
  private:
-  explicit PreParserList(int n) : length_(n) {}
   int length_;
 };
 
+
 typedef PreParserList<PreParserExpression> PreParserExpressionList;
 
-class PreParserStatement;
-typedef PreParserList<PreParserStatement> PreParserStatementList;
 
 class PreParserStatement {
  public:
@@ -405,9 +389,6 @@ class PreParserStatement {
     if (expression.IsUseStrictLiteral()) {
       return PreParserStatement(kUseStrictExpressionStatement);
     }
-    if (expression.IsUseAsmLiteral()) {
-      return PreParserStatement(kUseAsmExpressionStatement);
-    }
     if (expression.IsStringLiteral()) {
       return PreParserStatement(kStringLiteralExpressionStatement);
     }
@@ -415,15 +396,12 @@ class PreParserStatement {
   }
 
   bool IsStringLiteral() {
-    return code_ == kStringLiteralExpressionStatement || IsUseStrictLiteral() ||
-           IsUseAsmLiteral();
+    return code_ == kStringLiteralExpressionStatement || IsUseStrictLiteral();
   }
 
   bool IsUseStrictLiteral() {
     return code_ == kUseStrictExpressionStatement;
   }
-
-  bool IsUseAsmLiteral() { return code_ == kUseAsmExpressionStatement; }
 
   bool IsFunctionDeclaration() {
     return code_ == kFunctionDeclaration;
@@ -433,25 +411,21 @@ class PreParserStatement {
     return code_ == kJumpStatement;
   }
 
-  // Dummy implementation for making statement->somefunc() work in both Parser
-  // and PreParser.
-  PreParserStatement* operator->() { return this; }
-
-  PreParserStatementList statements() { return PreParserStatementList(); }
-
  private:
   enum Type {
     kUnknownStatement,
     kJumpStatement,
     kStringLiteralExpressionStatement,
     kUseStrictExpressionStatement,
-    kUseAsmExpressionStatement,
     kFunctionDeclaration
   };
 
   explicit PreParserStatement(Type code) : code_(code) {}
   Type code_;
 };
+
+
+typedef PreParserList<PreParserStatement> PreParserStatementList;
 
 
 class PreParserFactory {
@@ -595,16 +569,6 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
-  PreParserStatement NewEmptyStatement(int pos) {
-    return PreParserStatement::Default();
-  }
-
-  PreParserStatement NewBlock(ZoneList<const AstRawString*>* labels,
-                              int capacity, bool ignore_completion_value,
-                              int pos) {
-    return PreParserStatement::Default();
-  }
-
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }
@@ -627,17 +591,6 @@ struct PreParserFormalParameters : FormalParametersBase {
 
 class PreParser;
 
-class PreParserTarget {
- public:
-  PreParserTarget(ParserBase<PreParser>* preparser,
-                  PreParserStatement statement) {}
-};
-
-class PreParserTargetScope {
- public:
-  explicit PreParserTargetScope(ParserBase<PreParser>* preparser) {}
-};
-
 template <>
 struct ParserTypes<PreParser> {
   typedef ParserBase<PreParser> Base;
@@ -654,15 +607,11 @@ struct ParserTypes<PreParser> {
   typedef PreParserExpressionList ExpressionList;
   typedef PreParserExpressionList PropertyList;
   typedef PreParserFormalParameters FormalParameters;
-  typedef PreParserStatement Statement;
   typedef PreParserStatementList StatementList;
   typedef PreParserStatement Block;
 
   // For constructing objects returned by the traversing functions.
   typedef PreParserFactory Factory;
-
-  typedef PreParserTarget Target;
-  typedef PreParserTargetScope TargetScope;
 };
 
 
@@ -718,8 +667,7 @@ class PreParser : public ParserBase<PreParser> {
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     parsing_module_ = is_module;
-    PreParserStatementList body;
-    ParseStatementList(body, Token::EOS, &ok);
+    ParseStatementList(Token::EOS, &ok);
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
@@ -750,6 +698,8 @@ class PreParser : public ParserBase<PreParser> {
                                       bool may_abort, int* use_counts);
 
  private:
+  static const int kLazyParseTrialLimit = 200;
+
   // These types form an algebra over syntactic categories that is just
   // rich enough to let us recognize and propagate the constructs that
   // are either being counted in the preparser data, or is important
@@ -759,38 +709,39 @@ class PreParser : public ParserBase<PreParser> {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
+  Statement ParseStatementListItem(bool* ok);
+  V8_INLINE void ParseStatementList(int end_token, bool* ok) {
+    LazyParsingResult result = ParseStatementList(end_token, false, ok);
+    USE(result);  // The result is just used in debug modes.
+    DCHECK_EQ(result, kLazyParsingComplete);
+  }
+  LazyParsingResult ParseStatementList(int end_token, bool may_abort, bool* ok);
+  Statement ParseStatement(AllowLabelledFunctionStatement allow_function,
+                           bool* ok);
+  Statement ParseSubStatement(AllowLabelledFunctionStatement allow_function,
+                              bool* ok);
   Statement ParseScopedStatement(bool legacy, bool* ok);
-  Statement ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
-                                      bool default_export, bool* ok);
+  Statement ParseHoistableDeclaration(bool* ok);
   Statement ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
-                                      ZoneList<const AstRawString*>* names,
-                                      bool default_export, bool* ok);
+                                      bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
-  Statement ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
-                                          bool default_export, bool* ok);
+  Statement ParseAsyncFunctionDeclaration(bool* ok);
   Expression ParseAsyncFunctionExpression(bool* ok);
-  Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
-                                  bool default_export, bool* ok);
-  Statement ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
+  Statement ParseClassDeclaration(bool* ok);
+  Statement ParseBlock(bool* ok);
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
-                                   ZoneList<const AstRawString*>* names,
                                    bool* ok);
   Statement ParseExpressionOrLabelledStatement(
-      ZoneList<const AstRawString*>* names,
       AllowLabelledFunctionStatement allow_function, bool* ok);
-  Statement ParseIfStatement(ZoneList<const AstRawString*>* labels, bool* ok);
+  Statement ParseIfStatement(bool* ok);
   Statement ParseContinueStatement(bool* ok);
-  Statement ParseBreakStatement(ZoneList<const AstRawString*>* labels,
-                                bool* ok);
+  Statement ParseBreakStatement(bool* ok);
   Statement ParseReturnStatement(bool* ok);
-  Statement ParseWithStatement(ZoneList<const AstRawString*>* labels, bool* ok);
-  Statement ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
-                                 bool* ok);
-  Statement ParseDoWhileStatement(ZoneList<const AstRawString*>* labels,
-                                  bool* ok);
-  Statement ParseWhileStatement(ZoneList<const AstRawString*>* labels,
-                                bool* ok);
-  Statement ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
+  Statement ParseWithStatement(bool* ok);
+  Statement ParseSwitchStatement(bool* ok);
+  Statement ParseDoWhileStatement(bool* ok);
+  Statement ParseWhileStatement(bool* ok);
+  Statement ParseForStatement(bool* ok);
   Statement ParseThrowStatement(bool* ok);
   Statement ParseTryStatement(bool* ok);
   Statement ParseDebuggerStatement(bool* ok);
@@ -833,11 +784,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression CloseTemplateLiteral(
       TemplateLiteralState* state, int start, PreParserExpression tag);
   V8_INLINE void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
-
-  V8_INLINE void SetLanguageMode(Scope* scope, LanguageMode mode) {
-    scope->SetLanguageMode(mode);
-  }
-  V8_INLINE void SetAsmModule() {}
 
   V8_INLINE void MarkCollectedTailCallExpressions() {}
   V8_INLINE void MarkTailPosition(PreParserExpression expression) {}
@@ -953,18 +899,6 @@ class PreParser : public ParserBase<PreParser> {
     return false;
   }
 
-  V8_INLINE bool IsUseStrictDirective(PreParserStatement statement) const {
-    return statement.IsUseStrictLiteral();
-  }
-
-  V8_INLINE bool IsUseAsmDirective(PreParserStatement statement) const {
-    return statement.IsUseAsmLiteral();
-  }
-
-  V8_INLINE bool IsStringLiteral(PreParserStatement statement) const {
-    return statement.IsStringLiteral();
-  }
-
   V8_INLINE static PreParserExpression GetPropertyValue(
       PreParserExpression property) {
     return PreParserExpression::Default();
@@ -1057,28 +991,11 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE static PreParserExpressionList NullExpressionList() {
-    return PreParserExpressionList::Null();
-  }
-
-  V8_INLINE static bool IsNullExpressionList(PreParserExpressionList exprs) {
-    return exprs.IsNull();
+    return PreParserExpressionList();
   }
 
   V8_INLINE static PreParserStatementList NullStatementList() {
-    return PreParserStatementList::Null();
-  }
-
-  V8_INLINE static bool IsNullStatementList(PreParserStatementList stmts) {
-    return stmts.IsNull();
-  }
-
-  V8_INLINE static PreParserStatement NullStatement() {
-    return PreParserStatement::Default();
-  }
-
-  V8_INLINE bool IsNullOrEmptyStatement(PreParserStatement stmt) {
-    // TODO(nikolaos): See if this needs to be consistent for the preparser.
-    return false;
+    return PreParserStatementList();
   }
 
   V8_INLINE static PreParserStatement NullBlock() {
@@ -1250,19 +1167,18 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     const PreParserFormalParameters& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
-  PreParserStatementList result;
 
   Scope* inner_scope = scope();
   if (!parameters.is_simple) inner_scope = NewScope(BLOCK_SCOPE);
 
   {
     BlockState block_state(&scope_state_, inner_scope);
-    ParseStatementList(result, Token::RBRACE, ok);
+    ParseStatementList(Token::RBRACE, ok);
     if (!*ok) return PreParserStatementList();
   }
 
   Expect(Token::RBRACE, ok);
-  return result;
+  return PreParserStatementList();
 }
 
 PreParserExpression PreParser::CloseTemplateLiteral(TemplateLiteralState* state,

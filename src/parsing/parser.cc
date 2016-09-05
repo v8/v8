@@ -231,39 +231,41 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 // 'continue' statement targets). Upon construction, a new target is
 // added; it is removed upon destruction.
 
-class ParserTarget BASE_EMBEDDED {
+class Target BASE_EMBEDDED {
  public:
-  ParserTarget(ParserBase<Parser>* parser, BreakableStatement* statement)
-      : variable_(&parser->impl()->target_stack_),
-        statement_(statement),
-        previous_(parser->impl()->target_stack_) {
-    parser->impl()->target_stack_ = this;
+  Target(Target** variable, BreakableStatement* statement)
+      : variable_(variable), statement_(statement), previous_(*variable) {
+    *variable = this;
   }
 
-  ~ParserTarget() { *variable_ = previous_; }
+  ~Target() {
+    *variable_ = previous_;
+  }
 
-  ParserTarget* previous() { return previous_; }
+  Target* previous() { return previous_; }
   BreakableStatement* statement() { return statement_; }
 
  private:
-  ParserTarget** variable_;
+  Target** variable_;
   BreakableStatement* statement_;
-  ParserTarget* previous_;
+  Target* previous_;
 };
 
-class ParserTargetScope BASE_EMBEDDED {
+
+class TargetScope BASE_EMBEDDED {
  public:
-  explicit ParserTargetScope(ParserBase<Parser>* parser)
-      : variable_(&parser->impl()->target_stack_),
-        previous_(parser->impl()->target_stack_) {
-    parser->impl()->target_stack_ = nullptr;
+  explicit TargetScope(Target** variable)
+      : variable_(variable), previous_(*variable) {
+    *variable = NULL;
   }
 
-  ~ParserTargetScope() { *variable_ = previous_; }
+  ~TargetScope() {
+    *variable_ = previous_;
+  }
 
  private:
-  ParserTarget** variable_;
-  ParserTarget* previous_;
+  Target** variable_;
+  Target* previous_;
 };
 
 
@@ -929,6 +931,131 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
   return result;
 }
 
+
+void Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
+                                bool* ok) {
+  // StatementList ::
+  //   (StatementListItem)* <end_token>
+
+  // Allocate a target stack to use for this set of source
+  // elements. This way, all scripts and functions get their own
+  // target stack thus avoiding illegal breaks and continues across
+  // functions.
+  TargetScope scope(&this->target_stack_);
+
+  DCHECK(body != NULL);
+  bool directive_prologue = true;     // Parsing directive prologue.
+
+  while (peek() != end_token) {
+    if (directive_prologue && peek() != Token::STRING) {
+      directive_prologue = false;
+    }
+
+    Scanner::Location token_loc = scanner()->peek_location();
+    Statement* stat = ParseStatementListItem(CHECK_OK_VOID);
+    if (stat == NULL || stat->IsEmpty()) {
+      directive_prologue = false;   // End of directive prologue.
+      continue;
+    }
+
+    if (directive_prologue) {
+      // A shot at a directive.
+      ExpressionStatement* e_stat;
+      Literal* literal;
+      // Still processing directive prologue?
+      if ((e_stat = stat->AsExpressionStatement()) != NULL &&
+          (literal = e_stat->expression()->AsLiteral()) != NULL &&
+          literal->raw_value()->IsString()) {
+        // Check "use strict" directive (ES5 14.1), "use asm" directive.
+        bool use_strict_found =
+            literal->raw_value()->AsString() ==
+                ast_value_factory()->use_strict_string() &&
+            token_loc.end_pos - token_loc.beg_pos ==
+                ast_value_factory()->use_strict_string()->length() + 2;
+        if (use_strict_found) {
+          if (is_sloppy(language_mode())) {
+            RaiseLanguageMode(STRICT);
+          }
+
+          if (!this->scope()->HasSimpleParameters()) {
+            // TC39 deemed "use strict" directives to be an error when occurring
+            // in the body of a function with non-simple parameter list, on
+            // 29/7/2015. https://goo.gl/ueA7Ln
+            const AstRawString* string = literal->raw_value()->AsString();
+            ReportMessageAt(token_loc,
+                            MessageTemplate::kIllegalLanguageModeDirective,
+                            string);
+            *ok = false;
+            return;
+          }
+          // Because declarations in strict eval code don't leak into the scope
+          // of the eval call, it is likely that functions declared in strict
+          // eval code will be used within the eval code, so lazy parsing is
+          // probably not a win.
+          if (this->scope()->is_eval_scope()) mode_ = PARSE_EAGERLY;
+        } else if (literal->raw_value()->AsString() ==
+                       ast_value_factory()->use_asm_string() &&
+                   token_loc.end_pos - token_loc.beg_pos ==
+                       ast_value_factory()->use_asm_string()->length() + 2) {
+          // Store the usage count; The actual use counter on the isolate is
+          // incremented after parsing is done.
+          ++use_counts_[v8::Isolate::kUseAsm];
+          DCHECK(this->scope()->is_declaration_scope());
+          this->scope()->AsDeclarationScope()->set_asm_module();
+        } else {
+          // Should not change mode, but will increment UseCounter
+          // if appropriate. Ditto usages below.
+          RaiseLanguageMode(SLOPPY);
+        }
+      } else {
+        // End of the directive prologue.
+        directive_prologue = false;
+        RaiseLanguageMode(SLOPPY);
+      }
+    } else {
+      RaiseLanguageMode(SLOPPY);
+    }
+
+    body->Add(stat, zone());
+  }
+}
+
+
+Statement* Parser::ParseStatementListItem(bool* ok) {
+  // (Ecma 262 6th Edition, 13.1):
+  // StatementListItem:
+  //    Statement
+  //    Declaration
+  const Token::Value peeked = peek();
+  switch (peeked) {
+    case Token::FUNCTION:
+      return ParseHoistableDeclaration(NULL, false, ok);
+    case Token::CLASS:
+      Consume(Token::CLASS);
+      return ParseClassDeclaration(NULL, false, ok);
+    case Token::CONST:
+      return ParseVariableStatement(kStatementListItem, NULL, ok);
+    case Token::VAR:
+      return ParseVariableStatement(kStatementListItem, NULL, ok);
+    case Token::LET:
+      if (IsNextLetKeyword()) {
+        return ParseVariableStatement(kStatementListItem, NULL, ok);
+      }
+      break;
+    case Token::ASYNC:
+      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+          !scanner()->HasAnyLineTerminatorAfterNext()) {
+        Consume(Token::ASYNC);
+        return ParseAsyncFunctionDeclaration(NULL, false, ok);
+      }
+    /* falls through */
+    default:
+      break;
+  }
+  return ParseStatement(NULL, kAllowLabelledFunctionStatement, ok);
+}
+
+
 Statement* Parser::ParseModuleItem(bool* ok) {
   // ecma262/#prod-ModuleItem
   // ModuleItem :
@@ -1359,6 +1486,139 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   return result;
 }
 
+Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
+                                  AllowLabelledFunctionStatement allow_function,
+                                  bool* ok) {
+  // Statement ::
+  //   EmptyStatement
+  //   ...
+
+  if (peek() == Token::SEMICOLON) {
+    Next();
+    return factory()->NewEmptyStatement(kNoSourcePosition);
+  }
+  return ParseSubStatement(labels, allow_function, ok);
+}
+
+Statement* Parser::ParseSubStatement(
+    ZoneList<const AstRawString*>* labels,
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
+  // Statement ::
+  //   Block
+  //   VariableStatement
+  //   EmptyStatement
+  //   ExpressionStatement
+  //   IfStatement
+  //   IterationStatement
+  //   ContinueStatement
+  //   BreakStatement
+  //   ReturnStatement
+  //   WithStatement
+  //   LabelledStatement
+  //   SwitchStatement
+  //   ThrowStatement
+  //   TryStatement
+  //   DebuggerStatement
+
+  // Note: Since labels can only be used by 'break' and 'continue'
+  // statements, which themselves are only valid within blocks,
+  // iterations or 'switch' statements (i.e., BreakableStatements),
+  // labels can be simply ignored in all other cases; except for
+  // trivial labeled break statements 'label: break label' which is
+  // parsed into an empty statement.
+  switch (peek()) {
+    case Token::LBRACE:
+      return ParseBlock(labels, ok);
+
+    case Token::SEMICOLON:
+      Next();
+      return factory()->NewEmptyStatement(kNoSourcePosition);
+
+    case Token::IF:
+      return ParseIfStatement(labels, ok);
+
+    case Token::DO:
+      return ParseDoWhileStatement(labels, ok);
+
+    case Token::WHILE:
+      return ParseWhileStatement(labels, ok);
+
+    case Token::FOR:
+      return ParseForStatement(labels, ok);
+
+    case Token::CONTINUE:
+    case Token::BREAK:
+    case Token::RETURN:
+    case Token::THROW:
+    case Token::TRY: {
+      // These statements must have their labels preserved in an enclosing
+      // block
+      if (labels == NULL) {
+        return ParseStatementAsUnlabelled(labels, ok);
+      } else {
+        Block* result =
+            factory()->NewBlock(labels, 1, false, kNoSourcePosition);
+        Target target(&this->target_stack_, result);
+        Statement* statement = ParseStatementAsUnlabelled(labels, CHECK_OK);
+        if (result) result->statements()->Add(statement, zone());
+        return result;
+      }
+    }
+
+    case Token::WITH:
+      return ParseWithStatement(labels, ok);
+
+    case Token::SWITCH:
+      return ParseSwitchStatement(labels, ok);
+
+    case Token::FUNCTION:
+      // FunctionDeclaration only allowed as a StatementListItem, not in
+      // an arbitrary Statement position. Exceptions such as
+      // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+      // are handled by calling ParseScopedStatement rather than
+      // ParseSubStatement directly.
+      ReportMessageAt(scanner()->peek_location(),
+                      is_strict(language_mode())
+                          ? MessageTemplate::kStrictFunction
+                          : MessageTemplate::kSloppyFunction);
+      *ok = false;
+      return nullptr;
+
+    case Token::DEBUGGER:
+      return ParseDebuggerStatement(ok);
+
+    case Token::VAR:
+      return ParseVariableStatement(kStatement, NULL, ok);
+
+    default:
+      return ParseExpressionOrLabelledStatement(labels, allow_function, ok);
+  }
+}
+
+Statement* Parser::ParseStatementAsUnlabelled(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  switch (peek()) {
+    case Token::CONTINUE:
+      return ParseContinueStatement(ok);
+
+    case Token::BREAK:
+      return ParseBreakStatement(labels, ok);
+
+    case Token::RETURN:
+      return ParseReturnStatement(ok);
+
+    case Token::THROW:
+      return ParseThrowStatement(ok);
+
+    case Token::TRY:
+      return ParseTryStatement(ok);
+
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+}
+
 VariableProxy* Parser::NewUnresolved(const AstRawString* name, int begin_pos,
                                      int end_pos, Variable::Kind kind) {
   return scope()->NewUnresolved(factory(), name, begin_pos, end_pos, kind);
@@ -1618,7 +1878,7 @@ Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
   {
     BlockState block_state(&scope_state_);
     block_state.set_start_position(scanner()->location().beg_pos);
-    ParserTarget target(this, body);
+    Target target(&this->target_stack_, body);
 
     while (peek() != Token::RBRACE) {
       Statement* stat = ParseStatementListItem(CHECK_OK);
@@ -2090,7 +2350,7 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
     BlockState cases_block_state(&scope_state_);
     cases_block_state.set_start_position(scanner()->location().beg_pos);
     cases_block_state.SetNonlinear();
-    ParserTarget target(this, switch_statement);
+    Target target(&this->target_stack_, switch_statement);
 
     Expression* tag_read = factory()->NewVariableProxy(tag_variable);
 
@@ -2196,7 +2456,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       {
         BlockState block_state(&scope_state_);
         block_state.set_start_position(scanner()->location().beg_pos);
-        ParserTarget target(this, catch_block);
+        Target target(&this->target_stack_, catch_block);
 
         const AstRawString* name = ast_value_factory()->dot_catch_string();
         Expression* pattern = nullptr;
@@ -2335,7 +2595,7 @@ DoWhileStatement* Parser::ParseDoWhileStatement(
 
   DoWhileStatement* loop =
       factory()->NewDoWhileStatement(labels, peek_position());
-  ParserTarget target(this, loop);
+  Target target(&this->target_stack_, loop);
 
   Expect(Token::DO, CHECK_OK);
   Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
@@ -2362,7 +2622,7 @@ WhileStatement* Parser::ParseWhileStatement(
   //   'while' '(' Expression ')' Statement
 
   WhileStatement* loop = factory()->NewWhileStatement(labels, peek_position());
-  ParserTarget target(this, loop);
+  Target target(&this->target_stack_, loop);
 
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
@@ -2810,7 +3070,7 @@ Statement* Parser::ParseScopedStatement(ZoneList<const AstRawString*>* labels,
                                         bool legacy, bool* ok) {
   if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
       (legacy && allow_harmony_restrictive_declarations())) {
-    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
+    return ParseSubStatement(labels, kDisallowLabelledFunctionStatement, ok);
   } else {
     if (legacy) {
       ++use_counts_[v8::Isolate::kLegacyFunctionDeclaration];
@@ -2919,7 +3179,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
-        ParserTarget target(this, loop);
+        Target target(&this->target_stack_, loop);
 
         int each_keyword_position = scanner()->location().beg_pos;
 
@@ -3065,7 +3325,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
-        ParserTarget target(this, loop);
+        Target target(&this->target_stack_, loop);
 
         int each_keyword_position = scanner()->location().beg_pos;
 
@@ -3097,7 +3357,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
   // Standard 'for' loop
   ForStatement* loop = factory()->NewForStatement(labels, stmt_pos);
-  ParserTarget target(this, loop);
+  Target target(&this->target_stack_, loop);
 
   // Parsed initializer at this point.
   Expect(Token::SEMICOLON, CHECK_OK);
@@ -4518,7 +4778,7 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
 // Parser support
 
 bool Parser::TargetStackContainsLabel(const AstRawString* label) {
-  for (ParserTarget* t = target_stack_; t != NULL; t = t->previous()) {
+  for (Target* t = target_stack_; t != NULL; t = t->previous()) {
     if (ContainsLabel(t->statement()->labels(), label)) return true;
   }
   return false;
@@ -4528,7 +4788,7 @@ bool Parser::TargetStackContainsLabel(const AstRawString* label) {
 BreakableStatement* Parser::LookupBreakTarget(const AstRawString* label,
                                               bool* ok) {
   bool anonymous = label == NULL;
-  for (ParserTarget* t = target_stack_; t != NULL; t = t->previous()) {
+  for (Target* t = target_stack_; t != NULL; t = t->previous()) {
     BreakableStatement* stat = t->statement();
     if ((anonymous && stat->is_target_for_anonymous()) ||
         (!anonymous && ContainsLabel(stat->labels(), label))) {
@@ -4542,7 +4802,7 @@ BreakableStatement* Parser::LookupBreakTarget(const AstRawString* label,
 IterationStatement* Parser::LookupContinueTarget(const AstRawString* label,
                                                  bool* ok) {
   bool anonymous = label == NULL;
-  for (ParserTarget* t = target_stack_; t != NULL; t = t->previous()) {
+  for (Target* t = target_stack_; t != NULL; t = t->previous()) {
     IterationStatement* stat = t->statement()->AsIterationStatement();
     if (stat == NULL) continue;
 
@@ -4936,12 +5196,10 @@ void Parser::SetLanguageMode(Scope* scope, LanguageMode mode) {
   scope->SetLanguageMode(mode);
 }
 
-void Parser::SetAsmModule() {
-  // Store the usage count; The actual use counter on the isolate is
-  // incremented after parsing is done.
-  ++use_counts_[v8::Isolate::kUseAsm];
-  DCHECK(scope()->is_declaration_scope());
-  scope()->AsDeclarationScope()->set_asm_module();
+
+void Parser::RaiseLanguageMode(LanguageMode mode) {
+  LanguageMode old = scope()->language_mode();
+  SetLanguageMode(scope(), old > mode ? old : mode);
 }
 
 void Parser::MarkCollectedTailCallExpressions() {
