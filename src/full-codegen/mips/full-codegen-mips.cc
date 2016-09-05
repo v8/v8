@@ -1607,9 +1607,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ lw(StoreDescriptor::ReceiverRegister(), MemOperand(sp, 0));
     __ mov(StoreDescriptor::ValueRegister(), result_register());
     EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
-    Handle<Code> ic =
-        CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-    CallIC(ic);
+    CallKeyedStoreIC();
 
     PrepareForBailoutForId(expr->GetIdForElement(array_index),
                            BailoutState::NO_REGISTERS);
@@ -2123,9 +2121,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       PopOperands(StoreDescriptor::ValueRegister(),
                   StoreDescriptor::ReceiverRegister());
       EmitLoadStoreICSlot(slot);
-      Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-      CallIC(ic);
+      CallKeyedStoreIC();
       break;
     }
   }
@@ -2275,10 +2271,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
               StoreDescriptor::NameRegister());
   DCHECK(StoreDescriptor::ValueRegister().is(a0));
 
-  Handle<Code> ic =
-      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
   EmitLoadStoreICSlot(expr->AssignmentSlot());
-  CallIC(ic);
+  CallKeyedStoreIC();
 
   PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
   context()->Plug(v0);
@@ -3369,10 +3363,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ mov(StoreDescriptor::ValueRegister(), result_register());
       PopOperands(StoreDescriptor::ReceiverRegister(),
                   StoreDescriptor::NameRegister());
-      Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
       EmitLoadStoreICSlot(expr->CountSlot());
-      CallIC(ic);
+      CallKeyedStoreIC();
       PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {

@@ -1554,9 +1554,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ Move(StoreDescriptor::NameRegister(), Smi::FromInt(array_index));
     __ movp(StoreDescriptor::ReceiverRegister(), Operand(rsp, 0));
     EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
-    Handle<Code> ic =
-        CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-    CallIC(ic);
+    CallKeyedStoreIC();
 
     PrepareForBailoutForId(expr->GetIdForElement(array_index),
                            BailoutState::NO_REGISTERS);
@@ -2019,9 +2017,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       PopOperand(StoreDescriptor::ReceiverRegister());
       PopOperand(StoreDescriptor::ValueRegister());  // Restore value.
       EmitLoadStoreICSlot(slot);
-      Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-      CallIC(ic);
+      CallKeyedStoreIC();
       break;
     }
   }
@@ -2158,10 +2154,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   PopOperand(StoreDescriptor::NameRegister());  // Key.
   PopOperand(StoreDescriptor::ReceiverRegister());
   DCHECK(StoreDescriptor::ValueRegister().is(rax));
-  Handle<Code> ic =
-      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
   EmitLoadStoreICSlot(expr->AssignmentSlot());
-  CallIC(ic);
+  CallKeyedStoreIC();
 
   PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
   context()->Plug(rax);
@@ -3251,10 +3245,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       PopOperand(StoreDescriptor::NameRegister());
       PopOperand(StoreDescriptor::ReceiverRegister());
-      Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
       EmitLoadStoreICSlot(expr->CountSlot());
-      CallIC(ic);
+      CallKeyedStoreIC();
       PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {

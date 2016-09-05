@@ -1528,9 +1528,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
            Immediate(Smi::FromInt(array_index)));
     __ mov(StoreDescriptor::ReceiverRegister(), Operand(esp, 0));
     EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
-    Handle<Code> ic =
-        CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-    CallIC(ic);
+    CallKeyedStoreIC();
     PrepareForBailoutForId(expr->GetIdForElement(array_index),
                            BailoutState::NO_REGISTERS);
   }
@@ -2025,9 +2023,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       PopOperand(StoreDescriptor::ReceiverRegister());  // Receiver.
       PopOperand(StoreDescriptor::ValueRegister());     // Restore value.
       EmitLoadStoreICSlot(slot);
-      Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-      CallIC(ic);
+      CallKeyedStoreIC();
       break;
     }
   }
@@ -2170,10 +2166,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   PopOperand(StoreDescriptor::NameRegister());  // Key.
   PopOperand(StoreDescriptor::ReceiverRegister());
   DCHECK(StoreDescriptor::ValueRegister().is(eax));
-  Handle<Code> ic =
-      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
   EmitLoadStoreICSlot(expr->AssignmentSlot());
-  CallIC(ic);
+  CallKeyedStoreIC();
   PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
   context()->Plug(eax);
 }
@@ -3260,10 +3254,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       PopOperand(StoreDescriptor::NameRegister());
       PopOperand(StoreDescriptor::ReceiverRegister());
-      Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
       EmitLoadStoreICSlot(expr->CountSlot());
-      CallIC(ic);
+      CallKeyedStoreIC();
       PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         // Result is on the stack

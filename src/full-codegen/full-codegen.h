@@ -622,6 +622,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void CallLoadGlobalIC(TypeofMode typeof_mode,
                         TypeFeedbackId id = TypeFeedbackId::None());
   void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
+  void CallKeyedStoreIC();
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);

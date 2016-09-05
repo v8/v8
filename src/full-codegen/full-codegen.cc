@@ -242,6 +242,11 @@ void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   CallIC(ic, id);
 }
 
+void FullCodeGenerator::CallKeyedStoreIC() {
+  Handle<Code> ic =
+      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
+  CallIC(ic);
+}
 
 void FullCodeGenerator::RecordJSReturnSite(Call* call) {
   // We record the offset of the function return so we can rebuild the frame
