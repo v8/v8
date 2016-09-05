@@ -195,14 +195,15 @@ TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
 
 TEST_F(JSCreateLoweringTest, JSCreateCatchContext) {
   Handle<String> name = factory()->length_string();
+  Handle<ScopeInfo> scope_info(factory()->NewScopeInfo(1));
   Node* const exception = Parameter(Type::Receiver());
   Node* const closure = Parameter(Type::Function());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->CreateCatchContext(name), exception,
-                              closure, context, effect, control));
+  Reduction r = Reduce(
+      graph()->NewNode(javascript()->CreateCatchContext(name, scope_info),
+                       exception, closure, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(

@@ -255,7 +255,7 @@ bool Bytecodes::WritesBooleanToAccumulator(Bytecode bytecode) {
     case Bytecode::kTestGreaterThanOrEqual:
     case Bytecode::kTestInstanceOf:
     case Bytecode::kTestIn:
-    case Bytecode::kForInDone:
+    case Bytecode::kForInContinue:
       return true;
     default:
       return false;

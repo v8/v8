@@ -119,6 +119,14 @@ class MachineType {
     return MachineType(MachineRepresentation::kWord64,
                        MachineSemantic::kUint64);
   }
+  static MachineType TaggedPointer() {
+    return MachineType(MachineRepresentation::kTaggedPointer,
+                       MachineSemantic::kAny);
+  }
+  static MachineType TaggedSigned() {
+    return MachineType(MachineRepresentation::kTaggedSigned,
+                       MachineSemantic::kInt32);
+  }
   static MachineType AnyTagged() {
     return MachineType(MachineRepresentation::kTagged, MachineSemantic::kAny);
   }
@@ -161,7 +169,7 @@ class MachineType {
     return MachineType(MachineRepresentation::kBit, MachineSemantic::kNone);
   }
 
-  static MachineType TypeForRepresentation(MachineRepresentation& rep,
+  static MachineType TypeForRepresentation(const MachineRepresentation& rep,
                                            bool isSigned = true) {
     switch (rep) {
       case MachineRepresentation::kNone:
@@ -184,6 +192,10 @@ class MachineType {
         return MachineType::Simd128();
       case MachineRepresentation::kTagged:
         return MachineType::AnyTagged();
+      case MachineRepresentation::kTaggedSigned:
+        return MachineType::TaggedSigned();
+      case MachineRepresentation::kTaggedPointer:
+        return MachineType::TaggedPointer();
       default:
         UNREACHABLE();
         return MachineType::None();
@@ -212,6 +224,15 @@ inline bool IsFloatingPoint(MachineRepresentation rep) {
   return rep == MachineRepresentation::kFloat32 ||
          rep == MachineRepresentation::kFloat64 ||
          rep == MachineRepresentation::kSimd128;
+}
+
+inline bool CanBeTaggedPointer(MachineRepresentation rep) {
+  return rep == MachineRepresentation::kTagged ||
+         rep == MachineRepresentation::kTaggedPointer;
+}
+
+inline bool IsAnyTagged(MachineRepresentation rep) {
+  return CanBeTaggedPointer(rep) || rep == MachineRepresentation::kTaggedSigned;
 }
 
 // Gets the log2 of the element size in bytes of the machine type.

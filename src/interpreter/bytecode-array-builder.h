@@ -139,10 +139,11 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // in the accumulator.
   BytecodeArrayBuilder& CreateBlockContext(Handle<ScopeInfo> scope_info);
 
-  // Create a new context for a catch block with |exception| and |name| and the
-  // closure in the accumulator.
+  // Create a new context for a catch block with |exception|, |name|,
+  // |scope_info|, and the closure in the accumulator.
   BytecodeArrayBuilder& CreateCatchContext(Register exception,
-                                           Handle<String> name);
+                                           Handle<String> name,
+                                           Handle<ScopeInfo> scope_info);
 
   // Create a new context with size |slots|.
   BytecodeArrayBuilder& CreateFunctionContext(int slots);
@@ -190,7 +191,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // consecutive arguments starting at |first_arg| for the constuctor
   // invocation.
   BytecodeArrayBuilder& New(Register constructor, Register first_arg,
-                            size_t arg_count);
+                            size_t arg_count, int feedback_slot);
 
   // Call the runtime function with |function_id|. The first argument should be
   // in |first_arg| and all subsequent arguments should be in registers
@@ -230,15 +231,13 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& Delete(Register object, LanguageMode language_mode);
 
   // Tests.
-  BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg);
+  BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
+                                         int feedback_slot = kNoFeedbackSlot);
 
-  // Casts accumulator and stores result in accumulator.
-  BytecodeArrayBuilder& CastAccumulatorToBoolean();
-
-  // Casts accumulator and stores result in register |out|.
-  BytecodeArrayBuilder& CastAccumulatorToJSObject(Register out);
-  BytecodeArrayBuilder& CastAccumulatorToName(Register out);
-  BytecodeArrayBuilder& CastAccumulatorToNumber(Register out);
+  // Converts accumulator and stores result in register |out|.
+  BytecodeArrayBuilder& ConvertAccumulatorToObject(Register out);
+  BytecodeArrayBuilder& ConvertAccumulatorToName(Register out);
+  BytecodeArrayBuilder& ConvertAccumulatorToNumber(Register out);
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
@@ -265,7 +264,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // Complex flow control.
   BytecodeArrayBuilder& ForInPrepare(Register receiver,
                                      Register cache_info_triple);
-  BytecodeArrayBuilder& ForInDone(Register index, Register cache_length);
+  BytecodeArrayBuilder& ForInContinue(Register index, Register cache_length);
   BytecodeArrayBuilder& ForInNext(Register receiver, Register index,
                                   Register cache_type_array_pair,
                                   int feedback_slot);
@@ -399,6 +398,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayWriter bytecode_array_writer_;
   BytecodePipelineStage* pipeline_;
   BytecodeSourceInfo latest_source_info_;
+
+  static int const kNoFeedbackSlot = 0;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };

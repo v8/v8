@@ -12,6 +12,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/identity-map.h"
+#include "src/messages.h"
 #include "src/vector.h"
 #include "src/zone.h"
 
@@ -21,6 +22,7 @@ namespace internal {
 class HeapNumber;
 class Isolate;
 class JSArrayBuffer;
+class JSArrayBufferView;
 class JSDate;
 class JSMap;
 class JSRegExp;
@@ -40,7 +42,7 @@ enum class SerializationTag : uint8_t;
  */
 class ValueSerializer {
  public:
-  explicit ValueSerializer(Isolate* isolate);
+  ValueSerializer(Isolate* isolate, v8::ValueSerializer::Delegate* delegate);
   ~ValueSerializer();
 
   /*
@@ -94,6 +96,7 @@ class ValueSerializer {
   Maybe<bool> WriteJSMap(Handle<JSMap> map) WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSet(Handle<JSSet> map) WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(JSArrayBuffer* array_buffer);
+  Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView* array_buffer);
 
   /*
    * Reads the specified keys from the object and writes key-value pairs to the
@@ -103,7 +106,16 @@ class ValueSerializer {
   Maybe<uint32_t> WriteJSObjectProperties(
       Handle<JSObject> object, Handle<FixedArray> keys) WARN_UNUSED_RESULT;
 
+  /*
+   * Asks the delegate to handle an error that occurred during data cloning, by
+   * throwing an exception appropriate for the host.
+   */
+  void ThrowDataCloneError(MessageTemplate::Template template_index);
+  V8_NOINLINE void ThrowDataCloneError(MessageTemplate::Template template_index,
+                                       Handle<Object> arg0);
+
   Isolate* const isolate_;
+  v8::ValueSerializer::Delegate* const delegate_;
   std::vector<uint8_t> buffer_;
   Zone zone_;
 
@@ -174,6 +186,10 @@ class ValueDeserializer {
   Maybe<double> ReadDouble() WARN_UNUSED_RESULT;
   Maybe<Vector<const uint8_t>> ReadRawBytes(int size) WARN_UNUSED_RESULT;
 
+  // Like ReadObject, but skips logic for special cases in simulating the
+  // "stack machine".
+  MaybeHandle<Object> ReadObjectInternal() WARN_UNUSED_RESULT;
+
   // Reading V8 objects of specific kinds.
   // The tag is assumed to have already been read.
   MaybeHandle<String> ReadUtf8String() WARN_UNUSED_RESULT;
@@ -187,7 +203,10 @@ class ValueDeserializer {
   MaybeHandle<JSMap> ReadJSMap() WARN_UNUSED_RESULT;
   MaybeHandle<JSSet> ReadJSSet() WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer() WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer() WARN_UNUSED_RESULT;
+  MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer(bool is_shared)
+      WARN_UNUSED_RESULT;
+  MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
+      Handle<JSArrayBuffer> buffer) WARN_UNUSED_RESULT;
 
   /*
    * Reads key-value pairs into the object until the specified end tag is

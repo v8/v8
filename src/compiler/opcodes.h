@@ -150,10 +150,8 @@
   V(JSCallFunction)                 \
   V(JSCallRuntime)                  \
   V(JSConvertReceiver)              \
-  V(JSForInDone)                    \
   V(JSForInNext)                    \
   V(JSForInPrepare)                 \
-  V(JSForInStep)                    \
   V(JSLoadMessage)                  \
   V(JSStoreMessage)                 \
   V(JSGeneratorStore)               \

@@ -881,6 +881,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     DCHECK(access_info.IsDataField());
     FieldIndex const field_index = access_info.field_index();
     Type* const field_type = access_info.field_type();
+    MachineRepresentation const rep = access_info.field_representation();
     if (access_mode == AccessMode::kLoad &&
         access_info.holder().ToHandle(&holder)) {
       receiver = jsgraph()->Constant(holder);
@@ -895,12 +896,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         kTaggedBase, field_index.offset(),     name,
         field_type,  MachineType::AnyTagged(), kFullWriteBarrier};
     if (access_mode == AccessMode::kLoad) {
-      if (field_type->Is(Type::UntaggedFloat64())) {
-        // TODO(turbofan): We remove the representation axis from the type to
-        // avoid uninhabited representation types. This is a workaround until
-        // the {PropertyAccessInfo} is using {MachineRepresentation} instead.
-        field_access.type = Type::Union(
-            field_type, Type::Representation(Type::Number(), zone()), zone());
+      if (rep == MachineRepresentation::kFloat64) {
         if (!field_index.is_inobject() || field_index.is_hidden_field() ||
             !FLAG_unbox_double_fields) {
           storage = effect = graph()->NewNode(
@@ -910,16 +906,13 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         }
         field_access.machine_type = MachineType::Float64();
       }
+      // TODO(turbofan): Track the field_map (if any) on the {field_access} and
+      // use it in LoadElimination to eliminate map checks.
       value = effect = graph()->NewNode(simplified()->LoadField(field_access),
                                         storage, effect, control);
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);
-      if (field_type->Is(Type::UntaggedFloat64())) {
-        // TODO(turbofan): We remove the representation axis from the type to
-        // avoid uninhabited representation types. This is a workaround until
-        // the {PropertyAccessInfo} is using {MachineRepresentation} instead.
-        field_access.type = Type::Union(
-            field_type, Type::Representation(Type::Number(), zone()), zone());
+      if (rep == MachineRepresentation::kFloat64) {
         value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
                                           effect, control);
 
@@ -944,6 +937,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
                 graph()->NewNode(common()->FinishRegion(), box, effect);
 
             field_access.type = Type::TaggedPointer();
+            field_access.machine_type = MachineType::TaggedPointer();
           } else {
             // We just store directly to the MutableHeapNumber.
             storage = effect =
@@ -957,24 +951,22 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           // Unboxed double field, we store directly to the field.
           field_access.machine_type = MachineType::Float64();
         }
-      } else if (field_type->Is(Type::TaggedSigned())) {
+      } else if (rep == MachineRepresentation::kTaggedSigned) {
         value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
                                           value, effect, control);
-      } else if (field_type->Is(Type::TaggedPointer())) {
+      } else if (rep == MachineRepresentation::kTaggedPointer) {
         // Ensure that {value} is a HeapObject.
         value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
                                           value, effect, control);
-        if (field_type->NumClasses() == 1) {
+        Handle<Map> field_map;
+        if (access_info.field_map().ToHandle(&field_map)) {
           // Emit a map check for the value.
-          Node* field_map =
-              jsgraph()->Constant(field_type->Classes().Current());
           effect = graph()->NewNode(simplified()->CheckMaps(1), value,
-                                    field_map, effect, control);
-        } else {
-          DCHECK_EQ(0, field_type->NumClasses());
+                                    jsgraph()->HeapConstant(field_map), effect,
+                                    control);
         }
       } else {
-        DCHECK(field_type->Is(Type::Tagged()));
+        DCHECK(rep == MachineRepresentation::kTagged);
       }
       Handle<Map> transition_map;
       if (access_info.transition_map().ToHandle(&transition_map)) {
@@ -1168,6 +1160,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       element_machine_type = MachineType::Float64();
     } else if (IsFastSmiElementsKind(elements_kind)) {
       element_type = type_cache_.kSmi;
+      element_machine_type = MachineType::TaggedSigned();
     }
     ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
                                     element_type, element_machine_type,
@@ -1181,6 +1174,7 @@ JSNativeContextSpecialization::BuildElementAccess(
           elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
         element_access.type =
             Type::Union(element_type, Type::Hole(), graph()->zone());
+        element_access.machine_type = MachineType::AnyTagged();
       }
       // Perform the actual backing store access.
       value = effect =

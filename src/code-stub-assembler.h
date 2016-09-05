@@ -546,6 +546,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);
   void KeyedLoadIC(const LoadICParameters* p);
+  void KeyedLoadICGeneric(const LoadICParameters* p);
 
   // Get the enumerable length from |map| and return the result as a Smi.
   compiler::Node* EnumLength(compiler::Node* map);
@@ -576,13 +577,20 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       const LoadICParameters* p, compiler::Node* handler, Label* miss,
       ElementSupport support_elements = kOnlyProperties);
   compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
-  void EmitBoundsCheck(compiler::Node* object, compiler::Node* elements,
-                       compiler::Node* intptr_key, compiler::Node* is_jsarray,
-                       Label* miss);
+  void EmitFastElementsBoundsCheck(compiler::Node* object,
+                                   compiler::Node* elements,
+                                   compiler::Node* intptr_key,
+                                   compiler::Node* is_jsarray_condition,
+                                   Label* miss);
   void EmitElementLoad(compiler::Node* object, compiler::Node* elements,
                        compiler::Node* elements_kind, compiler::Node* key,
-                       Label* if_hole, Label* rebox_double,
-                       Variable* var_double_value, Label* miss);
+                       compiler::Node* is_jsarray_condition, Label* if_hole,
+                       Label* rebox_double, Variable* var_double_value,
+                       Label* unimplemented_elements_kind, Label* out_of_bounds,
+                       Label* miss);
+  void BranchIfPrototypesHaveNoElements(compiler::Node* receiver_map,
+                                        Label* definitely_no_elements,
+                                        Label* possibly_elements);
 
   compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
                                          ElementsKind kind, ParameterMode mode,

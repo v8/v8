@@ -1279,18 +1279,16 @@ void Decoder::DecodeType3(Instruction* instr) {
           break;
         }
       }
-      if (FLAG_enable_sudiv) {
-        if (instr->Bits(5, 4) == 0x1) {
-          if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
-            if (instr->Bit(21) == 0x1) {
-              // UDIV (in V8 notation matching ARM ISA format) rn = rm/rs
-              Format(instr, "udiv'cond'b 'rn, 'rm, 'rs");
-            } else {
-              // SDIV (in V8 notation matching ARM ISA format) rn = rm/rs
-              Format(instr, "sdiv'cond'b 'rn, 'rm, 'rs");
-            }
-            break;
+      if (instr->Bits(5, 4) == 0x1) {
+        if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
+          if (instr->Bit(21) == 0x1) {
+            // UDIV (in V8 notation matching ARM ISA format) rn = rm/rs
+            Format(instr, "udiv'cond'b 'rn, 'rm, 'rs");
+          } else {
+            // SDIV (in V8 notation matching ARM ISA format) rn = rm/rs
+            Format(instr, "sdiv'cond'b 'rn, 'rm, 'rs");
           }
+          break;
         }
       }
       Format(instr, "'memop'cond'b 'rd, ['rn, -'shift_rm]'w");

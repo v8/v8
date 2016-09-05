@@ -66,6 +66,24 @@ function increaseAndThrow42() {
   throw 42;
 }
 
+function increaseAndReturn15_noopt_inner() {
+  if (deopt) %DeoptimizeFunction(f);
+  counter++;
+  return 15;
+}
+
+%NeverOptimizeFunction(increaseAndReturn15_noopt_inner);
+
+function increaseAndThrow42_noopt_inner() {
+  if (deopt) %DeoptimizeFunction(f);
+  counter++;
+  throw 42;
+}
+
+%NeverOptimizeFunction(increaseAndThrow42_noopt_inner);
+
+// Alternative 1
+
 function returnOrThrow(doReturn) {
   if (doReturn) {
     return increaseAndReturn15();
@@ -74,6 +92,17 @@ function returnOrThrow(doReturn) {
   }
 }
 
+// Alternative 2
+
+function increaseAndReturn15_calls_noopt() {
+  return increaseAndReturn15_noopt_inner();
+}
+
+function increaseAndThrow42_calls_noopt() {
+  return increaseAndThrow42_noopt_inner();
+}
+
+// Alternative 3.
 // When passed either {increaseAndReturn15} or {increaseAndThrow42}, it acts
 // as the other one.
 function invertFunctionCall(f) {
@@ -86,6 +115,7 @@ function invertFunctionCall(f) {
   throw result + 27;
 }
 
+// Alternative 4: constructor
 function increaseAndStore15Constructor() {
   if (deopt) %DeoptimizeFunction(f);
   ++counter;
@@ -99,6 +129,7 @@ function increaseAndThrow42Constructor() {
   throw this.x;
 }
 
+// Alternative 5: property
 var magic = {};
 Object.defineProperty(magic, 'prop', {
   get: function () {
@@ -116,6 +147,9 @@ Object.defineProperty(magic, 'prop', {
 
 // Generate type feedback.
 
+assertEquals(15, increaseAndReturn15_calls_noopt());
+assertThrowsEquals(function() { return increaseAndThrow42_noopt_inner() }, 42);
+
 assertEquals(15, (new increaseAndStore15Constructor()).x);
 assertThrowsEquals(function() {
         return (new increaseAndThrow42Constructor()).x;
@@ -124,1488 +158,15 @@ assertThrowsEquals(function() {
 
 function runThisShard() {
 
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
-  //   catchReturns, catchWithLocal, endReturnLocal]
-
-  f = function f___2__r__crl____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
-  //   catchReturns, catchWithLocal, endReturnLocal, deopt]
-
-  f = function f___2__r__crl____ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch]
-
-  f = function f___2__r_lc________ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, deopt]
-
-  f = function f___2__r_lc_______d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, endReturnLocal]
-
-  f = function f___2__r_lc______l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, endReturnLocal, deopt]
-
-  f = function f___2__r_lc______ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchThrows]
-
-  f = function f___2__r_lc__t_____ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchThrows, deopt]
-
-  f = function f___2__r_lc__t____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchThrows, endReturnLocal]
-
-  f = function f___2__r_lc__t___l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchThrows, endReturnLocal, deopt]
-
-  f = function f___2__r_lc__t___ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchWithLocal]
-
-  f = function f___2__r_lc_l______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchWithLocal, deopt]
-
-  f = function f___2__r_lc_l_____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchWithLocal, endReturnLocal]
-
-  f = function f___2__r_lc_l____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchWithLocal, endReturnLocal, deopt]
-
-  f = function f___2__r_lc_l____ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchWithLocal, catchThrows]
-
-  f = function f___2__r_lc_lt_____ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchWithLocal, catchThrows, deopt]
-
-  f = function f___2__r_lc_lt____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchWithLocal, catchThrows, endReturnLocal]
-
-  f = function f___2__r_lc_lt___l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchWithLocal, catchThrows, endReturnLocal, deopt]
-
-  f = function f___2__r_lc_lt___ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchReturns]
-
-  f = function f___2__r_lcr_______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchReturns, deopt]
-
-  f = function f___2__r_lcr______d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchReturns, endReturnLocal]
-
-  f = function f___2__r_lcr_____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchReturns, endReturnLocal, deopt]
-
-  f = function f___2__r_lcr_____ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchReturns, catchWithLocal]
-
-  f = function f___2__r_lcrl______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchReturns, catchWithLocal, deopt]
-
-  f = function f___2__r_lcrl_____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchReturns, catchWithLocal, endReturnLocal]
-
-  f = function f___2__r_lcrl____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
-  //   doCatch, catchReturns, catchWithLocal, endReturnLocal, deopt]
-
-  f = function f___2__r_lcrl____ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(23, f);
-  assertEquals(4, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch]
-
-  f = function f___2_t___c________ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch, deopt]
-
-  f = function f___2_t___c_______d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch, catchThrows]
-
-  f = function f___2_t___c__t_____ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch, catchThrows,
-  //   deopt]
-
-  f = function f___2_t___c__t____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch,
-  //   catchWithLocal]
-
-  f = function f___2_t___c_l______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch,
-  //   catchWithLocal, deopt]
-
-  f = function f___2_t___c_l_____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch,
-  //   catchWithLocal, endReturnLocal]
-
-  f = function f___2_t___c_l____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(50, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch,
-  //   catchWithLocal, endReturnLocal, deopt]
-
-  f = function f___2_t___c_l____ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(50, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch,
-  //   catchWithLocal, catchThrows]
-
-  f = function f___2_t___c_lt_____ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch,
-  //   catchWithLocal, catchThrows, deopt]
-
-  f = function f___2_t___c_lt____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch,
-  //   catchWithLocal, catchThrows, endReturnLocal]
-
-  f = function f___2_t___c_lt___l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch,
-  //   catchWithLocal, catchThrows, endReturnLocal, deopt]
-
-  f = function f___2_t___c_lt___ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch, catchReturns]
-
-  f = function f___2_t___cr_______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch, catchReturns,
-  //   deopt]
-
-  f = function f___2_t___cr______d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch, catchReturns,
-  //   catchWithLocal]
-
-  f = function f___2_t___crl______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(5, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch, catchReturns,
-  //   catchWithLocal, deopt]
-
-  f = function f___2_t___crl_____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(5, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch, catchReturns,
-  //   catchWithLocal, endReturnLocal]
-
-  f = function f___2_t___crl____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(5, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, doCatch, catchReturns,
-  //   catchWithLocal, endReturnLocal, deopt]
-
-  f = function f___2_t___crl____ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(5, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch]
-
-  f = function f___2_t__lc________ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, deopt]
-
-  f = function f___2_t__lc_______d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, endReturnLocal]
-
-  f = function f___2_t__lc______l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(8, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, endReturnLocal, deopt]
-
-  f = function f___2_t__lc______ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(8, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchThrows]
-
-  f = function f___2_t__lc__t_____ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchThrows, deopt]
-
-  f = function f___2_t__lc__t____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchThrows, endReturnLocal]
-
-  f = function f___2_t__lc__t___l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchThrows, endReturnLocal, deopt]
-
-  f = function f___2_t__lc__t___ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchWithLocal]
-
-  f = function f___2_t__lc_l______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchWithLocal, deopt]
-
-  f = function f___2_t__lc_l_____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(undefined, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchWithLocal, endReturnLocal]
-
-  f = function f___2_t__lc_l____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(50, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchWithLocal, endReturnLocal, deopt]
-
-  f = function f___2_t__lc_l____ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(50, f);
-  assertEquals(5, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchWithLocal, catchThrows]
-
-  f = function f___2_t__lc_lt_____ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchWithLocal, catchThrows, deopt]
-
-  f = function f___2_t__lc_lt____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchWithLocal, catchThrows, endReturnLocal]
-
-  f = function f___2_t__lc_lt___l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchWithLocal, catchThrows, endReturnLocal, deopt]
-
-  f = function f___2_t__lc_lt___ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertThrowsWith(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchReturns]
-
-  f = function f___2_t__lcr_______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchReturns, deopt]
-
-  f = function f___2_t__lcr______d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchReturns, endReturnLocal]
-
-  f = function f___2_t__lcr_____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchReturns, endReturnLocal, deopt]
-
-  f = function f___2_t__lcr_____ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(44, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchReturns, catchWithLocal]
-
-  f = function f___2_t__lcrl______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(5, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchReturns, catchWithLocal, deopt]
-
-  f = function f___2_t__lcrl_____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(5, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchReturns, catchWithLocal, endReturnLocal]
-
-  f = function f___2_t__lcrl____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(5, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
-  //   doCatch, catchReturns, catchWithLocal, endReturnLocal, deopt]
-
-  f = function f___2_t__lcrl____ld () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      local += invertFunctionCall(increaseAndReturn15);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(5, f);
-  assertEquals(3, counter);
-
-  // Variant flags: [alternativeFn3, tryReturns, doCatch]
-
-  f = function f__3___r__c________ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return (new increaseAndStore15Constructor()).x;
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn3, tryReturns, doCatch, deopt]
-
-  f = function f__3___r__c_______d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return (new increaseAndStore15Constructor()).x;
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn3, tryReturns, doCatch, catchThrows]
-
-  f = function f__3___r__c__t_____ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return (new increaseAndStore15Constructor()).x;
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn3, tryReturns, doCatch, catchThrows,
-  //   deopt]
-
-  f = function f__3___r__c__t____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return (new increaseAndStore15Constructor()).x;
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn3, tryReturns, doCatch,
-  //   catchReturns]
-
-  f = function f__3___r__cr_______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return (new increaseAndStore15Constructor()).x;
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
   // Variant flags: [alternativeFn3, tryReturns, doCatch,
   //   catchReturns, deopt]
 
-  f = function f__3___r__cr______d () {
-    var local = 3;
+  f = function f___3___r__cr______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return (new increaseAndStore15Constructor()).x;
+      return 4 + invertFunctionCall(increaseAndThrow42);
       counter++;
     } catch (ex) {
       counter++;
@@ -1614,17 +175,587 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
-  // Variant flags: [alternativeFn3, tryThrows, doCatch]
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
+  //   catchReturns, catchWithLocal]
 
-  f = function f__3__t___c________ () {
-    var local = 3;
+  f = function f___3___r__crl______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return (new increaseAndThrow42Constructor()).x;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
+  //   catchReturns, catchWithLocal, deopt]
+
+  f = function f___3___r__crl_____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
+  //   catchReturns, catchWithLocal, endReturnLocal]
+
+  f = function f___3___r__crl____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
+  //   catchReturns, catchWithLocal, endReturnLocal, deopt]
+
+  f = function f___3___r__crl____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch]
+
+  f = function f___3___r_lc________ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, deopt]
+
+  f = function f___3___r_lc_______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, endReturnLocal]
+
+  f = function f___3___r_lc______l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, endReturnLocal, deopt]
+
+  f = function f___3___r_lc______ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchThrows]
+
+  f = function f___3___r_lc__t_____ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchThrows, deopt]
+
+  f = function f___3___r_lc__t____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchThrows, endReturnLocal]
+
+  f = function f___3___r_lc__t___l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchThrows, endReturnLocal, deopt]
+
+  f = function f___3___r_lc__t___ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchWithLocal]
+
+  f = function f___3___r_lc_l______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchWithLocal, deopt]
+
+  f = function f___3___r_lc_l_____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchWithLocal, endReturnLocal]
+
+  f = function f___3___r_lc_l____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchWithLocal, endReturnLocal, deopt]
+
+  f = function f___3___r_lc_l____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchWithLocal, catchThrows]
+
+  f = function f___3___r_lc_lt_____ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchWithLocal, catchThrows, deopt]
+
+  f = function f___3___r_lc_lt____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchWithLocal, catchThrows, endReturnLocal]
+
+  f = function f___3___r_lc_lt___l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchWithLocal, catchThrows, endReturnLocal, deopt]
+
+  f = function f___3___r_lc_lt___ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchReturns]
+
+  f = function f___3___r_lcr_______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchReturns, deopt]
+
+  f = function f___3___r_lcr______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchReturns, endReturnLocal]
+
+  f = function f___3___r_lcr_____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchReturns, endReturnLocal, deopt]
+
+  f = function f___3___r_lcr_____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchReturns, catchWithLocal]
+
+  f = function f___3___r_lcrl______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchReturns, catchWithLocal, deopt]
+
+  f = function f___3___r_lcrl_____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchReturns, catchWithLocal, endReturnLocal]
+
+  f = function f___3___r_lcrl____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, tryResultToLocal,
+  //   doCatch, catchReturns, catchWithLocal, endReturnLocal, deopt]
+
+  f = function f___3___r_lcrl____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch]
+
+  f = function f___3__t___c________ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
       counter++;
     } catch (ex) {
       counter++;
@@ -1637,12 +768,12 @@ function runThisShard() {
 
   // Variant flags: [alternativeFn3, tryThrows, doCatch, deopt]
 
-  f = function f__3__t___c_______d () {
-    var local = 3;
+  f = function f___3__t___c_______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return (new increaseAndThrow42Constructor()).x;
+      return 4 + invertFunctionCall(increaseAndReturn15);
       counter++;
     } catch (ex) {
       counter++;
@@ -1655,12 +786,12 @@ function runThisShard() {
 
   // Variant flags: [alternativeFn3, tryThrows, doCatch, catchThrows]
 
-  f = function f__3__t___c__t_____ () {
-    var local = 3;
+  f = function f___3__t___c__t_____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return (new increaseAndThrow42Constructor()).x;
+      return 4 + invertFunctionCall(increaseAndReturn15);
       counter++;
     } catch (ex) {
       counter++;
@@ -1675,12 +806,12 @@ function runThisShard() {
   // Variant flags: [alternativeFn3, tryThrows, doCatch, catchThrows,
   //   deopt]
 
-  f = function f__3__t___c__t____d () {
-    var local = 3;
+  f = function f___3__t___c__t____d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return (new increaseAndThrow42Constructor()).x;
+      return 4 + invertFunctionCall(increaseAndReturn15);
       counter++;
     } catch (ex) {
       counter++;
@@ -1692,14 +823,178 @@ function runThisShard() {
   resetOptAndAssertThrowsWith(44, f);
   assertEquals(3, counter);
 
-  // Variant flags: [alternativeFn3, tryThrows, doCatch, catchReturns]
+  // Variant flags: [alternativeFn3, tryThrows, doCatch,
+  //   catchWithLocal]
 
-  f = function f__3__t___cr_______ () {
-    var local = 3;
+  f = function f___3__t___c_l______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return (new increaseAndThrow42Constructor()).x;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch,
+  //   catchWithLocal, deopt]
+
+  f = function f___3__t___c_l_____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch,
+  //   catchWithLocal, endReturnLocal]
+
+  f = function f___3__t___c_l____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(935, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch,
+  //   catchWithLocal, endReturnLocal, deopt]
+
+  f = function f___3__t___c_l____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(935, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch,
+  //   catchWithLocal, catchThrows]
+
+  f = function f___3__t___c_lt_____ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch,
+  //   catchWithLocal, catchThrows, deopt]
+
+  f = function f___3__t___c_lt____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch,
+  //   catchWithLocal, catchThrows, endReturnLocal]
+
+  f = function f___3__t___c_lt___l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch,
+  //   catchWithLocal, catchThrows, endReturnLocal, deopt]
+
+  f = function f___3__t___c_lt___ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch, catchReturns]
+
+  f = function f___3__t___cr_______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
       counter++;
     } catch (ex) {
       counter++;
@@ -1714,12 +1009,12 @@ function runThisShard() {
   // Variant flags: [alternativeFn3, tryThrows, doCatch, catchReturns,
   //   deopt]
 
-  f = function f__3__t___cr______d () {
-    var local = 3;
+  f = function f___3__t___cr______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return (new increaseAndThrow42Constructor()).x;
+      return 4 + invertFunctionCall(increaseAndReturn15);
       counter++;
     } catch (ex) {
       counter++;
@@ -1731,32 +1026,97 @@ function runThisShard() {
   resetOptAndAssertResultEquals(44, f);
   assertEquals(3, counter);
 
-  // Variant flags: [alternativeFn4, tryReturns, doCatch]
+  // Variant flags: [alternativeFn3, tryThrows, doCatch, catchReturns,
+  //   catchWithLocal]
 
-  f = function f_4____r__c________ () {
-    var local = 3;
+  f = function f___3__t___crl______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return magic.prop /* returns 15 */;
+      return 4 + invertFunctionCall(increaseAndReturn15);
       counter++;
     } catch (ex) {
       counter++;
+      return 2 + local;
       counter++;
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
+  resetOptAndAssertResultEquals(890, f);
+  assertEquals(3, counter);
 
-  // Variant flags: [alternativeFn4, tryReturns, doCatch, deopt]
+  // Variant flags: [alternativeFn3, tryThrows, doCatch, catchReturns,
+  //   catchWithLocal, deopt]
 
-  f = function f_4____r__c_______d () {
-    var local = 3;
+  f = function f___3__t___crl_____d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return magic.prop /* returns 15 */;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(890, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch, catchReturns,
+  //   catchWithLocal, endReturnLocal]
+
+  f = function f___3__t___crl____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(890, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, doCatch, catchReturns,
+  //   catchWithLocal, endReturnLocal, deopt]
+
+  f = function f___3__t___crl____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(890, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch]
+
+  f = function f___3__t__lc________ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
       counter++;
     } catch (ex) {
       counter++;
@@ -1764,17 +1124,77 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(5, counter);
 
-  // Variant flags: [alternativeFn4, tryReturns, doCatch, catchThrows]
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, deopt]
 
-  f = function f_4____r__c__t_____ () {
-    var local = 3;
+  f = function f___3__t__lc_______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, endReturnLocal]
+
+  f = function f___3__t__lc______l_ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return magic.prop /* returns 15 */;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(893, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, endReturnLocal, deopt]
+
+  f = function f___3__t__lc______ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(893, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchThrows]
+
+  f = function f___3__t__lc__t_____ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
       counter++;
     } catch (ex) {
       counter++;
@@ -1783,18 +1203,463 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchThrows, deopt]
+
+  f = function f___3__t__lc__t____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchThrows, endReturnLocal]
+
+  f = function f___3__t__lc__t___l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchThrows, endReturnLocal, deopt]
+
+  f = function f___3__t__lc__t___ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchWithLocal]
+
+  f = function f___3__t__lc_l______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchWithLocal, deopt]
+
+  f = function f___3__t__lc_l_____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchWithLocal, endReturnLocal]
+
+  f = function f___3__t__lc_l____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(935, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchWithLocal, endReturnLocal, deopt]
+
+  f = function f___3__t__lc_l____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(935, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchWithLocal, catchThrows]
+
+  f = function f___3__t__lc_lt_____ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchWithLocal, catchThrows, deopt]
+
+  f = function f___3__t__lc_lt____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchWithLocal, catchThrows, endReturnLocal]
+
+  f = function f___3__t__lc_lt___l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchWithLocal, catchThrows, endReturnLocal, deopt]
+
+  f = function f___3__t__lc_lt___ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchReturns]
+
+  f = function f___3__t__lcr_______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchReturns, deopt]
+
+  f = function f___3__t__lcr______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchReturns, endReturnLocal]
+
+  f = function f___3__t__lcr_____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchReturns, endReturnLocal, deopt]
+
+  f = function f___3__t__lcr_____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchReturns, catchWithLocal]
+
+  f = function f___3__t__lcrl______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(890, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchReturns, catchWithLocal, deopt]
+
+  f = function f___3__t__lcrl_____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(890, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchReturns, catchWithLocal, endReturnLocal]
+
+  f = function f___3__t__lcrl____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(890, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn3, tryThrows, tryResultToLocal,
+  //   doCatch, catchReturns, catchWithLocal, endReturnLocal, deopt]
+
+  f = function f___3__t__lcrl____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + invertFunctionCall(increaseAndReturn15);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + local;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(890, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn4, tryReturns, doCatch]
+
+  f = function f__4____r__c________ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + (new increaseAndStore15Constructor()).x;
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn4, tryReturns, doCatch, deopt]
+
+  f = function f__4____r__c_______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + (new increaseAndStore15Constructor()).x;
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn4, tryReturns, doCatch, catchThrows]
+
+  f = function f__4____r__c__t_____ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + (new increaseAndStore15Constructor()).x;
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn4, tryReturns, doCatch, catchThrows,
   //   deopt]
 
-  f = function f_4____r__c__t____d () {
-    var local = 3;
+  f = function f__4____r__c__t____d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return magic.prop /* returns 15 */;
+      return 4 + (new increaseAndStore15Constructor()).x;
       counter++;
     } catch (ex) {
       counter++;
@@ -1803,18 +1668,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn4, tryReturns, doCatch,
   //   catchReturns]
 
-  f = function f_4____r__cr_______ () {
-    var local = 3;
+  f = function f__4____r__cr_______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return magic.prop /* returns 15 */;
+      return 4 + (new increaseAndStore15Constructor()).x;
       counter++;
     } catch (ex) {
       counter++;
@@ -1823,18 +1688,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn4, tryReturns, doCatch,
   //   catchReturns, deopt]
 
-  f = function f_4____r__cr______d () {
-    var local = 3;
+  f = function f__4____r__cr______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return magic.prop /* returns 15 */;
+      return 4 + (new increaseAndStore15Constructor()).x;
       counter++;
     } catch (ex) {
       counter++;
@@ -1843,17 +1708,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn4, tryThrows, doCatch]
 
-  f = function f_4___t___c________ () {
-    var local = 3;
+  f = function f__4___t___c________ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return (magic.prop = 37 /* throws 42 */);
+      return 4 + (new increaseAndThrow42Constructor()).x;
       counter++;
     } catch (ex) {
       counter++;
@@ -1866,12 +1731,12 @@ function runThisShard() {
 
   // Variant flags: [alternativeFn4, tryThrows, doCatch, deopt]
 
-  f = function f_4___t___c_______d () {
-    var local = 3;
+  f = function f__4___t___c_______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return (magic.prop = 37 /* throws 42 */);
+      return 4 + (new increaseAndThrow42Constructor()).x;
       counter++;
     } catch (ex) {
       counter++;
@@ -1884,12 +1749,12 @@ function runThisShard() {
 
   // Variant flags: [alternativeFn4, tryThrows, doCatch, catchThrows]
 
-  f = function f_4___t___c__t_____ () {
-    var local = 3;
+  f = function f__4___t___c__t_____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return (magic.prop = 37 /* throws 42 */);
+      return 4 + (new increaseAndThrow42Constructor()).x;
       counter++;
     } catch (ex) {
       counter++;
@@ -1904,12 +1769,12 @@ function runThisShard() {
   // Variant flags: [alternativeFn4, tryThrows, doCatch, catchThrows,
   //   deopt]
 
-  f = function f_4___t___c__t____d () {
-    var local = 3;
+  f = function f__4___t___c__t____d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return (magic.prop = 37 /* throws 42 */);
+      return 4 + (new increaseAndThrow42Constructor()).x;
       counter++;
     } catch (ex) {
       counter++;
@@ -1923,12 +1788,12 @@ function runThisShard() {
 
   // Variant flags: [alternativeFn4, tryThrows, doCatch, catchReturns]
 
-  f = function f_4___t___cr_______ () {
-    var local = 3;
+  f = function f__4___t___cr_______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return (magic.prop = 37 /* throws 42 */);
+      return 4 + (new increaseAndThrow42Constructor()).x;
       counter++;
     } catch (ex) {
       counter++;
@@ -1943,12 +1808,241 @@ function runThisShard() {
   // Variant flags: [alternativeFn4, tryThrows, doCatch, catchReturns,
   //   deopt]
 
-  f = function f_4___t___cr______d () {
-    var local = 3;
+  f = function f__4___t___cr______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return (magic.prop = 37 /* throws 42 */);
+      return 4 + (new increaseAndThrow42Constructor()).x;
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn5, tryReturns, doCatch]
+
+  f = function f_5_____r__c________ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + magic.prop /* returns 15 */;
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn5, tryReturns, doCatch, deopt]
+
+  f = function f_5_____r__c_______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + magic.prop /* returns 15 */;
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn5, tryReturns, doCatch, catchThrows]
+
+  f = function f_5_____r__c__t_____ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + magic.prop /* returns 15 */;
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn5, tryReturns, doCatch, catchThrows,
+  //   deopt]
+
+  f = function f_5_____r__c__t____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + magic.prop /* returns 15 */;
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn5, tryReturns, doCatch,
+  //   catchReturns]
+
+  f = function f_5_____r__cr_______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + magic.prop /* returns 15 */;
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn5, tryReturns, doCatch,
+  //   catchReturns, deopt]
+
+  f = function f_5_____r__cr______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + magic.prop /* returns 15 */;
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn5, tryThrows, doCatch]
+
+  f = function f_5____t___c________ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + (magic.prop = 37 /* throws 42 */);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn5, tryThrows, doCatch, deopt]
+
+  f = function f_5____t___c_______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + (magic.prop = 37 /* throws 42 */);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(undefined, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn5, tryThrows, doCatch, catchThrows]
+
+  f = function f_5____t___c__t_____ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + (magic.prop = 37 /* throws 42 */);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn5, tryThrows, doCatch, catchThrows,
+  //   deopt]
+
+  f = function f_5____t___c__t____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + (magic.prop = 37 /* throws 42 */);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertThrowsWith(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn5, tryThrows, doCatch, catchReturns]
+
+  f = function f_5____t___cr_______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + (magic.prop = 37 /* throws 42 */);
+      counter++;
+    } catch (ex) {
+      counter++;
+      return 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(44, f);
+  assertEquals(3, counter);
+
+  // Variant flags: [alternativeFn5, tryThrows, doCatch, catchReturns,
+  //   deopt]
+
+  f = function f_5____t___cr______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + (magic.prop = 37 /* throws 42 */);
       counter++;
     } catch (ex) {
       counter++;
@@ -1963,7 +2057,7 @@ function runThisShard() {
 }
 %NeverOptimizeFunction(runThisShard);
 
-// 92 tests in this shard.
-// 186 tests up to here.
+// 95 tests in this shard.
+// 192 tests up to here.
 
 runThisShard();

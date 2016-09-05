@@ -30,10 +30,11 @@
 
 #include "src/v8.h"
 
+#include "src/api.h"
 #include "src/compiler.h"
 #include "src/disasm.h"
+#include "src/factory.h"
 #include "src/interpreter/interpreter.h"
-#include "src/parsing/parser.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

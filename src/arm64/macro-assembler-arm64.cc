@@ -1571,9 +1571,8 @@ void MacroAssembler::InNewSpace(Register object,
                                 Label* branch) {
   DCHECK(cond == eq || cond == ne);
   UseScratchRegisterScope temps(this);
-  const int mask =
-      (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
-  CheckPageFlag(object, temps.AcquireSameSizeAs(object), mask, cond, branch);
+  CheckPageFlag(object, temps.AcquireSameSizeAs(object),
+                MemoryChunk::kIsInNewSpaceMask, cond, branch);
 }
 
 

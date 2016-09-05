@@ -82,6 +82,10 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
 
 // static
 Callable CodeFactory::KeyedLoadIC_Megamorphic(Isolate* isolate) {
+  if (FLAG_tf_load_ic_stub) {
+    return Callable(isolate->builtins()->KeyedLoadIC_Megamorphic_TF(),
+                    LoadWithVectorDescriptor(isolate));
+  }
   return Callable(isolate->builtins()->KeyedLoadIC_Megamorphic(),
                   LoadWithVectorDescriptor(isolate));
 }
@@ -594,9 +598,11 @@ Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::InterpreterPushArgsAndConstruct(Isolate* isolate) {
-  return Callable(isolate->builtins()->InterpreterPushArgsAndConstruct(),
-                  InterpreterPushArgsAndConstructDescriptor(isolate));
+Callable CodeFactory::InterpreterPushArgsAndConstruct(
+    Isolate* isolate, CallableType function_type) {
+  return Callable(
+      isolate->builtins()->InterpreterPushArgsAndConstruct(function_type),
+      InterpreterPushArgsAndConstructDescriptor(isolate));
 }
 
 // static

@@ -120,7 +120,7 @@ function InstallGetterSetter(object, name, getter, setter, attributes) {
   SetFunctionName(setter, name, "set");
   %FunctionRemovePrototype(getter);
   %FunctionRemovePrototype(setter);
-  %DefineAccessorPropertyUnchecked(object, name, getter, setter, DONT_ENUM);
+  %DefineAccessorPropertyUnchecked(object, name, getter, setter, attributes);
   %SetNativeFlag(getter);
   %SetNativeFlag(setter);
 }

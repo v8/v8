@@ -8,9 +8,9 @@
 #include <map>
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
-#include "src/compiler.h"
 #include "src/log.h"
 #include "src/profiler/strings-storage.h"
+#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {

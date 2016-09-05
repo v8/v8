@@ -2716,6 +2716,8 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
         "  return s;"
         "}"
         "f(); f();"
+        "%BaselineFunctionOnNextCall(f);"
+        "f(); f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
   }
@@ -2759,6 +2761,8 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
         "  for (var i = 0; i < 100; i++)  s += i;"
         "  return s;"
         "}"
+        "f(); f();"
+        "%BaselineFunctionOnNextCall(f);"
         "f(); f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");

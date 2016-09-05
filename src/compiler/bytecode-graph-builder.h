@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 #define V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 
-#include "src/compiler.h"
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/bytecode-loop-analysis.h"
 #include "src/compiler/js-graph.h"
@@ -16,6 +15,9 @@
 
 namespace v8 {
 namespace internal {
+
+class CompilationInfo;
+
 namespace compiler {
 
 // The BytecodeGraphBuilder produces a high-level IR graph based on
@@ -139,11 +141,19 @@ class BytecodeGraphBuilder {
   // type feedback.
   BinaryOperationHint GetBinaryOperationHint(int operand_index);
 
+  // Helper function to create compare operation hint from the recorded
+  // type feedback.
+  CompareOperationHint GetCompareOperationHint();
+
   // Control flow plumbing.
   void BuildJump();
-  void BuildConditionalJump(Node* condition);
+  void BuildJumpIf(Node* condition);
+  void BuildJumpIfNot(Node* condition);
   void BuildJumpIfEqual(Node* comperand);
-  void BuildJumpIfToBooleanEqual(Node* boolean_comperand);
+  void BuildJumpIfTrue();
+  void BuildJumpIfFalse();
+  void BuildJumpIfToBooleanTrue();
+  void BuildJumpIfToBooleanFalse();
   void BuildJumpIfNotHole();
 
   // Simulates control flow by forward-propagating environments.

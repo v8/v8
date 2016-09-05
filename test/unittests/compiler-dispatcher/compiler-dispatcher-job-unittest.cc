@@ -6,6 +6,7 @@
 
 #include "include/v8.h"
 #include "src/api.h"
+#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/flags.h"

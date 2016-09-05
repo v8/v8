@@ -7,16 +7,18 @@
 
 #include "src/allocation.h"
 #include "src/ast/ast-type-bounds.h"
-#include "src/ast/scopes.h"
+#include "src/ast/ast-types.h"
+#include "src/ast/ast.h"
 #include "src/ast/variables.h"
 #include "src/effects.h"
 #include "src/type-info.h"
-#include "src/types.h"
 #include "src/zone.h"
 
 namespace v8 {
 namespace internal {
 
+class DeclarationScope;
+class Isolate;
 class FunctionLiteral;
 
 class AstTyper final : public AstVisitor<AstTyper> {
@@ -49,11 +51,11 @@ class AstTyper final : public AstVisitor<AstTyper> {
   Zone* zone() const { return zone_; }
   TypeFeedbackOracle* oracle() { return &oracle_; }
 
-  void NarrowType(Expression* e, Bounds b) {
-    bounds_->set(e, Bounds::Both(bounds_->get(e), b, zone()));
+  void NarrowType(Expression* e, AstBounds b) {
+    bounds_->set(e, AstBounds::Both(bounds_->get(e), b, zone()));
   }
-  void NarrowLowerType(Expression* e, Type* t) {
-    bounds_->set(e, Bounds::NarrowLower(bounds_->get(e), t, zone()));
+  void NarrowLowerType(Expression* e, AstType* t) {
+    bounds_->set(e, AstBounds::NarrowLower(bounds_->get(e), t, zone()));
   }
 
   Effects EnterEffects() {

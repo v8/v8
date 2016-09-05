@@ -160,7 +160,8 @@ class CodeFactory final {
   static Callable InterpreterPushArgsAndCall(
       Isolate* isolate, TailCallMode tail_call_mode,
       CallableType function_type = CallableType::kAny);
-  static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
+  static Callable InterpreterPushArgsAndConstruct(
+      Isolate* isolate, CallableType function_type = CallableType::kAny);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
 };

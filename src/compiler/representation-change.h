@@ -139,6 +139,12 @@ class UseInfo {
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());
   }
+  static UseInfo TaggedSigned() {
+    return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any());
+  }
+  static UseInfo TaggedPointer() {
+    return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any());
+  }
 
   // Possibly deoptimizing conversions.
   static UseInfo CheckedSignedSmallAsWord32() {
@@ -232,6 +238,12 @@ class RepresentationChanger final {
   bool testing_type_errors_;  // If {true}, don't abort on a type error.
   bool type_error_;           // Set when a type error is detected.
 
+  Node* GetTaggedSignedRepresentationFor(Node* node,
+                                         MachineRepresentation output_rep,
+                                         Type* output_type);
+  Node* GetTaggedPointerRepresentationFor(Node* node,
+                                          MachineRepresentation output_rep,
+                                          Type* output_type);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
                                    Type* output_type);
   Node* GetFloat32RepresentationFor(Node* node,

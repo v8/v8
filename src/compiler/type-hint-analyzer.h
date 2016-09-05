@@ -51,6 +51,7 @@ class TypeHintAnalyzer final {
 };
 
 BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
+CompareOperationHint CompareOperationHintFromFeedback(int type_feedback);
 
 }  // namespace compiler
 }  // namespace internal

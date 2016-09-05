@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-explicit-tailcalls
-// Flags: --harmony-do-expressions
+// Flags: --harmony-do-expressions --harmony-async-await
 "use strict";
 
 var SyntaxErrorTests = [
@@ -128,16 +128,13 @@ var SyntaxErrorTests = [
         err: `                    ^^^^^^^^^^^^^^`,
       },
       { src: `()=>{ function* G() { yield continue foo(); } }`,
-        err: `                            ^^^^^^^^^^^^^^`,
+        err: `                                     ^^^^^`,
+      },
+      { src: `()=>{ function* G() { return continue foo(); } }`,
+        err: `                                      ^^^^^`,
       },
       { src: `()=>{ (1, 2, 3, continue f() ) => {} }`,
         err: `                ^^^^^^^^^^^^`,
-      },
-      { src: `()=>{ (... continue f()) => {}  }`,
-        err: `           ^^^^^^^^^^^^`,
-      },
-      { src: `()=>{ (a, b, c, ... continue f() ) => {}  }`,
-        err: `                    ^^^^^^^^^^^^`,
       },
       { src: `()=>{ return a <= continue f(); }`,
         err: `                  ^^^^^^^^^^^^`,
@@ -235,6 +232,9 @@ var SyntaxErrorTests = [
       { src: `class A extends continue f () {}; }`,
         err: `                ^^^^^^^^^^^^^`,
       },
+      { src: `async() => continue foo()`,
+        err: `                    ^^^^^`,
+      },
     ],
   },
   { msg: "Tail call expression in try block",
@@ -289,6 +289,16 @@ var SyntaxErrorTests = [
       },
     ],
   },
+  { msg: "Unexpected token continue",
+    tests: [
+      { src: `()=>{ (... continue f()) => {}  }`,
+        err: `           ^^^^^^^^`,
+      },
+      { src: `()=>{ (a, b, c, ... continue f() ) => {}  }`,
+        err: `                    ^^^^^^^^`,
+      },
+    ],
+  },
   { msg: "Undefined label 'foo'",
     tests: [
       { src: `()=>{ continue  foo () ; }`,
@@ -311,7 +321,6 @@ var NoErrorTests = [
   `()=>{ return a || continue f() ; }`,
   `()=>{ return a && continue f() ; }`,
   `()=>{ return a , continue f() ; }`,
-  `()=>{ function* G() { return continue foo(); } }`,
   `()=>{ class A { foo() { return continue super.f() ; } } }`,
   `()=>{ function B() { return continue new.target() ; } }`,
   `()=>{ return continue do { x ? foo() : bar() ; }() }`,

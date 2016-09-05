@@ -22,7 +22,8 @@ class Variable final : public ZoneObject {
     FUNCTION,
     THIS,
     ARGUMENTS,
-    kLastKind = ARGUMENTS
+    SLOPPY_FUNCTION_NAME,
+    kLastKind = SLOPPY_FUNCTION_NAME
   };
 
   Variable(Scope* scope, const AstRawString* name, VariableMode mode, Kind kind,
@@ -49,7 +50,8 @@ class Variable final : public ZoneObject {
     return ForceContextAllocationField::decode(bit_field_);
   }
   void ForceContextAllocation() {
-    DCHECK(IsUnallocated() || IsContextSlot());
+    DCHECK(IsUnallocated() || IsContextSlot() ||
+           location() == VariableLocation::MODULE);
     bit_field_ = ForceContextAllocationField::update(bit_field_, true);
   }
   bool is_used() { return IsUsedField::decode(bit_field_); }
@@ -71,25 +73,26 @@ class Variable final : public ZoneObject {
   bool IsStackLocal() const { return location() == VariableLocation::LOCAL; }
   bool IsStackAllocated() const { return IsParameter() || IsStackLocal(); }
   bool IsContextSlot() const { return location() == VariableLocation::CONTEXT; }
-  bool IsGlobalSlot() const { return location() == VariableLocation::GLOBAL; }
-  bool IsUnallocatedOrGlobalSlot() const {
-    return IsUnallocated() || IsGlobalSlot();
-  }
   bool IsLookupSlot() const { return location() == VariableLocation::LOOKUP; }
   bool IsGlobalObjectProperty() const;
   bool IsStaticGlobalObjectProperty() const;
 
   bool is_dynamic() const { return IsDynamicVariableMode(mode()); }
-  bool is_const_mode() const { return IsImmutableVariableMode(mode()); }
   bool binding_needs_init() const {
     DCHECK(initialization_flag() != kNeedsInitialization ||
            IsLexicalVariableMode(mode()));
     return initialization_flag() == kNeedsInitialization;
   }
+  bool throw_on_const_assignment(LanguageMode language_mode) const {
+    return kind() != SLOPPY_FUNCTION_NAME || is_strict(language_mode);
+  }
 
   bool is_function() const { return kind() == FUNCTION; }
   bool is_this() const { return kind() == THIS; }
   bool is_arguments() const { return kind() == ARGUMENTS; }
+  bool is_sloppy_function_name() const {
+    return kind() == SLOPPY_FUNCTION_NAME;
+  }
 
   Variable* local_if_not_shadowed() const {
     DCHECK(mode() == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
@@ -132,7 +135,7 @@ class Variable final : public ZoneObject {
   uint16_t bit_field_;
 
   class VariableModeField : public BitField16<VariableMode, 0, 3> {};
-  class KindField : public BitField16<Kind, VariableModeField::kNext, 2> {};
+  class KindField : public BitField16<Kind, VariableModeField::kNext, 3> {};
   class LocationField
       : public BitField16<VariableLocation, KindField::kNext, 3> {};
   class ForceContextAllocationField

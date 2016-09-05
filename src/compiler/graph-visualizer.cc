@@ -9,7 +9,7 @@
 #include <string>
 
 #include "src/code-stubs.h"
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"

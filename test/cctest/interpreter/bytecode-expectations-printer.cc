@@ -12,7 +12,6 @@
 #include "include/v8.h"
 
 #include "src/base/logging.h"
-#include "src/compiler.h"
 #include "src/runtime/runtime.h"
 
 #include "src/interpreter/bytecode-array-iterator.h"

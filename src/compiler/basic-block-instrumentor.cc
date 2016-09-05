@@ -6,7 +6,7 @@
 
 #include <sstream>
 
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"

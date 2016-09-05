@@ -71,7 +71,7 @@ class IdleScavengeObserver : public AllocationObserver {
 
 Heap::Heap()
     : external_memory_(0),
-      external_memory_limit_(kExternalAllocationLimit),
+      external_memory_limit_(kExternalAllocationSoftLimit),
       external_memory_at_last_mark_compact_(0),
       isolate_(nullptr),
       code_range_size_(0),
@@ -808,7 +808,7 @@ void Heap::ScheduleIdleScavengeIfNeeded(int bytes_allocated) {
 
 void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] (%s).\n", gc_reason);
+    isolate()->PrintWithTimestamp("[IncrementalMarking] (%s).\n", gc_reason);
   }
 
   HistogramTimerScope incremental_marking_scope(
@@ -903,6 +903,14 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
 
 
 void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
+  if (external_memory_ >
+      (external_memory_at_last_mark_compact_ + external_memory_hard_limit())) {
+    CollectAllGarbage(
+        kReduceMemoryFootprintMask | kFinalizeIncrementalMarkingMask, gc_reason,
+        static_cast<GCCallbackFlags>(kGCCallbackFlagCollectAllAvailableGarbage |
+                                     kGCCallbackFlagCollectAllExternalMemory));
+    return;
+  }
   if (incremental_marking()->IsStopped()) {
     if (incremental_marking()->CanBeActivated()) {
       StartIncrementalMarking(
@@ -917,11 +925,15 @@ void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
     }
   } else {
     // Incremental marking is turned on an has already been started.
-
-    // TODO(mlippautz): Compute the time slice for incremental marking based on
-    // memory pressure.
-    double deadline = MonotonicallyIncreasingTimeInMs() +
-                      FLAG_external_allocation_limit_incremental_time;
+    const double pressure =
+        static_cast<double>(external_memory_ -
+                            external_memory_at_last_mark_compact_ -
+                            kExternalAllocationSoftLimit) /
+        external_memory_hard_limit();
+    DCHECK_GE(1, pressure);
+    const double kMaxStepSizeOnExternalLimit = 25;
+    const double deadline = MonotonicallyIncreasingTimeInMs() +
+                            pressure * kMaxStepSizeOnExternalLimit;
     incremental_marking()->AdvanceIncrementalMarking(
         deadline,
         IncrementalMarking::StepActions(IncrementalMarking::GC_VIA_STACK_GUARD,
@@ -964,7 +976,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
 
   if (collector == SCAVENGER && !incremental_marking()->IsStopped()) {
     if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] Scavenge during marking.\n");
+      isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Scavenge during marking.\n");
     }
   }
 
@@ -976,7 +989,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
         !mark_compact_collector()->marking_deque_.IsEmpty() &&
         !FLAG_gc_global) {
       if (FLAG_trace_incremental_marking) {
-        PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
+        isolate()->PrintWithTimestamp(
+            "[IncrementalMarking] Delaying MarkSweep.\n");
       }
       collector = SCAVENGER;
       collector_reason = "incremental marking delaying mark-sweep";
@@ -1360,7 +1374,7 @@ bool Heap::PerformGarbageCollection(
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
     external_memory_at_last_mark_compact_ = external_memory_;
-    external_memory_limit_ = external_memory_ + kExternalAllocationLimit;
+    external_memory_limit_ = external_memory_ + kExternalAllocationSoftLimit;
     SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_size_configured_) {
@@ -2283,6 +2297,7 @@ bool Heap::CreateInitialMaps() {
     DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
@@ -4081,10 +4096,10 @@ double Heap::YoungGenerationMutatorUtilization() {
       tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects);
   double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
   if (FLAG_trace_mutator_utilization) {
-    PrintIsolate(isolate(),
-                 "Young generation mutator utilization = %.3f ("
-                 "mutator_speed=%.f, gc_speed=%.f)\n",
-                 result, mutator_speed, gc_speed);
+    isolate()->PrintWithTimestamp(
+        "Young generation mutator utilization = %.3f ("
+        "mutator_speed=%.f, gc_speed=%.f)\n",
+        result, mutator_speed, gc_speed);
   }
   return result;
 }
@@ -4097,10 +4112,10 @@ double Heap::OldGenerationMutatorUtilization() {
       tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
   double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
   if (FLAG_trace_mutator_utilization) {
-    PrintIsolate(isolate(),
-                 "Old generation mutator utilization = %.3f ("
-                 "mutator_speed=%.f, gc_speed=%.f)\n",
-                 result, mutator_speed, gc_speed);
+    isolate()->PrintWithTimestamp(
+        "Old generation mutator utilization = %.3f ("
+        "mutator_speed=%.f, gc_speed=%.f)\n",
+        result, mutator_speed, gc_speed);
   }
   return result;
 }
@@ -4175,12 +4190,20 @@ void Heap::ReduceNewSpaceSize() {
   }
 }
 
+bool Heap::MarkingDequesAreEmpty() {
+  return mark_compact_collector()->marking_deque()->IsEmpty() &&
+         (!UsingEmbedderHeapTracer() ||
+          (mark_compact_collector()->wrappers_to_trace() == 0 &&
+           mark_compact_collector()
+                   ->embedder_heap_tracer()
+                   ->NumberOfWrappersToTrace() == 0));
+}
 
 void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
   if (incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->finalize_marking_completed() &&
-        mark_compact_collector()->marking_deque()->IsEmpty()))) {
+        MarkingDequesAreEmpty()))) {
     FinalizeIncrementalMarking(comment);
   } else if (incremental_marking()->IsComplete() ||
              (mark_compact_collector()->marking_deque()->IsEmpty())) {
@@ -4195,14 +4218,14 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
       tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
   if (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
       (!incremental_marking()->finalize_marking_completed() &&
-       mark_compact_collector()->marking_deque()->IsEmpty() &&
+       MarkingDequesAreEmpty() &&
        gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
            idle_time_in_ms))) {
     FinalizeIncrementalMarking(
         "Idle notification: finalize incremental marking");
     return true;
   } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_deque()->IsEmpty() &&
+             (MarkingDequesAreEmpty() &&
               gc_idle_time_handler_->ShouldDoFinalIncrementalMarkCompact(
                   idle_time_in_ms, size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
@@ -4328,8 +4351,7 @@ void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
 
   if ((FLAG_trace_idle_notification && action.type > DO_NOTHING) ||
       FLAG_trace_idle_notification_verbose) {
-    PrintIsolate(isolate_, "%8.0f ms: ", isolate()->time_millis_since_init());
-    PrintF(
+    isolate_->PrintWithTimestamp(
         "Idle notification: requested idle time %.2f ms, used idle time %.2f "
         "ms, deadline usage %.2f ms [",
         idle_time_in_ms, idle_time_in_ms - deadline_difference,
@@ -5195,11 +5217,11 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
   double factor = HeapGrowingFactor(gc_speed, mutator_speed);
 
   if (FLAG_trace_gc_verbose) {
-    PrintIsolate(isolate_,
-                 "Heap growing factor %.1f based on mu=%.3f, speed_ratio=%.f "
-                 "(gc=%.f, mutator=%.f)\n",
-                 factor, kTargetMutatorUtilization, gc_speed / mutator_speed,
-                 gc_speed, mutator_speed);
+    isolate_->PrintWithTimestamp(
+        "Heap growing factor %.1f based on mu=%.3f, speed_ratio=%.f "
+        "(gc=%.f, mutator=%.f)\n",
+        factor, kTargetMutatorUtilization, gc_speed / mutator_speed, gc_speed,
+        mutator_speed);
   }
 
   if (IsMemoryConstrainedDevice()) {
@@ -5223,10 +5245,10 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
       CalculateOldGenerationAllocationLimit(factor, old_gen_size);
 
   if (FLAG_trace_gc_verbose) {
-    PrintIsolate(isolate_, "Grow: old size: %" V8PRIdPTR
-                           " KB, new limit: %" V8PRIdPTR " KB (%.1f)\n",
-                 old_gen_size / KB, old_generation_allocation_limit_ / KB,
-                 factor);
+    isolate_->PrintWithTimestamp("Grow: old size: %" V8PRIdPTR
+                                 " KB, new limit: %" V8PRIdPTR " KB (%.1f)\n",
+                                 old_gen_size / KB,
+                                 old_generation_allocation_limit_ / KB, factor);
   }
 }
 
@@ -5238,12 +5260,12 @@ void Heap::DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
   intptr_t limit = CalculateOldGenerationAllocationLimit(factor, old_gen_size);
   if (limit < old_generation_allocation_limit_) {
     if (FLAG_trace_gc_verbose) {
-      PrintIsolate(isolate_,
-                   "Dampen: old size: %" V8PRIdPTR " KB, old limit: %" V8PRIdPTR
-                   " KB, "
-                   "new limit: %" V8PRIdPTR " KB (%.1f)\n",
-                   old_gen_size / KB, old_generation_allocation_limit_ / KB,
-                   limit / KB, factor);
+      isolate_->PrintWithTimestamp(
+          "Dampen: old size: %" V8PRIdPTR " KB, old limit: %" V8PRIdPTR
+          " KB, "
+          "new limit: %" V8PRIdPTR " KB (%.1f)\n",
+          old_gen_size / KB, old_generation_allocation_limit_ / KB, limit / KB,
+          factor);
     }
     old_generation_allocation_limit_ = limit;
   }

@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "src/ast/scopes.h"
-#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
@@ -115,7 +114,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
       CollectNonLocals(info.get(), scope);
     }
     if (!ignore_nested_scopes) {
-      scope->AllocateVariables(info.get());
+      DeclarationScope::Analyze(info.get(), AnalyzeMode::kDebugger);
       RetrieveScopeChain(scope);
     }
   } else if (!ignore_nested_scopes) {
@@ -818,11 +817,10 @@ void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
   if (scope->is_hidden()) {
     // We need to add this chain element in case the scope has a context
     // associated. We need to keep the scope chain and context chain in sync.
-    nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate)));
+    nested_scope_chain_.Add(ExtendedScopeInfo(scope->scope_info()));
   } else {
-    nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate),
-                                              scope->start_position(),
-                                              scope->end_position()));
+    nested_scope_chain_.Add(ExtendedScopeInfo(
+        scope->scope_info(), scope->start_position(), scope->end_position()));
   }
   for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
        inner_scope = inner_scope->sibling()) {

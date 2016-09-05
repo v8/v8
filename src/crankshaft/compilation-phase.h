@@ -6,7 +6,8 @@
 #define V8_CRANKSHAFT_COMPILATION_PHASE_H_
 
 #include "src/allocation.h"
-#include "src/compiler.h"
+#include "src/base/platform/elapsed-timer.h"
+#include "src/compilation-info.h"
 #include "src/zone.h"
 
 namespace v8 {

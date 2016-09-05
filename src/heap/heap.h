@@ -49,6 +49,7 @@ using v8::MemoryPressureLevel;
   V(Map, one_byte_string_map, OneByteStringMap)                                \
   V(Map, one_byte_internalized_string_map, OneByteInternalizedStringMap)       \
   V(Map, scope_info_map, ScopeInfoMap)                                         \
+  V(Map, module_info_map, ModuleInfoMap)                                       \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, function_context_map, FunctionContextMap)                             \
@@ -275,6 +276,7 @@ using v8::MemoryPressureLevel;
   V(FixedArrayMap)                      \
   V(CodeMap)                            \
   V(ScopeInfoMap)                       \
+  V(ModuleInfoMap)                      \
   V(FixedCOWArrayMap)                   \
   V(FixedDoubleArrayMap)                \
   V(WeakCellMap)                        \
@@ -763,14 +765,6 @@ class Heap {
   // Returns false if not able to reserve.
   bool ReserveSpace(Reservation* reservations, List<Address>* maps);
 
-  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
-
-  bool UsingEmbedderHeapTracer();
-
-  void TracePossibleWrapper(JSObject* js_object);
-
-  void RegisterExternallyReferencedObject(Object** object);
-
   //
   // Support for the API.
   //
@@ -846,6 +840,8 @@ class Heap {
   void AgeInlineCaches() {
     global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
   }
+
+  int64_t external_memory_hard_limit() { return MaxOldGenerationSize() / 2; }
 
   int64_t external_memory() { return external_memory_; }
   void update_external_memory(int64_t delta) { external_memory_ += delta; }
@@ -1172,6 +1168,18 @@ class Heap {
   void RegisterReservationsForBlackAllocation(Reservation* reservations);
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
+
+  // ===========================================================================
+  // Embedder heap tracer support. =============================================
+  // ===========================================================================
+
+  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
+
+  bool UsingEmbedderHeapTracer();
+
+  void TracePossibleWrapper(JSObject* js_object);
+
+  void RegisterExternallyReferencedObject(Object** object);
 
   // ===========================================================================
   // External string table API. ================================================
@@ -1587,6 +1595,10 @@ class Heap {
   inline bool ShouldFinalizeIncrementalMarking() const {
     return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
   }
+
+  // Checks whether both, the internal marking deque, and the embedder provided
+  // one are empty. Avoid in fast path as it potentially calls through the API.
+  bool MarkingDequesAreEmpty();
 
   void PreprocessStackTraces();
 

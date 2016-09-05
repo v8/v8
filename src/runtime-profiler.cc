@@ -9,6 +9,7 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
+#include "src/compiler.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"

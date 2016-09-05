@@ -4,7 +4,7 @@
 
 #include <utility>
 
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
 #include "src/handles.h"

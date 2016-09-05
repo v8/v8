@@ -193,9 +193,8 @@ const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 const size_t kReservedCodeRangePages = 0;
 #endif
 
-// The external allocation limit should be below 256 MB on all architectures
-// to avoid that resource-constrained embedders run low on memory.
-const int kExternalAllocationLimit = 192 * 1024 * 1024;
+// Trigger an incremental GCs once the external memory reaches this limit.
+const int kExternalAllocationSoftLimit = 64 * MB;
 
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
@@ -732,13 +731,12 @@ enum CpuFeature {
   POPCNT,
   ATOM,
   // ARM
-  VFP3,
-  ARMv7,
-  ARMv8,
-  SUDIV,
+  // - Standard configurations. The baseline is ARMv6+VFPv2.
+  ARMv7,        // ARMv7-A + VFPv3-D32 + NEON
+  ARMv7_SUDIV,  // ARMv7-A + VFPv4-D32 + NEON + SUDIV
+  ARMv8,        // ARMv8-A (+ all of the above)
+  // - Additional tuning flags.
   MOVW_MOVT_IMMEDIATE_LOADS,
-  VFP32DREGS,
-  NEON,
   // MIPS, MIPS64
   FPU,
   FP64FPU,
@@ -755,10 +753,14 @@ enum CpuFeature {
   DISTINCT_OPS,
   GENERAL_INSTR_EXT,
   FLOATING_POINT_EXT,
-  // PPC/S390
-  UNALIGNED_ACCESSES,
 
-  NUMBER_OF_CPU_FEATURES
+  NUMBER_OF_CPU_FEATURES,
+
+  // ARM feature aliases (based on the standard configurations above).
+  VFP3 = ARMv7,
+  NEON = ARMv7,
+  VFP32DREGS = ARMv7,
+  SUDIV = ARMv7_SUDIV
 };
 
 // Defines hints about receiver values based on structural knowledge.
@@ -881,8 +883,6 @@ enum VariableMode : uint8_t {
   // User declared variables:
   VAR,  // declared via 'var', and 'function' declarations
 
-  CONST_LEGACY,  // declared via legacy 'const' declarations
-
   LET,  // declared via 'let' declarations (first lexical)
 
   CONST,  // declared via 'const' declarations (last lexical)
@@ -921,11 +921,6 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
   return mode >= LET && mode <= CONST;
 }
 
-
-inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_LEGACY;
-}
-
 enum VariableLocation : uint8_t {
   // Before and during variable allocation, a variable whose location is
   // not yet determined.  After allocation, a variable looked up as a
@@ -946,12 +941,6 @@ enum VariableLocation : uint8_t {
   // the context object on the heap, starting at 0.  scope() is the
   // corresponding scope.
   CONTEXT,
-
-  // An indexed slot in a script context that contains a respective global
-  // property cell.  name() is the variable name, index() is the variable
-  // index in the context object on the heap, starting at 0.  scope() is the
-  // corresponding script scope.
-  GLOBAL,
 
   // A named slot in a heap context.  name() is the variable name in the
   // context object on the heap, with lookup starting at the current
@@ -1152,6 +1141,12 @@ inline uint32_t ObjectHash(Address address) {
 // to a more generic type when we combine feedback.
 // kSignedSmall -> kNumber  -> kAny
 class BinaryOperationFeedback {
+ public:
+  enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
+};
+
+// TODO(epertoso): consider unifying this with BinaryOperationFeedback.
+class CompareOperationFeedback {
  public:
   enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
 };

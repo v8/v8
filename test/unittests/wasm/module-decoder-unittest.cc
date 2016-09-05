@@ -279,6 +279,18 @@ TEST_F(WasmModuleVerifyTest, GlobalWithInvalidNameOffset) {
   EXPECT_FAILURE(data);
 }
 
+TEST_F(WasmModuleVerifyTest, GlobalWithInvalidNameLength) {
+  static const byte data[] = {
+      SECTION(GLOBALS, 5),  // --
+      1,
+      NAME_LENGTH(56),  // invalid length
+      'g',              // name
+      kLocalI32,        // memory type
+      0,                // exported
+  };
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, GlobalWithInvalidMemoryType) {
   static const byte data[] = {
       SECTION(GLOBALS, 7),

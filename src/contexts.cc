@@ -64,8 +64,8 @@ bool Context::is_declaration_context() {
   Object* ext = extension();
   // If we have the special extension, we immediately know it must be a
   // declaration scope. That's just a small performance shortcut.
-  return ext->IsSloppyBlockWithEvalContextExtension()
-      || ScopeInfo::cast(ext)->is_declaration_scope();
+  return ext->IsContextExtension() ||
+         ScopeInfo::cast(ext)->is_declaration_scope();
 }
 
 
@@ -93,8 +93,8 @@ JSObject* Context::extension_object() {
   HeapObject* object = extension();
   if (object->IsTheHole(GetIsolate())) return nullptr;
   if (IsBlockContext()) {
-    if (!object->IsSloppyBlockWithEvalContextExtension()) return nullptr;
-    object = SloppyBlockWithEvalContextExtension::cast(object)->extension();
+    if (!object->IsContextExtension()) return nullptr;
+    object = JSObject::cast(ContextExtension::cast(object)->extension());
   }
   DCHECK(object->IsJSContextExtensionObject() ||
          (IsNativeContext() && object->IsJSGlobalObject()));
@@ -110,11 +110,12 @@ JSReceiver* Context::extension_receiver() {
 
 
 ScopeInfo* Context::scope_info() {
-  DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext());
+  DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext() ||
+         IsCatchContext());
   HeapObject* object = extension();
-  if (object->IsSloppyBlockWithEvalContextExtension()) {
-    DCHECK(IsBlockContext());
-    object = SloppyBlockWithEvalContextExtension::cast(object)->scope_info();
+  if (object->IsContextExtension()) {
+    DCHECK(IsBlockContext() || IsCatchContext());
+    object = ContextExtension::cast(object)->scope_info();
   }
   return ScopeInfo::cast(object);
 }
@@ -122,7 +123,7 @@ ScopeInfo* Context::scope_info() {
 
 String* Context::catch_name() {
   DCHECK(IsCatchContext());
-  return String::cast(extension());
+  return String::cast(ContextExtension::cast(extension())->extension());
 }
 
 
@@ -178,7 +179,7 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it) {
 
 static PropertyAttributes GetAttributesForMode(VariableMode mode) {
   DCHECK(IsDeclaredVariableMode(mode));
-  return IsImmutableVariableMode(mode) ? READ_ONLY : NONE;
+  return mode == CONST ? READ_ONLY : NONE;
 }
 
 Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
@@ -307,10 +308,11 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       }
 
       // Check the slot corresponding to the intermediate context holding
-      // only the function name variable.
-      if (follow_context_chain && context->IsFunctionContext()) {
-        VariableMode mode;
-        int function_index = scope_info->FunctionContextSlotIndex(*name, &mode);
+      // only the function name variable. It's conceptually (and spec-wise)
+      // in an outer scope of the function's declaration scope.
+      if (follow_context_chain && (flags & STOP_AT_DECLARATION_SCOPE) == 0 &&
+          context->IsFunctionContext()) {
+        int function_index = scope_info->FunctionContextSlotIndex(*name);
         if (function_index >= 0) {
           if (FLAG_trace_contexts) {
             PrintF("=> found intermediate function in context slot %d\n",
@@ -318,9 +320,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
           }
           *index = function_index;
           *attributes = READ_ONLY;
-          DCHECK(mode == CONST_LEGACY || mode == CONST);
           *init_flag = kCreatedInitialized;
-          *variable_mode = mode;
+          *variable_mode = CONST;
           return context;
         }
       }
@@ -384,25 +385,6 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     PrintF("=> no property/slot found\n");
   }
   return Handle<Object>::null();
-}
-
-
-void Context::InitializeGlobalSlots() {
-  DCHECK(IsScriptContext());
-  DisallowHeapAllocation no_gc;
-
-  ScopeInfo* scope_info = this->scope_info();
-
-  int context_globals = scope_info->ContextGlobalCount();
-  if (context_globals > 0) {
-    PropertyCell* empty_cell = GetHeap()->empty_property_cell();
-
-    int context_locals = scope_info->ContextLocalCount();
-    int index = Context::MIN_CONTEXT_SLOTS + context_locals;
-    for (int i = 0; i < context_globals; i++) {
-      set(index++, empty_cell);
-    }
-  }
 }
 
 

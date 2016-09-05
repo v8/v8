@@ -12,7 +12,8 @@ namespace v8 {
 namespace internal {
 
 void Parser::PatternRewriter::DeclareAndInitializeVariables(
-    Block* block, const DeclarationDescriptor* declaration_descriptor,
+    Parser* parser, Block* block,
+    const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZoneList<const AstRawString*>* names, bool* ok) {
   PatternRewriter rewriter;
@@ -20,7 +21,7 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
   DCHECK(block->ignore_completion_value());
 
   rewriter.scope_ = declaration_descriptor->scope;
-  rewriter.parser_ = declaration_descriptor->parser;
+  rewriter.parser_ = parser;
   rewriter.context_ = BINDING;
   rewriter.pattern_ = declaration->pattern;
   rewriter.initializer_position_ = declaration->initializer_position;
@@ -139,13 +140,6 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // which the variable or constant is declared. Only function variables have
   // an initial value in the declaration (because they are initialized upon
   // entering the function).
-  //
-  // If we have a legacy const declaration, in an inner scope, the proxy
-  // is always bound to the declared variable (independent of possibly
-  // surrounding 'with' statements).
-  // For let/const declarations in harmony mode, we can also immediately
-  // pre-resolve the proxy because it resides in the same scope as the
-  // declaration.
   const AstRawString* name = pattern->raw_name();
   VariableProxy* proxy = descriptor_->scope->NewUnresolved(
       factory(), name, parser_->scanner()->location().beg_pos,
@@ -267,11 +261,13 @@ Variable* Parser::PatternRewriter::CreateTempVar(Expression* value) {
 void Parser::PatternRewriter::VisitRewritableExpression(
     RewritableExpression* node) {
   // If this is not a destructuring assignment...
-  if (!IsAssignmentContext() || !node->expression()->IsAssignment()) {
+  if (!IsAssignmentContext()) {
     // Mark the node as rewritten to prevent redundant rewriting, and
     // perform BindingPattern rewriting
     DCHECK(!node->is_rewritten());
     node->Rewrite(node->expression());
+    return Visit(node->expression());
+  } else if (!node->expression()->IsAssignment()) {
     return Visit(node->expression());
   }
 

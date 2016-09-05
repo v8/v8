@@ -572,6 +572,7 @@ class RuntimeCallTimer {
   V(Object_CallAsFunction)                                 \
   V(Object_CreateDataProperty)                             \
   V(Object_DefineOwnProperty)                              \
+  V(Object_DefineProperty)                                 \
   V(Object_Delete)                                         \
   V(Object_DeleteProperty)                                 \
   V(Object_ForceSet)                                       \
@@ -676,9 +677,11 @@ class RuntimeCallTimer {
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
   V(GC)                                             \
+  V(GenericNamedPropertyDefinerCallback)            \
   V(GenericNamedPropertyDeleterCallback)            \
   V(GenericNamedPropertyQueryCallback)              \
   V(GenericNamedPropertySetterCallback)             \
+  V(IndexedPropertyDefinerCallback)                 \
   V(IndexedPropertyDeleterCallback)                 \
   V(IndexedPropertyGetterCallback)                  \
   V(IndexedPropertyQueryCallback)                   \

@@ -14,7 +14,6 @@
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
-#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {
@@ -5837,20 +5836,19 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
 InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {}
 
-Representation RepresentationFromType(Type* type) {
-  if (type->Is(Type::UntaggedIntegral())) {
+Representation RepresentationFromMachineType(MachineType type) {
+  if (type == MachineType::Int32()) {
     return Representation::Integer32();
   }
 
-  if (type->Is(Type::TaggedSigned())) {
+  if (type == MachineType::TaggedSigned()) {
     return Representation::Smi();
   }
 
-  if (type->Is(Type::UntaggedPointer())) {
+  if (type == MachineType::Pointer()) {
     return Representation::External();
   }
 
-  DCHECK(!type->Is(Type::Untagged()));
   return Representation::Tagged();
 }
 

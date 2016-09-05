@@ -509,8 +509,12 @@ void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
 
 
 void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
-  Handle<String> name = OpParameter<Handle<String>>(node);
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(name));
+  const CreateCatchContextParameters& parameters =
+      CreateCatchContextParametersOf(node->op());
+  node->InsertInput(zone(), 0,
+                    jsgraph()->HeapConstant(parameters.catch_name()));
+  node->InsertInput(zone(), 2,
+                    jsgraph()->HeapConstant(parameters.scope_info()));
   ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
 }
 
@@ -574,11 +578,6 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
 }
 
 
-void JSGenericLowering::LowerJSForInDone(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kForInDone);
-}
-
-
 void JSGenericLowering::LowerJSForInNext(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kForInNext);
 }
@@ -587,12 +586,6 @@ void JSGenericLowering::LowerJSForInNext(Node* node) {
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kForInPrepare);
 }
-
-
-void JSGenericLowering::LowerJSForInStep(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kForInStep);
-}
-
 
 void JSGenericLowering::LowerJSLoadMessage(Node* node) {
   ExternalReference message_address =

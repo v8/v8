@@ -590,7 +590,7 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
     int slots = info()->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     Safepoint::DeoptMode deopt_mode = Safepoint::kNoLazyDeopt;
     if (info()->scope()->is_script_scope()) {
-      __ Mov(x10, Operand(info()->scope()->GetScopeInfo(info()->isolate())));
+      __ Mov(x10, Operand(info()->scope()->scope_info()));
       __ Push(x1, x10);
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;

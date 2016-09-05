@@ -9,6 +9,7 @@
 
 #include "src/ast/prettyprinter.h"
 #include "src/code-factory.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/factory.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -180,6 +181,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   RuntimeCallTimerScope runtimeTimer(info()->isolate(),
                                      &RuntimeCallStats::CompileIgnition);
   TimerEventScope<TimerEventCompileIgnition> timer(info()->isolate());
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
   TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
       info()->isolate(), &tracing::TraceEventStatsTable::CompileIgnition);
 
@@ -816,6 +818,80 @@ void Interpreter::DoBinaryOpWithFeedback(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+template <class Generator>
+void Interpreter::DoCompareOpWithFeedback(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+
+  // TODO(interpreter): the only reason this check is here is because we
+  // sometimes emit comparisons that shouldn't collect feedback (e.g.
+  // try-finally blocks and generators), and we could get rid of this by
+  // introducing Smi equality tests.
+  Label skip_feedback_update(assembler);
+  __ GotoIf(__ WordEqual(slot_index, __ IntPtrConstant(0)),
+            &skip_feedback_update);
+
+  Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
+  Label lhs_is_smi(assembler), lhs_is_not_smi(assembler),
+      gather_rhs_type(assembler), do_compare(assembler);
+  __ Branch(__ WordIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
+
+  __ Bind(&lhs_is_smi);
+  var_type_feedback.Bind(
+      __ Int32Constant(CompareOperationFeedback::kSignedSmall));
+  __ Goto(&gather_rhs_type);
+
+  __ Bind(&lhs_is_not_smi);
+  {
+    Label lhs_is_number(assembler), lhs_is_not_number(assembler);
+    Node* lhs_map = __ LoadMap(lhs);
+    __ Branch(__ WordEqual(lhs_map, __ HeapNumberMapConstant()), &lhs_is_number,
+              &lhs_is_not_number);
+
+    __ Bind(&lhs_is_number);
+    var_type_feedback.Bind(__ Int32Constant(CompareOperationFeedback::kNumber));
+    __ Goto(&gather_rhs_type);
+
+    __ Bind(&lhs_is_not_number);
+    var_type_feedback.Bind(__ Int32Constant(CompareOperationFeedback::kAny));
+    __ Goto(&do_compare);
+  }
+
+  __ Bind(&gather_rhs_type);
+  {
+    Label rhs_is_smi(assembler);
+    __ GotoIf(__ WordIsSmi(rhs), &rhs_is_smi);
+
+    Node* rhs_map = __ LoadMap(rhs);
+    Node* rhs_type =
+        __ Select(__ WordEqual(rhs_map, __ HeapNumberMapConstant()),
+                  __ Int32Constant(CompareOperationFeedback::kNumber),
+                  __ Int32Constant(CompareOperationFeedback::kAny));
+    var_type_feedback.Bind(__ Word32Or(var_type_feedback.value(), rhs_type));
+    __ Goto(&do_compare);
+
+    __ Bind(&rhs_is_smi);
+    var_type_feedback.Bind(
+        __ Word32Or(var_type_feedback.value(),
+                    __ Int32Constant(CompareOperationFeedback::kSignedSmall)));
+    __ Goto(&do_compare);
+  }
+
+  __ Bind(&do_compare);
+  __ UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+                    slot_index);
+  __ Goto(&skip_feedback_update);
+
+  __ Bind(&skip_feedback_update);
+  Node* result = Generator::Generate(assembler, lhs, rhs, context);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
 // Add <src>
 //
 // Add register <src> to accumulator.
@@ -1227,7 +1303,7 @@ void Interpreter::DoUnaryOpWithFeedback(InterpreterAssembler* assembler) {
 
 // ToName
 //
-// Cast the object referenced by the accumulator to a name.
+// Convert the object referenced by the accumulator to a name.
 void Interpreter::DoToName(InterpreterAssembler* assembler) {
   Node* result = BuildUnaryOp(CodeFactory::ToName(isolate_), assembler);
   __ StoreRegister(result, __ BytecodeOperandReg(0));
@@ -1236,7 +1312,7 @@ void Interpreter::DoToName(InterpreterAssembler* assembler) {
 
 // ToNumber
 //
-// Cast the object referenced by the accumulator to a number.
+// Convert the object referenced by the accumulator to a number.
 void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
   Node* result = BuildUnaryOp(CodeFactory::ToNumber(isolate_), assembler);
   __ StoreRegister(result, __ BytecodeOperandReg(0));
@@ -1245,7 +1321,7 @@ void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
 
 // ToObject
 //
-// Cast the object referenced by the accumulator to a JSObject.
+// Convert the object referenced by the accumulator to a JSReceiver.
 void Interpreter::DoToObject(InterpreterAssembler* assembler) {
   Node* result = BuildUnaryOp(CodeFactory::ToObject(isolate_), assembler);
   __ StoreRegister(result, __ BytecodeOperandReg(0));
@@ -1499,9 +1575,11 @@ void Interpreter::DoCallConstruct(InterpreterAssembler* assembler) {
   Node* first_arg_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(first_arg_reg);
   Node* args_count = __ BytecodeOperandCount(2);
+  Node* slot_id = __ BytecodeOperandIdx(3);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  Node* result =
-      __ CallConstruct(constructor, context, new_target, first_arg, args_count);
+  Node* result = __ CallConstruct(constructor, context, new_target, first_arg,
+                                  args_count, slot_id, type_feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1520,35 +1598,35 @@ void Interpreter::DoNew(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp<EqualStub>(assembler);
+  DoCompareOpWithFeedback<EqualStub>(assembler);
 }
 
 // TestNotEqual <src>
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp<NotEqualStub>(assembler);
+  DoCompareOpWithFeedback<NotEqualStub>(assembler);
 }
 
 // TestEqualStrict <src>
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp<StrictEqualStub>(assembler);
+  DoCompareOpWithFeedback<StrictEqualStub>(assembler);
 }
 
 // TestLessThan <src>
 //
 // Test if the value in the <src> register is less than the accumulator.
 void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
-  DoBinaryOp<LessThanStub>(assembler);
+  DoCompareOpWithFeedback<LessThanStub>(assembler);
 }
 
 // TestGreaterThan <src>
 //
 // Test if the value in the <src> register is greater than the accumulator.
 void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
-  DoBinaryOp<GreaterThanStub>(assembler);
+  DoCompareOpWithFeedback<GreaterThanStub>(assembler);
 }
 
 // TestLessThanOrEqual <src>
@@ -1556,7 +1634,7 @@ void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp<LessThanOrEqualStub>(assembler);
+  DoCompareOpWithFeedback<LessThanOrEqualStub>(assembler);
 }
 
 // TestGreaterThanOrEqual <src>
@@ -1564,7 +1642,7 @@ void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp<GreaterThanOrEqualStub>(assembler);
+  DoCompareOpWithFeedback<GreaterThanOrEqualStub>(assembler);
 }
 
 // TestIn <src>
@@ -1915,19 +1993,22 @@ void Interpreter::DoCreateBlockContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// CreateCatchContext <exception> <index>
+// CreateCatchContext <exception> <name_idx> <scope_info_idx>
 //
 // Creates a new context for a catch block with the |exception| in a register,
-// the variable name at |index| and the closure in the accumulator.
+// the variable name at |name_idx|, the ScopeInfo at |scope_info_idx|, and the
+// closure in the accumulator.
 void Interpreter::DoCreateCatchContext(InterpreterAssembler* assembler) {
   Node* exception_reg = __ BytecodeOperandReg(0);
   Node* exception = __ LoadRegister(exception_reg);
-  Node* index = __ BytecodeOperandIdx(1);
-  Node* name = __ LoadConstantPoolEntry(index);
+  Node* name_idx = __ BytecodeOperandIdx(1);
+  Node* name = __ LoadConstantPoolEntry(name_idx);
+  Node* scope_info_idx = __ BytecodeOperandIdx(2);
+  Node* scope_info = __ LoadConstantPoolEntry(scope_info_idx);
   Node* closure = __ GetAccumulator();
   Node* context = __ GetContext();
   __ SetAccumulator(__ CallRuntime(Runtime::kPushCatchContext, context, name,
-                                   exception, closure));
+                                   exception, scope_info, closure));
   __ Dispatch();
 }
 
@@ -2260,10 +2341,10 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   }
 }
 
-// ForInDone <index> <cache_length>
+// ForInContinue <index> <cache_length>
 //
-// Returns true if the end of the enumerable properties has been reached.
-void Interpreter::DoForInDone(InterpreterAssembler* assembler) {
+// Returns false if the end of the enumerable properties has been reached.
+void Interpreter::DoForInContinue(InterpreterAssembler* assembler) {
   Node* index_reg = __ BytecodeOperandReg(0);
   Node* index = __ LoadRegister(index_reg);
   Node* cache_length_reg = __ BytecodeOperandReg(1);
@@ -2274,12 +2355,12 @@ void Interpreter::DoForInDone(InterpreterAssembler* assembler) {
   __ BranchIfWordEqual(index, cache_length, &if_true, &if_false);
   __ Bind(&if_true);
   {
-    __ SetAccumulator(__ BooleanConstant(true));
+    __ SetAccumulator(__ BooleanConstant(false));
     __ Goto(&end);
   }
   __ Bind(&if_false);
   {
-    __ SetAccumulator(__ BooleanConstant(false));
+    __ SetAccumulator(__ BooleanConstant(true));
     __ Goto(&end);
   }
   __ Bind(&end);

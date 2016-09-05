@@ -11,7 +11,7 @@ import sys
 
 SHARD_FILENAME_TEMPLATE = "test/mjsunit/compiler/inline-exception-{shard}.js"
 # Generates 2 files. Found by trial and error.
-SHARD_SIZE = 94
+SHARD_SIZE = 97
 
 PREAMBLE = """
 
@@ -81,6 +81,24 @@ function increaseAndThrow42() {
   throw 42;
 }
 
+function increaseAndReturn15_noopt_inner() {
+  if (deopt) %DeoptimizeFunction(f);
+  counter++;
+  return 15;
+}
+
+%NeverOptimizeFunction(increaseAndReturn15_noopt_inner);
+
+function increaseAndThrow42_noopt_inner() {
+  if (deopt) %DeoptimizeFunction(f);
+  counter++;
+  throw 42;
+}
+
+%NeverOptimizeFunction(increaseAndThrow42_noopt_inner);
+
+// Alternative 1
+
 function returnOrThrow(doReturn) {
   if (doReturn) {
     return increaseAndReturn15();
@@ -89,6 +107,17 @@ function returnOrThrow(doReturn) {
   }
 }
 
+// Alternative 2
+
+function increaseAndReturn15_calls_noopt() {
+  return increaseAndReturn15_noopt_inner();
+}
+
+function increaseAndThrow42_calls_noopt() {
+  return increaseAndThrow42_noopt_inner();
+}
+
+// Alternative 3.
 // When passed either {increaseAndReturn15} or {increaseAndThrow42}, it acts
 // as the other one.
 function invertFunctionCall(f) {
@@ -101,6 +130,7 @@ function invertFunctionCall(f) {
   throw result + 27;
 }
 
+// Alternative 4: constructor
 function increaseAndStore15Constructor() {
   if (deopt) %DeoptimizeFunction(f);
   ++counter;
@@ -114,6 +144,7 @@ function increaseAndThrow42Constructor() {
   throw this.x;
 }
 
+// Alternative 5: property
 var magic = {};
 Object.defineProperty(magic, 'prop', {
   get: function () {
@@ -130,6 +161,9 @@ Object.defineProperty(magic, 'prop', {
 })
 
 // Generate type feedback.
+
+assertEquals(15, increaseAndReturn15_calls_noopt());
+assertThrowsEquals(function() { return increaseAndThrow42_noopt_inner() }, 42);
 
 assertEquals(15, (new increaseAndStore15Constructor()).x);
 assertThrowsEquals(function() {
@@ -153,8 +187,6 @@ def booltuples(n):
       yield initial + (False,)
       yield initial + (True,)
 
-FLAGLETTERS="4321trflcrltfrtld"
-
 def fnname(flags):
     assert len(FLAGLETTERS) == len(flags)
 
@@ -175,10 +207,17 @@ def printtest(flags):
   # tuples, ordered lexicographically from false to true, we get first the
   # default, then alternative 1, then 2, etc.
   (
-    alternativeFn4,      # use alternative #4 for returning/throwing.
-    alternativeFn3,      # use alternative #3 for returning/throwing.
-    alternativeFn2,      # use alternative #2 for returning/throwing.
-    alternativeFn1,      # use alternative #1 for returning/throwing.
+    alternativeFn5,      # use alternative #5 for returning/throwing:
+                         #   return/throw using property
+    alternativeFn4,      # use alternative #4 for returning/throwing:
+                         #   return/throw using constructor
+    alternativeFn3,      # use alternative #3 for returning/throwing:
+                         #   return/throw indirectly, based on function argument
+    alternativeFn2,      # use alternative #2 for returning/throwing:
+                         #   return/throw indirectly in unoptimized code,
+                         #   no branching
+    alternativeFn1,      # use alternative #1 for returning/throwing:
+                         #   return/throw indirectly, based on boolean arg
     tryThrows,           # in try block, call throwing function
     tryReturns,          # in try block, call returning function
     tryFirstReturns,     # in try block, returning goes before throwing
@@ -197,7 +236,8 @@ def printtest(flags):
   # BASIC RULES
 
   # Only one alternative can be applied at any time.
-  if alternativeFn1 + alternativeFn2 + alternativeFn3 + alternativeFn4 > 1:
+  if (alternativeFn1 + alternativeFn2 + alternativeFn3 + alternativeFn4
+      + alternativeFn5 > 1):
     return
 
   # In try, return or throw, or both.
@@ -228,8 +268,9 @@ def printtest(flags):
   # PRUNING
 
   anyAlternative = any([alternativeFn1, alternativeFn2, alternativeFn3,
-      alternativeFn4])
-  rareAlternative = any([alternativeFn1, alternativeFn3, alternativeFn4])
+      alternativeFn4, alternativeFn5])
+  specificAlternative = any([alternativeFn2, alternativeFn3])
+  rareAlternative = not specificAlternative
 
   # If try returns and throws, then don't catchWithLocal, endReturnLocal, or
   # deopt, or do any alternative.
@@ -238,13 +279,18 @@ def printtest(flags):
     return
   # We don't do any alternative if we do a finally.
   if doFinally and anyAlternative: return
-  # We only use the local variable if we do alternative #2.
+  # We only use the local variable if we do alternative #2 or #3.
   if ((tryResultToLocal or catchWithLocal or endReturnLocal) and
-      not alternativeFn2):
+      not specificAlternative):
     return
   # We don't need to test deopting into a finally.
   if doFinally and deopt: return
 
+  # We're only interested in alternative #2 if we have endReturnLocal, no
+  # catchReturns, and no catchThrows, and deopt.
+  if (alternativeFn2 and
+      (not endReturnLocal or catchReturns or catchThrows or not deopt)):
+    return
 
 
   # Flag check succeeded.
@@ -266,16 +312,21 @@ def printtest(flags):
     }
   elif alternativeFn2:
     fragments = {
+      'increaseAndReturn15': 'increaseAndReturn15_calls_noopt()',
+      'increaseAndThrow42': 'increaseAndThrow42_calls_noopt()',
+    }
+  elif alternativeFn3:
+    fragments = {
       'increaseAndReturn15': 'invertFunctionCall(increaseAndThrow42)',
       'increaseAndThrow42': 'invertFunctionCall(increaseAndReturn15)',
     }
-  elif alternativeFn3:
+  elif alternativeFn4:
     fragments = {
       'increaseAndReturn15': '(new increaseAndStore15Constructor()).x',
       'increaseAndThrow42': '(new increaseAndThrow42Constructor()).x',
     }
   else:
-    assert alternativeFn4
+    assert alternativeFn5
     fragments = {
       'increaseAndReturn15': 'magic.prop /* returns 15 */',
       'increaseAndThrow42': '(magic.prop = 37 /* throws 42 */)',
@@ -294,34 +345,34 @@ def printtest(flags):
   counter = 0
 
   write(    "  f = function {} () {{".format(fnname(flags)))
-  write(    "    var local = 3;")
+  write(    "    var local = 888;")
   write(    "    deopt = {};".format("true" if deopt else "false"))
-  local = 3
+  local = 888
   write(    "    try {")
   write(    "      counter++;")
   counter += 1
   resultTo = "local +=" if tryResultToLocal else "return"
   if tryReturns and not (tryThrows and not tryFirstReturns):
-    write(  "      {} {increaseAndReturn15};".format(resultTo, **fragments))
+    write(  "      {} 4 + {increaseAndReturn15};".format(resultTo, **fragments))
     if result == None:
       counter += 1
       if tryResultToLocal:
-        local += 15
+        local += 19
       else:
-        result = ("return", 15)
+        result = ("return", 19)
   if tryThrows:
-    write(  "      {} {increaseAndThrow42};".format(resultTo, **fragments))
+    write(  "      {} 4 + {increaseAndThrow42};".format(resultTo, **fragments))
     if result == None:
       counter += 1
       result = ("throw", 42)
   if tryReturns and tryThrows and not tryFirstReturns:
-    write(  "      {} {increaseAndReturn15};".format(resultTo, **fragments))
+    write(  "      {} 4 + {increaseAndReturn15};".format(resultTo, **fragments))
     if result == None:
       counter += 1
       if tryResultToLocal:
-        local += 15
+        local += 19
       else:
-        result = ("return", 15)
+        result = ("return", 19)
   write(    "      counter++;")
   if result == None:
     counter += 1
@@ -447,8 +498,10 @@ def write_shard_footer():
   write("")
   write("runThisShard();")
 
+FLAGLETTERS="54321trflcrltfrtld"
 
 flagtuple = namedtuple('flagtuple', (
+  "alternativeFn5",
   "alternativeFn4",
   "alternativeFn3",
   "alternativeFn2",
@@ -508,3 +561,6 @@ if __name__ == '__main__':
     rotateshard()
 
   finishshard()
+
+  if MODE == 'shard':
+    print("Total: {} tests.".format(NUM_TESTS_PRINTED))

@@ -10,6 +10,7 @@
 #include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/codegen.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
@@ -43,9 +44,40 @@ class FullCodegenCompilationJob final : public CompilationJob {
   CompilationJob::Status FinalizeJobImpl() final { return SUCCEEDED; }
 };
 
+FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
+                                     CompilationInfo* info,
+                                     uintptr_t stack_limit)
+    : masm_(masm),
+      info_(info),
+      isolate_(info->isolate()),
+      zone_(info->zone()),
+      scope_(info->scope()),
+      nesting_stack_(NULL),
+      loop_depth_(0),
+      operand_stack_depth_(0),
+      globals_(NULL),
+      context_(NULL),
+      bailout_entries_(info->HasDeoptimizationSupport()
+                           ? info->literal()->ast_node_count()
+                           : 0,
+                       info->zone()),
+      back_edges_(2, info->zone()),
+      handler_table_(info->zone()),
+      source_position_table_builder_(info->zone(),
+                                     info->SourcePositionRecordingMode()),
+      ic_total_count_(0) {
+  DCHECK(!info->IsStub());
+  Initialize(stack_limit);
+}
+
 // static
 CompilationJob* FullCodeGenerator::NewCompilationJob(CompilationInfo* info) {
   return new FullCodegenCompilationJob(info);
+}
+
+// static
+bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
+  return MakeCode(info, info->isolate()->stack_guard()->real_climit());
 }
 
 // static
@@ -56,6 +88,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileFullCode);
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileFullCode");
   TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
       isolate, &tracing::TraceEventStatsTable::CompileFullCode);
 
@@ -839,8 +872,8 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
   DCHECK(!context()->IsEffect());
   DCHECK(!context()->IsTest());
 
-  if (proxy != NULL && (proxy->var()->IsUnallocatedOrGlobalSlot() ||
-                        proxy->var()->IsLookupSlot())) {
+  if (proxy != NULL &&
+      (proxy->var()->IsUnallocated() || proxy->var()->IsLookupSlot())) {
     EmitVariableLoad(proxy, INSIDE_TYPEOF);
     PrepareForBailout(proxy, BailoutState::TOS_REGISTER);
   } else {
@@ -1300,6 +1333,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   { Comment cmnt(masm_, "[ Extend catch context");
     PushOperand(stmt->variable()->name());
     PushOperand(result_register());
+    PushOperand(stmt->scope()->scope_info());
     PushFunctionArgumentForContextAllocation();
     CallRuntimeWithOperands(Runtime::kPushCatchContext);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
@@ -1873,7 +1907,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     {
       if (needs_block_context_) {
         Comment cmnt(masm(), "[ Extend block context");
-        codegen_->PushOperand(scope->GetScopeInfo(codegen->isolate()));
+        codegen_->PushOperand(scope->scope_info());
         codegen_->PushFunctionArgumentForContextAllocation();
         codegen_->CallRuntimeWithOperands(Runtime::kPushBlockContext);
 
@@ -1965,6 +1999,17 @@ bool FullCodeGenerator::NeedsHoleCheckForLoad(VariableProxy* proxy) {
          var->initializer_position() >= proxy->position();
 }
 
+Handle<Script> FullCodeGenerator::script() { return info_->script(); }
+
+LanguageMode FullCodeGenerator::language_mode() {
+  return scope()->language_mode();
+}
+
+bool FullCodeGenerator::has_simple_parameters() {
+  return info_->has_simple_parameters();
+}
+
+FunctionLiteral* FullCodeGenerator::literal() const { return info_->literal(); }
 
 #undef __
 

@@ -74,7 +74,6 @@
     ],
     'interpreter': [
       'rmcilroy@chromium.org',
-      'oth@chromium.org',
     ],
     'feature_shipping_status': [
       'hablich@chromium.org',

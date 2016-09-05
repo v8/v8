@@ -1046,7 +1046,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       info.set_global();
       CHECK(parser.Parse(&info));
       CHECK(i::Rewriter::Rewrite(&info));
-      i::Scope::Analyze(&info);
+      i::DeclarationScope::Analyze(&info, i::AnalyzeMode::kRegular);
       CHECK(info.literal() != NULL);
 
       i::DeclarationScope* script_scope = info.literal()->scope();
@@ -2898,6 +2898,7 @@ TEST(StrictObjectLiteralChecking) {
 
 
 TEST(ErrorsObjectLiteralChecking) {
+  // clang-format off
   const char* context_data[][2] = {
     {"\"use strict\"; var myobject = {", "};"},
     {"var myobject = {", "};"},
@@ -2914,14 +2915,60 @@ TEST(ErrorsObjectLiteralChecking) {
     // Parsing FunctionLiteral for getter or setter fails
     "get foo( +",
     "get foo() \"error\"",
+    // Various forbidden forms
+    "static x: 0",
+    "static x(){}",
+    "static async x(){}",
+    "static get x(){}",
+    "static get x : 0",
+    "static x",
+    "static 0",
+    "*x: 0",
+    "*x",
+    "*get x(){}",
+    "*set x(y){}",
+    "get *x(){}",
+    "set *x(y){}",
+    "get x*(){}",
+    "set x*(y){}",
+    "x = 0",
+    "* *x(){}",
+    "x*(){}",
+    // This should fail without --harmony-async-await
+    "async x(){}",
     NULL
   };
+  // clang-format on
 
   RunParserSyncTest(context_data, statement_data, kError);
+
+  // clang-format off
+  const char* async_data[] = {
+    "static async x(){}",
+    "static async x : 0",
+    "static async get x : 0",
+    "async static x(){}",
+    "*async x(){}",
+    "async *x(){}",
+    "async x*(){}",
+    "async x : 0",
+    "async 0 : 0",
+    "async get x(){}",
+    "async get *x(){}",
+    "async set x(y){}",
+    "async get : 0",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
+  RunParserSyncTest(context_data, async_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }
 
 
 TEST(NoErrorsObjectLiteralChecking) {
+  // clang-format off
   const char* context_data[][2] = {
     {"var myobject = {", "};"},
     {"var myobject = {", ",};"},
@@ -2970,6 +3017,19 @@ TEST(NoErrorsObjectLiteralChecking) {
     "1: 1, set 2(v) {}",
     "get: 1, get foo() {}",
     "set: 1, set foo(_) {}",
+    // Potentially confusing cases
+    "get(){}",
+    "set(){}",
+    "static(){}",
+    "async(){}",
+    "*get() {}",
+    "*set() {}",
+    "*static() {}",
+    "*async(){}",
+    "get : 0",
+    "set : 0",
+    "static : 0",
+    "async : 0",
     // Keywords, future reserved and strict future reserved are also allowed as
     // property names.
     "if: 4",
@@ -2979,8 +3039,28 @@ TEST(NoErrorsObjectLiteralChecking) {
     "arguments: 8",
     NULL
   };
+  // clang-format on
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
+
+  // clang-format off
+  const char* async_data[] = {
+    "async x(){}",
+    "async 0(){}",
+    "async get(){}",
+    "async set(){}",
+    "async static(){}",
+    "async async(){}",
+    "async : 0",
+    "async(){}",
+    "*async(){}",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
+  RunParserSyncTest(context_data, async_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }
 
 
@@ -3323,7 +3403,8 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   const i::AstRawString* name = avf.GetOneByteString("result");
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
-  i::DeclarationScope* script_scope = new (&zone) i::DeclarationScope(&zone);
+  i::DeclarationScope* script_scope =
+      new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
       isolate, &zone, context, script_scope, &avf,
       i::Scope::DeserializationMode::kKeepScopeInfo);
@@ -3370,7 +3451,8 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
   avf.Internalize(isolate);
 
-  i::DeclarationScope* script_scope = new (&zone) i::DeclarationScope(&zone);
+  i::DeclarationScope* script_scope =
+      new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
       isolate, &zone, context, script_scope, &avf,
       i::Scope::DeserializationMode::kKeepScopeInfo);
@@ -4394,6 +4476,10 @@ TEST(ClassBodyNoErrors) {
     "*get() {}",
     "*set() {}",
     "static *g() {}",
+    "async(){}",
+    "*async(){}",
+    "static async(){}",
+    "static *async(){}",
 
     // Escaped 'static' should be allowed anywhere
     // static-as-PropertyName is.
@@ -4409,6 +4495,27 @@ TEST(ClassBodyNoErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kSuccess);
+
+  // clang-format off
+  const char* async_data[] = {
+    "static async x(){}",
+    "static async(){}",
+    "static *async(){}",
+    "async x(){}",
+    "async 0(){}",
+    "async get(){}",
+    "async set(){}",
+    "async static(){}",
+    "async async(){}",
+    "async(){}",
+    "*async(){}",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
+  RunParserSyncTest(context_data, async_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }
 
 
@@ -4522,6 +4629,43 @@ TEST(ClassDeclarationErrors) {
   RunParserSyncTest(context_data, class_data, kError);
 }
 
+TEST(ClassAsyncErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {NULL, NULL}};
+  const char* async_data[] = {
+    "*async x(){}",
+    "async *(){}",
+    "async *x(){}",
+    "async get x(){}",
+    "async set x(y){}",
+    "async x : 0",
+    "async : 0",
+
+    "async static x(){}",
+
+    "static *async x(){}",
+    "static async *(){}",
+    "static async *x(){}",
+    "static async get x(){}",
+    "static async set x(y){}",
+    "static async x : 0",
+    "static async : 0",
+    NULL
+  };
+  // clang-format on
+
+  // All of these are illegal whether or not async functions are permitted,
+  // although for different reasons.
+  RunParserSyncTest(context_data, async_data, kError);
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
+  RunParserSyncTest(context_data, async_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
 
 TEST(ClassNameErrors) {
   const char* context_data[][2] = {{"class ", "{}"},

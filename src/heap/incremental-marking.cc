@@ -471,10 +471,10 @@ void IncrementalMarking::NotifyOfHighPromotionRate() {
   if (IsMarking()) {
     if (marking_speed_ < kFastMarking) {
       if (FLAG_trace_gc) {
-        PrintIsolate(heap()->isolate(),
-                     "Increasing marking speed to %d "
-                     "due to high promotion rate\n",
-                     static_cast<int>(kFastMarking));
+        heap()->isolate()->PrintWithTimestamp(
+            "Increasing marking speed to %d "
+            "due to high promotion rate\n",
+            static_cast<int>(kFastMarking));
       }
       marking_speed_ = kFastMarking;
     }
@@ -506,8 +506,16 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 
 void IncrementalMarking::Start(const char* reason) {
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Start (%s)\n",
-           (reason == nullptr) ? "unknown reason" : reason);
+    int old_generation_size_mb =
+        static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
+    int old_generation_limit_mb =
+        static_cast<int>(heap()->old_generation_allocation_limit() / MB);
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Start (%s): old generation %dMB, limit %dMB, "
+        "slack %dMB\n",
+        (reason == nullptr) ? "unknown reason" : reason, old_generation_size_mb,
+        old_generation_limit_mb,
+        Max(0, old_generation_limit_mb - old_generation_size_mb));
   }
   DCHECK(FLAG_incremental_marking);
   DCHECK(state_ == STOPPED);
@@ -518,6 +526,7 @@ void IncrementalMarking::Start(const char* reason) {
       heap_->isolate()->counters()->gc_incremental_marking_start());
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingStart");
   ResetStepCounters();
+  heap_->tracer()->NotifyIncrementalMarkingStart();
 
   was_activated_ = true;
 
@@ -525,7 +534,8 @@ void IncrementalMarking::Start(const char* reason) {
     StartMarking();
   } else {
     if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] Start sweeping.\n");
+      heap()->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Start sweeping.\n");
     }
     state_ = SWEEPING;
   }
@@ -542,12 +552,14 @@ void IncrementalMarking::StartMarking() {
     // but we cannot enable black allocation while deserializing. Hence, we
     // have to delay the start of incremental marking in that case.
     if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] Start delayed - serializer\n");
+      heap()->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Start delayed - serializer\n");
     }
     return;
   }
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Start marking\n");
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Start marking\n");
   }
 
   is_compacting_ = !FLAG_never_compact &&
@@ -589,7 +601,7 @@ void IncrementalMarking::StartMarking() {
 
   // Ready to start incremental marking.
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Running\n");
+    heap()->isolate()->PrintWithTimestamp("[IncrementalMarking] Running\n");
   }
 }
 
@@ -601,7 +613,8 @@ void IncrementalMarking::StartBlackAllocation() {
   heap()->map_space()->MarkAllocationInfoBlack();
   heap()->code_space()->MarkAllocationInfoBlack();
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Black allocation started\n");
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Black allocation started\n");
   }
 }
 
@@ -609,7 +622,8 @@ void IncrementalMarking::FinishBlackAllocation() {
   if (black_allocation_) {
     black_allocation_ = false;
     if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] Black allocation finished\n");
+      heap()->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Black allocation finished\n");
     }
   }
 }
@@ -742,7 +756,6 @@ void IncrementalMarking::RetainMaps() {
   }
 }
 
-
 void IncrementalMarking::FinalizeIncrementally() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE_BODY);
   DCHECK(!finalize_marking_completed_);
@@ -775,11 +788,14 @@ void IncrementalMarking::FinalizeIncrementally() {
       abs(old_marking_deque_top -
           heap_->mark_compact_collector()->marking_deque()->top());
 
+  marking_progress +=
+      static_cast<int>(heap_->mark_compact_collector()->wrappers_to_trace());
+
   double end = heap_->MonotonicallyIncreasingTimeInMs();
   double delta = end - start;
   heap_->tracer()->AddMarkingTime(delta);
   if (FLAG_trace_incremental_marking) {
-    PrintF(
+    heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Finalize incrementally round %d, "
         "spent %d ms, marking progress %d.\n",
         static_cast<int>(delta), incremental_marking_finalization_rounds_,
@@ -929,7 +945,7 @@ void IncrementalMarking::Hurry() {
     if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
       start = heap_->MonotonicallyIncreasingTimeInMs();
       if (FLAG_trace_incremental_marking) {
-        PrintF("[IncrementalMarking] Hurry\n");
+        heap()->isolate()->PrintWithTimestamp("[IncrementalMarking] Hurry\n");
       }
     }
     // TODO(gc) hurry can mark objects it encounters black as mutator
@@ -941,8 +957,9 @@ void IncrementalMarking::Hurry() {
       double delta = end - start;
       heap_->tracer()->AddMarkingTime(delta);
       if (FLAG_trace_incremental_marking) {
-        PrintF("[IncrementalMarking] Complete (hurry), spent %d ms.\n",
-               static_cast<int>(delta));
+        heap()->isolate()->PrintWithTimestamp(
+            "[IncrementalMarking] Complete (hurry), spent %d ms.\n",
+            static_cast<int>(delta));
       }
     }
   }
@@ -968,7 +985,15 @@ void IncrementalMarking::Hurry() {
 void IncrementalMarking::Stop() {
   if (IsStopped()) return;
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Stopping.\n");
+    int old_generation_size_mb =
+        static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
+    int old_generation_limit_mb =
+        static_cast<int>(heap()->old_generation_allocation_limit() / MB);
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Stopping: old generation %dMB, limit %dMB, "
+        "overshoot %dMB\n",
+        old_generation_size_mb, old_generation_limit_mb,
+        Max(0, old_generation_size_mb - old_generation_limit_mb));
   }
 
   heap_->new_space()->RemoveAllocationObserver(&observer_);
@@ -995,7 +1020,7 @@ void IncrementalMarking::Finalize() {
 void IncrementalMarking::FinalizeMarking(CompletionAction action) {
   DCHECK(!finalize_marking_completed_);
   if (FLAG_trace_incremental_marking) {
-    PrintF(
+    heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] requesting finalization of incremental "
         "marking.\n");
   }
@@ -1015,7 +1040,8 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
   // the should-hurry flag to indicate that there can't be much work left to do.
   set_should_hurry(true);
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Complete (normal).\n");
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Complete (normal).\n");
   }
   request_type_ = COMPLETE_MARKING;
   if (action == GC_VIA_STACK_GUARD) {
@@ -1036,19 +1062,15 @@ double IncrementalMarking::AdvanceIncrementalMarking(
 
   intptr_t step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
       GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs,
-      heap()
-          ->tracer()
-          ->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
+      heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
   double remaining_time_in_ms = 0.0;
-  intptr_t bytes_processed = 0;
 
   do {
-    bytes_processed =
-        Step(step_size_in_bytes, step_actions.completion_action,
-             step_actions.force_marking, step_actions.force_completion);
+    Step(step_size_in_bytes, step_actions.completion_action,
+         step_actions.force_marking, step_actions.force_completion);
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-  } while (bytes_processed > 0 &&
+  } while (!heap_->mark_compact_collector()->marking_deque()->IsEmpty() &&
            remaining_time_in_ms >=
                2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
            !IsComplete() &&
@@ -1072,8 +1094,9 @@ void IncrementalMarking::SpeedUp() {
 
   if ((steps_count_ % kMarkingSpeedAccellerationInterval) == 0) {
     if (FLAG_trace_incremental_marking) {
-      PrintIsolate(heap()->isolate(), "Speed up marking after %d steps\n",
-                   static_cast<int>(kMarkingSpeedAccellerationInterval));
+      heap()->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Speed up marking after %d steps\n",
+          static_cast<int>(kMarkingSpeedAccellerationInterval));
     }
     speed_up = true;
   }
@@ -1088,8 +1111,8 @@ void IncrementalMarking::SpeedUp() {
   if (space_left_is_very_small ||
       only_1_nth_of_space_that_was_available_still_left) {
     if (FLAG_trace_incremental_marking)
-      PrintIsolate(heap()->isolate(),
-                   "Speed up marking because of low space left\n");
+      heap()->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Speed up marking because of low space left\n");
     speed_up = true;
   }
 
@@ -1100,8 +1123,9 @@ void IncrementalMarking::SpeedUp() {
   if (size_of_old_space_multiplied_by_n_during_marking) {
     speed_up = true;
     if (FLAG_trace_incremental_marking) {
-      PrintIsolate(heap()->isolate(),
-                   "Speed up marking because of heap size increase\n");
+      heap()->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Speed up marking because of heap size "
+          "increase\n");
     }
   }
 
@@ -1114,8 +1138,9 @@ void IncrementalMarking::SpeedUp() {
   // We try to scan at at least twice the speed that we are allocating.
   if (promoted_during_marking > bytes_scanned_ / 2 + scavenge_slack + delay) {
     if (FLAG_trace_incremental_marking) {
-      PrintIsolate(heap()->isolate(),
-                   "Speed up marking because marker was not keeping up\n");
+      heap()->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Speed up marking because marker was not "
+          "keeping up\n");
     }
     speed_up = true;
   }
@@ -1123,16 +1148,18 @@ void IncrementalMarking::SpeedUp() {
   if (speed_up) {
     if (state_ != MARKING) {
       if (FLAG_trace_incremental_marking) {
-        PrintIsolate(heap()->isolate(),
-                     "Postponing speeding up marking until marking starts\n");
+        heap()->isolate()->PrintWithTimestamp(
+            "[IncrementalMarking] Postponing speeding up marking until marking "
+            "starts\n");
       }
     } else {
       marking_speed_ += kMarkingSpeedAccelleration;
       marking_speed_ = static_cast<int>(
           Min(kMaxMarkingSpeed, static_cast<intptr_t>(marking_speed_ * 1.3)));
       if (FLAG_trace_incremental_marking) {
-        PrintIsolate(heap()->isolate(), "Marking speed increased to %d\n",
-                     marking_speed_);
+        heap()->isolate()->PrintWithTimestamp(
+            "[IncrementalMarking] Marking speed increased to %d\n",
+            marking_speed_);
       }
     }
   }
@@ -1200,29 +1227,41 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
 
     bytes_scanned_ += bytes_to_process;
 
-    // TODO(hpayer): Do not account for sweeping finalization while marking.
     if (state_ == SWEEPING) {
+      TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL_SWEEPING);
       FinalizeSweeping();
     }
 
     if (state_ == MARKING) {
-      bytes_processed = ProcessMarkingDeque(bytes_to_process);
-      if (FLAG_incremental_marking_wrappers &&
-          heap_->UsingEmbedderHeapTracer()) {
+      const bool incremental_wrapper_tracing =
+          FLAG_incremental_marking_wrappers && heap_->UsingEmbedderHeapTracer();
+      const bool process_wrappers =
+          incremental_wrapper_tracing &&
+          (heap_->mark_compact_collector()
+               ->RequiresImmediateWrapperProcessing() ||
+           heap_->mark_compact_collector()->marking_deque()->IsEmpty());
+      bool wrapper_work_left = incremental_wrapper_tracing;
+      if (!process_wrappers) {
+        bytes_processed = ProcessMarkingDeque(bytes_to_process);
+      } else {
+        const double kWrapperTracngStepMs = 1.0;
+        const double wrapper_deadline =
+            heap_->MonotonicallyIncreasingTimeInMs() + kWrapperTracngStepMs;
         TRACE_GC(heap()->tracer(),
                  GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
-        // This currently marks through all registered wrappers and does not
-        // respect bytes_to_process.
-        // TODO(hpayer): Integrate incremental marking of wrappers into
-        // bytes_to_process logic.
         heap_->mark_compact_collector()
             ->RegisterWrappersWithEmbedderHeapTracer();
-        heap_->mark_compact_collector()->embedder_heap_tracer()->AdvanceTracing(
-            0,
-            EmbedderHeapTracer::AdvanceTracingActions(
-                EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
+        wrapper_work_left =
+            heap_->mark_compact_collector()
+                ->embedder_heap_tracer()
+                ->AdvanceTracing(wrapper_deadline,
+                                 EmbedderHeapTracer::AdvanceTracingActions(
+                                     EmbedderHeapTracer::ForceCompletionAction::
+                                         DO_NOT_FORCE_COMPLETION));
       }
-      if (heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
+
+      if (heap_->mark_compact_collector()->marking_deque()->IsEmpty() &&
+          !wrapper_work_left) {
         if (completion == FORCE_COMPLETION ||
             IsIdleMarkingDelayCounterLimitReached()) {
           if (!finalize_marking_completed_) {
@@ -1284,5 +1323,6 @@ void IncrementalMarking::IncrementIdleMarkingDelayCounter() {
 void IncrementalMarking::ClearIdleMarkingDelayCounter() {
   idle_marking_delay_counter_ = 0;
 }
+
 }  // namespace internal
 }  // namespace v8

@@ -204,12 +204,10 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_ERROR(F) F(ErrorToString, 1, 1)
 
 #define FOR_EACH_INTRINSIC_FORIN(F) \
-  F(ForInDone, 2, 1)                \
   F(ForInEnumerate, 1, 1)           \
   F(ForInFilter, 2, 1)              \
   F(ForInHasProperty, 2, 1)         \
-  F(ForInNext, 4, 1)                \
-  F(ForInStep, 1, 1)
+  F(ForInNext, 4, 1)
 
 #define FOR_EACH_INTRINSIC_INTERPRETER(F) \
   F(InterpreterNewClosure, 2, 1)          \
@@ -477,7 +475,7 @@ namespace internal {
   F(NewScriptContext, 2, 1)             \
   F(NewFunctionContext, 1, 1)           \
   F(PushWithContext, 2, 1)              \
-  F(PushCatchContext, 3, 1)             \
+  F(PushCatchContext, 4, 1)             \
   F(PushBlockContext, 2, 1)             \
   F(DeleteLookupSlot, 1, 1)             \
   F(LoadLookupSlot, 1, 1)               \
@@ -906,23 +904,7 @@ namespace internal {
   F(IsTypedArray, 1, 1)                      \
   F(IsSharedTypedArray, 1, 1)                \
   F(IsSharedIntegerTypedArray, 1, 1)         \
-  F(IsSharedInteger32TypedArray, 1, 1)       \
-  F(DataViewGetUint8, 3, 1)                  \
-  F(DataViewGetInt8, 3, 1)                   \
-  F(DataViewGetUint16, 3, 1)                 \
-  F(DataViewGetInt16, 3, 1)                  \
-  F(DataViewGetUint32, 3, 1)                 \
-  F(DataViewGetInt32, 3, 1)                  \
-  F(DataViewGetFloat32, 3, 1)                \
-  F(DataViewGetFloat64, 3, 1)                \
-  F(DataViewSetUint8, 4, 1)                  \
-  F(DataViewSetInt8, 4, 1)                   \
-  F(DataViewSetUint16, 4, 1)                 \
-  F(DataViewSetInt16, 4, 1)                  \
-  F(DataViewSetUint32, 4, 1)                 \
-  F(DataViewSetInt32, 4, 1)                  \
-  F(DataViewSetFloat32, 4, 1)                \
-  F(DataViewSetFloat64, 4, 1)
+  F(IsSharedInteger32TypedArray, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM(F) \
   F(WasmGrowMemory, 1, 1)          \

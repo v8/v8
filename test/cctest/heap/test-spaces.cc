@@ -28,6 +28,10 @@
 #include <stdlib.h>
 
 #include "src/base/platform/platform.h"
+#include "src/heap/spaces-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/heap/incremental-marking.h -> src/objects-inl.h
+#include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"

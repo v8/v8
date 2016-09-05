@@ -4,7 +4,6 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
-#include "src/compiler.h"
 #include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-dead-code-optimizer.h"
@@ -175,9 +174,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf() {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
-                                                             Register reg) {
-  Output(BytecodeForCompareOperation(op), RegisterOperand(reg));
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
+    Token::Value op, Register reg, int feedback_slot) {
+  if (op == Token::INSTANCEOF || op == Token::IN) {
+    Output(BytecodeForCompareOperation(op), RegisterOperand(reg));
+  } else {
+    Output(BytecodeForCompareOperation(op), RegisterOperand(reg),
+           UnsignedOperand(feedback_slot));
+  }
   return *this;
 }
 
@@ -346,10 +350,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateBlockContext(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateCatchContext(
-    Register exception, Handle<String> name) {
+    Register exception, Handle<String> name, Handle<ScopeInfo> scope_info) {
   size_t name_index = GetConstantPoolEntry(name);
+  size_t scope_info_index = GetConstantPoolEntry(scope_info);
   Output(Bytecode::kCreateCatchContext, RegisterOperand(exception),
-         UnsignedOperand(name_index));
+         UnsignedOperand(name_index), UnsignedOperand(scope_info_index));
   return *this;
 }
 
@@ -411,19 +416,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::PopContext(Register context) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToJSObject(
+BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToObject(
     Register out) {
   Output(Bytecode::kToObject, RegisterOperand(out));
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName(
+BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToName(
     Register out) {
   Output(Bytecode::kToName, RegisterOperand(out));
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToNumber(
+BytecodeArrayBuilder& BytecodeArrayBuilder::ConvertAccumulatorToNumber(
     Register out) {
   Output(Bytecode::kToNumber, RegisterOperand(out));
   return *this;
@@ -533,9 +538,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register index,
-                                                      Register cache_length) {
-  Output(Bytecode::kForInDone, RegisterOperand(index),
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInContinue(
+    Register index, Register cache_length) {
+  Output(Bytecode::kForInContinue, RegisterOperand(index),
          RegisterOperand(cache_length));
   return *this;
 }
@@ -612,13 +617,15 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
                                                 Register first_arg,
-                                                size_t arg_count) {
+                                                size_t arg_count,
+                                                int feedback_slot_id) {
   if (!first_arg.is_valid()) {
     DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
   }
   Output(Bytecode::kNew, RegisterOperand(constructor),
-         RegisterOperand(first_arg), UnsignedOperand(arg_count));
+         RegisterOperand(first_arg), UnsignedOperand(arg_count),
+         UnsignedOperand(feedback_slot_id));
   return *this;
 }
 

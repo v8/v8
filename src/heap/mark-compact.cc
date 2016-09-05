@@ -2206,6 +2206,11 @@ void MarkCompactCollector::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   embedder_heap_tracer_ = tracer;
 }
 
+bool MarkCompactCollector::RequiresImmediateWrapperProcessing() {
+  const size_t kTooManyWrappers = 16000;
+  return wrappers_to_trace_.size() > kTooManyWrappers;
+}
+
 void MarkCompactCollector::RegisterWrappersWithEmbedderHeapTracer() {
   DCHECK(UsingEmbedderHeapTracer());
   if (wrappers_to_trace_.empty()) {

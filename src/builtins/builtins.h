@@ -51,6 +51,8 @@ namespace internal {
   ASM(Abort)                                                                  \
   /* Handlers */                                                              \
   ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \
+  TFS(KeyedLoadIC_Megamorphic_TF, KEYED_LOAD_IC, kNoExtraICState,             \
+      LoadWithVector)                                                         \
   ASM(KeyedLoadIC_Miss)                                                       \
   ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                         \
   ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)              \
@@ -123,9 +125,10 @@ namespace internal {
   ASM(InterpreterMarkBaselineOnReturn)                                        \
   ASM(InterpreterPushArgsAndCall)                                             \
   ASM(InterpreterPushArgsAndCallFunction)                                     \
-  ASM(InterpreterPushArgsAndConstruct)                                        \
   ASM(InterpreterPushArgsAndTailCall)                                         \
   ASM(InterpreterPushArgsAndTailCallFunction)                                 \
+  ASM(InterpreterPushArgsAndConstruct)                                        \
+  ASM(InterpreterPushArgsAndConstructFunction)                                \
   ASM(InterpreterEnterBytecodeDispatch)                                       \
   ASM(InterpreterOnStackReplacement)                                          \
                                                                               \
@@ -244,6 +247,22 @@ namespace internal {
   CPP(DataViewPrototypeGetBuffer)                                             \
   CPP(DataViewPrototypeGetByteLength)                                         \
   CPP(DataViewPrototypeGetByteOffset)                                         \
+  CPP(DataViewPrototypeGetInt8)                                               \
+  CPP(DataViewPrototypeSetInt8)                                               \
+  CPP(DataViewPrototypeGetUint8)                                              \
+  CPP(DataViewPrototypeSetUint8)                                              \
+  CPP(DataViewPrototypeGetInt16)                                              \
+  CPP(DataViewPrototypeSetInt16)                                              \
+  CPP(DataViewPrototypeGetUint16)                                             \
+  CPP(DataViewPrototypeSetUint16)                                             \
+  CPP(DataViewPrototypeGetInt32)                                              \
+  CPP(DataViewPrototypeSetInt32)                                              \
+  CPP(DataViewPrototypeGetUint32)                                             \
+  CPP(DataViewPrototypeSetUint32)                                             \
+  CPP(DataViewPrototypeGetFloat32)                                            \
+  CPP(DataViewPrototypeSetFloat32)                                            \
+  CPP(DataViewPrototypeGetFloat64)                                            \
+  CPP(DataViewPrototypeSetFloat64)                                            \
                                                                               \
   /* Date */                                                                  \
   CPP(DateConstructor)                                                        \
@@ -489,6 +508,32 @@ namespace internal {
   CPP(ReflectSet)                                                             \
   CPP(ReflectSetPrototypeOf)                                                  \
                                                                               \
+  /* RegExp */                                                                \
+  CPP(RegExpConstructor)                                                      \
+  CPP(RegExpPrototypeCapture1Getter)                                          \
+  CPP(RegExpPrototypeCapture2Getter)                                          \
+  CPP(RegExpPrototypeCapture3Getter)                                          \
+  CPP(RegExpPrototypeCapture4Getter)                                          \
+  CPP(RegExpPrototypeCapture5Getter)                                          \
+  CPP(RegExpPrototypeCapture6Getter)                                          \
+  CPP(RegExpPrototypeCapture7Getter)                                          \
+  CPP(RegExpPrototypeCapture8Getter)                                          \
+  CPP(RegExpPrototypeCapture9Getter)                                          \
+  CPP(RegExpPrototypeFlagsGetter)                                             \
+  CPP(RegExpPrototypeGlobalGetter)                                            \
+  CPP(RegExpPrototypeIgnoreCaseGetter)                                        \
+  CPP(RegExpPrototypeInputGetter)                                             \
+  CPP(RegExpPrototypeInputSetter)                                             \
+  CPP(RegExpPrototypeLastMatchGetter)                                         \
+  CPP(RegExpPrototypeLastParenGetter)                                         \
+  CPP(RegExpPrototypeLeftContextGetter)                                       \
+  CPP(RegExpPrototypeMultilineGetter)                                         \
+  CPP(RegExpPrototypeRightContextGetter)                                      \
+  CPP(RegExpPrototypeSourceGetter)                                            \
+  CPP(RegExpPrototypeSpeciesGetter)                                           \
+  CPP(RegExpPrototypeStickyGetter)                                            \
+  CPP(RegExpPrototypeUnicodeGetter)                                           \
+                                                                              \
   /* SharedArrayBuffer */                                                     \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                \
   TFJ(AtomicsLoad, 3)                                                         \
@@ -590,6 +635,7 @@ class Builtins {
   Handle<Code> InterpreterPushArgsAndCall(
       TailCallMode tail_call_mode,
       CallableType function_type = CallableType::kAny);
+  Handle<Code> InterpreterPushArgsAndConstruct(CallableType function_type);
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
@@ -642,6 +688,9 @@ class Builtins {
   static void Generate_InterpreterPushArgsAndCallImpl(
       MacroAssembler* masm, TailCallMode tail_call_mode,
       CallableType function_type);
+
+  static void Generate_InterpreterPushArgsAndConstructImpl(
+      MacroAssembler* masm, CallableType function_type);
 
   static void Generate_DatePrototype_GetField(MacroAssembler* masm,
                                               int field_index);

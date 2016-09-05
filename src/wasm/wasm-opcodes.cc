@@ -38,6 +38,18 @@ const char* WasmOpcodes::ShortOpcodeName(WasmOpcode opcode) {
   return "Unknown";
 }
 
+bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
+  switch (opcode) {
+#define CHECK_PREFIX(name, opcode) \
+  case k##name##Prefix:            \
+    return true;
+    FOREACH_PREFIX(CHECK_PREFIX)
+#undef CHECK_PREFIX
+    default:
+      return false;
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
   for (size_t i = 0; i < sig.return_count(); ++i) {

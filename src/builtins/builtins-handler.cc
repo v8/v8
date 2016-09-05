@@ -14,6 +14,21 @@ void Builtins::Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
   KeyedLoadIC::GenerateMegamorphic(masm);
 }
 
+void Builtins::Generate_KeyedLoadIC_Megamorphic_TF(
+    CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
+  assembler->KeyedLoadICGeneric(&p);
+}
+
 void Builtins::Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
   KeyedLoadIC::GenerateMiss(masm);
 }

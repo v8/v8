@@ -66,6 +66,24 @@ function increaseAndThrow42() {
   throw 42;
 }
 
+function increaseAndReturn15_noopt_inner() {
+  if (deopt) %DeoptimizeFunction(f);
+  counter++;
+  return 15;
+}
+
+%NeverOptimizeFunction(increaseAndReturn15_noopt_inner);
+
+function increaseAndThrow42_noopt_inner() {
+  if (deopt) %DeoptimizeFunction(f);
+  counter++;
+  throw 42;
+}
+
+%NeverOptimizeFunction(increaseAndThrow42_noopt_inner);
+
+// Alternative 1
+
 function returnOrThrow(doReturn) {
   if (doReturn) {
     return increaseAndReturn15();
@@ -74,6 +92,17 @@ function returnOrThrow(doReturn) {
   }
 }
 
+// Alternative 2
+
+function increaseAndReturn15_calls_noopt() {
+  return increaseAndReturn15_noopt_inner();
+}
+
+function increaseAndThrow42_calls_noopt() {
+  return increaseAndThrow42_noopt_inner();
+}
+
+// Alternative 3.
 // When passed either {increaseAndReturn15} or {increaseAndThrow42}, it acts
 // as the other one.
 function invertFunctionCall(f) {
@@ -86,6 +115,7 @@ function invertFunctionCall(f) {
   throw result + 27;
 }
 
+// Alternative 4: constructor
 function increaseAndStore15Constructor() {
   if (deopt) %DeoptimizeFunction(f);
   ++counter;
@@ -99,6 +129,7 @@ function increaseAndThrow42Constructor() {
   throw this.x;
 }
 
+// Alternative 5: property
 var magic = {};
 Object.defineProperty(magic, 'prop', {
   get: function () {
@@ -116,6 +147,9 @@ Object.defineProperty(magic, 'prop', {
 
 // Generate type feedback.
 
+assertEquals(15, increaseAndReturn15_calls_noopt());
+assertThrowsEquals(function() { return increaseAndThrow42_noopt_inner() }, 42);
+
 assertEquals(15, (new increaseAndStore15Constructor()).x);
 assertThrowsEquals(function() {
         return (new increaseAndThrow42Constructor()).x;
@@ -126,12 +160,12 @@ function runThisShard() {
 
   // Variant flags: [tryReturns, doFinally]
 
-  f = function f______r______f____ () {
-    var local = 3;
+  f = function f_______r______f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } finally {
       counter++;
@@ -140,17 +174,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryReturns, doFinally, finallyThrows]
 
-  f = function f______r______f_t__ () {
-    var local = 3;
+  f = function f_______r______f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } finally {
       counter++;
@@ -164,12 +198,12 @@ function runThisShard() {
 
   // Variant flags: [tryReturns, doFinally, finallyReturns]
 
-  f = function f______r______fr___ () {
-    var local = 3;
+  f = function f_______r______fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } finally {
       counter++;
@@ -178,17 +212,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [tryReturns, doCatch]
 
-  f = function f______r__c________ () {
-    var local = 3;
+  f = function f_______r__c________ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -196,17 +230,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [tryReturns, doCatch, deopt]
 
-  f = function f______r__c_______d () {
-    var local = 3;
+  f = function f_______r__c_______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -214,17 +248,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [tryReturns, doCatch, doFinally]
 
-  f = function f______r__c___f____ () {
-    var local = 3;
+  f = function f_______r__c___f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -236,17 +270,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryReturns, doCatch, doFinally, finallyThrows]
 
-  f = function f______r__c___f_t__ () {
-    var local = 3;
+  f = function f_______r__c___f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -263,12 +297,12 @@ function runThisShard() {
 
   // Variant flags: [tryReturns, doCatch, doFinally, finallyReturns]
 
-  f = function f______r__c___fr___ () {
-    var local = 3;
+  f = function f_______r__c___fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -280,17 +314,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [tryReturns, doCatch, catchThrows]
 
-  f = function f______r__c__t_____ () {
-    var local = 3;
+  f = function f_______r__c__t_____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -299,17 +333,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [tryReturns, doCatch, catchThrows, deopt]
 
-  f = function f______r__c__t____d () {
-    var local = 3;
+  f = function f_______r__c__t____d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -318,17 +352,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [tryReturns, doCatch, catchThrows, doFinally]
 
-  f = function f______r__c__tf____ () {
-    var local = 3;
+  f = function f_______r__c__tf____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -341,18 +375,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryReturns, doCatch, catchThrows, doFinally,
   //   finallyThrows]
 
-  f = function f______r__c__tf_t__ () {
-    var local = 3;
+  f = function f_______r__c__tf_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -371,12 +405,12 @@ function runThisShard() {
   // Variant flags: [tryReturns, doCatch, catchThrows, doFinally,
   //   finallyReturns]
 
-  f = function f______r__c__tfr___ () {
-    var local = 3;
+  f = function f_______r__c__tfr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -389,17 +423,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [tryReturns, doCatch, catchReturns]
 
-  f = function f______r__cr_______ () {
-    var local = 3;
+  f = function f_______r__cr_______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -408,17 +442,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [tryReturns, doCatch, catchReturns, deopt]
 
-  f = function f______r__cr______d () {
-    var local = 3;
+  f = function f_______r__cr______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -427,17 +461,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [tryReturns, doCatch, catchReturns, doFinally]
 
-  f = function f______r__cr__f____ () {
-    var local = 3;
+  f = function f_______r__cr__f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -450,18 +484,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryReturns, doCatch, catchReturns, doFinally,
   //   finallyThrows]
 
-  f = function f______r__cr__f_t__ () {
-    var local = 3;
+  f = function f_______r__cr__f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -480,12 +514,12 @@ function runThisShard() {
   // Variant flags: [tryReturns, doCatch, catchReturns, doFinally,
   //   finallyReturns]
 
-  f = function f______r__cr__fr___ () {
-    var local = 3;
+  f = function f_______r__cr__fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -498,17 +532,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [tryThrows, doFinally]
 
-  f = function f_____t_______f____ () {
-    var local = 3;
+  f = function f______t_______f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } finally {
       counter++;
@@ -522,12 +556,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doFinally, finallyThrows]
 
-  f = function f_____t_______f_t__ () {
-    var local = 3;
+  f = function f______t_______f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } finally {
       counter++;
@@ -541,12 +575,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doFinally, finallyReturns]
 
-  f = function f_____t_______fr___ () {
-    var local = 3;
+  f = function f______t_______fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } finally {
       counter++;
@@ -555,17 +589,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [tryThrows, doCatch]
 
-  f = function f_____t___c________ () {
-    var local = 3;
+  f = function f______t___c________ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -578,12 +612,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doCatch, deopt]
 
-  f = function f_____t___c_______d () {
-    var local = 3;
+  f = function f______t___c_______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -596,12 +630,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doCatch, doFinally]
 
-  f = function f_____t___c___f____ () {
-    var local = 3;
+  f = function f______t___c___f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -618,12 +652,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doCatch, doFinally, finallyThrows]
 
-  f = function f_____t___c___f_t__ () {
-    var local = 3;
+  f = function f______t___c___f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -640,12 +674,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doCatch, doFinally, finallyReturns]
 
-  f = function f_____t___c___fr___ () {
-    var local = 3;
+  f = function f______t___c___fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -657,17 +691,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(5, counter);
 
   // Variant flags: [tryThrows, doCatch, catchThrows]
 
-  f = function f_____t___c__t_____ () {
-    var local = 3;
+  f = function f______t___c__t_____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -681,12 +715,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doCatch, catchThrows, deopt]
 
-  f = function f_____t___c__t____d () {
-    var local = 3;
+  f = function f______t___c__t____d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -700,12 +734,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doCatch, catchThrows, doFinally]
 
-  f = function f_____t___c__tf____ () {
-    var local = 3;
+  f = function f______t___c__tf____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -724,12 +758,12 @@ function runThisShard() {
   // Variant flags: [tryThrows, doCatch, catchThrows, doFinally,
   //   finallyThrows]
 
-  f = function f_____t___c__tf_t__ () {
-    var local = 3;
+  f = function f______t___c__tf_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -748,12 +782,12 @@ function runThisShard() {
   // Variant flags: [tryThrows, doCatch, catchThrows, doFinally,
   //   finallyReturns]
 
-  f = function f_____t___c__tfr___ () {
-    var local = 3;
+  f = function f______t___c__tfr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -766,17 +800,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryThrows, doCatch, catchReturns]
 
-  f = function f_____t___cr_______ () {
-    var local = 3;
+  f = function f______t___cr_______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -790,12 +824,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doCatch, catchReturns, deopt]
 
-  f = function f_____t___cr______d () {
-    var local = 3;
+  f = function f______t___cr______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -809,12 +843,12 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, doCatch, catchReturns, doFinally]
 
-  f = function f_____t___cr__f____ () {
-    var local = 3;
+  f = function f______t___cr__f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -833,12 +867,12 @@ function runThisShard() {
   // Variant flags: [tryThrows, doCatch, catchReturns, doFinally,
   //   finallyThrows]
 
-  f = function f_____t___cr__f_t__ () {
-    var local = 3;
+  f = function f______t___cr__f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -857,12 +891,12 @@ function runThisShard() {
   // Variant flags: [tryThrows, doCatch, catchReturns, doFinally,
   //   finallyReturns]
 
-  f = function f_____t___cr__fr___ () {
-    var local = 3;
+  f = function f______t___cr__fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -875,18 +909,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryThrows, tryReturns, doFinally]
 
-  f = function f_____tr______f____ () {
-    var local = 3;
+  f = function f______tr______f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } finally {
       counter++;
@@ -900,13 +934,13 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, tryReturns, doFinally, finallyThrows]
 
-  f = function f_____tr______f_t__ () {
-    var local = 3;
+  f = function f______tr______f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } finally {
       counter++;
@@ -920,13 +954,13 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, tryReturns, doFinally, finallyReturns]
 
-  f = function f_____tr______fr___ () {
-    var local = 3;
+  f = function f______tr______fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } finally {
       counter++;
@@ -935,18 +969,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [tryThrows, tryReturns, doCatch]
 
-  f = function f_____tr__c________ () {
-    var local = 3;
+  f = function f______tr__c________ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -959,13 +993,13 @@ function runThisShard() {
 
   // Variant flags: [tryThrows, tryReturns, doCatch, doFinally]
 
-  f = function f_____tr__c___f____ () {
-    var local = 3;
+  f = function f______tr__c___f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -983,13 +1017,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, doCatch, doFinally,
   //   finallyThrows]
 
-  f = function f_____tr__c___f_t__ () {
-    var local = 3;
+  f = function f______tr__c___f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1007,13 +1041,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, doCatch, doFinally,
   //   finallyReturns]
 
-  f = function f_____tr__c___fr___ () {
-    var local = 3;
+  f = function f______tr__c___fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1025,18 +1059,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(5, counter);
 
   // Variant flags: [tryThrows, tryReturns, doCatch, catchThrows]
 
-  f = function f_____tr__c__t_____ () {
-    var local = 3;
+  f = function f______tr__c__t_____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1051,13 +1085,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, doCatch, catchThrows,
   //   doFinally]
 
-  f = function f_____tr__c__tf____ () {
-    var local = 3;
+  f = function f______tr__c__tf____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1076,13 +1110,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, doCatch, catchThrows,
   //   doFinally, finallyThrows]
 
-  f = function f_____tr__c__tf_t__ () {
-    var local = 3;
+  f = function f______tr__c__tf_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1101,13 +1135,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, doCatch, catchThrows,
   //   doFinally, finallyReturns]
 
-  f = function f_____tr__c__tfr___ () {
-    var local = 3;
+  f = function f______tr__c__tfr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1120,18 +1154,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryThrows, tryReturns, doCatch, catchReturns]
 
-  f = function f_____tr__cr_______ () {
-    var local = 3;
+  f = function f______tr__cr_______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1146,13 +1180,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, doCatch, catchReturns,
   //   doFinally]
 
-  f = function f_____tr__cr__f____ () {
-    var local = 3;
+  f = function f______tr__cr__f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1171,13 +1205,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, doCatch, catchReturns,
   //   doFinally, finallyThrows]
 
-  f = function f_____tr__cr__f_t__ () {
-    var local = 3;
+  f = function f______tr__cr__f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1196,13 +1230,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, doCatch, catchReturns,
   //   doFinally, finallyReturns]
 
-  f = function f_____tr__cr__fr___ () {
-    var local = 3;
+  f = function f______tr__cr__fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndThrow42();
-      return increaseAndReturn15();
+      return 4 + increaseAndThrow42();
+      return 4 + increaseAndReturn15();
       counter++;
     } catch (ex) {
       counter++;
@@ -1215,19 +1249,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns,
   //   doFinally]
 
-  f = function f_____trf_____f____ () {
-    var local = 3;
+  f = function f______trf_____f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } finally {
       counter++;
@@ -1236,19 +1270,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns,
   //   doFinally, finallyThrows]
 
-  f = function f_____trf_____f_t__ () {
-    var local = 3;
+  f = function f______trf_____f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } finally {
       counter++;
@@ -1263,13 +1297,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns,
   //   doFinally, finallyReturns]
 
-  f = function f_____trf_____fr___ () {
-    var local = 3;
+  f = function f______trf_____fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } finally {
       counter++;
@@ -1278,18 +1312,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch]
 
-  f = function f_____trf_c________ () {
-    var local = 3;
+  f = function f______trf_c________ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1297,19 +1331,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   doFinally]
 
-  f = function f_____trf_c___f____ () {
-    var local = 3;
+  f = function f______trf_c___f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1321,19 +1355,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   doFinally, finallyThrows]
 
-  f = function f_____trf_c___f_t__ () {
-    var local = 3;
+  f = function f______trf_c___f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1351,13 +1385,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   doFinally, finallyReturns]
 
-  f = function f_____trf_c___fr___ () {
-    var local = 3;
+  f = function f______trf_c___fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1369,19 +1403,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   catchThrows]
 
-  f = function f_____trf_c__t_____ () {
-    var local = 3;
+  f = function f______trf_c__t_____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1390,19 +1424,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   catchThrows, doFinally]
 
-  f = function f_____trf_c__tf____ () {
-    var local = 3;
+  f = function f______trf_c__tf____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1415,19 +1449,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   catchThrows, doFinally, finallyThrows]
 
-  f = function f_____trf_c__tf_t__ () {
-    var local = 3;
+  f = function f______trf_c__tf_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1446,13 +1480,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   catchThrows, doFinally, finallyReturns]
 
-  f = function f_____trf_c__tfr___ () {
-    var local = 3;
+  f = function f______trf_c__tfr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1465,19 +1499,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   catchReturns]
 
-  f = function f_____trf_cr_______ () {
-    var local = 3;
+  f = function f______trf_cr_______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1486,19 +1520,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   catchReturns, doFinally]
 
-  f = function f_____trf_cr__f____ () {
-    var local = 3;
+  f = function f______trf_cr__f____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1511,19 +1545,19 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(4, counter);
 
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   catchReturns, doFinally, finallyThrows]
 
-  f = function f_____trf_cr__f_t__ () {
-    var local = 3;
+  f = function f______trf_cr__f_t__ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1542,13 +1576,13 @@ function runThisShard() {
   // Variant flags: [tryThrows, tryReturns, tryFirstReturns, doCatch,
   //   catchReturns, doFinally, finallyReturns]
 
-  f = function f_____trf_cr__fr___ () {
-    var local = 3;
+  f = function f______trf_cr__fr___ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return increaseAndReturn15();
-      return increaseAndThrow42();
+      return 4 + increaseAndReturn15();
+      return 4 + increaseAndThrow42();
       counter++;
     } catch (ex) {
       counter++;
@@ -1561,17 +1595,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(6, f);
+  resetOptAndAssertResultEquals(891, f);
   assertEquals(3, counter);
 
   // Variant flags: [alternativeFn1, tryReturns, doCatch]
 
-  f = function f____1_r__c________ () {
-    var local = 3;
+  f = function f_____1_r__c________ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return returnOrThrow(true);
+      return 4 + returnOrThrow(true);
       counter++;
     } catch (ex) {
       counter++;
@@ -1579,17 +1613,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn1, tryReturns, doCatch, deopt]
 
-  f = function f____1_r__c_______d () {
-    var local = 3;
+  f = function f_____1_r__c_______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return returnOrThrow(true);
+      return 4 + returnOrThrow(true);
       counter++;
     } catch (ex) {
       counter++;
@@ -1597,17 +1631,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn1, tryReturns, doCatch, catchThrows]
 
-  f = function f____1_r__c__t_____ () {
-    var local = 3;
+  f = function f_____1_r__c__t_____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return returnOrThrow(true);
+      return 4 + returnOrThrow(true);
       counter++;
     } catch (ex) {
       counter++;
@@ -1616,18 +1650,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn1, tryReturns, doCatch, catchThrows,
   //   deopt]
 
-  f = function f____1_r__c__t____d () {
-    var local = 3;
+  f = function f_____1_r__c__t____d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return returnOrThrow(true);
+      return 4 + returnOrThrow(true);
       counter++;
     } catch (ex) {
       counter++;
@@ -1636,18 +1670,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn1, tryReturns, doCatch,
   //   catchReturns]
 
-  f = function f____1_r__cr_______ () {
-    var local = 3;
+  f = function f_____1_r__cr_______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return returnOrThrow(true);
+      return 4 + returnOrThrow(true);
       counter++;
     } catch (ex) {
       counter++;
@@ -1656,18 +1690,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn1, tryReturns, doCatch,
   //   catchReturns, deopt]
 
-  f = function f____1_r__cr______d () {
-    var local = 3;
+  f = function f_____1_r__cr______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return returnOrThrow(true);
+      return 4 + returnOrThrow(true);
       counter++;
     } catch (ex) {
       counter++;
@@ -1676,17 +1710,17 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
   // Variant flags: [alternativeFn1, tryThrows, doCatch]
 
-  f = function f____1t___c________ () {
-    var local = 3;
+  f = function f_____1t___c________ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return returnOrThrow(false);
+      return 4 + returnOrThrow(false);
       counter++;
     } catch (ex) {
       counter++;
@@ -1699,12 +1733,12 @@ function runThisShard() {
 
   // Variant flags: [alternativeFn1, tryThrows, doCatch, deopt]
 
-  f = function f____1t___c_______d () {
-    var local = 3;
+  f = function f_____1t___c_______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return returnOrThrow(false);
+      return 4 + returnOrThrow(false);
       counter++;
     } catch (ex) {
       counter++;
@@ -1717,12 +1751,12 @@ function runThisShard() {
 
   // Variant flags: [alternativeFn1, tryThrows, doCatch, catchThrows]
 
-  f = function f____1t___c__t_____ () {
-    var local = 3;
+  f = function f_____1t___c__t_____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return returnOrThrow(false);
+      return 4 + returnOrThrow(false);
       counter++;
     } catch (ex) {
       counter++;
@@ -1737,12 +1771,12 @@ function runThisShard() {
   // Variant flags: [alternativeFn1, tryThrows, doCatch, catchThrows,
   //   deopt]
 
-  f = function f____1t___c__t____d () {
-    var local = 3;
+  f = function f_____1t___c__t____d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return returnOrThrow(false);
+      return 4 + returnOrThrow(false);
       counter++;
     } catch (ex) {
       counter++;
@@ -1756,12 +1790,12 @@ function runThisShard() {
 
   // Variant flags: [alternativeFn1, tryThrows, doCatch, catchReturns]
 
-  f = function f____1t___cr_______ () {
-    var local = 3;
+  f = function f_____1t___cr_______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return returnOrThrow(false);
+      return 4 + returnOrThrow(false);
       counter++;
     } catch (ex) {
       counter++;
@@ -1776,12 +1810,12 @@ function runThisShard() {
   // Variant flags: [alternativeFn1, tryThrows, doCatch, catchReturns,
   //   deopt]
 
-  f = function f____1t___cr______d () {
-    var local = 3;
+  f = function f_____1t___cr______d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return returnOrThrow(false);
+      return 4 + returnOrThrow(false);
       counter++;
     } catch (ex) {
       counter++;
@@ -1793,151 +1827,15 @@ function runThisShard() {
   resetOptAndAssertResultEquals(44, f);
   assertEquals(3, counter);
 
-  // Variant flags: [alternativeFn2, tryReturns, doCatch]
-
-  f = function f___2__r__c________ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch, deopt]
-
-  f = function f___2__r__c_______d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch, catchThrows]
-
-  f = function f___2__r__c__t_____ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch, catchThrows,
-  //   deopt]
-
-  f = function f___2__r__c__t____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      throw 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
-  //   catchWithLocal]
-
-  f = function f___2__r__c_l______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
-  //   catchWithLocal, deopt]
-
-  f = function f___2__r__c_l_____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
-  //   catchWithLocal, endReturnLocal]
-
-  f = function f___2__r__c_l____l_ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      local += ex;
-      counter++;
-    }
-    counter++;
-    return 5 + local;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
   // Variant flags: [alternativeFn2, tryReturns, doCatch,
   //   catchWithLocal, endReturnLocal, deopt]
 
-  f = function f___2__r__c_l____ld () {
-    var local = 3;
+  f = function f____2__r__c_l____ld () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return invertFunctionCall(increaseAndThrow42);
+      return 4 + increaseAndReturn15_calls_noopt();
       counter++;
     } catch (ex) {
       counter++;
@@ -1947,18 +1845,278 @@ function runThisShard() {
     counter++;
     return 5 + local;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
+  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
+  //   doCatch, endReturnLocal, deopt]
+
+  f = function f____2__r_lc______ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + increaseAndReturn15_calls_noopt();
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn2, tryReturns, tryResultToLocal,
+  //   doCatch, catchWithLocal, endReturnLocal, deopt]
+
+  f = function f____2__r_lc_l____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + increaseAndReturn15_calls_noopt();
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(912, f);
+  assertEquals(4, counter);
+
+  // Variant flags: [alternativeFn2, tryThrows, doCatch,
+  //   catchWithLocal, endReturnLocal, deopt]
+
+  f = function f____2_t___c_l____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + increaseAndThrow42_calls_noopt();
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(935, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
+  //   doCatch, endReturnLocal, deopt]
+
+  f = function f____2_t__lc______ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + increaseAndThrow42_calls_noopt();
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(893, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn2, tryThrows, tryResultToLocal,
+  //   doCatch, catchWithLocal, endReturnLocal, deopt]
+
+  f = function f____2_t__lc_l____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      local += 4 + increaseAndThrow42_calls_noopt();
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(935, f);
+  assertEquals(5, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch]
+
+  f = function f___3___r__c________ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch, deopt]
+
+  f = function f___3___r__c_______d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch, catchThrows]
+
+  f = function f___3___r__c__t_____ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch, catchThrows,
+  //   deopt]
+
+  f = function f___3___r__c__t____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      throw 2 + ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
+  //   catchWithLocal]
+
+  f = function f___3___r__c_l______ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
+  //   catchWithLocal, deopt]
+
+  f = function f___3___r__c_l_____d () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
+  //   catchWithLocal, endReturnLocal]
+
+  f = function f___3___r__c_l____l_ () {
+    var local = 888;
+    deopt = false;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
+  //   catchWithLocal, endReturnLocal, deopt]
+
+  f = function f___3___r__c_l____ld () {
+    var local = 888;
+    deopt = true;
+    try {
+      counter++;
+      return 4 + invertFunctionCall(increaseAndThrow42);
+      counter++;
+    } catch (ex) {
+      counter++;
+      local += ex;
+      counter++;
+    }
+    counter++;
+    return 5 + local;
+  }
+  resetOptAndAssertResultEquals(19, f);
+  assertEquals(2, counter);
+
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
   //   catchWithLocal, catchThrows]
 
-  f = function f___2__r__c_lt_____ () {
-    var local = 3;
+  f = function f___3___r__c_lt_____ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return invertFunctionCall(increaseAndThrow42);
+      return 4 + invertFunctionCall(increaseAndThrow42);
       counter++;
     } catch (ex) {
       counter++;
@@ -1967,18 +2125,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
   //   catchWithLocal, catchThrows, deopt]
 
-  f = function f___2__r__c_lt____d () {
-    var local = 3;
+  f = function f___3___r__c_lt____d () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return invertFunctionCall(increaseAndThrow42);
+      return 4 + invertFunctionCall(increaseAndThrow42);
       counter++;
     } catch (ex) {
       counter++;
@@ -1987,18 +2145,18 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
   //   catchWithLocal, catchThrows, endReturnLocal]
 
-  f = function f___2__r__c_lt___l_ () {
-    var local = 3;
+  f = function f___3___r__c_lt___l_ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return invertFunctionCall(increaseAndThrow42);
+      return 4 + invertFunctionCall(increaseAndThrow42);
       counter++;
     } catch (ex) {
       counter++;
@@ -2008,18 +2166,18 @@ function runThisShard() {
     counter++;
     return 5 + local;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
   //   catchWithLocal, catchThrows, endReturnLocal, deopt]
 
-  f = function f___2__r__c_lt___ld () {
-    var local = 3;
+  f = function f___3___r__c_lt___ld () {
+    var local = 888;
     deopt = true;
     try {
       counter++;
-      return invertFunctionCall(increaseAndThrow42);
+      return 4 + invertFunctionCall(increaseAndThrow42);
       counter++;
     } catch (ex) {
       counter++;
@@ -2029,18 +2187,18 @@ function runThisShard() {
     counter++;
     return 5 + local;
   }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
+  // Variant flags: [alternativeFn3, tryReturns, doCatch,
   //   catchReturns]
 
-  f = function f___2__r__cr_______ () {
-    var local = 3;
+  f = function f___3___r__cr_______ () {
+    var local = 888;
     deopt = false;
     try {
       counter++;
-      return invertFunctionCall(increaseAndThrow42);
+      return 4 + invertFunctionCall(increaseAndThrow42);
       counter++;
     } catch (ex) {
       counter++;
@@ -2049,73 +2207,13 @@ function runThisShard() {
     }
     counter++;
   }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
-  //   catchReturns, deopt]
-
-  f = function f___2__r__cr______d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + ex;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
-  //   catchReturns, catchWithLocal]
-
-  f = function f___2__r__crl______ () {
-    var local = 3;
-    deopt = false;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
-  assertEquals(2, counter);
-
-  // Variant flags: [alternativeFn2, tryReturns, doCatch,
-  //   catchReturns, catchWithLocal, deopt]
-
-  f = function f___2__r__crl_____d () {
-    var local = 3;
-    deopt = true;
-    try {
-      counter++;
-      return invertFunctionCall(increaseAndThrow42);
-      counter++;
-    } catch (ex) {
-      counter++;
-      return 2 + local;
-      counter++;
-    }
-    counter++;
-  }
-  resetOptAndAssertResultEquals(15, f);
+  resetOptAndAssertResultEquals(19, f);
   assertEquals(2, counter);
 
 }
 %NeverOptimizeFunction(runThisShard);
 
-// 94 tests in this shard.
-// 94 tests up to here.
+// 97 tests in this shard.
+// 97 tests up to here.
 
 runThisShard();

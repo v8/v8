@@ -102,14 +102,10 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   return result;
 }
 
-
-Handle<SloppyBlockWithEvalContextExtension>
-Factory::NewSloppyBlockWithEvalContextExtension(
-    Handle<ScopeInfo> scope_info, Handle<JSObject> extension) {
-  DCHECK(scope_info->is_declaration_scope());
-  Handle<SloppyBlockWithEvalContextExtension> result =
-      Handle<SloppyBlockWithEvalContextExtension>::cast(
-          NewStruct(SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION_TYPE));
+Handle<ContextExtension> Factory::NewContextExtension(
+    Handle<ScopeInfo> scope_info, Handle<Object> extension) {
+  Handle<ContextExtension> result =
+      Handle<ContextExtension>::cast(NewStruct(CONTEXT_EXTENSION_TYPE));
   result->set_scope_info(*scope_info);
   result->set_extension(*extension);
   return result;
@@ -819,18 +815,19 @@ Handle<Context> Factory::NewFunctionContext(int length,
   return context;
 }
 
-
 Handle<Context> Factory::NewCatchContext(Handle<JSFunction> function,
                                          Handle<Context> previous,
+                                         Handle<ScopeInfo> scope_info,
                                          Handle<String> name,
                                          Handle<Object> thrown_object) {
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
+  Handle<ContextExtension> extension = NewContextExtension(scope_info, name);
   Handle<FixedArray> array = NewFixedArray(Context::MIN_CONTEXT_SLOTS + 1);
   array->set_map_no_write_barrier(*catch_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_closure(*function);
   context->set_previous(*previous);
-  context->set_extension(*name);
+  context->set_extension(*extension);
   context->set_native_context(previous->native_context());
   context->set(Context::THROWN_OBJECT_INDEX, *thrown_object);
   return context;
@@ -1393,6 +1390,12 @@ Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   return scope_info;
 }
 
+Handle<ModuleInfo> Factory::NewModuleInfo() {
+  Handle<FixedArray> array = NewFixedArray(ModuleInfo::kLength, TENURED);
+  array->set_map_no_write_barrier(*module_info_map());
+  Handle<ModuleInfo> module_info = Handle<ModuleInfo>::cast(array);
+  return module_info;
+}
 
 Handle<JSObject> Factory::NewExternal(void* value) {
   Handle<Foreign> foreign = NewForeign(static_cast<Address>(value));

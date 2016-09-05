@@ -140,7 +140,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitBuildLocalActivationContext();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
   void VisitNewLocalBlockContext(Scope* scope);
-  void VisitNewLocalCatchContext(Variable* variable);
+  void VisitNewLocalCatchContext(Variable* variable, Scope* scope);
   void VisitNewLocalWithContext();
   void VisitFunctionClosureForContext();
   void VisitSetHomeObject(Register value, Register home_object,

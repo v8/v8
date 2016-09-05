@@ -46,84 +46,201 @@
 namespace v8 {
 namespace internal {
 
-// Get the CPU features enabled by the build. For cross compilation the
-// preprocessor symbols CAN_USE_ARMV7_INSTRUCTIONS and CAN_USE_VFP3_INSTRUCTIONS
-// can be defined to enable ARMv7 and VFPv3 instructions when building the
-// snapshot.
-static unsigned CpuFeaturesImpliedByCompiler() {
-  unsigned answer = 0;
-#ifdef CAN_USE_ARMV8_INSTRUCTIONS
-  if (FLAG_enable_armv8) {
-    answer |= 1u << ARMv8;
-    // ARMv8 always features VFP and NEON.
-    answer |= 1u << ARMv7 | 1u << VFP3 | 1u << NEON | 1u << VFP32DREGS;
-    answer |= 1u << SUDIV;
-  }
-#endif  // CAN_USE_ARMV8_INSTRUCTIONS
-#ifdef CAN_USE_ARMV7_INSTRUCTIONS
-  if (FLAG_enable_armv7) answer |= 1u << ARMv7;
-#endif  // CAN_USE_ARMV7_INSTRUCTIONS
-#ifdef CAN_USE_VFP3_INSTRUCTIONS
-  if (FLAG_enable_vfp3) answer |= 1u << VFP3 | 1u << ARMv7;
-#endif  // CAN_USE_VFP3_INSTRUCTIONS
-#ifdef CAN_USE_VFP32DREGS
-  if (FLAG_enable_32dregs) answer |= 1u << VFP32DREGS;
-#endif  // CAN_USE_VFP32DREGS
-#ifdef CAN_USE_NEON
-  if (FLAG_enable_neon) answer |= 1u << NEON;
-#endif  // CAN_USE_VFP32DREGS
+static const unsigned kArmv6 = 0u;
+static const unsigned kArmv7 = kArmv6 | (1u << ARMv7);
+static const unsigned kArmv7WithSudiv = kArmv7 | (1u << ARMv7_SUDIV);
+static const unsigned kArmv8 = kArmv7WithSudiv | (1u << ARMv8);
 
-  return answer;
+static unsigned CpuFeaturesFromCommandLine() {
+  unsigned result;
+  if (strcmp(FLAG_arm_arch, "armv8") == 0) {
+    result = kArmv8;
+  } else if (strcmp(FLAG_arm_arch, "armv7+sudiv") == 0) {
+    result = kArmv7WithSudiv;
+  } else if (strcmp(FLAG_arm_arch, "armv7") == 0) {
+    result = kArmv7;
+  } else if (strcmp(FLAG_arm_arch, "armv6") == 0) {
+    result = kArmv6;
+  } else {
+    fprintf(stderr, "Error: unrecognised value for --arm-arch ('%s').\n",
+            FLAG_arm_arch);
+    fprintf(stderr,
+            "Supported values are:  armv8\n"
+            "                       armv7+sudiv\n"
+            "                       armv7\n"
+            "                       armv6\n");
+    CHECK(false);
+  }
+
+  // If any of the old (deprecated) flags are specified, print a warning, but
+  // otherwise try to respect them for now.
+  // TODO(jbramley): When all the old bots have been updated, remove this.
+  if (FLAG_enable_armv7.has_value || FLAG_enable_vfp3.has_value ||
+      FLAG_enable_32dregs.has_value || FLAG_enable_neon.has_value ||
+      FLAG_enable_sudiv.has_value || FLAG_enable_armv8.has_value) {
+    // As an approximation of the old behaviour, set the default values from the
+    // arm_arch setting, then apply the flags over the top.
+    bool enable_armv7 = (result & (1u << ARMv7)) != 0;
+    bool enable_vfp3 = (result & (1u << ARMv7)) != 0;
+    bool enable_32dregs = (result & (1u << ARMv7)) != 0;
+    bool enable_neon = (result & (1u << ARMv7)) != 0;
+    bool enable_sudiv = (result & (1u << ARMv7_SUDIV)) != 0;
+    bool enable_armv8 = (result & (1u << ARMv8)) != 0;
+    if (FLAG_enable_armv7.has_value) {
+      fprintf(stderr,
+              "Warning: --enable_armv7 is deprecated. "
+              "Use --arm_arch instead.\n");
+      enable_armv7 = FLAG_enable_armv7.value;
+    }
+    if (FLAG_enable_vfp3.has_value) {
+      fprintf(stderr,
+              "Warning: --enable_vfp3 is deprecated. "
+              "Use --arm_arch instead.\n");
+      enable_vfp3 = FLAG_enable_vfp3.value;
+    }
+    if (FLAG_enable_32dregs.has_value) {
+      fprintf(stderr,
+              "Warning: --enable_32dregs is deprecated. "
+              "Use --arm_arch instead.\n");
+      enable_32dregs = FLAG_enable_32dregs.value;
+    }
+    if (FLAG_enable_neon.has_value) {
+      fprintf(stderr,
+              "Warning: --enable_neon is deprecated. "
+              "Use --arm_arch instead.\n");
+      enable_neon = FLAG_enable_neon.value;
+    }
+    if (FLAG_enable_sudiv.has_value) {
+      fprintf(stderr,
+              "Warning: --enable_sudiv is deprecated. "
+              "Use --arm_arch instead.\n");
+      enable_sudiv = FLAG_enable_sudiv.value;
+    }
+    if (FLAG_enable_armv8.has_value) {
+      fprintf(stderr,
+              "Warning: --enable_armv8 is deprecated. "
+              "Use --arm_arch instead.\n");
+      enable_armv8 = FLAG_enable_armv8.value;
+    }
+    // Emulate the old implications.
+    if (enable_armv8) {
+      enable_vfp3 = true;
+      enable_neon = true;
+      enable_32dregs = true;
+      enable_sudiv = true;
+    }
+    // Select the best available configuration.
+    if (enable_armv7 && enable_vfp3 && enable_32dregs && enable_neon) {
+      if (enable_sudiv) {
+        if (enable_armv8) {
+          result = kArmv8;
+        } else {
+          result = kArmv7WithSudiv;
+        }
+      } else {
+        result = kArmv7;
+      }
+    } else {
+      result = kArmv6;
+    }
+  }
+  return result;
+}
+
+// Get the CPU features enabled by the build.
+// For cross compilation the preprocessor symbols such as
+// CAN_USE_ARMV7_INSTRUCTIONS and CAN_USE_VFP3_INSTRUCTIONS can be used to
+// enable ARMv7 and VFPv3 instructions when building the snapshot. However,
+// these flags should be consistent with a supported ARM configuration:
+//  "armv6":       ARMv6 + VFPv2
+//  "armv7":       ARMv7 + VFPv3-D32 + NEON
+//  "armv7+sudiv": ARMv7 + VFPv4-D32 + NEON + SUDIV
+//  "armv8":       ARMv8 (+ all of the above)
+static constexpr unsigned CpuFeaturesFromCompiler() {
+// TODO(jbramley): Once the build flags are simplified, these tests should
+// also be simplified.
+
+// Check *architectural* implications.
+#if defined(CAN_USE_ARMV8_INSTRUCTIONS) && !defined(CAN_USE_ARMV7_INSTRUCTIONS)
+#error "CAN_USE_ARMV8_INSTRUCTIONS should imply CAN_USE_ARMV7_INSTRUCTIONS"
+#endif
+#if defined(CAN_USE_ARMV8_INSTRUCTIONS) && !defined(CAN_USE_SUDIV)
+#error "CAN_USE_ARMV8_INSTRUCTIONS should imply CAN_USE_SUDIV"
+#endif
+#if defined(CAN_USE_ARMV7_INSTRUCTIONS) != defined(CAN_USE_VFP3_INSTRUCTIONS)
+// V8 requires VFP, and all ARMv7 devices with VFP have VFPv3. Similarly,
+// VFPv3 isn't available before ARMv7.
+#error "CAN_USE_ARMV7_INSTRUCTIONS should match CAN_USE_VFP3_INSTRUCTIONS"
+#endif
+#if defined(CAN_USE_NEON) && !defined(CAN_USE_ARMV7_INSTRUCTIONS)
+#error "CAN_USE_NEON should imply CAN_USE_ARMV7_INSTRUCTIONS"
+#endif
+
+// Find compiler-implied features.
+#if defined(CAN_USE_ARMV8_INSTRUCTIONS) &&                           \
+    defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(CAN_USE_SUDIV) && \
+    defined(CAN_USE_NEON) && defined(CAN_USE_VFP3_INSTRUCTIONS)
+  return kArmv8;
+#elif defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(CAN_USE_SUDIV) && \
+    defined(CAN_USE_NEON) && defined(CAN_USE_VFP3_INSTRUCTIONS)
+  return kArmv7WithSudiv;
+#elif defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(CAN_USE_NEON) && \
+    defined(CAN_USE_VFP3_INSTRUCTIONS)
+  return kArmv7;
+#else
+  return kArmv6;
+#endif
 }
 
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  supported_ |= CpuFeaturesImpliedByCompiler();
   dcache_line_size_ = 64;
 
+  unsigned command_line = CpuFeaturesFromCommandLine();
   // Only use statically determined features for cross compile (snapshot).
-  if (cross_compile) return;
+  if (cross_compile) {
+    supported_ |= command_line & CpuFeaturesFromCompiler();
+    return;
+  }
 
 #ifndef __arm__
   // For the simulator build, use whatever the flags specify.
-  if (FLAG_enable_armv8) {
-    supported_ |= 1u << ARMv8;
-    // ARMv8 always features VFP and NEON.
-    supported_ |= 1u << ARMv7 | 1u << VFP3 | 1u << NEON | 1u << VFP32DREGS;
-    supported_ |= 1u << SUDIV;
-    if (FLAG_enable_movw_movt) supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
-  }
-  if (FLAG_enable_armv7) {
-    supported_ |= 1u << ARMv7;
-    if (FLAG_enable_vfp3) supported_ |= 1u << VFP3;
-    if (FLAG_enable_neon) supported_ |= 1u << NEON | 1u << VFP32DREGS;
-    if (FLAG_enable_sudiv) supported_ |= 1u << SUDIV;
-    if (FLAG_enable_movw_movt) supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
-    if (FLAG_enable_32dregs) supported_ |= 1u << VFP32DREGS;
+  supported_ |= command_line;
+
+  if (FLAG_enable_movw_movt && ((supported_ & kArmv7) == kArmv7)) {
+    supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
   }
 
 #else  // __arm__
   // Probe for additional features at runtime.
   base::CPU cpu;
-  if (FLAG_enable_vfp3 && cpu.has_vfp3()) {
-    // This implementation also sets the VFP flags if runtime
-    // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
-    // 0406B, page A1-6.
-    supported_ |= 1u << VFP3 | 1u << ARMv7;
+  // Runtime detection is slightly fuzzy, and some inferences are necessary.
+  unsigned runtime = kArmv6;
+  // NEON and VFPv3 imply at least ARMv7-A.
+  if (cpu.has_neon() && cpu.has_vfp3_d32()) {
+    DCHECK(cpu.has_vfp3());
+    runtime |= kArmv7;
+    if (cpu.has_idiva()) {
+      runtime |= kArmv7WithSudiv;
+      if (cpu.architecture() >= 8) {
+        runtime |= kArmv8;
+      }
+    }
   }
 
-  if (FLAG_enable_neon && cpu.has_neon()) supported_ |= 1u << NEON;
-  if (FLAG_enable_sudiv && cpu.has_idiva()) supported_ |= 1u << SUDIV;
+  // Use the best of the features found by CPU detection and those inferred from
+  // the build system. In both cases, restrict available features using the
+  // command-line. Note that the command-line flags are very permissive (kArmv8)
+  // by default.
+  supported_ |= command_line & CpuFeaturesFromCompiler();
+  supported_ |= command_line & runtime;
 
-  if (cpu.architecture() >= 7) {
-    if (FLAG_enable_armv7) supported_ |= 1u << ARMv7;
-    if (FLAG_enable_armv8 && cpu.architecture() >= 8) {
-      supported_ |= 1u << ARMv8;
-    }
-    // Use movw/movt for QUALCOMM ARMv7 cores.
-    if (FLAG_enable_movw_movt && cpu.implementer() == base::CPU::QUALCOMM) {
-      supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
-    }
+  // Additional tuning options.
+
+  // Prefer to use movw/movt for QUALCOMM ARMv7 cores.
+  if (FLAG_enable_movw_movt && ((supported_ & kArmv7) == kArmv7) &&
+      (cpu.implementer() == base::CPU::QUALCOMM)) {
+    supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
   }
 
   // ARM Cortex-A9 and Cortex-A5 have 32 byte cachelines.
@@ -132,11 +249,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
        cpu.part() == base::CPU::ARM_CORTEX_A9)) {
     dcache_line_size_ = 32;
   }
-
-  if (FLAG_enable_32dregs && cpu.has_vfp3_d32()) supported_ |= 1u << VFP32DREGS;
 #endif
 
-  DCHECK(!IsSupported(VFP3) || IsSupported(ARMv7));
+  DCHECK_IMPLIES(IsSupported(ARMv7_SUDIV), IsSupported(ARMv7));
+  DCHECK_IMPLIES(IsSupported(ARMv8), IsSupported(ARMv7_SUDIV));
+  DCHECK_IMPLIES(IsSupported(MOVW_MOVT_IMMEDIATE_LOADS), IsSupported(ARMv7));
 }
 
 
@@ -209,7 +326,7 @@ void CpuFeatures::PrintFeatures() {
 #else
   bool eabi_hardfloat = false;
 #endif
-    printf(" USE_EABI_HARDFLOAT=%d\n", eabi_hardfloat);
+  printf(" USE_EABI_HARDFLOAT=%d\n", eabi_hardfloat);
 }
 
 

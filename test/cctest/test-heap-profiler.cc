@@ -2557,8 +2557,33 @@ TEST(ArrayGrowLeftTrim) {
   heap_profiler->StopTrackingHeapObjects();
 }
 
+TEST(TrackHeapAllocationsWithInlining) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
 
-TEST(TrackHeapAllocations) {
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  heap_profiler->StartTrackingHeapObjects(true);
+
+  CompileRun(record_trace_tree_source);
+
+  AllocationTracker* tracker =
+      reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
+  CHECK(tracker);
+  // Resolve all function locations.
+  tracker->PrepareForSerialization();
+  // Print for better diagnostics in case of failure.
+  tracker->trace_tree()->Print(tracker);
+
+  const char* names[] = {"", "start", "f_0_0"};
+  AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
+  CHECK(node);
+  CHECK_GE(node->allocation_count(), 12u);
+  CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
+  heap_profiler->StopTrackingHeapObjects();
+}
+
+TEST(TrackHeapAllocationsWithoutInlining) {
+  i::FLAG_max_inlined_source_size = 0;  // Disable inlining
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   LocalContext env;
 

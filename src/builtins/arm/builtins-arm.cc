@@ -1191,6 +1191,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   __ mov(r3, Operand(r3, LSL, kPointerSizeLog2));
   __ sub(r3, r2, r3);
 
+  // TODO(mythria): Add a stack check before pushing arguments.
   // Push the arguments.
   Generate_InterpreterPushArgs(masm, r2, r3, r4);
 
@@ -1208,27 +1209,44 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
+    MacroAssembler* masm, CallableType construct_type) {
   // ----------- S t a t e -------------
   // -- r0 : argument count (not including receiver)
   // -- r3 : new target
   // -- r1 : constructor to call
-  // -- r2 : address of the first argument
+  // -- r2 : allocation site feedback if available, undefined otherwise.
+  // -- r4 : address of the first argument
   // -----------------------------------
 
   // Find the address of the last argument.
-  __ mov(r4, Operand(r0, LSL, kPointerSizeLog2));
-  __ sub(r4, r2, r4);
+  __ mov(r5, Operand(r0, LSL, kPointerSizeLog2));
+  __ sub(r5, r4, r5);
 
   // Push a slot for the receiver to be constructed.
   __ mov(ip, Operand::Zero());
   __ push(ip);
 
+  // TODO(mythria): Add a stack check before pushing arguments.
   // Push the arguments.
-  Generate_InterpreterPushArgs(masm, r2, r4, r5);
+  Generate_InterpreterPushArgs(masm, r4, r5, r6);
 
-  // Call the constructor with r0, r1, and r3 unmodified.
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  __ AssertUndefinedOrAllocationSite(r2, r5);
+  if (construct_type == CallableType::kJSFunction) {
+    __ AssertFunction(r1);
+
+    // Tail call to the function-specific construct stub (still in the caller
+    // context at this point).
+    __ ldr(r4, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+    __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kConstructStubOffset));
+    // Jump to the construct function.
+    __ add(pc, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  } else {
+    DCHECK_EQ(construct_type, CallableType::kAny);
+    // Call the constructor with r0, r1, and r3 unmodified.
+    __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  }
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
@@ -1867,6 +1885,16 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
     __ Move(r0, Smi::FromInt(0));
     __ EnterBuiltinFrame(cp, r1, r0);
     __ CallRuntime(Runtime::kThrowNotDateError);
+
+    // It's far from obvious, but this final trailing instruction after the call
+    // is required for StackFrame::LookupCode to work correctly. To illustrate
+    // why: if call were the final instruction in the code object, then the pc
+    // (== return address) would point beyond the code object when the stack is
+    // traversed. When we then try to look up the code object through
+    // StackFrame::LookupCode, we actually return the next code object that
+    // happens to be on the same page in memory.
+    // TODO(jgruber): A proper fix for this would be nice.
+    __ nop();
   }
 }
 

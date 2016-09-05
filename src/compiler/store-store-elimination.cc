@@ -403,11 +403,9 @@ void RedundantStoreFinder::VisitEffectfulNode(Node* node) {
     // Mark effect inputs for visiting.
     for (int i = 0; i < node->op()->EffectInputCount(); i++) {
       Node* input = NodeProperties::GetEffectInput(node, i);
-      if (!HasBeenVisited(input)) {
-        TRACE("    marking #%d:%s for revisit", input->id(),
-              input->op()->mnemonic());
-        MarkForRevisit(input);
-      }
+      TRACE("    marking #%d:%s for revisit", input->id(),
+            input->op()->mnemonic());
+      MarkForRevisit(input);
     }
   }
 }

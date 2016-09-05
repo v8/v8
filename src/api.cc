@@ -1506,10 +1506,10 @@ void ObjectTemplate::SetAccessor(v8::Local<Name> name,
 }
 
 template <typename Getter, typename Setter, typename Query, typename Deleter,
-          typename Enumerator>
+          typename Enumerator, typename Definer>
 static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* isolate, Getter getter, Setter setter, Query query,
-    Deleter remover, Enumerator enumerator, Local<Value> data,
+    Deleter remover, Enumerator enumerator, Definer definer, Local<Value> data,
     PropertyHandlerFlags flags) {
   auto obj = i::Handle<i::InterceptorInfo>::cast(
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE));
@@ -1520,6 +1520,7 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
   if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
+  if (definer != 0) SET_FIELD_WRAPPED(obj, set_definer, definer);
   obj->set_can_intercept_symbols(
       !(static_cast<int>(flags) &
         static_cast<int>(PropertyHandlerFlags::kOnlyInterceptStrings)));
@@ -1536,39 +1537,35 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
 }
 
 template <typename Getter, typename Setter, typename Query, typename Deleter,
-          typename Enumerator>
-static void ObjectTemplateSetNamedPropertyHandler(ObjectTemplate* templ,
-                                                  Getter getter, Setter setter,
-                                                  Query query, Deleter remover,
-                                                  Enumerator enumerator,
-                                                  Local<Value> data,
-                                                  PropertyHandlerFlags flags) {
+          typename Enumerator, typename Definer>
+static void ObjectTemplateSetNamedPropertyHandler(
+    ObjectTemplate* templ, Getter getter, Setter setter, Query query,
+    Deleter remover, Enumerator enumerator, Definer definer, Local<Value> data,
+    PropertyHandlerFlags flags) {
   i::Isolate* isolate = Utils::OpenHandle(templ)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, templ);
   EnsureNotInstantiated(cons, "ObjectTemplateSetNamedPropertyHandler");
   auto obj = CreateInterceptorInfo(isolate, getter, setter, query, remover,
-                                   enumerator, data, flags);
+                                   enumerator, definer, data, flags);
   cons->set_named_property_handler(*obj);
 }
-
 
 void ObjectTemplate::SetNamedPropertyHandler(
     NamedPropertyGetterCallback getter, NamedPropertySetterCallback setter,
     NamedPropertyQueryCallback query, NamedPropertyDeleterCallback remover,
     NamedPropertyEnumeratorCallback enumerator, Local<Value> data) {
   ObjectTemplateSetNamedPropertyHandler(
-      this, getter, setter, query, remover, enumerator, data,
+      this, getter, setter, query, remover, enumerator, nullptr, data,
       PropertyHandlerFlags::kOnlyInterceptStrings);
 }
-
 
 void ObjectTemplate::SetHandler(
     const NamedPropertyHandlerConfiguration& config) {
   ObjectTemplateSetNamedPropertyHandler(
       this, config.getter, config.setter, config.query, config.deleter,
-      config.enumerator, config.data, config.flags);
+      config.enumerator, config.definer, config.data, config.flags);
 }
 
 
@@ -1628,13 +1625,14 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   SET_FIELD_WRAPPED(info, set_callback, callback);
   auto named_interceptor = CreateInterceptorInfo(
       isolate, named_handler.getter, named_handler.setter, named_handler.query,
-      named_handler.deleter, named_handler.enumerator, named_handler.data,
-      named_handler.flags);
+      named_handler.deleter, named_handler.enumerator, named_handler.definer,
+      named_handler.data, named_handler.flags);
   info->set_named_interceptor(*named_interceptor);
   auto indexed_interceptor = CreateInterceptorInfo(
       isolate, indexed_handler.getter, indexed_handler.setter,
       indexed_handler.query, indexed_handler.deleter,
-      indexed_handler.enumerator, indexed_handler.data, indexed_handler.flags);
+      indexed_handler.enumerator, indexed_handler.definer, indexed_handler.data,
+      indexed_handler.flags);
   info->set_indexed_interceptor(*indexed_interceptor);
 
   if (data.IsEmpty()) {
@@ -1655,7 +1653,7 @@ void ObjectTemplate::SetHandler(
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetHandler");
   auto obj = CreateInterceptorInfo(
       isolate, config.getter, config.setter, config.query, config.deleter,
-      config.enumerator, config.data, config.flags);
+      config.enumerator, config.definer, config.data, config.flags);
   cons->set_indexed_property_handler(*obj);
 }
 
@@ -2194,9 +2192,10 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   }
   has_pending_exception = result.is_null();
   if (has_pending_exception) isolate->ReportPendingMessages();
-  RETURN_ON_FAILED_EXECUTION(Script);
 
-  source->info->clear_script();  // because script goes out of scope.
+  source->Release();
+
+  RETURN_ON_FAILED_EXECUTION(Script);
 
   Local<UnboundScript> generic = ToApiHandle<UnboundScript>(result);
   if (generic.IsEmpty()) return Local<Script>();
@@ -2265,8 +2264,8 @@ v8::TryCatch::TryCatch()
   ResetInternal();
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ =
-      reinterpret_cast<void*>(v8::internal::SimulatorStack::RegisterCTryCatch(
-          isolate_, v8::internal::GetCurrentStackPosition()));
+      reinterpret_cast<void*>(i::SimulatorStack::RegisterCTryCatch(
+          isolate_, i::GetCurrentStackPosition()));
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -2282,8 +2281,8 @@ v8::TryCatch::TryCatch(v8::Isolate* isolate)
   ResetInternal();
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ =
-      reinterpret_cast<void*>(v8::internal::SimulatorStack::RegisterCTryCatch(
-          isolate_, v8::internal::GetCurrentStackPosition()));
+      reinterpret_cast<void*>(i::SimulatorStack::RegisterCTryCatch(
+          isolate_, i::GetCurrentStackPosition()));
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -2302,7 +2301,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->RestorePendingMessageFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    v8::internal::SimulatorStack::UnregisterCTryCatch(isolate_);
+    i::SimulatorStack::UnregisterCTryCatch(isolate_);
     reinterpret_cast<Isolate*>(isolate_)->ThrowException(exc);
     DCHECK(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
@@ -2313,7 +2312,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->CancelScheduledExceptionFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    v8::internal::SimulatorStack::UnregisterCTryCatch(isolate_);
+    i::SimulatorStack::UnregisterCTryCatch(isolate_);
   }
 }
 
@@ -2837,13 +2836,18 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
 // --- V a l u e   S e r i a l i z a t i o n ---
 
 struct ValueSerializer::PrivateData {
-  explicit PrivateData(i::Isolate* i) : isolate(i), serializer(i) {}
+  explicit PrivateData(i::Isolate* i, ValueSerializer::Delegate* delegate)
+      : isolate(i), serializer(i, delegate) {}
   i::Isolate* isolate;
   i::ValueSerializer serializer;
 };
 
 ValueSerializer::ValueSerializer(Isolate* isolate)
-    : private_(new PrivateData(reinterpret_cast<i::Isolate*>(isolate))) {}
+    : ValueSerializer(isolate, nullptr) {}
+
+ValueSerializer::ValueSerializer(Isolate* isolate, Delegate* delegate)
+    : private_(
+          new PrivateData(reinterpret_cast<i::Isolate*>(isolate), delegate)) {}
 
 ValueSerializer::~ValueSerializer() { delete private_; }
 
@@ -2869,6 +2873,12 @@ void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
                                           Local<ArrayBuffer> array_buffer) {
   private_->serializer.TransferArrayBuffer(transfer_id,
                                            Utils::OpenHandle(*array_buffer));
+}
+
+void ValueSerializer::TransferSharedArrayBuffer(
+    uint32_t transfer_id, Local<SharedArrayBuffer> shared_array_buffer) {
+  private_->serializer.TransferArrayBuffer(
+      transfer_id, Utils::OpenHandle(*shared_array_buffer));
 }
 
 struct ValueDeserializer::PrivateData {
@@ -2939,6 +2949,12 @@ void ValueDeserializer::TransferArrayBuffer(uint32_t transfer_id,
                                             Local<ArrayBuffer> array_buffer) {
   private_->deserializer.TransferArrayBuffer(transfer_id,
                                              Utils::OpenHandle(*array_buffer));
+}
+
+void ValueDeserializer::TransferSharedArrayBuffer(
+    uint32_t transfer_id, Local<SharedArrayBuffer> shared_array_buffer) {
+  private_->deserializer.TransferArrayBuffer(
+      transfer_id, Utils::OpenHandle(*shared_array_buffer));
 }
 
 // --- D a t a ---
@@ -3771,6 +3787,98 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   return result;
 }
 
+struct v8::PropertyDescriptor::PrivateData {
+  PrivateData() : desc() {}
+  i::PropertyDescriptor desc;
+};
+
+v8::PropertyDescriptor::PropertyDescriptor() : private_(new PrivateData()) {}
+
+// DataDescriptor
+v8::PropertyDescriptor::PropertyDescriptor(v8::Local<v8::Value> value)
+    : private_(new PrivateData()) {
+  private_->desc.set_value(Utils::OpenHandle(*value, true));
+}
+
+// DataDescriptor with writable field
+v8::PropertyDescriptor::PropertyDescriptor(v8::Local<v8::Value> value,
+                                           bool writable)
+    : private_(new PrivateData()) {
+  private_->desc.set_value(Utils::OpenHandle(*value, true));
+  private_->desc.set_writable(writable);
+}
+
+// AccessorDescriptor
+v8::PropertyDescriptor::PropertyDescriptor(v8::Local<v8::Value> get,
+                                           v8::Local<v8::Value> set)
+    : private_(new PrivateData()) {
+  DCHECK(get.IsEmpty() || get->IsUndefined() || get->IsFunction());
+  DCHECK(set.IsEmpty() || set->IsUndefined() || set->IsFunction());
+  private_->desc.set_get(Utils::OpenHandle(*get, true));
+  private_->desc.set_set(Utils::OpenHandle(*set, true));
+}
+
+v8::PropertyDescriptor::~PropertyDescriptor() { delete private_; }
+
+v8::Local<Value> v8::PropertyDescriptor::value() const {
+  DCHECK(private_->desc.has_value());
+  return Utils::ToLocal(private_->desc.value());
+}
+
+v8::Local<Value> v8::PropertyDescriptor::get() const {
+  DCHECK(private_->desc.has_get());
+  return Utils::ToLocal(private_->desc.get());
+}
+
+v8::Local<Value> v8::PropertyDescriptor::set() const {
+  DCHECK(private_->desc.has_set());
+  return Utils::ToLocal(private_->desc.set());
+}
+
+bool v8::PropertyDescriptor::has_value() const {
+  return private_->desc.has_value();
+}
+bool v8::PropertyDescriptor::has_get() const {
+  return private_->desc.has_get();
+}
+bool v8::PropertyDescriptor::has_set() const {
+  return private_->desc.has_set();
+}
+
+bool v8::PropertyDescriptor::writable() const {
+  DCHECK(private_->desc.has_writable());
+  return private_->desc.writable();
+}
+
+bool v8::PropertyDescriptor::has_writable() const {
+  return private_->desc.has_writable();
+}
+
+void v8::PropertyDescriptor::set_enumerable(bool enumerable) {
+  private_->desc.set_enumerable(enumerable);
+}
+
+bool v8::PropertyDescriptor::enumerable() const {
+  DCHECK(private_->desc.has_enumerable());
+  return private_->desc.enumerable();
+}
+
+bool v8::PropertyDescriptor::has_enumerable() const {
+  return private_->desc.has_enumerable();
+}
+
+void v8::PropertyDescriptor::set_configurable(bool configurable) {
+  private_->desc.set_configurable(configurable);
+}
+
+bool v8::PropertyDescriptor::configurable() const {
+  DCHECK(private_->desc.has_configurable());
+  return private_->desc.configurable();
+}
+
+bool v8::PropertyDescriptor::has_configurable() const {
+  return private_->desc.has_configurable();
+}
 
 Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
                                           v8::Local<Name> key,
@@ -3780,13 +3888,6 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-
-  if (self->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()),
-                          i::Handle<i::JSObject>::cast(self))) {
-    isolate->ReportFailedAccessCheck(i::Handle<i::JSObject>::cast(self));
-    return Nothing<bool>();
-  }
 
   i::PropertyDescriptor desc;
   desc.set_writable(!(attributes & v8::ReadOnly));
@@ -3800,6 +3901,19 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   return success;
 }
 
+Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
+                                       v8::Local<Name> key,
+                                       PropertyDescriptor& descriptor) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object, DefineProperty, bool);
+  i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
+  i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
+
+  Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
+      isolate, self, key_obj, &descriptor.get_private()->desc,
+      i::Object::DONT_THROW);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return success;
+}
 
 MUST_USE_RESULT
 static i::MaybeHandle<i::Object> DefineObjectProperty(
@@ -6929,8 +7043,9 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
   if (!maybe_compiled_part.ToHandle(&compiled_part)) {
     return MaybeLocal<WasmCompiledModule>();
   }
-  return Local<WasmCompiledModule>::Cast(Utils::ToLocal(
-      i::wasm::CreateCompiledModuleObject(i_isolate, compiled_part)));
+  return Local<WasmCompiledModule>::Cast(
+      Utils::ToLocal(i::wasm::CreateCompiledModuleObject(
+          i_isolate, compiled_part, i::wasm::ModuleOrigin::kWasmOrigin)));
 }
 
 // static
@@ -7412,27 +7527,24 @@ v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
 void Isolate::SetObjectGroupId(internal::Object** object, UniqueId id) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
   internal_isolate->global_handles()->SetObjectGroupId(
-      v8::internal::Handle<v8::internal::Object>(object).location(),
-      id);
+      i::Handle<i::Object>(object).location(), id);
 }
 
 
 void Isolate::SetReferenceFromGroup(UniqueId id, internal::Object** object) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
   internal_isolate->global_handles()->SetReferenceFromGroup(
-      id,
-      v8::internal::Handle<v8::internal::Object>(object).location());
+      id, i::Handle<i::Object>(object).location());
 }
 
 
 void Isolate::SetReference(internal::Object** parent,
                            internal::Object** child) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Object** parent_location =
-      v8::internal::Handle<v8::internal::Object>(parent).location();
+  i::Object** parent_location = i::Handle<i::Object>(parent).location();
   internal_isolate->global_handles()->SetReference(
       reinterpret_cast<i::HeapObject**>(parent_location),
-      v8::internal::Handle<v8::internal::Object>(child).location());
+      i::Handle<i::Object>(child).location());
 }
 
 

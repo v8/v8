@@ -1189,13 +1189,13 @@ class ElementsAccessorBase : public ElementsAccessor {
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
                                        FixedArrayBase* backing_store,
                                        uint32_t index, PropertyFilter filter) {
+    uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
     if (IsHoleyElementsKind(kind())) {
-      return index < Subclass::GetCapacityImpl(holder, backing_store) &&
+      return index < length &&
                      !BackingStore::cast(backing_store)->is_the_hole(index)
                  ? index
                  : kMaxUInt32;
     } else {
-      uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
       return index < length ? index : kMaxUInt32;
     }
   }

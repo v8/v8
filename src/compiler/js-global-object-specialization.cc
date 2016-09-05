@@ -112,10 +112,11 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
     } else if (property_cell_value->IsNumber()) {
       property_cell_value_type = type_cache_.kHeapNumber;
     } else {
+      // TODO(turbofan): Track the property_cell_value_map on the FieldAccess
+      // below and use it in LoadElimination to eliminate map checks.
       Handle<Map> property_cell_value_map(
           Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
-      property_cell_value_type =
-          Type::Class(property_cell_value_map, graph()->zone());
+      property_cell_value_type = Type::For(property_cell_value_map);
     }
   }
   Node* value = effect = graph()->NewNode(
@@ -246,7 +247,7 @@ bool JSGlobalObjectSpecialization::LookupInScriptContextTable(
   Handle<Context> script_context = ScriptContextTable::GetContext(
       script_context_table, lookup_result.context_index);
   result->context = script_context;
-  result->immutable = IsImmutableVariableMode(lookup_result.mode);
+  result->immutable = lookup_result.mode == CONST;
   result->index = lookup_result.slot_index;
   return true;
 }

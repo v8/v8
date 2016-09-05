@@ -422,6 +422,8 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Int64)                   \
   V(Uint64)                  \
   V(Pointer)                 \
+  V(TaggedSigned)            \
+  V(TaggedPointer)           \
   V(AnyTagged)
 
 #define MACHINE_REPRESENTATION_LIST(V) \

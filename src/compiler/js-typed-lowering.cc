@@ -1765,14 +1765,6 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
 }
 
 
-Reduction JSTypedLowering::ReduceJSForInDone(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSForInDone, node->opcode());
-  node->TrimInputCount(2);
-  NodeProperties::ChangeOp(node, machine()->Word32Equal());
-  return Changed(node);
-}
-
-
 Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSForInNext, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -1835,14 +1827,6 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   node->TrimInputCount(3);
   NodeProperties::ChangeOp(node,
                            common()->Phi(MachineRepresentation::kTagged, 2));
-  return Changed(node);
-}
-
-
-Reduction JSTypedLowering::ReduceJSForInStep(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSForInStep, node->opcode());
-  node->ReplaceInput(1, jsgraph()->Int32Constant(1));
-  NodeProperties::ChangeOp(node, machine()->Int32Add());
   return Changed(node);
 }
 
@@ -1986,12 +1970,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCallConstruct(node);
     case IrOpcode::kJSCallFunction:
       return ReduceJSCallFunction(node);
-    case IrOpcode::kJSForInDone:
-      return ReduceJSForInDone(node);
     case IrOpcode::kJSForInNext:
       return ReduceJSForInNext(node);
-    case IrOpcode::kJSForInStep:
-      return ReduceJSForInStep(node);
     case IrOpcode::kJSGeneratorStore:
       return ReduceJSGeneratorStore(node);
     case IrOpcode::kJSGeneratorRestoreContinuation:
@@ -2021,10 +2001,6 @@ JSOperatorBuilder* JSTypedLowering::javascript() const {
 
 CommonOperatorBuilder* JSTypedLowering::common() const {
   return jsgraph()->common();
-}
-
-MachineOperatorBuilder* JSTypedLowering::machine() const {
-  return jsgraph()->machine();
 }
 
 SimplifiedOperatorBuilder* JSTypedLowering::simplified() const {

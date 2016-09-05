@@ -5,6 +5,7 @@
 #ifndef V8_AST_AST_H_
 #define V8_AST_AST_H_
 
+#include "src/ast/ast-types.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/modules.h"
 #include "src/ast/variables.h"
@@ -17,7 +18,6 @@
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
 #include "src/small-pointer-list.h"
-#include "src/types.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -756,13 +756,14 @@ class ForInStatement final : public ForEachStatement {
   ForInType for_in_type() const { return for_in_type_; }
   void set_for_in_type(ForInType type) { for_in_type_ = type; }
 
-  static int num_ids() { return parent_num_ids() + 6; }
+  static int num_ids() { return parent_num_ids() + 7; }
   BailoutId BodyId() const { return BailoutId(local_id(0)); }
   BailoutId EnumId() const { return BailoutId(local_id(1)); }
   BailoutId ToObjectId() const { return BailoutId(local_id(2)); }
   BailoutId PrepareId() const { return BailoutId(local_id(3)); }
   BailoutId FilterId() const { return BailoutId(local_id(4)); }
   BailoutId AssignmentId() const { return BailoutId(local_id(5)); }
+  BailoutId IncrementId() const { return BailoutId(local_id(6)); }
   BailoutId ContinueId() const { return EntryId(); }
   BailoutId StackCheckId() const { return BodyId(); }
 
@@ -976,8 +977,18 @@ class CaseClause final : public Expression {
   BailoutId EntryId() const { return BailoutId(local_id(0)); }
   TypeFeedbackId CompareId() { return TypeFeedbackId(local_id(1)); }
 
-  Type* compare_type() { return compare_type_; }
-  void set_compare_type(Type* type) { compare_type_ = type; }
+  AstType* compare_type() { return compare_type_; }
+  void set_compare_type(AstType* type) { compare_type_ = type; }
+
+  // CaseClause will have both a slot in the feedback vector and the
+  // TypeFeedbackId to record the type information. TypeFeedbackId is used by
+  // full codegen and the feedback vector slot is used by interpreter.
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 FeedbackVectorSlotCache* cache);
+
+  FeedbackVectorSlot CompareOperationFeedbackSlot() {
+    return type_feedback_slot_;
+  }
 
  private:
   friend class AstNodeFactory;
@@ -989,7 +1000,8 @@ class CaseClause final : public Expression {
   Expression* label_;
   Label body_target_;
   ZoneList<Statement*>* statements_;
-  Type* compare_type_;
+  AstType* compare_type_;
+  FeedbackVectorSlot type_feedback_slot_;
 };
 
 
@@ -1827,15 +1839,6 @@ class Call final : public Expression {
     return !target_.is_null();
   }
 
-  bool global_call() const {
-    VariableProxy* proxy = expression_->AsVariableProxy();
-    return proxy != NULL && proxy->var()->IsUnallocatedOrGlobalSlot();
-  }
-
-  bool known_global_function() const {
-    return global_call() && !target_.is_null();
-  }
-
   Handle<JSFunction> target() { return target_; }
 
   Handle<AllocationSite> allocation_site() { return allocation_site_; }
@@ -2170,14 +2173,14 @@ class CountOperation final : public Expression {
   KeyedAccessStoreMode GetStoreMode() const {
     return StoreModeField::decode(bit_field_);
   }
-  Type* type() const { return type_; }
+  AstType* type() const { return type_; }
   void set_key_type(IcCheckType type) {
     bit_field_ = KeyTypeField::update(bit_field_, type);
   }
   void set_store_mode(KeyedAccessStoreMode mode) {
     bit_field_ = StoreModeField::update(bit_field_, mode);
   }
-  void set_type(Type* type) { type_ = type; }
+  void set_type(AstType* type) { type_ = type; }
 
   static int num_ids() { return parent_num_ids() + 4; }
   BailoutId AssignmentId() const { return BailoutId(local_id(0)); }
@@ -2222,7 +2225,7 @@ class CountOperation final : public Expression {
   uint16_t bit_field_;
   FeedbackVectorSlot slot_;
   FeedbackVectorSlot binary_operation_slot_;
-  Type* type_;
+  AstType* type_;
   Expression* expression_;
   SmallMapList receiver_types_;
 };
@@ -2242,8 +2245,18 @@ class CompareOperation final : public Expression {
   TypeFeedbackId CompareOperationFeedbackId() const {
     return TypeFeedbackId(local_id(0));
   }
-  Type* combined_type() const { return combined_type_; }
-  void set_combined_type(Type* type) { combined_type_ = type; }
+  AstType* combined_type() const { return combined_type_; }
+  void set_combined_type(AstType* type) { combined_type_ = type; }
+
+  // CompareOperation will have both a slot in the feedback vector and the
+  // TypeFeedbackId to record the type information. TypeFeedbackId is used
+  // by full codegen and the feedback vector slot is used by interpreter.
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 FeedbackVectorSlotCache* cache);
+
+  FeedbackVectorSlot CompareOperationFeedbackSlot() const {
+    return type_feedback_slot_;
+  }
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
@@ -2259,7 +2272,7 @@ class CompareOperation final : public Expression {
         op_(op),
         left_(left),
         right_(right),
-        combined_type_(Type::None()) {
+        combined_type_(AstType::None()) {
     DCHECK(Token::IsCompareOp(op));
   }
 
@@ -2270,7 +2283,8 @@ class CompareOperation final : public Expression {
   Expression* left_;
   Expression* right_;
 
-  Type* combined_type_;
+  AstType* combined_type_;
+  FeedbackVectorSlot type_feedback_slot_;
 };
 
 

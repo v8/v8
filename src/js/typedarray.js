@@ -19,7 +19,6 @@ var GetMethod;
 var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
-var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
 var InnerArrayCopyWithin;
 var InnerArrayEvery;
@@ -914,69 +913,5 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
 endmacro
 
 TYPED_ARRAYS(SETUP_TYPED_ARRAY)
-
-// --------------------------- DataView -----------------------------
-
-macro DATA_VIEW_TYPES(FUNCTION)
-  FUNCTION(Int8)
-  FUNCTION(Uint8)
-  FUNCTION(Int16)
-  FUNCTION(Uint16)
-  FUNCTION(Int32)
-  FUNCTION(Uint32)
-  FUNCTION(Float32)
-  FUNCTION(Float64)
-endmacro
-
-
-macro DATA_VIEW_GETTER_SETTER(TYPENAME)
-function DataViewGetTYPENAMEJS(offset, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'DataView.getTYPENAME', this);
-  }
-  offset = IS_UNDEFINED(offset) ? 0 : ToIndex(offset, kInvalidDataViewAccessorOffset);
-  return %DataViewGetTYPENAME(this, offset, !!little_endian);
-}
-%FunctionSetLength(DataViewGetTYPENAMEJS, 1);
-
-function DataViewSetTYPENAMEJS(offset, value, little_endian) {
-  if (!IS_DATAVIEW(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'DataView.setTYPENAME', this);
-  }
-  offset = IS_UNDEFINED(offset) ? 0 : ToIndex(offset, kInvalidDataViewAccessorOffset);
-  %DataViewSetTYPENAME(this, offset, TO_NUMBER(value), !!little_endian);
-}
-%FunctionSetLength(DataViewSetTYPENAMEJS, 2);
-endmacro
-
-DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
-
-utils.InstallFunctions(GlobalDataView.prototype, DONT_ENUM, [
-  "getInt8", DataViewGetInt8JS,
-  "setInt8", DataViewSetInt8JS,
-
-  "getUint8", DataViewGetUint8JS,
-  "setUint8", DataViewSetUint8JS,
-
-  "getInt16", DataViewGetInt16JS,
-  "setInt16", DataViewSetInt16JS,
-
-  "getUint16", DataViewGetUint16JS,
-  "setUint16", DataViewSetUint16JS,
-
-  "getInt32", DataViewGetInt32JS,
-  "setInt32", DataViewSetInt32JS,
-
-  "getUint32", DataViewGetUint32JS,
-  "setUint32", DataViewSetUint32JS,
-
-  "getFloat32", DataViewGetFloat32JS,
-  "setFloat32", DataViewSetFloat32JS,
-
-  "getFloat64", DataViewGetFloat64JS,
-  "setFloat64", DataViewSetFloat64JS
-]);
 
 })

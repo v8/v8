@@ -1461,9 +1461,8 @@ Address WasmFrame::GetCallerStackPointer() const {
 }
 
 Object* WasmFrame::wasm_obj() const {
-  FixedArray* deopt_data = LookupCode()->deoptimization_data();
-  DCHECK(deopt_data->length() == 2);
-  return deopt_data->get(0);
+  return wasm::GetOwningWasmInstance(*isolate()->factory()->undefined_value(),
+                                     LookupCode());
 }
 
 uint32_t WasmFrame::function_index() const {

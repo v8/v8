@@ -406,6 +406,35 @@ class IsTerminateMatcher final : public NodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
+class IsTypeGuardMatcher final : public NodeMatcher {
+ public:
+  IsTypeGuardMatcher(const Matcher<Node*>& value_matcher,
+                     const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kTypeGuard),
+        value_matcher_(value_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose value (";
+    value_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "value", value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
 
 template <typename T>
 class IsConstantMatcher final : public NodeMatcher {
@@ -1714,6 +1743,10 @@ Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
   return MakeMatcher(new IsTerminateMatcher(effect_matcher, control_matcher));
 }
 
+Matcher<Node*> IsTypeGuard(const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsTypeGuardMatcher(value_matcher, control_matcher));
+}
 
 Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher) {

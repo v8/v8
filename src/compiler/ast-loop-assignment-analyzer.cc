@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/compiler/ast-loop-assignment-analyzer.h"
-#include "src/compiler.h"
-#include "src/parsing/parser.h"
+#include "src/ast/scopes.h"
+#include "src/compilation-info.h"
 
 namespace v8 {
 namespace internal {

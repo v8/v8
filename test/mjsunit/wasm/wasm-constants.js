@@ -93,6 +93,7 @@ var kAstF64 = 4;
 var kSig_i = makeSig([], [kAstI32]);
 var kSig_d = makeSig([], [kAstF64]);
 var kSig_i_i = makeSig([kAstI32], [kAstI32]);
+var kSig_i_l = makeSig([kAstI64], [kAstI32]);
 var kSig_i_ii = makeSig([kAstI32, kAstI32], [kAstI32]);
 var kSig_i_iii = makeSig([kAstI32, kAstI32, kAstI32], [kAstI32]);
 var kSig_d_dd = makeSig([kAstF64, kAstF64], [kAstF64]);

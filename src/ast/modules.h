@@ -24,6 +24,9 @@ class ModuleDescriptor : public ZoneObject {
         regular_exports_(zone),
         regular_imports_(zone) {}
 
+  // The following Add* methods are high-level convenience functions for use by
+  // the parser.
+
   // import x from "foo.js";
   // import {x} from "foo.js";
   // import {x as y} from "foo.js";
@@ -83,6 +86,10 @@ class ModuleDescriptor : public ZoneObject {
           local_name(nullptr),
           import_name(nullptr),
           module_request(nullptr) {}
+
+    Handle<FixedArray> Serialize(Isolate* isolate) const;
+    static Entry* Deserialize(Isolate* isolate, AstValueFactory* avfactory,
+                              Handle<FixedArray> data);
   };
 
   // Empty imports and namespace imports.
@@ -103,6 +110,34 @@ class ModuleDescriptor : public ZoneObject {
   // All the remaining exports, indexed by local name.
   const ZoneMultimap<const AstRawString*, Entry*>& regular_exports() const {
     return regular_exports_;
+  }
+
+  void AddRegularExport(Entry* entry) {
+    DCHECK_NOT_NULL(entry->export_name);
+    DCHECK_NOT_NULL(entry->local_name);
+    DCHECK_NULL(entry->import_name);
+    regular_exports_.insert(std::make_pair(entry->local_name, entry));
+  }
+
+  void AddSpecialExport(const Entry* entry, Zone* zone) {
+    DCHECK_NOT_NULL(entry->module_request);
+    special_exports_.Add(entry, zone);
+  }
+
+  void AddRegularImport(const Entry* entry) {
+    DCHECK_NOT_NULL(entry->import_name);
+    DCHECK_NOT_NULL(entry->local_name);
+    DCHECK_NOT_NULL(entry->module_request);
+    DCHECK_NULL(entry->export_name);
+    regular_imports_.insert(std::make_pair(entry->local_name, entry));
+    // We don't care if there's already an entry for this local name, as in that
+    // case we will report an error when declaring the variable.
+  }
+
+  void AddSpecialImport(const Entry* entry, Zone* zone) {
+    DCHECK_NOT_NULL(entry->module_request);
+    DCHECK_NULL(entry->export_name);
+    special_imports_.Add(entry, zone);
   }
 
  private:

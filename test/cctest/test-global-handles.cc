@@ -25,8 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/api.h"
+#include "src/factory.h"
 #include "src/global-handles.h"
-
+#include "src/isolate.h"
+#include "src/objects.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

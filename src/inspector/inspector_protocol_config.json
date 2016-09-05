@@ -1,0 +1,29 @@
+{
+    "protocol": {
+        "path": "js_protocol.json",
+        "package": "src/inspector/protocol",
+        "output": "v8_inspector/protocol",
+        "namespace": ["v8_inspector", "protocol"]
+    },
+
+    "exported": {
+        "package": "src/inspector/public/protocol",
+        "output": "v8_inspector/public/protocol",
+        "string_header": "src/inspector/public/StringBuffer.h",
+        "string_in": "StringView",
+        "string_out": "std::unique_ptr<StringBuffer>",
+        "to_string_out": "StringBufferImpl::adopt(%s)"
+    },
+
+    "lib": {
+        "package": "src/inspector/protocol",
+        "output": "v8_inspector/protocol",
+        "string_header": "src/inspector/StringUtil.h",
+        "platform_header": "src/inspector/ProtocolPlatform.h"
+    },
+
+    "class_export": {
+        "macro": "PLATFORM_EXPORT",
+        "header": "platform/PlatformExport.h"
+    }
+}
