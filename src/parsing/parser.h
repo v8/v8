@@ -21,7 +21,8 @@ namespace internal {
 
 class ParseInfo;
 class ScriptData;
-class Target;
+class ParserTarget;
+class ParserTargetScope;
 
 class FunctionEntry BASE_EMBEDDED {
  public:
@@ -152,11 +153,15 @@ struct ParserTypes<Parser> {
   typedef ZoneList<v8::internal::Expression*>* ExpressionList;
   typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
   typedef ParserFormalParameters FormalParameters;
+  typedef v8::internal::Statement* Statement;
   typedef ZoneList<v8::internal::Statement*>* StatementList;
   typedef v8::internal::Block* Block;
 
   // For constructing objects returned by the traversing functions.
   typedef AstNodeFactory Factory;
+
+  typedef ParserTarget Target;
+  typedef ParserTargetScope TargetScope;
 };
 
 class Parser : public ParserBase<Parser> {
@@ -239,12 +244,6 @@ class Parser : public ParserBase<Parser> {
     return compile_options_ == ScriptCompiler::kProduceParserCache;
   }
 
-  // All ParseXXX functions take as the last argument an *ok parameter
-  // which is set to false if parsing failed; it is unchanged otherwise.
-  // By making the 'exception handling' explicit, we are forced to check
-  // for failure at the call sites.
-  void ParseStatementList(ZoneList<Statement*>* body, int end_token, bool* ok);
-  Statement* ParseStatementListItem(bool* ok);
   void ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
   Statement* ParseModuleItem(bool* ok);
   const AstRawString* ParseModuleSpecifier(bool* ok);
@@ -266,14 +265,6 @@ class Parser : public ParserBase<Parser> {
           location(location) {}
   };
   ZoneList<const NamedImport*>* ParseNamedImports(int pos, bool* ok);
-  Statement* ParseStatement(ZoneList<const AstRawString*>* labels,
-                            AllowLabelledFunctionStatement allow_function,
-                            bool* ok);
-  Statement* ParseSubStatement(ZoneList<const AstRawString*>* labels,
-                               AllowLabelledFunctionStatement allow_function,
-                               bool* ok);
-  Statement* ParseStatementAsUnlabelled(ZoneList<const AstRawString*>* labels,
-                                   bool* ok);
   Statement* ParseFunctionDeclaration(bool* ok);
   Statement* ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
                                        bool default_export, bool* ok);
@@ -580,7 +571,7 @@ class Parser : public ParserBase<Parser> {
                             int pos);
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
-  void RaiseLanguageMode(LanguageMode mode);
+  void SetAsmModule();
 
   V8_INLINE void MarkCollectedTailCallExpressions();
   V8_INLINE void MarkTailPosition(Expression* expression);
@@ -700,6 +691,26 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE static bool IsArrayIndex(const AstRawString* string,
                                      uint32_t* index) {
     return string->AsArrayIndex(index);
+  }
+
+  V8_INLINE bool IsUseStrictDirective(Statement* statement) const {
+    return IsStringLiteral(statement, ast_value_factory()->use_strict_string());
+  }
+
+  V8_INLINE bool IsUseAsmDirective(Statement* statement) const {
+    return IsStringLiteral(statement, ast_value_factory()->use_asm_string());
+  }
+
+  // Returns true if the statement is an expression statement containing
+  // a single string literal.  If a second argument is given, the literal
+  // is also compared with it and the result is true only if they are equal.
+  V8_INLINE bool IsStringLiteral(Statement* statement,
+                                 const AstRawString* arg = nullptr) const {
+    ExpressionStatement* e_stat = statement->AsExpressionStatement();
+    if (e_stat == nullptr) return false;
+    Literal* literal = e_stat->expression()->AsLiteral();
+    if (literal == nullptr || !literal->raw_value()->IsString()) return false;
+    return arg == nullptr || literal->raw_value()->AsString() == arg;
   }
 
   V8_INLINE static Expression* GetPropertyValue(
@@ -847,7 +858,17 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE static ZoneList<Expression*>* NullExpressionList() {
     return nullptr;
   }
+  V8_INLINE static bool IsNullExpressionList(ZoneList<Expression*>* exprs) {
+    return exprs == nullptr;
+  }
   V8_INLINE static ZoneList<Statement*>* NullStatementList() { return nullptr; }
+  V8_INLINE static bool IsNullStatementList(ZoneList<Statement*>* stmts) {
+    return stmts == nullptr;
+  }
+  V8_INLINE static Statement* NullStatement() { return nullptr; }
+  V8_INLINE bool IsNullOrEmptyStatement(Statement* stmt) {
+    return stmt == nullptr || stmt->IsEmpty();
+  }
 
   // Non-NULL empty string.
   V8_INLINE const AstRawString* EmptyIdentifierString() const {
@@ -1009,7 +1030,11 @@ class Parser : public ParserBase<Parser> {
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
-  Target* target_stack_;  // for break, continue statements
+
+  friend class ParserTarget;
+  friend class ParserTargetScope;
+  ParserTarget* target_stack_;  // for break, continue statements
+
   ScriptCompiler::CompileOptions compile_options_;
   ParseData* cached_parse_data_;
 

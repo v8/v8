@@ -187,10 +187,14 @@ struct FormalParametersBase {
 //   typedef ExpressionList;
 //   typedef PropertyList;
 //   typedef FormalParameters;
+//   typedef Statement;
 //   typedef StatementList;
 //   typedef Block;
 //   // For constructing objects returned by the traversing functions.
 //   typedef Factory;
+//   // For other implementation-specific tasks.
+//   typedef Target;
+//   typedef TargetScope;
 // };
 
 template <typename Impl>
@@ -208,6 +212,7 @@ class ParserBase {
   typedef typename Types::ExpressionList ExpressionListT;
   typedef typename Types::PropertyList PropertyListT;
   typedef typename Types::FormalParameters FormalParametersT;
+  typedef typename Types::Statement StatementT;
   typedef typename Types::StatementList StatementListT;
   typedef typename Types::Block BlockT;
   typedef typename v8::internal::ExpressionClassifier<Types>
@@ -917,6 +922,10 @@ class ParserBase {
     return scope()->GetReceiverScope();
   }
   LanguageMode language_mode() { return scope()->language_mode(); }
+  void RaiseLanguageMode(LanguageMode mode) {
+    LanguageMode old = scope()->language_mode();
+    impl()->SetLanguageMode(scope(), old > mode ? old : mode);
+  }
   bool is_generator() const { return function_state_->is_generator(); }
   bool is_async_function() const {
     return function_state_->is_async_function();
@@ -1073,7 +1082,12 @@ class ParserBase {
     classifier()->RecordArrowFormalParametersError(location, message, arg);
   }
 
-  // Recursive descent functions:
+  // Recursive descent functions.
+  // All ParseXXX functions take as the last argument an *ok parameter
+  // which is set to false if parsing failed; it is unchanged otherwise.
+  // By making the 'exception handling' explicit, we are forced to check
+  // for failure at the call sites. The family of CHECK_OK* macros can
+  // be useful for this.
 
   // Parses an identifier that is valid for the current scope, in particular it
   // fails on strict mode future reserved keywords in a strict scope. If
@@ -1179,6 +1193,32 @@ class ParserBase {
                                    DeclarationParsingResult* parsing_result,
                                    ZoneList<const AstRawString*>* names,
                                    bool* ok);
+
+  // Under some circumstances, we allow preparsing to abort if the preparsed
+  // function is "long and trivial", and fully parse instead. Our current
+  // definition of "long and trivial" is:
+  // - over kLazyParseTrialLimit statements
+  // - all starting with an identifier (i.e., no if, for, while, etc.)
+  static const int kLazyParseTrialLimit = 200;
+
+  // TODO(nikolaos, marja): The first argument should not really be passed
+  // by value. The method is expected to add the parsed statements to the
+  // list. This works because in the case of the parser, StatementListT is
+  // a pointer whereas the preparser does not really modify the body.
+  V8_INLINE void ParseStatementList(StatementListT body, int end_token,
+                                    bool* ok) {
+    LazyParsingResult result = ParseStatementList(body, end_token, false, ok);
+    USE(result);
+    DCHECK_EQ(result, kLazyParsingComplete);
+  }
+  LazyParsingResult ParseStatementList(StatementListT body, int end_token,
+                                       bool may_abort, bool* ok);
+  StatementT ParseStatementListItem(bool* ok);
+  StatementT ParseStatement(ZoneList<const AstRawString*>* labels,
+                            AllowLabelledFunctionStatement allow_function,
+                            bool* ok);
+  StatementT ParseStatementAsUnlabelled(ZoneList<const AstRawString*>* labels,
+                                        bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -3901,6 +3941,263 @@ void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
     classifier()->RecordAssignmentPatternError(
         Scanner::Location(begin, end),
         MessageTemplate::kInvalidDestructuringTarget);
+  }
+}
+
+// Redefinition of CHECK_OK for parsing statements.
+#undef CHECK_OK
+#define CHECK_OK CHECK_OK_CUSTOM(NullStatement)
+
+template <typename Impl>
+typename ParserBase<Impl>::LazyParsingResult
+ParserBase<Impl>::ParseStatementList(StatementListT body, int end_token,
+                                     bool may_abort, bool* ok) {
+  // StatementList ::
+  //   (StatementListItem)* <end_token>
+
+  // Allocate a target stack to use for this set of source
+  // elements. This way, all scripts and functions get their own
+  // target stack thus avoiding illegal breaks and continues across
+  // functions.
+  typename Types::TargetScope target_scope(this);
+  int count_statements = 0;
+
+  DCHECK(!impl()->IsNullStatementList(body));
+  bool directive_prologue = true;  // Parsing directive prologue.
+
+  while (peek() != end_token) {
+    if (directive_prologue && peek() != Token::STRING) {
+      directive_prologue = false;
+    }
+
+    bool starts_with_identifier = peek() == Token::IDENTIFIER;
+    Scanner::Location token_loc = scanner()->peek_location();
+    StatementT stat = impl()->ParseStatementListItem(
+        CHECK_OK_CUSTOM(Return, kLazyParsingComplete));
+
+    if (impl()->IsNullOrEmptyStatement(stat)) {
+      directive_prologue = false;  // End of directive prologue.
+      continue;
+    }
+
+    if (directive_prologue) {
+      // The length of the token is used to distinguish between strings literals
+      // that evaluate equal to directives but contain either escape sequences
+      // (e.g., "use \x73trict") or line continuations (e.g., "use \
+      // strict").
+      if (impl()->IsUseStrictDirective(stat) &&
+          token_loc.end_pos - token_loc.beg_pos == sizeof("use strict") + 1) {
+        // Directive "use strict" (ES5 14.1).
+        RaiseLanguageMode(STRICT);
+        if (!scope()->HasSimpleParameters()) {
+          // TC39 deemed "use strict" directives to be an error when occurring
+          // in the body of a function with non-simple parameter list, on
+          // 29/7/2015. https://goo.gl/ueA7Ln
+          impl()->ReportMessageAt(
+              token_loc, MessageTemplate::kIllegalLanguageModeDirective,
+              "use strict");
+          *ok = false;
+          return kLazyParsingComplete;
+        }
+        // Because declarations in strict eval code don't leak into the scope
+        // of the eval call, it is likely that functions declared in strict
+        // eval code will be used within the eval code, so lazy parsing is
+        // probably not a win.
+        if (scope()->is_eval_scope()) mode_ = PARSE_EAGERLY;
+      } else if (impl()->IsUseAsmDirective(stat) &&
+                 token_loc.end_pos - token_loc.beg_pos ==
+                     sizeof("use asm") + 1) {
+        // Directive "use asm".
+        impl()->SetAsmModule();
+      } else if (impl()->IsStringLiteral(stat)) {
+        // Possibly an unknown directive.
+        // TODO(nikolaos): Check if the following is really what we want!
+        // """Should not change mode, but will increment UseCounter
+        // if appropriate. Ditto usages below."""  ???
+        RaiseLanguageMode(SLOPPY);
+      } else {
+        // End of the directive prologue.
+        directive_prologue = false;
+        // TODO(nikolaos): Check if the following is really what we want!
+        RaiseLanguageMode(SLOPPY);
+      }
+    } else {
+      // TODO(nikolaos): Check if the following is really what we want!
+      RaiseLanguageMode(SLOPPY);
+    }
+
+    // If we're allowed to abort, we will do so when we see a "long and
+    // trivial" function. Our current definition of "long and trivial" is:
+    // - over kLazyParseTrialLimit statements
+    // - all starting with an identifier (i.e., no if, for, while, etc.)
+    if (may_abort) {
+      if (!starts_with_identifier) {
+        may_abort = false;
+      } else if (++count_statements > kLazyParseTrialLimit) {
+        return kLazyParsingAborted;
+      }
+    }
+
+    body->Add(stat, zone());
+  }
+  return kLazyParsingComplete;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
+    bool* ok) {
+  // ECMA 262 6th Edition
+  // StatementListItem[Yield, Return] :
+  //   Statement[?Yield, ?Return]
+  //   Declaration[?Yield]
+  //
+  // Declaration[Yield] :
+  //   HoistableDeclaration[?Yield]
+  //   ClassDeclaration[?Yield]
+  //   LexicalDeclaration[In, ?Yield]
+  //
+  // HoistableDeclaration[Yield, Default] :
+  //   FunctionDeclaration[?Yield, ?Default]
+  //   GeneratorDeclaration[?Yield, ?Default]
+  //
+  // LexicalDeclaration[In, Yield] :
+  //   LetOrConst BindingList[?In, ?Yield] ;
+
+  switch (peek()) {
+    case Token::FUNCTION:
+      return impl()->ParseHoistableDeclaration(nullptr, false, ok);
+    case Token::CLASS:
+      Consume(Token::CLASS);
+      return impl()->ParseClassDeclaration(nullptr, false, ok);
+    case Token::VAR:
+    case Token::CONST:
+      return impl()->ParseVariableStatement(kStatementListItem, nullptr, ok);
+    case Token::LET:
+      if (IsNextLetKeyword()) {
+        return impl()->ParseVariableStatement(kStatementListItem, nullptr, ok);
+      }
+      break;
+    case Token::ASYNC:
+      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+          !scanner()->HasAnyLineTerminatorAfterNext()) {
+        Consume(Token::ASYNC);
+        return impl()->ParseAsyncFunctionDeclaration(nullptr, false, ok);
+      }
+    /* falls through */
+    default:
+      break;
+  }
+  return impl()->ParseStatement(nullptr, kAllowLabelledFunctionStatement, ok);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
+    ZoneList<const AstRawString*>* labels,
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
+  // Statement ::
+  //   Block
+  //   VariableStatement
+  //   EmptyStatement
+  //   ExpressionStatement
+  //   IfStatement
+  //   IterationStatement
+  //   ContinueStatement
+  //   BreakStatement
+  //   ReturnStatement
+  //   WithStatement
+  //   LabelledStatement
+  //   SwitchStatement
+  //   ThrowStatement
+  //   TryStatement
+  //   DebuggerStatement
+
+  // Note: Since labels can only be used by 'break' and 'continue'
+  // statements, which themselves are only valid within blocks,
+  // iterations or 'switch' statements (i.e., BreakableStatements),
+  // labels can be simply ignored in all other cases; except for
+  // trivial labeled break statements 'label: break label' which is
+  // parsed into an empty statement.
+  switch (peek()) {
+    case Token::LBRACE:
+      return impl()->ParseBlock(labels, ok);
+    case Token::SEMICOLON:
+      Next();
+      return factory()->NewEmptyStatement(kNoSourcePosition);
+    case Token::IF:
+      return impl()->ParseIfStatement(labels, ok);
+    case Token::DO:
+      return impl()->ParseDoWhileStatement(labels, ok);
+    case Token::WHILE:
+      return impl()->ParseWhileStatement(labels, ok);
+    case Token::FOR:
+      return impl()->ParseForStatement(labels, ok);
+    case Token::CONTINUE:
+    case Token::BREAK:
+    case Token::RETURN:
+    case Token::THROW:
+    case Token::TRY: {
+      // These statements must have their labels preserved in an enclosing
+      // block, as the corresponding AST nodes do not currently store their
+      // labels.
+      // TODO(nikolaos, marja): Consider adding the labels to the AST nodes.
+      if (labels == nullptr) {
+        return ParseStatementAsUnlabelled(labels, ok);
+      } else {
+        BlockT result =
+            factory()->NewBlock(labels, 1, false, kNoSourcePosition);
+        typename Types::Target target(this, result);
+        StatementT statement = ParseStatementAsUnlabelled(labels, CHECK_OK);
+        result->statements()->Add(statement, zone());
+        return result;
+      }
+    }
+    case Token::WITH:
+      return impl()->ParseWithStatement(labels, ok);
+    case Token::SWITCH:
+      return impl()->ParseSwitchStatement(labels, ok);
+    case Token::FUNCTION:
+      // FunctionDeclaration only allowed as a StatementListItem, not in
+      // an arbitrary Statement position. Exceptions such as
+      // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+      // are handled by calling ParseScopedStatement rather than
+      // ParseStatement directly.
+      impl()->ReportMessageAt(scanner()->peek_location(),
+                              is_strict(language_mode())
+                                  ? MessageTemplate::kStrictFunction
+                                  : MessageTemplate::kSloppyFunction);
+      *ok = false;
+      return impl()->NullStatement();
+    case Token::DEBUGGER:
+      return impl()->ParseDebuggerStatement(ok);
+    case Token::VAR:
+      return impl()->ParseVariableStatement(kStatement, nullptr, ok);
+    default:
+      return impl()->ParseExpressionOrLabelledStatement(labels, allow_function,
+                                                        ok);
+  }
+}
+
+// This method parses a subset of statements (break, continue, return, throw,
+// try) which are to be grouped because they all require their labeles to be
+// preserved in an enclosing block.
+template <typename Impl>
+typename ParserBase<Impl>::StatementT
+ParserBase<Impl>::ParseStatementAsUnlabelled(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  switch (peek()) {
+    case Token::CONTINUE:
+      return impl()->ParseContinueStatement(ok);
+    case Token::BREAK:
+      return impl()->ParseBreakStatement(labels, ok);
+    case Token::RETURN:
+      return impl()->ParseReturnStatement(ok);
+    case Token::THROW:
+      return impl()->ParseThrowStatement(ok);
+    case Token::TRY:
+      return impl()->ParseTryStatement(ok);
+    default:
+      UNREACHABLE();
+      return impl()->NullStatement();
   }
 }
 
