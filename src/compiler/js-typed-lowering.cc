@@ -1223,17 +1223,13 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   Node* prototype =
       jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
 
-  Node* if_is_smi = nullptr;
-  Node* e_is_smi = nullptr;
   // If the left hand side is an object, no smi check is needed.
-  if (r.left_type()->Maybe(Type::TaggedSigned())) {
-    Node* is_smi = graph()->NewNode(simplified()->ObjectIsSmi(), r.left());
-    Node* branch_is_smi =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), is_smi, control);
-    if_is_smi = graph()->NewNode(common()->IfTrue(), branch_is_smi);
-    e_is_smi = effect;
-    control = graph()->NewNode(common()->IfFalse(), branch_is_smi);
-  }
+  Node* is_smi = graph()->NewNode(simplified()->ObjectIsSmi(), r.left());
+  Node* branch_is_smi =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), is_smi, control);
+  Node* if_is_smi = graph()->NewNode(common()->IfTrue(), branch_is_smi);
+  Node* e_is_smi = effect;
+  control = graph()->NewNode(common()->IfFalse(), branch_is_smi);
 
   Node* object_map = effect =
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
@@ -1340,14 +1336,12 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
       bool_result_runtime_has_in_proto_chain_case, jsgraph()->TrueConstant(),
       jsgraph()->FalseConstant(), control);
 
-  if (if_is_smi != nullptr) {
-    DCHECK_NOT_NULL(e_is_smi);
-    control = graph()->NewNode(common()->Merge(2), if_is_smi, control);
-    effect =
-        graph()->NewNode(common()->EffectPhi(2), e_is_smi, effect, control);
-    result = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                              jsgraph()->FalseConstant(), result, control);
-  }
+  DCHECK_NOT_NULL(e_is_smi);
+  control = graph()->NewNode(common()->Merge(2), if_is_smi, control);
+  effect =
+      graph()->NewNode(common()->EffectPhi(2), e_is_smi, effect, control);
+  result = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                            jsgraph()->FalseConstant(), result, control);
 
   ReplaceWithValue(node, result, effect, control);
   return Changed(result);
