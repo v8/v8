@@ -5,6 +5,7 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
 
+#include "src/regexp/jsregexp.h"
 #include "src/string-builder.h"
 
 namespace v8 {
@@ -321,13 +322,16 @@ const int kLastSubjectIndex = 1;
 const int kLastInputIndex = 2;
 const int kFirstCaptureIndex = 3;
 
-Handle<Object> GetLastMatchField(Isolate* isolate, int index) {
+Handle<JSObject> GetLastMatchInfo(Isolate* isolate) {
   Handle<JSFunction> global_regexp = isolate->regexp_function();
   Handle<Object> last_match_info_obj = JSReceiver::GetDataProperty(
       global_regexp, isolate->factory()->regexp_last_match_info_symbol());
 
-  Handle<JSReceiver> last_match_info =
-      Handle<JSReceiver>::cast(last_match_info_obj);
+  return Handle<JSObject>::cast(last_match_info_obj);
+}
+
+Handle<Object> GetLastMatchField(Isolate* isolate, int index) {
+  Handle<JSObject> last_match_info = GetLastMatchInfo(isolate);
   return JSReceiver::GetElement(isolate, last_match_info, index)
       .ToHandleChecked();
 }
@@ -457,6 +461,135 @@ BUILTIN(RegExpPrototypeRightContextGetter) {
   Handle<String> last_subject = GetLastMatchSubject(isolate);
   const int len = last_subject->length();
   return *isolate->factory()->NewSubString(last_subject, start_index, len);
+}
+
+namespace {
+
+MaybeHandle<Object> SetLastIndex(Isolate* isolate, Handle<JSRegExp> regexp,
+                                 int value) {
+  return Object::SetProperty(regexp, isolate->factory()->lastIndex_string(),
+                             handle(Smi::FromInt(value), isolate), SLOPPY);
+}
+
+Handle<JSArray> ConstructResult(Isolate* isolate, int size, int index,
+                                Handle<String> input) {
+  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(size);
+  Handle<Map> regexp_map(isolate->native_context()->regexp_result_map());
+  Handle<JSObject> object =
+      isolate->factory()->NewJSObjectFromMap(regexp_map, NOT_TENURED);
+  Handle<JSArray> array = Handle<JSArray>::cast(object);
+  array->set_elements(*elements);
+  array->set_length(Smi::FromInt(size));
+  // Write in-object properties after the length of the array.
+  array->InObjectPropertyAtPut(JSRegExpResult::kIndexIndex,
+                               Smi::FromInt(index));
+  array->InObjectPropertyAtPut(JSRegExpResult::kInputIndex, *input);
+  return array;
+}
+
+Handle<Object> ReturnNewResultFromMatchInfo(Isolate* isolate,
+                                            Handle<Object> match_info,
+                                            Handle<String> string) {
+  const int num_captures = GetLastMatchNumberOfCaptures(isolate);
+  DCHECK_EQ(0, num_captures % 2);
+
+  const int num_results = num_captures / 2;
+  int start = GetLastMatchCapture(isolate, 0);
+  int end = GetLastMatchCapture(isolate, 1);
+
+  // Calculate the substring of the first match before creating the result array
+  // to avoid an unnecessary write barrier storing the first result.
+  Handle<String> first = isolate->factory()->NewSubString(string, start, end);
+  Handle<JSArray> result = ConstructResult(isolate, num_results, start, string);
+
+  Handle<FixedArray> elems =
+      handle(FixedArray::cast(result->elements()), isolate);
+  elems->set(0, *first);
+
+  for (int i = 1; i < num_results; i++) {
+    start = GetLastMatchCapture(isolate, i * 2);
+    if (start != -1) {
+      end = GetLastMatchCapture(isolate, i * 2 + 1);
+      Handle<String> capture =
+          isolate->factory()->NewSubString(string, start, end);
+      elems->set(i, *capture);
+    }
+  }
+
+  return result;
+}
+
+MaybeHandle<Object> RegExpExecJS(Isolate* isolate, Handle<JSRegExp> regexp,
+                                 Handle<String> string) {
+  Handle<Object> last_index_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, last_index_obj,
+      Object::GetProperty(regexp, isolate->factory()->lastIndex_string()),
+      Object);
+
+  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
+  // algorithm, step 4) even if the value is discarded for non-global RegExps.
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
+                             Object::ToLength(isolate, last_index_obj), Object);
+
+  int last_index = Handle<Smi>::cast(last_index_obj)->value();
+
+  const int flags = regexp->GetFlags();
+  const bool global = (flags & JSRegExp::kGlobal) != 0;
+  const bool sticky = (flags & JSRegExp::kSticky) != 0;
+  const bool update_last_index = (global || sticky);
+
+  if (update_last_index) {
+    if (last_index > string->length()) {
+      RETURN_ON_EXCEPTION(isolate, SetLastIndex(isolate, regexp, 0), Object);
+      return isolate->factory()->null_value();
+    }
+  } else {
+    last_index = 0;
+  }
+
+  Handle<JSObject> last_match_info = GetLastMatchInfo(isolate);
+
+  // matchIndices is either null or the RegExpLastMatchInfo array.
+  // TODO(littledan): Whether a RegExp is sticky is compiled into the RegExp
+  // itself, but ES2015 allows monkey-patching this property to differ from
+  // the internal flags. If it differs, recompile a different RegExp?
+  // TODO(jgruber): The result of Exec does not need to be a JSArray.
+  Handle<Object> match_indices;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, match_indices,
+      RegExpImpl::Exec(regexp, string, last_index, last_match_info), Object);
+
+  if (match_indices->IsNull(isolate)) {
+    RETURN_ON_EXCEPTION(isolate, SetLastIndex(isolate, regexp, 0), Object);
+    return isolate->factory()->null_value();
+  }
+
+  // Successful match.
+  if (update_last_index) {
+    last_index = GetLastMatchCapture(isolate, 1);
+    RETURN_ON_EXCEPTION(isolate, SetLastIndex(isolate, regexp, last_index),
+                        Object);
+  }
+
+  return ReturnNewResultFromMatchInfo(isolate, match_indices, string);
+}
+
+}  // namespace
+
+// ES#sec-regexp.prototype.exec
+// RegExp.prototype.exec ( string )
+BUILTIN(RegExpPrototypeExec) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSRegExp, regexp, "RegExp.prototype.exec");
+
+  Handle<Object> string_obj = args.atOrUndefined(isolate, 1);
+
+  Handle<String> string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
+                                     Object::ToString(isolate, string_obj));
+
+  RETURN_RESULT_OR_FAILURE(isolate, RegExpExecJS(isolate, regexp, string));
 }
 
 }  // namespace internal

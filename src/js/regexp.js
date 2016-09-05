@@ -24,6 +24,7 @@ var searchSymbol = utils.ImportNow("search_symbol");
 var speciesSymbol = utils.ImportNow("species_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
 var SpeciesConstructor;
+var RegExpSubclassExecJS;
 
 utils.Import(function(from) {
   ExpandReplacement = from.ExpandReplacement;
@@ -113,53 +114,6 @@ function RegExpExecNoTests(regexp, string, start) {
   regexp.lastIndex = 0;
   return null;
 }
-
-
-// ES#sec-regexp.prototype.exec
-// RegExp.prototype.exec ( string )
-function RegExpSubclassExecJS(string) {
-  if (!IS_REGEXP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.exec', this);
-  }
-
-  string = TO_STRING(string);
-  var lastIndex = this.lastIndex;
-
-  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
-  // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH(lastIndex);
-
-  var global = TO_BOOLEAN(REGEXP_GLOBAL(this));
-  var sticky = TO_BOOLEAN(REGEXP_STICKY(this));
-  var updateLastIndex = global || sticky;
-  if (updateLastIndex) {
-    if (i > string.length) {
-      this.lastIndex = 0;
-      return null;
-    }
-  } else {
-    i = 0;
-  }
-
-  // matchIndices is either null or the RegExpLastMatchInfo array.
-  // TODO(littledan): Whether a RegExp is sticky is compiled into the RegExp
-  // itself, but ES2015 allows monkey-patching this property to differ from
-  // the internal flags. If it differs, recompile a different RegExp?
-  var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
-
-  if (IS_NULL(matchIndices)) {
-    this.lastIndex = 0;
-    return null;
-  }
-
-  // Successful match.
-  if (updateLastIndex) {
-    this.lastIndex = RegExpLastMatchInfo[CAPTURE1];
-  }
-  RETURN_NEW_RESULT_FROM_MATCH_INFO(matchIndices, string);
-}
-%FunctionRemovePrototype(RegExpSubclassExecJS);
 
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
@@ -774,7 +728,6 @@ function RegExpSubclassSearch(string) {
 // -------------------------------------------------------------------
 
 utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
-  "exec", RegExpSubclassExecJS,
   "test", RegExpSubclassTest,
   matchSymbol, RegExpSubclassMatch,
   replaceSymbol, RegExpSubclassReplace,
@@ -784,6 +737,8 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
 
 // Temporary until all RegExpLastMatchInfo accesses are ported to C++.
 SET_PRIVATE(GlobalRegExp, lastMatchInfoSymbol, RegExpLastMatchInfo);
+
+var RegExpSubclassExecJS = GlobalRegExp.prototype.exec;
 
 // -------------------------------------------------------------------
 // Internal

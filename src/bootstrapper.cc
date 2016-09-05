@@ -1642,6 +1642,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallFunction(proto, factory->toString_string(),
                             Builtins::kRegExpPrototypeToString, 0, false,
                             DONT_ENUM);
+      SimpleInstallFunction(proto, factory->exec_string(),
+                            Builtins::kRegExpPrototypeExec, 1, false,
+                            DONT_ENUM);
     }
 
     {
@@ -1721,8 +1724,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 #undef INSTALL_CAPTURE_GETTER
     }
 
-    // TODO(jgruber): shared->set_force_inline on getters.
-
     DCHECK(regexp_fun->has_initial_map());
     Handle<Map> initial_map(regexp_fun->initial_map());
 
@@ -1733,7 +1734,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // ECMA-262, section 15.10.7.5.
     PropertyAttributes writable =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    DataDescriptor field(factory->last_index_string(),
+    DataDescriptor field(factory->lastIndex_string(),
                          JSRegExp::kLastIndexFieldIndex, writable,
                          Representation::Tagged());
     initial_map->AppendDescriptor(&field);

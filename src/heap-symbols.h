@@ -60,6 +60,7 @@
   V(Error_string, "Error")                                         \
   V(eval_string, "eval")                                           \
   V(EvalError_string, "EvalError")                                 \
+  V(exec_string, "exec")                                           \
   V(false_string, "false")                                         \
   V(flags_string, "flags")                                         \
   V(float32x4_string, "float32x4")                                 \
@@ -91,7 +92,7 @@
   V(isView_string, "isView")                                       \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
-  V(last_index_string, "lastIndex")                                \
+  V(lastIndex_string, "lastIndex")                                 \
   V(length_string, "length")                                       \
   V(line_string, "line")                                           \
   V(Map_string, "Map")                                             \
