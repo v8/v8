@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TYPES_H_
-#define V8_TYPES_H_
+#ifndef V8_COMPILER_TYPES_H_
+#define V8_COMPILER_TYPES_H_
 
 #include "src/conversions.h"
 #include "src/handles.h"
@@ -12,6 +12,7 @@
 
 namespace v8 {
 namespace internal {
+namespace compiler {
 
 // SUMMARY
 //
@@ -242,7 +243,7 @@ namespace internal {
  * occur as part of PlainNumber.
  */
 
-#define PROPER_BITSET_TYPE_LIST(V) \
+#define PROPER_BITSET_TYPE_LIST(V)   \
   REPRESENTATION_BITSET_TYPE_LIST(V) \
   SEMANTIC_BITSET_TYPE_LIST(V)
 
@@ -336,12 +337,7 @@ class TypeBase {
  protected:
   friend class Type;
 
-  enum Kind {
-    kConstant,
-    kTuple,
-    kUnion,
-    kRange
-  };
+  enum Kind { kConstant, kTuple, kUnion, kRange };
 
   Kind kind() const { return kind_; }
   explicit TypeBase(Kind kind) : kind_(kind) {}
@@ -776,7 +772,8 @@ struct Bounds {
     return that.lower->Is(this->lower) && this->upper->Is(that.upper);
   }
 };
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TYPES_H_
+#endif  // V8_COMPILER_TYPES_H_

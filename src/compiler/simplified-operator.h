@@ -8,6 +8,7 @@
 #include <iosfwd>
 
 #include "src/compiler/operator.h"
+#include "src/compiler/types.h"
 #include "src/handles.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
@@ -16,9 +17,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class Type;
 class Zone;
-
 
 namespace compiler {
 

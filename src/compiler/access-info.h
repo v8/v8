@@ -22,6 +22,7 @@ class Factory;
 namespace compiler {
 
 // Forward declarations.
+class Type;
 class TypeCache;
 
 // Whether we are loading a property or storing to a property.

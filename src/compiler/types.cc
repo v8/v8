@@ -4,14 +4,14 @@
 
 #include <iomanip>
 
-#include "src/types.h"
+#include "src/compiler/types.h"
 
 #include "src/handles-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
-
+namespace compiler {
 
 // NOTE: If code is marked as being a "shortcut", this means that removing
 // the code won't affect the semantics of the surrounding function definition.
@@ -58,17 +58,15 @@ bool Type::Contains(RangeType* lhs, RangeType* rhs) {
 
 bool Type::Contains(RangeType* lhs, ConstantType* rhs) {
   DisallowHeapAllocation no_allocation;
-  return IsInteger(*rhs->Value()) &&
-         lhs->Min() <= rhs->Value()->Number() &&
+  return IsInteger(*rhs->Value()) && lhs->Min() <= rhs->Value()->Number() &&
          rhs->Value()->Number() <= lhs->Max();
 }
 
 bool Type::Contains(RangeType* range, i::Object* val) {
   DisallowHeapAllocation no_allocation;
-  return IsInteger(val) &&
-         range->Min() <= val->Number() && val->Number() <= range->Max();
+  return IsInteger(val) && range->Min() <= val->Number() &&
+         val->Number() <= range->Max();
 }
-
 
 // -----------------------------------------------------------------------------
 // Min and Max computation.
@@ -105,10 +103,8 @@ double Type::Max() {
   return 0;
 }
 
-
 // -----------------------------------------------------------------------------
 // Glb and lub computation.
-
 
 // The largest bitset subsumed by this type.
 Type::bitset BitsetType::Glb(Type* type) {
@@ -128,7 +124,6 @@ Type::bitset BitsetType::Glb(Type* type) {
     return type->Representation();
   }
 }
-
 
 // The smallest bitset subsuming this type, possibly not a proper one.
 Type::bitset BitsetType::Lub(Type* type) {
@@ -286,7 +281,7 @@ Type::bitset BitsetType::Lub(i::Object* value) {
   DisallowHeapAllocation no_allocation;
   if (value->IsNumber()) {
     return Lub(value->Number()) &
-        (value->IsSmi() ? kTaggedSigned : kTaggedPointer);
+           (value->IsSmi() ? kTaggedSigned : kTaggedPointer);
   }
   return Lub(i::HeapObject::cast(value)->map());
 }
@@ -298,7 +293,6 @@ Type::bitset BitsetType::Lub(double value) {
   if (IsUint32Double(value) || IsInt32Double(value)) return Lub(value, value);
   return kOtherNumber;
 }
-
 
 // Minimum values of plain numeric bitsets.
 const BitsetType::Boundary BitsetType::BoundariesArray[] = {
@@ -337,7 +331,7 @@ Type::bitset BitsetType::Lub(double min, double max) {
 
   for (size_t i = 1; i < BoundariesSize(); ++i) {
     if (min < mins[i].min) {
-      lub |= mins[i-1].internal;
+      lub |= mins[i - 1].internal;
       if (max < mins[i].min) return lub;
     }
   }
@@ -391,14 +385,12 @@ double BitsetType::Max(bitset bits) {
   }
   for (size_t i = BoundariesSize() - 1; i-- > 0;) {
     if (Is(SEMANTIC(mins[i].internal), bits)) {
-      return mz ?
-          std::max(0.0, mins[i+1].min - 1) : mins[i+1].min - 1;
+      return mz ? std::max(0.0, mins[i + 1].min - 1) : mins[i + 1].min - 1;
     }
   }
   if (mz) return 0;
   return std::numeric_limits<double>::quiet_NaN();
 }
-
 
 // -----------------------------------------------------------------------------
 // Predicates.
@@ -406,8 +398,8 @@ double BitsetType::Max(bitset bits) {
 bool Type::SimplyEquals(Type* that) {
   DisallowHeapAllocation no_allocation;
   if (this->IsConstant()) {
-    return that->IsConstant()
-        && *this->AsConstant()->Value() == *that->AsConstant()->Value();
+    return that->IsConstant() &&
+           *this->AsConstant()->Value() == *that->AsConstant()->Value();
   }
   if (this->IsTuple()) {
     if (!that->IsTuple()) return false;
@@ -428,7 +420,6 @@ bool Type::SimplyEquals(Type* that) {
 Type::bitset Type::Representation() {
   return REPRESENTATION(this->BitsetLub());
 }
-
 
 // Check if [this] <= [that].
 bool Type::SlowIs(Type* that) {
@@ -451,7 +442,6 @@ bool Type::SlowIs(Type* that) {
   // Check the semantic part.
   return SemanticIs(that);
 }
-
 
 // Check if SEMANTIC([this]) <= SEMANTIC([that]). The result of the method
 // should be independent of the representation axis of the types.
@@ -493,7 +483,6 @@ bool Type::SemanticIs(Type* that) {
 
   return this->SimplyEquals(that);
 }
-
 
 // Check if [this] and [that] overlap.
 bool Type::Maybe(Type* that) {
@@ -557,7 +546,6 @@ bool Type::SemanticMaybe(Type* that) {
   return this->SimplyEquals(that);
 }
 
-
 // Return the range in [this], or [NULL].
 Type* Type::GetRange() {
   DisallowHeapAllocation no_allocation;
@@ -590,7 +578,7 @@ bool UnionType::Wellformed() {
   // 5. No element (except the bitset) is a subtype of any other.
   // 6. If there is a range, then the bitset type does not contain
   //    plain number bits.
-  DCHECK(this->Length() >= 2);  // (1)
+  DCHECK(this->Length() >= 2);       // (1)
   DCHECK(this->Get(0)->IsBitset());  // (2a)
 
   for (int i = 0; i < this->Length(); ++i) {
@@ -608,15 +596,12 @@ bool UnionType::Wellformed() {
   return true;
 }
 
-
 // -----------------------------------------------------------------------------
 // Union and intersection
 
-
 static bool AddIsSafe(int x, int y) {
-  return x >= 0 ?
-      y <= std::numeric_limits<int>::max() - x :
-      y >= std::numeric_limits<int>::min() - x;
+  return x >= 0 ? y <= std::numeric_limits<int>::max() - x
+                : y >= std::numeric_limits<int>::min() - x;
 }
 
 Type* Type::Intersect(Type* type1, Type* type2, Zone* zone) {
@@ -694,7 +679,7 @@ int Type::UpdateRange(Type* range, UnionType* result, int size, Zone* zone) {
   }
 
   // Remove any components that just got subsumed.
-  for (int i = 2; i < size; ) {
+  for (int i = 2; i < size;) {
     if (result->Get(i)->SemanticIs(range)) {
       result->Set(i, result->Get(--size));
     } else {
@@ -776,7 +761,6 @@ int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
   }
   return size;
 }
-
 
 // Make sure that we produce a well-formed range and bitset:
 // If the range is non-empty, the number bits in the bitset should be
@@ -883,7 +867,6 @@ Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
   return NormalizeUnion(result_type, size, zone);
 }
 
-
 // Add [type] to [result] unless [type] is bitset, range, or already subsumed.
 // Return new size of [result].
 int Type::AddToUnion(Type* type, UnionType* result, int size, Zone* zone) {
@@ -927,7 +910,6 @@ Type* Type::NormalizeUnion(Type* union_type, int size, Zone* zone) {
   return union_type;
 }
 
-
 // -----------------------------------------------------------------------------
 // Component extraction
 
@@ -936,12 +918,10 @@ Type* Type::Representation(Type* t, Zone* zone) {
   return BitsetType::New(t->Representation());
 }
 
-
 // static
 Type* Type::Semantic(Type* t, Zone* zone) {
   return Intersect(t, BitsetType::New(BitsetType::kSemantic), zone);
 }
-
 
 // -----------------------------------------------------------------------------
 // Iteration.
@@ -966,7 +946,6 @@ Type* Type::Iterator<T>::get_type() {
   DCHECK(!Done());
   return type_->IsUnion() ? type_->AsUnion()->Get(index_) : type_;
 }
-
 
 // C++ cannot specialise nested templates, so we have to go through this
 // contortion with an auxiliary template to simulate it.
@@ -1008,23 +987,25 @@ void Type::Iterator<T>::Advance() {
   index_ = -1;
 }
 
-
 // -----------------------------------------------------------------------------
 // Printing.
 
 const char* BitsetType::Name(bitset bits) {
   switch (bits) {
-    case REPRESENTATION(kAny): return "Any";
-    #define RETURN_NAMED_REPRESENTATION_TYPE(type, value) \
-    case REPRESENTATION(k##type): return #type;
-    REPRESENTATION_BITSET_TYPE_LIST(RETURN_NAMED_REPRESENTATION_TYPE)
-    #undef RETURN_NAMED_REPRESENTATION_TYPE
+    case REPRESENTATION(kAny):
+      return "Any";
+#define RETURN_NAMED_REPRESENTATION_TYPE(type, value) \
+  case REPRESENTATION(k##type):                       \
+    return #type;
+      REPRESENTATION_BITSET_TYPE_LIST(RETURN_NAMED_REPRESENTATION_TYPE)
+#undef RETURN_NAMED_REPRESENTATION_TYPE
 
-    #define RETURN_NAMED_SEMANTIC_TYPE(type, value) \
-    case SEMANTIC(k##type): return #type;
-    SEMANTIC_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
-    INTERNAL_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
-    #undef RETURN_NAMED_SEMANTIC_TYPE
+#define RETURN_NAMED_SEMANTIC_TYPE(type, value) \
+  case SEMANTIC(k##type):                       \
+    return #type;
+      SEMANTIC_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
+      INTERNAL_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
+#undef RETURN_NAMED_SEMANTIC_TYPE
 
     default:
       return NULL;
@@ -1108,7 +1089,6 @@ void Type::PrintTo(std::ostream& os, PrintDimension dim) {
   }
 }
 
-
 #ifdef DEBUG
 void Type::Print() {
   OFStream os(stdout);
@@ -1135,5 +1115,6 @@ BitsetType::bitset BitsetType::UnsignedSmall() {
 
 template class Type::Iterator<i::Object>;
 
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8

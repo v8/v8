@@ -14,7 +14,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/type-cache.h"
-#include "src/types.h"
+#include "src/compiler/types.h"
 
 namespace v8 {
 namespace internal {
