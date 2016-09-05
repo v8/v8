@@ -5,6 +5,7 @@
 #ifndef V8_PARSING_PARSER_BASE_H
 #define V8_PARSING_PARSER_BASE_H
 
+#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
 #include "src/base/hashmap.h"

@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/ast/ast-type-bounds.h"
 #include "src/ast/ast-types.h"
-#include "src/ast/scopes.h"
+#include "src/ast/ast.h"
 #include "src/ast/variables.h"
 #include "src/effects.h"
 #include "src/type-info.h"
@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+class DeclarationScope;
+class Isolate;
 class FunctionLiteral;
 
 class AstTyper final : public AstVisitor<AstTyper> {

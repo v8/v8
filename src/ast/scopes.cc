@@ -7,6 +7,7 @@
 #include <set>
 
 #include "src/accessors.h"
+#include "src/ast/ast.h"
 #include "src/bootstrapper.h"
 #include "src/messages.h"
 #include "src/parsing/parse-info.h"
@@ -838,6 +839,29 @@ Variable* Scope::DeclareVariable(
   decls_.Add(declaration, zone());
   proxy->BindTo(var);
   return var;
+}
+
+VariableProxy* Scope::NewUnresolved(AstNodeFactory* factory,
+                                    const AstRawString* name,
+                                    int start_position, int end_position,
+                                    Variable::Kind kind) {
+  // Note that we must not share the unresolved variables with
+  // the same name because they may be removed selectively via
+  // RemoveUnresolved().
+  DCHECK(!already_resolved_);
+  DCHECK_EQ(factory->zone(), zone());
+  VariableProxy* proxy =
+      factory->NewVariableProxy(name, kind, start_position, end_position);
+  proxy->set_next_unresolved(unresolved_);
+  unresolved_ = proxy;
+  return proxy;
+}
+
+void Scope::AddUnresolved(VariableProxy* proxy) {
+  DCHECK(!already_resolved_);
+  DCHECK(!proxy->is_resolved());
+  proxy->set_next_unresolved(unresolved_);
+  unresolved_ = proxy;
 }
 
 Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,

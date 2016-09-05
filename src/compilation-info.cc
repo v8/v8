@@ -5,6 +5,7 @@
 #include "src/compilation-info.h"
 
 #include "src/api.h"
+#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/isolate.h"
 #include "src/parsing/parse-info.h"

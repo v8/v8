@@ -5,7 +5,7 @@
 #ifndef V8_AST_SCOPES_H_
 #define V8_AST_SCOPES_H_
 
-#include "src/ast/ast.h"
+#include "src/ast/variables.h"
 #include "src/base/hashmap.h"
 #include "src/globals.h"
 #include "src/zone.h"
@@ -13,7 +13,13 @@
 namespace v8 {
 namespace internal {
 
+class AstNodeFactory;
+class AstValueFactory;
+class AstRawString;
+class Declaration;
 class ParseInfo;
+class SloppyBlockFunctionStatement;
+class VariableProxy;
 
 // A hash map to support fast variable declaration and lookup.
 class VariableMap: public ZoneHashMap {
@@ -153,25 +159,9 @@ class Scope: public ZoneObject {
                                const AstRawString* name,
                                int start_position = kNoSourcePosition,
                                int end_position = kNoSourcePosition,
-                               Variable::Kind kind = Variable::NORMAL) {
-    // Note that we must not share the unresolved variables with
-    // the same name because they may be removed selectively via
-    // RemoveUnresolved().
-    DCHECK(!already_resolved_);
-    DCHECK_EQ(factory->zone(), zone());
-    VariableProxy* proxy =
-        factory->NewVariableProxy(name, kind, start_position, end_position);
-    proxy->set_next_unresolved(unresolved_);
-    unresolved_ = proxy;
-    return proxy;
-  }
+                               Variable::Kind kind = Variable::NORMAL);
 
-  void AddUnresolved(VariableProxy* proxy) {
-    DCHECK(!already_resolved_);
-    DCHECK(!proxy->is_resolved());
-    proxy->set_next_unresolved(unresolved_);
-    unresolved_ = proxy;
-  }
+  void AddUnresolved(VariableProxy* proxy);
 
   // Remove a unresolved variable. During parsing, an unresolved variable
   // may have been added optimistically, but then only the variable name
