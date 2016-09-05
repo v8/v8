@@ -1577,21 +1577,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Builtin functions for RegExp.prototype.
     Handle<JSFunction> regexp_fun = InstallFunction(
         global, "RegExp", JS_REGEXP_TYPE, JSRegExp::kSize,
-        isolate->initial_object_prototype(), Builtins::kRegExpConstructor);
+        isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
-
-    Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate);
-    shared->SetConstructStub(*isolate->builtins()->RegExpConstructor());
-    shared->set_instance_class_name(isolate->heap()->RegExp_string());
-    shared->DontAdaptArguments();
-    shared->set_length(2);
-
-    Handle<JSObject> proto =
-        factory->NewJSObject(isolate->object_function(), TENURED);
-    JSObject::AddProperty(proto, factory->constructor_string(), regexp_fun,
-                          DONT_ENUM);
-    Accessors::FunctionSetPrototype(regexp_fun, proto).Assert();
+    regexp_fun->shared()->SetConstructStub(
+        *isolate->builtins()->JSBuiltinsConstructStub());
 
     DCHECK(regexp_fun->has_initial_map());
     Handle<Map> initial_map(regexp_fun->initial_map());

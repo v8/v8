@@ -13,6 +13,7 @@ var ExpandReplacement;
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
+var GlobalRegExpPrototype;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MaxSimple;
@@ -76,6 +77,37 @@ function PatternFlags(pattern) {
          (REGEXP_MULTILINE(pattern) ? 'm' : '') +
          (REGEXP_UNICODE(pattern) ? 'u' : '') +
          (REGEXP_STICKY(pattern) ? 'y' : '');
+}
+
+
+// ES#sec-regexp-pattern-flags
+// RegExp ( pattern, flags )
+function RegExpConstructor(pattern, flags) {
+  var newtarget = new.target;
+  var pattern_is_regexp = IsRegExp(pattern);
+
+  if (IS_UNDEFINED(newtarget)) {
+    newtarget = GlobalRegExp;
+
+    // ES6 section 21.2.3.1 step 3.b
+    if (pattern_is_regexp && IS_UNDEFINED(flags) &&
+        pattern.constructor === newtarget) {
+      return pattern;
+    }
+  }
+
+  if (IS_REGEXP(pattern)) {
+    if (IS_UNDEFINED(flags)) flags = PatternFlags(pattern);
+    pattern = REGEXP_SOURCE(pattern);
+
+  } else if (pattern_is_regexp) {
+    var input_pattern = pattern;
+    pattern = pattern.source;
+    if (IS_UNDEFINED(flags)) flags = input_pattern.flags;
+  }
+
+  var object = %_NewObject(GlobalRegExp, newtarget);
+  return RegExpInitialize(object, pattern, flags);
 }
 
 
@@ -339,7 +371,7 @@ function RegExpToString() {
     throw %make_type_error(
         kIncompatibleMethodReceiver, 'RegExp.prototype.toString', this);
   }
-  if (this === GlobalRegExp.prototype) {
+  if (this === GlobalRegExpPrototype) {
     %IncrementUseCounter(kRegExpPrototypeToString);
   }
   return '/' + TO_STRING(this.source) + '/' + TO_STRING(this.flags);
@@ -1004,7 +1036,7 @@ function RegExpGetFlags() {
 function RegExpGetGlobal() {
   if (!IS_REGEXP(this)) {
     // TODO(littledan): Remove this RegExp compat workaround
-    if (this === GlobalRegExp.prototype) {
+    if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
@@ -1019,7 +1051,7 @@ function RegExpGetGlobal() {
 function RegExpGetIgnoreCase() {
   if (!IS_REGEXP(this)) {
     // TODO(littledan): Remove this RegExp compat workaround
-    if (this === GlobalRegExp.prototype) {
+    if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
@@ -1033,7 +1065,7 @@ function RegExpGetIgnoreCase() {
 function RegExpGetMultiline() {
   if (!IS_REGEXP(this)) {
     // TODO(littledan): Remove this RegExp compat workaround
-    if (this === GlobalRegExp.prototype) {
+    if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
@@ -1047,7 +1079,7 @@ function RegExpGetMultiline() {
 function RegExpGetSource() {
   if (!IS_REGEXP(this)) {
     // TODO(littledan): Remove this RegExp compat workaround
-    if (this === GlobalRegExp.prototype) {
+    if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeSourceGetter);
       return "(?:)";
     }
@@ -1062,7 +1094,7 @@ function RegExpGetSticky() {
   if (!IS_REGEXP(this)) {
     // Compat fix: RegExp.prototype.sticky == undefined; UseCounter tracks it
     // TODO(littledan): Remove this workaround or standardize it
-    if (this === GlobalRegExp.prototype) {
+    if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeStickyGetter);
       return UNDEFINED;
     }
@@ -1077,7 +1109,7 @@ function RegExpGetSticky() {
 function RegExpGetUnicode() {
   if (!IS_REGEXP(this)) {
     // TODO(littledan): Remove this RegExp compat workaround
-    if (this === GlobalRegExp.prototype) {
+    if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeUnicodeGetter);
       return UNDEFINED;
     }
@@ -1094,6 +1126,13 @@ function RegExpSpecies() {
 
 
 // -------------------------------------------------------------------
+
+%FunctionSetInstanceClassName(GlobalRegExp, 'RegExp');
+GlobalRegExpPrototype = new GlobalObject();
+%FunctionSetPrototype(GlobalRegExp, GlobalRegExpPrototype);
+%AddNamedProperty(
+    GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
+%SetCode(GlobalRegExp, RegExpConstructor);
 
 utils.InstallGetter(GlobalRegExp, speciesSymbol, RegExpSpecies);
 
