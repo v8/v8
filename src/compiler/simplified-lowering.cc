@@ -912,6 +912,9 @@ class RepresentationSelector {
     }
     // Convert inputs to the output representation of this phi, pass the
     // truncation truncation along.
+    if (output == MachineRepresentation::kTagged) {
+      truncation = Truncation::Any();
+    }
     UseInfo input_use(output, truncation);
     ProcessInput(node, 1, input_use);
     ProcessInput(node, 2, input_use);
@@ -936,6 +939,9 @@ class RepresentationSelector {
 
     // Convert inputs to the output representation of this phi, pass the
     // truncation along.
+    if (output == MachineRepresentation::kTagged) {
+      truncation = Truncation::Any();
+    }
     UseInfo input_use(output, truncation);
     for (int i = 0; i < node->InputCount(); i++) {
       ProcessInput(node, i, i < values ? input_use : UseInfo::None());
@@ -2415,6 +2421,9 @@ class RepresentationSelector {
         MachineRepresentation output =
             GetOutputInfoForPhi(node, TypeOf(node->InputAt(0)), truncation);
 
+        if (output == MachineRepresentation::kTagged) {
+          truncation = Truncation::Any();
+        }
         VisitUnop(node, UseInfo(output, truncation), output);
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
