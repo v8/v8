@@ -630,69 +630,61 @@ void CodeStubAssembler::BranchIfSimd128Equal(Node* lhs, Node* lhs_map,
   Goto(if_notequal);
 }
 
+void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
+    Node* receiver_map, Label* definitely_no_elements,
+    Label* possibly_elements) {
+  Variable var_map(this, MachineRepresentation::kTagged);
+  var_map.Bind(receiver_map);
+  Label loop_body(this, &var_map);
+  Node* empty_elements = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
+  Goto(&loop_body);
+
+  Bind(&loop_body);
+  {
+    Node* map = var_map.value();
+    Node* prototype = LoadMapPrototype(map);
+    GotoIf(WordEqual(prototype, NullConstant()), definitely_no_elements);
+    Node* prototype_map = LoadMap(prototype);
+    // Pessimistically assume elements if a Proxy, Special API Object,
+    // or JSValue wrapper is found on the prototype chain. After this
+    // instance type check, it's not necessary to check for interceptors or
+    // access checks.
+    GotoIf(Int32LessThanOrEqual(LoadMapInstanceType(prototype_map),
+                                Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
+           possibly_elements);
+    GotoIf(WordNotEqual(LoadElements(prototype), empty_elements),
+           possibly_elements);
+    var_map.Bind(prototype_map);
+    Goto(&loop_body);
+  }
+}
+
 void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
                                             Label* if_true, Label* if_false) {
-  Node* int32_zero = Int32Constant(0);
-  Node* int32_one = Int32Constant(1);
-
-  Node* empty_elements = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
-
-  Variable last_map(this, MachineRepresentation::kTagged);
-  Label check_prototype(this);
-
-  // Bailout if Smi
+  // Bailout if receiver is a Smi.
   GotoIf(WordIsSmi(object), if_false);
 
   Node* map = LoadMap(object);
-  last_map.Bind(map);
 
-  // Bailout if instance type is not JS_ARRAY_TYPE
+  // Bailout if instance type is not JS_ARRAY_TYPE.
   GotoIf(WordNotEqual(LoadMapInstanceType(map), Int32Constant(JS_ARRAY_TYPE)),
          if_false);
 
   Node* bit_field2 = LoadMapBitField2(map);
   Node* elements_kind = BitFieldDecode<Map::ElementsKindBits>(bit_field2);
 
-  // Bailout if slow receiver elements
+  // Bailout if receiver has slow elements.
   GotoIf(
       Int32GreaterThan(elements_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
       if_false);
 
+  // Check prototype chain if receiver does not have packed elements.
   STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == (FAST_SMI_ELEMENTS | 1));
   STATIC_ASSERT(FAST_HOLEY_ELEMENTS == (FAST_ELEMENTS | 1));
   STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == (FAST_DOUBLE_ELEMENTS | 1));
-
-  // Check prototype chain if receiver does not have packed elements
-  Node* holey_elements = Word32And(elements_kind, int32_one);
-  Branch(Word32Equal(holey_elements, int32_zero), if_true, &check_prototype);
-
-  Bind(&check_prototype);
-  {
-    Label loop_body(this, &last_map);
-    Goto(&loop_body);
-    Bind(&loop_body);
-    Node* current_map = last_map.value();
-    Node* proto = LoadObjectField(current_map, Map::kPrototypeOffset);
-
-    // End loop
-    GotoIf(WordEqual(proto, NullConstant()), if_true);
-
-    // ASSERT: proto->IsHeapObject()
-    Node* proto_map = LoadMap(proto);
-
-    // Bailout if a Proxy, API Object, or JSValue wrapper found in prototype
-    // Because of this bailout, it's not necessary to check for interceptors or
-    // access checks on the prototype chain.
-    GotoIf(Int32LessThanOrEqual(LoadMapInstanceType(proto_map),
-                                Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
-           if_false);
-
-    // Bailout if prototype contains non-empty elements
-    GotoUnless(WordEqual(LoadElements(proto), empty_elements), if_false);
-
-    last_map.Bind(proto_map);
-    Goto(&loop_body);
-  }
+  Node* holey_elements = Word32And(elements_kind, Int32Constant(1));
+  GotoIf(Word32Equal(holey_elements, Int32Constant(0)), if_true);
+  BranchIfPrototypesHaveNoElements(map, if_true, if_false);
 }
 
 Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
@@ -3489,13 +3481,14 @@ Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
   return var_intptr_key.value();
 }
 
-// |is_jsarray| should be non-zero for JSArrays.
-void CodeStubAssembler::EmitBoundsCheck(Node* object, Node* elements,
-                                        Node* intptr_key, Node* is_jsarray,
-                                        Label* miss) {
+void CodeStubAssembler::EmitFastElementsBoundsCheck(Node* object,
+                                                    Node* elements,
+                                                    Node* intptr_key,
+                                                    Node* is_jsarray_condition,
+                                                    Label* miss) {
   Variable var_length(this, MachineRepresentation::kTagged);
   Label if_array(this), length_loaded(this, &var_length);
-  GotoUnless(WordEqual(is_jsarray, IntPtrConstant(0)), &if_array);
+  GotoIf(is_jsarray_condition, &if_array);
   {
     var_length.Bind(SmiUntag(LoadFixedArrayBaseLength(elements)));
     Goto(&length_loaded);
@@ -3512,18 +3505,20 @@ void CodeStubAssembler::EmitBoundsCheck(Node* object, Node* elements,
 // |key| should be untagged (int32).
 void CodeStubAssembler::EmitElementLoad(Node* object, Node* elements,
                                         Node* elements_kind, Node* key,
+                                        Node* is_jsarray_condition,
                                         Label* if_hole, Label* rebox_double,
                                         Variable* var_double_value,
-                                        Label* miss) {
+                                        Label* unimplemented_elements_kind,
+                                        Label* out_of_bounds, Label* miss) {
   Label if_typed_array(this), if_fast_packed(this), if_fast_holey(this),
-      if_fast_double(this), if_fast_holey_double(this),
-      unimplemented_elements_kind(this);
-  STATIC_ASSERT(LAST_ELEMENTS_KIND == LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+      if_fast_double(this), if_fast_holey_double(this), if_nonfast(this),
+      if_dictionary(this), unreachable(this);
   GotoIf(
-      IntPtrGreaterThanOrEqual(
-          elements_kind, IntPtrConstant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
-      &if_typed_array);
+      IntPtrGreaterThan(elements_kind, IntPtrConstant(LAST_FAST_ELEMENTS_KIND)),
+      &if_nonfast);
 
+  EmitFastElementsBoundsCheck(object, elements, key, is_jsarray_condition,
+                              out_of_bounds);
   int32_t kinds[] = {// Handled by if_fast_packed.
                      FAST_SMI_ELEMENTS, FAST_ELEMENTS,
                      // Handled by if_fast_holey.
@@ -3540,14 +3535,8 @@ void CodeStubAssembler::EmitElementLoad(Node* object, Node* elements,
                      &if_fast_double,
                      // FAST_HOLEY_DOUBLE_ELEMENTS
                      &if_fast_holey_double};
-  Switch(elements_kind, &unimplemented_elements_kind, kinds, labels,
+  Switch(elements_kind, unimplemented_elements_kind, kinds, labels,
          arraysize(kinds));
-  Bind(&unimplemented_elements_kind);
-  {
-    // Crash if we get here.
-    DebugBreak();
-    Goto(miss);
-  }
 
   Bind(&if_fast_packed);
   {
@@ -3593,6 +3582,40 @@ void CodeStubAssembler::EmitElementLoad(Node* object, Node* elements,
     Goto(rebox_double);
   }
 
+  Bind(&if_nonfast);
+  {
+    STATIC_ASSERT(LAST_ELEMENTS_KIND == LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+    GotoIf(IntPtrGreaterThanOrEqual(
+               elements_kind,
+               IntPtrConstant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
+           &if_typed_array);
+    GotoIf(IntPtrEqual(elements_kind, IntPtrConstant(DICTIONARY_ELEMENTS)),
+           &if_dictionary);
+    Goto(unimplemented_elements_kind);
+  }
+
+  Bind(&if_dictionary);
+  {
+    Comment("dictionary elements");
+    GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), out_of_bounds);
+    Variable var_entry(this, MachineRepresentation::kWord32);
+    Label if_found(this);
+    NumberDictionaryLookup<SeededNumberDictionary>(elements, key, &if_found,
+                                                   &var_entry, if_hole);
+    Bind(&if_found);
+    // Check that the value is a data property.
+    Node* details_index = EntryToIndex<SeededNumberDictionary>(
+        var_entry.value(), SeededNumberDictionary::kEntryDetailsIndex);
+    Node* details = SmiToWord32(LoadFixedArrayElement(elements, details_index));
+    Node* kind = BitFieldDecode<PropertyDetails::KindField>(details);
+    // TODO(jkummerow): Support accessors without missing?
+    GotoUnless(Word32Equal(kind, Int32Constant(kData)), miss);
+    // Finally, load the value.
+    Node* value_index = EntryToIndex<SeededNumberDictionary>(
+        var_entry.value(), SeededNumberDictionary::kEntryValueIndex);
+    Return(LoadFixedArrayElement(elements, value_index));
+  }
+
   Bind(&if_typed_array);
   {
     Comment("typed elements");
@@ -3603,6 +3626,12 @@ void CodeStubAssembler::EmitElementLoad(Node* object, Node* elements,
     Node* neutered_bit =
         Word32And(bitfield, Int32Constant(JSArrayBuffer::WasNeutered::kMask));
     GotoUnless(Word32Equal(neutered_bit, Int32Constant(0)), miss);
+
+    // Bounds check.
+    Node* length =
+        SmiUntag(LoadObjectField(object, JSTypedArray::kLengthOffset));
+    GotoUnless(UintPtrLessThan(key, length), out_of_bounds);
+
     // Backing store = external_pointer + base_pointer.
     Node* external_pointer =
         LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
@@ -3711,13 +3740,22 @@ void CodeStubAssembler::HandleLoadICHandlerCase(
       Node* elements = LoadElements(p->receiver);
       Node* is_jsarray =
           WordAnd(handler_word, IntPtrConstant(KeyedLoadIsJsArray::kMask));
-      EmitBoundsCheck(p->receiver, elements, key, is_jsarray, miss);
-      Label if_hole(this);
-
+      Node* is_jsarray_condition = WordNotEqual(is_jsarray, IntPtrConstant(0));
       Node* elements_kind = BitFieldDecode<KeyedLoadElementsKind>(handler_word);
+      Label if_hole(this), unimplemented_elements_kind(this);
+      Label* out_of_bounds = miss;
+      EmitElementLoad(p->receiver, elements, elements_kind, key,
+                      is_jsarray_condition, &if_hole, &rebox_double,
+                      &var_double_value, &unimplemented_elements_kind,
+                      out_of_bounds, miss);
 
-      EmitElementLoad(p->receiver, elements, elements_kind, key, &if_hole,
-                      &rebox_double, &var_double_value, miss);
+      Bind(&unimplemented_elements_kind);
+      {
+        // Smi handlers should only be installed for supported elements kinds.
+        // Crash if we get here.
+        DebugBreak();
+        Goto(miss);
+      }
 
       Bind(&if_hole);
       {
@@ -3893,6 +3931,166 @@ void CodeStubAssembler::KeyedLoadIC(const LoadICParameters* p) {
     Comment("KeyedLoadIC_miss");
     TailCallRuntime(Runtime::kKeyedLoadIC_Miss, p->context, p->receiver,
                     p->name, p->slot, p->vector);
+  }
+}
+
+void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
+  Variable var_index(this, MachineType::PointerRepresentation());
+  Label if_index(this), if_key_is_not_number(this), if_index_name(this),
+      if_unique_name(this), if_element_hole(this), if_oob(this), slow(this),
+      stub_cache_miss(this), if_property_dictionary(this);
+
+  Node* receiver = p->receiver;
+  GotoIf(WordIsSmi(receiver), &slow);
+  Node* receiver_map = LoadMap(receiver);
+  Node* instance_type = LoadMapInstanceType(receiver_map);
+  // Receivers requiring non-standard element accesses (interceptors, access
+  // checks, strings and string wrappers, proxies) are handled in the runtime.
+  GotoIf(Int32LessThanOrEqual(instance_type,
+                              Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
+         &slow);
+
+  // Check what kind of key we have.
+  Node* key = p->name;
+  var_index.Bind(TryToIntptr(key, &if_key_is_not_number));
+  Goto(&if_index);
+
+  Node* hash = nullptr;
+  // TODO(jkummerow): Unify this with CodeStubAssembler::TryToName().
+  Bind(&if_key_is_not_number);
+  {
+    Node* key_map = LoadMap(key);
+    Node* key_instance_type = LoadMapInstanceType(key_map);
+    // Jump to the runtime if key is neither String nor Symbol.
+    GotoIf(Int32GreaterThan(key_instance_type,
+                            Int32Constant(LAST_UNIQUE_NAME_TYPE)),
+           &slow);
+    // Symbols are always unique names.
+    GotoIf(Word32Equal(key_instance_type, Int32Constant(LAST_UNIQUE_NAME_TYPE)),
+           &if_unique_name);
+    // |key| is a String. Check if it has a cached array index.
+    hash = LoadNameHashField(key);
+    Node* contains_index =
+        Word32And(hash, Int32Constant(Name::kContainsCachedArrayIndexMask));
+    GotoIf(Word32Equal(contains_index, Int32Constant(0)), &if_index_name);
+    // Otherwise, jump to the runtime if the string is not internalized.
+    STATIC_ASSERT(kNotInternalizedTag != 0);
+    Node* not_internalized =
+        Word32And(key_instance_type, Int32Constant(kIsNotInternalizedMask));
+    GotoIf(Word32NotEqual(not_internalized, Int32Constant(0)), &slow);
+    Goto(&if_unique_name);
+  }
+
+  Bind(&if_index_name);
+  {
+    Comment("string key with cached array index");
+    var_index.Bind(BitFieldDecode<String::ArrayIndexValueBits>(hash));
+    Goto(&if_index);
+  }
+
+  Bind(&if_index);
+  {
+    Comment("integer index");
+    Node* index = var_index.value();
+    Node* elements = LoadElements(receiver);
+    Node* bitfield2 = LoadMapBitField2(receiver_map);
+    Node* elements_kind = BitFieldDecode<Map::ElementsKindBits>(bitfield2);
+    Node* is_jsarray_condition =
+        Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE));
+    Variable var_double_value(this, MachineRepresentation::kFloat64);
+    Label rebox_double(this, &var_double_value);
+
+    // Unimplemented elements kinds fall back to a runtime call.
+    Label* unimplemented_elements_kind = &slow;
+    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
+    EmitElementLoad(receiver, elements, elements_kind, index,
+                    is_jsarray_condition, &if_element_hole, &rebox_double,
+                    &var_double_value, unimplemented_elements_kind, &if_oob,
+                    &slow);
+
+    Bind(&rebox_double);
+    Return(AllocateHeapNumberWithValue(var_double_value.value()));
+  }
+
+  Bind(&if_oob);
+  {
+    Comment("out of bounds");
+    Node* index = var_index.value();
+    // Negative keys can't take the fast OOB path.
+    GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), &slow);
+    // Positive OOB indices are effectively the same as hole loads.
+    Goto(&if_element_hole);
+  }
+
+  Bind(&if_element_hole);
+  {
+    Comment("found the hole");
+    Label return_undefined(this);
+    BranchIfPrototypesHaveNoElements(receiver_map, &return_undefined, &slow);
+
+    Bind(&return_undefined);
+    Return(UndefinedConstant());
+  }
+
+  Node* properties = nullptr;
+  Bind(&if_unique_name);
+  {
+    Comment("key is unique name");
+    // Check if the receiver has fast or slow properties.
+    properties = LoadProperties(receiver);
+    Node* properties_map = LoadMap(properties);
+    GotoIf(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
+           &if_property_dictionary);
+
+    Comment("stub cache probe for fast property load");
+    Variable var_handler(this, MachineRepresentation::kTagged);
+    Label found_handler(this, &var_handler), stub_cache_miss(this);
+    TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
+                      &found_handler, &var_handler, &stub_cache_miss);
+    Bind(&found_handler);
+    { HandleLoadICHandlerCase(p, var_handler.value(), &slow); }
+
+    Bind(&stub_cache_miss);
+    {
+      Comment("KeyedLoadGeneric_miss");
+      TailCallRuntime(Runtime::kKeyedLoadIC_Miss, p->context, p->receiver,
+                      p->name, p->slot, p->vector);
+    }
+  }
+
+  Bind(&if_property_dictionary);
+  {
+    Comment("dictionary property load");
+    // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
+    // seeing global objects here (which would need special handling).
+
+    Variable var_name_index(this, MachineRepresentation::kWord32);
+    Label dictionary_found(this, &var_name_index);
+    NameDictionaryLookup<NameDictionary>(properties, key, &dictionary_found,
+                                         &var_name_index, &slow);
+    Bind(&dictionary_found);
+    {
+      Variable var_details(this, MachineRepresentation::kWord32);
+      Variable var_value(this, MachineRepresentation::kTagged);
+      LoadPropertyFromNameDictionary(properties, var_name_index.value(),
+                                     &var_details, &var_value);
+      Node* kind =
+          BitFieldDecode<PropertyDetails::KindField>(var_details.value());
+      // TODO(jkummerow): Support accessors without missing?
+      GotoUnless(Word32Equal(kind, Int32Constant(kData)), &slow);
+      IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(),
+                       1);
+      Return(var_value.value());
+    }
+  }
+
+  Bind(&slow);
+  {
+    Comment("KeyedLoadGeneric_slow");
+    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_slow(), 1);
+    // TODO(jkummerow): Should we use the GetProperty TF stub instead?
+    TailCallRuntime(Runtime::kKeyedGetProperty, p->context, p->receiver,
+                    p->name);
   }
 }
 
