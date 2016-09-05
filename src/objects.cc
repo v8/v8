@@ -16392,7 +16392,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
     // Map has changed, so use generic, but slower, method.
     RETURN_ON_EXCEPTION(
         isolate,
-        JSReceiver::SetProperty(regexp, factory->lastIndex_string(),
+        JSReceiver::SetProperty(regexp, factory->last_index_string(),
                                 Handle<Smi>(Smi::FromInt(0), isolate), STRICT),
         JSRegExp);
   }
