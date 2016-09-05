@@ -1958,6 +1958,10 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
     break;
   }
 
+  if (user->opcode() == IrOpcode::kWord32Equal) {
+    return VisitWordCompare(selector, user, cont);
+  }
+
   // Continuation could not be combined with a compare, emit compare against 0.
   ArmOperandGenerator g(selector);
   InstructionCode const opcode =
