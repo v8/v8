@@ -52,7 +52,7 @@
         'gn_release_x86_no_snap_shared_minimal_symbols',
       'V8 Win64': 'gn_release_x64_minimal_symbols',
       'V8 Win64 - debug': 'gn_debug_x64_minimal_symbols',
-      'V8 Win64 - clang': 'gn_release_x64_clang',
+      'V8 Win64 - clang': 'gyp_release_x64_clang',
       # Mac.
       'V8 Mac': 'gn_release_x86',
       'V8 Mac - debug': 'gn_debug_x86',
@@ -249,8 +249,6 @@
     # GN release configs for x64.
     'gn_release_x64': [
       'gn', 'release_bot', 'x64', 'swarming'],
-    'gn_release_x64_clang': [
-      'gn', 'release_bot', 'x64', 'clang', 'swarming'],
     'gn_release_x64_internal': [
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_minimal_symbols': [
@@ -385,6 +383,8 @@
       'v8_verify_heap'],
     'gyp_release_x64_cfi_symbolized': [
       'gyp', 'release_bot', 'x64', 'cfi', 'swarming', 'symbolized'],
+    'gyp_release_x64_clang': [
+      'gyp', 'release_bot', 'x64', 'clang', 'swarming'],
     'gyp_release_x64_gcc_coverage': [
       'gyp', 'release_bot', 'x64', 'coverage', 'gcc'],
 
