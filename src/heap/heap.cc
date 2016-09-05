@@ -1555,6 +1555,11 @@ void PromotionQueue::Initialize() {
   emergency_stack_ = NULL;
 }
 
+void PromotionQueue::Destroy() {
+  DCHECK(is_empty());
+  delete emergency_stack_;
+  emergency_stack_ = NULL;
+}
 
 void PromotionQueue::RelocateQueueHead() {
   DCHECK(emergency_stack_ == NULL);

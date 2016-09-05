@@ -331,93 +331,46 @@ class ScavengeJob;
 class StoreBuffer;
 class WeakObjectRetainer;
 
-enum PromotionMode { PROMOTE_MARKED, DEFAULT_PROMOTION };
-
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
-// A queue of objects promoted during scavenge. Each object is accompanied
-// by it's size to avoid dereferencing a map pointer for scanning.
-// The last page in to-space is used for the promotion queue. On conflict
-// during scavenge, the promotion queue is allocated externally and all
-// entries are copied to the external queue.
+enum PromotionMode { PROMOTE_MARKED, DEFAULT_PROMOTION };
+
+enum ArrayStorageAllocationMode {
+  DONT_INITIALIZE_ARRAY_ELEMENTS,
+  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+};
+
+enum class ClearRecordedSlots { kYes, kNo };
+
+enum class ClearBlackArea { kYes, kNo };
+
+// A queue of objects promoted during scavenge. Each object is accompanied by
+// its size to avoid dereferencing a map pointer for scanning. The last page in
+// to-space is used for the promotion queue. On conflict during scavenge, the
+// promotion queue is allocated externally and all entries are copied to the
+// external queue.
 class PromotionQueue {
  public:
   explicit PromotionQueue(Heap* heap)
-      : front_(NULL),
-        rear_(NULL),
-        limit_(NULL),
-        emergency_stack_(0),
+      : front_(nullptr),
+        rear_(nullptr),
+        limit_(nullptr),
+        emergency_stack_(nullptr),
         heap_(heap) {}
 
   void Initialize();
+  void Destroy();
 
-  void Destroy() {
-    DCHECK(is_empty());
-    delete emergency_stack_;
-    emergency_stack_ = NULL;
-  }
+  inline void SetNewLimit(Address limit);
+  inline bool IsBelowPromotionQueue(Address to_space_top);
 
-  Page* GetHeadPage() {
-    return Page::FromAllocationAreaAddress(reinterpret_cast<Address>(rear_));
-  }
-
-  void SetNewLimit(Address limit) {
-    // If we are already using an emergency stack, we can ignore it.
-    if (emergency_stack_) return;
-
-    // If the limit is not on the same page, we can ignore it.
-    if (Page::FromAllocationAreaAddress(limit) != GetHeadPage()) return;
-
-    limit_ = reinterpret_cast<struct Entry*>(limit);
-
-    if (limit_ <= rear_) {
-      return;
-    }
-
-    RelocateQueueHead();
-  }
-
-  bool IsBelowPromotionQueue(Address to_space_top) {
-    // If an emergency stack is used, the to-space address cannot interfere
-    // with the promotion queue.
-    if (emergency_stack_) return true;
-
-    // If the given to-space top pointer and the head of the promotion queue
-    // are not on the same page, then the to-space objects are below the
-    // promotion queue.
-    if (GetHeadPage() != Page::FromAddress(to_space_top)) {
-      return true;
-    }
-    // If the to space top pointer is smaller or equal than the promotion
-    // queue head, then the to-space objects are below the promotion queue.
-    return reinterpret_cast<struct Entry*>(to_space_top) <= rear_;
-  }
+  inline void insert(HeapObject* target, int32_t size, bool was_marked_black);
+  inline void remove(HeapObject** target, int32_t* size,
+                     bool* was_marked_black);
 
   bool is_empty() {
     return (front_ == rear_) &&
-           (emergency_stack_ == NULL || emergency_stack_->length() == 0);
-  }
-
-  inline void insert(HeapObject* target, int32_t size, bool was_marked_black);
-
-  void remove(HeapObject** target, int32_t* size, bool* was_marked_black) {
-    DCHECK(!is_empty());
-    if (front_ == rear_) {
-      Entry e = emergency_stack_->RemoveLast();
-      *target = e.obj_;
-      *size = e.size_;
-      *was_marked_black = e.was_marked_black_;
-      return;
-    }
-
-    struct Entry* entry = reinterpret_cast<struct Entry*>(--front_);
-    *target = entry->obj_;
-    *size = entry->size_;
-    *was_marked_black = entry->was_marked_black_;
-
-    // Assert no underflow.
-    SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
-                                reinterpret_cast<Address>(front_));
+           (emergency_stack_ == nullptr || emergency_stack_->length() == 0);
   }
 
  private:
@@ -430,6 +383,8 @@ class PromotionQueue {
     bool was_marked_black_ : 1;
   };
 
+  inline Page* GetHeadPage();
+
   void RelocateQueueHead();
 
   // The front of the queue is higher in the memory page chain than the rear.
@@ -438,21 +393,10 @@ class PromotionQueue {
   struct Entry* limit_;
 
   List<Entry>* emergency_stack_;
-
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };
-
-
-enum ArrayStorageAllocationMode {
-  DONT_INITIALIZE_ARRAY_ELEMENTS,
-  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
-};
-
-enum class ClearRecordedSlots { kYes, kNo };
-
-enum class ClearBlackArea { kYes, kNo };
 
 class Heap {
  public:

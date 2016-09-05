@@ -50,6 +50,62 @@ void PromotionQueue::insert(HeapObject* target, int32_t size,
 #endif
 }
 
+void PromotionQueue::remove(HeapObject** target, int32_t* size,
+                            bool* was_marked_black) {
+  DCHECK(!is_empty());
+  if (front_ == rear_) {
+    Entry e = emergency_stack_->RemoveLast();
+    *target = e.obj_;
+    *size = e.size_;
+    *was_marked_black = e.was_marked_black_;
+    return;
+  }
+
+  struct Entry* entry = reinterpret_cast<struct Entry*>(--front_);
+  *target = entry->obj_;
+  *size = entry->size_;
+  *was_marked_black = entry->was_marked_black_;
+
+  // Assert no underflow.
+  SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
+                              reinterpret_cast<Address>(front_));
+}
+
+Page* PromotionQueue::GetHeadPage() {
+  return Page::FromAllocationAreaAddress(reinterpret_cast<Address>(rear_));
+}
+
+void PromotionQueue::SetNewLimit(Address limit) {
+  // If we are already using an emergency stack, we can ignore it.
+  if (emergency_stack_) return;
+
+  // If the limit is not on the same page, we can ignore it.
+  if (Page::FromAllocationAreaAddress(limit) != GetHeadPage()) return;
+
+  limit_ = reinterpret_cast<struct Entry*>(limit);
+
+  if (limit_ <= rear_) {
+    return;
+  }
+
+  RelocateQueueHead();
+}
+
+bool PromotionQueue::IsBelowPromotionQueue(Address to_space_top) {
+  // If an emergency stack is used, the to-space address cannot interfere
+  // with the promotion queue.
+  if (emergency_stack_) return true;
+
+  // If the given to-space top pointer and the head of the promotion queue
+  // are not on the same page, then the to-space objects are below the
+  // promotion queue.
+  if (GetHeadPage() != Page::FromAddress(to_space_top)) {
+    return true;
+  }
+  // If the to space top pointer is smaller or equal than the promotion
+  // queue head, then the to-space objects are below the promotion queue.
+  return reinterpret_cast<struct Entry*>(to_space_top) <= rear_;
+}
 
 #define ROOT_ACCESSOR(type, name, camel_name) \
   type* Heap::name() { return type::cast(roots_[k##camel_name##RootIndex]); }
