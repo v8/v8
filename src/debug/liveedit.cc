@@ -10,11 +10,9 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
-#include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/isolate-inl.h"
-#include "src/isolate.h"
 #include "src/messages.h"
 #include "src/source-position-table.h"
 #include "src/v8.h"
@@ -1841,8 +1839,7 @@ Handle<JSArray> LiveEditFunctionTracker::Collect(FunctionLiteral* node,
 
 LiveEditFunctionTracker::LiveEditFunctionTracker(Handle<Script> script,
                                                  Zone* zone, Isolate* isolate)
-    : AstTraversalVisitor<LiveEditFunctionTracker>(
-          isolate->stack_guard()->climit()) {
+    : AstTraversalVisitor<LiveEditFunctionTracker>(isolate) {
   current_parent_index_ = -1;
   isolate_ = isolate;
   len_ = 0;

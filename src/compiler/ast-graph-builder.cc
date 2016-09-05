@@ -436,7 +436,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kJavaScriptFunction, info->num_parameters() + 1,
           info->scope()->num_stack_slots(), info->shared_info())) {
-  InitializeAstVisitor(info->isolate()->stack_guard()->real_climit());
+  InitializeAstVisitor(info->isolate());
 }
 
 

@@ -41,10 +41,8 @@
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
 // GetRootConstructor
-#include "src/execution.h"
 #include "src/ic/ic-inl.h"
 #include "src/isolate-inl.h"
-#include "src/isolate.h"
 #include "src/runtime/runtime.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -3520,7 +3518,7 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
   function_state_ = &initial_function_state_;
-  InitializeAstVisitor(info->isolate()->stack_guard()->real_climit());
+  InitializeAstVisitor(info->isolate());
   if (top_info()->is_tracking_positions()) {
     SetSourcePosition(info->shared_info()->start_position());
   }

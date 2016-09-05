@@ -6,8 +6,6 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/execution.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +21,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         slot_cache_(zone),
         dont_optimize_reason_(kNoReason),
         catch_prediction_(HandlerTable::UNCAUGHT) {
-    InitializeAstVisitor(isolate->stack_guard()->real_climit());
+    InitializeAstVisitor(isolate);
   }
 
   bool Renumber(FunctionLiteral* node);

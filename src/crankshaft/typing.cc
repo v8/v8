@@ -6,10 +6,8 @@
 
 #include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
-#include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/frames.h"
-#include "src/isolate.h"
 #include "src/ostreams.h"
 #include "src/splay-tree-inl.h"
 
@@ -30,7 +28,7 @@ AstTyper::AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
               handle(closure->context()->native_context())),
       store_(zone),
       bounds_(bounds) {
-  InitializeAstVisitor(isolate->stack_guard()->real_climit());
+  InitializeAstVisitor(isolate);
 }
 
 

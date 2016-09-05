@@ -9,8 +9,6 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
-#include "src/execution.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +21,7 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_builtin)
   found_ = false;
   done_ = false;
   is_builtin_ = is_builtin;
-  InitializeAstVisitor(isolate->stack_guard()->real_climit());
+  InitializeAstVisitor(isolate);
 }
 
 Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
@@ -571,7 +569,7 @@ class IndentedScope BASE_EMBEDDED {
 
 AstPrinter::AstPrinter(Isolate* isolate)
     : isolate_(isolate), output_(nullptr), size_(0), pos_(0), indent_(0) {
-  InitializeAstVisitor(isolate->stack_guard()->real_climit());
+  InitializeAstVisitor(isolate);
 }
 
 AstPrinter::~AstPrinter() {
