@@ -89,15 +89,6 @@ class Types {
 
     Integer = Type::Range(-V8_INFINITY, +V8_INFINITY, zone);
 
-    NumberArray = Type::Array(Number, zone);
-    StringArray = Type::Array(String, zone);
-    AnyArray = Type::Array(Any, zone);
-
-    SignedFunction1 = Type::Function(SignedSmall, SignedSmall, zone);
-    NumberFunction1 = Type::Function(Number, Number, zone);
-    NumberFunction2 = Type::Function(Number, Number, Number, zone);
-    MethodFunction = Type::Function(String, Object, 0, zone);
-
     for (int i = 0; i < 30; ++i) {
       types.push_back(Fuzz());
     }
@@ -131,15 +122,6 @@ class Types {
 
   Type* Integer;
 
-  Type* NumberArray;
-  Type* StringArray;
-  Type* AnyArray;
-
-  Type* SignedFunction1;
-  Type* NumberFunction1;
-  Type* NumberFunction2;
-  Type* MethodFunction;
-
   typedef std::vector<Type*> TypeVector;
   typedef std::vector<Handle<i::Object> > ValueVector;
 
@@ -154,22 +136,6 @@ class Types {
   }
 
   Type* Range(double min, double max) { return Type::Range(min, max, zone_); }
-
-  Type* Array1(Type* element) { return Type::Array(element, zone_); }
-
-  Type* Function0(Type* result, Type* receiver) {
-    return Type::Function(result, receiver, 0, zone_);
-  }
-
-  Type* Function1(Type* result, Type* receiver, Type* arg) {
-    Type* type = Type::Function(result, receiver, 1, zone_);
-    type->AsFunction()->InitParameter(0, arg);
-    return type;
-  }
-
-  Type* Function2(Type* result, Type* arg1, Type* arg2) {
-    return Type::Function(result, arg1, arg2, zone_);
-  }
 
   Type* Union(Type* t1, Type* t2) { return Type::Union(t1, t2, zone_); }
 
@@ -219,22 +185,6 @@ class Types {
         double max = integers[j]->Number();
         if (min > max) std::swap(min, max);
         return Type::Range(min, max, zone_);
-      }
-      case 3: {  // array
-        Type* element = Fuzz(depth / 2);
-        return Type::Array(element, zone_);
-      }
-      case 4:
-      case 5: {  // function
-        Type* result = Fuzz(depth / 2);
-        Type* receiver = Fuzz(depth / 2);
-        int arity = rng_->NextInt(3);
-        Type* type = Type::Function(result, receiver, arity, zone_);
-        for (int i = 0; i < type->AsFunction()->Arity(); ++i) {
-          Type* parameter = Fuzz(depth / 2);
-          type->AsFunction()->InitParameter(i, parameter);
-        }
-        return type;
       }
       default: {  // union
         int n = rng_->NextInt(10);

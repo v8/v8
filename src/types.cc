@@ -146,8 +146,6 @@ Type::bitset BitsetType::Lub(Type* type) {
   }
   if (type->IsConstant()) return type->AsConstant()->Lub();
   if (type->IsRange()) return type->AsRange()->Lub();
-  if (type->IsArray()) return kOtherObject;
-  if (type->IsFunction()) return kFunction;
   if (type->IsTuple()) return kOtherInternal;
   UNREACHABLE();
   return kNone;
@@ -410,24 +408,6 @@ bool Type::SimplyEquals(Type* that) {
   if (this->IsConstant()) {
     return that->IsConstant()
         && *this->AsConstant()->Value() == *that->AsConstant()->Value();
-  }
-  if (this->IsArray()) {
-    return that->IsArray()
-        && this->AsArray()->Element()->Equals(that->AsArray()->Element());
-  }
-  if (this->IsFunction()) {
-    if (!that->IsFunction()) return false;
-    FunctionType* this_fun = this->AsFunction();
-    FunctionType* that_fun = that->AsFunction();
-    if (this_fun->Arity() != that_fun->Arity() ||
-        !this_fun->Result()->Equals(that_fun->Result()) ||
-        !this_fun->Receiver()->Equals(that_fun->Receiver())) {
-      return false;
-    }
-    for (int i = 0, n = this_fun->Arity(); i < n; ++i) {
-      if (!this_fun->Parameter(i)->Equals(that_fun->Parameter(i))) return false;
-    }
-    return true;
   }
   if (this->IsTuple()) {
     if (!that->IsTuple()) return false;
@@ -1110,22 +1090,6 @@ void Type::PrintTo(std::ostream& os, PrintDimension dim) {
         type_i->PrintTo(os, dim);
       }
       os << ")";
-    } else if (this->IsArray()) {
-      os << "Array(";
-      AsArray()->Element()->PrintTo(os, dim);
-      os << ")";
-    } else if (this->IsFunction()) {
-      if (!this->AsFunction()->Receiver()->IsAny()) {
-        this->AsFunction()->Receiver()->PrintTo(os, dim);
-        os << ".";
-      }
-      os << "(";
-      for (int i = 0; i < this->AsFunction()->Arity(); ++i) {
-        if (i > 0) os << ", ";
-        this->AsFunction()->Parameter(i)->PrintTo(os, dim);
-      }
-      os << ")->";
-      this->AsFunction()->Result()->PrintTo(os, dim);
     } else if (this->IsTuple()) {
       os << "<";
       for (int i = 0, n = this->AsTuple()->Arity(); i < n; ++i) {

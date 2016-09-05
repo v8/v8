@@ -136,21 +136,7 @@ class TypeCache final {
   Type* const kJSDateYearType =
       Type::Union(Type::SignedSmall(), Type::NaN(), zone());
 
-#define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
-  Type* const k##TypeName##Array = CreateArray(k##TypeName);
-  TYPED_ARRAYS(TYPED_ARRAY)
-#undef TYPED_ARRAY
-
  private:
-  Type* CreateArray(Type* element) { return Type::Array(element, zone()); }
-
-  Type* CreateArrayFunction(Type* array) {
-    Type* arg1 = Type::Union(Type::Unsigned32(), Type::Object(), zone());
-    Type* arg2 = Type::Union(Type::Unsigned32(), Type::Undefined(), zone());
-    Type* arg3 = arg2;
-    return Type::Function(array, arg1, arg2, arg3, zone());
-  }
-
   template <typename T>
   Type* CreateRange() {
     return CreateRange(std::numeric_limits<T>::min(),

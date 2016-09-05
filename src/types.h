@@ -39,21 +39,11 @@ namespace internal {
 //   InternalizedString < String
 //
 //   Receiver = Object \/ Proxy
-//   Array < Object
-//   Function < Object
 //   RegExp < Object
 //   OtherUndetectable < Object
 //   DetectableReceiver = Receiver - OtherUndetectable
 //
 //   Constant(x) < T  iff instance_type(map(x)) < T
-//   Array(T) < Array
-//   Function(R, S, T0, T1, ...) < Function
-//
-// Both structural Array and Function types are invariant in all parameters;
-// relaxing this would make Union and Intersect operations more involved.
-// There is no subtyping relation between Array or Function types and
-// respective Constant types, since these types cannot be reconstructed
-// for arbitrary heap values.
 //
 //
 // REPRESENTATIONAL DIMENSION
@@ -348,8 +338,6 @@ class TypeBase {
 
   enum Kind {
     kConstant,
-    kArray,
-    kFunction,
     kTuple,
     kUnion,
     kRange
@@ -465,30 +453,6 @@ class RangeType : public TypeBase {
 };
 
 // -----------------------------------------------------------------------------
-// Array types.
-
-class ArrayType : public TypeBase {
- public:
-  Type* Element() { return element_; }
-
- private:
-  friend class Type;
-
-  explicit ArrayType(Type* element) : TypeBase(kArray), element_(element) {}
-
-  static Type* New(Type* element, Zone* zone) {
-    return AsType(new (zone->New(sizeof(ArrayType))) ArrayType(element));
-  }
-
-  static ArrayType* cast(Type* type) {
-    DCHECK(IsKind(type, kArray));
-    return static_cast<ArrayType*>(FromType(type));
-  }
-
-  Type* element_;
-};
-
-// -----------------------------------------------------------------------------
 // Superclass for types with variable number of type fields.
 class StructuralType : public TypeBase {
  public:
@@ -522,38 +486,6 @@ class StructuralType : public TypeBase {
  private:
   int length_;
   Type** elements_;
-};
-
-// -----------------------------------------------------------------------------
-// Function types.
-
-class FunctionType : public StructuralType {
- public:
-  int Arity() { return this->Length() - 2; }
-  Type* Result() { return this->Get(0); }
-  Type* Receiver() { return this->Get(1); }
-  Type* Parameter(int i) { return this->Get(2 + i); }
-
-  void InitParameter(int i, Type* type) { this->Set(2 + i, type); }
-
- private:
-  friend class Type;
-
-  FunctionType(Type* result, Type* receiver, int arity, Zone* zone)
-      : StructuralType(kFunction, 2 + arity, zone) {
-    Set(0, result);
-    Set(1, receiver);
-  }
-
-  static Type* New(Type* result, Type* receiver, int arity, Zone* zone) {
-    return AsType(new (zone->New(sizeof(FunctionType)))
-                      FunctionType(result, receiver, arity, zone));
-  }
-
-  static FunctionType* cast(Type* type) {
-    DCHECK(IsKind(type, kFunction));
-    return static_cast<FunctionType*>(FromType(type));
-  }
 };
 
 // -----------------------------------------------------------------------------
@@ -632,41 +564,6 @@ class Type {
                                                    BitsetType::kUntaggedNumber),
                           zone);
   }
-  static Type* Array(Type* element, Zone* zone) {
-    return ArrayType::New(element, zone);
-  }
-  static Type* Function(Type* result, Type* receiver, int arity, Zone* zone) {
-    return FunctionType::New(result, receiver, arity, zone);
-  }
-  static Type* Function(Type* result, Zone* zone) {
-    return Function(result, Any(), 0, zone);
-  }
-  static Type* Function(Type* result, Type* param0, Zone* zone) {
-    Type* function = Function(result, Any(), 1, zone);
-    function->AsFunction()->InitParameter(0, param0);
-    return function;
-  }
-  static Type* Function(Type* result, Type* param0, Type* param1, Zone* zone) {
-    Type* function = Function(result, Any(), 2, zone);
-    function->AsFunction()->InitParameter(0, param0);
-    function->AsFunction()->InitParameter(1, param1);
-    return function;
-  }
-  static Type* Function(Type* result, Type* param0, Type* param1, Type* param2,
-                        Zone* zone) {
-    Type* function = Function(result, Any(), 3, zone);
-    function->AsFunction()->InitParameter(0, param0);
-    function->AsFunction()->InitParameter(1, param1);
-    function->AsFunction()->InitParameter(2, param2);
-    return function;
-  }
-  static Type* Function(Type* result, int arity, Type** params, Zone* zone) {
-    Type* function = Function(result, Any(), arity, zone);
-    for (int i = 0; i < arity; ++i) {
-      function->AsFunction()->InitParameter(i, params[i]);
-    }
-    return function;
-  }
   static Type* Tuple(Type* first, Type* second, Type* third, Zone* zone) {
     Type* tuple = TupleType::New(3, zone);
     tuple->AsTuple()->InitElement(0, first);
@@ -711,14 +608,10 @@ class Type {
   // Inspection.
   bool IsRange() { return IsKind(TypeBase::kRange); }
   bool IsConstant() { return IsKind(TypeBase::kConstant); }
-  bool IsArray() { return IsKind(TypeBase::kArray); }
-  bool IsFunction() { return IsKind(TypeBase::kFunction); }
   bool IsTuple() { return IsKind(TypeBase::kTuple); }
 
   ConstantType* AsConstant() { return ConstantType::cast(this); }
   RangeType* AsRange() { return RangeType::cast(this); }
-  ArrayType* AsArray() { return ArrayType::cast(this); }
-  FunctionType* AsFunction() { return FunctionType::cast(this); }
   TupleType* AsTuple() { return TupleType::cast(this); }
 
   // Minimum and maximum of a numeric type.

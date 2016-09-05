@@ -1273,9 +1273,6 @@ Type* Typer::Visitor::TypeJSCallConstruct(Node* node) {
 
 
 Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
-  if (fun->IsFunction()) {
-    return fun->AsFunction()->Result();
-  }
   if (fun->IsConstant() && fun->AsConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(fun->AsConstant()->Value());
