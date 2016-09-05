@@ -147,9 +147,13 @@ class BytecodeGraphBuilder {
 
   // Control flow plumbing.
   void BuildJump();
-  void BuildConditionalJump(Node* condition);
+  void BuildJumpIf(Node* condition);
+  void BuildJumpIfNot(Node* condition);
   void BuildJumpIfEqual(Node* comperand);
-  void BuildJumpIfToBooleanEqual(Node* boolean_comperand);
+  void BuildJumpIfTrue();
+  void BuildJumpIfFalse();
+  void BuildJumpIfToBooleanTrue();
+  void BuildJumpIfToBooleanFalse();
   void BuildJumpIfNotHole();
 
   // Simulates control flow by forward-propagating environments.

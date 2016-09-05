@@ -1465,37 +1465,28 @@ void BytecodeGraphBuilder::VisitJump() { BuildJump(); }
 
 void BytecodeGraphBuilder::VisitJumpConstant() { BuildJump(); }
 
+void BytecodeGraphBuilder::VisitJumpIfTrue() { BuildJumpIfTrue(); }
 
-void BytecodeGraphBuilder::VisitJumpIfTrue() {
-  BuildJumpIfEqual(jsgraph()->TrueConstant());
-}
+void BytecodeGraphBuilder::VisitJumpIfTrueConstant() { BuildJumpIfTrue(); }
 
-void BytecodeGraphBuilder::VisitJumpIfTrueConstant() {
-  BuildJumpIfEqual(jsgraph()->TrueConstant());
-}
+void BytecodeGraphBuilder::VisitJumpIfFalse() { BuildJumpIfFalse(); }
 
-void BytecodeGraphBuilder::VisitJumpIfFalse() {
-  BuildJumpIfEqual(jsgraph()->FalseConstant());
-}
-
-void BytecodeGraphBuilder::VisitJumpIfFalseConstant() {
-  BuildJumpIfEqual(jsgraph()->FalseConstant());
-}
+void BytecodeGraphBuilder::VisitJumpIfFalseConstant() { BuildJumpIfFalse(); }
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanTrue() {
-  BuildJumpIfToBooleanEqual(jsgraph()->TrueConstant());
+  BuildJumpIfToBooleanTrue();
 }
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanTrueConstant() {
-  BuildJumpIfToBooleanEqual(jsgraph()->TrueConstant());
+  BuildJumpIfToBooleanTrue();
 }
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanFalse() {
-  BuildJumpIfToBooleanEqual(jsgraph()->FalseConstant());
+  BuildJumpIfToBooleanFalse();
 }
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanFalseConstant() {
-  BuildJumpIfToBooleanEqual(jsgraph()->FalseConstant());
+  BuildJumpIfToBooleanFalse();
 }
 
 void BytecodeGraphBuilder::VisitJumpIfNotHole() { BuildJumpIfNotHole(); }
@@ -1731,8 +1722,7 @@ void BytecodeGraphBuilder::BuildJump() {
   MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
 }
 
-
-void BytecodeGraphBuilder::BuildConditionalJump(Node* condition) {
+void BytecodeGraphBuilder::BuildJumpIf(Node* condition) {
   NewBranch(condition);
   Environment* if_false_environment = environment()->CopyForConditional();
   NewIfTrue();
@@ -1741,24 +1731,43 @@ void BytecodeGraphBuilder::BuildConditionalJump(Node* condition) {
   NewIfFalse();
 }
 
+void BytecodeGraphBuilder::BuildJumpIfNot(Node* condition) {
+  NewBranch(condition);
+  Environment* if_true_environment = environment()->CopyForConditional();
+  NewIfFalse();
+  MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
+  set_environment(if_true_environment);
+  NewIfTrue();
+}
 
 void BytecodeGraphBuilder::BuildJumpIfEqual(Node* comperand) {
   Node* accumulator = environment()->LookupAccumulator();
   Node* condition =
       NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
               accumulator, comperand);
-  BuildConditionalJump(condition);
+  BuildJumpIf(condition);
 }
 
+void BytecodeGraphBuilder::BuildJumpIfFalse() {
+  BuildJumpIfNot(environment()->LookupAccumulator());
+}
 
-void BytecodeGraphBuilder::BuildJumpIfToBooleanEqual(Node* comperand) {
+void BytecodeGraphBuilder::BuildJumpIfTrue() {
+  BuildJumpIf(environment()->LookupAccumulator());
+}
+
+void BytecodeGraphBuilder::BuildJumpIfToBooleanTrue() {
   Node* accumulator = environment()->LookupAccumulator();
-  Node* to_boolean =
-      NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), accumulator);
   Node* condition =
-      NewNode(javascript()->StrictEqual(CompareOperationHint::kAny), to_boolean,
-              comperand);
-  BuildConditionalJump(condition);
+      NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), accumulator);
+  BuildJumpIf(condition);
+}
+
+void BytecodeGraphBuilder::BuildJumpIfToBooleanFalse() {
+  Node* accumulator = environment()->LookupAccumulator();
+  Node* condition =
+      NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), accumulator);
+  BuildJumpIfNot(condition);
 }
 
 void BytecodeGraphBuilder::BuildJumpIfNotHole() {
@@ -1766,10 +1775,7 @@ void BytecodeGraphBuilder::BuildJumpIfNotHole() {
   Node* condition =
       NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
               accumulator, jsgraph()->TheHoleConstant());
-  Node* node =
-      NewNode(common()->Select(MachineRepresentation::kTagged), condition,
-              jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
-  BuildConditionalJump(node);
+  BuildJumpIfNot(condition);
 }
 
 Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {
