@@ -149,7 +149,8 @@ Node* RepresentationChanger::GetRepresentationFor(
       return GetTaggedPointerRepresentationFor(node, output_rep, output_type);
     case MachineRepresentation::kTagged:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone);
-      return GetTaggedRepresentationFor(node, output_rep, output_type);
+      return GetTaggedRepresentationFor(node, output_rep, output_type,
+                                        use_info.truncation());
     case MachineRepresentation::kFloat32:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone);
       return GetFloat32RepresentationFor(node, output_rep, output_type,
@@ -262,7 +263,8 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
 }
 
 Node* RepresentationChanger::GetTaggedRepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type) {
+    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Truncation truncation) {
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
     case IrOpcode::kNumberConstant:
@@ -312,7 +314,10 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
       op = simplified()->ChangeInt31ToTaggedSigned();
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeInt32ToTagged();
-    } else if (output_type->Is(Type::Unsigned32())) {
+    } else if (output_type->Is(Type::Unsigned32()) ||
+               truncation.IsUsedAsWord32()) {
+      // Either the output is uint32 or the uses only care about the
+      // low 32 bits (so we can pick uint32 safely).
       op = simplified()->ChangeUint32ToTagged();
     } else {
       return TypeError(node, output_rep, output_type,

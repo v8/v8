@@ -249,7 +249,7 @@ class RepresentationChanger final {
                                           MachineRepresentation output_rep,
                                           Type* output_type);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type* output_type);
+                                   Type* output_type, Truncation truncation);
   Node* GetFloat32RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
                                     Type* output_type, Truncation truncation);
