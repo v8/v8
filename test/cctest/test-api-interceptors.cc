@@ -462,6 +462,93 @@ THREADED_TEST(QueryInterceptor) {
   CHECK_EQ(query_counter_int, 8);
 }
 
+bool get_was_called = false;
+bool set_was_called = false;
+
+namespace {
+void GetterCallback(Local<Name> property,
+                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  get_was_called = true;
+}
+
+void SetterCallback(Local<Name> property, Local<Value> value,
+                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  set_was_called = true;
+}
+
+}  // namespace
+
+// Check that get callback is called in defineProperty with accessor descriptor.
+THREADED_TEST(DefinerCallbackAccessorInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(GetterCallback, SetterCallback));
+  LocalContext env;
+  env->Global()
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
+      .FromJust();
+
+  CHECK_EQ(get_was_called, false);
+  CHECK_EQ(set_was_called, false);
+
+  v8_compile("Object.defineProperty(obj, 'x', {set: function() {return 17;}});")
+      ->Run(env.local())
+      .ToLocalChecked();
+  CHECK_EQ(get_was_called, true);
+  CHECK_EQ(set_was_called, false);
+}
+
+bool get_was_called_in_order = false;
+bool define_was_called_in_order = false;
+
+namespace {
+
+void GetterCallbackOrder(Local<Name> property,
+                         const v8::PropertyCallbackInfo<v8::Value>& info) {
+  get_was_called_in_order = true;
+  CHECK_EQ(define_was_called_in_order, true);
+  info.GetReturnValue().Set(property);
+}
+
+void DefinerCallbackOrder(Local<Name> property,
+                          const v8::PropertyDescriptor& desc,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK_EQ(get_was_called_in_order, false);  // Define called before get.
+  define_was_called_in_order = true;
+}
+
+}  // namespace
+
+// Check that definer callback is called before getter callback.
+THREADED_TEST(DefinerCallbackGetAndDefine) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      GetterCallbackOrder, SetterCallback, 0, 0, 0, DefinerCallbackOrder));
+  LocalContext env;
+  env->Global()
+      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
+                                            .ToLocalChecked()
+                                            ->NewInstance(env.local())
+                                            .ToLocalChecked())
+      .FromJust();
+
+  CHECK_EQ(get_was_called_in_order, false);
+  CHECK_EQ(define_was_called_in_order, false);
+
+  v8_compile("Object.defineProperty(obj, 'x', {set: function() {return 17;}});")
+      ->Run(env.local())
+      .ToLocalChecked();
+  CHECK_EQ(get_was_called_in_order, true);
+  CHECK_EQ(define_was_called_in_order, true);
+}
+
 THREADED_TEST(InterceptorHasOwnProperty) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
