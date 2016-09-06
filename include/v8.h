@@ -4684,11 +4684,26 @@ typedef void (*GenericNamedPropertySetterCallback)(
 typedef void (*GenericNamedPropertyQueryCallback)(
     Local<Name> property, const PropertyCallbackInfo<Integer>& info);
 
-
 /**
- * Returns a non-empty handle if the deleter intercepts the request.
- * The return value is true if the property could be deleted and false
- * otherwise.
+ * Interceptor for delete requests on an object.
+ *
+ * Use `info.GetReturnValue()` to indicate whether the request was intercepted
+ * or not. If the deleter successfully intercepts the request, i.e., if the
+ * request should not be further executed, call
+ * `info.GetReturnValue().Set(value)` with a boolean `value`. The `value` is
+ * used as the return value of `delete`.
+ *
+ * \param property The name of the property for which the request was
+ * intercepted.
+ * \param info Information about the intercepted request, such as
+ * isolate, receiver, return value, or whether running in `'use strict'` mode.
+ * See `PropertyCallbackInfo`.
+ *
+ * \note If you need to mimic the behavior of `delete`, i.e., throw in strict
+ * mode instead of returning false, use `info.ShouldThrowOnError()` to determine
+ * if you are in strict mode.
+ *
+ * See also `ObjectTemplate::SetNamedPropertyHandler.`
  */
 typedef void (*GenericNamedPropertyDeleterCallback)(
     Local<Name> property, const PropertyCallbackInfo<Boolean>& info);
