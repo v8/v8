@@ -17,6 +17,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
 #include "src/globals.h"
+#include "src/heap/heap.h"
 #include "src/heap/marking.h"
 #include "src/list.h"
 #include "src/objects.h"
@@ -1868,50 +1869,6 @@ class FreeList {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
 
-
-class AllocationResult {
- public:
-  // Implicit constructor from Object*.
-  AllocationResult(Object* object)  // NOLINT
-      : object_(object) {
-    // AllocationResults can't return Smis, which are used to represent
-    // failure and the space to retry in.
-    CHECK(!object->IsSmi());
-  }
-
-  AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
-
-  static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
-    return AllocationResult(space);
-  }
-
-  inline bool IsRetry() { return object_->IsSmi(); }
-
-  template <typename T>
-  bool To(T** obj) {
-    if (IsRetry()) return false;
-    *obj = T::cast(object_);
-    return true;
-  }
-
-  Object* ToObjectChecked() {
-    CHECK(!IsRetry());
-    return object_;
-  }
-
-  inline AllocationSpace RetrySpace();
-
- private:
-  explicit AllocationResult(AllocationSpace space)
-      : object_(Smi::FromInt(static_cast<int>(space))) {}
-
-  Object* object_;
-};
-
-
-STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
-
-
 // LocalAllocationBuffer represents a linear allocation area that is created
 // from a given {AllocationResult} and can be used to allocate memory without
 // synchronization.
@@ -2245,41 +2202,6 @@ class PagedSpace : public Space {
 
   // Used in cctest.
   friend class HeapTester;
-};
-
-
-class NumberAndSizeInfo BASE_EMBEDDED {
- public:
-  NumberAndSizeInfo() : number_(0), bytes_(0) {}
-
-  int number() const { return number_; }
-  void increment_number(int num) { number_ += num; }
-
-  int bytes() const { return bytes_; }
-  void increment_bytes(int size) { bytes_ += size; }
-
-  void clear() {
-    number_ = 0;
-    bytes_ = 0;
-  }
-
- private:
-  int number_;
-  int bytes_;
-};
-
-
-// HistogramInfo class for recording a single "bar" of a histogram.  This
-// class is used for collecting statistics to print to the log file.
-class HistogramInfo : public NumberAndSizeInfo {
- public:
-  HistogramInfo() : NumberAndSizeInfo() {}
-
-  const char* name() { return name_; }
-  void set_name(const char* name) { name_ = name; }
-
- private:
-  const char* name_;
 };
 
 enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
@@ -3022,20 +2944,6 @@ class MemoryChunkIterator BASE_EMBEDDED {
   LargePageIterator lo_iterator_;
 };
 
-#ifdef DEBUG
-struct CommentStatistic {
-  const char* comment;
-  int size;
-  int count;
-  void Clear() {
-    comment = NULL;
-    size = 0;
-    count = 0;
-  }
-  // Must be small, since an iteration is used for lookup.
-  static const int kMaxComments = 64;
-};
-#endif
 }  // namespace internal
 }  // namespace v8
 

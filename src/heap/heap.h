@@ -16,9 +16,8 @@
 #include "src/base/atomic-utils.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
-// TODO(mstarzinger): One more include to kill!
-#include "src/heap/spaces.h"
 #include "src/list.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -326,7 +325,9 @@ class HistogramTimer;
 class Isolate;
 class MemoryAllocator;
 class MemoryReducer;
+class ObjectIterator;
 class ObjectStats;
+class Page;
 class PagedSpace;
 class Scavenger;
 class ScavengeJob;
@@ -399,6 +400,95 @@ class PromotionQueue {
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
+};
+
+class AllocationResult {
+ public:
+  // Implicit constructor from Object*.
+  AllocationResult(Object* object)  // NOLINT
+      : object_(object) {
+    // AllocationResults can't return Smis, which are used to represent
+    // failure and the space to retry in.
+    CHECK(!object->IsSmi());
+  }
+
+  AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
+
+  static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
+    return AllocationResult(space);
+  }
+
+  inline bool IsRetry() { return object_->IsSmi(); }
+
+  template <typename T>
+  bool To(T** obj) {
+    if (IsRetry()) return false;
+    *obj = T::cast(object_);
+    return true;
+  }
+
+  Object* ToObjectChecked() {
+    CHECK(!IsRetry());
+    return object_;
+  }
+
+  inline AllocationSpace RetrySpace();
+
+ private:
+  explicit AllocationResult(AllocationSpace space)
+      : object_(Smi::FromInt(static_cast<int>(space))) {}
+
+  Object* object_;
+};
+
+STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
+
+#ifdef DEBUG
+struct CommentStatistic {
+  const char* comment;
+  int size;
+  int count;
+  void Clear() {
+    comment = NULL;
+    size = 0;
+    count = 0;
+  }
+  // Must be small, since an iteration is used for lookup.
+  static const int kMaxComments = 64;
+};
+#endif
+
+class NumberAndSizeInfo BASE_EMBEDDED {
+ public:
+  NumberAndSizeInfo() : number_(0), bytes_(0) {}
+
+  int number() const { return number_; }
+  void increment_number(int num) { number_ += num; }
+
+  int bytes() const { return bytes_; }
+  void increment_bytes(int size) { bytes_ += size; }
+
+  void clear() {
+    number_ = 0;
+    bytes_ = 0;
+  }
+
+ private:
+  int number_;
+  int bytes_;
+};
+
+// HistogramInfo class for recording a single "bar" of a histogram.  This
+// class is used for collecting statistics to print to the log file.
+class HistogramInfo : public NumberAndSizeInfo {
+ public:
+  HistogramInfo() : NumberAndSizeInfo(), name_(nullptr) {}
+
+  const char* name() { return name_; }
+  void set_name(const char* name) { name_ = name; }
+
+ private:
+  const char* name_;
 };
 
 class Heap {
@@ -785,9 +875,7 @@ class Heap {
 
   void DeoptMarkedAllocationSites();
 
-  bool DeoptMaybeTenuredAllocationSites() {
-    return new_space_.IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
-  }
+  inline bool DeoptMaybeTenuredAllocationSites();
 
   void AddWeakNewSpaceObjectToCodeDependency(Handle<HeapObject> obj,
                                              Handle<WeakCell> code);
@@ -861,9 +949,9 @@ class Heap {
   // Getters for spaces. =======================================================
   // ===========================================================================
 
-  Address NewSpaceTop() { return new_space_.top(); }
+  inline Address NewSpaceTop();
 
-  NewSpace* new_space() { return &new_space_; }
+  NewSpace* new_space() { return new_space_; }
   OldSpace* old_space() { return old_space_; }
   OldSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
@@ -2001,7 +2089,7 @@ class Heap {
 
   int global_ic_age_;
 
-  NewSpace new_space_;
+  NewSpace* new_space_;
   OldSpace* old_space_;
   OldSpace* code_space_;
   MapSpace* map_space_;

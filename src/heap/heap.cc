@@ -96,7 +96,7 @@ Heap::Heap()
       contexts_disposed_(0),
       number_of_disposed_maps_(0),
       global_ic_age_(0),
-      new_space_(this),
+      new_space_(nullptr),
       old_space_(NULL),
       code_space_(NULL),
       map_space_(NULL),
@@ -189,7 +189,7 @@ Heap::Heap()
 intptr_t Heap::Capacity() {
   if (!HasBeenSetUp()) return 0;
 
-  return new_space_.Capacity() + OldGenerationCapacity();
+  return new_space_->Capacity() + OldGenerationCapacity();
 }
 
 intptr_t Heap::OldGenerationCapacity() {
@@ -211,14 +211,14 @@ intptr_t Heap::CommittedOldGenerationMemory() {
 intptr_t Heap::CommittedMemory() {
   if (!HasBeenSetUp()) return 0;
 
-  return new_space_.CommittedMemory() + CommittedOldGenerationMemory();
+  return new_space_->CommittedMemory() + CommittedOldGenerationMemory();
 }
 
 
 size_t Heap::CommittedPhysicalMemory() {
   if (!HasBeenSetUp()) return 0;
 
-  return new_space_.CommittedPhysicalMemory() +
+  return new_space_->CommittedPhysicalMemory() +
          old_space_->CommittedPhysicalMemory() +
          code_space_->CommittedPhysicalMemory() +
          map_space_->CommittedPhysicalMemory() +
@@ -300,7 +300,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   // and does not count available bytes already in the old space or code
   // space.  Undercounting is safe---we may get an unrequested full GC when
   // a scavenge would have succeeded.
-  if (memory_allocator()->MaxAvailable() <= new_space_.Size()) {
+  if (memory_allocator()->MaxAvailable() <= new_space_->Size()) {
     isolate_->counters()
         ->gc_compactor_caused_by_oldspace_exhaustion()
         ->Increment();
@@ -321,18 +321,18 @@ void Heap::ReportStatisticsBeforeGC() {
 // compiled --log-gc is set.  The following logic is used to avoid
 // double logging.
 #ifdef DEBUG
-  if (FLAG_heap_stats || FLAG_log_gc) new_space_.CollectStatistics();
+  if (FLAG_heap_stats || FLAG_log_gc) new_space_->CollectStatistics();
   if (FLAG_heap_stats) {
     ReportHeapStatistics("Before GC");
   } else if (FLAG_log_gc) {
-    new_space_.ReportStatistics();
+    new_space_->ReportStatistics();
   }
-  if (FLAG_heap_stats || FLAG_log_gc) new_space_.ClearHistograms();
+  if (FLAG_heap_stats || FLAG_log_gc) new_space_->ClearHistograms();
 #else
   if (FLAG_log_gc) {
-    new_space_.CollectStatistics();
-    new_space_.ReportStatistics();
-    new_space_.ClearHistograms();
+    new_space_->CollectStatistics();
+    new_space_->ReportStatistics();
+    new_space_->ClearHistograms();
   }
 #endif  // DEBUG
 }
@@ -349,8 +349,8 @@ void Heap::PrintShortHeapStatistics() {
                          ", available: %6" V8PRIdPTR
                          " KB"
                          ", committed: %6" V8PRIdPTR " KB\n",
-               new_space_.Size() / KB, new_space_.Available() / KB,
-               new_space_.CommittedMemory() / KB);
+               new_space_->Size() / KB, new_space_->Available() / KB,
+               new_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_, "Old space,          used: %6" V8PRIdPTR
                          " KB"
                          ", available: %6" V8PRIdPTR
@@ -399,13 +399,13 @@ void Heap::ReportStatisticsAfterGC() {
 // NewSpace statistics are logged exactly once when --log-gc is turned on.
 #if defined(DEBUG)
   if (FLAG_heap_stats) {
-    new_space_.CollectStatistics();
+    new_space_->CollectStatistics();
     ReportHeapStatistics("After GC");
   } else if (FLAG_log_gc) {
-    new_space_.ReportStatistics();
+    new_space_->ReportStatistics();
   }
 #else
-  if (FLAG_log_gc) new_space_.ReportStatistics();
+  if (FLAG_log_gc) new_space_->ReportStatistics();
 #endif  // DEBUG
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
        ++i) {
@@ -423,7 +423,7 @@ void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
   deferred_counters_[feature]++;
 }
 
-bool Heap::UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
+bool Heap::UncommitFromSpace() { return new_space_->UncommitFromSpace(); }
 
 void Heap::GarbageCollectionPrologue() {
   {
@@ -455,7 +455,7 @@ void Heap::GarbageCollectionPrologue() {
   ReportStatisticsBeforeGC();
 #endif  // DEBUG
 
-  if (new_space_.IsAtMaximumCapacity()) {
+  if (new_space_->IsAtMaximumCapacity()) {
     maximum_size_scavenges_++;
   } else {
     maximum_size_scavenges_ = 0;
@@ -898,7 +898,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
     }
   }
   set_current_gc_flags(kNoGCFlags);
-  new_space_.Shrink();
+  new_space_->Shrink();
   UncommitFromSpace();
 }
 
@@ -949,7 +949,7 @@ void Heap::EnsureFillerObjectAtTop() {
   // evacuation of a non-full new space (or if we are on the last page) there
   // may be uninitialized memory behind top. We fill the remainder of the page
   // with a filler.
-  Address to_top = new_space_.top();
+  Address to_top = new_space_->top();
   Page* page = Page::FromAddress(to_top - kPointerSize);
   if (page->Contains(to_top)) {
     int remaining_in_page = static_cast<int>(page->area_end() - to_top);
@@ -1231,7 +1231,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
 
 
 void Heap::EnsureFromSpaceIsCommitted() {
-  if (new_space_.CommitFromSpaceIfNeeded()) return;
+  if (new_space_->CommitFromSpaceIfNeeded()) return;
 
   // Committing memory to from space failed.
   // Memory is exhausted and we will die.
@@ -1506,18 +1506,18 @@ void Heap::MarkCompactPrologue() {
 
 void Heap::CheckNewSpaceExpansionCriteria() {
   if (FLAG_experimental_new_space_growth_heuristic) {
-    if (new_space_.TotalCapacity() < new_space_.MaximumCapacity() &&
-        survived_last_scavenge_ * 100 / new_space_.TotalCapacity() >= 10) {
+    if (new_space_->TotalCapacity() < new_space_->MaximumCapacity() &&
+        survived_last_scavenge_ * 100 / new_space_->TotalCapacity() >= 10) {
       // Grow the size of new space if there is room to grow, and more than 10%
       // have survived the last scavenge.
-      new_space_.Grow();
+      new_space_->Grow();
       survived_since_last_expansion_ = 0;
     }
-  } else if (new_space_.TotalCapacity() < new_space_.MaximumCapacity() &&
-             survived_since_last_expansion_ > new_space_.TotalCapacity()) {
+  } else if (new_space_->TotalCapacity() < new_space_->MaximumCapacity() &&
+             survived_since_last_expansion_ > new_space_->TotalCapacity()) {
     // Grow the size of new space if there is room to grow, and enough data
     // has survived scavenge since the last expansion.
-    new_space_.Grow();
+    new_space_->Grow();
     survived_since_last_expansion_ = 0;
   }
 }
@@ -1640,8 +1640,8 @@ void Heap::Scavenge() {
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
-  new_space_.Flip();
-  new_space_.ResetAllocationInfo();
+  new_space_->Flip();
+  new_space_->ResetAllocationInfo();
 
   // We need to sweep newly copied objects which can be either in the
   // to space or promoted to the old generation.  For to-space
@@ -1660,7 +1660,7 @@ void Heap::Scavenge() {
   // for the addresses of promoted objects: every object promoted
   // frees up its size in bytes from the top of the new space, and
   // objects are at least one pointer in size.
-  Address new_space_front = new_space_.ToSpaceStart();
+  Address new_space_front = new_space_->ToSpaceStart();
   promotion_queue_.Initialize();
 
   PromotionMode promotion_mode = CurrentPromotionMode();
@@ -1757,16 +1757,17 @@ void Heap::Scavenge() {
   ScavengeWeakObjectRetainer weak_object_retainer(this);
   ProcessYoungWeakReferences(&weak_object_retainer);
 
-  DCHECK(new_space_front == new_space_.top());
+  DCHECK(new_space_front == new_space_->top());
 
   // Set age mark.
-  new_space_.set_age_mark(new_space_.top());
+  new_space_->set_age_mark(new_space_->top());
 
   ArrayBufferTracker::FreeDeadInNewSpace(this);
 
   // Update how much has survived scavenge.
-  IncrementYoungSurvivorsCounter(static_cast<int>(
-      (PromotedSpaceSizeOfObjects() - survived_watermark) + new_space_.Size()));
+  IncrementYoungSurvivorsCounter(
+      static_cast<int>((PromotedSpaceSizeOfObjects() - survived_watermark) +
+                       new_space_->Size()));
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
@@ -1930,11 +1931,11 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
                          Address new_space_front,
                          PromotionMode promotion_mode) {
   do {
-    SemiSpace::AssertValidRange(new_space_front, new_space_.top());
+    SemiSpace::AssertValidRange(new_space_front, new_space_->top());
     // The addresses new_space_front and new_space_.top() define a
     // queue of unprocessed copied objects.  Process them until the
     // queue is empty.
-    while (new_space_front != new_space_.top()) {
+    while (new_space_front != new_space_->top()) {
       if (!Page::IsAlignedToPageSize(new_space_front)) {
         HeapObject* object = HeapObject::FromAddress(new_space_front);
         if (promotion_mode == PROMOTE_MARKED) {
@@ -1973,7 +1974,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 
     // Take another spin if there are now unswept objects in new space
     // (there are currently no more unswept promoted objects).
-  } while (new_space_front != new_space_.top());
+  } while (new_space_front != new_space_->top());
 
   return new_space_front;
 }
@@ -4191,7 +4192,7 @@ void Heap::ReduceNewSpaceSize() {
   if (ShouldReduceMemory() ||
       ((allocation_throughput != 0) &&
        (allocation_throughput < kLowAllocationThroughput))) {
-    new_space_.Shrink();
+    new_space_->Shrink();
     UncommitFromSpace();
   }
 }
@@ -4555,7 +4556,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   PrintF("Heap statistics : ");
   memory_allocator()->ReportStatistics();
   PrintF("To space : ");
-  new_space_.ReportStatistics();
+  new_space_->ReportStatistics();
   PrintF("Old space : ");
   old_space_->ReportStatistics();
   PrintF("Code space : ");
@@ -4574,7 +4575,7 @@ bool Heap::Contains(HeapObject* value) {
     return false;
   }
   return HasBeenSetUp() &&
-         (new_space_.ToSpaceContains(value) || old_space_->Contains(value) ||
+         (new_space_->ToSpaceContains(value) || old_space_->Contains(value) ||
           code_space_->Contains(value) || map_space_->Contains(value) ||
           lo_space_->Contains(value));
 }
@@ -4584,7 +4585,7 @@ bool Heap::ContainsSlow(Address addr) {
     return false;
   }
   return HasBeenSetUp() &&
-         (new_space_.ToSpaceContainsSlow(addr) ||
+         (new_space_->ToSpaceContainsSlow(addr) ||
           old_space_->ContainsSlow(addr) || code_space_->ContainsSlow(addr) ||
           map_space_->ContainsSlow(addr) || lo_space_->ContainsSlow(addr));
 }
@@ -4597,7 +4598,7 @@ bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_.ToSpaceContains(value);
+      return new_space_->ToSpaceContains(value);
     case OLD_SPACE:
       return old_space_->Contains(value);
     case CODE_SPACE:
@@ -4619,7 +4620,7 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_.ToSpaceContainsSlow(addr);
+      return new_space_->ToSpaceContainsSlow(addr);
     case OLD_SPACE:
       return old_space_->ContainsSlow(addr);
     case CODE_SPACE:
@@ -4682,7 +4683,7 @@ void Heap::Verify() {
   VerifySmisVisitor smis_visitor;
   IterateSmiRoots(&smis_visitor);
 
-  new_space_.Verify();
+  new_space_->Verify();
 
   old_space_->Verify(&visitor);
   map_space_->Verify(&visitor);
@@ -4701,9 +4702,9 @@ void Heap::Verify() {
 
 
 void Heap::ZapFromSpace() {
-  if (!new_space_.IsFromSpaceCommitted()) return;
-  for (Page* page : NewSpacePageRange(new_space_.FromSpaceStart(),
-                                      new_space_.FromSpaceEnd())) {
+  if (!new_space_->IsFromSpaceCommitted()) return;
+  for (Page* page : NewSpacePageRange(new_space_->FromSpaceStart(),
+                                      new_space_->FromSpaceEnd())) {
     for (Address cursor = page->area_start(), limit = page->area_end();
          cursor < limit; cursor += kPointerSize) {
       Memory::Address_at(cursor) = kFromSpaceZapValue;
@@ -5088,8 +5089,8 @@ bool Heap::ConfigureHeapDefault() { return ConfigureHeap(0, 0, 0, 0); }
 void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->start_marker = HeapStats::kStartMarker;
   *stats->end_marker = HeapStats::kEndMarker;
-  *stats->new_space_size = new_space_.SizeAsInt();
-  *stats->new_space_capacity = new_space_.Capacity();
+  *stats->new_space_size = new_space_->SizeAsInt();
+  *stats->new_space_capacity = new_space_->Capacity();
   *stats->old_space_size = old_space_->SizeOfObjects();
   *stats->old_space_capacity = old_space_->Capacity();
   *stats->code_space_size = code_space_->SizeOfObjects();
@@ -5211,7 +5212,7 @@ intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
   CHECK(old_gen_size > 0);
   intptr_t limit = static_cast<intptr_t>(old_gen_size * factor);
   limit = Max(limit, old_gen_size + MinimumAllocationLimitGrowingStep());
-  limit += new_space_.Capacity();
+  limit += new_space_->Capacity();
   intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
   return Min(limit, halfway_to_the_max);
 }
@@ -5352,8 +5353,11 @@ bool Heap::SetUp() {
   // Initialize incremental marking.
   incremental_marking_ = new IncrementalMarking(this);
 
+  new_space_ = new NewSpace(this);
+  if (new_space_ == nullptr) return false;
+
   // Set up new space.
-  if (!new_space_.SetUp(initial_semispace_size_, max_semi_space_size_)) {
+  if (!new_space_->SetUp(initial_semispace_size_, max_semi_space_size_)) {
     return false;
   }
   new_space_top_after_last_gc_ = new_space()->top();
@@ -5538,7 +5542,7 @@ void Heap::TearDown() {
     PrintF("maximum_committed_by_heap=%" V8PRIdPTR " ",
            MaximumCommittedMemory());
     PrintF("maximum_committed_by_new_space=%" V8PRIdPTR " ",
-           new_space_.MaximumCommittedMemory());
+           new_space_->MaximumCommittedMemory());
     PrintF("maximum_committed_by_old_space=%" V8PRIdPTR " ",
            old_space_->MaximumCommittedMemory());
     PrintF("maximum_committed_by_code_space=%" V8PRIdPTR " ",
@@ -5599,7 +5603,9 @@ void Heap::TearDown() {
   delete tracer_;
   tracer_ = nullptr;
 
-  new_space_.TearDown();
+  new_space_->TearDown();
+  delete new_space_;
+  new_space_ = nullptr;
 
   if (old_space_ != NULL) {
     delete old_space_;

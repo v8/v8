@@ -172,11 +172,11 @@ Space* Heap::space(int idx) {
 }
 
 Address* Heap::NewSpaceAllocationTopAddress() {
-  return new_space_.allocation_top_address();
+  return new_space_->allocation_top_address();
 }
 
 Address* Heap::NewSpaceAllocationLimitAddress() {
-  return new_space_.allocation_limit_address();
+  return new_space_->allocation_limit_address();
 }
 
 Address* Heap::OldSpaceAllocationTopAddress() {
@@ -190,7 +190,7 @@ Address* Heap::OldSpaceAllocationLimitAddress() {
 bool Heap::HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit) {
   if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
 
-  intptr_t adjusted_allocation_limit = limit - new_space_.Capacity();
+  intptr_t adjusted_allocation_limit = limit - new_space_->Capacity();
 
   if (PromotedTotalSize() >= adjusted_allocation_limit) return true;
 
@@ -333,7 +333,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     if (large_object) {
       space = LO_SPACE;
     } else {
-      allocation = new_space_.AllocateRaw(size_in_bytes, alignment);
+      allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
       if (allocation.To(&object)) {
         OnAllocationEvent(object, size_in_bytes);
       }
@@ -472,6 +472,11 @@ void Heap::FinalizeExternalString(String* string) {
   }
 }
 
+Address Heap::NewSpaceTop() { return new_space_->top(); }
+
+bool Heap::DeoptMaybeTenuredAllocationSites() {
+  return new_space_->IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
+}
 
 bool Heap::InNewSpace(Object* object) {
   // Inlined check from NewSpace::Contains.
@@ -500,7 +505,7 @@ bool Heap::InToSpace(Object* object) {
 bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
 
 bool Heap::InNewSpaceSlow(Address address) {
-  return new_space_.ContainsSlow(address);
+  return new_space_->ContainsSlow(address);
 }
 
 bool Heap::InOldSpaceSlow(Address address) {
@@ -517,7 +522,7 @@ bool Heap::OldGenerationAllocationLimitReached() {
 template <PromotionMode promotion_mode>
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   Page* page = Page::FromAddress(old_address);
-  Address age_mark = new_space_.age_mark();
+  Address age_mark = new_space_->age_mark();
 
   if (promotion_mode == PROMOTE_MARKED) {
     MarkBit mark_bit = ObjectMarking::MarkBitFrom(old_address);
