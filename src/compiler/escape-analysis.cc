@@ -797,6 +797,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       // handled by the EscapeAnalysisReducer (similar to ObjectIsSmi).
       case IrOpcode::kObjectIsCallable:
       case IrOpcode::kObjectIsNumber:
+      case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsString:
       case IrOpcode::kObjectIsUndetectable:
         if (SetEscaped(rep)) {
