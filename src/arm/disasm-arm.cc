@@ -1825,6 +1825,13 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "vmovl.u%d q%d, d%d", imm3*8, Vd, Vm);
+      } else if ((instr->Bits(21, 16) == 0x32) && (instr->Bits(11, 7) == 0) &&
+                 (instr->Bit(4) == 0)) {
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        char rtype = (instr->Bit(6) == 0) ? 'd' : 'q';
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vswp %c%d, %c%d", rtype, Vd, rtype, Vm);
       } else {
         Unknown(instr);
       }
