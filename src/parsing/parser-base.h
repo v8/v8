@@ -1103,10 +1103,9 @@ class ParserBase {
   ExpressionT ParseObjectLiteral(bool* ok);
   ClassLiteralPropertyT ParseClassPropertyDefinition(
       ClassLiteralChecker* checker, bool has_extends, bool* is_computed_name,
-      bool* has_seen_constructor, IdentifierT* name, bool* ok);
+      bool* has_seen_constructor, bool* ok);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
-      ObjectLiteralChecker* checker, bool* is_computed_name, IdentifierT* name,
-      bool* ok);
+      ObjectLiteralChecker* checker, bool* is_computed_name, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
                                  bool maybe_arrow, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
@@ -2009,7 +2008,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassLiteralChecker* checker,
                                                bool has_extends,
                                                bool* is_computed_name,
                                                bool* has_seen_constructor,
-                                               IdentifierT* name, bool* ok) {
+                                               bool* ok) {
   DCHECK(has_seen_constructor != nullptr);
   bool is_get = false;
   bool is_set = false;
@@ -2020,22 +2019,23 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassLiteralChecker* checker,
 
   Token::Value name_token = peek();
 
+  IdentifierT name = impl()->EmptyIdentifier();
   ExpressionT name_expression;
   if (name_token == Token::STATIC) {
     Consume(Token::STATIC);
     if (peek() == Token::LPAREN) {
       kind = PropertyKind::kMethodProperty;
-      *name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
-      name_expression = factory()->NewStringLiteral(*name, position());
+      name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
+      name_expression = factory()->NewStringLiteral(name, position());
     } else {
       is_static = true;
       name_expression = ParsePropertyName(
-          name, &kind, &is_generator, &is_get, &is_set, &is_async,
+          &name, &kind, &is_generator, &is_get, &is_set, &is_async,
           is_computed_name, CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
     }
   } else {
     name_expression = ParsePropertyName(
-        name, &kind, &is_generator, &is_get, &is_set, &is_async,
+        &name, &kind, &is_generator, &is_get, &is_set, &is_async,
         is_computed_name, CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
   }
 
@@ -2064,14 +2064,14 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassLiteralChecker* checker,
                               : is_async ? FunctionKind::kAsyncConciseMethod
                                          : FunctionKind::kConciseMethod;
 
-      if (!is_static && impl()->IsConstructor(*name)) {
+      if (!is_static && impl()->IsConstructor(name)) {
         *has_seen_constructor = true;
         kind = has_extends ? FunctionKind::kSubclassConstructor
                            : FunctionKind::kBaseConstructor;
       }
 
       ExpressionT value = impl()->ParseFunctionLiteral(
-          *name, scanner()->location(), kSkipFunctionNameCheck, kind,
+          name, scanner()->location(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, FunctionLiteral::kAccessorOrMethod,
           language_mode(), CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
 
@@ -2091,16 +2091,20 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassLiteralChecker* checker,
         // Runtime_DefineAccessorPropertyUnchecked and since we can determine
         // this statically we can skip the extra runtime check.
         name_expression =
-            factory()->NewStringLiteral(*name, name_expression->position());
+            factory()->NewStringLiteral(name, name_expression->position());
       }
 
       FunctionKind kind = is_get ? FunctionKind::kGetterFunction
                                  : FunctionKind::kSetterFunction;
 
-      ExpressionT value = impl()->ParseFunctionLiteral(
-          *name, scanner()->location(), kSkipFunctionNameCheck, kind,
+      FunctionLiteralT value = impl()->ParseFunctionLiteral(
+          name, scanner()->location(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, FunctionLiteral::kAccessorOrMethod,
           language_mode(), CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
+
+      if (!*is_computed_name) {
+        impl()->AddAccessorPrefixToFunctionName(is_get, value, name);
+      }
 
       return factory()->NewClassLiteralProperty(
           name_expression, value,
@@ -2121,20 +2125,21 @@ template <typename Impl>
 typename ParserBase<Impl>::ObjectLiteralPropertyT
 ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
                                                 bool* is_computed_name,
-                                                IdentifierT* name, bool* ok) {
+                                                bool* ok) {
   bool is_get = false;
   bool is_set = false;
   bool is_generator = false;
   bool is_async = false;
   PropertyKind kind = PropertyKind::kNotSet;
 
+  IdentifierT name = impl()->EmptyIdentifier();
   Token::Value name_token = peek();
   int next_beg_pos = scanner()->peek_location().beg_pos;
   int next_end_pos = scanner()->peek_location().end_pos;
 
   ExpressionT name_expression = ParsePropertyName(
-      name, &kind, &is_generator, &is_get, &is_set, &is_async, is_computed_name,
-      CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+      &name, &kind, &is_generator, &is_get, &is_set, &is_async,
+      is_computed_name, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   switch (kind) {
     case PropertyKind::kValueProperty: {
@@ -2149,8 +2154,14 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
           true, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       CheckDestructuringElement(value, beg_pos, scanner()->location().end_pos);
 
-      return factory()->NewObjectLiteralProperty(name_expression, value,
-                                                 *is_computed_name);
+      ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
+          name_expression, value, *is_computed_name);
+
+      if (!*is_computed_name) {
+        impl()->SetFunctionNameFromPropertyName(result, name);
+      }
+
+      return result;
     }
 
     case PropertyKind::kShorthandProperty: {
@@ -2178,7 +2189,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
             scanner()->location());
       }
 
-      if (impl()->IsEvalOrArguments(*name) && is_strict(language_mode())) {
+      if (impl()->IsEvalOrArguments(name) && is_strict(language_mode())) {
         classifier()->RecordBindingPatternError(
             scanner()->location(), MessageTemplate::kStrictEvalArguments);
       }
@@ -2194,7 +2205,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
             MessageTemplate::kAwaitBindingIdentifier);
       }
       ExpressionT lhs =
-          impl()->ExpressionFromIdentifier(*name, next_beg_pos, next_end_pos);
+          impl()->ExpressionFromIdentifier(name, next_beg_pos, next_end_pos);
       CheckDestructuringElement(lhs, next_beg_pos, next_end_pos);
 
       ExpressionT value;
@@ -2237,7 +2248,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
                                          : FunctionKind::kConciseMethod;
 
       ExpressionT value = impl()->ParseFunctionLiteral(
-          *name, scanner()->location(), kSkipFunctionNameCheck, kind,
+          name, scanner()->location(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, FunctionLiteral::kAccessorOrMethod,
           language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
@@ -2259,16 +2270,20 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
         // Runtime_DefineAccessorPropertyUnchecked and since we can determine
         // this statically we can skip the extra runtime check.
         name_expression =
-            factory()->NewStringLiteral(*name, name_expression->position());
+            factory()->NewStringLiteral(name, name_expression->position());
       }
 
       FunctionKind kind = is_get ? FunctionKind::kGetterFunction
                                  : FunctionKind::kSetterFunction;
 
-      ExpressionT value = impl()->ParseFunctionLiteral(
-          *name, scanner()->location(), kSkipFunctionNameCheck, kind,
+      FunctionLiteralT value = impl()->ParseFunctionLiteral(
+          name, scanner()->location(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, FunctionLiteral::kAccessorOrMethod,
           language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+
+      if (!*is_computed_name) {
+        impl()->AddAccessorPrefixToFunctionName(is_get, value, name);
+      }
 
       return factory()->NewObjectLiteralProperty(
           name_expression, value, is_get ? ObjectLiteralProperty::GETTER
@@ -2303,9 +2318,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
     FuncNameInferrer::State fni_state(fni_);
 
     bool is_computed_name = false;
-    IdentifierT name = impl()->EmptyIdentifier();
-    ObjectLiteralPropertyT property = ParseObjectPropertyDefinition(
-        &checker, &is_computed_name, &name, CHECK_OK);
+    ObjectLiteralPropertyT property =
+        ParseObjectPropertyDefinition(&checker, &is_computed_name, CHECK_OK);
 
     if (is_computed_name) {
       has_computed_names = true;
@@ -2323,8 +2337,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
     }
 
     if (fni_ != nullptr) fni_->Infer();
-
-    impl()->SetFunctionNameFromPropertyName(property, name);
   }
   Expect(Token::RBRACE, CHECK_OK);
 

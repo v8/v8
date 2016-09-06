@@ -4249,10 +4249,9 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     ExpressionClassifier property_classifier(this);
-    const AstRawString* property_name = nullptr;
-    ClassLiteral::Property* property = ParseClassPropertyDefinition(
-        &checker, has_extends, &is_computed_name, &has_seen_constructor,
-        &property_name, CHECK_OK);
+    ClassLiteral::Property* property =
+        ParseClassPropertyDefinition(&checker, has_extends, &is_computed_name,
+                                     &has_seen_constructor, CHECK_OK);
     RewriteNonPattern(CHECK_OK);
     impl()->AccumulateFormalParameterContainmentErrors();
 
@@ -4267,10 +4266,6 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
 
     DCHECK_NOT_NULL(fni_);
     fni_->Infer();
-
-    if (property_name != ast_value_factory()->constructor_string()) {
-      SetFunctionNameFromPropertyName(property, property_name);
-    }
   }
 
   Expect(Token::RBRACE, CHECK_OK);
@@ -5209,63 +5204,31 @@ void Parser::QueueNonPatternForRewriting(Expression* expr, bool* ok) {
   function_state_->AddNonPatternForRewriting(expr, ok);
 }
 
+void Parser::AddAccessorPrefixToFunctionName(bool is_get,
+                                             FunctionLiteral* function,
+                                             const AstRawString* name) {
+  DCHECK_NOT_NULL(name);
+  const AstRawString* prefix = is_get ? ast_value_factory()->get_space_string()
+                                      : ast_value_factory()->set_space_string();
+  function->set_raw_name(ast_value_factory()->NewConsString(prefix, name));
+}
+
 void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
                                              const AstRawString* name) {
-  Expression* value = property->value();
+  DCHECK(property->kind() != ObjectLiteralProperty::GETTER);
+  DCHECK(property->kind() != ObjectLiteralProperty::SETTER);
 
   // Computed name setting must happen at runtime.
-  if (property->is_computed_name()) return;
-
-  // Getter and setter names are handled here because their names
-  // change in ES2015, even though they are not anonymous.
-  auto function = value->AsFunctionLiteral();
-  if (function != nullptr) {
-    bool is_getter = property->kind() == ObjectLiteralProperty::GETTER;
-    bool is_setter = property->kind() == ObjectLiteralProperty::SETTER;
-    if (is_getter || is_setter) {
-      DCHECK_NOT_NULL(name);
-      const AstRawString* prefix =
-          is_getter ? ast_value_factory()->get_space_string()
-                    : ast_value_factory()->set_space_string();
-      function->set_raw_name(ast_value_factory()->NewConsString(prefix, name));
-      return;
-    }
-  }
+  DCHECK(!property->is_computed_name());
 
   // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]
   // of an object literal.
   if (property->kind() == ObjectLiteralProperty::PROTOTYPE) return;
 
-  DCHECK(!value->IsAnonymousFunctionDefinition() ||
-         property->kind() == ObjectLiteralProperty::COMPUTED);
-  SetFunctionName(value, name);
-}
-
-void Parser::SetFunctionNameFromPropertyName(ClassLiteralProperty* property,
-                                             const AstRawString* name) {
-  // TODO(bakkot) move this logic into Parse{Object,Class}PropertyDefinition and
-  // clean it up.
   Expression* value = property->value();
 
-  // Computed name setting must happen at runtime.
-  if (property->is_computed_name()) return;
-
-  // Getter and setter names are handled here because their names
-  // change in ES2015, even though they are not anonymous.
-  auto function = value->AsFunctionLiteral();
-  DCHECK_NOT_NULL(function);
-
-  bool is_getter = property->kind() == ClassLiteralProperty::GETTER;
-  bool is_setter = property->kind() == ClassLiteralProperty::SETTER;
-  if (is_getter || is_setter) {
-    DCHECK_NOT_NULL(name);
-    const AstRawString* prefix = is_getter
-                                     ? ast_value_factory()->get_space_string()
-                                     : ast_value_factory()->set_space_string();
-    function->set_raw_name(ast_value_factory()->NewConsString(prefix, name));
-    return;
-  }
-
+  DCHECK(!value->IsAnonymousFunctionDefinition() ||
+         property->kind() == ObjectLiteralProperty::COMPUTED);
   SetFunctionName(value, name);
 }
 

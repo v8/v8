@@ -1223,6 +1223,9 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
+  V8_INLINE void AddAccessorPrefixToFunctionName(bool is_get,
+                                                 PreParserExpression function,
+                                                 PreParserIdentifier name) {}
   V8_INLINE void SetFunctionNameFromPropertyName(PreParserExpression property,
                                                  PreParserIdentifier name) {}
   V8_INLINE void SetFunctionNameFromIdentifierRef(

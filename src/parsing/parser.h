@@ -1017,9 +1017,10 @@ class Parser : public ParserBase<Parser> {
 
   Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
 
-  void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
+  void AddAccessorPrefixToFunctionName(bool is_get, FunctionLiteral* function,
                                        const AstRawString* name);
-  void SetFunctionNameFromPropertyName(ClassLiteralProperty* property,
+
+  void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
                                        const AstRawString* name);
 
   void SetFunctionNameFromIdentifierRef(Expression* value,
