@@ -52,7 +52,8 @@
         'gn_release_x86_no_snap_shared_minimal_symbols',
       'V8 Win64': 'gn_release_x64_minimal_symbols',
       'V8 Win64 - debug': 'gn_debug_x64_minimal_symbols',
-      'V8 Win64 - clang': 'gyp_release_x64_clang',
+      # TODO(machenbach): Switch plugins on when errors are fixed.
+      'V8 Win64 - clang': 'gn_release_x64_clang_no_plugins',
       # Mac.
       'V8 Mac': 'gn_release_x86',
       'V8 Mac - debug': 'gn_debug_x86',
@@ -254,6 +255,8 @@
     'gn_release_x64_asan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols',
       'swarming'],
+    'gn_release_x64_clang_no_plugins': [
+      'gn', 'release_bot', 'x64', 'clang', 'no_plugins', 'swarming'],
     'gn_release_x64_internal': [
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_minimal_symbols': [
@@ -385,8 +388,6 @@
       'v8_verify_heap'],
     'gyp_release_x64_cfi_symbolized': [
       'gyp', 'release_bot', 'x64', 'cfi', 'swarming', 'symbolized'],
-    'gyp_release_x64_clang': [
-      'gyp', 'release_bot', 'x64', 'clang', 'swarming'],
     'gyp_release_x64_gcc_coverage': [
       'gyp', 'release_bot', 'x64', 'coverage', 'gcc'],
 
@@ -517,6 +518,10 @@
                   'use_prebuilt_instrumented_libraries=true'),
       'gyp_defines': ('clang=1 msan=1 msan_track_origins=2 '
                       'use_prebuilt_instrumented_libraries=1'),
+    },
+
+    'no_plugins': {
+      'gn_args': 'clang_use_chrome_plugins=false',
     },
 
     'release': {
