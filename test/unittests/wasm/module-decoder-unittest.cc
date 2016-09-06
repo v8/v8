@@ -1023,6 +1023,20 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne) {
   if (result.val) delete result.val;
 }
 
+TEST_F(WasmModuleVerifyTest, ExportNameWithInvalidStringLength) {
+  static const byte data[] = {// signatures
+                              SIGNATURES_SECTION_VOID_VOID,
+                              ONE_EMPTY_FUNCTION,
+                              SECTION(EXPORT_TABLE, 12),
+                              1,                // exports
+                              FUNC_INDEX(0),    // --
+                              NAME_LENGTH(84),  // invalid string length
+                              'e',              // --
+                              ONE_EMPTY_BODY};
+
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
   static const byte data[] = {// signatures
                               SIGNATURES_SECTION_VOID_VOID,
