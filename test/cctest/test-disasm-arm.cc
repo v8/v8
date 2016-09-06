@@ -860,6 +860,20 @@ TEST(ARMv8_vrintX_disasm) {
 }
 
 
+TEST(ARMv8_vminmax_disasm) {
+  SET_UP();
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    COMPARE(vmaxnm(d0, d1, d2), "fe810b02       vmaxnm.f64 d0, d1, d2");
+    COMPARE(vminnm(d3, d4, d5), "fe843b45       vminnm.f64 d3, d4, d5");
+    COMPARE(vmaxnm(s6, s7, s8), "fe833a84       vmaxnm.f32 s6, s7, s8");
+    COMPARE(vminnm(s9, s10, s11), "fec54a65       vminnm.f32 s9, s10, s11");
+  }
+
+  VERIFY_RUN();
+}
+
+
 TEST(ARMv8_vselX_disasm) {
   SET_UP();
 

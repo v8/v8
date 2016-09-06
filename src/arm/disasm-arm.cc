@@ -1896,6 +1896,22 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
             UNREACHABLE();  // Case analysis is exhaustive.
             break;
         }
+      } else if ((instr->Opc1Value() == 0x4) && (instr->Bits(11, 9) == 0x5) &&
+                 (instr->Bit(4) == 0x0)) {
+        // VMAXNM, VMINNM (floating-point)
+        if (instr->SzValue() == 0x1) {
+          if (instr->Bit(6) == 0x1) {
+            Format(instr, "vminnm.f64 'Dd, 'Dn, 'Dm");
+          } else {
+            Format(instr, "vmaxnm.f64 'Dd, 'Dn, 'Dm");
+          }
+        } else {
+          if (instr->Bit(6) == 0x1) {
+            Format(instr, "vminnm.f32 'Sd, 'Sn, 'Sm");
+          } else {
+            Format(instr, "vmaxnm.f32 'Sd, 'Sn, 'Sm");
+          }
+        }
       } else {
         Unknown(instr);
       }

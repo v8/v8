@@ -2381,6 +2381,170 @@ TEST(ARMv8_vsel) {
   }
 }
 
+TEST(ARMv8_vminmax_f64) {
+  // Test the vsel floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  struct Inputs {
+    double left_;
+    double right_;
+  };
+
+  struct Results {
+    double vminnm_;
+    double vmaxnm_;
+  };
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    // Create a helper function:
+    //  void TestVminmax(const Inputs* inputs,
+    //                   Results* results);
+    __ vldr(d1, r0, offsetof(Inputs, left_));
+    __ vldr(d2, r0, offsetof(Inputs, right_));
+
+    __ vminnm(d0, d1, d2);
+    __ vstr(d0, r1, offsetof(Results, vminnm_));
+    __ vmaxnm(d0, d1, d2);
+    __ vstr(d0, r1, offsetof(Results, vmaxnm_));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F4 f = FUNCTION_CAST<F4>(code->entry());
+    Object* dummy = nullptr;
+    USE(dummy);
+
+#define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                             \
+  do {                                                                         \
+    Inputs inputs = {left, right};                                             \
+    Results results;                                                           \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);       \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                  \
+    CHECK_EQ(bit_cast<uint64_t>(vminnm), bit_cast<uint64_t>(results.vminnm_)); \
+    CHECK_EQ(bit_cast<uint64_t>(vmaxnm), bit_cast<uint64_t>(results.vmaxnm_)); \
+  } while (0);
+
+    double nan_a = bit_cast<double>(UINT64_C(0x7ff8000000000001));
+    double nan_b = bit_cast<double>(UINT64_C(0x7ff8000000000002));
+
+    CHECK_VMINMAX(1.0, -1.0, -1.0, 1.0);
+    CHECK_VMINMAX(-1.0, 1.0, -1.0, 1.0);
+    CHECK_VMINMAX(0.0, -1.0, -1.0, 0.0);
+    CHECK_VMINMAX(-1.0, 0.0, -1.0, 0.0);
+    CHECK_VMINMAX(-0.0, -1.0, -1.0, -0.0);
+    CHECK_VMINMAX(-1.0, -0.0, -1.0, -0.0);
+    CHECK_VMINMAX(0.0, 1.0, 0.0, 1.0);
+    CHECK_VMINMAX(1.0, 0.0, 0.0, 1.0);
+
+    CHECK_VMINMAX(0.0, 0.0, 0.0, 0.0);
+    CHECK_VMINMAX(-0.0, -0.0, -0.0, -0.0);
+    CHECK_VMINMAX(-0.0, 0.0, -0.0, 0.0);
+    CHECK_VMINMAX(0.0, -0.0, -0.0, 0.0);
+
+    CHECK_VMINMAX(0.0, nan_a, 0.0, 0.0);
+    CHECK_VMINMAX(nan_a, 0.0, 0.0, 0.0);
+    CHECK_VMINMAX(nan_a, nan_b, nan_a, nan_a);
+    CHECK_VMINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_VMINMAX
+  }
+}
+
+TEST(ARMv8_vminmax_f32) {
+  // Test the vsel floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  struct Inputs {
+    float left_;
+    float right_;
+  };
+
+  struct Results {
+    float vminnm_;
+    float vmaxnm_;
+  };
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    // Create a helper function:
+    //  void TestVminmax(const Inputs* inputs,
+    //                   Results* results);
+    __ vldr(s1, r0, offsetof(Inputs, left_));
+    __ vldr(s2, r0, offsetof(Inputs, right_));
+
+    __ vminnm(s0, s1, s2);
+    __ vstr(s0, r1, offsetof(Results, vminnm_));
+    __ vmaxnm(s0, s1, s2);
+    __ vstr(s0, r1, offsetof(Results, vmaxnm_));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F4 f = FUNCTION_CAST<F4>(code->entry());
+    Object* dummy = nullptr;
+    USE(dummy);
+
+#define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                             \
+  do {                                                                         \
+    Inputs inputs = {left, right};                                             \
+    Results results;                                                           \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);       \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                  \
+    CHECK_EQ(bit_cast<uint32_t>(vminnm), bit_cast<uint32_t>(results.vminnm_)); \
+    CHECK_EQ(bit_cast<uint32_t>(vmaxnm), bit_cast<uint32_t>(results.vmaxnm_)); \
+  } while (0);
+
+    float nan_a = bit_cast<float>(UINT32_C(0x7fc00001));
+    float nan_b = bit_cast<float>(UINT32_C(0x7fc00002));
+
+    CHECK_VMINMAX(1.0f, -1.0f, -1.0f, 1.0f);
+    CHECK_VMINMAX(-1.0f, 1.0f, -1.0f, 1.0f);
+    CHECK_VMINMAX(0.0f, -1.0f, -1.0f, 0.0f);
+    CHECK_VMINMAX(-1.0f, 0.0f, -1.0f, 0.0f);
+    CHECK_VMINMAX(-0.0f, -1.0f, -1.0f, -0.0f);
+    CHECK_VMINMAX(-1.0f, -0.0f, -1.0f, -0.0f);
+    CHECK_VMINMAX(0.0f, 1.0f, 0.0f, 1.0f);
+    CHECK_VMINMAX(1.0f, 0.0f, 0.0f, 1.0f);
+
+    CHECK_VMINMAX(0.0f, 0.0f, 0.0f, 0.0f);
+    CHECK_VMINMAX(-0.0f, -0.0f, -0.0f, -0.0f);
+    CHECK_VMINMAX(-0.0f, 0.0f, -0.0f, 0.0f);
+    CHECK_VMINMAX(0.0f, -0.0f, -0.0f, 0.0f);
+
+    CHECK_VMINMAX(0.0f, nan_a, 0.0f, 0.0f);
+    CHECK_VMINMAX(nan_a, 0.0f, 0.0f, 0.0f);
+    CHECK_VMINMAX(nan_a, nan_b, nan_a, nan_a);
+    CHECK_VMINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_VMINMAX
+  }
+}
+
 TEST(unaligned_loads) {
   // All supported ARM targets allow unaligned accesses.
   CcTest::InitializeVM();

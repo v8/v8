@@ -3528,6 +3528,70 @@ void Assembler::vcmp(const SwVfpRegister src1, const float src2,
        0x5 * B9 | B6);
 }
 
+void Assembler::vmaxnm(const DwVfpRegister dst, const DwVfpRegister src1,
+                       const DwVfpRegister src2) {
+  // kSpecialCondition(31-28) | 11101(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=1(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 |
+       0x5 * B9 | B8 | n * B7 | m * B5 | vm);
+}
+
+void Assembler::vmaxnm(const SwVfpRegister dst, const SwVfpRegister src1,
+                       const SwVfpRegister src2) {
+  // kSpecialCondition(31-28) | 11101(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | m * B5 | vm);
+}
+
+void Assembler::vminnm(const DwVfpRegister dst, const DwVfpRegister src1,
+                       const DwVfpRegister src2) {
+  // kSpecialCondition(31-28) | 11101(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=1(8) | N(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 |
+       0x5 * B9 | B8 | n * B7 | B6 | m * B5 | vm);
+}
+
+void Assembler::vminnm(const SwVfpRegister dst, const SwVfpRegister src1,
+                       const SwVfpRegister src2) {
+  // kSpecialCondition(31-28) | 11101(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | B6 | m * B5 | vm);
+}
+
 void Assembler::vsel(Condition cond, const DwVfpRegister dst,
                      const DwVfpRegister src1, const DwVfpRegister src2) {
   // cond=kSpecialCondition(31-28) | 11100(27-23) | D(22) |

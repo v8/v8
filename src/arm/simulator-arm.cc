@@ -3906,6 +3906,69 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
         }
+      } else if ((instr->Opc1Value() == 0x4) && (instr->Bits(11, 9) == 0x5) &&
+                 (instr->Bit(4) == 0x0)) {
+        if (instr->SzValue() == 0x1) {
+          int m = instr->VFPMRegValue(kDoublePrecision);
+          int n = instr->VFPNRegValue(kDoublePrecision);
+          int d = instr->VFPDRegValue(kDoublePrecision);
+          double dn_value = get_double_from_d_register(n);
+          double dm_value = get_double_from_d_register(m);
+          double dd_value;
+          if (instr->Bit(6) == 0x1) {  // vminnm
+            if ((dn_value < dm_value) || std::isnan(dm_value)) {
+              dd_value = dn_value;
+            } else if ((dm_value < dn_value) || std::isnan(dn_value)) {
+              dd_value = dm_value;
+            } else {
+              DCHECK_EQ(dn_value, dm_value);
+              // Make sure that we pick the most negative sign for +/-0.
+              dd_value = std::signbit(dn_value) ? dn_value : dm_value;
+            }
+          } else {  // vmaxnm
+            if ((dn_value > dm_value) || std::isnan(dm_value)) {
+              dd_value = dn_value;
+            } else if ((dm_value > dn_value) || std::isnan(dn_value)) {
+              dd_value = dm_value;
+            } else {
+              DCHECK_EQ(dn_value, dm_value);
+              // Make sure that we pick the most positive sign for +/-0.
+              dd_value = std::signbit(dn_value) ? dm_value : dn_value;
+            }
+          }
+          dd_value = canonicalizeNaN(dd_value);
+          set_d_register_from_double(d, dd_value);
+        } else {
+          int m = instr->VFPMRegValue(kSinglePrecision);
+          int n = instr->VFPNRegValue(kSinglePrecision);
+          int d = instr->VFPDRegValue(kSinglePrecision);
+          float sn_value = get_float_from_s_register(n);
+          float sm_value = get_float_from_s_register(m);
+          float sd_value;
+          if (instr->Bit(6) == 0x1) {  // vminnm
+            if ((sn_value < sm_value) || std::isnan(sm_value)) {
+              sd_value = sn_value;
+            } else if ((sm_value < sn_value) || std::isnan(sn_value)) {
+              sd_value = sm_value;
+            } else {
+              DCHECK_EQ(sn_value, sm_value);
+              // Make sure that we pick the most negative sign for +/-0.
+              sd_value = std::signbit(sn_value) ? sn_value : sm_value;
+            }
+          } else {  // vmaxnm
+            if ((sn_value > sm_value) || std::isnan(sm_value)) {
+              sd_value = sn_value;
+            } else if ((sm_value > sn_value) || std::isnan(sn_value)) {
+              sd_value = sm_value;
+            } else {
+              DCHECK_EQ(sn_value, sm_value);
+              // Make sure that we pick the most positive sign for +/-0.
+              sd_value = std::signbit(sn_value) ? sm_value : sn_value;
+            }
+          }
+          sd_value = canonicalizeNaN(sd_value);
+          set_s_register_from_float(d, sd_value);
+        }
       } else {
         UNIMPLEMENTED();
       }

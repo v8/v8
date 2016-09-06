@@ -1258,6 +1258,19 @@ class Assembler : public AssemblerBase {
   void vcmp(const SwVfpRegister src1, const float src2,
             const Condition cond = al);
 
+  void vmaxnm(const DwVfpRegister dst,
+              const DwVfpRegister src1,
+              const DwVfpRegister src2);
+  void vmaxnm(const SwVfpRegister dst,
+              const SwVfpRegister src1,
+              const SwVfpRegister src2);
+  void vminnm(const DwVfpRegister dst,
+              const DwVfpRegister src1,
+              const DwVfpRegister src2);
+  void vminnm(const SwVfpRegister dst,
+              const SwVfpRegister src1,
+              const SwVfpRegister src2);
+
   // VSEL supports cond in {eq, ne, ge, lt, gt, le, vs, vc}.
   void vsel(const Condition cond,
             const DwVfpRegister dst,
