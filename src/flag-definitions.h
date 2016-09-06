@@ -180,16 +180,18 @@ DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 
+#ifdef V8_I18N_SUPPORT
 DEFINE_BOOL(intl_extra, false, "additional V8 Intl functions")
 // Removing extra Intl functions is shipped
 DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, intl_extra, true)
+#endif
 
 // Activate on ClusterFuzz.
 DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                           \
+#define HARMONY_INPROGRESS_BASE(V)                                      \
   V(harmony_array_prototype_values, "harmony Array.prototype.values")   \
   V(harmony_function_sent, "harmony function.sent")                     \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
@@ -203,6 +205,14 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_for_in, "harmony for-in syntax")                            \
   V(harmony_trailing_commas,                                            \
     "harmony trailing commas in function parameter lists")
+
+#ifdef V8_I18N_SUPPORT
+#define HARMONY_INPROGRESS(V) \
+  HARMONY_INPROGRESS_BASE(V)  \
+  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts")
+#else
+#define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
+#endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                               \

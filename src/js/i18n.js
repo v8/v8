@@ -1797,6 +1797,29 @@ function formatDate(formatter, dateValue) {
                              new GlobalDate(dateMs));
 }
 
+function FormatDateToParts(dateValue) {
+  if (!IS_UNDEFINED(new.target)) {
+    throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
+  }
+  CHECK_OBJECT_COERCIBLE(this, "Intl.DateTimeFormat.prototype.formatToParts");
+  if (!IS_OBJECT(this)) {
+    throw %make_type_error(kCalledOnNonObject, this);
+  }
+  var dateMs;
+  if (IS_UNDEFINED(dateValue)) {
+    dateMs = %DateCurrentTime();
+  } else {
+    dateMs = TO_NUMBER(dateValue);
+  }
+
+  if (!NUMBER_IS_FINITE(dateMs)) throw %make_range_error(kDateRange);
+
+  return %InternalDateFormatToParts(
+      %GetImplFromInitializedIntlObject(this), new GlobalDate(dateMs));
+}
+
+%FunctionSetLength(FormatDateToParts, 0);
+
 
 /**
  * Returns a Date object representing the result of calling ToString(value)
@@ -2291,8 +2314,11 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
   }
 );
 
+%FunctionRemovePrototype(FormatDateToParts);
+
 utils.Export(function(to) {
   to.AddBoundMethod = AddBoundMethod;
+  to.FormatDateToParts = FormatDateToParts;
   to.IntlParseDate = IntlParseDate;
   to.IntlParseNumber = IntlParseNumber;
 });

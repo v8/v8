@@ -185,6 +185,7 @@ function PostNatives(utils) {
     "ArrayToString",
     "AsyncFunctionNext",
     "AsyncFunctionThrow",
+    "FormatDateToParts",
     "GetIterator",
     "GetMethod",
     "GlobalPromise",

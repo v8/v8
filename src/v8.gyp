@@ -2213,6 +2213,7 @@
           ['v8_enable_i18n_support==1', {
             'library_files': ['js/i18n.js'],
             'experimental_library_files': [
+              'js/datetime-format-to-parts.js',
               'js/icu-case-mapping.js',
               'js/intl-extra.js',
              ],

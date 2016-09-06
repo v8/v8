@@ -210,7 +210,9 @@ class Genesis BASE_EMBEDDED {
   HARMONY_INPROGRESS(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_STAGED(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
+#ifdef V8_I18N_SUPPORT
   DECLARE_FEATURE_INITIALIZATION(intl_extra, "")
+#endif
 #undef DECLARE_FEATURE_INITIALIZATION
 
   Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
@@ -2209,7 +2211,9 @@ void Genesis::InitializeExperimentalGlobal() {
   HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
+#ifdef V8_I18N_SUPPORT
   FEATURE_INITIALIZE_GLOBAL(intl_extra, "")
+#endif
 #undef FEATURE_INITIALIZE_GLOBAL
 }
 
@@ -2771,6 +2775,7 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
                                                  Handle<JSObject> container) {
   HandleScope scope(isolate);
 
+#ifdef V8_I18N_SUPPORT
 #define INITIALIZE_FLAG(FLAG)                                         \
   {                                                                   \
     Handle<String> name =                                             \
@@ -2782,6 +2787,7 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
   INITIALIZE_FLAG(FLAG_intl_extra)
 
 #undef INITIALIZE_FLAG
+#endif
 }
 
 
@@ -2794,13 +2800,14 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_named_captures)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_property)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(intl_extra)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_explicit_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_declarations)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_string_padding)
 #ifdef V8_I18N_SUPPORT
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(datetime_format_to_parts)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(icu_case_mapping)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(intl_extra)
 #endif
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_async_await)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_generators)
@@ -3381,7 +3388,6 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_regexp_named_captures_natives[] = {nullptr};
   static const char* harmony_regexp_property_natives[] = {nullptr};
   static const char* harmony_function_sent_natives[] = {nullptr};
-  static const char* intl_extra_natives[] = {"native intl-extra.js", nullptr};
   static const char* harmony_object_values_entries_natives[] = {nullptr};
   static const char* harmony_object_own_property_descriptors_natives[] = {
       nullptr};
@@ -3391,6 +3397,9 @@ bool Genesis::InstallExperimentalNatives() {
 #ifdef V8_I18N_SUPPORT
   static const char* icu_case_mapping_natives[] = {"native icu-case-mapping.js",
                                                    nullptr};
+  static const char* intl_extra_natives[] = {"native intl-extra.js", nullptr};
+  static const char* datetime_format_to_parts_natives[] = {
+      "native datetime-format-to-parts.js", nullptr};
 #endif
   static const char* harmony_async_await_natives[] = {
       "native harmony-async-await.js", nullptr};
@@ -3414,7 +3423,9 @@ bool Genesis::InstallExperimentalNatives() {
     HARMONY_INPROGRESS(INSTALL_EXPERIMENTAL_NATIVES);
     HARMONY_STAGED(INSTALL_EXPERIMENTAL_NATIVES);
     HARMONY_SHIPPING(INSTALL_EXPERIMENTAL_NATIVES);
+#ifdef V8_I18N_SUPPORT
     INSTALL_EXPERIMENTAL_NATIVES(intl_extra, "");
+#endif
 #undef INSTALL_EXPERIMENTAL_NATIVES
   }
 
