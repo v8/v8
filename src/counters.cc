@@ -338,7 +338,9 @@ void RuntimeCallStats::Print(std::ostream& os) {
 }
 
 void RuntimeCallStats::Reset() {
-  if (!FLAG_runtime_call_stats) return;
+  if (!FLAG_runtime_call_stats &&
+      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())
+    return;
 #define RESET_COUNTER(name) this->name.Reset();
   FOR_EACH_MANUAL_COUNTER(RESET_COUNTER)
 #undef RESET_COUNTER
@@ -358,6 +360,8 @@ void RuntimeCallStats::Reset() {
 #define RESET_COUNTER(name) this->Handler_##name.Reset();
   FOR_EACH_HANDLER_COUNTER(RESET_COUNTER)
 #undef RESET_COUNTER
+
+  in_use_ = true;
 }
 
 const char* RuntimeCallStats::Dump() {
