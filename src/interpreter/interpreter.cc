@@ -2022,17 +2022,20 @@ void Interpreter::DoCreateFunctionContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// CreateWithContext <register>
+// CreateWithContext <register> <scope_info_idx>
 //
-// Creates a new context for a with-statement with the object in |register| and
-// the closure in the accumulator.
+// Creates a new context with the ScopeInfo at |scope_info_idx| for a
+// with-statement with the object in |register| and the closure in the
+// accumulator.
 void Interpreter::DoCreateWithContext(InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(reg_index);
+  Node* scope_info_idx = __ BytecodeOperandIdx(1);
+  Node* scope_info = __ LoadConstantPoolEntry(scope_info_idx);
   Node* closure = __ GetAccumulator();
   Node* context = __ GetContext();
-  __ SetAccumulator(
-      __ CallRuntime(Runtime::kPushWithContext, context, object, closure));
+  __ SetAccumulator(__ CallRuntime(Runtime::kPushWithContext, context, object,
+                                   scope_info, closure));
   __ Dispatch();
 }
 

@@ -4392,6 +4392,7 @@ class ScopeInfo : public FixedArray {
   FunctionKind function_kind();
 
   static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope);
+  static Handle<ScopeInfo> CreateForWithScope(Isolate* isolate);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.

@@ -1236,7 +1236,8 @@ void AstGraphBuilder::VisitWithStatement(WithStatement* stmt) {
   VisitForValue(stmt->expression());
   Node* value = environment()->Pop();
   Node* object = BuildToObject(value, stmt->ToObjectId());
-  const Operator* op = javascript()->CreateWithContext();
+  Handle<ScopeInfo> scope_info = stmt->scope()->scope_info();
+  const Operator* op = javascript()->CreateWithContext(scope_info);
   Node* context = NewNode(op, object, GetFunctionClosureForContext());
   PrepareFrameState(context, stmt->EntryId());
   VisitInScope(stmt->statement(), stmt->scope(), context);

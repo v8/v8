@@ -241,6 +241,38 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   return scope_info;
 }
 
+Handle<ScopeInfo> ScopeInfo::CreateForWithScope(Isolate* isolate) {
+  const int length = kVariablePartIndex + 1;
+
+  Factory* factory = isolate->factory();
+  Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
+
+  // Encode the flags.
+  int flags =
+      ScopeTypeField::encode(WITH_SCOPE) | CallsEvalField::encode(false) |
+      LanguageModeField::encode(SLOPPY) | DeclarationScopeField::encode(false) |
+      ReceiverVariableField::encode(NONE) | HasNewTargetField::encode(false) |
+      FunctionVariableField::encode(NONE) | AsmModuleField::encode(false) |
+      AsmFunctionField::encode(false) | HasSimpleParametersField::encode(true) |
+      FunctionKindField::encode(kNormalFunction);
+  scope_info->SetFlags(flags);
+
+  scope_info->SetParameterCount(0);
+  scope_info->SetStackLocalCount(0);
+  scope_info->SetContextLocalCount(0);
+
+  int index = kVariablePartIndex;
+  DCHECK_EQ(index, scope_info->ParameterEntriesIndex());
+  DCHECK_EQ(index, scope_info->StackLocalFirstSlotIndex());
+  scope_info->set(index++, Smi::FromInt(0));
+  DCHECK_EQ(index, scope_info->StackLocalEntriesIndex());
+  DCHECK_EQ(index, scope_info->ReceiverEntryIndex());
+  DCHECK_EQ(index, scope_info->FunctionNameEntryIndex());
+  DCHECK_EQ(index, scope_info->length());
+  DCHECK_EQ(0, scope_info->ParameterCount());
+  DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, scope_info->ContextLength());
+  return scope_info;
+}
 
 Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   DCHECK(isolate->bootstrapper()->IsActive());

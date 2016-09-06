@@ -101,20 +101,21 @@ JSObject* Context::extension_object() {
   return JSObject::cast(object);
 }
 
-
 JSReceiver* Context::extension_receiver() {
   DCHECK(IsNativeContext() || IsWithContext() ||
          IsFunctionContext() || IsBlockContext());
-  return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
+  return IsWithContext() ? JSReceiver::cast(
+                               ContextExtension::cast(extension())->extension())
+                         : extension_object();
 }
-
 
 ScopeInfo* Context::scope_info() {
   DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext() ||
-         IsCatchContext());
+         IsCatchContext() || IsWithContext() || IsDebugEvaluateContext());
   HeapObject* object = extension();
   if (object->IsContextExtension()) {
-    DCHECK(IsBlockContext() || IsCatchContext());
+    DCHECK(IsBlockContext() || IsCatchContext() || IsWithContext() ||
+           IsDebugEvaluateContext());
     object = ContextExtension::cast(object)->scope_info();
   }
   return ScopeInfo::cast(object);
@@ -340,18 +341,21 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       }
     } else if (context->IsDebugEvaluateContext()) {
       // Check materialized locals.
-      Object* obj = context->get(EXTENSION_INDEX);
-      if (obj->IsJSReceiver()) {
-        Handle<JSReceiver> extension(JSReceiver::cast(obj));
-        LookupIterator it(extension, name, extension);
-        Maybe<bool> found = JSReceiver::HasProperty(&it);
-        if (found.FromMaybe(false)) {
-          *attributes = NONE;
-          return extension;
+      Object* ext = context->get(EXTENSION_INDEX);
+      if (ext->IsContextExtension()) {
+        Object* obj = ContextExtension::cast(ext)->extension();
+        if (obj->IsJSReceiver()) {
+          Handle<JSReceiver> extension(JSReceiver::cast(obj));
+          LookupIterator it(extension, name, extension);
+          Maybe<bool> found = JSReceiver::HasProperty(&it);
+          if (found.FromMaybe(false)) {
+            *attributes = NONE;
+            return extension;
+          }
         }
       }
       // Check the original context, but do not follow its context chain.
-      obj = context->get(WRAPPED_CONTEXT_INDEX);
+      Object* obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (obj->IsContext()) {
         Handle<Object> result =
             Context::cast(obj)->Lookup(name, DONT_FOLLOW_CHAINS, index,

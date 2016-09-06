@@ -94,7 +94,8 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   if (context_extension->IsJSObject()) {
     Handle<JSObject> extension = Handle<JSObject>::cast(context_extension);
     Handle<JSFunction> closure(context->closure(), isolate);
-    context = isolate->factory()->NewWithContext(closure, context, extension);
+    context = isolate->factory()->NewWithContext(
+        closure, context, ScopeInfo::CreateForWithScope(isolate), extension);
   }
 
   Handle<JSFunction> eval_fun;
@@ -204,7 +205,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
 
   for (int i = context_chain_.length() - 1; i >= 0; i--) {
     evaluation_context_ = factory->NewDebugEvaluateContext(
-        evaluation_context_, context_chain_[i].materialized_object,
+        evaluation_context_, ScopeInfo::CreateForWithScope(isolate),
+        context_chain_[i].materialized_object,
         context_chain_[i].wrapped_context, context_chain_[i].whitelist);
   }
 }

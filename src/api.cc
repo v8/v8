@@ -2081,7 +2081,8 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
         Utils::OpenHandle(*context_extensions[i]);
     if (!extension->IsJSObject()) return Local<Function>();
     i::Handle<i::JSFunction> closure(context->closure(), isolate);
-    context = factory->NewWithContext(closure, context, extension);
+    context = factory->NewWithContext(
+        closure, context, i::ScopeInfo::CreateForWithScope(isolate), extension);
   }
 
   i::Handle<i::Object> name_obj;

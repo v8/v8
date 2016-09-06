@@ -92,20 +92,14 @@ void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
 // ----------------------------------------------------------------------------
 // Implementation of Scope
 
-Scope::Scope(Zone* zone, ScopeType scope_type)
+Scope::Scope(Zone* zone)
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
       locals_(4, zone),
       decls_(4, zone),
-      scope_type_(scope_type) {
-  DCHECK(scope_type == SCRIPT_SCOPE || scope_type == WITH_SCOPE);
+      scope_type_(SCRIPT_SCOPE) {
   SetDefaults();
-#ifdef DEBUG
-  if (scope_type == WITH_SCOPE) {
-    already_resolved_ = true;
-  }
-#endif
 }
 
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
@@ -325,7 +319,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   while (!context->IsNativeContext()) {
     if (context->IsWithContext() || context->IsDebugEvaluateContext()) {
       // For scope analysis, debug-evaluate is equivalent to a with scope.
-      outer_scope = new (zone) Scope(zone, WITH_SCOPE);
+      outer_scope = new (zone)
+          Scope(zone, WITH_SCOPE, Handle<ScopeInfo>(context->scope_info()));
 
       // TODO(yangguo): Remove once debug-evaluate properly keeps track of the
       // function scope in which we are evaluating.

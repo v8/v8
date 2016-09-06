@@ -451,8 +451,7 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(LoadMessage, Operator::kNoThrow, 0, 1)                  \
   V(StoreMessage, Operator::kNoThrow, 1, 0)                 \
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1) \
-  V(StackCheck, Operator::kNoWrite, 0, 0)                   \
-  V(CreateWithContext, Operator::kNoProperties, 2, 1)
+  V(StackCheck, Operator::kNoWrite, 0, 0)
 
 #define BINARY_OP_LIST(V) \
   V(BitwiseOr)            \
@@ -850,6 +849,14 @@ const Operator* JSOperatorBuilder::CreateCatchContext(
       parameters);                                               // parameter
 }
 
+const Operator* JSOperatorBuilder::CreateWithContext(
+    const Handle<ScopeInfo>& scope_info) {
+  return new (zone()) Operator1<Handle<ScopeInfo>>(
+      IrOpcode::kJSCreateWithContext, Operator::kNoProperties,  // opcode
+      "JSCreateWithContext",                                    // name
+      2, 1, 1, 1, 1, 2,                                         // counts
+      scope_info);                                              // parameter
+}
 
 const Operator* JSOperatorBuilder::CreateBlockContext(
     const Handle<ScopeInfo>& scpope_info) {

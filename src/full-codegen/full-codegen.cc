@@ -1135,6 +1135,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   RestoreContext();
   PrepareForBailoutForId(stmt->ToObjectId(), BailoutState::TOS_REGISTER);
   PushOperand(result_register());
+  PushOperand(stmt->scope()->scope_info());
   PushFunctionArgumentForContextAllocation();
   CallRuntimeWithOperands(Runtime::kPushWithContext);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());

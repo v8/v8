@@ -402,7 +402,7 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
 
  protected:
-  explicit Scope(Zone* zone, ScopeType scope_type = SCRIPT_SCOPE);
+  explicit Scope(Zone* zone);
 
   void set_language_mode(LanguageMode language_mode) {
     is_strict_ = is_strict(language_mode);

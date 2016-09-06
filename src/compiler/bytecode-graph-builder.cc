@@ -964,8 +964,10 @@ void BytecodeGraphBuilder::VisitCreateCatchContext() {
 void BytecodeGraphBuilder::VisitCreateWithContext() {
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(
+      bytecode_iterator().GetConstantForIndexOperand(1));
 
-  const Operator* op = javascript()->CreateWithContext();
+  const Operator* op = javascript()->CreateWithContext(scope_info);
   Node* context = NewNode(op, object, environment()->LookupAccumulator());
   environment()->BindAccumulator(context);
 }

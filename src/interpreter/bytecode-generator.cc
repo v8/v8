@@ -1092,7 +1092,7 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
-  VisitNewLocalWithContext();
+  VisitNewLocalWithContext(stmt->scope());
   VisitInScope(stmt->statement(), stmt->scope());
 }
 
@@ -3198,14 +3198,14 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
   execution_result()->SetResultInAccumulator();
 }
 
-void BytecodeGenerator::VisitNewLocalWithContext() {
+void BytecodeGenerator::VisitNewLocalWithContext(Scope* scope) {
   AccumulatorResultScope accumulator_execution_result(this);
 
   Register extension_object = register_allocator()->NewRegister();
 
   builder()->ConvertAccumulatorToObject(extension_object);
   VisitFunctionClosureForContext();
-  builder()->CreateWithContext(extension_object);
+  builder()->CreateWithContext(extension_object, scope->scope_info());
   execution_result()->SetResultInAccumulator();
 }
 
