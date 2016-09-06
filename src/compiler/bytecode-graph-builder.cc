@@ -1151,13 +1151,13 @@ Node* BytecodeGraphBuilder::ProcessCallNewArguments(
     const Operator* call_new_op, Node* callee, Node* new_target,
     interpreter::Register first_arg, size_t arity) {
   Node** all = local_zone()->NewArray<Node*>(arity);
-  all[0] = new_target;
+  all[0] = callee;
   int first_arg_index = first_arg.index();
   for (int i = 1; i < static_cast<int>(arity) - 1; ++i) {
     all[i] = environment()->LookupRegister(
         interpreter::Register(first_arg_index + i - 1));
   }
-  all[arity - 1] = callee;
+  all[arity - 1] = new_target;
   Node* value = MakeNode(call_new_op, static_cast<int>(arity), all, false);
   return value;
 }

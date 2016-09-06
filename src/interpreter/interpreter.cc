@@ -1469,7 +1469,12 @@ void Interpreter::DoTailCall(InterpreterAssembler* assembler) {
   DoJSCall(assembler, TailCallMode::kAllow);
 }
 
-void Interpreter::DoCallRuntimeCommon(InterpreterAssembler* assembler) {
+// CallRuntime <function_id> <first_arg> <arg_count>
+//
+// Call the runtime function |function_id| with the first argument in
+// register |first_arg| and |arg_count| arguments in subsequent
+// registers.
+void Interpreter::DoCallRuntime(InterpreterAssembler* assembler) {
   Node* function_id = __ BytecodeOperandRuntimeId(0);
   Node* first_arg_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(first_arg_reg);
@@ -1478,15 +1483,6 @@ void Interpreter::DoCallRuntimeCommon(InterpreterAssembler* assembler) {
   Node* result = __ CallRuntimeN(function_id, context, first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
-}
-
-// CallRuntime <function_id> <first_arg> <arg_count>
-//
-// Call the runtime function |function_id| with the first argument in
-// register |first_arg| and |arg_count| arguments in subsequent
-// registers.
-void Interpreter::DoCallRuntime(InterpreterAssembler* assembler) {
-  DoCallRuntimeCommon(assembler);
 }
 
 // InvokeIntrinsic <function_id> <first_arg> <arg_count>
@@ -1506,7 +1502,13 @@ void Interpreter::DoInvokeIntrinsic(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-void Interpreter::DoCallRuntimeForPairCommon(InterpreterAssembler* assembler) {
+// CallRuntimeForPair <function_id> <first_arg> <arg_count> <first_return>
+//
+// Call the runtime function |function_id| which returns a pair, with the
+// first argument in register |first_arg| and |arg_count| arguments in
+// subsequent registers. Returns the result in <first_return> and
+// <first_return + 1>
+void Interpreter::DoCallRuntimeForPair(InterpreterAssembler* assembler) {
   // Call the runtime function.
   Node* function_id = __ BytecodeOperandRuntimeId(0);
   Node* first_arg_reg = __ BytecodeOperandReg(1);
@@ -1526,17 +1528,11 @@ void Interpreter::DoCallRuntimeForPairCommon(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// CallRuntimeForPair <function_id> <first_arg> <arg_count> <first_return>
+// CallJSRuntime <context_index> <receiver> <arg_count>
 //
-// Call the runtime function |function_id| which returns a pair, with the
-// first argument in register |first_arg| and |arg_count| arguments in
-// subsequent registers. Returns the result in <first_return> and
-// <first_return + 1>
-void Interpreter::DoCallRuntimeForPair(InterpreterAssembler* assembler) {
-  DoCallRuntimeForPairCommon(assembler);
-}
-
-void Interpreter::DoCallJSRuntimeCommon(InterpreterAssembler* assembler) {
+// Call the JS runtime function that has the |context_index| with the receiver
+// in register |receiver| and |arg_count| arguments in subsequent registers.
+void Interpreter::DoCallJSRuntime(InterpreterAssembler* assembler) {
   Node* context_index = __ BytecodeOperandIdx(0);
   Node* receiver_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(receiver_reg);
@@ -1557,15 +1553,13 @@ void Interpreter::DoCallJSRuntimeCommon(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// CallJSRuntime <context_index> <receiver> <arg_count>
+// New <constructor> <first_arg> <arg_count>
 //
-// Call the JS runtime function that has the |context_index| with the receiver
-// in register |receiver| and |arg_count| arguments in subsequent registers.
-void Interpreter::DoCallJSRuntime(InterpreterAssembler* assembler) {
-  DoCallJSRuntimeCommon(assembler);
-}
-
-void Interpreter::DoCallConstruct(InterpreterAssembler* assembler) {
+// Call operator new with |constructor| and the first argument in
+// register |first_arg| and |arg_count| arguments in subsequent
+// registers. The new.target is in the accumulator.
+//
+void Interpreter::DoNew(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::InterpreterPushArgsAndConstruct(isolate_);
   Node* new_target = __ GetAccumulator();
   Node* constructor_reg = __ BytecodeOperandReg(0);
@@ -1580,16 +1574,6 @@ void Interpreter::DoCallConstruct(InterpreterAssembler* assembler) {
                                   args_count, slot_id, type_feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
-}
-
-// New <constructor> <first_arg> <arg_count>
-//
-// Call operator new with |constructor| and the first argument in
-// register |first_arg| and |arg_count| arguments in subsequent
-// registers. The new.target is in the accumulator.
-//
-void Interpreter::DoNew(InterpreterAssembler* assembler) {
-  DoCallConstruct(assembler);
 }
 
 // TestEqual <src>
