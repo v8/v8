@@ -480,16 +480,21 @@ class PreParserFactory {
                                       int pos) {
     return PreParserExpression::ArrayLiteral();
   }
+  PreParserExpression NewClassLiteralProperty(PreParserExpression key,
+                                              PreParserExpression value,
+                                              ClassLiteralProperty::Kind kind,
+                                              bool is_static,
+                                              bool is_computed_name) {
+    return PreParserExpression::Default();
+  }
   PreParserExpression NewObjectLiteralProperty(PreParserExpression key,
                                                PreParserExpression value,
                                                ObjectLiteralProperty::Kind kind,
-                                               bool is_static,
                                                bool is_computed_name) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewObjectLiteralProperty(PreParserExpression key,
                                                PreParserExpression value,
-                                               bool is_static,
                                                bool is_computed_name) {
     return PreParserExpression::Default();
   }
@@ -651,6 +656,7 @@ struct ParserTypes<PreParser> {
   typedef PreParserExpression Expression;
   typedef PreParserExpression FunctionLiteral;
   typedef PreParserExpression ObjectLiteralProperty;
+  typedef PreParserExpression ClassLiteralProperty;
   typedef PreParserExpressionList ExpressionList;
   typedef PreParserExpressionList PropertyList;
   typedef PreParserFormalParameters FormalParameters;
@@ -1046,6 +1052,9 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
   V8_INLINE static PreParserExpression EmptyObjectLiteralProperty() {
+    return PreParserExpression::Default();
+  }
+  V8_INLINE static PreParserExpression EmptyClassLiteralProperty() {
     return PreParserExpression::Default();
   }
   V8_INLINE static PreParserExpression EmptyFunctionLiteral() {

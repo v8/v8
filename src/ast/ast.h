@@ -1291,11 +1291,42 @@ class MaterializedLiteral : public Expression {
   friend class AstLiteralReindexer;
 };
 
+// Common supertype for ObjectLiteralProperty and ClassLiteralProperty
+class LiteralProperty : public ZoneObject {
+ public:
+  Expression* key() const { return key_; }
+  Expression* value() const { return value_; }
+  void set_key(Expression* e) { key_ = e; }
+  void set_value(Expression* e) { value_ = e; }
+
+  bool is_computed_name() const { return is_computed_name_; }
+
+  FeedbackVectorSlot GetSlot(int offset = 0) const {
+    DCHECK_LT(offset, static_cast<int>(arraysize(slots_)));
+    return slots_[offset];
+  }
+
+  void SetSlot(FeedbackVectorSlot slot, int offset = 0) {
+    DCHECK_LT(offset, static_cast<int>(arraysize(slots_)));
+    slots_[offset] = slot;
+  }
+
+  bool NeedsSetFunctionName() const;
+
+ protected:
+  LiteralProperty(Expression* key, Expression* value, bool is_computed_name)
+      : key_(key), value_(value), is_computed_name_(is_computed_name) {}
+
+  Expression* key_;
+  Expression* value_;
+  FeedbackVectorSlot slots_[2];
+  bool is_computed_name_;
+};
 
 // Property is used for passing information
 // about an object literal's properties from the parser
 // to the code generator.
-class ObjectLiteralProperty final : public ZoneObject {
+class ObjectLiteralProperty final : public LiteralProperty {
  public:
   enum Kind : uint8_t {
     CONSTANT,              // Property with constant value (compile time).
@@ -1306,54 +1337,29 @@ class ObjectLiteralProperty final : public ZoneObject {
     PROTOTYPE  // Property is __proto__.
   };
 
-  Expression* key() { return key_; }
-  Expression* value() { return value_; }
-  Kind kind() { return kind_; }
-
-  void set_key(Expression* e) { key_ = e; }
-  void set_value(Expression* e) { value_ = e; }
+  Kind kind() const { return kind_; }
 
   // Type feedback information.
-  bool IsMonomorphic() { return !receiver_type_.is_null(); }
-  Handle<Map> GetReceiverType() { return receiver_type_; }
+  bool IsMonomorphic() const { return !receiver_type_.is_null(); }
+  Handle<Map> GetReceiverType() const { return receiver_type_; }
 
-  bool IsCompileTimeValue();
+  bool IsCompileTimeValue() const;
 
   void set_emit_store(bool emit_store);
-  bool emit_store();
-
-  bool is_static() const { return is_static_; }
-  bool is_computed_name() const { return is_computed_name_; }
-
-  FeedbackVectorSlot GetSlot(int offset = 0) const {
-    DCHECK_LT(offset, static_cast<int>(arraysize(slots_)));
-    return slots_[offset];
-  }
-  void SetSlot(FeedbackVectorSlot slot, int offset = 0) {
-    DCHECK_LT(offset, static_cast<int>(arraysize(slots_)));
-    slots_[offset] = slot;
-  }
+  bool emit_store() const;
 
   void set_receiver_type(Handle<Map> map) { receiver_type_ = map; }
-
-  bool NeedsSetFunctionName() const;
 
  private:
   friend class AstNodeFactory;
 
   ObjectLiteralProperty(Expression* key, Expression* value, Kind kind,
-                        bool is_static, bool is_computed_name);
-  ObjectLiteralProperty(AstValueFactory* ast_value_factory, Expression* key,
-                        Expression* value, bool is_static,
                         bool is_computed_name);
+  ObjectLiteralProperty(AstValueFactory* ast_value_factory, Expression* key,
+                        Expression* value, bool is_computed_name);
 
-  Expression* key_;
-  Expression* value_;
-  FeedbackVectorSlot slots_[2];
   Kind kind_;
   bool emit_store_;
-  bool is_static_;
-  bool is_computed_name_;
   Handle<Map> receiver_type_;
 };
 
@@ -2678,10 +2684,29 @@ class FunctionLiteral final : public Expression {
   AstProperties ast_properties_;
 };
 
+// Property is used for passing information
+// about a class literal's properties from the parser to the code generator.
+class ClassLiteralProperty final : public LiteralProperty {
+ public:
+  enum Kind : uint8_t { METHOD, GETTER, SETTER };
+
+  Kind kind() const { return kind_; }
+
+  bool is_static() const { return is_static_; }
+
+ private:
+  friend class AstNodeFactory;
+
+  ClassLiteralProperty(Expression* key, Expression* value, Kind kind,
+                       bool is_static, bool is_computed_name);
+
+  Kind kind_;
+  bool is_static_;
+};
 
 class ClassLiteral final : public Expression {
  public:
-  typedef ObjectLiteralProperty Property;
+  typedef ClassLiteralProperty Property;
 
   VariableProxy* class_variable_proxy() const { return class_variable_proxy_; }
   Expression* extends() const { return extends_; }
@@ -3177,17 +3202,16 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   ObjectLiteral::Property* NewObjectLiteralProperty(
       Expression* key, Expression* value, ObjectLiteralProperty::Kind kind,
-      bool is_static, bool is_computed_name) {
+      bool is_computed_name) {
     return new (zone_)
-        ObjectLiteral::Property(key, value, kind, is_static, is_computed_name);
+        ObjectLiteral::Property(key, value, kind, is_computed_name);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(Expression* key,
                                                     Expression* value,
-                                                    bool is_static,
                                                     bool is_computed_name) {
     return new (zone_) ObjectLiteral::Property(ast_value_factory_, key, value,
-                                               is_static, is_computed_name);
+                                               is_computed_name);
   }
 
   RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern, int flags,
@@ -3356,9 +3380,16 @@ class AstNodeFactory final BASE_EMBEDDED {
         false);
   }
 
+  ClassLiteral::Property* NewClassLiteralProperty(
+      Expression* key, Expression* value, ClassLiteralProperty::Kind kind,
+      bool is_static, bool is_computed_name) {
+    return new (zone_)
+        ClassLiteral::Property(key, value, kind, is_static, is_computed_name);
+  }
+
   ClassLiteral* NewClassLiteral(VariableProxy* proxy, Expression* extends,
                                 FunctionLiteral* constructor,
-                                ZoneList<ObjectLiteral::Property*>* properties,
+                                ZoneList<ClassLiteral::Property*>* properties,
                                 int start_position, int end_position) {
     return new (zone_) ClassLiteral(proxy, extends, constructor, properties,
                                     start_position, end_position);

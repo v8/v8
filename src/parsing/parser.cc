@@ -4236,7 +4236,7 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
 
 
   ClassLiteralChecker checker(this);
-  ZoneList<ObjectLiteral::Property*>* properties = NewPropertyList(4);
+  ZoneList<ClassLiteral::Property*>* properties = NewClassPropertyList(4);
   FunctionLiteral* constructor = nullptr;
   bool has_seen_constructor = false;
 
@@ -4246,14 +4246,13 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
     FuncNameInferrer::State fni_state(fni_);
-    const bool in_class = true;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     ExpressionClassifier property_classifier(this);
     const AstRawString* property_name = nullptr;
-    ObjectLiteral::Property* property = ParsePropertyDefinition(
-        &checker, in_class, has_extends, &is_computed_name,
-        &has_seen_constructor, &property_name, CHECK_OK);
+    ClassLiteral::Property* property = ParseClassPropertyDefinition(
+        &checker, has_extends, &is_computed_name, &has_seen_constructor,
+        &property_name, CHECK_OK);
     RewriteNonPattern(CHECK_OK);
     impl()->AccumulateFormalParameterContainmentErrors();
 
@@ -5031,7 +5030,7 @@ class NonPatternRewriter : public AstExpressionRewriter {
     return false;
   }
 
-  void VisitObjectLiteralProperty(ObjectLiteralProperty* property) override {
+  void VisitLiteralProperty(LiteralProperty* property) override {
     if (property == nullptr) return;
     // Do not rewrite (computed) key expressions
     AST_REWRITE_PROPERTY(Expression, property, value);
@@ -5239,6 +5238,34 @@ void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
 
   DCHECK(!value->IsAnonymousFunctionDefinition() ||
          property->kind() == ObjectLiteralProperty::COMPUTED);
+  SetFunctionName(value, name);
+}
+
+void Parser::SetFunctionNameFromPropertyName(ClassLiteralProperty* property,
+                                             const AstRawString* name) {
+  // TODO(bakkot) move this logic into Parse{Object,Class}PropertyDefinition and
+  // clean it up.
+  Expression* value = property->value();
+
+  // Computed name setting must happen at runtime.
+  if (property->is_computed_name()) return;
+
+  // Getter and setter names are handled here because their names
+  // change in ES2015, even though they are not anonymous.
+  auto function = value->AsFunctionLiteral();
+  DCHECK_NOT_NULL(function);
+
+  bool is_getter = property->kind() == ClassLiteralProperty::GETTER;
+  bool is_setter = property->kind() == ClassLiteralProperty::SETTER;
+  if (is_getter || is_setter) {
+    DCHECK_NOT_NULL(name);
+    const AstRawString* prefix = is_getter
+                                     ? ast_value_factory()->get_space_string()
+                                     : ast_value_factory()->set_space_string();
+    function->set_raw_name(ast_value_factory()->NewConsString(prefix, name));
+    return;
+  }
+
   SetFunctionName(value, name);
 }
 

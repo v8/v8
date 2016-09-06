@@ -323,27 +323,16 @@ bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
   return expr->AsFunctionLiteral()->scope()->NeedsHomeObject();
 }
 
-
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
-                                             Kind kind, bool is_static,
-                                             bool is_computed_name)
-    : key_(key),
-      value_(value),
+                                             Kind kind, bool is_computed_name)
+    : LiteralProperty(key, value, is_computed_name),
       kind_(kind),
-      emit_store_(true),
-      is_static_(is_static),
-      is_computed_name_(is_computed_name) {}
-
+      emit_store_(true) {}
 
 ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
                                              Expression* key, Expression* value,
-                                             bool is_static,
                                              bool is_computed_name)
-    : key_(key),
-      value_(value),
-      emit_store_(true),
-      is_static_(is_static),
-      is_computed_name_(is_computed_name) {
+    : LiteralProperty(key, value, is_computed_name), emit_store_(true) {
   if (!is_computed_name &&
       key->AsLiteral()->raw_value()->EqualsString(
           ast_value_factory->proto_string())) {
@@ -357,12 +346,19 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
   }
 }
 
-bool ObjectLiteralProperty::NeedsSetFunctionName() const {
+bool LiteralProperty::NeedsSetFunctionName() const {
   return is_computed_name_ &&
          (value_->IsAnonymousFunctionDefinition() ||
           (value_->IsFunctionLiteral() &&
            IsConciseMethod(value_->AsFunctionLiteral()->kind())));
 }
+
+ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
+                                           Kind kind, bool is_static,
+                                           bool is_computed_name)
+    : LiteralProperty(key, value, is_computed_name),
+      kind_(kind),
+      is_static_(is_static) {}
 
 void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                              FeedbackVectorSpec* spec,
@@ -375,7 +371,7 @@ void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
   }
 
   for (int i = 0; i < properties()->length(); i++) {
-    ObjectLiteral::Property* property = properties()->at(i);
+    ClassLiteral::Property* property = properties()->at(i);
     Expression* value = property->value();
     if (FunctionLiteral::NeedsHomeObject(value)) {
       property->SetSlot(spec->AddStoreICSlot());
@@ -383,8 +379,7 @@ void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
   }
 }
 
-
-bool ObjectLiteral::Property::IsCompileTimeValue() {
+bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
       (kind_ == MATERIALIZED_LITERAL &&
        CompileTimeValue::IsCompileTimeValue(value_));
@@ -395,11 +390,7 @@ void ObjectLiteral::Property::set_emit_store(bool emit_store) {
   emit_store_ = emit_store;
 }
 
-
-bool ObjectLiteral::Property::emit_store() {
-  return emit_store_;
-}
-
+bool ObjectLiteral::Property::emit_store() const { return emit_store_; }
 
 void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                               FeedbackVectorSpec* spec,

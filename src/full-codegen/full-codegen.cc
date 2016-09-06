@@ -1102,7 +1102,7 @@ void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
   CallRuntimeWithOperands(Runtime::kLoadKeyedFromSuper);
 }
 
-void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
+void FullCodeGenerator::EmitPropertyKey(LiteralProperty* property,
                                         BailoutId bailout_id) {
   VisitForStackValue(property->key());
   CallRuntimeWithOperands(Runtime::kToName);

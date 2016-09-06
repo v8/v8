@@ -854,13 +854,12 @@ PreParserExpression PreParser::ParseClassLiteral(
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
-    const bool in_class = true;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     Identifier name;
     ExpressionClassifier property_classifier(this);
-    ParsePropertyDefinition(&checker, in_class, has_extends, &is_computed_name,
-                            &has_seen_constructor, &name, CHECK_OK);
+    ParseClassPropertyDefinition(&checker, has_extends, &is_computed_name,
+                                 &has_seen_constructor, &name, CHECK_OK);
     ValidateExpression(CHECK_OK);
     impl()->AccumulateFormalParameterContainmentErrors();
   }

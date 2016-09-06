@@ -144,7 +144,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitNewLocalWithContext(Scope* scope);
   void VisitFunctionClosureForContext();
   void VisitSetHomeObject(Register value, Register home_object,
-                          ObjectLiteralProperty* property, int slot_number = 0);
+                          LiteralProperty* property, int slot_number = 0);
   void VisitObjectLiteralAccessor(Register home_object,
                                   ObjectLiteralProperty* property,
                                   Register value_out);

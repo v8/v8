@@ -1544,7 +1544,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
 
   // Create nodes to store method values into the literal.
   for (int i = 0; i < expr->properties()->length(); i++) {
-    ObjectLiteral::Property* property = expr->properties()->at(i);
+    ClassLiteral::Property* property = expr->properties()->at(i);
 
     // Set-up receiver.
     Register new_receiver = property->is_static() ? literal : prototype;
@@ -1575,13 +1575,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
     }
 
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      case ObjectLiteral::Property::PROTOTYPE:
-        // Invalid properties for ES6 classes.
-        UNREACHABLE();
-        break;
-      case ObjectLiteral::Property::COMPUTED: {
+      case ClassLiteral::Property::METHOD: {
         builder()
             ->LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
             .StoreAccumulatorInRegister(set_function_name);
@@ -1589,12 +1583,12 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
                                5);
         break;
       }
-      case ObjectLiteral::Property::GETTER: {
+      case ClassLiteral::Property::GETTER: {
         builder()->CallRuntime(Runtime::kDefineGetterPropertyUnchecked,
                                receiver, 4);
         break;
       }
-      case ObjectLiteral::Property::SETTER: {
+      case ClassLiteral::Property::SETTER: {
         builder()->CallRuntime(Runtime::kDefineSetterPropertyUnchecked,
                                receiver, 4);
         break;
@@ -3235,7 +3229,7 @@ void BytecodeGenerator::VisitObjectLiteralAccessor(
 }
 
 void BytecodeGenerator::VisitSetHomeObject(Register value, Register home_object,
-                                           ObjectLiteralProperty* property,
+                                           LiteralProperty* property,
                                            int slot_number) {
   Expression* expr = property->value();
   if (FunctionLiteral::NeedsHomeObject(expr)) {

@@ -1602,7 +1602,7 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
 
   // Create nodes to store method values into the literal.
   for (int i = 0; i < expr->properties()->length(); i++) {
-    ObjectLiteral::Property* property = expr->properties()->at(i);
+    ClassLiteral::Property* property = expr->properties()->at(i);
     environment()->Push(environment()->Peek(property->is_static() ? 1 : 0));
 
     VisitForValue(property->key());
@@ -1627,11 +1627,7 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
     BuildSetHomeObject(value, receiver, property);
 
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      case ObjectLiteral::Property::PROTOTYPE:
-        UNREACHABLE();
-      case ObjectLiteral::Property::COMPUTED: {
+      case ClassLiteral::Property::METHOD: {
         Node* attr = jsgraph()->Constant(DONT_ENUM);
         Node* set_function_name =
             jsgraph()->Constant(property->NeedsSetFunctionName());
@@ -1641,14 +1637,14 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
         PrepareFrameState(call, BailoutId::None());
         break;
       }
-      case ObjectLiteral::Property::GETTER: {
+      case ClassLiteral::Property::GETTER: {
         Node* attr = jsgraph()->Constant(DONT_ENUM);
         const Operator* op = javascript()->CallRuntime(
             Runtime::kDefineGetterPropertyUnchecked, 4);
         NewNode(op, receiver, key, value, attr);
         break;
       }
-      case ObjectLiteral::Property::SETTER: {
+      case ClassLiteral::Property::SETTER: {
         Node* attr = jsgraph()->Constant(DONT_ENUM);
         const Operator* op = javascript()->CallRuntime(
             Runtime::kDefineSetterPropertyUnchecked, 4);
@@ -3697,9 +3693,8 @@ Node* AstGraphBuilder::BuildToObject(Node* input, BailoutId bailout_id) {
   return object;
 }
 
-
 Node* AstGraphBuilder::BuildSetHomeObject(Node* value, Node* home_object,
-                                          ObjectLiteralProperty* property,
+                                          LiteralProperty* property,
                                           int slot_number) {
   Expression* expr = property->value();
   if (!FunctionLiteral::NeedsHomeObject(expr)) return value;

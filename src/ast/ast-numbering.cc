@@ -39,7 +39,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   void VisitStatements(ZoneList<Statement*>* statements);
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
-  void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
+  void VisitLiteralProperty(LiteralProperty* property);
 
   int ReserveIdRange(int n) {
     int tmp = next_id_;
@@ -464,7 +464,7 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
     VisitVariableProxy(node->class_variable_proxy());
   }
   for (int i = 0; i < node->properties()->length(); i++) {
-    VisitObjectLiteralProperty(node->properties()->at(i));
+    VisitLiteralProperty(node->properties()->at(i));
   }
   ReserveFeedbackSlots(node);
 }
@@ -474,7 +474,7 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(node->num_ids()));
   for (int i = 0; i < node->properties()->length(); i++) {
-    VisitObjectLiteralProperty(node->properties()->at(i));
+    VisitLiteralProperty(node->properties()->at(i));
   }
   node->BuildConstantProperties(isolate_);
   // Mark all computed expressions that are bound to a key that
@@ -484,14 +484,11 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   ReserveFeedbackSlots(node);
 }
 
-
-void AstNumberingVisitor::VisitObjectLiteralProperty(
-    ObjectLiteralProperty* node) {
+void AstNumberingVisitor::VisitLiteralProperty(LiteralProperty* node) {
   if (node->is_computed_name()) DisableCrankshaft(kComputedPropertyName);
   Visit(node->key());
   Visit(node->value());
 }
-
 
 void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
   IncrementNodeCount();

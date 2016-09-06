@@ -150,6 +150,7 @@ struct ParserTypes<Parser> {
   typedef v8::internal::Expression* Expression;
   typedef v8::internal::FunctionLiteral* FunctionLiteral;
   typedef ObjectLiteral::Property* ObjectLiteralProperty;
+  typedef ClassLiteral::Property* ClassLiteralProperty;
   typedef ZoneList<v8::internal::Expression*>* ExpressionList;
   typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
   typedef ParserFormalParameters FormalParameters;
@@ -713,8 +714,7 @@ class Parser : public ParserBase<Parser> {
     return arg == nullptr || literal->raw_value()->AsString() == arg;
   }
 
-  V8_INLINE static Expression* GetPropertyValue(
-      ObjectLiteral::Property* property) {
+  V8_INLINE static Expression* GetPropertyValue(LiteralProperty* property) {
     return property->value();
   }
 
@@ -847,6 +847,9 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE static ObjectLiteralProperty* EmptyObjectLiteralProperty() {
     return nullptr;
   }
+  V8_INLINE static ClassLiteralProperty* EmptyClassLiteralProperty() {
+    return nullptr;
+  }
   V8_INLINE static FunctionLiteral* EmptyFunctionLiteral() { return nullptr; }
   V8_INLINE static Block* NullBlock() { return nullptr; }
 
@@ -932,6 +935,10 @@ class Parser : public ParserBase<Parser> {
       int size) const {
     return new (zone()) ZoneList<ObjectLiteral::Property*>(size, zone());
   }
+  V8_INLINE ZoneList<ClassLiteral::Property*>* NewClassPropertyList(
+      int size) const {
+    return new (zone()) ZoneList<ClassLiteral::Property*>(size, zone());
+  }
   V8_INLINE ZoneList<Statement*>* NewStatementList(int size) const {
     return new (zone()) ZoneList<Statement*>(size, zone());
   }
@@ -1011,6 +1018,8 @@ class Parser : public ParserBase<Parser> {
   Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
 
   void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
+                                       const AstRawString* name);
+  void SetFunctionNameFromPropertyName(ClassLiteralProperty* property,
                                        const AstRawString* name);
 
   void SetFunctionNameFromIdentifierRef(Expression* value,

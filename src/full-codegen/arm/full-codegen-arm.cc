@@ -1983,7 +1983,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 
 void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
   for (int i = 0; i < lit->properties()->length(); i++) {
-    ObjectLiteral::Property* property = lit->properties()->at(i);
+    ClassLiteral::Property* property = lit->properties()->at(i);
     Expression* value = property->value();
 
     Register scratch = r1;
@@ -2010,22 +2010,18 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     }
 
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      case ObjectLiteral::Property::PROTOTYPE:
-        UNREACHABLE();
-      case ObjectLiteral::Property::COMPUTED:
+      case ClassLiteral::Property::METHOD:
         PushOperand(Smi::FromInt(DONT_ENUM));
         PushOperand(Smi::FromInt(property->NeedsSetFunctionName()));
         CallRuntimeWithOperands(Runtime::kDefineDataPropertyInLiteral);
         break;
 
-      case ObjectLiteral::Property::GETTER:
+      case ClassLiteral::Property::GETTER:
         PushOperand(Smi::FromInt(DONT_ENUM));
         CallRuntimeWithOperands(Runtime::kDefineGetterPropertyUnchecked);
         break;
 
-      case ObjectLiteral::Property::SETTER:
+      case ClassLiteral::Property::SETTER:
         PushOperand(Smi::FromInt(DONT_ENUM));
         CallRuntimeWithOperands(Runtime::kDefineSetterPropertyUnchecked);
         break;
