@@ -35,6 +35,10 @@ class Truncation final {
   bool IsUsedAsFloat64() const {
     return LessGeneral(kind_, TruncationKind::kFloat64);
   }
+  bool IdentifiesMinusZeroAndZero() {
+    return LessGeneral(kind_, TruncationKind::kWord32) ||
+           LessGeneral(kind_, TruncationKind::kBool);
+  }
   bool IdentifiesNaNAndZero() {
     return LessGeneral(kind_, TruncationKind::kWord32) ||
            LessGeneral(kind_, TruncationKind::kBool);

@@ -241,6 +241,12 @@ class RepresentationSelector {
     bool weakened() const { return weakened_; }
     void set_restriction_type(Type* type) { restriction_type_ = type; }
     Type* restriction_type() const { return restriction_type_; }
+    void set_unrestricted_feedback_type(Type* type) {
+      unrestricted_feedback_type_ = type;
+    }
+    Type* unrestricted_feedback_type() const {
+      return unrestricted_feedback_type_;
+    }
 
    private:
     enum State : uint8_t { kUnvisited, kPushed, kVisited, kQueued };
@@ -251,6 +257,7 @@ class RepresentationSelector {
 
     Type* restriction_type_ = Type::Any();
     Type* feedback_type_ = nullptr;
+    Type* unrestricted_feedback_type_ = nullptr;
     bool weakened_ = false;
   };
 
@@ -364,6 +371,11 @@ class RepresentationSelector {
     return type == nullptr ? Type::None() : type;
   }
 
+  Type* UnrestrictedFeedbackTypeOf(Node* node) {
+    Type* type = GetInfo(node)->unrestricted_feedback_type();
+    return type == nullptr ? NodeProperties::GetType(node) : type;
+  }
+
   Type* TypePhi(Node* node) {
     int arity = node->op()->ValueInputCount();
     Type* type = FeedbackTypeOf(node->InputAt(0));
@@ -406,13 +418,11 @@ class RepresentationSelector {
       SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
-#define DECLARE_CASE(Name)                                                \
-  case IrOpcode::k##Name: {                                               \
-    new_type =                                                            \
-        Type::Intersect(op_typer_.Name(FeedbackTypeOf(node->InputAt(0)),  \
-                                       FeedbackTypeOf(node->InputAt(1))), \
-                        info->restriction_type(), graph_zone());          \
-    break;                                                                \
+#define DECLARE_CASE(Name)                                       \
+  case IrOpcode::k##Name: {                                      \
+    new_type = op_typer_.Name(FeedbackTypeOf(node->InputAt(0)),  \
+                              FeedbackTypeOf(node->InputAt(1))); \
+    break;                                                       \
   }
       SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
@@ -451,11 +461,17 @@ class RepresentationSelector {
       default:
         // Shortcut for operations that we do not handle.
         if (type == nullptr) {
-          GetInfo(node)->set_feedback_type(NodeProperties::GetType(node));
+          type = GetUpperBound(node);
+          info->set_unrestricted_feedback_type(type);
+          info->set_feedback_type(
+              Type::Intersect(type, info->restriction_type(), graph_zone()));
           return true;
         }
         return false;
     }
+    Type* unrestricted_feedback_type = new_type;
+    new_type =
+        Type::Intersect(new_type, info->restriction_type(), graph_zone());
     // We need to guarantee that the feedback type is a subtype of the upper
     // bound. Naively that should hold, but weakening can actually produce
     // a bigger type if we are unlucky with ordering of phi typing. To be
@@ -463,7 +479,8 @@ class RepresentationSelector {
     new_type = Type::Intersect(GetUpperBound(node), new_type, graph_zone());
 
     if (type != nullptr && new_type->Is(type)) return false;
-    GetInfo(node)->set_feedback_type(new_type);
+    info->set_unrestricted_feedback_type(unrestricted_feedback_type);
+    info->set_feedback_type(new_type);
     if (FLAG_trace_representation) {
       PrintNodeFeedbackType(node);
     }
@@ -1106,22 +1123,6 @@ class RepresentationSelector {
     return jsgraph_->simplified();
   }
 
-  void LowerToCheckedInt32Mul(Node* node, Truncation truncation,
-                              Type* input0_type, Type* input1_type) {
-    // If one of the inputs is positive and/or truncation is being applied,
-    // there is no need to return -0.
-    CheckForMinusZeroMode mz_mode =
-        truncation.IsUsedAsWord32() ||
-                (input0_type->Is(Type::OrderedNumber()) &&
-                 input0_type->Min() > 0) ||
-                (input1_type->Is(Type::OrderedNumber()) &&
-                 input1_type->Min() > 0)
-            ? CheckForMinusZeroMode::kDontCheckForMinusZero
-            : CheckForMinusZeroMode::kCheckForMinusZero;
-
-    NodeProperties::ChangeOp(node, simplified()->CheckedInt32Mul(mz_mode));
-  }
-
   void ChangeToInt32OverflowOp(Node* node) {
     NodeProperties::ChangeOp(node, Int32OverflowOp(node));
   }
@@ -1149,29 +1150,32 @@ class RepresentationSelector {
       return;
     }
 
-    // Try to use type feedback.
-    NumberOperationHint hint = NumberOperationHintOf(node->op());
-
-    // Handle the case when no int32 checks on inputs are necessary
-    // (but an overflow check is needed on the output).
-    if (BothInputsAre(node, Type::Signed32()) ||
-        (BothInputsAre(node, Type::Signed32OrMinusZero()) &&
-         NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger))) {
-      // If both the inputs the feedback are int32, use the overflow op.
-      if (hint == NumberOperationHint::kSignedSmall ||
-          hint == NumberOperationHint::kSigned32) {
-        VisitBinop(node, UseInfo::TruncatingWord32(),
-                   MachineRepresentation::kWord32, Type::Signed32());
-        if (lower()) ChangeToInt32OverflowOp(node);
-        return;
-      }
-    }
-
+    // We always take SignedSmall/Signed32 feedback otherwise.
+    NumberOperationHint const hint = NumberOperationHintOf(node->op());
     if (hint == NumberOperationHint::kSignedSmall ||
         hint == NumberOperationHint::kSigned32) {
-      VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                 MachineRepresentation::kWord32, Type::Signed32());
-      if (lower()) ChangeToInt32OverflowOp(node);
+      // Check if we can guarantee truncations for the inputs.
+      if (BothInputsAre(node, Type::Signed32()) ||
+          (BothInputsAre(node, Type::Signed32OrMinusZero()) &&
+           NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger))) {
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kWord32, Type::Signed32());
+      } else {
+        VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                   MachineRepresentation::kWord32, Type::Signed32());
+      }
+      if (lower()) {
+        // Avoid overflow checks if the unrestricted feedback type of {node}
+        // suggests that the result will fit into Signed32/Unsigned32 range.
+        Type* const type = UnrestrictedFeedbackTypeOf(node);
+        if (type->Is(Type::Unsigned32())) {
+          ChangeToPureOp(node, Uint32Op(node));
+        } else if (type->Is(Type::Signed32())) {
+          ChangeToPureOp(node, Int32Op(node));
+        } else {
+          ChangeToInt32OverflowOp(node);
+        }
+      }
       return;
     }
 
@@ -1181,7 +1185,6 @@ class RepresentationSelector {
     if (lower()) {
       ChangeToPureOp(node, Float64Op(node));
     }
-    return;
   }
 
   void VisitSpeculativeNumberModulus(Node* node, Truncation truncation,
@@ -1523,33 +1526,39 @@ class RepresentationSelector {
           if (lower()) ChangeToPureOp(node, Int32Op(node));
           return;
         }
-        // Try to use type feedback.
-        NumberOperationHint hint = NumberOperationHintOf(node->op());
-        Type* input0_type = TypeOf(node->InputAt(0));
-        Type* input1_type = TypeOf(node->InputAt(1));
 
-        // Handle the case when no int32 checks on inputs are necessary
-        // (but an overflow check is needed on the output).
-        if (BothInputsAre(node, Type::Signed32())) {
-          // If both the inputs the feedback are int32, use the overflow op.
-          if (hint == NumberOperationHint::kSignedSmall ||
-              hint == NumberOperationHint::kSigned32) {
-            VisitBinop(node, UseInfo::TruncatingWord32(),
-                       MachineRepresentation::kWord32, Type::Signed32());
-            if (lower()) {
-              LowerToCheckedInt32Mul(node, truncation, input0_type,
-                                     input1_type);
-            }
-            return;
-          }
-        }
-
+        // We always take SignedSmall/Signed32 feedback otherwise.
+        NumberOperationHint const hint = NumberOperationHintOf(node->op());
         if (hint == NumberOperationHint::kSignedSmall ||
             hint == NumberOperationHint::kSigned32) {
-          VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                     MachineRepresentation::kWord32, Type::Signed32());
+          // Handle the case when no int32 checks on inputs are necessary
+          // (but an overflow check is needed on the output).
+          if (BothInputsAre(node, Type::Signed32())) {
+            // If both the inputs the feedback are int32, use the overflow op.
+            VisitBinop(node, UseInfo::TruncatingWord32(),
+                       MachineRepresentation::kWord32, Type::Signed32());
+          } else {
+            VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                       MachineRepresentation::kWord32, Type::Signed32());
+          }
           if (lower()) {
-            LowerToCheckedInt32Mul(node, truncation, input0_type, input1_type);
+            // Avoid overflow checks if the unrestricted feedback type of {node}
+            // suggests that the result will fit into Signed32/Unsigned32 range,
+            // or at least try to avoid the expensive minus zero checks.
+            Type* const type = UnrestrictedFeedbackTypeOf(node);
+            if (type->Is(Type::Unsigned32())) {
+              ChangeToPureOp(node, Uint32Op(node));
+            } else if (type->Is(Type::Signed32())) {
+              ChangeToPureOp(node, Int32Op(node));
+            } else {
+              CheckForMinusZeroMode const mode =
+                  (truncation.IdentifiesMinusZeroAndZero() ||
+                   !type->Maybe(Type::MinusZero()))
+                      ? CheckForMinusZeroMode::kDontCheckForMinusZero
+                      : CheckForMinusZeroMode::kCheckForMinusZero;
+              NodeProperties::ChangeOp(node,
+                                       simplified()->CheckedInt32Mul(mode));
+            }
           }
           return;
         }
