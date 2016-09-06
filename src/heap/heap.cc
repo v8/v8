@@ -5471,16 +5471,19 @@ void Heap::PrintAlloctionsHash() {
 
 
 void Heap::NotifyDeserializationComplete() {
-  deserialization_complete_ = true;
-#ifdef DEBUG
-  // All pages right after bootstrapping must be marked as never-evacuate.
+  DCHECK_EQ(0, gc_count());
   PagedSpaces spaces(this);
   for (PagedSpace* s = spaces.next(); s != NULL; s = spaces.next()) {
+    if (isolate()->snapshot_available()) s->ShrinkImmortalImmovablePages();
+#ifdef DEBUG
+    // All pages right after bootstrapping must be marked as never-evacuate.
     for (Page* p : *s) {
       CHECK(p->NeverEvacuate());
     }
-  }
 #endif  // DEBUG
+  }
+
+  deserialization_complete_ = true;
 }
 
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {

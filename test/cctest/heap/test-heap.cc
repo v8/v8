@@ -2218,6 +2218,18 @@ static Address AlignOldSpace(AllocationAlignment alignment, int offset) {
 // Test the case where allocation must be done from the free list, so filler
 // may precede or follow the object.
 TEST(TestAlignedOverAllocation) {
+  Heap* heap = CcTest::heap();
+  // Test checks for fillers before and behind objects and requires a fresh
+  // page and empty free list.
+  heap::AbandonCurrentlyFreeMemory(heap->old_space());
+  // Allocate a dummy object to properly set up the linear allocation info.
+  AllocationResult dummy =
+      heap->old_space()->AllocateRawUnaligned(kPointerSize);
+  CHECK(!dummy.IsRetry());
+  heap->CreateFillerObjectAt(
+      HeapObject::cast(dummy.ToObjectChecked())->address(), kPointerSize,
+      ClearRecordedSlots::kNo);
+
   // Double misalignment is 4 on 32-bit platforms, 0 on 64-bit ones.
   const intptr_t double_misalignment = kDoubleSize - kPointerSize;
   Address start;

@@ -817,6 +817,8 @@ class Page : public MemoryChunk {
     available_in_free_list_.Increment(available);
   }
 
+  size_t ShrinkToHighWaterMark();
+
 #ifdef DEBUG
   void Print();
 #endif  // DEBUG
@@ -1304,6 +1306,8 @@ class MemoryAllocator {
   MemoryChunk* AllocateChunk(intptr_t reserve_area_size,
                              intptr_t commit_area_size,
                              Executability executable, Space* space);
+
+  void ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink);
 
   Address ReserveAlignedMemory(size_t requested, size_t alignment,
                                base::VirtualMemory* controller);
@@ -2185,6 +2189,10 @@ class PagedSpace : public Space {
 
   iterator begin() { return iterator(anchor_.next_page()); }
   iterator end() { return iterator(&anchor_); }
+
+  // Shrink immortal immovable pages of the space to be exactly the size needed
+  // using the high water mark.
+  void ShrinkImmortalImmovablePages();
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
