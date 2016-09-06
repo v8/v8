@@ -224,32 +224,21 @@ void BytecodeExpectationsPrinter::PrintV8String(std::ostream& stream,
 
 void BytecodeExpectationsPrinter::PrintConstant(
     std::ostream& stream, i::Handle<i::Object> constant) const {
-  switch (const_pool_type_) {
-    case ConstantPoolType::kString:
-      CHECK(constant->IsString());
+  if (constant->IsSmi()) {
+    stream << "Smi [";
+    i::Smi::cast(*constant)->SmiPrint(stream);
+    stream << "]";
+  } else {
+    stream << i::HeapObject::cast(*constant)->map()->instance_type();
+    if (constant->IsHeapNumber()) {
+      stream << " [";
+      i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
+      stream << "]";
+    } else if (constant->IsString()) {
+      stream << " [";
       PrintV8String(stream, i::String::cast(*constant));
-      break;
-    case ConstantPoolType::kNumber:
-      if (constant->IsSmi()) {
-        i::Smi::cast(*constant)->SmiPrint(stream);
-      } else if (constant->IsHeapNumber()) {
-        i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
-      } else {
-        UNREACHABLE();
-      }
-      break;
-    case ConstantPoolType::kMixed:
-      if (constant->IsSmi()) {
-        stream << "kInstanceTypeDontCare";
-      } else {
-        stream << "InstanceType::"
-               << i::HeapObject::cast(*constant)->map()->instance_type();
-      }
-      break;
-    case ConstantPoolType::kUnknown:
-    default:
-      UNREACHABLE();
-      return;
+      stream << "]";
+    }
   }
 }
 

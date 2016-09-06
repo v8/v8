@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: string
 execute: yes
 wrap: yes
 
@@ -20,7 +19,7 @@ bytecodes: [
   /*   49 S> */ B(Return),
 ]
 constant pool: [
-  "ab+d",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["ab+d"],
 ]
 handlers: [
 ]
@@ -38,7 +37,7 @@ bytecodes: [
   /*   58 S> */ B(Return),
 ]
 constant pool: [
-  "(\u005cw+)\u005cs(\u005cw+)",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["(\u005cw+)\u005cs(\u005cw+)"],
 ]
 handlers: [
 ]
@@ -61,9 +60,9 @@ bytecodes: [
   /*   62 S> */ B(Return),
 ]
 constant pool: [
-  "ab+d",
-  "exec",
-  "abdd",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["ab+d"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["exec"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["abdd"],
 ]
 handlers: [
 ]

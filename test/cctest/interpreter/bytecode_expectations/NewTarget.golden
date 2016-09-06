@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: mixed
 execute: yes
 wrap: yes
 

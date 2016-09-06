@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: mixed
 execute: yes
 wrap: yes
 
@@ -21,7 +20,7 @@ bytecodes: [
   /*   46 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -40,7 +39,7 @@ bytecodes: [
   /*   71 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -62,8 +61,8 @@ bytecodes: [
   /*   80 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
 ]
@@ -86,8 +85,8 @@ bytecodes: [
   /*   76 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
 ]
@@ -108,9 +107,9 @@ bytecodes: [
   /*   67 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["func"],
 ]
 handlers: [
 ]
@@ -131,9 +130,9 @@ bytecodes: [
   /*   68 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["func"],
 ]
 handlers: [
 ]
@@ -162,9 +161,9 @@ bytecodes: [
   /*   68 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -193,10 +192,10 @@ bytecodes: [
   /*  102 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -225,9 +224,9 @@ bytecodes: [
   /*   74 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["b"],
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -255,7 +254,7 @@ bytecodes: [
   /*   62 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -278,7 +277,7 @@ bytecodes: [
   /*   62 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -308,8 +307,8 @@ bytecodes: [
   /*   69 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["test"],
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -340,9 +339,9 @@ bytecodes: [
   /*   77 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["test"],
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
 ]
@@ -376,8 +375,8 @@ bytecodes: [
   /*   84 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["test"],
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -423,12 +422,12 @@ bytecodes: [
   /*   99 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]

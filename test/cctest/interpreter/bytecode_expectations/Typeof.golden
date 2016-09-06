@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: string
 execute: yes
 wrap: no
 test function name: f

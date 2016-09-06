@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: string
 execute: yes
 wrap: no
 test function name: f
@@ -25,7 +24,7 @@ bytecodes: [
   /*   33 S> */ B(Return),
 ]
 constant pool: [
-  "a",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -46,7 +45,7 @@ bytecodes: [
   /*   39 S> */ B(Return),
 ]
 constant pool: [
-  "a",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -68,7 +67,7 @@ bytecodes: [
   /*   47 S> */ B(Return),
 ]
 constant pool: [
-  "a",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -90,7 +89,7 @@ bytecodes: [
   /*   29 S> */ B(Return),
 ]
 constant pool: [
-  "a",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -498,8 +497,8 @@ bytecodes: [
   /* 1312 S> */ B(Return),
 ]
 constant pool: [
-  "name",
-  "a",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -908,8 +907,8 @@ bytecodes: [
   /* 1328 S> */ B(Return),
 ]
 constant pool: [
-  "name",
-  "a",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]

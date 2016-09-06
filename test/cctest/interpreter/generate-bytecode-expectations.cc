@@ -43,9 +43,7 @@ class ProgramOptions final {
         execute_(true),
         top_level_(false),
         do_expressions_(false),
-        verbose_(false),
-        const_pool_type_(
-            BytecodeExpectationsPrinter::ConstantPoolType::kMixed) {}
+        verbose_(false) {}
 
   bool Validate() const;
   void UpdateFromHeader(std::istream& stream);   // NOLINT
@@ -65,9 +63,6 @@ class ProgramOptions final {
   bool do_expressions() const { return do_expressions_; }
   bool verbose() const { return verbose_; }
   bool suppress_runtime_errors() const { return rebaseline_ && !verbose_; }
-  BytecodeExpectationsPrinter::ConstantPoolType const_pool_type() const {
-    return const_pool_type_;
-  }
   std::vector<std::string> input_filenames() const { return input_filenames_; }
   std::string output_filename() const { return output_filename_; }
   std::string test_function_name() const { return test_function_name_; }
@@ -83,7 +78,6 @@ class ProgramOptions final {
   bool top_level_;
   bool do_expressions_;
   bool verbose_;
-  BytecodeExpectationsPrinter::ConstantPoolType const_pool_type_;
   std::vector<std::string> input_filenames_;
   std::string output_filename_;
   std::string test_function_name_;
@@ -104,33 +98,6 @@ class V8InitializationScope final {
 
   DISALLOW_COPY_AND_ASSIGN(V8InitializationScope);
 };
-
-BytecodeExpectationsPrinter::ConstantPoolType ParseConstantPoolType(
-    const char* type_string) {
-  if (strcmp(type_string, "number") == 0) {
-    return BytecodeExpectationsPrinter::ConstantPoolType::kNumber;
-  } else if (strcmp(type_string, "string") == 0) {
-    return BytecodeExpectationsPrinter::ConstantPoolType::kString;
-  } else if (strcmp(type_string, "mixed") == 0) {
-    return BytecodeExpectationsPrinter::ConstantPoolType::kMixed;
-  }
-  return BytecodeExpectationsPrinter::ConstantPoolType::kUnknown;
-}
-
-const char* ConstantPoolTypeToString(
-    BytecodeExpectationsPrinter::ConstantPoolType type) {
-  switch (type) {
-    case BytecodeExpectationsPrinter::ConstantPoolType::kNumber:
-      return "number";
-    case BytecodeExpectationsPrinter::ConstantPoolType::kMixed:
-      return "mixed";
-    case BytecodeExpectationsPrinter::ConstantPoolType::kString:
-      return "string";
-    default:
-      UNREACHABLE();
-      return nullptr;
-  }
-}
 
 bool ParseBoolean(const char* string) {
   if (strcmp(string, "yes") == 0) {
@@ -187,8 +154,6 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
       options.print_help_ = true;
     } else if (strcmp(argv[i], "--raw-js") == 0) {
       options.read_raw_js_snippet_ = true;
-    } else if (strncmp(argv[i], "--pool-type=", 12) == 0) {
-      options.const_pool_type_ = ParseConstantPoolType(argv[i] + 12);
     } else if (strcmp(argv[i], "--stdin") == 0) {
       options.read_from_stdin_ = true;
     } else if (strcmp(argv[i], "--rebaseline") == 0) {
@@ -237,12 +202,6 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
 bool ProgramOptions::Validate() const {
   if (parsing_failed_) return false;
   if (print_help_) return true;
-
-  if (const_pool_type_ ==
-      BytecodeExpectationsPrinter::ConstantPoolType::kUnknown) {
-    REPORT_ERROR("Unknown constant pool type.");
-    return false;
-  }
 
   if (!read_from_stdin_ && input_filenames_.empty()) {
     REPORT_ERROR("No input file specified.");
@@ -293,9 +252,7 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
   }
 
   while (std::getline(stream, line)) {
-    if (line.compare(0, 11, "pool type: ") == 0) {
-      const_pool_type_ = ParseConstantPoolType(line.c_str() + 11);
-    } else if (line.compare(0, 9, "execute: ") == 0) {
+    if (line.compare(0, 9, "execute: ") == 0) {
       execute_ = ParseBoolean(line.c_str() + 9);
     } else if (line.compare(0, 6, "wrap: ") == 0) {
       wrap_ = ParseBoolean(line.c_str() + 6);
@@ -318,8 +275,6 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
 
 void ProgramOptions::PrintHeader(std::ostream& stream) const {  // NOLINT
   stream << "---"
-            "\npool type: "
-         << ConstantPoolTypeToString(const_pool_type_)
          << "\nexecute: " << BooleanToString(execute_)
          << "\nwrap: " << BooleanToString(wrap_);
 
@@ -424,8 +379,7 @@ void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
   v8::Local<v8::Context> context = v8::Context::New(platform.isolate());
   v8::Context::Scope context_scope(context);
 
-  BytecodeExpectationsPrinter printer(platform.isolate(),
-                                      options.const_pool_type());
+  BytecodeExpectationsPrinter printer(platform.isolate());
   printer.set_wrap(options.wrap());
   printer.set_execute(options.execute());
   printer.set_top_level(options.top_level());

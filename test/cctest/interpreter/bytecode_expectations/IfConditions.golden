@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: mixed
 execute: yes
 wrap: no
 test function name: f
@@ -406,8 +405,8 @@ bytecodes: [
   /* 1117 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::HEAP_NUMBER_TYPE,
-  kInstanceTypeDontCare,
+  HEAP_NUMBER_TYPE [0.01],
+  Smi [391],
 ]
 handlers: [
 ]
@@ -632,7 +631,7 @@ bytecodes: [
   /* 1112 S> */ B(Return),
 ]
 constant pool: [
-  kInstanceTypeDontCare,
+  Smi [391],
 ]
 handlers: [
 ]

@@ -26,17 +26,8 @@ class BytecodeArrayIterator;
 
 class BytecodeExpectationsPrinter final {
  public:
-  enum class ConstantPoolType {
-    kUnknown,
-    kString,
-    kNumber,
-    kMixed,
-  };
-
-  BytecodeExpectationsPrinter(v8::Isolate* i,
-                              ConstantPoolType t = ConstantPoolType::kMixed)
+  explicit BytecodeExpectationsPrinter(v8::Isolate* i)
       : isolate_(i),
-        const_pool_type_(t),
         execute_(true),
         wrap_(true),
         top_level_(false),
@@ -44,11 +35,6 @@ class BytecodeExpectationsPrinter final {
 
   void PrintExpectation(std::ostream& stream,  // NOLINT
                         const std::string& snippet) const;
-
-  void set_constant_pool_type(ConstantPoolType const_pool_type) {
-    const_pool_type_ = const_pool_type;
-  }
-  ConstantPoolType const_pool_type() const { return const_pool_type_; }
 
   void set_execute(bool execute) { execute_ = execute; }
   bool execute() const { return execute_; }
@@ -110,7 +96,6 @@ class BytecodeExpectationsPrinter final {
   }
 
   v8::Isolate* isolate_;
-  ConstantPoolType const_pool_type_;
   bool execute_;
   bool wrap_;
   bool top_level_;

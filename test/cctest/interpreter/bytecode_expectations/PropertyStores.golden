@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: string
 execute: yes
 wrap: no
 test function name: f
@@ -24,8 +23,8 @@ bytecodes: [
   /*   32 S> */ B(Return),
 ]
 constant pool: [
-  "val",
-  "name",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
 ]
 handlers: [
 ]
@@ -46,8 +45,8 @@ bytecodes: [
   /*   34 S> */ B(Return),
 ]
 constant pool: [
-  "val",
-  "key",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["key"],
 ]
 handlers: [
 ]
@@ -70,7 +69,7 @@ bytecodes: [
   /*   32 S> */ B(Return),
 ]
 constant pool: [
-  "val",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
 ]
@@ -91,7 +90,7 @@ bytecodes: [
   /*   33 S> */ B(Return),
 ]
 constant pool: [
-  "val",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
 ]
@@ -113,7 +112,7 @@ bytecodes: [
   /*   34 S> */ B(Return),
 ]
 constant pool: [
-  "name",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
 ]
 handlers: [
 ]
@@ -134,8 +133,8 @@ bytecodes: [
   /*   46 S> */ B(Return),
 ]
 constant pool: [
-  "val",
-  "name",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
 ]
 handlers: [
 ]
@@ -156,7 +155,7 @@ bytecodes: [
   /*   47 S> */ B(Return),
 ]
 constant pool: [
-  "val",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["val"],
 ]
 handlers: [
 ]
@@ -563,7 +562,7 @@ bytecodes: [
   /* 1822 S> */ B(Return),
 ]
 constant pool: [
-  "name",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
 ]
 handlers: [
 ]
@@ -971,7 +970,7 @@ bytecodes: [
   /* 1837 S> */ B(Return),
 ]
 constant pool: [
-  "name",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
 ]
 handlers: [
 ]
