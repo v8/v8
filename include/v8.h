@@ -4737,7 +4737,7 @@ typedef void (*GenericNamedPropertyEnumeratorCallback)(
  * See also `ObjectTemplate::SetNamedPropertyHandler`.
  */
 typedef void (*GenericNamedPropertyDefinerCallback)(
-    Local<Name> key, const PropertyDescriptor& desc,
+    Local<Name> property, const PropertyDescriptor& desc,
     const PropertyCallbackInfo<Value>& info);
 
 /**
