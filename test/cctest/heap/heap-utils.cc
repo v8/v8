@@ -141,20 +141,24 @@ void SimulateFullSpace(v8::internal::NewSpace* space,
 }
 
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
-  i::MarkCompactCollector* collector = heap->mark_compact_collector();
   i::IncrementalMarking* marking = heap->incremental_marking();
+  i::MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
   }
-  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsSweeping()) {
+    marking->FinalizeSweeping();
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped() || marking->IsComplete());
   if (marking->IsStopped()) {
     heap->StartIncrementalMarking();
   }
-  CHECK(marking->IsMarking());
+  CHECK(marking->IsMarking() || marking->IsComplete());
   if (!force_completion) return;
 
   while (!marking->IsComplete()) {
-    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                  i::IncrementalMarking::FORCE_COMPLETION);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }

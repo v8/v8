@@ -936,10 +936,8 @@ void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
     const double deadline = MonotonicallyIncreasingTimeInMs() +
                             pressure * kMaxStepSizeOnExternalLimit;
     incremental_marking()->AdvanceIncrementalMarking(
-        deadline,
-        IncrementalMarking::StepActions(IncrementalMarking::GC_VIA_STACK_GUARD,
-                                        IncrementalMarking::FORCE_MARKING,
-                                        IncrementalMarking::FORCE_COMPLETION));
+        deadline, IncrementalMarking::GC_VIA_STACK_GUARD,
+        IncrementalMarking::FORCE_COMPLETION);
   }
 }
 
@@ -1056,9 +1054,9 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
 
   // Start incremental marking for the next cycle. The heap snapshot
   // generator needs incremental marking to stay off after it aborted.
-  if (!ShouldAbortIncrementalMarking() && incremental_marking()->IsStopped() &&
-      incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
-    StartIncrementalMarking(kNoGCFlags, kNoGCCallbackFlags, "GC epilogue");
+  if (!ShouldAbortIncrementalMarking()) {
+    StartIncrementalMarkingIfNeeded(kNoGCFlags, kNoGCCallbackFlags,
+                                    "GC epilogue");
   }
 
   return next_gc_likely_to_collect_more;
@@ -1094,6 +1092,13 @@ void Heap::StartIncrementalMarking(int gc_flags,
   incremental_marking()->Start(reason);
 }
 
+void Heap::StartIncrementalMarkingIfNeeded(
+    int gc_flags, const GCCallbackFlags gc_callback_flags, const char* reason) {
+  if (incremental_marking()->IsStopped() &&
+      incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
+    StartIncrementalMarking(gc_flags, gc_callback_flags, reason);
+  }
+}
 
 void Heap::StartIdleIncrementalMarking() {
   gc_idle_time_handler_->ResetNoProgressCounter();

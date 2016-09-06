@@ -2553,14 +2553,13 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // Don't free list allocate if there is linear space available.
   DCHECK(owner_->limit() - owner_->top() < size_in_bytes);
 
-  int old_linear_size = static_cast<int>(owner_->limit() - owner_->top());
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
   owner_->EmptyAllocationInfo();
 
-  owner_->heap()->incremental_marking()->OldSpaceStep(size_in_bytes -
-                                                      old_linear_size);
+  owner_->heap()->StartIncrementalMarkingIfNeeded(
+      Heap::kNoGCFlags, kNoGCCallbackFlags, "old space step");
 
   int new_node_size = 0;
   FreeSpace* new_node = FindNodeFor(size_in_bytes, &new_node_size);
@@ -2996,7 +2995,8 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
     reinterpret_cast<Object**>(object->address())[1] = Smi::FromInt(0);
   }
 
-  heap()->incremental_marking()->OldSpaceStep(object_size);
+  heap()->StartIncrementalMarkingIfNeeded(Heap::kNoGCFlags, kNoGCCallbackFlags,
+                                          "old space step");
   AllocationStep(object->address(), object_size);
 
   if (heap()->incremental_marking()->black_allocation()) {

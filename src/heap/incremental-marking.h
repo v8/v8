@@ -26,26 +26,9 @@ class IncrementalMarking {
 
   enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
 
-  enum ForceMarkingAction { FORCE_MARKING, DO_NOT_FORCE_MARKING };
-
   enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
 
   enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
-
-  struct StepActions {
-    StepActions(CompletionAction complete_action_,
-                ForceMarkingAction force_marking_,
-                ForceCompletionAction force_completion_)
-        : completion_action(complete_action_),
-          force_marking(force_marking_),
-          force_completion(force_completion_) {}
-
-    CompletionAction completion_action;
-    ForceMarkingAction force_marking;
-    ForceCompletionAction force_completion;
-  };
-
-  static StepActions IdleStepActions();
 
   explicit IncrementalMarking(Heap* heap);
 
@@ -113,7 +96,8 @@ class IncrementalMarking {
   // returns the remaining time that cannot be used for incremental marking
   // anymore because a single step would exceed the deadline.
   double AdvanceIncrementalMarking(double deadline_in_ms,
-                                   StepActions step_actions);
+                                   CompletionAction completion_action,
+                                   ForceCompletionAction force_completion);
 
   // It's hard to know how much work the incremental marker should do to make
   // progress in the face of the mutator creating new work for it.  We start
@@ -134,17 +118,18 @@ class IncrementalMarking {
   static const intptr_t kMarkingSpeedAccelleration = 2;
   static const intptr_t kMaxMarkingSpeed = 1000;
 
+  static const intptr_t kStepSizeInMs = 1;
+
   // This is the upper bound for how many times we allow finalization of
   // incremental marking to be postponed.
   static const size_t kMaxIdleMarkingDelayCounter = 3;
 
   void FinalizeSweeping();
 
-  void OldSpaceStep(intptr_t allocated);
+  void NotifyAllocatedBytes(intptr_t allocated_bytes);
 
-  intptr_t Step(intptr_t allocated, CompletionAction action,
-                ForceMarkingAction marking = DO_NOT_FORCE_MARKING,
-                ForceCompletionAction completion = FORCE_COMPLETION);
+  void Step(intptr_t bytes_to_process, CompletionAction action,
+            ForceCompletionAction completion);
 
   inline void RestartIfNotMarking();
 
@@ -245,8 +230,7 @@ class IncrementalMarking {
           incremental_marking_(incremental_marking) {}
 
     void Step(int bytes_allocated, Address, size_t) override {
-      incremental_marking_.Step(bytes_allocated,
-                                IncrementalMarking::GC_VIA_STACK_GUARD);
+      incremental_marking_.NotifyAllocatedBytes(bytes_allocated);
     }
 
    private:

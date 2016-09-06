@@ -1154,6 +1154,11 @@ class Heap {
                                    GCCallbackFlags::kNoGCCallbackFlags,
                                const char* reason = nullptr);
 
+  void StartIncrementalMarkingIfNeeded(int gc_flags = kNoGCFlags,
+                                       const GCCallbackFlags gc_callback_flags =
+                                           GCCallbackFlags::kNoGCCallbackFlags,
+                                       const char* reason = nullptr);
+
   void FinalizeIncrementalMarkingIfComplete(const char* comment);
 
   bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms);
