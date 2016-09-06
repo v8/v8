@@ -44,7 +44,7 @@ BUILTIN(ErrorCaptureStackTrace) {
   }
   Handle<JSObject> object = Handle<JSObject>::cast(object_obj);
   Handle<Object> caller = args.atOrUndefined(isolate, 2);
-  FrameSkipMode mode = caller->IsJSFunction() ? SKIP_UNTIL_SEEN : SKIP_NONE;
+  FrameSkipMode mode = caller->IsJSFunction() ? SKIP_UNTIL_SEEN : SKIP_FIRST;
 
   // Collect the stack trace.
 
