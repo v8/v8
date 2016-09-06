@@ -46,7 +46,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   typedef base::Flags<AllocationFlag> AllocationFlags;
 
-  enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS };
+  enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS, INTPTR_PARAMETERS };
 
   compiler::Node* BooleanMapConstant();
   compiler::Node* EmptyStringConstant();
@@ -399,9 +399,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* ComputeIntegerHash(compiler::Node* key, compiler::Node* seed);
 
   template <typename Dictionary>
-  void NumberDictionaryLookup(compiler::Node* dictionary, compiler::Node* key,
-                              Label* if_found, Variable* var_entry,
-                              Label* if_not_found);
+  void NumberDictionaryLookup(compiler::Node* dictionary,
+                              compiler::Node* intptr_index, Label* if_found,
+                              Variable* var_entry, Label* if_not_found);
 
   // Tries to check if {object} has own {unique_name} property.
   void TryHasOwnProperty(compiler::Node* object, compiler::Node* map,
@@ -454,9 +454,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                          Label* if_not_found, Label* if_bailout);
 
   void TryLookupElement(compiler::Node* object, compiler::Node* map,
-                        compiler::Node* instance_type, compiler::Node* index,
-                        Label* if_found, Label* if_not_found,
-                        Label* if_bailout);
+                        compiler::Node* instance_type,
+                        compiler::Node* intptr_index, Label* if_found,
+                        Label* if_not_found, Label* if_bailout);
 
   // This is a type of a lookup in holder generator function. In case of a
   // property lookup the {key} is guaranteed to be a unique name and in case of
@@ -579,7 +579,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
   void EmitFastElementsBoundsCheck(compiler::Node* object,
                                    compiler::Node* elements,
-                                   compiler::Node* intptr_key,
+                                   compiler::Node* intptr_index,
                                    compiler::Node* is_jsarray_condition,
                                    Label* miss);
   void EmitElementLoad(compiler::Node* object, compiler::Node* elements,
