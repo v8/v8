@@ -258,6 +258,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberTan();
   const Operator* NumberTanh();
   const Operator* NumberTrunc();
+  const Operator* NumberToBoolean();
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();
 

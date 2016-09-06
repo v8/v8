@@ -797,6 +797,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kNumberToBoolean:
+      // Number -> Boolean
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kNumberToInt32:
       // Number -> Signed32
       CheckValueInputIs(node, 0, Type::Number());

@@ -460,6 +460,16 @@ Type* OperationTyper::NumberTrunc(Type* type) {
   return cache_.kIntegerOrMinusZeroOrNaN;
 }
 
+Type* OperationTyper::NumberToBoolean(Type* type) {
+  DCHECK(type->Is(Type::Number()));
+  if (!type->IsInhabited()) return Type::None();
+  if (type->Is(cache_.kZeroish)) return singleton_false_;
+  if (type->Is(Type::PlainNumber()) && (type->Max() < 0 || 0 < type->Min())) {
+    return singleton_true_;  // Ruled out nan, -0 and +0.
+  }
+  return Type::Boolean();
+}
+
 Type* OperationTyper::NumberToInt32(Type* type) {
   DCHECK(type->Is(Type::Number()));
 

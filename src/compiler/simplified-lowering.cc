@@ -2005,6 +2005,23 @@ class RepresentationSelector {
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         return;
       }
+      case IrOpcode::kNumberToBoolean: {
+        Type* const input_type = TypeOf(node->InputAt(0));
+        if (input_type->Is(Type::Integral32())) {
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    MachineRepresentation::kBit);
+          if (lower()) lowering->DoIntegral32ToBit(node);
+        } else if (input_type->Is(Type::OrderedNumber())) {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kBit);
+          if (lower()) lowering->DoOrderedNumberToBit(node);
+        } else {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kBit);
+          if (lower()) lowering->DoNumberToBit(node);
+        }
+        return;
+      }
       case IrOpcode::kNumberToInt32: {
         // Just change representation if necessary.
         VisitUnop(node, UseInfo::TruncatingWord32(),
@@ -3185,6 +3202,34 @@ void SimplifiedLowering::DoStringToNumber(Node* node) {
   node->AppendInput(graph()->zone(), jsgraph()->NoContextConstant());
   node->AppendInput(graph()->zone(), graph()->start());
   NodeProperties::ChangeOp(node, common()->Call(desc));
+}
+
+void SimplifiedLowering::DoIntegral32ToBit(Node* node) {
+  Node* const input = node->InputAt(0);
+  Node* const zero = jsgraph()->Int32Constant(0);
+  Operator const* const op = machine()->Word32Equal();
+
+  node->ReplaceInput(0, graph()->NewNode(op, input, zero));
+  node->AppendInput(graph()->zone(), zero);
+  NodeProperties::ChangeOp(node, op);
+}
+
+void SimplifiedLowering::DoOrderedNumberToBit(Node* node) {
+  Node* const input = node->InputAt(0);
+
+  node->ReplaceInput(0, graph()->NewNode(machine()->Float64Equal(), input,
+                                         jsgraph()->Float64Constant(0.0)));
+  node->AppendInput(graph()->zone(), jsgraph()->Int32Constant(0));
+  NodeProperties::ChangeOp(node, machine()->Word32Equal());
+}
+
+void SimplifiedLowering::DoNumberToBit(Node* node) {
+  Node* const input = node->InputAt(0);
+
+  node->ReplaceInput(0, jsgraph()->Float64Constant(0.0));
+  node->AppendInput(graph()->zone(),
+                    graph()->NewNode(machine()->Float64Abs(), input));
+  NodeProperties::ChangeOp(node, machine()->Float64LessThan());
 }
 
 Node* SimplifiedLowering::ToNumberCode() {

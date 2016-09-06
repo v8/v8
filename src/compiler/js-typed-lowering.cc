@@ -777,12 +777,10 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     NodeProperties::ChangeOp(node, simplified()->BooleanNot());
     return Changed(node);
   } else if (input_type->Is(Type::Number())) {
-    // JSToBoolean(x:number) => NumberLessThan(#0,NumberAbs(x))
+    // JSToBoolean(x:number) => NumberToBoolean(x)
     RelaxEffectsAndControls(node);
-    node->ReplaceInput(0, jsgraph()->ZeroConstant());
-    node->ReplaceInput(1, graph()->NewNode(simplified()->NumberAbs(), input));
-    node->TrimInputCount(2);
-    NodeProperties::ChangeOp(node, simplified()->NumberLessThan());
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->NumberToBoolean());
     return Changed(node);
   } else if (input_type->Is(Type::String())) {
     // JSToBoolean(x:string) => NumberLessThan(#0,x.length)

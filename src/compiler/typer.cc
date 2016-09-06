@@ -423,8 +423,8 @@ Type* Typer::Visitor::ToBoolean(Type* type, Typer* t) {
   if (type->Is(Type::Boolean())) return type;
   if (type->Is(t->falsish_)) return t->singleton_false_;
   if (type->Is(t->truish_)) return t->singleton_true_;
-  if (type->Is(Type::PlainNumber()) && (type->Max() < 0 || 0 < type->Min())) {
-    return t->singleton_true_;  // Ruled out nan, -0 and +0.
+  if (type->Is(Type::Number())) {
+    return t->operation_typer()->NumberToBoolean(type);
   }
   return Type::Boolean();
 }

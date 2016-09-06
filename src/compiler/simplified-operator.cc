@@ -381,6 +381,7 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   V(NumberTan, Operator::kNoProperties, 1, 0)                    \
   V(NumberTanh, Operator::kNoProperties, 1, 0)                   \
   V(NumberTrunc, Operator::kNoProperties, 1, 0)                  \
+  V(NumberToBoolean, Operator::kNoProperties, 1, 0)              \
   V(NumberToInt32, Operator::kNoProperties, 1, 0)                \
   V(NumberToUint32, Operator::kNoProperties, 1, 0)               \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \
