@@ -2500,6 +2500,12 @@ ParserBase<Traits>::ParseTailCallExpression(ExpressionClassifier* classifier,
     *ok = false;
     return Traits::EmptyExpression();
   }
+  if (is_resumable()) {
+    Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
+    ReportMessageAt(sub_loc, MessageTemplate::kUnexpectedTailCall);
+    *ok = false;
+    return Traits::EmptyExpression();
+  }
   ReturnExprContext return_expr_context =
       function_state_->return_expr_context();
   if (return_expr_context != ReturnExprContext::kInsideValidReturnStatement) {
