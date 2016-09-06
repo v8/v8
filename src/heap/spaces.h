@@ -16,6 +16,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
+#include "src/globals.h"
 #include "src/heap/marking.h"
 #include "src/list.h"
 #include "src/objects.h"
@@ -57,7 +58,7 @@ class Space;
 // area.
 //
 // There is a separate large object space for objects larger than
-// Page::kMaxRegularHeapObjectSize, so that they do not have to move during
+// kMaxRegularHeapObjectSize, so that they do not have to move during
 // collection. The large object space is paged. Pages in large object space
 // may be larger than the page size.
 //
@@ -105,7 +106,7 @@ class Space;
   DCHECK((OffsetFrom(address) & kObjectAlignmentMask) == 0)
 
 #define DCHECK_OBJECT_SIZE(size) \
-  DCHECK((0 < size) && (size <= Page::kMaxRegularHeapObjectSize))
+  DCHECK((0 < size) && (size <= kMaxRegularHeapObjectSize))
 
 #define DCHECK_CODEOBJECT_SIZE(size, code_space) \
   DCHECK((0 < size) && (size <= code_space->AreaSize()))
@@ -694,6 +695,8 @@ class MemoryChunk {
 
 DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::Flags)
 
+STATIC_ASSERT(kMaxRegularHeapObjectSize < MemoryChunk::kAllocatableMemory);
+
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.
 //
@@ -708,15 +711,6 @@ class Page : public MemoryChunk {
   static const intptr_t kCopyOnFlipFlagsMask =
       static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
       static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-
-  // Maximum object size that gets allocated into regular pages. Objects larger
-  // than that size are allocated in large object space and are never moved in
-  // memory. This also applies to new space allocation, since objects are never
-  // migrated from new space to large object space. Takes double alignment into
-  // account.
-  // TODO(hpayer): This limit should be way smaller but we currently have
-  // short living objects >256K.
-  static const int kMaxRegularHeapObjectSize = 512 * KB - Page::kHeaderSize;
 
   static inline Page* ConvertNewToOld(Page* old_page, PagedSpace* new_owner);
 
@@ -2893,7 +2887,7 @@ class MapSpace : public PagedSpace {
 
 
 // -----------------------------------------------------------------------------
-// Large objects ( > Page::kMaxRegularHeapObjectSize ) are allocated and
+// Large objects ( > kMaxRegularHeapObjectSize ) are allocated and
 // managed by the large object space. A large object is allocated from OS
 // heap with extra padding bytes (Page::kPageSize + Page::kObjectStartOffset).
 // A large object always starts at Page::kObjectStartOffset to a page.

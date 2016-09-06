@@ -1253,8 +1253,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length) {
           IntPtrAdd(length, IntPtrConstant(SeqOneByteString::kHeaderSize)),
           IntPtrConstant(kObjectAlignmentMask)),
       IntPtrConstant(~kObjectAlignmentMask));
-  Branch(IntPtrLessThanOrEqual(size,
-                               IntPtrConstant(Page::kMaxRegularHeapObjectSize)),
+  Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
          &if_sizeissmall, &if_notsizeissmall);
 
   Bind(&if_sizeissmall);
@@ -1306,8 +1305,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length) {
                           IntPtrConstant(SeqTwoByteString::kHeaderSize)),
                 IntPtrConstant(kObjectAlignmentMask)),
       IntPtrConstant(~kObjectAlignmentMask));
-  Branch(IntPtrLessThanOrEqual(size,
-                               IntPtrConstant(Page::kMaxRegularHeapObjectSize)),
+  Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
          &if_sizeissmall, &if_notsizeissmall);
 
   Bind(&if_sizeissmall);

@@ -2651,7 +2651,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
 
       IfBuilder if_size(this);
       if_size.If<HCompareNumericAndBranch>(
-          size, Add<HConstant>(Page::kMaxRegularHeapObjectSize), Token::LT);
+          size, Add<HConstant>(kMaxRegularHeapObjectSize), Token::LT);
       if_size.Then();
       {
         // Allocate the string object. HAllocate does not care whether we pass
@@ -3074,9 +3074,10 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
                                                  ElementsKind new_kind,
                                                  HValue* length,
                                                  HValue* new_capacity) {
-  Add<HBoundsCheck>(new_capacity, Add<HConstant>(
-          (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
-          ElementsKindToShiftSize(new_kind)));
+  Add<HBoundsCheck>(
+      new_capacity,
+      Add<HConstant>((kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
+                     ElementsKindToShiftSize(new_kind)));
 
   HValue* new_elements =
       BuildAllocateAndInitializeArray(new_kind, new_capacity);
@@ -9941,7 +9942,7 @@ bool HOptimizedGraphBuilder::TryInlineArrayCall(Expression* expression,
   HValue* elements_size = BuildCalculateElementsSize(kind, capacity);
 
   // Bail out for large objects.
-  HValue* max_size = Add<HConstant>(Page::kMaxRegularHeapObjectSize);
+  HValue* max_size = Add<HConstant>(kMaxRegularHeapObjectSize);
   Add<HBoundsCheck>(elements_size, max_size);
 
   // Allocate (dealing with failure appropriately).
@@ -11841,7 +11842,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
       Add<HAllocate>(object_size_constant, type, pretenure_flag, instance_type,
                      graph()->GetConstant0(), top_site);
 
-  // If allocation folding reaches Page::kMaxRegularHeapObjectSize the
+  // If allocation folding reaches kMaxRegularHeapObjectSize the
   // elements array may not get folded into the object. Hence, we set the
   // elements pointer to empty fixed array and let store elimination remove
   // this store in the folding case.

@@ -84,8 +84,7 @@ TEST(Promotion) {
 
     heap::SealCurrentObjects(heap);
 
-    int array_length =
-        heap::FixedArrayLenFromSize(Page::kMaxRegularHeapObjectSize);
+    int array_length = heap::FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
 
     // Array should be in the new space.
@@ -105,8 +104,7 @@ HEAP_TEST(NoPromotion) {
 
     heap::SealCurrentObjects(heap);
 
-    int array_length =
-        heap::FixedArrayLenFromSize(Page::kMaxRegularHeapObjectSize);
+    int array_length = heap::FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
 
     heap->set_force_oom(true);

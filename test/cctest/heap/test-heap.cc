@@ -1254,7 +1254,7 @@ TEST(Iteration) {
       factory->NewStringFromStaticChars("abcdefghij", TENURED);
 
   // Allocate a large string (for large object space).
-  int large_size = Page::kMaxRegularHeapObjectSize + 1;
+  int large_size = kMaxRegularHeapObjectSize + 1;
   char* str = new char[large_size];
   for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
   str[large_size - 1] = '\0';
@@ -4605,8 +4605,8 @@ TEST(LargeObjectSlotRecording) {
   FixedArray* old_location = *lit;
 
   // Allocate a large object.
-  int size = Max(1000000, Page::kMaxRegularHeapObjectSize + KB);
-  CHECK(size > Page::kMaxRegularHeapObjectSize);
+  int size = Max(1000000, kMaxRegularHeapObjectSize + KB);
+  CHECK(size > kMaxRegularHeapObjectSize);
   Handle<FixedArray> lo = isolate->factory()->NewFixedArray(size, TENURED);
   CHECK(heap->lo_space()->Contains(*lo));
 
@@ -6483,8 +6483,8 @@ HEAP_TEST(Regress587004) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  const int N = (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
-                kPointerSize;
+  const int N =
+      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) / kPointerSize;
   Handle<FixedArray> array = factory->NewFixedArray(N, TENURED);
   CHECK(heap->old_space()->Contains(*array));
   Handle<Object> number = factory->NewHeapNumber(1.0);
@@ -6595,7 +6595,7 @@ TEST(Regress598319) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
 
-  const int kNumberOfObjects = Page::kMaxRegularHeapObjectSize / kPointerSize;
+  const int kNumberOfObjects = kMaxRegularHeapObjectSize / kPointerSize;
 
   struct Arr {
     Arr(Isolate* isolate, int number_of_objects) {

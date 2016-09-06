@@ -196,6 +196,13 @@ const size_t kReservedCodeRangePages = 0;
 // Trigger an incremental GCs once the external memory reaches this limit.
 const int kExternalAllocationSoftLimit = 64 * MB;
 
+// Maximum object size that gets allocated into regular pages. Objects larger
+// than that size are allocated in large object space and are never moved in
+// memory. This also applies to new space allocation, since objects are never
+// migrated from new space to large object space. Takes double alignment into
+// account.
+const int kMaxRegularHeapObjectSize = 512 * KB - 512;
+
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
 const int kBitsPerByte = 8;

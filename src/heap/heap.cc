@@ -2453,7 +2453,7 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
   // Statically ensure that it is safe to allocate heap numbers in paged
   // spaces.
   int size = HeapNumber::kSize;
-  STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxRegularHeapObjectSize);
+  STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
 
   AllocationSpace space = SelectSpace(pretenure);
 
@@ -2473,7 +2473,7 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
   AllocationResult Heap::Allocate##Type(lane_type lanes[lane_count],      \
                                         PretenureFlag pretenure) {        \
     int size = Type::kSize;                                               \
-    STATIC_ASSERT(Type::kSize <= Page::kMaxRegularHeapObjectSize);        \
+    STATIC_ASSERT(Type::kSize <= kMaxRegularHeapObjectSize);              \
                                                                           \
     AllocationSpace space = SelectSpace(pretenure);                       \
                                                                           \
@@ -2497,7 +2497,7 @@ SIMD128_TYPES(SIMD_ALLOCATE_DEFINITION)
 
 AllocationResult Heap::AllocateCell(Object* value) {
   int size = Cell::kSize;
-  STATIC_ASSERT(Cell::kSize <= Page::kMaxRegularHeapObjectSize);
+  STATIC_ASSERT(Cell::kSize <= kMaxRegularHeapObjectSize);
 
   HeapObject* result = nullptr;
   {
@@ -2512,7 +2512,7 @@ AllocationResult Heap::AllocateCell(Object* value) {
 
 AllocationResult Heap::AllocatePropertyCell() {
   int size = PropertyCell::kSize;
-  STATIC_ASSERT(PropertyCell::kSize <= Page::kMaxRegularHeapObjectSize);
+  STATIC_ASSERT(PropertyCell::kSize <= kMaxRegularHeapObjectSize);
 
   HeapObject* result = nullptr;
   AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
@@ -2530,7 +2530,7 @@ AllocationResult Heap::AllocatePropertyCell() {
 
 AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
   int size = WeakCell::kSize;
-  STATIC_ASSERT(WeakCell::kSize <= Page::kMaxRegularHeapObjectSize);
+  STATIC_ASSERT(WeakCell::kSize <= kMaxRegularHeapObjectSize);
   HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
@@ -3030,7 +3030,7 @@ FixedTypedArrayBase* Heap::EmptyFixedTypedArrayForMap(Map* map) {
 AllocationResult Heap::AllocateForeign(Address address,
                                        PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  STATIC_ASSERT(Foreign::kSize <= Page::kMaxRegularHeapObjectSize);
+  STATIC_ASSERT(Foreign::kSize <= kMaxRegularHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
   Foreign* result = nullptr;
   AllocationResult allocation = Allocate(foreign_map(), space);
@@ -4009,7 +4009,7 @@ AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
 
 AllocationResult Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
-  STATIC_ASSERT(Symbol::kSize <= Page::kMaxRegularHeapObjectSize);
+  STATIC_ASSERT(Symbol::kSize <= kMaxRegularHeapObjectSize);
 
   HeapObject* result = nullptr;
   AllocationResult allocation = AllocateRaw(Symbol::kSize, OLD_SPACE);
@@ -5046,7 +5046,7 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
   old_generation_allocation_limit_ = initial_old_generation_size_;
 
   // We rely on being able to allocate new arrays in paged spaces.
-  DCHECK(Page::kMaxRegularHeapObjectSize >=
+  DCHECK(kMaxRegularHeapObjectSize >=
          (JSArray::kSize +
           FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));

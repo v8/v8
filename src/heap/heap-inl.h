@@ -326,7 +326,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
 
-  bool large_object = size_in_bytes > Page::kMaxRegularHeapObjectSize;
+  bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
   HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {

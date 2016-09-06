@@ -15870,7 +15870,7 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
 }
 
 int FixedArrayBase::GetMaxLengthForNewSpaceAllocation(ElementsKind kind) {
-  return ((Page::kMaxRegularHeapObjectSize - FixedArrayBase::kHeaderSize) >>
+  return ((kMaxRegularHeapObjectSize - FixedArrayBase::kHeaderSize) >>
           ElementsKindToShiftSize(kind));
 }
 

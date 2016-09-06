@@ -122,9 +122,9 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
   // Check if we can fold this allocation into a previous allocation represented
   // by the incoming {state}.
   Int32Matcher m(size);
-  if (m.HasValue() && m.Value() < Page::kMaxRegularHeapObjectSize) {
+  if (m.HasValue() && m.Value() < kMaxRegularHeapObjectSize) {
     int32_t const object_size = m.Value();
-    if (state->size() <= Page::kMaxRegularHeapObjectSize - object_size &&
+    if (state->size() <= kMaxRegularHeapObjectSize - object_size &&
         state->group()->pretenure() == pretenure) {
       // We can fold this Allocate {node} into the allocation {group}
       // represented by the given {state}. Compute the upper bound for

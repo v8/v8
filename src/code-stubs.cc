@@ -5727,8 +5727,8 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
     int element_size =
         IsFastDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
     int max_fast_elements =
-        (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize -
-         JSArray::kSize - AllocationMemento::kSize) /
+        (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
+         AllocationMemento::kSize) /
         element_size;
     assembler->Branch(
         assembler->SmiAboveOrEqual(

@@ -4358,7 +4358,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // Fall back to %AllocateInNewSpace (if not too big).
     Label too_big_for_new_space;
     __ bind(&allocate);
-    __ cmp(ecx, Immediate(Page::kMaxRegularHeapObjectSize));
+    __ cmp(ecx, Immediate(kMaxRegularHeapObjectSize));
     __ j(greater, &too_big_for_new_space);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
@@ -4745,7 +4745,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // Fall back to %AllocateInNewSpace (if not too big).
   Label too_big_for_new_space;
   __ bind(&allocate);
-  __ cmp(ecx, Immediate(Page::kMaxRegularHeapObjectSize));
+  __ cmp(ecx, Immediate(kMaxRegularHeapObjectSize));
   __ j(greater, &too_big_for_new_space);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);

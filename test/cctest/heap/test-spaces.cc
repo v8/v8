@@ -367,10 +367,9 @@ TEST(NewSpace) {
                         CcTest::heap()->InitialSemiSpaceSize()));
   CHECK(new_space.HasBeenSetUp());
 
-  while (new_space.Available() >= Page::kMaxRegularHeapObjectSize) {
-    Object* obj =
-        new_space.AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize)
-            .ToObjectChecked();
+  while (new_space.Available() >= kMaxRegularHeapObjectSize) {
+    Object* obj = new_space.AllocateRawUnaligned(kMaxRegularHeapObjectSize)
+                      .ToObjectChecked();
     CHECK(new_space.Contains(HeapObject::cast(obj)));
   }
 
@@ -394,7 +393,7 @@ TEST(OldSpace) {
   CHECK(s->SetUp());
 
   while (s->Available() > 0) {
-    s->AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize).ToObjectChecked();
+    s->AllocateRawUnaligned(kMaxRegularHeapObjectSize).ToObjectChecked();
   }
 
   delete s;
@@ -425,11 +424,11 @@ TEST(CompactionSpace) {
   // and would thus neither grow, nor be able to allocate an object.
   const int kNumObjects = 100;
   const int kNumObjectsPerPage =
-      compaction_space->AreaSize() / Page::kMaxRegularHeapObjectSize;
+      compaction_space->AreaSize() / kMaxRegularHeapObjectSize;
   const int kExpectedPages =
       (kNumObjects + kNumObjectsPerPage - 1) / kNumObjectsPerPage;
   for (int i = 0; i < kNumObjects; i++) {
-    compaction_space->AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize)
+    compaction_space->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
         .ToObjectChecked();
   }
   int pages_in_old_space = old_space->CountTotalPages();
