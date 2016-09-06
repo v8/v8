@@ -6,6 +6,7 @@
 #define V8_IC_STATE_H_
 
 #include "src/macro-assembler.h"
+#include "src/parsing/token.h"
 
 namespace v8 {
 namespace internal {

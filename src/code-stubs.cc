@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "src/ast/ast.h"
 #include "src/bootstrapper.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"

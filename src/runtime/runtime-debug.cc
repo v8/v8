@@ -9,6 +9,7 @@
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
+#include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/interpreter/bytecodes.h"

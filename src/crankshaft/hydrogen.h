@@ -8,6 +8,7 @@
 #include "src/accessors.h"
 #include "src/allocation.h"
 #include "src/ast/ast-type-bounds.h"
+#include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -31,7 +32,6 @@ class HTracer;
 class LAllocator;
 class LChunk;
 class LiveRange;
-class Scope;
 
 class HCompilationJob final : public CompilationJob {
  public:

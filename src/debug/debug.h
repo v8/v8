@@ -11,11 +11,11 @@
 #include "src/base/atomicops.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
-#include "src/debug/liveedit.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/flags.h"
 #include "src/frames.h"
+#include "src/globals.h"
 #include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
 #include "src/string-stream.h"
@@ -489,7 +489,7 @@ class Debug {
 
   // Support for LiveEdit
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                             LiveEdit::FrameDropMode mode);
+                             LiveEditFrameDropMode mode);
 
   // Threading support.
   char* ArchiveDebug(char* to);
@@ -704,7 +704,7 @@ class Debug {
 
     // Stores the way how LiveEdit has patched the stack. It is used when
     // debugger returns control back to user script.
-    LiveEdit::FrameDropMode frame_drop_mode_;
+    LiveEditFrameDropMode frame_drop_mode_;
 
     // Value of accumulator in interpreter frames. In non-interpreter frames
     // this value will be the hole.

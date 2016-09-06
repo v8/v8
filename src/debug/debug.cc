@@ -14,6 +14,7 @@
 #include "src/compilation-cache.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
+#include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
@@ -1576,10 +1577,9 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   return location.IsReturn() || location.IsTailCall();
 }
 
-
 void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                                  LiveEdit::FrameDropMode mode) {
-  if (mode != LiveEdit::CURRENTLY_SET_MODE) {
+                                  LiveEditFrameDropMode mode) {
+  if (mode != LIVE_EDIT_CURRENTLY_SET_MODE) {
     thread_local_.frame_drop_mode_ = mode;
   }
   thread_local_.break_frame_id_ = new_break_frame_id;

@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/bit-vector.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"

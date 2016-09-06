@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+class ObjectLiteral;
+
 // List of code stubs used on all platforms.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)       \
   /* --- PlatformCodeStubs --- */             \

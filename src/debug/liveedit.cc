@@ -654,7 +654,7 @@ Handle<SharedFunctionInfo> SharedInfoWrapper::GetInfo() {
 
 
 void LiveEdit::InitializeThreadLocal(Debug* debug) {
-  debug->thread_local_.frame_drop_mode_ = LiveEdit::FRAMES_UNTOUCHED;
+  debug->thread_local_.frame_drop_mode_ = LIVE_EDIT_FRAMES_UNTOUCHED;
 }
 
 
@@ -662,20 +662,20 @@ bool LiveEdit::SetAfterBreakTarget(Debug* debug) {
   Code* code = NULL;
   Isolate* isolate = debug->isolate_;
   switch (debug->thread_local_.frame_drop_mode_) {
-    case FRAMES_UNTOUCHED:
+    case LIVE_EDIT_FRAMES_UNTOUCHED:
       return false;
-    case FRAME_DROPPED_IN_DEBUG_SLOT_CALL:
+    case LIVE_EDIT_FRAME_DROPPED_IN_DEBUG_SLOT_CALL:
       // Debug break slot stub does not return normally, instead it manually
       // cleans the stack and jumps. We should patch the jump address.
       code = isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit);
       break;
-    case FRAME_DROPPED_IN_DIRECT_CALL:
+    case LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL:
       // Nothing to do, after_break_target is not used here.
       return true;
-    case FRAME_DROPPED_IN_RETURN_CALL:
+    case LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL:
       code = isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit);
       break;
-    case CURRENTLY_SET_MODE:
+    case LIVE_EDIT_CURRENTLY_SET_MODE:
       UNREACHABLE();
       break;
   }
@@ -1302,7 +1302,7 @@ static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
 // Returns error message or NULL.
 static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
                               int bottom_js_frame_index,
-                              LiveEdit::FrameDropMode* mode) {
+                              LiveEditFrameDropMode* mode) {
   if (!LiveEdit::kFrameDropperSupported) {
     return "Stack manipulations are not supported in this architecture.";
   }
@@ -1320,22 +1320,22 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
   if (pre_top_frame_code ==
       isolate->builtins()->builtin(Builtins::kSlot_DebugBreak)) {
     // OK, we can drop debug break slot.
-    *mode = LiveEdit::FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
+    *mode = LIVE_EDIT_FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
   } else if (pre_top_frame_code ==
              isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
     pre_top_frame = frames[top_frame_index - 2];
     top_frame = frames[top_frame_index - 1];
-    *mode = LiveEdit::CURRENTLY_SET_MODE;
+    *mode = LIVE_EDIT_CURRENTLY_SET_MODE;
     frame_has_padding = false;
   } else if (pre_top_frame_code ==
              isolate->builtins()->builtin(Builtins::kReturn_DebugBreak)) {
-    *mode = LiveEdit::FRAME_DROPPED_IN_RETURN_CALL;
+    *mode = LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL;
   } else if (pre_top_frame_code->kind() == Code::STUB &&
              CodeStub::GetMajorKey(pre_top_frame_code) == CodeStub::CEntry) {
     // Entry from our unit tests on 'debugger' statement.
     // It's fine, we support this case.
-    *mode = LiveEdit::FRAME_DROPPED_IN_DIRECT_CALL;
+    *mode = LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL;
     // We don't have a padding from 'debugger' statement call.
     // Here the stub is CEntry, it's not debug-only and can't be padded.
     // If anyone would complain, a proxy padded stub could be added.
@@ -1347,13 +1347,13 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
            isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit));
     pre_top_frame = frames[top_frame_index - 3];
     top_frame = frames[top_frame_index - 2];
-    *mode = LiveEdit::CURRENTLY_SET_MODE;
+    *mode = LIVE_EDIT_CURRENTLY_SET_MODE;
     frame_has_padding = false;
   } else if (pre_top_frame_code->kind() == Code::BYTECODE_HANDLER) {
     // Interpreted bytecode takes up two stack frames, one for the bytecode
     // handler and one for the interpreter entry trampoline. Therefore we shift
     // up by one frame.
-    *mode = LiveEdit::FRAME_DROPPED_IN_DIRECT_CALL;
+    *mode = LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL;
     pre_top_frame = frames[top_frame_index - 2];
     top_frame = frames[top_frame_index - 1];
   } else {
@@ -1604,7 +1604,7 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
     return target.GetNotFoundMessage();
   }
 
-  LiveEdit::FrameDropMode drop_mode = LiveEdit::FRAMES_UNTOUCHED;
+  LiveEditFrameDropMode drop_mode = LIVE_EDIT_FRAMES_UNTOUCHED;
   const char* error_message =
       DropFrames(frames, top_frame_index, bottom_js_frame_index, &drop_mode);
 
