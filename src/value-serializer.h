@@ -89,6 +89,7 @@ class ValueSerializer {
   void WriteString(Handle<String> string);
   Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver) WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObject(Handle<JSObject> object) WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArray(Handle<JSArray> array) WARN_UNUSED_RESULT;
   void WriteJSDate(JSDate* date);
   Maybe<bool> WriteJSValue(Handle<JSValue> value) WARN_UNUSED_RESULT;
@@ -103,7 +104,7 @@ class ValueSerializer {
    * buffer. Returns the number of keys actually written, which may be smaller
    * if some keys are not own properties when accessed.
    */
-  Maybe<uint32_t> WriteJSObjectProperties(
+  Maybe<uint32_t> WriteJSObjectPropertiesSlow(
       Handle<JSObject> object, Handle<FixedArray> keys) WARN_UNUSED_RESULT;
 
   /*

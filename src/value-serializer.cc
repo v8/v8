@@ -379,13 +379,59 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 }
 
 Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
+  DCHECK_GT(object->map()->instance_type(), LAST_CUSTOM_ELEMENTS_RECEIVER);
+  const bool can_serialize_fast =
+      object->HasFastProperties() && object->elements()->length() == 0;
+  if (!can_serialize_fast) return WriteJSObjectSlow(object);
+
+  Handle<Map> map(object->map(), isolate_);
+  WriteTag(SerializationTag::kBeginJSObject);
+
+  // Write out fast properties as long as they are only data properties and the
+  // map doesn't change.
+  uint32_t properties_written = 0;
+  bool map_changed = false;
+  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
+    Handle<Name> key(map->instance_descriptors()->GetKey(i), isolate_);
+    if (!key->IsString()) continue;
+    PropertyDetails details = map->instance_descriptors()->GetDetails(i);
+    if (details.IsDontEnum()) continue;
+
+    Handle<Object> value;
+    if (V8_LIKELY(!map_changed)) map_changed = *map == object->map();
+    if (V8_LIKELY(!map_changed && details.type() == DATA)) {
+      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+      value = JSObject::FastPropertyAt(object, details.representation(),
+                                       field_index);
+    } else {
+      // This logic should essentially match WriteJSObjectPropertiesSlow.
+      // If the property is no longer found, do not serialize it.
+      // This could happen if a getter deleted the property.
+      LookupIterator it(isolate_, object, key, LookupIterator::OWN);
+      if (!it.IsFound()) continue;
+      if (!Object::GetProperty(&it).ToHandle(&value)) return Nothing<bool>();
+    }
+
+    if (!WriteObject(key).FromMaybe(false) ||
+        !WriteObject(value).FromMaybe(false)) {
+      return Nothing<bool>();
+    }
+    properties_written++;
+  }
+
+  WriteTag(SerializationTag::kEndJSObject);
+  WriteVarint<uint32_t>(properties_written);
+  return Just(true);
+}
+
+Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
   WriteTag(SerializationTag::kBeginJSObject);
   Handle<FixedArray> keys;
   uint32_t properties_written;
   if (!KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
                                ENUMERABLE_STRINGS)
            .ToHandle(&keys) ||
-      !WriteJSObjectProperties(object, keys).To(&properties_written)) {
+      !WriteJSObjectPropertiesSlow(object, keys).To(&properties_written)) {
     return Nothing<bool>();
   }
   WriteTag(SerializationTag::kEndJSObject);
@@ -432,7 +478,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     Handle<FixedArray> keys =
         accumulator.GetKeys(GetKeysConversion::kConvertToString);
     uint32_t properties_written;
-    if (!WriteJSObjectProperties(array, keys).To(&properties_written)) {
+    if (!WriteJSObjectPropertiesSlow(array, keys).To(&properties_written)) {
       return Nothing<bool>();
     }
     WriteTag(SerializationTag::kEndDenseJSArray);
@@ -446,7 +492,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     if (!KeyAccumulator::GetKeys(array, KeyCollectionMode::kOwnOnly,
                                  ENUMERABLE_STRINGS)
              .ToHandle(&keys) ||
-        !WriteJSObjectProperties(array, keys).To(&properties_written)) {
+        !WriteJSObjectPropertiesSlow(array, keys).To(&properties_written)) {
       return Nothing<bool>();
     }
     WriteTag(SerializationTag::kEndSparseJSArray);
@@ -614,7 +660,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
   return Just(true);
 }
 
-Maybe<uint32_t> ValueSerializer::WriteJSObjectProperties(
+Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
     Handle<JSObject> object, Handle<FixedArray> keys) {
   uint32_t properties_written = 0;
   int length = keys->length();
