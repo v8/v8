@@ -1166,11 +1166,17 @@ var RegExpSetInput = function(string) {
   LAST_INPUT(RegExpLastMatchInfo) = TO_STRING(string);
 };
 
+// TODO(jgruber): All of these getters and setters were intended to be installed
+// with various attributes (e.g. DONT_ENUM | DONT_DELETE), but
+// InstallGetterSetter had a bug which ignored the passed attributes and
+// simply installed as DONT_ENUM instead. We might want to change back
+// to the intended attributes at some point.
+
 %OptimizeObjectForAddingMultipleProperties(GlobalRegExp, 22);
 utils.InstallGetterSetter(GlobalRegExp, 'input', RegExpGetInput, RegExpSetInput,
-                          DONT_DELETE);
+                          DONT_ENUM);
 utils.InstallGetterSetter(GlobalRegExp, '$_', RegExpGetInput, RegExpSetInput,
-                          DONT_ENUM | DONT_DELETE);
+                          DONT_ENUM);
 
 
 var NoOpSetter = function(ignored) {};
@@ -1178,25 +1184,25 @@ var NoOpSetter = function(ignored) {};
 
 // Static properties set by a successful match.
 utils.InstallGetterSetter(GlobalRegExp, 'lastMatch', RegExpGetLastMatch,
-                          NoOpSetter, DONT_DELETE);
+                          NoOpSetter, DONT_ENUM);
 utils.InstallGetterSetter(GlobalRegExp, '$&', RegExpGetLastMatch, NoOpSetter,
-                          DONT_ENUM | DONT_DELETE);
+                          DONT_ENUM);
 utils.InstallGetterSetter(GlobalRegExp, 'lastParen', RegExpGetLastParen,
-                          NoOpSetter, DONT_DELETE);
+                          NoOpSetter, DONT_ENUM);
 utils.InstallGetterSetter(GlobalRegExp, '$+', RegExpGetLastParen, NoOpSetter,
-                          DONT_ENUM | DONT_DELETE);
+                          DONT_ENUM);
 utils.InstallGetterSetter(GlobalRegExp, 'leftContext', RegExpGetLeftContext,
-                          NoOpSetter, DONT_DELETE);
+                          NoOpSetter, DONT_ENUM);
 utils.InstallGetterSetter(GlobalRegExp, '$`', RegExpGetLeftContext, NoOpSetter,
-                          DONT_ENUM | DONT_DELETE);
+                          DONT_ENUM);
 utils.InstallGetterSetter(GlobalRegExp, 'rightContext', RegExpGetRightContext,
-                          NoOpSetter, DONT_DELETE);
+                          NoOpSetter, DONT_ENUM);
 utils.InstallGetterSetter(GlobalRegExp, "$'", RegExpGetRightContext, NoOpSetter,
-                          DONT_ENUM | DONT_DELETE);
+                          DONT_ENUM);
 
 for (var i = 1; i < 10; ++i) {
   utils.InstallGetterSetter(GlobalRegExp, '$' + i, RegExpMakeCaptureGetter(i),
-                            NoOpSetter, DONT_DELETE);
+                            NoOpSetter, DONT_ENUM);
 }
 %ToFastProperties(GlobalRegExp);
 
