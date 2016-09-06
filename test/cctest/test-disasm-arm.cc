@@ -1179,9 +1179,32 @@ TEST(Barrier) {
     COMPARE(dsb(ISH),
             "f57ff04b       dsb ish");
 
-    COMPARE(isb(ISH),
-            "f57ff06b       isb ish");
+    COMPARE(isb(SY),
+            "f57ff06f       isb sy");
+  } else {
+    // ARMv6 uses CP15 to implement barriers. The BarrierOption argument is
+    // ignored.
+    COMPARE(dmb(ISH),
+            "ee070fba       mcr (CP15DMB)");
+    COMPARE(dsb(OSH),
+            "ee070f9a       mcr (CP15DSB)");
+    COMPARE(isb(SY),
+            "ee070f95       mcr (CP15ISB)");
   }
+
+  // ARMv6 barriers.
+  // Details available in ARM DDI 0406C.b, B3-1750.
+  COMPARE(mcr(p15, 0, r0, cr7, cr10, 5), "ee070fba       mcr (CP15DMB)");
+  COMPARE(mcr(p15, 0, r0, cr7, cr10, 4), "ee070f9a       mcr (CP15DSB)");
+  COMPARE(mcr(p15, 0, r0, cr7, cr5, 4), "ee070f95       mcr (CP15ISB)");
+  // Rt is ignored.
+  COMPARE(mcr(p15, 0, lr, cr7, cr10, 5), "ee07efba       mcr (CP15DMB)");
+  COMPARE(mcr(p15, 0, lr, cr7, cr10, 4), "ee07ef9a       mcr (CP15DSB)");
+  COMPARE(mcr(p15, 0, lr, cr7, cr5, 4), "ee07ef95       mcr (CP15ISB)");
+  // The mcr instruction can be conditional.
+  COMPARE(mcr(p15, 0, r0, cr7, cr10, 5, eq), "0e070fba       mcreq (CP15DMB)");
+  COMPARE(mcr(p15, 0, r0, cr7, cr10, 4, ne), "1e070f9a       mcrne (CP15DSB)");
+  COMPARE(mcr(p15, 0, r0, cr7, cr5, 4, mi), "4e070f95       mcrmi (CP15ISB)");
 
   VERIFY_RUN();
 }

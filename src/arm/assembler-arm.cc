@@ -2307,17 +2307,38 @@ void Assembler::svc(uint32_t imm24, Condition cond) {
 
 
 void Assembler::dmb(BarrierOption option) {
-  emit(kSpecialCondition | 0x57ff*B12 | 5*B4 | option);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // Details available in ARM DDI 0406C.b, A8-378.
+    emit(kSpecialCondition | 0x57ff * B12 | 5 * B4 | option);
+  } else {
+    // Details available in ARM DDI 0406C.b, B3-1750.
+    // CP15DMB: CRn=c7, opc1=0, CRm=c10, opc2=5, Rt is ignored.
+    mcr(p15, 0, r0, cr7, cr10, 5);
+  }
 }
 
 
 void Assembler::dsb(BarrierOption option) {
-  emit(kSpecialCondition | 0x57ff*B12 | 4*B4 | option);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // Details available in ARM DDI 0406C.b, A8-380.
+    emit(kSpecialCondition | 0x57ff * B12 | 4 * B4 | option);
+  } else {
+    // Details available in ARM DDI 0406C.b, B3-1750.
+    // CP15DSB: CRn=c7, opc1=0, CRm=c10, opc2=4, Rt is ignored.
+    mcr(p15, 0, r0, cr7, cr10, 4);
+  }
 }
 
 
 void Assembler::isb(BarrierOption option) {
-  emit(kSpecialCondition | 0x57ff*B12 | 6*B4 | option);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // Details available in ARM DDI 0406C.b, A8-389.
+    emit(kSpecialCondition | 0x57ff * B12 | 6 * B4 | option);
+  } else {
+    // Details available in ARM DDI 0406C.b, B3-1750.
+    // CP15ISB: CRn=c7, opc1=0, CRm=c5, opc2=4, Rt is ignored.
+    mcr(p15, 0, r0, cr7, cr5, 4);
+  }
 }
 
 

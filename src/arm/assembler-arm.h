@@ -1022,7 +1022,8 @@ class Assembler : public AssemblerBase {
   void bkpt(uint32_t imm16);  // v5 and above
   void svc(uint32_t imm24, Condition cond = al);
 
-  // Synchronization instructions
+  // Synchronization instructions.
+  // On ARMv6, an equivalent CP15 operation will be used.
   void dmb(BarrierOption option);
   void dsb(BarrierOption option);
   void isb(BarrierOption option);

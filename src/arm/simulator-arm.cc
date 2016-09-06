@@ -3024,7 +3024,17 @@ void Simulator::DecodeType7(Instruction* instr) {
   if (instr->Bit(24) == 1) {
     SoftwareInterrupt(instr);
   } else {
-    DecodeTypeVFP(instr);
+    switch (instr->CoprocessorValue()) {
+      case 10:  // Fall through.
+      case 11:
+        DecodeTypeVFP(instr);
+        break;
+      case 15:
+        DecodeTypeCP15(instr);
+        break;
+      default:
+        UNIMPLEMENTED();
+    }
   }
 }
 
@@ -3333,6 +3343,31 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
   }
 }
 
+void Simulator::DecodeTypeCP15(Instruction* instr) {
+  DCHECK((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0));
+  DCHECK(instr->CoprocessorValue() == 15);
+
+  if (instr->Bit(4) == 1) {
+    // mcr
+    int crn = instr->Bits(19, 16);
+    int crm = instr->Bits(3, 0);
+    int opc1 = instr->Bits(23, 21);
+    int opc2 = instr->Bits(7, 5);
+    if ((opc1 == 0) && (crn == 7)) {
+      // ARMv6 memory barrier operations.
+      // Details available in ARM DDI 0406C.b, B3-1750.
+      if (((crm == 10) && (opc2 == 5)) ||  // CP15DMB
+          ((crm == 10) && (opc2 == 4)) ||  // CP15DSB
+          ((crm == 5) && (opc2 == 4))) {   // CP15ISB
+        // These are ignored by the simulator for now.
+      } else {
+        UNIMPLEMENTED();
+      }
+    }
+  } else {
+    UNIMPLEMENTED();
+  }
+}
 
 void Simulator::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(
     Instruction* instr) {
@@ -3846,6 +3881,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
         // dsb, dmb, isb: ignore instruction for now.
         // TODO(binji): implement
+        // Also refer to the ARMv6 CP15 equivalents in DecodeTypeCP15.
       } else {
         UNIMPLEMENTED();
       }

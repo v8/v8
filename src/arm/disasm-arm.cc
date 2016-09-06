@@ -105,6 +105,8 @@ class Decoder {
   void DecodeType6(Instruction* instr);
   // Type 7 includes special Debugger instructions.
   int DecodeType7(Instruction* instr);
+  // CP15 coprocessor instructions.
+  void DecodeTypeCP15(Instruction* instr);
   // For VFP support.
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);
@@ -1372,7 +1374,18 @@ int Decoder::DecodeType7(Instruction* instr) {
       Format(instr, "svc'cond 'svc");
     }
   } else {
-    DecodeTypeVFP(instr);
+    switch (instr->CoprocessorValue()) {
+      case 10:  // Fall through.
+      case 11:
+        DecodeTypeVFP(instr);
+        break;
+      case 15:
+        DecodeTypeCP15(instr);
+        break;
+      default:
+        Unknown(instr);
+        break;
+    }
   }
   return Instruction::kInstrSize;
 }
@@ -1554,6 +1567,34 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
   }
 }
 
+void Decoder::DecodeTypeCP15(Instruction* instr) {
+  VERIFY((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0));
+  VERIFY(instr->CoprocessorValue() == 15);
+
+  if (instr->Bit(4) == 1) {
+    int crn = instr->Bits(19, 16);
+    int crm = instr->Bits(3, 0);
+    int opc1 = instr->Bits(23, 21);
+    int opc2 = instr->Bits(7, 5);
+    if ((opc1 == 0) && (crn == 7)) {
+      // ARMv6 memory barrier operations.
+      // Details available in ARM DDI 0406C.b, B3-1750.
+      if ((crm == 10) && (opc2 == 5)) {
+        Format(instr, "mcr'cond (CP15DMB)");
+      } else if ((crm == 10) && (opc2 == 4)) {
+        Format(instr, "mcr'cond (CP15DSB)");
+      } else if ((crm == 5) && (opc2 == 4)) {
+        Format(instr, "mcr'cond (CP15ISB)");
+      } else {
+        Unknown(instr);
+      }
+    } else {
+      Unknown(instr);
+    }
+  } else {
+    Unknown(instr);
+  }
+}
 
 void Decoder::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(
     Instruction* instr) {
