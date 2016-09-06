@@ -1303,8 +1303,8 @@ class Assembler : public AssemblerBase {
               const Condition cond = al);
 
   // Support for NEON.
-
   // All these APIs support D0 to D31 and Q0 to Q15.
+
   void vld1(NeonSize size,
             const NeonListOperand& dst,
             const NeonMemOperand& src);
@@ -1312,9 +1312,6 @@ class Assembler : public AssemblerBase {
             const NeonListOperand& src,
             const NeonMemOperand& dst);
   void vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src);
-
-  // Currently, vswp supports only D0 to D31.
-  void vswp(DwVfpRegister srcdst0, DwVfpRegister srcdst1);
 
   // Pseudo instructions
 

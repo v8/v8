@@ -1912,31 +1912,33 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ vstr(temp_1, src);
   } else if (source->IsFPRegister()) {
     LowDwVfpRegister temp = kScratchDoubleReg;
-    DwVfpRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      DwVfpRegister dst = g.ToDoubleRegister(destination);
-      __ vswp(src, dst);
-    } else {
-      DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ Move(temp, src);
-      __ vldr(src, dst);
-      __ vstr(temp, dst);
-    }
+      DwVfpRegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        DwVfpRegister dst = g.ToDoubleRegister(destination);
+        __ Move(temp, src);
+        __ Move(src, dst);
+        __ Move(dst, temp);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ Move(temp, src);
+        __ vldr(src, dst);
+        __ vstr(temp, dst);
+      }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
     Register temp_0 = kScratchReg;
     LowDwVfpRegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);
     MemOperand dst0 = g.ToMemOperand(destination);
-    MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
-    MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
-    __ vldr(temp_1, dst0);  // Save destination in temp_1.
-    __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
-    __ str(temp_0, dst0);
-    __ ldr(temp_0, src1);
-    __ str(temp_0, dst1);
-    __ vstr(temp_1, src0);
+      MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
+      MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
+      __ vldr(temp_1, dst0);  // Save destination in temp_1.
+      __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
+      __ str(temp_0, dst0);
+      __ ldr(temp_0, src1);
+      __ str(temp_0, dst1);
+      __ vstr(temp_1, src0);
   } else {
     // No other combinations are possible.
     UNREACHABLE();

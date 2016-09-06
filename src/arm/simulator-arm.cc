@@ -3783,21 +3783,6 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           e++;
         }
         set_q_register(Vd, reinterpret_cast<uint64_t*>(to));
-      } else if ((instr->Bits(21, 16) == 0x32) && (instr->Bits(11, 7) == 0) &&
-                 (instr->Bit(4) == 0)) {
-        int vd = instr->VFPDRegValue(kDoublePrecision);
-        int vm = instr->VFPMRegValue(kDoublePrecision);
-        if (instr->Bit(6) == 0) {
-          // vswp Dd, Dm.
-          uint64_t dval, mval;
-          get_d_register(vd, &dval);
-          get_d_register(vm, &mval);
-          set_d_register(vm, &dval);
-          set_d_register(vd, &mval);
-        } else {
-          // Q register vswp unimplemented.
-          UNIMPLEMENTED();
-        }
       } else {
         UNIMPLEMENTED();
       }

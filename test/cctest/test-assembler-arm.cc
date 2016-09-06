@@ -2889,55 +2889,6 @@ TEST(unaligned_stores) {
   }
 }
 
-TEST(vswp) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  Assembler assm(isolate, NULL, 0);
-
-  typedef struct {
-    double result0;
-    double result1;
-    double result2;
-    double result3;
-  } T;
-  T t;
-
-  __ vmov(d0, 1.0);
-  __ vmov(d1, -1.0);
-  __ vswp(d0, d1);
-  __ vstr(d0, r0, offsetof(T, result0));
-  __ vstr(d1, r0, offsetof(T, result1));
-
-  if (CpuFeatures::IsSupported(VFP32DREGS)) {
-    __ vmov(d30, 1.0);
-    __ vmov(d31, -1.0);
-    __ vswp(d30, d31);
-    __ vstr(d30, r0, offsetof(T, result2));
-    __ vstr(d31, r0, offsetof(T, result3));
-  }
-
-  __ bx(lr);
-
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-#ifdef DEBUG
-  OFStream os(stdout);
-  code->Print(os);
-#endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
-  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
-  USE(dummy);
-  CHECK_EQ(-1.0, t.result0);
-  CHECK_EQ(1.0, t.result1);
-  if (CpuFeatures::IsSupported(VFP32DREGS)) {
-    CHECK_EQ(-1.0, t.result2);
-    CHECK_EQ(1.0, t.result3);
-  }
-}
-
 TEST(regress4292_b) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
