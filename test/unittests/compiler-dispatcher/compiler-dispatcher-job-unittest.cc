@@ -8,10 +8,12 @@
 #include "src/api.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/base/platform/semaphore.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/flags.h"
 #include "src/isolate-inl.h"
 #include "src/parsing/parse-info.h"
+#include "src/v8.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -19,6 +21,29 @@ namespace v8 {
 namespace internal {
 
 typedef TestWithContext CompilerDispatcherJobTest;
+
+class IgnitionCompilerDispatcherJobTest : public TestWithContext {
+ public:
+  IgnitionCompilerDispatcherJobTest() {}
+  ~IgnitionCompilerDispatcherJobTest() override {}
+
+  static void SetUpTestCase() {
+    old_flag_ = i::FLAG_ignition;
+    i::FLAG_ignition = true;
+    TestWithContext::SetUpTestCase();
+  }
+
+  static void TearDownTestCase() {
+    TestWithContext::TearDownTestCase();
+    i::FLAG_ignition = old_flag_;
+  }
+
+ private:
+  static bool old_flag_;
+  DISALLOW_COPY_AND_ASSIGN(IgnitionCompilerDispatcherJobTest);
+};
+
+bool IgnitionCompilerDispatcherJobTest::old_flag_;
 
 namespace {
 
@@ -234,6 +259,53 @@ TEST_F(CompilerDispatcherJobTest, CompileFailureToFinalize) {
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
   i_isolate()->clear_pending_exception();
+  job->ResetOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+}
+
+class CompileTask : public Task {
+ public:
+  CompileTask(CompilerDispatcherJob* job, base::Semaphore* semaphore)
+      : job_(job), semaphore_(semaphore) {}
+  ~CompileTask() override {}
+
+  void Run() override {
+    job_->Compile();
+    semaphore_->Signal();
+  }
+
+ private:
+  CompilerDispatcherJob* job_;
+  base::Semaphore* semaphore_;
+  DISALLOW_COPY_AND_ASSIGN(CompileTask);
+};
+
+TEST_F(IgnitionCompilerDispatcherJobTest, CompileOnBackgroundThread) {
+  const char* raw_script =
+      "(a, b) {\n"
+      "  var c = a + b;\n"
+      "  function bar() { return b }\n"
+      "  var d = { foo: 100, bar : bar() }\n"
+      "  return bar;"
+      "}";
+  ScriptResource script(raw_script, strlen(raw_script));
+  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+      i_isolate(), CreateFunction(i_isolate(), &script), 100));
+
+  job->PrepareToParseOnMainThread();
+  job->Parse();
+  job->FinalizeParsingOnMainThread();
+  job->PrepareToCompileOnMainThread();
+  ASSERT_TRUE(job->can_compile_on_background_thread());
+
+  base::Semaphore semaphore(0);
+  CompileTask* background_task = new CompileTask(job.get(), &semaphore);
+  V8::GetCurrentPlatform()->CallOnBackgroundThread(background_task,
+                                                   Platform::kShortRunningTask);
+  semaphore.Wait();
+  ASSERT_TRUE(job->FinalizeCompilingOnMainThread());
+  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+
   job->ResetOnMainThread();
   ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
 }
