@@ -5,9 +5,9 @@
 #include "src/inspector/V8Regex.h"
 
 #include "src/inspector/StringUtil.h"
-#include "src/inspector/V8Compat.h"
 #include "src/inspector/V8InspectorImpl.h"
-#include "src/inspector/public/V8InspectorClient.h"
+
+#include "include/v8-inspector.h"
 
 #include <limits.h>
 

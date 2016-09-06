@@ -35,7 +35,7 @@
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 
-#include <v8.h>
+#include "include/v8.h"
 
 namespace v8_inspector {
 

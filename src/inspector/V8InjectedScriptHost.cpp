@@ -4,14 +4,15 @@
 
 #include "src/inspector/V8InjectedScriptHost.h"
 
+#include "src/base/macros.h"
 #include "src/inspector/InjectedScriptNative.h"
 #include "src/inspector/StringUtil.h"
-#include "src/inspector/V8Compat.h"
 #include "src/inspector/V8Debugger.h"
 #include "src/inspector/V8InspectorImpl.h"
 #include "src/inspector/V8InternalValueType.h"
 #include "src/inspector/V8ValueCopier.h"
-#include "src/inspector/public/V8InspectorClient.h"
+
+#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -24,7 +25,8 @@ void setFunctionProperty(v8::Local<v8::Context> context,
   v8::Local<v8::String> funcName =
       toV8StringInternalized(context->GetIsolate(), name);
   v8::Local<v8::Function> func;
-  if (!V8_FUNCTION_NEW_REMOVE_PROTOTYPE(context, callback, external, 0)
+  if (!v8::Function::New(context, callback, external, 0,
+                         v8::ConstructorBehavior::kThrow)
            .ToLocal(&func))
     return;
   func->SetName(funcName);
@@ -50,6 +52,7 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
   bool success = injectedScriptHost->SetPrototype(context, v8::Null(isolate))
                      .FromMaybe(false);
   DCHECK(success);
+  USE(success);
   v8::Local<v8::External> debuggerExternal =
       v8::External::New(isolate, inspector);
   setFunctionProperty(context, injectedScriptHost, "internalConstructorName",
@@ -198,7 +201,7 @@ void V8InjectedScriptHost::bindCallback(
 void V8InjectedScriptHost::proxyTargetValueCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (info.Length() != 1 || !info[0]->IsProxy()) {
-    NOTREACHED();
+    UNREACHABLE();
     return;
   }
   v8::Local<v8::Object> target = info[0].As<v8::Proxy>();

@@ -34,7 +34,8 @@
 #include "src/inspector/Allocator.h"
 #include "src/inspector/ProtocolPlatform.h"
 
-#include <v8.h>
+#include "include/v8.h"
+
 #include <vector>
 
 namespace v8_inspector {

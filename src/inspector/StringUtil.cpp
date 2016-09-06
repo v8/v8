@@ -107,7 +107,7 @@ std::unique_ptr<protocol::Value> toProtocolValue(v8::Local<v8::Context> context,
                                                  v8::Local<v8::Value> value,
                                                  int maxDepth) {
   if (value.IsEmpty()) {
-    NOTREACHED();
+    UNREACHABLE();
     return nullptr;
   }
 
@@ -172,7 +172,7 @@ std::unique_ptr<protocol::Value> toProtocolValue(v8::Local<v8::Context> context,
     }
     return std::move(jsonObject);
   }
-  NOTREACHED();
+  UNREACHABLE();
   return nullptr;
 }
 

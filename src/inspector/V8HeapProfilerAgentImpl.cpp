@@ -10,10 +10,10 @@
 #include "src/inspector/V8InspectorImpl.h"
 #include "src/inspector/V8InspectorSessionImpl.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8InspectorClient.h"
 
-#include <v8-profiler.h>
-#include <v8-version.h>
+#include "include/v8-inspector.h"
+#include "include/v8-profiler.h"
+#include "include/v8-version.h"
 
 namespace v8_inspector {
 

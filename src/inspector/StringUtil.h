@@ -7,10 +7,8 @@
 
 #include "src/inspector/Allocator.h"
 #include "src/inspector/String16.h"
-#include "src/inspector/public/StringBuffer.h"
-#include "src/inspector/public/StringView.h"
 
-#include <v8.h>
+#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 

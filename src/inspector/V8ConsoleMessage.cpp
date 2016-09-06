@@ -12,7 +12,8 @@
 #include "src/inspector/V8RuntimeAgentImpl.h"
 #include "src/inspector/V8StackTraceImpl.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8InspectorClient.h"
+
+#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -307,7 +308,7 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
         m_stackTrace ? m_stackTrace->buildInspectorObjectImpl() : nullptr);
     return;
   }
-  NOTREACHED();
+  UNREACHABLE();
 }
 
 std::unique_ptr<protocol::Runtime::RemoteObject>

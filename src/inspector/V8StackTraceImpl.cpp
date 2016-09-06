@@ -8,9 +8,9 @@
 #include "src/inspector/V8Debugger.h"
 #include "src/inspector/protocol/Protocol.h"
 
-#include <v8-debug.h>
-#include <v8-profiler.h>
-#include <v8-version.h>
+#include "include/v8-debug.h"
+#include "include/v8-profiler.h"
+#include "include/v8-version.h"
 
 namespace v8_inspector {
 

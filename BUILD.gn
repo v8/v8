@@ -140,6 +140,9 @@ config("external_config") {
     ]
   }
   include_dirs = [ "include" ]
+  if (v8_enable_inspector_override) {
+    include_dirs += [ "$target_gen_dir/include" ]
+  }
   libs = []
   if (is_android && current_toolchain != host_toolchain) {
     libs += [ "log" ]
@@ -2022,6 +2025,10 @@ v8_source_set("v8_base") {
   if (v8_postmortem_support) {
     sources += [ "$target_gen_dir/debug-support.cc" ]
     deps += [ ":postmortem-metadata" ]
+  }
+
+  if (v8_enable_inspector_override) {
+    deps += [ "src/inspector:inspector" ]
   }
 }
 

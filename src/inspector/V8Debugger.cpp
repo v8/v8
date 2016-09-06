@@ -7,14 +7,12 @@
 #include "src/inspector/DebuggerScript.h"
 #include "src/inspector/ScriptBreakpoint.h"
 #include "src/inspector/StringUtil.h"
-#include "src/inspector/V8Compat.h"
 #include "src/inspector/V8DebuggerAgentImpl.h"
 #include "src/inspector/V8InspectorImpl.h"
 #include "src/inspector/V8InternalValueType.h"
 #include "src/inspector/V8StackTraceImpl.h"
 #include "src/inspector/V8ValueCopier.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8InspectorClient.h"
 
 namespace v8_inspector {
 
@@ -193,7 +191,7 @@ void V8Debugger::clearBreakpoints() {
 
 void V8Debugger::setBreakpointsActivated(bool activated) {
   if (!enabled()) {
-    NOTREACHED();
+    UNREACHABLE();
     return;
   }
   v8::HandleScope scope(m_isolate);
@@ -260,9 +258,10 @@ void V8Debugger::breakProgram() {
 
   v8::HandleScope scope(m_isolate);
   v8::Local<v8::Function> breakFunction;
-  if (!V8_FUNCTION_NEW_REMOVE_PROTOTYPE(m_isolate->GetCurrentContext(),
-                                        &V8Debugger::breakProgramCallback,
-                                        v8::External::New(m_isolate, this), 0)
+  if (!v8::Function::New(m_isolate->GetCurrentContext(),
+                         &V8Debugger::breakProgramCallback,
+                         v8::External::New(m_isolate, this), 0,
+                         v8::ConstructorBehavior::kThrow)
            .ToLocal(&breakFunction))
     return;
   v8::Debug::Call(debuggerContext(), breakFunction).ToLocalChecked();
@@ -593,7 +592,7 @@ void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Context> context,
   else if (type == v8AsyncTaskEventDidHandle)
     asyncTaskFinished(ptr);
   else
-    NOTREACHED();
+    UNREACHABLE();
 }
 
 V8StackTraceImpl* V8Debugger::currentAsyncCallChain() {
@@ -603,7 +602,7 @@ V8StackTraceImpl* V8Debugger::currentAsyncCallChain() {
 
 void V8Debugger::compileDebuggerScript() {
   if (!m_debuggerScript.IsEmpty()) {
-    NOTREACHED();
+    UNREACHABLE();
     return;
   }
 
@@ -618,7 +617,7 @@ void V8Debugger::compileDebuggerScript() {
   v8::Local<v8::Value> value;
   if (!m_inspector->compileAndRunInternalScript(debuggerContext(), scriptValue)
            .ToLocal(&value)) {
-    NOTREACHED();
+    UNREACHABLE();
     return;
   }
   DCHECK(value->IsObject());
@@ -633,7 +632,7 @@ v8::Local<v8::Context> V8Debugger::debuggerContext() const {
 v8::MaybeLocal<v8::Value> V8Debugger::functionScopes(
     v8::Local<v8::Context> context, v8::Local<v8::Function> function) {
   if (!enabled()) {
-    NOTREACHED();
+    UNREACHABLE();
     return v8::Local<v8::Value>::New(m_isolate, v8::Undefined(m_isolate));
   }
   v8::Local<v8::Value> argv[] = {function};
@@ -714,7 +713,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
 v8::Local<v8::Value> V8Debugger::collectionEntries(
     v8::Local<v8::Context> context, v8::Local<v8::Object> object) {
   if (!enabled()) {
-    NOTREACHED();
+    UNREACHABLE();
     return v8::Undefined(m_isolate);
   }
   v8::Local<v8::Value> argv[] = {object};
@@ -735,7 +734,7 @@ v8::Local<v8::Value> V8Debugger::collectionEntries(
 v8::Local<v8::Value> V8Debugger::generatorObjectLocation(
     v8::Local<v8::Context> context, v8::Local<v8::Object> object) {
   if (!enabled()) {
-    NOTREACHED();
+    UNREACHABLE();
     return v8::Null(m_isolate);
   }
   v8::Local<v8::Value> argv[] = {object};

@@ -30,10 +30,8 @@
 
 #include "src/inspector/V8InspectorImpl.h"
 
-#include <v8-profiler.h>
 #include "src/inspector/InspectedContext.h"
 #include "src/inspector/StringUtil.h"
-#include "src/inspector/V8Compat.h"
 #include "src/inspector/V8ConsoleAgentImpl.h"
 #include "src/inspector/V8ConsoleMessage.h"
 #include "src/inspector/V8Debugger.h"
@@ -42,7 +40,8 @@
 #include "src/inspector/V8RuntimeAgentImpl.h"
 #include "src/inspector/V8StackTraceImpl.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8InspectorClient.h"
+
+#include "include/v8-profiler.h"
 
 namespace v8_inspector {
 

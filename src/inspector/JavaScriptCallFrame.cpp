@@ -31,9 +31,8 @@
 #include "src/inspector/JavaScriptCallFrame.h"
 
 #include "src/inspector/StringUtil.h"
-#include "src/inspector/V8Compat.h"
 
-#include <v8-debug.h>
+#include "include/v8-debug.h"
 
 namespace v8_inspector {
 

@@ -34,10 +34,11 @@
     'warmup_script%': "",
     'v8_extra_library_files%': [],
     'v8_experimental_extra_library_files%': [],
+    'v8_enable_inspector%': 0,
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkpeephole_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkpeephole<(EXECUTABLE_SUFFIX)',
   },
-  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
+  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi', 'inspector/inspector.gypi'],
   'targets': [
     {
       'target_name': 'v8',
@@ -1733,6 +1734,30 @@
           'sources!': [
             'i18n.cc',
             'i18n.h',
+          ],
+        }],
+        ['v8_enable_inspector==1', {
+          'sources': [
+            '<@(inspector_all_sources)'
+          ],
+          'dependencies': [
+            'inspector/inspector.gyp:protocol_generated_sources',
+            'inspector/inspector.gyp:inspector_injected_script',
+            'inspector/inspector.gyp:inspector_debugger_script',
+          ],
+          # TODO(dgozman): fix these warnings and enable them.
+          'msvs_disabled_warnings': [
+            4267,  # Truncation from size_t to int.
+            4305,  # Truncation from 'type1' to 'type2'.
+            4324,  # Struct padded due to declspec(align).
+            4714,  # Function marked forceinline not inlined.
+            4800,  # Value forced to bool.
+            4996,  # Deprecated function call.
+          ],
+          'cflags': [
+            '-Wno-zero-length-array',
+            '-Wno-shorten-64-to-32',
+            '-Wno-deprecated-declarations',
           ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {

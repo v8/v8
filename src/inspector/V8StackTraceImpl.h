@@ -8,7 +8,8 @@
 #include "src/inspector/Allocator.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
-#include "src/inspector/public/V8StackTrace.h"
+
+#include "include/v8-inspector.h"
 
 #include <vector>
 

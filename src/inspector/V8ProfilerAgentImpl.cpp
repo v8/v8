@@ -4,7 +4,6 @@
 
 #include "src/inspector/V8ProfilerAgentImpl.h"
 
-#include <v8-profiler.h>
 #include "src/inspector/Atomics.h"
 #include "src/inspector/StringUtil.h"
 #include "src/inspector/V8Debugger.h"
@@ -12,6 +11,8 @@
 #include "src/inspector/V8InspectorSessionImpl.h"
 #include "src/inspector/V8StackTraceImpl.h"
 #include "src/inspector/protocol/Protocol.h"
+
+#include "include/v8-profiler.h"
 
 #include <vector>
 

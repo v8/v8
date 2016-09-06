@@ -35,7 +35,6 @@
 #include "src/inspector/InspectedContext.h"
 #include "src/inspector/RemoteObjectId.h"
 #include "src/inspector/StringUtil.h"
-#include "src/inspector/V8Compat.h"
 #include "src/inspector/V8Console.h"
 #include "src/inspector/V8FunctionCall.h"
 #include "src/inspector/V8InjectedScriptHost.h"
@@ -44,7 +43,8 @@
 #include "src/inspector/V8StackTraceImpl.h"
 #include "src/inspector/V8ValueCopier.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8InspectorClient.h"
+
+#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 

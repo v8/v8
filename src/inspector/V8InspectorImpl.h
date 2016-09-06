@@ -33,10 +33,10 @@
 
 #include "src/inspector/Allocator.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8Inspector.h"
 
-#include <v8-debug.h>
-#include <v8.h>
+#include "include/v8-debug.h"
+#include "include/v8-inspector.h"
+
 #include <vector>
 
 namespace v8_inspector {

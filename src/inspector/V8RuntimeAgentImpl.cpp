@@ -34,7 +34,6 @@
 #include "src/inspector/InspectedContext.h"
 #include "src/inspector/RemoteObjectId.h"
 #include "src/inspector/StringUtil.h"
-#include "src/inspector/V8Compat.h"
 #include "src/inspector/V8ConsoleMessage.h"
 #include "src/inspector/V8Debugger.h"
 #include "src/inspector/V8DebuggerAgentImpl.h"
@@ -42,7 +41,8 @@
 #include "src/inspector/V8InspectorSessionImpl.h"
 #include "src/inspector/V8StackTraceImpl.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8InspectorClient.h"
+
+#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -87,14 +87,16 @@ class ProtocolPromiseHandler {
     v8::Local<v8::Value> wrapper = handler->m_wrapper.Get(inspector->isolate());
 
     v8::Local<v8::Function> thenCallbackFunction =
-        V8_FUNCTION_NEW_REMOVE_PROTOTYPE(context, thenCallback, wrapper, 0)
+        v8::Function::New(context, thenCallback, wrapper, 0,
+                          v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
     if (promise->Then(context, thenCallbackFunction).IsEmpty()) {
       rawCallback->sendFailure("Internal error");
       return;
     }
     v8::Local<v8::Function> catchCallbackFunction =
-        V8_FUNCTION_NEW_REMOVE_PROTOTYPE(context, catchCallback, wrapper, 0)
+        v8::Function::New(context, catchCallback, wrapper, 0,
+                          v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
     if (promise->Catch(context, catchCallbackFunction).IsEmpty()) {
       rawCallback->sendFailure("Internal error");

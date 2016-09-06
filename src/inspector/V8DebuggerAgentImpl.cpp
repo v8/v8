@@ -19,7 +19,8 @@
 #include "src/inspector/V8RuntimeAgentImpl.h"
 #include "src/inspector/V8StackTraceImpl.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8InspectorClient.h"
+
+#include "include/v8-inspector.h"
 
 #include <algorithm>
 
@@ -215,7 +216,7 @@ void V8DebuggerAgentImpl::restore() {
   String16 blackboxPattern;
   if (m_state->getString(DebuggerAgentState::blackboxPattern,
                          &blackboxPattern)) {
-    if (!setBlackboxPattern(&error, blackboxPattern)) NOTREACHED();
+    if (!setBlackboxPattern(&error, blackboxPattern)) UNREACHABLE();
   }
 }
 
