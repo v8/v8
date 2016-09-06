@@ -96,7 +96,7 @@ class ValueSerializerTest : public TestWithIsolate {
                                    static_cast<int>(data.size()));
     deserializer.SetSupportsLegacyWireFormat(true);
     BeforeDecode(&deserializer);
-    ASSERT_TRUE(deserializer.ReadHeader().FromMaybe(false));
+    ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
     Local<Value> result;
     ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&result));
     ASSERT_FALSE(result.IsEmpty());
@@ -119,7 +119,7 @@ class ValueSerializerTest : public TestWithIsolate {
                                    static_cast<int>(data.size()));
     deserializer.SetSupportsLegacyWireFormat(true);
     BeforeDecode(&deserializer);
-    ASSERT_TRUE(deserializer.ReadHeader().FromMaybe(false));
+    ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
     ASSERT_EQ(0, deserializer.GetWireFormatVersion());
     Local<Value> result;
     ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&result));
@@ -141,10 +141,14 @@ class ValueSerializerTest : public TestWithIsolate {
                                    static_cast<int>(data.size()));
     deserializer.SetSupportsLegacyWireFormat(true);
     BeforeDecode(&deserializer);
-    Maybe<bool> header_result = deserializer.ReadHeader();
-    if (header_result.IsNothing()) return;
+    Maybe<bool> header_result = deserializer.ReadHeader(context);
+    if (header_result.IsNothing()) {
+      EXPECT_TRUE(try_catch.HasCaught());
+      return;
+    }
     ASSERT_TRUE(header_result.ToChecked());
     ASSERT_TRUE(deserializer.ReadValue(context).IsEmpty());
+    EXPECT_TRUE(try_catch.HasCaught());
   }
 
   Local<Value> EvaluateScriptForInput(const char* utf8_source) {

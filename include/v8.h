@@ -1743,7 +1743,8 @@ class V8_EXPORT ValueDeserializer {
    * Reads and validates a header (including the format version).
    * May, for example, reject an invalid or unsupported wire format.
    */
-  V8_WARN_UNUSED_RESULT Maybe<bool> ReadHeader();
+  V8_WARN_UNUSED_RESULT Maybe<bool> ReadHeader(Local<Context> context);
+  V8_DEPRECATE_SOON("Use Local<Context> version", Maybe<bool> ReadHeader());
 
   /*
    * Deserializes a JavaScript value from the buffer.

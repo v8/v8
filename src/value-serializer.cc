@@ -682,8 +682,11 @@ Maybe<bool> ValueDeserializer::ReadHeader() {
   if (position_ < end_ &&
       *position_ == static_cast<uint8_t>(SerializationTag::kVersion)) {
     ReadTag().ToChecked();
-    if (!ReadVarint<uint32_t>().To(&version_)) return Nothing<bool>();
-    if (version_ > kLatestVersion) return Nothing<bool>();
+    if (!ReadVarint<uint32_t>().To(&version_) || version_ > kLatestVersion) {
+      isolate_->Throw(*isolate_->factory()->NewError(
+          MessageTemplate::kDataCloneDeserializationVersionError));
+      return Nothing<bool>();
+    }
   }
   return Just(true);
 }
@@ -802,6 +805,11 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
       PeekTag().To(&tag) && tag == SerializationTag::kArrayBufferView) {
     ConsumeTag(SerializationTag::kArrayBufferView);
     result = ReadJSArrayBufferView(Handle<JSArrayBuffer>::cast(object));
+  }
+
+  if (result.is_null() && !isolate_->has_pending_exception()) {
+    isolate_->Throw(*isolate_->factory()->NewError(
+        MessageTemplate::kDataCloneDeserializationError));
   }
 
   return result;
@@ -1299,8 +1307,7 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
 
 MaybeHandle<Object>
 ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
-  if (version_ > 0) return MaybeHandle<Object>();
-
+  DCHECK_EQ(version_, 0);
   HandleScope scope(isolate_);
   std::vector<Handle<Object>> stack;
   while (position_ < end_) {
@@ -1362,9 +1369,12 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
         new_object = js_array;
         break;
       }
-      case SerializationTag::kEndDenseJSArray:
+      case SerializationTag::kEndDenseJSArray: {
         // This was already broken in Chromium, and apparently wasn't missed.
+        isolate_->Throw(*isolate_->factory()->NewError(
+            MessageTemplate::kDataCloneDeserializationError));
         return MaybeHandle<Object>();
+      }
       default:
         if (!ReadObject().ToHandle(&new_object)) return MaybeHandle<Object>();
         break;
@@ -1380,7 +1390,11 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
 #endif
   position_ = end_;
 
-  if (stack.size() != 1) return MaybeHandle<Object>();
+  if (stack.size() != 1) {
+    isolate_->Throw(*isolate_->factory()->NewError(
+        MessageTemplate::kDataCloneDeserializationError));
+    return MaybeHandle<Object>();
+  }
   return scope.CloseAndEscape(stack[0]);
 }
 

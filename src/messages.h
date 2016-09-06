@@ -641,7 +641,11 @@ class ErrorUtils : public AllStatic {
     "An ArrayBuffer is neutered and could not be cloned.")                     \
   T(DataCloneErrorSharedArrayBufferNotTransferred,                             \
     "A SharedArrayBuffer could not be cloned. SharedArrayBuffer must be "      \
-    "transferred.")
+    "transferred.")                                                            \
+  T(DataCloneDeserializationError, "Unable to deserialize cloned data.")       \
+  T(DataCloneDeserializationVersionError,                                      \
+    "Unable to deserialize cloned data due to invalid or unsupported "         \
+    "version.")
 
 class MessageTemplate {
  public:
