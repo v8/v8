@@ -324,10 +324,13 @@ class HeapObjectsFilter;
 class HeapStats;
 class HistogramTimer;
 class Isolate;
+class MemoryAllocator;
 class MemoryReducer;
 class ObjectStats;
+class PagedSpace;
 class Scavenger;
 class ScavengeJob;
+class Space;
 class StoreBuffer;
 class WeakObjectRetainer;
 
@@ -589,19 +592,10 @@ class Heap {
 
   bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
 
-  Address* NewSpaceAllocationTopAddress() {
-    return new_space_.allocation_top_address();
-  }
-  Address* NewSpaceAllocationLimitAddress() {
-    return new_space_.allocation_limit_address();
-  }
-
-  Address* OldSpaceAllocationTopAddress() {
-    return old_space_->allocation_top_address();
-  }
-  Address* OldSpaceAllocationLimitAddress() {
-    return old_space_->allocation_limit_address();
-  }
+  inline Address* NewSpaceAllocationTopAddress();
+  inline Address* NewSpaceAllocationLimitAddress();
+  inline Address* OldSpaceAllocationTopAddress();
+  inline Address* OldSpaceAllocationLimitAddress();
 
   bool CanExpandOldGeneration(int size) {
     if (force_oom_) return false;
@@ -730,17 +724,7 @@ class Heap {
   // Check new space expansion criteria and expand semispaces if it was hit.
   void CheckNewSpaceExpansionCriteria();
 
-  inline bool HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit) {
-    if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
-
-    intptr_t adjusted_allocation_limit = limit - new_space_.Capacity();
-
-    if (PromotedTotalSize() >= adjusted_allocation_limit) return true;
-
-    if (HighMemoryPressure()) return true;
-
-    return false;
-  }
+  inline bool HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit);
 
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
 
@@ -885,31 +869,8 @@ class Heap {
   MapSpace* map_space() { return map_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
 
-  PagedSpace* paged_space(int idx) {
-    switch (idx) {
-      case OLD_SPACE:
-        return old_space();
-      case MAP_SPACE:
-        return map_space();
-      case CODE_SPACE:
-        return code_space();
-      case NEW_SPACE:
-      case LO_SPACE:
-        UNREACHABLE();
-    }
-    return NULL;
-  }
-
-  Space* space(int idx) {
-    switch (idx) {
-      case NEW_SPACE:
-        return new_space();
-      case LO_SPACE:
-        return lo_space();
-      default:
-        return paged_space(idx);
-    }
-  }
+  inline PagedSpace* paged_space(int idx);
+  inline Space* space(int idx);
 
   // Returns name of the space.
   const char* GetSpaceName(int idx);
@@ -1278,13 +1239,9 @@ class Heap {
     return static_cast<intptr_t>(total);
   }
 
-  void UpdateNewSpaceAllocationCounter() {
-    new_space_allocation_counter_ = NewSpaceAllocationCounter();
-  }
+  inline void UpdateNewSpaceAllocationCounter();
 
-  size_t NewSpaceAllocationCounter() {
-    return new_space_allocation_counter_ + new_space()->AllocatedSinceLastGC();
-  }
+  inline size_t NewSpaceAllocationCounter();
 
   // This should be used only for testing.
   void set_new_space_allocation_counter(size_t new_value) {
@@ -1602,7 +1559,7 @@ class Heap {
   void EnsureFromSpaceIsCommitted();
 
   // Uncommit unused semi space.
-  bool UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
+  bool UncommitFromSpace();
 
   // Fill in bogus values in from space
   void ZapFromSpace();
@@ -1763,14 +1720,7 @@ class Heap {
   void SetOldGenerationAllocationLimit(intptr_t old_gen_size, double gc_speed,
                                        double mutator_speed);
 
-  intptr_t MinimumAllocationLimitGrowingStep() {
-    const double kRegularAllocationLimitGrowingStep = 8;
-    const double kLowMemoryAllocationLimitGrowingStep = 2;
-    intptr_t limit = (Page::kPageSize > MB ? Page::kPageSize : MB);
-    return limit * (ShouldOptimizeForMemoryUsage()
-                        ? kLowMemoryAllocationLimitGrowingStep
-                        : kRegularAllocationLimitGrowingStep);
-  }
+  intptr_t MinimumAllocationLimitGrowingStep();
 
   // ===========================================================================
   // Idle notification. ========================================================

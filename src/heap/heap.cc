@@ -423,6 +423,7 @@ void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
   deferred_counters_[feature]++;
 }
 
+bool Heap::UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
 
 void Heap::GarbageCollectionPrologue() {
   {
@@ -5215,6 +5216,14 @@ intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
   return Min(limit, halfway_to_the_max);
 }
 
+intptr_t Heap::MinimumAllocationLimitGrowingStep() {
+  const double kRegularAllocationLimitGrowingStep = 8;
+  const double kLowMemoryAllocationLimitGrowingStep = 2;
+  intptr_t limit = (Page::kPageSize > MB ? Page::kPageSize : MB);
+  return limit * (ShouldOptimizeForMemoryUsage()
+                      ? kLowMemoryAllocationLimitGrowingStep
+                      : kRegularAllocationLimitGrowingStep);
+}
 
 void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
                                            double gc_speed,

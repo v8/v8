@@ -145,6 +145,67 @@ WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+PagedSpace* Heap::paged_space(int idx) {
+  switch (idx) {
+    case OLD_SPACE:
+      return old_space();
+    case MAP_SPACE:
+      return map_space();
+    case CODE_SPACE:
+      return code_space();
+    case NEW_SPACE:
+    case LO_SPACE:
+      UNREACHABLE();
+  }
+  return NULL;
+}
+
+Space* Heap::space(int idx) {
+  switch (idx) {
+    case NEW_SPACE:
+      return new_space();
+    case LO_SPACE:
+      return lo_space();
+    default:
+      return paged_space(idx);
+  }
+}
+
+Address* Heap::NewSpaceAllocationTopAddress() {
+  return new_space_.allocation_top_address();
+}
+
+Address* Heap::NewSpaceAllocationLimitAddress() {
+  return new_space_.allocation_limit_address();
+}
+
+Address* Heap::OldSpaceAllocationTopAddress() {
+  return old_space_->allocation_top_address();
+}
+
+Address* Heap::OldSpaceAllocationLimitAddress() {
+  return old_space_->allocation_limit_address();
+}
+
+bool Heap::HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit) {
+  if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
+
+  intptr_t adjusted_allocation_limit = limit - new_space_.Capacity();
+
+  if (PromotedTotalSize() >= adjusted_allocation_limit) return true;
+
+  if (HighMemoryPressure()) return true;
+
+  return false;
+}
+
+void Heap::UpdateNewSpaceAllocationCounter() {
+  new_space_allocation_counter_ = NewSpaceAllocationCounter();
+}
+
+size_t Heap::NewSpaceAllocationCounter() {
+  return new_space_allocation_counter_ + new_space()->AllocatedSinceLastGC();
+}
 
 template <>
 bool inline Heap::IsOneByte(Vector<const char> str, int chars) {
@@ -413,7 +474,10 @@ void Heap::FinalizeExternalString(String* string) {
 
 
 bool Heap::InNewSpace(Object* object) {
-  bool result = new_space_.Contains(object);
+  // Inlined check from NewSpace::Contains.
+  bool result =
+      object->IsHeapObject() &&
+      Page::FromAddress(HeapObject::cast(object)->address())->InNewSpace();
   DCHECK(!result ||                 // Either not in new space
          gc_state_ != NOT_IN_GC ||  // ... or in the middle of GC
          InToSpace(object));        // ... or in to-space (where we allocate).
@@ -421,12 +485,16 @@ bool Heap::InNewSpace(Object* object) {
 }
 
 bool Heap::InFromSpace(Object* object) {
-  return new_space_.FromSpaceContains(object);
+  return object->IsHeapObject() &&
+         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
+             ->IsFlagSet(Page::IN_FROM_SPACE);
 }
 
 
 bool Heap::InToSpace(Object* object) {
-  return new_space_.ToSpaceContains(object);
+  return object->IsHeapObject() &&
+         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
+             ->IsFlagSet(Page::IN_TO_SPACE);
 }
 
 bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
