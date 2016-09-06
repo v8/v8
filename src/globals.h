@@ -201,7 +201,9 @@ const int kExternalAllocationSoftLimit = 64 * MB;
 // memory. This also applies to new space allocation, since objects are never
 // migrated from new space to large object space. Takes double alignment into
 // account.
-const int kMaxRegularHeapObjectSize = 512 * KB - 512;
+//
+// Current value: Page::kAllocatableMemory (on 32-bit arch) - 512 (slack).
+const int kMaxRegularHeapObjectSize = 507136;
 
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
