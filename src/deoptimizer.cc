@@ -942,11 +942,11 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   // so long as we don't inline functions that need local contexts.
   output_offset -= kPointerSize;
 
-  TranslatedFrame::iterator context_pos = value_iterator;
-  int context_input_index = input_index;
   // When deoptimizing into a catch block, we need to take the context
   // from just above the top of the operand stack (we push the context
   // at the entry of the try block).
+  TranslatedFrame::iterator context_pos = value_iterator;
+  int context_input_index = input_index;
   if (goto_catch_handler) {
     for (unsigned i = 0; i < height + 1; ++i) {
       context_pos++;
@@ -1173,7 +1173,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // For the bottommost output frame the context can be gotten from the input
   // frame. For all subsequent output frames it can be gotten from the function
   // so long as we don't inline functions that need local contexts.
-  Register context_reg = InterpretedFrame::context_register();
   output_offset -= kPointerSize;
 
   // When deoptimizing into a catch block, we need to take the context
@@ -1190,13 +1189,20 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
   // Read the context from the translations.
   Object* context = context_pos->GetRawValue();
-  // The context should not be a placeholder for a materialized object.
-  CHECK(context != isolate_->heap()->arguments_marker());
   value = reinterpret_cast<intptr_t>(context);
   output_frame->SetContext(value);
-  if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
+  if (is_topmost) {
+    Register context_reg = InterpretedFrame::context_register();
+    output_frame->SetRegister(context_reg.code(), value);
+  }
   WriteValueToOutput(context, context_input_index, frame_index, output_offset,
                      "context    ");
+  if (context == isolate_->heap()->arguments_marker()) {
+    Address output_address =
+        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
+        output_offset;
+    values_to_materialize_.push_back({output_address, context_pos});
+  }
   value_iterator++;
   input_index++;
 
