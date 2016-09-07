@@ -426,8 +426,7 @@ class Parser : public ParserBase<Parser> {
       ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,
       Expression* cond, Statement* next, Statement* body, bool* ok);
 
-  void DesugarAsyncFunctionBody(const AstRawString* function_name, Scope* scope,
-                                ZoneList<Statement*>* body,
+  void DesugarAsyncFunctionBody(Scope* scope, ZoneList<Statement*>* body,
                                 FunctionKind kind, FunctionBodyType type,
                                 bool accept_IN, int pos, bool* ok);
 
@@ -560,9 +559,9 @@ class Parser : public ParserBase<Parser> {
   void ParseAsyncArrowSingleExpressionBody(ZoneList<Statement*>* body,
                                            bool accept_IN,
                                            int pos, bool* ok) {
-    DesugarAsyncFunctionBody(
-        ast_value_factory()->empty_string(), scope(), body, kAsyncArrowFunction,
-        FunctionBodyType::kSingleExpression, accept_IN, pos, ok);
+    DesugarAsyncFunctionBody(scope(), body, kAsyncArrowFunction,
+                             FunctionBodyType::kSingleExpression, accept_IN,
+                             pos, ok);
   }
 
   ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);

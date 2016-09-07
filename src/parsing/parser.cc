@@ -3239,8 +3239,7 @@ void Parser::ParseArrowFunctionFormalParameters(
   AddFormalParameter(parameters, expr, initializer, end_pos, is_rest);
 }
 
-void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
-                                      Scope* scope, ZoneList<Statement*>* body,
+void Parser::DesugarAsyncFunctionBody(Scope* scope, ZoneList<Statement*>* body,
                                       FunctionKind kind,
                                       FunctionBodyType body_type,
                                       bool accept_IN, int pos, bool* ok) {
@@ -4083,7 +4082,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
                 zone());
     } else if (IsAsyncFunction(kind)) {
       const bool accept_IN = true;
-      DesugarAsyncFunctionBody(function_name, inner_scope, body, kind,
+      DesugarAsyncFunctionBody(inner_scope, body, kind,
                                FunctionBodyType::kNormal, accept_IN, pos,
                                CHECK_OK);
     } else {
