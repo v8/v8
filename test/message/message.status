@@ -31,5 +31,7 @@
   # escapes (we need to parse to distinguish octal escapes from valid
   # back-references).
   'strict-octal-regexp': [SKIP],
+  # See issue v8:5358
+  'export-duplicate-default': [SKIP],
 }],  # ALWAYS
 ]
