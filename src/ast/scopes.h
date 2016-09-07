@@ -199,7 +199,10 @@ class Scope: public ZoneObject {
   // Scope-specific info.
 
   // Inform the scope and outer scopes that the corresponding code contains an
-  // eval call.
+  // eval call. We don't record eval calls from innner scopes in the outer most
+  // script scope, as we only see those when parsing eagerly. If we recorded the
+  // calls then, the outer most script scope would look different depending on
+  // whether we parsed eagerly or not which is undesirable.
   void RecordEvalCall() {
     scope_calls_eval_ = true;
     inner_scope_calls_eval_ = true;
