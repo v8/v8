@@ -278,7 +278,6 @@ class Parser : public ParserBase<Parser> {
   Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                    bool default_export, bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
-  Block* ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
   Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                                   ZoneList<const AstRawString*>* names,
                                   bool* ok);

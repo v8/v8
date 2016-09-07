@@ -195,23 +195,6 @@ PreParser::Statement PreParser::ParseClassDeclaration(
   return Statement::Default();
 }
 
-PreParser::Statement PreParser::ParseBlock(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
-  // Block ::
-  //   '{' StatementList '}'
-
-  Expect(Token::LBRACE, CHECK_OK);
-  Statement final = Statement::Default();
-  {
-    BlockState block_state(&scope_state_);
-    while (peek() != Token::RBRACE) {
-      final = ParseStatementListItem(CHECK_OK);
-    }
-  }
-  Expect(Token::RBRACE, ok);
-  return final;
-}
-
 PreParser::Statement PreParser::ParseVariableStatement(
     VariableDeclarationContext var_context,
     ZoneList<const AstRawString*>* names, bool* ok) {

@@ -1595,36 +1595,6 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   return assignment_statement;
 }
 
-Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
-  // The harmony mode uses block elements instead of statements.
-  //
-  // Block ::
-  //   '{' StatementList '}'
-
-  // Construct block expecting 16 statements.
-  Block* body = factory()->NewBlock(labels, 16, false, kNoSourcePosition);
-
-  // Parse the statements and collect escaping labels.
-  Expect(Token::LBRACE, CHECK_OK);
-  {
-    BlockState block_state(&scope_state_);
-    block_state.set_start_position(scanner()->location().beg_pos);
-    ParserTarget target(this, body);
-
-    while (peek() != Token::RBRACE) {
-      Statement* stat = ParseStatementListItem(CHECK_OK);
-      if (stat && !stat->IsEmpty()) {
-        body->statements()->Add(stat, zone());
-      }
-    }
-
-    Expect(Token::RBRACE, CHECK_OK);
-    block_state.set_end_position(scanner()->location().end_pos);
-    body->set_scope(block_state.FinalizedBlockScope());
-  }
-  return body;
-}
-
 Block* Parser::BuildInitializationBlock(
     DeclarationParsingResult* parsing_result,
     ZoneList<const AstRawString*>* names, bool* ok) {

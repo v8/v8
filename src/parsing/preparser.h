@@ -438,6 +438,7 @@ class PreParserStatement {
   PreParserStatement* operator->() { return this; }
 
   PreParserStatementList statements() { return PreParserStatementList(); }
+  void set_scope(Scope* scope) {}
 
  private:
   enum Type {
@@ -777,7 +778,6 @@ class PreParser : public ParserBase<PreParser> {
   Expression ParseAsyncFunctionExpression(bool* ok);
   Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                   bool default_export, bool* ok);
-  Statement ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
                                    ZoneList<const AstRawString*>* names,
                                    bool* ok);

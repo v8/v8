@@ -1169,6 +1169,7 @@ class ParserBase {
                             bool* ok);
   StatementT ParseStatementAsUnlabelled(ZoneList<const AstRawString*>* labels,
                                         bool* ok);
+  BlockT ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -4189,6 +4190,36 @@ ParserBase<Impl>::ParseStatementAsUnlabelled(
       UNREACHABLE();
       return impl()->NullStatement();
   }
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  // Block ::
+  //   '{' StatementList '}'
+
+  // Construct block expecting 16 statements.
+  BlockT body = factory()->NewBlock(labels, 16, false, kNoSourcePosition);
+
+  // Parse the statements and collect escaping labels.
+  Expect(Token::LBRACE, CHECK_OK_CUSTOM(NullBlock));
+  {
+    BlockState block_state(&scope_state_);
+    block_state.set_start_position(scanner()->location().beg_pos);
+    typename Types::Target target(this, body);
+
+    while (peek() != Token::RBRACE) {
+      StatementT stat = ParseStatementListItem(CHECK_OK_CUSTOM(NullBlock));
+      if (!impl()->IsNullOrEmptyStatement(stat)) {
+        body->statements()->Add(stat, zone());
+      }
+    }
+
+    Expect(Token::RBRACE, CHECK_OK_CUSTOM(NullBlock));
+    block_state.set_end_position(scanner()->location().end_pos);
+    body->set_scope(block_state.FinalizedBlockScope());
+  }
+  return body;
 }
 
 #undef CHECK_OK
