@@ -208,7 +208,7 @@
 // Bump up for Power Linux due to larger (64K) page size.
 const int kPageSizeBits = 22;
 #else
-const int kPageSizeBits = 19;
+const int kPageSizeBits = 20;
 #endif
 
 #endif  // V8_BASE_BUILD_CONFIG_H_

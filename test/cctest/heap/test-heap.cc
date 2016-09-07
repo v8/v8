@@ -2369,9 +2369,6 @@ static void FillUpNewSpace(NewSpace* new_space) {
 
 
 TEST(GrowAndShrinkNewSpace) {
-  // Avoid shrinking new space in GC epilogue. This can happen if allocation
-  // throughput samples have been taken while executing the benchmark.
-  FLAG_predictable = true;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   NewSpace* new_space = heap->new_space();
@@ -3617,9 +3614,6 @@ TEST(ReleaseOverReservedPages) {
   i::FLAG_page_promotion = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  // If there's snapshot available, we don't know whether 20 small arrays will
-  // fit on the initial pages.
-  if (!isolate->snapshot_available()) return;
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   v8::HandleScope scope(CcTest::isolate());
