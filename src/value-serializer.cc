@@ -459,7 +459,46 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     // format changes.
     WriteTag(SerializationTag::kBeginDenseJSArray);
     WriteVarint<uint32_t>(length);
-    for (uint32_t i = 0; i < length; i++) {
+    uint32_t i = 0;
+
+    // Fast paths. Note that FAST_ELEMENTS in particular can bail due to the
+    // structure of the elements changing.
+    switch (array->GetElementsKind()) {
+      case FAST_SMI_ELEMENTS: {
+        Handle<FixedArray> elements(FixedArray::cast(array->elements()),
+                                    isolate_);
+        for (; i < length; i++) WriteSmi(Smi::cast(elements->get(i)));
+        break;
+      }
+      case FAST_DOUBLE_ELEMENTS: {
+        Handle<FixedDoubleArray> elements(
+            FixedDoubleArray::cast(array->elements()), isolate_);
+        for (; i < length; i++) {
+          WriteTag(SerializationTag::kDouble);
+          WriteDouble(elements->get_scalar(i));
+        }
+        break;
+      }
+      case FAST_ELEMENTS: {
+        Handle<Object> old_length(array->length(), isolate_);
+        for (; i < length; i++) {
+          if (array->length() != *old_length ||
+              array->GetElementsKind() != FAST_ELEMENTS) {
+            // Fall back to slow path.
+            break;
+          }
+          Handle<Object> element(FixedArray::cast(array->elements())->get(i),
+                                 isolate_);
+          if (!WriteObject(element).FromMaybe(false)) return Nothing<bool>();
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    // If there are elements remaining, serialize them slowly.
+    for (; i < length; i++) {
       // Serializing the array's elements can have arbitrary side effects, so we
       // cannot rely on still having fast elements, even if it did to begin
       // with.
@@ -470,6 +509,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
         return Nothing<bool>();
       }
     }
+
     KeyAccumulator accumulator(isolate_, KeyCollectionMode::kOwnOnly,
                                ENUMERABLE_STRINGS);
     if (!accumulator.CollectOwnPropertyNames(array, array).FromMaybe(false)) {

@@ -947,6 +947,19 @@ TEST_F(ValueSerializerTest, RoundTripArrayWithTrickyGetters) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === 1"));
         EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(2)"));
       });
+  // The same is true if the length is shortened, but there are still items
+  // remaining.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [1, { get a() { x.length = 3; }}, 3, 4];"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(4, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[2] === 3"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(3)"));
+      });
   // Same for sparse arrays.
   RoundTripTest(
       "(() => {"
@@ -959,6 +972,18 @@ TEST_F(ValueSerializerTest, RoundTripArrayWithTrickyGetters) {
         ASSERT_EQ(1000, Array::Cast(*value)->Length());
         EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === 1"));
         EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(2)"));
+      });
+  RoundTripTest(
+      "(() => {"
+      "  var x = [1, { get a() { x.length = 3; }}, 3, 4];"
+      "  x.length = 1000;"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[2] === 3"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(3)"));
       });
   // If a getter makes a property non-enumerable, it should still be enumerated
   // as enumeration happens once before getters are invoked.
