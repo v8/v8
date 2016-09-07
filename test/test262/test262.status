@@ -459,7 +459,6 @@
   'language/expressions/arrow-function/params-dflt-duplicates': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5244
-  'intl402/DateTimeFormat/prototype/formatToParts/*': [SKIP],
   'intl402/NumberFormat/prototype/formatToParts/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5327

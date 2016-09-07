@@ -191,7 +191,7 @@ DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS_BASE(V)                                      \
+#define HARMONY_INPROGRESS(V)                                           \
   V(harmony_array_prototype_values, "harmony Array.prototype.values")   \
   V(harmony_function_sent, "harmony function.sent")                     \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
@@ -206,14 +206,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_trailing_commas,                                            \
     "harmony trailing commas in function parameter lists")
 
-#ifdef V8_I18N_SUPPORT
-#define HARMONY_INPROGRESS(V) \
-  HARMONY_INPROGRESS_BASE(V)  \
-  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts")
-#else
-#define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
-#endif
-
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                               \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")                  \
@@ -222,8 +214,9 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_string_padding, "harmony String-padding methods")
 
 #ifdef V8_I18N_SUPPORT
-#define HARMONY_STAGED(V) \
-  HARMONY_STAGED_BASE(V)  \
+#define HARMONY_STAGED(V)                                          \
+  HARMONY_STAGED_BASE(V)                                           \
+  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts") \
   V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
