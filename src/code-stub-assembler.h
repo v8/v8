@@ -355,6 +355,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Return the single character string with only {code}.
   compiler::Node* StringFromCharCode(compiler::Node* code);
 
+  // Type conversion helpers.
+  // Convert a String to a Number.
+  compiler::Node* StringToNumber(compiler::Node* context,
+                                 compiler::Node* input);
+
   // Returns a node that is true if the given bit is set in |word32|.
   template <typename T>
   compiler::Node* BitFieldDecode(compiler::Node* word32) {

@@ -2215,6 +2215,31 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
+  Label runtime(this, Label::kDeferred);
+  Label end(this);
+
+  Variable var_result(this, MachineRepresentation::kTagged);
+
+  // Check if string has a cached array index.
+  Node* hash = LoadNameHashField(input);
+  Node* bit =
+      Word32And(hash, Int32Constant(String::kContainsCachedArrayIndexMask));
+  GotoIf(Word32NotEqual(bit, Int32Constant(0)), &runtime);
+
+  var_result.Bind(SmiTag(BitFieldDecode<String::ArrayIndexValueBits>(hash)));
+  Goto(&end);
+
+  Bind(&runtime);
+  {
+    var_result.Bind(CallRuntime(Runtime::kStringToNumber, context, input));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
                                         uint32_t mask) {
   return Word32Shr(Word32And(word32, Int32Constant(mask)),
