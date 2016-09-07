@@ -205,10 +205,17 @@ void GCTracer::Start(GarbageCollector collector,
 
   int committed_memory = static_cast<int>(heap_->CommittedMemory() / KB);
   int used_memory = static_cast<int>(current_.start_object_size / KB);
-  heap_->isolate()->counters()->aggregated_memory_heap_committed()->AddSample(
-      start_time, committed_memory);
-  heap_->isolate()->counters()->aggregated_memory_heap_used()->AddSample(
-      start_time, used_memory);
+
+  Counters* counters = heap_->isolate()->counters();
+
+  if (collector == SCAVENGER) {
+    counters->scavenge_reason()->AddSample(static_cast<int>(gc_reason));
+  } else {
+    counters->mark_compact_reason()->AddSample(static_cast<int>(gc_reason));
+  }
+  counters->aggregated_memory_heap_committed()->AddSample(start_time,
+                                                          committed_memory);
+  counters->aggregated_memory_heap_used()->AddSample(start_time, used_memory);
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
     RuntimeCallStats::Enter(heap_->isolate()->counters()->runtime_call_stats(),

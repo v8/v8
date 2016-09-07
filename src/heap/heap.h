@@ -349,28 +349,31 @@ enum class ClearRecordedSlots { kYes, kNo };
 enum class ClearBlackArea { kYes, kNo };
 
 enum class GarbageCollectionReason {
-  kUnknown,
-  kAllocationFailure,
-  kAllocationLimit,
-  kContextDisposal,
-  kCountersExtension,
-  kDebugger,
-  kDeserializer,
-  kExternalMemoryPressure,
-  kFinalizeMarkingViaStackGuard,
-  kFinalizeMarkingViaTask,
-  kFullHashtable,
-  kHeapProfiler,
-  kIdleTask,
-  kLastResort,
-  kLowMemoryNotification,
-  kMakeHeapIterable,
-  kMemoryPressure,
-  kMemoryReducer,
-  kRuntime,
-  kSamplingProfiler,
-  kSnapshotCreator,
-  kTesting
+  kUnknown = 0,
+  kAllocationFailure = 1,
+  kAllocationLimit = 2,
+  kContextDisposal = 3,
+  kCountersExtension = 4,
+  kDebugger = 5,
+  kDeserializer = 6,
+  kExternalMemoryPressure = 7,
+  kFinalizeMarkingViaStackGuard = 8,
+  kFinalizeMarkingViaTask = 9,
+  kFullHashtable = 10,
+  kHeapProfiler = 11,
+  kIdleTask = 12,
+  kLastResort = 13,
+  kLowMemoryNotification = 14,
+  kMakeHeapIterable = 15,
+  kMemoryPressure = 16,
+  kMemoryReducer = 17,
+  kRuntime = 18,
+  kSamplingProfiler = 19,
+  kSnapshotCreator = 20,
+  kTesting = 21
+  // If you add new items here, then update the incremental_marking_reason,
+  // mark_compact_reason, and scavenge_reason counters in counters.h.
+  // Also update src/tools/metrics/histograms/histograms.xml in chromium.
 };
 
 // A queue of objects promoted during scavenge. Each object is accompanied by

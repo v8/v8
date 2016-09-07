@@ -515,8 +515,12 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
   DCHECK(!heap_->isolate()->serializer_enabled());
 
+  Counters* counters = heap_->isolate()->counters();
+
+  counters->incremental_marking_reason()->AddSample(
+      static_cast<int>(gc_reason));
   HistogramTimerScope incremental_marking_scope(
-      heap_->isolate()->counters()->gc_incremental_marking_start());
+      counters->gc_incremental_marking_start());
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingStart");
   ResetStepCounters();
   heap_->tracer()->NotifyIncrementalMarkingStart();

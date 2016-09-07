@@ -835,6 +835,9 @@ class RuntimeCallStats {
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
+  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
   /* Asm/Wasm. */                                                             \
   HR(wasm_functions_per_module, V8.WasmFunctionsPerModule, 1, 10000, 51)
 
