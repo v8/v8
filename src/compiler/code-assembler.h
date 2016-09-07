@@ -56,6 +56,7 @@ class RawMachineLabel;
   V(Uint32LessThan)                              \
   V(Uint32GreaterThanOrEqual)                    \
   V(UintPtrLessThan)                             \
+  V(UintPtrGreaterThan)                          \
   V(UintPtrGreaterThanOrEqual)                   \
   V(WordEqual)                                   \
   V(WordNotEqual)                                \
@@ -319,6 +320,9 @@ class CodeAssembler {
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
                         Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                         Node* arg5);
+  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
+                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                        Node* arg5, Node* arg6);
 
   // A pair of a zero-based argument index and a value.
   // It helps writing arguments order independent code.
