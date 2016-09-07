@@ -995,12 +995,12 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
       case LookupIterator::ACCESSOR:
         return GetPropertyWithAccessor(it);
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return ReadAbsentProperty(it);
+        return it->isolate()->factory()->undefined_value();
       case LookupIterator::DATA:
         return it->GetDataValue();
     }
   }
-  return ReadAbsentProperty(it);
+  return it->isolate()->factory()->undefined_value();
 }
 
 
@@ -1349,7 +1349,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
                                    Object::DONT_THROW);
     Handle<Object> result = args.Call(call_fun, name);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (result.is_null()) return ReadAbsentProperty(isolate, receiver, name);
+    if (result.is_null()) return isolate->factory()->undefined_value();
     // Rebox handle before return.
     return handle(*result, isolate);
   }
@@ -1366,7 +1366,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
         receiver, Handle<JSReceiver>::cast(getter));
   }
   // Getter is not a function.
-  return ReadAbsentProperty(isolate, receiver, it->GetName());
+  return isolate->factory()->undefined_value();
 }
 
 // static
@@ -4818,17 +4818,6 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
 
   return AddDataProperty(&own_lookup, value, NONE, should_throw, store_mode);
 }
-
-MaybeHandle<Object> Object::ReadAbsentProperty(LookupIterator* it) {
-  return it->isolate()->factory()->undefined_value();
-}
-
-MaybeHandle<Object> Object::ReadAbsentProperty(Isolate* isolate,
-                                               Handle<Object> receiver,
-                                               Handle<Object> name) {
-  return isolate->factory()->undefined_value();
-}
-
 
 Maybe<bool> Object::CannotCreateProperty(Isolate* isolate,
                                          Handle<Object> receiver,

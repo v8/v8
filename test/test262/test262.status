@@ -493,12 +493,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5334
   'built-ins/Proxy/setPrototypeOf/internals-call-order': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5335
-  'language/expressions/super/prop-expr-cls-null-proto': [FAIL],
-  'language/expressions/super/prop-expr-obj-null-proto': [FAIL],
-  'language/expressions/super/prop-dot-cls-null-proto': [FAIL],
-  'language/expressions/super/prop-dot-obj-null-proto': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5336
   'language/expressions/super/call-proto-not-ctor': [FAIL],
 
