@@ -121,6 +121,11 @@ class Variable final : public ZoneObject {
     index_ = index;
   }
 
+  static InitializationFlag DefaultInitializationFlag(VariableMode mode) {
+    DCHECK(IsDeclaredVariableMode(mode));
+    return mode == VAR ? kCreatedInitialized : kNeedsInitialization;
+  }
+
  private:
   Scope* scope_;
   const AstRawString* name_;

@@ -451,6 +451,99 @@ int Scope::num_parameters() const {
   return is_declaration_scope() ? AsDeclarationScope()->num_parameters() : 0;
 }
 
+void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory,
+                                                 bool* ok) {
+  DCHECK(is_sloppy(language_mode()));
+  DCHECK(is_function_scope() || is_eval_scope() || is_script_scope() ||
+         (is_block_scope() && outer_scope()->is_function_scope()));
+  DCHECK(HasSimpleParameters() || is_block_scope());
+  bool has_simple_parameters = HasSimpleParameters();
+  // For each variable which is used as a function declaration in a sloppy
+  // block,
+  SloppyBlockFunctionMap* map = sloppy_block_function_map();
+  for (ZoneHashMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
+    AstRawString* name = static_cast<AstRawString*>(p->key);
+
+    // If the variable wouldn't conflict with a lexical declaration
+    // or parameter,
+
+    // Check if there's a conflict with a parameter.
+    // This depends on the fact that functions always have a scope solely to
+    // hold complex parameters, and the names local to that scope are
+    // precisely the names of the parameters. IsDeclaredParameter(name) does
+    // not hold for names declared by complex parameters, nor are those
+    // bindings necessarily declared lexically, so we have to check for them
+    // explicitly. On the other hand, if there are not complex parameters,
+    // it is sufficient to just check IsDeclaredParameter.
+    if (!has_simple_parameters) {
+      if (outer_scope_->LookupLocal(name) != nullptr) {
+        continue;
+      }
+    } else {
+      if (IsDeclaredParameter(name)) {
+        continue;
+      }
+    }
+
+    bool var_created = false;
+
+    // Write in assignments to var for each block-scoped function declaration
+    auto delegates = static_cast<SloppyBlockFunctionStatement*>(p->value);
+
+    DeclarationScope* decl_scope = this;
+    while (decl_scope->is_eval_scope()) {
+      decl_scope = decl_scope->outer_scope()->GetDeclarationScope();
+    }
+    Scope* outer_scope = decl_scope->outer_scope();
+
+    for (SloppyBlockFunctionStatement* delegate = delegates;
+         delegate != nullptr; delegate = delegate->next()) {
+      // Check if there's a conflict with a lexical declaration
+      Scope* query_scope = delegate->scope()->outer_scope();
+      Variable* var = nullptr;
+      bool should_hoist = true;
+
+      // Note that we perform this loop for each delegate named 'name',
+      // which may duplicate work if those delegates share scopes.
+      // It is not sufficient to just do a Lookup on query_scope: for
+      // example, that does not prevent hoisting of the function in
+      // `{ let e; try {} catch (e) { function e(){} } }`
+      do {
+        var = query_scope->LookupLocal(name);
+        if (var != nullptr && IsLexicalVariableMode(var->mode())) {
+          should_hoist = false;
+          break;
+        }
+        query_scope = query_scope->outer_scope();
+      } while (query_scope != outer_scope);
+
+      if (!should_hoist) continue;
+
+      // Declare a var-style binding for the function in the outer scope
+      if (!var_created) {
+        var_created = true;
+        VariableProxy* proxy = NewUnresolved(factory, name);
+        Declaration* declaration =
+            factory->NewVariableDeclaration(proxy, this, kNoSourcePosition);
+        // Based on the preceding check, it doesn't matter what we pass as
+        // allow_harmony_restrictive_generators and
+        // sloppy_mode_block_scope_function_redefinition.
+        DeclareVariable(declaration, VAR,
+                        Variable::DefaultInitializationFlag(VAR), false,
+                        nullptr, ok);
+        DCHECK(*ok);  // Based on the preceding check, this should not fail
+        if (!*ok) return;
+      }
+
+      // Create VariableProxies for creating an assignment statement
+      // (later). Read from the local lexical scope and write to the function
+      // scope.
+      delegate->set_to(NewUnresolved(factory, name));
+      delegate->set_from(delegate->scope()->NewUnresolved(factory, name));
+    }
+  }
+}
+
 void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();

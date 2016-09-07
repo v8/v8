@@ -466,10 +466,8 @@ class Parser : public ParserBase<Parser> {
 
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
   void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
-                                            Scope* complex_params_scope,
                                             bool* ok);
 
-  static InitializationFlag DefaultInitializationFlag(VariableMode mode);
   VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
                                int end_pos = kNoSourcePosition,
                                Variable::Kind kind = Variable::NORMAL);

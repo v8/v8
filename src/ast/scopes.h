@@ -737,6 +737,10 @@ class DeclarationScope : public Scope {
     sloppy_block_function_map_.Declare(zone(), name, statement);
   }
 
+  // Go through sloppy_block_function_map_ and hoist those (into this scope)
+  // which should be hoisted.
+  void HoistSloppyBlockFunctions(AstNodeFactory* factory, bool* ok);
+
   SloppyBlockFunctionMap* sloppy_block_function_map() {
     return &sloppy_block_function_map_;
   }

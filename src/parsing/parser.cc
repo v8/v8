@@ -715,7 +715,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       // pre-existing bindings should be made writable, enumerable and
       // nonconfigurable if possible, whereas this code will leave attributes
       // unchanged if the property already exists.
-      InsertSloppyBlockFunctionVarBindings(scope, nullptr, &ok);
+      InsertSloppyBlockFunctionVarBindings(scope, &ok);
     }
     if (ok) {
       CheckConflictingVarDeclarations(scope, &ok);
@@ -1365,14 +1365,10 @@ VariableProxy* Parser::NewUnresolved(const AstRawString* name) {
                                 scanner()->location().end_pos);
 }
 
-InitializationFlag Parser::DefaultInitializationFlag(VariableMode mode) {
-  DCHECK(IsDeclaredVariableMode(mode));
-  return mode == VAR ? kCreatedInitialized : kNeedsInitialization;
-}
-
 Declaration* Parser::DeclareVariable(const AstRawString* name,
                                      VariableMode mode, int pos, bool* ok) {
-  return DeclareVariable(name, mode, DefaultInitializationFlag(mode), pos, ok);
+  return DeclareVariable(name, mode, Variable::DefaultInitializationFlag(mode),
+                         pos, ok);
 }
 
 Declaration* Parser::DeclareVariable(const AstRawString* name,
@@ -1535,7 +1531,6 @@ Statement* Parser::ParseHoistableDeclaration(
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
           CHECK_OK);
   if (names) names->Add(variable_name, zone());
-  EmptyStatement* empty = factory()->NewEmptyStatement(kNoSourcePosition);
   // Async functions don't undergo sloppy mode block scoped hoisting, and don't
   // allow duplicates in a block. Both are represented by the
   // sloppy_block_function_map. Don't add them to the map for async functions.
@@ -1544,12 +1539,12 @@ Statement* Parser::ParseHoistableDeclaration(
   if (is_sloppy(language_mode()) && !scope()->is_declaration_scope() &&
       !is_async && !(allow_harmony_restrictive_generators() && is_generator)) {
     SloppyBlockFunctionStatement* delegate =
-        factory()->NewSloppyBlockFunctionStatement(empty, scope());
+        factory()->NewSloppyBlockFunctionStatement(scope());
     DeclarationScope* target_scope = GetDeclarationScope();
     target_scope->DeclareSloppyBlockFunction(variable_name, delegate);
     return delegate;
   }
-  return empty;
+  return factory()->NewEmptyStatement(kNoSourcePosition);
 }
 
 Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
@@ -4112,8 +4107,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     Block* init_block = BuildParameterInitializationBlock(parameters, CHECK_OK);
 
     if (is_sloppy(inner_scope->language_mode())) {
-      InsertSloppyBlockFunctionVarBindings(inner_scope, function_scope,
-                                           CHECK_OK);
+      InsertSloppyBlockFunctionVarBindings(inner_scope, CHECK_OK);
     }
 
     // TODO(littledan): Merge the two rejection blocks into one
@@ -4135,7 +4129,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   } else {
     DCHECK_EQ(inner_scope, function_scope);
     if (is_sloppy(function_scope->language_mode())) {
-      InsertSloppyBlockFunctionVarBindings(function_scope, nullptr, CHECK_OK);
+      InsertSloppyBlockFunctionVarBindings(function_scope, CHECK_OK);
     }
   }
 
@@ -4222,7 +4216,7 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
     Declaration* declaration =
         factory()->NewVariableDeclaration(proxy, block_state.scope(), pos);
     Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
-            DefaultInitializationFlag(CONST), CHECK_OK);
+            Variable::DefaultInitializationFlag(CONST), CHECK_OK);
   }
 
   Expression* extends = nullptr;
@@ -4419,86 +4413,20 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
 }
 
 void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
-                                                  Scope* complex_params_scope,
                                                   bool* ok) {
-  // For each variable which is used as a function declaration in a sloppy
-  // block,
+  scope->HoistSloppyBlockFunctions(factory(), CHECK_OK_VOID);
+
   SloppyBlockFunctionMap* map = scope->sloppy_block_function_map();
   for (ZoneHashMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
-    AstRawString* name = static_cast<AstRawString*>(p->key);
-
-    // If the variable wouldn't conflict with a lexical declaration
-    // or parameter,
-
-    // Check if there's a conflict with a parameter.
-    // This depends on the fact that functions always have a scope solely to
-    // hold complex parameters, and the names local to that scope are
-    // precisely the names of the parameters. IsDeclaredParameter(name) does
-    // not hold for names declared by complex parameters, nor are those
-    // bindings necessarily declared lexically, so we have to check for them
-    // explicitly. On the other hand, if there are not complex parameters,
-    // it is sufficient to just check IsDeclaredParameter.
-    if (complex_params_scope != nullptr) {
-      if (complex_params_scope->LookupLocal(name) != nullptr) {
-        continue;
-      }
-    } else {
-      if (scope->IsDeclaredParameter(name)) {
-        continue;
-      }
-    }
-
-    bool var_created = false;
-
     // Write in assignments to var for each block-scoped function declaration
     auto delegates = static_cast<SloppyBlockFunctionStatement*>(p->value);
-
-    DeclarationScope* decl_scope = scope;
-    while (decl_scope->is_eval_scope()) {
-      decl_scope = decl_scope->outer_scope()->GetDeclarationScope();
-    }
-    Scope* outer_scope = decl_scope->outer_scope();
-
     for (SloppyBlockFunctionStatement* delegate = delegates;
          delegate != nullptr; delegate = delegate->next()) {
-      // Check if there's a conflict with a lexical declaration
-      Scope* query_scope = delegate->scope()->outer_scope();
-      Variable* var = nullptr;
-      bool should_hoist = true;
-
-      // Note that we perform this loop for each delegate named 'name',
-      // which may duplicate work if those delegates share scopes.
-      // It is not sufficient to just do a Lookup on query_scope: for
-      // example, that does not prevent hoisting of the function in
-      // `{ let e; try {} catch (e) { function e(){} } }`
-      do {
-        var = query_scope->LookupLocal(name);
-        if (var != nullptr && IsLexicalVariableMode(var->mode())) {
-          should_hoist = false;
-          break;
-        }
-        query_scope = query_scope->outer_scope();
-      } while (query_scope != outer_scope);
-
-      if (!should_hoist) continue;
-
-      // Declare a var-style binding for the function in the outer scope
-      if (!var_created) {
-        var_created = true;
-        VariableProxy* proxy = scope->NewUnresolved(factory(), name);
-        Declaration* declaration =
-            factory()->NewVariableDeclaration(proxy, scope, kNoSourcePosition);
-        Declare(declaration, DeclarationDescriptor::NORMAL, VAR,
-                DefaultInitializationFlag(VAR), ok, scope);
-        DCHECK(*ok);  // Based on the preceding check, this should not fail
-        if (!*ok) return;
+      if (delegate->to() == nullptr) {
+        continue;
       }
-
-      // Read from the local lexical scope and write to the function scope
-      VariableProxy* to = scope->NewUnresolved(factory(), name);
-      VariableProxy* from = delegate->scope()->NewUnresolved(factory(), name);
-      Expression* assignment =
-          factory()->NewAssignment(Token::ASSIGN, to, from, kNoSourcePosition);
+      Expression* assignment = factory()->NewAssignment(
+          Token::ASSIGN, delegate->to(), delegate->from(), kNoSourcePosition);
       Statement* statement =
           factory()->NewExpressionStatement(assignment, kNoSourcePosition);
       delegate->set_statement(statement);
