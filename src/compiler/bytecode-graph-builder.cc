@@ -5,6 +5,7 @@
 #include "src/compiler/bytecode-graph-builder.h"
 
 #include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/compilation-info.h"
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/linkage.h"
@@ -29,6 +30,7 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
 
   Node* LookupAccumulator() const;
   Node* LookupRegister(interpreter::Register the_register) const;
+  void MarkAllRegistersLive();
 
   void BindAccumulator(Node* node, FrameStateBeforeAndAfter* states = nullptr);
   void BindRegister(interpreter::Register the_register, Node* node,
@@ -45,7 +47,8 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
 
   // Preserve a checkpoint of the environment for the IR graph. Any
   // further mutation of the environment will not affect checkpoints.
-  Node* Checkpoint(BailoutId bytecode_offset, OutputFrameStateCombine combine);
+  Node* Checkpoint(BailoutId bytecode_offset, OutputFrameStateCombine combine,
+                   bool owner_has_exception);
 
   // Returns true if the state values are up to date with the current
   // environment.
@@ -60,7 +63,7 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   Node* Context() const { return context_; }
   void SetContext(Node* new_context) { context_ = new_context; }
 
-  Environment* CopyForConditional() const;
+  Environment* CopyForConditional();
   Environment* CopyForLoop();
   void Merge(Environment* other);
   void PrepareForOsr();
@@ -68,19 +71,27 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   void PrepareForLoopExit(Node* loop);
 
  private:
-  explicit Environment(const Environment* copy);
+  Environment(const Environment* copy, LivenessAnalyzerBlock* liveness_block);
   void PrepareForLoop();
+
+  enum { kNotCached, kCached };
+
   bool StateValuesAreUpToDate(Node** state_values, int offset, int count,
-                              int output_poke_start, int output_poke_end);
+                              int output_poke_start, int output_poke_end,
+                              int cached = kNotCached);
   bool StateValuesRequireUpdate(Node** state_values, int offset, int count);
   void UpdateStateValues(Node** state_values, int offset, int count);
+  void UpdateStateValuesWithCache(Node** state_values, int offset, int count);
 
   int RegisterToValuesIndex(interpreter::Register the_register) const;
+
+  bool IsLivenessBlockConsistent() const;
 
   Zone* zone() const { return builder_->local_zone(); }
   Graph* graph() const { return builder_->graph(); }
   CommonOperatorBuilder* common() const { return builder_->common(); }
   BytecodeGraphBuilder* builder() const { return builder_; }
+  LivenessAnalyzerBlock* liveness_block() const { return liveness_block_; }
   const NodeVector* values() const { return &values_; }
   NodeVector* values() { return &values_; }
   int register_base() const { return register_base_; }
@@ -89,6 +100,7 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   BytecodeGraphBuilder* builder_;
   int register_count_;
   int parameter_count_;
+  LivenessAnalyzerBlock* liveness_block_;
   Node* context_;
   Node* control_dependency_;
   Node* effect_dependency_;
@@ -112,7 +124,7 @@ class BytecodeGraphBuilder::FrameStateBeforeAndAfter {
         output_poke_count_(0) {
     BailoutId id_before(builder->bytecode_iterator().current_offset());
     frame_state_before_ = builder_->environment()->Checkpoint(
-        id_before, OutputFrameStateCombine::Ignore());
+        id_before, OutputFrameStateCombine::Ignore(), false);
     id_after_ = BailoutId(id_before.ToInt() +
                           builder->bytecode_iterator().current_bytecode_size());
     // Create an explicit checkpoint node for before the operation.
@@ -139,8 +151,9 @@ class BytecodeGraphBuilder::FrameStateBeforeAndAfter {
       // Add the frame state for after the operation.
       DCHECK_EQ(IrOpcode::kDead,
                 NodeProperties::GetFrameStateInput(node)->opcode());
-      Node* frame_state_after =
-          builder_->environment()->Checkpoint(id_after_, combine);
+      bool has_exception = NodeProperties::IsExceptionalCall(node);
+      Node* frame_state_after = builder_->environment()->Checkpoint(
+          id_after_, combine, has_exception);
       NodeProperties::ReplaceFrameStateInput(node, frame_state_after);
     }
 
@@ -174,6 +187,9 @@ BytecodeGraphBuilder::Environment::Environment(BytecodeGraphBuilder* builder,
     : builder_(builder),
       register_count_(register_count),
       parameter_count_(parameter_count),
+      liveness_block_(builder->is_liveness_analysis_enabled_
+                          ? builder_->liveness_analyzer()->NewBlock()
+                          : nullptr),
       context_(context),
       control_dependency_(control_dependency),
       effect_dependency_(control_dependency),
@@ -207,12 +223,13 @@ BytecodeGraphBuilder::Environment::Environment(BytecodeGraphBuilder* builder,
   values()->push_back(undefined_constant);
 }
 
-
 BytecodeGraphBuilder::Environment::Environment(
-    const BytecodeGraphBuilder::Environment* other)
+    const BytecodeGraphBuilder::Environment* other,
+    LivenessAnalyzerBlock* liveness_block)
     : builder_(other->builder_),
       register_count_(other->register_count_),
       parameter_count_(other->parameter_count_),
+      liveness_block_(liveness_block),
       context_(other->context_),
       control_dependency_(other->control_dependency_),
       effect_dependency_(other->effect_dependency_),
@@ -235,6 +252,10 @@ int BytecodeGraphBuilder::Environment::RegisterToValuesIndex(
   }
 }
 
+bool BytecodeGraphBuilder::Environment::IsLivenessBlockConsistent() const {
+  return !builder_->IsLivenessAnalysisEnabled() ==
+         (liveness_block() == nullptr);
+}
 
 Node* BytecodeGraphBuilder::Environment::LookupAccumulator() const {
   return values()->at(accumulator_base_);
@@ -251,10 +272,22 @@ Node* BytecodeGraphBuilder::Environment::LookupRegister(
     return builder()->GetNewTarget();
   } else {
     int values_index = RegisterToValuesIndex(the_register);
+    if (liveness_block() != nullptr && !the_register.is_parameter()) {
+      DCHECK(IsLivenessBlockConsistent());
+      liveness_block()->Lookup(the_register.index());
+    }
     return values()->at(values_index);
   }
 }
 
+void BytecodeGraphBuilder::Environment::MarkAllRegistersLive() {
+  DCHECK(IsLivenessBlockConsistent());
+  if (liveness_block() != nullptr) {
+    for (int i = 0; i < register_count(); ++i) {
+      liveness_block()->Lookup(i);
+    }
+  }
+}
 
 void BytecodeGraphBuilder::Environment::BindAccumulator(
     Node* node, FrameStateBeforeAndAfter* states) {
@@ -274,6 +307,10 @@ void BytecodeGraphBuilder::Environment::BindRegister(
                                                             values_index));
   }
   values()->at(values_index) = node;
+  if (liveness_block() != nullptr && !the_register.is_parameter()) {
+    DCHECK(IsLivenessBlockConsistent());
+    liveness_block()->Bind(the_register.index());
+  }
 }
 
 
@@ -301,18 +338,35 @@ void BytecodeGraphBuilder::Environment::RecordAfterState(
 BytecodeGraphBuilder::Environment*
 BytecodeGraphBuilder::Environment::CopyForLoop() {
   PrepareForLoop();
-  return new (zone()) Environment(this);
+  if (liveness_block() != nullptr) {
+    // Finish the current block before copying.
+    liveness_block_ = builder_->liveness_analyzer()->NewBlock(liveness_block());
+  }
+  return new (zone()) Environment(this, liveness_block());
 }
 
-
 BytecodeGraphBuilder::Environment*
-BytecodeGraphBuilder::Environment::CopyForConditional() const {
-  return new (zone()) Environment(this);
+BytecodeGraphBuilder::Environment::CopyForConditional() {
+  LivenessAnalyzerBlock* copy_liveness_block = nullptr;
+  if (liveness_block() != nullptr) {
+    copy_liveness_block =
+        builder_->liveness_analyzer()->NewBlock(liveness_block());
+    liveness_block_ = builder_->liveness_analyzer()->NewBlock(liveness_block());
+  }
+  return new (zone()) Environment(this, copy_liveness_block);
 }
 
 
 void BytecodeGraphBuilder::Environment::Merge(
     BytecodeGraphBuilder::Environment* other) {
+  if (builder_->is_liveness_analysis_enabled_) {
+    if (GetControlDependency()->opcode() != IrOpcode::kLoop) {
+      liveness_block_ =
+          builder()->liveness_analyzer()->NewBlock(liveness_block());
+    }
+    liveness_block()->AddPredecessor(other->liveness_block());
+  }
+
   // Create a merge of the control dependencies of both environments and update
   // the current environment's control dependency accordingly.
   Node* control = builder()->MergeControl(GetControlDependency(),
@@ -437,13 +491,19 @@ void BytecodeGraphBuilder::Environment::UpdateStateValues(Node** state_values,
   }
 }
 
+void BytecodeGraphBuilder::Environment::UpdateStateValuesWithCache(
+    Node** state_values, int offset, int count) {
+  Node** env_values = (count == 0) ? nullptr : &values()->at(offset);
+  *state_values = builder_->state_values_cache_.GetNodeForValues(
+      env_values, static_cast<size_t>(count));
+}
 
 Node* BytecodeGraphBuilder::Environment::Checkpoint(
-    BailoutId bailout_id, OutputFrameStateCombine combine) {
-  // TODO(rmcilroy): Consider using StateValuesCache for some state values.
+    BailoutId bailout_id, OutputFrameStateCombine combine,
+    bool owner_has_exception) {
   UpdateStateValues(&parameters_state_values_, 0, parameter_count());
-  UpdateStateValues(&registers_state_values_, register_base(),
-                    register_count());
+  UpdateStateValuesWithCache(&registers_state_values_, register_base(),
+                             register_count());
   UpdateStateValues(&accumulator_state_values_, accumulator_base(), 1);
 
   const Operator* op = common()->FrameState(
@@ -453,19 +513,42 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
       accumulator_state_values_, Context(), builder()->GetFunctionClosure(),
       builder()->graph()->start());
 
+  if (liveness_block() != nullptr) {
+    // If the owning node has an exception, register the checkpoint to the
+    // predecessor so that the checkpoint is used for both the normal and the
+    // exceptional paths. Yes, this is a terrible hack and we might want
+    // to use an explicit frame state for the exceptional path.
+    if (owner_has_exception) {
+      liveness_block()->GetPredecessor()->Checkpoint(result);
+    } else {
+      liveness_block()->Checkpoint(result);
+    }
+  }
+
   return result;
 }
 
-
 bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
     Node** state_values, int offset, int count, int output_poke_start,
-    int output_poke_end) {
+    int output_poke_end, int cached) {
   DCHECK_LE(static_cast<size_t>(offset + count), values()->size());
-  for (int i = 0; i < count; i++, offset++) {
-    if (offset < output_poke_start || offset >= output_poke_end) {
-      if ((*state_values)->InputAt(i) != values()->at(offset)) {
-        return false;
+  if (cached == kNotCached) {
+    for (int i = 0; i < count; i++, offset++) {
+      if (offset < output_poke_start || offset >= output_poke_end) {
+        if ((*state_values)->InputAt(i) != values()->at(offset)) {
+          return false;
+        }
       }
+    }
+  } else {
+    for (StateValuesAccess::TypedNode state_value :
+         StateValuesAccess(*state_values)) {
+      if (offset < output_poke_start || offset >= output_poke_end) {
+        if (state_value.node != values()->at(offset)) {
+          return false;
+        }
+      }
+      ++offset;
     }
   }
   return true;
@@ -481,7 +564,7 @@ bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
                                 output_poke_start, output_poke_end) &&
          StateValuesAreUpToDate(&registers_state_values_, register_base(),
                                 register_count(), output_poke_start,
-                                output_poke_end) &&
+                                output_poke_end, kCached) &&
          StateValuesAreUpToDate(&accumulator_state_values_, accumulator_base(),
                                 1, output_poke_start, output_poke_end);
 }
@@ -505,7 +588,13 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
       current_exception_handler_(0),
       input_buffer_size_(0),
       input_buffer_(nullptr),
-      exit_controls_(local_zone) {}
+      exit_controls_(local_zone),
+      is_liveness_analysis_enabled_(FLAG_analyze_environment_liveness &&
+                                    info->is_deoptimization_enabled()),
+      state_values_cache_(jsgraph),
+      liveness_analyzer_(
+          static_cast<size_t>(bytecode_array()->register_count()), local_zone) {
+}
 
 Node* BytecodeGraphBuilder::GetNewTarget() {
   if (!new_target_.is_set()) {
@@ -587,7 +676,23 @@ bool BytecodeGraphBuilder::CreateGraph() {
   Node* end = graph()->NewNode(common()->End(input_count), input_count, inputs);
   graph()->SetEnd(end);
 
+  ClearNonLiveSlotsInFrameStates();
+
   return true;
+}
+
+void BytecodeGraphBuilder::ClearNonLiveSlotsInFrameStates() {
+  if (!IsLivenessAnalysisEnabled()) {
+    return;
+  }
+  NonLiveFrameStateSlotReplacer replacer(
+      &state_values_cache_, jsgraph()->OptimizedOutConstant(),
+      liveness_analyzer()->local_count(), local_zone());
+  liveness_analyzer()->Run(&replacer);
+  if (FLAG_trace_environment_liveness) {
+    OFStream os(stdout);
+    liveness_analyzer()->Print(os);
+  }
 }
 
 void BytecodeGraphBuilder::VisitBytecodes() {
@@ -1548,6 +1653,7 @@ void BytecodeGraphBuilder::VisitDebugger() {
   Node* call =
       NewNode(javascript()->CallRuntime(Runtime::kHandleDebuggerStatement));
   environment()->BindAccumulator(call, &states);
+  environment()->MarkAllRegistersLive();
 }
 
 // We cannot create a graph from the debugger copy of the bytecode array.
