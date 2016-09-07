@@ -7928,6 +7928,13 @@ FixedArray* ModuleInfo::regular_exports() const {
   return FixedArray::cast(get(kRegularExportsIndex));
 }
 
+#ifdef DEBUG
+bool ModuleInfo::Equals(ModuleInfo* other) const {
+  return get(kSpecialExportsIndex) == other->get(kSpecialExportsIndex) &&
+         get(kRegularExportsIndex) == other->get(kRegularExportsIndex);
+}
+#endif
+
 void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:

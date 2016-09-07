@@ -337,8 +337,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       DCHECK(context->previous()->IsNativeContext());
       break;
     } else if (context->IsFunctionContext()) {
-      Handle<ScopeInfo> scope_info(context->closure()->shared()->scope_info(),
-                                   isolate);
+      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
       // TODO(neis): For an eval scope, we currently create an ordinary function
       // context.  This is wrong and needs to be fixed.
       // https://bugs.chromium.org/p/v8/issues/detail?id=5295
@@ -360,7 +359,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
         outer_scope = new (zone) Scope(zone, BLOCK_SCOPE, scope_info);
       }
     } else if (context->IsModuleContext()) {
-      ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+      ScopeInfo* scope_info = context->scope_info();
       DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
       outer_scope = new (zone) ModuleScope(
           isolate, Handle<ScopeInfo>(scope_info), ast_value_factory);
@@ -373,6 +372,13 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     }
     if (current_scope != nullptr) {
       outer_scope->AddInnerScope(current_scope);
+      DCHECK_IMPLIES(
+          deserialization_mode == DeserializationMode::kKeepScopeInfo,
+          current_scope->scope_info_->HasOuterScopeInfo());
+      DCHECK_IMPLIES(
+          deserialization_mode == DeserializationMode::kKeepScopeInfo,
+          outer_scope->scope_info_->Equals(
+              current_scope->scope_info_->OuterScopeInfo()));
     }
     current_scope = outer_scope;
     if (deserialization_mode == DeserializationMode::kDeserializeOffHeap) {
@@ -384,6 +390,17 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
 
   if (innermost_scope == nullptr) return script_scope;
   script_scope->AddInnerScope(current_scope);
+#if DEBUG
+  if (deserialization_mode == DeserializationMode::kKeepScopeInfo) {
+    if (script_scope->scope_info_.is_null()) {
+      DCHECK(!current_scope->scope_info_->HasOuterScopeInfo());
+    } else {
+      DCHECK(!script_scope->scope_info_->HasOuterScopeInfo());
+      DCHECK(script_scope->scope_info_->Equals(
+          current_scope->scope_info_->OuterScopeInfo()));
+    }
+  }
+#endif
   return innermost_scope;
 }
 
@@ -1066,7 +1083,14 @@ Declaration* Scope::CheckLexDeclarationsConflictingWith(
 void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
   ResolveVariablesRecursively(info);
   AllocateVariablesRecursively();
-  AllocateScopeInfosRecursively(info->isolate(), mode);
+
+  MaybeHandle<ScopeInfo> outer_scope;
+  for (const Scope* s = outer_scope_; s != nullptr; s = s->outer_scope_) {
+    if (s->scope_info_.is_null()) continue;
+    outer_scope = s->scope_info_;
+    break;
+  }
+  AllocateScopeInfosRecursively(info->isolate(), mode, outer_scope);
 }
 
 bool Scope::AllowsLazyParsing() const {
@@ -1794,15 +1818,21 @@ void Scope::AllocateVariablesRecursively() {
   DCHECK(num_heap_slots_ == 0 || num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
 }
 
-void Scope::AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode) {
+void Scope::AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode,
+                                          MaybeHandle<ScopeInfo> outer_scope) {
   DCHECK(scope_info_.is_null());
   if (mode == AnalyzeMode::kDebugger || NeedsScopeInfo()) {
-    scope_info_ = ScopeInfo::Create(isolate, zone(), this);
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
   }
+
+  // The ScopeInfo chain should mirror the context chain, so we only link to
+  // the next outer scope that needs a context.
+  MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
+  if (NeedsContext()) next_outer_scope = scope_info_;
 
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->AllocateScopeInfosRecursively(isolate, mode);
+    scope->AllocateScopeInfosRecursively(isolate, mode, next_outer_scope);
   }
 }
 

@@ -19,8 +19,43 @@ enum ModuleVariableEntryOffset {
   kModuleVariableEntryLength  // Sentinel value.
 };
 
-Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
-                                    Scope* scope) {
+#ifdef DEBUG
+bool ScopeInfo::Equals(ScopeInfo* other) const {
+  if (length() != other->length()) return false;
+  for (int index = 0; index < length(); ++index) {
+    Object* entry = get(index);
+    Object* other_entry = other->get(index);
+    if (entry->IsSmi()) {
+      if (entry != other_entry) return false;
+    } else {
+      if (HeapObject::cast(entry)->map()->instance_type() !=
+          HeapObject::cast(other_entry)->map()->instance_type()) {
+        return false;
+      }
+      if (entry->IsString()) {
+        if (!String::cast(entry)->Equals(String::cast(other_entry))) {
+          return false;
+        }
+      } else if (entry->IsScopeInfo()) {
+        if (!ScopeInfo::cast(entry)->Equals(ScopeInfo::cast(other_entry))) {
+          return false;
+        }
+      } else if (entry->IsModuleInfo()) {
+        if (!ModuleInfo::cast(entry)->Equals(ModuleInfo::cast(other_entry))) {
+          return false;
+        }
+      } else {
+        UNREACHABLE();
+        return false;
+      }
+    }
+  }
+  return true;
+}
+#endif
+
+Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
+                                    MaybeHandle<ScopeInfo> outer_scope) {
   // Collect variables.
   ZoneList<Variable*>* locals = scope->locals();
   int stack_local_count = 0;
@@ -94,9 +129,11 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   const bool has_function_name = function_name_info != NONE;
   const bool has_receiver = receiver_info == STACK || receiver_info == CONTEXT;
   const int parameter_count = scope->num_parameters();
+  const bool has_outer_scope_info = !outer_scope.is_null();
   const int length = kVariablePartIndex + parameter_count +
                      (1 + stack_local_count) + 2 * context_local_count +
                      (has_receiver ? 1 : 0) + (has_function_name ? 2 : 0) +
+                     (has_outer_scope_info ? 1 : 0) +
                      (scope->is_module_scope()
                           ? 2 + kModuleVariableEntryLength * module_vars_count
                           : 0);
@@ -127,7 +164,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               AsmModuleField::encode(asm_module) |
               AsmFunctionField::encode(asm_function) |
               HasSimpleParametersField::encode(has_simple_parameters) |
-              FunctionKindField::encode(function_kind);
+              FunctionKindField::encode(function_kind) |
+              HasOuterScopeInfoField::encode(has_outer_scope_info);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(parameter_count);
@@ -222,6 +260,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
            var_index == scope_info->ContextLength() - 1);
   }
 
+  // If present, add the outer scope info.
+  DCHECK(index == scope_info->OuterScopeInfoEntryIndex());
+  if (has_outer_scope_info) {
+    scope_info->set(index++, *outer_scope.ToHandleChecked());
+  }
+
   // Module-specific information (only for module scopes).
   if (scope->is_module_scope()) {
     Handle<ModuleInfo> module_info =
@@ -241,8 +285,10 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   return scope_info;
 }
 
-Handle<ScopeInfo> ScopeInfo::CreateForWithScope(Isolate* isolate) {
-  const int length = kVariablePartIndex + 1;
+Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
+    Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope) {
+  const bool has_outer_scope_info = !outer_scope.is_null();
+  const int length = kVariablePartIndex + 1 + (has_outer_scope_info ? 1 : 0);
 
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
@@ -254,7 +300,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(Isolate* isolate) {
       ReceiverVariableField::encode(NONE) | HasNewTargetField::encode(false) |
       FunctionVariableField::encode(NONE) | AsmModuleField::encode(false) |
       AsmFunctionField::encode(false) | HasSimpleParametersField::encode(true) |
-      FunctionKindField::encode(kNormalFunction);
+      FunctionKindField::encode(kNormalFunction) |
+      HasOuterScopeInfoField::encode(has_outer_scope_info);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -268,6 +315,10 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(Isolate* isolate) {
   DCHECK_EQ(index, scope_info->StackLocalEntriesIndex());
   DCHECK_EQ(index, scope_info->ReceiverEntryIndex());
   DCHECK_EQ(index, scope_info->FunctionNameEntryIndex());
+  DCHECK(index == scope_info->OuterScopeInfoEntryIndex());
+  if (has_outer_scope_info) {
+    scope_info->set(index++, *outer_scope.ToHandleChecked());
+  }
   DCHECK_EQ(index, scope_info->length());
   DCHECK_EQ(0, scope_info->ParameterCount());
   DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, scope_info->ContextLength());
@@ -284,24 +335,26 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   const VariableAllocationInfo function_name_info = NONE;
   const bool has_function_name = false;
   const bool has_receiver = true;
+  const bool has_outer_scope_info = false;
   const int parameter_count = 0;
   const int length = kVariablePartIndex + parameter_count +
                      (1 + stack_local_count) + 2 * context_local_count +
-                     (has_receiver ? 1 : 0) + (has_function_name ? 2 : 0);
+                     (has_receiver ? 1 : 0) + (has_function_name ? 2 : 0) +
+                     (has_outer_scope_info ? 1 : 0);
 
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   // Encode the flags.
-  int flags = ScopeTypeField::encode(SCRIPT_SCOPE) |
-              CallsEvalField::encode(false) |
-              LanguageModeField::encode(SLOPPY) |
-              DeclarationScopeField::encode(true) |
-              ReceiverVariableField::encode(receiver_info) |
-              FunctionVariableField::encode(function_name_info) |
-              AsmModuleField::encode(false) | AsmFunctionField::encode(false) |
-              HasSimpleParametersField::encode(has_simple_parameters) |
-              FunctionKindField::encode(FunctionKind::kNormalFunction);
+  int flags =
+      ScopeTypeField::encode(SCRIPT_SCOPE) | CallsEvalField::encode(false) |
+      LanguageModeField::encode(SLOPPY) | DeclarationScopeField::encode(true) |
+      ReceiverVariableField::encode(receiver_info) |
+      FunctionVariableField::encode(function_name_info) |
+      AsmModuleField::encode(false) | AsmFunctionField::encode(false) |
+      HasSimpleParametersField::encode(has_simple_parameters) |
+      FunctionKindField::encode(FunctionKind::kNormalFunction) |
+      HasOuterScopeInfoField::encode(has_outer_scope_info);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
@@ -328,6 +381,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   scope_info->set(index++, Smi::FromInt(receiver_index));
 
   DCHECK_EQ(index, scope_info->FunctionNameEntryIndex());
+  DCHECK_EQ(index, scope_info->OuterScopeInfoEntryIndex());
 
   DCHECK_EQ(index, scope_info->length());
   DCHECK_EQ(scope_info->ParameterCount(), 0);
@@ -429,6 +483,13 @@ bool ScopeInfo::HasFunctionName() {
   }
 }
 
+bool ScopeInfo::HasOuterScopeInfo() {
+  if (length() > 0) {
+    return HasOuterScopeInfoField::decode(Flags());
+  } else {
+    return false;
+  }
+}
 
 bool ScopeInfo::HasHeapAllocatedLocals() {
   if (length() > 0) {
@@ -447,6 +508,11 @@ bool ScopeInfo::HasContext() {
 String* ScopeInfo::FunctionName() {
   DCHECK(HasFunctionName());
   return String::cast(get(FunctionNameEntryIndex()));
+}
+
+ScopeInfo* ScopeInfo::OuterScopeInfo() {
+  DCHECK(HasOuterScopeInfo());
+  return ScopeInfo::cast(get(OuterScopeInfoEntryIndex()));
 }
 
 ModuleInfo* ScopeInfo::ModuleDescriptorInfo() {
@@ -700,8 +766,12 @@ int ScopeInfo::FunctionNameEntryIndex() {
   return ReceiverEntryIndex() + (HasAllocatedReceiver() ? 1 : 0);
 }
 
-int ScopeInfo::ModuleInfoEntryIndex() {
+int ScopeInfo::OuterScopeInfoEntryIndex() {
   return FunctionNameEntryIndex() + (HasFunctionName() ? 2 : 0);
+}
+
+int ScopeInfo::ModuleInfoEntryIndex() {
+  return OuterScopeInfoEntryIndex() + (HasOuterScopeInfo() ? 1 : 0);
 }
 
 int ScopeInfo::ModuleVariableCountIndex() { return ModuleInfoEntryIndex() + 1; }

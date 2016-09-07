@@ -110,8 +110,10 @@ JSReceiver* Context::extension_receiver() {
 }
 
 ScopeInfo* Context::scope_info() {
-  DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext() ||
-         IsCatchContext() || IsWithContext() || IsDebugEvaluateContext());
+  DCHECK(!IsNativeContext());
+  if (IsFunctionContext() || IsModuleContext()) {
+    return closure()->shared()->scope_info();
+  }
   HeapObject* object = extension();
   if (object->IsContextExtension()) {
     DCHECK(IsBlockContext() || IsCatchContext() || IsWithContext() ||

@@ -4391,8 +4391,20 @@ class ScopeInfo : public FixedArray {
 
   FunctionKind function_kind();
 
-  static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope);
-  static Handle<ScopeInfo> CreateForWithScope(Isolate* isolate);
+  // Returns true if this ScopeInfo is linked to a outer ScopeInfo.
+  bool HasOuterScopeInfo();
+
+  // Return the outer ScopeInfo if present.
+  ScopeInfo* OuterScopeInfo();
+
+#ifdef DEBUG
+  bool Equals(ScopeInfo* other) const;
+#endif
+
+  static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope,
+                                  MaybeHandle<ScopeInfo> outer_scope);
+  static Handle<ScopeInfo> CreateForWithScope(
+      Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.
@@ -4463,7 +4475,9 @@ class ScopeInfo : public FixedArray {
   //    information about the function variable. It always occupies two array
   //    slots:  a. The name of the function variable.
   //            b. The context or stack slot index for the variable.
-  // 8. ModuleInfoEntry, ModuleVariableCount, and ModuleVariableEntries:
+  // 8. OuterScopeInfoEntryIndex:
+  //    The outer scope's ScopeInfo or the hole if there's none.
+  // 9. ModuleInfoEntry, ModuleVariableCount, and ModuleVariableEntries:
   //    For a module scope, this part contains the ModuleInfo, the number of
   //    MODULE-allocated variables, and the metadata of those variables.  For
   //    non-module scopes it is empty.
@@ -4474,6 +4488,7 @@ class ScopeInfo : public FixedArray {
   int ContextLocalInfoEntriesIndex();
   int ReceiverEntryIndex();
   int FunctionNameEntryIndex();
+  int OuterScopeInfoEntryIndex();
   int ModuleInfoEntryIndex();
   int ModuleVariableCountIndex();
   int ModuleVariableEntriesIndex();
@@ -4508,6 +4523,8 @@ class ScopeInfo : public FixedArray {
       : public BitField<bool, AsmFunctionField::kNext, 1> {};
   class FunctionKindField
       : public BitField<FunctionKind, HasSimpleParametersField::kNext, 9> {};
+  class HasOuterScopeInfoField
+      : public BitField<bool, FunctionKindField::kNext, 1> {};
 
   // Properties of variables.
   class VariableModeField : public BitField<VariableMode, 0, 3> {};
@@ -4524,6 +4541,10 @@ class ModuleInfo : public FixedArray {
   static Handle<ModuleInfo> New(Isolate* isolate, ModuleDescriptor* descr);
   inline FixedArray* special_exports() const;
   inline FixedArray* regular_exports() const;
+
+#ifdef DEBUG
+  inline bool Equals(ModuleInfo* other) const;
+#endif
 
  private:
   friend class Factory;

@@ -538,7 +538,8 @@ class Scope: public ZoneObject {
   void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
-  void AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode);
+  void AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode,
+                                     MaybeHandle<ScopeInfo> outer_scope);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
