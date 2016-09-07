@@ -202,7 +202,9 @@ class Scope: public ZoneObject {
   // eval call.
   void RecordEvalCall() {
     scope_calls_eval_ = true;
-    for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
+    inner_scope_calls_eval_ = true;
+    for (Scope* scope = outer_scope(); scope && !scope->is_script_scope();
+         scope = scope->outer_scope()) {
       scope->inner_scope_calls_eval_ = true;
     }
   }
