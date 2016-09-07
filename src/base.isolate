@@ -14,13 +14,6 @@
         ],
       },
     }],
-    ['OS=="mac" and asan==1', {
-      'variables': {
-        'files': [
-          '<(PRODUCT_DIR)/libclang_rt.asan_osx_dynamic.dylib',
-        ],
-      },
-    }],
     ['tsan==1', {
       'variables': {
         'files': [
