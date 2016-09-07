@@ -34,7 +34,6 @@ var InnerArraySome;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var InternalArray = utils.InternalArray;
-var IsNaN;
 var MaxSimple;
 var MinSimple;
 var PackedArrayReverse;
@@ -83,7 +82,6 @@ utils.Import(function(from) {
   InnerArraySome = from.InnerArraySome;
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
-  IsNaN = from.IsNaN;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   PackedArrayReverse = from.PackedArrayReverse;
@@ -544,9 +542,9 @@ function TypedArrayComparefn(x, y) {
     return -1;
   } else if (x > y) {
     return 1;
-  } else if (IsNaN(x) && IsNaN(y)) {
-    return IsNaN(y) ? 0 : 1;
-  } else if (IsNaN(x)) {
+  } else if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) {
+    return NUMBER_IS_NAN(y) ? 0 : 1;
+  } else if (NUMBER_IS_NAN(x)) {
     return 1;
   }
   return 0;

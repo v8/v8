@@ -1305,6 +1305,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install i18n fallback functions.
     SimpleInstallFunction(prototype, "toLocaleString",
                           Builtins::kNumberPrototypeToLocaleString, 0, false);
+
+    // Install the Number functions.
+    SimpleInstallFunction(number_fun, "isFinite", Builtins::kNumberIsFinite, 1,
+                          true);
+    SimpleInstallFunction(number_fun, "isInteger", Builtins::kNumberIsInteger,
+                          1, true);
+    SimpleInstallFunction(number_fun, "isNaN", Builtins::kNumberIsNaN, 1, true);
+    SimpleInstallFunction(number_fun, "isSafeInteger",
+                          Builtins::kNumberIsSafeInteger, 1, true);
   }
 
   {  // --- B o o l e a n ---
@@ -3144,6 +3153,14 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
                               Builtins::kGlobalEval, 1, false);
     native_context()->set_global_eval_fun(*eval);
   }
+
+  // Install Global.isFinite
+  SimpleInstallFunction(global_object, "isFinite", Builtins::kGlobalIsFinite, 1,
+                        true, kGlobalIsFinite);
+
+  // Install Global.isNaN
+  SimpleInstallFunction(global_object, "isNaN", Builtins::kGlobalIsNaN, 1, true,
+                        kGlobalIsNaN);
 
   // Install Array.prototype.concat
   {

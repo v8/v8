@@ -6951,6 +6951,10 @@ class Script: public Struct {
   V(Math, clz32, MathClz32)                                 \
   V(Math, fround, MathFround)                               \
   V(Math, trunc, MathTrunc)                                 \
+  V(Number, isFinite, NumberIsFinite)                       \
+  V(Number, isInteger, NumberIsInteger)                     \
+  V(Number, isNaN, NumberIsNaN)                             \
+  V(Number, isSafeInteger, NumberIsSafeInteger)             \
   V(Number, parseInt, NumberParseInt)                       \
   V(Number.prototype, toString, NumberToString)
 
@@ -6979,6 +6983,8 @@ enum BuiltinFunctionId {
   kGlobalEncodeURIComponent,
   kGlobalEscape,
   kGlobalUnescape,
+  kGlobalIsFinite,
+  kGlobalIsNaN,
   kTypedArrayByteLength,
   kTypedArrayByteOffset,
   kTypedArrayLength,

@@ -29,7 +29,6 @@ var InstallGetter = utils.InstallGetter;
 var InternalArray = utils.InternalArray;
 var InternalRegExpMatch;
 var InternalRegExpReplace
-var IsNaN;
 var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
 var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
@@ -43,7 +42,6 @@ var StringSubstring;
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
   ArrayPush = from.ArrayPush;
-  IsNaN = from.IsNaN;
   InternalRegExpMatch = from.InternalRegExpMatch;
   InternalRegExpReplace = from.InternalRegExpReplace;
   StringIndexOf = from.StringIndexOf;
@@ -2250,7 +2248,8 @@ function toLocaleDateTime(date, locales, options, required, defaults, service) {
     throw %make_type_error(kMethodInvokedOnWrongType, "Date");
   }
 
-  if (IsNaN(date)) return 'Invalid Date';
+  var dateValue = TO_NUMBER(date);
+  if (NUMBER_IS_NAN(dateValue)) return 'Invalid Date';
 
   var internalOptions = toDateTimeOptions(options, required, defaults);
 

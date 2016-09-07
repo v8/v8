@@ -361,16 +361,18 @@ namespace internal {
   TFJ(GeneratorPrototypeThrow, 2)                                             \
   CPP(AsyncFunctionConstructor)                                               \
                                                                               \
-  /* Encode and decode */                                                     \
+  /* Global object */                                                         \
   CPP(GlobalDecodeURI)                                                        \
   CPP(GlobalDecodeURIComponent)                                               \
   CPP(GlobalEncodeURI)                                                        \
   CPP(GlobalEncodeURIComponent)                                               \
   CPP(GlobalEscape)                                                           \
   CPP(GlobalUnescape)                                                         \
-                                                                              \
-  /* Eval */                                                                  \
   CPP(GlobalEval)                                                             \
+  /* ES6 section 18.2.2 isFinite ( number ) */                                \
+  TFJ(GlobalIsFinite, 2)                                                      \
+  /* ES6 section 18.2.3 isNaN ( number ) */                                   \
+  TFJ(GlobalIsNaN, 2)                                                         \
                                                                               \
   /* JSON */                                                                  \
   CPP(JsonParse)                                                              \
@@ -451,6 +453,14 @@ namespace internal {
   ASM(NumberConstructor)                                                      \
   /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case */  \
   ASM(NumberConstructor_ConstructStub)                                        \
+  /* ES6 section 20.1.2.2 Number.isFinite ( number ) */                       \
+  TFJ(NumberIsFinite, 2)                                                      \
+  /* ES6 section 20.1.2.3 Number.isInteger ( number ) */                      \
+  TFJ(NumberIsInteger, 2)                                                     \
+  /* ES6 section 20.1.2.4 Number.isNaN ( number ) */                          \
+  TFJ(NumberIsNaN, 2)                                                         \
+  /* ES6 section 20.1.2.5 Number.isSafeInteger ( number ) */                  \
+  TFJ(NumberIsSafeInteger, 2)                                                 \
   CPP(NumberPrototypeToExponential)                                           \
   CPP(NumberPrototypeToFixed)                                                 \
   CPP(NumberPrototypeToLocaleString)                                          \

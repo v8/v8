@@ -1340,6 +1340,11 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kDateGetTime:
           return t->cache_.kJSDateValueType;
         // Number functions.
+        case kNumberIsFinite:
+        case kNumberIsInteger:
+        case kNumberIsNaN:
+        case kNumberIsSafeInteger:
+          return Type::Boolean();
         case kNumberParseInt:
           return t->cache_.kIntegerOrMinusZeroOrNaN;
         case kNumberToString:
@@ -1370,6 +1375,9 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kGlobalEscape:
         case kGlobalUnescape:
           return Type::String();
+        case kGlobalIsFinite:
+        case kGlobalIsNaN:
+          return Type::Boolean();
         default:
           break;
       }
