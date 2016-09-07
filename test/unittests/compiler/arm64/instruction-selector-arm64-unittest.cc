@@ -3142,11 +3142,20 @@ const IntegerCmp kIntegerCmpInstructions[] = {
      kUnsignedLessThanOrEqual,
      kUnsignedGreaterThanOrEqual}};
 
+const IntegerCmp kIntegerCmpEqualityInstructions[] = {
+    {{&RawMachineAssembler::Word32Equal, "Word32Equal", kArm64Cmp32,
+      MachineType::Int32()},
+     kEqual,
+     kEqual},
+    {{&RawMachineAssembler::Word32NotEqual, "Word32NotEqual", kArm64Cmp32,
+      MachineType::Int32()},
+     kNotEqual,
+     kNotEqual}};
 }  // namespace
 
 
 TEST_F(InstructionSelectorTest, Word32CompareNegateWithWord32Shift) {
-  TRACED_FOREACH(IntegerCmp, cmp, kIntegerCmpInstructions) {
+  TRACED_FOREACH(IntegerCmp, cmp, kIntegerCmpEqualityInstructions) {
     TRACED_FOREACH(Shift, shift, kShiftInstructions) {
       // Test 32-bit operations. Ignore ROR shifts, as compare-negate does not
       // support them.
@@ -3203,7 +3212,7 @@ TEST_F(InstructionSelectorTest, CmpWithImmediateOnLeft) {
 }
 
 TEST_F(InstructionSelectorTest, CmnWithImmediateOnLeft) {
-  TRACED_FOREACH(IntegerCmp, cmp, kIntegerCmpInstructions) {
+  TRACED_FOREACH(IntegerCmp, cmp, kIntegerCmpEqualityInstructions) {
     TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
       // kEqual and kNotEqual trigger the cbz/cbnz optimization, which
       // is tested elsewhere.
@@ -3244,7 +3253,7 @@ TEST_F(InstructionSelectorTest, CmpSignedExtendByteOnLeft) {
 }
 
 TEST_F(InstructionSelectorTest, CmnSignedExtendByteOnLeft) {
-  TRACED_FOREACH(IntegerCmp, cmp, kIntegerCmpInstructions) {
+  TRACED_FOREACH(IntegerCmp, cmp, kIntegerCmpEqualityInstructions) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
     Node* sub = m.Int32Sub(m.Int32Constant(0), m.Parameter(0));
@@ -3294,7 +3303,7 @@ TEST_F(InstructionSelectorTest, CmpShiftByImmediateOnLeft) {
 }
 
 TEST_F(InstructionSelectorTest, CmnShiftByImmediateOnLeft) {
-  TRACED_FOREACH(IntegerCmp, cmp, kIntegerCmpInstructions) {
+  TRACED_FOREACH(IntegerCmp, cmp, kIntegerCmpEqualityInstructions) {
     TRACED_FOREACH(Shift, shift, kShiftInstructions) {
       // Only test relevant shifted operands.
       if (shift.mi.machine_type != MachineType::Int32()) continue;
