@@ -193,7 +193,8 @@ class GCTracer {
       START = 3
     };
 
-    Event(Type type, const char* gc_reason, const char* collector_reason);
+    Event(Type type, GarbageCollectionReason gc_reason,
+          const char* collector_reason);
 
     // Returns a string describing the event type.
     const char* TypeName(bool short_name) const;
@@ -201,7 +202,7 @@ class GCTracer {
     // Type of event
     Type type;
 
-    const char* gc_reason;
+    GarbageCollectionReason gc_reason;
     const char* collector_reason;
 
     // Timestamp set in the constructor.
@@ -271,7 +272,7 @@ class GCTracer {
   explicit GCTracer(Heap* heap);
 
   // Start collecting data.
-  void Start(GarbageCollector collector, const char* gc_reason,
+  void Start(GarbageCollector collector, GarbageCollectionReason gc_reason,
              const char* collector_reason);
 
   // Stop collecting data and print results.

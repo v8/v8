@@ -46,7 +46,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   NewSpace* new_space = heap->new_space();
 
   // Make sure we can allocate some objects without causing a GC later.
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
   // Allocate a string, the GC may suspect a memento behind the string.
   Handle<SeqOneByteString> string =
@@ -72,8 +72,7 @@ TEST(Regress340063) {
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  CcTest::i_isolate()->heap()->CollectAllGarbage(
-      Heap::kAbortIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -90,8 +89,7 @@ TEST(Regress470390) {
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  CcTest::i_isolate()->heap()->CollectAllGarbage(
-      Heap::kAbortIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -103,5 +101,5 @@ TEST(BadMementoAfterTopForceScavenge) {
   SetUpNewSpaceWithPoisonedMementoAtTop();
 
   // Force GC to test the poisoned memento handling
-  CcTest::i_isolate()->heap()->CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectGarbage(i::NEW_SPACE);
 }

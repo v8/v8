@@ -79,7 +79,6 @@ TEST(WeakSet_Weakness) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
   GlobalHandles* global_handles = isolate->global_handles();
@@ -104,7 +103,7 @@ TEST(WeakSet_Weakness) {
   CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
 
   // Force a full GC.
-  heap->CollectAllGarbage(false);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, NumberOfWeakCalls);
   CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
@@ -120,7 +119,7 @@ TEST(WeakSet_Weakness) {
   }
   CHECK(global_handles->IsWeak(key.location()));
 
-  heap->CollectAllGarbage(false);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, ObjectHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
@@ -132,7 +131,6 @@ TEST(WeakSet_Shrinking) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
@@ -158,7 +156,7 @@ TEST(WeakSet_Shrinking) {
   CHECK_EQ(32, ObjectHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
       0, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
-  heap->CollectAllGarbage(false);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, ObjectHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
       32, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
@@ -201,7 +199,7 @@ TEST(WeakSet_Regress2060a) {
 
   // Force compacting garbage collection.
   CHECK(FLAG_always_compact);
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }
 
 
@@ -243,7 +241,7 @@ TEST(WeakSet_Regress2060b) {
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
   CHECK(FLAG_always_compact);
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }

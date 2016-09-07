@@ -57,7 +57,7 @@ const char* GCTracer::Scope::Name(ScopeId id) {
   return "(unknown)";
 }
 
-GCTracer::Event::Event(Type type, const char* gc_reason,
+GCTracer::Event::Event(Type type, GarbageCollectionReason gc_reason,
                        const char* collector_reason)
     : type(type),
       gc_reason(gc_reason),
@@ -110,7 +110,7 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
 
 GCTracer::GCTracer(Heap* heap)
     : heap_(heap),
-      current_(Event::START, nullptr, nullptr),
+      current_(Event::START, GarbageCollectionReason::kUnknown, nullptr),
       previous_(current_),
       previous_incremental_mark_compactor_event_(current_),
       cumulative_incremental_marking_bytes_(0),
@@ -130,7 +130,7 @@ GCTracer::GCTracer(Heap* heap)
 }
 
 void GCTracer::ResetForTesting() {
-  current_ = Event(Event::START, NULL, NULL);
+  current_ = Event(Event::START, GarbageCollectionReason::kTesting, nullptr);
   current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
   previous_ = previous_incremental_mark_compactor_event_ = current_;
   cumulative_incremental_marking_bytes_ = 0.0;
@@ -162,7 +162,8 @@ void GCTracer::ResetForTesting() {
   start_counter_ = 0;
 }
 
-void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
+void GCTracer::Start(GarbageCollector collector,
+                     GarbageCollectionReason gc_reason,
                      const char* collector_reason) {
   start_counter_++;
   if (start_counter_ != 1) return;
@@ -411,7 +412,6 @@ void GCTracer::Output(const char* format, ...) const {
   heap_->AddToRingBuffer(buffer.start());
 }
 
-
 void GCTracer::Print() const {
   double duration = current_.end_time - current_.start_time;
   const size_t kIncrementalStatsSize = 128;
@@ -443,7 +443,7 @@ void GCTracer::Print() const {
       static_cast<double>(current_.end_object_size) / MB,
       static_cast<double>(current_.end_memory_size) / MB, duration,
       TotalExternalTime(), incremental_buffer,
-      current_.gc_reason != nullptr ? current_.gc_reason : "",
+      Heap::GarbageCollectionReasonToString(current_.gc_reason),
       current_.collector_reason != nullptr ? current_.collector_reason : "");
 }
 

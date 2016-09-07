@@ -790,14 +790,16 @@ void Heap::HandleGCRequest() {
   } else if (incremental_marking()->request_type() ==
              IncrementalMarking::COMPLETE_MARKING) {
     incremental_marking()->reset_request_type();
-    CollectAllGarbage(current_gc_flags_, "GC interrupt",
+    CollectAllGarbage(current_gc_flags_,
+                      GarbageCollectionReason::kFinalizeMarkingViaStackGuard,
                       current_gc_callback_flags_);
   } else if (incremental_marking()->request_type() ==
                  IncrementalMarking::FINALIZATION &&
              incremental_marking()->IsMarking() &&
              !incremental_marking()->finalize_marking_completed()) {
     incremental_marking()->reset_request_type();
-    FinalizeIncrementalMarking("GC interrupt: finalize incremental marking");
+    FinalizeIncrementalMarking(
+        GarbageCollectionReason::kFinalizeMarkingViaStackGuard);
   }
 }
 
@@ -806,8 +808,7 @@ void Heap::ScheduleIdleScavengeIfNeeded(int bytes_allocated) {
   scavenge_job_->ScheduleIdleTaskIfNeeded(this, bytes_allocated);
 }
 
-
-void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
+void Heap::FinalizeIncrementalMarking(GarbageCollectionReason gc_reason) {
   if (FLAG_trace_incremental_marking) {
     isolate()->PrintWithTimestamp("[IncrementalMarking] (%s).\n", gc_reason);
   }
@@ -857,7 +858,7 @@ HistogramTimer* Heap::GCTypeTimer(GarbageCollector collector) {
   }
 }
 
-void Heap::CollectAllGarbage(int flags, const char* gc_reason,
+void Heap::CollectAllGarbage(int flags, GarbageCollectionReason gc_reason,
                              const v8::GCCallbackFlags gc_callback_flags) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
@@ -867,8 +868,7 @@ void Heap::CollectAllGarbage(int flags, const char* gc_reason,
   set_current_gc_flags(kNoGCFlags);
 }
 
-
-void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
+void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
@@ -902,12 +902,12 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   UncommitFromSpace();
 }
 
-
-void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
+void Heap::ReportExternalMemoryPressure() {
   if (external_memory_ >
       (external_memory_at_last_mark_compact_ + external_memory_hard_limit())) {
     CollectAllGarbage(
-        kReduceMemoryFootprintMask | kFinalizeIncrementalMarkingMask, gc_reason,
+        kReduceMemoryFootprintMask | kFinalizeIncrementalMarkingMask,
+        GarbageCollectionReason::kExternalMemoryPressure,
         static_cast<GCCallbackFlags>(kGCCallbackFlagCollectAllAvailableGarbage |
                                      kGCCallbackFlagCollectAllExternalMemory));
     return;
@@ -915,13 +915,13 @@ void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
   if (incremental_marking()->IsStopped()) {
     if (incremental_marking()->CanBeActivated()) {
       StartIncrementalMarking(
-          i::Heap::kNoGCFlags,
+          i::Heap::kNoGCFlags, GarbageCollectionReason::kExternalMemoryPressure,
           static_cast<GCCallbackFlags>(
               kGCCallbackFlagSynchronousPhantomCallbackProcessing |
-              kGCCallbackFlagCollectAllExternalMemory),
-          gc_reason);
+              kGCCallbackFlagCollectAllExternalMemory));
     } else {
-      CollectAllGarbage(i::Heap::kNoGCFlags, gc_reason,
+      CollectAllGarbage(i::Heap::kNoGCFlags,
+                        GarbageCollectionReason::kExternalMemoryPressure,
                         kGCCallbackFlagSynchronousPhantomCallbackProcessing);
     }
   } else {
@@ -955,8 +955,8 @@ void Heap::EnsureFillerObjectAtTop() {
   }
 }
 
-
-bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
+bool Heap::CollectGarbage(GarbageCollector collector,
+                          GarbageCollectionReason gc_reason,
                           const char* collector_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
   // The VM is in the GC state until exiting this function.
@@ -1055,8 +1055,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   // Start incremental marking for the next cycle. The heap snapshot
   // generator needs incremental marking to stay off after it aborted.
   if (!ShouldAbortIncrementalMarking()) {
-    StartIncrementalMarkingIfNeeded(kNoGCFlags, kNoGCCallbackFlags,
-                                    "GC epilogue");
+    StartIncrementalMarkingIfAllocationLimitIsReached(kNoGCFlags,
+                                                      kNoGCCallbackFlags);
   }
 
   return next_gc_likely_to_collect_more;
@@ -1082,28 +1082,28 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   return ++contexts_disposed_;
 }
 
-
 void Heap::StartIncrementalMarking(int gc_flags,
-                                   const GCCallbackFlags gc_callback_flags,
-                                   const char* reason) {
+                                   GarbageCollectionReason gc_reason,
+                                   GCCallbackFlags gc_callback_flags) {
   DCHECK(incremental_marking()->IsStopped());
   set_current_gc_flags(gc_flags);
   current_gc_callback_flags_ = gc_callback_flags;
-  incremental_marking()->Start(reason);
+  incremental_marking()->Start(gc_reason);
 }
 
-void Heap::StartIncrementalMarkingIfNeeded(
-    int gc_flags, const GCCallbackFlags gc_callback_flags, const char* reason) {
+void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
+    int gc_flags, const GCCallbackFlags gc_callback_flags) {
   if (incremental_marking()->IsStopped() &&
       incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
-    StartIncrementalMarking(gc_flags, gc_callback_flags, reason);
+    StartIncrementalMarking(gc_flags, GarbageCollectionReason::kAllocationLimit,
+                            gc_callback_flags);
   }
 }
 
-void Heap::StartIdleIncrementalMarking() {
+void Heap::StartIdleIncrementalMarking(GarbageCollectionReason gc_reason) {
   gc_idle_time_handler_->ResetNoProgressCounter();
-  StartIncrementalMarking(kReduceMemoryFootprintMask, kNoGCCallbackFlags,
-                          "idle");
+  StartIncrementalMarking(kReduceMemoryFootprintMask, gc_reason,
+                          kNoGCCallbackFlags);
 }
 
 
@@ -1212,17 +1212,15 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
       }
       if (perform_gc) {
         if (space == NEW_SPACE) {
-          CollectGarbage(NEW_SPACE, "failed to reserve space in the new space");
+          CollectGarbage(NEW_SPACE, GarbageCollectionReason::kDeserializer);
         } else {
           if (counter > 1) {
             CollectAllGarbage(
                 kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
-                "failed to reserve space in paged or large "
-                "object space, trying to reduce memory footprint");
+                GarbageCollectionReason::kDeserializer);
           } else {
-            CollectAllGarbage(
-                kAbortIncrementalMarkingMask,
-                "failed to reserve space in paged or large object space");
+            CollectAllGarbage(kAbortIncrementalMarkingMask,
+                              GarbageCollectionReason::kDeserializer);
           }
         }
         gc_performed = true;
@@ -4076,7 +4074,8 @@ bool Heap::IsHeapIterable() {
 void Heap::MakeHeapIterable() {
   DCHECK(AllowHeapAllocation::IsAllowed());
   if (!IsHeapIterable()) {
-    CollectAllGarbage(kMakeHeapIterableMask, "Heap::MakeHeapIterable");
+    CollectAllGarbage(kMakeHeapIterableMask,
+                      GarbageCollectionReason::kMakeHeapIterable);
   }
   if (mark_compact_collector()->sweeping_in_progress()) {
     mark_compact_collector()->EnsureSweepingCompleted();
@@ -4211,20 +4210,21 @@ bool Heap::MarkingDequesAreEmpty() {
                    ->NumberOfWrappersToTrace() == 0));
 }
 
-void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
+void Heap::FinalizeIncrementalMarkingIfComplete(
+    GarbageCollectionReason gc_reason) {
   if (incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->finalize_marking_completed() &&
         MarkingDequesAreEmpty()))) {
-    FinalizeIncrementalMarking(comment);
+    FinalizeIncrementalMarking(gc_reason);
   } else if (incremental_marking()->IsComplete() ||
              (mark_compact_collector()->marking_deque()->IsEmpty())) {
-    CollectAllGarbage(current_gc_flags_, comment);
+    CollectAllGarbage(current_gc_flags_, gc_reason);
   }
 }
 
-
-bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
+bool Heap::TryFinalizeIdleIncrementalMarking(
+    double idle_time_in_ms, GarbageCollectionReason gc_reason) {
   size_t size_of_objects = static_cast<size_t>(SizeOfObjects());
   double final_incremental_mark_compact_speed_in_bytes_per_ms =
       tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
@@ -4233,16 +4233,14 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
        MarkingDequesAreEmpty() &&
        gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
            idle_time_in_ms))) {
-    FinalizeIncrementalMarking(
-        "Idle notification: finalize incremental marking");
+    FinalizeIncrementalMarking(gc_reason);
     return true;
   } else if (incremental_marking()->IsComplete() ||
              (MarkingDequesAreEmpty() &&
               gc_idle_time_handler_->ShouldDoFinalIncrementalMarkCompact(
                   idle_time_in_ms, size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
-    CollectAllGarbage(current_gc_flags_,
-                      "idle notification: finalize incremental marking");
+    CollectAllGarbage(current_gc_flags_, gc_reason);
     return true;
   }
   return false;
@@ -4317,7 +4315,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       DCHECK(contexts_disposed_ > 0);
       HistogramTimerScope scope(isolate_->counters()->gc_context());
       TRACE_EVENT0("v8", "V8.GCContext");
-      CollectAllGarbage(kNoGCFlags, "idle notification: contexts disposed");
+      CollectAllGarbage(kNoGCFlags, GarbageCollectionReason::kContextDisposal);
       break;
     }
     case DO_NOTHING:
@@ -4450,10 +4448,11 @@ void Heap::CheckMemoryPressure() {
     }
   }
   if (memory_pressure_level_.Value() == MemoryPressureLevel::kCritical) {
-    CollectGarbageOnMemoryPressure("memory pressure");
+    CollectGarbageOnMemoryPressure();
   } else if (memory_pressure_level_.Value() == MemoryPressureLevel::kModerate) {
     if (FLAG_incremental_marking && incremental_marking()->IsStopped()) {
-      StartIdleIncrementalMarking();
+      StartIncrementalMarking(kReduceMemoryFootprintMask,
+                              GarbageCollectionReason::kMemoryPressure);
     }
   }
   MemoryReducer::Event event;
@@ -4462,7 +4461,7 @@ void Heap::CheckMemoryPressure() {
   memory_reducer_->NotifyPossibleGarbage(event);
 }
 
-void Heap::CollectGarbageOnMemoryPressure(const char* source) {
+void Heap::CollectGarbageOnMemoryPressure() {
   const int kGarbageThresholdInBytes = 8 * MB;
   const double kGarbageThresholdAsFractionOfTotalMemory = 0.1;
   // This constant is the maximum response time in RAIL performance model.
@@ -4470,7 +4469,8 @@ void Heap::CollectGarbageOnMemoryPressure(const char* source) {
 
   double start = MonotonicallyIncreasingTimeInMs();
   CollectAllGarbage(kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
-                    source, kGCCallbackFlagCollectAllAvailableGarbage);
+                    GarbageCollectionReason::kMemoryPressure,
+                    kGCCallbackFlagCollectAllAvailableGarbage);
   double end = MonotonicallyIncreasingTimeInMs();
 
   // Estimate how much memory we can free.
@@ -4485,11 +4485,13 @@ void Heap::CollectGarbageOnMemoryPressure(const char* source) {
     // Otherwise, start incremental marking.
     if (end - start < kMaxMemoryPressurePauseMs / 2) {
       CollectAllGarbage(
-          kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask, source,
+          kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
+          GarbageCollectionReason::kMemoryPressure,
           kGCCallbackFlagCollectAllAvailableGarbage);
     } else {
       if (FLAG_incremental_marking && incremental_marking()->IsStopped()) {
-        StartIdleIncrementalMarking();
+        StartIncrementalMarking(kReduceMemoryFootprintMask,
+                                GarbageCollectionReason::kMemoryPressure);
       }
     }
   }
@@ -4574,6 +4576,58 @@ void Heap::ReportHeapStatistics(const char* title) {
 }
 
 #endif  // DEBUG
+
+const char* Heap::GarbageCollectionReasonToString(
+    GarbageCollectionReason gc_reason) {
+  switch (gc_reason) {
+    case GarbageCollectionReason::kAllocationFailure:
+      return "allocation failure";
+    case GarbageCollectionReason::kAllocationLimit:
+      return "allocation limit";
+    case GarbageCollectionReason::kContextDisposal:
+      return "context disposal";
+    case GarbageCollectionReason::kCountersExtension:
+      return "counters extension";
+    case GarbageCollectionReason::kDebugger:
+      return "debugger";
+    case GarbageCollectionReason::kDeserializer:
+      return "deserialize";
+    case GarbageCollectionReason::kExternalMemoryPressure:
+      return "external memory pressure";
+    case GarbageCollectionReason::kFinalizeMarkingViaStackGuard:
+      return "finalize incremental marking via stack guard";
+    case GarbageCollectionReason::kFinalizeMarkingViaTask:
+      return "finalize incremental marking via task";
+    case GarbageCollectionReason::kFullHashtable:
+      return "full hash-table";
+    case GarbageCollectionReason::kHeapProfiler:
+      return "heap profiler";
+    case GarbageCollectionReason::kIdleTask:
+      return "idle task";
+    case GarbageCollectionReason::kLastResort:
+      return "last resort";
+    case GarbageCollectionReason::kLowMemoryNotification:
+      return "low memory notification";
+    case GarbageCollectionReason::kMakeHeapIterable:
+      return "make heap iterable";
+    case GarbageCollectionReason::kMemoryPressure:
+      return "memory pressure";
+    case GarbageCollectionReason::kMemoryReducer:
+      return "memory reducer";
+    case GarbageCollectionReason::kRuntime:
+      return "runtime";
+    case GarbageCollectionReason::kSamplingProfiler:
+      return "sampling profiler";
+    case GarbageCollectionReason::kSnapshotCreator:
+      return "snapshot creator";
+    case GarbageCollectionReason::kTesting:
+      return "testing";
+    case GarbageCollectionReason::kUnknown:
+      return "unknown";
+  }
+  UNREACHABLE();
+  return "";
+}
 
 bool Heap::Contains(HeapObject* value) {
   if (memory_allocator()->IsOutsideAllocatedSpace(value->address())) {

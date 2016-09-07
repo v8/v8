@@ -50,7 +50,7 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
 
     std::vector<Handle<FixedArray>> handles;
     heap::SimulateFullSpace(heap->new_space(), &handles);
-    heap->CollectGarbage(NEW_SPACE);
+    heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
     CHECK_GT(handles.size(), 0u);
     // First object in handle should be on the first page.
     Handle<FixedArray> first_object = handles.front();

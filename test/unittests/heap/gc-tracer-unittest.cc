@@ -160,7 +160,8 @@ TEST_F(GCTracerTest, RegularScope) {
   EXPECT_DOUBLE_EQ(0.0, tracer->current_.scopes[GCTracer::Scope::MC_MARK]);
   // Sample not added because it's not within a started tracer.
   tracer->AddScopeSample(GCTracer::Scope::MC_MARK, 100);
-  tracer->Start(MARK_COMPACTOR, "gc unittest", "collector unittest");
+  tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+                "collector unittest");
   tracer->AddScopeSample(GCTracer::Scope::MC_MARK, 100);
   tracer->Stop(MARK_COMPACTOR);
   EXPECT_DOUBLE_EQ(100.0, tracer->current_.scopes[GCTracer::Scope::MC_MARK]);
@@ -174,7 +175,8 @@ TEST_F(GCTracerTest, IncrementalScope) {
       0.0, tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
   // Sample is added because its ScopeId is listed as incremental sample.
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 100);
-  tracer->Start(MARK_COMPACTOR, "gc unittest", "collector unittest");
+  tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+                "collector unittest");
   // Switch to incremental MC to enable writing back incremental scopes.
   tracer->current_.type = GCTracer::Event::INCREMENTAL_MARK_COMPACTOR;
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 100);
@@ -189,7 +191,8 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
 
   // Round 1.
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 50);
-  tracer->Start(MARK_COMPACTOR, "gc unittest", "collector unittest");
+  tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+                "collector unittest");
   // Switch to incremental MC to enable writing back incremental scopes.
   tracer->current_.type = GCTracer::Event::INCREMENTAL_MARK_COMPACTOR;
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 100);
@@ -213,7 +216,8 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
   // Round 2. Cumulative numbers should add up, others should be reset.
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 13);
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 15);
-  tracer->Start(MARK_COMPACTOR, "gc unittest", "collector unittest");
+  tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+                "collector unittest");
   // Switch to incremental MC to enable writing back incremental scopes.
   tracer->current_.type = GCTracer::Event::INCREMENTAL_MARK_COMPACTOR;
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 122);

@@ -335,7 +335,7 @@ TEST(ExplicitGC) {
   }
 
   // Do an explicit, real GC.
-  t.heap()->CollectGarbage(i::NEW_SPACE);
+  t.heap()->CollectGarbage(i::NEW_SPACE, i::GarbageCollectionReason::kTesting);
 
   // Check that searching for the numbers finds the same values.
   for (size_t i = 0; i < arraysize(num_keys); i++) {
@@ -387,7 +387,7 @@ TEST(CanonicalHandleScope) {
   Handle<String> string2(*string1);
   CHECK_EQ(number1.location(), number2.location());
   CHECK_EQ(string1.location(), string2.location());
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   Handle<HeapNumber> number3(*number2);
   Handle<String> string3(*string2);
   CHECK_EQ(number1.location(), number3.location());

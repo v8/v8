@@ -497,8 +497,7 @@ static void PatchIncrementalMarkingRecordWriteStubs(
   }
 }
 
-
-void IncrementalMarking::Start(const char* reason) {
+void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   if (FLAG_trace_incremental_marking) {
     int old_generation_size_mb =
         static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
@@ -507,8 +506,8 @@ void IncrementalMarking::Start(const char* reason) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Start (%s): old generation %dMB, limit %dMB, "
         "slack %dMB\n",
-        (reason == nullptr) ? "unknown reason" : reason, old_generation_size_mb,
-        old_generation_limit_mb,
+        Heap::GarbageCollectionReasonToString(gc_reason),
+        old_generation_size_mb, old_generation_limit_mb,
         Max(0, old_generation_limit_mb - old_generation_size_mb));
   }
   DCHECK(FLAG_incremental_marking);

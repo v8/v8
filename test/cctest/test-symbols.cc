@@ -71,8 +71,8 @@ TEST(Create) {
 #endif
   }
 
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
   // All symbols should be distinct.
   for (int i = 0; i < kNumSymbols; ++i) {

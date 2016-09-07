@@ -74,7 +74,7 @@ class IncrementalMarking {
 
   bool WasActivated();
 
-  void Start(const char* reason = nullptr);
+  void Start(GarbageCollectionReason gc_reason);
 
   void FinalizeIncrementally();
 

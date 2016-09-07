@@ -348,6 +348,31 @@ enum class ClearRecordedSlots { kYes, kNo };
 
 enum class ClearBlackArea { kYes, kNo };
 
+enum class GarbageCollectionReason {
+  kUnknown,
+  kAllocationFailure,
+  kAllocationLimit,
+  kContextDisposal,
+  kCountersExtension,
+  kDebugger,
+  kDeserializer,
+  kExternalMemoryPressure,
+  kFinalizeMarkingViaStackGuard,
+  kFinalizeMarkingViaTask,
+  kFullHashtable,
+  kHeapProfiler,
+  kIdleTask,
+  kLastResort,
+  kLowMemoryNotification,
+  kMakeHeapIterable,
+  kMemoryPressure,
+  kMemoryReducer,
+  kRuntime,
+  kSamplingProfiler,
+  kSnapshotCreator,
+  kTesting
+};
+
 // A queue of objects promoted during scavenge. Each object is accompanied by
 // its size to avoid dereferencing a map pointer for scanning. The last page in
 // to-space is used for the promotion queue. On conflict during scavenge, the
@@ -1079,22 +1104,22 @@ class Heap {
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
   inline bool CollectGarbage(
-      AllocationSpace space, const char* gc_reason = NULL,
+      AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap
   // in a state where we can iterate over the heap visiting all objects.
   void CollectAllGarbage(
-      int flags = kFinalizeIncrementalMarkingMask, const char* gc_reason = NULL,
+      int flags, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Last hope GC, should try to squeeze as much as possible.
-  void CollectAllAvailableGarbage(const char* gc_reason = NULL);
+  void CollectAllAvailableGarbage(GarbageCollectionReason gc_reason);
 
   // Reports and external memory pressure event, either performs a major GC or
   // completes incremental marking in order to free external resources.
-  void ReportExternalMemoryPressure(const char* gc_reason = NULL);
+  void ReportExternalMemoryPressure();
 
   // Invoked when GC was requested via the stack guard.
   void HandleGCRequest();
@@ -1145,23 +1170,22 @@ class Heap {
 
   // Start incremental marking and ensure that idle time handler can perform
   // incremental steps.
-  void StartIdleIncrementalMarking();
+  void StartIdleIncrementalMarking(GarbageCollectionReason gc_reason);
 
   // Starts incremental marking assuming incremental marking is currently
   // stopped.
-  void StartIncrementalMarking(int gc_flags = kNoGCFlags,
-                               const GCCallbackFlags gc_callback_flags =
-                                   GCCallbackFlags::kNoGCCallbackFlags,
-                               const char* reason = nullptr);
+  void StartIncrementalMarking(
+      int gc_flags, GarbageCollectionReason gc_reason,
+      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
-  void StartIncrementalMarkingIfNeeded(int gc_flags = kNoGCFlags,
-                                       const GCCallbackFlags gc_callback_flags =
-                                           GCCallbackFlags::kNoGCCallbackFlags,
-                                       const char* reason = nullptr);
+  void StartIncrementalMarkingIfAllocationLimitIsReached(
+      int gc_flags,
+      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
-  void FinalizeIncrementalMarkingIfComplete(const char* comment);
+  void FinalizeIncrementalMarkingIfComplete(GarbageCollectionReason gc_reason);
 
-  bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms);
+  bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms,
+                                         GarbageCollectionReason gc_reason);
 
   void RegisterReservationsForBlackAllocation(Reservation* reservations);
 
@@ -1458,6 +1482,9 @@ class Heap {
   void ReportCodeStatistics(const char* title);
 #endif
 
+  static const char* GarbageCollectionReasonToString(
+      GarbageCollectionReason gc_reason);
+
  private:
   class PretenuringScope;
 
@@ -1613,7 +1640,7 @@ class Heap {
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
   bool CollectGarbage(
-      GarbageCollector collector, const char* gc_reason,
+      GarbageCollector collector, GarbageCollectionReason gc_reason,
       const char* collector_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
@@ -1688,10 +1715,6 @@ class Heap {
 
   void ReduceNewSpaceSize();
 
-  bool TryFinalizeIdleIncrementalMarking(
-      double idle_time_in_ms, size_t size_of_objects,
-      size_t mark_compact_speed_in_bytes_per_ms);
-
   GCIdleTimeHeapState ComputeHeapState();
 
   bool PerformIdleTimeAction(GCIdleTimeAction action,
@@ -1711,13 +1734,13 @@ class Heap {
 
   void CompactRetainedMaps(ArrayList* retained_maps);
 
-  void CollectGarbageOnMemoryPressure(const char* source);
+  void CollectGarbageOnMemoryPressure();
 
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete
   // marking. If we continue to mark incrementally, we might have marked
   // objects that die later.
-  void FinalizeIncrementalMarking(const char* gc_reason);
+  void FinalizeIncrementalMarking(GarbageCollectionReason gc_reason);
 
   // Returns the timer used for a given GC type.
   // - GCScavenger: young generation GC

@@ -90,7 +90,8 @@ static Vector<const byte> Serialize(v8::Isolate* isolate) {
   }
 
   Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
-  internal_isolate->heap()->CollectAllAvailableGarbage("serialize");
+  internal_isolate->heap()->CollectAllAvailableGarbage(
+      i::GarbageCollectionReason::kTesting);
   StartupSerializer ser(internal_isolate,
                         v8::SnapshotCreator::FunctionCodeHandling::kClear);
   ser.SerializeStrongReferences();
@@ -263,8 +264,10 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
         isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
-    heap->CollectAllGarbage();
-    heap->CollectAllGarbage();
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
 
     Object* raw_foo;
     {
@@ -366,7 +369,8 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap->CollectAllGarbage();
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -484,7 +488,8 @@ static void PartiallySerializeCustomContext(
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    isolate->heap()->CollectAllAvailableGarbage("snapshotting");
+    isolate->heap()->CollectAllAvailableGarbage(
+        i::GarbageCollectionReason::kTesting);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -1894,7 +1899,6 @@ TEST(CodeSerializerEmbeddedObject) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
-  Heap* heap = isolate->heap();
   v8::HandleScope scope(CcTest::isolate());
 
   size_t actual_size;
@@ -1934,7 +1938,7 @@ TEST(CodeSerializerEmbeddedObject) {
   CHECK(rit2.rinfo()->target_object()->IsHeapNumber());
   CHECK_EQ(0.3, HeapNumber::cast(rit2.rinfo()->target_object())->value());
 
-  heap->CollectAllAvailableGarbage();
+  CcTest::CollectAllAvailableGarbage();
 
   RelocIterator rit3(copy->code(),
                      RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));

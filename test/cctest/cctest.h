@@ -125,6 +125,10 @@ class CcTest {
 
   static i::Heap* heap();
 
+  static void CollectGarbage(i::AllocationSpace space);
+  static void CollectAllGarbage(int flags);
+  static void CollectAllAvailableGarbage();
+
   static v8::base::RandomNumberGenerator* random_number_generator();
 
   static v8::Local<v8::Object> global();

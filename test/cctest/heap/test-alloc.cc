@@ -91,7 +91,7 @@ Handle<Object> v8::internal::HeapTester::TestAllocateAfterFailures() {
   // Similar to what the CALL_AND_RETRY macro does in the last-resort case, we
   // are wrapping the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
-  CcTest::heap()->CollectAllAvailableGarbage("panic");
+  CcTest::CollectAllAvailableGarbage();
   AlwaysAllocateScope scope(CcTest::i_isolate());
   return handle(AllocateAfterFailures().ToObjectChecked(), CcTest::i_isolate());
 }

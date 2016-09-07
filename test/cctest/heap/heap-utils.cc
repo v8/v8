@@ -15,8 +15,10 @@ namespace internal {
 namespace heap {
 
 void SealCurrentObjects(Heap* heap) {
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
+  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                          GarbageCollectionReason::kTesting);
+  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                          GarbageCollectionReason::kTesting);
   heap->mark_compact_collector()->EnsureSweepingCompleted();
   heap->old_space()->EmptyAllocationInfo();
   for (Page* page : *heap->old_space()) {
@@ -151,7 +153,8 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   }
   CHECK(marking->IsMarking() || marking->IsStopped() || marking->IsComplete());
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking();
+    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+                                  i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking() || marking->IsComplete());
   if (!force_completion) return;
@@ -180,7 +183,7 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
 }
 
 void GcAndSweep(Heap* heap, AllocationSpace space) {
-  heap->CollectGarbage(space);
+  heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
   if (heap->mark_compact_collector()->sweeping_in_progress()) {
     heap->mark_compact_collector()->EnsureSweepingCompleted();
   }
