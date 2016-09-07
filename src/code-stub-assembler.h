@@ -298,10 +298,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                      ParameterMode mode = INTEGER_PARAMETERS,
                                      AllocationFlags flags = kNone);
 
-  void FillFixedArrayWithHole(ElementsKind kind, compiler::Node* array,
-                              compiler::Node* from_index,
-                              compiler::Node* to_index,
-                              ParameterMode mode = INTEGER_PARAMETERS);
+  void FillFixedArrayWithValue(ElementsKind kind, compiler::Node* array,
+                               compiler::Node* from_index,
+                               compiler::Node* to_index,
+                               Heap::RootListIndex value_root_index,
+                               ParameterMode mode = INTEGER_PARAMETERS);
 
   void CopyFixedArrayElements(
       ElementsKind kind, compiler::Node* from_array, compiler::Node* to_array,

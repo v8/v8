@@ -1378,8 +1378,9 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
       elements, FixedArray::kLengthOffset,
       mode == SMI_PARAMETERS ? capacity_node : SmiTag(capacity_node));
 
-  FillFixedArrayWithHole(kind, elements, IntPtrConstant(0), capacity_node,
-                         mode);
+  // Fill in the elements with holes.
+  FillFixedArrayWithValue(kind, elements, IntPtrConstant(0), capacity_node,
+                          Heap::kTheHoleValueRootIndex, mode);
 
   return array;
 }
@@ -1407,18 +1408,19 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
   return array;
 }
 
-void CodeStubAssembler::FillFixedArrayWithHole(ElementsKind kind,
-                                               compiler::Node* array,
-                                               compiler::Node* from_node,
-                                               compiler::Node* to_node,
-                                               ParameterMode mode) {
-  int const first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
-  Heap* heap = isolate()->heap();
-  Node* hole = HeapConstant(Handle<HeapObject>(heap->the_hole_value()));
+void CodeStubAssembler::FillFixedArrayWithValue(
+    ElementsKind kind, Node* array, Node* from_node, Node* to_node,
+    Heap::RootListIndex value_root_index, ParameterMode mode) {
+  bool is_double = IsFastDoubleElementsKind(kind);
+  DCHECK(value_root_index == Heap::kTheHoleValueRootIndex ||
+         value_root_index == Heap::kUndefinedValueRootIndex);
+  DCHECK_IMPLIES(is_double, value_root_index == Heap::kTheHoleValueRootIndex);
+  STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
   Node* double_hole =
       Is64() ? Int64Constant(kHoleNanInt64) : Int32Constant(kHoleNanLower32);
-  DCHECK_EQ(kHoleNanLower32, kHoleNanUpper32);
-  bool is_double = IsFastDoubleElementsKind(kind);
+  Node* value = LoadRoot(value_root_index);
+
+  int const first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   int32_t to;
   bool constant_to = ToInt32Constant(to_node, to);
   int32_t from;
@@ -1449,7 +1451,7 @@ void CodeStubAssembler::FillFixedArrayWithHole(ElementsKind kind,
                               double_hole);
         }
       } else {
-        StoreFixedArrayElement(array, Int32Constant(i), hole,
+        StoreFixedArrayElement(array, Int32Constant(i), value,
                                SKIP_WRITE_BARRIER);
       }
     }
@@ -1484,15 +1486,13 @@ void CodeStubAssembler::FillFixedArrayWithHole(ElementsKind kind,
       } else {
         StoreNoWriteBarrier(MachineRepresentation::kWord32, current.value(),
                             Int32Constant(first_element_offset), double_hole);
-        StoreNoWriteBarrier(
-            MachineRepresentation::kWord32,
-            IntPtrAdd(current.value(),
-                      Int32Constant(kPointerSize + first_element_offset)),
-            double_hole);
+        StoreNoWriteBarrier(MachineRepresentation::kWord32, current.value(),
+                            Int32Constant(kPointerSize + first_element_offset),
+                            double_hole);
       }
     } else {
-      StoreNoWriteBarrier(MachineRepresentation::kTagged, current.value(),
-                          IntPtrConstant(first_element_offset), hole);
+      StoreNoWriteBarrier(MachineType::PointerRepresentation(), current.value(),
+                          IntPtrConstant(first_element_offset), value);
     }
     Node* compare = WordNotEqual(current.value(), limit);
     Branch(compare, &decrement, &done);
@@ -1600,7 +1600,8 @@ Node* CodeStubAssembler::CheckAndGrowElementsCapacity(Node* context,
   Node* new_elements = AllocateFixedArray(kind, new_capacity, mode);
 
   // Fill in the added capacity in the new store with holes.
-  FillFixedArrayWithHole(kind, new_elements, capacity, new_capacity, mode);
+  FillFixedArrayWithValue(kind, new_elements, capacity, new_capacity,
+                          Heap::kTheHoleValueRootIndex, mode);
 
   // Copy the elements from the old elements store to the new.
   CopyFixedArrayElements(kind, elements, new_elements, capacity,
@@ -2876,7 +2877,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
 
     GotoUnless(UintPtrLessThan(intptr_index, length), &if_oob);
 
-    if (kPointerSize == kDoubleSize) {
+    if (Is64()) {
       Node* element = LoadFixedDoubleArrayElement(
           elements, intptr_index, MachineType::Uint64(), 0, INTPTR_PARAMETERS);
       Node* the_hole = Int64Constant(kHoleNanInt64);
