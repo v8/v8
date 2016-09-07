@@ -204,9 +204,6 @@ function RegExpSubclassExecJS(string) {
   }
 
   // matchIndices is either null or the RegExpLastMatchInfo array.
-  // TODO(littledan): Whether a RegExp is sticky is compiled into the RegExp
-  // itself, but ES2015 allows monkey-patching this property to differ from
-  // the internal flags. If it differs, recompile a different RegExp?
   var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
 
   if (IS_NULL(matchIndices)) {
@@ -387,10 +384,9 @@ function AtSurrogatePair(subject, index) {
 }
 
 
-// Legacy implementation of RegExp.prototype[Symbol.split] which
+// Fast path implementation of RegExp.prototype[Symbol.split] which
 // doesn't properly call the underlying exec, @@species methods
 function RegExpSplit(string, limit) {
-  // TODO(yangguo): allow non-regexp receivers.
   if (!IS_REGEXP(this)) {
     throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@split", this);
@@ -473,11 +469,8 @@ function RegExpSubclassSplit(string, limit) {
   var constructor = SpeciesConstructor(this, GlobalRegExp);
   var flags = TO_STRING(this.flags);
 
-  // TODO(adamk): this fast path is wrong with respect to this.global
-  // and this.sticky, but hopefully the spec will remove those gets
-  // and thus make the assumption of 'exec' having no side-effects
-  // more correct. Also, we doesn't ensure that 'exec' is actually
-  // a data property on RegExp.prototype.
+  // TODO(adamk): this fast path is wrong as we doesn't ensure that 'exec'
+  // is actually a data property on RegExp.prototype.
   var exec;
   if (IS_REGEXP(this) && constructor === GlobalRegExp) {
     exec = this.exec;
@@ -869,12 +862,8 @@ function RegExpSubclassReplace(string, replace) {
     this.lastIndex = 0;
   }
 
-  // TODO(adamk): this fast path is wrong with respect to this.global
-  // and this.sticky, but hopefully the spec will remove those gets
-  // and thus make the assumption of 'exec' having no side-effects
-  // more correct. Also, we doesn't ensure that 'exec' is actually
-  // a data property on RegExp.prototype, nor does the fast path
-  // correctly handle lastIndex setting.
+  // TODO(adamk): this fast path is wrong as we doesn't ensure that 'exec'
+  // is actually a data property on RegExp.prototype.
   var exec;
   if (IS_REGEXP(this)) {
     exec = this.exec;
@@ -1035,7 +1024,6 @@ function RegExpGetFlags() {
 // ES6 21.2.5.4.
 function RegExpGetGlobal() {
   if (!IS_REGEXP(this)) {
-    // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
@@ -1050,7 +1038,6 @@ function RegExpGetGlobal() {
 // ES6 21.2.5.5.
 function RegExpGetIgnoreCase() {
   if (!IS_REGEXP(this)) {
-    // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
@@ -1064,7 +1051,6 @@ function RegExpGetIgnoreCase() {
 // ES6 21.2.5.7.
 function RegExpGetMultiline() {
   if (!IS_REGEXP(this)) {
-    // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
@@ -1078,7 +1064,6 @@ function RegExpGetMultiline() {
 // ES6 21.2.5.10.
 function RegExpGetSource() {
   if (!IS_REGEXP(this)) {
-    // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeSourceGetter);
       return "(?:)";
@@ -1092,8 +1077,6 @@ function RegExpGetSource() {
 // ES6 21.2.5.12.
 function RegExpGetSticky() {
   if (!IS_REGEXP(this)) {
-    // Compat fix: RegExp.prototype.sticky == undefined; UseCounter tracks it
-    // TODO(littledan): Remove this workaround or standardize it
     if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeStickyGetter);
       return UNDEFINED;
@@ -1108,7 +1091,6 @@ function RegExpGetSticky() {
 // ES6 21.2.5.15.
 function RegExpGetUnicode() {
   if (!IS_REGEXP(this)) {
-    // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeUnicodeGetter);
       return UNDEFINED;
@@ -1171,6 +1153,9 @@ var RegExpSetInput = function(string) {
 // InstallGetterSetter had a bug which ignored the passed attributes and
 // simply installed as DONT_ENUM instead. We might want to change back
 // to the intended attributes at some point.
+// On the other hand, installing attributes as DONT_ENUM matches the draft
+// specification at
+// https://github.com/claudepache/es-regexp-legacy-static-properties
 
 %OptimizeObjectForAddingMultipleProperties(GlobalRegExp, 22);
 utils.InstallGetterSetter(GlobalRegExp, 'input', RegExpGetInput, RegExpSetInput,
