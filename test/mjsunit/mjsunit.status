@@ -640,11 +640,6 @@
   # TODO(mythria, 4780): Related to lack of allocation site feedback for calls
   # in interpreter.
   'array-feedback': [FAIL],
-  'regress/regress-4121': [FAIL],
-
-  # TODO(mythria, 4780): In interpreter we disable mementos when creating array
-  # literals.
-  'array-literal-feedback': [FAIL],
 
   # TODO(4680): Test doesn't know about three tier compiler pipeline.
   'assert-opt-and-deopt': [SKIP],
@@ -681,7 +676,6 @@
   'smi-mul-const': [FAIL],
   'smi-mul': [FAIL],
   'unary-minus-deopt': [FAIL],
-  'allocation-site-info': [FAIL],
 }],  # variant == ignition
 
 ['variant == ignition and arch == arm64', {
@@ -715,9 +709,7 @@
 
 ##############################################################################
 ['variant == ignition_staging', {
-  'allocation-site-info': [FAIL],
   'array-feedback': [FAIL],
-  'array-literal-feedback': [FAIL],
   'assert-opt-and-deopt': [SKIP],
   'compiler/deopt-inlined-from-call': [FAIL],
   'compiler/increment-typefeedback': [FAIL],
@@ -739,7 +731,6 @@
   'regress/regress-3176': [FAIL],
   'regress/regress-3709': [FAIL],
   'regress/regress-385565': [FAIL],
-  'regress/regress-4121': [FAIL],
   'regress/regress-crbug-594183': [FAIL],
   'regress/regress-embedded-cons-string': [FAIL],
   'regress/regress-map-invalidation-2': [FAIL],
@@ -772,13 +763,7 @@
 
   # TODO(mythria, 4780): Related to lack of allocation site feedback for calls
   # in interpreter.
-  'regress/regress-4121': [FAIL],
   'array-feedback': [FAIL],
-
-  # TODO(mythria, 4780): In interpreter we disable mementos when creating array
-  # literals.
-  'array-literal-feedback': [FAIL],
-  'allocation-site-info': [FAIL],
 
   'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
   'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],

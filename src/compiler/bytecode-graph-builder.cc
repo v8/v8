@@ -4,6 +4,7 @@
 
 #include "src/compiler/bytecode-graph-builder.h"
 
+#include "src/ast/ast.h"
 #include "src/compilation-info.h"
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/linkage.h"
@@ -1012,6 +1013,11 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
       bytecode_iterator().GetConstantForIndexOperand(0));
   int literal_index = bytecode_iterator().GetIndexOperand(1);
   int literal_flags = bytecode_iterator().GetFlagOperand(2);
+  // Disable allocation site mementos. Only unoptimized code will collect
+  // feedback about allocation site. Once the code is optimized we expect the
+  // data to converge. So, we disable allocation site mementos in optimized
+  // code. We can revisit this when we have data to the contrary.
+  literal_flags |= ArrayLiteral::kDisableMementos;
   int number_of_elements = constant_elements->length();
   const Operator* op = javascript()->CreateLiteralArray(
       constant_elements, literal_flags, literal_index, number_of_elements);

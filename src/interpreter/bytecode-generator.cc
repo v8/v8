@@ -1873,8 +1873,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // Deep-copy the literal boilerplate.
   builder()->CreateArrayLiteral(expr->constant_elements(),
-                                expr->literal_index(),
-                                expr->ComputeFlags(true));
+                                expr->literal_index(), expr->ComputeFlags());
   Register index, literal;
 
   // Evaluate all the non-constant subexpressions and store them into the
