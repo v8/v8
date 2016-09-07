@@ -27,8 +27,6 @@ namespace internal {
 PARSE_INFO_GETTER(Handle<Script>, script)
 PARSE_INFO_GETTER(FunctionLiteral*, literal)
 PARSE_INFO_GETTER_WITH_DEFAULT(DeclarationScope*, scope, nullptr)
-PARSE_INFO_GETTER_WITH_DEFAULT(Handle<Context>, context,
-                               Handle<Context>::null())
 PARSE_INFO_GETTER(Handle<SharedFunctionInfo>, shared_info)
 
 #undef PARSE_INFO_GETTER
@@ -176,6 +174,12 @@ CompilationInfo::SourcePositionRecordingMode() const {
 
 bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
   return is_sloppy(parse_info()->language_mode()) && !parse_info()->is_native();
+}
+
+bool CompilationInfo::has_context() const { return !closure().is_null(); }
+
+Context* CompilationInfo::context() const {
+  return has_context() ? closure()->context() : nullptr;
 }
 
 bool CompilationInfo::has_native_context() const {
