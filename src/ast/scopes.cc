@@ -488,15 +488,32 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
   receiver_ = var;
 }
 
+void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
+  DCHECK(is_function_scope());
+  DCHECK(!is_arrow_scope());
+
+  // Check if there's lexically declared variable named arguments to avoid
+  // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
+  Variable* arg_variable = LookupLocal(ast_value_factory->arguments_string());
+  if (arg_variable != nullptr && IsLexicalVariableMode(arg_variable->mode())) {
+    return;
+  }
+
+  // Declare 'arguments' variable which exists in all non arrow functions.
+  // Note that it might never be accessed, in which case it won't be
+  // allocated during variable allocation.
+  if (arg_variable == nullptr) {
+    arguments_ = Declare(zone(), this, ast_value_factory->arguments_string(),
+                         VAR, Variable::ARGUMENTS, kCreatedInitialized);
+  } else {
+    arguments_ = arg_variable;
+  }
+}
+
 void DeclarationScope::DeclareDefaultFunctionVariables(
     AstValueFactory* ast_value_factory) {
   DCHECK(is_function_scope());
   DCHECK(!is_arrow_scope());
-  // Declare 'arguments' variable which exists in all non arrow functions.
-  // Note that it might never be accessed, in which case it won't be
-  // allocated during variable allocation.
-  arguments_ = Declare(zone(), this, ast_value_factory->arguments_string(), VAR,
-                       Variable::ARGUMENTS, kCreatedInitialized);
 
   new_target_ = Declare(zone(), this, ast_value_factory->new_target_string(),
                         CONST, Variable::NORMAL, kCreatedInitialized);
@@ -1524,8 +1541,8 @@ void DeclarationScope::AllocateParameterLocals() {
 
   bool uses_sloppy_arguments = false;
 
-  // Functions have 'arguments' declared implicitly in all non arrow functions.
   if (arguments_ != nullptr) {
+    DCHECK(!is_arrow_scope());
     // 'arguments' is used. Unless there is also a parameter called
     // 'arguments', we must be conservative and allocate all parameters to
     // the context assuming they will be captured by the arguments object.
@@ -1546,9 +1563,6 @@ void DeclarationScope::AllocateParameterLocals() {
       // allocate the arguments object by nulling out arguments_.
       arguments_ = nullptr;
     }
-
-  } else {
-    DCHECK(is_arrow_scope());
   }
 
   // The same parameter may occur multiple times in the parameters_ list.

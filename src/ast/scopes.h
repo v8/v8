@@ -617,6 +617,7 @@ class DeclarationScope : public Scope {
   void set_asm_function() { asm_module_ = true; }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
+  void DeclareArguments(AstValueFactory* ast_value_factory);
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
 
   // This lookup corresponds to a lookup in the "intermediate" scope sitting
