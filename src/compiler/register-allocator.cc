@@ -1114,10 +1114,6 @@ void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
       interval->set_next(first_interval_);
       first_interval_ = interval;
     } else {
-      // Order of instruction's processing (see ProcessInstructions) guarantees
-      // that each new use interval either precedes or intersects with
-      // last added interval.
-      DCHECK(start < first_interval_->end());
       first_interval_->set_start(Min(start, first_interval_->start()));
       first_interval_->set_end(Max(end, first_interval_->end()));
     }
