@@ -21,7 +21,7 @@ namespace {
 v8::Isolate* NewIsolateForPagePromotion() {
   i::FLAG_page_promotion = true;
   i::FLAG_page_promotion_threshold = 0;  // %
-  i::FLAG_min_semi_space_size = 8 * (i::Page::kPageSize / i::MB);
+  i::FLAG_min_semi_space_size = 8;
   // We cannot optimize for size as we require a new space with more than one
   // page.
   i::FLAG_optimize_for_size = false;
@@ -109,7 +109,6 @@ UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
 
     // Fill the current page which potentially contains the age mark.
     heap::FillCurrentPage(heap->new_space());
-
     // Allocate a buffer we would like to check against.
     Handle<JSArrayBuffer> buffer =
         i_isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);

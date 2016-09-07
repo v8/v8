@@ -78,7 +78,7 @@ Heap::Heap()
       // semispace_size_ should be a power of 2 and old_generation_size_ should
       // be a multiple of Page::kPageSize.
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
-      initial_semispace_size_(Page::kPageSize),
+      initial_semispace_size_(MB),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
       initial_old_generation_size_(max_old_generation_size_ /
                                    kInitalOldGenerationLimitFactor),
