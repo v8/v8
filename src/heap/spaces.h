@@ -696,7 +696,8 @@ class MemoryChunk {
 
 DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::Flags)
 
-STATIC_ASSERT(kMaxRegularHeapObjectSize < MemoryChunk::kAllocatableMemory);
+static_assert(kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory,
+              "kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory");
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.

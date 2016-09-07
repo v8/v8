@@ -140,18 +140,25 @@ TEST(IncrementalMarkingUsingIdleTasks) {
 
 TEST(IncrementalMarkingUsingIdleTasksAfterGC) {
   if (!i::FLAG_incremental_marking) return;
+
+  const double kLongIdleTimeInSeconds = 1;
+  const double kShortIdleTimeInSeconds = 0.010;
+
   CcTest::InitializeVM();
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   MockPlatform platform(old_platform);
   i::V8::SetPlatformForTesting(&platform);
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   CcTest::heap()->CollectAllGarbage();
+  // Perform any pending idle tasks.
+  while (platform.PendingIdleTask()) {
+    platform.PerformIdleTask(kLongIdleTimeInSeconds);
+  }
+  CHECK(!platform.PendingIdleTask());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
   marking->Start();
   CHECK(platform.PendingIdleTask());
-  const double kLongIdleTimeInSeconds = 1;
-  const double kShortIdleTimeInSeconds = 0.010;
   const int kShortStepCount = 10;
   for (int i = 0; i < kShortStepCount && platform.PendingIdleTask(); i++) {
     platform.PerformIdleTask(kShortIdleTimeInSeconds);
