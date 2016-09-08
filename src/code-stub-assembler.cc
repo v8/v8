@@ -1512,51 +1512,167 @@ void CodeStubAssembler::FillFixedArrayWithValue(
   }
 }
 
-void CodeStubAssembler::CopyFixedArrayElements(ElementsKind kind,
-                                               compiler::Node* from_array,
-                                               compiler::Node* to_array,
-                                               compiler::Node* element_count,
-                                               WriteBarrierMode barrier_mode,
-                                               ParameterMode mode) {
-  Label test(this);
-  Label done(this);
-  bool double_elements = IsFastDoubleElementsKind(kind);
-  bool needs_write_barrier =
-      barrier_mode == UPDATE_WRITE_BARRIER && !IsFastObjectElementsKind(kind);
-  Node* limit_offset =
-      ElementOffsetFromIndex(IntPtrOrSmiConstant(0, mode), kind, mode,
-                             FixedArray::kHeaderSize - kHeapObjectTag);
-  Variable current_offset(this, MachineType::PointerRepresentation());
-  current_offset.Bind(ElementOffsetFromIndex(
-      element_count, kind, mode, FixedArray::kHeaderSize - kHeapObjectTag));
-  Label decrement(this, &current_offset);
+void CodeStubAssembler::CopyFixedArrayElements(
+    ElementsKind from_kind, Node* from_array, ElementsKind to_kind,
+    Node* to_array, Node* element_count, Node* capacity,
+    WriteBarrierMode barrier_mode, ParameterMode mode) {
+  STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  Comment("[ CopyFixedArrayElements");
 
-  Branch(WordEqual(current_offset.value(), limit_offset), &done, &decrement);
+  // Typed array elements are not supported.
+  DCHECK(!IsFixedTypedArrayElementsKind(from_kind));
+  DCHECK(!IsFixedTypedArrayElementsKind(to_kind));
+
+  Label done(this);
+  bool from_double_elements = IsFastDoubleElementsKind(from_kind);
+  bool to_double_elements = IsFastDoubleElementsKind(to_kind);
+  bool element_size_matches =
+      Is64() ||
+      IsFastDoubleElementsKind(from_kind) == IsFastDoubleElementsKind(to_kind);
+  bool doubles_to_objects_conversion =
+      IsFastDoubleElementsKind(from_kind) && IsFastObjectElementsKind(to_kind);
+  bool needs_write_barrier =
+      doubles_to_objects_conversion || (barrier_mode == UPDATE_WRITE_BARRIER &&
+                                        IsFastObjectElementsKind(to_kind));
+  Node* double_hole =
+      Is64() ? Int64Constant(kHoleNanInt64) : Int32Constant(kHoleNanLower32);
+
+  if (doubles_to_objects_conversion) {
+    // If the copy might trigger a GC, make sure that the FixedArray is
+    // pre-initialized with holes to make sure that it's always in a
+    // consistent state.
+    FillFixedArrayWithValue(to_kind, to_array, IntPtrOrSmiConstant(0, mode),
+                            capacity, Heap::kTheHoleValueRootIndex, mode);
+  } else if (element_count != capacity) {
+    FillFixedArrayWithValue(to_kind, to_array, element_count, capacity,
+                            Heap::kTheHoleValueRootIndex, mode);
+  }
+
+  Node* limit_offset = ElementOffsetFromIndex(
+      IntPtrOrSmiConstant(0, mode), from_kind, mode, first_element_offset);
+  Variable var_from_offset(this, MachineType::PointerRepresentation());
+  var_from_offset.Bind(ElementOffsetFromIndex(element_count, from_kind, mode,
+                                              first_element_offset));
+  // This second variable is used only when the element sizes of source and
+  // destination arrays do not match.
+  Variable var_to_offset(this, MachineType::PointerRepresentation());
+  if (element_size_matches) {
+    var_to_offset.Bind(var_from_offset.value());
+  } else {
+    var_to_offset.Bind(ElementOffsetFromIndex(element_count, to_kind, mode,
+                                              first_element_offset));
+  }
+
+  Variable* vars[] = {&var_from_offset, &var_to_offset};
+  Label decrement(this, 2, vars);
+
+  Branch(WordEqual(var_from_offset.value(), limit_offset), &done, &decrement);
 
   Bind(&decrement);
   {
-    current_offset.Bind(IntPtrSub(
-        current_offset.value(),
-        IntPtrConstant(double_elements ? kDoubleSize : kPointerSize)));
+    Node* from_offset = IntPtrSub(
+        var_from_offset.value(),
+        IntPtrConstant(from_double_elements ? kDoubleSize : kPointerSize));
+    var_from_offset.Bind(from_offset);
 
-    Node* value =
-        Load(double_elements ? MachineType::Float64() : MachineType::Pointer(),
-             from_array, current_offset.value());
+    Node* to_offset;
+    if (element_size_matches) {
+      to_offset = from_offset;
+    } else {
+      to_offset = IntPtrSub(
+          var_to_offset.value(),
+          IntPtrConstant(to_double_elements ? kDoubleSize : kPointerSize));
+      var_to_offset.Bind(to_offset);
+    }
+
+    Label next_iter(this), store_double_hole(this);
+    Label* if_hole;
+    if (doubles_to_objects_conversion) {
+      // The target elements array is already preinitialized with holes, so we
+      // can just proceed with the next iteration.
+      if_hole = &next_iter;
+    } else if (IsFastDoubleElementsKind(to_kind)) {
+      if_hole = &store_double_hole;
+    } else {
+      // In all the other cases don't check for holes and copy the data as is.
+      if_hole = nullptr;
+    }
+
+    Node* value = LoadElementAndPrepareForStore(
+        from_array, var_from_offset.value(), from_kind, to_kind, if_hole);
+
     if (needs_write_barrier) {
-      Store(MachineType::PointerRepresentation(), to_array,
-            current_offset.value(), value);
-    } else if (double_elements) {
-      StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array,
-                          current_offset.value(), value);
+      Store(MachineRepresentation::kTagged, to_array, to_offset, value);
+    } else if (to_double_elements) {
+      StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array, to_offset,
+                          value);
     } else {
       StoreNoWriteBarrier(MachineType::PointerRepresentation(), to_array,
-                          current_offset.value(), value);
+                          to_offset, value);
     }
-    Node* compare = WordNotEqual(current_offset.value(), limit_offset);
+    Goto(&next_iter);
+
+    if (if_hole == &store_double_hole) {
+      Bind(&store_double_hole);
+      // Don't use doubles to store the hole double, since manipulating the
+      // signaling NaN used for the hole in C++, e.g. with bit_cast, will
+      // change its value on ia32 (the x87 stack is used to return values
+      // and stores to the stack silently clear the signalling bit).
+      //
+      // TODO(danno): When we have a Float32/Float64 wrapper class that
+      // preserves double bits during manipulation, remove this code/change
+      // this to an indexed Float64 store.
+      if (Is64()) {
+        StoreNoWriteBarrier(MachineRepresentation::kWord64, to_array, to_offset,
+                            double_hole);
+      } else {
+        StoreNoWriteBarrier(MachineRepresentation::kWord32, to_array, to_offset,
+                            double_hole);
+        StoreNoWriteBarrier(MachineRepresentation::kWord32, to_array,
+                            IntPtrAdd(to_offset, IntPtrConstant(kPointerSize)),
+                            double_hole);
+      }
+      Goto(&next_iter);
+    }
+
+    Bind(&next_iter);
+    Node* compare = WordNotEqual(from_offset, limit_offset);
     Branch(compare, &decrement, &done);
   }
 
   Bind(&done);
+  IncrementCounter(isolate()->counters()->inlined_copied_elements(), 1);
+  Comment("] CopyFixedArrayElements");
+}
+
+Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
+                                                       Node* offset,
+                                                       ElementsKind from_kind,
+                                                       ElementsKind to_kind,
+                                                       Label* if_hole) {
+  if (IsFastDoubleElementsKind(from_kind)) {
+    Node* value =
+        LoadDoubleWithHoleCheck(array, offset, if_hole, MachineType::Float64());
+    if (!IsFastDoubleElementsKind(to_kind)) {
+      value = AllocateHeapNumberWithValue(value);
+    }
+    return value;
+
+  } else {
+    Node* value = Load(MachineType::Pointer(), array, offset);
+    if (if_hole) {
+      GotoIf(WordEqual(value, TheHoleConstant()), if_hole);
+    }
+    if (IsFastDoubleElementsKind(to_kind)) {
+      if (IsFastSmiElementsKind(from_kind)) {
+        value = SmiToFloat64(value);
+      } else {
+        value = LoadHeapNumberValue(value);
+      }
+    }
+    return value;
+  }
 }
 
 Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,

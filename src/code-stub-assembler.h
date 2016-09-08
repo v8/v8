@@ -333,11 +333,35 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                Heap::RootListIndex value_root_index,
                                ParameterMode mode = INTEGER_PARAMETERS);
 
+  // Copies all elements from |from_array| of |length| size to
+  // |to_array| of the same size respecting the elements kind.
   void CopyFixedArrayElements(
       ElementsKind kind, compiler::Node* from_array, compiler::Node* to_array,
-      compiler::Node* element_count,
+      compiler::Node* length,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode mode = INTEGER_PARAMETERS) {
+    CopyFixedArrayElements(kind, from_array, kind, to_array, length, length,
+                           barrier_mode, mode);
+  }
+
+  // Copies |element_count| elements from |from_array| to |to_array| of
+  // |capacity| size respecting both array's elements kinds.
+  void CopyFixedArrayElements(
+      ElementsKind from_kind, compiler::Node* from_array, ElementsKind to_kind,
+      compiler::Node* to_array, compiler::Node* element_count,
+      compiler::Node* capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTEGER_PARAMETERS);
+
+  // Loads an element from |array| of |from_kind| elements by given |offset|
+  // (NOTE: not index!), does a hole check if |if_hole| is provided and
+  // converts the value so that it becomes ready for storing to array of
+  // |to_kind| elements.
+  compiler::Node* LoadElementAndPrepareForStore(compiler::Node* array,
+                                                compiler::Node* offset,
+                                                ElementsKind from_kind,
+                                                ElementsKind to_kind,
+                                                Label* if_hole);
 
   compiler::Node* CalculateNewElementsCapacity(
       compiler::Node* old_capacity, ParameterMode mode = INTEGER_PARAMETERS);
