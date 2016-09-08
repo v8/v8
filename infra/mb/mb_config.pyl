@@ -60,7 +60,7 @@
       'V8 Mac64': 'gn_release_x64',
       'V8 Mac64 - debug': 'gn_debug_x64',
       'V8 Mac GC Stress': 'gn_debug_x86',
-      'V8 Mac64 ASAN': 'gyp_release_x64_asan_no_lsan',
+      'V8 Mac64 ASAN': 'gn_release_x64_asan_no_lsan',
       # Sanitizers.
       'V8 Linux64 ASAN': 'gn_release_x64_asan',
       'V8 Linux64 TSAN': 'gn_release_x64_tsan',
@@ -177,7 +177,7 @@
       'v8_mac_gc_stress_dbg': 'gn_debug_x86_trybot',
       'v8_mac64_rel': 'gn_release_x64_trybot',
       'v8_mac64_dbg': 'gn_debug_x64_minimal_symbols',
-      'v8_mac64_asan_rel': 'gyp_release_x64_asan_no_lsan',
+      'v8_mac64_asan_rel': 'gn_release_x64_asan_no_lsan',
       'v8_linux_arm_rel_ng': 'gn_release_simulate_arm_trybot',
       'v8_linux_arm_dbg': 'gn_debug_simulate_arm',
       'v8_linux_arm_armv8a_rel': 'gn_release_simulate_arm_trybot',
@@ -261,6 +261,8 @@
     'gn_release_x64_asan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols',
       'swarming'],
+    'gn_release_x64_asan_no_lsan': [
+      'gn', 'release_bot', 'x64', 'asan', 'swarming'],
     'gn_release_x64_clang_no_plugins': [
       'gn', 'release_bot', 'x64', 'clang', 'no_plugins', 'swarming'],
     'gn_release_x64_internal': [
@@ -380,8 +382,6 @@
     # Gyp release configs for x64.
     'gyp_release_x64': [
       'gyp', 'release_bot', 'x64', 'swarming'],
-    'gyp_release_x64_asan_no_lsan': [
-      'gyp', 'release_bot', 'x64', 'asan', 'swarming'],
     'gyp_release_x64_asan_minimal_symbols_coverage': [
       'gyp', 'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan',
       'minimal_symbols', 'swarming'],
