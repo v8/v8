@@ -56,9 +56,6 @@ const double kIntegerValues[] = {-V8_INFINITY, INT_MIN, -1000.0,  -42.0,
                                  -1.0,         0.0,     1.0,      42.0,
                                  1000.0,       INT_MAX, UINT_MAX, V8_INFINITY};
 
-Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
-                          Type::Number(),    Type::String(), Type::Object()};
-
 }  // namespace
 
 class TypedOptimizationTest : public TypedGraphTest {
