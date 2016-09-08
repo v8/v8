@@ -1191,8 +1191,10 @@ void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
   __ Ret();
 }
 
-static void Generate_InterpreterPushArgs(MacroAssembler* masm, Register index,
+static void Generate_InterpreterPushArgs(MacroAssembler* masm,
+                                         Register num_args, Register index,
                                          Register count, Register scratch) {
+  // TODO(mythria): Add a stack check before pushing arguments.
   Label loop;
   __ AddP(index, index, Operand(kPointerSize));  // Bias up for LoadPU
   __ LoadRR(r0, count);
@@ -1220,7 +1222,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   __ AddP(r5, r2, Operand(1));
 
   // Push the arguments.
-  Generate_InterpreterPushArgs(masm, r4, r5, r6);
+  Generate_InterpreterPushArgs(masm, r5, r4, r5, r6);
 
   // Call the target.
   if (function_type == CallableType::kJSFunction) {
@@ -1254,7 +1256,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   Label skip;
   __ CmpP(r2, Operand::Zero());
   __ beq(&skip);
-  Generate_InterpreterPushArgs(masm, r6, r2, r7);
+  Generate_InterpreterPushArgs(masm, r2, r6, r2, r7);
   __ bind(&skip);
 
   __ AssertUndefinedOrAllocationSite(r4, r7);
@@ -1274,6 +1276,29 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     // Call the constructor with r2, r3, and r5 unmodified.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
+}
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- r2 : argument count (not including receiver)
+  // -- r3 : target to call verified to be Array function
+  // -- r4 : allocation site feedback if available, undefined otherwise.
+  // -- r5 : address of the first argument
+  // -----------------------------------
+
+  __ AddP(r6, r2, Operand(1));  // Add one for receiver.
+
+  // TODO(mythria): Add a stack check before pushing arguments.
+  // Push the arguments. r6, r8, r3 will be modified.
+  Generate_InterpreterPushArgs(masm, r6, r5, r6, r7);
+
+  // Array constructor expects constructor in r5. It is same as r3 here.
+  __ LoadRR(r5, r3);
+
+  ArrayConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
