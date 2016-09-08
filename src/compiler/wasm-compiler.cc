@@ -2903,12 +2903,20 @@ Node* WasmGraphBuilder::DefaultS128Value() {
 Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
                                const NodeVector& inputs) {
   switch (opcode) {
-    case wasm::kExprI32x4ExtractLane:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4ExtractLane(),
-                              inputs[0], inputs[1]);
     case wasm::kExprI32x4Splat:
       return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(), inputs[0],
                               inputs[0], inputs[0], inputs[0]);
+    default:
+      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
+  }
+}
+
+Node* WasmGraphBuilder::SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane,
+                                        Node* input) {
+  switch (opcode) {
+    case wasm::kExprI32x4ExtractLane:
+      return graph()->NewNode(jsgraph()->machine()->Int32x4ExtractLane(), input,
+                              Int32Constant(lane));
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }

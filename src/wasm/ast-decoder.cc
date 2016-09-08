@@ -386,8 +386,12 @@ class WasmDecoder : public Decoder {
         FOREACH_SIMPLE_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_SIMPLE_MEM_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
-        FOREACH_SIMD_OPCODE(DECLARE_OPCODE_CASE)
+        FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+        FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+#undef DECLARE_OPCODE_CASE
+        return 1;
       default:
         UNREACHABLE();
         return 0;
@@ -456,7 +460,10 @@ class WasmDecoder : public Decoder {
         ReturnArityOperand operand(this, pc);
         return 1 + operand.length;
       }
-
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+        FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE) { return 2; }
+        FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE) { return 3; }
+#undef DECLARE_OPCODE_CASE
       default:
         return 1;
     }
@@ -1275,7 +1282,7 @@ class WasmFullDecoder : public WasmDecoder {
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
             TRACE("  @%-4d #%02x #%02x:%-20s|", startrel(pc_), kSimdPrefix,
                   simd_index, WasmOpcodes::ShortOpcodeName(opcode));
-            DecodeSimdOpcode(opcode);
+            len += DecodeSimdOpcode(opcode);
             break;
           }
           default:
@@ -1406,15 +1413,36 @@ class WasmFullDecoder : public WasmDecoder {
     return 1 + operand.length;
   }
 
-  void DecodeSimdOpcode(WasmOpcode opcode) {
-    FunctionSig* sig = WasmOpcodes::Signature(opcode);
-    compiler::NodeVector inputs(sig->parameter_count(), zone_);
-    for (size_t i = sig->parameter_count(); i > 0; i--) {
-      Value val = Pop(static_cast<int>(i - 1), sig->GetParam(i - 1));
-      inputs[i - 1] = val.node;
+  unsigned DecodeSimdOpcode(WasmOpcode opcode) {
+    unsigned len = 0;
+    switch (opcode) {
+      case kExprI32x4ExtractLane: {
+        uint8_t lane = this->checked_read_u8(pc_, 2, "lane number");
+        if (lane < 0 || lane > 3) {
+          error(pc_, pc_ + 2, "invalid extract lane value");
+        }
+        TFNode* input = Pop(0, LocalType::kSimd128).node;
+        TFNode* node = BUILD(SimdExtractLane, opcode, lane, input);
+        Push(LocalType::kWord32, node);
+        len++;
+        break;
+      }
+      default: {
+        FunctionSig* sig = WasmOpcodes::Signature(opcode);
+        if (sig != nullptr) {
+          compiler::NodeVector inputs(sig->parameter_count(), zone_);
+          for (size_t i = sig->parameter_count(); i > 0; i--) {
+            Value val = Pop(static_cast<int>(i - 1), sig->GetParam(i - 1));
+            inputs[i - 1] = val.node;
+          }
+          TFNode* node = BUILD(SimdOp, opcode, inputs);
+          Push(GetReturnType(sig), node);
+        } else {
+          error(pc_, pc_, "invalid simd opcode");
+        }
+      }
     }
-    TFNode* node = BUILD(SimdOp, opcode, inputs);
-    Push(GetReturnType(sig), node);
+    return len;
   }
 
   void DispatchToTargets(Control* next_block, const Value& val) {

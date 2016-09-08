@@ -100,7 +100,7 @@ static void InitSigTables() {
 #define SET_SIG_TABLE(name, opcode, sig) \
   simd_index = opcode & 0xff;            \
   kSimdExprSigTable[simd_index] = static_cast<int>(kSigEnum_##sig) + 1;
-  FOREACH_SIMD_OPCODE(SET_SIG_TABLE)
+  FOREACH_SIMD_0_OPERAND_OPCODE(SET_SIG_TABLE)
 #undef SET_SIG_TABLE
 }
 
