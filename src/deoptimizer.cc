@@ -3802,6 +3802,18 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           CHECK(next_link->IsUndefined(isolate_));
           return object;
         }
+        case CONTEXT_EXTENSION_TYPE: {
+          Handle<ContextExtension> object =
+              isolate_->factory()->NewContextExtension(
+                  isolate_->factory()->NewScopeInfo(1),
+                  isolate_->factory()->undefined_value());
+          slot->value_ = object;
+          Handle<Object> scope_info = MaterializeAt(frame_index, value_index);
+          Handle<Object> extension = MaterializeAt(frame_index, value_index);
+          object->set_scope_info(ScopeInfo::cast(*scope_info));
+          object->set_extension(*extension);
+          return object;
+        }
         case FIXED_ARRAY_TYPE: {
           Handle<Object> lengthObject = MaterializeAt(frame_index, value_index);
           int32_t length = 0;
