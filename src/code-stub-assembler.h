@@ -233,10 +233,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   compiler::Node* LoadMapConstructor(compiler::Node* map);
 
-  // Load the hash field of a name.
+  // Load the hash field of a name as an uint32 value.
   compiler::Node* LoadNameHashField(compiler::Node* name);
-  // Load the hash value of a name. If {if_hash_not_computed} label
-  // is specified then it also checks if hash is actually computed.
+  // Load the hash value of a name as an uint32 value.
+  // If {if_hash_not_computed} label is specified then it also checks if
+  // hash is actually computed.
   compiler::Node* LoadNameHash(compiler::Node* name,
                                Label* if_hash_not_computed = nullptr);
 
@@ -380,12 +381,21 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* StringToNumber(compiler::Node* context,
                                  compiler::Node* input);
 
-  // Returns a node that is true if the given bit is set in |word32|.
+  // Returns a node that contains a decoded (unsigned!) value of a bit
+  // field |T| in |word32|. Returns result as an uint32 node.
   template <typename T>
   compiler::Node* BitFieldDecode(compiler::Node* word32) {
     return BitFieldDecode(word32, T::kShift, T::kMask);
   }
 
+  // Returns a node that contains a decoded (unsigned!) value of a bit
+  // field |T| in |word32|. Returns result as a word-size node.
+  template <typename T>
+  compiler::Node* BitFieldDecodeWord(compiler::Node* word32) {
+    return ChangeUint32ToWord(BitFieldDecode<T>(word32));
+  }
+
+  // Decodes an unsigned (!) value from |word32| to an uint32 node.
   compiler::Node* BitFieldDecode(compiler::Node* word32, uint32_t shift,
                                  uint32_t mask);
 

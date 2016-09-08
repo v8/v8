@@ -268,7 +268,7 @@ void TestNameDictionaryLookup() {
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m);
-    Variable var_name_index(&m, MachineRepresentation::kWord32);
+    Variable var_name_index(&m, MachineType::PointerRepresentation());
 
     m.NameDictionaryLookup<Dictionary>(dictionary, unique_name, &if_found,
                                        &var_name_index, &if_not_found);
@@ -374,7 +374,7 @@ void TestNumberDictionaryLookup() {
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m);
-    Variable var_entry(&m, MachineRepresentation::kWord32);
+    Variable var_entry(&m, MachineType::PointerRepresentation());
 
     m.NumberDictionaryLookup<Dictionary>(dictionary, key, &if_found, &var_entry,
                                          &if_not_found);
