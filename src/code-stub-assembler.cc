@@ -1033,7 +1033,8 @@ Node* CodeStubAssembler::LoadMapPrototype(Node* map) {
 }
 
 Node* CodeStubAssembler::LoadMapInstanceSize(Node* map) {
-  return LoadObjectField(map, Map::kInstanceSizeOffset, MachineType::Uint8());
+  return ChangeUint32ToWord(
+      LoadObjectField(map, Map::kInstanceSizeOffset, MachineType::Uint8()));
 }
 
 Node* CodeStubAssembler::LoadMapInobjectProperties(Node* map) {
@@ -1041,9 +1042,19 @@ Node* CodeStubAssembler::LoadMapInobjectProperties(Node* map) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   Assert(Int32GreaterThanOrEqual(LoadMapInstanceType(map),
                                  Int32Constant(FIRST_JS_OBJECT_TYPE)));
-  return LoadObjectField(
+  return ChangeUint32ToWord(LoadObjectField(
       map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
-      MachineType::Uint8());
+      MachineType::Uint8()));
+}
+
+Node* CodeStubAssembler::LoadMapConstructorFunctionIndex(Node* map) {
+  // See Map::GetConstructorFunctionIndex() for details.
+  STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
+  Assert(Int32LessThanOrEqual(LoadMapInstanceType(map),
+                              Int32Constant(LAST_PRIMITIVE_TYPE)));
+  return ChangeUint32ToWord(LoadObjectField(
+      map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
+      MachineType::Uint8()));
 }
 
 Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
@@ -1138,13 +1149,13 @@ Node* CodeStubAssembler::LoadFixedDoubleArrayElement(
 
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {
   return LoadFixedArrayElement(context,
-                               Int32Constant(Context::NATIVE_CONTEXT_INDEX));
+                               IntPtrConstant(Context::NATIVE_CONTEXT_INDEX));
 }
 
 Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
                                                 Node* native_context) {
   return LoadFixedArrayElement(native_context,
-                               Int32Constant(Context::ArrayMapIndex(kind)));
+                               IntPtrConstant(Context::ArrayMapIndex(kind)));
 }
 
 Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
@@ -1411,8 +1422,9 @@ void CodeStubAssembler::FillFixedArrayWithValue(
   if (constant_to && constant_from &&
       (to - from) <= kElementLoopUnrollThreshold) {
     for (int i = from; i < to; ++i) {
+      Node* index = IntPtrConstant(i);
       if (is_double) {
-        Node* offset = ElementOffsetFromIndex(Int32Constant(i), kind, mode,
+        Node* offset = ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
                                               first_element_offset);
         // Don't use doubles to store the hole double, since manipulating the
         // signaling NaN used for the hole in C++, e.g. with bit_cast, will
@@ -1428,14 +1440,14 @@ void CodeStubAssembler::FillFixedArrayWithValue(
         } else {
           StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
                               double_hole);
-          offset = ElementOffsetFromIndex(Int32Constant(i), kind, mode,
+          offset = ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
                                           first_element_offset + kPointerSize);
           StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
                               double_hole);
         }
       } else {
-        StoreFixedArrayElement(array, Int32Constant(i), value,
-                               SKIP_WRITE_BARRIER);
+        StoreFixedArrayElement(array, index, value, SKIP_WRITE_BARRIER,
+                               INTPTR_PARAMETERS);
       }
     }
   } else {
@@ -1452,8 +1464,8 @@ void CodeStubAssembler::FillFixedArrayWithValue(
     Bind(&decrement);
     current.Bind(IntPtrSub(
         current.value(),
-        Int32Constant(IsFastDoubleElementsKind(kind) ? kDoubleSize
-                                                     : kPointerSize)));
+        IntPtrConstant(IsFastDoubleElementsKind(kind) ? kDoubleSize
+                                                      : kPointerSize)));
     if (is_double) {
       // Don't use doubles to store the hole double, since manipulating the
       // signaling NaN used for the hole in C++, e.g. with bit_cast, will
@@ -1495,8 +1507,9 @@ void CodeStubAssembler::CopyFixedArrayElements(ElementsKind kind,
   bool double_elements = IsFastDoubleElementsKind(kind);
   bool needs_write_barrier =
       barrier_mode == UPDATE_WRITE_BARRIER && !IsFastObjectElementsKind(kind);
-  Node* limit_offset = ElementOffsetFromIndex(
-      IntPtrConstant(0), kind, mode, FixedArray::kHeaderSize - kHeapObjectTag);
+  Node* limit_offset =
+      ElementOffsetFromIndex(IntPtrOrSmiConstant(0, mode), kind, mode,
+                             FixedArray::kHeaderSize - kHeapObjectTag);
   Variable current_offset(this, MachineType::PointerRepresentation());
   current_offset.Bind(ElementOffsetFromIndex(
       element_count, kind, mode, FixedArray::kHeaderSize - kHeapObjectTag));
@@ -2603,7 +2616,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
   Bind(&if_in_field);
   {
     Node* field_index =
-        BitFieldDecode<PropertyDetails::FieldIndexField>(details);
+        BitFieldDecodeWord<PropertyDetails::FieldIndexField>(details);
     Node* representation =
         BitFieldDecode<PropertyDetails::RepresentationField>(details);
 
@@ -2612,15 +2625,15 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
     Label if_inobject(this), if_backing_store(this);
     Variable var_double_value(this, MachineRepresentation::kFloat64);
     Label rebox_double(this, &var_double_value);
-    BranchIfInt32LessThan(field_index, inobject_properties, &if_inobject,
-                          &if_backing_store);
+    BranchIfUintPtrLessThan(field_index, inobject_properties, &if_inobject,
+                            &if_backing_store);
     Bind(&if_inobject);
     {
       Comment("if_inobject");
-      Node* field_offset = ChangeInt32ToIntPtr(
-          Int32Mul(Int32Sub(LoadMapInstanceSize(map),
-                            Int32Sub(inobject_properties, field_index)),
-                   Int32Constant(kPointerSize)));
+      Node* field_offset =
+          IntPtrMul(IntPtrSub(LoadMapInstanceSize(map),
+                              IntPtrSub(inobject_properties, field_index)),
+                    IntPtrConstant(kPointerSize));
 
       Label if_double(this), if_tagged(this);
       BranchIfWord32NotEqual(representation,
@@ -2647,7 +2660,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
     {
       Comment("if_backing_store");
       Node* properties = LoadProperties(object);
-      field_index = Int32Sub(field_index, inobject_properties);
+      field_index = IntPtrSub(field_index, inobject_properties);
       Node* value = LoadFixedArrayElement(properties, field_index);
 
       Label if_double(this), if_tagged(this);
@@ -4101,7 +4114,8 @@ void CodeStubAssembler::LoadGlobalIC(const LoadICParameters* p) {
     LoadWithVectorDescriptor descriptor(isolate());
     Node* native_context = LoadNativeContext(p->context);
     Node* receiver = LoadFixedArrayElement(
-        native_context, Int32Constant(Context::EXTENSION_INDEX));
+        native_context, IntPtrConstant(Context::EXTENSION_INDEX), 0,
+        INTPTR_PARAMETERS);
     Node* fake_name = IntPtrConstant(0);
     TailCallStub(descriptor, handler, p->context, receiver, fake_name, p->slot,
                  p->vector);

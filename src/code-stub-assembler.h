@@ -230,6 +230,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapInstanceSize(compiler::Node* map);
   // Load the inobject properties count of a Map (valid only for JSObjects).
   compiler::Node* LoadMapInobjectProperties(compiler::Node* map);
+  // Load the constructor function index of a Map (only for primitive maps).
+  compiler::Node* LoadMapConstructorFunctionIndex(compiler::Node* map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   compiler::Node* LoadMapConstructor(compiler::Node* map);
 
@@ -251,18 +253,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Load an array element from a FixedArray.
   compiler::Node* LoadFixedArrayElement(
-      compiler::Node* object, compiler::Node* int32_index,
-      int additional_offset = 0,
+      compiler::Node* object, compiler::Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
   // Load an array element from a FixedArray, untag it and return it as Word32.
   compiler::Node* LoadAndUntagToWord32FixedArrayElement(
-      compiler::Node* object, compiler::Node* int32_index,
-      int additional_offset = 0,
+      compiler::Node* object, compiler::Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
   // Load an array element from a FixedDoubleArray.
   compiler::Node* LoadFixedDoubleArrayElement(
-      compiler::Node* object, compiler::Node* int32_index,
-      MachineType machine_type, int additional_offset = 0,
+      compiler::Node* object, compiler::Node* index, MachineType machine_type,
+      int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   // Context manipulation
