@@ -320,7 +320,7 @@
             'android_ndk_root%': '<(base_dir)/third_party/android_tools/ndk/',
             'android_host_arch%': "<!(uname -m | sed -e 's/i[3456]86/x86/')",
             # Version of the NDK. Used to ensure full rebuilds on NDK rolls.
-            'android_ndk_version%': 'r11c',
+            'android_ndk_version%': 'r12b',
             'host_os%': "<!(uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')",
             'os_folder_name%': "<!(uname -s | sed -e 's/Linux/linux/;s/Darwin/darwin/')",
           },

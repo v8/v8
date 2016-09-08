@@ -95,11 +95,11 @@
       # Arm.
       'V8 Arm - builder': 'gyp_release_arm',
       'V8 Arm - debug builder': 'gyp_debug_arm',
-      'V8 Android Arm - builder': 'gyp_release_android_arm',
+      'V8 Android Arm - builder': 'gn_release_android_arm',
       'V8 Linux - arm - sim': 'gn_release_simulate_arm',
       'V8 Linux - arm - sim - debug': 'gn_debug_simulate_arm',
       # Arm64.
-      'V8 Android Arm64 - builder': 'gyp_release_android_arm64',
+      'V8 Android Arm64 - builder': 'gn_release_android_arm64',
       'V8 Linux - arm64 - sim': 'gn_release_simulate_arm64',
       'V8 Linux - arm64 - sim - debug': 'gn_debug_simulate_arm64',
       'V8 Linux - arm64 - sim - nosnap - debug':
@@ -187,7 +187,7 @@
       'v8_linux_arm64_gc_stress_dbg': 'gn_debug_simulate_arm64',
       'v8_linux_mipsel_compile_rel': 'gyp_release_simulate_mipsel',
       'v8_linux_mips64el_compile_rel': 'gyp_release_simulate_mips64el',
-      'v8_android_arm_compile_rel': 'gyp_release_android_arm',
+      'v8_android_arm_compile_rel': 'gn_release_android_arm',
     },
   },
 
@@ -246,6 +246,12 @@
       'swarming'],
     'gn_release_simulate_arm64_trybot': [
       'gn', 'release_trybot', 'simulate_arm64', 'swarming'],
+
+    # GN release configs for arm.
+    'gn_release_android_arm': [
+      'gn', 'release_bot', 'arm', 'android', 'crosscompile', 'swarming'],
+    'gn_release_android_arm64': [
+      'gn', 'release_bot', 'arm64', 'android', 'crosscompile', 'swarming'],
 
     # GN release configs for x64.
     'gn_release_x64': [
@@ -351,10 +357,6 @@
     # Gyp release configs for arm.
     'gyp_release_arm': [
       'gyp', 'release_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
-    'gyp_release_android_arm': [
-      'gyp', 'release_bot', 'arm', 'android', 'crosscompile', 'swarming'],
-    'gyp_release_android_arm64': [
-      'gyp', 'release_bot', 'arm64', 'android', 'crosscompile', 'swarming'],
 
     # Gyp release configs for mips.
     'gyp_release_mips_no_snap_no_i18n': [
