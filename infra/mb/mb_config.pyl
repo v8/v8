@@ -151,7 +151,7 @@
       'v8_linux_nodcheck_rel_ng': 'gn_release_x86_minimal_symbols',
       'v8_linux_dbg_ng': 'gn_debug_x86_trybot',
       'v8_linux_noi18n_rel_ng': 'gyp_release_x86_no_i18n_trybot',
-      'v8_linux_gc_stress_dbg': 'gyp_debug_x86_trybot',
+      'v8_linux_gc_stress_dbg': 'gn_debug_x86_trybot',
       'v8_linux_nosnap_rel': 'gn_release_x86_no_snap_trybot',
       'v8_linux_nosnap_dbg': 'gn_debug_x86_no_snap_trybot',
       'v8_linux_gcc_compile_rel': 'gn_release_x86_gcc_minimal_symbols',
@@ -346,8 +346,6 @@
     # Gyp debug configs for x86.
     'gyp_debug_x86': [
       'gyp', 'debug_bot', 'x86', 'swarming'],
-    'gyp_debug_x86_trybot': [
-      'gyp', 'debug_trybot', 'x86', 'swarming'],
     'gyp_debug_x86_no_i18n': [
       'gyp', 'debug_bot', 'x86', 'v8_no_i18n'],
     'gyp_debug_x86_vtunejit': [
