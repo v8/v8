@@ -64,12 +64,9 @@ void Builtins::Generate_CopyFastSmiOrObjectElements(
   // Load the {object}s elements.
   Node* source = assembler->LoadObjectField(object, JSObject::kElementsOffset);
 
-  CodeStubAssembler::ParameterMode mode =
-      assembler->Is64() ? CodeStubAssembler::INTEGER_PARAMETERS
-                        : CodeStubAssembler::SMI_PARAMETERS;
-  Node* length = (mode == CodeStubAssembler::INTEGER_PARAMETERS)
-                     ? assembler->LoadAndUntagFixedArrayBaseLength(source)
-                     : assembler->LoadFixedArrayBaseLength(source);
+  CodeStubAssembler::ParameterMode mode = assembler->OptimalParameterMode();
+  Node* length = assembler->UntagParameter(
+      assembler->LoadFixedArrayBaseLength(source), mode);
 
   // Check if we can allocate in new space.
   ElementsKind kind = FAST_ELEMENTS;

@@ -86,7 +86,7 @@ Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
   if (mode == SMI_PARAMETERS) {
     return SmiConstant(Smi::FromInt(value));
   } else {
-    DCHECK_EQ(INTEGER_PARAMETERS, mode);
+    DCHECK(mode == INTEGER_PARAMETERS || mode == INTPTR_PARAMETERS);
     return IntPtrConstant(value);
   }
 }
@@ -1097,19 +1097,6 @@ Node* CodeStubAssembler::LoadWeakCellValue(Node* weak_cell, Label* if_cleared) {
   return value;
 }
 
-Node* CodeStubAssembler::AllocateUninitializedFixedArray(Node* length) {
-  Node* header_size = IntPtrConstant(FixedArray::kHeaderSize);
-  Node* data_size = WordShl(length, IntPtrConstant(kPointerSizeLog2));
-  Node* total_size = IntPtrAdd(data_size, header_size);
-
-  Node* result = Allocate(total_size, kNone);
-  StoreMapNoWriteBarrier(result, LoadRoot(Heap::kFixedArrayMapRootIndex));
-  StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
-      SmiTag(length));
-
-  return result;
-}
-
 Node* CodeStubAssembler::LoadFixedArrayElement(Node* object, Node* index_node,
                                                int additional_offset,
                                                ParameterMode parameter_mode) {
@@ -1161,9 +1148,8 @@ Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
 }
 
 Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
-  return StoreNoWriteBarrier(
-      MachineRepresentation::kFloat64, object,
-      IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag), value);
+  return StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value,
+                                        MachineRepresentation::kFloat64);
 }
 
 Node* CodeStubAssembler::StoreObjectField(
@@ -1360,9 +1346,8 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
   Node* empty_properties = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kPropertiesOffset,
                                  empty_properties);
-  StoreObjectFieldNoWriteBarrier(
-      array, JSArray::kLengthOffset,
-      mode == SMI_PARAMETERS ? length_node : SmiTag(length_node));
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset,
+                                 TagParameter(length_node, mode));
 
   if (allocation_site != nullptr) {
     InitializeAllocationMemento(array, JSArray::kSize, allocation_site);
@@ -1374,9 +1359,8 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
   Handle<Map> elements_map(is_double ? heap->fixed_double_array_map()
                                      : heap->fixed_array_map());
   StoreMapNoWriteBarrier(elements, HeapConstant(elements_map));
-  StoreObjectFieldNoWriteBarrier(
-      elements, FixedArray::kLengthOffset,
-      mode == SMI_PARAMETERS ? capacity_node : SmiTag(capacity_node));
+  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
+                                 TagParameter(capacity_node, mode));
 
   // Fill in the elements with holes.
   FillFixedArrayWithValue(kind, elements, IntPtrConstant(0), capacity_node,
@@ -1402,9 +1386,8 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
   } else {
     StoreMapNoWriteBarrier(array, HeapConstant(map));
   }
-  StoreObjectFieldNoWriteBarrier(
-      array, FixedArray::kLengthOffset,
-      mode == INTEGER_PARAMETERS ? SmiTag(capacity_node) : capacity_node);
+  StoreObjectFieldNoWriteBarrier(array, FixedArray::kLengthOffset,
+                                 TagParameter(capacity_node, mode));
   return array;
 }
 
@@ -1553,7 +1536,7 @@ Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
   Node* new_capacity = IntPtrAdd(half_old_capacity, old_capacity);
   Node* unconditioned_result =
       IntPtrAdd(new_capacity, IntPtrOrSmiConstant(16, mode));
-  if (mode == INTEGER_PARAMETERS) {
+  if (mode == INTEGER_PARAMETERS || mode == INTPTR_PARAMETERS) {
     return unconditioned_result;
   } else {
     int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
@@ -1568,17 +1551,9 @@ Node* CodeStubAssembler::CheckAndGrowElementsCapacity(Node* context,
                                                       Node* key, Label* fail) {
   Node* capacity = LoadFixedArrayBaseLength(elements);
 
-  // On 32-bit platforms, there is a slight performance advantage to doing all
-  // of the arithmetic for the new backing store with SMIs, since it's possible
-  // to save a few tag/untag operations without paying an extra expense when
-  // calculating array offset (the smi math can be folded away) and there are
-  // fewer live ranges. Thus only convert |capacity| and |key| to untagged value
-  // on 64-bit platforms.
-  ParameterMode mode = Is64() ? INTEGER_PARAMETERS : SMI_PARAMETERS;
-  if (mode == INTEGER_PARAMETERS) {
-    capacity = SmiUntag(capacity);
-    key = SmiUntag(key);
-  }
+  ParameterMode mode = OptimalParameterMode();
+  capacity = UntagParameter(capacity, mode);
+  key = UntagParameter(key, mode);
 
   // If the gap growth is too big, fall back to the runtime.
   Node* max_gap = IntPtrOrSmiConstant(JSObject::kMaxGap, mode);

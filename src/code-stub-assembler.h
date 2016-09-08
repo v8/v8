@@ -46,7 +46,29 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   typedef base::Flags<AllocationFlag> AllocationFlags;
 
+  // TODO(ishell): Fix all loads/stores from arrays by int32 offsets/indices
+  // and eventually remove INTEGER_PARAMETERS in favour of INTPTR_PARAMETERS.
   enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS, INTPTR_PARAMETERS };
+
+  // On 32-bit platforms, there is a slight performance advantage to doing all
+  // of the array offset/index arithmetic with SMIs, since it's possible
+  // to save a few tag/untag operations without paying an extra expense when
+  // calculating array offset (the smi math can be folded away) and there are
+  // fewer live ranges. Thus only convert indices to untagged value on 64-bit
+  // platforms.
+  ParameterMode OptimalParameterMode() const {
+    return Is64() ? INTPTR_PARAMETERS : SMI_PARAMETERS;
+  }
+
+  compiler::Node* UntagParameter(compiler::Node* value, ParameterMode mode) {
+    if (mode != SMI_PARAMETERS) value = SmiUntag(value);
+    return value;
+  }
+
+  compiler::Node* TagParameter(compiler::Node* value, ParameterMode mode) {
+    if (mode != SMI_PARAMETERS) value = SmiTag(value);
+    return value;
+  }
 
   compiler::Node* BooleanMapConstant();
   compiler::Node* EmptyStringConstant();
@@ -225,8 +247,6 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Load value field of a WeakCell object.
   compiler::Node* LoadWeakCellValue(compiler::Node* weak_cell,
                                     Label* if_cleared = nullptr);
-
-  compiler::Node* AllocateUninitializedFixedArray(compiler::Node* length);
 
   // Load an array element from a FixedArray.
   compiler::Node* LoadFixedArrayElement(
