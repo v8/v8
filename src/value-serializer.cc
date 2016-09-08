@@ -820,7 +820,7 @@ Maybe<T> ValueDeserializer::ReadVarint() {
     if (position_ >= end_) return Nothing<T>();
     uint8_t byte = *position_;
     if (V8_LIKELY(shift < sizeof(T) * 8)) {
-      value |= (byte & 0x7f) << shift;
+      value |= static_cast<T>(byte & 0x7f) << shift;
       shift += 7;
     }
     has_another_byte = byte & 0x80;
