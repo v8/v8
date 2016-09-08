@@ -932,6 +932,10 @@ TEST(Neon) {
               "f3886a11       vmovl.u8 q3, d1");
       COMPARE(vmovl(NeonU8, q4, d2),
               "f3888a12       vmovl.u8 q4, d2");
+      COMPARE(vswp(d0, d31),
+              "f3b2002f       vswp d0, d31");
+      COMPARE(vswp(d16, d14),
+              "f3f2000e       vswp d16, d14");
   }
 
   VERIFY_RUN();

@@ -3905,6 +3905,27 @@ void Assembler::vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src) {
         (dt & NeonDataTypeSizeMask)*B19 | vd*B12 | 0xA*B8 | m*B5 | B4 | vm);
 }
 
+void Assembler::vswp(DwVfpRegister srcdst0, DwVfpRegister srcdst1) {
+  DCHECK(!srcdst0.is(kScratchDoubleReg));
+  DCHECK(!srcdst1.is(kScratchDoubleReg));
+
+  if (srcdst0.is(srcdst1)) return;  // Swapping aliased registers emits nothing.
+
+  if (CpuFeatures::IsSupported(NEON)) {
+    // Instruction details available in ARM DDI 0406C.b, A8.8.418.
+    // 1111(31-28) | 00111(27-23) | D(22) | 110010(21-16) |
+    // Vd(15-12) | 000000(11-6) | M(5) | 0(4) | Vm(3-0)
+    int vd, d;
+    srcdst0.split_code(&vd, &d);
+    int vm, m;
+    srcdst1.split_code(&vm, &m);
+    emit(0xFU * B28 | 7 * B23 | d * B22 | 0x32 * B16 | vd * B12 | m * B5 | vm);
+  } else {
+    vmov(kScratchDoubleReg, srcdst0);
+    vmov(srcdst0, srcdst1);
+    vmov(srcdst1, kScratchDoubleReg);
+  }
+}
 
 // Pseudo instructions.
 void Assembler::nop(int type) {
