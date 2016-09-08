@@ -1648,27 +1648,11 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
           assembler->UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
 
-      if (kPointerSize == kDoubleSize) {
-        Node* element = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint64(), 0,
-            CodeStubAssembler::INTPTR_PARAMETERS);
-        Node* the_hole = assembler->Int64Constant(kHoleNanInt64);
-        assembler->GotoIf(assembler->Word64Equal(element, the_hole),
-                          &continue_loop);
-      } else {
-        Node* element_upper = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint32(),
-            kIeeeDoubleExponentWordOffset,
-            CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoIf(
-            assembler->Word32Equal(element_upper,
-                                   assembler->Int32Constant(kHoleNanUpper32)),
-            &continue_loop);
-      }
-
+      // Load double value or continue if it contains a double hole.
       Node* element_k = assembler->LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::Float64(), 0,
-          CodeStubAssembler::INTPTR_PARAMETERS);
+          CodeStubAssembler::INTPTR_PARAMETERS, &continue_loop);
+
       assembler->BranchIfFloat64Equal(element_k, search_num.value(),
                                       &return_true, &continue_loop);
       assembler->Bind(&continue_loop);
@@ -1684,27 +1668,11 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
           assembler->UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
 
-      if (kPointerSize == kDoubleSize) {
-        Node* element = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint64(), 0,
-            CodeStubAssembler::INTPTR_PARAMETERS);
-        Node* the_hole = assembler->Int64Constant(kHoleNanInt64);
-        assembler->GotoIf(assembler->Word64Equal(element, the_hole),
-                          &continue_loop);
-      } else {
-        Node* element_upper = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint32(),
-            kIeeeDoubleExponentWordOffset,
-            CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoIf(
-            assembler->Word32Equal(element_upper,
-                                   assembler->Int32Constant(kHoleNanUpper32)),
-            &continue_loop);
-      }
-
+      // Load double value or continue if it contains a double hole.
       Node* element_k = assembler->LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::Float64(), 0,
-          CodeStubAssembler::INTPTR_PARAMETERS);
+          CodeStubAssembler::INTPTR_PARAMETERS, &continue_loop);
+
       assembler->BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
       assembler->Bind(&continue_loop);
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
@@ -1718,23 +1686,10 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
           assembler->UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
 
-      if (kPointerSize == kDoubleSize) {
-        Node* element = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint64(), 0,
-            CodeStubAssembler::INTPTR_PARAMETERS);
-        Node* the_hole = assembler->Int64Constant(kHoleNanInt64);
-        assembler->GotoIf(assembler->Word64Equal(element, the_hole),
-                          &return_true);
-      } else {
-        Node* element_upper = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint32(),
-            kIeeeDoubleExponentWordOffset,
-            CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoIf(
-            assembler->Word32Equal(element_upper,
-                                   assembler->Int32Constant(kHoleNanUpper32)),
-            &return_true);
-      }
+      // Check if the element is a double hole, but don't load it.
+      assembler->LoadFixedDoubleArrayElement(
+          elements, index_var.value(), MachineType::None(), 0,
+          CodeStubAssembler::INTPTR_PARAMETERS, &return_true);
 
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
       assembler->Goto(&hole_loop);
@@ -2096,27 +2051,11 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
           assembler->UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
 
-      if (kPointerSize == kDoubleSize) {
-        Node* element = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint64(), 0,
-            CodeStubAssembler::INTPTR_PARAMETERS);
-        Node* the_hole = assembler->Int64Constant(kHoleNanInt64);
-        assembler->GotoIf(assembler->Word64Equal(element, the_hole),
-                          &continue_loop);
-      } else {
-        Node* element_upper = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint32(),
-            kIeeeDoubleExponentWordOffset,
-            CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoIf(
-            assembler->Word32Equal(element_upper,
-                                   assembler->Int32Constant(kHoleNanUpper32)),
-            &continue_loop);
-      }
-
+      // Load double value or continue if it contains a double hole.
       Node* element_k = assembler->LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::Float64(), 0,
-          CodeStubAssembler::INTPTR_PARAMETERS);
+          CodeStubAssembler::INTPTR_PARAMETERS, &continue_loop);
+
       assembler->BranchIfFloat64Equal(element_k, search_num.value(),
                                       &return_found, &continue_loop);
       assembler->Bind(&continue_loop);

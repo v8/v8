@@ -263,7 +263,15 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadFixedDoubleArrayElement(
       compiler::Node* object, compiler::Node* index, MachineType machine_type,
       int additional_offset = 0,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+      ParameterMode parameter_mode = INTEGER_PARAMETERS,
+      Label* if_hole = nullptr);
+
+  // Load Float64 value by |base| + |offset| address. If the value is a double
+  // hole then jump to |if_hole|. If |machine_type| is None then only the hole
+  // check is generated.
+  compiler::Node* LoadDoubleWithHoleCheck(
+      compiler::Node* base, compiler::Node* offset, Label* if_hole,
+      MachineType machine_type = MachineType::Float64());
 
   // Context manipulation
   compiler::Node* LoadNativeContext(compiler::Node* context);

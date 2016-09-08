@@ -62,6 +62,8 @@ class MachineType {
   MachineRepresentation representation() const { return representation_; }
   MachineSemantic semantic() const { return semantic_; }
 
+  bool IsNone() { return representation() == MachineRepresentation::kNone; }
+
   bool IsSigned() {
     return semantic() == MachineSemantic::kInt32 ||
            semantic() == MachineSemantic::kInt64;

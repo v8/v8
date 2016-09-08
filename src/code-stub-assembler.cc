@@ -1139,12 +1139,28 @@ Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
 
 Node* CodeStubAssembler::LoadFixedDoubleArrayElement(
     Node* object, Node* index_node, MachineType machine_type,
-    int additional_offset, ParameterMode parameter_mode) {
+    int additional_offset, ParameterMode parameter_mode, Label* if_hole) {
   int32_t header_size =
       FixedDoubleArray::kHeaderSize + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_DOUBLE_ELEMENTS,
                                         parameter_mode, header_size);
-  return Load(machine_type, object, offset);
+  return LoadDoubleWithHoleCheck(object, offset, if_hole, machine_type);
+}
+
+Node* CodeStubAssembler::LoadDoubleWithHoleCheck(Node* base, Node* offset,
+                                                 Label* if_hole,
+                                                 MachineType machine_type) {
+  if (if_hole) {
+    Node* element_upper =
+        Load(MachineType::Uint32(), base,
+             IntPtrAdd(offset, IntPtrConstant(kIeeeDoubleExponentWordOffset)));
+    GotoIf(Word32Equal(element_upper, Int32Constant(kHoleNanUpper32)), if_hole);
+  }
+  if (machine_type.IsNone()) {
+    // This means the actual value is not needed.
+    return nullptr;
+  }
+  return Load(machine_type, base, offset);
 }
 
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {
@@ -1414,7 +1430,7 @@ void CodeStubAssembler::FillFixedArrayWithValue(
       Is64() ? Int64Constant(kHoleNanInt64) : Int32Constant(kHoleNanLower32);
   Node* value = LoadRoot(value_root_index);
 
-  int const first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   int32_t to;
   bool constant_to = ToInt32Constant(to_node, to);
   int32_t from;
@@ -2896,18 +2912,10 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
 
     GotoUnless(UintPtrLessThan(intptr_index, length), &if_oob);
 
-    if (Is64()) {
-      Node* element = LoadFixedDoubleArrayElement(
-          elements, intptr_index, MachineType::Uint64(), 0, INTPTR_PARAMETERS);
-      Node* the_hole = Int64Constant(kHoleNanInt64);
-      Branch(Word64Equal(element, the_hole), if_not_found, if_found);
-    } else {
-      Node* element_upper = LoadFixedDoubleArrayElement(
-          elements, intptr_index, MachineType::Uint32(),
-          kIeeeDoubleExponentWordOffset, INTPTR_PARAMETERS);
-      Branch(Word32Equal(element_upper, Int32Constant(kHoleNanUpper32)),
-             if_not_found, if_found);
-    }
+    // Check if the element is a double hole, but don't load it.
+    LoadFixedDoubleArrayElement(elements, intptr_index, MachineType::None(), 0,
+                                INTPTR_PARAMETERS, if_not_found);
+    Goto(if_found);
   }
   Bind(&if_isdictionary);
   {
@@ -3593,20 +3601,10 @@ void CodeStubAssembler::EmitElementLoad(Node* object, Node* elements,
   Bind(&if_fast_holey_double);
   {
     Comment("holey double elements");
-    if (kPointerSize == kDoubleSize) {
-      Node* raw_element = LoadFixedDoubleArrayElement(
-          elements, intptr_index, MachineType::Uint64(), 0, INTPTR_PARAMETERS);
-      Node* the_hole = Int64Constant(kHoleNanInt64);
-      GotoIf(Word64Equal(raw_element, the_hole), if_hole);
-    } else {
-      Node* element_upper = LoadFixedDoubleArrayElement(
-          elements, intptr_index, MachineType::Uint32(),
-          kIeeeDoubleExponentWordOffset, INTPTR_PARAMETERS);
-      GotoIf(Word32Equal(element_upper, Int32Constant(kHoleNanUpper32)),
-             if_hole);
-    }
-    var_double_value->Bind(LoadFixedDoubleArrayElement(
-        elements, intptr_index, MachineType::Float64(), 0, INTPTR_PARAMETERS));
+    Node* value = LoadFixedDoubleArrayElement(elements, intptr_index,
+                                              MachineType::Float64(), 0,
+                                              INTPTR_PARAMETERS, if_hole);
+    var_double_value->Bind(value);
     Goto(rebox_double);
   }
 
