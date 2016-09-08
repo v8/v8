@@ -1023,7 +1023,7 @@ class WasmFullDecoder : public WasmDecoder {
             Value cond = Pop(operand.arity, kAstI32);
             Value val = {pc_, nullptr, kAstStmt};
             if (operand.arity == 1) val = Pop();
-            if (Validate(pc_, operand, control_)) {
+            if (ok() && Validate(pc_, operand, control_)) {
               SsaEnv* fenv = ssa_env_;
               SsaEnv* tenv = Split(fenv);
               fenv->SetNotMerged();
