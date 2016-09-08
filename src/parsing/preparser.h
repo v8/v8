@@ -571,12 +571,6 @@ class PreParserFactory {
                                  int pos) {
     return PreParserExpression::Default();
   }
-  PreParserExpression NewCallRuntime(const AstRawString* name,
-                                     const Runtime::Function* function,
-                                     PreParserExpressionList arguments,
-                                     int pos) {
-    return PreParserExpression::Default();
-  }
   PreParserStatement NewReturnStatement(PreParserExpression expression,
                                         int pos) {
     return PreParserStatement::Default();
@@ -608,6 +602,10 @@ class PreParserFactory {
   PreParserStatement NewBlock(ZoneList<const AstRawString*>* labels,
                               int capacity, bool ignore_completion_value,
                               int pos) {
+    return PreParserStatement::Default();
+  }
+
+  PreParserStatement NewDebuggerStatement(int pos) {
     return PreParserStatement::Default();
   }
 
@@ -733,7 +731,7 @@ class PreParser : public ParserBase<PreParser> {
     } else if (is_strict(this->scope()->language_mode())) {
       CheckStrictOctalLiteral(start_position, scanner()->location().end_pos,
                               &ok);
-      CheckDecimalLiteralWithLeadingZero(use_counts_, start_position,
+      CheckDecimalLiteralWithLeadingZero(start_position,
                                          scanner()->location().end_pos);
     }
     if (materialized_literals) {
@@ -766,7 +764,6 @@ class PreParser : public ParserBase<PreParser> {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  Statement ParseScopedStatement(bool legacy, bool* ok);
   Statement ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
                                       bool default_export, bool* ok);
   Statement ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
@@ -778,9 +775,6 @@ class PreParser : public ParserBase<PreParser> {
   Expression ParseAsyncFunctionExpression(bool* ok);
   Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                   bool default_export, bool* ok);
-  Statement ParseVariableStatement(VariableDeclarationContext var_context,
-                                   ZoneList<const AstRawString*>* names,
-                                   bool* ok);
   Statement ParseExpressionOrLabelledStatement(
       ZoneList<const AstRawString*>* names,
       AllowLabelledFunctionStatement allow_function, bool* ok);
@@ -799,10 +793,8 @@ class PreParser : public ParserBase<PreParser> {
   Statement ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement ParseThrowStatement(bool* ok);
   Statement ParseTryStatement(bool* ok);
-  Statement ParseDebuggerStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseObjectLiteral(bool* ok);
-  Expression ParseV8Intrinsic(bool* ok);
   Expression ParseDoExpression(bool* ok);
 
   V8_INLINE PreParserStatementList ParseEagerFunctionBody(
@@ -1174,6 +1166,12 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
+  V8_INLINE PreParserExpression
+  NewV8Intrinsic(PreParserIdentifier name, PreParserExpressionList arguments,
+                 int pos, bool* ok) {
+    return PreParserExpression::Default();
+  }
+
   V8_INLINE void AddParameterInitializationBlock(
       const PreParserFormalParameters& parameters, PreParserStatementList body,
       bool is_async, bool* ok) {}
@@ -1238,6 +1236,10 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE ZoneList<PreParserExpression>* GetNonPatternList() const {
     return function_state_->non_patterns_to_rewrite();
+  }
+
+  V8_INLINE void CountUsage(v8::Isolate::UseCounterFeature feature) {
+    if (use_counts_ != nullptr) ++use_counts_[feature];
   }
 
   // Preparser's private field members.

@@ -286,9 +286,6 @@ class Parser : public ParserBase<Parser> {
       const DeclarationParsingResult::Declaration* declaration,
       ZoneList<const AstRawString*>* names, bool* ok);
 
-  Block* ParseVariableStatement(VariableDeclarationContext var_context,
-                                ZoneList<const AstRawString*>* names,
-                                bool* ok);
   DoExpression* ParseDoExpression(bool* ok);
   Expression* ParseYieldStarExpression(bool* ok);
 
@@ -395,15 +392,6 @@ class Parser : public ParserBase<Parser> {
   Statement* ParseThrowStatement(bool* ok);
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
   TryStatement* ParseTryStatement(bool* ok);
-  DebuggerStatement* ParseDebuggerStatement(bool* ok);
-  // Parse a SubStatement in strict mode, or with an extra block scope in
-  // sloppy mode to handle
-  // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
-  // The legacy parameter indicates whether function declarations are
-  // banned by the ES2015 specification in this location, and they are being
-  // permitted here to match previous V8 behavior.
-  Statement* ParseScopedStatement(ZoneList<const AstRawString*>* labels,
-                                  bool legacy, bool* ok);
 
   // !%_IsJSReceiver(result = iterator.next()) &&
   //     %ThrowIteratorResultNotAnObject(result)
@@ -441,9 +429,6 @@ class Parser : public ParserBase<Parser> {
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved, int pos,
                                 bool* ok);
-
-  // Magical syntax support.
-  Expression* ParseV8Intrinsic(bool* ok);
 
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
@@ -944,6 +929,10 @@ class Parser : public ParserBase<Parser> {
     return factory()->NewBlock(labels, capacity, ignore_completion_value, pos);
   }
 
+  V8_INLINE Expression* NewV8Intrinsic(const AstRawString* name,
+                                       ZoneList<Expression*>* args, int pos,
+                                       bool* ok);
+
   V8_INLINE void AddParameterInitializationBlock(
       const ParserFormalParameters& parameters, ZoneList<Statement*>* body,
       bool is_async, bool* ok) {
@@ -1029,6 +1018,10 @@ class Parser : public ParserBase<Parser> {
 
   V8_INLINE ZoneList<Expression*>* GetNonPatternList() const {
     return function_state_->non_patterns_to_rewrite();
+  }
+
+  V8_INLINE void CountUsage(v8::Isolate::UseCounterFeature feature) {
+    ++use_counts_[feature];
   }
 
   // Parser's private field members.

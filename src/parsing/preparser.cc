@@ -101,7 +101,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     if (is_strict(scope()->language_mode())) {
       int end_pos = scanner()->location().end_pos;
       CheckStrictOctalLiteral(start_position, end_pos, &ok);
-      CheckDecimalLiteralWithLeadingZero(use_counts, start_position, end_pos);
+      CheckDecimalLiteralWithLeadingZero(start_position, end_pos);
     }
   }
   return kPreParseSuccess;
@@ -120,17 +120,6 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
 // rather it is to speed up properly written and correct programs.
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
-
-
-PreParser::Statement PreParser::ParseScopedStatement(bool legacy, bool* ok) {
-  if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
-      (legacy && allow_harmony_restrictive_declarations())) {
-    return ParseStatement(nullptr, kDisallowLabelledFunctionStatement, ok);
-  } else {
-    BlockState block_state(&scope_state_);
-    return ParseFunctionDeclaration(ok);
-  }
-}
 
 PreParser::Statement PreParser::ParseHoistableDeclaration(
     int pos, ParseFunctionFlags flags, ZoneList<const AstRawString*>* names,
@@ -195,18 +184,6 @@ PreParser::Statement PreParser::ParseClassDeclaration(
   return Statement::Default();
 }
 
-PreParser::Statement PreParser::ParseVariableStatement(
-    VariableDeclarationContext var_context,
-    ZoneList<const AstRawString*>* names, bool* ok) {
-  // VariableStatement ::
-  //   VariableDeclarations ';'
-
-  Statement result =
-      ParseVariableDeclarations(var_context, nullptr, names, CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
-  return result;
-}
-
 PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   Consume(Token::FUNCTION);
   int pos = position();
@@ -264,7 +241,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
       if (allow_function == kAllowLabelledFunctionStatement) {
         return ParseFunctionDeclaration(ok);
       } else {
-        return ParseScopedStatement(true, ok);
+        return ParseScopedStatement(names, true, ok);
       }
     }
     Statement statement =
@@ -288,10 +265,10 @@ PreParser::Statement PreParser::ParseIfStatement(
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  Statement stat = ParseScopedStatement(false, CHECK_OK);
+  Statement stat = ParseScopedStatement(labels, false, CHECK_OK);
   if (peek() == Token::ELSE) {
     Next();
-    Statement else_stat = ParseScopedStatement(false, CHECK_OK);
+    Statement else_stat = ParseScopedStatement(labels, false, CHECK_OK);
     stat = (stat.IsJumpStatement() && else_stat.IsJumpStatement()) ?
         Statement::Jump() : Statement::Default();
   } else {
@@ -388,7 +365,7 @@ PreParser::Statement PreParser::ParseWithStatement(
 
   Scope* with_scope = NewScope(WITH_SCOPE);
   BlockState block_state(&scope_state_, with_scope);
-  ParseScopedStatement(true, CHECK_OK);
+  ParseScopedStatement(labels, true, CHECK_OK);
   return Statement::Default();
 }
 
@@ -434,7 +411,7 @@ PreParser::Statement PreParser::ParseDoWhileStatement(
   //   'do' Statement 'while' '(' Expression ')' ';'
 
   Expect(Token::DO, CHECK_OK);
-  ParseScopedStatement(true, CHECK_OK);
+  ParseScopedStatement(nullptr, true, CHECK_OK);
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
@@ -452,7 +429,7 @@ PreParser::Statement PreParser::ParseWhileStatement(
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  ParseScopedStatement(true, ok);
+  ParseScopedStatement(nullptr, true, ok);
   return Statement::Default();
 }
 
@@ -518,7 +495,7 @@ PreParser::Statement PreParser::ParseForStatement(
         {
           ReturnExprScope no_tail_calls(function_state_,
                                         ReturnExprContext::kInsideForInOfBody);
-          ParseScopedStatement(true, CHECK_OK);
+          ParseScopedStatement(nullptr, true, CHECK_OK);
         }
         return Statement::Default();
       }
@@ -555,7 +532,7 @@ PreParser::Statement PreParser::ParseForStatement(
         Expect(Token::RPAREN, CHECK_OK);
         {
           BlockState block_state(&scope_state_);
-          ParseScopedStatement(true, CHECK_OK);
+          ParseScopedStatement(nullptr, true, CHECK_OK);
         }
         return Statement::Default();
       }
@@ -584,7 +561,7 @@ PreParser::Statement PreParser::ParseForStatement(
     }
     Expect(Token::RPAREN, CHECK_OK);
 
-    ParseScopedStatement(true, ok);
+    ParseScopedStatement(nullptr, true, ok);
   }
   return Statement::Default();
 }
@@ -672,19 +649,6 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
 }
 
 
-PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
-  // In ECMA-262 'debugger' is defined as a reserved keyword. In some browser
-  // contexts this is used as a statement which invokes the debugger as if a
-  // break point is present.
-  // DebuggerStatement ::
-  //   'debugger' ';'
-
-  Expect(Token::DEBUGGER, CHECK_OK);
-  ExpectSemicolon(ok);
-  return Statement::Default();
-}
-
-
 // Redefinition of CHECK_OK for parsing expressions.
 #undef CHECK_OK
 #define CHECK_OK CHECK_OK_VALUE(Expression::Default())
@@ -745,8 +709,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   if (is_strict(language_mode)) {
     int end_position = scanner()->location().end_pos;
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
-    CheckDecimalLiteralWithLeadingZero(use_counts_, start_position,
-                                       end_position);
+    CheckDecimalLiteralWithLeadingZero(start_position, end_position);
   }
 
   return Expression::Default();
@@ -850,28 +813,6 @@ PreParserExpression PreParser::ParseClassLiteral(
 
   return Expression::Default();
 }
-
-
-PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
-  // CallRuntime ::
-  //   '%' Identifier Arguments
-  Expect(Token::MOD, CHECK_OK);
-  if (!allow_natives()) {
-    *ok = false;
-    return Expression::Default();
-  }
-  // Allow "eval" or "arguments" for backward compatibility.
-  ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
-  Scanner::Location spread_pos;
-  ExpressionClassifier classifier(this);
-  ParseArguments(&spread_pos, ok);
-  ValidateExpression(CHECK_OK);
-
-  DCHECK(!spread_pos.IsValid());
-
-  return Expression::Default();
-}
-
 
 PreParserExpression PreParser::ParseDoExpression(bool* ok) {
   // AssignmentExpression ::

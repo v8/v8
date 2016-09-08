@@ -812,15 +812,13 @@ class ParserBase {
     }
   }
   // for now, this check just collects statistics.
-  void CheckDecimalLiteralWithLeadingZero(int* use_counts, int beg_pos,
-                                          int end_pos) {
+  void CheckDecimalLiteralWithLeadingZero(int beg_pos, int end_pos) {
     Scanner::Location token_location =
         scanner()->decimal_with_leading_zero_position();
     if (token_location.IsValid() && beg_pos <= token_location.beg_pos &&
         token_location.end_pos <= end_pos) {
       scanner()->clear_decimal_with_leading_zero_position();
-      if (use_counts != nullptr)
-        ++use_counts[v8::Isolate::kDecimalWithLeadingZeroInStrictMode];
+      impl()->CountUsage(v8::Isolate::kDecimalWithLeadingZeroInStrictMode);
     }
   }
 
@@ -1170,6 +1168,24 @@ class ParserBase {
   StatementT ParseStatementAsUnlabelled(ZoneList<const AstRawString*>* labels,
                                         bool* ok);
   BlockT ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
+
+  // Parse a SubStatement in strict mode, or with an extra block scope in
+  // sloppy mode to handle
+  // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+  // The legacy parameter indicates whether function declarations are
+  // banned by the ES2015 specification in this location, and they are being
+  // permitted here to match previous V8 behavior.
+  StatementT ParseScopedStatement(ZoneList<const AstRawString*>* labels,
+                                  bool legacy, bool* ok);
+
+  StatementT ParseVariableStatement(VariableDeclarationContext var_context,
+                                    ZoneList<const AstRawString*>* names,
+                                    bool* ok);
+
+  // Magical syntax support.
+  ExpressionT ParseV8Intrinsic(bool* ok);
+
+  StatementT ParseDebuggerStatement(bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -1712,7 +1728,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::MOD:
       if (allow_natives() || extension_ != NULL) {
         BindingPatternUnexpectedToken();
-        return impl()->ParseV8Intrinsic(ok);
+        return ParseV8Intrinsic(ok);
       }
       break;
 
@@ -3443,10 +3459,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
   // FIXME(marja, nikolaos): Add an up-to-date comment about ES6 variable
   // declaration syntax.
 
-  DeclarationParsingResult temp_result;
-  if (parsing_result == nullptr) {
-    parsing_result = &temp_result;
-  }
+  DCHECK_NOT_NULL(parsing_result);
   parsing_result->descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
   parsing_result->descriptor.declaration_pos = peek_position();
   parsing_result->descriptor.initialization_pos = peek_position();
@@ -3935,6 +3948,25 @@ void ParserBase<Impl>::CheckDestructuringElement(ExpressionT expression,
   }
 }
 
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic(
+    bool* ok) {
+  // CallRuntime ::
+  //   '%' Identifier Arguments
+
+  int pos = peek_position();
+  Expect(Token::MOD, CHECK_OK);
+  // Allow "eval" or "arguments" for backward compatibility.
+  IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
+  Scanner::Location spread_pos;
+  ExpressionClassifier classifier(this);
+  ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
+
+  DCHECK(!spread_pos.IsValid());
+
+  return impl()->NewV8Intrinsic(name, args, pos, ok);
+}
+
 // Redefinition of CHECK_OK for parsing statements.
 #undef CHECK_OK
 #define CHECK_OK CHECK_OK_CUSTOM(NullStatement)
@@ -4062,10 +4094,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
       return impl()->ParseClassDeclaration(nullptr, false, ok);
     case Token::VAR:
     case Token::CONST:
-      return impl()->ParseVariableStatement(kStatementListItem, nullptr, ok);
+      return ParseVariableStatement(kStatementListItem, nullptr, ok);
     case Token::LET:
       if (IsNextLetKeyword()) {
-        return impl()->ParseVariableStatement(kStatementListItem, nullptr, ok);
+        return ParseVariableStatement(kStatementListItem, nullptr, ok);
       }
       break;
     case Token::ASYNC:
@@ -4159,9 +4191,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       *ok = false;
       return impl()->NullStatement();
     case Token::DEBUGGER:
-      return impl()->ParseDebuggerStatement(ok);
+      return ParseDebuggerStatement(ok);
     case Token::VAR:
-      return impl()->ParseVariableStatement(kStatement, nullptr, ok);
+      return ParseVariableStatement(kStatement, nullptr, ok);
     default:
       return impl()->ParseExpressionOrLabelledStatement(labels, allow_function,
                                                         ok);
@@ -4220,6 +4252,70 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
     body->set_scope(block_state.FinalizedBlockScope());
   }
   return body;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
+    ZoneList<const AstRawString*>* labels, bool legacy, bool* ok) {
+  if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
+      (legacy && allow_harmony_restrictive_declarations())) {
+    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
+  } else {
+    if (legacy) {
+      impl()->CountUsage(v8::Isolate::kLegacyFunctionDeclaration);
+    }
+    // Make a block around the statement for a lexical binding
+    // is introduced by a FunctionDeclaration.
+    BlockState block_state(&scope_state_);
+    block_state.set_start_position(scanner()->location().beg_pos);
+    BlockT block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
+    StatementT body = impl()->ParseFunctionDeclaration(CHECK_OK);
+    block->statements()->Add(body, zone());
+    block_state.set_end_position(scanner()->location().end_pos);
+    block->set_scope(block_state.FinalizedBlockScope());
+    return block;
+  }
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseVariableStatement(
+    VariableDeclarationContext var_context,
+    ZoneList<const AstRawString*>* names, bool* ok) {
+  // VariableStatement ::
+  //   VariableDeclarations ';'
+
+  // The scope of a var declared variable anywhere inside a function
+  // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). Thus we can
+  // transform a source-level var declaration into a (Function) Scope
+  // declaration, and rewrite the source-level initialization into an assignment
+  // statement. We use a block to collect multiple assignments.
+  //
+  // We mark the block as initializer block because we don't want the
+  // rewriter to add a '.result' assignment to such a block (to get compliant
+  // behavior for code such as print(eval('var x = 7')), and for cosmetic
+  // reasons when pretty-printing. Also, unless an assignment (initialization)
+  // is inside an initializer block, it is ignored.
+
+  DeclarationParsingResult parsing_result;
+  StatementT result =
+      ParseVariableDeclarations(var_context, &parsing_result, names, CHECK_OK);
+  ExpectSemicolon(CHECK_OK);
+  return result;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDebuggerStatement(
+    bool* ok) {
+  // In ECMA-262 'debugger' is defined as a reserved keyword. In some browser
+  // contexts this is used as a statement which invokes the debugger as i a
+  // break point is present.
+  // DebuggerStatement ::
+  //   'debugger' ';'
+
+  int pos = peek_position();
+  Expect(Token::DEBUGGER, CHECK_OK);
+  ExpectSemicolon(CHECK_OK);
+  return factory()->NewDebuggerStatement(pos);
 }
 
 #undef CHECK_OK

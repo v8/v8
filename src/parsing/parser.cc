@@ -506,6 +506,58 @@ void Parser::MarkTailPosition(Expression* expression) {
   expression->MarkTail();
 }
 
+Expression* Parser::NewV8Intrinsic(const AstRawString* name,
+                                   ZoneList<Expression*>* args, int pos,
+                                   bool* ok) {
+  if (extension_ != nullptr) {
+    // The extension structures are only accessible while parsing the
+    // very first time, not when reparsing because of lazy compilation.
+    GetClosureScope()->ForceEagerCompilation();
+  }
+
+  const Runtime::Function* function = Runtime::FunctionForName(name->string());
+
+  if (function != nullptr) {
+    // Check for possible name clash.
+    DCHECK_EQ(Context::kNotFound,
+              Context::IntrinsicIndexForName(name->string()));
+    // Check for built-in IS_VAR macro.
+    if (function->function_id == Runtime::kIS_VAR) {
+      DCHECK_EQ(Runtime::RUNTIME, function->intrinsic_type);
+      // %IS_VAR(x) evaluates to x if x is a variable,
+      // leads to a parse error otherwise.  Could be implemented as an
+      // inline function %_IS_VAR(x) to eliminate this special case.
+      if (args->length() == 1 && args->at(0)->AsVariableProxy() != nullptr) {
+        return args->at(0);
+      } else {
+        ReportMessage(MessageTemplate::kNotIsvar);
+        *ok = false;
+        return nullptr;
+      }
+    }
+
+    // Check that the expected number of arguments are being passed.
+    if (function->nargs != -1 && function->nargs != args->length()) {
+      ReportMessage(MessageTemplate::kRuntimeWrongNumArgs);
+      *ok = false;
+      return nullptr;
+    }
+
+    return factory()->NewCallRuntime(function, args, pos);
+  }
+
+  int context_index = Context::IntrinsicIndexForName(name->string());
+
+  // Check that the function is defined.
+  if (context_index == Context::kNotFound) {
+    ReportMessage(MessageTemplate::kNotDefined, name);
+    *ok = false;
+    return nullptr;
+  }
+
+  return factory()->NewCallRuntime(context_index, args, pos);
+}
+
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->ast_value_factory(), NULL),
@@ -707,7 +759,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     if (ok && is_strict(language_mode())) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
-      CheckDecimalLiteralWithLeadingZero(use_counts_, beg_pos,
+      CheckDecimalLiteralWithLeadingZero(beg_pos,
                                          scanner()->location().end_pos);
     }
     if (ok && is_sloppy(language_mode())) {
@@ -1615,31 +1667,6 @@ void Parser::DeclareAndInitializeVariables(
   DCHECK_NOT_NULL(block);
   PatternRewriter::DeclareAndInitializeVariables(
       this, block, declaration_descriptor, declaration, names, ok);
-}
-
-Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
-                                      ZoneList<const AstRawString*>* names,
-                                      bool* ok) {
-  // VariableStatement ::
-  //   VariableDeclarations ';'
-
-  // The scope of a var declared variable anywhere inside a function
-  // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). Thus we can
-  // transform a source-level var declaration into a (Function) Scope
-  // declaration, and rewrite the source-level initialization into an assignment
-  // statement. We use a block to collect multiple assignments.
-  //
-  // We mark the block as initializer block because we don't want the
-  // rewriter to add a '.result' assignment to such a block (to get compliant
-  // behavior for code such as print(eval('var x = 7')), and for cosmetic
-  // reasons when pretty-printing. Also, unless an assignment (initialization)
-  // is inside an initializer block, it is ignored.
-
-  DeclarationParsingResult parsing_result;
-  Block* result =
-      ParseVariableDeclarations(var_context, &parsing_result, names, CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
-  return result;
 }
 
 static bool ContainsLabel(ZoneList<const AstRawString*>* labels,
@@ -2767,28 +2794,6 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   return outer_block;
 }
 
-Statement* Parser::ParseScopedStatement(ZoneList<const AstRawString*>* labels,
-                                        bool legacy, bool* ok) {
-  if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
-      (legacy && allow_harmony_restrictive_declarations())) {
-    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
-  } else {
-    if (legacy) {
-      ++use_counts_[v8::Isolate::kLegacyFunctionDeclaration];
-    }
-    // Make a block around the statement for a lexical binding
-    // is introduced by a FunctionDeclaration.
-    BlockState block_state(&scope_state_);
-    block_state.set_start_position(scanner()->location().beg_pos);
-    Block* block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
-    Statement* body = ParseFunctionDeclaration(CHECK_OK);
-    block->statements()->Add(body, zone());
-    block_state.set_end_position(scanner()->location().end_pos);
-    block->set_scope(block_state.FinalizedBlockScope());
-    return block;
-  }
-}
-
 Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
                                      bool* ok) {
   int stmt_pos = peek_position();
@@ -3135,21 +3140,6 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   }
   return result;
 }
-
-
-DebuggerStatement* Parser::ParseDebuggerStatement(bool* ok) {
-  // In ECMA-262 'debugger' is defined as a reserved keyword. In some browser
-  // contexts this is used as a statement which invokes the debugger as i a
-  // break point is present.
-  // DebuggerStatement ::
-  //   'debugger' ';'
-
-  int pos = peek_position();
-  Expect(Token::DEBUGGER, CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
-  return factory()->NewDebuggerStatement(pos);
-}
-
 
 void Parser::ParseArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr, int end_pos,
@@ -3537,7 +3527,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_strict(language_mode)) {
       CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
                               CHECK_OK);
-      CheckDecimalLiteralWithLeadingZero(use_counts_, scope->start_position(),
+      CheckDecimalLiteralWithLeadingZero(scope->start_position(),
                                          scope->end_position());
     }
     CheckConflictingVarDeclarations(scope, CHECK_OK);
@@ -4266,71 +4256,6 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
   Rewriter::Rewrite(this, GetClosureScope(), do_expr, ast_value_factory());
 
   return do_expr;
-}
-
-
-Expression* Parser::ParseV8Intrinsic(bool* ok) {
-  // CallRuntime ::
-  //   '%' Identifier Arguments
-
-  int pos = peek_position();
-  Expect(Token::MOD, CHECK_OK);
-  // Allow "eval" or "arguments" for backward compatibility.
-  const AstRawString* name = ParseIdentifier(kAllowRestrictedIdentifiers,
-                                             CHECK_OK);
-  Scanner::Location spread_pos;
-  ExpressionClassifier classifier(this);
-  ZoneList<Expression*>* args = ParseArguments(&spread_pos, CHECK_OK);
-
-  DCHECK(!spread_pos.IsValid());
-
-  if (extension_ != NULL) {
-    // The extension structures are only accessible while parsing the
-    // very first time not when reparsing because of lazy compilation.
-    GetClosureScope()->ForceEagerCompilation();
-  }
-
-  const Runtime::Function* function = Runtime::FunctionForName(name->string());
-
-  if (function != NULL) {
-    // Check for possible name clash.
-    DCHECK_EQ(Context::kNotFound,
-              Context::IntrinsicIndexForName(name->string()));
-    // Check for built-in IS_VAR macro.
-    if (function->function_id == Runtime::kIS_VAR) {
-      DCHECK_EQ(Runtime::RUNTIME, function->intrinsic_type);
-      // %IS_VAR(x) evaluates to x if x is a variable,
-      // leads to a parse error otherwise.  Could be implemented as an
-      // inline function %_IS_VAR(x) to eliminate this special case.
-      if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
-        return args->at(0);
-      } else {
-        ReportMessage(MessageTemplate::kNotIsvar);
-        *ok = false;
-        return NULL;
-      }
-    }
-
-    // Check that the expected number of arguments are being passed.
-    if (function->nargs != -1 && function->nargs != args->length()) {
-      ReportMessage(MessageTemplate::kRuntimeWrongNumArgs);
-      *ok = false;
-      return NULL;
-    }
-
-    return factory()->NewCallRuntime(function, args, pos);
-  }
-
-  int context_index = Context::IntrinsicIndexForName(name->string());
-
-  // Check that the function is defined.
-  if (context_index == Context::kNotFound) {
-    ReportMessage(MessageTemplate::kNotDefined, name);
-    *ok = false;
-    return NULL;
-  }
-
-  return factory()->NewCallRuntime(context_index, args, pos);
 }
 
 
