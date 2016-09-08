@@ -635,9 +635,14 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
   // do not apply and we cannot do anything).
   if (!initial_type->Is(typer_->cache_.kInteger) ||
       !increment_type->Is(typer_->cache_.kInteger)) {
-    // Fallback to normal phi typing.
-    Type* type = Operand(node, 0);
-    for (int i = 1; i < arity; ++i) {
+    // Fallback to normal phi typing, but ensure monotonicity.
+    // (Unfortunately, without baking in the previous type, monotonicity might
+    // be violated because we might not yet have retyped the incrementing
+    // operation even though the increment's type might been already reflected
+    // in the induction variable phi.)
+    Type* type = NodeProperties::IsTyped(node) ? NodeProperties::GetType(node)
+                                               : Type::None();
+    for (int i = 0; i < arity; ++i) {
       type = Type::Union(type, Operand(node, i), zone());
     }
     return type;
