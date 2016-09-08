@@ -5964,8 +5964,8 @@ Local<Context> NewContext(v8::Isolate* external_isolate,
                           v8::MaybeLocal<Value> global_object,
                           size_t context_snapshot_index) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
-  LOG_API(isolate, Context, New);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.NewContext");
+  LOG_API(isolate, Context, New);
   i::HandleScope scope(isolate);
   ExtensionConfiguration no_extensions;
   if (extensions == NULL) extensions = &no_extensions;

@@ -28,9 +28,9 @@ void CallStatsScopedTracer::AddEndTraceEvent() {
         TRACE_EVENT_PHASE_END, p_data_->category_group_enabled, p_data_->name,
         v8::internal::tracing::kGlobalScope, v8::internal::tracing::kNoId,
         v8::internal::tracing::kNoId, TRACE_EVENT_FLAG_NONE,
-        "runtime-call-stats", TRACE_STR_COPY(p_data_->isolate->counters()
-                                                 ->tracing_runtime_call_stats()
-                                                 ->Dump()));
+        "runtime-call-stats",
+        TRACE_STR_COPY(
+            p_data_->isolate->counters()->runtime_call_stats()->Dump()));
   } else {
     v8::internal::tracing::AddTraceEvent(
         TRACE_EVENT_PHASE_END, p_data_->category_group_enabled, p_data_->name,
@@ -46,7 +46,7 @@ void CallStatsScopedTracer::Initialize(v8::internal::Isolate* isolate,
   data_.category_group_enabled = category_group_enabled;
   data_.name = name;
   p_data_ = &data_;
-  RuntimeCallStats* table = isolate->counters()->tracing_runtime_call_stats();
+  RuntimeCallStats* table = isolate->counters()->runtime_call_stats();
   has_parent_scope_ = table->InUse();
   if (!has_parent_scope_) table->Reset();
   v8::internal::tracing::AddTraceEvent(

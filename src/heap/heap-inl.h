@@ -8,7 +8,7 @@
 #include <cmath>
 
 #include "src/base/platform/platform.h"
-#include "src/counters.h"
+#include "src/counters-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"

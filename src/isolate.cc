@@ -2569,7 +2569,8 @@ void Isolate::DumpAndResetCompilationStats() {
   turbo_statistics_ = nullptr;
   delete hstatistics_;
   hstatistics_ = nullptr;
-  if (FLAG_runtime_call_stats) {
+  if (FLAG_runtime_call_stats &&
+      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED()) {
     OFStream os(stdout);
     counters()->runtime_call_stats()->Print(os);
     counters()->runtime_call_stats()->Reset();

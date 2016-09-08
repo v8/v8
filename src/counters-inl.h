@@ -11,13 +11,21 @@ namespace v8 {
 namespace internal {
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(
-    HeapObject* heap_object, RuntimeCallStats::CounterId counter_id) {
-  if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
-    isolate_ = heap_object->GetIsolate();
+    Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
+  if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
+                  FLAG_runtime_call_stats)) {
+    isolate_ = isolate;
     RuntimeCallStats::Enter(isolate_->counters()->runtime_call_stats(), &timer_,
                             counter_id);
   }
-  // TODO(lpy): Add a tracing equivalent for the runtime call stats.
+}
+
+RuntimeCallTimerScope::RuntimeCallTimerScope(
+    HeapObject* heap_object, RuntimeCallStats::CounterId counter_id) {
+  if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
+                  FLAG_runtime_call_stats)) {
+    RuntimeCallTimerScope(heap_object->GetIsolate(), counter_id);
+  }
 }
 
 }  // namespace internal

@@ -810,18 +810,14 @@ class RuntimeCallStats {
   bool in_use_;
 };
 
-#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name)                  \
-  do {                                                                   \
-    if (FLAG_runtime_call_stats) {                                       \
-      RuntimeCallStats::CorrectCurrentCounterId(                         \
-          isolate->counters()->runtime_call_stats(),                     \
-          &RuntimeCallStats::counter_name);                              \
-    }                                                                    \
-    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())) { \
-      RuntimeCallStats::CorrectCurrentCounterId(                         \
-          isolate->counters()->tracing_runtime_call_stats(),             \
-          &RuntimeCallStats::counter_name);                              \
-    }                                                                    \
+#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name)                 \
+  do {                                                                  \
+    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() || \
+                    FLAG_runtime_call_stats)) {                         \
+      RuntimeCallStats::CorrectCurrentCounterId(                        \
+          isolate->counters()->runtime_call_stats(),                    \
+          &RuntimeCallStats::counter_name);                             \
+    }                                                                   \
   } while (false)
 
 #define TRACE_HANDLER_STATS(isolate, counter_name) \
@@ -1172,9 +1168,6 @@ class Counters {
   void ResetCounters();
   void ResetHistograms();
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
-  RuntimeCallStats* tracing_runtime_call_stats() {
-    return &tracing_runtime_call_stats_;
-  }
 
  private:
 #define HR(name, caption, min, max, num_buckets) Histogram name##_;
@@ -1237,7 +1230,6 @@ class Counters {
 #undef SC
 
   RuntimeCallStats runtime_call_stats_;
-  RuntimeCallStats tracing_runtime_call_stats_;
 
   friend class Isolate;
 
@@ -1251,45 +1243,22 @@ class Counters {
 class RuntimeCallTimerScope {
  public:
   inline RuntimeCallTimerScope(Isolate* isolate,
-                               RuntimeCallStats::CounterId counter_id) {
-    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
-      isolate_ = isolate;
-      RuntimeCallStats::Enter(isolate_->counters()->runtime_call_stats(),
-                              &timer_, counter_id);
-    }
-    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())) {
-      isolate_for_tracing_ = isolate;
-      RuntimeCallStats::Enter(
-          isolate_for_tracing_->counters()->tracing_runtime_call_stats(),
-          &trace_event_timer_, counter_id);
-    }
-  }
+                               RuntimeCallStats::CounterId counter_id);
   // This constructor is here just to avoid calling GetIsolate() when the
   // stats are disabled and the isolate is not directly available.
   inline RuntimeCallTimerScope(HeapObject* heap_object,
                                RuntimeCallStats::CounterId counter_id);
 
   inline ~RuntimeCallTimerScope() {
-    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
+    if (V8_UNLIKELY(isolate_ != nullptr)) {
       RuntimeCallStats::Leave(isolate_->counters()->runtime_call_stats(),
                               &timer_);
-    }
-    if (V8_UNLIKELY(isolate_for_tracing_ != nullptr)) {
-      RuntimeCallStats::Leave(
-          isolate_for_tracing_->counters()->tracing_runtime_call_stats(),
-          &trace_event_timer_);
-      isolate_for_tracing_ = nullptr;
     }
   }
 
  private:
-  Isolate* isolate_;
-  // TODO(lpy): --runtime-call-stats and tracing should be mutually exclusive
-  // with tracing taking precendence. We need to add checks, and use a single
-  // isolate reference and a timer for both.
-  Isolate* isolate_for_tracing_ = nullptr;
+  Isolate* isolate_ = nullptr;
   RuntimeCallTimer timer_;
-  RuntimeCallTimer trace_event_timer_;
 };
 
 }  // namespace internal
