@@ -1162,8 +1162,15 @@ void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
   __ Jump(lr);
 }
 
-static void Generate_InterpreterPushArgs(MacroAssembler* masm, Register index,
+static void Generate_InterpreterPushArgs(MacroAssembler* masm,
+                                         Register num_args, Register index,
                                          Register limit, Register scratch) {
+  // Find the address of the last argument.
+  __ mov(limit, num_args);
+  __ mov(limit, Operand(limit, LSL, kPointerSizeLog2));
+  __ sub(limit, index, limit);
+
+  // TODO(mythria): Add a stack check before pushing arguments.
   Label loop_header, loop_check;
   __ b(al, &loop_check);
   __ bind(&loop_header);
@@ -1186,14 +1193,10 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   //  -- r1 : the target to call (can be any Object).
   // -----------------------------------
 
-  // Find the address of the last argument.
   __ add(r3, r0, Operand(1));  // Add one for receiver.
-  __ mov(r3, Operand(r3, LSL, kPointerSizeLog2));
-  __ sub(r3, r2, r3);
 
-  // TODO(mythria): Add a stack check before pushing arguments.
-  // Push the arguments.
-  Generate_InterpreterPushArgs(masm, r2, r3, r4);
+  // Push the arguments. r2, r4, r5 will be modified.
+  Generate_InterpreterPushArgs(masm, r3, r2, r4, r5);
 
   // Call the target.
   if (function_type == CallableType::kJSFunction) {
@@ -1219,17 +1222,13 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   // -- r4 : address of the first argument
   // -----------------------------------
 
-  // Find the address of the last argument.
-  __ mov(r5, Operand(r0, LSL, kPointerSizeLog2));
-  __ sub(r5, r4, r5);
-
   // Push a slot for the receiver to be constructed.
   __ mov(ip, Operand::Zero());
   __ push(ip);
 
   // TODO(mythria): Add a stack check before pushing arguments.
-  // Push the arguments.
-  Generate_InterpreterPushArgs(masm, r4, r5, r6);
+  // Push the arguments. r5, r4, r6 will be modified.
+  Generate_InterpreterPushArgs(masm, r0, r4, r5, r6);
 
   __ AssertUndefinedOrAllocationSite(r2, r5);
   if (construct_type == CallableType::kJSFunction) {
@@ -1247,6 +1246,29 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     // Call the constructor with r0, r1, and r3 unmodified.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
+}
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- r0 : argument count (not including receiver)
+  // -- r1 : target to call verified to be Array function
+  // -- r2 : allocation site feedback if available, undefined otherwise.
+  // -- r3 : address of the first argument
+  // -----------------------------------
+
+  __ add(r4, r0, Operand(1));  // Add one for receiver.
+
+  // TODO(mythria): Add a stack check before pushing arguments.
+  // Push the arguments. r3, r5, r6 will be modified.
+  Generate_InterpreterPushArgs(masm, r4, r3, r5, r6);
+
+  // Array constructor expects constructor in r3. It is same as r1 here.
+  __ mov(r3, r1);
+
+  ArrayConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

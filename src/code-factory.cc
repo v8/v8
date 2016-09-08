@@ -606,6 +606,12 @@ Callable CodeFactory::InterpreterPushArgsAndConstruct(
 }
 
 // static
+Callable CodeFactory::InterpreterPushArgsAndConstructArray(Isolate* isolate) {
+  return Callable(isolate->builtins()->InterpreterPushArgsAndConstructArray(),
+                  InterpreterPushArgsAndConstructArrayDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
   // Note: If we ever use fpregs in the interpreter then we will need to
   // save fpregs too.

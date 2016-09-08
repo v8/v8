@@ -129,6 +129,7 @@ namespace internal {
   ASM(InterpreterPushArgsAndTailCallFunction)                                 \
   ASM(InterpreterPushArgsAndConstruct)                                        \
   ASM(InterpreterPushArgsAndConstructFunction)                                \
+  ASM(InterpreterPushArgsAndConstructArray)                                   \
   ASM(InterpreterEnterBytecodeDispatch)                                       \
   ASM(InterpreterOnStackReplacement)                                          \
                                                                               \

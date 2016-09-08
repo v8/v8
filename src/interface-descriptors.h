@@ -15,93 +15,94 @@ namespace internal {
 
 class PlatformInterfaceDescriptor;
 
-#define INTERFACE_DESCRIPTOR_LIST(V)   \
-  V(Void)                              \
-  V(ContextOnly)                       \
-  V(OnStackWith1Args)                  \
-  V(OnStackWith2Args)                  \
-  V(OnStackWith3Args)                  \
-  V(OnStackWith4Args)                  \
-  V(OnStackWith5Args)                  \
-  V(OnStackWith6Args)                  \
-  V(OnStackWith7Args)                  \
-  V(Load)                              \
-  V(LoadWithVector)                    \
-  V(LoadGlobal)                        \
-  V(LoadGlobalWithVector)              \
-  V(Store)                             \
-  V(StoreWithVector)                   \
-  V(StoreTransition)                   \
-  V(VectorStoreTransition)             \
-  V(VarArgFunction)                    \
-  V(FastNewClosure)                    \
-  V(FastNewFunctionContext)            \
-  V(FastNewObject)                     \
-  V(FastNewRestParameter)              \
-  V(FastNewSloppyArguments)            \
-  V(FastNewStrictArguments)            \
-  V(TypeConversion)                    \
-  V(Typeof)                            \
-  V(FastCloneRegExp)                   \
-  V(FastCloneShallowArray)             \
-  V(FastCloneShallowObject)            \
-  V(CreateAllocationSite)              \
-  V(CreateWeakCell)                    \
-  V(CallFunction)                      \
-  V(CallFunctionWithFeedback)          \
-  V(CallFunctionWithFeedbackAndVector) \
-  V(CallConstruct)                     \
-  V(CallTrampoline)                    \
-  V(ConstructStub)                     \
-  V(ConstructTrampoline)               \
-  V(RegExpConstructResult)             \
-  V(CopyFastSmiOrObjectElements)       \
-  V(TransitionElementsKind)            \
-  V(AllocateHeapNumber)                \
-  V(AllocateFloat32x4)                 \
-  V(AllocateInt32x4)                   \
-  V(AllocateUint32x4)                  \
-  V(AllocateBool32x4)                  \
-  V(AllocateInt16x8)                   \
-  V(AllocateUint16x8)                  \
-  V(AllocateBool16x8)                  \
-  V(AllocateInt8x16)                   \
-  V(AllocateUint8x16)                  \
-  V(AllocateBool8x16)                  \
-  V(ArrayNoArgumentConstructor)        \
-  V(ArraySingleArgumentConstructor)    \
-  V(ArrayNArgumentsConstructor)        \
-  V(Compare)                           \
-  V(BinaryOp)                          \
-  V(BinaryOpWithAllocationSite)        \
-  V(BinaryOpWithVector)                \
-  V(CountOp)                           \
-  V(StringAdd)                         \
-  V(StringCompare)                     \
-  V(Keyed)                             \
-  V(Named)                             \
-  V(HasProperty)                       \
-  V(ForInFilter)                       \
-  V(GetProperty)                       \
-  V(CallHandler)                       \
-  V(ArgumentAdaptor)                   \
-  V(ApiCallbackWith0Args)              \
-  V(ApiCallbackWith1Args)              \
-  V(ApiCallbackWith2Args)              \
-  V(ApiCallbackWith3Args)              \
-  V(ApiCallbackWith4Args)              \
-  V(ApiCallbackWith5Args)              \
-  V(ApiCallbackWith6Args)              \
-  V(ApiCallbackWith7Args)              \
-  V(ApiGetter)                         \
-  V(StoreGlobalViaContext)             \
-  V(MathPowTagged)                     \
-  V(MathPowInteger)                    \
-  V(GrowArrayElements)                 \
-  V(InterpreterDispatch)               \
-  V(InterpreterPushArgsAndCall)        \
-  V(InterpreterPushArgsAndConstruct)   \
-  V(InterpreterCEntry)                 \
+#define INTERFACE_DESCRIPTOR_LIST(V)      \
+  V(Void)                                 \
+  V(ContextOnly)                          \
+  V(OnStackWith1Args)                     \
+  V(OnStackWith2Args)                     \
+  V(OnStackWith3Args)                     \
+  V(OnStackWith4Args)                     \
+  V(OnStackWith5Args)                     \
+  V(OnStackWith6Args)                     \
+  V(OnStackWith7Args)                     \
+  V(Load)                                 \
+  V(LoadWithVector)                       \
+  V(LoadGlobal)                           \
+  V(LoadGlobalWithVector)                 \
+  V(Store)                                \
+  V(StoreWithVector)                      \
+  V(StoreTransition)                      \
+  V(VectorStoreTransition)                \
+  V(VarArgFunction)                       \
+  V(FastNewClosure)                       \
+  V(FastNewFunctionContext)               \
+  V(FastNewObject)                        \
+  V(FastNewRestParameter)                 \
+  V(FastNewSloppyArguments)               \
+  V(FastNewStrictArguments)               \
+  V(TypeConversion)                       \
+  V(Typeof)                               \
+  V(FastCloneRegExp)                      \
+  V(FastCloneShallowArray)                \
+  V(FastCloneShallowObject)               \
+  V(CreateAllocationSite)                 \
+  V(CreateWeakCell)                       \
+  V(CallFunction)                         \
+  V(CallFunctionWithFeedback)             \
+  V(CallFunctionWithFeedbackAndVector)    \
+  V(CallConstruct)                        \
+  V(CallTrampoline)                       \
+  V(ConstructStub)                        \
+  V(ConstructTrampoline)                  \
+  V(RegExpConstructResult)                \
+  V(CopyFastSmiOrObjectElements)          \
+  V(TransitionElementsKind)               \
+  V(AllocateHeapNumber)                   \
+  V(AllocateFloat32x4)                    \
+  V(AllocateInt32x4)                      \
+  V(AllocateUint32x4)                     \
+  V(AllocateBool32x4)                     \
+  V(AllocateInt16x8)                      \
+  V(AllocateUint16x8)                     \
+  V(AllocateBool16x8)                     \
+  V(AllocateInt8x16)                      \
+  V(AllocateUint8x16)                     \
+  V(AllocateBool8x16)                     \
+  V(ArrayNoArgumentConstructor)           \
+  V(ArraySingleArgumentConstructor)       \
+  V(ArrayNArgumentsConstructor)           \
+  V(Compare)                              \
+  V(BinaryOp)                             \
+  V(BinaryOpWithAllocationSite)           \
+  V(BinaryOpWithVector)                   \
+  V(CountOp)                              \
+  V(StringAdd)                            \
+  V(StringCompare)                        \
+  V(Keyed)                                \
+  V(Named)                                \
+  V(HasProperty)                          \
+  V(ForInFilter)                          \
+  V(GetProperty)                          \
+  V(CallHandler)                          \
+  V(ArgumentAdaptor)                      \
+  V(ApiCallbackWith0Args)                 \
+  V(ApiCallbackWith1Args)                 \
+  V(ApiCallbackWith2Args)                 \
+  V(ApiCallbackWith3Args)                 \
+  V(ApiCallbackWith4Args)                 \
+  V(ApiCallbackWith5Args)                 \
+  V(ApiCallbackWith6Args)                 \
+  V(ApiCallbackWith7Args)                 \
+  V(ApiGetter)                            \
+  V(StoreGlobalViaContext)                \
+  V(MathPowTagged)                        \
+  V(MathPowInteger)                       \
+  V(GrowArrayElements)                    \
+  V(InterpreterDispatch)                  \
+  V(InterpreterPushArgsAndCall)           \
+  V(InterpreterPushArgsAndConstruct)      \
+  V(InterpreterPushArgsAndConstructArray) \
+  V(InterpreterCEntry)                    \
   V(ResumeGenerator)
 
 class CallInterfaceDescriptorData {
@@ -913,6 +914,12 @@ class InterpreterPushArgsAndConstructDescriptor
                      CallInterfaceDescriptor)
 };
 
+class InterpreterPushArgsAndConstructArrayDescriptor
+    : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(InterpreterPushArgsAndConstructArrayDescriptor,
+                     CallInterfaceDescriptor)
+};
 
 class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
  public:

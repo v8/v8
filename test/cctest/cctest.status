@@ -356,9 +356,6 @@
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
 
-  # TODO(mythria,4780): Related to type feedback support for Array function.
-  'test-feedback-vector/VectorCallFeedbackForArray': [FAIL],
-
   # TODO(mythria,4680): Lack of code-ageing in interpreter.
   'test-heap/Regress169209': [FAIL],
 
@@ -392,7 +389,6 @@
   'test-cpu-profiler/CollectDeoptEvents': [FAIL],
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
-  'test-feedback-vector/VectorCallFeedbackForArray': [FAIL],
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
   'test-heap/Regress169209': [FAIL],
   'test-heap/TestCodeFlushing': [FAIL],
@@ -464,9 +460,6 @@
   'test-heap/TestCodeFlushing': [FAIL],
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
-  # TODO(mythria,4780): Related to type feedback support for Array function.
-  'test-feedback-vector/VectorCallFeedbackForArray': [FAIL],
 
   # TODO(mythria,4680): Lack of code-ageing in interpreter.
   'test-heap/Regress169209': [FAIL],

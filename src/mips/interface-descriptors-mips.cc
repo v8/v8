@@ -398,6 +398,17 @@ void InterpreterPushArgsAndConstructDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void InterpreterPushArgsAndConstructArrayDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      a0,  // argument count (not including receiver)
+      a1,  // the target to call verified to be Array function
+      a2,  // allocation site feedback
+      a3,  // address of first argument
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void InterpreterCEntryDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {

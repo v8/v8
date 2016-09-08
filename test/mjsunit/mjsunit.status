@@ -638,10 +638,6 @@
   # Might trigger stack overflow.
   'unicode-test': [SKIP],
 
-  # TODO(mythria, 4780): Related to lack of allocation site feedback for calls
-  # in interpreter.
-  'array-feedback': [FAIL],
-
   # TODO(4680): Test doesn't know about three tier compiler pipeline.
   'assert-opt-and-deopt': [SKIP],
 
@@ -710,7 +706,6 @@
 
 ##############################################################################
 ['variant == ignition_staging', {
-  'array-feedback': [FAIL],
   'assert-opt-and-deopt': [SKIP],
   'compiler/deopt-inlined-from-call': [FAIL],
   'compiler/increment-typefeedback': [FAIL],
@@ -761,10 +756,6 @@
 
   # Might trigger stack overflow.
   'unicode-test': [SKIP],
-
-  # TODO(mythria, 4780): Related to lack of allocation site feedback for calls
-  # in interpreter.
-  'array-feedback': [FAIL],
 
   'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
   'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],

@@ -785,24 +785,14 @@ void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register num_args,
                                          Register start_address,
-                                         Register scratch, bool push_receiver) {
-  // ----------- S t a t e -------------
-  //  -- rax : the number of arguments (not including the receiver)
-  //  -- rbx : the address of the first argument to be pushed. Subsequent
-  //           arguments should be consecutive above this, in the same order as
-  //           they are to be pushed onto the stack.
-  // -----------------------------------
-
+                                         Register scratch) {
   // Find the address of the last argument.
-  __ movp(scratch, num_args);
-  if (push_receiver) {
-    __ addp(scratch, Immediate(1));  // Add one for receiver.
-  }
-
+  __ Move(scratch, num_args);
   __ shlp(scratch, Immediate(kPointerSizeLog2));
   __ negp(scratch);
   __ addp(scratch, start_address);
 
+  // TODO(mythria): Add a stack check before pushing arguments.
   // Push the arguments.
   Label loop_header, loop_check;
   __ j(always, &loop_check);
@@ -829,9 +819,12 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   // Pop return address to allow tail-call after pushing arguments.
   __ PopReturnAddressTo(kScratchRegister);
 
-  // TODO(mythria): Add a stack check before pushing arguments.
-  // rax is readonly rcx and r8 will be modified.
-  Generate_InterpreterPushArgs(masm, rax, rbx, rcx, true);
+  // Number of values to be pushed.
+  __ Move(rcx, rax);
+  __ addp(rcx, Immediate(1));  // Add one for receiver.
+
+  // rbx and rdx will be modified.
+  Generate_InterpreterPushArgs(masm, rcx, rbx, rdx);
 
   // Call the target.
   __ PushReturnAddressFrom(kScratchRegister);  // Re-push return address.
@@ -868,9 +861,8 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   // Push slot for the receiver to be constructed.
   __ Push(Immediate(0));
 
-  // TODO(mythria): Add a stack check before pushing arguments.
-  // rax is readonly rcx and r8 will be modified.
-  Generate_InterpreterPushArgs(masm, rax, rcx, r8, false);
+  // rcx and r8 will be modified.
+  Generate_InterpreterPushArgs(masm, rax, rcx, r8);
 
   // Push return address in preparation for the tail-call.
   __ PushReturnAddressFrom(kScratchRegister);
@@ -891,6 +883,38 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     // Call the constructor (rax, rdx, rdi passed on).
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
+}
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax : the number of arguments (not including the receiver)
+  //  -- rdx : the target to call checked to be Array function.
+  //  -- rbx : the allocation site feedback
+  //  -- rcx : the address of the first argument to be pushed. Subsequent
+  //           arguments should be consecutive above this, in the same order as
+  //           they are to be pushed onto the stack.
+  // -----------------------------------
+
+  // Pop return address to allow tail-call after pushing arguments.
+  __ PopReturnAddressTo(kScratchRegister);
+
+  // Number of values to be pushed.
+  __ Move(r8, rax);
+  __ addp(r8, Immediate(1));  // Add one for receiver.
+
+  // rcx and rdi will be modified.
+  Generate_InterpreterPushArgs(masm, r8, rcx, rdi);
+
+  // Push return address in preparation for the tail-call.
+  __ PushReturnAddressFrom(kScratchRegister);
+
+  // Array constructor expects constructor in rdi. It is same as rdx here.
+  __ Move(rdi, rdx);
+
+  ArrayConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
