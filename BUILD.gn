@@ -322,6 +322,13 @@ config("toolchain") {
   if (is_android && v8_android_log_stdout) {
     defines += [ "V8_ANDROID_LOG_STDOUT" ]
   }
+  if (!is_win && !is_clang) {
+    # GCC 6+ can optimize away pointer comparisons to null. This is
+    # problematic as V8 encodes Values through tagged pointers and comparisons
+    # with 0 are actually necessary in many cases. As a temporary Workaround
+    # we disable this optimization. See: https://crbug.com/v8/3782
+    cflags += [ "-fno-delete-null-pointer-checks" ]
+  }
 
   # TODO(jochen): Support v8_enable_prof on Windows.
   # TODO(jochen): Add support for compiling with simulators.

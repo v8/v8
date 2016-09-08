@@ -1098,6 +1098,13 @@
           }],
         ],  # conditions
       }],
+      # GCC 6+ can optimize away pointer comparisons to null. This is
+      # problematic as V8 encodes Values through tagged pointers and comparisons
+      # with 0 are actually necessary in many cases. As a temporary Workaround
+      # we disable this optimization. See: https://crbug.com/v8/3782
+      ['OS!="win" and clang==0', {
+        'cflags': [ '-fno-delete-null-pointer-checks' ]
+      }],
       ['OS=="solaris"', {
         'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
       }],
