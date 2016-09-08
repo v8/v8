@@ -751,10 +751,8 @@ const Operator* RepresentationChanger::Int32OverflowOperatorFor(
 const Operator* RepresentationChanger::Uint32OperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
-    case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kNumberAdd:
       return machine()->Int32Add();
-    case IrOpcode::kSpeculativeNumberSubtract:
     case IrOpcode::kNumberSubtract:
       return machine()->Int32Sub();
     case IrOpcode::kSpeculativeNumberMultiply:
