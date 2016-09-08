@@ -4741,6 +4741,28 @@ typedef void (*GenericNamedPropertyDefinerCallback)(
     const PropertyCallbackInfo<Value>& info);
 
 /**
+ * Interceptor for getOwnPropertyDescriptor requests on an object.
+ *
+ * Use `info.GetReturnValue().Set()` to set the return value of the
+ * intercepted request. The return value must be an object that
+ * can be converted to a PropertyDescriptor, e.g., a `v8::value` returned from
+ * `v8::Object::getOwnPropertyDescriptor`.
+ *
+ * \param property The name of the property for which the request was
+ * intercepted.
+ * \info Information about the intercepted request, such as
+ * isolate, receiver, return value, or whether running in `'use strict'` mode.
+ * See `PropertyCallbackInfo`.
+ *
+ * \note If GetOwnPropertyDescriptor is intercepted, it will
+ * always return true, i.e., indicate that the property was found.
+ *
+ * See also `ObjectTemplate::SetNamedPropertyHandler`.
+ */
+typedef void (*GenericNamedPropertyDescriptorCallback)(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info);
+
+/**
  * Returns the value of the property if the getter intercepts the
  * request.  Otherwise, returns an empty handle.
  */
@@ -4788,6 +4810,9 @@ typedef void (*IndexedPropertyEnumeratorCallback)(
 typedef void (*IndexedPropertyDefinerCallback)(
     uint32_t index, const PropertyDescriptor& desc,
     const PropertyCallbackInfo<Value>& info);
+
+typedef void (*IndexedPropertyDescriptorCallback)(
+    uint32_t index, const PropertyCallbackInfo<Value>& info);
 
 /**
  * Access type specification.
@@ -5050,13 +5075,14 @@ struct NamedPropertyHandlerConfiguration {
         deleter(deleter),
         enumerator(enumerator),
         definer(0),
+        descriptor(0),
         data(data),
         flags(flags) {}
 
   NamedPropertyHandlerConfiguration(
       GenericNamedPropertyGetterCallback getter,
       GenericNamedPropertySetterCallback setter,
-      GenericNamedPropertyQueryCallback query,
+      GenericNamedPropertyDescriptorCallback descriptor,
       GenericNamedPropertyDeleterCallback deleter,
       GenericNamedPropertyEnumeratorCallback enumerator,
       GenericNamedPropertyDefinerCallback definer,
@@ -5064,10 +5090,11 @@ struct NamedPropertyHandlerConfiguration {
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
-        query(query),
+        query(0),
         deleter(deleter),
         enumerator(enumerator),
         definer(definer),
+        descriptor(descriptor),
         data(data),
         flags(flags) {}
 
@@ -5077,6 +5104,7 @@ struct NamedPropertyHandlerConfiguration {
   GenericNamedPropertyDeleterCallback deleter;
   GenericNamedPropertyEnumeratorCallback enumerator;
   GenericNamedPropertyDefinerCallback definer;
+  GenericNamedPropertyDescriptorCallback descriptor;
   Local<Value> data;
   PropertyHandlerFlags flags;
 };
@@ -5098,12 +5126,14 @@ struct IndexedPropertyHandlerConfiguration {
         deleter(deleter),
         enumerator(enumerator),
         definer(0),
+        descriptor(0),
         data(data),
         flags(flags) {}
 
   IndexedPropertyHandlerConfiguration(
       IndexedPropertyGetterCallback getter,
-      IndexedPropertySetterCallback setter, IndexedPropertyQueryCallback query,
+      IndexedPropertySetterCallback setter,
+      IndexedPropertyDescriptorCallback descriptor,
       IndexedPropertyDeleterCallback deleter,
       IndexedPropertyEnumeratorCallback enumerator,
       IndexedPropertyDefinerCallback definer,
@@ -5111,10 +5141,11 @@ struct IndexedPropertyHandlerConfiguration {
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
-        query(query),
+        query(0),
         deleter(deleter),
         enumerator(enumerator),
         definer(definer),
+        descriptor(descriptor),
         data(data),
         flags(flags) {}
 
@@ -5124,6 +5155,7 @@ struct IndexedPropertyHandlerConfiguration {
   IndexedPropertyDeleterCallback deleter;
   IndexedPropertyEnumeratorCallback enumerator;
   IndexedPropertyDefinerCallback definer;
+  IndexedPropertyDescriptorCallback descriptor;
   Local<Value> data;
   PropertyHandlerFlags flags;
 };
