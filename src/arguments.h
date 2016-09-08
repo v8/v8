@@ -81,7 +81,6 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
-// TODO(cbruni): Convert the IsContext CHECK back to a DCHECK.
 #define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                             \
   static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));     \
                                                                               \
@@ -95,7 +94,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
   }                                                                           \
                                                                               \
   Type Name(int args_length, Object** args_object, Isolate* isolate) {        \
-    CHECK(isolate->context() == nullptr || isolate->context()->IsContext());  \
+    DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
     CLOBBER_DOUBLE_REGISTERS();                                               \
     if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||       \
                     FLAG_runtime_call_stats)) {                               \
