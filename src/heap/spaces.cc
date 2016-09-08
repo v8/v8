@@ -795,6 +795,12 @@ size_t Page::ShrinkToHighWaterMark() {
   }
   if (filler2 == nullptr || filler2->address() == area_end()) return 0;
   DCHECK(filler2->IsFiller());
+  // The deserializer might leave behind fillers. In this case we need to
+  // iterate even further.
+  while ((filler2->address() + filler2->Size()) != area_end()) {
+    filler2 = HeapObject::FromAddress(filler2->address() + filler2->Size());
+    DCHECK(filler2->IsFiller());
+  }
   DCHECK_EQ(filler->address(), filler2->address());
 #endif  // DEBUG
 
