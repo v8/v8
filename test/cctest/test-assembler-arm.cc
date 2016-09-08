@@ -267,12 +267,12 @@ TEST(4) {
 
     // Load t.x and t.y, switch values, and store back to the struct.
     __ vldr(s0, r4, offsetof(T, x));
-    __ vldr(s31, r4, offsetof(T, y));
-    __ vmov(s16, s0);
-    __ vmov(s0, s31);
-    __ vmov(s31, s16);
+    __ vldr(s1, r4, offsetof(T, y));
+    __ vmov(s2, s0);
+    __ vmov(s0, s1);
+    __ vmov(s1, s2);
     __ vstr(s0, r4, offsetof(T, x));
-    __ vstr(s31, r4, offsetof(T, y));
+    __ vstr(s1, r4, offsetof(T, y));
 
     // Move a literal into a register that can be encoded in the instruction.
     __ vmov(d4, 1.0);
@@ -285,13 +285,13 @@ TEST(4) {
 
     // Convert from floating point to integer.
     __ vmov(d4, 2.0);
-    __ vcvt_s32_f64(s31, d4);
-    __ vstr(s31, r4, offsetof(T, i));
+    __ vcvt_s32_f64(s1, d4);
+    __ vstr(s1, r4, offsetof(T, i));
 
     // Convert from integer to floating point.
     __ mov(lr, Operand(42));
-    __ vmov(s31, lr);
-    __ vcvt_f64_s32(d4, s31);
+    __ vmov(s1, lr);
+    __ vcvt_f64_s32(d4, s1);
     __ vstr(d4, r4, offsetof(T, f));
 
     // Convert from fixed point to floating point.
