@@ -5055,7 +5055,7 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
 
   if (FLAG_stress_compaction) {
     // This will cause more frequent GCs when stressing.
-    max_semi_space_size_ = Page::kPageSize;
+    max_semi_space_size_ = MB;
   }
 
   // The new space size must be a power of two to support single-bit testing

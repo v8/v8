@@ -2356,23 +2356,6 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   }
 }
 
-
-static void FillUpNewSpace(NewSpace* new_space) {
-  // Fill up new space to the point that it is completely full. Make sure
-  // that the scavenger does not undo the filling.
-  Heap* heap = new_space->heap();
-  Isolate* isolate = heap->isolate();
-  Factory* factory = isolate->factory();
-  HandleScope scope(isolate);
-  AlwaysAllocateScope always_allocate(isolate);
-  intptr_t available = new_space->Capacity() - new_space->Size();
-  intptr_t number_of_fillers = (available / FixedArray::SizeFor(32)) - 1;
-  for (intptr_t i = 0; i < number_of_fillers; i++) {
-    CHECK(heap->InNewSpace(*factory->NewFixedArray(32, NOT_TENURED)));
-  }
-}
-
-
 TEST(GrowAndShrinkNewSpace) {
   // Avoid shrinking new space in GC epilogue. This can happen if allocation
   // throughput samples have been taken while executing the benchmark.
@@ -2391,18 +2374,21 @@ TEST(GrowAndShrinkNewSpace) {
   old_capacity = new_space->TotalCapacity();
   new_space->Grow();
   new_capacity = new_space->TotalCapacity();
-  CHECK(2 * old_capacity == new_capacity);
+  CHECK_EQ(2 * old_capacity, new_capacity);
 
   old_capacity = new_space->TotalCapacity();
-  FillUpNewSpace(new_space);
+  {
+    v8::HandleScope temporary_scope(CcTest::isolate());
+    heap::SimulateFullSpace(new_space);
+  }
   new_capacity = new_space->TotalCapacity();
-  CHECK(old_capacity == new_capacity);
+  CHECK_EQ(old_capacity, new_capacity);
 
   // Explicitly shrinking should not affect space capacity.
   old_capacity = new_space->TotalCapacity();
   new_space->Shrink();
   new_capacity = new_space->TotalCapacity();
-  CHECK(old_capacity == new_capacity);
+  CHECK_EQ(old_capacity, new_capacity);
 
   // Let the scavenger empty the new space.
   CcTest::CollectGarbage(NEW_SPACE);
@@ -2412,7 +2398,7 @@ TEST(GrowAndShrinkNewSpace) {
   old_capacity = new_space->TotalCapacity();
   new_space->Shrink();
   new_capacity = new_space->TotalCapacity();
-  CHECK(old_capacity == 2 * new_capacity);
+  CHECK_EQ(old_capacity, 2 * new_capacity);
 
   // Consecutive shrinking should not affect space capacity.
   old_capacity = new_space->TotalCapacity();
@@ -2420,9 +2406,8 @@ TEST(GrowAndShrinkNewSpace) {
   new_space->Shrink();
   new_space->Shrink();
   new_capacity = new_space->TotalCapacity();
-  CHECK(old_capacity == new_capacity);
+  CHECK_EQ(old_capacity, new_capacity);
 }
-
 
 TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   CcTest::InitializeVM();
@@ -2437,13 +2422,15 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   old_capacity = new_space->TotalCapacity();
   new_space->Grow();
   new_capacity = new_space->TotalCapacity();
-  CHECK(2 * old_capacity == new_capacity);
-  FillUpNewSpace(new_space);
+  CHECK_EQ(2 * old_capacity, new_capacity);
+  {
+    v8::HandleScope temporary_scope(CcTest::isolate());
+    heap::SimulateFullSpace(new_space);
+  }
   CcTest::CollectAllAvailableGarbage();
   new_capacity = new_space->TotalCapacity();
-  CHECK(old_capacity == new_capacity);
+  CHECK_EQ(old_capacity, new_capacity);
 }
-
 
 static int NumberOfGlobalObjects() {
   int count = 0;
