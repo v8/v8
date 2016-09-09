@@ -810,9 +810,7 @@ void Heap::ScheduleIdleScavengeIfNeeded(int bytes_allocated) {
 
 void Heap::FinalizeIncrementalMarking(GarbageCollectionReason gc_reason) {
   if (FLAG_trace_incremental_marking) {
-    isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] (%s).\n",
-        Heap::GarbageCollectionReasonToString(gc_reason));
+    isolate()->PrintWithTimestamp("[IncrementalMarking] (%s).\n", gc_reason);
   }
 
   HistogramTimerScope incremental_marking_scope(

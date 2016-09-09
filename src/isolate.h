@@ -1162,7 +1162,7 @@ class Isolate {
 
   bool IsIsolateInBackground() { return is_isolate_in_background_; }
 
-  PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
+  void PrintWithTimestamp(const char* format, ...);
 
  protected:
   explicit Isolate(bool enable_serializer);
