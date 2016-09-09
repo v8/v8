@@ -158,9 +158,7 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
   v8::HandleScope handleScope(isolate);
   v8::Local<v8::StackTrace> stackTrace;
   if (isolate->InContext()) {
-#if V8_MAJOR_VERSION >= 5
     isolate->GetCpuProfiler()->CollectSample();
-#endif
     stackTrace = v8::StackTrace::CurrentStackTrace(isolate, maxStackSize,
                                                    stackTraceOptions);
   }

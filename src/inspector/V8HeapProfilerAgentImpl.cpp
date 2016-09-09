@@ -23,11 +23,9 @@ namespace HeapProfilerAgentState {
 static const char heapProfilerEnabled[] = "heapProfilerEnabled";
 static const char heapObjectsTrackingEnabled[] = "heapObjectsTrackingEnabled";
 static const char allocationTrackingEnabled[] = "allocationTrackingEnabled";
-#if V8_MAJOR_VERSION >= 5
 static const char samplingHeapProfilerEnabled[] = "samplingHeapProfilerEnabled";
 static const char samplingHeapProfilerInterval[] =
     "samplingHeapProfilerInterval";
-#endif
 }
 
 class HeapSnapshotProgress final : public v8::ActivityControl {
@@ -164,7 +162,6 @@ void V8HeapProfilerAgentImpl::restore() {
           HeapProfilerAgentState::heapObjectsTrackingEnabled, false))
     startTrackingHeapObjectsInternal(m_state->booleanProperty(
         HeapProfilerAgentState::allocationTrackingEnabled, false));
-#if V8_MAJOR_VERSION >= 5
   if (m_state->booleanProperty(
           HeapProfilerAgentState::samplingHeapProfilerEnabled, false)) {
     ErrorString error;
@@ -173,7 +170,6 @@ void V8HeapProfilerAgentImpl::restore() {
     DCHECK_GE(samplingInterval, 0);
     startSampling(&error, Maybe<double>(samplingInterval));
   }
-#endif
 }
 
 void V8HeapProfilerAgentImpl::collectGarbage(ErrorString*) {
@@ -202,13 +198,11 @@ void V8HeapProfilerAgentImpl::enable(ErrorString*) {
 
 void V8HeapProfilerAgentImpl::disable(ErrorString* error) {
   stopTrackingHeapObjectsInternal();
-#if V8_MAJOR_VERSION >= 5
   if (m_state->booleanProperty(
           HeapProfilerAgentState::samplingHeapProfilerEnabled, false)) {
     v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
     if (profiler) profiler->StopSamplingHeapProfiler();
   }
-#endif
   m_isolate->GetHeapProfiler()->ClearObjectIds();
   m_state->setBoolean(HeapProfilerAgentState::heapProfilerEnabled, false);
 }
@@ -340,7 +334,6 @@ void V8HeapProfilerAgentImpl::stopTrackingHeapObjectsInternal() {
 
 void V8HeapProfilerAgentImpl::startSampling(
     ErrorString* errorString, const Maybe<double>& samplingInterval) {
-#if V8_MAJOR_VERSION >= 5
   v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
   if (!profiler) {
     *errorString = "Cannot access v8 heap profiler";
@@ -353,18 +346,11 @@ void V8HeapProfilerAgentImpl::startSampling(
                      samplingIntervalValue);
   m_state->setBoolean(HeapProfilerAgentState::samplingHeapProfilerEnabled,
                       true);
-#if V8_MAJOR_VERSION * 1000 + V8_MINOR_VERSION >= 5002
   profiler->StartSamplingHeapProfiler(
       static_cast<uint64_t>(samplingIntervalValue), 128,
       v8::HeapProfiler::kSamplingForceGC);
-#else
-  profiler->StartSamplingHeapProfiler(
-      static_cast<uint64_t>(samplingIntervalValue), 128);
-#endif
-#endif
 }
 
-#if V8_MAJOR_VERSION >= 5
 namespace {
 std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfileNode>
 buildSampingHeapProfileNode(const v8::AllocationProfile::Node* node) {
@@ -392,12 +378,10 @@ buildSampingHeapProfileNode(const v8::AllocationProfile::Node* node) {
   return result;
 }
 }  // namespace
-#endif
 
 void V8HeapProfilerAgentImpl::stopSampling(
     ErrorString* errorString,
     std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfile>* profile) {
-#if V8_MAJOR_VERSION >= 5
   v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
   if (!profiler) {
     *errorString = "Cannot access v8 heap profiler";
@@ -418,7 +402,6 @@ void V8HeapProfilerAgentImpl::stopSampling(
   *profile = protocol::HeapProfiler::SamplingHeapProfile::create()
                  .setHead(buildSampingHeapProfileNode(root))
                  .build();
-#endif
 }
 
 }  // namespace v8_inspector
