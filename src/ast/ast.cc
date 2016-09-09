@@ -649,8 +649,7 @@ void ArrayLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                              FeedbackVectorSlotCache* cache) {
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitArrayLiteral.
-  int array_index = 0;
-  for (; array_index < values()->length(); array_index++) {
+  for (int array_index = 0; array_index < values()->length(); array_index++) {
     Expression* subexpr = values()->at(array_index);
     DCHECK(!subexpr->IsSpread());
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;

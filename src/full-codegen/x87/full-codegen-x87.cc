@@ -1501,8 +1501,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   // Emit code to evaluate all the non-constant subexpressions and to store
   // them into the newly cloned array.
-  int array_index = 0;
-  for (; array_index < length; array_index++) {
+  for (int array_index = 0; array_index < length; array_index++) {
     Expression* subexpr = subexprs->at(array_index);
     DCHECK(!subexpr->IsSpread());
 
@@ -1521,27 +1520,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ mov(StoreDescriptor::ReceiverRegister(), Operand(esp, 0));
     EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
     CallKeyedStoreIC();
-    PrepareForBailoutForId(expr->GetIdForElement(array_index),
-                           BailoutState::NO_REGISTERS);
-  }
-
-  // In case the array literal contains spread expressions it has two parts. The
-  // first part is  the "static" array which has a literal index is  handled
-  // above. The second part is the part after the first spread expression
-  // (inclusive) and these elements gets appended to the array. Note that the
-  // number elements an iterable produces is unknown ahead of time.
-  if (array_index < length && result_saved) {
-    PopOperand(eax);
-    result_saved = false;
-  }
-  for (; array_index < length; array_index++) {
-    Expression* subexpr = subexprs->at(array_index);
-
-    PushOperand(eax);
-    DCHECK(!subexpr->IsSpread());
-    VisitForStackValue(subexpr);
-    CallRuntimeWithOperands(Runtime::kAppendElement);
-
     PrepareForBailoutForId(expr->GetIdForElement(array_index),
                            BailoutState::NO_REGISTERS);
   }

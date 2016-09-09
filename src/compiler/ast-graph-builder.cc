@@ -1948,8 +1948,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
   // Create nodes to evaluate all the non-constant subexpressions and to store
   // them into the newly cloned array.
-  int array_index = 0;
-  for (; array_index < expr->values()->length(); array_index++) {
+  for (int array_index = 0; array_index < expr->values()->length();
+       array_index++) {
     Expression* subexpr = expr->values()->at(array_index);
     DCHECK(!subexpr->IsSpread());
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
@@ -1962,26 +1962,6 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     Node* store = BuildKeyedStore(literal, index, value, pair);
     PrepareFrameState(store, expr->GetIdForElement(array_index),
                       OutputFrameStateCombine::Ignore());
-  }
-
-  // In case the array literal contains spread expressions it has two parts. The
-  // first part is  the "static" array which has a literal index is handled
-  // above. The second part is the part after the first spread expression
-  // (inclusive) and these elements gets appended to the array. Note that the
-  // number elements an iterable produces is unknown ahead of time.
-  for (; array_index < expr->values()->length(); array_index++) {
-    Expression* subexpr = expr->values()->at(array_index);
-    DCHECK(!subexpr->IsSpread());
-
-    VisitForValue(subexpr);
-    {
-      Node* value = environment()->Pop();
-      Node* array = environment()->Pop();
-      const Operator* op = javascript()->CallRuntime(Runtime::kAppendElement);
-      Node* result = NewNode(op, array, value);
-      PrepareFrameState(result, expr->GetIdForElement(array_index));
-      environment()->Push(result);
-    }
   }
 
   ast_context()->ProduceValue(expr, environment()->Pop());
