@@ -121,28 +121,6 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
 
-PreParser::Statement PreParser::ParseHoistableDeclaration(
-    int pos, ParseFunctionFlags flags, ZoneList<const AstRawString*>* names,
-    bool default_export, bool* ok) {
-  const bool is_generator = flags & ParseFunctionFlags::kIsGenerator;
-  const bool is_async = flags & ParseFunctionFlags::kIsAsync;
-  DCHECK(!is_generator || !is_async);
-
-  bool is_strict_reserved = false;
-  Identifier name = ParseIdentifierOrStrictReservedWord(
-      &is_strict_reserved, CHECK_OK);
-
-  ParseFunctionLiteral(name, scanner()->location(),
-                       is_strict_reserved ? kFunctionNameIsStrictReserved
-                                          : kFunctionNameValidityUnknown,
-                       is_generator ? FunctionKind::kGeneratorFunction
-                                    : is_async ? FunctionKind::kAsyncFunction
-                                               : FunctionKind::kNormalFunction,
-                       pos, FunctionLiteral::kDeclaration, language_mode(),
-                       CHECK_OK);
-  return Statement::FunctionDeclaration();
-}
-
 PreParser::Statement PreParser::ParseAsyncFunctionDeclaration(
     ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
   // AsyncFunctionDeclaration ::
@@ -152,23 +130,6 @@ PreParser::Statement PreParser::ParseAsyncFunctionDeclaration(
   int pos = position();
   Expect(Token::FUNCTION, CHECK_OK);
   ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
-  return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
-}
-
-PreParser::Statement PreParser::ParseHoistableDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
-  // FunctionDeclaration ::
-  //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
-  // GeneratorDeclaration ::
-  //   'function' '*' Identifier '(' FormalParameterListopt ')'
-  //      '{' FunctionBody '}'
-
-  Expect(Token::FUNCTION, CHECK_OK);
-  int pos = position();
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
-  if (Check(Token::MUL)) {
-    flags |= ParseFunctionFlags::kIsGenerator;
-  }
   return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
 }
 
@@ -197,6 +158,9 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
       return Statement::Default();
     }
   }
+  // PreParser is not able to parse "export default" yet (since PreParser is
+  // at the moment only used for functions, and it cannot occur
+  // there). TODO(marja): update this when it is.
   return ParseHoistableDeclaration(pos, flags, nullptr, false, ok);
 }
 

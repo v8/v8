@@ -1141,6 +1141,11 @@ class ParserBase {
                                    DeclarationParsingResult* parsing_result,
                                    ZoneList<const AstRawString*>* names,
                                    bool* ok);
+  StatementT ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
+                                       bool default_export, bool* ok);
+  StatementT ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
+                                       ZoneList<const AstRawString*>* names,
+                                       bool default_export, bool* ok);
 
   // Under some circumstances, we allow preparsing to abort if the preparsed
   // function is "long and trivial", and fully parse instead. Our current
@@ -3590,6 +3595,68 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
   DCHECK(*ok);
   return init_block;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT
+ParserBase<Impl>::ParseHoistableDeclaration(
+    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
+  Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
+  int pos = position();
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  if (Check(Token::MUL)) {
+    flags |= ParseFunctionFlags::kIsGenerator;
+  }
+  return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT
+ParserBase<Impl>::ParseHoistableDeclaration(
+    int pos, ParseFunctionFlags flags, ZoneList<const AstRawString*>* names,
+    bool default_export, bool* ok) {
+  // FunctionDeclaration ::
+  //   'function' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
+  //   'function' '(' FormalParameters ')' '{' FunctionBody '}'
+  // GeneratorDeclaration ::
+  //   'function' '*' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
+  //   'function' '*' '(' FormalParameters ')' '{' FunctionBody '}'
+  //
+  // The anonymous forms are allowed iff [default_export] is true.
+  //
+  // 'function' and '*' (if present) have been consumed by the caller.
+
+  const bool is_generator = flags & ParseFunctionFlags::kIsGenerator;
+  const bool is_async = flags & ParseFunctionFlags::kIsAsync;
+  DCHECK(!is_generator || !is_async);
+
+  IdentifierT name;
+  FunctionNameValidity name_validity;
+  IdentifierT variable_name;
+  if (default_export && peek() == Token::LPAREN) {
+    impl()->GetDefaultStrings(&name, &variable_name);
+    name_validity = kSkipFunctionNameCheck;
+  } else {
+    bool is_strict_reserved;
+    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved,
+                                               CHECK_OK_CUSTOM(NullStatement));
+    name_validity = is_strict_reserved ? kFunctionNameIsStrictReserved
+                                       : kFunctionNameValidityUnknown;
+    variable_name = name;
+  }
+
+  FuncNameInferrer::State fni_state(fni_);
+  impl()->PushEnclosingName(name);
+  FunctionLiteralT function = impl()->ParseFunctionLiteral(
+      name, scanner()->location(), name_validity,
+      is_generator ? FunctionKind::kGeneratorFunction
+                   : is_async ? FunctionKind::kAsyncFunction
+                              : FunctionKind::kNormalFunction,
+      pos, FunctionLiteral::kDeclaration, language_mode(),
+      CHECK_OK_CUSTOM(NullStatement));
+
+  return impl()->DeclareFunction(variable_name, function, pos, is_generator,
+                                 is_async, names, ok);
 }
 
 template <typename Impl>

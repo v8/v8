@@ -267,11 +267,6 @@ class Parser : public ParserBase<Parser> {
   };
   ZoneList<const NamedImport*>* ParseNamedImports(int pos, bool* ok);
   Statement* ParseFunctionDeclaration(bool* ok);
-  Statement* ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
-                                       bool default_export, bool* ok);
-  Statement* ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
-                                       ZoneList<const AstRawString*>* names,
-                                       bool default_export, bool* ok);
   Statement* ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
                                            bool default_export, bool* ok);
   Expression* ParseAsyncFunctionExpression(bool* ok);
@@ -285,6 +280,11 @@ class Parser : public ParserBase<Parser> {
       Block* block, const DeclarationDescriptor* declaration_descriptor,
       const DeclarationParsingResult::Declaration* declaration,
       ZoneList<const AstRawString*>* names, bool* ok);
+
+  Statement* DeclareFunction(const AstRawString* variable_name,
+                             FunctionLiteral* function, int pos,
+                             bool is_generator, bool is_async,
+                             ZoneList<const AstRawString*>* names, bool* ok);
 
   DoExpression* ParseDoExpression(bool* ok);
   Expression* ParseYieldStarExpression(bool* ok);
@@ -699,6 +699,13 @@ class Parser : public ParserBase<Parser> {
     return property->value();
   }
 
+  V8_INLINE void GetDefaultStrings(
+      const AstRawString** default_string,
+      const AstRawString** star_default_star_string) {
+    *default_string = ast_value_factory()->default_string();
+    *star_default_star_string = ast_value_factory()->star_default_star_string();
+  }
+
   // Functions for encapsulating the differences between parsing and preparsing;
   // operations interleaved with the recursive descent.
   V8_INLINE void PushLiteralName(const AstRawString* id) {
@@ -718,6 +725,11 @@ class Parser : public ParserBase<Parser> {
     } else {
       fni_->PushLiteralName(ast_value_factory()->anonymous_function_string());
     }
+  }
+
+  V8_INLINE void PushEnclosingName(const AstRawString* name) {
+    DCHECK_NOT_NULL(fni_);
+    fni_->PushEnclosingName(name);
   }
 
   V8_INLINE void InferFunctionName(FunctionLiteral* func_to_infer) {

@@ -393,10 +393,6 @@ class PreParserStatement {
     return PreParserStatement(kJumpStatement);
   }
 
-  static PreParserStatement FunctionDeclaration() {
-    return PreParserStatement(kFunctionDeclaration);
-  }
-
   // Creates expression statement from expression.
   // Preserves being an unparenthesized string literal, possibly
   // "use strict".
@@ -425,10 +421,6 @@ class PreParserStatement {
 
   bool IsUseAsmLiteral() { return code_ == kUseAsmExpressionStatement; }
 
-  bool IsFunctionDeclaration() {
-    return code_ == kFunctionDeclaration;
-  }
-
   bool IsJumpStatement() {
     return code_ == kJumpStatement;
   }
@@ -447,7 +439,6 @@ class PreParserStatement {
     kStringLiteralExpressionStatement,
     kUseStrictExpressionStatement,
     kUseAsmExpressionStatement,
-    kFunctionDeclaration
   };
 
   explicit PreParserStatement(Type code) : code_(code) {}
@@ -764,11 +755,6 @@ class PreParser : public ParserBase<PreParser> {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  Statement ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
-                                      bool default_export, bool* ok);
-  Statement ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
-                                      ZoneList<const AstRawString*>* names,
-                                      bool default_export, bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
   Statement ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
                                           bool default_export, bool* ok);
@@ -885,6 +871,13 @@ class PreParser : public ParserBase<PreParser> {
       const DeclarationParsingResult::Declaration* declaration,
       ZoneList<const AstRawString*>* names, bool* ok) {}
 
+  V8_INLINE PreParserStatement DeclareFunction(
+      PreParserIdentifier variable_name, PreParserExpression function, int pos,
+      bool is_generator, bool is_async, ZoneList<const AstRawString*>* names,
+      bool* ok) {
+    return Statement::Default();
+  }
+
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       PreParserExpression assignment) {}
   V8_INLINE void QueueNonPatternForRewriting(PreParserExpression expr,
@@ -968,11 +961,16 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
+  V8_INLINE static void GetDefaultStrings(
+      PreParserIdentifier* default_string,
+      PreParserIdentifier* star_default_star_string) {}
+
   // Functions for encapsulating the differences between parsing and preparsing;
   // operations interleaved with the recursive descent.
   V8_INLINE static void PushLiteralName(PreParserIdentifier id) {}
   V8_INLINE static void PushVariableName(PreParserIdentifier id) {}
   V8_INLINE void PushPropertyName(PreParserExpression expression) {}
+  V8_INLINE void PushEnclosingName(PreParserIdentifier name) {}
   V8_INLINE static void InferFunctionName(PreParserExpression expression) {}
 
   V8_INLINE static void CheckAssigningFunctionLiteralToProperty(

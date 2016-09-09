@@ -1504,17 +1504,6 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
       pos);
 }
 
-Statement* Parser::ParseHoistableDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
-  Expect(Token::FUNCTION, CHECK_OK);
-  int pos = position();
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
-  if (Check(Token::MUL)) {
-    flags |= ParseFunctionFlags::kIsGenerator;
-  }
-  return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
-}
-
 Statement* Parser::ParseAsyncFunctionDeclaration(
     ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
   DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
@@ -1527,76 +1516,6 @@ Statement* Parser::ParseAsyncFunctionDeclaration(
   Expect(Token::FUNCTION, CHECK_OK);
   ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
   return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
-}
-
-Statement* Parser::ParseHoistableDeclaration(
-    int pos, ParseFunctionFlags flags, ZoneList<const AstRawString*>* names,
-    bool default_export, bool* ok) {
-  // FunctionDeclaration ::
-  //   'function' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
-  //   'function' '(' FormalParameters ')' '{' FunctionBody '}'
-  // GeneratorDeclaration ::
-  //   'function' '*' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
-  //   'function' '*' '(' FormalParameters ')' '{' FunctionBody '}'
-  //
-  // The anonymous forms are allowed iff [default_export] is true.
-  //
-  // 'function' and '*' (if present) have been consumed by the caller.
-
-  const bool is_generator = flags & ParseFunctionFlags::kIsGenerator;
-  const bool is_async = flags & ParseFunctionFlags::kIsAsync;
-  DCHECK(!is_generator || !is_async);
-
-  const AstRawString* name;
-  FunctionNameValidity name_validity;
-  const AstRawString* variable_name;
-  if (default_export && peek() == Token::LPAREN) {
-    name = ast_value_factory()->default_string();
-    name_validity = kSkipFunctionNameCheck;
-    variable_name = ast_value_factory()->star_default_star_string();
-  } else {
-    bool is_strict_reserved;
-    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-    name_validity = is_strict_reserved ? kFunctionNameIsStrictReserved
-                                       : kFunctionNameValidityUnknown;
-    variable_name = name;
-  }
-
-  FuncNameInferrer::State fni_state(fni_);
-  DCHECK_NOT_NULL(fni_);
-  fni_->PushEnclosingName(name);
-  FunctionLiteral* fun = ParseFunctionLiteral(
-      name, scanner()->location(), name_validity,
-      is_generator ? FunctionKind::kGeneratorFunction
-                   : is_async ? FunctionKind::kAsyncFunction
-                              : FunctionKind::kNormalFunction,
-      pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
-
-  // In ES6, a function behaves as a lexical binding, except in
-  // a script scope, or the initial scope of eval or another function.
-  VariableMode mode =
-      (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
-                                                                       : VAR;
-  VariableProxy* proxy = NewUnresolved(variable_name);
-  Declaration* declaration =
-      factory()->NewFunctionDeclaration(proxy, fun, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
-          CHECK_OK);
-  if (names) names->Add(variable_name, zone());
-  // Async functions don't undergo sloppy mode block scoped hoisting, and don't
-  // allow duplicates in a block. Both are represented by the
-  // sloppy_block_function_map. Don't add them to the map for async functions.
-  // Generators are also supposed to be prohibited; currently doing this behind
-  // a flag and UseCounting violations to assess web compatibility.
-  if (is_sloppy(language_mode()) && !scope()->is_declaration_scope() &&
-      !is_async && !(allow_harmony_restrictive_generators() && is_generator)) {
-    SloppyBlockFunctionStatement* delegate =
-        factory()->NewSloppyBlockFunctionStatement(scope());
-    DeclarationScope* target_scope = GetDeclarationScope();
-    target_scope->DeclareSloppyBlockFunction(variable_name, delegate);
-    return delegate;
-  }
-  return factory()->NewEmptyStatement(kNoSourcePosition);
 }
 
 Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
@@ -1667,6 +1586,38 @@ void Parser::DeclareAndInitializeVariables(
   DCHECK_NOT_NULL(block);
   PatternRewriter::DeclareAndInitializeVariables(
       this, block, declaration_descriptor, declaration, names, ok);
+}
+
+Statement* Parser::DeclareFunction(const AstRawString* variable_name,
+                                   FunctionLiteral* function, int pos,
+                                   bool is_generator, bool is_async,
+                                   ZoneList<const AstRawString*>* names,
+                                   bool* ok) {
+  // In ES6, a function behaves as a lexical binding, except in
+  // a script scope, or the initial scope of eval or another function.
+  VariableMode mode =
+      (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
+                                                                       : VAR;
+  VariableProxy* proxy = NewUnresolved(variable_name);
+  Declaration* declaration =
+      factory()->NewFunctionDeclaration(proxy, function, scope(), pos);
+  Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
+          CHECK_OK);
+  if (names) names->Add(variable_name, zone());
+  // Async functions don't undergo sloppy mode block scoped hoisting, and don't
+  // allow duplicates in a block. Both are represented by the
+  // sloppy_block_function_map. Don't add them to the map for async functions.
+  // Generators are also supposed to be prohibited; currently doing this behind
+  // a flag and UseCounting violations to assess web compatibility.
+  if (is_sloppy(language_mode()) && !scope()->is_declaration_scope() &&
+      !is_async && !(allow_harmony_restrictive_generators() && is_generator)) {
+    SloppyBlockFunctionStatement* delegate =
+        factory()->NewSloppyBlockFunctionStatement(scope());
+    DeclarationScope* target_scope = GetDeclarationScope();
+    target_scope->DeclareSloppyBlockFunction(variable_name, delegate);
+    return delegate;
+  }
+  return factory()->NewEmptyStatement(kNoSourcePosition);
 }
 
 static bool ContainsLabel(ZoneList<const AstRawString*>* labels,
