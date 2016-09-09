@@ -279,6 +279,6 @@ hooks = [
   {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
     "pattern": ".",
-    "action": ["python", "v8/gypfiles/gyp_v8"],
+    "action": ["python", "v8/gypfiles/gyp_v8", "--running-as-hook"],
   },
 ]
