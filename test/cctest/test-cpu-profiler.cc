@@ -1671,9 +1671,11 @@ static void CheckFunctionDetails(v8::Isolate* isolate,
                                  int script_id, int line, int column) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   CHECK(v8_str(name)->Equals(context, node->GetFunctionName()).FromJust());
+  CHECK_EQ(0, strcmp(name, node->GetFunctionNameStr()));
   CHECK(v8_str(script_name)
             ->Equals(context, node->GetScriptResourceName())
             .FromJust());
+  CHECK_EQ(0, strcmp(script_name, node->GetScriptResourceNameStr()));
   CHECK_EQ(script_id, node->GetScriptId());
   CHECK_EQ(line, node->GetLineNumber());
   CHECK_EQ(column, node->GetColumnNumber());

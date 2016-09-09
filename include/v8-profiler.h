@@ -131,11 +131,25 @@ class V8_EXPORT CpuProfileNode {
   /** Returns function name (empty string for anonymous functions.) */
   Local<String> GetFunctionName() const;
 
+  /**
+   * Returns function name (empty string for anonymous functions.)
+   * The string ownership is *not* passed to the caller. It stays valid until
+   * profile is deleted. The function is thread safe.
+   */
+  const char* GetFunctionNameStr() const;
+
   /** Returns id of the script where function is located. */
   int GetScriptId() const;
 
   /** Returns resource name for script from where the function originates. */
   Local<String> GetScriptResourceName() const;
+
+  /**
+   * Returns resource name for script from where the function originates.
+   * The string ownership is *not* passed to the caller. It stays valid until
+   * profile is deleted. The function is thread safe.
+   */
+  const char* GetScriptResourceNameStr() const;
 
   /**
    * Returns the number, 1-based, of the line where the function originates.
