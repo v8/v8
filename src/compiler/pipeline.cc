@@ -605,6 +605,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (FLAG_native_context_specialization) {
       info()->MarkAsNativeContextSpecializing();
     }
+    if (FLAG_turbo_inlining) {
+      info()->MarkAsInliningEnabled();
+    }
   }
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();

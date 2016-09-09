@@ -51,7 +51,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
   if (isolate_->serializer_enabled()) EnableDeoptimizationSupport();
 
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
-  if (FLAG_turbo_inlining) MarkAsInliningEnabled();
   if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
 }
