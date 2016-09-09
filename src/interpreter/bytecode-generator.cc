@@ -3280,6 +3280,13 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
   // Store the new target we were called with in the given variable.
   builder()->LoadAccumulatorWithRegister(Register::new_target());
   VisitVariableAssignment(variable, Token::INIT, FeedbackVectorSlot::Invalid());
+
+  // TODO(mstarzinger): The <new.target> register is not set by the deoptimizer
+  // and we need to make sure {BytecodeRegisterOptimizer} flushes its state
+  // before a local variable containing the <new.target> is used. Using a label
+  // as below flushes the entire pipeline, we should be more specific here.
+  BytecodeLabel flush_state_label;
+  builder()->Bind(&flush_state_label);
 }
 
 void BytecodeGenerator::VisitFunctionClosureForContext() {
