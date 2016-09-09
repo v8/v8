@@ -5088,9 +5088,7 @@ compiler::Node* ForInFilterStub::Generate(CodeStubAssembler* assembler,
 
   assembler->Bind(&return_to_name);
   {
-    // TODO(cbruni): inline ToName here.
-    Callable callable = CodeFactory::ToName(assembler->isolate());
-    var_result.Bind(assembler->CallStub(callable, context, key));
+    var_result.Bind(assembler->ToName(context, key));
     assembler->Goto(&end);
   }
 

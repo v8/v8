@@ -189,8 +189,8 @@ Callable CodeFactory::ToString(Isolate* isolate) {
 
 // static
 Callable CodeFactory::ToName(Isolate* isolate) {
-  ToNameStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->ToName(),
+                  TypeConversionDescriptor(isolate));
 }
 
 // static

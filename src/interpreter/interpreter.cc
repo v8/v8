@@ -1303,7 +1303,9 @@ void Interpreter::DoUnaryOpWithFeedback(InterpreterAssembler* assembler) {
 //
 // Convert the object referenced by the accumulator to a name.
 void Interpreter::DoToName(InterpreterAssembler* assembler) {
-  Node* result = BuildUnaryOp(CodeFactory::ToName(isolate_), assembler);
+  Node* object = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result = __ ToName(context, object);
   __ StoreRegister(result, __ BytecodeOperandReg(0));
   __ Dispatch();
 }

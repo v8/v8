@@ -44,7 +44,6 @@ class ObjectLiteral;
   V(StoreElement)                             \
   V(SubString)                                \
   V(ToString)                                 \
-  V(ToName)                                   \
   V(StoreIC)                                  \
   V(KeyedStoreIC)                             \
   V(KeyedLoadIC)                              \
@@ -3201,14 +3200,6 @@ class ToStringStub final : public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_PLATFORM_CODE_STUB(ToString, PlatformCodeStub);
-};
-
-class ToNameStub final : public PlatformCodeStub {
- public:
-  explicit ToNameStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_PLATFORM_CODE_STUB(ToName, PlatformCodeStub);
 };
 
 class ToObjectStub final : public TurboFanCodeStub {

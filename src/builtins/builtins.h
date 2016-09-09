@@ -183,6 +183,7 @@ namespace internal {
   TFS(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState,               \
       TypeConversion)                                                         \
   TFS(StringToNumber, BUILTIN, kNoExtraICState, TypeConversion)               \
+  TFS(ToName, BUILTIN, kNoExtraICState, TypeConversion)                       \
   TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
   ASM(ToNumber)                                                               \
                                                                               \

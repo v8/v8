@@ -2381,6 +2381,55 @@ Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::ToName(Node* context, Node* value) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label end(this);
+  Variable var_result(this, MachineRepresentation::kTagged);
+
+  Label is_number(this);
+  GotoIf(WordIsSmi(value), &is_number);
+
+  Label not_name(this);
+  Node* value_instance_type = LoadInstanceType(value);
+  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
+  GotoIf(Int32GreaterThan(value_instance_type, Int32Constant(LAST_NAME_TYPE)),
+         &not_name);
+
+  var_result.Bind(value);
+  Goto(&end);
+
+  Bind(&is_number);
+  {
+    Callable callable = CodeFactory::NumberToString(isolate());
+    var_result.Bind(CallStub(callable, context, value));
+    Goto(&end);
+  }
+
+  Bind(&not_name);
+  {
+    GotoIf(Word32Equal(value_instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
+           &is_number);
+
+    Label not_oddball(this);
+    GotoIf(Word32NotEqual(value_instance_type, Int32Constant(ODDBALL_TYPE)),
+           &not_oddball);
+
+    var_result.Bind(LoadObjectField(value, Oddball::kToStringOffset));
+    Goto(&end);
+
+    Bind(&not_oddball);
+    {
+      var_result.Bind(CallRuntime(Runtime::kToName, context, value));
+      Goto(&end);
+    }
+  }
+
+  Bind(&end);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
                                         uint32_t mask) {
   return Word32Shr(Word32And(word32, Int32Constant(mask)),

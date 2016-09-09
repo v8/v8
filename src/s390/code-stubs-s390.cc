@@ -2466,36 +2466,6 @@ void ToStringStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
-void ToNameStub::Generate(MacroAssembler* masm) {
-  // The ToName stub takes one argument in r2.
-  Label is_number;
-  __ JumpIfSmi(r2, &is_number);
-
-  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  __ CompareObjectType(r2, r3, r3, LAST_NAME_TYPE);
-  // r2: receiver
-  // r3: receiver instance type
-  __ Ret(le);
-
-  Label not_heap_number;
-  __ CmpP(r3, Operand(HEAP_NUMBER_TYPE));
-  __ bne(&not_heap_number);
-  __ bind(&is_number);
-  NumberToStringStub stub(isolate());
-  __ TailCallStub(&stub);
-  __ bind(&not_heap_number);
-
-  Label not_oddball;
-  __ CmpP(r3, Operand(ODDBALL_TYPE));
-  __ bne(&not_oddball);
-  __ LoadP(r2, FieldMemOperand(r2, Oddball::kToStringOffset));
-  __ Ret();
-  __ bind(&not_oddball);
-
-  __ push(r2);  // Push argument.
-  __ TailCallRuntime(Runtime::kToName);
-}
-
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,

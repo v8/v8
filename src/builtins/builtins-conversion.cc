@@ -119,6 +119,16 @@ void Builtins::Generate_StringToNumber(CodeStubAssembler* assembler) {
   assembler->Return(assembler->StringToNumber(context, input));
 }
 
+void Builtins::Generate_ToName(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef TypeConversionDescriptor Descriptor;
+
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->ToName(context, input));
+}
+
 // ES6 section 7.1.3 ToNumber ( argument )
 void Builtins::Generate_NonNumberToNumber(CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
