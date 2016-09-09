@@ -6,6 +6,7 @@
 
 #include "src/ast/context-slot-cache.h"
 #include "src/ast/scopes.h"
+#include "src/ast/variables.h"
 #include "src/bootstrapper.h"
 
 namespace v8 {

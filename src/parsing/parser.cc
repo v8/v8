@@ -1408,7 +1408,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
 }
 
 VariableProxy* Parser::NewUnresolved(const AstRawString* name, int begin_pos,
-                                     int end_pos, Variable::Kind kind) {
+                                     int end_pos, VariableKind kind) {
   return scope()->NewUnresolved(factory(), name, begin_pos, end_pos, kind);
 }
 
@@ -2147,7 +2147,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
           ValidateBindingPattern(CHECK_OK);
         }
         catch_variable = catch_scope->DeclareLocal(
-            name, VAR, kCreatedInitialized, Variable::NORMAL);
+            name, VAR, kCreatedInitialized, NORMAL_VARIABLE);
 
         Expect(Token::RPAREN, CHECK_OK);
 
@@ -3816,7 +3816,7 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
   catch_scope->set_is_hidden();
   Variable* catch_variable =
       catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
-                                kCreatedInitialized, Variable::NORMAL);
+                                kCreatedInitialized, NORMAL_VARIABLE);
   Block* catch_block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
 
   Expression* promise_reject = BuildRejectPromise(
@@ -5433,9 +5433,8 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
     Scope* catch_scope = NewScope(CATCH_SCOPE);
     catch_scope->set_is_hidden();
     const AstRawString* name = ast_value_factory()->dot_catch_string();
-    Variable* catch_variable =
-        catch_scope->DeclareLocal(name, VAR, kCreatedInitialized,
-                                               Variable::NORMAL);
+    Variable* catch_variable = catch_scope->DeclareLocal(
+        name, VAR, kCreatedInitialized, NORMAL_VARIABLE);
 
     try_catch = factory()->NewTryCatchStatementForDesugaring(
         try_block, catch_scope, catch_variable, catch_block, nopos);
@@ -5722,7 +5721,7 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
     Scope* catch_scope = NewScopeWithParent(scope(), CATCH_SCOPE);
     Variable* catch_variable =
         catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
-                                  kCreatedInitialized, Variable::NORMAL);
+                                  kCreatedInitialized, NORMAL_VARIABLE);
     catch_scope->set_is_hidden();
 
     Statement* rethrow;
@@ -5828,7 +5827,7 @@ void Parser::BuildIteratorCloseForCompletion(ZoneList<Statement*>* statements,
     Scope* catch_scope = NewScope(CATCH_SCOPE);
     Variable* catch_variable =
         catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
-                                  kCreatedInitialized, Variable::NORMAL);
+                                  kCreatedInitialized, NORMAL_VARIABLE);
     catch_scope->set_is_hidden();
 
     try_call_return = factory()->NewTryCatchStatement(

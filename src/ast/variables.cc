@@ -13,22 +13,8 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // Implementation Variable.
 
-const char* Variable::Mode2String(VariableMode mode) {
-  switch (mode) {
-    case VAR: return "VAR";
-    case LET: return "LET";
-    case CONST: return "CONST";
-    case DYNAMIC: return "DYNAMIC";
-    case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
-    case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";
-    case TEMPORARY: return "TEMPORARY";
-  }
-  UNREACHABLE();
-  return NULL;
-}
-
 Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
-                   Kind kind, InitializationFlag initialization_flag,
+                   VariableKind kind, InitializationFlag initialization_flag,
                    MaybeAssignedFlag maybe_assigned_flag)
     : scope_(scope),
       name_(name),
@@ -40,7 +26,7 @@ Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
                  VariableModeField::encode(mode) | IsUsedField::encode(false) |
                  ForceContextAllocationField::encode(false) |
                  LocationField::encode(VariableLocation::UNALLOCATED) |
-                 KindField::encode(kind)) {
+                 VariableKindField::encode(kind)) {
   // Var declared variables never need initialization.
   DCHECK(!(mode == VAR && initialization_flag == kNeedsInitialization));
 }

@@ -9,6 +9,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -603,8 +604,8 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
     PrintLiteralIndented(info, value, true);
   } else {
     EmbeddedVector<char, 256> buf;
-    int pos = SNPrintF(buf, "%s (mode = %s", info,
-                       Variable::Mode2String(var->mode()));
+    int pos =
+        SNPrintF(buf, "%s (mode = %s", info, VariableMode2String(var->mode()));
     SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }

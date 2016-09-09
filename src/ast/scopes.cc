@@ -29,7 +29,7 @@ VariableMap::VariableMap(Zone* zone)
 
 Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                const AstRawString* name, VariableMode mode,
-                               Variable::Kind kind,
+                               VariableKind kind,
                                InitializationFlag initialization_flag,
                                MaybeAssignedFlag maybe_assigned_flag,
                                bool* added) {
@@ -135,7 +135,7 @@ DeclarationScope::DeclarationScope(Zone* zone,
 
   // Make sure that if we don't find the global 'this', it won't be declared as
   // a regular dynamic global by predeclaring it with the right variable kind.
-  DeclareDynamicGlobal(ast_value_factory->this_string(), Variable::THIS);
+  DeclareDynamicGlobal(ast_value_factory->this_string(), THIS_VARIABLE);
 }
 
 DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
@@ -235,7 +235,7 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
   // scope_info, as the parser expects that a catch scope always has the catch
   // variable as first and only variable.
   Variable* variable = Declare(zone, this, catch_variable_name, VAR,
-                               Variable::NORMAL, kCreatedInitialized);
+                               NORMAL_VARIABLE, kCreatedInitialized);
   AllocateHeapSlot(variable);
 }
 
@@ -420,9 +420,9 @@ void Scope::DeserializeScopeInfo(Isolate* isolate,
     MaybeAssignedFlag maybe_assigned_flag =
         scope_info_->ContextLocalMaybeAssignedFlag(var);
     VariableLocation location = VariableLocation::CONTEXT;
-    Variable::Kind kind = Variable::NORMAL;
+    VariableKind kind = NORMAL_VARIABLE;
     if (index == scope_info_->ReceiverContextSlotIndex()) {
-      kind = Variable::THIS;
+      kind = THIS_VARIABLE;
     }
 
     Variable* result = variables_.Declare(zone(), this, name, mode, kind,
@@ -593,7 +593,7 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
   bool subclass_constructor = IsSubclassConstructor(function_kind_);
   Variable* var = Declare(
       zone(), this, ast_value_factory->this_string(),
-      subclass_constructor ? CONST : VAR, Variable::THIS,
+      subclass_constructor ? CONST : VAR, THIS_VARIABLE,
       subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
   receiver_ = var;
 }
@@ -614,7 +614,7 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
   // allocated during variable allocation.
   if (arg_variable == nullptr) {
     arguments_ = Declare(zone(), this, ast_value_factory->arguments_string(),
-                         VAR, Variable::ARGUMENTS, kCreatedInitialized);
+                         VAR, ARGUMENTS_VARIABLE, kCreatedInitialized);
   } else {
     arguments_ = arg_variable;
   }
@@ -626,22 +626,21 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
   DCHECK(!is_arrow_scope());
 
   new_target_ = Declare(zone(), this, ast_value_factory->new_target_string(),
-                        CONST, Variable::NORMAL, kCreatedInitialized);
+                        CONST, NORMAL_VARIABLE, kCreatedInitialized);
 
   if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
       IsAccessorFunction(function_kind_)) {
     this_function_ =
         Declare(zone(), this, ast_value_factory->this_function_string(), CONST,
-                Variable::NORMAL, kCreatedInitialized);
+                NORMAL_VARIABLE, kCreatedInitialized);
   }
 }
 
 Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
   DCHECK(is_function_scope());
   DCHECK_NULL(function_);
-  Variable::Kind kind = is_sloppy(language_mode())
-                            ? Variable::SLOPPY_FUNCTION_NAME
-                            : Variable::NORMAL;
+  VariableKind kind = is_sloppy(language_mode()) ? SLOPPY_FUNCTION_NAME_VARIABLE
+                                                 : NORMAL_VARIABLE;
   function_ =
       new (zone()) Variable(this, name, CONST, kind, kCreatedInitialized);
   return function_;
@@ -786,13 +785,13 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
   }
   if (index < 0) return nullptr;  // Nowhere found.
 
-  Variable::Kind kind = Variable::NORMAL;
+  VariableKind kind = NORMAL_VARIABLE;
   if (location == VariableLocation::CONTEXT &&
       index == scope_info_->ReceiverContextSlotIndex()) {
-    kind = Variable::THIS;
+    kind = THIS_VARIABLE;
   }
   // TODO(marja, rossberg): Correctly declare FUNCTION, CLASS, NEW_TARGET, and
-  // ARGUMENTS bindings as their corresponding Variable::Kind.
+  // ARGUMENTS bindings as their corresponding VariableKind.
 
   Variable* var = variables_.Declare(zone(), this, name, mode, kind, init_flag,
                                      maybe_assigned_flag);
@@ -837,8 +836,8 @@ Variable* DeclarationScope::DeclareParameter(
   if (mode == TEMPORARY) {
     var = NewTemporary(name);
   } else {
-    var = Declare(zone(), this, name, mode, Variable::NORMAL,
-                  kCreatedInitialized);
+    var =
+        Declare(zone(), this, name, mode, NORMAL_VARIABLE, kCreatedInitialized);
     // TODO(wingo): Avoid O(n^2) check.
     *is_duplicate = IsDeclaredParameter(name);
   }
@@ -854,7 +853,7 @@ Variable* DeclarationScope::DeclareParameter(
 }
 
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
-                              InitializationFlag init_flag, Variable::Kind kind,
+                              InitializationFlag init_flag, VariableKind kind,
                               MaybeAssignedFlag maybe_assigned_flag) {
   DCHECK(!already_resolved_);
   // This function handles VAR, LET, and CONST modes.  DYNAMIC variables are
@@ -893,7 +892,7 @@ Variable* Scope::DeclareVariable(
     // with this new binding by doing the following:
     // The proxy is bound to a lookup variable to force a dynamic declaration
     // using the DeclareEvalVar or DeclareEvalFunction runtime functions.
-    Variable::Kind kind = Variable::NORMAL;
+    VariableKind kind = NORMAL_VARIABLE;
     // TODO(sigurds) figure out if kNotAssigned is OK here
     var = new (zone()) Variable(this, name, mode, kind, init, kNotAssigned);
     var->AllocateTo(VariableLocation::LOOKUP, -1);
@@ -902,9 +901,9 @@ Variable* Scope::DeclareVariable(
     var = LookupLocal(name);
     if (var == NULL) {
       // Declare the name.
-      Variable::Kind kind = Variable::NORMAL;
+      VariableKind kind = NORMAL_VARIABLE;
       if (is_function_declaration) {
-        kind = Variable::FUNCTION;
+        kind = FUNCTION_VARIABLE;
       }
       var = DeclareLocal(name, mode, init, kind, kNotAssigned);
     } else if (IsLexicalVariableMode(mode) ||
@@ -972,7 +971,7 @@ Variable* Scope::DeclareVariable(
 VariableProxy* Scope::NewUnresolved(AstNodeFactory* factory,
                                     const AstRawString* name,
                                     int start_position, int end_position,
-                                    Variable::Kind kind) {
+                                    VariableKind kind) {
   // Note that we must not share the unresolved variables with
   // the same name because they may be removed selectively via
   // RemoveUnresolved().
@@ -993,7 +992,7 @@ void Scope::AddUnresolved(VariableProxy* proxy) {
 }
 
 Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
-                                                 Variable::Kind kind) {
+                                                 VariableKind kind) {
   DCHECK(is_script_scope());
   return variables_.Declare(zone(), this, name, DYNAMIC_GLOBAL, kind,
                             kCreatedInitialized);
@@ -1022,11 +1021,8 @@ bool Scope::RemoveUnresolved(VariableProxy* var) {
 
 Variable* Scope::NewTemporary(const AstRawString* name) {
   DeclarationScope* scope = GetClosureScope();
-  Variable* var = new(zone()) Variable(scope,
-                                       name,
-                                       TEMPORARY,
-                                       Variable::NORMAL,
-                                       kCreatedInitialized);
+  Variable* var = new (zone())
+      Variable(scope, name, TEMPORARY, NORMAL_VARIABLE, kCreatedInitialized);
   scope->AddLocal(var);
   return var;
 }
@@ -1276,7 +1272,7 @@ static void PrintLocation(Variable* var) {
 
 static void PrintVar(int indent, Variable* var) {
   if (var->is_used() || !var->IsUnallocated()) {
-    Indent(indent, Variable::Mode2String(var->mode()));
+    Indent(indent, VariableMode2String(var->mode()));
     PrintF(" ");
     if (var->raw_name()->IsEmpty())
       PrintF(".%p", reinterpret_cast<void*>(var));
@@ -1423,7 +1419,7 @@ void Scope::CheckZones() {
 Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Declare a new non-local.
   DCHECK(IsDynamicVariableMode(mode));
-  Variable* var = variables_.Declare(zone(), NULL, name, mode, Variable::NORMAL,
+  Variable* var = variables_.Declare(zone(), NULL, name, mode, NORMAL_VARIABLE,
                                      kCreatedInitialized);
   // Allocate it by giving it a dynamic lookup.
   var->AllocateTo(VariableLocation::LOOKUP, -1);
@@ -1468,7 +1464,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, bool declare_free,
     DCHECK(is_script_scope());
     // No binding has been found. Declare a variable on the global object.
     return AsDeclarationScope()->DeclareDynamicGlobal(proxy->raw_name(),
-                                                      Variable::NORMAL);
+                                                      NORMAL_VARIABLE);
   }
 
   DCHECK(!is_script_scope());

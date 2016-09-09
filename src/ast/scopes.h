@@ -5,9 +5,9 @@
 #ifndef V8_AST_SCOPES_H_
 #define V8_AST_SCOPES_H_
 
-#include "src/ast/variables.h"
 #include "src/base/hashmap.h"
 #include "src/globals.h"
+#include "src/objects.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -19,6 +19,7 @@ class AstRawString;
 class Declaration;
 class ParseInfo;
 class SloppyBlockFunctionStatement;
+class StringSet;
 class VariableProxy;
 
 // A hash map to support fast variable declaration and lookup.
@@ -27,7 +28,7 @@ class VariableMap: public ZoneHashMap {
   explicit VariableMap(Zone* zone);
 
   Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, Variable::Kind kind,
+                    VariableMode mode, VariableKind kind,
                     InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                     bool* added = nullptr);
@@ -140,7 +141,7 @@ class Scope: public ZoneObject {
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
-                         InitializationFlag init_flag, Variable::Kind kind,
+                         InitializationFlag init_flag, VariableKind kind,
                          MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   Variable* DeclareVariable(Declaration* declaration, VariableMode mode,
@@ -159,7 +160,7 @@ class Scope: public ZoneObject {
                                const AstRawString* name,
                                int start_position = kNoSourcePosition,
                                int end_position = kNoSourcePosition,
-                               Variable::Kind kind = Variable::NORMAL);
+                               VariableKind kind = NORMAL_VARIABLE);
 
   void AddUnresolved(VariableProxy* proxy);
 
@@ -415,7 +416,7 @@ class Scope: public ZoneObject {
 
  private:
   Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, Variable::Kind kind,
+                    VariableMode mode, VariableKind kind,
                     InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned) {
     bool added;
@@ -649,7 +650,7 @@ class DeclarationScope : public Scope {
   // scope) by a reference to an unresolved variable with no intervening
   // with statements or eval calls.
   Variable* DeclareDynamicGlobal(const AstRawString* name,
-                                 Variable::Kind variable_kind);
+                                 VariableKind variable_kind);
 
   // The variable corresponding to the 'this' value.
   Variable* receiver() {

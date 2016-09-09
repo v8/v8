@@ -915,6 +915,39 @@ enum VariableMode : uint8_t {
   kLastVariableMode = DYNAMIC_LOCAL
 };
 
+// Printing support
+#ifdef DEBUG
+inline const char* VariableMode2String(VariableMode mode) {
+  switch (mode) {
+    case VAR:
+      return "VAR";
+    case LET:
+      return "LET";
+    case CONST:
+      return "CONST";
+    case DYNAMIC:
+      return "DYNAMIC";
+    case DYNAMIC_GLOBAL:
+      return "DYNAMIC_GLOBAL";
+    case DYNAMIC_LOCAL:
+      return "DYNAMIC_LOCAL";
+    case TEMPORARY:
+      return "TEMPORARY";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+#endif
+
+enum VariableKind : uint8_t {
+  NORMAL_VARIABLE,
+  FUNCTION_VARIABLE,
+  THIS_VARIABLE,
+  ARGUMENTS_VARIABLE,
+  SLOPPY_FUNCTION_NAME_VARIABLE,
+  kLastKind = SLOPPY_FUNCTION_NAME_VARIABLE
+};
+
 inline bool IsDynamicVariableMode(VariableMode mode) {
   return mode >= DYNAMIC && mode <= DYNAMIC_LOCAL;
 }

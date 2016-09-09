@@ -1654,7 +1654,7 @@ class VariableProxy final : public Expression {
   friend class AstNodeFactory;
 
   VariableProxy(Variable* var, int start_position, int end_position);
-  VariableProxy(const AstRawString* name, Variable::Kind variable_kind,
+  VariableProxy(const AstRawString* name, VariableKind variable_kind,
                 int start_position, int end_position);
   explicit VariableProxy(const VariableProxy* copy_from);
 
@@ -3247,7 +3247,7 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   VariableProxy* NewVariableProxy(const AstRawString* name,
-                                  Variable::Kind variable_kind,
+                                  VariableKind variable_kind,
                                   int start_position = kNoSourcePosition,
                                   int end_position = kNoSourcePosition) {
     DCHECK_NOT_NULL(name);

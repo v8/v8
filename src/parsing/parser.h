@@ -454,7 +454,7 @@ class Parser : public ParserBase<Parser> {
 
   VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
                                int end_pos = kNoSourcePosition,
-                               Variable::Kind kind = Variable::NORMAL);
+                               VariableKind kind = NORMAL_VARIABLE);
   VariableProxy* NewUnresolved(const AstRawString* name);
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind,
@@ -896,7 +896,7 @@ class Parser : public ParserBase<Parser> {
 
   V8_INLINE Expression* ThisExpression(int pos = kNoSourcePosition) {
     return NewUnresolved(ast_value_factory()->this_string(), pos, pos + 4,
-                         Variable::THIS);
+                         THIS_VARIABLE);
   }
 
   Expression* NewSuperPropertyReference(int pos);

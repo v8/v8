@@ -18,6 +18,7 @@
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -172,10 +172,10 @@ VariableProxy::VariableProxy(Variable* var, int start_position,
 }
 
 VariableProxy::VariableProxy(const AstRawString* name,
-                             Variable::Kind variable_kind, int start_position,
+                             VariableKind variable_kind, int start_position,
                              int end_position)
     : Expression(start_position, kVariableProxy),
-      bit_field_(IsThisField::encode(variable_kind == Variable::THIS) |
+      bit_field_(IsThisField::encode(variable_kind == THIS_VARIABLE) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       end_position_(end_position),
