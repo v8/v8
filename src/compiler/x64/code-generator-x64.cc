@@ -9,6 +9,7 @@
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/wasm/wasm-module.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
 
@@ -258,6 +259,40 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
+};
+
+class WasmOutOfLineTrap final : public OutOfLineCode {
+ public:
+  WasmOutOfLineTrap(CodeGenerator* gen, Address pc, bool frame_elided,
+                    Register context, int32_t position)
+      : OutOfLineCode(gen),
+        pc_(pc),
+        frame_elided_(frame_elided),
+        context_(context),
+        position_(position) {}
+
+  void Generate() final {
+    // TODO(eholk): record pc_ and the current pc in a table so that
+    // the signal handler can find it.
+    USE(pc_);
+
+    if (frame_elided_) {
+      __ EnterFrame(StackFrame::WASM);
+    }
+
+    wasm::TrapReason trap_id = wasm::kTrapMemOutOfBounds;
+    int trap_reason = wasm::WasmOpcodes::TrapReasonToMessageId(trap_id);
+    __ Push(Smi::FromInt(trap_reason));
+    __ Push(Smi::FromInt(position_));
+    __ Move(rsi, context_);
+    __ CallRuntime(Runtime::kThrowWasmError);
+  }
+
+ private:
+  Address pc_;
+  bool frame_elided_;
+  Register context_;
+  int32_t position_;
 };
 
 }  // namespace
@@ -1849,6 +1884,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Movl:
+    case kX64TrapMovl:
       if (instr->HasOutput()) {
         if (instr->addressing_mode() == kMode_None) {
           if (instr->InputAt(0)->IsRegister()) {
@@ -1857,7 +1893,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             __ movl(i.OutputRegister(), i.InputOperand(0));
           }
         } else {
+          Address pc = __ pc();
           __ movl(i.OutputRegister(), i.MemoryOperand());
+
+          if (arch_opcode == kX64TrapMovl) {
+            bool frame_elided = !frame_access_state()->has_frame();
+            new (zone()) WasmOutOfLineTrap(this, pc, frame_elided,
+                                           i.InputRegister(2), i.InputInt32(3));
+          }
         }
         __ AssertZeroExtended(i.OutputRegister());
       } else {

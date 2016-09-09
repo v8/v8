@@ -531,6 +531,10 @@ DEFINE_BOOL(wasm_simd_prototype, false,
 DEFINE_BOOL(wasm_eh_prototype, false,
             "enable prototype exception handling opcodes for wasm")
 
+DEFINE_BOOL(wasm_trap_handler, false,
+            "use signal handlers to catch out of bounds memory access in wasm"
+            " (currently Linux x86_64 only)")
+
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
 // 0x1800 fits in the immediate field of an ARM instruction.

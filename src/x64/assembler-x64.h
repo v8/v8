@@ -1852,6 +1852,8 @@ class Assembler : public AssemblerBase {
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
+  Address pc() const { return pc_; }
+
  protected:
   // Call near indirect
   void call(const Operand& operand);
