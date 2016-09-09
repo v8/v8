@@ -463,11 +463,6 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
   PreParserExpression NewArrayLiteral(PreParserExpressionList values,
-                                      int literal_index,
-                                      int pos) {
-    return PreParserExpression::ArrayLiteral();
-  }
-  PreParserExpression NewArrayLiteral(PreParserExpressionList values,
                                       int first_spread_index, int literal_index,
                                       int pos) {
     return PreParserExpression::ArrayLiteral();
