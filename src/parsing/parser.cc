@@ -4734,7 +4734,10 @@ Expression* Parser::ExpressionListToExpression(ZoneList<Expression*>* args) {
 }
 
 Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
-  // yield %AsyncFunctionAwait(.generator_object, <operand>)
+  // yield do {
+  //   tmp = <operand>;
+  //   tmp = %AsyncFunctionAwait(.generator_object, tmp);
+  // }
   Variable* generator_object_variable =
       function_state_->generator_object_variable();
 
@@ -4744,12 +4747,11 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   const int nopos = kNoSourcePosition;
 
   Variable* temp_var = NewTemporary(ast_value_factory()->empty_string());
-  VariableProxy* temp_proxy = factory()->NewVariableProxy(temp_var);
   Block* do_block = factory()->NewBlock(nullptr, 2, false, nopos);
 
   // Wrap value evaluation to provide a break location.
-  Expression* value_assignment =
-      factory()->NewAssignment(Token::ASSIGN, temp_proxy, value, nopos);
+  Expression* value_assignment = factory()->NewAssignment(
+      Token::ASSIGN, factory()->NewVariableProxy(temp_var), value, nopos);
   do_block->statements()->Add(
       factory()->NewExpressionStatement(value_assignment, value->position()),
       zone());
@@ -4759,12 +4761,14 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   Expression* generator_object =
       factory()->NewVariableProxy(generator_object_variable);
   async_function_await_args->Add(generator_object, zone());
-  async_function_await_args->Add(temp_proxy, zone());
+  async_function_await_args->Add(factory()->NewVariableProxy(temp_var), zone());
   Expression* async_function_await = factory()->NewCallRuntime(
       Context::ASYNC_FUNCTION_AWAIT_INDEX, async_function_await_args, nopos);
+
   // Wrap await to provide a break location between value evaluation and yield.
   Expression* await_assignment = factory()->NewAssignment(
-      Token::ASSIGN, temp_proxy, async_function_await, nopos);
+      Token::ASSIGN, factory()->NewVariableProxy(temp_var),
+      async_function_await, nopos);
   do_block->statements()->Add(
       factory()->NewExpressionStatement(await_assignment, await_pos), zone());
   Expression* do_expr = factory()->NewDoExpression(do_block, temp_var, nopos);
