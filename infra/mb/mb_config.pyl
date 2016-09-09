@@ -614,8 +614,8 @@
     },
 
     'v8_no_i18n': {
-      'gn_args': 'v8_enable_i18n_support=false',
-      'gyp_defines': 'v8_enable_i18n_support=0',
+      'gn_args': 'v8_enable_i18n_support=false icu_use_data_file_flag=false',
+      'gyp_defines': 'v8_enable_i18n_support=0 icu_use_data_file_flag=0',
     },
 
     'v8_enable_disassembler': {
