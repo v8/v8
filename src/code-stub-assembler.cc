@@ -1690,43 +1690,64 @@ Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
   }
 }
 
-Node* CodeStubAssembler::CheckAndGrowElementsCapacity(Node* context,
-                                                      Node* elements,
-                                                      ElementsKind kind,
-                                                      Node* key, Label* fail) {
+Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
+                                                 ElementsKind kind, Node* key,
+                                                 Label* bailout) {
   Node* capacity = LoadFixedArrayBaseLength(elements);
 
   ParameterMode mode = OptimalParameterMode();
   capacity = UntagParameter(capacity, mode);
   key = UntagParameter(key, mode);
 
+  return TryGrowElementsCapacity(object, elements, kind, key, capacity, mode,
+                                 bailout);
+}
+
+Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
+                                                 ElementsKind kind, Node* key,
+                                                 Node* capacity,
+                                                 ParameterMode mode,
+                                                 Label* bailout) {
+  Comment("TryGrowElementsCapacity");
+
   // If the gap growth is too big, fall back to the runtime.
   Node* max_gap = IntPtrOrSmiConstant(JSObject::kMaxGap, mode);
   Node* max_capacity = IntPtrAdd(capacity, max_gap);
-  GotoIf(UintPtrGreaterThanOrEqual(key, max_capacity), fail);
+  GotoIf(UintPtrGreaterThanOrEqual(key, max_capacity), bailout);
 
-  // Calculate the capacity of the new backing tore
+  // Calculate the capacity of the new backing store.
   Node* new_capacity = CalculateNewElementsCapacity(
       IntPtrAdd(key, IntPtrOrSmiConstant(1, mode)), mode);
+  return GrowElementsCapacity(object, elements, kind, kind, capacity,
+                              new_capacity, mode, bailout);
+}
 
+Node* CodeStubAssembler::GrowElementsCapacity(
+    Node* object, Node* elements, ElementsKind from_kind, ElementsKind to_kind,
+    Node* capacity, Node* new_capacity, ParameterMode mode, Label* bailout) {
+  Comment("[ GrowElementsCapacity");
   // If size of the allocation for the new capacity doesn't fit in a page
-  // that we can bump-pointer allocate from, fall back to the runtime,
-  int max_size = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
+  // that we can bump-pointer allocate from, fall back to the runtime.
+  int max_size = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(to_kind);
   GotoIf(UintPtrGreaterThanOrEqual(new_capacity,
                                    IntPtrOrSmiConstant(max_size, mode)),
-         fail);
+         bailout);
 
   // Allocate the new backing store.
-  Node* new_elements = AllocateFixedArray(kind, new_capacity, mode);
+  Node* new_elements = AllocateFixedArray(to_kind, new_capacity, mode);
 
   // Fill in the added capacity in the new store with holes.
-  FillFixedArrayWithValue(kind, new_elements, capacity, new_capacity,
+  FillFixedArrayWithValue(to_kind, new_elements, capacity, new_capacity,
                           Heap::kTheHoleValueRootIndex, mode);
 
   // Copy the elements from the old elements store to the new.
-  CopyFixedArrayElements(kind, elements, new_elements, capacity,
-                         SKIP_WRITE_BARRIER, mode);
+  // The size-check above guarantees that the |new_elements| is allocated
+  // in new space so we can skip the write barrier.
+  CopyFixedArrayElements(from_kind, elements, to_kind, new_elements, capacity,
+                         new_capacity, SKIP_WRITE_BARRIER, mode);
 
+  StoreObjectField(object, JSObject::kElementsOffset, new_elements);
+  Comment("] GrowElementsCapacity");
   return new_elements;
 }
 

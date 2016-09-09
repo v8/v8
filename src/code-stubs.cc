@@ -5798,9 +5798,8 @@ void GrowArrayElementsStub::GenerateAssembly(
   ElementsKind kind = elements_kind();
 
   Node* elements = assembler->LoadElements(object);
-  Node* new_elements = assembler->CheckAndGrowElementsCapacity(
-      context, elements, kind, key, &runtime);
-  assembler->StoreObjectField(object, JSObject::kElementsOffset, new_elements);
+  Node* new_elements =
+      assembler->TryGrowElementsCapacity(object, elements, kind, key, &runtime);
   assembler->Return(new_elements);
 
   assembler->Bind(&runtime);

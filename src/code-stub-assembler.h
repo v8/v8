@@ -366,11 +366,28 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* CalculateNewElementsCapacity(
       compiler::Node* old_capacity, ParameterMode mode = INTEGER_PARAMETERS);
 
-  compiler::Node* CheckAndGrowElementsCapacity(compiler::Node* context,
-                                               compiler::Node* elements,
-                                               ElementsKind kind,
-                                               compiler::Node* key,
-                                               Label* fail);
+  // Tries to grow the |elements| array of given |object| to store the |key|
+  // or bails out if the growing gap is too big. Returns new elements.
+  compiler::Node* TryGrowElementsCapacity(compiler::Node* object,
+                                          compiler::Node* elements,
+                                          ElementsKind kind,
+                                          compiler::Node* key, Label* bailout);
+
+  // Tries to grow the |capacity|-length |elements| array of given |object|
+  // to store the |key| or bails out if the growing gap is too big. Returns
+  // new elements.
+  compiler::Node* TryGrowElementsCapacity(compiler::Node* object,
+                                          compiler::Node* elements,
+                                          ElementsKind kind,
+                                          compiler::Node* key,
+                                          compiler::Node* capacity,
+                                          ParameterMode mode, Label* bailout);
+
+  // Grows elements capacity of given object. Returns new elements.
+  compiler::Node* GrowElementsCapacity(
+      compiler::Node* object, compiler::Node* elements, ElementsKind from_kind,
+      ElementsKind to_kind, compiler::Node* capacity,
+      compiler::Node* new_capacity, ParameterMode mode, Label* bailout);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(compiler::Node* base_allocation,

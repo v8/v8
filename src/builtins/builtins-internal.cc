@@ -108,9 +108,8 @@ void Builtins::Generate_GrowFastDoubleElements(CodeStubAssembler* assembler) {
 
   Label runtime(assembler, CodeStubAssembler::Label::kDeferred);
   Node* elements = assembler->LoadElements(object);
-  elements = assembler->CheckAndGrowElementsCapacity(
-      context, elements, FAST_DOUBLE_ELEMENTS, key, &runtime);
-  assembler->StoreObjectField(object, JSObject::kElementsOffset, elements);
+  elements = assembler->TryGrowElementsCapacity(
+      object, elements, FAST_DOUBLE_ELEMENTS, key, &runtime);
   assembler->Return(elements);
 
   assembler->Bind(&runtime);
@@ -129,9 +128,8 @@ void Builtins::Generate_GrowFastSmiOrObjectElements(
 
   Label runtime(assembler, CodeStubAssembler::Label::kDeferred);
   Node* elements = assembler->LoadElements(object);
-  elements = assembler->CheckAndGrowElementsCapacity(
-      context, elements, FAST_ELEMENTS, key, &runtime);
-  assembler->StoreObjectField(object, JSObject::kElementsOffset, elements);
+  elements = assembler->TryGrowElementsCapacity(object, elements, FAST_ELEMENTS,
+                                                key, &runtime);
   assembler->Return(elements);
 
   assembler->Bind(&runtime);
