@@ -29,8 +29,8 @@ typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
 
 bool Blocks(const OperandSet& set, const InstructionOperand& operand) {
   if (set.find(operand) != set.end()) return true;
-  // Only FP registers alias.
-  if (!operand.IsFPRegister()) return false;
+  // Only FP registers on archs with non-simple aliasing need extra checks.
+  if (!operand.IsFPRegister() || kSimpleFPAliasing) return false;
 
   const LocationOperand& loc = LocationOperand::cast(operand);
   MachineRepresentation rep = loc.representation();
