@@ -1257,6 +1257,13 @@ class RuntimeCallTimerScope {
   }
 
  private:
+  V8_INLINE void Initialize(Isolate* isolate,
+                            RuntimeCallStats::CounterId counter_id) {
+    isolate_ = isolate;
+    RuntimeCallStats::Enter(isolate_->counters()->runtime_call_stats(), &timer_,
+                            counter_id);
+  }
+
   Isolate* isolate_ = nullptr;
   RuntimeCallTimer timer_;
 };

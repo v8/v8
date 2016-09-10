@@ -14,9 +14,7 @@ RuntimeCallTimerScope::RuntimeCallTimerScope(
     Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
   if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
                   FLAG_runtime_call_stats)) {
-    isolate_ = isolate;
-    RuntimeCallStats::Enter(isolate_->counters()->runtime_call_stats(), &timer_,
-                            counter_id);
+    Initialize(isolate, counter_id);
   }
 }
 
@@ -24,7 +22,7 @@ RuntimeCallTimerScope::RuntimeCallTimerScope(
     HeapObject* heap_object, RuntimeCallStats::CounterId counter_id) {
   if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
                   FLAG_runtime_call_stats)) {
-    RuntimeCallTimerScope(heap_object->GetIsolate(), counter_id);
+    Initialize(heap_object->GetIsolate(), counter_id);
   }
 }
 
