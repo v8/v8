@@ -1198,6 +1198,8 @@ class ParserBase {
   // Magical syntax support.
   ExpressionT ParseV8Intrinsic(bool* ok);
 
+  ExpressionT ParseDoExpression(bool* ok);
+
   StatementT ParseDebuggerStatement(bool* ok);
 
   StatementT ParseExpressionOrLabelledStatement(
@@ -1210,6 +1212,11 @@ class ParserBase {
   StatementT ParseReturnStatement(bool* ok);
   StatementT ParseWithStatement(ZoneList<const AstRawString*>* labels,
                                 bool* ok);
+  StatementT ParseDoWhileStatement(ZoneList<const AstRawString*>* labels,
+                                   bool* ok);
+  StatementT ParseWhileStatement(ZoneList<const AstRawString*>* labels,
+                                 bool* ok);
+  StatementT ParseThrowStatement(bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -1759,7 +1766,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::DO:
       if (allow_harmony_do_expressions()) {
         BindingPatternUnexpectedToken();
-        return impl()->ParseDoExpression(ok);
+        return ParseDoExpression(ok);
       }
       break;
 
@@ -4053,6 +4060,18 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic(
   return impl()->NewV8Intrinsic(name, args, pos, ok);
 }
 
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseDoExpression(
+    bool* ok) {
+  // AssignmentExpression ::
+  //     do '{' StatementList '}'
+
+  int pos = peek_position();
+  Expect(Token::DO, CHECK_OK);
+  BlockT block = ParseBlock(nullptr, CHECK_OK);
+  return impl()->RewriteDoExpression(block, pos, ok);
+}
+
 // Redefinition of CHECK_OK for parsing statements.
 #undef CHECK_OK
 #define CHECK_OK CHECK_OK_CUSTOM(NullStatement)
@@ -4235,9 +4254,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::IF:
       return ParseIfStatement(labels, ok);
     case Token::DO:
-      return impl()->ParseDoWhileStatement(labels, ok);
+      return ParseDoWhileStatement(labels, ok);
     case Token::WHILE:
-      return impl()->ParseWhileStatement(labels, ok);
+      return ParseWhileStatement(labels, ok);
     case Token::FOR:
       return impl()->ParseForStatement(labels, ok);
     case Token::CONTINUE:
@@ -4300,7 +4319,7 @@ ParserBase<Impl>::ParseStatementAsUnlabelled(
     case Token::RETURN:
       return ParseReturnStatement(ok);
     case Token::THROW:
-      return impl()->ParseThrowStatement(ok);
+      return ParseThrowStatement(ok);
     case Token::TRY:
       return impl()->ParseTryStatement(ok);
     default:
@@ -4632,6 +4651,71 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
     with_scope->set_end_position(scanner()->location().end_pos);
   }
   return factory()->NewWithStatement(with_scope, expr, body, pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  // DoStatement ::
+  //   'do' Statement 'while' '(' Expression ')' ';'
+
+  auto loop = factory()->NewDoWhileStatement(labels, peek_position());
+  typename Types::Target target(this, loop);
+
+  Expect(Token::DO, CHECK_OK);
+  StatementT body = ParseScopedStatement(nullptr, true, CHECK_OK);
+  Expect(Token::WHILE, CHECK_OK);
+  Expect(Token::LPAREN, CHECK_OK);
+
+  ExpressionT cond = ParseExpression(true, CHECK_OK);
+  Expect(Token::RPAREN, CHECK_OK);
+
+  // Allow do-statements to be terminated with and without
+  // semi-colons. This allows code such as 'do;while(0)return' to
+  // parse, which would not be the case if we had used the
+  // ExpectSemicolon() functionality here.
+  Check(Token::SEMICOLON);
+
+  loop->Initialize(cond, body);
+  return loop;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  // WhileStatement ::
+  //   'while' '(' Expression ')' Statement
+
+  auto loop = factory()->NewWhileStatement(labels, peek_position());
+  typename Types::Target target(this, loop);
+
+  Expect(Token::WHILE, CHECK_OK);
+  Expect(Token::LPAREN, CHECK_OK);
+  ExpressionT cond = ParseExpression(true, CHECK_OK);
+  Expect(Token::RPAREN, CHECK_OK);
+  StatementT body = ParseScopedStatement(nullptr, true, CHECK_OK);
+
+  loop->Initialize(cond, body);
+  return loop;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseThrowStatement(
+    bool* ok) {
+  // ThrowStatement ::
+  //   'throw' Expression ';'
+
+  Expect(Token::THROW, CHECK_OK);
+  int pos = position();
+  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
+    ReportMessage(MessageTemplate::kNewlineAfterThrow);
+    *ok = false;
+    return impl()->NullStatement();
+  }
+  ExpressionT exception = ParseExpression(true, CHECK_OK);
+  ExpectSemicolon(CHECK_OK);
+
+  return impl()->NewThrowStatement(exception, pos);
 }
 
 #undef CHECK_OK

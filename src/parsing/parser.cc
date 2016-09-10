@@ -1702,6 +1702,16 @@ Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
   return return_value;
 }
 
+Expression* Parser::RewriteDoExpression(Block* body, int pos, bool* ok) {
+  Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
+  DoExpression* expr = factory()->NewDoExpression(body, result, pos);
+  if (!Rewriter::Rewrite(this, GetClosureScope(), expr, ast_value_factory())) {
+    *ok = false;
+    return nullptr;
+  }
+  return expr;
+}
+
 Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   Consume(Token::FUNCTION);
   int pos = position();
@@ -1824,26 +1834,6 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
 
   return switch_block;
 }
-
-
-Statement* Parser::ParseThrowStatement(bool* ok) {
-  // ThrowStatement ::
-  //   'throw' Expression ';'
-
-  Expect(Token::THROW, CHECK_OK);
-  int pos = position();
-  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
-    ReportMessage(MessageTemplate::kNewlineAfterThrow);
-    *ok = false;
-    return NULL;
-  }
-  Expression* exception = ParseExpression(true, CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
-
-  return factory()->NewExpressionStatement(
-      factory()->NewThrow(exception, pos), pos);
-}
-
 
 TryStatement* Parser::ParseTryStatement(bool* ok) {
   // TryStatement ::
@@ -2035,53 +2025,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   }
 
   return result;
-}
-
-
-DoWhileStatement* Parser::ParseDoWhileStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
-  // DoStatement ::
-  //   'do' Statement 'while' '(' Expression ')' ';'
-
-  DoWhileStatement* loop =
-      factory()->NewDoWhileStatement(labels, peek_position());
-  ParserTarget target(this, loop);
-
-  Expect(Token::DO, CHECK_OK);
-  Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
-  Expect(Token::WHILE, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-
-  Expression* cond = ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
-
-  // Allow do-statements to be terminated with and without
-  // semi-colons. This allows code such as 'do;while(0)return' to
-  // parse, which would not be the case if we had used the
-  // ExpectSemicolon() functionality here.
-  if (peek() == Token::SEMICOLON) Consume(Token::SEMICOLON);
-
-  if (loop != NULL) loop->Initialize(cond, body);
-  return loop;
-}
-
-
-WhileStatement* Parser::ParseWhileStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
-  // WhileStatement ::
-  //   'while' '(' Expression ')' Statement
-
-  WhileStatement* loop = factory()->NewWhileStatement(labels, peek_position());
-  ParserTarget target(this, loop);
-
-  Expect(Token::WHILE, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  Expression* cond = ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
-  Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
-
-  if (loop != NULL) loop->Initialize(cond, body);
-  return loop;
 }
 
 
@@ -2957,22 +2900,6 @@ void Parser::DesugarAsyncFunctionBody(Scope* scope, ZoneList<Statement*>* body,
   block = BuildRejectPromiseOnException(block, CHECK_OK_VOID);
   body->Add(block, zone());
   scope->set_end_position(scanner()->location().end_pos);
-}
-
-DoExpression* Parser::ParseDoExpression(bool* ok) {
-  // AssignmentExpression ::
-  //     do '{' StatementList '}'
-  int pos = peek_position();
-
-  Expect(Token::DO, CHECK_OK);
-  Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
-  Block* block = ParseBlock(nullptr, CHECK_OK);
-  DoExpression* expr = factory()->NewDoExpression(block, result, pos);
-  if (!Rewriter::Rewrite(this, GetClosureScope(), expr, ast_value_factory())) {
-    *ok = false;
-    return nullptr;
-  }
-  return expr;
 }
 
 void Parser::ParseArrowFunctionFormalParameterList(

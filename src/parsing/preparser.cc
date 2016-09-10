@@ -200,34 +200,6 @@ PreParser::Statement PreParser::ParseSwitchStatement(
   return Statement::Default();
 }
 
-PreParser::Statement PreParser::ParseDoWhileStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
-  // DoStatement ::
-  //   'do' Statement 'while' '(' Expression ')' ';'
-
-  Expect(Token::DO, CHECK_OK);
-  ParseScopedStatement(nullptr, true, CHECK_OK);
-  Expect(Token::WHILE, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, ok);
-  if (peek() == Token::SEMICOLON) Consume(Token::SEMICOLON);
-  return Statement::Default();
-}
-
-PreParser::Statement PreParser::ParseWhileStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
-  // WhileStatement ::
-  //   'while' '(' Expression ')' Statement
-
-  Expect(Token::WHILE, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
-  ParseScopedStatement(nullptr, true, ok);
-  return Statement::Default();
-}
-
 PreParser::Statement PreParser::ParseForStatement(
     ZoneList<const AstRawString*>* labels, bool* ok) {
   // ForStatement ::
@@ -359,22 +331,6 @@ PreParser::Statement PreParser::ParseForStatement(
     ParseScopedStatement(nullptr, true, ok);
   }
   return Statement::Default();
-}
-
-
-PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
-  // ThrowStatement ::
-  //   'throw' [no line terminator] Expression ';'
-
-  Expect(Token::THROW, CHECK_OK);
-  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
-    ReportMessageAt(scanner()->location(), MessageTemplate::kNewlineAfterThrow);
-    *ok = false;
-    return Statement::Default();
-  }
-  ParseExpression(true, CHECK_OK);
-  ExpectSemicolon(ok);
-  return Statement::Jump();
 }
 
 
@@ -607,18 +563,6 @@ PreParserExpression PreParser::ParseClassLiteral(
   Expect(Token::RBRACE, CHECK_OK);
 
   return Expression::Default();
-}
-
-PreParserExpression PreParser::ParseDoExpression(bool* ok) {
-  // AssignmentExpression ::
-  //     do '{' StatementList '}'
-  Expect(Token::DO, CHECK_OK);
-  Expect(Token::LBRACE, CHECK_OK);
-  while (peek() != Token::RBRACE) {
-    ParseStatementListItem(CHECK_OK);
-  }
-  Expect(Token::RBRACE, CHECK_OK);
-  return PreParserExpression::Default();
 }
 
 void PreParser::ParseAsyncArrowSingleExpressionBody(PreParserStatementList body,

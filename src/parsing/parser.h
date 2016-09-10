@@ -287,7 +287,6 @@ class Parser : public ParserBase<Parser> {
                              bool is_generator, bool is_async,
                              ZoneList<const AstRawString*>* names, bool* ok);
 
-  DoExpression* ParseDoExpression(bool* ok);
   Expression* ParseYieldStarExpression(bool* ok);
 
   class PatternRewriter final : public AstVisitor<PatternRewriter> {
@@ -374,12 +373,7 @@ class Parser : public ParserBase<Parser> {
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
   Statement* ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
                                   bool* ok);
-  DoWhileStatement* ParseDoWhileStatement(ZoneList<const AstRawString*>* labels,
-                                          bool* ok);
-  WhileStatement* ParseWhileStatement(ZoneList<const AstRawString*>* labels,
-                                      bool* ok);
   Statement* ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
-  Statement* ParseThrowStatement(bool* ok);
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
   TryStatement* ParseTryStatement(bool* ok);
 
@@ -407,7 +401,7 @@ class Parser : public ParserBase<Parser> {
                                 FunctionKind kind, FunctionBodyType type,
                                 bool accept_IN, int pos, bool* ok);
 
-  void RewriteDoExpression(Expression* expr, bool* ok);
+  Expression* RewriteDoExpression(Block* body, int pos, bool* ok);
 
   FunctionLiteral* ParseFunctionLiteral(
       const AstRawString* name, Scanner::Location function_name_location,
@@ -954,6 +948,11 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE Expression* NewV8Intrinsic(const AstRawString* name,
                                        ZoneList<Expression*>* args, int pos,
                                        bool* ok);
+
+  V8_INLINE Statement* NewThrowStatement(Expression* exception, int pos) {
+    return factory()->NewExpressionStatement(
+        factory()->NewThrow(exception, pos), pos);
+  }
 
   V8_INLINE void AddParameterInitializationBlock(
       const ParserFormalParameters& parameters, ZoneList<Statement*>* body,

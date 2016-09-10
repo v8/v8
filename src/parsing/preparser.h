@@ -448,6 +448,7 @@ class PreParserStatement {
 
   PreParserStatementList statements() { return PreParserStatementList(); }
   void set_scope(Scope* scope) {}
+  void Initialize(PreParserExpression cond, PreParserStatement body) {}
 
  private:
   enum Type {
@@ -640,6 +641,16 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
 
+  PreParserStatement NewDoWhileStatement(ZoneList<const AstRawString*>* labels,
+                                         int pos) {
+    return PreParserStatement::Default();
+  }
+
+  PreParserStatement NewWhileStatement(ZoneList<const AstRawString*>* labels,
+                                       int pos) {
+    return PreParserStatement::Default();
+  }
+
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }
@@ -805,16 +816,10 @@ class PreParser : public ParserBase<PreParser> {
                                   bool default_export, bool* ok);
   Statement ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
                                  bool* ok);
-  Statement ParseDoWhileStatement(ZoneList<const AstRawString*>* labels,
-                                  bool* ok);
-  Statement ParseWhileStatement(ZoneList<const AstRawString*>* labels,
-                                bool* ok);
   Statement ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
-  Statement ParseThrowStatement(bool* ok);
   Statement ParseTryStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseObjectLiteral(bool* ok);
-  Expression ParseDoExpression(bool* ok);
 
   V8_INLINE PreParserStatementList ParseEagerFunctionBody(
       PreParserIdentifier function_name, int pos,
@@ -927,6 +932,11 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression RewriteReturn(PreParserExpression return_value,
                                               int pos) {
     return return_value;
+  }
+
+  V8_INLINE PreParserExpression RewriteDoExpression(PreParserStatement body,
+                                                    int pos, bool* ok) {
+    return PreParserExpression::Default();
   }
 
   // TODO(nikolaos): The preparser currently does not keep track of labels
@@ -1256,6 +1266,11 @@ class PreParser : public ParserBase<PreParser> {
   NewV8Intrinsic(PreParserIdentifier name, PreParserExpressionList arguments,
                  int pos, bool* ok) {
     return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserStatement NewThrowStatement(PreParserExpression exception,
+                                                 int pos) {
+    return PreParserStatement::Jump();
   }
 
   V8_INLINE void AddParameterInitializationBlock(
