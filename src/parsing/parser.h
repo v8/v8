@@ -157,6 +157,8 @@ struct ParserTypes<Parser> {
   typedef v8::internal::Statement* Statement;
   typedef ZoneList<v8::internal::Statement*>* StatementList;
   typedef v8::internal::Block* Block;
+  typedef v8::internal::BreakableStatement* BreakableStatementT;
+  typedef v8::internal::IterationStatement* IterationStatementT;
 
   // For constructing objects returned by the traversing functions.
   typedef AstNodeFactory Factory;
@@ -203,12 +205,6 @@ class Parser : public ParserBase<Parser> {
 
   enum class FunctionBodyType { kNormal, kSingleExpression };
 
-  DeclarationScope* GetDeclarationScope() const {
-    return scope()->GetDeclarationScope();
-  }
-  DeclarationScope* GetClosureScope() const {
-    return scope()->GetClosureScope();
-  }
   Variable* NewTemporary(const AstRawString* name) {
     return scope()->NewTemporary(name);
   }
@@ -280,6 +276,11 @@ class Parser : public ParserBase<Parser> {
       Block* block, const DeclarationDescriptor* declaration_descriptor,
       const DeclarationParsingResult::Declaration* declaration,
       ZoneList<const AstRawString*>* names, bool* ok);
+  ZoneList<const AstRawString*>* DeclareLabel(
+      ZoneList<const AstRawString*>* labels, VariableProxy* expr, bool* ok);
+  bool ContainsLabel(ZoneList<const AstRawString*>* labels,
+                     const AstRawString* label);
+  Expression* RewriteReturn(Expression* return_value, int pos);
 
   Statement* DeclareFunction(const AstRawString* variable_name,
                              FunctionLiteral* function, int pos,
@@ -370,17 +371,6 @@ class Parser : public ParserBase<Parser> {
     DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
   };
 
-  Statement* ParseExpressionOrLabelledStatement(
-      ZoneList<const AstRawString*>* labels,
-      AllowLabelledFunctionStatement allow_function, bool* ok);
-  IfStatement* ParseIfStatement(ZoneList<const AstRawString*>* labels,
-                                bool* ok);
-  Statement* ParseContinueStatement(bool* ok);
-  Statement* ParseBreakStatement(ZoneList<const AstRawString*>* labels,
-                                 bool* ok);
-  Statement* ParseReturnStatement(bool* ok);
-  Statement* ParseWithStatement(ZoneList<const AstRawString*>* labels,
-                                bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
   Statement* ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
                                   bool* ok);
@@ -641,14 +631,22 @@ class Parser : public ParserBase<Parser> {
            property->obj()->AsVariableProxy()->is_this();
   }
 
+  // This returns true if the expression is an indentifier (wrapped
+  // inside a variable proxy).  We exclude the case of 'this', which
+  // has been converted to a variable proxy.
   V8_INLINE static bool IsIdentifier(Expression* expression) {
+    DCHECK_NOT_NULL(expression);
     VariableProxy* operand = expression->AsVariableProxy();
-    return operand != NULL && !operand->is_this();
+    return operand != nullptr && !operand->is_this();
   }
 
   V8_INLINE static const AstRawString* AsIdentifier(Expression* expression) {
     DCHECK(IsIdentifier(expression));
     return expression->AsVariableProxy()->raw_name();
+  }
+
+  V8_INLINE VariableProxy* AsIdentifierExpression(Expression* expression) {
+    return expression->AsVariableProxy();
   }
 
   V8_INLINE bool IsPrototype(const AstRawString* identifier) const {
@@ -668,6 +666,13 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE static bool IsBoilerplateProperty(
       ObjectLiteral::Property* property) {
     return ObjectLiteral::IsBoilerplateProperty(property);
+  }
+
+  V8_INLINE bool IsNative(Expression* expr) const {
+    DCHECK_NOT_NULL(expr);
+    return expr->IsVariableProxy() &&
+           expr->AsVariableProxy()->raw_name() ==
+               ast_value_factory()->native_string();
   }
 
   V8_INLINE static bool IsArrayIndex(const AstRawString* string,
@@ -835,6 +840,9 @@ class Parser : public ParserBase<Parser> {
 
   // "null" return type creators.
   V8_INLINE static const AstRawString* EmptyIdentifier() { return nullptr; }
+  V8_INLINE static bool IsEmptyIdentifier(const AstRawString* name) {
+    return name == nullptr;
+  }
   V8_INLINE static Expression* EmptyExpression() { return nullptr; }
   V8_INLINE static Literal* EmptyLiteral() { return nullptr; }
   V8_INLINE static ObjectLiteralProperty* EmptyObjectLiteralProperty() {
@@ -862,8 +870,10 @@ class Parser : public ParserBase<Parser> {
     return stmts == nullptr;
   }
   V8_INLINE static Statement* NullStatement() { return nullptr; }
-  V8_INLINE bool IsNullOrEmptyStatement(Statement* stmt) {
-    return stmt == nullptr || stmt->IsEmpty();
+  V8_INLINE bool IsNullStatement(Statement* stmt) { return stmt == nullptr; }
+  V8_INLINE bool IsEmptyStatement(Statement* stmt) {
+    DCHECK_NOT_NULL(stmt);
+    return stmt->IsEmpty();
   }
 
   // Non-NULL empty string.

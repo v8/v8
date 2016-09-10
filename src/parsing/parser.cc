@@ -1620,17 +1620,86 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   return factory()->NewEmptyStatement(kNoSourcePosition);
 }
 
-static bool ContainsLabel(ZoneList<const AstRawString*>* labels,
-                          const AstRawString* label) {
-  DCHECK(label != NULL);
-  if (labels != NULL) {
-    for (int i = labels->length(); i-- > 0; ) {
-      if (labels->at(i) == label) {
-        return true;
-      }
+ZoneList<const AstRawString*>* Parser::DeclareLabel(
+    ZoneList<const AstRawString*>* labels, VariableProxy* var, bool* ok) {
+  const AstRawString* label = var->raw_name();
+  // TODO(1240780): We don't check for redeclaration of labels
+  // during preparsing since keeping track of the set of active
+  // labels requires nontrivial changes to the way scopes are
+  // structured.  However, these are probably changes we want to
+  // make later anyway so we should go back and fix this then.
+  if (ContainsLabel(labels, label) || TargetStackContainsLabel(label)) {
+    ReportMessage(MessageTemplate::kLabelRedeclaration, label);
+    *ok = false;
+    return nullptr;
+  }
+  if (labels == nullptr) {
+    labels = new (zone()) ZoneList<const AstRawString*>(1, zone());
+  }
+  labels->Add(label, zone());
+  // Remove the "ghost" variable that turned out to be a label
+  // from the top scope. This way, we don't try to resolve it
+  // during the scope processing.
+  scope()->RemoveUnresolved(var);
+  return labels;
+}
+
+bool Parser::ContainsLabel(ZoneList<const AstRawString*>* labels,
+                           const AstRawString* label) {
+  DCHECK_NOT_NULL(label);
+  if (labels != nullptr) {
+    for (int i = labels->length(); i-- > 0;) {
+      if (labels->at(i) == label) return true;
     }
   }
   return false;
+}
+
+Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
+  if (IsSubclassConstructor(function_state_->kind())) {
+    // For subclass constructors we need to return this in case of undefined
+    // return a Smi (transformed into an exception in the ConstructStub)
+    // for a non object.
+    //
+    //   return expr;
+    //
+    // Is rewritten as:
+    //
+    //   return (temp = expr) === undefined ? this :
+    //       %_IsJSReceiver(temp) ? temp : 1;
+
+    // temp = expr
+    Variable* temp = NewTemporary(ast_value_factory()->empty_string());
+    Assignment* assign = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(temp), return_value, pos);
+
+    // %_IsJSReceiver(temp)
+    ZoneList<Expression*>* is_spec_object_args =
+        new (zone()) ZoneList<Expression*>(1, zone());
+    is_spec_object_args->Add(factory()->NewVariableProxy(temp), zone());
+    Expression* is_spec_object_call = factory()->NewCallRuntime(
+        Runtime::kInlineIsJSReceiver, is_spec_object_args, pos);
+
+    // %_IsJSReceiver(temp) ? temp : 1;
+    Expression* is_object_conditional = factory()->NewConditional(
+        is_spec_object_call, factory()->NewVariableProxy(temp),
+        factory()->NewSmiLiteral(1, pos), pos);
+
+    // temp === undefined
+    Expression* is_undefined = factory()->NewCompareOperation(
+        Token::EQ_STRICT, assign,
+        factory()->NewUndefinedLiteral(kNoSourcePosition), pos);
+
+    // is_undefined ? this : is_object_conditional
+    return_value = factory()->NewConditional(is_undefined, ThisExpression(pos),
+                                             is_object_conditional, pos);
+  }
+  if (is_generator()) {
+    return_value = BuildIteratorResult(return_value, true);
+  } else if (is_async_function()) {
+    return_value = BuildResolvePromise(return_value, return_value->position());
+  }
+  return return_value;
 }
 
 Statement* Parser::ParseFunctionDeclaration(bool* ok) {
@@ -1649,304 +1718,6 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
 
   return ParseHoistableDeclaration(pos, flags, nullptr, false, CHECK_OK);
 }
-
-Statement* Parser::ParseExpressionOrLabelledStatement(
-    ZoneList<const AstRawString*>* labels,
-    AllowLabelledFunctionStatement allow_function, bool* ok) {
-  // ExpressionStatement | LabelledStatement ::
-  //   Expression ';'
-  //   Identifier ':' Statement
-  //
-  // ExpressionStatement[Yield] :
-  //   [lookahead ∉ {{, function, class, let [}] Expression[In, ?Yield] ;
-
-  int pos = peek_position();
-
-  switch (peek()) {
-    case Token::FUNCTION:
-    case Token::LBRACE:
-      UNREACHABLE();  // Always handled by the callers.
-    case Token::CLASS:
-      ReportUnexpectedToken(Next());
-      *ok = false;
-      return nullptr;
-    default:
-      break;
-  }
-
-  bool starts_with_idenfifier = peek_any_identifier();
-  Expression* expr = ParseExpression(true, CHECK_OK);
-  if (peek() == Token::COLON && starts_with_idenfifier && expr != NULL &&
-      expr->AsVariableProxy() != NULL &&
-      !expr->AsVariableProxy()->is_this()) {
-    // Expression is a single identifier, and not, e.g., a parenthesized
-    // identifier.
-    VariableProxy* var = expr->AsVariableProxy();
-    const AstRawString* label = var->raw_name();
-    // TODO(1240780): We don't check for redeclaration of labels
-    // during preparsing since keeping track of the set of active
-    // labels requires nontrivial changes to the way scopes are
-    // structured.  However, these are probably changes we want to
-    // make later anyway so we should go back and fix this then.
-    if (ContainsLabel(labels, label) || TargetStackContainsLabel(label)) {
-      ReportMessage(MessageTemplate::kLabelRedeclaration, label);
-      *ok = false;
-      return NULL;
-    }
-    if (labels == NULL) {
-      labels = new(zone()) ZoneList<const AstRawString*>(4, zone());
-    }
-    labels->Add(label, zone());
-    // Remove the "ghost" variable that turned out to be a label
-    // from the top scope. This way, we don't try to resolve it
-    // during the scope processing.
-    scope()->RemoveUnresolved(var);
-    Expect(Token::COLON, CHECK_OK);
-    // ES#sec-labelled-function-declarations Labelled Function Declarations
-    if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
-      if (allow_function == kAllowLabelledFunctionStatement) {
-        return ParseFunctionDeclaration(ok);
-      } else {
-        return ParseScopedStatement(labels, true, ok);
-      }
-    }
-    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
-  }
-
-  // If we have an extension, we allow a native function declaration.
-  // A native function declaration starts with "native function" with
-  // no line-terminator between the two words.
-  if (extension_ != NULL && peek() == Token::FUNCTION &&
-      !scanner()->HasAnyLineTerminatorBeforeNext() && expr != NULL &&
-      expr->AsVariableProxy() != NULL &&
-      expr->AsVariableProxy()->raw_name() ==
-          ast_value_factory()->native_string() &&
-      !scanner()->literal_contains_escapes()) {
-    return ParseNativeDeclaration(ok);
-  }
-
-  // Parsed expression statement, followed by semicolon.
-  ExpectSemicolon(CHECK_OK);
-  return factory()->NewExpressionStatement(expr, pos);
-}
-
-
-IfStatement* Parser::ParseIfStatement(ZoneList<const AstRawString*>* labels,
-                                      bool* ok) {
-  // IfStatement ::
-  //   'if' '(' Expression ')' Statement ('else' Statement)?
-
-  int pos = peek_position();
-  Expect(Token::IF, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  Expression* condition = ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
-  Statement* then_statement = ParseScopedStatement(labels, false, CHECK_OK);
-  Statement* else_statement = NULL;
-  if (peek() == Token::ELSE) {
-    Next();
-    else_statement = ParseScopedStatement(labels, false, CHECK_OK);
-  } else {
-    else_statement = factory()->NewEmptyStatement(kNoSourcePosition);
-  }
-  return factory()->NewIfStatement(
-      condition, then_statement, else_statement, pos);
-}
-
-
-Statement* Parser::ParseContinueStatement(bool* ok) {
-  // ContinueStatement ::
-  //   'continue' Identifier? ';'
-
-  int pos = peek_position();
-  Expect(Token::CONTINUE, CHECK_OK);
-  const AstRawString* label = NULL;
-  Token::Value tok = peek();
-  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
-      tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
-    // ECMA allows "eval" or "arguments" as labels even in strict mode.
-    label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
-  }
-  IterationStatement* target = LookupContinueTarget(label, CHECK_OK);
-  if (target == NULL) {
-    // Illegal continue statement.
-    MessageTemplate::Template message = MessageTemplate::kIllegalContinue;
-    if (label != NULL) {
-      message = MessageTemplate::kUnknownLabel;
-    }
-    ReportMessage(message, label);
-    *ok = false;
-    return NULL;
-  }
-  ExpectSemicolon(CHECK_OK);
-  return factory()->NewContinueStatement(target, pos);
-}
-
-
-Statement* Parser::ParseBreakStatement(ZoneList<const AstRawString*>* labels,
-                                       bool* ok) {
-  // BreakStatement ::
-  //   'break' Identifier? ';'
-
-  int pos = peek_position();
-  Expect(Token::BREAK, CHECK_OK);
-  const AstRawString* label = NULL;
-  Token::Value tok = peek();
-  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
-      tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
-    // ECMA allows "eval" or "arguments" as labels even in strict mode.
-    label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
-  }
-  // Parse labeled break statements that target themselves into
-  // empty statements, e.g. 'l1: l2: l3: break l2;'
-  if (label != NULL && ContainsLabel(labels, label)) {
-    ExpectSemicolon(CHECK_OK);
-    return factory()->NewEmptyStatement(pos);
-  }
-  BreakableStatement* target = NULL;
-  target = LookupBreakTarget(label, CHECK_OK);
-  if (target == NULL) {
-    // Illegal break statement.
-    MessageTemplate::Template message = MessageTemplate::kIllegalBreak;
-    if (label != NULL) {
-      message = MessageTemplate::kUnknownLabel;
-    }
-    ReportMessage(message, label);
-    *ok = false;
-    return NULL;
-  }
-  ExpectSemicolon(CHECK_OK);
-  return factory()->NewBreakStatement(target, pos);
-}
-
-
-Statement* Parser::ParseReturnStatement(bool* ok) {
-  // ReturnStatement ::
-  //   'return' Expression? ';'
-
-  // Consume the return token. It is necessary to do that before
-  // reporting any errors on it, because of the way errors are
-  // reported (underlining).
-  Expect(Token::RETURN, CHECK_OK);
-  Scanner::Location loc = scanner()->location();
-
-  Token::Value tok = peek();
-  Statement* result;
-  Expression* return_value;
-  if (scanner()->HasAnyLineTerminatorBeforeNext() ||
-      tok == Token::SEMICOLON ||
-      tok == Token::RBRACE ||
-      tok == Token::EOS) {
-    if (IsSubclassConstructor(function_state_->kind())) {
-      return_value = ThisExpression(loc.beg_pos);
-    } else {
-      return_value = GetLiteralUndefined(position());
-    }
-  } else {
-    int pos = peek_position();
-
-    if (IsSubclassConstructor(function_state_->kind())) {
-      // Because of the return code rewriting that happens in case of a subclass
-      // constructor we don't want to accept tail calls, therefore we don't set
-      // ReturnExprScope to kInsideValidReturnStatement here.
-      return_value = ParseExpression(true, CHECK_OK);
-
-      // For subclass constructors we need to return this in case of undefined
-      // return a Smi (transformed into an exception in the ConstructStub)
-      // for a non object.
-      //
-      //   return expr;
-      //
-      // Is rewritten as:
-      //
-      //   return (temp = expr) === undefined ? this :
-      //       %_IsJSReceiver(temp) ? temp : 1;
-
-      // temp = expr
-      Variable* temp = NewTemporary(ast_value_factory()->empty_string());
-      Assignment* assign = factory()->NewAssignment(
-          Token::ASSIGN, factory()->NewVariableProxy(temp), return_value, pos);
-
-      // %_IsJSReceiver(temp)
-      ZoneList<Expression*>* is_spec_object_args =
-          new (zone()) ZoneList<Expression*>(1, zone());
-      is_spec_object_args->Add(factory()->NewVariableProxy(temp), zone());
-      Expression* is_spec_object_call = factory()->NewCallRuntime(
-          Runtime::kInlineIsJSReceiver, is_spec_object_args, pos);
-
-      // %_IsJSReceiver(temp) ? temp : 1;
-      Expression* is_object_conditional = factory()->NewConditional(
-          is_spec_object_call, factory()->NewVariableProxy(temp),
-          factory()->NewSmiLiteral(1, pos), pos);
-
-      // temp === undefined
-      Expression* is_undefined = factory()->NewCompareOperation(
-          Token::EQ_STRICT, assign,
-          factory()->NewUndefinedLiteral(kNoSourcePosition), pos);
-
-      // is_undefined ? this : is_object_conditional
-      return_value = factory()->NewConditional(
-          is_undefined, ThisExpression(pos), is_object_conditional, pos);
-    } else {
-      ReturnExprScope maybe_allow_tail_calls(
-          function_state_, ReturnExprContext::kInsideValidReturnStatement);
-      return_value = ParseExpression(true, CHECK_OK);
-
-      if (allow_tailcalls() && !is_sloppy(language_mode()) && !is_resumable()) {
-        // ES6 14.6.1 Static Semantics: IsInTailPosition
-        function_state_->AddImplicitTailCallExpression(return_value);
-      }
-    }
-  }
-  ExpectSemicolon(CHECK_OK);
-
-  if (is_generator()) {
-    return_value = BuildIteratorResult(return_value, true);
-  } else if (is_async_function()) {
-    return_value = BuildResolvePromise(return_value, return_value->position());
-  }
-
-  result = factory()->NewReturnStatement(return_value, loc.beg_pos);
-
-  DeclarationScope* decl_scope = GetDeclarationScope();
-  if (decl_scope->is_script_scope() || decl_scope->is_eval_scope()) {
-    ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
-    *ok = false;
-    return NULL;
-  }
-  return result;
-}
-
-
-Statement* Parser::ParseWithStatement(ZoneList<const AstRawString*>* labels,
-                                      bool* ok) {
-  // WithStatement ::
-  //   'with' '(' Expression ')' Statement
-
-  Expect(Token::WITH, CHECK_OK);
-  int pos = position();
-
-  if (is_strict(language_mode())) {
-    ReportMessage(MessageTemplate::kStrictWith);
-    *ok = false;
-    return NULL;
-  }
-
-  Expect(Token::LPAREN, CHECK_OK);
-  Expression* expr = ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
-
-  Scope* with_scope = NewScope(WITH_SCOPE);
-  Statement* body;
-  {
-    BlockState block_state(&scope_state_, with_scope);
-    with_scope->set_start_position(scanner()->peek_location().beg_pos);
-    body = ParseScopedStatement(labels, true, CHECK_OK);
-    with_scope->set_end_position(scanner()->location().end_pos);
-  }
-  return factory()->NewWithStatement(with_scope, expr, body, pos);
-}
-
 
 CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
   // CaseClause ::

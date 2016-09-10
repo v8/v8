@@ -674,6 +674,13 @@ class ParserBase {
     return result;
   }
 
+  V8_INLINE DeclarationScope* GetDeclarationScope() const {
+    return scope()->GetDeclarationScope();
+  }
+  V8_INLINE DeclarationScope* GetClosureScope() const {
+    return scope()->GetClosureScope();
+  }
+
   Scanner* scanner() const { return scanner_; }
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   int position() const { return scanner_->location().beg_pos; }
@@ -881,13 +888,14 @@ class ParserBase {
   bool is_resumable() const { return function_state_->is_resumable(); }
 
   // Report syntax errors.
-  void ReportMessage(MessageTemplate::Template message, const char* arg = NULL,
-                     ParseErrorType error_type = kSyntaxError) {
+  void ReportMessage(MessageTemplate::Template message) {
     Scanner::Location source_location = scanner()->location();
-    impl()->ReportMessageAt(source_location, message, arg, error_type);
+    impl()->ReportMessageAt(source_location, message,
+                            static_cast<const char*>(nullptr), kSyntaxError);
   }
 
-  void ReportMessage(MessageTemplate::Template message, const AstRawString* arg,
+  template <typename T>
+  void ReportMessage(MessageTemplate::Template message, T arg,
                      ParseErrorType error_type = kSyntaxError) {
     Scanner::Location source_location = scanner()->location();
     impl()->ReportMessageAt(source_location, message, arg, error_type);
@@ -1191,6 +1199,17 @@ class ParserBase {
   ExpressionT ParseV8Intrinsic(bool* ok);
 
   StatementT ParseDebuggerStatement(bool* ok);
+
+  StatementT ParseExpressionOrLabelledStatement(
+      ZoneList<const AstRawString*>* labels,
+      AllowLabelledFunctionStatement allow_function, bool* ok);
+  StatementT ParseIfStatement(ZoneList<const AstRawString*>* labels, bool* ok);
+  StatementT ParseContinueStatement(bool* ok);
+  StatementT ParseBreakStatement(ZoneList<const AstRawString*>* labels,
+                                 bool* ok);
+  StatementT ParseReturnStatement(bool* ok);
+  StatementT ParseWithStatement(ZoneList<const AstRawString*>* labels,
+                                bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -4065,7 +4084,7 @@ ParserBase<Impl>::ParseStatementList(StatementListT body, int end_token,
     StatementT stat = impl()->ParseStatementListItem(
         CHECK_OK_CUSTOM(Return, kLazyParsingComplete));
 
-    if (impl()->IsNullOrEmptyStatement(stat)) {
+    if (impl()->IsNullStatement(stat) || impl()->IsEmptyStatement(stat)) {
       directive_prologue = false;  // End of directive prologue.
       continue;
     }
@@ -4214,7 +4233,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       Next();
       return factory()->NewEmptyStatement(kNoSourcePosition);
     case Token::IF:
-      return impl()->ParseIfStatement(labels, ok);
+      return ParseIfStatement(labels, ok);
     case Token::DO:
       return impl()->ParseDoWhileStatement(labels, ok);
     case Token::WHILE:
@@ -4242,7 +4261,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       }
     }
     case Token::WITH:
-      return impl()->ParseWithStatement(labels, ok);
+      return ParseWithStatement(labels, ok);
     case Token::SWITCH:
       return impl()->ParseSwitchStatement(labels, ok);
     case Token::FUNCTION:
@@ -4262,8 +4281,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::VAR:
       return ParseVariableStatement(kStatement, nullptr, ok);
     default:
-      return impl()->ParseExpressionOrLabelledStatement(labels, allow_function,
-                                                        ok);
+      return ParseExpressionOrLabelledStatement(labels, allow_function, ok);
   }
 }
 
@@ -4276,11 +4294,11 @@ ParserBase<Impl>::ParseStatementAsUnlabelled(
     ZoneList<const AstRawString*>* labels, bool* ok) {
   switch (peek()) {
     case Token::CONTINUE:
-      return impl()->ParseContinueStatement(ok);
+      return ParseContinueStatement(ok);
     case Token::BREAK:
-      return impl()->ParseBreakStatement(labels, ok);
+      return ParseBreakStatement(labels, ok);
     case Token::RETURN:
-      return impl()->ParseReturnStatement(ok);
+      return ParseReturnStatement(ok);
     case Token::THROW:
       return impl()->ParseThrowStatement(ok);
     case Token::TRY:
@@ -4309,7 +4327,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 
     while (peek() != Token::RBRACE) {
       StatementT stat = ParseStatementListItem(CHECK_OK_CUSTOM(NullBlock));
-      if (!impl()->IsNullOrEmptyStatement(stat)) {
+      if (!impl()->IsNullStatement(stat) && !impl()->IsEmptyStatement(stat)) {
         body->statements()->Add(stat, zone());
       }
     }
@@ -4383,6 +4401,237 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDebuggerStatement(
   Expect(Token::DEBUGGER, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return factory()->NewDebuggerStatement(pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT
+ParserBase<Impl>::ParseExpressionOrLabelledStatement(
+    ZoneList<const AstRawString*>* labels,
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
+  // ExpressionStatement | LabelledStatement ::
+  //   Expression ';'
+  //   Identifier ':' Statement
+  //
+  // ExpressionStatement[Yield] :
+  //   [lookahead ∉ {{, function, class, let [}] Expression[In, ?Yield] ;
+
+  int pos = peek_position();
+
+  switch (peek()) {
+    case Token::FUNCTION:
+    case Token::LBRACE:
+      UNREACHABLE();  // Always handled by the callers.
+    case Token::CLASS:
+      ReportUnexpectedToken(Next());
+      *ok = false;
+      return impl()->NullStatement();
+    default:
+      break;
+  }
+
+  bool starts_with_identifier = peek_any_identifier();
+  ExpressionT expr = ParseExpression(true, CHECK_OK);
+  if (peek() == Token::COLON && starts_with_identifier &&
+      impl()->IsIdentifier(expr)) {
+    // The whole expression was a single identifier, and not, e.g.,
+    // something starting with an identifier or a parenthesized identifier.
+    labels = impl()->DeclareLabel(labels, impl()->AsIdentifierExpression(expr),
+                                  CHECK_OK);
+    Consume(Token::COLON);
+    // ES#sec-labelled-function-declarations Labelled Function Declarations
+    if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
+      if (allow_function == kAllowLabelledFunctionStatement) {
+        return impl()->ParseFunctionDeclaration(ok);
+      } else {
+        return ParseScopedStatement(labels, true, ok);
+      }
+    }
+    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
+  }
+
+  // If we have an extension, we allow a native function declaration.
+  // A native function declaration starts with "native function" with
+  // no line-terminator between the two words.
+  if (extension_ != nullptr && peek() == Token::FUNCTION &&
+      !scanner()->HasAnyLineTerminatorBeforeNext() && impl()->IsNative(expr) &&
+      !scanner()->literal_contains_escapes()) {
+    return impl()->ParseNativeDeclaration(ok);
+  }
+
+  // Parsed expression statement, followed by semicolon.
+  ExpectSemicolon(CHECK_OK);
+  return factory()->NewExpressionStatement(expr, pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  // IfStatement ::
+  //   'if' '(' Expression ')' Statement ('else' Statement)?
+
+  int pos = peek_position();
+  Expect(Token::IF, CHECK_OK);
+  Expect(Token::LPAREN, CHECK_OK);
+  ExpressionT condition = ParseExpression(true, CHECK_OK);
+  Expect(Token::RPAREN, CHECK_OK);
+  StatementT then_statement = ParseScopedStatement(labels, false, CHECK_OK);
+  StatementT else_statement = impl()->NullStatement();
+  if (Check(Token::ELSE)) {
+    else_statement = ParseScopedStatement(labels, false, CHECK_OK);
+  } else {
+    else_statement = factory()->NewEmptyStatement(kNoSourcePosition);
+  }
+  return factory()->NewIfStatement(condition, then_statement, else_statement,
+                                   pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
+    bool* ok) {
+  // ContinueStatement ::
+  //   'continue' Identifier? ';'
+
+  int pos = peek_position();
+  Expect(Token::CONTINUE, CHECK_OK);
+  IdentifierT label = impl()->EmptyIdentifier();
+  Token::Value tok = peek();
+  if (!scanner()->HasAnyLineTerminatorBeforeNext() && tok != Token::SEMICOLON &&
+      tok != Token::RBRACE && tok != Token::EOS) {
+    // ECMA allows "eval" or "arguments" as labels even in strict mode.
+    label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
+  }
+  typename Types::IterationStatementT target =
+      impl()->LookupContinueTarget(label, CHECK_OK);
+  if (impl()->IsNullStatement(target)) {
+    // Illegal continue statement.
+    MessageTemplate::Template message = MessageTemplate::kIllegalContinue;
+    if (!impl()->IsEmptyIdentifier(label)) {
+      message = MessageTemplate::kUnknownLabel;
+    }
+    ReportMessage(message, label);
+    *ok = false;
+    return impl()->NullStatement();
+  }
+  ExpectSemicolon(CHECK_OK);
+  return factory()->NewContinueStatement(target, pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  // BreakStatement ::
+  //   'break' Identifier? ';'
+
+  int pos = peek_position();
+  Expect(Token::BREAK, CHECK_OK);
+  IdentifierT label = impl()->EmptyIdentifier();
+  Token::Value tok = peek();
+  if (!scanner()->HasAnyLineTerminatorBeforeNext() && tok != Token::SEMICOLON &&
+      tok != Token::RBRACE && tok != Token::EOS) {
+    // ECMA allows "eval" or "arguments" as labels even in strict mode.
+    label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
+  }
+  // Parse labeled break statements that target themselves into
+  // empty statements, e.g. 'l1: l2: l3: break l2;'
+  if (!impl()->IsEmptyIdentifier(label) &&
+      impl()->ContainsLabel(labels, label)) {
+    ExpectSemicolon(CHECK_OK);
+    return factory()->NewEmptyStatement(pos);
+  }
+  typename Types::BreakableStatementT target =
+      impl()->LookupBreakTarget(label, CHECK_OK);
+  if (impl()->IsNullStatement(target)) {
+    // Illegal break statement.
+    MessageTemplate::Template message = MessageTemplate::kIllegalBreak;
+    if (!impl()->IsEmptyIdentifier(label)) {
+      message = MessageTemplate::kUnknownLabel;
+    }
+    ReportMessage(message, label);
+    *ok = false;
+    return impl()->NullStatement();
+  }
+  ExpectSemicolon(CHECK_OK);
+  return factory()->NewBreakStatement(target, pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
+    bool* ok) {
+  // ReturnStatement ::
+  //   'return' [no line terminator] Expression? ';'
+
+  // Consume the return token. It is necessary to do that before
+  // reporting any errors on it, because of the way errors are
+  // reported (underlining).
+  Expect(Token::RETURN, CHECK_OK);
+  Scanner::Location loc = scanner()->location();
+
+  Token::Value tok = peek();
+  ExpressionT return_value = impl()->EmptyExpression();
+  if (scanner()->HasAnyLineTerminatorBeforeNext() || tok == Token::SEMICOLON ||
+      tok == Token::RBRACE || tok == Token::EOS) {
+    if (IsSubclassConstructor(function_state_->kind())) {
+      return_value = impl()->ThisExpression(loc.beg_pos);
+    } else {
+      return_value = impl()->GetLiteralUndefined(position());
+    }
+  } else {
+    if (IsSubclassConstructor(function_state_->kind())) {
+      // Because of the return code rewriting that happens in case of a subclass
+      // constructor we don't want to accept tail calls, therefore we don't set
+      // ReturnExprScope to kInsideValidReturnStatement here.
+      return_value = ParseExpression(true, CHECK_OK);
+    } else {
+      ReturnExprScope maybe_allow_tail_calls(
+          function_state_, ReturnExprContext::kInsideValidReturnStatement);
+      return_value = ParseExpression(true, CHECK_OK);
+
+      if (allow_tailcalls() && !is_sloppy(language_mode()) && !is_resumable()) {
+        // ES6 14.6.1 Static Semantics: IsInTailPosition
+        function_state_->AddImplicitTailCallExpression(return_value);
+      }
+    }
+  }
+  ExpectSemicolon(CHECK_OK);
+  return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
+
+  DeclarationScope* decl_scope = GetDeclarationScope();
+  if (decl_scope->is_script_scope() || decl_scope->is_eval_scope()) {
+    impl()->ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
+    *ok = false;
+    return impl()->NullStatement();
+  }
+  return factory()->NewReturnStatement(return_value, loc.beg_pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  // WithStatement ::
+  //   'with' '(' Expression ')' Statement
+
+  Expect(Token::WITH, CHECK_OK);
+  int pos = position();
+
+  if (is_strict(language_mode())) {
+    ReportMessage(MessageTemplate::kStrictWith);
+    *ok = false;
+    return impl()->NullStatement();
+  }
+
+  Expect(Token::LPAREN, CHECK_OK);
+  ExpressionT expr = ParseExpression(true, CHECK_OK);
+  Expect(Token::RPAREN, CHECK_OK);
+
+  Scope* with_scope = NewScope(WITH_SCOPE);
+  StatementT body = impl()->NullStatement();
+  {
+    BlockState block_state(&scope_state_, with_scope);
+    with_scope->set_start_position(scanner()->peek_location().beg_pos);
+    body = ParseScopedStatement(labels, true, CHECK_OK);
+    with_scope->set_end_position(scanner()->location().end_pos);
+  }
+  return factory()->NewWithStatement(with_scope, expr, body, pos);
 }
 
 #undef CHECK_OK
