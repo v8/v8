@@ -609,7 +609,7 @@ TimeTicks TimeTicks::Now() {
 
 
 TimeTicks TimeTicks::HighResolutionNow() {
-  int64_t ticks;
+  int64_t ticks = 0;
 #if V8_OS_MACOSX
   static struct mach_timebase_info info;
   if (info.denom == 0) {
