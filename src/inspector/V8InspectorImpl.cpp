@@ -171,6 +171,12 @@ V8ConsoleMessageStorage* V8InspectorImpl::ensureConsoleMessageStorage(
   return storageIt->second.get();
 }
 
+bool V8InspectorImpl::hasConsoleMessageStorage(int contextGroupId) {
+  ConsoleStorageMap::iterator storageIt =
+      m_consoleStorageMap.find(contextGroupId);
+  return storageIt != m_consoleStorageMap.end();
+}
+
 std::unique_ptr<V8StackTrace> V8InspectorImpl::createStackTrace(
     v8::Local<v8::StackTrace> stackTrace) {
   return m_debugger->createStackTrace(stackTrace);

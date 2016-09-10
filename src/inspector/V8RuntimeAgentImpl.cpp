@@ -658,8 +658,9 @@ void V8RuntimeAgentImpl::enable(ErrorString* errorString) {
   m_session->reportAllContexts(this);
   V8ConsoleMessageStorage* storage =
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
-  for (const auto& message : storage->messages())
-    reportMessage(message.get(), false);
+  for (const auto& message : storage->messages()) {
+    if (!reportMessage(message.get(), false)) return;
+  }
 }
 
 void V8RuntimeAgentImpl::disable(ErrorString* errorString) {
@@ -719,10 +720,11 @@ void V8RuntimeAgentImpl::messageAdded(V8ConsoleMessage* message) {
   if (m_enabled) reportMessage(message, true);
 }
 
-void V8RuntimeAgentImpl::reportMessage(V8ConsoleMessage* message,
+bool V8RuntimeAgentImpl::reportMessage(V8ConsoleMessage* message,
                                        bool generatePreview) {
   message->reportToFrontend(&m_frontend, m_session, generatePreview);
   m_frontend.flush();
+  return m_inspector->hasConsoleMessageStorage(m_session->contextGroupId());
 }
 
 }  // namespace v8_inspector

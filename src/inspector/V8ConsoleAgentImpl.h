@@ -35,7 +35,7 @@ class V8ConsoleAgentImpl : public protocol::Console::Backend {
 
  private:
   void reportAllMessages();
-  void reportMessage(V8ConsoleMessage*, bool generatePreview);
+  bool reportMessage(V8ConsoleMessage*, bool generatePreview);
 
   V8InspectorSessionImpl* m_session;
   protocol::DictionaryValue* m_state;

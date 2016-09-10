@@ -126,6 +126,7 @@ void InjectedScript::getProperties(
     std::unique_ptr<Array<PropertyDescriptor>>* properties,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   v8::HandleScope handles(m_context->isolate());
+  v8::Local<v8::Context> context = m_context->context();
   V8FunctionCall function(m_context->inspector(), m_context->context(),
                           v8Value(), "getProperties");
   function.appendArgument(object);
@@ -145,7 +146,7 @@ void InjectedScript::getProperties(
   }
 
   std::unique_ptr<protocol::Value> protocolValue =
-      toProtocolValue(m_context->context(), resultValue);
+      toProtocolValue(context, resultValue);
   if (hasInternalError(errorString, !protocolValue)) return;
   protocol::ErrorSupport errors(errorString);
   std::unique_ptr<Array<PropertyDescriptor>> result =
@@ -172,13 +173,14 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapObject(
     bool generatePreview) const {
   v8::HandleScope handles(m_context->isolate());
   v8::Local<v8::Value> wrappedObject;
+  v8::Local<v8::Context> context = m_context->context();
   if (!wrapValue(errorString, value, groupName, forceValueType, generatePreview)
            .ToLocal(&wrappedObject))
     return nullptr;
   protocol::ErrorSupport errors;
   std::unique_ptr<protocol::Runtime::RemoteObject> remoteObject =
       protocol::Runtime::RemoteObject::parse(
-          toProtocolValue(m_context->context(), wrappedObject).get(), &errors);
+          toProtocolValue(context, wrappedObject).get(), &errors);
   if (!remoteObject) *errorString = "Object has too long reference chain";
   return remoteObject;
 }
@@ -190,9 +192,9 @@ bool InjectedScript::wrapObjectProperty(ErrorString* errorString,
                                         bool forceValueType,
                                         bool generatePreview) const {
   v8::Local<v8::Value> property;
-  if (hasInternalError(
-          errorString,
-          !object->Get(m_context->context(), key).ToLocal(&property)))
+  v8::Local<v8::Context> context = m_context->context();
+  if (hasInternalError(errorString,
+                       !object->Get(context, key).ToLocal(&property)))
     return false;
   v8::Local<v8::Value> wrappedProperty;
   if (!wrapValue(errorString, property, groupName, forceValueType,
@@ -200,7 +202,7 @@ bool InjectedScript::wrapObjectProperty(ErrorString* errorString,
            .ToLocal(&wrappedProperty))
     return false;
   v8::Maybe<bool> success =
-      createDataProperty(m_context->context(), object, key, wrappedProperty);
+      createDataProperty(context, object, key, wrappedProperty);
   if (hasInternalError(errorString, success.IsNothing() || !success.FromJust()))
     return false;
   return true;
@@ -260,8 +262,9 @@ v8::MaybeLocal<v8::Value> InjectedScript::wrapValue(
 std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
     v8::Local<v8::Value> table, v8::Local<v8::Value> columns) const {
   v8::HandleScope handles(m_context->isolate());
-  V8FunctionCall function(m_context->inspector(), m_context->context(),
-                          v8Value(), "wrapTable");
+  v8::Local<v8::Context> context = m_context->context();
+  V8FunctionCall function(m_context->inspector(), context, v8Value(),
+                          "wrapTable");
   function.appendArgument(table);
   if (columns.IsEmpty())
     function.appendArgument(false);
@@ -272,7 +275,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
   if (hadException) return nullptr;
   protocol::ErrorSupport errors;
   return protocol::Runtime::RemoteObject::parse(
-      toProtocolValue(m_context->context(), r).get(), &errors);
+      toProtocolValue(context, r).get(), &errors);
 }
 
 bool InjectedScript::findObject(ErrorString* errorString,

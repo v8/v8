@@ -337,6 +337,11 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     double timestamp, ConsoleAPIType type,
     const std::vector<v8::Local<v8::Value>>& arguments,
     std::unique_ptr<V8StackTraceImpl> stackTrace, InspectedContext* context) {
+  v8::Isolate* isolate = context->isolate();
+  int contextId = context->contextId();
+  int contextGroupId = context->contextGroupId();
+  V8InspectorImpl* inspector = context->inspector();
+
   std::unique_ptr<V8ConsoleMessage> message = wrapUnique(
       new V8ConsoleMessage(V8MessageOrigin::kConsole, timestamp, String16()));
   if (stackTrace && !stackTrace->isEmpty()) {
@@ -346,13 +351,12 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   }
   message->m_stackTrace = std::move(stackTrace);
   message->m_type = type;
-  message->m_contextId = context->contextId();
+  message->m_contextId = contextId;
   for (size_t i = 0; i < arguments.size(); ++i)
-    message->m_arguments.push_back(wrapUnique(
-        new v8::Global<v8::Value>(context->isolate(), arguments.at(i))));
+    message->m_arguments.push_back(
+        wrapUnique(new v8::Global<v8::Value>(isolate, arguments.at(i))));
   if (arguments.size())
-    message->m_message =
-        V8ValueStringBuilder::toString(arguments[0], context->isolate());
+    message->m_message = V8ValueStringBuilder::toString(arguments[0], isolate);
 
   V8ConsoleAPIType clientType = V8ConsoleAPIType::kLog;
   if (type == ConsoleAPIType::kDebug || type == ConsoleAPIType::kCount ||
@@ -366,8 +370,8 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     clientType = V8ConsoleAPIType::kInfo;
   else if (type == ConsoleAPIType::kClear)
     clientType = V8ConsoleAPIType::kClear;
-  context->inspector()->client()->consoleAPIMessage(
-      context->contextGroupId(), clientType, toStringView(message->m_message),
+  inspector->client()->consoleAPIMessage(
+      contextGroupId, clientType, toStringView(message->m_message),
       toStringView(message->m_url), message->m_lineNumber,
       message->m_columnNumber, message->m_stackTrace.get());
 
@@ -425,15 +429,18 @@ V8ConsoleMessageStorage::~V8ConsoleMessageStorage() { clear(); }
 
 void V8ConsoleMessageStorage::addMessage(
     std::unique_ptr<V8ConsoleMessage> message) {
+  int contextGroupId = m_contextGroupId;
+  V8InspectorImpl* inspector = m_inspector;
   if (message->type() == ConsoleAPIType::kClear) clear();
 
   V8InspectorSessionImpl* session =
-      m_inspector->sessionForContextGroup(m_contextGroupId);
+      inspector->sessionForContextGroup(contextGroupId);
   if (session) {
     if (message->origin() == V8MessageOrigin::kConsole)
       session->consoleAgent()->messageAdded(message.get());
     session->runtimeAgent()->messageAdded(message.get());
   }
+  if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
 
   DCHECK(m_messages.size() <= maxConsoleMessageCount);
   if (m_messages.size() == maxConsoleMessageCount) {

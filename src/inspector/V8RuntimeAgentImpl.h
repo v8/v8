@@ -115,7 +115,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   bool enabled() const { return m_enabled; }
 
  private:
-  void reportMessage(V8ConsoleMessage*, bool generatePreview);
+  bool reportMessage(V8ConsoleMessage*, bool generatePreview);
 
   V8InspectorSessionImpl* m_session;
   protocol::DictionaryValue* m_state;

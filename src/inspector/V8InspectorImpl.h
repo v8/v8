@@ -109,6 +109,7 @@ class V8InspectorImpl : public V8Inspector {
   void muteExceptions(int contextGroupId);
   void unmuteExceptions(int contextGroupId);
   V8ConsoleMessageStorage* ensureConsoleMessageStorage(int contextGroupId);
+  bool hasConsoleMessageStorage(int contextGroupId);
   using ContextByIdMap =
       protocol::HashMap<int, std::unique_ptr<InspectedContext>>;
   void discardInspectedContext(int contextGroupId, int contextId);
