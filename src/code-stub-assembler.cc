@@ -2439,6 +2439,129 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
+  // Assert input is a HeapObject (not smi or heap number)
+  Assert(Word32BinaryNot(WordIsSmi(input)));
+  Assert(Word32NotEqual(LoadMap(input), HeapNumberMapConstant()));
+
+  // We might need to loop once here due to ToPrimitive conversions.
+  Variable var_input(this, MachineRepresentation::kTagged);
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Label loop(this, &var_input);
+  Label end(this);
+  var_input.Bind(input);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    // Load the current {input} value (known to be a HeapObject).
+    Node* input = var_input.value();
+
+    // Dispatch on the {input} instance type.
+    Node* input_instance_type = LoadInstanceType(input);
+    Label if_inputisstring(this), if_inputisoddball(this),
+        if_inputisreceiver(this, Label::kDeferred),
+        if_inputisother(this, Label::kDeferred);
+    GotoIf(
+        Int32LessThan(input_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
+        &if_inputisstring);
+    GotoIf(Word32Equal(input_instance_type, Int32Constant(ODDBALL_TYPE)),
+           &if_inputisoddball);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    Branch(Int32GreaterThanOrEqual(input_instance_type,
+                                   Int32Constant(FIRST_JS_RECEIVER_TYPE)),
+           &if_inputisreceiver, &if_inputisother);
+
+    Bind(&if_inputisstring);
+    {
+      // The {input} is a String, use the fast stub to convert it to a Number.
+      var_result.Bind(StringToNumber(context, input));
+      Goto(&end);
+    }
+
+    Bind(&if_inputisoddball);
+    {
+      // The {input} is an Oddball, we just need to load the Number value of it.
+      var_result.Bind(LoadObjectField(input, Oddball::kToNumberOffset));
+      Goto(&end);
+    }
+
+    Bind(&if_inputisreceiver);
+    {
+      // The {input} is a JSReceiver, we need to convert it to a Primitive first
+      // using the ToPrimitive type conversion, preferably yielding a Number.
+      Callable callable = CodeFactory::NonPrimitiveToPrimitive(
+          isolate(), ToPrimitiveHint::kNumber);
+      Node* result = CallStub(callable, context, input);
+
+      // Check if the {result} is already a Number.
+      Label if_resultisnumber(this), if_resultisnotnumber(this);
+      GotoIf(WordIsSmi(result), &if_resultisnumber);
+      Node* result_map = LoadMap(result);
+      Branch(WordEqual(result_map, HeapNumberMapConstant()), &if_resultisnumber,
+             &if_resultisnotnumber);
+
+      Bind(&if_resultisnumber);
+      {
+        // The ToPrimitive conversion already gave us a Number, so we're done.
+        var_result.Bind(result);
+        Goto(&end);
+      }
+
+      Bind(&if_resultisnotnumber);
+      {
+        // We now have a Primitive {result}, but it's not yet a Number.
+        var_input.Bind(result);
+        Goto(&loop);
+      }
+    }
+
+    Bind(&if_inputisother);
+    {
+      // The {input} is something else (i.e. Symbol or Simd128Value), let the
+      // runtime figure out the correct exception.
+      // Note: We cannot tail call to the runtime here, as js-to-wasm
+      // trampolines also use this code currently, and they declare all
+      // outgoing parameters as untagged, while we would push a tagged
+      // object here.
+      var_result.Bind(CallRuntime(Runtime::kToNumber, context, input));
+      Goto(&end);
+    }
+  }
+
+  Bind(&end);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Label end(this);
+
+  Label not_smi(this, Label::kDeferred);
+  GotoUnless(WordIsSmi(input), &not_smi);
+  var_result.Bind(input);
+  Goto(&end);
+
+  Bind(&not_smi);
+  {
+    Label not_heap_number(this, Label::kDeferred);
+    Node* input_map = LoadMap(input);
+    GotoIf(Word32NotEqual(input_map, HeapNumberMapConstant()),
+           &not_heap_number);
+
+    var_result.Bind(input);
+    Goto(&end);
+
+    Bind(&not_heap_number);
+    {
+      var_result.Bind(NonNumberToNumber(context, input));
+      Goto(&end);
+    }
+  }
+
+  Bind(&end);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
                                         uint32_t mask) {
   return Word32Shr(Word32And(word32, Int32Constant(mask)),

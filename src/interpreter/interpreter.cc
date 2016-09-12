@@ -1314,7 +1314,9 @@ void Interpreter::DoToName(InterpreterAssembler* assembler) {
 //
 // Convert the object referenced by the accumulator to a number.
 void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
-  Node* result = BuildUnaryOp(CodeFactory::ToNumber(isolate_), assembler);
+  Node* object = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result = __ ToNumber(context, object);
   __ StoreRegister(result, __ BytecodeOperandReg(0));
   __ Dispatch();
 }

@@ -185,7 +185,7 @@ namespace internal {
   TFS(StringToNumber, BUILTIN, kNoExtraICState, TypeConversion)               \
   TFS(ToName, BUILTIN, kNoExtraICState, TypeConversion)                       \
   TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
-  ASM(ToNumber)                                                               \
+  TFS(ToNumber, BUILTIN, kNoExtraICState, TypeConversion)                     \
                                                                               \
   /* Built-in functions for Javascript */                                     \
   /* Special internal builtins */                                             \

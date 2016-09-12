@@ -148,7 +148,8 @@ class RawMachineLabel;
   V(Float64RoundDown)                   \
   V(Float64RoundUp)                     \
   V(Float64RoundTruncate)               \
-  V(Word32Clz)
+  V(Word32Clz)                          \
+  V(Word32BinaryNot)
 
 // A "public" interface used by components outside of compiler directory to
 // create code objects with TurboFan's backend. This class is mostly a thin shim
