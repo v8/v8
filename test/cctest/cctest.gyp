@@ -199,6 +199,8 @@
       'wasm/test-wasm-stack.cc',
       'wasm/test-wasm-trap-position.cc',
       'wasm/wasm-run-utils.h',
+      'wasm/wasm-module-runner.cc',
+      'wasm/wasm-module-runner.h',
     ],
     'cctest_sources_ia32': [  ### gcmole(arch:ia32) ###
       'test-assembler-ia32.cc',

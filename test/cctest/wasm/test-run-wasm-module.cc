@@ -14,6 +14,7 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/test-signatures.h"
+#include "test/cctest/wasm/wasm-module-runner.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -256,8 +257,8 @@ TEST(Run_WasmModule_Serialization) {
                                 Handle<JSArrayBuffer>::null())
             .ToHandleChecked();
     Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(41), isolate)};
-    int32_t result = testing::CallFunction(isolate, instance, &thrower,
-                                           kFunctionName, 1, params);
+    int32_t result = testing::CallWasmFunctionForTesting(
+        isolate, instance, thrower, kFunctionName, 1, params);
     CHECK(result == 42);
     new_ctx->Exit();
   }

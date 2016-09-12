@@ -414,18 +414,6 @@ MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
 // instance
 // was collected, or the instance object owning the Code object
 Object* GetOwningWasmInstance(Object* undefined, Code* code);
-
-namespace testing {
-
-// Decode, verify, and run the function labeled "main" in the
-// given encoded module. The module should have no imports.
-int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end, bool asm_js = false);
-
-int32_t CallFunction(Isolate* isolate, Handle<JSObject> instance,
-                     ErrorThrower* thrower, const char* name, int argc,
-                     Handle<Object> argv[], bool asm_js = false);
-}  // namespace testing
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
