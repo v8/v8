@@ -1395,8 +1395,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           1, true);
     SimpleInstallFunction(prototype, "charCodeAt",
                           Builtins::kStringPrototypeCharCodeAt, 1, true);
-    SimpleInstallFunction(prototype, "normalize",
-                          Builtins::kStringPrototypeNormalize, 0, false);
     SimpleInstallFunction(prototype, "toString",
                           Builtins::kStringPrototypeToString, 0, true);
     SimpleInstallFunction(prototype, "trim", Builtins::kStringPrototypeTrim, 0,
