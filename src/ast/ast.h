@@ -3378,11 +3378,12 @@ class AstNodeFactory final BASE_EMBEDDED {
   // the Function constructor.
   FunctionLiteral* NewScriptOrEvalFunctionLiteral(
       DeclarationScope* scope, ZoneList<Statement*>* body,
-      int materialized_literal_count, int expected_property_count) {
+      int materialized_literal_count, int expected_property_count,
+      int parameter_count) {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
-        body, materialized_literal_count, expected_property_count, 0,
-        FunctionLiteral::kAnonymousExpression,
+        body, materialized_literal_count, expected_property_count,
+        parameter_count, FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, FunctionKind::kNormalFunction, 0,
         false);

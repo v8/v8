@@ -743,7 +743,6 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
     VisitGeneratorPrologue();
   }
 
-  // Build function context only if there are context allocated variables.
   if (scope()->NeedsContext()) {
     // Push a new inner context scope for the function.
     BuildNewLocalActivationContext();
@@ -940,7 +939,8 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       break;
     }
     case VariableLocation::MODULE:
-      UNREACHABLE();
+      // Nothing to do here.
+      break;
   }
 }
 
@@ -979,7 +979,11 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       break;
     }
     case VariableLocation::MODULE:
-      UNREACHABLE();
+      DCHECK(variable->mode() == LET);
+      VisitForAccumulatorValue(decl->fun());
+      VisitVariableAssignment(variable, Token::INIT,
+                              FeedbackVectorSlot::Invalid());
+      break;
   }
 }
 
@@ -1978,8 +1982,21 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       builder()->LoadLookupSlot(variable->name(), typeof_mode);
       break;
     }
-    case VariableLocation::MODULE:
-      UNREACHABLE();
+    case VariableLocation::MODULE: {
+      ModuleDescriptor* descriptor = scope()->GetModuleScope()->module();
+      if (variable->IsExport()) {
+        auto it = descriptor->regular_exports().find(variable->raw_name());
+        DCHECK(it != descriptor->regular_exports().end());
+        Register export_name = register_allocator()->NewRegister();
+        builder()
+            ->LoadLiteral(it->second->export_name->string())
+            .StoreAccumulatorInRegister(export_name)
+            .CallRuntime(Runtime::kLoadModuleExport, export_name, 1);
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    }
   }
   execution_result()->SetResultInAccumulator();
 }
@@ -2177,8 +2194,33 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
       builder()->StoreLookupSlot(variable->name(), language_mode());
       break;
     }
-    case VariableLocation::MODULE:
-      UNREACHABLE();
+    case VariableLocation::MODULE: {
+      DCHECK(IsDeclaredVariableMode(mode));
+
+      if (mode == CONST && op != Token::INIT) {
+        builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(), 0);
+        break;
+      }
+
+      // If we don't throw above, we know that we're dealing with an
+      // export because imports are const and we do not generate initializing
+      // assignments for them.
+      DCHECK(variable->IsExport());
+
+      ModuleDescriptor* mod = scope()->GetModuleScope()->module();
+      auto it = mod->regular_exports().find(variable->raw_name());
+      DCHECK(it != mod->regular_exports().end());
+
+      register_allocator()->PrepareForConsecutiveAllocations(2);
+      Register export_name = register_allocator()->NextConsecutiveRegister();
+      Register value = register_allocator()->NextConsecutiveRegister();
+      builder()
+          ->StoreAccumulatorInRegister(value)
+          .LoadLiteral(it->second->export_name->string())
+          .StoreAccumulatorInRegister(export_name)
+          .CallRuntime(Runtime::kStoreModuleExport, export_name, 2);
+      break;
+    }
   }
 }
 
@@ -3135,18 +3177,36 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
   AccumulatorResultScope accumulator_execution_result(this);
   Scope* scope = this->scope();
 
-  // Allocate a new local context.
+  // Create the appropriate context.
   if (scope->is_script_scope()) {
     RegisterAllocationScope register_scope(this);
-    Register closure = register_allocator()->NewRegister();
-    Register scope_info = register_allocator()->NewRegister();
-    DCHECK(Register::AreContiguous(closure, scope_info));
+    register_allocator()->PrepareForConsecutiveAllocations(2);
+    Register closure = register_allocator()->NextConsecutiveRegister();
+    Register scope_info = register_allocator()->NextConsecutiveRegister();
     builder()
         ->LoadAccumulatorWithRegister(Register::function_closure())
         .StoreAccumulatorInRegister(closure)
         .LoadLiteral(scope->scope_info())
         .StoreAccumulatorInRegister(scope_info)
         .CallRuntime(Runtime::kNewScriptContext, closure, 2);
+  } else if (scope->is_module_scope()) {
+    // We don't need to do anything for the outer script scope.
+    DCHECK(scope->outer_scope()->is_script_scope());
+
+    RegisterAllocationScope register_scope(this);
+    register_allocator()->PrepareForConsecutiveAllocations(3);
+    Register module = register_allocator()->NextConsecutiveRegister();
+    Register closure = register_allocator()->NextConsecutiveRegister();
+    Register scope_info = register_allocator()->NextConsecutiveRegister();
+    // A JSFunction representing a module is called with the module object as
+    // its sole argument, which we pass on to PushModuleContext.
+    builder()
+        ->MoveRegister(builder()->Parameter(1), module)
+        .LoadAccumulatorWithRegister(Register::function_closure())
+        .StoreAccumulatorInRegister(closure)
+        .LoadLiteral(scope->scope_info())
+        .StoreAccumulatorInRegister(scope_info)
+        .CallRuntime(Runtime::kPushModuleContext, module, 3);
   } else {
     int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     builder()->CreateFunctionContext(slot_count);
@@ -3293,8 +3353,7 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
   AccumulatorResultScope accumulator_execution_result(this);
   DeclarationScope* closure_scope =
       execution_context()->scope()->GetClosureScope();
-  if (closure_scope->is_script_scope() ||
-      closure_scope->is_module_scope()) {
+  if (closure_scope->is_script_scope()) {
     // Contexts nested in the native context have a canonical empty function as
     // their closure, not the anonymous closure containing the global code.
     Register native_context = register_allocator()->NewRegister();
@@ -3310,7 +3369,8 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
     builder()->LoadContextSlot(execution_context()->reg(),
                                Context::CLOSURE_INDEX);
   } else {
-    DCHECK(closure_scope->is_function_scope());
+    DCHECK(closure_scope->is_function_scope() ||
+           closure_scope->is_module_scope());
     builder()->LoadAccumulatorWithRegister(Register::function_closure());
   }
   execution_result()->SetResultInAccumulator();

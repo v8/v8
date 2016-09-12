@@ -745,6 +745,16 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     int beg_pos = scanner()->location().beg_pos;
     parsing_module_ = info->is_module();
     if (parsing_module_) {
+      // Declare the special module parameter.
+      auto name = ast_value_factory()->empty_string();
+      bool is_duplicate;
+      bool is_rest = false;
+      bool is_optional = false;
+      auto var = scope->DeclareParameter(name, VAR, is_optional, is_rest,
+                                         &is_duplicate, ast_value_factory());
+      DCHECK(!is_duplicate);
+      var->AllocateTo(VariableLocation::PARAMETER, 0);
+
       ParseModuleItemList(body, &ok);
       ok = ok &&
            module()->Validate(this->scope()->AsModuleScope(),
@@ -788,9 +798,10 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     if (ok) {
       RewriteDestructuringAssignments();
+      int parameter_count = parsing_module_ ? 1 : 0;
       result = factory()->NewScriptOrEvalFunctionLiteral(
           scope, body, function_state.materialized_literal_count(),
-          function_state.expected_property_count());
+          function_state.expected_property_count(), parameter_count);
     }
   }
 
