@@ -477,6 +477,40 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
   assembler->Return(result);
 }
 
+// ES6 section 21.1.3.12 String.prototype.normalize ( [form] )
+//
+// Simply checks the argument is valid and returns the string itself.
+// If internationalization is enabled, then i18n.js will override this function
+// and provide the proper functionality, so this is just a fallback.
+BUILTIN(StringPrototypeNormalize) {
+  HandleScope handle_scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.normalize");
+
+  Handle<Object> form_input = args.atOrUndefined(isolate, 1);
+  if (form_input->IsUndefined(isolate)) return *string;
+
+  Handle<String> form;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
+                                     Object::ToString(isolate, form));
+
+  if (!(String::Equals(form,
+                       isolate->factory()->NewStringFromStaticChars("NFC")) ||
+        String::Equals(form,
+                       isolate->factory()->NewStringFromStaticChars("NFD")) ||
+        String::Equals(form,
+                       isolate->factory()->NewStringFromStaticChars("NFKC")) ||
+        String::Equals(form,
+                       isolate->factory()->NewStringFromStaticChars("NFKD")))) {
+    Handle<String> valid_forms =
+        isolate->factory()->NewStringFromStaticChars("NFC, NFD, NFKC, NFKD");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewRangeError(MessageTemplate::kNormalizationForm, valid_forms));
+  }
+
+  return *string;
+}
+
 // ES6 section 21.1.3.25 String.prototype.toString ()
 void Builtins::Generate_StringPrototypeToString(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
