@@ -18,16 +18,12 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-const int kWasmMemArrayBuffer = 2;
-}
-
 RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   uint32_t delta_pages = 0;
   CHECK(args[0]->ToUint32(&delta_pages));
-  Handle<JSObject> module_object;
+  Handle<JSObject> module_instance;
 
   {
     // Get the module JSObject
@@ -41,17 +37,17 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
     Object* owning_instance = wasm::GetOwningWasmInstance(undefined, code);
     CHECK_NOT_NULL(owning_instance);
     CHECK_NE(owning_instance, undefined);
-    module_object = handle(JSObject::cast(owning_instance), isolate);
+    module_instance = handle(JSObject::cast(owning_instance), isolate);
   }
 
   Address old_mem_start, new_mem_start;
   uint32_t old_size, new_size;
 
   // Get mem buffer associated with module object
-  Handle<Object> obj(module_object->GetInternalField(kWasmMemArrayBuffer),
-                     isolate);
-
-  if (obj->IsUndefined(isolate)) {
+  MaybeHandle<JSArrayBuffer> maybe_mem_buffer =
+      wasm::GetInstanceMemory(isolate, module_instance);
+  Handle<JSArrayBuffer> old_buffer;
+  if (!maybe_mem_buffer.ToHandle(&old_buffer)) {
     // If module object does not have linear memory associated with it,
     // Allocate new array buffer of given size.
     old_mem_start = nullptr;
@@ -73,7 +69,6 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
     }
 #endif
   } else {
-    Handle<JSArrayBuffer> old_buffer = Handle<JSArrayBuffer>::cast(obj);
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
     old_size = old_buffer->byte_length()->Number();
     // If the old memory was zero-sized, we should have been in the
@@ -107,8 +102,10 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   buffer->set_is_neuterable(false);
 
   // Set new buffer to be wasm memory
-  module_object->SetInternalField(kWasmMemArrayBuffer, *buffer);
-  CHECK(wasm::UpdateWasmModuleMemory(module_object, old_mem_start,
+
+  wasm::SetInstanceMemory(module_instance, *buffer);
+
+  CHECK(wasm::UpdateWasmModuleMemory(module_instance, old_mem_start,
                                      new_mem_start, old_size, new_size));
 
   return *isolate->factory()->NewNumberFromInt(old_size /

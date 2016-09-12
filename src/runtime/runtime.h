@@ -890,7 +890,10 @@ namespace internal {
   F(SerializeWasmModule, 1, 1)                \
   F(DeserializeWasmModule, 1, 1)              \
   F(IsAsmWasmCode, 1, 1)                      \
-  F(IsNotAsmWasmCode, 1, 1)
+  F(IsNotAsmWasmCode, 1, 1)                   \
+  F(ValidateWasmInstancesChain, 2, 1)         \
+  F(ValidateWasmModuleState, 1, 1)            \
+  F(ValidateWasmOrphanedInstance, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \

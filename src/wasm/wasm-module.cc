@@ -158,15 +158,19 @@ Object* GetOwningWasmInstance(Object* undefined, Code* code) {
 
 namespace {
 // Internal constants for the layout of the module object.
-const int kWasmModuleFunctionTable = 0;
-const int kWasmModuleCodeTable = 1;
-const int kWasmMemArrayBuffer = 2;
-const int kWasmGlobalsArrayBuffer = 3;
-// TODO(clemensh): Remove function name array, extract names from module bytes.
-const int kWasmFunctionNamesArray = 4;
-const int kWasmModuleBytesString = 5;
-const int kWasmDebugInfo = 6;
-const int kWasmModuleInternalFieldCount = 7;
+enum WasmInstanceFields {
+  kWasmCompiledModule = 0,
+  kWasmModuleFunctionTable,
+  kWasmModuleCodeTable,
+  kWasmMemArrayBuffer,
+  kWasmGlobalsArrayBuffer,
+  // TODO(clemensh): Remove function name array, extract names from module
+  // bytes.
+  kWasmFunctionNamesArray,
+  kWasmModuleBytesString,
+  kWasmDebugInfo,
+  kWasmModuleInternalFieldCount
+};
 
 // TODO(mtrofin): Unnecessary once we stop using JS Heap for wasm code.
 // For now, each field is expected to have the type commented by its side.
@@ -194,8 +198,14 @@ enum CompiledWasmObjectFields {
   kDataSegments,      // maybe ByteArray.
 
   kGlobalsSize,                 // Smi. an uint32_t
+  kMemSize,                     // Smi.an uint32_t
+  kMemStart,                    // MaybeHandle<ArrayBuffer>
   kExportMem,                   // Smi. bool
   kOrigin,                      // Smi. ModuleOrigin
+  kNextInstance,                // WeakCell. See compiled code cloning.
+  kPrevInstance,                // WeakCell. See compiled code cloning.
+  kOwningInstance,              // WeakCell, pointing to the owning instance.
+  kModuleObject,                // WeakCell, pointing to the module object.
   kCompiledWasmObjectTableSize  // Sentinel value.
 };
 
@@ -329,8 +339,9 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size) {
   return buffer;
 }
 
-void RelocateInstanceCode(Handle<JSObject> instance, Address start,
-                          uint32_t prev_size, uint32_t new_size) {
+void RelocateInstanceCode(Handle<JSObject> instance, Address old_start,
+                          Address start, uint32_t prev_size,
+                          uint32_t new_size) {
   Handle<FixedArray> functions = Handle<FixedArray>(
       FixedArray::cast(instance->GetInternalField(kWasmModuleCodeTable)));
   for (int i = 0; i < functions->length(); ++i) {
@@ -339,7 +350,7 @@ void RelocateInstanceCode(Handle<JSObject> instance, Address start,
     int mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE) |
                (1 << RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
     for (RelocIterator it(*function, mask); !it.done(); it.next()) {
-      it.rinfo()->update_wasm_memory_reference(nullptr, start, prev_size,
+      it.rinfo()->update_wasm_memory_reference(old_start, start, prev_size,
                                                new_size);
     }
   }
@@ -361,7 +372,8 @@ Handle<JSArrayBuffer> AllocateMemory(ErrorThrower* thrower, Isolate* isolate,
   return mem_buffer;
 }
 
-void RelocateGlobals(Handle<JSObject> instance, Address globals_start) {
+void RelocateGlobals(Handle<JSObject> instance, Address old_start,
+                     Address globals_start) {
   Handle<FixedArray> functions = Handle<FixedArray>(
       FixedArray::cast(instance->GetInternalField(kWasmModuleCodeTable)));
   uint32_t function_count = static_cast<uint32_t>(functions->length());
@@ -370,7 +382,7 @@ void RelocateGlobals(Handle<JSObject> instance, Address globals_start) {
     AllowDeferredHandleDereference embedding_raw_address;
     int mask = 1 << RelocInfo::WASM_GLOBAL_REFERENCE;
     for (RelocIterator it(*function, mask); !it.done(); it.next()) {
-      it.rinfo()->update_wasm_global_reference(nullptr, globals_start);
+      it.rinfo()->update_wasm_global_reference(old_start, globals_start);
     }
   }
 }
@@ -401,40 +413,35 @@ void InitializePlaceholders(Factory* factory,
   }
 }
 
-bool LinkFunction(Handle<Code> unlinked,
-                  const std::vector<Handle<Code>>& code_targets,
-                  Code::Kind kind) {
+bool LinkFunction(Isolate* isolate, Handle<Code> unlinked,
+                  Handle<FixedArray> code_targets,
+                  Code::Kind kind = Code::WASM_FUNCTION) {
   bool modified = false;
-  int mode_mask = RelocInfo::kCodeTargetMask;
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   AllowDeferredHandleDereference embedding_raw_address;
   for (RelocIterator it(*unlinked, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsCodeTarget(mode)) {
-      Code* target =
-          Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-      if (target->kind() == kind &&
-          target->constant_pool_offset() >= kPlaceholderMarker) {
-        // Patch direct calls to placeholder code objects.
-        uint32_t index = target->constant_pool_offset() - kPlaceholderMarker;
-        CHECK(index < code_targets.size());
-        Handle<Code> new_target = code_targets[index];
-        if (target != *new_target) {
-          it.rinfo()->set_target_address(new_target->instruction_start(),
-                                         UPDATE_WRITE_BARRIER,
-                                         SKIP_ICACHE_FLUSH);
-          modified = true;
-        }
+    Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+    if (target->kind() == kind &&
+        target->constant_pool_offset() >= kPlaceholderMarker) {
+      // Patch direct calls to placeholder code objects.
+      uint32_t index = target->constant_pool_offset() - kPlaceholderMarker;
+      CHECK(index < static_cast<uint32_t>(code_targets->length()));
+      Handle<Code> new_target =
+          code_targets->GetValueChecked<Code>(isolate, index);
+      if (target != *new_target) {
+        it.rinfo()->set_target_address(new_target->instruction_start(),
+                                       UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+        modified = true;
       }
     }
   }
   return modified;
 }
 
-void LinkModuleFunctions(Isolate* isolate,
-                         std::vector<Handle<Code>>& functions) {
-  for (size_t i = 0; i < functions.size(); ++i) {
-    Handle<Code> code = functions[i];
-    LinkFunction(code, functions, Code::WASM_FUNCTION);
+void LinkModuleFunctions(Isolate* isolate, Handle<FixedArray> functions) {
+  for (int i = 0; i < functions->length(); ++i) {
+    Handle<Code> code = functions->GetValueChecked<Code>(isolate, i);
+    LinkFunction(isolate, code, functions);
   }
 }
 
@@ -453,8 +460,6 @@ void SetRuntimeSupport(Isolate* isolate, Handle<JSObject> js_object) {
 
   for (int i = FLAG_skip_compiling_wasm_funcs; i < functions->length(); ++i) {
     Handle<Code> code = functions->GetValueChecked<Code>(isolate, i);
-    DCHECK(code->deoptimization_data() == nullptr ||
-           code->deoptimization_data()->length() == 0);
     Handle<FixedArray> deopt_data =
         isolate->factory()->NewFixedArray(2, TENURED);
     deopt_data->set(0, *weak_link);
@@ -619,6 +624,17 @@ static void RecordStats(Isolate* isolate, Handle<FixedArray> functions) {
   for (int i = 0; i < functions->length(); ++i) {
     RecordStats(isolate, Code::cast(functions->get(i)));
   }
+}
+
+Address GetGlobalStartAddressFromCodeTemplate(Object* undefined,
+                                              JSObject* owner) {
+  Address old_address = nullptr;
+  Object* stored_value = owner->GetInternalField(kWasmGlobalsArrayBuffer);
+  if (stored_value != undefined) {
+    old_address = static_cast<Address>(
+        JSArrayBuffer::cast(stored_value)->backing_store());
+  }
+  return old_address;
 }
 
 Handle<FixedArray> GetImportsMetadata(Factory* factory,
@@ -912,8 +928,9 @@ void SetDebugSupport(Factory* factory, Handle<FixedArray> compiled_module,
   }
 }
 
-bool SetupGlobals(Isolate* isolate, Handle<FixedArray> compiled_module,
-                  Handle<JSObject> instance, ErrorThrower* thrower) {
+bool SetupGlobals(Isolate* isolate, MaybeHandle<JSObject> template_owner,
+                  Handle<FixedArray> compiled_module, Handle<JSObject> instance,
+                  ErrorThrower* thrower) {
   uint32_t globals_size = static_cast<uint32_t>(
       Smi::cast(compiled_module->get(kGlobalsSize))->value());
   if (globals_size > 0) {
@@ -923,7 +940,13 @@ bool SetupGlobals(Isolate* isolate, Handle<FixedArray> compiled_module,
       thrower->Error("Out of memory: wasm globals");
       return false;
     }
-    RelocateGlobals(instance,
+    Address old_address =
+        template_owner.is_null()
+            ? nullptr
+            : GetGlobalStartAddressFromCodeTemplate(
+                  *isolate->factory()->undefined_value(),
+                  JSObject::cast(*template_owner.ToHandleChecked()));
+    RelocateGlobals(instance, old_address,
                     static_cast<Address>(globals_buffer->backing_store()));
     instance->SetInternalField(kWasmGlobalsArrayBuffer, *globals_buffer);
   }
@@ -949,11 +972,70 @@ bool SetupInstanceHeap(Isolate* isolate, Handle<FixedArray> compiled_module,
     instance->SetInternalField(kWasmMemArrayBuffer, *memory);
     Address mem_start = static_cast<Address>(memory->backing_store());
     uint32_t mem_size = static_cast<uint32_t>(memory->byte_length()->Number());
-    RelocateInstanceCode(instance, mem_start,
-                         WasmModule::kPageSize * min_mem_pages, mem_size);
+    uint32_t old_mem_size = static_cast<uint32_t>(
+        compiled_module->GetValueChecked<HeapNumber>(isolate, kMemSize)
+            ->value());
+    MaybeHandle<JSArrayBuffer> old_mem =
+        compiled_module->GetValue<JSArrayBuffer>(isolate, kMemStart);
+    Address old_mem_start =
+        old_mem.is_null()
+            ? nullptr
+            : static_cast<Address>(old_mem.ToHandleChecked()->backing_store());
+    RelocateInstanceCode(instance, old_mem_start, mem_start, old_mem_size,
+                         mem_size);
     LoadDataSegments(compiled_module, mem_start, mem_size);
+    compiled_module->GetValueChecked<HeapNumber>(isolate, kMemSize)
+        ->set_value(static_cast<double>(mem_size));
+    compiled_module->set(kMemStart, *memory);
   }
   return true;
+}
+
+void FixupFunctionsAndImports(Handle<FixedArray> old_functions,
+                              Handle<FixedArray> new_functions,
+                              MaybeHandle<FixedArray> maybe_old_imports,
+                              MaybeHandle<FixedArray> maybe_new_imports) {
+  DCHECK_EQ(new_functions->length(), old_functions->length());
+
+  DisallowHeapAllocation no_gc;
+  std::map<Code*, Code*> old_to_new_code;
+  for (int i = 0; i < new_functions->length(); ++i) {
+    old_to_new_code.insert(std::make_pair(Code::cast(old_functions->get(i)),
+                                          Code::cast(new_functions->get(i))));
+  }
+  DCHECK_EQ(maybe_old_imports.is_null(), maybe_new_imports.is_null());
+  if (!maybe_old_imports.is_null()) {
+    Handle<FixedArray> old_imports = maybe_old_imports.ToHandleChecked();
+    Handle<FixedArray> new_imports = maybe_new_imports.ToHandleChecked();
+    DCHECK_EQ(new_imports->length(), old_imports->length());
+    for (int i = 0; i < new_imports->length(); ++i) {
+      old_to_new_code.insert(std::make_pair(Code::cast(old_imports->get(i)),
+                                            Code::cast(new_imports->get(i))));
+    }
+  }
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+  AllowDeferredHandleDereference embedding_raw_address;
+  for (int i = 0; i < new_functions->length(); ++i) {
+    Code* wasm_function = Code::cast(new_functions->get(i));
+    for (RelocIterator it(wasm_function, mode_mask); !it.done(); it.next()) {
+      Code* old_code =
+          Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+      if (old_code->kind() == Code::WASM_TO_JS_FUNCTION ||
+          old_code->kind() == Code::WASM_FUNCTION) {
+        auto found = old_to_new_code.find(old_code);
+        DCHECK(found != old_to_new_code.end());
+        Code* new_code = found->second;
+        // Avoid redundant updates, expected for wasm functions, if we're at the
+        // first instance.
+        if (new_code == old_code) {
+          DCHECK(new_code->kind() == Code::WASM_FUNCTION);
+          continue;
+        }
+        it.rinfo()->set_target_address(new_code->instruction_start(),
+                                       UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+      }
+    }
+  }
 }
 
 bool SetupImports(Isolate* isolate, Handle<FixedArray> compiled_module,
@@ -974,49 +1056,14 @@ bool SetupImports(Isolate* isolate, Handle<FixedArray> compiled_module,
   }
 
   RecordStats(isolate, import_code);
-
   if (import_code.empty()) return true;
 
-  {
-    DisallowHeapAllocation no_gc;
-    std::map<Code*, int> import_to_index;
-    Handle<FixedArray> mapping =
-        compiled_module->GetValueChecked<FixedArray>(isolate, kImportMap);
-    for (int i = 0; i < mapping->length(); ++i) {
-      import_to_index.insert(std::make_pair(Code::cast(mapping->get(i)), i));
-    }
-
-    Handle<FixedArray> code_table = Handle<FixedArray>(
-        FixedArray::cast(instance->GetInternalField(kWasmModuleCodeTable)));
-
-    int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
-    AllowDeferredHandleDereference embedding_raw_address;
-    for (int i = 0; i < code_table->length(); ++i) {
-      Handle<Code> wasm_function =
-          code_table->GetValueChecked<Code>(isolate, i);
-      for (RelocIterator it(*wasm_function, mode_mask); !it.done(); it.next()) {
-        Code* target =
-            Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-        if (target->kind() == Code::WASM_TO_JS_FUNCTION) {
-          auto found_index = import_to_index.find(target);
-          CHECK(found_index != import_to_index.end());
-          int index = found_index->second;
-          CHECK(index < static_cast<int>(import_code.size()));
-          Handle<Code> new_target = import_code[index];
-          it.rinfo()->set_target_address(new_target->instruction_start(),
-                                         UPDATE_WRITE_BARRIER,
-                                         SKIP_ICACHE_FLUSH);
-        }
-      }
-    }
-  }
-  Handle<FixedArray> new_mapping =
+  Handle<FixedArray> new_imports =
       isolate->factory()->NewFixedArray(static_cast<int>(import_code.size()));
-  for (int i = 0; i < new_mapping->length(); ++i) {
-    new_mapping->set(i, *import_code[i]);
+  for (int i = 0; i < new_imports->length(); ++i) {
+    new_imports->set(i, *import_code[i]);
   }
-  compiled_module->set(kImportMap, *new_mapping);
-
+  compiled_module->set(kImportMap, *new_imports);
   return true;
 }
 
@@ -1079,6 +1126,122 @@ bool SetupExportsObject(Handle<FixedArray> compiled_module, Isolate* isolate,
     }
   }
   return true;
+}
+
+#define GET_COMPILED_MODULE_WEAK_RELATION_OR_NULL(Field)    \
+  WeakCell* Get##Field(const FixedArray* compiled_module) { \
+    Object* obj = compiled_module->get(k##Field);           \
+    DCHECK_NOT_NULL(obj);                                   \
+    if (obj->IsWeakCell()) {                                \
+      return WeakCell::cast(obj);                           \
+    } else {                                                \
+      return nullptr;                                       \
+    }                                                       \
+  }
+
+GET_COMPILED_MODULE_WEAK_RELATION_OR_NULL(NextInstance)
+GET_COMPILED_MODULE_WEAK_RELATION_OR_NULL(PrevInstance)
+GET_COMPILED_MODULE_WEAK_RELATION_OR_NULL(OwningInstance)
+GET_COMPILED_MODULE_WEAK_RELATION_OR_NULL(ModuleObject)
+
+static void ResetCompiledModule(Isolate* isolate, JSObject* owner,
+                                FixedArray* compiled_module) {
+  Object* undefined = *isolate->factory()->undefined_value();
+  Object* mem_size_obj = compiled_module->get(kMemSize);
+  DCHECK(mem_size_obj->IsMutableHeapNumber());
+  uint32_t old_mem_size =
+      static_cast<uint32_t>(HeapNumber::cast(mem_size_obj)->value());
+  Object* mem_start = compiled_module->get(kMemStart);
+  Address old_mem_address = nullptr;
+  Address globals_start =
+      GetGlobalStartAddressFromCodeTemplate(undefined, owner);
+
+  if (old_mem_size > 0) {
+    CHECK_NE(mem_start, undefined);
+    old_mem_address =
+        static_cast<Address>(JSArrayBuffer::cast(mem_start)->backing_store());
+  }
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_SIZE_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_REFERENCE);
+
+  Object* fct_obj = compiled_module->get(kFunctions);
+  if (fct_obj != nullptr && fct_obj != undefined &&
+      (old_mem_size > 0 || globals_start != nullptr)) {
+    FixedArray* functions = FixedArray::cast(fct_obj);
+    for (int i = 0; i < functions->length(); ++i) {
+      Code* code = Code::cast(functions->get(i));
+      bool changed = false;
+      for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+        RelocInfo::Mode mode = it.rinfo()->rmode();
+        if (RelocInfo::IsWasmMemoryReference(mode) ||
+            RelocInfo::IsWasmMemorySizeReference(mode)) {
+          it.rinfo()->update_wasm_memory_reference(old_mem_address, nullptr,
+                                                   old_mem_size, old_mem_size);
+          changed = true;
+        } else {
+          CHECK(RelocInfo::IsWasmGlobalReference(mode));
+          it.rinfo()->update_wasm_global_reference(globals_start, nullptr);
+          changed = true;
+        }
+      }
+      if (changed) {
+        Assembler::FlushICache(isolate, code->instruction_start(),
+                               code->instruction_size());
+      }
+    }
+  }
+  compiled_module->set(kOwningInstance, undefined);
+  compiled_module->set(kMemStart, undefined);
+}
+
+static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
+  JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
+  JSObject* owner = *p;
+  FixedArray* compiled_module =
+      FixedArray::cast(owner->GetInternalField(kWasmCompiledModule));
+  Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
+  Object* undefined = *isolate->factory()->undefined_value();
+  WeakCell* weak_module_obj = GetModuleObject(compiled_module);
+  DCHECK_NOT_NULL(weak_module_obj);
+  // weak_module_obj may have been cleared, meaning the module object
+  // was GC-ed. In that case, there won't be any new instances created,
+  // and we don't need to maintain the links between instances.
+  if (!weak_module_obj->cleared()) {
+    JSObject* module_obj = JSObject::cast(weak_module_obj->value());
+    FixedArray* current_template =
+        FixedArray::cast(module_obj->GetInternalField(0));
+    DCHECK_NULL(GetPrevInstance(current_template));
+    WeakCell* next = GetNextInstance(compiled_module);
+    WeakCell* prev = GetPrevInstance(compiled_module);
+
+    if (current_template == compiled_module) {
+      if (next == nullptr) {
+        ResetCompiledModule(isolate, owner, compiled_module);
+      } else {
+        DCHECK(next->value()->IsFixedArray());
+        module_obj->SetInternalField(0, next->value());
+        DCHECK_NULL(prev);
+        FixedArray::cast(next->value())->set(kPrevInstance, undefined);
+      }
+    } else {
+      DCHECK(!(prev == nullptr && next == nullptr));
+      // the only reason prev or next would be cleared is if the
+      // respective objects got collected, but if that happened,
+      // we would have relinked the list.
+      if (prev != nullptr) {
+        DCHECK(!prev->cleared());
+        FixedArray::cast(prev->value())
+            ->set(kNextInstance, next == nullptr ? undefined : next);
+      }
+      if (next != nullptr) {
+        DCHECK(!next->cleared());
+        FixedArray::cast(next->value())
+            ->set(kPrevInstance, prev == nullptr ? undefined : prev);
+      }
+    }
+  }
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
 }
 
 }  // namespace
@@ -1155,6 +1318,11 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(
     Code* code = *temp_instance_for_compilation.function_code[i];
     compiled_functions->set(static_cast<int>(i), code);
   }
+
+  LinkModuleFunctions(isolate, compiled_functions);
+
+  // TODO(mtrofin): do we need to flush the cache here?
+  FlushAssemblyCache(isolate, compiled_functions);
 
   // Create the compiled module object, and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
@@ -1251,6 +1419,10 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(
   ret->set(kGlobalsSize, Smi::FromInt(globals_size));
   ret->set(kExportMem, Smi::FromInt(mem_export));
   ret->set(kOrigin, Smi::FromInt(origin));
+  Handle<HeapNumber> size_as_object = factory->NewHeapNumber(
+      static_cast<double>(temp_instance_for_compilation.mem_size), MUTABLE,
+      TENURED);
+  ret->set(kMemSize, *size_as_object);
   return ret;
 }
 
@@ -1275,7 +1447,8 @@ void PatchJSWrapper(Isolate* isolate, Handle<Code> wrapper,
 
 Handle<FixedArray> SetupIndirectFunctionTable(
     Isolate* isolate, Handle<FixedArray> wasm_functions,
-    Handle<FixedArray> indirect_table_template) {
+    Handle<FixedArray> indirect_table_template,
+    Handle<FixedArray> tables_to_replace) {
   Factory* factory = isolate->factory();
   Handle<FixedArray> cloned_indirect_tables =
       factory->CopyFixedArray(indirect_table_template);
@@ -1290,19 +1463,51 @@ Handle<FixedArray> SetupIndirectFunctionTable(
     Handle<FixedArray> cloned_table = factory->CopyFixedArray(orig_table);
     cloned_metadata->set(kTable, *cloned_table);
     // Patch the cloned code to refer to the cloned kTable.
-    for (int i = 0; i < wasm_functions->length(); ++i) {
+    Handle<FixedArray> table_to_replace =
+        tables_to_replace->GetValueChecked<FixedArray>(isolate, i)
+            ->GetValueChecked<FixedArray>(isolate, kTable);
+    for (int fct_index = 0; fct_index < wasm_functions->length(); ++fct_index) {
       Handle<Code> wasm_function =
-          wasm_functions->GetValueChecked<Code>(isolate, i);
-      PatchFunctionTable(wasm_function, orig_table, cloned_table);
+          wasm_functions->GetValueChecked<Code>(isolate, fct_index);
+      PatchFunctionTable(wasm_function, table_to_replace, cloned_table);
     }
   }
   return cloned_indirect_tables;
 }
 
 Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
-                                          Handle<FixedArray> original) {
+                                          Handle<JSObject> module_object,
+                                          bool* template_is_owned,
+                                          Handle<FixedArray>* module_template) {
   Factory* factory = isolate->factory();
+
+  Handle<FixedArray> original;
+  for (int i = 0; i < 2; ++i) {
+    original = handle(FixedArray::cast(module_object->GetInternalField(0)));
+    if (GetOwningInstance(*original) == nullptr) {
+      *template_is_owned = false;
+      *module_template = original;
+      return original;
+    }
+    if (i < 1) {
+      isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+                                         GarbageCollectionReason::kRuntime);
+    }
+  }
+  *template_is_owned = true;
+  *module_template = original;
+
+  // We insert the latest clone in front.
   Handle<FixedArray> clone = factory->CopyFixedArray(original);
+  Handle<WeakCell> weak_link_to_wasm_obj =
+      original->GetValueChecked<WeakCell>(isolate, kModuleObject);
+
+  clone->set(kModuleObject, *weak_link_to_wasm_obj);
+  Handle<WeakCell> link_to_original = factory->NewWeakCell(original);
+  clone->set(kNextInstance, *link_to_original);
+  Handle<WeakCell> link_to_clone = factory->NewWeakCell(clone);
+  original->set(kPrevInstance, *link_to_clone);
+  JSObject::cast(weak_link_to_wasm_obj->value())->SetInternalField(0, *clone);
 
   // Clone each wasm code object.
   Handle<FixedArray> orig_wasm_functions =
@@ -1363,6 +1568,7 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
         clone_wasm_functions->GetValueChecked<Code>(isolate, startup_fct_index);
     PatchJSWrapper(isolate, startup_fct_clone, new_target);
   }
+  clone->set(kImportMap, *isolate->factory()->undefined_value());
   return clone;
 }
 
@@ -1380,21 +1586,21 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
   Factory* factory = isolate->factory();
 
-  Handle<FixedArray> compiled_module =
-      handle(FixedArray::cast(module_object->GetInternalField(0)));
-  compiled_module = CloneModuleForInstance(isolate, compiled_module);
+  bool template_is_owned = false;
+  Handle<FixedArray> compiled_module_template;
+  Handle<FixedArray> compiled_module = CloneModuleForInstance(
+      isolate, module_object, &template_is_owned, &compiled_module_template);
 
+  MaybeHandle<JSObject> template_owner;
+  if (template_is_owned) {
+    Handle<WeakCell> weak_owner =
+        compiled_module_template->GetValueChecked<WeakCell>(isolate,
+                                                            kOwningInstance);
+    template_owner = handle(JSObject::cast(weak_owner->value()));
+  }
   // These fields are compulsory.
   Handle<FixedArray> code_table =
       compiled_module->GetValueChecked<FixedArray>(isolate, kFunctions);
-
-  std::vector<Handle<Code>> functions(
-      static_cast<size_t>(code_table->length()));
-  for (int i = 0; i < code_table->length(); ++i) {
-    functions[static_cast<size_t>(i)] =
-        code_table->GetValueChecked<Code>(isolate, i);
-  }
-  LinkModuleFunctions(isolate, functions);
 
   RecordStats(isolate, code_table);
 
@@ -1406,35 +1612,61 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   Handle<JSObject> js_object = factory->NewJSObjectFromMap(map, TENURED);
   js_object->SetInternalField(kWasmModuleCodeTable, *code_table);
 
+  // Remember the old imports, for the case when we are at the first instance -
+  // they will be replaced with the instance's actual imports in SetupImports.
+  MaybeHandle<FixedArray> old_imports =
+      compiled_module_template->GetValue<FixedArray>(isolate, kImportMap);
   if (!(SetupInstanceHeap(isolate, compiled_module, js_object, memory,
                           &thrower) &&
-        SetupGlobals(isolate, compiled_module, js_object, &thrower) &&
+        SetupGlobals(isolate, template_owner, compiled_module, js_object,
+                     &thrower) &&
         SetupImports(isolate, compiled_module, js_object, &thrower, ffi) &&
         SetupExportsObject(compiled_module, isolate, js_object, &thrower))) {
     return nothing;
   }
+
+  FixupFunctionsAndImports(
+      compiled_module_template->GetValueChecked<FixedArray>(isolate,
+                                                            kFunctions),
+      code_table, old_imports,
+      compiled_module->GetValue<FixedArray>(isolate, kImportMap));
 
   SetDebugSupport(factory, compiled_module, js_object);
   SetRuntimeSupport(isolate, js_object);
 
   FlushAssemblyCache(isolate, code_table);
 
-  MaybeHandle<FixedArray> maybe_indirect_tables =
-      compiled_module->GetValue<FixedArray>(isolate,
-                                            kTableOfIndirectFunctionTables);
-  Handle<FixedArray> indirect_tables_template;
-  if (maybe_indirect_tables.ToHandle(&indirect_tables_template)) {
-    Handle<FixedArray> indirect_tables = SetupIndirectFunctionTable(
-        isolate, code_table, indirect_tables_template);
-    for (int i = 0; i < indirect_tables->length(); ++i) {
-      Handle<FixedArray> metadata =
-          indirect_tables->GetValueChecked<FixedArray>(isolate, i);
-      uint32_t size = Smi::cast(metadata->get(kSize))->value();
-      Handle<FixedArray> table =
-          metadata->GetValueChecked<FixedArray>(isolate, kTable);
-      wasm::PopulateFunctionTable(table, size, &functions);
+  {
+    std::vector<Handle<Code>> functions(
+        static_cast<size_t>(code_table->length()));
+    for (int i = 0; i < code_table->length(); ++i) {
+      functions[static_cast<size_t>(i)] =
+          code_table->GetValueChecked<Code>(isolate, i);
     }
-    js_object->SetInternalField(kWasmModuleFunctionTable, *indirect_tables);
+
+    MaybeHandle<FixedArray> maybe_indirect_tables =
+        compiled_module->GetValue<FixedArray>(isolate,
+                                              kTableOfIndirectFunctionTables);
+    Handle<FixedArray> indirect_tables_template;
+    if (maybe_indirect_tables.ToHandle(&indirect_tables_template)) {
+      Handle<FixedArray> to_replace =
+          template_owner.is_null()
+              ? indirect_tables_template
+              : handle(FixedArray::cast(
+                    template_owner.ToHandleChecked()->GetInternalField(
+                        kWasmModuleFunctionTable)));
+      Handle<FixedArray> indirect_tables = SetupIndirectFunctionTable(
+          isolate, code_table, indirect_tables_template, to_replace);
+      for (int i = 0; i < indirect_tables->length(); ++i) {
+        Handle<FixedArray> metadata =
+            indirect_tables->GetValueChecked<FixedArray>(isolate, i);
+        uint32_t size = Smi::cast(metadata->get(kSize))->value();
+        Handle<FixedArray> table =
+            metadata->GetValueChecked<FixedArray>(isolate, kTable);
+        wasm::PopulateFunctionTable(table, size, &functions);
+      }
+      js_object->SetInternalField(kWasmModuleFunctionTable, *indirect_tables);
+    }
   }
 
   // Run the start function if one was specified.
@@ -1464,6 +1696,19 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   }
 
   DCHECK(wasm::IsWasmObject(*js_object));
+
+  if (!compiled_module->GetValue<WeakCell>(isolate, kModuleObject).is_null()) {
+    js_object->SetInternalField(kWasmCompiledModule, *compiled_module);
+    Handle<WeakCell> link_to_owner = factory->NewWeakCell(js_object);
+    compiled_module->set(kOwningInstance, *link_to_owner);
+
+    Handle<Object> global_handle =
+        isolate->global_handles()->Create(*js_object);
+    GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
+                            &InstanceFinalizer,
+                            v8::WeakCallbackType::kFinalizer);
+  }
+
   return js_object;
 }
 
@@ -1651,6 +1896,8 @@ Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
     Handle<Symbol> module_sym(isolate->native_context()->wasm_module_sym());
     Object::SetProperty(module_obj, module_sym, module_obj, STRICT).Check();
   }
+  Handle<WeakCell> link_to_module = isolate->factory()->NewWeakCell(module_obj);
+  compiled_module->set(kModuleObject, *link_to_module);
   return module_obj;
 }
 
@@ -1675,6 +1922,74 @@ MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
   return CreateCompiledModuleObject(isolate, compiled_module.ToHandleChecked(),
                                     origin);
 }
+
+MaybeHandle<JSArrayBuffer> GetInstanceMemory(Isolate* isolate,
+                                             Handle<JSObject> instance) {
+  Object* mem = instance->GetInternalField(kWasmMemArrayBuffer);
+  DCHECK(IsWasmObject(*instance));
+  if (mem->IsUndefined(isolate)) return MaybeHandle<JSArrayBuffer>();
+  return Handle<JSArrayBuffer>(JSArrayBuffer::cast(mem));
+}
+
+void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer) {
+  DisallowHeapAllocation no_gc;
+  DCHECK(IsWasmObject(*instance));
+  instance->SetInternalField(kWasmMemArrayBuffer, buffer);
+  Object* module = instance->GetInternalField(kWasmCompiledModule);
+  if (module->IsFixedArray()) {
+    HeapNumber::cast(FixedArray::cast(module)->get(kMemSize))
+        ->set_value(buffer->byte_length()->Number());
+  }
+}
+
+namespace testing {
+
+void ValidateInstancesChain(Isolate* isolate, Handle<JSObject> module_obj,
+                            int instance_count) {
+  CHECK_GE(instance_count, 0);
+  DisallowHeapAllocation no_gc;
+  FixedArray* compiled_module =
+      FixedArray::cast(module_obj->GetInternalField(0));
+  CHECK_EQ(JSObject::cast(GetModuleObject(compiled_module)->value()),
+           *module_obj);
+  Object* prev = nullptr;
+  int found_instances = GetOwningInstance(compiled_module) == nullptr ? 0 : 1;
+  FixedArray* current_instance = compiled_module;
+  while (GetNextInstance(current_instance) != nullptr) {
+    CHECK((prev == nullptr && GetPrevInstance(current_instance) == nullptr) ||
+          GetPrevInstance(current_instance)->value() == prev);
+    CHECK_EQ(GetModuleObject(current_instance)->value(), *module_obj);
+    CHECK(IsWasmObject(GetOwningInstance(current_instance)->value()));
+    prev = current_instance;
+    current_instance =
+        FixedArray::cast(GetNextInstance(current_instance)->value());
+    ++found_instances;
+    CHECK_LE(found_instances, instance_count);
+  }
+  CHECK_EQ(found_instances, instance_count);
+}
+
+void ValidateModuleState(Isolate* isolate, Handle<JSObject> module_obj) {
+  DisallowHeapAllocation no_gc;
+  FixedArray* compiled_module =
+      FixedArray::cast(module_obj->GetInternalField(0));
+  CHECK_NOT_NULL(GetModuleObject(compiled_module));
+  CHECK_EQ(GetModuleObject(compiled_module)->value(), *module_obj);
+  CHECK_NULL(GetPrevInstance(compiled_module));
+  CHECK_NULL(GetNextInstance(compiled_module));
+  CHECK_NULL(GetOwningInstance(compiled_module));
+}
+
+void ValidateOrphanedInstance(Isolate* isolate, Handle<JSObject> instance) {
+  DisallowHeapAllocation no_gc;
+  CHECK(IsWasmObject(*instance));
+  FixedArray* compiled_module =
+      FixedArray::cast(instance->GetInternalField(kWasmCompiledModule));
+  CHECK_NOT_NULL(GetModuleObject(compiled_module));
+  CHECK(GetModuleObject(compiled_module)->cleared());
+}
+
+}  // namespace testing
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

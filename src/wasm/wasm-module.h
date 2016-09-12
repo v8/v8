@@ -414,6 +414,19 @@ MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
 // instance
 // was collected, or the instance object owning the Code object
 Object* GetOwningWasmInstance(Object* undefined, Code* code);
+
+MaybeHandle<JSArrayBuffer> GetInstanceMemory(Isolate* isolate,
+                                             Handle<JSObject> instance);
+void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer);
+
+namespace testing {
+
+void ValidateInstancesChain(Isolate* isolate, Handle<JSObject> module_obj,
+                            int instance_count);
+void ValidateModuleState(Isolate* isolate, Handle<JSObject> module_obj);
+void ValidateOrphanedInstance(Isolate* isolate, Handle<JSObject> instance);
+
+}  // namespace testing
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
