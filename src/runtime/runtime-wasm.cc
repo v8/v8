@@ -86,14 +86,20 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
         wasm::WasmModule::kMaxMemPages * wasm::WasmModule::kPageSize) {
       return *isolate->factory()->NewNumberFromInt(-1);
     }
-    new_mem_start = static_cast<Address>(realloc(old_mem_start, new_size));
+    new_mem_start =
+        static_cast<Address>(isolate->array_buffer_allocator()->Allocate(
+            static_cast<uint32_t>(new_size)));
     if (new_mem_start == NULL) {
       return *isolate->factory()->NewNumberFromInt(-1);
     }
-    old_buffer->set_is_external(true);
-    isolate->heap()->UnregisterArrayBuffer(*old_buffer);
-    // Zero initializing uninitialized memory from realloc
-    memset(new_mem_start + old_size, 0, new_size - old_size);
+#if DEBUG
+    // Double check the API allocator actually zero-initialized the memory.
+    for (size_t i = old_size; i < new_size; i++) {
+      DCHECK_EQ(0, new_mem_start[i]);
+    }
+#endif
+    // Copy contents of the old buffer to the new buffer
+    memcpy(new_mem_start, old_mem_start, old_size);
   }
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
@@ -102,7 +108,6 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
 
   // Set new buffer to be wasm memory
   module_object->SetInternalField(kWasmMemArrayBuffer, *buffer);
-
   CHECK(wasm::UpdateWasmModuleMemory(module_object, old_mem_start,
                                      new_mem_start, old_size, new_size));
 
