@@ -222,11 +222,9 @@ class TypeFeedbackMetadata : public FixedArray {
 
 // The shape of the TypeFeedbackVector is an array with:
 // 0: feedback metadata
-// 1: ics_with_types
-// 2: ics_with_generic_info
-// 3: feedback slot #0
+// 1: feedback slot #0
 // ...
-// 3 + slot_count - 1: feedback slot #(slot_count-1)
+// 1 + slot_count - 1: feedback slot #(slot_count-1)
 //
 class TypeFeedbackVector : public FixedArray {
  public:
