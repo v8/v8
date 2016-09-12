@@ -164,42 +164,6 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   return ParseHoistableDeclaration(pos, flags, nullptr, false, ok);
 }
 
-PreParser::Statement PreParser::ParseSwitchStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
-  // SwitchStatement ::
-  //   'switch' '(' Expression ')' '{' CaseClause* '}'
-
-  Expect(Token::SWITCH, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
-
-  {
-    BlockState cases_block_state(&scope_state_);
-    Expect(Token::LBRACE, CHECK_OK);
-    Token::Value token = peek();
-    while (token != Token::RBRACE) {
-      if (token == Token::CASE) {
-        Expect(Token::CASE, CHECK_OK);
-        ParseExpression(true, CHECK_OK);
-      } else {
-        Expect(Token::DEFAULT, CHECK_OK);
-      }
-      Expect(Token::COLON, CHECK_OK);
-      token = peek();
-      Statement statement = Statement::Jump();
-      while (token != Token::CASE &&
-             token != Token::DEFAULT &&
-             token != Token::RBRACE) {
-        statement = ParseStatementListItem(CHECK_OK);
-        token = peek();
-      }
-    }
-  }
-  Expect(Token::RBRACE, ok);
-  return Statement::Default();
-}
-
 PreParser::Statement PreParser::ParseForStatement(
     ZoneList<const AstRawString*>* labels, bool* ok) {
   // ForStatement ::

@@ -1729,43 +1729,10 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   return ParseHoistableDeclaration(pos, flags, nullptr, false, CHECK_OK);
 }
 
-CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
-  // CaseClause ::
-  //   'case' Expression ':' StatementList
-  //   'default' ':' StatementList
-
-  Expression* label = NULL;  // NULL expression indicates default case
-  if (peek() == Token::CASE) {
-    Expect(Token::CASE, CHECK_OK);
-    label = ParseExpression(true, CHECK_OK);
-  } else {
-    Expect(Token::DEFAULT, CHECK_OK);
-    if (*default_seen_ptr) {
-      ReportMessage(MessageTemplate::kMultipleDefaultsInSwitch);
-      *ok = false;
-      return NULL;
-    }
-    *default_seen_ptr = true;
-  }
-  Expect(Token::COLON, CHECK_OK);
-  int pos = position();
-  ZoneList<Statement*>* statements =
-      new(zone()) ZoneList<Statement*>(5, zone());
-  Statement* stat = NULL;
-  while (peek() != Token::CASE &&
-         peek() != Token::DEFAULT &&
-         peek() != Token::RBRACE) {
-    stat = ParseStatementListItem(CHECK_OK);
-    statements->Add(stat, zone());
-  }
-  return factory()->NewCaseClause(label, statements, pos);
-}
-
-
-Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
-                                        bool* ok) {
-  // SwitchStatement ::
-  //   'switch' '(' Expression ')' '{' CaseClause* '}'
+Statement* Parser::RewriteSwitchStatement(Expression* tag,
+                                          SwitchStatement* switch_statement,
+                                          ZoneList<CaseClause*>* cases,
+                                          Scope* scope) {
   // In order to get the CaseClauses to execute in their own lexical scope,
   // but without requiring downstream code to have special scope handling
   // code for switch statements, desugar into blocks as follows:
@@ -1777,12 +1744,6 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
   // }
 
   Block* switch_block = factory()->NewBlock(NULL, 2, false, kNoSourcePosition);
-  int switch_pos = peek_position();
-
-  Expect(Token::SWITCH, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  Expression* tag = ParseExpression(true, CHECK_OK);
-  Expect(Token::RPAREN, CHECK_OK);
 
   Variable* tag_variable =
       NewTemporary(ast_value_factory()->dot_switch_tag_string());
@@ -1801,37 +1762,12 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
           factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition),
       zone());
 
+  Expression* tag_read = factory()->NewVariableProxy(tag_variable);
+  switch_statement->Initialize(tag_read, cases);
   Block* cases_block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
-
-  SwitchStatement* switch_statement =
-      factory()->NewSwitchStatement(labels, switch_pos);
-
-  {
-    BlockState cases_block_state(&scope_state_);
-    cases_block_state.set_start_position(scanner()->location().beg_pos);
-    cases_block_state.SetNonlinear();
-    ParserTarget target(this, switch_statement);
-
-    Expression* tag_read = factory()->NewVariableProxy(tag_variable);
-
-    bool default_seen = false;
-    ZoneList<CaseClause*>* cases =
-        new (zone()) ZoneList<CaseClause*>(4, zone());
-    Expect(Token::LBRACE, CHECK_OK);
-    while (peek() != Token::RBRACE) {
-      CaseClause* clause = ParseCaseClause(&default_seen, CHECK_OK);
-      cases->Add(clause, zone());
-    }
-    switch_statement->Initialize(tag_read, cases);
-    cases_block->statements()->Add(switch_statement, zone());
-    Expect(Token::RBRACE, CHECK_OK);
-
-    cases_block_state.set_end_position(scanner()->location().end_pos);
-    cases_block->set_scope(cases_block_state.FinalizedBlockScope());
-  }
-
+  cases_block->statements()->Add(switch_statement, zone());
+  cases_block->set_scope(scope);
   switch_block->statements()->Add(cases_block, zone());
-
   return switch_block;
 }
 

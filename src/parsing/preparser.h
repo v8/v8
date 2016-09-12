@@ -651,6 +651,16 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
 
+  PreParserStatement NewSwitchStatement(ZoneList<const AstRawString*>* labels,
+                                        int pos) {
+    return PreParserStatement::Default();
+  }
+
+  PreParserStatement NewCaseClause(PreParserExpression label,
+                                   PreParserStatementList statements, int pos) {
+    return PreParserStatement::Default();
+  }
+
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }
@@ -704,8 +714,8 @@ struct ParserTypes<PreParser> {
   typedef PreParserStatement Statement;
   typedef PreParserStatementList StatementList;
   typedef PreParserStatement Block;
-  typedef PreParserStatement BreakableStatementT;
-  typedef PreParserStatement IterationStatementT;
+  typedef PreParserStatement BreakableStatement;
+  typedef PreParserStatement IterationStatement;
 
   // For constructing objects returned by the traversing functions.
   typedef PreParserFactory Factory;
@@ -814,8 +824,6 @@ class PreParser : public ParserBase<PreParser> {
   Expression ParseAsyncFunctionExpression(bool* ok);
   Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                   bool default_export, bool* ok);
-  Statement ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
-                                 bool* ok);
   Statement ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement ParseTryStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
@@ -932,6 +940,11 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression RewriteReturn(PreParserExpression return_value,
                                               int pos) {
     return return_value;
+  }
+  V8_INLINE PreParserStatement RewriteSwitchStatement(
+      PreParserExpression tag, PreParserStatement switch_statement,
+      PreParserStatementList cases, Scope* scope) {
+    return PreParserStatement::Default();
   }
 
   V8_INLINE PreParserExpression RewriteDoExpression(PreParserStatement body,
@@ -1253,6 +1266,10 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserStatementList NewStatementList(int size) const {
+    return PreParserStatementList();
+  }
+
+  PreParserStatementList NewCaseClauseList(int size) {
     return PreParserStatementList();
   }
 

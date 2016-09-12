@@ -157,8 +157,8 @@ struct ParserTypes<Parser> {
   typedef v8::internal::Statement* Statement;
   typedef ZoneList<v8::internal::Statement*>* StatementList;
   typedef v8::internal::Block* Block;
-  typedef v8::internal::BreakableStatement* BreakableStatementT;
-  typedef v8::internal::IterationStatement* IterationStatementT;
+  typedef v8::internal::BreakableStatement* BreakableStatement;
+  typedef v8::internal::IterationStatement* IterationStatement;
 
   // For constructing objects returned by the traversing functions.
   typedef AstNodeFactory Factory;
@@ -281,6 +281,9 @@ class Parser : public ParserBase<Parser> {
   bool ContainsLabel(ZoneList<const AstRawString*>* labels,
                      const AstRawString* label);
   Expression* RewriteReturn(Expression* return_value, int pos);
+  Statement* RewriteSwitchStatement(Expression* tag,
+                                    SwitchStatement* switch_statement,
+                                    ZoneList<CaseClause*>* cases, Scope* scope);
 
   Statement* DeclareFunction(const AstRawString* variable_name,
                              FunctionLiteral* function, int pos,
@@ -370,9 +373,6 @@ class Parser : public ParserBase<Parser> {
     DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
   };
 
-  CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
-  Statement* ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
-                                  bool* ok);
   Statement* ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
   TryStatement* ParseTryStatement(bool* ok);
@@ -938,6 +938,9 @@ class Parser : public ParserBase<Parser> {
   }
   V8_INLINE ZoneList<Statement*>* NewStatementList(int size) const {
     return new (zone()) ZoneList<Statement*>(size, zone());
+  }
+  V8_INLINE ZoneList<CaseClause*>* NewCaseClauseList(int size) const {
+    return new (zone()) ZoneList<CaseClause*>(size, zone());
   }
 
   V8_INLINE Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,

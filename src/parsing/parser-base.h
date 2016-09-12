@@ -138,6 +138,8 @@ struct FormalParametersBase {
 //   typedef Statement;
 //   typedef StatementList;
 //   typedef Block;
+//   typedef BreakableStatement;
+//   typedef IterationStatement;
 //   // For constructing objects returned by the traversing functions.
 //   typedef Factory;
 //   // For other implementation-specific tasks.
@@ -1217,6 +1219,8 @@ class ParserBase {
   StatementT ParseWhileStatement(ZoneList<const AstRawString*>* labels,
                                  bool* ok);
   StatementT ParseThrowStatement(bool* ok);
+  StatementT ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
+                                  bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -4282,7 +4286,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::WITH:
       return ParseWithStatement(labels, ok);
     case Token::SWITCH:
-      return impl()->ParseSwitchStatement(labels, ok);
+      return ParseSwitchStatement(labels, ok);
     case Token::FUNCTION:
       // FunctionDeclaration only allowed as a StatementListItem, not in
       // an arbitrary Statement position. Exceptions such as
@@ -4519,7 +4523,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
     label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
   }
-  typename Types::IterationStatementT target =
+  typename Types::IterationStatement target =
       impl()->LookupContinueTarget(label, CHECK_OK);
   if (impl()->IsNullStatement(target)) {
     // Illegal continue statement.
@@ -4557,7 +4561,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
     ExpectSemicolon(CHECK_OK);
     return factory()->NewEmptyStatement(pos);
   }
-  typename Types::BreakableStatementT target =
+  typename Types::BreakableStatement target =
       impl()->LookupBreakTarget(label, CHECK_OK);
   if (impl()->IsNullStatement(target)) {
     // Illegal break statement.
@@ -4716,6 +4720,66 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseThrowStatement(
   ExpectSemicolon(CHECK_OK);
 
   return impl()->NewThrowStatement(exception, pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  // SwitchStatement ::
+  //   'switch' '(' Expression ')' '{' CaseClause* '}'
+  // CaseClause ::
+  //   'case' Expression ':' StatementList
+  //   'default' ':' StatementList
+
+  int switch_pos = peek_position();
+
+  Expect(Token::SWITCH, CHECK_OK);
+  Expect(Token::LPAREN, CHECK_OK);
+  ExpressionT tag = ParseExpression(true, CHECK_OK);
+  Expect(Token::RPAREN, CHECK_OK);
+
+  auto switch_statement = factory()->NewSwitchStatement(labels, switch_pos);
+
+  {
+    BlockState cases_block_state(&scope_state_);
+    cases_block_state.set_start_position(scanner()->location().beg_pos);
+    cases_block_state.SetNonlinear();
+    typename Types::Target target(this, switch_statement);
+
+    bool default_seen = false;
+    auto cases = impl()->NewCaseClauseList(4);
+    Expect(Token::LBRACE, CHECK_OK);
+    while (peek() != Token::RBRACE) {
+      // An empty label indicates the default case.
+      ExpressionT label = impl()->EmptyExpression();
+      if (Check(Token::CASE)) {
+        label = ParseExpression(true, CHECK_OK);
+      } else {
+        Expect(Token::DEFAULT, CHECK_OK);
+        if (default_seen) {
+          ReportMessage(MessageTemplate::kMultipleDefaultsInSwitch);
+          *ok = false;
+          return impl()->NullStatement();
+        }
+        default_seen = true;
+      }
+      Expect(Token::COLON, CHECK_OK);
+      int clause_pos = position();
+      StatementListT statements = impl()->NewStatementList(5);
+      while (peek() != Token::CASE && peek() != Token::DEFAULT &&
+             peek() != Token::RBRACE) {
+        StatementT stat = ParseStatementListItem(CHECK_OK);
+        statements->Add(stat, zone());
+      }
+      auto clause = factory()->NewCaseClause(label, statements, clause_pos);
+      cases->Add(clause, zone());
+    }
+    Expect(Token::RBRACE, CHECK_OK);
+
+    cases_block_state.set_end_position(scanner()->location().end_pos);
+    return impl()->RewriteSwitchStatement(
+        tag, switch_statement, cases, cases_block_state.FinalizedBlockScope());
+  }
 }
 
 #undef CHECK_OK
