@@ -649,7 +649,8 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
   }
   // If we do not have enough type information for the initial value or
   // the increment, just return the initial value's type.
-  if (!initial_type->IsInhabited() || !increment_type->IsInhabited()) {
+  if (!initial_type->IsInhabited() ||
+      increment_type->Is(typer_->cache_.kSingletonZero)) {
     return initial_type;
   }
 
