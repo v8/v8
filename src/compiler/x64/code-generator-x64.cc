@@ -1454,7 +1454,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat64Sqrt:
-      ASSEMBLE_SSE_UNOP(sqrtsd);
+      ASSEMBLE_SSE_UNOP(Sqrtsd);
       break;
     case kSSEFloat64Round: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
