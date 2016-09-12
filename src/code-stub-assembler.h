@@ -304,9 +304,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   // Allocate a HeapNumber without initializing its value.
-  compiler::Node* AllocateHeapNumber();
+  compiler::Node* AllocateHeapNumber(MutableMode mode = IMMUTABLE);
   // Allocate a HeapNumber with a specific value.
-  compiler::Node* AllocateHeapNumberWithValue(compiler::Node* value);
+  compiler::Node* AllocateHeapNumberWithValue(compiler::Node* value,
+                                              MutableMode mode = IMMUTABLE);
   // Allocate a SeqOneByteString with the given length.
   compiler::Node* AllocateSeqOneByteString(int length);
   compiler::Node* AllocateSeqOneByteString(compiler::Node* context,
@@ -634,6 +635,14 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void TryProbeStubCache(StubCache* stub_cache, compiler::Node* receiver,
                          compiler::Node* name, Label* if_handler,
                          Variable* var_handler, Label* if_miss);
+
+  compiler::Node* PrepareValueForWrite(compiler::Node* value,
+                                       Representation representation,
+                                       Label* bailout);
+
+  void StoreNamedField(compiler::Node* object, FieldIndex index,
+                       Representation representation, compiler::Node* value,
+                       bool transition_to_field);
 
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);

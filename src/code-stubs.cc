@@ -4434,6 +4434,43 @@ void LoadApiGetterStub::GenerateAssembly(CodeStubAssembler* assembler) const {
                           holder, callback);
 }
 
+void StoreFieldStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  FieldIndex index = this->index();
+  Representation representation = this->representation();
+
+  assembler->Comment("StoreFieldStub: inobject=%d, offset=%d, rep=%s",
+                     index.is_inobject(), index.offset(),
+                     representation.Mnemonic());
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  Node* prepared_value =
+      assembler->PrepareValueForWrite(value, representation, &miss);
+  assembler->StoreNamedField(receiver, index, representation, prepared_value,
+                             false);
+  assembler->Return(value);
+
+  // Only stores to tagged field can't bailout.
+  if (!representation.IsTagged()) {
+    assembler->Bind(&miss);
+    {
+      assembler->Comment("Miss");
+      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, receiver,
+                                 name, value, slot, vector);
+    }
+  }
+}
+
 // static
 compiler::Node* LessThanStub::Generate(CodeStubAssembler* assembler,
                                        compiler::Node* lhs, compiler::Node* rhs,

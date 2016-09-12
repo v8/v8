@@ -47,7 +47,7 @@ Node* CodeStubAssembler::EmptyStringConstant() {
 }
 
 Node* CodeStubAssembler::HeapNumberMapConstant() {
-  return HeapConstant(isolate()->factory()->heap_number_map());
+  return LoadRoot(Heap::kHeapNumberMapRootIndex);
 }
 
 Node* CodeStubAssembler::NoContextConstant() {
@@ -1241,14 +1241,19 @@ Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
   return StoreNoWriteBarrier(rep, object, offset, value);
 }
 
-Node* CodeStubAssembler::AllocateHeapNumber() {
+Node* CodeStubAssembler::AllocateHeapNumber(MutableMode mode) {
   Node* result = Allocate(HeapNumber::kSize, kNone);
-  StoreMapNoWriteBarrier(result, HeapNumberMapConstant());
+  Heap::RootListIndex heap_map_index =
+      mode == IMMUTABLE ? Heap::kHeapNumberMapRootIndex
+                        : Heap::kMutableHeapNumberMapRootIndex;
+  Node* map = LoadRoot(heap_map_index);
+  StoreMapNoWriteBarrier(result, map);
   return result;
 }
 
-Node* CodeStubAssembler::AllocateHeapNumberWithValue(Node* value) {
-  Node* result = AllocateHeapNumber();
+Node* CodeStubAssembler::AllocateHeapNumberWithValue(Node* value,
+                                                     MutableMode mode) {
+  Node* result = AllocateHeapNumber(mode);
   StoreHeapNumberValue(result, value);
   return result;
 }
@@ -4440,6 +4445,76 @@ void CodeStubAssembler::LoadGlobalIC(const LoadICParameters* p) {
   {
     TailCallRuntime(Runtime::kLoadGlobalIC_Miss, p->context, p->slot,
                     p->vector);
+  }
+}
+
+Node* CodeStubAssembler::PrepareValueForWrite(Node* value,
+                                              Representation representation,
+                                              Label* bailout) {
+  if (representation.IsDouble()) {
+    Variable var_value(this, MachineRepresentation::kFloat64);
+    Label if_smi(this), if_heap_object(this), done(this);
+    Branch(WordIsSmi(value), &if_smi, &if_heap_object);
+    Bind(&if_smi);
+    {
+      var_value.Bind(SmiToFloat64(value));
+      Goto(&done);
+    }
+    Bind(&if_heap_object);
+    {
+      GotoUnless(
+          Word32Equal(LoadInstanceType(value), Int32Constant(HEAP_NUMBER_TYPE)),
+          bailout);
+      var_value.Bind(LoadHeapNumberValue(value));
+      Goto(&done);
+    }
+    Bind(&done);
+    value = var_value.value();
+  } else if (representation.IsHeapObject()) {
+    // Field type is checked by the handler, here we only check if the value
+    // is a heap object.
+    GotoIf(WordIsSmi(value), bailout);
+  } else if (representation.IsSmi()) {
+    GotoUnless(WordIsSmi(value), bailout);
+  } else {
+    DCHECK(representation.IsTagged());
+  }
+  return value;
+}
+
+void CodeStubAssembler::StoreNamedField(Node* object, FieldIndex index,
+                                        Representation representation,
+                                        Node* value, bool transition_to_field) {
+  DCHECK_EQ(index.is_double(), representation.IsDouble());
+
+  bool store_value_as_double = representation.IsDouble();
+  int offset = index.offset();
+  Node* property_storage = object;
+  if (!index.is_inobject()) {
+    property_storage = LoadProperties(object);
+  }
+
+  if (representation.IsDouble()) {
+    if (!FLAG_unbox_double_fields || !index.is_inobject()) {
+      if (transition_to_field) {
+        Node* heap_number = AllocateHeapNumberWithValue(value, MUTABLE);
+        // Store the new mutable heap number into the object.
+        value = heap_number;
+        store_value_as_double = false;
+      } else {
+        // Load the heap number.
+        property_storage = LoadObjectField(property_storage, offset);
+        // Store the double value into it.
+        offset = HeapNumber::kValueOffset;
+      }
+    }
+  }
+
+  if (store_value_as_double) {
+    StoreObjectFieldNoWriteBarrier(property_storage, offset, value,
+                                   MachineRepresentation::kFloat64);
+  } else {
+    StoreObjectField(property_storage, offset, value);
   }
 }
 

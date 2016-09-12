@@ -1100,18 +1100,6 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
 
 
 template <>
-HValue* CodeStubGraphBuilder<StoreFieldStub>::BuildCodeStub() {
-  BuildStoreNamedField(GetParameter(Descriptor::kReceiver),
-                       GetParameter(Descriptor::kValue), casted_stub()->index(),
-                       casted_stub()->representation(), false);
-  return GetParameter(Descriptor::kValue);
-}
-
-
-Handle<Code> StoreFieldStub::GenerateCode() { return DoGenerateCode(this); }
-
-
-template <>
 HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
   HValue* object = GetParameter(StoreTransitionHelper::ReceiverIndex());
   HValue* value = GetParameter(StoreTransitionHelper::ValueIndex());

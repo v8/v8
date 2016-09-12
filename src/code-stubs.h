@@ -90,7 +90,6 @@ class ObjectLiteral;
   V(LoadField)                                \
   V(LoadScriptContextField)                   \
   V(StoreFastElement)                         \
-  V(StoreField)                               \
   V(StoreGlobal)                              \
   V(StoreScriptContextField)                  \
   V(StoreTransition)                          \
@@ -167,6 +166,7 @@ class ObjectLiteral;
   V(GetProperty)                              \
   V(LoadICTF)                                 \
   V(KeyedLoadICTF)                            \
+  V(StoreField)                               \
   V(StoreInterceptor)                         \
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
@@ -1631,37 +1631,38 @@ class LoadApiGetterStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(LoadApiGetter, TurboFanCodeStub);
 };
 
-class StoreFieldStub : public HandlerStub {
+class StoreFieldStub : public TurboFanCodeStub {
  public:
   StoreFieldStub(Isolate* isolate, FieldIndex index,
                  Representation representation)
-      : HandlerStub(isolate) {
+      : TurboFanCodeStub(isolate) {
     int property_index_key = index.GetFieldAccessStubKey();
-    uint8_t repr = PropertyDetails::EncodeRepresentation(representation);
-    set_sub_minor_key(StoreFieldByIndexBits::encode(property_index_key) |
-                      RepresentationBits::encode(repr));
+    minor_key_ = StoreFieldByIndexBits::encode(property_index_key) |
+                 RepresentationBits::encode(representation.kind());
   }
 
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
+
   FieldIndex index() const {
-    int property_index_key = StoreFieldByIndexBits::decode(sub_minor_key());
+    int property_index_key = StoreFieldByIndexBits::decode(minor_key_);
     return FieldIndex::FromFieldAccessStubKey(property_index_key);
   }
 
-  Representation representation() {
-    uint8_t repr = RepresentationBits::decode(sub_minor_key());
-    return PropertyDetails::DecodeRepresentation(repr);
+  Representation representation() const {
+    return Representation::FromKind(RepresentationBits::decode(minor_key_));
   }
-
- protected:
-  Code::Kind kind() const override { return Code::STORE_IC; }
 
  private:
   class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
-  class RepresentationBits : public BitField<uint8_t, 13, 4> {};
+  class RepresentationBits
+      : public BitField<Representation::Kind, StoreFieldByIndexBits::kNext, 4> {
+  };
+  STATIC_ASSERT(Representation::kNumRepresentations - 1 <
+                RepresentationBits::kMax);
 
-  // TODO(ishell): The stub uses only kReceiver and kValue parameters.
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_HANDLER_CODE_STUB(StoreField, HandlerStub);
+  DEFINE_TURBOFAN_CODE_STUB(StoreField, TurboFanCodeStub);
 };
 
 
