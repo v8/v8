@@ -118,30 +118,6 @@ function StringMatchJS(pattern) {
 }
 
 
-// ECMA-262 v6, section 21.1.3.12
-//
-// For now we do nothing, as proper normalization requires big tables.
-// If Intl is enabled, then i18n.js will override it and provide the the
-// proper functionality.
-function StringNormalize(formArg) {  // length == 0
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
-  var s = TO_STRING(this);
-
-  var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
-
-  var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
-  var normalizationForm = %ArrayIndexOf(NORMALIZATION_FORMS, form, 0);
-  if (normalizationForm === -1) {
-    throw %make_range_error(kNormalizationForm,
-                         %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));
-  }
-
-  return s;
-}
-
-%FunctionSetLength(StringNormalize, 0);
-
-
 // This has the same size as the RegExpLastMatchInfo array, and can be used
 // for functions that expect that structure to be returned.  It is used when
 // the needle is a string rather than a regexp.  In this case we can't update
@@ -740,7 +716,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "lastIndexOf", StringLastIndexOf,
   "localeCompare", StringLocaleCompareJS,
   "match", StringMatchJS,
-  "normalize", StringNormalize,
   "repeat", StringRepeat,
   "replace", StringReplace,
   "search", StringSearch,
