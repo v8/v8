@@ -490,6 +490,7 @@ class WasmOpcodes {
   static const char* OpcodeName(WasmOpcode opcode);
   static const char* ShortOpcodeName(WasmOpcode opcode);
   static FunctionSig* Signature(WasmOpcode opcode);
+  static FunctionSig* AsmjsSignature(WasmOpcode opcode);
   static bool IsPrefixOpcode(WasmOpcode opcode);
 
   static int TrapReasonToMessageId(TrapReason reason);

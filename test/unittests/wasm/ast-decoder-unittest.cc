@@ -13,6 +13,7 @@
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
@@ -1079,12 +1080,6 @@ TEST_F(AstDecoderTest, MemorySize) {
   EXPECT_FAILURE(sigs.f_ff(), code);
 }
 
-TEST_F(AstDecoderTest, GrowMemory) {
-  byte code[] = {WASM_UNOP(kExprGrowMemory, WASM_GET_LOCAL(0))};
-  EXPECT_VERIFIES(sigs.i_i(), code);
-  EXPECT_FAILURE(sigs.i_d(), code);
-}
-
 TEST_F(AstDecoderTest, LoadMemOffset) {
   for (int offset = 0; offset < 128; offset += 7) {
     byte code[] = {kExprI8Const, 0, kExprI32LoadMem, ZERO_ALIGNMENT,
@@ -1495,6 +1490,116 @@ TEST_F(AstDecoderTest, AllSetGlobalCombinations) {
       } else {
         EXPECT_FAILURE_INLINE(&sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
       }
+    }
+  }
+}
+
+TEST_F(AstDecoderTest, WasmGrowMemory) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module->origin = kWasmOrigin;
+
+  byte code[] = {WASM_UNOP(kExprGrowMemory, WASM_GET_LOCAL(0))};
+  EXPECT_VERIFIES(sigs.i_i(), code);
+  EXPECT_FAILURE(sigs.i_d(), code);
+}
+
+TEST_F(AstDecoderTest, AsmJsGrowMemory) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module->origin = kAsmJsOrigin;
+
+  byte code[] = {WASM_UNOP(kExprGrowMemory, WASM_GET_LOCAL(0))};
+  EXPECT_FAILURE(sigs.i_i(), code);
+}
+
+TEST_F(AstDecoderTest, AsmJsBinOpsCheckOrigin) {
+  LocalType float32int32float32[] = {kAstF32, kAstI32, kAstF32};
+  FunctionSig sig_f_if(1, 2, float32int32float32);
+  LocalType float64int32float64[] = {kAstF64, kAstI32, kAstF64};
+  FunctionSig sig_d_id(1, 2, float64int32float64);
+  struct {
+    WasmOpcode op;
+    FunctionSig* sig;
+  } AsmJsBinOps[] = {
+      {kExprF64Atan2, sigs.d_dd()},
+      {kExprF64Pow, sigs.d_dd()},
+      {kExprF64Mod, sigs.d_dd()},
+      {kExprI32AsmjsDivS, sigs.i_ii()},
+      {kExprI32AsmjsDivU, sigs.i_ii()},
+      {kExprI32AsmjsRemS, sigs.i_ii()},
+      {kExprI32AsmjsRemU, sigs.i_ii()},
+      {kExprI32AsmjsStoreMem8, sigs.i_ii()},
+      {kExprI32AsmjsStoreMem16, sigs.i_ii()},
+      {kExprI32AsmjsStoreMem, sigs.i_ii()},
+      {kExprF32AsmjsStoreMem, &sig_f_if},
+      {kExprF64AsmjsStoreMem, &sig_d_id},
+  };
+
+  {
+    TestModuleEnv module_env;
+    module = &module_env;
+    module->origin = kAsmJsOrigin;
+    for (int i = 0; i < arraysize(AsmJsBinOps); i++) {
+      TestBinop(AsmJsBinOps[i].op, AsmJsBinOps[i].sig);
+    }
+  }
+
+  {
+    TestModuleEnv module_env;
+    module = &module_env;
+    module->origin = kWasmOrigin;
+    for (int i = 0; i < arraysize(AsmJsBinOps); i++) {
+      byte code[] = {
+          WASM_BINOP(AsmJsBinOps[i].op, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
+      EXPECT_FAILURE(AsmJsBinOps[i].sig, code);
+    }
+  }
+}
+
+TEST_F(AstDecoderTest, AsmJsUnOpsCheckOrigin) {
+  LocalType float32int32[] = {kAstF32, kAstI32};
+  FunctionSig sig_f_i(1, 2, float32int32);
+  LocalType float64int32[] = {kAstF64, kAstI32};
+  FunctionSig sig_d_i(1, 2, float64int32);
+  struct {
+    WasmOpcode op;
+    FunctionSig* sig;
+  } AsmJsUnOps[] = {{kExprF64Acos, sigs.d_d()},
+                    {kExprF64Asin, sigs.d_d()},
+                    {kExprF64Atan, sigs.d_d()},
+                    {kExprF64Cos, sigs.d_d()},
+                    {kExprF64Sin, sigs.d_d()},
+                    {kExprF64Tan, sigs.d_d()},
+                    {kExprF64Exp, sigs.d_d()},
+                    {kExprF64Log, sigs.d_d()},
+                    {kExprI32AsmjsLoadMem8S, sigs.i_i()},
+                    {kExprI32AsmjsLoadMem8U, sigs.i_i()},
+                    {kExprI32AsmjsLoadMem16S, sigs.i_i()},
+                    {kExprI32AsmjsLoadMem16U, sigs.i_i()},
+                    {kExprI32AsmjsLoadMem, sigs.i_i()},
+                    {kExprF32AsmjsLoadMem, &sig_f_i},
+                    {kExprF64AsmjsLoadMem, &sig_d_i},
+                    {kExprI32AsmjsSConvertF32, sigs.i_f()},
+                    {kExprI32AsmjsUConvertF32, sigs.i_f()},
+                    {kExprI32AsmjsSConvertF64, sigs.i_d()},
+                    {kExprI32AsmjsUConvertF64, sigs.i_d()}};
+  {
+    TestModuleEnv module_env;
+    module = &module_env;
+    module->origin = kAsmJsOrigin;
+    for (int i = 0; i < arraysize(AsmJsUnOps); i++) {
+      TestUnop(AsmJsUnOps[i].op, AsmJsUnOps[i].sig);
+    }
+  }
+
+  {
+    TestModuleEnv module_env;
+    module = &module_env;
+    module->origin = kWasmOrigin;
+    for (int i = 0; i < arraysize(AsmJsUnOps); i++) {
+      byte code[] = {WASM_UNOP(AsmJsUnOps[i].op, WASM_GET_LOCAL(0))};
+      EXPECT_FAILURE(AsmJsUnOps[i].sig, code);
     }
   }
 }

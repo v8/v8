@@ -932,8 +932,6 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       return BuildI64UConvertF32(input, position);
     case wasm::kExprI64UConvertF64:
       return BuildI64UConvertF64(input, position);
-    case wasm::kExprGrowMemory:
-      return BuildGrowMemory(input);
     case wasm::kExprI32AsmjsLoadMem8S:
       return BuildAsmjsLoadMem(MachineType::Int8(), input);
     case wasm::kExprI32AsmjsLoadMem8U:
@@ -1667,7 +1665,7 @@ Node* WasmGraphBuilder::BuildFloatToIntConversionInstruction(
   return load;
 }
 
-Node* WasmGraphBuilder::BuildGrowMemory(Node* input) {
+Node* WasmGraphBuilder::GrowMemory(Node* input) {
   Diamond check_input_range(
       graph(), jsgraph()->common(),
       graph()->NewNode(

@@ -721,26 +721,7 @@ class WasmFullDecoder : public WasmDecoder {
 
       FunctionSig* sig = WasmOpcodes::Signature(opcode);
       if (sig) {
-        // Fast case of a simple operator.
-        TFNode* node;
-        switch (sig->parameter_count()) {
-          case 1: {
-            Value val = Pop(0, sig->GetParam(0));
-            node = BUILD(Unop, opcode, val.node, position());
-            break;
-          }
-          case 2: {
-            Value rval = Pop(1, sig->GetParam(1));
-            Value lval = Pop(0, sig->GetParam(0));
-            node = BUILD(Binop, opcode, lval.node, rval.node, position());
-            break;
-          }
-          default:
-            UNREACHABLE();
-            node = nullptr;
-            break;
-        }
-        Push(GetReturnType(sig), node);
+        BuildSimpleOperator(opcode, sig);
       } else {
         // Complex bytecode.
         switch (opcode) {
@@ -1236,7 +1217,14 @@ class WasmFullDecoder : public WasmDecoder {
           case kExprF64StoreMem:
             len = DecodeStoreMem(kAstF64, MachineType::Float64());
             break;
-
+          case kExprGrowMemory:
+            if (module_->origin != kAsmJsOrigin) {
+              Value val = Pop(0, kAstI32);
+              Push(kAstI32, BUILD(GrowMemory, val.node));
+            } else {
+              error("grow_memory is not supported for asmjs modules");
+            }
+            break;
           case kExprMemorySize:
             Push(kAstI32, BUILD(MemSize, 0));
             break;
@@ -1286,8 +1274,16 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           default:
-            error("Invalid opcode");
-            return;
+            // Deal with special asmjs opcodes.
+            if (module_->origin == kAsmJsOrigin) {
+              sig = WasmOpcodes::AsmjsSignature(opcode);
+              if (sig) {
+                BuildSimpleOperator(opcode, sig);
+              }
+            } else {
+              error("Invalid opcode");
+              return;
+            }
         }
       }  // end complex bytecode
 
@@ -1913,6 +1909,28 @@ class WasmFullDecoder : public WasmDecoder {
     int offset = static_cast<int>(pc_ - start_);
     DCHECK_EQ(pc_ - start_, offset);  // overflows cannot happen
     return offset;
+  }
+
+  inline void BuildSimpleOperator(WasmOpcode opcode, FunctionSig* sig) {
+    TFNode* node;
+    switch (sig->parameter_count()) {
+      case 1: {
+        Value val = Pop(0, sig->GetParam(0));
+        node = BUILD(Unop, opcode, val.node, position());
+        break;
+      }
+      case 2: {
+        Value rval = Pop(1, sig->GetParam(1));
+        Value lval = Pop(0, sig->GetParam(0));
+        node = BUILD(Binop, opcode, lval.node, rval.node, position());
+        break;
+      }
+      default:
+        UNREACHABLE();
+        node = nullptr;
+        break;
+    }
+    Push(GetReturnType(sig), node);
   }
 };
 
