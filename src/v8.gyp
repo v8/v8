@@ -1583,6 +1583,7 @@
             'x64/interface-descriptors-x64.cc',
             'x64/macro-assembler-x64.cc',
             'x64/macro-assembler-x64.h',
+            'x64/sse-instr.h',
             'debug/x64/debug-x64.cc',
             'full-codegen/x64/full-codegen-x64.cc',
             'ic/x64/access-compiler-x64.cc',

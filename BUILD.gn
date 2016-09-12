@@ -1760,6 +1760,7 @@ v8_source_set("v8_base") {
       "src/x64/interface-descriptors-x64.cc",
       "src/x64/macro-assembler-x64.cc",
       "src/x64/macro-assembler-x64.h",
+      "src/x64/sse-instr.h",
     ]
   } else if (v8_current_cpu == "arm") {
     sources += [

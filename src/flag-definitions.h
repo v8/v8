@@ -553,6 +553,7 @@ DEFINE_IMPLICATION(trace_opt_verbose, trace_opt)
 DEFINE_BOOL(debug_code, false, "generate extra code (assertions) for debugging")
 DEFINE_BOOL(code_comments, false, "emit comments in code disassembly")
 DEFINE_BOOL(enable_sse3, true, "enable use of SSE3 instructions if available")
+DEFINE_BOOL(enable_ssse3, true, "enable use of SSSE3 instructions if available")
 DEFINE_BOOL(enable_sse4_1, true,
             "enable use of SSE4.1 instructions if available")
 DEFINE_BOOL(enable_sahf, true,

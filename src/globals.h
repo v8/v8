@@ -730,6 +730,7 @@ struct AccessorDescriptor {
 enum CpuFeature {
   // x86
   SSE4_1,
+  SSSE3,
   SSE3,
   SAHF,
   AVX,
