@@ -561,7 +561,7 @@ void AstNumberingVisitor::VisitRewritableExpression(
 bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   DeclarationScope* scope = node->scope();
   if (scope->new_target_var()) DisableCrankshaft(kSuperReference);
-  if (scope->calls_eval()) DisableOptimization(kFunctionCallsEval);
+  if (scope->calls_eval()) DisableCrankshaft(kFunctionCallsEval);
   if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {
     DisableCrankshaft(kContextAllocatedArguments);
   }
