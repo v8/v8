@@ -87,28 +87,27 @@ const AstRawString* FromStringOrUndefined(Isolate* isolate,
 
 }  // namespace
 
-Handle<ModuleInfoEntry> ModuleDescriptor::Entry::Serialize(
-    Isolate* isolate) const {
-  return ModuleInfoEntry::New(isolate,
-                              ToStringOrUndefined(isolate, export_name),
-                              ToStringOrUndefined(isolate, local_name),
-                              ToStringOrUndefined(isolate, import_name),
-                              ToStringOrUndefined(isolate, module_request));
+Handle<FixedArray> ModuleDescriptor::Entry::Serialize(Isolate* isolate) const {
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(4);
+  result->set(0, *ToStringOrUndefined(isolate, export_name));
+  result->set(1, *ToStringOrUndefined(isolate, local_name));
+  result->set(2, *ToStringOrUndefined(isolate, import_name));
+  result->set(3, *ToStringOrUndefined(isolate, module_request));
+  return result;
 }
 
 ModuleDescriptor::Entry* ModuleDescriptor::Entry::Deserialize(
-    Isolate* isolate, AstValueFactory* avfactory,
-    Handle<ModuleInfoEntry> entry) {
-  Entry* result = new (avfactory->zone()) Entry(Scanner::Location::invalid());
-  result->export_name = FromStringOrUndefined(
-      isolate, avfactory, handle(entry->export_name(), isolate));
-  result->local_name = FromStringOrUndefined(
-      isolate, avfactory, handle(entry->local_name(), isolate));
-  result->import_name = FromStringOrUndefined(
-      isolate, avfactory, handle(entry->import_name(), isolate));
-  result->module_request = FromStringOrUndefined(
-      isolate, avfactory, handle(entry->module_request(), isolate));
-  return result;
+    Isolate* isolate, AstValueFactory* avfactory, Handle<FixedArray> data) {
+  Entry* entry = new (avfactory->zone()) Entry(Scanner::Location::invalid());
+  entry->export_name =
+      FromStringOrUndefined(isolate, avfactory, handle(data->get(0), isolate));
+  entry->local_name =
+      FromStringOrUndefined(isolate, avfactory, handle(data->get(1), isolate));
+  entry->import_name =
+      FromStringOrUndefined(isolate, avfactory, handle(data->get(2), isolate));
+  entry->module_request =
+      FromStringOrUndefined(isolate, avfactory, handle(data->get(3), isolate));
+  return entry;
 }
 
 void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {

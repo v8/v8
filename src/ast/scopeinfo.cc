@@ -517,7 +517,7 @@ ScopeInfo* ScopeInfo::OuterScopeInfo() {
 
 ModuleInfo* ScopeInfo::ModuleDescriptorInfo() {
   DCHECK(scope_type() == MODULE_SCOPE);
-  return ModuleInfo::cast(get(ModuleInfoIndex()));
+  return static_cast<ModuleInfo*>(get(ModuleInfoIndex()));
 }
 
 String* ScopeInfo::ParameterName(int var) {
@@ -811,25 +811,11 @@ void ScopeInfo::Print() {
     PrintList("context slots", Context::MIN_CONTEXT_SLOTS,
               ContextLocalNamesIndex(),
               ContextLocalNamesIndex() + ContextLocalCount(), this);
-    // TODO(neis): Print module stuff if present.
   }
 
   PrintF("}\n");
 }
 #endif  // DEBUG
-
-Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
-                                             Handle<Object> export_name,
-                                             Handle<Object> local_name,
-                                             Handle<Object> import_name,
-                                             Handle<Object> module_request) {
-  Handle<ModuleInfoEntry> result = isolate->factory()->NewModuleInfoEntry();
-  result->set(kExportNameIndex, *export_name);
-  result->set(kLocalNameIndex, *local_name);
-  result->set(kImportNameIndex, *import_name);
-  result->set(kModuleRequestIndex, *module_request);
-  return result;
-}
 
 Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
   // Serialize special exports.

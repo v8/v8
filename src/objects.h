@@ -70,7 +70,6 @@
 //         - JSValue
 //           - JSDate
 //         - JSMessageObject
-//         - JSModule
 //       - JSProxy
 //     - FixedArrayBase
 //       - ByteArray
@@ -95,7 +94,6 @@
 //         - TemplateList
 //         - TransitionArray
 //         - ScopeInfo
-//         - ModuleInfoEntry
 //         - ModuleInfo
 //         - ScriptContextTable
 //         - WeakFixedArray
@@ -881,7 +879,6 @@ class LiteralsArray;
 class LookupIterator;
 class FieldType;
 class ModuleDescriptor;
-class ModuleInfoEntry;
 class ModuleInfo;
 class ObjectHashTable;
 class ObjectVisitor;
@@ -964,7 +961,6 @@ template <class C> inline bool Is(Object* obj);
   V(JSObject)                    \
   V(JSContextExtensionObject)    \
   V(JSGeneratorObject)           \
-  V(JSModule)                    \
   V(Map)                         \
   V(DescriptorArray)             \
   V(FrameArray)                  \
@@ -984,7 +980,6 @@ template <class C> inline bool Is(Object* obj);
   V(ScriptContextTable)          \
   V(NativeContext)               \
   V(ScopeInfo)                   \
-  V(ModuleInfoEntry)             \
   V(ModuleInfo)                  \
   V(JSBoundFunction)             \
   V(JSFunction)                  \
@@ -4417,7 +4412,7 @@ class ScopeInfo : public FixedArray {
 
   // The layout of the static part of a ScopeInfo is as follows. Each entry is
   // numeric and occupies one array slot.
-// 1. A set of properties of the scope.
+  // 1. A set of properties of the scope
 // 2. The number of parameters. For non-function scopes this is 0.
 // 3. The number of non-parameter variables allocated on the stack.
 // 4. The number of non-parameter and parameter variables allocated in the
@@ -4533,30 +4528,6 @@ class ScopeInfo : public FixedArray {
   class MaybeAssignedFlagField : public BitField<MaybeAssignedFlag, 4, 1> {};
 
   friend class ScopeIterator;
-};
-
-class ModuleInfoEntry : public FixedArray {
- public:
-  DECLARE_CAST(ModuleInfoEntry)
-  static Handle<ModuleInfoEntry> New(Isolate* isolate,
-                                     Handle<Object> export_name,
-                                     Handle<Object> local_name,
-                                     Handle<Object> import_name,
-                                     Handle<Object> module_request);
-  inline Object* export_name() const;
-  inline Object* local_name() const;
-  inline Object* import_name() const;
-  inline Object* module_request() const;
-
- private:
-  friend class Factory;
-  enum {
-    kExportNameIndex,
-    kLocalNameIndex,
-    kImportNameIndex,
-    kModuleRequestIndex,
-    kLength
-  };
 };
 
 // ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
@@ -6366,7 +6337,6 @@ class Map: public HeapObject {
   inline bool IsJSFunctionMap();
   inline bool IsStringMap();
   inline bool IsJSProxyMap();
-  inline bool IsJSModuleMap();
   inline bool IsJSGlobalProxyMap();
   inline bool IsJSGlobalObjectMap();
   inline bool IsJSTypedArrayMap();
@@ -7844,21 +7814,6 @@ class JSGeneratorObject: public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };
 
-// A JSModule object is a mapping from export names to cells
-// This is still very much in flux.
-class JSModule : public JSObject {
- public:
-  DECLARE_CAST(JSModule)
-  DECLARE_VERIFIER(JSModule)
-
-  static const int kSize = JSObject::kHeaderSize;
-
-  static void CreateExport(Handle<JSModule> module, Handle<String> name);
-  static void StoreExport(Handle<JSModule> module, Handle<String> name,
-                          Handle<Object> value);
-  static Handle<Object> LoadExport(Handle<JSModule> module,
-                                   Handle<String> name);
-};
 
 // JSBoundFunction describes a bound function exotic object.
 class JSBoundFunction : public JSObject {

@@ -19470,28 +19470,5 @@ bool JSReceiver::HasProxyInPrototype(Isolate* isolate) {
   return false;
 }
 
-void JSModule::CreateExport(Handle<JSModule> module, Handle<String> name) {
-  Isolate* isolate = module->GetIsolate();
-  Handle<Cell> cell =
-      isolate->factory()->NewCell(isolate->factory()->undefined_value());
-  LookupIterator it(module, name);
-  JSObject::CreateDataProperty(&it, cell, Object::THROW_ON_ERROR).ToChecked();
-}
-
-void JSModule::StoreExport(Handle<JSModule> module, Handle<String> name,
-                           Handle<Object> value) {
-  LookupIterator it(module, name);
-  Handle<Cell> cell = Handle<Cell>::cast(JSObject::GetDataProperty(&it));
-  cell->set_value(*value);
-}
-
-Handle<Object> JSModule::LoadExport(Handle<JSModule> module,
-                                    Handle<String> name) {
-  Isolate* isolate = module->GetIsolate();
-  LookupIterator it(module, name);
-  Handle<Cell> cell = Handle<Cell>::cast(JSObject::GetDataProperty(&it));
-  return handle(cell->value(), isolate);
-}
-
 }  // namespace internal
 }  // namespace v8

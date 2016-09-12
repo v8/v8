@@ -171,8 +171,8 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   // Deserialize special exports.
   Handle<FixedArray> special_exports = handle(module_info->special_exports());
   for (int i = 0, n = special_exports->length(); i < n; ++i) {
-    Handle<ModuleInfoEntry> serialized_entry(
-        ModuleInfoEntry::cast(special_exports->get(i)), isolate);
+    Handle<FixedArray> serialized_entry(
+        FixedArray::cast(special_exports->get(i)), isolate);
     module_descriptor_->AddSpecialExport(
         ModuleDescriptor::Entry::Deserialize(isolate, avfactory,
                                              serialized_entry),
@@ -182,8 +182,8 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   // Deserialize regular exports.
   Handle<FixedArray> regular_exports = handle(module_info->regular_exports());
   for (int i = 0, n = regular_exports->length(); i < n; ++i) {
-    Handle<ModuleInfoEntry> serialized_entry(
-        ModuleInfoEntry::cast(regular_exports->get(i)), isolate);
+    Handle<FixedArray> serialized_entry(
+        FixedArray::cast(regular_exports->get(i)), isolate);
     module_descriptor_->AddRegularExport(ModuleDescriptor::Entry::Deserialize(
         isolate, avfactory, serialized_entry));
   }
@@ -829,7 +829,7 @@ Variable* DeclarationScope::DeclareParameter(
     const AstRawString* name, VariableMode mode, bool is_optional, bool is_rest,
     bool* is_duplicate, AstValueFactory* ast_value_factory) {
   DCHECK(!already_resolved_);
-  DCHECK(is_function_scope() || is_module_scope());
+  DCHECK(is_function_scope());
   DCHECK(!has_rest_);
   DCHECK(!is_optional || !is_rest);
   Variable* var;
@@ -1162,16 +1162,6 @@ DeclarationScope* Scope::GetClosureScope() {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
-}
-
-ModuleScope* Scope::GetModuleScope() {
-  Scope* scope = this;
-  DCHECK(!scope->is_script_scope());
-  while (!scope->is_module_scope()) {
-    scope = scope->outer_scope();
-    DCHECK_NOT_NULL(scope);
-  }
-  return scope->AsModuleScope();
 }
 
 DeclarationScope* Scope::GetReceiverScope() {

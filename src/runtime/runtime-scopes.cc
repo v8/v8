@@ -699,19 +699,6 @@ RUNTIME_FUNCTION(Runtime_PushWithContext) {
   return *context;
 }
 
-RUNTIME_FUNCTION(Runtime_PushModuleContext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSModule, module, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 2);
-  DCHECK(function->context() == isolate->context());
-
-  Handle<Context> context =
-      isolate->factory()->NewModuleContext(module, function, scope_info);
-  isolate->set_context(*context);
-  return *context;
-}
 
 RUNTIME_FUNCTION(Runtime_PushCatchContext) {
   HandleScope scope(isolate);

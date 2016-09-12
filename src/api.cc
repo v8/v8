@@ -1846,22 +1846,11 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
-
-  i::Handle<i::Object> receiver;
+  i::Handle<i::Object> receiver = isolate->global_proxy();
   Local<Value> result;
-
-  if (fun->shared()->scope_info()->scope_type() == i::MODULE_SCOPE) {
-    receiver = isolate->factory()->undefined_value();
-    i::Handle<i::Object> argv[] = {
-        handle(isolate->native_context()->current_module())};
-    has_pending_exception = !ToLocal<Value>(
-        i::Execution::Call(isolate, fun, receiver, 1, argv), &result);
-  } else {
-    receiver = isolate->global_proxy();
-    has_pending_exception = !ToLocal<Value>(
-        i::Execution::Call(isolate, fun, receiver, 0, nullptr), &result);
-  }
-
+  has_pending_exception =
+      !ToLocal<Value>(i::Execution::Call(isolate, fun, receiver, 0, NULL),
+                      &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -2002,34 +1991,7 @@ MaybeLocal<Script> ScriptCompiler::CompileModule(Local<Context> context,
   Local<UnboundScript> generic;
   if (!maybe.ToLocal(&generic)) return MaybeLocal<Script>();
   v8::Context::Scope scope(context);
-  auto result = generic->BindToCurrentContext();
-
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::JSModule> module = i_isolate->factory()->NewJSModule();
-  // TODO(neis): Storing the module into the native context is a temporary hack
-  // to pass it to the Script::Run function.  This will be removed once we
-  // support modules in the API.
-  i_isolate->native_context()->set_current_module(*module);
-
-  i::Handle<i::SharedFunctionInfo> shared =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(*generic));
-  i::Handle<i::FixedArray> regular_exports =
-      i::handle(shared->scope_info()->ModuleDescriptorInfo()->regular_exports(),
-                i_isolate);
-  // TODO(neis): This will create multiple cells for the same local variable if
-  // exported under multiple names, which is wrong but cannot be observed at the
-  // moment. This will be fixed by doing the full-fledged linking here once we
-  // get there.
-  for (int i = 0; i < regular_exports->length(); ++i) {
-    i::Handle<i::ModuleInfoEntry> entry =
-        i::handle(i::ModuleInfoEntry::cast(regular_exports->get(i)), i_isolate);
-    DCHECK(entry->import_name()->IsUndefined(i_isolate));
-    i::Handle<i::String> export_name =
-        handle(i::String::cast(entry->export_name()), i_isolate);
-    i::JSModule::CreateExport(module, export_name);
-  }
-
-  return result;
+  return generic->BindToCurrentContext();
 }
 
 

@@ -362,7 +362,7 @@ bool ScopeIterator::SetVariableValue(Handle<String> variable_name,
     case ScopeIterator::ScopeTypeEval:
       return SetInnerScopeVariableValue(variable_name, new_value);
     case ScopeIterator::ScopeTypeModule:
-      // TODO(neis): Implement.
+      // TODO(2399): should we implement it?
       break;
   }
   return false;
@@ -616,8 +616,6 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeModuleScope() {
 
   // Fill all context locals.
   CopyContextLocalsToScopeObject(scope_info, context, module_scope);
-
-  // TODO(neis): Also collect stack locals as well as imports and exports.
 
   return module_scope;
 }

@@ -57,8 +57,7 @@ bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
 
 
 bool Context::is_declaration_context() {
-  if (IsFunctionContext() || IsNativeContext() || IsScriptContext() ||
-      IsModuleContext()) {
+  if (IsFunctionContext() || IsNativeContext() || IsScriptContext()) {
     return true;
   }
   if (!IsBlockContext()) return false;
@@ -124,13 +123,6 @@ ScopeInfo* Context::scope_info() {
   return ScopeInfo::cast(object);
 }
 
-JSModule* Context::module() {
-  Context* current = this;
-  while (!current->IsModuleContext()) {
-    current = current->previous();
-  }
-  return JSModule::cast(current->extension());
-}
 
 String* Context::catch_name() {
   DCHECK(IsCatchContext());
@@ -197,7 +189,6 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                                int* index, PropertyAttributes* attributes,
                                InitializationFlag* init_flag,
                                VariableMode* variable_mode) {
-  DCHECK(!IsModuleContext());
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 

@@ -371,9 +371,6 @@ class Scope: public ZoneObject {
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
 
-  // Find the module scope, assuming there is one.
-  ModuleScope* GetModuleScope();
-
   // Analyze() must have been called once to create the ScopeInfo.
   Handle<ScopeInfo> scope_info() {
     DCHECK(!scope_info_.is_null());
@@ -680,9 +677,9 @@ class DeclarationScope : public Scope {
   }
 
   // Parameters. The left-most parameter has index 0.
-  // Only valid for function and module scopes.
+  // Only valid for function scopes.
   Variable* parameter(int index) const {
-    DCHECK(is_function_scope() || is_module_scope());
+    DCHECK(is_function_scope());
     return params_[index];
   }
 
