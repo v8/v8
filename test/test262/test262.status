@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 [
+
 [ALWAYS, {
   ###################### NEEDS INVESTIGATION #######################
 
@@ -311,13 +312,6 @@
   'built-ins/Function/prototype/toString/setter-class-static': [FAIL],
   'built-ins/Function/prototype/toString/setter-object': [FAIL],
   'built-ins/Function/prototype/toString/unicode': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  'language/eval-code/direct/export': [SKIP],
-  'language/eval-code/direct/import': [SKIP],
-  'language/eval-code/indirect/export': [SKIP],
-  'language/eval-code/indirect/import': [SKIP],
-  'language/module-code/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012
   # http://bugs.icu-project.org/trac/ticket/12671
@@ -630,5 +624,22 @@
   'built-ins/ArrayBuffer/allocation-limit': [SKIP],
   'built-ins/ArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
+
+# Module-related tests
+# https://bugs.chromium.org/p/v8/issues/detail?id=1569
+['variant != ignition', {
+  'language/eval-code/direct/export': [SKIP],
+  'language/eval-code/direct/import': [SKIP],
+  'language/eval-code/indirect/export': [SKIP],
+  'language/eval-code/indirect/import': [SKIP],
+  'language/module-code/*': [SKIP],
+}],  # 'variant != ignition'
+['variant == ignition', {
+  'language/module-code/comment-*': [SKIP],
+  'language/module-code/eval-*': [SKIP],
+  'language/module-code/instn-*': [SKIP],
+  'language/module-code/namespace/*': [SKIP],
+  'language/module-code/parse-err-*': [SKIP],
+}],  # 'variant == ignition'
 
 ]

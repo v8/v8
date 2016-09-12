@@ -789,15 +789,19 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
   return context_table;
 }
 
-
-Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
+Handle<Context> Factory::NewModuleContext(Handle<JSModule> module,
+                                          Handle<JSFunction> function,
+                                          Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   Handle<FixedArray> array =
       NewFixedArray(scope_info->ContextLength(), TENURED);
   array->set_map_no_write_barrier(*module_context_map());
-  // Instance link will be set later.
   Handle<Context> context = Handle<Context>::cast(array);
-  context->set_extension(*the_hole_value());
+  context->set_closure(*function);
+  context->set_previous(function->context());
+  context->set_extension(*module);
+  context->set_native_context(function->native_context());
+  DCHECK(context->IsModuleContext());
   return context;
 }
 
@@ -1398,11 +1402,16 @@ Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   return scope_info;
 }
 
+Handle<ModuleInfoEntry> Factory::NewModuleInfoEntry() {
+  Handle<FixedArray> array = NewFixedArray(ModuleInfoEntry::kLength, TENURED);
+  array->set_map_no_write_barrier(*module_info_entry_map());
+  return Handle<ModuleInfoEntry>::cast(array);
+}
+
 Handle<ModuleInfo> Factory::NewModuleInfo() {
   Handle<FixedArray> array = NewFixedArray(ModuleInfo::kLength, TENURED);
   array->set_map_no_write_barrier(*module_info_map());
-  Handle<ModuleInfo> module_info = Handle<ModuleInfo>::cast(array);
-  return module_info;
+  return Handle<ModuleInfo>::cast(array);
 }
 
 Handle<JSObject> Factory::NewExternal(void* value) {
@@ -1695,6 +1704,11 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
       JSGeneratorObject);
 }
 
+Handle<JSModule> Factory::NewJSModule() {
+  Handle<JSModule> module =
+      Handle<JSModule>::cast(NewJSObjectFromMap(js_module_map(), TENURED));
+  return module;
+}
 
 Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(SharedFlag shared,
                                                 PretenureFlag pretenure) {

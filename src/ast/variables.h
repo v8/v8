@@ -102,6 +102,11 @@ class Variable final : public ZoneObject {
 
   int index() const { return index_; }
 
+  bool IsExport() const {
+    DCHECK(location() == VariableLocation::MODULE);
+    return index() == 0;
+  }
+
   void AllocateTo(VariableLocation location, int index) {
     DCHECK(IsUnallocated() ||
            (this->location() == location && this->index() == index));

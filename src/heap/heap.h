@@ -48,7 +48,9 @@ using v8::MemoryPressureLevel;
   V(Map, one_byte_string_map, OneByteStringMap)                                \
   V(Map, one_byte_internalized_string_map, OneByteInternalizedStringMap)       \
   V(Map, scope_info_map, ScopeInfoMap)                                         \
+  V(Map, module_info_entry_map, ModuleInfoEntryMap)                            \
   V(Map, module_info_map, ModuleInfoMap)                                       \
+  V(Map, js_module_map, JSModuleMap)                                           \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, function_context_map, FunctionContextMap)                             \
@@ -275,7 +277,9 @@ using v8::MemoryPressureLevel;
   V(FixedArrayMap)                      \
   V(CodeMap)                            \
   V(ScopeInfoMap)                       \
+  V(ModuleInfoEntryMap)                 \
   V(ModuleInfoMap)                      \
+  V(JSModuleMap)                        \
   V(FixedCOWArrayMap)                   \
   V(FixedDoubleArrayMap)                \
   V(WeakCellMap)                        \

@@ -793,6 +793,10 @@ bool HeapObject::IsScopeInfo() const {
   return map() == GetHeap()->scope_info_map();
 }
 
+bool HeapObject::IsModuleInfoEntry() const {
+  return map() == GetHeap()->module_info_entry_map();
+}
+
 bool HeapObject::IsModuleInfo() const {
   return map() == GetHeap()->module_info_map();
 }
@@ -3272,6 +3276,7 @@ CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSMapIterator)
 CAST_ACCESSOR(JSMessageObject)
+CAST_ACCESSOR(JSModule)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
@@ -3285,6 +3290,7 @@ CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(Map)
+CAST_ACCESSOR(ModuleInfoEntry)
 CAST_ACCESSOR(ModuleInfo)
 CAST_ACCESSOR(Name)
 CAST_ACCESSOR(NameDictionary)
@@ -6649,6 +6655,8 @@ bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
 
+TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
+
 ACCESSORS(JSValue, value, Object, kValueOffset)
 
 
@@ -7920,6 +7928,16 @@ bool ScopeInfo::HasSimpleParameters() {
   }
 FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(SCOPE_INFO_FIELD_ACCESSORS)
 #undef SCOPE_INFO_FIELD_ACCESSORS
+
+Object* ModuleInfoEntry::export_name() const { return get(kExportNameIndex); }
+
+Object* ModuleInfoEntry::local_name() const { return get(kLocalNameIndex); }
+
+Object* ModuleInfoEntry::import_name() const { return get(kImportNameIndex); }
+
+Object* ModuleInfoEntry::module_request() const {
+  return get(kModuleRequestIndex);
+}
 
 FixedArray* ModuleInfo::special_exports() const {
   return FixedArray::cast(get(kSpecialExportsIndex));

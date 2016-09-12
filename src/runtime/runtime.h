@@ -416,7 +416,9 @@ namespace internal {
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \
-  F(CreateDataProperty, 3, 1)
+  F(CreateDataProperty, 3, 1)                        \
+  F(LoadModuleExport, 1, 1)                          \
+  F(StoreModuleExport, 2, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F) \
   F(Multiply, 2, 1)                     \
@@ -475,6 +477,7 @@ namespace internal {
   F(NewClosure_Tenured, 1, 1)           \
   F(NewScriptContext, 2, 1)             \
   F(NewFunctionContext, 1, 1)           \
+  F(PushModuleContext, 3, 1)            \
   F(PushWithContext, 3, 1)              \
   F(PushCatchContext, 4, 1)             \
   F(PushBlockContext, 2, 1)             \

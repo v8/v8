@@ -227,6 +227,7 @@ enum ContextLookupFlags {
   V(UINT8_ARRAY_FUN_INDEX, JSFunction, uint8_array_fun)                        \
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun)        \
   V(UINT8X16_FUNCTION_INDEX, JSFunction, uint8x16_function)                    \
+  V(CURRENT_MODULE_INDEX, JSModule, current_module)                            \
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                                        \
   NATIVE_CONTEXT_IMPORTED_FIELDS(V)
 
@@ -397,6 +398,10 @@ class Context: public FixedArray {
   JSReceiver* extension_receiver();
   ScopeInfo* scope_info();
   String* catch_name();
+
+  // Find the module context (assuming there is one) and return the associated
+  // module object.
+  JSModule* module();
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
