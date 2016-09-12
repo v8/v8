@@ -745,9 +745,9 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
 
   if (scope()->NeedsContext()) {
     // Push a new inner context scope for the function.
-    VisitNewLocalFunctionContext();
+    BuildNewLocalActivationContext();
     ContextScope local_function_context(this, scope(), false);
-    VisitBuildLocalActivationContext();
+    BuildLocalActivationContextInitialization();
     GenerateBytecodeBody();
   } else {
     GenerateBytecodeBody();
@@ -879,7 +879,7 @@ void BytecodeGenerator::VisitGeneratorPrologue() {
 void BytecodeGenerator::VisitBlock(Block* stmt) {
   // Visit declarations and statements.
   if (stmt->scope() != nullptr && stmt->scope()->NeedsContext()) {
-    VisitNewLocalBlockContext(stmt->scope());
+    BuildNewLocalBlockContext(stmt->scope());
     ContextScope scope(this, stmt->scope());
     VisitBlockDeclarationsAndStatements(stmt);
   } else {
@@ -1096,7 +1096,7 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
-  VisitNewLocalWithContext(stmt->scope());
+  BuildNewLocalWithContext(stmt->scope());
   VisitInScope(stmt->statement(), stmt->scope());
 }
 
@@ -1389,7 +1389,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   try_control_builder.EndTry();
 
   // Create a catch scope that binds the exception.
-  VisitNewLocalCatchContext(stmt->variable(), stmt->scope());
+  BuildNewLocalCatchContext(stmt->variable(), stmt->scope());
   builder()->StoreAccumulatorInRegister(context);
 
   // If requested, clear message object as we enter the catch block.
@@ -3173,7 +3173,7 @@ void BytecodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 
-void BytecodeGenerator::VisitNewLocalFunctionContext() {
+void BytecodeGenerator::BuildNewLocalActivationContext() {
   AccumulatorResultScope accumulator_execution_result(this);
   Scope* scope = this->scope();
 
@@ -3214,7 +3214,7 @@ void BytecodeGenerator::VisitNewLocalFunctionContext() {
   execution_result()->SetResultInAccumulator();
 }
 
-void BytecodeGenerator::VisitBuildLocalActivationContext() {
+void BytecodeGenerator::BuildLocalActivationContextInitialization() {
   DeclarationScope* scope = this->scope();
 
   if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
@@ -3242,7 +3242,7 @@ void BytecodeGenerator::VisitBuildLocalActivationContext() {
   }
 }
 
-void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
+void BytecodeGenerator::BuildNewLocalBlockContext(Scope* scope) {
   AccumulatorResultScope accumulator_execution_result(this);
   DCHECK(scope->is_block_scope());
 
@@ -3251,7 +3251,7 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
   execution_result()->SetResultInAccumulator();
 }
 
-void BytecodeGenerator::VisitNewLocalWithContext(Scope* scope) {
+void BytecodeGenerator::BuildNewLocalWithContext(Scope* scope) {
   AccumulatorResultScope accumulator_execution_result(this);
 
   Register extension_object = register_allocator()->NewRegister();
@@ -3262,7 +3262,7 @@ void BytecodeGenerator::VisitNewLocalWithContext(Scope* scope) {
   execution_result()->SetResultInAccumulator();
 }
 
-void BytecodeGenerator::VisitNewLocalCatchContext(Variable* variable,
+void BytecodeGenerator::BuildNewLocalCatchContext(Variable* variable,
                                                   Scope* scope) {
   AccumulatorResultScope accumulator_execution_result(this);
   DCHECK(variable->IsContextSlot());
