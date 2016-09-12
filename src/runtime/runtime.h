@@ -1028,13 +1028,8 @@ class Runtime : public AllStatic {
 
   static const int kNotFound = -1;
 
-  // Add internalized strings for all the intrinsic function names to a
-  // StringDictionary.
-  static void InitializeIntrinsicFunctionNames(Isolate* isolate,
-                                               Handle<NameDictionary> dict);
-
-  // Get the intrinsic function with the given name, which must be internalized.
-  static const Function* FunctionForName(Handle<String> name);
+  // Get the intrinsic function with the given name.
+  static const Function* FunctionForName(const unsigned char* name, int length);
 
   // Get the intrinsic function with the given FunctionId.
   static const Function* FunctionForId(FunctionId id);

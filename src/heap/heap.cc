@@ -2754,12 +2754,6 @@ void Heap::CreateInitialObjects() {
 #undef SYMBOL_INIT
   }
 
-  // Allocate the dictionary of intrinsic function names.
-  Handle<NameDictionary> intrinsic_names =
-      NameDictionary::New(isolate(), Runtime::kNumFunctions, TENURED);
-  Runtime::InitializeIntrinsicFunctionNames(isolate(), intrinsic_names);
-  set_intrinsic_function_names(*intrinsic_names);
-
   Handle<NameDictionary> empty_properties_dictionary =
       NameDictionary::New(isolate(), 0, TENURED);
   empty_properties_dictionary->SetRequiresCopyOnCapacityChange();

@@ -532,6 +532,17 @@ int Context::IntrinsicIndexForName(Handle<String> string) {
 
 #undef COMPARE_NAME
 
+#define COMPARE_NAME(index, type, name) \
+  if (strncmp(string, #name, length) == 0) return index;
+
+int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
+                                   int length) {
+  const char* string = reinterpret_cast<const char*>(unsigned_string);
+  NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NAME);
+  return kNotFound;
+}
+
+#undef COMPARE_NAME
 
 #ifdef DEBUG
 

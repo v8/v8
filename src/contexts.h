@@ -452,6 +452,7 @@ class Context: public FixedArray {
 
   static int ImportedFieldIndexForName(Handle<String> name);
   static int IntrinsicIndexForName(Handle<String> name);
+  static int IntrinsicIndexForName(const unsigned char* name, int length);
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   inline void set_##name(type* value);                    \

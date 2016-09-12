@@ -246,8 +246,6 @@ void ObjectStatsCollector::CollectGlobalStatistics() {
                         OBJECT_TO_CODE_SUB_TYPE);
   RecordHashTableHelper(nullptr, heap_->code_stubs(),
                         CODE_STUBS_TABLE_SUB_TYPE);
-  RecordHashTableHelper(nullptr, heap_->intrinsic_function_names(),
-                        INTRINSIC_FUNCTION_NAMES_SUB_TYPE);
   RecordHashTableHelper(nullptr, heap_->empty_properties_dictionary(),
                         EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE);
   CompilationCache* compilation_cache = heap_->isolate()->compilation_cache();

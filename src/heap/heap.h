@@ -185,7 +185,6 @@ using v8::MemoryPressureLevel;
   V(FixedArray, experimental_extra_natives_source_cache,                       \
     ExperimentalExtraNativesSourceCache)                                       \
   /* Lists and dictionaries */                                                 \
-  V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)          \
   V(NameDictionary, empty_properties_dictionary, EmptyPropertiesDictionary)    \
   V(Object, symbol_registry, SymbolRegistry)                                   \
   V(Object, script_list, ScriptList)                                           \

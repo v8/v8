@@ -515,12 +515,14 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
     GetClosureScope()->ForceEagerCompilation();
   }
 
-  const Runtime::Function* function = Runtime::FunctionForName(name->string());
+  DCHECK(name->is_one_byte());
+  const Runtime::Function* function =
+      Runtime::FunctionForName(name->raw_data(), name->length());
 
   if (function != nullptr) {
     // Check for possible name clash.
     DCHECK_EQ(Context::kNotFound,
-              Context::IntrinsicIndexForName(name->string()));
+              Context::IntrinsicIndexForName(name->raw_data(), name->length()));
     // Check for built-in IS_VAR macro.
     if (function->function_id == Runtime::kIS_VAR) {
       DCHECK_EQ(Runtime::RUNTIME, function->intrinsic_type);
@@ -546,7 +548,8 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
     return factory()->NewCallRuntime(function, args, pos);
   }
 
-  int context_index = Context::IntrinsicIndexForName(name->string());
+  int context_index =
+      Context::IntrinsicIndexForName(name->raw_data(), name->length());
 
   // Check that the function is defined.
   if (context_index == Context::kNotFound) {
@@ -4021,12 +4024,6 @@ bool Parser::Parse(ParseInfo* info) {
   DCHECK(parsing_on_main_thread_);
   Isolate* isolate = info->isolate();
   pre_parse_timer_ = isolate->counters()->pre_parse();
-  if (FLAG_trace_parse || allow_natives() || extension_ != NULL) {
-    // If intrinsics are allowed, the Parser cannot operate independent of the
-    // V8 heap because of Runtime. Tell the string table to internalize strings
-    // and values right after they're created.
-    ast_value_factory()->Internalize(isolate);
-  }
 
   if (info->is_lazy()) {
     DCHECK(!info->is_eval());

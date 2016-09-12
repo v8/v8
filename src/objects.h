@@ -789,7 +789,6 @@ std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
   V(FAST_PROPERTIES_SUB_TYPE)                    \
   V(FAST_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
   V(HANDLER_TABLE_SUB_TYPE)                      \
-  V(INTRINSIC_FUNCTION_NAMES_SUB_TYPE)           \
   V(JS_COLLECTION_SUB_TYPE)                      \
   V(JS_WEAK_COLLECTION_SUB_TYPE)                 \
   V(LITERALS_ARRAY_SUB_TYPE)                     \
