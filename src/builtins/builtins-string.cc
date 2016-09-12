@@ -477,6 +477,57 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
   assembler->Return(result);
 }
 
+// ES6 section 21.1.3.10 String.prototype.localeCompare ( that )
+//
+// This function is implementation specific.  For now, we do not
+// do anything locale specific.
+// If internationalization is enabled, then i18n.js will override this function
+// and provide the proper functionality, so this is just a fallback.
+BUILTIN(StringPrototypeLocaleCompare) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  TO_THIS_STRING(str1, "String.prototype.localeCompare");
+  Handle<String> str2;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, str2, Object::ToString(isolate, args.at<Object>(1)));
+
+  if (str1.is_identical_to(str2)) return Smi::FromInt(0);  // Equal.
+  int str1_length = str1->length();
+  int str2_length = str2->length();
+
+  // Decide trivial cases without flattening.
+  if (str1_length == 0) {
+    if (str2_length == 0) return Smi::FromInt(0);  // Equal.
+    return Smi::FromInt(-str2_length);
+  } else {
+    if (str2_length == 0) return Smi::FromInt(str1_length);
+  }
+
+  int end = str1_length < str2_length ? str1_length : str2_length;
+
+  // No need to flatten if we are going to find the answer on the first
+  // character. At this point we know there is at least one character
+  // in each string, due to the trivial case handling above.
+  int d = str1->Get(0) - str2->Get(0);
+  if (d != 0) return Smi::FromInt(d);
+
+  str1 = String::Flatten(str1);
+  str2 = String::Flatten(str2);
+
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat1 = str1->GetFlatContent();
+  String::FlatContent flat2 = str2->GetFlatContent();
+
+  for (int i = 0; i < end; i++) {
+    if (flat1.Get(i) != flat2.Get(i)) {
+      return Smi::FromInt(flat1.Get(i) - flat2.Get(i));
+    }
+  }
+
+  return Smi::FromInt(str1_length - str2_length);
+}
+
 // ES6 section 21.1.3.12 String.prototype.normalize ( [form] )
 //
 // Simply checks the argument is valid and returns the string itself.

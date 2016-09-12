@@ -193,50 +193,6 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_StringLocaleCompare) {
-  HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
-
-  if (str1.is_identical_to(str2)) return Smi::FromInt(0);  // Equal.
-  int str1_length = str1->length();
-  int str2_length = str2->length();
-
-  // Decide trivial cases without flattening.
-  if (str1_length == 0) {
-    if (str2_length == 0) return Smi::FromInt(0);  // Equal.
-    return Smi::FromInt(-str2_length);
-  } else {
-    if (str2_length == 0) return Smi::FromInt(str1_length);
-  }
-
-  int end = str1_length < str2_length ? str1_length : str2_length;
-
-  // No need to flatten if we are going to find the answer on the first
-  // character.  At this point we know there is at least one character
-  // in each string, due to the trivial case handling above.
-  int d = str1->Get(0) - str2->Get(0);
-  if (d != 0) return Smi::FromInt(d);
-
-  str1 = String::Flatten(str1);
-  str2 = String::Flatten(str2);
-
-  DisallowHeapAllocation no_gc;
-  String::FlatContent flat1 = str1->GetFlatContent();
-  String::FlatContent flat2 = str2->GetFlatContent();
-
-  for (int i = 0; i < end; i++) {
-    if (flat1.Get(i) != flat2.Get(i)) {
-      return Smi::FromInt(flat1.Get(i) - flat2.Get(i));
-    }
-  }
-
-  return Smi::FromInt(str1_length - str2_length);
-}
-
-
 RUNTIME_FUNCTION(Runtime_SubString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);

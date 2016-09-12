@@ -87,17 +87,6 @@ function StringLastIndexOf(pat, pos) {  // length == 1
 %FunctionSetLength(StringLastIndexOf, 1);
 
 
-// ECMA-262 section 15.5.4.9
-//
-// This function is implementation specific.  For now, we do not
-// do anything locale specific.
-function StringLocaleCompareJS(other) {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.localeCompare");
-
-  return %StringLocaleCompare(TO_STRING(this), TO_STRING(other));
-}
-
-
 // ES6 21.1.3.11.
 function StringMatchJS(pattern) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.match");
@@ -714,7 +703,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "includes", StringIncludes,
   "indexOf", StringIndexOf,
   "lastIndexOf", StringLastIndexOf,
-  "localeCompare", StringLocaleCompareJS,
   "match", StringMatchJS,
   "repeat", StringRepeat,
   "replace", StringReplace,

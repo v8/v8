@@ -535,6 +535,8 @@ namespace internal {
   TFJ(StringPrototypeCharAt, 2)                                               \
   /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */              \
   TFJ(StringPrototypeCharCodeAt, 2)                                           \
+  /* ES6 section 21.1.3.10 String.prototype.localeCompare ( that ) */         \
+  CPP(StringPrototypeLocaleCompare)                                           \
   /* ES6 section 21.1.3.12 String.prototype.normalize ( [form] ) */           \
   CPP(StringPrototypeNormalize)                                               \
   /* ES6 section 21.1.3.25 String.prototype.toString () */                    \
