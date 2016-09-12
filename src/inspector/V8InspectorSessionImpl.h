@@ -9,10 +9,9 @@
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/protocol/Schema.h"
-#include "src/inspector/public/V8Inspector.h"
-#include "src/inspector/public/V8InspectorSession.h"
 
-#include <v8.h>
+#include "include/v8-inspector.h"
+
 #include <vector>
 
 namespace v8_inspector {

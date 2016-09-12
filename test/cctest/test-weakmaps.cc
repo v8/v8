@@ -76,7 +76,6 @@ TEST(Weakness) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
   GlobalHandles* global_handles = isolate->global_handles();
@@ -105,7 +104,7 @@ TEST(Weakness) {
   CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
 
   // Force a full GC.
-  heap->CollectAllGarbage(false);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, NumberOfWeakCalls);
   CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
@@ -121,7 +120,7 @@ TEST(Weakness) {
   }
   CHECK(global_handles->IsWeak(key.location()));
 
-  heap->CollectAllGarbage(false);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(2,
@@ -133,7 +132,6 @@ TEST(Shrinking) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);
 
@@ -159,7 +157,7 @@ TEST(Shrinking) {
   CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
       0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
-  heap->CollectAllGarbage(false);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
       32, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
@@ -202,7 +200,7 @@ TEST(Regress2060a) {
 
   // Force compacting garbage collection.
   CHECK(FLAG_always_compact);
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }
 
 
@@ -244,9 +242,9 @@ TEST(Regress2060b) {
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
   CHECK(FLAG_always_compact);
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }
 
 
@@ -263,5 +261,5 @@ TEST(Regress399527) {
   // The weak map is marked black here but leaving the handle scope will make
   // the object unreachable. Aborting incremental marking will clear all the
   // marking bits which makes the weak map garbage.
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }

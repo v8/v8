@@ -35,6 +35,7 @@
 
 namespace v8 {
 namespace internal {
+namespace compiler {
 
 class Types {
  public:
@@ -206,7 +207,7 @@ class Types {
   v8::base::RandomNumberGenerator* rng_;
 };
 
-
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 

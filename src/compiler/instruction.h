@@ -105,8 +105,9 @@ class InstructionOperand {
 
   bool InterferesWith(const InstructionOperand& that) const;
 
-  void Print(std::ostream& os, const RegisterConfiguration* config) const;
-  void Print(std::ostream& os) const;
+  // APIs to aid debugging. For general-stream APIs, use operator<<
+  void Print(const RegisterConfiguration* config) const;
+  void Print() const;
 
  protected:
   explicit InstructionOperand(Kind kind) : value_(KindField::encode(kind)) {}
@@ -672,8 +673,9 @@ class MoveOperands final : public ZoneObject {
     return source_.IsInvalid();
   }
 
-  void Print(std::ostream& os, const RegisterConfiguration* config) const;
-  void Print(std::ostream& os) const;
+  // APIs to aid debugging. For general-stream APIs, use operator<<
+  void Print(const RegisterConfiguration* config) const;
+  void Print() const;
 
  private:
   InstructionOperand source_;
@@ -912,8 +914,9 @@ class Instruction final {
     block_ = block;
   }
 
-  void Print(std::ostream& os, const RegisterConfiguration* config) const;
-  void Print(std::ostream& os) const;
+  // APIs to aid debugging. For general-stream APIs, use operator<<
+  void Print(const RegisterConfiguration* config) const;
+  void Print() const;
 
  private:
   explicit Instruction(InstructionCode opcode);
@@ -1282,6 +1285,17 @@ class InstructionBlock final : public ZoneObject {
   RpoNumber last_deferred_;
 };
 
+class InstructionSequence;
+
+struct PrintableInstructionBlock {
+  const RegisterConfiguration* register_configuration_;
+  const InstructionBlock* block_;
+  const InstructionSequence* code_;
+};
+
+std::ostream& operator<<(std::ostream& os,
+                         const PrintableInstructionBlock& printable_block);
+
 typedef ZoneDeque<Constant> ConstantDeque;
 typedef std::map<int, Constant, std::less<int>,
                  zone_allocator<std::pair<const int, Constant> > > ConstantMap;
@@ -1441,12 +1455,13 @@ class InstructionSequence final : public ZoneObject {
     }
     return false;
   }
-  void Print(std::ostream& os, const RegisterConfiguration* config) const;
-  void Print(std::ostream& os) const;
 
-  void PrintBlock(std::ostream& os, const RegisterConfiguration* config,
-                  int block_id) const;
-  void PrintBlock(std::ostream& os, int block_id) const;
+  // APIs to aid debugging. For general-stream APIs, use operator<<
+  void Print(const RegisterConfiguration* config) const;
+  void Print() const;
+
+  void PrintBlock(const RegisterConfiguration* config, int block_id) const;
+  void PrintBlock(int block_id) const;
 
   void ValidateEdgeSplitForm() const;
   void ValidateDeferredBlockExitPaths() const;

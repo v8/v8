@@ -5,8 +5,8 @@
 #ifndef V8_INSPECTOR_V8CONSOLEMESSAGE_H_
 #define V8_INSPECTOR_V8CONSOLEMESSAGE_H_
 
-#include <v8.h>
 #include <deque>
+#include "include/v8.h"
 #include "src/inspector/protocol/Console.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"

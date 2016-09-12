@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/js-generic-lowering.h"
+
+#include "src/ast/ast.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
@@ -45,13 +47,6 @@ Reduction JSGenericLowering::Reduce(Node* node) {
   }
   return Changed(node);
 }
-#define REPLACE_RUNTIME_CALL(op, fun)             \
-  void JSGenericLowering::Lower##op(Node* node) { \
-    ReplaceWithRuntimeCall(node, fun);            \
-  }
-REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
-REPLACE_RUNTIME_CALL(JSConvertReceiver, Runtime::kConvertReceiver)
-#undef REPLACE_RUNTIME_CALL
 
 #define REPLACE_STUB_CALL(Name)                                \
   void JSGenericLowering::LowerJS##Name(Node* node) {          \
@@ -518,6 +513,11 @@ void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
 }
 
+void JSGenericLowering::LowerJSCreateWithContext(Node* node) {
+  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(scope_info));
+  ReplaceWithRuntimeCall(node, Runtime::kPushWithContext);
+}
 
 void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {
   Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
@@ -577,6 +577,9 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   ReplaceWithRuntimeCall(node, p.id(), static_cast<int>(p.arity()));
 }
 
+void JSGenericLowering::LowerJSConvertReceiver(Node* node) {
+  ReplaceWithRuntimeCall(node, Runtime::kConvertReceiver);
+}
 
 void JSGenericLowering::LowerJSForInNext(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kForInNext);

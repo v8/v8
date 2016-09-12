@@ -1317,10 +1317,6 @@ class Object {
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
       StoreFromKeyed store_mode);
 
-  MUST_USE_RESULT static MaybeHandle<Object> ReadAbsentProperty(
-      LookupIterator* it);
-  MUST_USE_RESULT static MaybeHandle<Object> ReadAbsentProperty(
-      Isolate* isolate, Handle<Object> receiver, Handle<Object> name);
   MUST_USE_RESULT static Maybe<bool> CannotCreateProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
       Handle<Object> value, ShouldThrow should_throw);
@@ -2066,7 +2062,7 @@ class JSObject: public JSReceiver {
   // [elements]: The elements (properties with names that are integers).
   //
   // Elements can be in two general modes: fast and slow. Each mode
-  // corrensponds to a set of object representations of elements that
+  // corresponds to a set of object representations of elements that
   // have something in common.
   //
   // In the fast mode elements is a FixedArray and so each element can
@@ -4394,7 +4390,20 @@ class ScopeInfo : public FixedArray {
 
   FunctionKind function_kind();
 
-  static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope);
+  // Returns true if this ScopeInfo is linked to a outer ScopeInfo.
+  bool HasOuterScopeInfo();
+
+  // Return the outer ScopeInfo if present.
+  ScopeInfo* OuterScopeInfo();
+
+#ifdef DEBUG
+  bool Equals(ScopeInfo* other) const;
+#endif
+
+  static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope,
+                                  MaybeHandle<ScopeInfo> outer_scope);
+  static Handle<ScopeInfo> CreateForWithScope(
+      Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.
@@ -4432,7 +4441,7 @@ class ScopeInfo : public FixedArray {
 
  private:
   // The layout of the variable part of a ScopeInfo is as follows:
-  // 1. ParameterEntries:
+  // 1. ParameterNames:
   //    This part stores the names of the parameters for function scopes. One
   //    slot is used per parameter, so in total this part occupies
   //    ParameterCount() slots in the array. For other scopes than function
@@ -4440,45 +4449,48 @@ class ScopeInfo : public FixedArray {
   // 2. StackLocalFirstSlot:
   //    Index of a first stack slot for stack local. Stack locals belonging to
   //    this scope are located on a stack at slots starting from this index.
-  // 3. StackLocalEntries:
+  // 3. StackLocalNames:
   //    Contains the names of local variables that are allocated on the stack,
   //    in increasing order of the stack slot index. First local variable has a
   //    stack slot index defined in StackLocalFirstSlot (point 2 above).
   //    One slot is used per stack local, so in total this part occupies
   //    StackLocalCount() slots in the array.
-  // 4. ContextLocalNameEntries:
+  // 4. ContextLocalNames:
   //    Contains the names of local variables and parameters that are allocated
   //    in the context. They are stored in increasing order of the context slot
   //    index starting with Context::MIN_CONTEXT_SLOTS. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount() slots
   //    in the array.
-  // 5. ContextLocalInfoEntries:
+  // 5. ContextLocalInfos:
   //    Contains the variable modes and initialization flags corresponding to
-  //    the context locals in ContextLocalNameEntries. One slot is used per
+  //    the context locals in ContextLocalNames. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount()
   //    slots in the array.
-  // 6. ReceiverEntry:
+  // 6. ReceiverInfo:
   //    If the scope binds a "this" value, one slot is reserved to hold the
   //    context or stack slot index for the variable.
-  // 7. FunctionNameEntry:
+  // 7. FunctionNameInfo:
   //    If the scope belongs to a named function expression this part contains
   //    information about the function variable. It always occupies two array
   //    slots:  a. The name of the function variable.
   //            b. The context or stack slot index for the variable.
-  // 8. ModuleInfoEntry, ModuleVariableCount, and ModuleVariableEntries:
+  // 8. OuterScopeInfoIndex:
+  //    The outer scope's ScopeInfo or the hole if there's none.
+  // 9. ModuleInfo, ModuleVariableCount, and ModuleVariables:
   //    For a module scope, this part contains the ModuleInfo, the number of
   //    MODULE-allocated variables, and the metadata of those variables.  For
   //    non-module scopes it is empty.
-  int ParameterEntriesIndex();
+  int ParameterNamesIndex();
   int StackLocalFirstSlotIndex();
-  int StackLocalEntriesIndex();
-  int ContextLocalNameEntriesIndex();
-  int ContextLocalInfoEntriesIndex();
-  int ReceiverEntryIndex();
-  int FunctionNameEntryIndex();
-  int ModuleInfoEntryIndex();
+  int StackLocalNamesIndex();
+  int ContextLocalNamesIndex();
+  int ContextLocalInfosIndex();
+  int ReceiverInfoIndex();
+  int FunctionNameInfoIndex();
+  int OuterScopeInfoIndex();
+  int ModuleInfoIndex();
   int ModuleVariableCountIndex();
-  int ModuleVariableEntriesIndex();
+  int ModuleVariablesIndex();
 
   int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
              VariableLocation* location, InitializationFlag* init_flag,
@@ -4510,7 +4522,9 @@ class ScopeInfo : public FixedArray {
       : public BitField<bool, AsmFunctionField::kNext, 1> {};
   class FunctionKindField
       : public BitField<FunctionKind, HasSimpleParametersField::kNext, 9> {};
-  class TypedField : public BitField<bool, FunctionKindField::kNext, 1> {};
+  class HasOuterScopeInfoField
+      : public BitField<bool, FunctionKindField::kNext, 1> {};
+  class TypedField : public BitField<bool, HasOuterScopeInfoField::kNext, 1> {};
 
   // Properties of variables.
   class VariableModeField : public BitField<VariableMode, 0, 3> {};
@@ -4527,6 +4541,10 @@ class ModuleInfo : public FixedArray {
   static Handle<ModuleInfo> New(Isolate* isolate, ModuleDescriptor* descr);
   inline FixedArray* special_exports() const;
   inline FixedArray* regular_exports() const;
+
+#ifdef DEBUG
+  inline bool Equals(ModuleInfo* other) const;
+#endif
 
  private:
   friend class Factory;
@@ -4817,6 +4835,7 @@ class FreeSpace: public HeapObject {
   // Size is smi tagged when it is stored.
   static const int kSizeOffset = HeapObject::kHeaderSize;
   static const int kNextOffset = POINTER_SIZE_ALIGN(kSizeOffset + kPointerSize);
+  static const int kSize = kNextOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeSpace);
@@ -6953,6 +6972,10 @@ class Script: public Struct {
   V(Math, clz32, MathClz32)                                 \
   V(Math, fround, MathFround)                               \
   V(Math, trunc, MathTrunc)                                 \
+  V(Number, isFinite, NumberIsFinite)                       \
+  V(Number, isInteger, NumberIsInteger)                     \
+  V(Number, isNaN, NumberIsNaN)                             \
+  V(Number, isSafeInteger, NumberIsSafeInteger)             \
   V(Number, parseInt, NumberParseInt)                       \
   V(Number.prototype, toString, NumberToString)
 
@@ -6981,6 +7004,8 @@ enum BuiltinFunctionId {
   kGlobalEncodeURIComponent,
   kGlobalEscape,
   kGlobalUnescape,
+  kGlobalIsFinite,
+  kGlobalIsNaN,
   kTypedArrayByteLength,
   kTypedArrayByteOffset,
   kTypedArrayLength,
@@ -10592,12 +10617,8 @@ class JSArray: public JSObject {
   static const int kLengthOffset = JSObject::kHeaderSize;
   static const int kSize = kLengthOffset + kPointerSize;
 
-  // (512 * KB - 384) is the Page::kMaxRegularHeapObjectSize defined in spaces.h
-  // which we do not want to include in objects.h
-  // Note that Page::kMaxRegularHeapObjectSize has to be in sync with
-  // kInitialMaxFastElementArray which is checked in a DCHECK in heap.cc.
   static const int kInitialMaxFastElementArray =
-      (512 * KB - 384 - FixedArray::kHeaderSize - kSize -
+      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kSize -
        AllocationMemento::kSize) /
       kPointerSize;
 
@@ -10797,6 +10818,7 @@ class InterceptorInfo: public Struct {
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
   DECL_ACCESSORS(query, Object)
+  DECL_ACCESSORS(descriptor, Object)
   DECL_ACCESSORS(deleter, Object)
   DECL_ACCESSORS(enumerator, Object)
   DECL_ACCESSORS(definer, Object)
@@ -10817,7 +10839,8 @@ class InterceptorInfo: public Struct {
   static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
   static const int kQueryOffset = kSetterOffset + kPointerSize;
-  static const int kDeleterOffset = kQueryOffset + kPointerSize;
+  static const int kDescriptorOffset = kQueryOffset + kPointerSize;
+  static const int kDeleterOffset = kDescriptorOffset + kPointerSize;
   static const int kEnumeratorOffset = kDeleterOffset + kPointerSize;
   static const int kDefinerOffset = kEnumeratorOffset + kPointerSize;
   static const int kDataOffset = kDefinerOffset + kPointerSize;

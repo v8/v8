@@ -8,6 +8,8 @@
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/bytecode-loop-analysis.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/liveness-analyzer.h"
+#include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-hint-analyzer.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -114,6 +116,10 @@ class BytecodeGraphBuilder {
   Node* ProcessCallRuntimeArguments(const Operator* call_runtime_op,
                                     interpreter::Register first_arg,
                                     size_t arity);
+
+  // Computes register liveness and replaces dead ones in frame states with the
+  // undefined values.
+  void ClearNonLiveSlotsInFrameStates();
 
   void BuildCreateLiteral(const Operator* op);
   void BuildCreateArguments(CreateArgumentsType type);
@@ -231,6 +237,12 @@ class BytecodeGraphBuilder {
     loop_analysis_ = loop_analysis;
   }
 
+  LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
+
+  bool IsLivenessAnalysisEnabled() const {
+    return this->is_liveness_analysis_enabled_;
+  }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -267,6 +279,13 @@ class BytecodeGraphBuilder {
 
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;
+
+  bool const is_liveness_analysis_enabled_;
+
+  StateValuesCache state_values_cache_;
+
+  // Analyzer of register liveness.
+  LivenessAnalyzer liveness_analyzer_;
 
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;

@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: mixed
 execute: no
 wrap: no
 top level: yes
@@ -34,8 +33,8 @@ bytecodes: [
   /*   10 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -59,7 +58,7 @@ bytecodes: [
   /*   15 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -93,8 +92,8 @@ bytecodes: [
   /*   15 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -122,7 +121,7 @@ bytecodes: [
   /*   20 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]

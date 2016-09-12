@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: string
 execute: yes
 wrap: yes
 

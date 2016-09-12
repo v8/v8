@@ -1171,6 +1171,31 @@ void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
   __ Ret();
 }
 
+static void Generate_InterpreterPushArgs(MacroAssembler* masm,
+                                         Register num_args, Register index,
+                                         Register last_arg, Register stack_addr,
+                                         Register scratch) {
+  __ Mov(scratch, num_args);
+  __ lsl(scratch, scratch, kPointerSizeLog2);
+  __ sub(last_arg, index, scratch);
+
+  // Set stack pointer and where to stop.
+  __ Mov(stack_addr, jssp);
+  __ Claim(scratch, 1);
+
+  // TODO(mythria): Add a stack check before pushing arguments.
+  // Push the arguments.
+  Label loop_header, loop_check;
+  __ B(&loop_check);
+  __ Bind(&loop_header);
+  // TODO(rmcilroy): Push two at a time once we ensure we keep stack aligned.
+  __ Ldr(scratch, MemOperand(index, -kPointerSize, PostIndex));
+  __ Str(scratch, MemOperand(stack_addr, -kPointerSize, PreIndex));
+  __ Bind(&loop_check);
+  __ Cmp(index, last_arg);
+  __ B(gt, &loop_header);
+}
+
 // static
 void Builtins::Generate_InterpreterPushArgsAndCallImpl(
     MacroAssembler* masm, TailCallMode tail_call_mode,
@@ -1183,24 +1208,11 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   //  -- x1 : the target to call (can be any Object).
   // -----------------------------------
 
-  // Find the address of the last argument.
-  __ add(x3, x0, Operand(1));  // Add one for receiver.
-  __ lsl(x3, x3, kPointerSizeLog2);
-  __ sub(x4, x2, x3);
+  // Add one for the receiver.
+  __ add(x3, x0, Operand(1));
 
-  // TODO(mythria): Add a stack check before pushing arguments.
-  // Push the arguments.
-  Label loop_header, loop_check;
-  __ Mov(x5, jssp);
-  __ Claim(x3, 1);
-  __ B(&loop_check);
-  __ Bind(&loop_header);
-  // TODO(rmcilroy): Push two at a time once we ensure we keep stack aligned.
-  __ Ldr(x3, MemOperand(x2, -kPointerSize, PostIndex));
-  __ Str(x3, MemOperand(x5, -kPointerSize, PreIndex));
-  __ Bind(&loop_check);
-  __ Cmp(x2, x4);
-  __ B(gt, &loop_header);
+  // Push the arguments. x2, x4, x5, x6 will be modified.
+  Generate_InterpreterPushArgs(masm, x3, x2, x4, x5, x6);
 
   // Call the target.
   if (function_type == CallableType::kJSFunction) {
@@ -1226,29 +1238,11 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   // -- x4 : address of the first argument
   // -----------------------------------
 
-  // Find the address of the last argument.
-  __ add(x5, x0, Operand(1));  // Add one for receiver (to be constructed).
-  __ lsl(x5, x5, kPointerSizeLog2);
-
-  // Set stack pointer and where to stop.
-  __ Mov(x6, jssp);
-  __ Claim(x5, 1);
-  __ sub(x7, x6, x5);
-
   // Push a slot for the receiver.
-  __ Str(xzr, MemOperand(x6, -kPointerSize, PreIndex));
+  __ Push(xzr);
 
-  Label loop_header, loop_check;
-  // TODO(mythria): Add a stack check before pushing arguments.
-  // Push the arguments.
-  __ B(&loop_check);
-  __ Bind(&loop_header);
-  // TODO(rmcilroy): Push two at a time once we ensure we keep stack aligned.
-  __ Ldr(x5, MemOperand(x4, -kPointerSize, PostIndex));
-  __ Str(x5, MemOperand(x6, -kPointerSize, PreIndex));
-  __ Bind(&loop_check);
-  __ Cmp(x6, x7);
-  __ B(gt, &loop_header);
+  // Push the arguments. x5, x4, x6, x7 will be modified.
+  Generate_InterpreterPushArgs(masm, x0, x4, x5, x6, x7);
 
   __ AssertUndefinedOrAllocationSite(x2, x6);
   if (construct_type == CallableType::kJSFunction) {
@@ -1265,6 +1259,28 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     // Call the constructor with x0, x1, and x3 unmodified.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
+}
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- x0 : argument count (not including receiver)
+  // -- x1 : target to call verified to be Array function
+  // -- x2 : allocation site feedback if available, undefined otherwise.
+  // -- x3 : address of the first argument
+  // -----------------------------------
+
+  __ add(x4, x0, Operand(1));  // Add one for the receiver.
+
+  // Push the arguments. x3, x5, x6, x7 will be modified.
+  Generate_InterpreterPushArgs(masm, x4, x3, x5, x6, x7);
+
+  // Array constructor expects constructor in x3. It is same as call target.
+  __ mov(x3, x1);
+
+  ArrayConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

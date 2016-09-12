@@ -423,8 +423,8 @@ Type* Typer::Visitor::ToBoolean(Type* type, Typer* t) {
   if (type->Is(Type::Boolean())) return type;
   if (type->Is(t->falsish_)) return t->singleton_false_;
   if (type->Is(t->truish_)) return t->singleton_true_;
-  if (type->Is(Type::PlainNumber()) && (type->Max() < 0 || 0 < type->Min())) {
-    return t->singleton_true_;  // Ruled out nan, -0 and +0.
+  if (type->Is(Type::Number())) {
+    return t->operation_typer()->NumberToBoolean(type);
   }
   return Type::Boolean();
 }
@@ -635,9 +635,14 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
   // do not apply and we cannot do anything).
   if (!initial_type->Is(typer_->cache_.kInteger) ||
       !increment_type->Is(typer_->cache_.kInteger)) {
-    // Fallback to normal phi typing.
-    Type* type = Operand(node, 0);
-    for (int i = 1; i < arity; ++i) {
+    // Fallback to normal phi typing, but ensure monotonicity.
+    // (Unfortunately, without baking in the previous type, monotonicity might
+    // be violated because we might not yet have retyped the incrementing
+    // operation even though the increment's type might been already reflected
+    // in the induction variable phi.)
+    Type* type = NodeProperties::IsTyped(node) ? NodeProperties::GetType(node)
+                                               : Type::None();
+    for (int i = 0; i < arity; ++i) {
       type = Type::Union(type, Operand(node, i), zone());
     }
     return type;
@@ -1340,6 +1345,11 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kDateGetTime:
           return t->cache_.kJSDateValueType;
         // Number functions.
+        case kNumberIsFinite:
+        case kNumberIsInteger:
+        case kNumberIsNaN:
+        case kNumberIsSafeInteger:
+          return Type::Boolean();
         case kNumberParseInt:
           return t->cache_.kIntegerOrMinusZeroOrNaN;
         case kNumberToString:
@@ -1370,6 +1380,9 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kGlobalEscape:
         case kGlobalUnescape:
           return Type::String();
+        case kGlobalIsFinite:
+        case kGlobalIsNaN:
+          return Type::Boolean();
         default:
           break;
       }

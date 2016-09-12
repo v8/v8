@@ -234,6 +234,13 @@ Node* CodeAssembler::ChangeInt32ToIntPtr(Node* value) {
   return value;
 }
 
+Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
+  if (raw_assembler_->machine()->Is64()) {
+    return raw_assembler_->RoundInt64ToFloat64(value);
+  }
+  return raw_assembler_->ChangeInt32ToFloat64(value);
+}
+
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name) \
   Node* CodeAssembler::name(Node* a) { return raw_assembler_->name(a); }
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
@@ -423,6 +430,14 @@ Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                      Node* arg3, Node* arg4, Node* arg5) {
   return raw_assembler_->TailCallRuntime5(function_id, arg1, arg2, arg3, arg4,
                                           arg5, context);
+}
+
+Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
+                                     Node* context, Node* arg1, Node* arg2,
+                                     Node* arg3, Node* arg4, Node* arg5,
+                                     Node* arg6) {
+  return raw_assembler_->TailCallRuntime6(function_id, arg1, arg2, arg3, arg4,
+                                          arg5, arg6, context);
 }
 
 Node* CodeAssembler::CallStub(Callable const& callable, Node* context,

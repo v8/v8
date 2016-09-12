@@ -45,7 +45,6 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
 
  private:
   String16 nextProfileId();
-  v8::CpuProfiler* profiler();
 
   void startProfiling(const String16& title);
   std::unique_ptr<protocol::Profiler::Profile> stopProfiling(

@@ -268,6 +268,7 @@
   V(NumberTan)                         \
   V(NumberTanh)                        \
   V(NumberTrunc)                       \
+  V(NumberToBoolean)                   \
   V(NumberToInt32)                     \
   V(NumberToUint32)                    \
   V(NumberSilenceNaN)
@@ -485,6 +486,7 @@
   V(Word32PairShl)              \
   V(Word32PairShr)              \
   V(Word32PairSar)              \
+  V(ProtectedLoad)              \
   V(AtomicLoad)                 \
   V(AtomicStore)                \
   V(UnsafePointerAdd)

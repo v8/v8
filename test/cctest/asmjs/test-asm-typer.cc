@@ -278,10 +278,10 @@ class AsmTyperHarnessBuilder {
     auto* name_ast_string = ast_value_factory_.GetOneByteString(var_name.name_);
     return var_name.mode_ == DYNAMIC_GLOBAL
                ? outer_scope_->DeclareDynamicGlobal(name_ast_string,
-                                                    Variable::NORMAL)
+                                                    NORMAL_VARIABLE)
                : module_->scope()->DeclareLocal(name_ast_string, VAR,
                                                 kCreatedInitialized,
-                                                Variable::NORMAL);
+                                                NORMAL_VARIABLE);
   }
 
   bool ValidateAllStatements(FunctionDeclaration* fun_decl) {

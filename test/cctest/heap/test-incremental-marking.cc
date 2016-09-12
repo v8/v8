@@ -122,7 +122,7 @@ TEST(IncrementalMarkingUsingIdleTasks) {
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  marking->Start();
+  marking->Start(i::GarbageCollectionReason::kTesting);
   CHECK(platform.PendingIdleTask());
   const double kLongIdleTimeInSeconds = 1;
   const double kShortIdleTimeInSeconds = 0.010;
@@ -140,18 +140,25 @@ TEST(IncrementalMarkingUsingIdleTasks) {
 
 TEST(IncrementalMarkingUsingIdleTasksAfterGC) {
   if (!i::FLAG_incremental_marking) return;
+
+  const double kLongIdleTimeInSeconds = 1;
+  const double kShortIdleTimeInSeconds = 0.010;
+
   CcTest::InitializeVM();
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   MockPlatform platform(old_platform);
   i::V8::SetPlatformForTesting(&platform);
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  // Perform any pending idle tasks.
+  while (platform.PendingIdleTask()) {
+    platform.PerformIdleTask(kLongIdleTimeInSeconds);
+  }
+  CHECK(!platform.PendingIdleTask());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  marking->Start();
+  marking->Start(i::GarbageCollectionReason::kTesting);
   CHECK(platform.PendingIdleTask());
-  const double kLongIdleTimeInSeconds = 1;
-  const double kShortIdleTimeInSeconds = 0.010;
   const int kShortStepCount = 10;
   for (int i = 0; i < kShortStepCount && platform.PendingIdleTask(); i++) {
     platform.PerformIdleTask(kShortIdleTimeInSeconds);
@@ -173,7 +180,7 @@ TEST(IncrementalMarkingUsingDelayedTasks) {
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  marking->Start();
+  marking->Start(i::GarbageCollectionReason::kTesting);
   CHECK(platform.PendingIdleTask());
   // The delayed task should be a no-op if the idle task makes progress.
   const int kIgnoredDelayedTaskStepCount = 1000;

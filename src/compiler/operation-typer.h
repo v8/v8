@@ -14,13 +14,13 @@ namespace internal {
 // Forward declarations.
 class Isolate;
 class RangeType;
-class Type;
 class Zone;
 
 namespace compiler {
 
 // Forward declarations.
 class Operator;
+class Type;
 class TypeCache;
 
 class OperationTyper {

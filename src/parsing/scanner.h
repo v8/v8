@@ -199,7 +199,7 @@ class Scanner {
     return LiteralMatches(data, length, false);
   }
 
-  void IsGetOrSet(bool* is_get, bool* is_set) {
+  bool IsGetOrSet(bool* is_get, bool* is_set) {
     if (is_literal_one_byte() &&
         literal_length() == 3 &&
         !literal_contains_escapes()) {
@@ -207,7 +207,9 @@ class Scanner {
           reinterpret_cast<const char*>(literal_one_byte_string().start());
       *is_get = strncmp(token, "get", 3) == 0;
       *is_set = !*is_get && strncmp(token, "set", 3) == 0;
+      return *is_get || *is_set;
     }
+    return false;
   }
 
   int FindSymbol(DuplicateFinder* finder, int value);

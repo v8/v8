@@ -940,7 +940,8 @@ Object* Isolate::StackOverflow() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && FLAG_stress_compaction) {
-    heap()->CollectAllGarbage(Heap::kNoGCFlags, "trigger compaction");
+    heap()->CollectAllGarbage(Heap::kNoGCFlags,
+                              GarbageCollectionReason::kTesting);
   }
 #endif  // VERIFY_HEAP
 
@@ -2380,13 +2381,19 @@ bool Isolate::Init(Deserializer* des) {
   runtime_profiler_ = new RuntimeProfiler(this);
 
   // If we are deserializing, read the state into the now-empty heap.
-  if (!create_heap_objects) {
-    des->Deserialize(this);
-  }
-  load_stub_cache_->Initialize();
-  store_stub_cache_->Initialize();
-  if (FLAG_ignition || serializer_enabled()) {
-    interpreter_->Initialize();
+  {
+    AlwaysAllocateScope always_allocate(this);
+
+    if (!create_heap_objects) {
+      des->Deserialize(this);
+    }
+    load_stub_cache_->Initialize();
+    store_stub_cache_->Initialize();
+    if (FLAG_ignition || serializer_enabled()) {
+      interpreter_->Initialize();
+    }
+
+    heap_.NotifyDeserializationComplete();
   }
 
   // Finish initialization of ThreadLocal after deserialization is done.
@@ -2416,8 +2423,6 @@ bool Isolate::Init(Deserializer* des) {
            Internals::kExternalMemoryLimitOffset);
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
-
-  heap_.NotifyDeserializationComplete();
 
   if (!create_heap_objects) {
     // Now that the heap is consistent, it's OK to generate the code for the
@@ -2564,7 +2569,8 @@ void Isolate::DumpAndResetCompilationStats() {
   turbo_statistics_ = nullptr;
   delete hstatistics_;
   hstatistics_ = nullptr;
-  if (FLAG_runtime_call_stats) {
+  if (FLAG_runtime_call_stats &&
+      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED()) {
     OFStream os(stdout);
     counters()->runtime_call_stats()->Print(os);
     counters()->runtime_call_stats()->Reset();

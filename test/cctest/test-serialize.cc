@@ -90,7 +90,8 @@ static Vector<const byte> Serialize(v8::Isolate* isolate) {
   }
 
   Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
-  internal_isolate->heap()->CollectAllAvailableGarbage("serialize");
+  internal_isolate->heap()->CollectAllAvailableGarbage(
+      i::GarbageCollectionReason::kTesting);
   StartupSerializer ser(internal_isolate,
                         v8::SnapshotCreator::FunctionCodeHandling::kClear);
   ser.SerializeStrongReferences();
@@ -263,8 +264,10 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
         isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
-    heap->CollectAllGarbage();
-    heap->CollectAllGarbage();
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
 
     Object* raw_foo;
     {
@@ -366,7 +369,8 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap->CollectAllGarbage();
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -484,7 +488,8 @@ static void PartiallySerializeCustomContext(
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    isolate->heap()->CollectAllAvailableGarbage("snapshotting");
+    isolate->heap()->CollectAllAvailableGarbage(
+        i::GarbageCollectionReason::kTesting);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -810,7 +815,7 @@ TEST(SnapshotDataBlobWithWarmup) {
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
     CHECK(IsCompiled("Math.abs"));
-    CHECK(!IsCompiled("Number.isFinite"));
+    CHECK(!IsCompiled("Number.parseInt"));
     CHECK(CompileRun("Math.random")->IsFunction());
   }
   isolate->Dispose();
@@ -820,8 +825,8 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
   DisableTurbofan();
   const char* source =
       "function f() { return Math.abs(1); }\n"
-      "function g() { return Number.isFinite(1); }\n"
-      "Number.isNaN(1);"
+      "function g() { return Number.parseInt(1); }\n"
+      "Number.parseFloat(1);"
       "var a = 5";
   const char* warmup = "a = f()";
 
@@ -845,8 +850,8 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("f"));
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
-    CHECK(!IsCompiled("Number.isFinite"));
-    CHECK(!IsCompiled("Number.isNaN"));
+    CHECK(!IsCompiled("Number.parseInt"));
+    CHECK(!IsCompiled("Number.parseFloat"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
@@ -1067,7 +1072,7 @@ TEST(CodeSerializerLargeCodeObject) {
   Vector<const uint8_t> source =
       ConstructSource(STATIC_CHAR_VECTOR("var j=1; if (!j) {"),
                       STATIC_CHAR_VECTOR("for (let i of Object.prototype);"),
-                      STATIC_CHAR_VECTOR("} j=7; j"), 1500);
+                      STATIC_CHAR_VECTOR("} j=7; j"), 2000);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 
@@ -1894,7 +1899,6 @@ TEST(CodeSerializerEmbeddedObject) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
-  Heap* heap = isolate->heap();
   v8::HandleScope scope(CcTest::isolate());
 
   size_t actual_size;
@@ -1934,7 +1938,7 @@ TEST(CodeSerializerEmbeddedObject) {
   CHECK(rit2.rinfo()->target_object()->IsHeapNumber());
   CHECK_EQ(0.3, HeapNumber::cast(rit2.rinfo()->target_object())->value());
 
-  heap->CollectAllAvailableGarbage();
+  CcTest::CollectAllAvailableGarbage();
 
   RelocIterator rit3(copy->code(),
                      RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));

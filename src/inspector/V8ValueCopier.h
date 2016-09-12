@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8VALUECOPIER_H_
 #define V8_INSPECTOR_V8VALUECOPIER_H_
 
-#include <v8.h>
+#include "include/v8.h"
 
 namespace v8_inspector {
 

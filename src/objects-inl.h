@@ -27,6 +27,7 @@
 #include "src/isolate.h"
 #include "src/keys.h"
 #include "src/layout-descriptor-inl.h"
+#include "src/lookup-cache-inl.h"
 #include "src/lookup.h"
 #include "src/objects.h"
 #include "src/property.h"
@@ -5707,6 +5708,7 @@ ACCESSORS(AccessCheckInfo, data, Object, kDataOffset)
 ACCESSORS(InterceptorInfo, getter, Object, kGetterOffset)
 ACCESSORS(InterceptorInfo, setter, Object, kSetterOffset)
 ACCESSORS(InterceptorInfo, query, Object, kQueryOffset)
+ACCESSORS(InterceptorInfo, descriptor, Object, kDescriptorOffset)
 ACCESSORS(InterceptorInfo, deleter, Object, kDeleterOffset)
 ACCESSORS(InterceptorInfo, enumerator, Object, kEnumeratorOffset)
 ACCESSORS(InterceptorInfo, definer, Object, kDefinerOffset)
@@ -7941,6 +7943,13 @@ FixedArray* ModuleInfo::special_exports() const {
 FixedArray* ModuleInfo::regular_exports() const {
   return FixedArray::cast(get(kRegularExportsIndex));
 }
+
+#ifdef DEBUG
+bool ModuleInfo::Equals(ModuleInfo* other) const {
+  return get(kSpecialExportsIndex) == other->get(kSpecialExportsIndex) &&
+         get(kRegularExportsIndex) == other->get(kRegularExportsIndex);
+}
+#endif
 
 void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.

@@ -761,6 +761,112 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   }
 }
 
+namespace {
+
+// This function modified start_addr, and only reads the contents of num_args
+// register. scratch1 and scratch2 are used as temporary registers. Their
+// original values are restored after the use.
+void Generate_InterpreterPushArgsAndReturnAddress(
+    MacroAssembler* masm, Register num_args, Register start_addr,
+    Register scratch1, Register scratch2, bool receiver_in_args) {
+  // Store scratch2, scratch1 onto the stack. We need to restore the original
+  // values
+  // so store scratch2, scratch1 temporarily on stack.
+  __ Push(scratch2);
+  __ Push(scratch1);
+
+  // We have to pop return address and the two temporary registers before we
+  // can push arguments onto the stack. we do not have any free registers so
+  // update the stack and copy them into the correct places on the stack.
+  //  current stack    =====>    required stack layout
+  // |             |            | scratch1      | (2) <-- esp(1)
+  // |             |            | scratch2      | (3)
+  // |             |            | return addr   | (4)
+  // |             |            | arg N         | (5)
+  // | scratch1    | <-- esp    | ....          |
+  // | scratch2    |            | arg 0         |
+  // | return addr |            | receiver slot |
+
+  // First increment the stack pointer to the correct location.
+  // we need additional slots for arguments and the receiver.
+  // Step 1 - compute the required increment to the stack.
+  __ mov(scratch1, num_args);
+  __ shl(scratch1, kPointerSizeLog2);
+  __ add(scratch1, Immediate(kPointerSize));
+
+#ifdef _MSC_VER
+  // TODO(mythria): Move it to macro assembler.
+  // In windows, we cannot increment the stack size by more than one page
+  // (mimimum page size is 4KB) without accessing at least one byte on the
+  // page. Check this:
+  // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
+  const int page_size = 4 * 1024;
+  Label check_offset, update_stack_pointer;
+  __ bind(&check_offset);
+  __ cmp(scratch1, page_size);
+  __ j(less, &update_stack_pointer);
+  __ sub(esp, Immediate(page_size));
+  // Just to touch the page, before we increment further.
+  __ mov(Operand(esp, 0), Immediate(0));
+  __ sub(scratch1, Immediate(page_size));
+  __ jmp(&check_offset);
+  __ bind(&update_stack_pointer);
+#endif
+
+  // TODO(mythria): Add a stack check before updating the stack pointer.
+
+  // Step 1 - Update the stack pointer.
+  __ sub(esp, scratch1);
+
+  // Step 2 move scratch1 to the correct location. Move scratch1 first otherwise
+  // we may overwrite when num_args = 0 or 1, basically when the source and
+  // destination overlap. We at least need one extra slot for receiver,
+  // so no extra checks are required to avoid copy.
+  __ mov(scratch1,
+         Operand(esp, num_args, times_pointer_size, 1 * kPointerSize));
+  __ mov(Operand(esp, 0), scratch1);
+
+  // Step 3 move scratch2 to the correct location
+  __ mov(scratch1,
+         Operand(esp, num_args, times_pointer_size, 2 * kPointerSize));
+  __ mov(Operand(esp, 1 * kPointerSize), scratch1);
+
+  // Step 4 move return address to the correct location
+  __ mov(scratch1,
+         Operand(esp, num_args, times_pointer_size, 3 * kPointerSize));
+  __ mov(Operand(esp, 2 * kPointerSize), scratch1);
+
+  // Step 5 copy arguments to correct locations.
+  if (receiver_in_args) {
+    __ mov(scratch1, num_args);
+    __ add(scratch1, Immediate(1));
+  } else {
+    // Slot meant for receiver contains return address. Reset it so that
+    // we will not incorrectly interpret return address as an object.
+    __ mov(Operand(esp, num_args, times_pointer_size, 3 * kPointerSize),
+           Immediate(0));
+    __ mov(scratch1, num_args);
+  }
+
+  Label loop_header, loop_check;
+  __ jmp(&loop_check);
+  __ bind(&loop_header);
+  __ mov(scratch2, Operand(start_addr, 0));
+  __ mov(Operand(esp, scratch1, times_pointer_size, 2 * kPointerSize),
+         scratch2);
+  __ sub(start_addr, Immediate(kPointerSize));
+  __ sub(scratch1, Immediate(1));
+  __ bind(&loop_check);
+  __ cmp(scratch1, Immediate(0));
+  __ j(greater, &loop_header, Label::kNear);
+
+  // Restore scratch1 and scratch2.
+  __ Pop(scratch1);
+  __ Pop(scratch2);
+}
+
+}  // end anonymous namespace
+
 // static
 void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     MacroAssembler* masm, CallableType construct_type) {
@@ -774,90 +880,10 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   //           they are to be pushed onto the stack.
   // -----------------------------------
 
-  // Store edi, edx onto the stack. We need two extra registers
-  // so store edi, edx temporarily on stack.
-  __ Push(edi);
-  __ Push(edx);
-
-  // We have to pop return address and the two temporary registers before we
-  // can push arguments onto the stack. we do not have any free registers so
-  // update the stack and copy them into the correct places on the stack.
-  //  current stack    =====>    required stack layout
-  // |             |            | edx           | (2) <-- esp(1)
-  // |             |            | edi           | (3)
-  // |             |            | return addr   | (4)
-  // |             |            | arg N         | (5)
-  // | edx         | <-- esp    | ....          |
-  // | edi         |            | arg 0         |
-  // | return addr |            | receiver slot |
-
-  // First increment the stack pointer to the correct location.
-  // we need additional slots for arguments and the receiver.
-  // Step 1 - compute the required increment to the stack.
-  __ mov(edx, eax);
-  __ shl(edx, kPointerSizeLog2);
-  __ add(edx, Immediate(kPointerSize));
-
-#ifdef _MSC_VER
-  // TODO(mythria): Move it to macro assembler.
-  // In windows, we cannot increment the stack size by more than one page
-  // (mimimum page size is 4KB) without accessing at least one byte on the
-  // page. Check this:
-  // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
-  const int page_size = 4 * 1024;
-  Label check_offset, update_stack_pointer;
-  __ bind(&check_offset);
-  __ cmp(edx, page_size);
-  __ j(less, &update_stack_pointer);
-  __ sub(esp, Immediate(page_size));
-  // Just to touch the page, before we increment further.
-  __ mov(Operand(esp, 0), Immediate(0));
-  __ sub(edx, Immediate(page_size));
-  __ jmp(&check_offset);
-  __ bind(&update_stack_pointer);
-#endif
-
-  // TODO(mythria): Add a stack check before updating the stack pointer.
-
-  // Step 1 - Update the stack pointer.
-  __ sub(esp, edx);
-
-  // Step 2 move edx to the correct location. Move edx first otherwise
-  // we may overwrite when eax = 0 or 1, basically when the source and
-  // destination overlap. We at least need one extra slot for receiver,
-  // so no extra checks are required to avoid copy.
-  __ mov(edi, Operand(esp, eax, times_pointer_size, 1 * kPointerSize));
-  __ mov(Operand(esp, 0), edi);
-
-  // Step 3 move edi to the correct location
-  __ mov(edi, Operand(esp, eax, times_pointer_size, 2 * kPointerSize));
-  __ mov(Operand(esp, 1 * kPointerSize), edi);
-
-  // Step 4 move return address to the correct location
-  __ mov(edi, Operand(esp, eax, times_pointer_size, 3 * kPointerSize));
-  __ mov(Operand(esp, 2 * kPointerSize), edi);
-
-  // Slot meant for receiver contains return address. Reset it so that
-  // we will not incorrectly interpret return address as an object.
-  __ mov(Operand(esp, eax, times_pointer_size, 3 * kPointerSize), Immediate(0));
-
-  // Step 5 copy arguments to correct locations.
-  __ mov(edx, eax);
-
-  Label loop_header, loop_check;
-  __ jmp(&loop_check);
-  __ bind(&loop_header);
-  __ mov(edi, Operand(ecx, 0));
-  __ mov(Operand(esp, edx, times_pointer_size, 2 * kPointerSize), edi);
-  __ sub(ecx, Immediate(kPointerSize));
-  __ sub(edx, Immediate(1));
-  __ bind(&loop_check);
-  __ cmp(edx, Immediate(0));
-  __ j(greater, &loop_header, Label::kNear);
-
-  // Restore edi and edx.
-  __ Pop(edx);
-  __ Pop(edi);
+  // Push arguments and move return address to the top of stack.
+  // The eax register is readonly. The ecx register will be modified. The edx
+  // and edi registers will be modified but restored to their original values.
+  Generate_InterpreterPushArgsAndReturnAddress(masm, eax, ecx, edx, edi, false);
 
   __ AssertUndefinedOrAllocationSite(ebx);
   if (construct_type == CallableType::kJSFunction) {
@@ -875,6 +901,30 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     // Call the constructor with unmodified eax, edi, edx values.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
+}
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax : the number of arguments (not including the receiver)
+  //  -- edx : the target to call checked to be Array function.
+  //  -- ebx : the allocation site feedback
+  //  -- ecx : the address of the first argument to be pushed. Subsequent
+  //           arguments should be consecutive above this, in the same order as
+  //           they are to be pushed onto the stack.
+  // -----------------------------------
+
+  // Push arguments and move return address to the top of stack.
+  // The eax register is readonly. The ecx register will be modified. The edx
+  // and edi registers will be modified but restored to their original values.
+  Generate_InterpreterPushArgsAndReturnAddress(masm, eax, ecx, edx, ebx, true);
+
+  // Array constructor expects constructor in edi. It is same as edx here.
+  __ Move(edi, edx);
+
+  ArrayConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

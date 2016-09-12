@@ -363,8 +363,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateWithContext(Register object) {
-    Output(Bytecode::kCreateWithContext, RegisterOperand(object));
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateWithContext(
+    Register object, Handle<ScopeInfo> scope_info) {
+  size_t scope_info_index = GetConstantPoolEntry(scope_info);
+  Output(Bytecode::kCreateWithContext, RegisterOperand(object),
+         UnsignedOperand(scope_info_index));
   return *this;
 }
 

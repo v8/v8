@@ -688,12 +688,13 @@ RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
 
 RUNTIME_FUNCTION(Runtime_PushWithContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, extension_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
   Handle<Context> current(isolate->context());
-  Handle<Context> context =
-      isolate->factory()->NewWithContext(function, current, extension_object);
+  Handle<Context> context = isolate->factory()->NewWithContext(
+      function, current, scope_info, extension_object);
   isolate->set_context(*context);
   return *context;
 }

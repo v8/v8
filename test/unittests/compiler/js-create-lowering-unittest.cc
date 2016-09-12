@@ -174,14 +174,15 @@ TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
 // JSCreateWithContext
 
 TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
+  Handle<ScopeInfo> scope_info(factory()->NewScopeInfo(1));
   Node* const object = Parameter(Type::Receiver());
   Node* const closure = Parameter(Type::Function());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction r =
-      Reduce(graph()->NewNode(javascript()->CreateWithContext(), object,
-                              closure, context, effect, control));
+      Reduce(graph()->NewNode(javascript()->CreateWithContext(scope_info),
+                              object, closure, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(

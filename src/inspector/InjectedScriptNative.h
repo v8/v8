@@ -7,7 +7,8 @@
 
 #include "src/inspector/protocol/Protocol.h"
 
-#include <v8.h>
+#include "include/v8.h"
+
 #include <vector>
 
 namespace v8_inspector {

@@ -29,24 +29,21 @@ WASM_EXEC_TEST(Splat) {
   WasmRunner<int32_t> r(kExecuteCompiled, MachineType::Int32());
   r.AllocateLocal(kAstS128);
   BUILD(r,
-        WASM_BLOCK(WASM_SET_LOCAL(1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0))),
-                   WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(0),
-                                       WASM_SIMD_I32x4_EXTRACT_LANE(
-                                           WASM_GET_LOCAL(1), WASM_I8(0))),
-                           WASM_RETURN1(WASM_ZERO)),
-                   WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(0),
-                                       WASM_SIMD_I32x4_EXTRACT_LANE(
-                                           WASM_GET_LOCAL(1), WASM_I8(1))),
-                           WASM_RETURN1(WASM_ZERO)),
-                   WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(0),
-                                       WASM_SIMD_I32x4_EXTRACT_LANE(
-                                           WASM_GET_LOCAL(1), WASM_I8(2))),
-                           WASM_RETURN1(WASM_ZERO)),
-                   WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(0),
-                                       WASM_SIMD_I32x4_EXTRACT_LANE(
-                                           WASM_GET_LOCAL(1), WASM_I8(3))),
-                           WASM_RETURN1(WASM_ZERO)),
-                   WASM_RETURN1(WASM_ONE)));
+        WASM_BLOCK(
+            WASM_SET_LOCAL(1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0))),
+            WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(0), WASM_SIMD_I32x4_EXTRACT_LANE(
+                                                       0, WASM_GET_LOCAL(1))),
+                    WASM_RETURN1(WASM_ZERO)),
+            WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(0), WASM_SIMD_I32x4_EXTRACT_LANE(
+                                                       1, WASM_GET_LOCAL(1))),
+                    WASM_RETURN1(WASM_ZERO)),
+            WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(0), WASM_SIMD_I32x4_EXTRACT_LANE(
+                                                       2, WASM_GET_LOCAL(1))),
+                    WASM_RETURN1(WASM_ZERO)),
+            WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(0), WASM_SIMD_I32x4_EXTRACT_LANE(
+                                                       3, WASM_GET_LOCAL(1))),
+                    WASM_RETURN1(WASM_ZERO)),
+            WASM_RETURN1(WASM_ONE)));
 
   FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i)); }
 }

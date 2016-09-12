@@ -132,7 +132,7 @@ class StaticVisitorBase : public AllStatic {
            (base == kVisitJSObject) || (base == kVisitJSApiObject));
     DCHECK(IsAligned(object_size, kPointerSize));
     DCHECK(Heap::kMinObjectSizeInWords * kPointerSize <= object_size);
-    DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+    DCHECK(object_size <= kMaxRegularHeapObjectSize);
     DCHECK(!has_unboxed_fields || (base == kVisitJSObject) ||
            (base == kVisitJSApiObject));
 

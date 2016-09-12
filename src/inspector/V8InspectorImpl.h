@@ -33,10 +33,10 @@
 
 #include "src/inspector/Allocator.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8Inspector.h"
 
-#include <v8-debug.h>
-#include <v8.h>
+#include "include/v8-debug.h"
+#include "include/v8-inspector.h"
+
 #include <vector>
 
 namespace v8_inspector {
@@ -109,6 +109,7 @@ class V8InspectorImpl : public V8Inspector {
   void muteExceptions(int contextGroupId);
   void unmuteExceptions(int contextGroupId);
   V8ConsoleMessageStorage* ensureConsoleMessageStorage(int contextGroupId);
+  bool hasConsoleMessageStorage(int contextGroupId);
   using ContextByIdMap =
       protocol::HashMap<int, std::unique_ptr<InspectedContext>>;
   void discardInspectedContext(int contextGroupId, int contextId);

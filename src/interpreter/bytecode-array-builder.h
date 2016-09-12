@@ -148,9 +148,10 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // Create a new context with size |slots|.
   BytecodeArrayBuilder& CreateFunctionContext(int slots);
 
-  // Creates a new context for a with-statement with the |object| in a register
-  // and the closure in the accumulator.
-  BytecodeArrayBuilder& CreateWithContext(Register object);
+  // Creates a new context with the given |scope_info| for a with-statement
+  // with the |object| in a register and the closure in the accumulator.
+  BytecodeArrayBuilder& CreateWithContext(Register object,
+                                          Handle<ScopeInfo> scope_info);
 
   // Create a new arguments object in the accumulator.
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);

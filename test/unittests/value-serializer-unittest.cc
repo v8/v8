@@ -96,7 +96,7 @@ class ValueSerializerTest : public TestWithIsolate {
                                    static_cast<int>(data.size()));
     deserializer.SetSupportsLegacyWireFormat(true);
     BeforeDecode(&deserializer);
-    ASSERT_TRUE(deserializer.ReadHeader().FromMaybe(false));
+    ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
     Local<Value> result;
     ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&result));
     ASSERT_FALSE(result.IsEmpty());
@@ -119,7 +119,7 @@ class ValueSerializerTest : public TestWithIsolate {
                                    static_cast<int>(data.size()));
     deserializer.SetSupportsLegacyWireFormat(true);
     BeforeDecode(&deserializer);
-    ASSERT_TRUE(deserializer.ReadHeader().FromMaybe(false));
+    ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
     ASSERT_EQ(0, deserializer.GetWireFormatVersion());
     Local<Value> result;
     ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&result));
@@ -141,10 +141,14 @@ class ValueSerializerTest : public TestWithIsolate {
                                    static_cast<int>(data.size()));
     deserializer.SetSupportsLegacyWireFormat(true);
     BeforeDecode(&deserializer);
-    Maybe<bool> header_result = deserializer.ReadHeader();
-    if (header_result.IsNothing()) return;
+    Maybe<bool> header_result = deserializer.ReadHeader(context);
+    if (header_result.IsNothing()) {
+      EXPECT_TRUE(try_catch.HasCaught());
+      return;
+    }
     ASSERT_TRUE(header_result.ToChecked());
     ASSERT_TRUE(deserializer.ReadValue(context).IsEmpty());
+    EXPECT_TRUE(try_catch.HasCaught());
   }
 
   Local<Value> EvaluateScriptForInput(const char* utf8_source) {
@@ -943,6 +947,19 @@ TEST_F(ValueSerializerTest, RoundTripArrayWithTrickyGetters) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === 1"));
         EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(2)"));
       });
+  // The same is true if the length is shortened, but there are still items
+  // remaining.
+  RoundTripTest(
+      "(() => {"
+      "  var x = [1, { get a() { x.length = 3; }}, 3, 4];"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(4, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[2] === 3"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(3)"));
+      });
   // Same for sparse arrays.
   RoundTripTest(
       "(() => {"
@@ -955,6 +972,18 @@ TEST_F(ValueSerializerTest, RoundTripArrayWithTrickyGetters) {
         ASSERT_EQ(1000, Array::Cast(*value)->Length());
         EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === 1"));
         EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(2)"));
+      });
+  RoundTripTest(
+      "(() => {"
+      "  var x = [1, { get a() { x.length = 3; }}, 3, 4];"
+      "  x.length = 1000;"
+      "  return x;"
+      "})()",
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsArray());
+        ASSERT_EQ(1000, Array::Cast(*value)->Length());
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[2] === 3"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("!result.hasOwnProperty(3)"));
       });
   // If a getter makes a property non-enumerable, it should still be enumerated
   // as enumeration happens once before getters are invoked.

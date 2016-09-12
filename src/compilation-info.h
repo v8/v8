@@ -68,7 +68,6 @@ class CompilationInfo final {
   Handle<Script> script() const;
   FunctionLiteral* literal() const;
   DeclarationScope* scope() const;
-  Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
   // -----------------------------------------------------------
@@ -217,6 +216,9 @@ class CompilationInfo final {
     return (FLAG_trap_on_deopt && IsOptimizing()) ||
            (FLAG_trap_on_stub_deopt && IsStub());
   }
+
+  bool has_context() const;
+  Context* context() const;
 
   bool has_native_context() const;
   Context* native_context() const;

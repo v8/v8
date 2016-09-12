@@ -587,10 +587,13 @@ class ModuleDecoder : public Decoder {
     *length = consume_u32v("string length");
     uint32_t offset = pc_offset();
     TRACE("  +%u  %-20s: (%u bytes)\n", offset, "string", *length);
-    if (validate_utf8 && !unibrow::Utf8::Validate(pc_, *length)) {
-      error(pc_, "no valid UTF-8 string");
-    }
+    const byte* string_start = pc_;
+    // Consume bytes before validation to guarantee that the string is not oob.
     consume_bytes(*length);
+    if (ok() && validate_utf8 &&
+        !unibrow::Utf8::Validate(string_start, *length)) {
+      error(string_start, "no valid UTF-8 string");
+    }
     return offset;
   }
 

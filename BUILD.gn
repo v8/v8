@@ -140,6 +140,9 @@ config("external_config") {
     ]
   }
   include_dirs = [ "include" ]
+  if (v8_enable_inspector_override) {
+    include_dirs += [ "$target_gen_dir/include" ]
+  }
   libs = []
   if (is_android && current_toolchain != host_toolchain) {
     libs += [ "log" ]
@@ -439,6 +442,7 @@ action("js2c_experimental") {
 
   if (v8_enable_i18n_support) {
     sources += [
+      "src/js/datetime-format-to-parts.js",
       "src/js/icu-case-mapping.js",
       "src/js/intl-extra.js",
     ]
@@ -913,7 +917,6 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-object.cc",
     "src/builtins/builtins-proxy.cc",
     "src/builtins/builtins-reflect.cc",
-    "src/builtins/builtins-regexp.cc",
     "src/builtins/builtins-sharedarraybuffer.cc",
     "src/builtins/builtins-string.cc",
     "src/builtins/builtins-symbol.cc",
@@ -1148,6 +1151,8 @@ v8_source_set("v8_base") {
     "src/compiler/typed-optimization.h",
     "src/compiler/typer.cc",
     "src/compiler/typer.h",
+    "src/compiler/types.cc",
+    "src/compiler/types.h",
     "src/compiler/unwinding-info-writer.h",
     "src/compiler/value-numbering-reducer.cc",
     "src/compiler/value-numbering-reducer.h",
@@ -1437,6 +1442,9 @@ v8_source_set("v8_base") {
     "src/log-utils.h",
     "src/log.cc",
     "src/log.h",
+    "src/lookup-cache-inl.h",
+    "src/lookup-cache.cc",
+    "src/lookup-cache.h",
     "src/lookup.cc",
     "src/lookup.h",
     "src/machine-type.cc",
@@ -1618,8 +1626,6 @@ v8_source_set("v8_base") {
     "src/type-feedback-vector.h",
     "src/type-info.cc",
     "src/type-info.h",
-    "src/types.cc",
-    "src/types.h",
     "src/unicode-cache-inl.h",
     "src/unicode-cache.h",
     "src/unicode-decoder.cc",
@@ -1754,6 +1760,7 @@ v8_source_set("v8_base") {
       "src/x64/interface-descriptors-x64.cc",
       "src/x64/macro-assembler-x64.cc",
       "src/x64/macro-assembler-x64.h",
+      "src/x64/sse-instr.h",
     ]
   } else if (v8_current_cpu == "arm") {
     sources += [
@@ -2019,6 +2026,10 @@ v8_source_set("v8_base") {
   if (v8_postmortem_support) {
     sources += [ "$target_gen_dir/debug-support.cc" ]
     deps += [ ":postmortem-metadata" ]
+  }
+
+  if (v8_enable_inspector_override) {
+    deps += [ "src/inspector:inspector" ]
   }
 }
 

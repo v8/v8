@@ -16,6 +16,8 @@
 #include "src/base/hashmap.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
+#include "src/globals.h"
+#include "src/heap/heap.h"
 #include "src/heap/marking.h"
 #include "src/list.h"
 #include "src/objects.h"
@@ -57,7 +59,7 @@ class Space;
 // area.
 //
 // There is a separate large object space for objects larger than
-// Page::kMaxRegularHeapObjectSize, so that they do not have to move during
+// kMaxRegularHeapObjectSize, so that they do not have to move during
 // collection. The large object space is paged. Pages in large object space
 // may be larger than the page size.
 //
@@ -105,7 +107,7 @@ class Space;
   DCHECK((OffsetFrom(address) & kObjectAlignmentMask) == 0)
 
 #define DCHECK_OBJECT_SIZE(size) \
-  DCHECK((0 < size) && (size <= Page::kMaxRegularHeapObjectSize))
+  DCHECK((0 < size) && (size <= kMaxRegularHeapObjectSize))
 
 #define DCHECK_CODEOBJECT_SIZE(size, code_space) \
   DCHECK((0 < size) && (size <= code_space->AreaSize()))
@@ -694,6 +696,9 @@ class MemoryChunk {
 
 DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::Flags)
 
+static_assert(kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory,
+              "kMaxRegularHeapObjectSize <= MemoryChunk::kAllocatableMemory");
+
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.
 //
@@ -708,15 +713,6 @@ class Page : public MemoryChunk {
   static const intptr_t kCopyOnFlipFlagsMask =
       static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
       static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-
-  // Maximum object size that gets allocated into regular pages. Objects larger
-  // than that size are allocated in large object space and are never moved in
-  // memory. This also applies to new space allocation, since objects are never
-  // migrated from new space to large object space. Takes double alignment into
-  // account.
-  // TODO(hpayer): This limit should be way smaller but we currently have
-  // short living objects >256K.
-  static const int kMaxRegularHeapObjectSize = 512 * KB - Page::kHeaderSize;
 
   static inline Page* ConvertNewToOld(Page* old_page, PagedSpace* new_owner);
 
@@ -816,6 +812,8 @@ class Page : public MemoryChunk {
   void add_available_in_free_list(intptr_t available) {
     available_in_free_list_.Increment(available);
   }
+
+  size_t ShrinkToHighWaterMark();
 
 #ifdef DEBUG
   void Print();
@@ -1304,6 +1302,8 @@ class MemoryAllocator {
   MemoryChunk* AllocateChunk(intptr_t reserve_area_size,
                              intptr_t commit_area_size,
                              Executability executable, Space* space);
+
+  void ShrinkChunk(MemoryChunk* chunk, size_t bytes_to_shrink);
 
   Address ReserveAlignedMemory(size_t requested, size_t alignment,
                                base::VirtualMemory* controller);
@@ -1870,50 +1870,6 @@ class FreeList {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
 
-
-class AllocationResult {
- public:
-  // Implicit constructor from Object*.
-  AllocationResult(Object* object)  // NOLINT
-      : object_(object) {
-    // AllocationResults can't return Smis, which are used to represent
-    // failure and the space to retry in.
-    CHECK(!object->IsSmi());
-  }
-
-  AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
-
-  static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
-    return AllocationResult(space);
-  }
-
-  inline bool IsRetry() { return object_->IsSmi(); }
-
-  template <typename T>
-  bool To(T** obj) {
-    if (IsRetry()) return false;
-    *obj = T::cast(object_);
-    return true;
-  }
-
-  Object* ToObjectChecked() {
-    CHECK(!IsRetry());
-    return object_;
-  }
-
-  inline AllocationSpace RetrySpace();
-
- private:
-  explicit AllocationResult(AllocationSpace space)
-      : object_(Smi::FromInt(static_cast<int>(space))) {}
-
-  Object* object_;
-};
-
-
-STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
-
-
 // LocalAllocationBuffer represents a linear allocation area that is created
 // from a given {AllocationResult} and can be used to allocate memory without
 // synchronization.
@@ -2186,6 +2142,10 @@ class PagedSpace : public Space {
   iterator begin() { return iterator(anchor_.next_page()); }
   iterator end() { return iterator(&anchor_); }
 
+  // Shrink immortal immovable pages of the space to be exactly the size needed
+  // using the high water mark.
+  void ShrinkImmortalImmovablePages();
+
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -2243,41 +2203,6 @@ class PagedSpace : public Space {
 
   // Used in cctest.
   friend class HeapTester;
-};
-
-
-class NumberAndSizeInfo BASE_EMBEDDED {
- public:
-  NumberAndSizeInfo() : number_(0), bytes_(0) {}
-
-  int number() const { return number_; }
-  void increment_number(int num) { number_ += num; }
-
-  int bytes() const { return bytes_; }
-  void increment_bytes(int size) { bytes_ += size; }
-
-  void clear() {
-    number_ = 0;
-    bytes_ = 0;
-  }
-
- private:
-  int number_;
-  int bytes_;
-};
-
-
-// HistogramInfo class for recording a single "bar" of a histogram.  This
-// class is used for collecting statistics to print to the log file.
-class HistogramInfo : public NumberAndSizeInfo {
- public:
-  HistogramInfo() : NumberAndSizeInfo() {}
-
-  const char* name() { return name_; }
-  void set_name(const char* name) { name_ = name; }
-
- private:
-  const char* name_;
 };
 
 enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
@@ -2885,7 +2810,7 @@ class MapSpace : public PagedSpace {
 
 
 // -----------------------------------------------------------------------------
-// Large objects ( > Page::kMaxRegularHeapObjectSize ) are allocated and
+// Large objects ( > kMaxRegularHeapObjectSize ) are allocated and
 // managed by the large object space. A large object is allocated from OS
 // heap with extra padding bytes (Page::kPageSize + Page::kObjectStartOffset).
 // A large object always starts at Page::kObjectStartOffset to a page.
@@ -3020,20 +2945,6 @@ class MemoryChunkIterator BASE_EMBEDDED {
   LargePageIterator lo_iterator_;
 };
 
-#ifdef DEBUG
-struct CommentStatistic {
-  const char* comment;
-  int size;
-  int count;
-  void Clear() {
-    comment = NULL;
-    size = 0;
-    count = 0;
-  }
-  // Must be small, since an iteration is used for lookup.
-  static const int kMaxComments = 64;
-};
-#endif
 }  // namespace internal
 }  // namespace v8
 

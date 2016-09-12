@@ -946,6 +946,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 
 void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
+  DCHECK(variable->mode() == LET || variable->mode() == VAR);
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
@@ -955,8 +956,6 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
       VisitForAccumulatorValue(decl->fun());
-      DCHECK(variable->mode() == LET || variable->mode() == VAR ||
-             variable->mode() == CONST);
       VisitVariableAssignment(variable, Token::INIT,
                               FeedbackVectorSlot::Invalid());
       break;
@@ -1093,7 +1092,7 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
-  VisitNewLocalWithContext();
+  VisitNewLocalWithContext(stmt->scope());
   VisitInScope(stmt->statement(), stmt->scope());
 }
 
@@ -1545,7 +1544,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
 
   // Create nodes to store method values into the literal.
   for (int i = 0; i < expr->properties()->length(); i++) {
-    ObjectLiteral::Property* property = expr->properties()->at(i);
+    ClassLiteral::Property* property = expr->properties()->at(i);
 
     // Set-up receiver.
     Register new_receiver = property->is_static() ? literal : prototype;
@@ -1576,13 +1575,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
     }
 
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      case ObjectLiteral::Property::PROTOTYPE:
-        // Invalid properties for ES6 classes.
-        UNREACHABLE();
-        break;
-      case ObjectLiteral::Property::COMPUTED: {
+      case ClassLiteral::Property::METHOD: {
         builder()
             ->LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
             .StoreAccumulatorInRegister(set_function_name);
@@ -1590,12 +1583,12 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
                                5);
         break;
       }
-      case ObjectLiteral::Property::GETTER: {
+      case ClassLiteral::Property::GETTER: {
         builder()->CallRuntime(Runtime::kDefineGetterPropertyUnchecked,
                                receiver, 4);
         break;
       }
-      case ObjectLiteral::Property::SETTER: {
+      case ClassLiteral::Property::SETTER: {
         builder()->CallRuntime(Runtime::kDefineSetterPropertyUnchecked,
                                receiver, 4);
         break;
@@ -1880,8 +1873,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // Deep-copy the literal boilerplate.
   builder()->CreateArrayLiteral(expr->constant_elements(),
-                                expr->literal_index(),
-                                expr->ComputeFlags(true));
+                                expr->literal_index(), expr->ComputeFlags());
   Register index, literal;
 
   // Evaluate all the non-constant subexpressions and store them into the
@@ -3199,14 +3191,14 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
   execution_result()->SetResultInAccumulator();
 }
 
-void BytecodeGenerator::VisitNewLocalWithContext() {
+void BytecodeGenerator::VisitNewLocalWithContext(Scope* scope) {
   AccumulatorResultScope accumulator_execution_result(this);
 
   Register extension_object = register_allocator()->NewRegister();
 
   builder()->ConvertAccumulatorToObject(extension_object);
   VisitFunctionClosureForContext();
-  builder()->CreateWithContext(extension_object);
+  builder()->CreateWithContext(extension_object, scope->scope_info());
   execution_result()->SetResultInAccumulator();
 }
 
@@ -3236,7 +3228,7 @@ void BytecodeGenerator::VisitObjectLiteralAccessor(
 }
 
 void BytecodeGenerator::VisitSetHomeObject(Register value, Register home_object,
-                                           ObjectLiteralProperty* property,
+                                           LiteralProperty* property,
                                            int slot_number) {
   Expression* expr = property->value();
   if (FunctionLiteral::NeedsHomeObject(expr)) {
@@ -3288,6 +3280,13 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
   // Store the new target we were called with in the given variable.
   builder()->LoadAccumulatorWithRegister(Register::new_target());
   VisitVariableAssignment(variable, Token::INIT, FeedbackVectorSlot::Invalid());
+
+  // TODO(mstarzinger): The <new.target> register is not set by the deoptimizer
+  // and we need to make sure {BytecodeRegisterOptimizer} flushes its state
+  // before a local variable containing the <new.target> is used. Using a label
+  // as below flushes the entire pipeline, we should be more specific here.
+  BytecodeLabel flush_state_label;
+  builder()->Bind(&flush_state_label);
 }
 
 void BytecodeGenerator::VisitFunctionClosureForContext() {

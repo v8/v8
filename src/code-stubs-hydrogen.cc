@@ -1140,7 +1140,7 @@ HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
       // Grow properties array.
       ElementsKind kind = FAST_ELEMENTS;
       Add<HBoundsCheck>(new_capacity,
-                        Add<HConstant>((Page::kMaxRegularHeapObjectSize -
+                        Add<HConstant>((kMaxRegularHeapObjectSize -
                                         FixedArray::kHeaderSize) >>
                                        ElementsKindToShiftSize(kind)));
 

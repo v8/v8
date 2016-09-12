@@ -17,7 +17,7 @@ void InstructionScheduler::SchedulingQueueBase::AddNode(
   // the next best candidate to schedule.
   auto it = nodes_.begin();
   while ((it != nodes_.end()) &&
-         ((*it)->total_latency() > node->total_latency())) {
+         ((*it)->total_latency() >= node->total_latency())) {
     ++it;
   }
   nodes_.insert(it, node);

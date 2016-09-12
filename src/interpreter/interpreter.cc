@@ -182,8 +182,6 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
                                      &RuntimeCallStats::CompileIgnition);
   TimerEventScope<TimerEventCompileIgnition> timer(info()->isolate());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      info()->isolate(), &tracing::TraceEventStatsTable::CompileIgnition);
 
   generator()->GenerateBytecode(stack_limit());
 
@@ -1305,7 +1303,9 @@ void Interpreter::DoUnaryOpWithFeedback(InterpreterAssembler* assembler) {
 //
 // Convert the object referenced by the accumulator to a name.
 void Interpreter::DoToName(InterpreterAssembler* assembler) {
-  Node* result = BuildUnaryOp(CodeFactory::ToName(isolate_), assembler);
+  Node* object = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result = __ ToName(context, object);
   __ StoreRegister(result, __ BytecodeOperandReg(0));
   __ Dispatch();
 }
@@ -1471,7 +1471,12 @@ void Interpreter::DoTailCall(InterpreterAssembler* assembler) {
   DoJSCall(assembler, TailCallMode::kAllow);
 }
 
-void Interpreter::DoCallRuntimeCommon(InterpreterAssembler* assembler) {
+// CallRuntime <function_id> <first_arg> <arg_count>
+//
+// Call the runtime function |function_id| with the first argument in
+// register |first_arg| and |arg_count| arguments in subsequent
+// registers.
+void Interpreter::DoCallRuntime(InterpreterAssembler* assembler) {
   Node* function_id = __ BytecodeOperandRuntimeId(0);
   Node* first_arg_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(first_arg_reg);
@@ -1480,15 +1485,6 @@ void Interpreter::DoCallRuntimeCommon(InterpreterAssembler* assembler) {
   Node* result = __ CallRuntimeN(function_id, context, first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
-}
-
-// CallRuntime <function_id> <first_arg> <arg_count>
-//
-// Call the runtime function |function_id| with the first argument in
-// register |first_arg| and |arg_count| arguments in subsequent
-// registers.
-void Interpreter::DoCallRuntime(InterpreterAssembler* assembler) {
-  DoCallRuntimeCommon(assembler);
 }
 
 // InvokeIntrinsic <function_id> <first_arg> <arg_count>
@@ -1508,7 +1504,13 @@ void Interpreter::DoInvokeIntrinsic(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-void Interpreter::DoCallRuntimeForPairCommon(InterpreterAssembler* assembler) {
+// CallRuntimeForPair <function_id> <first_arg> <arg_count> <first_return>
+//
+// Call the runtime function |function_id| which returns a pair, with the
+// first argument in register |first_arg| and |arg_count| arguments in
+// subsequent registers. Returns the result in <first_return> and
+// <first_return + 1>
+void Interpreter::DoCallRuntimeForPair(InterpreterAssembler* assembler) {
   // Call the runtime function.
   Node* function_id = __ BytecodeOperandRuntimeId(0);
   Node* first_arg_reg = __ BytecodeOperandReg(1);
@@ -1528,17 +1530,11 @@ void Interpreter::DoCallRuntimeForPairCommon(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// CallRuntimeForPair <function_id> <first_arg> <arg_count> <first_return>
+// CallJSRuntime <context_index> <receiver> <arg_count>
 //
-// Call the runtime function |function_id| which returns a pair, with the
-// first argument in register |first_arg| and |arg_count| arguments in
-// subsequent registers. Returns the result in <first_return> and
-// <first_return + 1>
-void Interpreter::DoCallRuntimeForPair(InterpreterAssembler* assembler) {
-  DoCallRuntimeForPairCommon(assembler);
-}
-
-void Interpreter::DoCallJSRuntimeCommon(InterpreterAssembler* assembler) {
+// Call the JS runtime function that has the |context_index| with the receiver
+// in register |receiver| and |arg_count| arguments in subsequent registers.
+void Interpreter::DoCallJSRuntime(InterpreterAssembler* assembler) {
   Node* context_index = __ BytecodeOperandIdx(0);
   Node* receiver_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(receiver_reg);
@@ -1559,15 +1555,13 @@ void Interpreter::DoCallJSRuntimeCommon(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// CallJSRuntime <context_index> <receiver> <arg_count>
+// New <constructor> <first_arg> <arg_count>
 //
-// Call the JS runtime function that has the |context_index| with the receiver
-// in register |receiver| and |arg_count| arguments in subsequent registers.
-void Interpreter::DoCallJSRuntime(InterpreterAssembler* assembler) {
-  DoCallJSRuntimeCommon(assembler);
-}
-
-void Interpreter::DoCallConstruct(InterpreterAssembler* assembler) {
+// Call operator new with |constructor| and the first argument in
+// register |first_arg| and |arg_count| arguments in subsequent
+// registers. The new.target is in the accumulator.
+//
+void Interpreter::DoNew(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::InterpreterPushArgsAndConstruct(isolate_);
   Node* new_target = __ GetAccumulator();
   Node* constructor_reg = __ BytecodeOperandReg(0);
@@ -1582,16 +1576,6 @@ void Interpreter::DoCallConstruct(InterpreterAssembler* assembler) {
                                   args_count, slot_id, type_feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
-}
-
-// New <constructor> <first_arg> <arg_count>
-//
-// Call operator new with |constructor| and the first argument in
-// register |first_arg| and |arg_count| arguments in subsequent
-// registers. The new.target is in the accumulator.
-//
-void Interpreter::DoNew(InterpreterAssembler* assembler) {
-  DoCallConstruct(assembler);
 }
 
 // TestEqual <src>
@@ -2024,17 +2008,20 @@ void Interpreter::DoCreateFunctionContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// CreateWithContext <register>
+// CreateWithContext <register> <scope_info_idx>
 //
-// Creates a new context for a with-statement with the object in |register| and
-// the closure in the accumulator.
+// Creates a new context with the ScopeInfo at |scope_info_idx| for a
+// with-statement with the object in |register| and the closure in the
+// accumulator.
 void Interpreter::DoCreateWithContext(InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(reg_index);
+  Node* scope_info_idx = __ BytecodeOperandIdx(1);
+  Node* scope_info = __ LoadConstantPoolEntry(scope_info_idx);
   Node* closure = __ GetAccumulator();
   Node* context = __ GetContext();
-  __ SetAccumulator(
-      __ CallRuntime(Runtime::kPushWithContext, context, object, closure));
+  __ SetAccumulator(__ CallRuntime(Runtime::kPushWithContext, context, object,
+                                   scope_info, closure));
   __ Dispatch();
 }
 

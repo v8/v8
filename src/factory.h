@@ -272,9 +272,11 @@ class Factory final {
   // Create a 'with' context.
   Handle<Context> NewWithContext(Handle<JSFunction> function,
                                  Handle<Context> previous,
+                                 Handle<ScopeInfo> scope_info,
                                  Handle<JSReceiver> extension);
 
   Handle<Context> NewDebugEvaluateContext(Handle<Context> previous,
+                                          Handle<ScopeInfo> scope_info,
                                           Handle<JSReceiver> extension,
                                           Handle<Context> wrapped,
                                           Handle<StringSet> whitelist);

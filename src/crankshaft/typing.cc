@@ -6,6 +6,7 @@
 
 #include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
+#include "src/ast/variables.h"
 #include "src/frames-inl.h"
 #include "src/frames.h"
 #include "src/ostreams.h"
@@ -771,6 +772,14 @@ void AstTyper::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 
+int AstTyper::variable_index(Variable* var) {
+  // Stack locals have the range [0 .. l]
+  // Parameters have the range [-1 .. p]
+  // We map this to [-p-2 .. -1, 0 .. l]
+  return var->IsStackLocal()
+             ? stack_local_index(var->index())
+             : var->IsParameter() ? parameter_index(var->index()) : kNoVar;
+}
 
 void AstTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {
   for (int i = 0; i < decls->length(); ++i) {

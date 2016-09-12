@@ -89,8 +89,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
                                      &RuntimeCallStats::CompileFullCode);
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileFullCode");
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::CompileFullCode);
 
   Handle<Script> script = info->script();
   if (!script->IsUndefined(isolate) &&
@@ -242,6 +240,11 @@ void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   CallIC(ic, id);
 }
 
+void FullCodeGenerator::CallKeyedStoreIC() {
+  Handle<Code> ic =
+      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
+  CallIC(ic);
+}
 
 void FullCodeGenerator::RecordJSReturnSite(Call* call) {
   // We record the offset of the function return so we can rebuild the frame
@@ -1099,7 +1102,7 @@ void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
   CallRuntimeWithOperands(Runtime::kLoadKeyedFromSuper);
 }
 
-void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
+void FullCodeGenerator::EmitPropertyKey(LiteralProperty* property,
                                         BailoutId bailout_id) {
   VisitForStackValue(property->key());
   CallRuntimeWithOperands(Runtime::kToName);
@@ -1132,6 +1135,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   RestoreContext();
   PrepareForBailoutForId(stmt->ToObjectId(), BailoutState::TOS_REGISTER);
   PushOperand(result_register());
+  PushOperand(stmt->scope()->scope_info());
   PushFunctionArgumentForContextAllocation();
   CallRuntimeWithOperands(Runtime::kPushWithContext);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());

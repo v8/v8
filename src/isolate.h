@@ -23,7 +23,6 @@
 #include "src/messages.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
-#include "src/tracing/trace-event.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -52,6 +51,7 @@ class Counters;
 class CpuFeatures;
 class CpuProfiler;
 class DeoptimizerData;
+class DescriptorLookupCache;
 class Deserializer;
 class EmptyStatement;
 class ExternalCallbackScope;
@@ -63,6 +63,7 @@ class HStatistics;
 class HTracer;
 class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
+class KeyedLookupCache;
 class Logger;
 class MaterializedObjectStore;
 class OptimizingCompileDispatcher;
@@ -843,9 +844,6 @@ class Isolate {
     DCHECK(counters_ != NULL);
     return counters_;
   }
-  tracing::TraceEventStatsTable* trace_event_stats_table() {
-    return &trace_event_stats_table_;
-  }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   Logger* logger() {
@@ -1304,7 +1302,6 @@ class Isolate {
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
   Counters* counters_;
-  tracing::TraceEventStatsTable trace_event_stats_table_;
   base::RecursiveMutex break_access_;
   Logger* logger_;
   StackGuard stack_guard_;

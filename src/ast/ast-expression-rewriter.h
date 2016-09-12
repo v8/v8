@@ -33,7 +33,7 @@ class AstExpressionRewriter : public AstVisitor<AstExpressionRewriter> {
   virtual void VisitStatements(ZoneList<Statement*>* statements);
   virtual void VisitExpressions(ZoneList<Expression*>* expressions);
 
-  virtual void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
+  virtual void VisitLiteralProperty(LiteralProperty* property);
 
  protected:
   virtual bool RewriteExpression(Expression* expr) = 0;

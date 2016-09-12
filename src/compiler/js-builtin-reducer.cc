@@ -11,8 +11,8 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/types.h"
 #include "src/objects-inl.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {
@@ -145,11 +145,16 @@ bool CanInlineArrayResizeOperation(Handle<Map> receiver_map) {
   if (!receiver_map->prototype()->IsJSArray()) return false;
   Handle<JSArray> receiver_prototype(JSArray::cast(receiver_map->prototype()),
                                      isolate);
+  // Ensure that all prototypes of the {receiver} are stable.
+  for (PrototypeIterator it(isolate, receiver_prototype, kStartAtReceiver);
+       !it.IsAtEnd(); it.Advance()) {
+    Handle<JSReceiver> current = PrototypeIterator::GetCurrent<JSReceiver>(it);
+    if (!current->map()->is_stable()) return false;
+  }
   return receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
          !receiver_map->is_dictionary_map() && receiver_map->is_extensible() &&
          (!receiver_map->is_prototype_map() || receiver_map->is_stable()) &&
-         receiver_prototype->map()->is_stable() &&
          isolate->IsFastArrayConstructorPrototypeChainIntact() &&
          isolate->IsAnyInitialArrayPrototype(receiver_prototype) &&
          !IsReadOnlyLengthDescriptor(receiver_map);
@@ -370,6 +375,34 @@ Reduction JSBuiltinReducer::ReduceDateGetTime(Node* node) {
         simplified()->LoadField(AccessBuilder::ForJSDateValue()), receiver,
         effect, control);
     ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 18.2.2 isFinite ( number )
+Reduction JSBuiltinReducer::ReduceGlobalIsFinite(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // isFinite(a:plain-primitive) -> NumberEqual(a', a')
+    // where a' = NumberSubtract(ToNumber(a), ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* diff = graph()->NewNode(simplified()->NumberSubtract(), input, input);
+    Node* value = graph()->NewNode(simplified()->NumberEqual(), diff, diff);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 18.2.3 isNaN ( number )
+Reduction JSBuiltinReducer::ReduceGlobalIsNaN(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // isNaN(a:plain-primitive) -> BooleanNot(NumberEqual(a', a'))
+    // where a' = ToNumber(a)
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* check = graph()->NewNode(simplified()->NumberEqual(), input, input);
+    Node* value = graph()->NewNode(simplified()->BooleanNot(), check);
     return Replace(value);
   }
   return NoChange();
@@ -789,6 +822,60 @@ Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.1.2.2 Number.isFinite ( number )
+Reduction JSBuiltinReducer::ReduceNumberIsFinite(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Number.isFinite(a:number) -> NumberEqual(a', a')
+    // where a' = NumberSubtract(a, a)
+    Node* input = r.GetJSCallInput(0);
+    Node* diff = graph()->NewNode(simplified()->NumberSubtract(), input, input);
+    Node* value = graph()->NewNode(simplified()->NumberEqual(), diff, diff);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.1.2.3 Number.isInteger ( number )
+Reduction JSBuiltinReducer::ReduceNumberIsInteger(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Number.isInteger(x:number) -> NumberEqual(NumberSubtract(x, x'), #0)
+    // where x' = NumberTrunc(x)
+    Node* input = r.GetJSCallInput(0);
+    Node* trunc = graph()->NewNode(simplified()->NumberTrunc(), input);
+    Node* diff = graph()->NewNode(simplified()->NumberSubtract(), input, trunc);
+    Node* value = graph()->NewNode(simplified()->NumberEqual(), diff,
+                                   jsgraph()->ZeroConstant());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.1.2.4 Number.isNaN ( number )
+Reduction JSBuiltinReducer::ReduceNumberIsNaN(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Number.isNaN(a:number) -> BooleanNot(NumberEqual(a, a))
+    Node* input = r.GetJSCallInput(0);
+    Node* check = graph()->NewNode(simplified()->NumberEqual(), input, input);
+    Node* value = graph()->NewNode(simplified()->BooleanNot(), check);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.1.2.5 Number.isSafeInteger ( number )
+Reduction JSBuiltinReducer::ReduceNumberIsSafeInteger(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(type_cache_.kSafeInteger)) {
+    // Number.isInteger(x:safe-integer) -> #true
+    Node* value = jsgraph()->TrueConstant();
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.1.2.13 Number.parseInt ( string, radix )
 Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
   JSCallReduction r(node);
@@ -981,6 +1068,12 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceArrayPush(node);
     case kDateGetTime:
       return ReduceDateGetTime(node);
+    case kGlobalIsFinite:
+      reduction = ReduceGlobalIsFinite(node);
+      break;
+    case kGlobalIsNaN:
+      reduction = ReduceGlobalIsNaN(node);
+      break;
     case kMathAbs:
       reduction = ReduceMathAbs(node);
       break;
@@ -1079,6 +1172,18 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathTrunc:
       reduction = ReduceMathTrunc(node);
+      break;
+    case kNumberIsFinite:
+      reduction = ReduceNumberIsFinite(node);
+      break;
+    case kNumberIsInteger:
+      reduction = ReduceNumberIsInteger(node);
+      break;
+    case kNumberIsNaN:
+      reduction = ReduceNumberIsNaN(node);
+      break;
+    case kNumberIsSafeInteger:
+      reduction = ReduceNumberIsSafeInteger(node);
       break;
     case kNumberParseInt:
       reduction = ReduceNumberParseInt(node);

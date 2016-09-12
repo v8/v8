@@ -43,6 +43,8 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
   Reduction ReduceDateGetTime(Node* node);
+  Reduction ReduceGlobalIsFinite(Node* node);
+  Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceMathAbs(Node* node);
   Reduction ReduceMathAcos(Node* node);
   Reduction ReduceMathAcosh(Node* node);
@@ -76,6 +78,10 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathTan(Node* node);
   Reduction ReduceMathTanh(Node* node);
   Reduction ReduceMathTrunc(Node* node);
+  Reduction ReduceNumberIsFinite(Node* node);
+  Reduction ReduceNumberIsInteger(Node* node);
+  Reduction ReduceNumberIsNaN(Node* node);
+  Reduction ReduceNumberIsSafeInteger(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);

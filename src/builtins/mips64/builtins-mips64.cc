@@ -1152,6 +1152,25 @@ void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
   __ Jump(ra);
 }
 
+static void Generate_InterpreterPushArgs(MacroAssembler* masm,
+                                         Register num_args, Register index,
+                                         Register last_addr, Register scratch) {
+  // Find the address of the last argument.
+  __ mov(last_addr, num_args);
+  __ dsll(last_addr, last_addr, kPointerSizeLog2);
+  __ Dsubu(last_addr, index, Operand(last_addr));
+
+  // Push the arguments.
+  Label loop_header, loop_check;
+  __ Branch(&loop_check);
+  __ bind(&loop_header);
+  __ ld(scratch, MemOperand(index));
+  __ Daddu(index, index, Operand(-kPointerSize));
+  __ push(scratch);
+  __ bind(&loop_check);
+  __ Branch(&loop_header, gt, index, Operand(last_addr));
+}
+
 // static
 void Builtins::Generate_InterpreterPushArgsAndCallImpl(
     MacroAssembler* masm, TailCallMode tail_call_mode,
@@ -1164,20 +1183,10 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   //  -- a1 : the target to call (can be any Object).
   // -----------------------------------
 
-  // Find the address of the last argument.
   __ Daddu(a3, a0, Operand(1));  // Add one for receiver.
-  __ dsll(a3, a3, kPointerSizeLog2);
-  __ Dsubu(a3, a2, Operand(a3));
 
-  // Push the arguments.
-  Label loop_header, loop_check;
-  __ Branch(&loop_check);
-  __ bind(&loop_header);
-  __ ld(t0, MemOperand(a2));
-  __ Daddu(a2, a2, Operand(-kPointerSize));
-  __ push(t0);
-  __ bind(&loop_check);
-  __ Branch(&loop_header, gt, a2, Operand(a3));
+  // This function modifies a2, t0 and a4.
+  Generate_InterpreterPushArgs(masm, a3, a2, a4, t0);
 
   // Call the target.
   if (function_type == CallableType::kJSFunction) {
@@ -1203,22 +1212,11 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   // -- a4 : address of the first argument
   // -----------------------------------
 
-  // Find the address of the last argument.
-  __ dsll(t0, a0, kPointerSizeLog2);
-  __ Dsubu(t0, a4, Operand(t0));
-
   // Push a slot for the receiver.
   __ push(zero_reg);
 
-  // Push the arguments.
-  Label loop_header, loop_check;
-  __ Branch(&loop_check);
-  __ bind(&loop_header);
-  __ ld(t1, MemOperand(a4));
-  __ Daddu(a4, a4, Operand(-kPointerSize));
-  __ push(t1);
-  __ bind(&loop_check);
-  __ Branch(&loop_header, gt, a4, Operand(t0));
+  // This function modifies t0, a4 and a5.
+  Generate_InterpreterPushArgs(masm, a0, a4, a5, t0);
 
   __ AssertUndefinedOrAllocationSite(a2, t0);
   if (construct_type == CallableType::kJSFunction) {
@@ -1235,6 +1233,30 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     // Call the constructor with a0, a1, and a3 unmodified.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
+}
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndConstructArray(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a1 : the target to call checked to be Array function.
+  //  -- a2 : allocation site feedback.
+  //  -- a3 : the address of the first argument to be pushed. Subsequent
+  //          arguments should be consecutive above this, in the same order as
+  //          they are to be pushed onto the stack.
+  // -----------------------------------
+
+  __ Daddu(a4, a0, Operand(1));  // Add one for receiver.
+
+  // This function modifies a3, a5 and a6.
+  Generate_InterpreterPushArgs(masm, a4, a3, a5, a6);
+
+  // ArrayConstructor stub expects constructor in a3. Set it here.
+  __ mov(a3, a1);
+
+  ArrayConstructorStub stub(masm->isolate());
+  __ TailCallStub(&stub);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

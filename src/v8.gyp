@@ -34,10 +34,11 @@
     'warmup_script%': "",
     'v8_extra_library_files%': [],
     'v8_experimental_extra_library_files%': [],
+    'v8_enable_inspector%': 0,
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkpeephole_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkpeephole<(EXECUTABLE_SUFFIX)',
   },
-  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
+  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi', 'inspector/inspector.gypi'],
   'targets': [
     {
       'target_name': 'v8',
@@ -507,7 +508,6 @@
         'builtins/builtins-object.cc',
         'builtins/builtins-proxy.cc',
         'builtins/builtins-reflect.cc',
-        'builtins/builtins-regexp.cc',
         'builtins/builtins-sharedarraybuffer.cc',
         'builtins/builtins-string.cc',
         'builtins/builtins-symbol.cc',
@@ -726,6 +726,8 @@
         'compiler/store-store-elimination.h',
         'compiler/tail-call-optimization.cc',
         'compiler/tail-call-optimization.h',
+        'compiler/types.cc',
+        'compiler/types.h',
         'compiler/type-cache.cc',
         'compiler/type-cache.h',
         'compiler/type-hint-analyzer.cc',
@@ -1033,6 +1035,9 @@
         'log-utils.h',
         'log.cc',
         'log.h',
+        'lookup-cache-inl.h',
+        'lookup-cache.cc',
+        'lookup-cache.h',
         'lookup.cc',
         'lookup.h',
         'macro-assembler.h',
@@ -1216,8 +1221,6 @@
         'type-feedback-vector.h',
         'type-info.cc',
         'type-info.h',
-        'types.cc',
-        'types.h',
         'unicode-inl.h',
         'unicode.cc',
         'unicode.h',
@@ -1580,6 +1583,7 @@
             'x64/interface-descriptors-x64.cc',
             'x64/macro-assembler-x64.cc',
             'x64/macro-assembler-x64.h',
+            'x64/sse-instr.h',
             'debug/x64/debug-x64.cc',
             'full-codegen/x64/full-codegen-x64.cc',
             'ic/x64/access-compiler-x64.cc',
@@ -1731,6 +1735,30 @@
           'sources!': [
             'i18n.cc',
             'i18n.h',
+          ],
+        }],
+        ['v8_enable_inspector==1', {
+          'sources': [
+            '<@(inspector_all_sources)'
+          ],
+          'dependencies': [
+            'inspector/inspector.gyp:protocol_generated_sources',
+            'inspector/inspector.gyp:inspector_injected_script',
+            'inspector/inspector.gyp:inspector_debugger_script',
+          ],
+          # TODO(dgozman): fix these warnings and enable them.
+          'msvs_disabled_warnings': [
+            4267,  # Truncation from size_t to int.
+            4305,  # Truncation from 'type1' to 'type2'.
+            4324,  # Struct padded due to declspec(align).
+            4714,  # Function marked forceinline not inlined.
+            4800,  # Value forced to bool.
+            4996,  # Deprecated function call.
+          ],
+          'cflags': [
+            '-Wno-zero-length-array',
+            '-Wno-shorten-64-to-32',
+            '-Wno-deprecated-declarations',
           ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {
@@ -2211,6 +2239,7 @@
           ['v8_enable_i18n_support==1', {
             'library_files': ['js/i18n.js'],
             'experimental_library_files': [
+              'js/datetime-format-to-parts.js',
               'js/icu-case-mapping.js',
               'js/intl-extra.js',
              ],

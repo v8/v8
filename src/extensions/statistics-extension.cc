@@ -67,7 +67,8 @@ void StatisticsExtension::GetCounters(
         args[0]
             ->BooleanValue(args.GetIsolate()->GetCurrentContext())
             .FromMaybe(false)) {
-      heap->CollectAllGarbage(Heap::kNoGCFlags, "counters extension");
+      heap->CollectAllGarbage(Heap::kNoGCFlags,
+                              GarbageCollectionReason::kCountersExtension);
     }
   }
 

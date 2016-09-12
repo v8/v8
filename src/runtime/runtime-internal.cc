@@ -357,7 +357,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CHECK(IsAligned(size, kPointerSize));
   CHECK(size > 0);
-  CHECK(size <= Page::kMaxRegularHeapObjectSize);
+  CHECK(size <= kMaxRegularHeapObjectSize);
   return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
 }
 
@@ -369,7 +369,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CHECK(IsAligned(size, kPointerSize));
   CHECK(size > 0);
-  CHECK(size <= Page::kMaxRegularHeapObjectSize);
+  CHECK(size <= kMaxRegularHeapObjectSize);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
   return *isolate->factory()->NewFillerObject(size, double_align, space);

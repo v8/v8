@@ -8,11 +8,11 @@
 #define INTERNALIZED_STRING_LIST(V)                                \
   V(anonymous_string, "anonymous")                                 \
   V(apply_string, "apply")                                         \
-  V(assign_string, "assign")                                       \
   V(arguments_string, "arguments")                                 \
   V(Arguments_string, "Arguments")                                 \
-  V(Array_string, "Array")                                         \
   V(arguments_to_string, "[object Arguments]")                     \
+  V(Array_string, "Array")                                         \
+  V(assign_string, "assign")                                       \
   V(array_to_string, "[object Array]")                             \
   V(boolean_to_string, "[object Boolean]")                         \
   V(date_to_string, "[object Date]")                               \
@@ -48,6 +48,8 @@
   V(construct_string, "construct")                                 \
   V(create_string, "create")                                       \
   V(Date_string, "Date")                                           \
+  V(dayperiod_string, "dayperiod")                                 \
+  V(day_string, "day")                                             \
   V(default_string, "default")                                     \
   V(defineProperty_string, "defineProperty")                       \
   V(deleteProperty_string, "deleteProperty")                       \
@@ -57,11 +59,11 @@
   V(dot_string, ".")                                               \
   V(entries_string, "entries")                                     \
   V(enumerable_string, "enumerable")                               \
+  V(era_string, "era")                                             \
   V(Error_string, "Error")                                         \
   V(eval_string, "eval")                                           \
   V(EvalError_string, "EvalError")                                 \
   V(false_string, "false")                                         \
-  V(flags_string, "flags")                                         \
   V(float32x4_string, "float32x4")                                 \
   V(Float32x4_string, "Float32x4")                                 \
   V(for_api_string, "for_api")                                     \
@@ -75,6 +77,7 @@
   V(get_string, "get")                                             \
   V(global_string, "global")                                       \
   V(has_string, "has")                                             \
+  V(hour_string, "hour")                                           \
   V(ignoreCase_string, "ignoreCase")                               \
   V(illegal_access_string, "illegal access")                       \
   V(illegal_argument_string, "illegal argument")                   \
@@ -94,10 +97,13 @@
   V(last_index_string, "lastIndex")                                \
   V(length_string, "length")                                       \
   V(line_string, "line")                                           \
+  V(literal_string, "literal")                                     \
   V(Map_string, "Map")                                             \
   V(message_string, "message")                                     \
   V(minus_infinity_string, "-Infinity")                            \
   V(minus_zero_string, "-0")                                       \
+  V(minute_string, "minute")                                       \
+  V(month_string, "month")                                         \
   V(multiline_string, "multiline")                                 \
   V(name_string, "name")                                           \
   V(nan_string, "NaN")                                             \
@@ -123,6 +129,7 @@
   V(ReferenceError_string, "ReferenceError")                       \
   V(RegExp_string, "RegExp")                                       \
   V(script_string, "script")                                       \
+  V(second_string, "second")                                       \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
   V(set_string, "set")                                             \
   V(Set_string, "Set")                                             \
@@ -132,7 +139,6 @@
   V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
   V(stackTraceLimit_string, "stackTraceLimit")                     \
-  V(sticky_string, "sticky")                                       \
   V(strict_compare_ic_string, "===")                               \
   V(string_string, "string")                                       \
   V(String_string, "String")                                       \
@@ -142,10 +148,12 @@
   V(this_string, "this")                                           \
   V(throw_string, "throw")                                         \
   V(timed_out, "timed-out")                                        \
+  V(timeZoneName_string, "timeZoneName")                           \
   V(toJSON_string, "toJSON")                                       \
   V(toString_string, "toString")                                   \
   V(true_string, "true")                                           \
   V(TypeError_string, "TypeError")                                 \
+  V(type_string, "type")                                           \
   V(uint16x8_string, "uint16x8")                                   \
   V(Uint16x8_string, "Uint16x8")                                   \
   V(uint32x4_string, "uint32x4")                                   \
@@ -154,14 +162,15 @@
   V(Uint8x16_string, "Uint8x16")                                   \
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
-  V(unicode_string, "unicode")                                     \
   V(URIError_string, "URIError")                                   \
   V(valueOf_string, "valueOf")                                     \
   V(values_string, "values")                                       \
   V(value_string, "value")                                         \
   V(WeakMap_string, "WeakMap")                                     \
   V(WeakSet_string, "WeakSet")                                     \
-  V(writable_string, "writable")
+  V(weekday_string, "weekday")                                     \
+  V(writable_string, "writable")                                   \
+  V(year_string, "year")
 
 #define PRIVATE_SYMBOL_LIST(V)              \
   V(array_iteration_kind_symbol)            \
@@ -199,7 +208,6 @@
   V(promise_reject_reactions_symbol)        \
   V(promise_result_symbol)                  \
   V(promise_state_symbol)                   \
-  V(regexp_last_match_info_symbol)          \
   V(sealed_symbol)                          \
   V(stack_trace_symbol)                     \
   V(strict_function_transition_symbol)      \

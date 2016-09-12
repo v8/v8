@@ -29,7 +29,6 @@ var InstallGetter = utils.InstallGetter;
 var InternalArray = utils.InternalArray;
 var InternalRegExpMatch;
 var InternalRegExpReplace
-var IsNaN;
 var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
 var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
@@ -43,7 +42,6 @@ var StringSubstring;
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
   ArrayPush = from.ArrayPush;
-  IsNaN = from.IsNaN;
   InternalRegExpMatch = from.InternalRegExpMatch;
   InternalRegExpReplace = from.InternalRegExpReplace;
   StringIndexOf = from.StringIndexOf;
@@ -1797,6 +1795,29 @@ function formatDate(formatter, dateValue) {
                              new GlobalDate(dateMs));
 }
 
+function FormatDateToParts(dateValue) {
+  if (!IS_UNDEFINED(new.target)) {
+    throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
+  }
+  CHECK_OBJECT_COERCIBLE(this, "Intl.DateTimeFormat.prototype.formatToParts");
+  if (!IS_OBJECT(this)) {
+    throw %make_type_error(kCalledOnNonObject, this);
+  }
+  var dateMs;
+  if (IS_UNDEFINED(dateValue)) {
+    dateMs = %DateCurrentTime();
+  } else {
+    dateMs = TO_NUMBER(dateValue);
+  }
+
+  if (!NUMBER_IS_FINITE(dateMs)) throw %make_range_error(kDateRange);
+
+  return %InternalDateFormatToParts(
+      %GetImplFromInitializedIntlObject(this), new GlobalDate(dateMs));
+}
+
+%FunctionSetLength(FormatDateToParts, 0);
+
 
 /**
  * Returns a Date object representing the result of calling ToString(value)
@@ -2227,7 +2248,8 @@ function toLocaleDateTime(date, locales, options, required, defaults, service) {
     throw %make_type_error(kMethodInvokedOnWrongType, "Date");
   }
 
-  if (IsNaN(date)) return 'Invalid Date';
+  var dateValue = TO_NUMBER(date);
+  if (NUMBER_IS_NAN(dateValue)) return 'Invalid Date';
 
   var internalOptions = toDateTimeOptions(options, required, defaults);
 
@@ -2291,8 +2313,11 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
   }
 );
 
+%FunctionRemovePrototype(FormatDateToParts);
+
 utils.Export(function(to) {
   to.AddBoundMethod = AddBoundMethod;
+  to.FormatDateToParts = FormatDateToParts;
   to.IntlParseDate = IntlParseDate;
   to.IntlParseNumber = IntlParseNumber;
 });

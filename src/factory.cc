@@ -37,13 +37,15 @@ namespace internal {
     RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                 \
     /* Two GCs before panicking.  In newspace will almost always succeed. */  \
     for (int __i__ = 0; __i__ < 2; __i__++) {                                 \
-      (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),          \
-                                        "allocation failure");                \
+      (ISOLATE)->heap()->CollectGarbage(                                      \
+          __allocation__.RetrySpace(),                                        \
+          GarbageCollectionReason::kAllocationFailure);                       \
       __allocation__ = FUNCTION_CALL;                                         \
       RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                               \
     }                                                                         \
     (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();        \
-    (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");          \
+    (ISOLATE)->heap()->CollectAllAvailableGarbage(                            \
+        GarbageCollectionReason::kLastResort);                                \
     {                                                                         \
       AlwaysAllocateScope __scope__(ISOLATE);                                 \
       __allocation__ = FUNCTION_CALL;                                         \
@@ -53,7 +55,6 @@ namespace internal {
     v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true); \
     return Handle<TYPE>();                                                    \
   } while (false)
-
 
 template<typename T>
 Handle<T> Factory::New(Handle<Map> map, AllocationSpace space) {
@@ -834,17 +835,21 @@ Handle<Context> Factory::NewCatchContext(Handle<JSFunction> function,
 }
 
 Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
+                                                 Handle<ScopeInfo> scope_info,
                                                  Handle<JSReceiver> extension,
                                                  Handle<Context> wrapped,
                                                  Handle<StringSet> whitelist) {
   STATIC_ASSERT(Context::WHITE_LIST_INDEX == Context::MIN_CONTEXT_SLOTS + 1);
+  Handle<ContextExtension> context_extension = NewContextExtension(
+      scope_info, extension.is_null() ? Handle<Object>::cast(undefined_value())
+                                      : Handle<Object>::cast(extension));
   Handle<FixedArray> array = NewFixedArray(Context::MIN_CONTEXT_SLOTS + 2);
   array->set_map_no_write_barrier(*debug_evaluate_context_map());
   Handle<Context> c = Handle<Context>::cast(array);
   c->set_closure(wrapped.is_null() ? previous->closure() : wrapped->closure());
   c->set_previous(*previous);
   c->set_native_context(previous->native_context());
-  if (!extension.is_null()) c->set(Context::EXTENSION_INDEX, *extension);
+  c->set_extension(*context_extension);
   if (!wrapped.is_null()) c->set(Context::WRAPPED_CONTEXT_INDEX, *wrapped);
   if (!whitelist.is_null()) c->set(Context::WHITE_LIST_INDEX, *whitelist);
   return c;
@@ -852,13 +857,16 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
 
 Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
                                         Handle<Context> previous,
+                                        Handle<ScopeInfo> scope_info,
                                         Handle<JSReceiver> extension) {
+  Handle<ContextExtension> context_extension =
+      NewContextExtension(scope_info, extension);
   Handle<FixedArray> array = NewFixedArray(Context::MIN_CONTEXT_SLOTS);
   array->set_map_no_write_barrier(*with_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_closure(*function);
   context->set_previous(*previous);
-  context->set_extension(*extension);
+  context->set_extension(*context_extension);
   context->set_native_context(previous->native_context());
   return context;
 }

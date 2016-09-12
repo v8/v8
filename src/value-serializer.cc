@@ -379,13 +379,59 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 }
 
 Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
+  DCHECK_GT(object->map()->instance_type(), LAST_CUSTOM_ELEMENTS_RECEIVER);
+  const bool can_serialize_fast =
+      object->HasFastProperties() && object->elements()->length() == 0;
+  if (!can_serialize_fast) return WriteJSObjectSlow(object);
+
+  Handle<Map> map(object->map(), isolate_);
+  WriteTag(SerializationTag::kBeginJSObject);
+
+  // Write out fast properties as long as they are only data properties and the
+  // map doesn't change.
+  uint32_t properties_written = 0;
+  bool map_changed = false;
+  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
+    Handle<Name> key(map->instance_descriptors()->GetKey(i), isolate_);
+    if (!key->IsString()) continue;
+    PropertyDetails details = map->instance_descriptors()->GetDetails(i);
+    if (details.IsDontEnum()) continue;
+
+    Handle<Object> value;
+    if (V8_LIKELY(!map_changed)) map_changed = *map == object->map();
+    if (V8_LIKELY(!map_changed && details.type() == DATA)) {
+      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+      value = JSObject::FastPropertyAt(object, details.representation(),
+                                       field_index);
+    } else {
+      // This logic should essentially match WriteJSObjectPropertiesSlow.
+      // If the property is no longer found, do not serialize it.
+      // This could happen if a getter deleted the property.
+      LookupIterator it(isolate_, object, key, LookupIterator::OWN);
+      if (!it.IsFound()) continue;
+      if (!Object::GetProperty(&it).ToHandle(&value)) return Nothing<bool>();
+    }
+
+    if (!WriteObject(key).FromMaybe(false) ||
+        !WriteObject(value).FromMaybe(false)) {
+      return Nothing<bool>();
+    }
+    properties_written++;
+  }
+
+  WriteTag(SerializationTag::kEndJSObject);
+  WriteVarint<uint32_t>(properties_written);
+  return Just(true);
+}
+
+Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
   WriteTag(SerializationTag::kBeginJSObject);
   Handle<FixedArray> keys;
   uint32_t properties_written;
   if (!KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
                                ENUMERABLE_STRINGS)
            .ToHandle(&keys) ||
-      !WriteJSObjectProperties(object, keys).To(&properties_written)) {
+      !WriteJSObjectPropertiesSlow(object, keys).To(&properties_written)) {
     return Nothing<bool>();
   }
   WriteTag(SerializationTag::kEndJSObject);
@@ -413,7 +459,46 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     // format changes.
     WriteTag(SerializationTag::kBeginDenseJSArray);
     WriteVarint<uint32_t>(length);
-    for (uint32_t i = 0; i < length; i++) {
+    uint32_t i = 0;
+
+    // Fast paths. Note that FAST_ELEMENTS in particular can bail due to the
+    // structure of the elements changing.
+    switch (array->GetElementsKind()) {
+      case FAST_SMI_ELEMENTS: {
+        Handle<FixedArray> elements(FixedArray::cast(array->elements()),
+                                    isolate_);
+        for (; i < length; i++) WriteSmi(Smi::cast(elements->get(i)));
+        break;
+      }
+      case FAST_DOUBLE_ELEMENTS: {
+        Handle<FixedDoubleArray> elements(
+            FixedDoubleArray::cast(array->elements()), isolate_);
+        for (; i < length; i++) {
+          WriteTag(SerializationTag::kDouble);
+          WriteDouble(elements->get_scalar(i));
+        }
+        break;
+      }
+      case FAST_ELEMENTS: {
+        Handle<Object> old_length(array->length(), isolate_);
+        for (; i < length; i++) {
+          if (array->length() != *old_length ||
+              array->GetElementsKind() != FAST_ELEMENTS) {
+            // Fall back to slow path.
+            break;
+          }
+          Handle<Object> element(FixedArray::cast(array->elements())->get(i),
+                                 isolate_);
+          if (!WriteObject(element).FromMaybe(false)) return Nothing<bool>();
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    // If there are elements remaining, serialize them slowly.
+    for (; i < length; i++) {
       // Serializing the array's elements can have arbitrary side effects, so we
       // cannot rely on still having fast elements, even if it did to begin
       // with.
@@ -424,6 +509,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
         return Nothing<bool>();
       }
     }
+
     KeyAccumulator accumulator(isolate_, KeyCollectionMode::kOwnOnly,
                                ENUMERABLE_STRINGS);
     if (!accumulator.CollectOwnPropertyNames(array, array).FromMaybe(false)) {
@@ -432,7 +518,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     Handle<FixedArray> keys =
         accumulator.GetKeys(GetKeysConversion::kConvertToString);
     uint32_t properties_written;
-    if (!WriteJSObjectProperties(array, keys).To(&properties_written)) {
+    if (!WriteJSObjectPropertiesSlow(array, keys).To(&properties_written)) {
       return Nothing<bool>();
     }
     WriteTag(SerializationTag::kEndDenseJSArray);
@@ -446,7 +532,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     if (!KeyAccumulator::GetKeys(array, KeyCollectionMode::kOwnOnly,
                                  ENUMERABLE_STRINGS)
              .ToHandle(&keys) ||
-        !WriteJSObjectProperties(array, keys).To(&properties_written)) {
+        !WriteJSObjectPropertiesSlow(array, keys).To(&properties_written)) {
       return Nothing<bool>();
     }
     WriteTag(SerializationTag::kEndSparseJSArray);
@@ -614,7 +700,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
   return Just(true);
 }
 
-Maybe<uint32_t> ValueSerializer::WriteJSObjectProperties(
+Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
     Handle<JSObject> object, Handle<FixedArray> keys) {
   uint32_t properties_written = 0;
   int length = keys->length();
@@ -682,8 +768,11 @@ Maybe<bool> ValueDeserializer::ReadHeader() {
   if (position_ < end_ &&
       *position_ == static_cast<uint8_t>(SerializationTag::kVersion)) {
     ReadTag().ToChecked();
-    if (!ReadVarint<uint32_t>().To(&version_)) return Nothing<bool>();
-    if (version_ > kLatestVersion) return Nothing<bool>();
+    if (!ReadVarint<uint32_t>().To(&version_) || version_ > kLatestVersion) {
+      isolate_->Throw(*isolate_->factory()->NewError(
+          MessageTemplate::kDataCloneDeserializationVersionError));
+      return Nothing<bool>();
+    }
   }
   return Just(true);
 }
@@ -731,7 +820,7 @@ Maybe<T> ValueDeserializer::ReadVarint() {
     if (position_ >= end_) return Nothing<T>();
     uint8_t byte = *position_;
     if (V8_LIKELY(shift < sizeof(T) * 8)) {
-      value |= (byte & 0x7f) << shift;
+      value |= static_cast<T>(byte & 0x7f) << shift;
       shift += 7;
     }
     has_another_byte = byte & 0x80;
@@ -802,6 +891,11 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
       PeekTag().To(&tag) && tag == SerializationTag::kArrayBufferView) {
     ConsumeTag(SerializationTag::kArrayBufferView);
     result = ReadJSArrayBufferView(Handle<JSArrayBuffer>::cast(object));
+  }
+
+  if (result.is_null() && !isolate_->has_pending_exception()) {
+    isolate_->Throw(*isolate_->factory()->NewError(
+        MessageTemplate::kDataCloneDeserializationError));
   }
 
   return result;
@@ -1299,8 +1393,7 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
 
 MaybeHandle<Object>
 ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
-  if (version_ > 0) return MaybeHandle<Object>();
-
+  DCHECK_EQ(version_, 0);
   HandleScope scope(isolate_);
   std::vector<Handle<Object>> stack;
   while (position_ < end_) {
@@ -1362,9 +1455,12 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
         new_object = js_array;
         break;
       }
-      case SerializationTag::kEndDenseJSArray:
+      case SerializationTag::kEndDenseJSArray: {
         // This was already broken in Chromium, and apparently wasn't missed.
+        isolate_->Throw(*isolate_->factory()->NewError(
+            MessageTemplate::kDataCloneDeserializationError));
         return MaybeHandle<Object>();
+      }
       default:
         if (!ReadObject().ToHandle(&new_object)) return MaybeHandle<Object>();
         break;
@@ -1380,7 +1476,11 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
 #endif
   position_ = end_;
 
-  if (stack.size() != 1) return MaybeHandle<Object>();
+  if (stack.size() != 1) {
+    isolate_->Throw(*isolate_->factory()->NewError(
+        MessageTemplate::kDataCloneDeserializationError));
+    return MaybeHandle<Object>();
+  }
   return scope.CloseAndEscape(stack[0]);
 }
 

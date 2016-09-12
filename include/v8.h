@@ -343,7 +343,7 @@ class Local {
 
 
 #if !defined(V8_IMMINENT_DEPRECATION_WARNINGS)
-// Local is an alias for Local for historical reasons.
+// Handle is an alias for Local for historical reasons.
 template <class T>
 using Handle = Local<T>;
 #endif
@@ -1743,7 +1743,8 @@ class V8_EXPORT ValueDeserializer {
    * Reads and validates a header (including the format version).
    * May, for example, reject an invalid or unsupported wire format.
    */
-  V8_WARN_UNUSED_RESULT Maybe<bool> ReadHeader();
+  V8_WARN_UNUSED_RESULT Maybe<bool> ReadHeader(Local<Context> context);
+  V8_DEPRECATE_SOON("Use Local<Context> version", Maybe<bool> ReadHeader());
 
   /*
    * Deserializes a JavaScript value from the buffer.
@@ -4629,7 +4630,7 @@ typedef void (*NamedPropertyEnumeratorCallback)(
  *  CHECK(v8_num(42)->Equals(env.local(), result).FromJust());
  * \endcode
  *
- * See also `ObjectTemplate::SetNamedPropertyHandler`.
+ * See also `ObjectTemplate::SetHandler`.
  */
 typedef void (*GenericNamedPropertyGetterCallback)(
     Local<Name> property, const PropertyCallbackInfo<Value>& info);
@@ -4653,7 +4654,7 @@ typedef void (*GenericNamedPropertyGetterCallback)(
  * See `PropertyCallbackInfo`.
  *
  * See also
- * `ObjectTemplate::SetNamedPropertyHandler.`
+ * `ObjectTemplate::SetHandler.`
  */
 typedef void (*GenericNamedPropertySetterCallback)(
     Local<Name> property, Local<Value> value,
@@ -4678,16 +4679,31 @@ typedef void (*GenericNamedPropertySetterCallback)(
  * trigger this interceptor depending on the state of the object.
  *
  * See also
- * `ObjectTemplate::SetNamedPropertyHandler.`
+ * `ObjectTemplate::SetHandler.`
  */
 typedef void (*GenericNamedPropertyQueryCallback)(
     Local<Name> property, const PropertyCallbackInfo<Integer>& info);
 
-
 /**
- * Returns a non-empty handle if the deleter intercepts the request.
- * The return value is true if the property could be deleted and false
- * otherwise.
+ * Interceptor for delete requests on an object.
+ *
+ * Use `info.GetReturnValue()` to indicate whether the request was intercepted
+ * or not. If the deleter successfully intercepts the request, i.e., if the
+ * request should not be further executed, call
+ * `info.GetReturnValue().Set(value)` with a boolean `value`. The `value` is
+ * used as the return value of `delete`.
+ *
+ * \param property The name of the property for which the request was
+ * intercepted.
+ * \param info Information about the intercepted request, such as
+ * isolate, receiver, return value, or whether running in `'use strict'` mode.
+ * See `PropertyCallbackInfo`.
+ *
+ * \note If you need to mimic the behavior of `delete`, i.e., throw in strict
+ * mode instead of returning false, use `info.ShouldThrowOnError()` to determine
+ * if you are in strict mode.
+ *
+ * See also `ObjectTemplate::SetHandler.`
  */
 typedef void (*GenericNamedPropertyDeleterCallback)(
     Local<Name> property, const PropertyCallbackInfo<Boolean>& info);
@@ -4718,60 +4734,81 @@ typedef void (*GenericNamedPropertyEnumeratorCallback)(
  * isolate, receiver, return value, or whether running in `'use strict'` mode.
  * See `PropertyCallbackInfo`.
  *
- * See also `ObjectTemplate::SetNamedPropertyHandler`.
+ * See also `ObjectTemplate::SetHandler`.
  */
 typedef void (*GenericNamedPropertyDefinerCallback)(
-    Local<Name> key, const PropertyDescriptor& desc,
+    Local<Name> property, const PropertyDescriptor& desc,
     const PropertyCallbackInfo<Value>& info);
 
 /**
- * Returns the value of the property if the getter intercepts the
- * request.  Otherwise, returns an empty handle.
+ * Interceptor for getOwnPropertyDescriptor requests on an object.
+ *
+ * Use `info.GetReturnValue().Set()` to set the return value of the
+ * intercepted request. The return value must be an object that
+ * can be converted to a PropertyDescriptor, e.g., a `v8::value` returned from
+ * `v8::Object::getOwnPropertyDescriptor`.
+ *
+ * \param property The name of the property for which the request was
+ * intercepted.
+ * \info Information about the intercepted request, such as
+ * isolate, receiver, return value, or whether running in `'use strict'` mode.
+ * See `PropertyCallbackInfo`.
+ *
+ * \note If GetOwnPropertyDescriptor is intercepted, it will
+ * always return true, i.e., indicate that the property was found.
+ *
+ * See also `ObjectTemplate::SetHandler`.
+ */
+typedef void (*GenericNamedPropertyDescriptorCallback)(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info);
+
+/**
+ * See `v8::GenericNamedPropertyGetterCallback`.
  */
 typedef void (*IndexedPropertyGetterCallback)(
     uint32_t index,
     const PropertyCallbackInfo<Value>& info);
 
-
 /**
- * Returns the value if the setter intercepts the request.
- * Otherwise, returns an empty handle.
+ * See `v8::GenericNamedPropertySetterCallback`.
  */
 typedef void (*IndexedPropertySetterCallback)(
     uint32_t index,
     Local<Value> value,
     const PropertyCallbackInfo<Value>& info);
 
-
 /**
- * Returns a non-empty handle if the interceptor intercepts the request.
- * The result is an integer encoding property attributes.
+ * See `v8::GenericNamedPropertyQueryCallback`.
  */
 typedef void (*IndexedPropertyQueryCallback)(
     uint32_t index,
     const PropertyCallbackInfo<Integer>& info);
 
-
 /**
- * Returns a non-empty handle if the deleter intercepts the request.
- * The return value is true if the property could be deleted and false
- * otherwise.
+ * See `v8::GenericNamedPropertyDeleterCallback`.
  */
 typedef void (*IndexedPropertyDeleterCallback)(
     uint32_t index,
     const PropertyCallbackInfo<Boolean>& info);
 
-
 /**
- * Returns an array containing the indices of the properties the
- * indexed property getter intercepts.
+ * See `v8::GenericNamedPropertyEnumeratorCallback`.
  */
 typedef void (*IndexedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);
 
+/**
+ * See `v8::GenericNamedPropertyDefinerCallback`.
+ */
 typedef void (*IndexedPropertyDefinerCallback)(
     uint32_t index, const PropertyDescriptor& desc,
     const PropertyCallbackInfo<Value>& info);
+
+/**
+ * See `v8::GenericNamedPropertyDescriptorCallback`.
+ */
+typedef void (*IndexedPropertyDescriptorCallback)(
+    uint32_t index, const PropertyCallbackInfo<Value>& info);
 
 /**
  * Access type specification.
@@ -5020,7 +5057,7 @@ enum class PropertyHandlerFlags {
 
 struct NamedPropertyHandlerConfiguration {
   NamedPropertyHandlerConfiguration(
-      /** Note: getter is required **/
+      /** Note: getter is required */
       GenericNamedPropertyGetterCallback getter = 0,
       GenericNamedPropertySetterCallback setter = 0,
       GenericNamedPropertyQueryCallback query = 0,
@@ -5034,13 +5071,14 @@ struct NamedPropertyHandlerConfiguration {
         deleter(deleter),
         enumerator(enumerator),
         definer(0),
+        descriptor(0),
         data(data),
         flags(flags) {}
 
   NamedPropertyHandlerConfiguration(
       GenericNamedPropertyGetterCallback getter,
       GenericNamedPropertySetterCallback setter,
-      GenericNamedPropertyQueryCallback query,
+      GenericNamedPropertyDescriptorCallback descriptor,
       GenericNamedPropertyDeleterCallback deleter,
       GenericNamedPropertyEnumeratorCallback enumerator,
       GenericNamedPropertyDefinerCallback definer,
@@ -5048,10 +5086,11 @@ struct NamedPropertyHandlerConfiguration {
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
-        query(query),
+        query(0),
         deleter(deleter),
         enumerator(enumerator),
         definer(definer),
+        descriptor(descriptor),
         data(data),
         flags(flags) {}
 
@@ -5061,6 +5100,7 @@ struct NamedPropertyHandlerConfiguration {
   GenericNamedPropertyDeleterCallback deleter;
   GenericNamedPropertyEnumeratorCallback enumerator;
   GenericNamedPropertyDefinerCallback definer;
+  GenericNamedPropertyDescriptorCallback descriptor;
   Local<Value> data;
   PropertyHandlerFlags flags;
 };
@@ -5068,7 +5108,7 @@ struct NamedPropertyHandlerConfiguration {
 
 struct IndexedPropertyHandlerConfiguration {
   IndexedPropertyHandlerConfiguration(
-      /** Note: getter is required **/
+      /** Note: getter is required */
       IndexedPropertyGetterCallback getter = 0,
       IndexedPropertySetterCallback setter = 0,
       IndexedPropertyQueryCallback query = 0,
@@ -5082,12 +5122,14 @@ struct IndexedPropertyHandlerConfiguration {
         deleter(deleter),
         enumerator(enumerator),
         definer(0),
+        descriptor(0),
         data(data),
         flags(flags) {}
 
   IndexedPropertyHandlerConfiguration(
       IndexedPropertyGetterCallback getter,
-      IndexedPropertySetterCallback setter, IndexedPropertyQueryCallback query,
+      IndexedPropertySetterCallback setter,
+      IndexedPropertyDescriptorCallback descriptor,
       IndexedPropertyDeleterCallback deleter,
       IndexedPropertyEnumeratorCallback enumerator,
       IndexedPropertyDefinerCallback definer,
@@ -5095,10 +5137,11 @@ struct IndexedPropertyHandlerConfiguration {
       PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
       : getter(getter),
         setter(setter),
-        query(query),
+        query(0),
         deleter(deleter),
         enumerator(enumerator),
         definer(definer),
+        descriptor(descriptor),
         data(data),
         flags(flags) {}
 
@@ -5108,6 +5151,7 @@ struct IndexedPropertyHandlerConfiguration {
   IndexedPropertyDeleterCallback deleter;
   IndexedPropertyEnumeratorCallback enumerator;
   IndexedPropertyDefinerCallback definer;
+  IndexedPropertyDescriptorCallback descriptor;
   Local<Value> data;
   PropertyHandlerFlags flags;
 };

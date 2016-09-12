@@ -6,6 +6,7 @@
 
 
 load("test/mjsunit/harmony/typesystem/testgen.js");
+debug = true;
 
 
 (function TestClassDeclarations() {

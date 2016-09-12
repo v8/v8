@@ -46,7 +46,29 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   typedef base::Flags<AllocationFlag> AllocationFlags;
 
-  enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS };
+  // TODO(ishell): Fix all loads/stores from arrays by int32 offsets/indices
+  // and eventually remove INTEGER_PARAMETERS in favour of INTPTR_PARAMETERS.
+  enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS, INTPTR_PARAMETERS };
+
+  // On 32-bit platforms, there is a slight performance advantage to doing all
+  // of the array offset/index arithmetic with SMIs, since it's possible
+  // to save a few tag/untag operations without paying an extra expense when
+  // calculating array offset (the smi math can be folded away) and there are
+  // fewer live ranges. Thus only convert indices to untagged value on 64-bit
+  // platforms.
+  ParameterMode OptimalParameterMode() const {
+    return Is64() ? INTPTR_PARAMETERS : SMI_PARAMETERS;
+  }
+
+  compiler::Node* UntagParameter(compiler::Node* value, ParameterMode mode) {
+    if (mode != SMI_PARAMETERS) value = SmiUntag(value);
+    return value;
+  }
+
+  compiler::Node* TagParameter(compiler::Node* value, ParameterMode mode) {
+    if (mode != SMI_PARAMETERS) value = SmiTag(value);
+    return value;
+  }
 
   compiler::Node* BooleanMapConstant();
   compiler::Node* EmptyStringConstant();
@@ -208,13 +230,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapInstanceSize(compiler::Node* map);
   // Load the inobject properties count of a Map (valid only for JSObjects).
   compiler::Node* LoadMapInobjectProperties(compiler::Node* map);
+  // Load the constructor function index of a Map (only for primitive maps).
+  compiler::Node* LoadMapConstructorFunctionIndex(compiler::Node* map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   compiler::Node* LoadMapConstructor(compiler::Node* map);
 
-  // Load the hash field of a name.
+  // Load the hash field of a name as an uint32 value.
   compiler::Node* LoadNameHashField(compiler::Node* name);
-  // Load the hash value of a name. If {if_hash_not_computed} label
-  // is specified then it also checks if hash is actually computed.
+  // Load the hash value of a name as an uint32 value.
+  // If {if_hash_not_computed} label is specified then it also checks if
+  // hash is actually computed.
   compiler::Node* LoadNameHash(compiler::Node* name,
                                Label* if_hash_not_computed = nullptr);
 
@@ -226,23 +251,27 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadWeakCellValue(compiler::Node* weak_cell,
                                     Label* if_cleared = nullptr);
 
-  compiler::Node* AllocateUninitializedFixedArray(compiler::Node* length);
-
   // Load an array element from a FixedArray.
   compiler::Node* LoadFixedArrayElement(
-      compiler::Node* object, compiler::Node* int32_index,
-      int additional_offset = 0,
+      compiler::Node* object, compiler::Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
   // Load an array element from a FixedArray, untag it and return it as Word32.
   compiler::Node* LoadAndUntagToWord32FixedArrayElement(
-      compiler::Node* object, compiler::Node* int32_index,
-      int additional_offset = 0,
+      compiler::Node* object, compiler::Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
   // Load an array element from a FixedDoubleArray.
   compiler::Node* LoadFixedDoubleArrayElement(
-      compiler::Node* object, compiler::Node* int32_index,
-      MachineType machine_type, int additional_offset = 0,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+      compiler::Node* object, compiler::Node* index, MachineType machine_type,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS,
+      Label* if_hole = nullptr);
+
+  // Load Float64 value by |base| + |offset| address. If the value is a double
+  // hole then jump to |if_hole|. If |machine_type| is None then only the hole
+  // check is generated.
+  compiler::Node* LoadDoubleWithHoleCheck(
+      compiler::Node* base, compiler::Node* offset, Label* if_hole,
+      MachineType machine_type = MachineType::Float64());
 
   // Context manipulation
   compiler::Node* LoadNativeContext(compiler::Node* context);
@@ -298,25 +327,67 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                      ParameterMode mode = INTEGER_PARAMETERS,
                                      AllocationFlags flags = kNone);
 
-  void FillFixedArrayWithHole(ElementsKind kind, compiler::Node* array,
-                              compiler::Node* from_index,
-                              compiler::Node* to_index,
-                              ParameterMode mode = INTEGER_PARAMETERS);
+  void FillFixedArrayWithValue(ElementsKind kind, compiler::Node* array,
+                               compiler::Node* from_index,
+                               compiler::Node* to_index,
+                               Heap::RootListIndex value_root_index,
+                               ParameterMode mode = INTEGER_PARAMETERS);
 
+  // Copies all elements from |from_array| of |length| size to
+  // |to_array| of the same size respecting the elements kind.
   void CopyFixedArrayElements(
       ElementsKind kind, compiler::Node* from_array, compiler::Node* to_array,
-      compiler::Node* element_count,
+      compiler::Node* length,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode mode = INTEGER_PARAMETERS) {
+    CopyFixedArrayElements(kind, from_array, kind, to_array, length, length,
+                           barrier_mode, mode);
+  }
+
+  // Copies |element_count| elements from |from_array| to |to_array| of
+  // |capacity| size respecting both array's elements kinds.
+  void CopyFixedArrayElements(
+      ElementsKind from_kind, compiler::Node* from_array, ElementsKind to_kind,
+      compiler::Node* to_array, compiler::Node* element_count,
+      compiler::Node* capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTEGER_PARAMETERS);
+
+  // Loads an element from |array| of |from_kind| elements by given |offset|
+  // (NOTE: not index!), does a hole check if |if_hole| is provided and
+  // converts the value so that it becomes ready for storing to array of
+  // |to_kind| elements.
+  compiler::Node* LoadElementAndPrepareForStore(compiler::Node* array,
+                                                compiler::Node* offset,
+                                                ElementsKind from_kind,
+                                                ElementsKind to_kind,
+                                                Label* if_hole);
 
   compiler::Node* CalculateNewElementsCapacity(
       compiler::Node* old_capacity, ParameterMode mode = INTEGER_PARAMETERS);
 
-  compiler::Node* CheckAndGrowElementsCapacity(compiler::Node* context,
-                                               compiler::Node* elements,
-                                               ElementsKind kind,
-                                               compiler::Node* key,
-                                               Label* fail);
+  // Tries to grow the |elements| array of given |object| to store the |key|
+  // or bails out if the growing gap is too big. Returns new elements.
+  compiler::Node* TryGrowElementsCapacity(compiler::Node* object,
+                                          compiler::Node* elements,
+                                          ElementsKind kind,
+                                          compiler::Node* key, Label* bailout);
+
+  // Tries to grow the |capacity|-length |elements| array of given |object|
+  // to store the |key| or bails out if the growing gap is too big. Returns
+  // new elements.
+  compiler::Node* TryGrowElementsCapacity(compiler::Node* object,
+                                          compiler::Node* elements,
+                                          ElementsKind kind,
+                                          compiler::Node* key,
+                                          compiler::Node* capacity,
+                                          ParameterMode mode, Label* bailout);
+
+  // Grows elements capacity of given object. Returns new elements.
+  compiler::Node* GrowElementsCapacity(
+      compiler::Node* object, compiler::Node* elements, ElementsKind from_kind,
+      ElementsKind to_kind, compiler::Node* capacity,
+      compiler::Node* new_capacity, ParameterMode mode, Label* bailout);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(compiler::Node* base_allocation,
@@ -354,12 +425,28 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Return the single character string with only {code}.
   compiler::Node* StringFromCharCode(compiler::Node* code);
 
-  // Returns a node that is true if the given bit is set in |word32|.
+  // Type conversion helpers.
+  // Convert a String to a Number.
+  compiler::Node* StringToNumber(compiler::Node* context,
+                                 compiler::Node* input);
+  // Convert an object to a name.
+  compiler::Node* ToName(compiler::Node* context, compiler::Node* input);
+
+  // Returns a node that contains a decoded (unsigned!) value of a bit
+  // field |T| in |word32|. Returns result as an uint32 node.
   template <typename T>
   compiler::Node* BitFieldDecode(compiler::Node* word32) {
     return BitFieldDecode(word32, T::kShift, T::kMask);
   }
 
+  // Returns a node that contains a decoded (unsigned!) value of a bit
+  // field |T| in |word32|. Returns result as a word-size node.
+  template <typename T>
+  compiler::Node* BitFieldDecodeWord(compiler::Node* word32) {
+    return ChangeUint32ToWord(BitFieldDecode<T>(word32));
+  }
+
+  // Decodes an unsigned (!) value from |word32| to an uint32 node.
   compiler::Node* BitFieldDecode(compiler::Node* word32, uint32_t shift,
                                  uint32_t mask);
 
@@ -399,9 +486,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* ComputeIntegerHash(compiler::Node* key, compiler::Node* seed);
 
   template <typename Dictionary>
-  void NumberDictionaryLookup(compiler::Node* dictionary, compiler::Node* key,
-                              Label* if_found, Variable* var_entry,
-                              Label* if_not_found);
+  void NumberDictionaryLookup(compiler::Node* dictionary,
+                              compiler::Node* intptr_index, Label* if_found,
+                              Variable* var_entry, Label* if_not_found);
 
   // Tries to check if {object} has own {unique_name} property.
   void TryHasOwnProperty(compiler::Node* object, compiler::Node* map,
@@ -454,9 +541,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                          Label* if_not_found, Label* if_bailout);
 
   void TryLookupElement(compiler::Node* object, compiler::Node* map,
-                        compiler::Node* instance_type, compiler::Node* index,
-                        Label* if_found, Label* if_not_found,
-                        Label* if_bailout);
+                        compiler::Node* instance_type,
+                        compiler::Node* intptr_index, Label* if_found,
+                        Label* if_not_found, Label* if_bailout);
 
   // This is a type of a lookup in holder generator function. In case of a
   // property lookup the {key} is guaranteed to be a unique name and in case of
@@ -579,7 +666,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
   void EmitFastElementsBoundsCheck(compiler::Node* object,
                                    compiler::Node* elements,
-                                   compiler::Node* intptr_key,
+                                   compiler::Node* intptr_index,
                                    compiler::Node* is_jsarray_condition,
                                    Label* miss);
   void EmitElementLoad(compiler::Node* object, compiler::Node* elements,

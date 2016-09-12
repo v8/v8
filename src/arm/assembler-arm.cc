@@ -2307,17 +2307,38 @@ void Assembler::svc(uint32_t imm24, Condition cond) {
 
 
 void Assembler::dmb(BarrierOption option) {
-  emit(kSpecialCondition | 0x57ff*B12 | 5*B4 | option);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // Details available in ARM DDI 0406C.b, A8-378.
+    emit(kSpecialCondition | 0x57ff * B12 | 5 * B4 | option);
+  } else {
+    // Details available in ARM DDI 0406C.b, B3-1750.
+    // CP15DMB: CRn=c7, opc1=0, CRm=c10, opc2=5, Rt is ignored.
+    mcr(p15, 0, r0, cr7, cr10, 5);
+  }
 }
 
 
 void Assembler::dsb(BarrierOption option) {
-  emit(kSpecialCondition | 0x57ff*B12 | 4*B4 | option);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // Details available in ARM DDI 0406C.b, A8-380.
+    emit(kSpecialCondition | 0x57ff * B12 | 4 * B4 | option);
+  } else {
+    // Details available in ARM DDI 0406C.b, B3-1750.
+    // CP15DSB: CRn=c7, opc1=0, CRm=c10, opc2=4, Rt is ignored.
+    mcr(p15, 0, r0, cr7, cr10, 4);
+  }
 }
 
 
 void Assembler::isb(BarrierOption option) {
-  emit(kSpecialCondition | 0x57ff*B12 | 6*B4 | option);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // Details available in ARM DDI 0406C.b, A8-389.
+    emit(kSpecialCondition | 0x57ff * B12 | 6 * B4 | option);
+  } else {
+    // Details available in ARM DDI 0406C.b, B3-1750.
+    // CP15ISB: CRn=c7, opc1=0, CRm=c5, opc2=4, Rt is ignored.
+    mcr(p15, 0, r0, cr7, cr5, 4);
+  }
 }
 
 
@@ -3528,6 +3549,70 @@ void Assembler::vcmp(const SwVfpRegister src1, const float src2,
        0x5 * B9 | B6);
 }
 
+void Assembler::vmaxnm(const DwVfpRegister dst, const DwVfpRegister src1,
+                       const DwVfpRegister src2) {
+  // kSpecialCondition(31-28) | 11101(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=1(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 |
+       0x5 * B9 | B8 | n * B7 | m * B5 | vm);
+}
+
+void Assembler::vmaxnm(const SwVfpRegister dst, const SwVfpRegister src1,
+                       const SwVfpRegister src2) {
+  // kSpecialCondition(31-28) | 11101(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | m * B5 | vm);
+}
+
+void Assembler::vminnm(const DwVfpRegister dst, const DwVfpRegister src1,
+                       const DwVfpRegister src2) {
+  // kSpecialCondition(31-28) | 11101(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=1(8) | N(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 |
+       0x5 * B9 | B8 | n * B7 | B6 | m * B5 | vm);
+}
+
+void Assembler::vminnm(const SwVfpRegister dst, const SwVfpRegister src1,
+                       const SwVfpRegister src2) {
+  // kSpecialCondition(31-28) | 11101(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | B6 | m * B5 | vm);
+}
+
 void Assembler::vsel(Condition cond, const DwVfpRegister dst,
                      const DwVfpRegister src1, const DwVfpRegister src2) {
   // cond=kSpecialCondition(31-28) | 11100(27-23) | D(22) |
@@ -3820,6 +3905,27 @@ void Assembler::vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src) {
         (dt & NeonDataTypeSizeMask)*B19 | vd*B12 | 0xA*B8 | m*B5 | B4 | vm);
 }
 
+void Assembler::vswp(DwVfpRegister srcdst0, DwVfpRegister srcdst1) {
+  DCHECK(!srcdst0.is(kScratchDoubleReg));
+  DCHECK(!srcdst1.is(kScratchDoubleReg));
+
+  if (srcdst0.is(srcdst1)) return;  // Swapping aliased registers emits nothing.
+
+  if (CpuFeatures::IsSupported(NEON)) {
+    // Instruction details available in ARM DDI 0406C.b, A8.8.418.
+    // 1111(31-28) | 00111(27-23) | D(22) | 110010(21-16) |
+    // Vd(15-12) | 000000(11-6) | M(5) | 0(4) | Vm(3-0)
+    int vd, d;
+    srcdst0.split_code(&vd, &d);
+    int vm, m;
+    srcdst1.split_code(&vm, &m);
+    emit(0xFU * B28 | 7 * B23 | d * B22 | 0x32 * B16 | vd * B12 | m * B5 | vm);
+  } else {
+    vmov(kScratchDoubleReg, srcdst0);
+    vmov(srcdst0, srcdst1);
+    vmov(srcdst1, kScratchDoubleReg);
+  }
+}
 
 // Pseudo instructions.
 void Assembler::nop(int type) {

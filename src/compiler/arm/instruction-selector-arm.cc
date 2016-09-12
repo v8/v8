@@ -412,6 +412,10 @@ void InstructionSelector::VisitLoad(Node* node) {
   EmitLoad(this, opcode, &output, base, index);
 }
 
+void InstructionSelector::VisitProtectedLoad(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitStore(Node* node) {
   ArmOperandGenerator g(this);
@@ -1956,6 +1960,10 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
         break;
     }
     break;
+  }
+
+  if (user->opcode() == IrOpcode::kWord32Equal) {
+    return VisitWordCompare(selector, user, cont);
   }
 
   // Continuation could not be combined with a compare, emit compare against 0.

@@ -19,7 +19,7 @@ namespace compiler {
 class CallDescriptor;
 struct CommonOperatorGlobalCache;
 class Operator;
-
+class Type;
 
 // Prediction hint for branches.
 enum class BranchHint : uint8_t { kNone, kTrue, kFalse };

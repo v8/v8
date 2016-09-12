@@ -4,10 +4,10 @@
 
 #include "src/inspector/V8Console.h"
 
+#include "src/base/macros.h"
 #include "src/inspector/InjectedScript.h"
 #include "src/inspector/InspectedContext.h"
 #include "src/inspector/StringUtil.h"
-#include "src/inspector/V8Compat.h"
 #include "src/inspector/V8ConsoleMessage.h"
 #include "src/inspector/V8DebuggerAgentImpl.h"
 #include "src/inspector/V8InspectorImpl.h"
@@ -16,7 +16,8 @@
 #include "src/inspector/V8RuntimeAgentImpl.h"
 #include "src/inspector/V8StackTraceImpl.h"
 #include "src/inspector/V8ValueCopier.h"
-#include "src/inspector/public/V8InspectorClient.h"
+
+#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -254,7 +255,8 @@ void createBoundFunctionProperty(v8::Local<v8::Context> context,
   v8::Local<v8::String> funcName =
       toV8StringInternalized(context->GetIsolate(), name);
   v8::Local<v8::Function> func;
-  if (!V8_FUNCTION_NEW_REMOVE_PROTOTYPE(context, callback, console, 0)
+  if (!v8::Function::New(context, callback, console, 0,
+                         v8::ConstructorBehavior::kThrow)
            .ToLocal(&func))
     return;
   func->SetName(funcName);
@@ -262,8 +264,8 @@ void createBoundFunctionProperty(v8::Local<v8::Context> context,
     v8::Local<v8::String> returnValue =
         toV8String(context->GetIsolate(), description);
     v8::Local<v8::Function> toStringFunction;
-    if (V8_FUNCTION_NEW_REMOVE_PROTOTYPE(context, returnDataCallback,
-                                         returnValue, 0)
+    if (v8::Function::New(context, returnDataCallback, returnValue, 0,
+                          v8::ConstructorBehavior::kThrow)
             .ToLocal(&toStringFunction))
       createDataProperty(context, func, toV8StringInternalized(
                                             context->GetIsolate(), "toString"),
@@ -661,6 +663,7 @@ v8::Local<v8::Object> V8Console::createConsole(
   bool success =
       console->SetPrototype(context, v8::Object::New(isolate)).FromMaybe(false);
   DCHECK(success);
+  USE(success);
 
   createBoundFunctionProperty(context, console, "debug",
                               V8Console::debugCallback);
@@ -710,11 +713,12 @@ v8::Local<v8::Object> V8Console::createConsole(
   if (hasMemoryAttribute)
     console->SetAccessorProperty(
         toV8StringInternalized(isolate, "memory"),
-        V8_FUNCTION_NEW_REMOVE_PROTOTYPE(
-            context, V8Console::memoryGetterCallback, console, 0)
+        v8::Function::New(context, V8Console::memoryGetterCallback, console, 0,
+                          v8::ConstructorBehavior::kThrow)
             .ToLocalChecked(),
-        V8_FUNCTION_NEW_REMOVE_PROTOTYPE(
-            context, V8Console::memorySetterCallback, v8::Local<v8::Value>(), 0)
+        v8::Function::New(context, V8Console::memorySetterCallback,
+                          v8::Local<v8::Value>(), 0,
+                          v8::ConstructorBehavior::kThrow)
             .ToLocalChecked(),
         static_cast<v8::PropertyAttribute>(v8::None), v8::DEFAULT);
 
@@ -741,6 +745,7 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   bool success =
       commandLineAPI->SetPrototype(context, v8::Null(isolate)).FromMaybe(false);
   DCHECK(success);
+  USE(success);
 
   createBoundFunctionProperty(context, commandLineAPI, "dir",
                               V8Console::dirCallback,
@@ -824,6 +829,7 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
   if (scope->m_cleanup) {
     bool removed = info.Holder()->Delete(context, name).FromMaybe(false);
     DCHECK(removed);
+    USE(removed);
     return;
   }
   v8::Local<v8::Object> commandLineAPI = scope->m_commandLineAPI;
@@ -855,6 +861,7 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
   bool removed =
       scope->m_installedMethods->Delete(context, name).FromMaybe(false);
   DCHECK(removed);
+  USE(removed);
 }
 
 V8Console::CommandLineAPIScope::CommandLineAPIScope(
@@ -883,6 +890,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
              .FromMaybe(false)) {
       bool removed = m_installedMethods->Delete(context, name).FromMaybe(false);
       DCHECK(removed);
+      USE(removed);
       continue;
     }
   }
@@ -901,6 +909,7 @@ V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
                              m_context, v8::Local<v8::String>::Cast(name))
                          .ToLocal(&descriptor);
       DCHECK(success);
+      USE(success);
     }
   }
 }

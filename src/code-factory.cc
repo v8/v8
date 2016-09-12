@@ -189,8 +189,8 @@ Callable CodeFactory::ToString(Isolate* isolate) {
 
 // static
 Callable CodeFactory::ToName(Isolate* isolate) {
-  ToNameStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->ToName(),
+                  TypeConversionDescriptor(isolate));
 }
 
 // static
@@ -603,6 +603,12 @@ Callable CodeFactory::InterpreterPushArgsAndConstruct(
   return Callable(
       isolate->builtins()->InterpreterPushArgsAndConstruct(function_type),
       InterpreterPushArgsAndConstructDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::InterpreterPushArgsAndConstructArray(Isolate* isolate) {
+  return Callable(isolate->builtins()->InterpreterPushArgsAndConstructArray(),
+                  InterpreterPushArgsAndConstructArrayDescriptor(isolate));
 }
 
 // static

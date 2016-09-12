@@ -5,9 +5,9 @@
 #ifndef V8_AST_SCOPES_H_
 #define V8_AST_SCOPES_H_
 
-#include "src/ast/variables.h"
 #include "src/base/hashmap.h"
 #include "src/globals.h"
+#include "src/objects.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -19,6 +19,7 @@ class AstRawString;
 class Declaration;
 class ParseInfo;
 class SloppyBlockFunctionStatement;
+class StringSet;
 class VariableProxy;
 
 // A hash map to support fast variable declaration and lookup.
@@ -27,7 +28,7 @@ class VariableMap: public ZoneHashMap {
   explicit VariableMap(Zone* zone);
 
   Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, Variable::Kind kind,
+                    VariableMode mode, VariableKind kind,
                     InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                     bool* added = nullptr);
@@ -144,7 +145,7 @@ class Scope: public ZoneObject {
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
-                         InitializationFlag init_flag, Variable::Kind kind,
+                         InitializationFlag init_flag, VariableKind kind,
                          MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   Variable* DeclareVariable(Declaration* declaration, VariableMode mode,
@@ -163,7 +164,7 @@ class Scope: public ZoneObject {
                                const AstRawString* name,
                                int start_position = kNoSourcePosition,
                                int end_position = kNoSourcePosition,
-                               Variable::Kind kind = Variable::NORMAL);
+                               VariableKind kind = NORMAL_VARIABLE);
 
   void AddUnresolved(VariableProxy* proxy);
 
@@ -203,10 +204,15 @@ class Scope: public ZoneObject {
   // Scope-specific info.
 
   // Inform the scope and outer scopes that the corresponding code contains an
-  // eval call.
+  // eval call. We don't record eval calls from innner scopes in the outer most
+  // script scope, as we only see those when parsing eagerly. If we recorded the
+  // calls then, the outer most script scope would look different depending on
+  // whether we parsed eagerly or not which is undesirable.
   void RecordEvalCall() {
     scope_calls_eval_ = true;
-    for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
+    inner_scope_calls_eval_ = true;
+    for (Scope* scope = outer_scope(); scope && !scope->is_script_scope();
+         scope = scope->outer_scope()) {
       scope->inner_scope_calls_eval_ = true;
     }
   }
@@ -413,7 +419,7 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
 
  protected:
-  explicit Scope(Zone* zone, ScopeType scope_type = SCRIPT_SCOPE);
+  explicit Scope(Zone* zone);
 
   void set_language_mode(LanguageMode language_mode) {
     is_strict_ = is_strict(language_mode);
@@ -423,7 +429,7 @@ class Scope: public ZoneObject {
 
  private:
   Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, Variable::Kind kind,
+                    VariableMode mode, VariableKind kind,
                     InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned) {
     bool added;
@@ -548,7 +554,8 @@ class Scope: public ZoneObject {
   void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
-  void AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode);
+  void AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode,
+                                     MaybeHandle<ScopeInfo> outer_scope);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
@@ -632,6 +639,7 @@ class DeclarationScope : public Scope {
   void set_asm_function() { asm_module_ = true; }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
+  void DeclareArguments(AstValueFactory* ast_value_factory);
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
 
   // This lookup corresponds to a lookup in the "intermediate" scope sitting
@@ -657,7 +665,7 @@ class DeclarationScope : public Scope {
   // scope) by a reference to an unresolved variable with no intervening
   // with statements or eval calls.
   Variable* DeclareDynamicGlobal(const AstRawString* name,
-                                 Variable::Kind variable_kind);
+                                 VariableKind variable_kind);
 
   // The variable corresponding to the 'this' value.
   Variable* receiver() {
@@ -748,6 +756,10 @@ class DeclarationScope : public Scope {
                                   SloppyBlockFunctionStatement* statement) {
     sloppy_block_function_map_.Declare(zone(), name, statement);
   }
+
+  // Go through sloppy_block_function_map_ and hoist those (into this scope)
+  // which should be hoisted.
+  void HoistSloppyBlockFunctions(AstNodeFactory* factory, bool* ok);
 
   SloppyBlockFunctionMap* sloppy_block_function_map() {
     return &sloppy_block_function_map_;

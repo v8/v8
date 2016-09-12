@@ -196,6 +196,15 @@ const size_t kReservedCodeRangePages = 0;
 // Trigger an incremental GCs once the external memory reaches this limit.
 const int kExternalAllocationSoftLimit = 64 * MB;
 
+// Maximum object size that gets allocated into regular pages. Objects larger
+// than that size are allocated in large object space and are never moved in
+// memory. This also applies to new space allocation, since objects are never
+// migrated from new space to large object space. Takes double alignment into
+// account.
+//
+// Current value: Page::kAllocatableMemory (on 32-bit arch) - 512 (slack).
+const int kMaxRegularHeapObjectSize = 507136;
+
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
 const int kBitsPerByte = 8;
@@ -721,6 +730,7 @@ struct AccessorDescriptor {
 enum CpuFeature {
   // x86
   SSE4_1,
+  SSSE3,
   SSE3,
   SAHF,
   AVX,
@@ -904,6 +914,39 @@ enum VariableMode : uint8_t {
                   // variable
 
   kLastVariableMode = DYNAMIC_LOCAL
+};
+
+// Printing support
+#ifdef DEBUG
+inline const char* VariableMode2String(VariableMode mode) {
+  switch (mode) {
+    case VAR:
+      return "VAR";
+    case LET:
+      return "LET";
+    case CONST:
+      return "CONST";
+    case DYNAMIC:
+      return "DYNAMIC";
+    case DYNAMIC_GLOBAL:
+      return "DYNAMIC_GLOBAL";
+    case DYNAMIC_LOCAL:
+      return "DYNAMIC_LOCAL";
+    case TEMPORARY:
+      return "TEMPORARY";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+#endif
+
+enum VariableKind : uint8_t {
+  NORMAL_VARIABLE,
+  FUNCTION_VARIABLE,
+  THIS_VARIABLE,
+  ARGUMENTS_VARIABLE,
+  SLOPPY_FUNCTION_NAME_VARIABLE,
+  kLastKind = SLOPPY_FUNCTION_NAME_VARIABLE
 };
 
 inline bool IsDynamicVariableMode(VariableMode mode) {
@@ -1149,6 +1192,20 @@ class BinaryOperationFeedback {
 class CompareOperationFeedback {
  public:
   enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
+};
+
+// Describes how exactly a frame has been dropped from stack.
+enum LiveEditFrameDropMode {
+  // No frame has been dropped.
+  LIVE_EDIT_FRAMES_UNTOUCHED,
+  // The top JS frame had been calling debug break slot stub. Patch the
+  // address this stub jumps to in the end.
+  LIVE_EDIT_FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
+  // The top JS frame had been calling some C++ function. The return address
+  // gets patched automatically.
+  LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL,
+  LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL,
+  LIVE_EDIT_CURRENTLY_SET_MODE
 };
 
 }  // namespace internal

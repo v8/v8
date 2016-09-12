@@ -1592,8 +1592,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   // Emit code to evaluate all the non-constant subexpressions and to store
   // them into the newly cloned array.
-  int array_index = 0;
-  for (; array_index < length; array_index++) {
+  for (int array_index = 0; array_index < length; array_index++) {
     Expression* subexpr = subexprs->at(array_index);
     DCHECK(!subexpr->IsSpread());
 
@@ -1610,30 +1609,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ mov(StoreDescriptor::NameRegister(), Operand(Smi::FromInt(array_index)));
     __ ldr(StoreDescriptor::ReceiverRegister(), MemOperand(sp, 0));
     EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
-    Handle<Code> ic =
-        CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-    CallIC(ic);
-
-    PrepareForBailoutForId(expr->GetIdForElement(array_index),
-                           BailoutState::NO_REGISTERS);
-  }
-
-  // In case the array literal contains spread expressions it has two parts. The
-  // first part is  the "static" array which has a literal index is  handled
-  // above. The second part is the part after the first spread expression
-  // (inclusive) and these elements gets appended to the array. Note that the
-  // number elements an iterable produces is unknown ahead of time.
-  if (array_index < length && result_saved) {
-    PopOperand(r0);
-    result_saved = false;
-  }
-  for (; array_index < length; array_index++) {
-    Expression* subexpr = subexprs->at(array_index);
-
-    PushOperand(r0);
-    DCHECK(!subexpr->IsSpread());
-    VisitForStackValue(subexpr);
-    CallRuntimeWithOperands(Runtime::kAppendElement);
+    CallKeyedStoreIC();
 
     PrepareForBailoutForId(expr->GetIdForElement(array_index),
                            BailoutState::NO_REGISTERS);
@@ -1985,7 +1961,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 
 void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
   for (int i = 0; i < lit->properties()->length(); i++) {
-    ObjectLiteral::Property* property = lit->properties()->at(i);
+    ClassLiteral::Property* property = lit->properties()->at(i);
     Expression* value = property->value();
 
     Register scratch = r1;
@@ -2012,22 +1988,18 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     }
 
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      case ObjectLiteral::Property::PROTOTYPE:
-        UNREACHABLE();
-      case ObjectLiteral::Property::COMPUTED:
+      case ClassLiteral::Property::METHOD:
         PushOperand(Smi::FromInt(DONT_ENUM));
         PushOperand(Smi::FromInt(property->NeedsSetFunctionName()));
         CallRuntimeWithOperands(Runtime::kDefineDataPropertyInLiteral);
         break;
 
-      case ObjectLiteral::Property::GETTER:
+      case ClassLiteral::Property::GETTER:
         PushOperand(Smi::FromInt(DONT_ENUM));
         CallRuntimeWithOperands(Runtime::kDefineGetterPropertyUnchecked);
         break;
 
-      case ObjectLiteral::Property::SETTER:
+      case ClassLiteral::Property::SETTER:
         PushOperand(Smi::FromInt(DONT_ENUM));
         CallRuntimeWithOperands(Runtime::kDefineSetterPropertyUnchecked);
         break;
@@ -2119,9 +2091,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       PopOperands(StoreDescriptor::ValueRegister(),
                   StoreDescriptor::ReceiverRegister());
       EmitLoadStoreICSlot(slot);
-      Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-      CallIC(ic);
+      CallKeyedStoreIC();
       break;
     }
   }
@@ -2263,10 +2233,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
               StoreDescriptor::NameRegister());
   DCHECK(StoreDescriptor::ValueRegister().is(r0));
 
-  Handle<Code> ic =
-      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
   EmitLoadStoreICSlot(expr->AssignmentSlot());
-  CallIC(ic);
+  CallKeyedStoreIC();
 
   PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
   context()->Plug(r0);
@@ -3362,10 +3330,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       PopOperands(StoreDescriptor::ReceiverRegister(),
                   StoreDescriptor::NameRegister());
-      Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
       EmitLoadStoreICSlot(expr->CountSlot());
-      CallIC(ic);
+      CallKeyedStoreIC();
       PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {

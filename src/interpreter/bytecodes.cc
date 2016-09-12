@@ -153,7 +153,7 @@ size_t Bytecodes::ReturnCount(Bytecode bytecode) {
 
 // static
 int Bytecodes::NumberOfOperands(Bytecode bytecode) {
-  DCHECK(bytecode <= Bytecode::kLast);
+  CHECK(bytecode <= Bytecode::kLast);
   switch (bytecode) {
 #define CASE(Name, ...)   \
   case Bytecode::k##Name: \
@@ -310,15 +310,15 @@ bool Bytecodes::IsWithoutExternalSideEffects(Bytecode bytecode) {
 
 // static
 OperandType Bytecodes::GetOperandType(Bytecode bytecode, int i) {
-  DCHECK_LE(bytecode, Bytecode::kLast);
-  DCHECK_LT(i, NumberOfOperands(bytecode));
-  DCHECK_GE(i, 0);
+  CHECK_LE(bytecode, Bytecode::kLast);
+  CHECK_LT(i, NumberOfOperands(bytecode));
+  CHECK_GE(i, 0);
   return GetOperandTypes(bytecode)[i];
 }
 
 // static
 const OperandType* Bytecodes::GetOperandTypes(Bytecode bytecode) {
-  DCHECK(bytecode <= Bytecode::kLast);
+  CHECK_LE(bytecode, Bytecode::kLast);
   switch (bytecode) {
 #define CASE(Name, ...)   \
   case Bytecode::k##Name: \
@@ -347,7 +347,7 @@ const OperandTypeInfo* Bytecodes::GetOperandTypeInfos(Bytecode bytecode) {
 // static
 OperandSize Bytecodes::GetOperandSize(Bytecode bytecode, int i,
                                       OperandScale operand_scale) {
-  DCHECK_LT(i, NumberOfOperands(bytecode));
+  CHECK_LT(i, NumberOfOperands(bytecode));
   OperandType operand_type = GetOperandType(bytecode, i);
   return SizeOfOperand(operand_type, operand_scale);
 }
@@ -369,6 +369,9 @@ int Bytecodes::GetOperandOffset(Bytecode bytecode, int i,
 // static
 OperandSize Bytecodes::SizeOfOperand(OperandType operand_type,
                                      OperandScale operand_scale) {
+  CHECK_LE(operand_type, OperandType::kLast);
+  CHECK_GE(operand_scale, OperandScale::kSingle);
+  CHECK_LE(operand_scale, OperandScale::kLast);
   return static_cast<OperandSize>(
       ScaledOperandSize(operand_type, operand_scale));
 }

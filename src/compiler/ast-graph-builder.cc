@@ -1236,7 +1236,8 @@ void AstGraphBuilder::VisitWithStatement(WithStatement* stmt) {
   VisitForValue(stmt->expression());
   Node* value = environment()->Pop();
   Node* object = BuildToObject(value, stmt->ToObjectId());
-  const Operator* op = javascript()->CreateWithContext();
+  Handle<ScopeInfo> scope_info = stmt->scope()->scope_info();
+  const Operator* op = javascript()->CreateWithContext(scope_info);
   Node* context = NewNode(op, object, GetFunctionClosureForContext());
   PrepareFrameState(context, stmt->EntryId());
   VisitInScope(stmt->statement(), stmt->scope(), context);
@@ -1601,7 +1602,7 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
 
   // Create nodes to store method values into the literal.
   for (int i = 0; i < expr->properties()->length(); i++) {
-    ObjectLiteral::Property* property = expr->properties()->at(i);
+    ClassLiteral::Property* property = expr->properties()->at(i);
     environment()->Push(environment()->Peek(property->is_static() ? 1 : 0));
 
     VisitForValue(property->key());
@@ -1626,11 +1627,7 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
     BuildSetHomeObject(value, receiver, property);
 
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      case ObjectLiteral::Property::PROTOTYPE:
-        UNREACHABLE();
-      case ObjectLiteral::Property::COMPUTED: {
+      case ClassLiteral::Property::METHOD: {
         Node* attr = jsgraph()->Constant(DONT_ENUM);
         Node* set_function_name =
             jsgraph()->Constant(property->NeedsSetFunctionName());
@@ -1640,14 +1637,14 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
         PrepareFrameState(call, BailoutId::None());
         break;
       }
-      case ObjectLiteral::Property::GETTER: {
+      case ClassLiteral::Property::GETTER: {
         Node* attr = jsgraph()->Constant(DONT_ENUM);
         const Operator* op = javascript()->CallRuntime(
             Runtime::kDefineGetterPropertyUnchecked, 4);
         NewNode(op, receiver, key, value, attr);
         break;
       }
-      case ObjectLiteral::Property::SETTER: {
+      case ClassLiteral::Property::SETTER: {
         Node* attr = jsgraph()->Constant(DONT_ENUM);
         const Operator* op = javascript()->CallRuntime(
             Runtime::kDefineSetterPropertyUnchecked, 4);
@@ -1951,8 +1948,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
   // Create nodes to evaluate all the non-constant subexpressions and to store
   // them into the newly cloned array.
-  int array_index = 0;
-  for (; array_index < expr->values()->length(); array_index++) {
+  for (int array_index = 0; array_index < expr->values()->length();
+       array_index++) {
     Expression* subexpr = expr->values()->at(array_index);
     DCHECK(!subexpr->IsSpread());
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
@@ -1965,26 +1962,6 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     Node* store = BuildKeyedStore(literal, index, value, pair);
     PrepareFrameState(store, expr->GetIdForElement(array_index),
                       OutputFrameStateCombine::Ignore());
-  }
-
-  // In case the array literal contains spread expressions it has two parts. The
-  // first part is  the "static" array which has a literal index is handled
-  // above. The second part is the part after the first spread expression
-  // (inclusive) and these elements gets appended to the array. Note that the
-  // number elements an iterable produces is unknown ahead of time.
-  for (; array_index < expr->values()->length(); array_index++) {
-    Expression* subexpr = expr->values()->at(array_index);
-    DCHECK(!subexpr->IsSpread());
-
-    VisitForValue(subexpr);
-    {
-      Node* value = environment()->Pop();
-      Node* array = environment()->Pop();
-      const Operator* op = javascript()->CallRuntime(Runtime::kAppendElement);
-      Node* result = NewNode(op, array, value);
-      PrepareFrameState(result, expr->GetIdForElement(array_index));
-      environment()->Push(result);
-    }
   }
 
   ast_context()->ProduceValue(expr, environment()->Pop());
@@ -3696,9 +3673,8 @@ Node* AstGraphBuilder::BuildToObject(Node* input, BailoutId bailout_id) {
   return object;
 }
 
-
 Node* AstGraphBuilder::BuildSetHomeObject(Node* value, Node* home_object,
-                                          ObjectLiteralProperty* property,
+                                          LiteralProperty* property,
                                           int slot_number) {
   Expression* expr = property->value();
   if (!FunctionLiteral::NeedsHomeObject(expr)) return value;

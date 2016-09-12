@@ -5,11 +5,17 @@
 #ifndef V8_INSPECTOR_PROTOCOLPLATFORM_H_
 #define V8_INSPECTOR_PROTOCOLPLATFORM_H_
 
-// TODO(dgozman): this file should be removed from v8_inspector.
-
-//#include "wtf/Assertions.h"
-//#include "wtf/PtrUtil.h"
-
 #include <memory>
+
+#include "src/base/logging.h"
+
+namespace v8_inspector {
+
+template <typename T>
+std::unique_ptr<T> wrapUnique(T* ptr) {
+  return std::unique_ptr<T>(ptr);
+}
+
+}  // namespace v8_inspector
 
 #endif  // V8_INSPECTOR_PROTOCOLPLATFORM_H_

@@ -61,16 +61,19 @@ void V8ConsoleAgentImpl::reportAllMessages() {
       m_session->inspector()->ensureConsoleMessageStorage(
           m_session->contextGroupId());
   for (const auto& message : storage->messages()) {
-    if (message->origin() == V8MessageOrigin::kConsole)
-      reportMessage(message.get(), false);
+    if (message->origin() == V8MessageOrigin::kConsole) {
+      if (!reportMessage(message.get(), false)) return;
+    }
   }
 }
 
-void V8ConsoleAgentImpl::reportMessage(V8ConsoleMessage* message,
+bool V8ConsoleAgentImpl::reportMessage(V8ConsoleMessage* message,
                                        bool generatePreview) {
   DCHECK(message->origin() == V8MessageOrigin::kConsole);
   message->reportToFrontend(&m_frontend);
   m_frontend.flush();
+  return m_session->inspector()->hasConsoleMessageStorage(
+      m_session->contextGroupId());
 }
 
 }  // namespace v8_inspector

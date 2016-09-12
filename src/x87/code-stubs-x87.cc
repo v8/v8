@@ -2165,42 +2165,6 @@ void ToStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ToNameStub::Generate(MacroAssembler* masm) {
-  // The ToName stub takes one argument in eax.
-  Label is_number;
-  __ JumpIfSmi(eax, &is_number, Label::kNear);
-
-  Label not_name;
-  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  __ CmpObjectType(eax, LAST_NAME_TYPE, edi);
-  // eax: receiver
-  // edi: receiver map
-  __ j(above, &not_name, Label::kNear);
-  __ Ret();
-  __ bind(&not_name);
-
-  Label not_heap_number;
-  __ CompareMap(eax, masm->isolate()->factory()->heap_number_map());
-  __ j(not_equal, &not_heap_number, Label::kNear);
-  __ bind(&is_number);
-  NumberToStringStub stub(isolate());
-  __ TailCallStub(&stub);
-  __ bind(&not_heap_number);
-
-  Label not_oddball;
-  __ CmpInstanceType(edi, ODDBALL_TYPE);
-  __ j(not_equal, &not_oddball, Label::kNear);
-  __ mov(eax, FieldOperand(eax, Oddball::kToStringOffset));
-  __ Ret();
-  __ bind(&not_oddball);
-
-  __ pop(ecx);   // Pop return address.
-  __ push(eax);  // Push argument.
-  __ push(ecx);  // Push return address.
-  __ TailCallRuntime(Runtime::kToName);
-}
-
-
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,
@@ -4358,7 +4322,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // Fall back to %AllocateInNewSpace (if not too big).
     Label too_big_for_new_space;
     __ bind(&allocate);
-    __ cmp(ecx, Immediate(Page::kMaxRegularHeapObjectSize));
+    __ cmp(ecx, Immediate(kMaxRegularHeapObjectSize));
     __ j(greater, &too_big_for_new_space);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
@@ -4745,7 +4709,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // Fall back to %AllocateInNewSpace (if not too big).
   Label too_big_for_new_space;
   __ bind(&allocate);
-  __ cmp(ecx, Immediate(Page::kMaxRegularHeapObjectSize));
+  __ cmp(ecx, Immediate(kMaxRegularHeapObjectSize));
   __ j(greater, &too_big_for_new_space);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);

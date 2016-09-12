@@ -995,12 +995,12 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
       case LookupIterator::ACCESSOR:
         return GetPropertyWithAccessor(it);
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return ReadAbsentProperty(it);
+        return it->isolate()->factory()->undefined_value();
       case LookupIterator::DATA:
         return it->GetDataValue();
     }
   }
-  return ReadAbsentProperty(it);
+  return it->isolate()->factory()->undefined_value();
 }
 
 
@@ -1349,7 +1349,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
                                    Object::DONT_THROW);
     Handle<Object> result = args.Call(call_fun, name);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (result.is_null()) return ReadAbsentProperty(isolate, receiver, name);
+    if (result.is_null()) return isolate->factory()->undefined_value();
     // Rebox handle before return.
     return handle(*result, isolate);
   }
@@ -1366,7 +1366,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
         receiver, Handle<JSReceiver>::cast(getter));
   }
   // Getter is not a function.
-  return ReadAbsentProperty(isolate, receiver, it->GetName());
+  return isolate->factory()->undefined_value();
 }
 
 // static
@@ -4819,17 +4819,6 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
   return AddDataProperty(&own_lookup, value, NONE, should_throw, store_mode);
 }
 
-MaybeHandle<Object> Object::ReadAbsentProperty(LookupIterator* it) {
-  return it->isolate()->factory()->undefined_value();
-}
-
-MaybeHandle<Object> Object::ReadAbsentProperty(Isolate* isolate,
-                                               Handle<Object> receiver,
-                                               Handle<Object> name) {
-  return isolate->factory()->undefined_value();
-}
-
-
 Maybe<bool> Object::CannotCreateProperty(Isolate* isolate,
                                          Handle<Object> receiver,
                                          Handle<Object> name,
@@ -7347,6 +7336,57 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(Isolate* isolate,
   return GetOwnPropertyDescriptor(&it, desc);
 }
 
+namespace {
+
+Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
+                                                 PropertyDescriptor* desc) {
+  if (it->state() == LookupIterator::INTERCEPTOR) {
+    Isolate* isolate = it->isolate();
+    Handle<InterceptorInfo> interceptor = it->GetInterceptor();
+    if (!interceptor->descriptor()->IsUndefined(isolate)) {
+      Handle<Object> result;
+      Handle<JSObject> holder = it->GetHolder<JSObject>();
+
+      Handle<Object> receiver = it->GetReceiver();
+      if (!receiver->IsJSReceiver()) {
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, receiver, Object::ConvertReceiver(isolate, receiver),
+            Nothing<bool>());
+      }
+
+      PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                     *holder, Object::DONT_THROW);
+      if (it->IsElement()) {
+        uint32_t index = it->index();
+        v8::IndexedPropertyDescriptorCallback descriptorCallback =
+            v8::ToCData<v8::IndexedPropertyDescriptorCallback>(
+                interceptor->descriptor());
+
+        result = args.Call(descriptorCallback, index);
+      } else {
+        Handle<Name> name = it->name();
+        DCHECK(!name->IsPrivate());
+        v8::GenericNamedPropertyDescriptorCallback descriptorCallback =
+            v8::ToCData<v8::GenericNamedPropertyDescriptorCallback>(
+                interceptor->descriptor());
+        result = args.Call(descriptorCallback, name);
+      }
+      if (!result.is_null()) {
+        // Request successfully intercepted, try to set the property
+        // descriptor.
+        Utils::ApiCheck(
+            PropertyDescriptor::ToPropertyDescriptor(isolate, result, desc),
+            it->IsElement() ? "v8::IndexedPropertyDescriptorCallback"
+                            : "v8::NamedPropertyDescriptorCallback",
+            "Invalid property descriptor.");
+
+        return Just(true);
+      }
+    }
+  }
+  return Just(false);
+}
+}  // namespace
 
 // ES6 9.1.5.1
 // Returns true on success, false if the property didn't exist, nothing if
@@ -7361,6 +7401,13 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
                                              it->GetName(), desc);
   }
 
+  Maybe<bool> intercepted = GetPropertyDescriptorWithInterceptor(it, desc);
+  MAYBE_RETURN(intercepted, Nothing<bool>());
+  if (intercepted.FromJust()) {
+    return Just(true);
+  }
+
+  // Request was not intercepted, continue as normal.
   // 1. (Assert)
   // 2. If O does not have an own property with key P, return undefined.
   Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(it);
@@ -9453,12 +9500,6 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
       *map, map->is_prototype_map()
                 ? &RuntimeCallStats::PrototypeMap_TransitionToDataProperty
                 : &RuntimeCallStats::Map_TransitionToDataProperty);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      map->GetIsolate(),
-      (map->is_prototype_map()
-           ? &tracing::TraceEventStatsTable::
-                 PrototypeMap_TransitionToDataProperty
-           : &tracing::TraceEventStatsTable::Map_TransitionToDataProperty))
 
   DCHECK(name->IsUniqueName());
   DCHECK(!map->is_dictionary_map());
@@ -9545,12 +9586,6 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
       map->is_prototype_map()
           ? &RuntimeCallStats::PrototypeMap_TransitionToAccessorProperty
           : &RuntimeCallStats::Map_TransitionToAccessorProperty);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate,
-      (map->is_prototype_map()
-           ? &tracing::TraceEventStatsTable::
-                 PrototypeMap_TransitionToAccessorProperty
-           : &tracing::TraceEventStatsTable::Map_TransitionToAccessorProperty));
 
   // At least one of the accessors needs to be a new value.
   DCHECK(!getter->IsNull(isolate) || !setter->IsNull(isolate));
@@ -12501,8 +12536,6 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
 void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
                        PrototypeOptimizationMode proto_mode) {
   RuntimeCallTimerScope stats_scope(*map, &RuntimeCallStats::Map_SetPrototype);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      map->GetIsolate(), &tracing::TraceEventStatsTable::Map_SetPrototype);
 
   bool is_hidden = false;
   if (prototype->IsJSObject()) {
@@ -15885,7 +15918,7 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
 }
 
 int FixedArrayBase::GetMaxLengthForNewSpaceAllocation(ElementsKind kind) {
-  return ((Page::kMaxRegularHeapObjectSize - FixedArrayBase::kHeaderSize) >>
+  return ((kMaxRegularHeapObjectSize - FixedArrayBase::kHeaderSize) >>
           ElementsKindToShiftSize(kind));
 }
 
@@ -18140,7 +18173,8 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
     if (capacity > ObjectHashTable::kMaxCapacity) {
       for (size_t i = 0; i < 2; ++i) {
         isolate->heap()->CollectAllGarbage(
-            Heap::kFinalizeIncrementalMarkingMask, "full object hash table");
+            Heap::kFinalizeIncrementalMarkingMask,
+            GarbageCollectionReason::kFullHashtable);
       }
       table->Rehash(isolate->factory()->undefined_value());
     }

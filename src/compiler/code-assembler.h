@@ -56,6 +56,7 @@ class RawMachineLabel;
   V(Uint32LessThan)                              \
   V(Uint32GreaterThanOrEqual)                    \
   V(UintPtrLessThan)                             \
+  V(UintPtrGreaterThan)                          \
   V(UintPtrGreaterThanOrEqual)                   \
   V(WordEqual)                                   \
   V(WordNotEqual)                                \
@@ -283,6 +284,10 @@ class CodeAssembler {
   CODE_ASSEMBLER_UNARY_OP_LIST(DECLARE_CODE_ASSEMBLER_UNARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_UNARY_OP
 
+  // Changes an intptr_t to a double, e.g. for storing an element index
+  // outside Smi range in a HeapNumber. Lossless on 32-bit,
+  // rounds on 64-bit (which doesn't affect valid element indices).
+  Node* RoundIntPtrToFloat64(Node* value);
   // No-op on 32-bit, otherwise zero extend.
   Node* ChangeUint32ToWord(Node* value);
   // No-op on 32-bit, otherwise sign extend.
@@ -315,6 +320,9 @@ class CodeAssembler {
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
                         Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                         Node* arg5);
+  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
+                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                        Node* arg5, Node* arg6);
 
   // A pair of a zero-based argument index and a value.
   // It helps writing arguments order independent code.

@@ -29,7 +29,7 @@ v8::Local<v8::String> subtypeForInternalType(v8::Isolate* isolate,
     case V8InternalValueType::kScopeList:
       return toV8StringInternalized(isolate, "internal#scopeList");
   }
-  NOTREACHED();
+  UNREACHABLE();
   return v8::Local<v8::String>();
 }
 

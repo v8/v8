@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/bit-vector.h"
 #include "src/compiler/escape-analysis.h"
+#include "src/bit-vector.h"
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types.h"
+#include "src/compiler/types.h"
 #include "src/zone-containers.h"
 #include "test/unittests/compiler/graph-unittest.h"
 

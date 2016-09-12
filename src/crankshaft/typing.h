@@ -67,13 +67,7 @@ class AstTyper final : public AstVisitor<AstTyper> {
   int parameter_index(int index) { return -index - 2; }
   int stack_local_index(int index) { return index; }
 
-  int variable_index(Variable* var) {
-    // Stack locals have the range [0 .. l]
-    // Parameters have the range [-1 .. p]
-    // We map this to [-p-2 .. -1, 0 .. l]
-    return var->IsStackLocal() ? stack_local_index(var->index()) :
-           var->IsParameter() ? parameter_index(var->index()) : kNoVar;
-  }
+  int variable_index(Variable* var);
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void VisitStatements(ZoneList<Statement*>* statements);

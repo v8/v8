@@ -35,7 +35,7 @@ void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
   Node* map = assembler->LoadMap(object);
   Node* instance_type = assembler->LoadMapInstanceType(map);
 
-  Variable var_index(assembler, MachineRepresentation::kWord32);
+  Variable var_index(assembler, MachineType::PointerRepresentation());
 
   Label keyisindex(assembler), if_iskeyunique(assembler);
   assembler->TryToName(key, &keyisindex, &var_index, &if_iskeyunique,

@@ -260,6 +260,7 @@ namespace internal {
   F(GetImplFromInitializedIntlObject, 1, 1)  \
   F(CreateDateTimeFormat, 3, 1)              \
   F(InternalDateFormat, 2, 1)                \
+  F(InternalDateFormatToParts, 2, 1)         \
   F(InternalDateParse, 2, 1)                 \
   F(CreateNumberFormat, 3, 1)                \
   F(InternalNumberFormat, 2, 1)              \
@@ -474,7 +475,7 @@ namespace internal {
   F(NewClosure_Tenured, 1, 1)           \
   F(NewScriptContext, 2, 1)             \
   F(NewFunctionContext, 1, 1)           \
-  F(PushWithContext, 2, 1)              \
+  F(PushWithContext, 3, 1)              \
   F(PushCatchContext, 4, 1)             \
   F(PushBlockContext, 2, 1)             \
   F(DeleteLookupSlot, 1, 1)             \

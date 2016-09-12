@@ -318,18 +318,37 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   }
 }
 
+namespace {
+
+template <class T>
+double GetScalarElement(T* array, int index) {
+  return array->get_scalar(index);
+}
+
+double GetScalarElement(FixedDoubleArray* array, int index) {
+  if (array->is_the_hole(index)) return bit_cast<double>(kHoleNanInt64);
+  return array->get_scalar(index);
+}
+
+bool is_the_hole(double maybe_hole) {
+  return bit_cast<uint64_t>(maybe_hole) == kHoleNanInt64;
+}
+
+}  // namespace
+
 template <class T, bool print_the_hole>
 static void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
   T* array = T::cast(object);
   if (array->length() == 0) return;
   int previous_index = 0;
-  double previous_value = array->get_scalar(0);
+  double previous_value = GetScalarElement(array, 0);
   double value = 0.0;
   int i;
   for (i = 1; i <= array->length(); i++) {
-    if (i < array->length()) value = array->get_scalar(i);
+    if (i < array->length()) value = GetScalarElement(array, i);
     bool values_are_nan = std::isnan(previous_value) && std::isnan(value);
-    if ((previous_value == value || values_are_nan) && i != array->length()) {
+    if (i != array->length() && (previous_value == value || values_are_nan) &&
+        is_the_hole(previous_value) == is_the_hole(value)) {
       continue;
     }
     os << "\n";
@@ -339,8 +358,7 @@ static void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
       ss << '-' << (i - 1);
     }
     os << std::setw(12) << ss.str() << ": ";
-    if (print_the_hole &&
-        FixedDoubleArray::cast(object)->is_the_hole(previous_index)) {
+    if (print_the_hole && is_the_hole(previous_value)) {
       os << "<the_hole>";
     } else {
       os << previous_value;

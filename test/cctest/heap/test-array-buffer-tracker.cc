@@ -130,7 +130,7 @@ TEST(ArrayBuffer_Compaction) {
   page_before_gc->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   CHECK(IsTracked(*buf1));
 
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
   Page* page_after_gc = Page::FromAddress(buf1->address());
   CHECK(IsTracked(*buf1));
@@ -177,7 +177,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
       CHECK(IsTracked(*buf2));
     }
 
-    heap->CollectGarbage(OLD_SPACE);
+    CcTest::CollectGarbage(OLD_SPACE);
     // |Externalize| will cause the buffer to be |Unregister|ed. Without
     // barriers and proper synchronization this will trigger a data race on
     // TSAN.

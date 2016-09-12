@@ -248,7 +248,8 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx)                                      \
   /* TODO(klaasb) rename Idx or add unsigned Imm OperandType? */               \
   V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kIdx)          \
-  V(CreateWithContext, AccumulatorUse::kReadWrite, OperandType::kReg)          \
+  V(CreateWithContext, AccumulatorUse::kReadWrite, OperandType::kReg,          \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Arguments allocation */                                                   \
   V(CreateMappedArguments, AccumulatorUse::kWrite)                             \

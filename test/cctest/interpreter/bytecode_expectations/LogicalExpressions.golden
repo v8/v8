@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: number
 execute: yes
 wrap: yes
 
@@ -319,7 +318,7 @@ bytecodes: [
   /*  624 S> */ B(Return),
 ]
 constant pool: [
-  260,
+  Smi [260],
 ]
 handlers: [
 ]
@@ -505,7 +504,7 @@ bytecodes: [
   /*  624 S> */ B(Return),
 ]
 constant pool: [
-  260,
+  Smi [260],
 ]
 handlers: [
 ]
@@ -692,7 +691,7 @@ bytecodes: [
   /*  630 S> */ B(Return),
 ]
 constant pool: [
-  260,
+  Smi [260],
 ]
 handlers: [
 ]
@@ -879,7 +878,7 @@ bytecodes: [
   /*  630 S> */ B(Return),
 ]
 constant pool: [
-  260,
+  Smi [260],
 ]
 handlers: [
 ]

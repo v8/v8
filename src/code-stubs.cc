@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "src/ast/ast.h"
 #include "src/bootstrapper.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
@@ -2600,7 +2601,7 @@ void ToObjectStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   Node* context = assembler->Parameter(Descriptor::kContext);
 
   Variable constructor_function_index_var(assembler,
-                                          MachineRepresentation::kWord32);
+                                          MachineType::PointerRepresentation());
 
   assembler->Branch(assembler->WordIsSmi(object), &if_number, &if_notsmi);
 
@@ -2617,26 +2618,25 @@ void ToObjectStub::GenerateAssembly(CodeStubAssembler* assembler) const {
           instance_type, assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
       &if_jsreceiver);
 
-  Node* constructor_function_index = assembler->LoadObjectField(
-      map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
-      MachineType::Uint8());
-  assembler->GotoIf(
-      assembler->Word32Equal(
-          constructor_function_index,
-          assembler->Int32Constant(Map::kNoConstructorFunctionIndex)),
-      &if_noconstructor);
+  Node* constructor_function_index =
+      assembler->LoadMapConstructorFunctionIndex(map);
+  assembler->GotoIf(assembler->WordEqual(constructor_function_index,
+                                         assembler->IntPtrConstant(
+                                             Map::kNoConstructorFunctionIndex)),
+                    &if_noconstructor);
   constructor_function_index_var.Bind(constructor_function_index);
   assembler->Goto(&if_wrapjsvalue);
 
   assembler->Bind(&if_number);
   constructor_function_index_var.Bind(
-      assembler->Int32Constant(Context::NUMBER_FUNCTION_INDEX));
+      assembler->IntPtrConstant(Context::NUMBER_FUNCTION_INDEX));
   assembler->Goto(&if_wrapjsvalue);
 
   assembler->Bind(&if_wrapjsvalue);
   Node* native_context = assembler->LoadNativeContext(context);
   Node* constructor = assembler->LoadFixedArrayElement(
-      native_context, constructor_function_index_var.value());
+      native_context, constructor_function_index_var.value(), 0,
+      CodeStubAssembler::INTPTR_PARAMETERS);
   Node* initial_map = assembler->LoadObjectField(
       constructor, JSFunction::kPrototypeOrInitialMapOffset);
   Node* js_value = assembler->Allocate(JSValue::kSize);
@@ -4426,9 +4426,10 @@ void LoadApiGetterStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   Node* holder = receiver;
   Node* map = assembler->LoadMap(receiver);
   Node* descriptors = assembler->LoadMapDescriptors(map);
-  Node* offset =
-      assembler->Int32Constant(DescriptorArray::ToValueIndex(index()));
-  Node* callback = assembler->LoadFixedArrayElement(descriptors, offset);
+  Node* value_index =
+      assembler->IntPtrConstant(DescriptorArray::ToValueIndex(index()));
+  Node* callback = assembler->LoadFixedArrayElement(
+      descriptors, value_index, 0, CodeStubAssembler::INTPTR_PARAMETERS);
   assembler->TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
                           holder, callback);
 }
@@ -5087,9 +5088,7 @@ compiler::Node* ForInFilterStub::Generate(CodeStubAssembler* assembler,
 
   assembler->Bind(&return_to_name);
   {
-    // TODO(cbruni): inline ToName here.
-    Callable callable = CodeFactory::ToName(assembler->isolate());
-    var_result.Bind(assembler->CallStub(callable, context, key));
+    var_result.Bind(assembler->ToName(context, key));
     assembler->Goto(&end);
   }
 
@@ -5192,7 +5191,7 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   Label if_normal(assembler), if_generator(assembler), if_async(assembler),
       if_class_constructor(assembler), if_function_without_prototype(assembler),
       load_map(assembler);
-  Variable map_index(assembler, MachineRepresentation::kTagged);
+  Variable map_index(assembler, MachineType::PointerRepresentation());
 
   Node* is_not_normal = assembler->Word32And(
       compiler_hints,
@@ -5227,8 +5226,9 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   assembler->Bind(&if_normal);
   {
     map_index.Bind(assembler->Select(
-        is_strict, assembler->Int32Constant(Context::STRICT_FUNCTION_MAP_INDEX),
-        assembler->Int32Constant(Context::SLOPPY_FUNCTION_MAP_INDEX)));
+        is_strict,
+        assembler->IntPtrConstant(Context::STRICT_FUNCTION_MAP_INDEX),
+        assembler->IntPtrConstant(Context::SLOPPY_FUNCTION_MAP_INDEX)));
     assembler->Goto(&load_map);
   }
 
@@ -5236,8 +5236,8 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   {
     map_index.Bind(assembler->Select(
         is_strict,
-        assembler->Int32Constant(Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX),
-        assembler->Int32Constant(
+        assembler->IntPtrConstant(Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX),
+        assembler->IntPtrConstant(
             Context::SLOPPY_GENERATOR_FUNCTION_MAP_INDEX)));
     assembler->Goto(&load_map);
   }
@@ -5246,21 +5246,21 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   {
     map_index.Bind(assembler->Select(
         is_strict,
-        assembler->Int32Constant(Context::STRICT_ASYNC_FUNCTION_MAP_INDEX),
-        assembler->Int32Constant(Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX)));
+        assembler->IntPtrConstant(Context::STRICT_ASYNC_FUNCTION_MAP_INDEX),
+        assembler->IntPtrConstant(Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX)));
     assembler->Goto(&load_map);
   }
 
   assembler->Bind(&if_class_constructor);
   {
     map_index.Bind(
-        assembler->Int32Constant(Context::STRICT_FUNCTION_MAP_INDEX));
+        assembler->IntPtrConstant(Context::STRICT_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 
   assembler->Bind(&if_function_without_prototype);
   {
-    map_index.Bind(assembler->Int32Constant(
+    map_index.Bind(assembler->IntPtrConstant(
         Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
     assembler->Goto(&load_map);
   }
@@ -5271,7 +5271,8 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   // as the map of the allocated object.
   Node* native_context = assembler->LoadNativeContext(context);
   Node* map_slot_value =
-      assembler->LoadFixedArrayElement(native_context, map_index.value());
+      assembler->LoadFixedArrayElement(native_context, map_index.value(), 0,
+                                       CodeStubAssembler::INTPTR_PARAMETERS);
   assembler->StoreMapNoWriteBarrier(result, map_slot_value);
 
   // Initialize the rest of the function.
@@ -5726,8 +5727,8 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
     int element_size =
         IsFastDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
     int max_fast_elements =
-        (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize -
-         JSArray::kSize - AllocationMemento::kSize) /
+        (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
+         AllocationMemento::kSize) /
         element_size;
     assembler->Branch(
         assembler->SmiAboveOrEqual(
@@ -5795,9 +5796,8 @@ void GrowArrayElementsStub::GenerateAssembly(
   ElementsKind kind = elements_kind();
 
   Node* elements = assembler->LoadElements(object);
-  Node* new_elements = assembler->CheckAndGrowElementsCapacity(
-      context, elements, kind, key, &runtime);
-  assembler->StoreObjectField(object, JSObject::kElementsOffset, new_elements);
+  Node* new_elements =
+      assembler->TryGrowElementsCapacity(object, elements, kind, key, &runtime);
   assembler->Return(new_elements);
 
   assembler->Bind(&runtime);

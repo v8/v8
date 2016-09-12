@@ -2772,15 +2772,26 @@ Node* WasmGraphBuilder::LoadMem(wasm::LocalType type, MachineType memtype,
   Node* load;
 
   // WASM semantics throw on OOB. Introduce explicit bounds check.
-  BoundsCheckMem(memtype, index, offset, position);
+  if (!FLAG_wasm_trap_handler) {
+    BoundsCheckMem(memtype, index, offset, position);
+  }
   bool aligned = static_cast<int>(alignment) >=
                  ElementSizeLog2Of(memtype.representation());
 
   if (aligned ||
       jsgraph()->machine()->UnalignedLoadSupported(memtype, alignment)) {
-    load = graph()->NewNode(jsgraph()->machine()->Load(memtype),
-                            MemBuffer(offset), index, *effect_, *control_);
+    if (FLAG_wasm_trap_handler) {
+      Node* context = HeapConstant(module_->instance->context);
+      Node* position_node = jsgraph()->Int32Constant(position);
+      load = graph()->NewNode(jsgraph()->machine()->ProtectedLoad(memtype),
+                              MemBuffer(offset), index, context, position_node,
+                              *effect_, *control_);
+    } else {
+      load = graph()->NewNode(jsgraph()->machine()->Load(memtype),
+                              MemBuffer(offset), index, *effect_, *control_);
+    }
   } else {
+    DCHECK(!FLAG_wasm_trap_handler);
     load = graph()->NewNode(jsgraph()->machine()->UnalignedLoad(memtype),
                             MemBuffer(offset), index, *effect_, *control_);
   }
@@ -2903,12 +2914,20 @@ Node* WasmGraphBuilder::DefaultS128Value() {
 Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
                                const NodeVector& inputs) {
   switch (opcode) {
-    case wasm::kExprI32x4ExtractLane:
-      return graph()->NewNode(jsgraph()->machine()->Int32x4ExtractLane(),
-                              inputs[0], inputs[1]);
     case wasm::kExprI32x4Splat:
       return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(), inputs[0],
                               inputs[0], inputs[0], inputs[0]);
+    default:
+      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
+  }
+}
+
+Node* WasmGraphBuilder::SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane,
+                                        Node* input) {
+  switch (opcode) {
+    case wasm::kExprI32x4ExtractLane:
+      return graph()->NewNode(jsgraph()->machine()->Int32x4ExtractLane(), input,
+                              Int32Constant(lane));
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }

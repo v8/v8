@@ -41,6 +41,7 @@ class OptionalOperator final {
 
 // A Load needs a MachineType.
 typedef MachineType LoadRepresentation;
+typedef LoadRepresentation ProtectedLoadRepresentation;
 
 LoadRepresentation LoadRepresentationOf(Operator const*);
 
@@ -601,6 +602,7 @@ class MachineOperatorBuilder final : public ZoneObject {
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
+  const Operator* ProtectedLoad(LoadRepresentation rep);
 
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);

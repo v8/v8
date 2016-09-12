@@ -609,29 +609,6 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
   return access;
 }
 
-
-// static
-FieldAccess AccessBuilder::ForPropertyCellValue() {
-  return ForPropertyCellValue(Type::Tagged());
-}
-
-
-// static
-FieldAccess AccessBuilder::ForPropertyCellValue(Type* type) {
-  // Extract representation dimension of {type} into MachineType {r}.
-  MachineType r = MachineType::AnyTagged();
-  WriteBarrierKind w = kFullWriteBarrier;
-  if (type->Is(Type::TaggedSigned())) {
-    r = MachineType::TaggedSigned();
-    w = kNoWriteBarrier;
-  } else if (type->Is(Type::TaggedPointer())) {
-    r = MachineType::TaggedPointer();
-  }
-  FieldAccess access = {
-      kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(), type, r, w};
-  return access;
-}
-
 // static
 FieldAccess AccessBuilder::ForContextExtensionScopeInfo() {
   FieldAccess access = {kTaggedBase,

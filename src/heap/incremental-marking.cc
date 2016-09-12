@@ -19,12 +19,6 @@
 namespace v8 {
 namespace internal {
 
-IncrementalMarking::StepActions IncrementalMarking::IdleStepActions() {
-  return StepActions(IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                     IncrementalMarking::FORCE_MARKING,
-                     IncrementalMarking::DO_NOT_FORCE_COMPLETION);
-}
-
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
       observer_(*this, kAllocatedThreshold),
@@ -503,8 +497,7 @@ static void PatchIncrementalMarkingRecordWriteStubs(
   }
 }
 
-
-void IncrementalMarking::Start(const char* reason) {
+void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   if (FLAG_trace_incremental_marking) {
     int old_generation_size_mb =
         static_cast<int>(heap()->PromotedSpaceSizeOfObjects() / MB);
@@ -513,8 +506,8 @@ void IncrementalMarking::Start(const char* reason) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Start (%s): old generation %dMB, limit %dMB, "
         "slack %dMB\n",
-        (reason == nullptr) ? "unknown reason" : reason, old_generation_size_mb,
-        old_generation_limit_mb,
+        Heap::GarbageCollectionReasonToString(gc_reason),
+        old_generation_size_mb, old_generation_limit_mb,
         Max(0, old_generation_limit_mb - old_generation_size_mb));
   }
   DCHECK(FLAG_incremental_marking);
@@ -522,8 +515,12 @@ void IncrementalMarking::Start(const char* reason) {
   DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
   DCHECK(!heap_->isolate()->serializer_enabled());
 
+  Counters* counters = heap_->isolate()->counters();
+
+  counters->incremental_marking_reason()->AddSample(
+      static_cast<int>(gc_reason));
   HistogramTimerScope incremental_marking_scope(
-      heap_->isolate()->counters()->gc_incremental_marking_start());
+      counters->gc_incremental_marking_start());
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingStart");
   ResetStepCounters();
   heap_->tracer()->NotifyIncrementalMarkingStart();
@@ -1057,35 +1054,22 @@ void IncrementalMarking::Epilogue() {
 }
 
 double IncrementalMarking::AdvanceIncrementalMarking(
-    double deadline_in_ms, IncrementalMarking::StepActions step_actions) {
+    double deadline_in_ms, CompletionAction completion_action,
+    ForceCompletionAction force_completion) {
   DCHECK(!IsStopped());
 
-  intptr_t step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
-      GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs,
-      heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
   double remaining_time_in_ms = 0.0;
+  intptr_t step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
+      kStepSizeInMs,
+      heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
 
   do {
-    Step(step_size_in_bytes, step_actions.completion_action,
-         step_actions.force_marking, step_actions.force_completion);
+    Step(step_size_in_bytes, completion_action, force_completion);
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-  } while (!heap_->mark_compact_collector()->marking_deque()->IsEmpty() &&
-           remaining_time_in_ms >=
-               2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
-           !IsComplete() &&
+  } while (remaining_time_in_ms >= kStepSizeInMs && !IsComplete() &&
            !heap()->mark_compact_collector()->marking_deque()->IsEmpty());
   return remaining_time_in_ms;
-}
-
-
-void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
-  if (IsStopped() && ShouldActivateEvenWithoutIdleNotification()) {
-    heap()->StartIncrementalMarking(Heap::kNoGCFlags, kNoGCCallbackFlags,
-                                    "old space step");
-  } else {
-    Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
-  }
 }
 
 
@@ -1178,39 +1162,17 @@ void IncrementalMarking::FinalizeSweeping() {
   }
 }
 
-intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
-                                  CompletionAction action,
-                                  ForceMarkingAction marking,
-                                  ForceCompletionAction completion) {
-  DCHECK(allocated_bytes >= 0);
-
+void IncrementalMarking::NotifyAllocatedBytes(intptr_t allocated_bytes) {
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
       (state_ != SWEEPING && state_ != MARKING)) {
-    return 0;
+    return;
   }
 
   allocated_ += allocated_bytes;
 
-  if (marking == DO_NOT_FORCE_MARKING && allocated_ < kAllocatedThreshold &&
-      write_barriers_invoked_since_last_step_ <
+  if (allocated_ >= kAllocatedThreshold ||
+      write_barriers_invoked_since_last_step_ >=
           kWriteBarriersInvokedThreshold) {
-    return 0;
-  }
-
-  // If an idle notification happened recently, we delay marking steps.
-  if (marking == DO_NOT_FORCE_MARKING &&
-      heap_->RecentIdleNotificationHappened()) {
-    return 0;
-  }
-
-  intptr_t bytes_processed = 0;
-  {
-    HistogramTimerScope incremental_marking_scope(
-        heap_->isolate()->counters()->gc_incremental_marking());
-    TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
-    double start = heap_->MonotonicallyIncreasingTimeInMs();
-
     // The marking speed is driven either by the allocation rate or by the rate
     // at which we are having to check the color of objects in the write
     // barrier.
@@ -1222,73 +1184,83 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
     intptr_t bytes_to_process =
         marking_speed_ *
         Max(allocated_, write_barriers_invoked_since_last_step_);
-    allocated_ = 0;
-    write_barriers_invoked_since_last_step_ = 0;
-
-    bytes_scanned_ += bytes_to_process;
-
-    if (state_ == SWEEPING) {
-      TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL_SWEEPING);
-      FinalizeSweeping();
-    }
-
-    if (state_ == MARKING) {
-      const bool incremental_wrapper_tracing =
-          FLAG_incremental_marking_wrappers && heap_->UsingEmbedderHeapTracer();
-      const bool process_wrappers =
-          incremental_wrapper_tracing &&
-          (heap_->mark_compact_collector()
-               ->RequiresImmediateWrapperProcessing() ||
-           heap_->mark_compact_collector()->marking_deque()->IsEmpty());
-      bool wrapper_work_left = incremental_wrapper_tracing;
-      if (!process_wrappers) {
-        bytes_processed = ProcessMarkingDeque(bytes_to_process);
-      } else {
-        const double kWrapperTracngStepMs = 1.0;
-        const double wrapper_deadline =
-            heap_->MonotonicallyIncreasingTimeInMs() + kWrapperTracngStepMs;
-        TRACE_GC(heap()->tracer(),
-                 GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
-        heap_->mark_compact_collector()
-            ->RegisterWrappersWithEmbedderHeapTracer();
-        wrapper_work_left =
-            heap_->mark_compact_collector()
-                ->embedder_heap_tracer()
-                ->AdvanceTracing(wrapper_deadline,
-                                 EmbedderHeapTracer::AdvanceTracingActions(
-                                     EmbedderHeapTracer::ForceCompletionAction::
-                                         DO_NOT_FORCE_COMPLETION));
-      }
-
-      if (heap_->mark_compact_collector()->marking_deque()->IsEmpty() &&
-          !wrapper_work_left) {
-        if (completion == FORCE_COMPLETION ||
-            IsIdleMarkingDelayCounterLimitReached()) {
-          if (!finalize_marking_completed_) {
-            FinalizeMarking(action);
-          } else {
-            MarkingComplete(action);
-          }
-        } else {
-          IncrementIdleMarkingDelayCounter();
-        }
-      }
-    }
-
-    steps_count_++;
-
-    // Speed up marking if we are marking too slow or if we are almost done
-    // with marking.
-    SpeedUp();
-
-    double end = heap_->MonotonicallyIncreasingTimeInMs();
-    double duration = (end - start);
-    // Note that we report zero bytes here when sweeping was in progress or
-    // when we just started incremental marking. In these cases we did not
-    // process the marking deque.
-    heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
+    Step(bytes_to_process, GC_VIA_STACK_GUARD, FORCE_COMPLETION);
   }
-  return bytes_processed;
+}
+
+void IncrementalMarking::Step(intptr_t bytes_to_process,
+                              CompletionAction action,
+                              ForceCompletionAction completion) {
+  HistogramTimerScope incremental_marking_scope(
+      heap_->isolate()->counters()->gc_incremental_marking());
+  TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
+  double start = heap_->MonotonicallyIncreasingTimeInMs();
+
+  bytes_scanned_ += bytes_to_process;
+
+  allocated_ = 0;
+  write_barriers_invoked_since_last_step_ = 0;
+
+  if (state_ == SWEEPING) {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL_SWEEPING);
+    FinalizeSweeping();
+  }
+
+  intptr_t bytes_processed = 0;
+  if (state_ == MARKING) {
+    const bool incremental_wrapper_tracing =
+        FLAG_incremental_marking_wrappers && heap_->UsingEmbedderHeapTracer();
+    const bool process_wrappers =
+        incremental_wrapper_tracing &&
+        (heap_->mark_compact_collector()
+             ->RequiresImmediateWrapperProcessing() ||
+         heap_->mark_compact_collector()->marking_deque()->IsEmpty());
+    bool wrapper_work_left = incremental_wrapper_tracing;
+    if (!process_wrappers) {
+      bytes_processed = ProcessMarkingDeque(bytes_to_process);
+    } else {
+      const double wrapper_deadline =
+          heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
+      heap_->mark_compact_collector()->RegisterWrappersWithEmbedderHeapTracer();
+      wrapper_work_left =
+          heap_->mark_compact_collector()
+              ->embedder_heap_tracer()
+              ->AdvanceTracing(wrapper_deadline,
+                               EmbedderHeapTracer::AdvanceTracingActions(
+                                   EmbedderHeapTracer::ForceCompletionAction::
+                                       DO_NOT_FORCE_COMPLETION));
+    }
+
+    if (heap_->mark_compact_collector()->marking_deque()->IsEmpty() &&
+        !wrapper_work_left) {
+      if (completion == FORCE_COMPLETION ||
+          IsIdleMarkingDelayCounterLimitReached()) {
+        if (!finalize_marking_completed_) {
+          FinalizeMarking(action);
+        } else {
+          MarkingComplete(action);
+        }
+      } else {
+        IncrementIdleMarkingDelayCounter();
+      }
+    }
+  }
+
+  steps_count_++;
+
+  // Speed up marking if we are marking too slow or if we are almost done
+  // with marking.
+  SpeedUp();
+
+  double end = heap_->MonotonicallyIncreasingTimeInMs();
+  double duration = (end - start);
+  // Note that we report zero bytes here when sweeping was in progress or
+  // when we just started incremental marking. In these cases we did not
+  // process the marking deque.
+  heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
 }
 
 

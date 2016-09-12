@@ -327,6 +327,9 @@ class Simulator {
   void DecodeType6(Instruction* instr);
   void DecodeType7(Instruction* instr);
 
+  // CP15 coprocessor instructions.
+  void DecodeTypeCP15(Instruction* instr);
+
   // Support for VFP.
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);

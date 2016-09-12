@@ -13,11 +13,11 @@ var ExpandReplacement;
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
+var GlobalRegExpPrototype;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MaxSimple;
 var MinSimple;
-var lastMatchInfoSymbol = utils.ImportNow("regexp_last_match_info_symbol");
 var matchSymbol = utils.ImportNow("match_symbol");
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
@@ -77,6 +77,37 @@ function PatternFlags(pattern) {
          (REGEXP_MULTILINE(pattern) ? 'm' : '') +
          (REGEXP_UNICODE(pattern) ? 'u' : '') +
          (REGEXP_STICKY(pattern) ? 'y' : '');
+}
+
+
+// ES#sec-regexp-pattern-flags
+// RegExp ( pattern, flags )
+function RegExpConstructor(pattern, flags) {
+  var newtarget = new.target;
+  var pattern_is_regexp = IsRegExp(pattern);
+
+  if (IS_UNDEFINED(newtarget)) {
+    newtarget = GlobalRegExp;
+
+    // ES6 section 21.2.3.1 step 3.b
+    if (pattern_is_regexp && IS_UNDEFINED(flags) &&
+        pattern.constructor === newtarget) {
+      return pattern;
+    }
+  }
+
+  if (IS_REGEXP(pattern)) {
+    if (IS_UNDEFINED(flags)) flags = PatternFlags(pattern);
+    pattern = REGEXP_SOURCE(pattern);
+
+  } else if (pattern_is_regexp) {
+    var input_pattern = pattern;
+    pattern = pattern.source;
+    if (IS_UNDEFINED(flags)) flags = input_pattern.flags;
+  }
+
+  var object = %_NewObject(GlobalRegExp, newtarget);
+  return RegExpInitialize(object, pattern, flags);
 }
 
 
@@ -173,9 +204,6 @@ function RegExpSubclassExecJS(string) {
   }
 
   // matchIndices is either null or the RegExpLastMatchInfo array.
-  // TODO(littledan): Whether a RegExp is sticky is compiled into the RegExp
-  // itself, but ES2015 allows monkey-patching this property to differ from
-  // the internal flags. If it differs, recompile a different RegExp?
   var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
 
   if (IS_NULL(matchIndices)) {
@@ -340,7 +368,7 @@ function RegExpToString() {
     throw %make_type_error(
         kIncompatibleMethodReceiver, 'RegExp.prototype.toString', this);
   }
-  if (this === GlobalRegExp.prototype) {
+  if (this === GlobalRegExpPrototype) {
     %IncrementUseCounter(kRegExpPrototypeToString);
   }
   return '/' + TO_STRING(this.source) + '/' + TO_STRING(this.flags);
@@ -356,10 +384,9 @@ function AtSurrogatePair(subject, index) {
 }
 
 
-// Legacy implementation of RegExp.prototype[Symbol.split] which
+// Fast path implementation of RegExp.prototype[Symbol.split] which
 // doesn't properly call the underlying exec, @@species methods
 function RegExpSplit(string, limit) {
-  // TODO(yangguo): allow non-regexp receivers.
   if (!IS_REGEXP(this)) {
     throw %make_type_error(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@split", this);
@@ -442,11 +469,8 @@ function RegExpSubclassSplit(string, limit) {
   var constructor = SpeciesConstructor(this, GlobalRegExp);
   var flags = TO_STRING(this.flags);
 
-  // TODO(adamk): this fast path is wrong with respect to this.global
-  // and this.sticky, but hopefully the spec will remove those gets
-  // and thus make the assumption of 'exec' having no side-effects
-  // more correct. Also, we doesn't ensure that 'exec' is actually
-  // a data property on RegExp.prototype.
+  // TODO(adamk): this fast path is wrong as we doesn't ensure that 'exec'
+  // is actually a data property on RegExp.prototype.
   var exec;
   if (IS_REGEXP(this) && constructor === GlobalRegExp) {
     exec = this.exec;
@@ -838,12 +862,8 @@ function RegExpSubclassReplace(string, replace) {
     this.lastIndex = 0;
   }
 
-  // TODO(adamk): this fast path is wrong with respect to this.global
-  // and this.sticky, but hopefully the spec will remove those gets
-  // and thus make the assumption of 'exec' having no side-effects
-  // more correct. Also, we doesn't ensure that 'exec' is actually
-  // a data property on RegExp.prototype, nor does the fast path
-  // correctly handle lastIndex setting.
+  // TODO(adamk): this fast path is wrong as we doesn't ensure that 'exec'
+  // is actually a data property on RegExp.prototype.
   var exec;
   if (IS_REGEXP(this)) {
     exec = this.exec;
@@ -924,7 +944,179 @@ function RegExpSubclassSearch(string) {
 %FunctionRemovePrototype(RegExpSubclassSearch);
 
 
+// Getters for the static properties lastMatch, lastParen, leftContext, and
+// rightContext of the RegExp constructor.  The properties are computed based
+// on the captures array of the last successful match and the subject string
+// of the last successful match.
+function RegExpGetLastMatch() {
+  var regExpSubject = LAST_SUBJECT(RegExpLastMatchInfo);
+  return %_SubString(regExpSubject,
+                     RegExpLastMatchInfo[CAPTURE0],
+                     RegExpLastMatchInfo[CAPTURE1]);
+}
+
+
+function RegExpGetLastParen() {
+  var length = NUMBER_OF_CAPTURES(RegExpLastMatchInfo);
+  if (length <= 2) return '';  // There were no captures.
+  // We match the SpiderMonkey behavior: return the substring defined by the
+  // last pair (after the first pair) of elements of the capture array even if
+  // it is empty.
+  var regExpSubject = LAST_SUBJECT(RegExpLastMatchInfo);
+  var start = RegExpLastMatchInfo[CAPTURE(length - 2)];
+  var end = RegExpLastMatchInfo[CAPTURE(length - 1)];
+  if (start != -1 && end != -1) {
+    return %_SubString(regExpSubject, start, end);
+  }
+  return "";
+}
+
+
+function RegExpGetLeftContext() {
+  var start_index;
+  var subject;
+  start_index = RegExpLastMatchInfo[CAPTURE0];
+  subject = LAST_SUBJECT(RegExpLastMatchInfo);
+  return %_SubString(subject, 0, start_index);
+}
+
+
+function RegExpGetRightContext() {
+  var start_index;
+  var subject;
+  start_index = RegExpLastMatchInfo[CAPTURE1];
+  subject = LAST_SUBJECT(RegExpLastMatchInfo);
+  return %_SubString(subject, start_index, subject.length);
+}
+
+
+// The properties $1..$9 are the first nine capturing substrings of the last
+// successful match, or ''.  The function RegExpMakeCaptureGetter will be
+// called with indices from 1 to 9.
+function RegExpMakeCaptureGetter(n) {
+  return function foo() {
+    var index = n * 2;
+    if (index >= NUMBER_OF_CAPTURES(RegExpLastMatchInfo)) return '';
+    var matchStart = RegExpLastMatchInfo[CAPTURE(index)];
+    var matchEnd = RegExpLastMatchInfo[CAPTURE(index + 1)];
+    if (matchStart == -1 || matchEnd == -1) return '';
+    return %_SubString(LAST_SUBJECT(RegExpLastMatchInfo), matchStart, matchEnd);
+  };
+}
+
+
+// ES6 21.2.5.3.
+function RegExpGetFlags() {
+  if (!IS_RECEIVER(this)) {
+    throw %make_type_error(
+        kRegExpNonObject, "RegExp.prototype.flags", TO_STRING(this));
+  }
+  var result = '';
+  if (this.global) result += 'g';
+  if (this.ignoreCase) result += 'i';
+  if (this.multiline) result += 'm';
+  if (this.unicode) result += 'u';
+  if (this.sticky) result += 'y';
+  return result;
+}
+
+
+// ES6 21.2.5.4.
+function RegExpGetGlobal() {
+  if (!IS_REGEXP(this)) {
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
+      return UNDEFINED;
+    }
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.global");
+  }
+  return TO_BOOLEAN(REGEXP_GLOBAL(this));
+}
+%SetForceInlineFlag(RegExpGetGlobal);
+
+
+// ES6 21.2.5.5.
+function RegExpGetIgnoreCase() {
+  if (!IS_REGEXP(this)) {
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
+      return UNDEFINED;
+    }
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.ignoreCase");
+  }
+  return TO_BOOLEAN(REGEXP_IGNORE_CASE(this));
+}
+
+
+// ES6 21.2.5.7.
+function RegExpGetMultiline() {
+  if (!IS_REGEXP(this)) {
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
+      return UNDEFINED;
+    }
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.multiline");
+  }
+  return TO_BOOLEAN(REGEXP_MULTILINE(this));
+}
+
+
+// ES6 21.2.5.10.
+function RegExpGetSource() {
+  if (!IS_REGEXP(this)) {
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeSourceGetter);
+      return "(?:)";
+    }
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.source");
+  }
+  return REGEXP_SOURCE(this);
+}
+
+
+// ES6 21.2.5.12.
+function RegExpGetSticky() {
+  if (!IS_REGEXP(this)) {
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeStickyGetter);
+      return UNDEFINED;
+    }
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.sticky");
+  }
+  return TO_BOOLEAN(REGEXP_STICKY(this));
+}
+%SetForceInlineFlag(RegExpGetSticky);
+
+
+// ES6 21.2.5.15.
+function RegExpGetUnicode() {
+  if (!IS_REGEXP(this)) {
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeUnicodeGetter);
+      return UNDEFINED;
+    }
+    throw %make_type_error(kRegExpNonRegExp, "RegExp.prototype.unicode");
+  }
+  return TO_BOOLEAN(REGEXP_UNICODE(this));
+}
+%SetForceInlineFlag(RegExpGetUnicode);
+
+
+function RegExpSpecies() {
+  return this;
+}
+
+
 // -------------------------------------------------------------------
+
+%FunctionSetInstanceClassName(GlobalRegExp, 'RegExp');
+GlobalRegExpPrototype = new GlobalObject();
+%FunctionSetPrototype(GlobalRegExp, GlobalRegExpPrototype);
+%AddNamedProperty(
+    GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
+%SetCode(GlobalRegExp, RegExpConstructor);
+
+utils.InstallGetter(GlobalRegExp, speciesSymbol, RegExpSpecies);
 
 utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "exec", RegExpSubclassExecJS,
@@ -937,8 +1129,67 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   splitSymbol, RegExpSubclassSplit,
 ]);
 
-// Temporary until all RegExpLastMatchInfo accesses are ported to C++.
-SET_PRIVATE(GlobalRegExp, lastMatchInfoSymbol, RegExpLastMatchInfo);
+utils.InstallGetter(GlobalRegExp.prototype, 'flags', RegExpGetFlags);
+utils.InstallGetter(GlobalRegExp.prototype, 'global', RegExpGetGlobal);
+utils.InstallGetter(GlobalRegExp.prototype, 'ignoreCase', RegExpGetIgnoreCase);
+utils.InstallGetter(GlobalRegExp.prototype, 'multiline', RegExpGetMultiline);
+utils.InstallGetter(GlobalRegExp.prototype, 'source', RegExpGetSource);
+utils.InstallGetter(GlobalRegExp.prototype, 'sticky', RegExpGetSticky);
+utils.InstallGetter(GlobalRegExp.prototype, 'unicode', RegExpGetUnicode);
+
+// The properties `input` and `$_` are aliases for each other.  When this
+// value is set the value it is set to is coerced to a string.
+// Getter and setter for the input.
+var RegExpGetInput = function() {
+  var regExpInput = LAST_INPUT(RegExpLastMatchInfo);
+  return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
+};
+var RegExpSetInput = function(string) {
+  LAST_INPUT(RegExpLastMatchInfo) = TO_STRING(string);
+};
+
+// TODO(jgruber): All of these getters and setters were intended to be installed
+// with various attributes (e.g. DONT_ENUM | DONT_DELETE), but
+// InstallGetterSetter had a bug which ignored the passed attributes and
+// simply installed as DONT_ENUM instead. We might want to change back
+// to the intended attributes at some point.
+// On the other hand, installing attributes as DONT_ENUM matches the draft
+// specification at
+// https://github.com/claudepache/es-regexp-legacy-static-properties
+
+%OptimizeObjectForAddingMultipleProperties(GlobalRegExp, 22);
+utils.InstallGetterSetter(GlobalRegExp, 'input', RegExpGetInput, RegExpSetInput,
+                          DONT_ENUM);
+utils.InstallGetterSetter(GlobalRegExp, '$_', RegExpGetInput, RegExpSetInput,
+                          DONT_ENUM);
+
+
+var NoOpSetter = function(ignored) {};
+
+
+// Static properties set by a successful match.
+utils.InstallGetterSetter(GlobalRegExp, 'lastMatch', RegExpGetLastMatch,
+                          NoOpSetter, DONT_ENUM);
+utils.InstallGetterSetter(GlobalRegExp, '$&', RegExpGetLastMatch, NoOpSetter,
+                          DONT_ENUM);
+utils.InstallGetterSetter(GlobalRegExp, 'lastParen', RegExpGetLastParen,
+                          NoOpSetter, DONT_ENUM);
+utils.InstallGetterSetter(GlobalRegExp, '$+', RegExpGetLastParen, NoOpSetter,
+                          DONT_ENUM);
+utils.InstallGetterSetter(GlobalRegExp, 'leftContext', RegExpGetLeftContext,
+                          NoOpSetter, DONT_ENUM);
+utils.InstallGetterSetter(GlobalRegExp, '$`', RegExpGetLeftContext, NoOpSetter,
+                          DONT_ENUM);
+utils.InstallGetterSetter(GlobalRegExp, 'rightContext', RegExpGetRightContext,
+                          NoOpSetter, DONT_ENUM);
+utils.InstallGetterSetter(GlobalRegExp, "$'", RegExpGetRightContext, NoOpSetter,
+                          DONT_ENUM);
+
+for (var i = 1; i < 10; ++i) {
+  utils.InstallGetterSetter(GlobalRegExp, '$' + i, RegExpMakeCaptureGetter(i),
+                            NoOpSetter, DONT_ENUM);
+}
+%ToFastProperties(GlobalRegExp);
 
 // -------------------------------------------------------------------
 // Internal

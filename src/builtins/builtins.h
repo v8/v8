@@ -129,6 +129,7 @@ namespace internal {
   ASM(InterpreterPushArgsAndTailCallFunction)                                 \
   ASM(InterpreterPushArgsAndConstruct)                                        \
   ASM(InterpreterPushArgsAndConstructFunction)                                \
+  ASM(InterpreterPushArgsAndConstructArray)                                   \
   ASM(InterpreterEnterBytecodeDispatch)                                       \
   ASM(InterpreterOnStackReplacement)                                          \
                                                                               \
@@ -182,6 +183,7 @@ namespace internal {
   TFS(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState,               \
       TypeConversion)                                                         \
   TFS(StringToNumber, BUILTIN, kNoExtraICState, TypeConversion)               \
+  TFS(ToName, BUILTIN, kNoExtraICState, TypeConversion)                       \
   TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
   ASM(ToNumber)                                                               \
                                                                               \
@@ -361,16 +363,18 @@ namespace internal {
   TFJ(GeneratorPrototypeThrow, 2)                                             \
   CPP(AsyncFunctionConstructor)                                               \
                                                                               \
-  /* Encode and decode */                                                     \
+  /* Global object */                                                         \
   CPP(GlobalDecodeURI)                                                        \
   CPP(GlobalDecodeURIComponent)                                               \
   CPP(GlobalEncodeURI)                                                        \
   CPP(GlobalEncodeURIComponent)                                               \
   CPP(GlobalEscape)                                                           \
   CPP(GlobalUnescape)                                                         \
-                                                                              \
-  /* Eval */                                                                  \
   CPP(GlobalEval)                                                             \
+  /* ES6 section 18.2.2 isFinite ( number ) */                                \
+  TFJ(GlobalIsFinite, 2)                                                      \
+  /* ES6 section 18.2.3 isNaN ( number ) */                                   \
+  TFJ(GlobalIsNaN, 2)                                                         \
                                                                               \
   /* JSON */                                                                  \
   CPP(JsonParse)                                                              \
@@ -451,6 +455,14 @@ namespace internal {
   ASM(NumberConstructor)                                                      \
   /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case */  \
   ASM(NumberConstructor_ConstructStub)                                        \
+  /* ES6 section 20.1.2.2 Number.isFinite ( number ) */                       \
+  TFJ(NumberIsFinite, 2)                                                      \
+  /* ES6 section 20.1.2.3 Number.isInteger ( number ) */                      \
+  TFJ(NumberIsInteger, 2)                                                     \
+  /* ES6 section 20.1.2.4 Number.isNaN ( number ) */                          \
+  TFJ(NumberIsNaN, 2)                                                         \
+  /* ES6 section 20.1.2.5 Number.isSafeInteger ( number ) */                  \
+  TFJ(NumberIsSafeInteger, 2)                                                 \
   CPP(NumberPrototypeToExponential)                                           \
   CPP(NumberPrototypeToFixed)                                                 \
   CPP(NumberPrototypeToLocaleString)                                          \
@@ -507,32 +519,6 @@ namespace internal {
   CPP(ReflectPreventExtensions)                                               \
   CPP(ReflectSet)                                                             \
   CPP(ReflectSetPrototypeOf)                                                  \
-                                                                              \
-  /* RegExp */                                                                \
-  CPP(RegExpConstructor)                                                      \
-  CPP(RegExpPrototypeCapture1Getter)                                          \
-  CPP(RegExpPrototypeCapture2Getter)                                          \
-  CPP(RegExpPrototypeCapture3Getter)                                          \
-  CPP(RegExpPrototypeCapture4Getter)                                          \
-  CPP(RegExpPrototypeCapture5Getter)                                          \
-  CPP(RegExpPrototypeCapture6Getter)                                          \
-  CPP(RegExpPrototypeCapture7Getter)                                          \
-  CPP(RegExpPrototypeCapture8Getter)                                          \
-  CPP(RegExpPrototypeCapture9Getter)                                          \
-  CPP(RegExpPrototypeFlagsGetter)                                             \
-  CPP(RegExpPrototypeGlobalGetter)                                            \
-  CPP(RegExpPrototypeIgnoreCaseGetter)                                        \
-  CPP(RegExpPrototypeInputGetter)                                             \
-  CPP(RegExpPrototypeInputSetter)                                             \
-  CPP(RegExpPrototypeLastMatchGetter)                                         \
-  CPP(RegExpPrototypeLastParenGetter)                                         \
-  CPP(RegExpPrototypeLeftContextGetter)                                       \
-  CPP(RegExpPrototypeMultilineGetter)                                         \
-  CPP(RegExpPrototypeRightContextGetter)                                      \
-  CPP(RegExpPrototypeSourceGetter)                                            \
-  CPP(RegExpPrototypeSpeciesGetter)                                           \
-  CPP(RegExpPrototypeStickyGetter)                                            \
-  CPP(RegExpPrototypeUnicodeGetter)                                           \
                                                                               \
   /* SharedArrayBuffer */                                                     \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                \

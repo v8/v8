@@ -18,8 +18,6 @@
 #include "src/inspector/V8RuntimeAgentImpl.h"
 #include "src/inspector/V8SchemaAgentImpl.h"
 #include "src/inspector/protocol/Protocol.h"
-#include "src/inspector/public/V8ContextInfo.h"
-#include "src/inspector/public/V8InspectorClient.h"
 
 namespace v8_inspector {
 

@@ -9,8 +9,8 @@
 #include "src/inspector/V8Console.h"
 #include "src/inspector/V8InspectorImpl.h"
 #include "src/inspector/V8ValueCopier.h"
-#include "src/inspector/public/V8ContextInfo.h"
-#include "src/inspector/public/V8InspectorClient.h"
+
+#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 

@@ -107,7 +107,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateBlockContext(factory->NewScopeInfo(1));
   builder.CreateCatchContext(reg, name, factory->NewScopeInfo(1));
   builder.CreateFunctionContext(1);
-  builder.CreateWithContext(reg);
+  builder.CreateWithContext(reg, factory->NewScopeInfo(1));
 
   // Emit literal creation operations.
   builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0)

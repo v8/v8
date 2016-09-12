@@ -3220,8 +3220,8 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   int32_t new_dominator_size = dominator_size_constant + current_size_max_value;
 
   // Since we clear the first word after folded memory, we cannot use the
-  // whole Page::kMaxRegularHeapObjectSize memory.
-  if (new_dominator_size > Page::kMaxRegularHeapObjectSize - kPointerSize) {
+  // whole kMaxRegularHeapObjectSize memory.
+  if (new_dominator_size > kMaxRegularHeapObjectSize - kPointerSize) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s) due to size: %d\n",
           id(), Mnemonic(), dominator_allocate->id(),

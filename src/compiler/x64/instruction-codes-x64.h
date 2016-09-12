@@ -128,6 +128,7 @@ namespace compiler {
   V(X64Movzxwq)                    \
   V(X64Movw)                       \
   V(X64Movl)                       \
+  V(X64TrapMovl)                   \
   V(X64Movsxlq)                    \
   V(X64Movq)                       \
   V(X64Movsd)                      \

@@ -9,6 +9,7 @@
 #include <iosfwd>
 
 #include "src/allocation.h"
+#include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/bit-vector.h"
 #include "src/code-stubs.h"
@@ -36,6 +37,7 @@ class HStoreNamedField;
 class HValue;
 class LInstruction;
 class LChunkBuilder;
+class SmallMapList;
 
 #define HYDROGEN_ABSTRACT_INSTRUCTION_LIST(V) \
   V(ArithmeticBinaryOperation)                \

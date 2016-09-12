@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/bit-vector.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
@@ -555,7 +556,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void EmitClassDefineProperties(ClassLiteral* lit);
 
   // Pushes the property key as a Name on the stack.
-  void EmitPropertyKey(ObjectLiteralProperty* property, BailoutId bailout_id);
+  void EmitPropertyKey(LiteralProperty* property, BailoutId bailout_id);
 
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
@@ -622,6 +623,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void CallLoadGlobalIC(TypeofMode typeof_mode,
                         TypeFeedbackId id = TypeFeedbackId::None());
   void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
+  void CallKeyedStoreIC();
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);

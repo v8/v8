@@ -3,7 +3,6 @@
 #
 
 ---
-pool type: mixed
 execute: yes
 wrap: yes
 
@@ -16,11 +15,11 @@ parameter count: 1
 bytecode array length: 6
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(3),
+  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(1),
   /*   51 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -36,7 +35,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(3),
+  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(1),
@@ -50,7 +49,7 @@ bytecodes: [
   /*   66 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -64,11 +63,11 @@ parameter count: 1
 bytecode array length: 6
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(2), U8(2),
+  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(2), U8(0),
   /*   62 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -84,11 +83,11 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(2), U8(2),
+  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(2), U8(0),
                 B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(1),
-                B(CreateArrayLiteral), U8(1), U8(0), U8(3),
+                B(CreateArrayLiteral), U8(1), U8(0), U8(1),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(3),
@@ -98,7 +97,7 @@ bytecodes: [
                 B(StaKeyedPropertySloppy), R(2), R(1), U8(6),
                 B(LdaSmi), U8(1),
                 B(Star), R(1),
-                B(CreateArrayLiteral), U8(2), U8(1), U8(3),
+                B(CreateArrayLiteral), U8(2), U8(1), U8(1),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(3),
@@ -110,9 +109,9 @@ bytecodes: [
   /*   77 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]

@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-#if V8_LIBC_GLIBC || V8_OS_BSD
+#if V8_LIBC_GLIBC || V8_OS_BSD || V8_LIBC_UCLIBC
 #include <cxxabi.h>
 #include <execinfo.h>
 #endif
@@ -77,7 +77,7 @@ void DemangleSymbols(std::string* text) {
   // Note: code in this function is NOT async-signal safe (std::string uses
   // malloc internally).
 
-#if V8_LIBC_GLIBC || V8_OS_BSD
+#if V8_LIBC_GLIBC || V8_OS_BSD || V8_LIBC_UCLIBC
 
   std::string::size_type search_from = 0;
   while (search_from < text->size()) {
@@ -114,7 +114,7 @@ void DemangleSymbols(std::string* text) {
     }
   }
 
-#endif  // V8_LIBC_GLIBC || V8_OS_BSD
+#endif  // V8_LIBC_GLIBC || V8_OS_BSD || V8_LIBC_UCLIBC
 }
 
 class BacktraceOutputHandler {

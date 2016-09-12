@@ -16,9 +16,8 @@
 #include "src/base/atomic-utils.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
-// TODO(mstarzinger): One more include to kill!
-#include "src/heap/spaces.h"
 #include "src/list.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -324,100 +323,86 @@ class HeapObjectsFilter;
 class HeapStats;
 class HistogramTimer;
 class Isolate;
+class MemoryAllocator;
 class MemoryReducer;
+class ObjectIterator;
 class ObjectStats;
+class Page;
+class PagedSpace;
 class Scavenger;
 class ScavengeJob;
+class Space;
 class StoreBuffer;
 class WeakObjectRetainer;
 
-enum PromotionMode { PROMOTE_MARKED, DEFAULT_PROMOTION };
-
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
-// A queue of objects promoted during scavenge. Each object is accompanied
-// by it's size to avoid dereferencing a map pointer for scanning.
-// The last page in to-space is used for the promotion queue. On conflict
-// during scavenge, the promotion queue is allocated externally and all
-// entries are copied to the external queue.
+enum PromotionMode { PROMOTE_MARKED, DEFAULT_PROMOTION };
+
+enum ArrayStorageAllocationMode {
+  DONT_INITIALIZE_ARRAY_ELEMENTS,
+  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+};
+
+enum class ClearRecordedSlots { kYes, kNo };
+
+enum class ClearBlackArea { kYes, kNo };
+
+enum class GarbageCollectionReason {
+  kUnknown = 0,
+  kAllocationFailure = 1,
+  kAllocationLimit = 2,
+  kContextDisposal = 3,
+  kCountersExtension = 4,
+  kDebugger = 5,
+  kDeserializer = 6,
+  kExternalMemoryPressure = 7,
+  kFinalizeMarkingViaStackGuard = 8,
+  kFinalizeMarkingViaTask = 9,
+  kFullHashtable = 10,
+  kHeapProfiler = 11,
+  kIdleTask = 12,
+  kLastResort = 13,
+  kLowMemoryNotification = 14,
+  kMakeHeapIterable = 15,
+  kMemoryPressure = 16,
+  kMemoryReducer = 17,
+  kRuntime = 18,
+  kSamplingProfiler = 19,
+  kSnapshotCreator = 20,
+  kTesting = 21
+  // If you add new items here, then update the incremental_marking_reason,
+  // mark_compact_reason, and scavenge_reason counters in counters.h.
+  // Also update src/tools/metrics/histograms/histograms.xml in chromium.
+};
+
+// A queue of objects promoted during scavenge. Each object is accompanied by
+// its size to avoid dereferencing a map pointer for scanning. The last page in
+// to-space is used for the promotion queue. On conflict during scavenge, the
+// promotion queue is allocated externally and all entries are copied to the
+// external queue.
 class PromotionQueue {
  public:
   explicit PromotionQueue(Heap* heap)
-      : front_(NULL),
-        rear_(NULL),
-        limit_(NULL),
-        emergency_stack_(0),
+      : front_(nullptr),
+        rear_(nullptr),
+        limit_(nullptr),
+        emergency_stack_(nullptr),
         heap_(heap) {}
 
   void Initialize();
+  void Destroy();
 
-  void Destroy() {
-    DCHECK(is_empty());
-    delete emergency_stack_;
-    emergency_stack_ = NULL;
-  }
+  inline void SetNewLimit(Address limit);
+  inline bool IsBelowPromotionQueue(Address to_space_top);
 
-  Page* GetHeadPage() {
-    return Page::FromAllocationAreaAddress(reinterpret_cast<Address>(rear_));
-  }
-
-  void SetNewLimit(Address limit) {
-    // If we are already using an emergency stack, we can ignore it.
-    if (emergency_stack_) return;
-
-    // If the limit is not on the same page, we can ignore it.
-    if (Page::FromAllocationAreaAddress(limit) != GetHeadPage()) return;
-
-    limit_ = reinterpret_cast<struct Entry*>(limit);
-
-    if (limit_ <= rear_) {
-      return;
-    }
-
-    RelocateQueueHead();
-  }
-
-  bool IsBelowPromotionQueue(Address to_space_top) {
-    // If an emergency stack is used, the to-space address cannot interfere
-    // with the promotion queue.
-    if (emergency_stack_) return true;
-
-    // If the given to-space top pointer and the head of the promotion queue
-    // are not on the same page, then the to-space objects are below the
-    // promotion queue.
-    if (GetHeadPage() != Page::FromAddress(to_space_top)) {
-      return true;
-    }
-    // If the to space top pointer is smaller or equal than the promotion
-    // queue head, then the to-space objects are below the promotion queue.
-    return reinterpret_cast<struct Entry*>(to_space_top) <= rear_;
-  }
+  inline void insert(HeapObject* target, int32_t size, bool was_marked_black);
+  inline void remove(HeapObject** target, int32_t* size,
+                     bool* was_marked_black);
 
   bool is_empty() {
     return (front_ == rear_) &&
-           (emergency_stack_ == NULL || emergency_stack_->length() == 0);
-  }
-
-  inline void insert(HeapObject* target, int32_t size, bool was_marked_black);
-
-  void remove(HeapObject** target, int32_t* size, bool* was_marked_black) {
-    DCHECK(!is_empty());
-    if (front_ == rear_) {
-      Entry e = emergency_stack_->RemoveLast();
-      *target = e.obj_;
-      *size = e.size_;
-      *was_marked_black = e.was_marked_black_;
-      return;
-    }
-
-    struct Entry* entry = reinterpret_cast<struct Entry*>(--front_);
-    *target = entry->obj_;
-    *size = entry->size_;
-    *was_marked_black = entry->was_marked_black_;
-
-    // Assert no underflow.
-    SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
-                                reinterpret_cast<Address>(front_));
+           (emergency_stack_ == nullptr || emergency_stack_->length() == 0);
   }
 
  private:
@@ -430,6 +415,8 @@ class PromotionQueue {
     bool was_marked_black_ : 1;
   };
 
+  inline Page* GetHeadPage();
+
   void RelocateQueueHead();
 
   // The front of the queue is higher in the memory page chain than the rear.
@@ -438,21 +425,99 @@ class PromotionQueue {
   struct Entry* limit_;
 
   List<Entry>* emergency_stack_;
-
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };
 
+class AllocationResult {
+ public:
+  // Implicit constructor from Object*.
+  AllocationResult(Object* object)  // NOLINT
+      : object_(object) {
+    // AllocationResults can't return Smis, which are used to represent
+    // failure and the space to retry in.
+    CHECK(!object->IsSmi());
+  }
 
-enum ArrayStorageAllocationMode {
-  DONT_INITIALIZE_ARRAY_ELEMENTS,
-  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+  AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
+
+  static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
+    return AllocationResult(space);
+  }
+
+  inline bool IsRetry() { return object_->IsSmi(); }
+
+  template <typename T>
+  bool To(T** obj) {
+    if (IsRetry()) return false;
+    *obj = T::cast(object_);
+    return true;
+  }
+
+  Object* ToObjectChecked() {
+    CHECK(!IsRetry());
+    return object_;
+  }
+
+  inline AllocationSpace RetrySpace();
+
+ private:
+  explicit AllocationResult(AllocationSpace space)
+      : object_(Smi::FromInt(static_cast<int>(space))) {}
+
+  Object* object_;
 };
 
-enum class ClearRecordedSlots { kYes, kNo };
+STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
 
-enum class ClearBlackArea { kYes, kNo };
+#ifdef DEBUG
+struct CommentStatistic {
+  const char* comment;
+  int size;
+  int count;
+  void Clear() {
+    comment = NULL;
+    size = 0;
+    count = 0;
+  }
+  // Must be small, since an iteration is used for lookup.
+  static const int kMaxComments = 64;
+};
+#endif
+
+class NumberAndSizeInfo BASE_EMBEDDED {
+ public:
+  NumberAndSizeInfo() : number_(0), bytes_(0) {}
+
+  int number() const { return number_; }
+  void increment_number(int num) { number_ += num; }
+
+  int bytes() const { return bytes_; }
+  void increment_bytes(int size) { bytes_ += size; }
+
+  void clear() {
+    number_ = 0;
+    bytes_ = 0;
+  }
+
+ private:
+  int number_;
+  int bytes_;
+};
+
+// HistogramInfo class for recording a single "bar" of a histogram.  This
+// class is used for collecting statistics to print to the log file.
+class HistogramInfo : public NumberAndSizeInfo {
+ public:
+  HistogramInfo() : NumberAndSizeInfo(), name_(nullptr) {}
+
+  const char* name() { return name_; }
+  void set_name(const char* name) { name_ = name; }
+
+ private:
+  const char* name_;
+};
 
 class Heap {
  public:
@@ -645,19 +710,10 @@ class Heap {
 
   bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
 
-  Address* NewSpaceAllocationTopAddress() {
-    return new_space_.allocation_top_address();
-  }
-  Address* NewSpaceAllocationLimitAddress() {
-    return new_space_.allocation_limit_address();
-  }
-
-  Address* OldSpaceAllocationTopAddress() {
-    return old_space_->allocation_top_address();
-  }
-  Address* OldSpaceAllocationLimitAddress() {
-    return old_space_->allocation_limit_address();
-  }
+  inline Address* NewSpaceAllocationTopAddress();
+  inline Address* NewSpaceAllocationLimitAddress();
+  inline Address* OldSpaceAllocationTopAddress();
+  inline Address* OldSpaceAllocationLimitAddress();
 
   bool CanExpandOldGeneration(int size) {
     if (force_oom_) return false;
@@ -786,17 +842,7 @@ class Heap {
   // Check new space expansion criteria and expand semispaces if it was hit.
   void CheckNewSpaceExpansionCriteria();
 
-  inline bool HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit) {
-    if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
-
-    intptr_t adjusted_allocation_limit = limit - new_space_.Capacity();
-
-    if (PromotedTotalSize() >= adjusted_allocation_limit) return true;
-
-    if (HighMemoryPressure()) return true;
-
-    return false;
-  }
+  inline bool HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit);
 
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
 
@@ -857,9 +903,7 @@ class Heap {
 
   void DeoptMarkedAllocationSites();
 
-  bool DeoptMaybeTenuredAllocationSites() {
-    return new_space_.IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
-  }
+  inline bool DeoptMaybeTenuredAllocationSites();
 
   void AddWeakNewSpaceObjectToCodeDependency(Handle<HeapObject> obj,
                                              Handle<WeakCell> code);
@@ -933,39 +977,16 @@ class Heap {
   // Getters for spaces. =======================================================
   // ===========================================================================
 
-  Address NewSpaceTop() { return new_space_.top(); }
+  inline Address NewSpaceTop();
 
-  NewSpace* new_space() { return &new_space_; }
+  NewSpace* new_space() { return new_space_; }
   OldSpace* old_space() { return old_space_; }
   OldSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
 
-  PagedSpace* paged_space(int idx) {
-    switch (idx) {
-      case OLD_SPACE:
-        return old_space();
-      case MAP_SPACE:
-        return map_space();
-      case CODE_SPACE:
-        return code_space();
-      case NEW_SPACE:
-      case LO_SPACE:
-        UNREACHABLE();
-    }
-    return NULL;
-  }
-
-  Space* space(int idx) {
-    switch (idx) {
-      case NEW_SPACE:
-        return new_space();
-      case LO_SPACE:
-        return lo_space();
-      default:
-        return paged_space(idx);
-    }
-  }
+  inline PagedSpace* paged_space(int idx);
+  inline Space* space(int idx);
 
   // Returns name of the space.
   const char* GetSpaceName(int idx);
@@ -1086,22 +1107,22 @@ class Heap {
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
   inline bool CollectGarbage(
-      AllocationSpace space, const char* gc_reason = NULL,
+      AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap
   // in a state where we can iterate over the heap visiting all objects.
   void CollectAllGarbage(
-      int flags = kFinalizeIncrementalMarkingMask, const char* gc_reason = NULL,
+      int flags, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Last hope GC, should try to squeeze as much as possible.
-  void CollectAllAvailableGarbage(const char* gc_reason = NULL);
+  void CollectAllAvailableGarbage(GarbageCollectionReason gc_reason);
 
   // Reports and external memory pressure event, either performs a major GC or
   // completes incremental marking in order to free external resources.
-  void ReportExternalMemoryPressure(const char* gc_reason = NULL);
+  void ReportExternalMemoryPressure();
 
   // Invoked when GC was requested via the stack guard.
   void HandleGCRequest();
@@ -1152,18 +1173,22 @@ class Heap {
 
   // Start incremental marking and ensure that idle time handler can perform
   // incremental steps.
-  void StartIdleIncrementalMarking();
+  void StartIdleIncrementalMarking(GarbageCollectionReason gc_reason);
 
   // Starts incremental marking assuming incremental marking is currently
   // stopped.
-  void StartIncrementalMarking(int gc_flags = kNoGCFlags,
-                               const GCCallbackFlags gc_callback_flags =
-                                   GCCallbackFlags::kNoGCCallbackFlags,
-                               const char* reason = nullptr);
+  void StartIncrementalMarking(
+      int gc_flags, GarbageCollectionReason gc_reason,
+      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
-  void FinalizeIncrementalMarkingIfComplete(const char* comment);
+  void StartIncrementalMarkingIfAllocationLimitIsReached(
+      int gc_flags,
+      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
-  bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms);
+  void FinalizeIncrementalMarkingIfComplete(GarbageCollectionReason gc_reason);
+
+  bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms,
+                                         GarbageCollectionReason gc_reason);
 
   void RegisterReservationsForBlackAllocation(Reservation* reservations);
 
@@ -1334,13 +1359,9 @@ class Heap {
     return static_cast<intptr_t>(total);
   }
 
-  void UpdateNewSpaceAllocationCounter() {
-    new_space_allocation_counter_ = NewSpaceAllocationCounter();
-  }
+  inline void UpdateNewSpaceAllocationCounter();
 
-  size_t NewSpaceAllocationCounter() {
-    return new_space_allocation_counter_ + new_space()->AllocatedSinceLastGC();
-  }
+  inline size_t NewSpaceAllocationCounter();
 
   // This should be used only for testing.
   void set_new_space_allocation_counter(size_t new_value) {
@@ -1463,6 +1484,9 @@ class Heap {
   void ReportHeapStatistics(const char* title);
   void ReportCodeStatistics(const char* title);
 #endif
+
+  static const char* GarbageCollectionReasonToString(
+      GarbageCollectionReason gc_reason);
 
  private:
   class PretenuringScope;
@@ -1619,7 +1643,7 @@ class Heap {
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
   bool CollectGarbage(
-      GarbageCollector collector, const char* gc_reason,
+      GarbageCollector collector, GarbageCollectionReason gc_reason,
       const char* collector_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
@@ -1658,7 +1682,7 @@ class Heap {
   void EnsureFromSpaceIsCommitted();
 
   // Uncommit unused semi space.
-  bool UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
+  bool UncommitFromSpace();
 
   // Fill in bogus values in from space
   void ZapFromSpace();
@@ -1694,10 +1718,6 @@ class Heap {
 
   void ReduceNewSpaceSize();
 
-  bool TryFinalizeIdleIncrementalMarking(
-      double idle_time_in_ms, size_t size_of_objects,
-      size_t mark_compact_speed_in_bytes_per_ms);
-
   GCIdleTimeHeapState ComputeHeapState();
 
   bool PerformIdleTimeAction(GCIdleTimeAction action,
@@ -1717,13 +1737,13 @@ class Heap {
 
   void CompactRetainedMaps(ArrayList* retained_maps);
 
-  void CollectGarbageOnMemoryPressure(const char* source);
+  void CollectGarbageOnMemoryPressure();
 
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete
   // marking. If we continue to mark incrementally, we might have marked
   // objects that die later.
-  void FinalizeIncrementalMarking(const char* gc_reason);
+  void FinalizeIncrementalMarking(GarbageCollectionReason gc_reason);
 
   // Returns the timer used for a given GC type.
   // - GCScavenger: young generation GC
@@ -1819,14 +1839,7 @@ class Heap {
   void SetOldGenerationAllocationLimit(intptr_t old_gen_size, double gc_speed,
                                        double mutator_speed);
 
-  intptr_t MinimumAllocationLimitGrowingStep() {
-    const double kRegularAllocationLimitGrowingStep = 8;
-    const double kLowMemoryAllocationLimitGrowingStep = 2;
-    intptr_t limit = (Page::kPageSize > MB ? Page::kPageSize : MB);
-    return limit * (ShouldOptimizeForMemoryUsage()
-                        ? kLowMemoryAllocationLimitGrowingStep
-                        : kRegularAllocationLimitGrowingStep);
-  }
+  intptr_t MinimumAllocationLimitGrowingStep();
 
   // ===========================================================================
   // Idle notification. ========================================================
@@ -2107,7 +2120,7 @@ class Heap {
 
   int global_ic_age_;
 
-  NewSpace new_space_;
+  NewSpace* new_space_;
   OldSpace* old_space_;
   OldSpace* code_space_;
   MapSpace* map_space_;
@@ -2503,110 +2516,6 @@ class HeapIterator BASE_EMBEDDED {
   // Object iterator for the space currently being iterated.
   ObjectIterator* object_iterator_;
 };
-
-
-// Cache for mapping (map, property name) into field offset.
-// Cleared at startup and prior to mark sweep collection.
-class KeyedLookupCache {
- public:
-  // Lookup field offset for (map, name). If absent, -1 is returned.
-  int Lookup(Handle<Map> map, Handle<Name> name);
-
-  // Update an element in the cache.
-  void Update(Handle<Map> map, Handle<Name> name, int field_offset);
-
-  // Clear the cache.
-  void Clear();
-
-  static const int kLength = 256;
-  static const int kCapacityMask = kLength - 1;
-  static const int kMapHashShift = 5;
-  static const int kHashMask = -4;  // Zero the last two bits.
-  static const int kEntriesPerBucket = 4;
-  static const int kEntryLength = 2;
-  static const int kMapIndex = 0;
-  static const int kKeyIndex = 1;
-  static const int kNotFound = -1;
-
-  // kEntriesPerBucket should be a power of 2.
-  STATIC_ASSERT((kEntriesPerBucket & (kEntriesPerBucket - 1)) == 0);
-  STATIC_ASSERT(kEntriesPerBucket == -kHashMask);
-
- private:
-  KeyedLookupCache() {
-    for (int i = 0; i < kLength; ++i) {
-      keys_[i].map = NULL;
-      keys_[i].name = NULL;
-      field_offsets_[i] = kNotFound;
-    }
-  }
-
-  static inline int Hash(Handle<Map> map, Handle<Name> name);
-
-  // Get the address of the keys and field_offsets arrays.  Used in
-  // generated code to perform cache lookups.
-  Address keys_address() { return reinterpret_cast<Address>(&keys_); }
-
-  Address field_offsets_address() {
-    return reinterpret_cast<Address>(&field_offsets_);
-  }
-
-  struct Key {
-    Map* map;
-    Name* name;
-  };
-
-  Key keys_[kLength];
-  int field_offsets_[kLength];
-
-  friend class ExternalReference;
-  friend class Isolate;
-  DISALLOW_COPY_AND_ASSIGN(KeyedLookupCache);
-};
-
-
-// Cache for mapping (map, property name) into descriptor index.
-// The cache contains both positive and negative results.
-// Descriptor index equals kNotFound means the property is absent.
-// Cleared at startup and prior to any gc.
-class DescriptorLookupCache {
- public:
-  // Lookup descriptor index for (map, name).
-  // If absent, kAbsent is returned.
-  inline int Lookup(Map* source, Name* name);
-
-  // Update an element in the cache.
-  inline void Update(Map* source, Name* name, int result);
-
-  // Clear the cache.
-  void Clear();
-
-  static const int kAbsent = -2;
-
- private:
-  DescriptorLookupCache() {
-    for (int i = 0; i < kLength; ++i) {
-      keys_[i].source = NULL;
-      keys_[i].name = NULL;
-      results_[i] = kAbsent;
-    }
-  }
-
-  static inline int Hash(Object* source, Name* name);
-
-  static const int kLength = 64;
-  struct Key {
-    Map* source;
-    Name* name;
-  };
-
-  Key keys_[kLength];
-  int results_[kLength];
-
-  friend class Isolate;
-  DISALLOW_COPY_AND_ASSIGN(DescriptorLookupCache);
-};
-
 
 // Abstract base class for checking whether a weak object should be retained.
 class WeakObjectRetainer {

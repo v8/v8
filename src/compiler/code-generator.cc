@@ -284,7 +284,7 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
 bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
                                               int* slot_return) {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    if (object.is_identical_to(info()->context()) && !info()->is_osr()) {
+    if (*object == info()->context() && !info()->is_osr()) {
       *slot_return = Frame::kContextSlot;
       return true;
     } else if (object.is_identical_to(info()->closure())) {

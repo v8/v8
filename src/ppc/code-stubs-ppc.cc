@@ -2464,37 +2464,6 @@ void ToStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ToNameStub::Generate(MacroAssembler* masm) {
-  // The ToName stub takes one argument in r3.
-  Label is_number;
-  __ JumpIfSmi(r3, &is_number);
-
-  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  __ CompareObjectType(r3, r4, r4, LAST_NAME_TYPE);
-  // r3: receiver
-  // r4: receiver instance type
-  __ Ret(le);
-
-  Label not_heap_number;
-  __ cmpi(r4, Operand(HEAP_NUMBER_TYPE));
-  __ bne(&not_heap_number);
-  __ bind(&is_number);
-  NumberToStringStub stub(isolate());
-  __ TailCallStub(&stub);
-  __ bind(&not_heap_number);
-
-  Label not_oddball;
-  __ cmpi(r4, Operand(ODDBALL_TYPE));
-  __ bne(&not_oddball);
-  __ LoadP(r3, FieldMemOperand(r3, Oddball::kToStringOffset));
-  __ Ret();
-  __ bind(&not_oddball);
-
-  __ push(r3);  // Push argument.
-  __ TailCallRuntime(Runtime::kToName);
-}
-
-
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,
@@ -4581,7 +4550,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // Fall back to %AllocateInNewSpace (if not too big).
     Label too_big_for_new_space;
     __ bind(&allocate);
-    __ Cmpi(r10, Operand(Page::kMaxRegularHeapObjectSize), r0);
+    __ Cmpi(r10, Operand(kMaxRegularHeapObjectSize), r0);
     __ bgt(&too_big_for_new_space);
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
@@ -4972,7 +4941,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // Fall back to %AllocateInNewSpace (if not too big).
   Label too_big_for_new_space;
   __ bind(&allocate);
-  __ Cmpi(r10, Operand(Page::kMaxRegularHeapObjectSize), r0);
+  __ Cmpi(r10, Operand(kMaxRegularHeapObjectSize), r0);
   __ bgt(&too_big_for_new_space);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);

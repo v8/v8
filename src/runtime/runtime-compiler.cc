@@ -172,6 +172,17 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   DCHECK(optimized_code->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(type == deoptimizer->bailout_type());
+  DCHECK_NULL(isolate->context());
+
+  // TODO(turbofan): For Crankshaft we restore the context before objects are
+  // being materialized, because it never de-materializes the context but it
+  // requires a context to materialize arguments objects. This is specific to
+  // Crankshaft and can be removed once only TurboFan goes through here.
+  if (!optimized_code->is_turbofanned()) {
+    JavaScriptFrameIterator top_it(isolate);
+    JavaScriptFrame* top_frame = top_it.frame();
+    isolate->set_context(Context::cast(top_frame->context()));
+  }
 
   // Make sure to materialize objects before causing any allocation.
   JavaScriptFrameIterator it(isolate);
@@ -179,9 +190,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   delete deoptimizer;
 
   // Ensure the context register is updated for materialized objects.
-  JavaScriptFrameIterator top_it(isolate);
-  JavaScriptFrame* top_frame = top_it.frame();
-  isolate->set_context(Context::cast(top_frame->context()));
+  if (optimized_code->is_turbofanned()) {
+    JavaScriptFrameIterator top_it(isolate);
+    JavaScriptFrame* top_frame = top_it.frame();
+    isolate->set_context(Context::cast(top_frame->context()));
+  }
 
   if (type == Deoptimizer::LAZY) {
     return isolate->heap()->undefined_value();

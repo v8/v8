@@ -48,6 +48,23 @@ Reduction JSGlobalObjectSpecialization::Reduce(Node* node) {
   return NoChange();
 }
 
+namespace {
+
+FieldAccess ForPropertyCellValue(MachineRepresentation representation,
+                                 Type* type, Handle<Name> name) {
+  WriteBarrierKind kind = kFullWriteBarrier;
+  if (representation == MachineRepresentation::kTaggedSigned) {
+    kind = kNoWriteBarrier;
+  } else if (representation == MachineRepresentation::kTaggedPointer) {
+    kind = kPointerWriteBarrier;
+  }
+  MachineType r = MachineType::TypeForRepresentation(representation);
+  FieldAccess access = {kTaggedBase, PropertyCell::kValueOffset, name, type, r,
+                        kind};
+  return access;
+}
+}  // namespace
+
 Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
   Handle<Name> name = LoadGlobalParametersOf(node->op()).name();
@@ -104,25 +121,31 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
   }
 
   // Load from constant type cell can benefit from type feedback.
-  Type* property_cell_value_type = Type::Tagged();
+  Type* property_cell_value_type = Type::NonInternal();
+  MachineRepresentation representation = MachineRepresentation::kTagged;
   if (property_details.cell_type() == PropertyCellType::kConstantType) {
     // Compute proper type based on the current value in the cell.
     if (property_cell_value->IsSmi()) {
       property_cell_value_type = type_cache_.kSmi;
+      representation = MachineRepresentation::kTaggedSigned;
     } else if (property_cell_value->IsNumber()) {
+      // TODO(mvstanton): Remove kHeapNumber from type cache, it's just
+      // Type::Number().
       property_cell_value_type = type_cache_.kHeapNumber;
+      representation = MachineRepresentation::kTaggedPointer;
     } else {
       // TODO(turbofan): Track the property_cell_value_map on the FieldAccess
       // below and use it in LoadElimination to eliminate map checks.
       Handle<Map> property_cell_value_map(
           Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
       property_cell_value_type = Type::For(property_cell_value_map);
+      representation = MachineRepresentation::kTaggedPointer;
     }
   }
-  Node* value = effect = graph()->NewNode(
-      simplified()->LoadField(
-          AccessBuilder::ForPropertyCellValue(property_cell_value_type)),
-      jsgraph()->HeapConstant(property_cell), effect, control);
+  Node* value = effect =
+      graph()->NewNode(simplified()->LoadField(ForPropertyCellValue(
+                           representation, property_cell_value_type, name)),
+                       jsgraph()->HeapConstant(property_cell), effect, control);
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
@@ -181,6 +204,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       // values' type doesn't match the type of the previous value in the cell.
       dependencies()->AssumePropertyCell(property_cell);
       Type* property_cell_value_type;
+      MachineRepresentation representation = MachineRepresentation::kTagged;
       if (property_cell_value->IsHeapObject()) {
         // Check that the {value} is a HeapObject.
         value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
@@ -192,16 +216,18 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
         effect = graph()->NewNode(
             simplified()->CheckMaps(1), value,
             jsgraph()->HeapConstant(property_cell_value_map), effect, control);
-        property_cell_value_type = Type::TaggedPointer();
+        property_cell_value_type = Type::OtherInternal();
+        representation = MachineRepresentation::kTaggedPointer;
       } else {
         // Check that the {value} is a Smi.
         value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
                                           value, effect, control);
-        property_cell_value_type = Type::TaggedSigned();
+        property_cell_value_type = Type::SignedSmall();
+        representation = MachineRepresentation::kTaggedSigned;
       }
       effect = graph()->NewNode(
-          simplified()->StoreField(
-              AccessBuilder::ForPropertyCellValue(property_cell_value_type)),
+          simplified()->StoreField(ForPropertyCellValue(
+              representation, property_cell_value_type, name)),
           jsgraph()->HeapConstant(property_cell), value, effect, control);
       break;
     }
@@ -215,7 +241,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
         dependencies()->AssumePropertyCell(property_cell);
       }
       effect = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForPropertyCellValue()),
+          simplified()->StoreField(ForPropertyCellValue(
+              MachineRepresentation::kTagged, Type::NonInternal(), name)),
           jsgraph()->HeapConstant(property_cell), value, effect, control);
       break;
     }

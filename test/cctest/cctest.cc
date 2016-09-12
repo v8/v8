@@ -107,6 +107,18 @@ void CcTest::Run() {
 
 i::Heap* CcTest::heap() { return i_isolate()->heap(); }
 
+void CcTest::CollectGarbage(i::AllocationSpace space) {
+  heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+}
+
+void CcTest::CollectAllGarbage(int flags) {
+  heap()->CollectAllGarbage(flags, i::GarbageCollectionReason::kTesting);
+}
+
+void CcTest::CollectAllAvailableGarbage() {
+  heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
+}
+
 v8::base::RandomNumberGenerator* CcTest::random_number_generator() {
   return InitIsolateOnce()->random_number_generator();
 }

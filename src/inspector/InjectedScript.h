@@ -39,7 +39,7 @@
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 
-#include <v8.h>
+#include "include/v8.h"
 
 namespace v8_inspector {
 
@@ -118,7 +118,7 @@ class InjectedScript final {
 
    protected:
     Scope(ErrorString*, V8InspectorImpl*, int contextGroupId);
-    ~Scope();
+    virtual ~Scope();
     virtual void findInjectedScript(V8InspectorSessionImpl*) = 0;
 
     ErrorString* m_errorString;

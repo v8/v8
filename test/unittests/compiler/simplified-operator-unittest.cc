@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
-#include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types.h"
+#include "src/compiler/opcodes.h"
+#include "src/compiler/operator-properties.h"
+#include "src/compiler/operator.h"
+#include "src/compiler/types.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

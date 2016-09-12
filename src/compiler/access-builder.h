@@ -195,10 +195,6 @@ class AccessBuilder final : public AllStatic {
   // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
 
-  // Provides access to PropertyCell::value() field.
-  static FieldAccess ForPropertyCellValue();
-  static FieldAccess ForPropertyCellValue(Type* type);
-
   // Provides access to ContextExtension fields.
   static FieldAccess ForContextExtensionScopeInfo();
   static FieldAccess ForContextExtensionExtension();

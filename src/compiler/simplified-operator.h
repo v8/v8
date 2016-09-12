@@ -8,6 +8,7 @@
 #include <iosfwd>
 
 #include "src/compiler/operator.h"
+#include "src/compiler/types.h"
 #include "src/handles.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
@@ -16,9 +17,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class Type;
 class Zone;
-
 
 namespace compiler {
 
@@ -259,6 +258,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberTan();
   const Operator* NumberTanh();
   const Operator* NumberTrunc();
+  const Operator* NumberToBoolean();
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();
 

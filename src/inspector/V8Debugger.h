@@ -10,11 +10,10 @@
 #include "src/inspector/V8DebuggerScript.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
-#include "src/inspector/public/StringView.h"
-#include "src/inspector/public/V8ContextInfo.h"
 
-#include <v8-debug.h>
-#include <v8.h>
+#include "include/v8-debug.h"
+#include "include/v8-inspector.h"
+
 #include <vector>
 
 namespace v8_inspector {

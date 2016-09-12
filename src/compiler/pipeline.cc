@@ -605,6 +605,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (FLAG_native_context_specialization) {
       info()->MarkAsNativeContextSpecializing();
     }
+    if (FLAG_turbo_inlining) {
+      info()->MarkAsInliningEnabled();
+    }
   }
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
@@ -799,7 +802,7 @@ struct InliningPhase {
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_function_context_specializing()
-            ? data->info()->context()
+            ? handle(data->info()->context())
             : MaybeHandle<Context>());
     JSFrameSpecialization frame_specialization(data->info()->osr_frame(),
                                                data->jsgraph());

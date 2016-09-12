@@ -210,7 +210,9 @@ class Genesis BASE_EMBEDDED {
   HARMONY_INPROGRESS(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_STAGED(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
+#ifdef V8_I18N_SUPPORT
   DECLARE_FEATURE_INITIALIZATION(intl_extra, "")
+#endif
   DECLARE_FEATURE_INITIALIZATION(harmony_types, "")
 #undef DECLARE_FEATURE_INITIALIZATION
 
@@ -366,6 +368,17 @@ void InstallFunction(Handle<JSObject> target, Handle<JSFunction> function,
   InstallFunction(target, name, function, name_string, attributes);
 }
 
+Handle<JSFunction> InstallGetter(Handle<JSObject> target,
+                                 Handle<Name> property_name,
+                                 Handle<JSFunction> getter,
+                                 PropertyAttributes attributes = DONT_ENUM) {
+  Handle<Object> setter = target->GetIsolate()->factory()->undefined_value();
+  JSObject::DefineAccessor(target, property_name, getter, setter, attributes)
+      .Check();
+  getter->shared()->set_native(true);
+  return getter;
+}
+
 Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
                                   InstanceType type, int instance_size,
                                   MaybeHandle<JSObject> maybe_prototype,
@@ -451,54 +464,17 @@ Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
   return fun;
 }
 
-void SimpleInstallGetterSetter(Handle<JSObject> base, Handle<String> name,
-                               Builtins::Name call_getter,
-                               Builtins::Name call_setter,
-                               PropertyAttributes attribs) {
-  Isolate* const isolate = base->GetIsolate();
-
-  Handle<String> getter_name =
-      Name::ToFunctionName(name, isolate->factory()->get_string())
-          .ToHandleChecked();
-  Handle<JSFunction> getter =
-      SimpleCreateFunction(isolate, getter_name, call_getter, 0, false);
-  getter->shared()->set_native(true);
-
-  Handle<String> setter_name =
-      Name::ToFunctionName(name, isolate->factory()->set_string())
-          .ToHandleChecked();
-  Handle<JSFunction> setter =
-      SimpleCreateFunction(isolate, setter_name, call_setter, 0, false);
-  setter->shared()->set_native(true);
-
-  JSObject::DefineAccessor(base, name, getter, setter, attribs).Check();
-}
-
-Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
-                                       Handle<String> name,
-                                       Handle<Name> property_name,
-                                       Builtins::Name call, bool adapt) {
-  Isolate* const isolate = base->GetIsolate();
-
-  Handle<String> getter_name =
-      Name::ToFunctionName(name, isolate->factory()->get_string())
-          .ToHandleChecked();
-  Handle<JSFunction> getter =
-      SimpleCreateFunction(isolate, getter_name, call, 0, adapt);
-  getter->shared()->set_native(true);
-
-  Handle<Object> setter = isolate->factory()->undefined_value();
-
-  JSObject::DefineAccessor(base, property_name, getter, setter, DONT_ENUM)
-      .Check();
-
-  return getter;
-}
-
 Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
                                        Handle<String> name, Builtins::Name call,
                                        bool adapt) {
-  return SimpleInstallGetter(base, name, name, call, adapt);
+  Isolate* const isolate = base->GetIsolate();
+  Handle<String> fun_name =
+      Name::ToFunctionName(name, isolate->factory()->get_string())
+          .ToHandleChecked();
+  Handle<JSFunction> fun =
+      SimpleCreateFunction(isolate, fun_name, call, 0, adapt);
+  InstallGetter(base, name, fun);
+  return fun;
 }
 
 Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
@@ -1330,6 +1306,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install i18n fallback functions.
     SimpleInstallFunction(prototype, "toLocaleString",
                           Builtins::kNumberPrototypeToLocaleString, 0, false);
+
+    // Install the Number functions.
+    SimpleInstallFunction(number_fun, "isFinite", Builtins::kNumberIsFinite, 1,
+                          true);
+    SimpleInstallFunction(number_fun, "isInteger", Builtins::kNumberIsInteger,
+                          1, true);
+    SimpleInstallFunction(number_fun, "isNaN", Builtins::kNumberIsNaN, 1, true);
+    SimpleInstallFunction(number_fun, "isSafeInteger",
+                          Builtins::kNumberIsSafeInteger, 1, true);
   }
 
   {  // --- B o o l e a n ---
@@ -1604,119 +1589,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Builtin functions for RegExp.prototype.
     Handle<JSFunction> regexp_fun = InstallFunction(
         global, "RegExp", JS_REGEXP_TYPE, JSRegExp::kSize,
-        isolate->initial_object_prototype(), Builtins::kRegExpConstructor);
+        isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
-
-    Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate);
-    shared->SetConstructStub(*isolate->builtins()->RegExpConstructor());
-    shared->set_instance_class_name(isolate->heap()->RegExp_string());
-    shared->DontAdaptArguments();
-    shared->set_length(2);
-
-    {
-      // RegExp.prototype setup.
-
-      Handle<JSObject> proto =
-          factory->NewJSObject(isolate->object_function(), TENURED);
-      JSObject::AddProperty(proto, factory->constructor_string(), regexp_fun,
-                            DONT_ENUM);
-      Accessors::FunctionSetPrototype(regexp_fun, proto).Assert();
-
-      SimpleInstallGetter(proto, factory->flags_string(),
-                          Builtins::kRegExpPrototypeFlagsGetter, false);
-      SimpleInstallGetter(proto, factory->global_string(),
-                          Builtins::kRegExpPrototypeGlobalGetter, false);
-      SimpleInstallGetter(proto, factory->ignoreCase_string(),
-                          Builtins::kRegExpPrototypeIgnoreCaseGetter, false);
-      SimpleInstallGetter(proto, factory->multiline_string(),
-                          Builtins::kRegExpPrototypeMultilineGetter, false);
-      SimpleInstallGetter(proto, factory->source_string(),
-                          Builtins::kRegExpPrototypeSourceGetter, false);
-      SimpleInstallGetter(proto, factory->sticky_string(),
-                          Builtins::kRegExpPrototypeStickyGetter, false);
-      SimpleInstallGetter(proto, factory->unicode_string(),
-                          Builtins::kRegExpPrototypeUnicodeGetter, false);
-    }
-
-    {
-      // RegExp getters and setters.
-
-      // TODO(jgruber): This should really be DONT_ENUM | DONT_DELETE.
-      // However, that currently breaks layout test expectations. Note that
-      // Firefox sets a couple of these as enumerable.
-      const PropertyAttributes no_enum = DONT_ENUM;
-
-      SimpleInstallGetter(regexp_fun,
-                          factory->InternalizeUtf8String("[Symbol.species]"),
-                          factory->species_symbol(),
-                          Builtins::kRegExpPrototypeSpeciesGetter, false);
-
-      // Static properties set by a successful match.
-
-      SimpleInstallGetterSetter(regexp_fun, factory->input_string(),
-                                Builtins::kRegExpPrototypeInputGetter,
-                                Builtins::kRegExpPrototypeInputSetter,
-                                DONT_DELETE);
-      SimpleInstallGetterSetter(regexp_fun,
-                                factory->InternalizeUtf8String("$_"),
-                                Builtins::kRegExpPrototypeInputGetter,
-                                Builtins::kRegExpPrototypeInputSetter, no_enum);
-
-      SimpleInstallGetterSetter(regexp_fun,
-                                factory->InternalizeUtf8String("lastMatch"),
-                                Builtins::kRegExpPrototypeLastMatchGetter,
-                                Builtins::kEmptyFunction, no_enum);
-      SimpleInstallGetterSetter(regexp_fun,
-                                factory->InternalizeUtf8String("$&"),
-                                Builtins::kRegExpPrototypeLastMatchGetter,
-                                Builtins::kEmptyFunction, no_enum);
-
-      SimpleInstallGetterSetter(regexp_fun,
-                                factory->InternalizeUtf8String("lastParen"),
-                                Builtins::kRegExpPrototypeLastParenGetter,
-                                Builtins::kEmptyFunction, no_enum);
-      SimpleInstallGetterSetter(regexp_fun,
-                                factory->InternalizeUtf8String("$+"),
-                                Builtins::kRegExpPrototypeLastParenGetter,
-                                Builtins::kEmptyFunction, no_enum);
-
-      SimpleInstallGetterSetter(regexp_fun,
-                                factory->InternalizeUtf8String("leftContext"),
-                                Builtins::kRegExpPrototypeLeftContextGetter,
-                                Builtins::kEmptyFunction, no_enum);
-      SimpleInstallGetterSetter(regexp_fun,
-                                factory->InternalizeUtf8String("$`"),
-                                Builtins::kRegExpPrototypeLeftContextGetter,
-                                Builtins::kEmptyFunction, no_enum);
-
-      SimpleInstallGetterSetter(regexp_fun,
-                                factory->InternalizeUtf8String("rightContext"),
-                                Builtins::kRegExpPrototypeRightContextGetter,
-                                Builtins::kEmptyFunction, no_enum);
-      SimpleInstallGetterSetter(regexp_fun,
-                                factory->InternalizeUtf8String("$'"),
-                                Builtins::kRegExpPrototypeRightContextGetter,
-                                Builtins::kEmptyFunction, no_enum);
-
-#define INSTALL_CAPTURE_GETTER(i)                                         \
-  SimpleInstallGetterSetter(regexp_fun,                                   \
-                            factory->InternalizeUtf8String("$" #i),       \
-                            Builtins::kRegExpPrototypeCapture##i##Getter, \
-                            Builtins::kEmptyFunction, DONT_DELETE)
-      INSTALL_CAPTURE_GETTER(1);
-      INSTALL_CAPTURE_GETTER(2);
-      INSTALL_CAPTURE_GETTER(3);
-      INSTALL_CAPTURE_GETTER(4);
-      INSTALL_CAPTURE_GETTER(5);
-      INSTALL_CAPTURE_GETTER(6);
-      INSTALL_CAPTURE_GETTER(7);
-      INSTALL_CAPTURE_GETTER(8);
-      INSTALL_CAPTURE_GETTER(9);
-#undef INSTALL_CAPTURE_GETTER
-    }
-
-    // TODO(jgruber): shared->set_force_inline on getters.
+    regexp_fun->shared()->SetConstructStub(
+        *isolate->builtins()->JSBuiltinsConstructStub());
 
     DCHECK(regexp_fun->has_initial_map());
     Handle<Map> initial_map(regexp_fun->initial_map());
@@ -2344,7 +2221,9 @@ void Genesis::InitializeExperimentalGlobal() {
   HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
+#ifdef V8_I18N_SUPPORT
   FEATURE_INITIALIZE_GLOBAL(intl_extra, "")
+#endif
 #undef FEATURE_INITIALIZE_GLOBAL
 }
 
@@ -2906,6 +2785,7 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
                                                  Handle<JSObject> container) {
   HandleScope scope(isolate);
 
+#ifdef V8_I18N_SUPPORT
 #define INITIALIZE_FLAG(FLAG)                                         \
   {                                                                   \
     Handle<String> name =                                             \
@@ -2917,6 +2797,7 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
   INITIALIZE_FLAG(FLAG_intl_extra)
 
 #undef INITIALIZE_FLAG
+#endif
 }
 
 
@@ -2929,13 +2810,14 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_named_captures)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_property)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(intl_extra)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_explicit_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_declarations)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_string_padding)
 #ifdef V8_I18N_SUPPORT
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(datetime_format_to_parts)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(icu_case_mapping)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(intl_extra)
 #endif
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_async_await)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_generators)
@@ -3274,6 +3156,14 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     native_context()->set_global_eval_fun(*eval);
   }
 
+  // Install Global.isFinite
+  SimpleInstallFunction(global_object, "isFinite", Builtins::kGlobalIsFinite, 1,
+                        true, kGlobalIsFinite);
+
+  // Install Global.isNaN
+  SimpleInstallFunction(global_object, "isNaN", Builtins::kGlobalIsNaN, 1, true,
+                        kGlobalIsNaN);
+
   // Install Array.prototype.concat
   {
     Handle<JSFunction> array_constructor(native_context()->array_function());
@@ -3517,7 +3407,6 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_regexp_named_captures_natives[] = {nullptr};
   static const char* harmony_regexp_property_natives[] = {nullptr};
   static const char* harmony_function_sent_natives[] = {nullptr};
-  static const char* intl_extra_natives[] = {"native intl-extra.js", nullptr};
   static const char* harmony_object_values_entries_natives[] = {nullptr};
   static const char* harmony_object_own_property_descriptors_natives[] = {
       nullptr};
@@ -3527,6 +3416,9 @@ bool Genesis::InstallExperimentalNatives() {
 #ifdef V8_I18N_SUPPORT
   static const char* icu_case_mapping_natives[] = {"native icu-case-mapping.js",
                                                    nullptr};
+  static const char* intl_extra_natives[] = {"native intl-extra.js", nullptr};
+  static const char* datetime_format_to_parts_natives[] = {
+      "native datetime-format-to-parts.js", nullptr};
 #endif
   static const char* harmony_async_await_natives[] = {
       "native harmony-async-await.js", nullptr};
@@ -3551,7 +3443,9 @@ bool Genesis::InstallExperimentalNatives() {
     HARMONY_INPROGRESS(INSTALL_EXPERIMENTAL_NATIVES);
     HARMONY_STAGED(INSTALL_EXPERIMENTAL_NATIVES);
     HARMONY_SHIPPING(INSTALL_EXPERIMENTAL_NATIVES);
+#ifdef V8_I18N_SUPPORT
     INSTALL_EXPERIMENTAL_NATIVES(intl_extra, "");
+#endif
     INSTALL_EXPERIMENTAL_NATIVES(harmony_types, "");
 #undef INSTALL_EXPERIMENTAL_NATIVES
   }

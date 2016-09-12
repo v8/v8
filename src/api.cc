@@ -79,9 +79,6 @@ namespace v8 {
 #define LOG_API(isolate, class_name, function_name)                       \
   i::RuntimeCallTimerScope _runtime_timer(                                \
       isolate, &i::RuntimeCallStats::API_##class_name##_##function_name); \
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(                          \
-      isolate, &internal::tracing::TraceEventStatsTable::                 \
-                   API_##class_name##_##function_name);                   \
   LOG(isolate, ApiEntryCall("v8::" #class_name "::" #function_name))
 
 #define ENTER_V8(isolate) i::VMState<v8::OTHER> __state__((isolate))
@@ -515,7 +512,8 @@ StartupData SnapshotCreator::CreateBlob(
 
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of the context.
-  isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
+  isolate->heap()->CollectAllAvailableGarbage(
+      i::GarbageCollectionReason::kSnapshotCreator);
   isolate->heap()->CompactWeakFixedArrays();
 
   i::DisallowHeapAllocation no_gc_from_here_on;
@@ -1505,12 +1503,17 @@ void ObjectTemplate::SetAccessor(v8::Local<Name> name,
                       signature, i::FLAG_disable_old_api_accessors);
 }
 
-template <typename Getter, typename Setter, typename Query, typename Deleter,
-          typename Enumerator, typename Definer>
+template <typename Getter, typename Setter, typename Query, typename Descriptor,
+          typename Deleter, typename Enumerator, typename Definer>
 static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* isolate, Getter getter, Setter setter, Query query,
-    Deleter remover, Enumerator enumerator, Definer definer, Local<Value> data,
-    PropertyHandlerFlags flags) {
+    Descriptor descriptor, Deleter remover, Enumerator enumerator,
+    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+  DCHECK(query == nullptr ||
+         descriptor == nullptr);  // Either intercept attributes or descriptor.
+  DCHECK(query == nullptr ||
+         definer ==
+             nullptr);  // Only use descriptor callback with definer callback.
   auto obj = i::Handle<i::InterceptorInfo>::cast(
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE));
   obj->set_flags(0);
@@ -1518,6 +1521,7 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
   if (getter != 0) SET_FIELD_WRAPPED(obj, set_getter, getter);
   if (setter != 0) SET_FIELD_WRAPPED(obj, set_setter, setter);
   if (query != 0) SET_FIELD_WRAPPED(obj, set_query, query);
+  if (descriptor != 0) SET_FIELD_WRAPPED(obj, set_descriptor, descriptor);
   if (remover != 0) SET_FIELD_WRAPPED(obj, set_deleter, remover);
   if (enumerator != 0) SET_FIELD_WRAPPED(obj, set_enumerator, enumerator);
   if (definer != 0) SET_FIELD_WRAPPED(obj, set_definer, definer);
@@ -1536,19 +1540,19 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
   return obj;
 }
 
-template <typename Getter, typename Setter, typename Query, typename Deleter,
-          typename Enumerator, typename Definer>
+template <typename Getter, typename Setter, typename Query, typename Descriptor,
+          typename Deleter, typename Enumerator, typename Definer>
 static void ObjectTemplateSetNamedPropertyHandler(
     ObjectTemplate* templ, Getter getter, Setter setter, Query query,
-    Deleter remover, Enumerator enumerator, Definer definer, Local<Value> data,
-    PropertyHandlerFlags flags) {
+    Descriptor descriptor, Deleter remover, Enumerator enumerator,
+    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
   i::Isolate* isolate = Utils::OpenHandle(templ)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, templ);
   EnsureNotInstantiated(cons, "ObjectTemplateSetNamedPropertyHandler");
-  auto obj = CreateInterceptorInfo(isolate, getter, setter, query, remover,
-                                   enumerator, definer, data, flags);
+  auto obj = CreateInterceptorInfo(isolate, getter, setter, query, descriptor,
+                                   remover, enumerator, definer, data, flags);
   cons->set_named_property_handler(*obj);
 }
 
@@ -1557,15 +1561,16 @@ void ObjectTemplate::SetNamedPropertyHandler(
     NamedPropertyQueryCallback query, NamedPropertyDeleterCallback remover,
     NamedPropertyEnumeratorCallback enumerator, Local<Value> data) {
   ObjectTemplateSetNamedPropertyHandler(
-      this, getter, setter, query, remover, enumerator, nullptr, data,
+      this, getter, setter, query, nullptr, remover, enumerator, nullptr, data,
       PropertyHandlerFlags::kOnlyInterceptStrings);
 }
 
 void ObjectTemplate::SetHandler(
     const NamedPropertyHandlerConfiguration& config) {
   ObjectTemplateSetNamedPropertyHandler(
-      this, config.getter, config.setter, config.query, config.deleter,
-      config.enumerator, config.definer, config.data, config.flags);
+      this, config.getter, config.setter, config.query, config.descriptor,
+      config.deleter, config.enumerator, config.definer, config.data,
+      config.flags);
 }
 
 
@@ -1625,14 +1630,14 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   SET_FIELD_WRAPPED(info, set_callback, callback);
   auto named_interceptor = CreateInterceptorInfo(
       isolate, named_handler.getter, named_handler.setter, named_handler.query,
-      named_handler.deleter, named_handler.enumerator, named_handler.definer,
-      named_handler.data, named_handler.flags);
+      named_handler.descriptor, named_handler.deleter, named_handler.enumerator,
+      named_handler.definer, named_handler.data, named_handler.flags);
   info->set_named_interceptor(*named_interceptor);
   auto indexed_interceptor = CreateInterceptorInfo(
       isolate, indexed_handler.getter, indexed_handler.setter,
-      indexed_handler.query, indexed_handler.deleter,
-      indexed_handler.enumerator, indexed_handler.definer, indexed_handler.data,
-      indexed_handler.flags);
+      indexed_handler.query, indexed_handler.descriptor,
+      indexed_handler.deleter, indexed_handler.enumerator,
+      indexed_handler.definer, indexed_handler.data, indexed_handler.flags);
   info->set_indexed_interceptor(*indexed_interceptor);
 
   if (data.IsEmpty()) {
@@ -1651,9 +1656,10 @@ void ObjectTemplate::SetHandler(
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetHandler");
-  auto obj = CreateInterceptorInfo(
-      isolate, config.getter, config.setter, config.query, config.deleter,
-      config.enumerator, config.definer, config.data, config.flags);
+  auto obj = CreateInterceptorInfo(isolate, config.getter, config.setter,
+                                   config.query, config.descriptor,
+                                   config.deleter, config.enumerator,
+                                   config.definer, config.data, config.flags);
   cons->set_indexed_property_handler(*obj);
 }
 
@@ -2084,7 +2090,13 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
         Utils::OpenHandle(*context_extensions[i]);
     if (!extension->IsJSObject()) return Local<Function>();
     i::Handle<i::JSFunction> closure(context->closure(), isolate);
-    context = factory->NewWithContext(closure, context, extension);
+    context = factory->NewWithContext(
+        closure, context,
+        i::ScopeInfo::CreateForWithScope(
+            isolate, context->IsNativeContext()
+                         ? i::Handle<i::ScopeInfo>::null()
+                         : i::Handle<i::ScopeInfo>(context->scope_info())),
+        extension);
   }
 
   i::Handle<i::Object> name_obj;
@@ -2858,10 +2870,8 @@ Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, ValueSerializer, WriteValue, bool);
   i::Handle<i::Object> object = Utils::OpenHandle(*value);
   Maybe<bool> result = private_->serializer.WriteObject(object);
-  if (result.IsNothing()) {
-    has_pending_exception = private_->isolate->has_pending_exception();
-    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  }
+  has_pending_exception = result.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
 
@@ -2886,6 +2896,7 @@ struct ValueDeserializer::PrivateData {
       : isolate(i), deserializer(i, data) {}
   i::Isolate* isolate;
   i::ValueDeserializer deserializer;
+  bool has_aborted = false;
   bool supports_legacy_wire_format = false;
 };
 
@@ -2896,38 +2907,61 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
         new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
                         i::Vector<const uint8_t>(data, static_cast<int>(size)));
   } else {
-    private_ = nullptr;
+    private_ = new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
+                               i::Vector<const uint8_t>(nullptr, 0));
+    private_->has_aborted = true;
   }
 }
 
 ValueDeserializer::~ValueDeserializer() { delete private_; }
 
-Maybe<bool> ValueDeserializer::ReadHeader() {
+Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, ValueDeserializer, ReadHeader, bool);
+
+  // We could have aborted during the constructor.
+  // If so, ReadHeader is where we report it.
+  if (private_->has_aborted) {
+    isolate->Throw(*isolate->factory()->NewError(
+        i::MessageTemplate::kDataCloneDeserializationError));
+    has_pending_exception = true;
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  }
+
+  bool read_header = false;
+  has_pending_exception = !private_->deserializer.ReadHeader().To(&read_header);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  DCHECK(read_header);
+
   // TODO(jbroman): Today, all wire formats are "legacy". When a more supported
   // format is added, compare the version of the internal serializer to the
   // minimum non-legacy version number.
-  if (!private_ || !private_->deserializer.ReadHeader().FromMaybe(false) ||
-      !private_->supports_legacy_wire_format) {
-    delete private_;
-    private_ = nullptr;
-    return Nothing<bool>();
+  if (!private_->supports_legacy_wire_format) {
+    isolate->Throw(*isolate->factory()->NewError(
+        i::MessageTemplate::kDataCloneDeserializationVersionError));
+    has_pending_exception = true;
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   }
+
   return Just(true);
+}
+
+Maybe<bool> ValueDeserializer::ReadHeader() {
+  Isolate* isolate = reinterpret_cast<Isolate*>(private_->isolate);
+  return ReadHeader(isolate->GetEnteredContext());
 }
 
 void ValueDeserializer::SetSupportsLegacyWireFormat(
     bool supports_legacy_wire_format) {
-  if (!private_) return;
   private_->supports_legacy_wire_format = supports_legacy_wire_format;
 }
 
 uint32_t ValueDeserializer::GetWireFormatVersion() const {
-  CHECK(private_);
+  CHECK(!private_->has_aborted);
   return private_->deserializer.GetWireFormatVersion();
 }
 
 MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
-  CHECK(private_);
+  CHECK(!private_->has_aborted);
   PREPARE_FOR_EXECUTION(context, ValueDeserializer, ReadValue, Value);
   i::MaybeHandle<i::Object> result;
   if (GetWireFormatVersion() > 0) {
@@ -2937,22 +2971,21 @@ MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
         private_->deserializer.ReadObjectUsingEntireBufferForLegacyFormat();
   }
   Local<Value> value;
-  if (!ToLocal(result, &value)) {
-    has_pending_exception = private_->isolate->has_pending_exception();
-    RETURN_ON_FAILED_EXECUTION(Value);
-    return MaybeLocal<Value>();
-  }
+  has_pending_exception = !ToLocal(result, &value);
+  RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(value);
 }
 
 void ValueDeserializer::TransferArrayBuffer(uint32_t transfer_id,
                                             Local<ArrayBuffer> array_buffer) {
+  CHECK(!private_->has_aborted);
   private_->deserializer.TransferArrayBuffer(transfer_id,
                                              Utils::OpenHandle(*array_buffer));
 }
 
 void ValueDeserializer::TransferSharedArrayBuffer(
     uint32_t transfer_id, Local<SharedArrayBuffer> shared_array_buffer) {
+  CHECK(!private_->has_aborted);
   private_->deserializer.TransferArrayBuffer(
       transfer_id, Utils::OpenHandle(*shared_array_buffer));
 }
@@ -5931,8 +5964,8 @@ Local<Context> NewContext(v8::Isolate* external_isolate,
                           v8::MaybeLocal<Value> global_object,
                           size_t context_snapshot_index) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
-  LOG_API(isolate, Context, New);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.NewContext");
+  LOG_API(isolate, Context, New);
   i::HandleScope scope(isolate);
   ExtensionConfiguration no_extensions;
   if (extensions == NULL) extensions = &no_extensions;
@@ -7458,8 +7491,7 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
 void Isolate::ReportExternalAllocationLimitReached() {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
   if (heap->gc_state() != i::Heap::NOT_IN_GC) return;
-  heap->ReportExternalMemoryPressure(
-      "external memory allocation limit reached.");
+  heap->ReportExternalMemoryPressure();
 }
 
 
@@ -7619,13 +7651,13 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
   CHECK(i::FLAG_expose_gc);
   if (type == kMinorGarbageCollection) {
     reinterpret_cast<i::Isolate*>(this)->heap()->CollectGarbage(
-        i::NEW_SPACE, "Isolate::RequestGarbageCollection",
+        i::NEW_SPACE, i::GarbageCollectionReason::kTesting,
         kGCCallbackFlagForced);
   } else {
     DCHECK_EQ(kFullGarbageCollection, type);
     reinterpret_cast<i::Isolate*>(this)->heap()->CollectAllGarbage(
         i::Heap::kAbortIncrementalMarkingMask,
-        "Isolate::RequestGarbageCollection", kGCCallbackFlagForced);
+        i::GarbageCollectionReason::kTesting, kGCCallbackFlagForced);
   }
 }
 
@@ -8054,7 +8086,8 @@ void Isolate::LowMemoryNotification() {
     i::HistogramTimerScope idle_notification_scope(
         isolate->counters()->gc_low_memory_notification());
     TRACE_EVENT0("v8", "V8.GCLowMemoryNotification");
-    isolate->heap()->CollectAllAvailableGarbage("low memory notification");
+    isolate->heap()->CollectAllAvailableGarbage(
+        i::GarbageCollectionReason::kLowMemoryNotification);
   }
 }
 
@@ -8546,13 +8579,16 @@ Local<String> CpuProfileNode::GetFunctionName() const {
   }
 }
 
+const char* CpuProfileNode::GetFunctionNameStr() const {
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return node->entry()->name();
+}
 
 int CpuProfileNode::GetScriptId() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   const i::CodeEntry* entry = node->entry();
   return entry->script_id();
 }
-
 
 Local<String> CpuProfileNode::GetScriptResourceName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
@@ -8561,6 +8597,10 @@ Local<String> CpuProfileNode::GetScriptResourceName() const {
       node->entry()->resource_name()));
 }
 
+const char* CpuProfileNode::GetScriptResourceNameStr() const {
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return node->entry()->resource_name();
+}
 
 int CpuProfileNode::GetLineNumber() const {
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
@@ -9187,9 +9227,6 @@ void InvokeAccessorGetterCallback(
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               &RuntimeCallStats::AccessorGetterCallback);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate,
-      &internal::tracing::TraceEventStatsTable::AccessorGetterCallback);
   Address getter_address = reinterpret_cast<Address>(reinterpret_cast<intptr_t>(
       getter));
   VMState<EXTERNAL> state(isolate);
@@ -9203,9 +9240,6 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               &RuntimeCallStats::InvokeFunctionCallback);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate,
-      &internal::tracing::TraceEventStatsTable::InvokeFunctionCallback);
   Address callback_address =
       reinterpret_cast<Address>(reinterpret_cast<intptr_t>(callback));
   VMState<EXTERNAL> state(isolate);

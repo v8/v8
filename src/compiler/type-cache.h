@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_TYPE_CACHE_H_
 #define V8_COMPILER_TYPE_CACHE_H_
 
+#include "src/compiler/types.h"
 #include "src/date.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {
