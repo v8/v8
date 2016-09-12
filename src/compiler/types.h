@@ -721,57 +721,6 @@ class Type {
   static Type* NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone);
 };
 
-// -----------------------------------------------------------------------------
-// Type bounds. A simple struct to represent a pair of lower/upper types.
-
-struct Bounds {
-  Type* lower;
-  Type* upper;
-
-  Bounds()
-      :  // Make sure accessing uninitialized bounds crashes big-time.
-        lower(nullptr),
-        upper(nullptr) {}
-  explicit Bounds(Type* t) : lower(t), upper(t) {}
-  Bounds(Type* l, Type* u) : lower(l), upper(u) { DCHECK(lower->Is(upper)); }
-
-  // Unrestricted bounds.
-  static Bounds Unbounded() { return Bounds(Type::None(), Type::Any()); }
-
-  // Meet: both b1 and b2 are known to hold.
-  static Bounds Both(Bounds b1, Bounds b2, Zone* zone) {
-    Type* lower = Type::Union(b1.lower, b2.lower, zone);
-    Type* upper = Type::Intersect(b1.upper, b2.upper, zone);
-    // Lower bounds are considered approximate, correct as necessary.
-    if (!lower->Is(upper)) lower = upper;
-    return Bounds(lower, upper);
-  }
-
-  // Join: either b1 or b2 is known to hold.
-  static Bounds Either(Bounds b1, Bounds b2, Zone* zone) {
-    Type* lower = Type::Intersect(b1.lower, b2.lower, zone);
-    Type* upper = Type::Union(b1.upper, b2.upper, zone);
-    return Bounds(lower, upper);
-  }
-
-  static Bounds NarrowLower(Bounds b, Type* t, Zone* zone) {
-    Type* lower = Type::Union(b.lower, t, zone);
-    // Lower bounds are considered approximate, correct as necessary.
-    if (!lower->Is(b.upper)) lower = b.upper;
-    return Bounds(lower, b.upper);
-  }
-  static Bounds NarrowUpper(Bounds b, Type* t, Zone* zone) {
-    Type* lower = b.lower;
-    Type* upper = Type::Intersect(b.upper, t, zone);
-    // Lower bounds are considered approximate, correct as necessary.
-    if (!lower->Is(upper)) lower = upper;
-    return Bounds(lower, upper);
-  }
-
-  bool Narrows(Bounds that) {
-    return that.lower->Is(this->lower) && this->upper->Is(that.upper);
-  }
-};
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
