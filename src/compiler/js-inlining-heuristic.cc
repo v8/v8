@@ -109,7 +109,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
        frame_state->opcode() == IrOpcode::kFrameState;
        frame_state = NodeProperties::GetFrameStateInput(frame_state)) {
     FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
-    if (frame_info.type() == FrameStateType::kJavaScriptFunction) {
+    if (FrameStateFunctionInfo::IsJSFunctionType(frame_info.type())) {
       if (++level > FLAG_max_inlining_levels) {
         TRACE(
             "Not considering call site #%d:%s, because inlining depth "
