@@ -4513,6 +4513,8 @@ void CodeStubAssembler::StoreNamedField(Node* object, FieldIndex index,
   if (store_value_as_double) {
     StoreObjectFieldNoWriteBarrier(property_storage, offset, value,
                                    MachineRepresentation::kFloat64);
+  } else if (representation.IsSmi()) {
+    StoreObjectFieldNoWriteBarrier(property_storage, offset, value);
   } else {
     StoreObjectField(property_storage, offset, value);
   }

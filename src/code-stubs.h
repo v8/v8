@@ -90,7 +90,6 @@ class ObjectLiteral;
   V(LoadField)                                \
   V(LoadScriptContextField)                   \
   V(StoreFastElement)                         \
-  V(StoreGlobal)                              \
   V(StoreScriptContextField)                  \
   V(StoreTransition)                          \
   /* These should never be ported to TF */    \
@@ -167,6 +166,7 @@ class ObjectLiteral;
   V(LoadICTF)                                 \
   V(KeyedLoadICTF)                            \
   V(StoreField)                               \
+  V(StoreGlobal)                              \
   V(StoreInterceptor)                         \
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
@@ -1773,19 +1773,21 @@ class StoreTransitionStub : public HandlerStub {
   DEFINE_HANDLER_CODE_STUB(StoreTransition, HandlerStub);
 };
 
-
-class StoreGlobalStub : public HandlerStub {
+class StoreGlobalStub : public TurboFanCodeStub {
  public:
   StoreGlobalStub(Isolate* isolate, PropertyCellType type,
                   Maybe<PropertyCellConstantType> constant_type,
                   bool check_global)
-      : HandlerStub(isolate) {
+      : TurboFanCodeStub(isolate) {
     PropertyCellConstantType encoded_constant_type =
         constant_type.FromMaybe(PropertyCellConstantType::kSmi);
-    set_sub_minor_key(CellTypeBits::encode(type) |
-                      ConstantTypeBits::encode(encoded_constant_type) |
-                      CheckGlobalBits::encode(check_global));
+    minor_key_ = CellTypeBits::encode(type) |
+                 ConstantTypeBits::encode(encoded_constant_type) |
+                 CheckGlobalBits::encode(check_global);
   }
+
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
   static Handle<HeapObject> property_cell_placeholder(Isolate* isolate) {
     return isolate->factory()->uninitialized_value();
@@ -1807,37 +1809,25 @@ class StoreGlobalStub : public HandlerStub {
     return CodeStub::GetCodeCopy(pattern);
   }
 
-  Code::Kind kind() const override { return Code::STORE_IC; }
-
   PropertyCellType cell_type() const {
-    return CellTypeBits::decode(sub_minor_key());
+    return CellTypeBits::decode(minor_key_);
   }
 
   PropertyCellConstantType constant_type() const {
     DCHECK(PropertyCellType::kConstantType == cell_type());
-    return ConstantTypeBits::decode(sub_minor_key());
+    return ConstantTypeBits::decode(minor_key_);
   }
 
-  bool check_global() const { return CheckGlobalBits::decode(sub_minor_key()); }
-
-  Representation representation() {
-    return Representation::FromKind(
-        RepresentationBits::decode(sub_minor_key()));
-  }
-
-  void set_representation(Representation r) {
-    set_sub_minor_key(RepresentationBits::update(sub_minor_key(), r.kind()));
-  }
+  bool check_global() const { return CheckGlobalBits::decode(minor_key_); }
 
  private:
   class CellTypeBits : public BitField<PropertyCellType, 0, 2> {};
-  class ConstantTypeBits : public BitField<PropertyCellConstantType, 2, 2> {};
-  class RepresentationBits : public BitField<Representation::Kind, 4, 8> {};
-  class CheckGlobalBits : public BitField<bool, 12, 1> {};
+  class ConstantTypeBits
+      : public BitField<PropertyCellConstantType, CellTypeBits::kNext, 2> {};
+  class CheckGlobalBits : public BitField<bool, ConstantTypeBits::kNext, 1> {};
 
-  // TODO(ishell): The stub uses only kValue parameter.
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_HANDLER_CODE_STUB(StoreGlobal, HandlerStub);
+  DEFINE_TURBOFAN_CODE_STUB(StoreGlobal, TurboFanCodeStub);
 };
 
 // TODO(ishell): remove, once StoreGlobalIC is implemented.

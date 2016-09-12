@@ -4471,6 +4471,101 @@ void StoreFieldStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   }
 }
 
+void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  assembler->Comment(
+      "StoreGlobalStub: cell_type=%d, constant_type=%d, check_global=%d",
+      cell_type(), PropertyCellType::kConstantType == cell_type()
+                       ? static_cast<int>(constant_type())
+                       : -1,
+      check_global());
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  if (check_global()) {
+    // Check that the map of the global has not changed: use a placeholder map
+    // that will be replaced later with the global object's map.
+    Node* proxy_map = assembler->LoadMap(receiver);
+    Node* global = assembler->LoadObjectField(proxy_map, Map::kPrototypeOffset);
+    Node* map_cell = assembler->HeapConstant(isolate()->factory()->NewWeakCell(
+        StoreGlobalStub::global_map_placeholder(isolate())));
+    Node* expected_map = assembler->LoadWeakCellValue(map_cell);
+    Node* map = assembler->LoadMap(global);
+    assembler->GotoIf(assembler->WordNotEqual(expected_map, map), &miss);
+  }
+
+  Node* weak_cell = assembler->HeapConstant(isolate()->factory()->NewWeakCell(
+      StoreGlobalStub::property_cell_placeholder(isolate())));
+  Node* cell = assembler->LoadWeakCellValue(weak_cell);
+  assembler->GotoIf(assembler->WordIsSmi(cell), &miss);
+
+  // Load the payload of the global parameter cell. A hole indicates that the
+  // cell has been invalidated and that the store must be handled by the
+  // runtime.
+  Node* cell_contents =
+      assembler->LoadObjectField(cell, PropertyCell::kValueOffset);
+
+  PropertyCellType cell_type = this->cell_type();
+  if (cell_type == PropertyCellType::kConstant ||
+      cell_type == PropertyCellType::kUndefined) {
+    // This is always valid for all states a cell can be in.
+    assembler->GotoIf(assembler->WordNotEqual(cell_contents, value), &miss);
+  } else {
+    assembler->GotoIf(
+        assembler->WordEqual(cell_contents, assembler->TheHoleConstant()),
+        &miss);
+
+    // When dealing with constant types, the type may be allowed to change, as
+    // long as optimized code remains valid.
+    bool value_is_smi = false;
+    if (cell_type == PropertyCellType::kConstantType) {
+      switch (constant_type()) {
+        case PropertyCellConstantType::kSmi:
+          assembler->GotoUnless(assembler->WordIsSmi(value), &miss);
+          value_is_smi = true;
+          break;
+        case PropertyCellConstantType::kStableMap: {
+          // It is sufficient here to check that the value and cell contents
+          // have identical maps, no matter if they are stable or not or if they
+          // are the maps that were originally in the cell or not. If optimized
+          // code will deopt when a cell has a unstable map and if it has a
+          // dependency on a stable map, it will deopt if the map destabilizes.
+          assembler->GotoIf(assembler->WordIsSmi(value), &miss);
+          assembler->GotoIf(assembler->WordIsSmi(cell_contents), &miss);
+          Node* expected_map = assembler->LoadMap(cell_contents);
+          Node* map = assembler->LoadMap(value);
+          assembler->GotoIf(assembler->WordNotEqual(expected_map, map), &miss);
+          break;
+        }
+      }
+    }
+    if (value_is_smi) {
+      assembler->StoreObjectFieldNoWriteBarrier(
+          cell, PropertyCell::kValueOffset, value);
+    } else {
+      assembler->StoreObjectField(cell, PropertyCell::kValueOffset, value);
+    }
+  }
+
+  assembler->Return(value);
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, receiver, name,
+                               value, slot, vector);
+  }
+}
+
 // static
 compiler::Node* LessThanStub::Generate(CodeStubAssembler* assembler,
                                        compiler::Node* lhs, compiler::Node* rhs,
