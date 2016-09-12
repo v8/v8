@@ -63,8 +63,7 @@ void BackgroundParsingTask::Run() {
 
   // Reset the stack limit of the parser to reflect correctly that we're on a
   // background thread.
-  uintptr_t stack_limit =
-      reinterpret_cast<uintptr_t>(&stack_limit) - stack_size_ * KB;
+  uintptr_t stack_limit = GetCurrentStackPosition() - stack_size_ * KB;
   source_->parser->set_stack_limit(stack_limit);
 
   // Nullify the Isolate temporarily so that the background parser doesn't

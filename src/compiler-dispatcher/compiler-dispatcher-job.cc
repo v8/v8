@@ -111,8 +111,7 @@ void CompilerDispatcherJob::Parse() {
   // use it.
   parse_info_->set_isolate(nullptr);
 
-  uintptr_t stack_limit =
-      reinterpret_cast<uintptr_t>(&stack_limit) - max_stack_size_ * KB;
+  uintptr_t stack_limit = GetCurrentStackPosition() - max_stack_size_ * KB;
 
   parser_->set_stack_limit(stack_limit);
   parser_->ParseOnBackground(parse_info_.get());
@@ -207,8 +206,7 @@ void CompilerDispatcherJob::Compile() {
   // Disallowing of handle dereference and heap access dealt with in
   // CompilationJob::ExecuteJob.
 
-  uintptr_t stack_limit =
-      reinterpret_cast<uintptr_t>(&stack_limit) - max_stack_size_ * KB;
+  uintptr_t stack_limit = GetCurrentStackPosition() - max_stack_size_ * KB;
   compile_job_->set_stack_limit(stack_limit);
 
   CompilationJob::Status status = compile_job_->ExecuteJob();
