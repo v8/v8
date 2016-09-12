@@ -59,25 +59,26 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
 
   if (thrower.error()) return Handle<JSObject>::null();
 
-  MaybeHandle<FixedArray> compiled_module =
-      module->CompileFunctions(isolate, &thrower);
-
-  if (compiled_module.is_null()) return Handle<JSObject>::null();
-  return WasmModule::Instantiate(isolate, compiled_module.ToHandleChecked(),
+  // Although we decoded the module for some pre-validation, run the bytes
+  // again through the normal pipeline.
+  MaybeHandle<JSObject> module_object = CreateModuleObjectFromBytes(
+      isolate, module->module_start, module->module_end, &thrower,
+      ModuleOrigin::kWasmOrigin);
+  if (module_object.is_null()) return Handle<JSObject>::null();
+  return WasmModule::Instantiate(isolate, module_object.ToHandleChecked(),
                                  Handle<JSReceiver>::null(),
                                  Handle<JSArrayBuffer>::null())
       .ToHandleChecked();
 }
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end, bool asm_js) {
+                                const byte* module_end, ModuleOrigin origin) {
   HandleScope scope(isolate);
   Zone zone(isolate->allocator());
 
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
-      isolate, &zone, thrower, module_start, module_end,
-      asm_js ? kAsmJsOrigin : kWasmOrigin));
+      isolate, &zone, thrower, module_start, module_end, origin));
 
   if (module == nullptr) {
     return -1;
@@ -87,9 +88,9 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   if (instance.is_null()) {
     return -1;
   }
-  return CallWasmFunctionForTesting(isolate, instance, thrower,
-                                    asm_js ? "caller" : "main", 0, nullptr,
-                                    asm_js);
+  const char* f_name = origin == ModuleOrigin::kAsmJsOrigin ? "caller" : "main";
+  return CallWasmFunctionForTesting(isolate, instance, thrower, f_name, 0,
+                                    nullptr, origin);
 }
 
 int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower& thrower,
@@ -150,9 +151,9 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower& thrower,
 int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
                                    ErrorThrower& thrower, const char* name,
                                    int argc, Handle<Object> argv[],
-                                   bool asm_js) {
+                                   ModuleOrigin origin) {
   Handle<JSObject> exports_object;
-  if (asm_js) {
+  if (origin == ModuleOrigin::kAsmJsOrigin) {
     exports_object = instance;
   } else {
     Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");

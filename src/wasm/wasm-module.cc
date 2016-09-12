@@ -1371,14 +1371,17 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
 //  * installs a named property "memory" for that buffer if exported
 //  * installs named properties on the object for exported functions
 //  * compiles wasm code to machine code
-MaybeHandle<JSObject> WasmModule::Instantiate(
-    Isolate* isolate, Handle<FixedArray> compiled_module,
-    Handle<JSReceiver> ffi, Handle<JSArrayBuffer> memory) {
+MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
+                                              Handle<JSObject> module_object,
+                                              Handle<JSReceiver> ffi,
+                                              Handle<JSArrayBuffer> memory) {
   HistogramTimerScope wasm_instantiate_module_time_scope(
       isolate->counters()->wasm_instantiate_module_time());
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
   Factory* factory = isolate->factory();
 
+  Handle<FixedArray> compiled_module =
+      handle(FixedArray::cast(module_object->GetInternalField(0)));
   compiled_module = CloneModuleForInstance(isolate, compiled_module);
 
   // These fields are compulsory.

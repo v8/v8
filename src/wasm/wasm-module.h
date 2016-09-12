@@ -234,7 +234,7 @@ struct WasmModule {
 
   // Creates a new instantiation of the module in the given isolate.
   static MaybeHandle<JSObject> Instantiate(Isolate* isolate,
-                                           Handle<FixedArray> compiled_module,
+                                           Handle<JSObject> module_object,
                                            Handle<JSReceiver> ffi,
                                            Handle<JSArrayBuffer> memory);
 

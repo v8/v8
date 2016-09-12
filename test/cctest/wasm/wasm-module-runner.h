@@ -33,12 +33,12 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
 int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
                                    ErrorThrower& thrower, const char* name,
                                    int argc, Handle<Object> argv[],
-                                   bool asm_js = false);
+                                   ModuleOrigin origin);
 
 // Decode, verify, and run the function labeled "main" in the
 // given encoded module. The module should have no imports.
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end, bool asm_js = false);
+                                const byte* module_end, ModuleOrigin origin);
 
 // Interprets the given module, starting at the function specified by
 // {function_index}. The return type of the function has to be int32. The module

@@ -133,13 +133,11 @@ i::MaybeHandle<i::JSObject> InstantiateModule(
   // Decode but avoid a redundant pass over function bodies for verification.
   // Verification will happen during compilation.
   i::Zone zone(isolate->allocator());
-  internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
-      isolate, &zone, start, end, false, origin);
-
+  i::MaybeHandle<i::JSObject> module_object =
+      i::wasm::CreateModuleObjectFromBytes(isolate, start, end, thrower,
+                                           origin);
   i::MaybeHandle<i::JSObject> object;
-  if (result.failed()) {
-    thrower->Failed("", result);
-  } else {
+  if (!module_object.is_null()) {
     // Success. Instantiate the module and return the object.
     i::Handle<i::JSObject> ffi = i::Handle<i::JSObject>::null();
     if (args.Length() > 1 && args[1]->IsObject()) {
@@ -154,19 +152,12 @@ i::MaybeHandle<i::JSObject> InstantiateModule(
       memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
     }
 
-    i::MaybeHandle<i::FixedArray> compiled_module =
-        result.val->CompileFunctions(isolate, thrower);
-    if (!thrower->error()) {
-      DCHECK(!compiled_module.is_null());
-      object = i::wasm::WasmModule::Instantiate(
-          isolate, compiled_module.ToHandleChecked(), ffi, memory);
-      if (!object.is_null()) {
-        args.GetReturnValue().Set(v8::Utils::ToLocal(object.ToHandleChecked()));
-      }
+    object = i::wasm::WasmModule::Instantiate(
+        isolate, module_object.ToHandleChecked(), ffi, memory);
+    if (!object.is_null()) {
+      args.GetReturnValue().Set(v8::Utils::ToLocal(object.ToHandleChecked()));
     }
   }
-
-  if (result.val) delete result.val;
   return object;
 }
 
@@ -276,9 +267,6 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::FixedArray> compiled_code = i::Handle<i::FixedArray>(
-      i::FixedArray::cast(module_obj->GetInternalField(0)));
-
   i::Handle<i::JSReceiver> ffi = i::Handle<i::JSObject>::null();
   if (args.Length() > 1 && args[1]->IsObject()) {
     Local<Object> obj = Local<Object>::Cast(args[1]);
@@ -292,7 +280,7 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
     memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
   }
   i::MaybeHandle<i::JSObject> instance =
-      i::wasm::WasmModule::Instantiate(i_isolate, compiled_code, ffi, memory);
+      i::wasm::WasmModule::Instantiate(i_isolate, module_obj, ffi, memory);
   if (instance.is_null()) {
     thrower.Error("Could not instantiate module");
     return;
@@ -326,6 +314,47 @@ static Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
       static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
   JSObject::AddProperty(object, name, function, attributes);
   return function;
+}
+
+void WasmJs::SetupIsolateForWasm(Isolate* isolate) {
+  InstallWasmFunctionMap(isolate, isolate->native_context());
+  InstallWasmModuleSymbol(isolate, isolate->global_object(),
+                          isolate->native_context());
+}
+
+void WasmJs::InstallWasmModuleSymbol(Isolate* isolate,
+                                     Handle<JSGlobalObject> global,
+                                     Handle<Context> context) {
+  Factory* factory = isolate->factory();
+  // Create private symbols.
+  Handle<Symbol> module_sym = factory->NewPrivateSymbol();
+  Handle<Symbol> instance_sym = factory->NewPrivateSymbol();
+  context->set_wasm_module_sym(*module_sym);
+  context->set_wasm_instance_sym(*instance_sym);
+
+  // Bind the WebAssembly object.
+  Handle<String> name = v8_str(isolate, "WebAssembly");
+  Handle<JSFunction> cons = factory->NewFunction(name);
+  JSFunction::SetInstancePrototype(
+      cons, Handle<Object>(context->initial_object_prototype(), isolate));
+  cons->shared()->set_instance_class_name(*name);
+  Handle<JSObject> wasm_object = factory->NewJSObject(cons, TENURED);
+  PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
+  JSObject::AddProperty(global, name, wasm_object, attributes);
+
+  // Install static methods on WebAssembly object.
+  InstallFunc(isolate, wasm_object, "compile", WebAssemblyCompile);
+  Handle<JSFunction> module_constructor =
+      InstallFunc(isolate, wasm_object, "Module", WebAssemblyModule);
+  Handle<JSFunction> instance_constructor =
+      InstallFunc(isolate, wasm_object, "Instance", WebAssemblyInstance);
+  i::Handle<i::Map> map = isolate->factory()->NewMap(
+      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize + i::kPointerSize);
+  module_constructor->set_prototype_or_initial_map(*map);
+  map->SetConstructor(*module_constructor);
+
+  context->set_wasm_module_constructor(*module_constructor);
+  context->set_wasm_instance_constructor(*instance_constructor);
 }
 
 void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
@@ -370,36 +399,7 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
       JSObject::AddProperty(wasm_object, name, value, attributes);
     }
   }
-
-  // Create private symbols.
-  Handle<Symbol> module_sym = isolate->factory()->NewPrivateSymbol();
-  Handle<Symbol> instance_sym = isolate->factory()->NewPrivateSymbol();
-  context->set_wasm_module_sym(*module_sym);
-  context->set_wasm_instance_sym(*instance_sym);
-
-  // Bind the WebAssembly object.
-  Handle<String> name = v8_str(isolate, "WebAssembly");
-  Handle<JSFunction> cons = factory->NewFunction(name);
-  JSFunction::SetInstancePrototype(
-      cons, Handle<Object>(context->initial_object_prototype(), isolate));
-  cons->shared()->set_instance_class_name(*name);
-  Handle<JSObject> wasm_object = factory->NewJSObject(cons, TENURED);
-  PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
-  JSObject::AddProperty(global, name, wasm_object, attributes);
-
-  // Install static methods on WebAssembly object.
-  InstallFunc(isolate, wasm_object, "compile", WebAssemblyCompile);
-  Handle<JSFunction> module_constructor =
-      InstallFunc(isolate, wasm_object, "Module", WebAssemblyModule);
-  Handle<JSFunction> instance_constructor =
-      InstallFunc(isolate, wasm_object, "Instance", WebAssemblyInstance);
-  i::Handle<i::Map> map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize + i::kPointerSize);
-  module_constructor->set_prototype_or_initial_map(*map);
-  map->SetConstructor(*module_constructor);
-
-  context->set_wasm_module_constructor(*module_constructor);
-  context->set_wasm_instance_constructor(*instance_constructor);
+  InstallWasmModuleSymbol(isolate, global, context);
 }
 
 void WasmJs::InstallWasmFunctionMap(Isolate* isolate, Handle<Context> context) {

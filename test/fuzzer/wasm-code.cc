@@ -50,15 +50,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   ZoneBuffer buffer(&zone);
   builder.WriteTo(buffer);
 
-  v8::internal::WasmJs::InstallWasmFunctionMap(i_isolate,
-                                               i_isolate->native_context());
+  v8::internal::WasmJs::SetupIsolateForWasm(i_isolate);
 
   v8::internal::HandleScope scope(i_isolate);
 
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
   std::unique_ptr<const WasmModule> module(testing::DecodeWasmModuleForTesting(
       i_isolate, &zone, interpreter_thrower, buffer.begin(), buffer.end(),
-      kWasmOrigin));
+      v8::internal::wasm::ModuleOrigin::kWasmOrigin));
 
   if (module == nullptr) {
     return 0;
@@ -86,7 +85,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         v8::internal::handle(v8::internal::Smi::FromInt(1), i_isolate)};
     result_compiled = testing::CallWasmFunctionForTesting(
         i_isolate, instance, compiler_thrower, "main", arraysize(arguments),
-        arguments, false);
+        arguments, v8::internal::wasm::ModuleOrigin::kWasmOrigin);
   }
   if (result_interpreted == 0xdeadbeef) {
     CHECK(i_isolate->has_pending_exception());

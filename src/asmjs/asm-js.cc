@@ -201,15 +201,13 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                                               Handle<JSArrayBuffer> memory,
                                               Handle<JSReceiver> foreign) {
   i::Handle<i::JSObject> module(i::JSObject::cast(wasm_data->get(0)));
-  i::Handle<i::FixedArray> compiled(
-      i::FixedArray::cast(module->GetInternalField(0)));
   i::Handle<i::FixedArray> foreign_globals(
       i::FixedArray::cast(wasm_data->get(1)));
 
   ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
 
   i::MaybeHandle<i::JSObject> maybe_module_object =
-      i::wasm::WasmModule::Instantiate(isolate, compiled, foreign, memory);
+      i::wasm::WasmModule::Instantiate(isolate, module, foreign, memory);
   if (maybe_module_object.is_null()) {
     return MaybeHandle<Object>();
   }

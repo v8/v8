@@ -29,9 +29,9 @@ void TestModule(Zone* zone, WasmModuleBuilder* builder,
 
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-  WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
-  int32_t result =
-      testing::CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end());
+  WasmJs::SetupIsolateForWasm(isolate);
+  int32_t result = testing::CompileAndRunWasmModule(
+      isolate, buffer.begin(), buffer.end(), ModuleOrigin::kWasmOrigin);
   CHECK_EQ(expected_result, result);
 }
 
@@ -183,7 +183,6 @@ TEST(Run_WasmModule_Global) {
 }
 
 TEST(Run_WasmModule_Serialization) {
-  FLAG_expose_wasm = true;
   static const char* kFunctionName = "increment";
   v8::base::AccountingAllocator allocator;
   Zone zone(&allocator);
@@ -201,20 +200,12 @@ TEST(Run_WasmModule_Serialization) {
   ZoneBuffer buffer(&zone);
   builder->WriteTo(buffer);
 
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      CcTest::InitIsolateOnce()->array_buffer_allocator();
-
-  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-  v8::HandleScope new_scope(v8_isolate);
-  v8::Local<v8::Context> new_ctx = v8::Context::New(v8_isolate);
-  new_ctx->Enter();
-
+  Isolate* isolate = CcTest::InitIsolateOnce();
   ErrorThrower thrower(isolate, "");
   v8::WasmCompiledModule::SerializedModule data;
   {
     HandleScope scope(isolate);
+    WasmJs::SetupIsolateForWasm(isolate);
 
     ModuleResult decoding_result = DecodeWasmModule(
         isolate, &zone, buffer.begin(), buffer.end(), false, kWasmOrigin);
@@ -234,14 +225,18 @@ TEST(Run_WasmModule_Serialization) {
     data = v8_compiled_module->Serialize();
   }
 
-  create_params.array_buffer_allocator = isolate->array_buffer_allocator();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      CcTest::InitIsolateOnce()->array_buffer_allocator();
 
-  isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);
     v8::HandleScope new_scope(v8_isolate);
     v8::Local<v8::Context> new_ctx = v8::Context::New(v8_isolate);
     new_ctx->Enter();
+    isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    WasmJs::SetupIsolateForWasm(isolate);
 
     v8::MaybeLocal<v8::WasmCompiledModule> deserialized =
         v8::WasmCompiledModule::Deserialize(v8_isolate, data);
@@ -249,16 +244,15 @@ TEST(Run_WasmModule_Serialization) {
     CHECK(deserialized.ToLocal(&compiled_module));
     Handle<JSObject> module_object =
         Handle<JSObject>::cast(v8::Utils::OpenHandle(*compiled_module));
-    Handle<FixedArray> compiled_part =
-        handle(FixedArray::cast(module_object->GetInternalField(0)));
     Handle<JSObject> instance =
-        WasmModule::Instantiate(isolate, compiled_part,
+        WasmModule::Instantiate(isolate, module_object,
                                 Handle<JSReceiver>::null(),
                                 Handle<JSArrayBuffer>::null())
             .ToHandleChecked();
     Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(41), isolate)};
     int32_t result = testing::CallWasmFunctionForTesting(
-        isolate, instance, thrower, kFunctionName, 1, params);
+        isolate, instance, thrower, kFunctionName, 1, params,
+        ModuleOrigin::kWasmOrigin);
     CHECK(result == 42);
     new_ctx->Exit();
   }
