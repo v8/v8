@@ -135,6 +135,7 @@ void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
   handler->HandleOutput(buf);
 }
 
+#if !V8_OS_AIX
 void ProcessBacktrace(void* const* trace, size_t size,
                       BacktraceOutputHandler* handler) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
@@ -171,6 +172,7 @@ void ProcessBacktrace(void* const* trace, size_t size,
     }
   }
 }
+#endif  // !V8_OS_AIX
 
 void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
@@ -359,23 +361,31 @@ StackTrace::StackTrace() {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
+#if !V8_OS_AIX
   // Though the backtrace API man page does not list any possible negative
   // return values, we take no chance.
   count_ = static_cast<size_t>(backtrace(trace_, arraysize(trace_)));
+#else
+  count_ = 0;
+#endif
 }
 
 void StackTrace::Print() const {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
+#if !V8_OS_AIX
   PrintBacktraceOutputHandler handler;
   ProcessBacktrace(trace_, count_, &handler);
+#endif
 }
 
+#if !V8_OS_AIX
 void StackTrace::OutputToStream(std::ostream* os) const {
   StreamBacktraceOutputHandler handler(os);
   ProcessBacktrace(trace_, count_, &handler);
 }
+#endif
 
 namespace internal {
 
