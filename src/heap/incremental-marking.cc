@@ -33,6 +33,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       bytes_scanned_(0),
       allocated_(0),
       write_barriers_invoked_since_last_step_(0),
+      bytes_marked_ahead_of_schedule_(0),
       idle_marking_delay_counter_(0),
       unscanned_bytes_of_large_object_(0),
       was_activated_(false),
@@ -1055,7 +1056,7 @@ void IncrementalMarking::Epilogue() {
 
 double IncrementalMarking::AdvanceIncrementalMarking(
     double deadline_in_ms, CompletionAction completion_action,
-    ForceCompletionAction force_completion) {
+    ForceCompletionAction force_completion, StepOrigin step_origin) {
   DCHECK(!IsStopped());
 
   double remaining_time_in_ms = 0.0;
@@ -1064,7 +1065,7 @@ double IncrementalMarking::AdvanceIncrementalMarking(
       heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
 
   do {
-    Step(step_size_in_bytes, completion_action, force_completion);
+    Step(step_size_in_bytes, completion_action, force_completion, step_origin);
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
   } while (remaining_time_in_ms >= kStepSizeInMs && !IsComplete() &&
@@ -1184,13 +1185,15 @@ void IncrementalMarking::NotifyAllocatedBytes(intptr_t allocated_bytes) {
     intptr_t bytes_to_process =
         marking_speed_ *
         Max(allocated_, write_barriers_invoked_since_last_step_);
-    Step(bytes_to_process, GC_VIA_STACK_GUARD, FORCE_COMPLETION);
+    Step(bytes_to_process, GC_VIA_STACK_GUARD, FORCE_COMPLETION,
+         StepOrigin::kV8);
   }
 }
 
 void IncrementalMarking::Step(intptr_t bytes_to_process,
                               CompletionAction action,
-                              ForceCompletionAction completion) {
+                              ForceCompletionAction completion,
+                              StepOrigin step_origin) {
   HistogramTimerScope incremental_marking_scope(
       heap_->isolate()->counters()->gc_incremental_marking());
   TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
@@ -1218,7 +1221,18 @@ void IncrementalMarking::Step(intptr_t bytes_to_process,
          heap_->mark_compact_collector()->marking_deque()->IsEmpty());
     bool wrapper_work_left = incremental_wrapper_tracing;
     if (!process_wrappers) {
-      bytes_processed = ProcessMarkingDeque(bytes_to_process);
+      if (step_origin == StepOrigin::kV8 &&
+          bytes_marked_ahead_of_schedule_ >= bytes_to_process) {
+        // Steps performed in tasks have put us ahead of schedule.
+        // We skip processing of marking dequeue here and thus
+        // shift marking time from inside V8 to standalone tasks.
+        bytes_marked_ahead_of_schedule_ -= bytes_to_process;
+      } else {
+        bytes_processed = ProcessMarkingDeque(bytes_to_process);
+        if (step_origin == StepOrigin::kTask) {
+          bytes_marked_ahead_of_schedule_ += bytes_processed;
+        }
+      }
     } else {
       const double wrapper_deadline =
           heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
@@ -1261,6 +1275,13 @@ void IncrementalMarking::Step(intptr_t bytes_to_process,
   // when we just started incremental marking. In these cases we did not
   // process the marking deque.
   heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
+  if (FLAG_trace_incremental_marking) {
+    heap_->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Step %s %d bytes (%d) in %.1f\n",
+        step_origin == StepOrigin::kV8 ? "in v8" : "in task",
+        static_cast<int>(bytes_processed), static_cast<int>(bytes_to_process),
+        duration);
+  }
 }
 
 
@@ -1274,6 +1295,7 @@ void IncrementalMarking::ResetStepCounters() {
   marking_speed_ = kInitialMarkingSpeed;
   bytes_scanned_ = 0;
   write_barriers_invoked_since_last_step_ = 0;
+  bytes_marked_ahead_of_schedule_ = 0;
 }
 
 

@@ -937,7 +937,7 @@ void Heap::ReportExternalMemoryPressure() {
                             pressure * kMaxStepSizeOnExternalLimit;
     incremental_marking()->AdvanceIncrementalMarking(
         deadline, IncrementalMarking::GC_VIA_STACK_GUARD,
-        IncrementalMarking::FORCE_COMPLETION);
+        IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
   }
 }
 
@@ -1054,7 +1054,9 @@ bool Heap::CollectGarbage(GarbageCollector collector,
 
   // Start incremental marking for the next cycle. The heap snapshot
   // generator needs incremental marking to stay off after it aborted.
-  if (!ShouldAbortIncrementalMarking()) {
+  // We do this only for scavenger to avoid a loop where mark-compact
+  // causes another mark-compact.
+  if (collector == SCAVENGER && !ShouldAbortIncrementalMarking()) {
     StartIncrementalMarkingIfAllocationLimitIsReached(kNoGCFlags,
                                                       kNoGCCallbackFlags);
   }
@@ -4294,15 +4296,16 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       result = true;
       break;
     case DO_INCREMENTAL_STEP: {
-      if (incremental_marking()->incremental_marking_job()->IdleTaskPending()) {
-        result = true;
-      } else {
-        incremental_marking()
-            ->incremental_marking_job()
-            ->NotifyIdleTaskProgress();
-        result = IncrementalMarkingJob::IdleTask::Step(this, deadline_in_ms) ==
-                 IncrementalMarkingJob::IdleTask::kDone;
+      const double remaining_idle_time_in_ms =
+          incremental_marking()->AdvanceIncrementalMarking(
+              deadline_in_ms, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+              IncrementalMarking::FORCE_COMPLETION, StepOrigin::kTask);
+      if (remaining_idle_time_in_ms > 0.0) {
+        TryFinalizeIdleIncrementalMarking(
+            remaining_idle_time_in_ms,
+            GarbageCollectionReason::kFinalizeMarkingViaTask);
       }
+      result = incremental_marking()->IsStopped();
       break;
     }
     case DO_FULL_GC: {

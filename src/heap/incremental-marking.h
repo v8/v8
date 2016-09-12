@@ -20,6 +20,8 @@ namespace internal {
 class MarkBit;
 class PagedSpace;
 
+enum class StepOrigin { kV8, kTask };
+
 class IncrementalMarking {
  public:
   enum State { STOPPED, SWEEPING, MARKING, COMPLETE };
@@ -97,7 +99,8 @@ class IncrementalMarking {
   // anymore because a single step would exceed the deadline.
   double AdvanceIncrementalMarking(double deadline_in_ms,
                                    CompletionAction completion_action,
-                                   ForceCompletionAction force_completion);
+                                   ForceCompletionAction force_completion,
+                                   StepOrigin step_origin);
 
   // It's hard to know how much work the incremental marker should do to make
   // progress in the face of the mutator creating new work for it.  We start
@@ -129,7 +132,7 @@ class IncrementalMarking {
   void NotifyAllocatedBytes(intptr_t allocated_bytes);
 
   void Step(intptr_t bytes_to_process, CompletionAction action,
-            ForceCompletionAction completion);
+            ForceCompletionAction completion, StepOrigin origin);
 
   inline void RestartIfNotMarking();
 
@@ -294,6 +297,7 @@ class IncrementalMarking {
   intptr_t bytes_scanned_;
   intptr_t allocated_;
   intptr_t write_barriers_invoked_since_last_step_;
+  intptr_t bytes_marked_ahead_of_schedule_;
   size_t idle_marking_delay_counter_;
 
   int unscanned_bytes_of_large_object_;

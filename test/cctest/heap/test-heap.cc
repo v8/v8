@@ -781,7 +781,7 @@ TEST(PromoteGreyOrBlackObjectsOnScavenge) {
   while (
       Marking::IsWhite(ObjectMarking::MarkBitFrom(HeapObject::cast(*marked)))) {
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::DO_NOT_FORCE_COMPLETION);
+                  IncrementalMarking::DO_NOT_FORCE_COMPLETION, StepOrigin::kV8);
   }
 
   CcTest::CollectGarbage(NEW_SPACE);
@@ -2678,7 +2678,7 @@ TEST(InstanceOfStubWriteBarrier) {
     // Discard any pending GC requests otherwise we will get GC when we enter
     // code below.
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::FORCE_COMPLETION);
+                  IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
   }
 
   CHECK(marking->IsMarking());
@@ -2846,7 +2846,7 @@ TEST(IdleNotificationFinishMarking) {
   // Perform a huge incremental marking step but don't complete marking.
   do {
     marking->Step(1 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::DO_NOT_FORCE_COMPLETION);
+                  IncrementalMarking::DO_NOT_FORCE_COMPLETION, StepOrigin::kV8);
     CHECK(!marking->IsIdleMarkingDelayCounterLimitReached());
   } while (
       !CcTest::heap()->mark_compact_collector()->marking_deque()->IsEmpty());
@@ -2857,7 +2857,7 @@ TEST(IdleNotificationFinishMarking) {
   for (size_t i = 0; i < IncrementalMarking::kMaxIdleMarkingDelayCounter - 2;
        i++) {
     marking->Step(1 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::DO_NOT_FORCE_COMPLETION);
+                  IncrementalMarking::DO_NOT_FORCE_COMPLETION, StepOrigin::kV8);
     CHECK(!marking->IsIdleMarkingDelayCounterLimitReached());
   }
 
@@ -4611,7 +4611,7 @@ TEST(LargeObjectSlotRecording) {
   heap::SimulateIncrementalMarking(heap, false);
   heap->incremental_marking()->AdvanceIncrementalMarking(
       10000000, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-      IncrementalMarking::FORCE_COMPLETION);
+      IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
 
   // Create references from the large object to the object on the evacuation
   // candidate.
@@ -4674,7 +4674,7 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   }
   // This big step should be sufficient to mark the whole array.
   marking->Step(100 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                IncrementalMarking::FORCE_COMPLETION);
+                IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
   CHECK(marking->IsComplete() ||
         marking->IsReadyToOverApproximateWeakClosure());
 }
@@ -5493,7 +5493,7 @@ TEST(WeakCellsWithIncrementalMarking) {
                                     i::GarbageCollectionReason::kTesting);
     }
     marking->Step(128, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::FORCE_COMPLETION);
+                  IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
     CcTest::CollectGarbage(NEW_SPACE);
     CHECK(weak_cell->value()->IsFixedArray());
     weak_cells[i] = inner_scope.CloseAndEscape(weak_cell);
@@ -5815,7 +5815,7 @@ TEST(Regress3631) {
              ObjectMarking::MarkBitFrom(HeapObject::cast(weak_map->table()))) &&
          !marking->IsStopped()) {
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::FORCE_COMPLETION);
+                  IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
   }
   // Stash the backing store in a handle.
   Handle<Object> save(weak_map->table(), isolate);
@@ -6656,7 +6656,7 @@ TEST(Regress598319) {
   // only partially marked the large object.
   while (!marking->IsComplete()) {
     marking->Step(i::KB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::FORCE_COMPLETION);
+                  IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
     if (page->IsFlagSet(Page::HAS_PROGRESS_BAR) && page->progress_bar() > 0) {
       CHECK_NE(page->progress_bar(), arr.get()->Size());
       {
@@ -6674,7 +6674,7 @@ TEST(Regress598319) {
   // Finish marking with bigger steps to speed up test.
   while (!marking->IsComplete()) {
     marking->Step(10 * i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::FORCE_COMPLETION);
+                  IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }
@@ -6729,7 +6729,7 @@ TEST(Regress615489) {
   }
   while (!marking->IsComplete()) {
     marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::FORCE_COMPLETION);
+                  IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }
@@ -6789,7 +6789,7 @@ TEST(Regress631969) {
   IncrementalMarking* marking = heap->incremental_marking();
   while (!marking->IsComplete()) {
     marking->Step(MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::FORCE_COMPLETION);
+                  IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }

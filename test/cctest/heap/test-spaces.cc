@@ -449,6 +449,9 @@ TEST(CompactionSpace) {
 
 
 TEST(LargeObjectSpace) {
+  // This test does not initialize allocated objects, which confuses the
+  // incremental marker.
+  FLAG_incremental_marking = false;
   v8::V8::Initialize();
 
   LargeObjectSpace* lo = CcTest::heap()->lo_space();

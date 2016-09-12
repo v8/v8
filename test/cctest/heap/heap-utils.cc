@@ -161,7 +161,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
 
   while (!marking->IsComplete()) {
     marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  i::IncrementalMarking::FORCE_COMPLETION);
+                  i::IncrementalMarking::FORCE_COMPLETION, i::StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }
