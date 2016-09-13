@@ -82,8 +82,6 @@ class ObjectLiteral;
   /* as part of the new IC system, ask */     \
   /* ishell before doing anything  */         \
   V(KeyedLoadGeneric)                         \
-  V(KeyedLoadSloppyArguments)                 \
-  V(KeyedStoreSloppyArguments)                \
   V(LoadConstant)                             \
   V(LoadDictionaryElement)                    \
   V(LoadFastElement)                          \
@@ -150,6 +148,8 @@ class ObjectLiteral;
   V(GreaterThanOrEqual)                       \
   V(Equal)                                    \
   V(NotEqual)                                 \
+  V(KeyedLoadSloppyArguments)                 \
+  V(KeyedStoreSloppyArguments)                \
   V(StrictEqual)                              \
   V(StrictNotEqual)                           \
   V(StringEqual)                              \
@@ -1550,35 +1550,36 @@ class LoadFieldStub: public HandlerStub {
   DEFINE_HANDLER_CODE_STUB(LoadField, HandlerStub);
 };
 
-
-class KeyedLoadSloppyArgumentsStub : public HandlerStub {
+class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
  public:
   explicit KeyedLoadSloppyArgumentsStub(Isolate* isolate)
-      : HandlerStub(isolate) {}
+      : TurboFanCodeStub(isolate) {}
+
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
 
  protected:
-  Code::Kind kind() const override { return Code::KEYED_LOAD_IC; }
-
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HANDLER_CODE_STUB(KeyedLoadSloppyArguments, HandlerStub);
+  DEFINE_TURBOFAN_CODE_STUB(KeyedLoadSloppyArguments, TurboFanCodeStub);
 };
 
 
 class CommonStoreModeBits : public BitField<KeyedAccessStoreMode, 0, 3> {};
 
-class KeyedStoreSloppyArgumentsStub : public HandlerStub {
+class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
  public:
   explicit KeyedStoreSloppyArgumentsStub(Isolate* isolate,
                                          KeyedAccessStoreMode mode)
-      : HandlerStub(isolate) {
-    set_sub_minor_key(CommonStoreModeBits::encode(mode));
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = CommonStoreModeBits::encode(mode);
   }
 
- protected:
-  Code::Kind kind() const override { return Code::KEYED_STORE_IC; }
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
+ protected:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_HANDLER_CODE_STUB(KeyedStoreSloppyArguments, HandlerStub);
+  DEFINE_TURBOFAN_CODE_STUB(KeyedStoreSloppyArguments, TurboFanCodeStub);
 };
 
 

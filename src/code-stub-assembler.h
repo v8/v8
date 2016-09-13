@@ -644,6 +644,20 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                        Representation representation, compiler::Node* value,
                        bool transition_to_field);
 
+  // Emits keyed sloppy arguments load. Returns either the loaded value.
+  compiler::Node* LoadKeyedSloppyArguments(compiler::Node* receiver,
+                                           compiler::Node* key,
+                                           Label* bailout) {
+    return EmitKeyedSloppyArguments(receiver, key, nullptr, bailout);
+  }
+
+  // Emits keyed sloppy arguments store.
+  void StoreKeyedSloppyArguments(compiler::Node* receiver, compiler::Node* key,
+                                 compiler::Node* value, Label* bailout) {
+    DCHECK_NOT_NULL(value);
+    EmitKeyedSloppyArguments(receiver, key, value, bailout);
+  }
+
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);
   void KeyedLoadIC(const LoadICParameters* p);
@@ -707,6 +721,13 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                        compiler::Node* limit_address);
 
   compiler::Node* SmiShiftBitsConstant();
+
+  // Emits keyed sloppy arguments load if the |value| is nullptr or store
+  // otherwise. Returns either the loaded value or |value|.
+  compiler::Node* EmitKeyedSloppyArguments(compiler::Node* receiver,
+                                           compiler::Node* key,
+                                           compiler::Node* value,
+                                           Label* bailout);
 
   static const int kElementLoopUnrollThreshold = 8;
 };

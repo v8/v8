@@ -4566,6 +4566,55 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   }
 }
 
+void KeyedLoadSloppyArgumentsStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* key = assembler->Parameter(Descriptor::kName);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  Node* result = assembler->LoadKeyedSloppyArguments(receiver, key, &miss);
+  assembler->Return(result);
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver,
+                               key, slot, vector);
+  }
+}
+
+void KeyedStoreSloppyArgumentsStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* key = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  assembler->StoreKeyedSloppyArguments(receiver, key, value, &miss);
+  assembler->Return(value);
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, receiver,
+                               key, value, slot, vector);
+  }
+}
+
 // static
 compiler::Node* LessThanStub::Generate(CodeStubAssembler* assembler,
                                        compiler::Node* lhs, compiler::Node* rhs,

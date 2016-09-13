@@ -4520,6 +4520,105 @@ void CodeStubAssembler::StoreNamedField(Node* object, FieldIndex index,
   }
 }
 
+Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
+                                                  Node* value, Label* bailout) {
+  // Mapped arguments are actual arguments. Unmapped arguments are values added
+  // to the arguments object after it was created for the call. Mapped arguments
+  // are stored in the context at indexes given by elements[key + 2]. Unmapped
+  // arguments are stored as regular indexed properties in the arguments array,
+  // held at elements[1]. See NewSloppyArguments() in runtime.cc for a detailed
+  // look at argument object construction.
+  //
+  // The sloppy arguments elements array has a special format:
+  //
+  // 0: context
+  // 1: unmapped arguments array
+  // 2: mapped_index0,
+  // 3: mapped_index1,
+  // ...
+  //
+  // length is 2 + min(number_of_actual_arguments, number_of_formal_arguments).
+  // If key + 2 >= elements.length then attempt to look in the unmapped
+  // arguments array (given by elements[1]) and return the value at key, missing
+  // to the runtime if the unmapped arguments array is not a fixed array or if
+  // key >= unmapped_arguments_array.length.
+  //
+  // Otherwise, t = elements[key + 2]. If t is the hole, then look up the value
+  // in the unmapped arguments array, as described above. Otherwise, t is a Smi
+  // index into the context array given at elements[0]. Return the value at
+  // context[t].
+
+  bool is_load = value == nullptr;
+
+  GotoUnless(WordIsSmi(key), bailout);
+  key = SmiUntag(key);
+  GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), bailout);
+
+  Node* elements = LoadElements(receiver);
+  Node* elements_length = LoadAndUntagFixedArrayBaseLength(elements);
+
+  Variable var_result(this, MachineRepresentation::kTagged);
+  if (!is_load) {
+    var_result.Bind(value);
+  }
+  Label if_mapped(this), if_unmapped(this), end(this, &var_result);
+  Node* intptr_two = IntPtrConstant(2);
+  Node* adjusted_length = IntPtrSub(elements_length, intptr_two);
+
+  GotoIf(UintPtrGreaterThanOrEqual(key, adjusted_length), &if_unmapped);
+
+  Node* mapped_index = LoadFixedArrayElement(
+      elements, IntPtrAdd(key, intptr_two), 0, INTPTR_PARAMETERS);
+  Branch(WordEqual(mapped_index, TheHoleConstant()), &if_unmapped, &if_mapped);
+
+  Bind(&if_mapped);
+  {
+    Assert(WordIsSmi(mapped_index));
+    mapped_index = SmiUntag(mapped_index);
+    Node* the_context = LoadFixedArrayElement(elements, IntPtrConstant(0), 0,
+                                              INTPTR_PARAMETERS);
+    STATIC_ASSERT(Context::kHeaderSize == FixedArray::kHeaderSize);
+    if (is_load) {
+      Node* result = LoadFixedArrayElement(the_context, mapped_index, 0,
+                                           INTPTR_PARAMETERS);
+      Assert(WordNotEqual(result, TheHoleConstant()));
+      var_result.Bind(result);
+    } else {
+      StoreFixedArrayElement(the_context, mapped_index, value,
+                             UPDATE_WRITE_BARRIER, INTPTR_PARAMETERS);
+    }
+    Goto(&end);
+  }
+
+  Bind(&if_unmapped);
+  {
+    Node* backing_store = LoadFixedArrayElement(elements, IntPtrConstant(1), 0,
+                                                INTPTR_PARAMETERS);
+    GotoIf(WordNotEqual(LoadMap(backing_store),
+                        LoadRoot(Heap::kFixedArrayMapRootIndex)),
+           bailout);
+
+    Node* backing_store_length =
+        LoadAndUntagFixedArrayBaseLength(backing_store);
+    GotoIf(UintPtrGreaterThanOrEqual(key, backing_store_length), bailout);
+
+    // The key falls into unmapped range.
+    if (is_load) {
+      Node* result =
+          LoadFixedArrayElement(backing_store, key, 0, INTPTR_PARAMETERS);
+      GotoIf(WordEqual(result, TheHoleConstant()), bailout);
+      var_result.Bind(result);
+    } else {
+      StoreFixedArrayElement(backing_store, key, value, UPDATE_WRITE_BARRIER,
+                             INTPTR_PARAMETERS);
+    }
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::EnumLength(Node* map) {
   Node* bitfield_3 = LoadMapBitField3(map);
   Node* enum_length = BitFieldDecode<Map::EnumLengthBits>(bitfield_3);

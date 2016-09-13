@@ -244,6 +244,7 @@ void FullCodeGenerator::CallKeyedStoreIC() {
   Handle<Code> ic =
       CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
   CallIC(ic);
+  RestoreContext();
 }
 
 void FullCodeGenerator::RecordJSReturnSite(Call* call) {
@@ -1093,7 +1094,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   __ Move(LoadDescriptor::SlotRegister(),
           SmiFromSlot(prop->PropertyFeedbackSlot()));
   CallIC(ic);
-  if (FLAG_tf_load_ic_stub) RestoreContext();
+  RestoreContext();
 }
 
 void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
