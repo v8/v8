@@ -285,7 +285,7 @@ bool JSInliningHeuristic::CandidateCompare::operator()(
   if (left.calls != right.calls) {
     return left.calls > right.calls;
   }
-  return left.node < right.node;
+  return left.node->id() > right.node->id();
 }
 
 void JSInliningHeuristic::PrintCandidates() {
