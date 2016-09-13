@@ -1352,16 +1352,6 @@ class Heap {
     survived_since_last_expansion_ += survived;
   }
 
-  inline intptr_t PromotedTotalSize() {
-    int64_t total = PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
-    if (total > std::numeric_limits<intptr_t>::max()) {
-      // TODO(erikcorry): Use uintptr_t everywhere we do heap size calculations.
-      return std::numeric_limits<intptr_t>::max();
-    }
-    if (total < 0) return 0;
-    return static_cast<intptr_t>(total);
-  }
-
   inline void UpdateNewSpaceAllocationCounter();
 
   inline size_t NewSpaceAllocationCounter();
@@ -1804,7 +1794,7 @@ class Heap {
   // ===========================================================================
 
   inline intptr_t OldGenerationSpaceAvailable() {
-    return old_generation_allocation_limit_ - PromotedTotalSize();
+    return old_generation_allocation_limit_ - PromotedSpaceSizeOfObjects();
   }
 
   // Returns maximum GC pause.

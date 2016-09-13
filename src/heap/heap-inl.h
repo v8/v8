@@ -192,7 +192,7 @@ bool Heap::HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit) {
 
   intptr_t adjusted_allocation_limit = limit - new_space_->Capacity();
 
-  if (PromotedTotalSize() >= adjusted_allocation_limit) return true;
+  if (PromotedSpaceSizeOfObjects() >= adjusted_allocation_limit) return true;
 
   if (HighMemoryPressure()) return true;
 
