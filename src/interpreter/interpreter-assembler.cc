@@ -460,6 +460,17 @@ void InterpreterAssembler::CallEpilogue() {
   }
 }
 
+Node* InterpreterAssembler::IncrementCallCount(Node* type_feedback_vector,
+                                               Node* slot_id) {
+  Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
+  Node* call_count =
+      LoadFixedArrayElement(type_feedback_vector, call_count_slot);
+  Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
+  // Count is Smi, so we don't need a write barrier.
+  return StoreFixedArrayElement(type_feedback_vector, call_count_slot,
+                                new_count, SKIP_WRITE_BARRIER);
+}
+
 Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
                                                Node* first_arg, Node* arg_count,
                                                Node* slot_id,
@@ -482,13 +493,13 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
   Variable return_value(this, MachineRepresentation::kTagged);
   Label handle_monomorphic(this), extra_checks(this), end(this), call(this),
-      call_function(this);
+      call_function(this), call_without_feedback(this);
 
   // Slot id of 0 is used to indicate no typefeedback is available. Call using
   // call builtin.
   STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
   Node* is_feedback_unavailable = Word32Equal(slot_id, Int32Constant(0));
-  GotoIf(is_feedback_unavailable, &call);
+  GotoIf(is_feedback_unavailable, &call_without_feedback);
 
   // The checks. First, does function match the recorded monomorphic target?
   Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
@@ -504,13 +515,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
     GotoIf(is_smi, &extra_checks);
 
     // Increment the call count.
-    Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-    Node* call_count =
-        LoadFixedArrayElement(type_feedback_vector, call_count_slot);
-    Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
-    // Count is Smi, so we don't need a write barrier.
-    StoreFixedArrayElement(type_feedback_vector, call_count_slot, new_count,
-                           SKIP_WRITE_BARRIER);
+    IncrementCallCount(type_feedback_vector, slot_id);
 
     // Call using call function builtin.
     Callable callable = CodeFactory::InterpreterPushArgsAndCall(
@@ -548,13 +553,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       GotoUnless(is_array_function, &mark_megamorphic);
 
       // It is a monomorphic Array function. Increment the call count.
-      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-      Node* call_count =
-          LoadFixedArrayElement(type_feedback_vector, call_count_slot);
-      Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
-      // Count is Smi, so we don't need a write barrier.
-      StoreFixedArrayElement(type_feedback_vector, call_count_slot, new_count,
-                             SKIP_WRITE_BARRIER);
+      IncrementCallCount(type_feedback_vector, slot_id);
 
       // Call ArrayConstructorStub.
       Callable callable_call =
@@ -599,12 +598,6 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
           WordEqual(native_context, LoadNativeContext(context));
       GotoUnless(is_same_native_context, &mark_megamorphic);
 
-      // Initialize it to a monomorphic target.
-      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-      // Count is Smi, so we don't need a write barrier.
-      StoreFixedArrayElement(type_feedback_vector, call_count_slot,
-                             SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
-
       CreateWeakCellInFeedbackVector(type_feedback_vector, SmiTag(slot_id),
                                      function);
 
@@ -619,12 +612,6 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       CallStub(create_stub.GetCallInterfaceDescriptor(),
                HeapConstant(create_stub.GetCode()), context,
                type_feedback_vector, SmiTag(slot_id));
-
-      // Initialize the count to 1.
-      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-      // Count is Smi, so we don't need a write barrier.
-      StoreFixedArrayElement(type_feedback_vector, call_count_slot,
-                             SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
 
       // Call using CallFunction builtin. CallICs have a PREMONOMORPHIC state.
       // They start collecting feedback only when a call is executed the second
@@ -648,6 +635,9 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
   Bind(&call_function);
   {
+    // Increment the call count.
+    IncrementCallCount(type_feedback_vector, slot_id);
+
     Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
         isolate(), tail_call_mode, CallableType::kJSFunction);
     Node* code_target_call = HeapConstant(callable_call.code());
@@ -658,6 +648,21 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
   }
 
   Bind(&call);
+  {
+    // Increment the call count.
+    IncrementCallCount(type_feedback_vector, slot_id);
+
+    // Call using call builtin.
+    Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
+        isolate(), tail_call_mode, CallableType::kAny);
+    Node* code_target_call = HeapConstant(callable_call.code());
+    Node* ret_value = CallStub(callable_call.descriptor(), code_target_call,
+                               context, arg_count, first_arg, function);
+    return_value.Bind(ret_value);
+    Goto(&end);
+  }
+
+  Bind(&call_without_feedback);
   {
     // Call using call builtin.
     Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(

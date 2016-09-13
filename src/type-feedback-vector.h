@@ -459,6 +459,7 @@ class CallICNexus final : public FeedbackNexus {
 
   void Clear(Code* host);
 
+  void ConfigureUninitialized() override;
   void ConfigureMonomorphicArray();
   void ConfigureMonomorphic(Handle<JSFunction> function);
   void ConfigureMegamorphic() final;

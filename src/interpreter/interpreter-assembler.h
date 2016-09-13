@@ -92,6 +92,11 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Load the TypeFeedbackVector for the current function.
   compiler::Node* LoadTypeFeedbackVector();
 
+  // Increment the call count for a CALL_IC or construct call.
+  // The call count is located at feedback_vector[slot_id + 1].
+  compiler::Node* IncrementCallCount(compiler::Node* type_feedback_vector,
+                                     compiler::Node* slot_id);
+
   // Call JSFunction or Callable |function| with |arg_count|
   // arguments (not including receiver) and the first argument
   // located at |first_arg|. Type feedback is collected in the

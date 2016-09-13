@@ -269,6 +269,11 @@ TEST(VectorCallCounts) {
   CompileRun("f(foo); f(foo);");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   CHECK_EQ(3, nexus.ExtractCallCount());
+
+  // Send the IC megamorphic, but we should still have incrementing counts.
+  CompileRun("f(function() { return 12; });");
+  CHECK_EQ(GENERIC, nexus.StateFromFeedback());
+  CHECK_EQ(4, nexus.ExtractCallCount());
 }
 
 TEST(VectorConstructCounts) {

@@ -1431,6 +1431,12 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
+static void IncrementCallCount(MacroAssembler* masm, Register feedback_vector,
+                               Register slot) {
+  __ add(FieldOperand(feedback_vector, slot, times_half_pointer_size,
+                      FixedArray::kHeaderSize + kPointerSize),
+         Immediate(Smi::FromInt(1)));
+}
 
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // edi - function
@@ -1446,9 +1452,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
                            FixedArray::kHeaderSize));
 
   // Increment the call count for monomorphic function calls.
-  __ add(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize + kPointerSize),
-         Immediate(Smi::FromInt(1)));
+  IncrementCallCount(masm, ebx, edx);
 
   __ mov(ebx, ecx);
   __ mov(edx, edi);
@@ -1464,7 +1468,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // edx - slot id
   // ebx - vector
   Isolate* isolate = masm->isolate();
-  Label extra_checks_or_miss, call, call_function;
+  Label extra_checks_or_miss, call, call_function, call_count_incremented;
   int argc = arg_count();
   ParameterCount actual(argc);
 
@@ -1493,12 +1497,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // convincing us that we have a monomorphic JSFunction.
   __ JumpIfSmi(edi, &extra_checks_or_miss);
 
-  // Increment the call count for monomorphic function calls.
-  __ add(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize + kPointerSize),
-         Immediate(Smi::FromInt(1)));
-
   __ bind(&call_function);
+
+  // Increment the call count for monomorphic function calls.
+  IncrementCallCount(masm, ebx, edx);
+
   __ Set(eax, argc);
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
@@ -1539,6 +1542,12 @@ void CallICStub::Generate(MacroAssembler* masm) {
       Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
 
   __ bind(&call);
+
+  // Increment the call count for megamorphic function calls.
+  IncrementCallCount(masm, ebx, edx);
+
+  __ bind(&call_count_incremented);
+
   __ Set(eax, argc);
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -1564,11 +1573,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ cmp(ecx, NativeContextOperand());
   __ j(not_equal, &miss);
 
-  // Initialize the call counter.
-  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize + kPointerSize),
-         Immediate(Smi::FromInt(1)));
-
   // Store the function. Use a stub since we need a frame for allocation.
   // ebx - vector
   // edx - slot
@@ -1576,11 +1580,15 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(isolate);
+    __ push(ebx);
+    __ push(edx);
     __ push(edi);
     __ push(esi);
     __ CallStub(&create_stub);
     __ pop(esi);
     __ pop(edi);
+    __ pop(edx);
+    __ pop(ebx);
   }
 
   __ jmp(&call_function);
@@ -1590,7 +1598,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&miss);
   GenerateMiss(masm);
 
-  __ jmp(&call);
+  __ jmp(&call_count_incremented);
 
   // Unreachable
   __ int3();

@@ -1965,6 +1965,15 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ bind(&exit_);
 }
 
+// Note: feedback_vector and slot are clobbered after the call.
+static void IncrementCallCount(MacroAssembler* masm, Register feedback_vector,
+                               Register slot) {
+  __ dsrl(t0, slot, 32 - kPointerSizeLog2);
+  __ Daddu(slot, feedback_vector, Operand(t0));
+  __ ld(t0, FieldMemOperand(slot, FixedArray::kHeaderSize + kPointerSize));
+  __ Daddu(t0, t0, Operand(Smi::FromInt(1)));
+  __ sd(t0, FieldMemOperand(slot, FixedArray::kHeaderSize + kPointerSize));
+}
 
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // a1 - function
@@ -1977,11 +1986,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ li(a0, Operand(arg_count()));
 
   // Increment the call count for monomorphic function calls.
-  __ dsrl(t0, a3, 32 - kPointerSizeLog2);
-  __ Daddu(a3, a2, Operand(t0));
-  __ ld(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
-  __ Daddu(t0, t0, Operand(Smi::FromInt(1)));
-  __ sd(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
+  IncrementCallCount(masm, a2, a3);
 
   __ mov(a2, a4);
   __ mov(a3, a1);
@@ -1994,7 +1999,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // a1 - function
   // a3 - slot id (Smi)
   // a2 - vector
-  Label extra_checks_or_miss, call, call_function;
+  Label extra_checks_or_miss, call, call_function, call_count_incremented;
   int argc = arg_count();
   ParameterCount actual(argc);
 
@@ -2024,14 +2029,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // convincing us that we have a monomorphic JSFunction.
   __ JumpIfSmi(a1, &extra_checks_or_miss);
 
-  // Increment the call count for monomorphic function calls.
-  __ dsrl(t0, a3, 32 - kPointerSizeLog2);
-  __ Daddu(a3, a2, Operand(t0));
-  __ ld(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
-  __ Daddu(t0, t0, Operand(Smi::FromInt(1)));
-  __ sd(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
-
   __ bind(&call_function);
+  // Increment the call count for monomorphic function calls.
+  IncrementCallCount(masm, a2, a3);
+
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
           RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg),
@@ -2073,6 +2074,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ sd(at, FieldMemOperand(a4, FixedArray::kHeaderSize));
 
   __ bind(&call);
+  IncrementCallCount(masm, a2, a3);
+
+  __ bind(&call_count_incremented);
+
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg),
           USE_DELAY_SLOT);
@@ -2098,12 +2103,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ ld(t1, NativeContextMemOperand());
   __ Branch(&miss, ne, t0, Operand(t1));
 
-  // Initialize the call counter.
-  __ dsrl(at, a3, 32 - kPointerSizeLog2);
-  __ Daddu(at, a2, Operand(at));
-  __ li(t0, Operand(Smi::FromInt(1)));
-  __ sd(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
-
   // Store the function. Use a stub since we need a frame for allocation.
   // a2 - vector
   // a3 - slot
@@ -2111,9 +2110,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
+    __ Push(a2, a3);
     __ Push(cp, a1);
     __ CallStub(&create_stub);
     __ Pop(cp, a1);
+    __ Pop(a2, a3);
   }
 
   __ Branch(&call_function);
@@ -2123,7 +2124,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&miss);
   GenerateMiss(masm);
 
-  __ Branch(&call);
+  __ Branch(&call_count_incremented);
 }
 
 

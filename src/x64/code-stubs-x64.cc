@@ -1321,6 +1321,12 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
+static void IncrementCallCount(MacroAssembler* masm, Register feedback_vector,
+                               Register slot) {
+  __ SmiAddConstant(FieldOperand(feedback_vector, slot, times_pointer_size,
+                                 FixedArray::kHeaderSize + kPointerSize),
+                    Smi::FromInt(1));
+}
 
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // rdi - function
@@ -1334,9 +1340,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ movp(rax, Immediate(arg_count()));
 
   // Increment the call count for monomorphic function calls.
-  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
-                                 FixedArray::kHeaderSize + kPointerSize),
-                    Smi::FromInt(1));
+  IncrementCallCount(masm, rbx, rdx);
 
   __ movp(rbx, rcx);
   __ movp(rdx, rdi);
@@ -1352,7 +1356,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // -- rbx - vector
   // -----------------------------------
   Isolate* isolate = masm->isolate();
-  Label extra_checks_or_miss, call, call_function;
+  Label extra_checks_or_miss, call, call_function, call_count_incremented;
   int argc = arg_count();
   StackArgumentsAccessor args(rsp, argc);
   ParameterCount actual(argc);
@@ -1383,12 +1387,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // convincing us that we have a monomorphic JSFunction.
   __ JumpIfSmi(rdi, &extra_checks_or_miss);
 
-  // Increment the call count for monomorphic function calls.
-  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
-                                 FixedArray::kHeaderSize + kPointerSize),
-                    Smi::FromInt(1));
-
   __ bind(&call_function);
+  // Increment the call count for monomorphic function calls.
+  IncrementCallCount(masm, rbx, rdx);
+
   __ Set(rax, argc);
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
@@ -1428,6 +1430,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
           TypeFeedbackVector::MegamorphicSentinel(isolate));
 
   __ bind(&call);
+
+  // Increment the call count for megamorphic function calls.
+  IncrementCallCount(masm, rbx, rdx);
+
+  __ bind(&call_count_incremented);
   __ Set(rax, argc);
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -1453,11 +1460,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ cmpp(rcx, NativeContextOperand());
   __ j(not_equal, &miss);
 
-  // Initialize the call counter.
-  __ Move(FieldOperand(rbx, rdx, times_pointer_size,
-                       FixedArray::kHeaderSize + kPointerSize),
-          Smi::FromInt(1));
-
   // Store the function. Use a stub since we need a frame for allocation.
   // rbx - vector
   // rdx - slot (needs to be in smi form)
@@ -1467,11 +1469,16 @@ void CallICStub::Generate(MacroAssembler* masm) {
     CreateWeakCellStub create_stub(isolate);
 
     __ Integer32ToSmi(rdx, rdx);
+    __ Push(rbx);
+    __ Push(rdx);
     __ Push(rdi);
     __ Push(rsi);
     __ CallStub(&create_stub);
     __ Pop(rsi);
     __ Pop(rdi);
+    __ Pop(rdx);
+    __ Pop(rbx);
+    __ SmiToInteger32(rdx, rdx);
   }
 
   __ jmp(&call_function);
@@ -1481,20 +1488,19 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&miss);
   GenerateMiss(masm);
 
-  __ jmp(&call);
+  __ jmp(&call_count_incremented);
 
   // Unreachable
   __ int3();
 }
 
-
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::INTERNAL);
 
   // Push the receiver and the function and feedback info.
+  __ Integer32ToSmi(rdx, rdx);
   __ Push(rdi);
   __ Push(rbx);
-  __ Integer32ToSmi(rdx, rdx);
   __ Push(rdx);
 
   // Call the entry.
@@ -1503,7 +1509,6 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
   // Move result to edi and exit the internal frame.
   __ movp(rdi, rax);
 }
-
 
 bool CEntryStub::NeedsImmovableCode() {
   return false;

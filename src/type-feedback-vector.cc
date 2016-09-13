@@ -254,8 +254,11 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
       value = *uninitialized_sentinel;
     }
     array->set(index, value, SKIP_WRITE_BARRIER);
+
+    value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::FromInt(0)
+                                                    : *uninitialized_sentinel;
     for (int j = 1; j < entry_size; j++) {
-      array->set(index + j, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+      array->set(index + j, value, SKIP_WRITE_BARRIER);
     }
     i += entry_size;
   }
@@ -620,16 +623,19 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
 
 int CallICNexus::ExtractCallCount() {
   Object* call_count = GetFeedbackExtra();
-  if (call_count->IsSmi()) {
-    int value = Smi::cast(call_count)->value();
-    return value;
-  }
-  return -1;
+  CHECK(call_count->IsSmi());
+  int value = Smi::cast(call_count)->value();
+  return value;
 }
-
 
 void CallICNexus::Clear(Code* host) { CallIC::Clear(GetIsolate(), host, this); }
 
+void CallICNexus::ConfigureUninitialized() {
+  Isolate* isolate = GetIsolate();
+  SetFeedback(*TypeFeedbackVector::UninitializedSentinel(isolate),
+              SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(0), SKIP_WRITE_BARRIER);
+}
 
 void CallICNexus::ConfigureMonomorphicArray() {
   Object* feedback = GetFeedback();
@@ -650,9 +656,12 @@ void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
 
 
 void CallICNexus::ConfigureMegamorphic() {
-  FeedbackNexus::ConfigureMegamorphic();
+  SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(GetIsolate()),
+              SKIP_WRITE_BARRIER);
+  Smi* count = Smi::cast(GetFeedbackExtra());
+  int new_count = count->value() + 1;
+  SetFeedbackExtra(Smi::FromInt(new_count), SKIP_WRITE_BARRIER);
 }
-
 
 void CallICNexus::ConfigureMegamorphic(int call_count) {
   SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(GetIsolate()),
