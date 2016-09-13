@@ -516,8 +516,7 @@ Type* Typer::Visitor::ObjectIsReceiver(Type* type, Typer* t) {
 
 
 Type* Typer::Visitor::ObjectIsSmi(Type* type, Typer* t) {
-  if (type->Is(Type::TaggedSigned())) return t->singleton_true_;
-  if (type->Is(Type::TaggedPointer())) return t->singleton_false_;
+  if (!type->Maybe(Type::SignedSmall())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -1593,8 +1592,8 @@ Type* Typer::Visitor::TypeCheckIf(Node* node) {
 }
 
 Type* Typer::Visitor::TypeCheckTaggedPointer(Node* node) {
-  Type* arg = Operand(node, 0);
-  return Type::Intersect(arg, Type::TaggedPointer(), zone());
+  Type* type = Operand(node, 0);
+  return type;
 }
 
 Type* Typer::Visitor::TypeCheckTaggedSigned(Node* node) {
@@ -1623,7 +1622,7 @@ Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {
   return type;
 }
 
-Type* Typer::Visitor::TypeAllocate(Node* node) { return Type::TaggedPointer(); }
+Type* Typer::Visitor::TypeAllocate(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeLoadField(Node* node) {
   return FieldAccessOf(node->op()).type;

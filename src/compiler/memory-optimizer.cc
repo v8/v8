@@ -282,8 +282,9 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
 
     control = graph()->NewNode(common()->Merge(2), if_true, if_false);
     effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-    value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                             vtrue, vfalse, control);
+    value = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTaggedPointer, 2), vtrue, vfalse,
+        control);
 
     // Create an unfoldable allocation group.
     AllocationGroup* group =
