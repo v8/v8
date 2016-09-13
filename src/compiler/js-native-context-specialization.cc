@@ -881,7 +881,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     DCHECK(access_info.IsDataField());
     FieldIndex const field_index = access_info.field_index();
     Type* const field_type = access_info.field_type();
-    MachineRepresentation const rep = access_info.field_representation();
+    MachineRepresentation const field_representation =
+        access_info.field_representation();
     if (access_mode == AccessMode::kLoad &&
         access_info.holder().ToHandle(&holder)) {
       receiver = jsgraph()->Constant(holder);
@@ -893,18 +894,28 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           storage, effect, control);
     }
     FieldAccess field_access = {
-        kTaggedBase, field_index.offset(),     name,
-        field_type,  MachineType::AnyTagged(), kFullWriteBarrier};
+        kTaggedBase,
+        field_index.offset(),
+        name,
+        field_type,
+        MachineType::TypeForRepresentation(field_representation),
+        kFullWriteBarrier};
     if (access_mode == AccessMode::kLoad) {
-      if (rep == MachineRepresentation::kFloat64) {
+      if (field_representation == MachineRepresentation::kFloat64) {
         if (!field_index.is_inobject() || field_index.is_hidden_field() ||
             !FLAG_unbox_double_fields) {
-          storage = effect = graph()->NewNode(
-              simplified()->LoadField(field_access), storage, effect, control);
+          FieldAccess const storage_access = {kTaggedBase,
+                                              field_index.offset(),
+                                              name,
+                                              Type::OtherInternal(),
+                                              MachineType::TaggedPointer(),
+                                              kPointerWriteBarrier};
+          storage = effect =
+              graph()->NewNode(simplified()->LoadField(storage_access), storage,
+                               effect, control);
           field_access.offset = HeapNumber::kValueOffset;
           field_access.name = MaybeHandle<Name>();
         }
-        field_access.machine_type = MachineType::Float64();
       }
       // TODO(turbofan): Track the field_map (if any) on the {field_access} and
       // use it in LoadElimination to eliminate map checks.
@@ -912,61 +923,83 @@ JSNativeContextSpecialization::BuildPropertyAccess(
                                         storage, effect, control);
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);
-      if (rep == MachineRepresentation::kFloat64) {
-        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
-                                          effect, control);
+      switch (field_representation) {
+        case MachineRepresentation::kFloat64: {
+          value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
+                                            effect, control);
+          if (!field_index.is_inobject() || field_index.is_hidden_field() ||
+              !FLAG_unbox_double_fields) {
+            if (access_info.HasTransitionMap()) {
+              // Allocate a MutableHeapNumber for the new property.
+              effect = graph()->NewNode(
+                  common()->BeginRegion(RegionObservability::kNotObservable),
+                  effect);
+              Node* box = effect = graph()->NewNode(
+                  simplified()->Allocate(NOT_TENURED),
+                  jsgraph()->Constant(HeapNumber::kSize), effect, control);
+              effect = graph()->NewNode(
+                  simplified()->StoreField(AccessBuilder::ForMap()), box,
+                  jsgraph()->HeapConstant(factory()->mutable_heap_number_map()),
+                  effect, control);
+              effect = graph()->NewNode(
+                  simplified()->StoreField(AccessBuilder::ForHeapNumberValue()),
+                  box, value, effect, control);
+              value = effect =
+                  graph()->NewNode(common()->FinishRegion(), box, effect);
 
-        if (!field_index.is_inobject() || field_index.is_hidden_field() ||
-            !FLAG_unbox_double_fields) {
-          if (access_info.HasTransitionMap()) {
-            // Allocate a MutableHeapNumber for the new property.
-            effect = graph()->NewNode(
-                common()->BeginRegion(RegionObservability::kNotObservable),
-                effect);
-            Node* box = effect = graph()->NewNode(
-                simplified()->Allocate(NOT_TENURED),
-                jsgraph()->Constant(HeapNumber::kSize), effect, control);
-            effect = graph()->NewNode(
-                simplified()->StoreField(AccessBuilder::ForMap()), box,
-                jsgraph()->HeapConstant(factory()->mutable_heap_number_map()),
-                effect, control);
-            effect = graph()->NewNode(
-                simplified()->StoreField(AccessBuilder::ForHeapNumberValue()),
-                box, value, effect, control);
-            value = effect =
-                graph()->NewNode(common()->FinishRegion(), box, effect);
-
-            field_access.type = Type::TaggedPointer();
-            field_access.machine_type = MachineType::TaggedPointer();
-          } else {
-            // We just store directly to the MutableHeapNumber.
-            storage = effect =
-                graph()->NewNode(simplified()->LoadField(field_access), storage,
-                                 effect, control);
-            field_access.offset = HeapNumber::kValueOffset;
-            field_access.name = MaybeHandle<Name>();
-            field_access.machine_type = MachineType::Float64();
+              field_access.type = Type::TaggedPointer();
+              field_access.machine_type = MachineType::TaggedPointer();
+              field_access.write_barrier_kind = kPointerWriteBarrier;
+            } else {
+              // We just store directly to the MutableHeapNumber.
+              FieldAccess const storage_access = {kTaggedBase,
+                                                  field_index.offset(),
+                                                  name,
+                                                  Type::OtherInternal(),
+                                                  MachineType::TaggedPointer(),
+                                                  kPointerWriteBarrier};
+              storage = effect =
+                  graph()->NewNode(simplified()->LoadField(storage_access),
+                                   storage, effect, control);
+              field_access.offset = HeapNumber::kValueOffset;
+              field_access.name = MaybeHandle<Name>();
+              field_access.machine_type = MachineType::Float64();
+            }
           }
-        } else {
-          // Unboxed double field, we store directly to the field.
-          field_access.machine_type = MachineType::Float64();
+          break;
         }
-      } else if (rep == MachineRepresentation::kTaggedSigned) {
-        value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
-                                          value, effect, control);
-      } else if (rep == MachineRepresentation::kTaggedPointer) {
-        // Ensure that {value} is a HeapObject.
-        value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
-                                          value, effect, control);
-        Handle<Map> field_map;
-        if (access_info.field_map().ToHandle(&field_map)) {
-          // Emit a map check for the value.
-          effect = graph()->NewNode(simplified()->CheckMaps(1), value,
-                                    jsgraph()->HeapConstant(field_map), effect,
-                                    control);
+        case MachineRepresentation::kTaggedSigned: {
+          value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
+                                            value, effect, control);
+          field_access.write_barrier_kind = kNoWriteBarrier;
+          break;
         }
-      } else {
-        DCHECK(rep == MachineRepresentation::kTagged);
+        case MachineRepresentation::kTaggedPointer: {
+          // Ensure that {value} is a HeapObject.
+          value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+                                            value, effect, control);
+          Handle<Map> field_map;
+          if (access_info.field_map().ToHandle(&field_map)) {
+            // Emit a map check for the value.
+            effect = graph()->NewNode(simplified()->CheckMaps(1), value,
+                                      jsgraph()->HeapConstant(field_map),
+                                      effect, control);
+          }
+          field_access.write_barrier_kind = kPointerWriteBarrier;
+          break;
+        }
+        case MachineRepresentation::kTagged:
+          break;
+        case MachineRepresentation::kNone:
+        case MachineRepresentation::kBit:
+        case MachineRepresentation::kWord8:
+        case MachineRepresentation::kWord16:
+        case MachineRepresentation::kWord32:
+        case MachineRepresentation::kWord64:
+        case MachineRepresentation::kFloat32:
+        case MachineRepresentation::kSimd128:
+          UNREACHABLE();
+          break;
       }
       Handle<Map> transition_map;
       if (access_info.transition_map().ToHandle(&transition_map)) {
