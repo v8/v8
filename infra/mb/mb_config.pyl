@@ -93,8 +93,8 @@
 
     'client.v8.ports': {
       # Arm.
-      'V8 Arm - builder': 'gyp_release_arm',
-      'V8 Arm - debug builder': 'gyp_debug_arm',
+      'V8 Arm - builder': 'gn_release_arm',
+      'V8 Arm - debug builder': 'gn_debug_arm',
       'V8 Android Arm - builder': 'gn_release_android_arm',
       'V8 Linux - arm - sim': 'gn_release_simulate_arm',
       'V8 Linux - arm - sim - debug': 'gn_debug_simulate_arm',
@@ -247,7 +247,13 @@
     'gn_release_simulate_arm64_trybot': [
       'gn', 'release_trybot', 'simulate_arm64', 'swarming'],
 
+    # GN debug configs for arm.
+    'gn_debug_arm': [
+      'gn', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
+
     # GN release configs for arm.
+    'gn_release_arm': [
+      'gn', 'release_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
     'gn_release_android_arm': [
       'gn', 'release_bot', 'arm', 'android', 'crosscompile', 'swarming'],
     'gn_release_android_arm64': [
@@ -329,10 +335,6 @@
     'gn_release_x86_trybot': [
       'gn', 'release_trybot', 'x86', 'swarming'],
 
-    # Gyp debug configs for arm.
-    'gyp_debug_arm': [
-      'gyp', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
-
     # Gyp debug configs for simulators.
     'gyp_debug_simulate_arm_asan_edge': [
       'gyp', 'debug_bot', 'simulate_arm', 'asan', 'edge'],
@@ -355,10 +357,6 @@
     'gyp_full_debug_x86': [
       'gyp', 'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
       'v8_full_debug'],
-
-    # Gyp release configs for arm.
-    'gyp_release_arm': [
-      'gyp', 'release_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
 
     # Gyp release configs for mips.
     'gyp_release_mips_no_snap_no_i18n': [
