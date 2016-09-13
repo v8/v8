@@ -107,8 +107,8 @@
       'V8 Linux - arm64 - sim - gc stress': 'gn_debug_simulate_arm64',
       # Mips.
       'V8 Mips - builder': 'gyp_release_mips_no_snap_no_i18n',
-      'V8 Linux - mipsel - sim - builder': 'gyp_release_simulate_mipsel',
-      'V8 Linux - mips64el - sim - builder': 'gyp_release_simulate_mips64el',
+      'V8 Linux - mipsel - sim - builder': 'gn_release_simulate_mipsel',
+      'V8 Linux - mips64el - sim - builder': 'gn_release_simulate_mips64el',
       # PPC.
       'V8 Linux - ppc - sim': 'gyp_release_simulate_ppc',
       'V8 Linux - ppc64 - sim': 'gyp_release_simulate_ppc64',
@@ -132,10 +132,10 @@
       'V8 arm - sim - beta branch - debug': 'gn_debug_simulate_arm',
       'V8 arm - sim - stable branch': 'gn_release_simulate_arm',
       'V8 arm - sim - stable branch - debug': 'gn_debug_simulate_arm',
-      'V8 mips64el - sim - beta branch': 'gyp_release_simulate_mips64el',
-      'V8 mips64el - sim - stable branch': 'gyp_release_simulate_mips64el',
-      'V8 mipsel - sim - beta branch': 'gyp_release_simulate_mipsel',
-      'V8 mipsel - sim - stable branch': 'gyp_release_simulate_mipsel',
+      'V8 mips64el - sim - beta branch': 'gn_release_simulate_mips64el',
+      'V8 mips64el - sim - stable branch': 'gn_release_simulate_mips64el',
+      'V8 mipsel - sim - beta branch': 'gn_release_simulate_mipsel',
+      'V8 mipsel - sim - stable branch': 'gn_release_simulate_mipsel',
       'V8 ppc - sim - beta branch': 'gyp_release_simulate_ppc',
       'V8 ppc - sim - stable branch': 'gyp_release_simulate_ppc',
       'V8 ppc64 - sim - beta branch': 'gyp_release_simulate_ppc64',
@@ -185,8 +185,8 @@
       'v8_linux_arm64_rel_ng': 'gn_release_simulate_arm64_trybot',
       'v8_linux_arm64_dbg': 'gn_debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_dbg': 'gn_debug_simulate_arm64',
-      'v8_linux_mipsel_compile_rel': 'gyp_release_simulate_mipsel',
-      'v8_linux_mips64el_compile_rel': 'gyp_release_simulate_mips64el',
+      'v8_linux_mipsel_compile_rel': 'gn_release_simulate_mipsel',
+      'v8_linux_mips64el_compile_rel': 'gn_release_simulate_mips64el',
       'v8_android_arm_compile_rel': 'gn_release_android_arm',
     },
   },
@@ -231,6 +231,10 @@
       'gn', 'debug_bot', 'simulate_arm64', 'swarming'],
     'gn_debug_simulate_arm64_no_snap': [
       'gn', 'debug_bot', 'simulate_arm64', 'swarming', 'v8_snapshot_none'],
+    'gn_release_simulate_mipsel': [
+      'gn', 'release_bot', 'simulate_mipsel', 'swarming'],
+    'gn_release_simulate_mips64el': [
+      'gn', 'release_bot', 'simulate_mips64el', 'swarming'],
 
     # GN release configs for simulators.
     'gn_release_simulate_arm': [
@@ -364,10 +368,6 @@
       'v8_snapshot_none'],
 
     # Gyp release configs for simulators.
-    'gyp_release_simulate_mipsel': [
-      'gyp', 'release_bot', 'simulate_mipsel', 'swarming'],
-    'gyp_release_simulate_mips64el': [
-      'gyp', 'release_bot', 'simulate_mips64el', 'swarming'],
     'gyp_release_simulate_ppc': [
       'gyp', 'release_bot', 'simulate_ppc', 'swarming'],
     'gyp_release_simulate_ppc64': [
