@@ -234,6 +234,10 @@ inline double Floor(double x) {
 }
 
 inline double Pow(double x, double y) {
+  if (y == 0.0) return 1.0;
+  if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
 #if (defined(__MINGW64_VERSION_MAJOR) &&                              \
      (!defined(__MINGW64_VERSION_RC) || __MINGW64_VERSION_RC < 1)) || \
     defined(V8_OS_AIX)

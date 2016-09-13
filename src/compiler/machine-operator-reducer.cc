@@ -541,8 +541,9 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Pow: {
       Float64BinopMatcher m(node);
-      // TODO(bmeurer): Constant fold once we have a unified pow implementation.
-      if (m.right().Is(0.0)) {  // x ** +-0.0 => 1.0
+      if (m.IsFoldable()) {
+        return ReplaceFloat64(Pow(m.left().Value(), m.right().Value()));
+      } else if (m.right().Is(0.0)) {  // x ** +-0.0 => 1.0
         return ReplaceFloat64(1.0);
       } else if (m.right().Is(-2.0)) {  // x ** -2.0 => 1 / (x * x)
         node->ReplaceInput(0, Float64Constant(1.0));
