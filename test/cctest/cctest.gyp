@@ -193,7 +193,6 @@
       'wasm/test-run-wasm-js.cc',
       'wasm/test-run-wasm-module.cc',
       'wasm/test-run-wasm-relocation.cc',
-      'wasm/test-run-wasm-try-catch.cc',
       'wasm/test-signatures.h',
       'wasm/test-wasm-function-name-table.cc',
       'wasm/test-wasm-stack.cc',
