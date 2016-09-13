@@ -4,11 +4,11 @@
 
 #include "src/inspector/String16.h"
 
+#include "src/base/platform/platform.h"
 #include "src/inspector/ProtocolPlatform.h"
 
 #include <algorithm>
 #include <cctype>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <locale>
@@ -362,7 +362,7 @@ static inline void putUTF8Triple(char*& buffer, UChar ch) {
 String16 String16::fromInteger(int number) {
   const size_t kBufferSize = 50;
   char buffer[kBufferSize];
-  std::snprintf(buffer, kBufferSize, "%d", number);
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "%d", number);
   return String16(buffer);
 }
 
@@ -370,7 +370,7 @@ String16 String16::fromInteger(int number) {
 String16 String16::fromDouble(double number) {
   const size_t kBufferSize = 100;
   char buffer[kBufferSize];
-  std::snprintf(buffer, kBufferSize, "%f", number);
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "%f", number);
   return String16(buffer);
 }
 
@@ -378,7 +378,7 @@ String16 String16::fromDouble(double number) {
 String16 String16::fromDoublePrecision3(double number) {
   const size_t kBufferSize = 100;
   char buffer[kBufferSize];
-  std::snprintf(buffer, kBufferSize, "%.3g", number);
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "%.3g", number);
   return String16(buffer);
 }
 
@@ -386,7 +386,7 @@ String16 String16::fromDoublePrecision3(double number) {
 String16 String16::fromDoublePrecision6(double number) {
   const size_t kBufferSize = 100;
   char buffer[kBufferSize];
-  std::snprintf(buffer, kBufferSize, "%.6g", number);
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "%.6g", number);
   return String16(buffer);
 }
 
