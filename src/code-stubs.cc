@@ -4615,6 +4615,39 @@ void KeyedStoreSloppyArgumentsStub::GenerateAssembly(
   }
 }
 
+void LoadScriptContextFieldStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  assembler->Comment("LoadScriptContextFieldStub: context_index=%d, slot=%d",
+                     context_index(), slot_index());
+
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Node* script_context = assembler->LoadScriptContext(context, context_index());
+  Node* result = assembler->LoadFixedArrayElement(
+      script_context, assembler->IntPtrConstant(slot_index()), 0,
+      CodeStubAssembler::INTPTR_PARAMETERS);
+  assembler->Return(result);
+}
+
+void StoreScriptContextFieldStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  assembler->Comment("StoreScriptContextFieldStub: context_index=%d, slot=%d",
+                     context_index(), slot_index());
+
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Node* script_context = assembler->LoadScriptContext(context, context_index());
+  assembler->StoreFixedArrayElement(
+      script_context, assembler->IntPtrConstant(slot_index()), value,
+      UPDATE_WRITE_BARRIER, CodeStubAssembler::INTPTR_PARAMETERS);
+  assembler->Return(value);
+}
+
 // static
 compiler::Node* LessThanStub::Generate(CodeStubAssembler* assembler,
                                        compiler::Node* lhs, compiler::Node* rhs,

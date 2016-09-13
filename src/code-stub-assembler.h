@@ -274,6 +274,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       MachineType machine_type = MachineType::Float64());
 
   // Context manipulation
+  compiler::Node* LoadContextElement(compiler::Node* context, int slot_index);
   compiler::Node* LoadNativeContext(compiler::Node* context);
 
   compiler::Node* LoadJSArrayElementsMap(ElementsKind kind,
@@ -657,6 +658,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
     DCHECK_NOT_NULL(value);
     EmitKeyedSloppyArguments(receiver, key, value, bailout);
   }
+
+  // Loads script context from the script context table.
+  compiler::Node* LoadScriptContext(compiler::Node* context, int context_index);
 
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);

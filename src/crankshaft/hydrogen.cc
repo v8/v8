@@ -3402,16 +3402,6 @@ HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* closure) {
 }
 
 
-HInstruction* HGraphBuilder::BuildGetScriptContext(int context_index) {
-  HValue* native_context = BuildGetNativeContext();
-  HValue* script_context_table = Add<HLoadNamedField>(
-      native_context, nullptr,
-      HObjectAccess::ForContextSlot(Context::SCRIPT_CONTEXT_TABLE_INDEX));
-  return Add<HLoadNamedField>(script_context_table, nullptr,
-                              HObjectAccess::ForScriptContext(context_index));
-}
-
-
 HValue* HGraphBuilder::BuildGetParentContext(HValue* depth, int depth_value) {
   HValue* script_context = context();
   if (depth != NULL) {

@@ -86,9 +86,7 @@ class ObjectLiteral;
   V(LoadDictionaryElement)                    \
   V(LoadFastElement)                          \
   V(LoadField)                                \
-  V(LoadScriptContextField)                   \
   V(StoreFastElement)                         \
-  V(StoreScriptContextField)                  \
   V(StoreTransition)                          \
   /* These should never be ported to TF */    \
   /* because they are either used only by */  \
@@ -150,6 +148,8 @@ class ObjectLiteral;
   V(NotEqual)                                 \
   V(KeyedLoadSloppyArguments)                 \
   V(KeyedStoreSloppyArguments)                \
+  V(LoadScriptContextField)                   \
+  V(StoreScriptContextField)                  \
   V(StrictEqual)                              \
   V(StrictNotEqual)                           \
   V(StringEqual)                              \
@@ -2682,23 +2682,21 @@ class DoubleToIStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(DoubleToI, PlatformCodeStub);
 };
 
-
-class ScriptContextFieldStub : public HandlerStub {
+class ScriptContextFieldStub : public TurboFanCodeStub {
  public:
   ScriptContextFieldStub(Isolate* isolate,
                          const ScriptContextTable::LookupResult* lookup_result)
-      : HandlerStub(isolate) {
+      : TurboFanCodeStub(isolate) {
     DCHECK(Accepted(lookup_result));
-    STATIC_ASSERT(kContextIndexBits + kSlotIndexBits <= kSubMinorKeyBits);
-    set_sub_minor_key(ContextIndexBits::encode(lookup_result->context_index) |
-                      SlotIndexBits::encode(lookup_result->slot_index));
+    minor_key_ = ContextIndexBits::encode(lookup_result->context_index) |
+                 SlotIndexBits::encode(lookup_result->slot_index);
   }
 
-  int context_index() const {
-    return ContextIndexBits::decode(sub_minor_key());
-  }
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
 
-  int slot_index() const { return SlotIndexBits::decode(sub_minor_key()); }
+  int context_index() const { return ContextIndexBits::decode(minor_key_); }
+
+  int slot_index() const { return SlotIndexBits::decode(minor_key_); }
 
   static bool Accepted(const ScriptContextTable::LookupResult* lookup_result) {
     return ContextIndexBits::is_valid(lookup_result->context_index) &&
@@ -2712,7 +2710,7 @@ class ScriptContextFieldStub : public HandlerStub {
   class SlotIndexBits
       : public BitField<int, kContextIndexBits, kSlotIndexBits> {};
 
-  DEFINE_CODE_STUB_BASE(ScriptContextFieldStub, HandlerStub);
+  DEFINE_CODE_STUB_BASE(ScriptContextFieldStub, TurboFanCodeStub);
 };
 
 
@@ -2722,11 +2720,11 @@ class LoadScriptContextFieldStub : public ScriptContextFieldStub {
       Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
       : ScriptContextFieldStub(isolate, lookup_result) {}
 
- private:
-  Code::Kind kind() const override { return Code::LOAD_IC; }
+  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
 
+ private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HANDLER_CODE_STUB(LoadScriptContextField, ScriptContextFieldStub);
+  DEFINE_TURBOFAN_CODE_STUB(LoadScriptContextField, ScriptContextFieldStub);
 };
 
 
@@ -2736,11 +2734,11 @@ class StoreScriptContextFieldStub : public ScriptContextFieldStub {
       Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
       : ScriptContextFieldStub(isolate, lookup_result) {}
 
- private:
-  Code::Kind kind() const override { return Code::STORE_IC; }
+  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
+ private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_HANDLER_CODE_STUB(StoreScriptContextField, ScriptContextFieldStub);
+  DEFINE_TURBOFAN_CODE_STUB(StoreScriptContextField, ScriptContextFieldStub);
 };
 
 

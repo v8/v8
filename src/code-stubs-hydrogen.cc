@@ -418,40 +418,6 @@ Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-template <>
-HValue* CodeStubGraphBuilder<LoadScriptContextFieldStub>::BuildCodeStub() {
-  int context_index = casted_stub()->context_index();
-  int slot_index = casted_stub()->slot_index();
-
-  HValue* script_context = BuildGetScriptContext(context_index);
-  return Add<HLoadNamedField>(script_context, nullptr,
-                              HObjectAccess::ForContextSlot(slot_index));
-}
-
-
-Handle<Code> LoadScriptContextFieldStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<StoreScriptContextFieldStub>::BuildCodeStub() {
-  int context_index = casted_stub()->context_index();
-  int slot_index = casted_stub()->slot_index();
-
-  HValue* script_context = BuildGetScriptContext(context_index);
-  Add<HStoreNamedField>(script_context,
-                        HObjectAccess::ForContextSlot(slot_index),
-                        GetParameter(2), STORE_TO_INITIALIZED_ENTRY);
-  // TODO(ishell): Remove this unused stub.
-  return GetParameter(2);
-}
-
-
-Handle<Code> StoreScriptContextFieldStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
 HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
                                                    HValue* argument_elements,
                                                    ElementsKind kind) {

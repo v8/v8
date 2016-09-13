@@ -1860,7 +1860,7 @@ class HGraphBuilder {
 
   HInstruction* BuildGetNativeContext(HValue* closure);
   HInstruction* BuildGetNativeContext();
-  HInstruction* BuildGetScriptContext(int context_index);
+
   // Builds a loop version if |depth| is specified or unrolls the loop to
   // |depth_value| iterations otherwise.
   HValue* BuildGetParentContext(HValue* depth, int depth_value);

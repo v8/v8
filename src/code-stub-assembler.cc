@@ -1172,9 +1172,13 @@ Node* CodeStubAssembler::LoadDoubleWithHoleCheck(Node* base, Node* offset,
   return Load(machine_type, base, offset);
 }
 
+Node* CodeStubAssembler::LoadContextElement(Node* context, int slot_index) {
+  int offset = Context::SlotOffset(slot_index);
+  return Load(MachineType::AnyTagged(), context, IntPtrConstant(offset));
+}
+
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {
-  return LoadFixedArrayElement(context,
-                               IntPtrConstant(Context::NATIVE_CONTEXT_INDEX));
+  return LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX);
 }
 
 Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
@@ -4434,9 +4438,8 @@ void CodeStubAssembler::LoadGlobalIC(const LoadICParameters* p) {
     AssertInstanceType(handler, CODE_TYPE);
     LoadWithVectorDescriptor descriptor(isolate());
     Node* native_context = LoadNativeContext(p->context);
-    Node* receiver = LoadFixedArrayElement(
-        native_context, IntPtrConstant(Context::EXTENSION_INDEX), 0,
-        INTPTR_PARAMETERS);
+    Node* receiver =
+        LoadContextElement(native_context, Context::EXTENSION_INDEX);
     Node* fake_name = IntPtrConstant(0);
     TailCallStub(descriptor, handler, p->context, receiver, fake_name, p->slot,
                  p->vector);
@@ -4577,7 +4580,11 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
     mapped_index = SmiUntag(mapped_index);
     Node* the_context = LoadFixedArrayElement(elements, IntPtrConstant(0), 0,
                                               INTPTR_PARAMETERS);
+    // Assert that we can use LoadFixedArrayElement/StoreFixedArrayElement
+    // methods for accessing Context.
     STATIC_ASSERT(Context::kHeaderSize == FixedArray::kHeaderSize);
+    DCHECK_EQ(Context::SlotOffset(0) + kHeapObjectTag,
+              FixedArray::OffsetOfElementAt(0));
     if (is_load) {
       Node* result = LoadFixedArrayElement(the_context, mapped_index, 0,
                                            INTPTR_PARAMETERS);
@@ -4617,6 +4624,17 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
 
   Bind(&end);
   return var_result.value();
+}
+
+Node* CodeStubAssembler::LoadScriptContext(Node* context, int context_index) {
+  Node* native_context = LoadNativeContext(context);
+  Node* script_context_table =
+      LoadContextElement(native_context, Context::SCRIPT_CONTEXT_TABLE_INDEX);
+
+  int offset =
+      ScriptContextTable::GetContextOffset(context_index) - kHeapObjectTag;
+  return Load(MachineType::AnyTagged(), script_context_table,
+              IntPtrConstant(offset));
 }
 
 Node* CodeStubAssembler::EnumLength(Node* map) {
