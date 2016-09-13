@@ -626,6 +626,16 @@ void IncrementalMarking::FinishBlackAllocation() {
   }
 }
 
+void IncrementalMarking::AbortBlackAllocation() {
+  for (Page* page : *heap()->old_space()) {
+    page->ReleaseBlackAreaEndMarkerMap();
+  }
+  if (FLAG_trace_incremental_marking) {
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Black allocation aborted\n");
+  }
+}
+
 void IncrementalMarking::MarkRoots() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());

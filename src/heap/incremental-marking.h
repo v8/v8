@@ -225,6 +225,8 @@ class IncrementalMarking {
 
   void StartBlackAllocationForTesting() { StartBlackAllocation(); }
 
+  void AbortBlackAllocation();
+
  private:
   class Observer : public AllocationObserver {
    public:
