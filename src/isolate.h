@@ -751,7 +751,9 @@ class Isolate {
     NOT_CAUGHT,
     CAUGHT_BY_JAVASCRIPT,
     CAUGHT_BY_EXTERNAL,
-    CAUGHT_BY_DESUGARING
+    CAUGHT_BY_DESUGARING,
+    CAUGHT_BY_PROMISE,
+    CAUGHT_BY_ASYNC_AWAIT
   };
   CatchType PredictExceptionCatcher();
 

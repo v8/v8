@@ -871,6 +871,9 @@ void AstPrinter::PrintTryStatement(TryStatement* node) {
     case HandlerTable::DESUGARING:
       prediction = "DESUGARING";
       break;
+    case HandlerTable::ASYNC_AWAIT:
+      prediction = "ASYNC_AWAIT";
+      break;
   }
   Print(" %s\n", prediction);
 }

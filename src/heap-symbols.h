@@ -199,10 +199,12 @@
   V(normal_ic_symbol)                       \
   V(not_mapped_symbol)                      \
   V(premonomorphic_symbol)                  \
+  V(promise_await_handler_symbol)           \
   V(promise_combined_deferred_symbol)       \
   V(promise_debug_marker_symbol)            \
   V(promise_deferred_reactions_symbol)      \
   V(promise_fulfill_reactions_symbol)       \
+  V(promise_handled_hint_symbol)            \
   V(promise_has_handler_symbol)             \
   V(promise_raw_symbol)                     \
   V(promise_reject_reactions_symbol)        \

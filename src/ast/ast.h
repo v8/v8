@@ -1986,6 +1986,10 @@ class CallRuntime final : public Expression {
     DCHECK(is_jsruntime());
     return context_index_;
   }
+  void set_context_index(int index) {
+    DCHECK(is_jsruntime());
+    context_index_ = index;
+  }
   const Runtime::Function* function() const {
     DCHECK(!is_jsruntime());
     return function_;
@@ -3142,6 +3146,16 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                        int pos) {
     return new (zone_) TryCatchStatement(
         try_block, scope, variable, catch_block, HandlerTable::DESUGARING, pos);
+  }
+
+  TryCatchStatement* NewTryCatchStatementForAsyncAwait(Block* try_block,
+                                                       Scope* scope,
+                                                       Variable* variable,
+                                                       Block* catch_block,
+                                                       int pos) {
+    return new (zone_)
+        TryCatchStatement(try_block, scope, variable, catch_block,
+                          HandlerTable::ASYNC_AWAIT, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,

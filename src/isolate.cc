@@ -1311,6 +1311,8 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
       HandlerTable::CatchPrediction prediction = PredictException(js_frame);
       if (prediction == HandlerTable::DESUGARING) return CAUGHT_BY_DESUGARING;
+      if (prediction == HandlerTable::ASYNC_AWAIT) return CAUGHT_BY_ASYNC_AWAIT;
+      if (prediction == HandlerTable::PROMISE) return CAUGHT_BY_PROMISE;
       if (prediction != HandlerTable::UNCAUGHT) return CAUGHT_BY_JAVASCRIPT;
     }
 
@@ -1714,6 +1716,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
     switch (PredictException(it.frame())) {
       case HandlerTable::UNCAUGHT:
+      case HandlerTable::ASYNC_AWAIT:
         break;
       case HandlerTable::CAUGHT:
       case HandlerTable::DESUGARING:

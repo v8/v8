@@ -68,7 +68,10 @@ enum ContextLookupFlags {
   V(ARRAY_SLICE_INDEX, JSFunction, array_slice)                           \
   V(ARRAY_UNSHIFT_INDEX, JSFunction, array_unshift)                       \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)       \
-  V(ASYNC_FUNCTION_AWAIT_INDEX, JSFunction, async_function_await)         \
+  V(ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX, JSFunction,                        \
+    async_function_await_caught)                                          \
+  V(ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX, JSFunction,                      \
+    async_function_await_uncaught)                                        \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                 \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                     \
   V(ERROR_TO_STRING, JSFunction, error_to_string)                         \

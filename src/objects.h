@@ -4625,6 +4625,9 @@ class HandlerTable : public FixedArray {
                  // catching are part of a desugaring and should therefore not
                  // be visible to the user (we won't notify the debugger of such
                  // exceptions).
+    ASYNC_AWAIT,  // The exception will be caught and cause a promise rejection
+                  // in the desugaring of an async function, so special
+                  // async/await handling in the debugger can take place.
   };
 
   // Getters for handler table based on ranges.
@@ -4677,8 +4680,8 @@ class HandlerTable : public FixedArray {
   static const int kReturnEntrySize = 2;
 
   // Encoding of the {handler} field.
-  class HandlerPredictionField : public BitField<CatchPrediction, 0, 2> {};
-  class HandlerOffsetField : public BitField<int, 2, 30> {};
+  class HandlerPredictionField : public BitField<CatchPrediction, 0, 3> {};
+  class HandlerOffsetField : public BitField<int, 3, 29> {};
 };
 
 // ByteArray represents fixed sized byte arrays.  Used for the relocation info

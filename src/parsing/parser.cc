@@ -3473,8 +3473,10 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
       factory()->NewReturnStatement(promise_reject, kNoSourcePosition);
   catch_block->statements()->Add(return_promise_reject, zone());
 
-  TryStatement* try_catch_statement = factory()->NewTryCatchStatement(
-      inner_block, catch_scope, catch_variable, catch_block, kNoSourcePosition);
+  TryStatement* try_catch_statement =
+      factory()->NewTryCatchStatementForAsyncAwait(inner_block, catch_scope,
+                                                   catch_variable, catch_block,
+                                                   kNoSourcePosition);
 
   // There is no TryCatchFinally node, so wrap it in an outer try/finally
   Block* outer_try_block =
@@ -4404,8 +4406,13 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
       factory()->NewVariableProxy(generator_object_variable);
   async_function_await_args->Add(generator_object, zone());
   async_function_await_args->Add(factory()->NewVariableProxy(temp_var), zone());
-  Expression* async_function_await = factory()->NewCallRuntime(
-      Context::ASYNC_FUNCTION_AWAIT_INDEX, async_function_await_args, nopos);
+
+  // The parser emits calls to AsyncFunctionAwaitCaught, but the
+  // AstNumberingVisitor will rewrite this to AsyncFunctionAwaitUncaught
+  // if there is no local enclosing try/catch block.
+  Expression* async_function_await =
+      factory()->NewCallRuntime(Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX,
+                                async_function_await_args, nopos);
 
   // Wrap await to provide a break location between value evaluation and yield.
   Expression* await_assignment = factory()->NewAssignment(
