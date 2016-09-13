@@ -378,6 +378,19 @@ TEST_F(SimplifiedOperatorReducerTest, CheckTaggedPointerWithHeapConstant) {
   }
 }
 
+TEST_F(SimplifiedOperatorReducerTest,
+       CheckTaggedPointerWithCheckTaggedPointer) {
+  Node* param0 = Parameter(0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+                                          param0, effect, control);
+  Reduction reduction = Reduce(graph()->NewNode(
+      simplified()->CheckTaggedPointer(), value, effect, control));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_EQ(value, reduction.replacement());
+}
+
 // -----------------------------------------------------------------------------
 // CheckTaggedSigned
 
@@ -398,6 +411,18 @@ TEST_F(SimplifiedOperatorReducerTest, CheckTaggedSignedWithNumberConstant) {
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* value = NumberConstant(1.0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      simplified()->CheckTaggedSigned(), value, effect, control));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_EQ(value, reduction.replacement());
+}
+
+TEST_F(SimplifiedOperatorReducerTest, CheckTaggedSignedWithCheckTaggedSigned) {
+  Node* param0 = Parameter(0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
+                                          param0, effect, control);
   Reduction reduction = Reduce(graph()->NewNode(
       simplified()->CheckTaggedSigned(), value, effect, control));
   ASSERT_TRUE(reduction.Changed());

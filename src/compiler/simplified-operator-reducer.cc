@@ -148,6 +148,11 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
         ReplaceWithValue(node, input);
         return Replace(input);
       }
+      NodeMatcher m(input);
+      if (m.IsCheckTaggedPointer()) {
+        ReplaceWithValue(node, input);
+        return Replace(input);
+      }
       break;
     }
     case IrOpcode::kCheckTaggedSigned: {
@@ -157,7 +162,10 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
         return Replace(input);
       }
       NodeMatcher m(input);
-      if (m.IsConvertTaggedHoleToUndefined()) {
+      if (m.IsCheckTaggedSigned()) {
+        ReplaceWithValue(node, input);
+        return Replace(input);
+      } else if (m.IsConvertTaggedHoleToUndefined()) {
         node->ReplaceInput(0, m.InputAt(0));
         return Changed(node);
       }
