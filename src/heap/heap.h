@@ -2154,10 +2154,6 @@ class Heap {
   // generation and on every allocation in large object space.
   intptr_t old_generation_allocation_limit_;
 
-  // Indicates that an allocation has failed in the old generation since the
-  // last GC.
-  bool old_gen_exhausted_;
-
   // Indicates that inline bump-pointer allocation has been globally disabled
   // for all spaces. This is used to disable allocations in generated code.
   bool inline_allocation_disabled_;

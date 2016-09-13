@@ -112,7 +112,6 @@ Heap::Heap()
       allocation_timeout_(0),
 #endif  // DEBUG
       old_generation_allocation_limit_(initial_old_generation_size_),
-      old_gen_exhausted_(false),
       inline_allocation_disabled_(false),
       total_regexp_code_generated_(0),
       tracer_(nullptr),
@@ -279,15 +278,6 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   if (OldGenerationAllocationLimitReached()) {
     isolate_->counters()->gc_compactor_caused_by_promoted_data()->Increment();
     *reason = "promotion limit reached";
-    return MARK_COMPACTOR;
-  }
-
-  // Have allocation in OLD and LO failed?
-  if (old_gen_exhausted_) {
-    isolate_->counters()
-        ->gc_compactor_caused_by_oldspace_exhaustion()
-        ->Increment();
-    *reason = "old generations exhausted";
     return MARK_COMPACTOR;
   }
 
@@ -1341,7 +1331,6 @@ bool Heap::PerformGarbageCollection(
       UpdateOldGenerationAllocationCounter();
       // Perform mark-sweep with optional compaction.
       MarkCompact();
-      old_gen_exhausted_ = false;
       old_generation_size_configured_ = true;
       // This should be updated before PostGarbageCollectionProcessing, which
       // can cause another GC. Take into account the objects promoted during GC.

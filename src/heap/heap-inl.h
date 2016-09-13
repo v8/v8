@@ -365,8 +365,6 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   }
   if (allocation.To(&object)) {
     OnAllocationEvent(object, size_in_bytes);
-  } else {
-    old_gen_exhausted_ = true;
   }
 
   return allocation;
