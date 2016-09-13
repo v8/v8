@@ -6606,13 +6606,13 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
       if (!store_target_map.is_null() &&
           *store_target_map != it.GetStoreTarget()->map()) {
         it.isolate()->PushStackTraceAndDie(
-            0xabababaa, v8::ToCData<void*>(it.GetInterceptor()->setter()),
+            0xabababaa, v8::ToCData<void*>(it.GetInterceptor()->definer()),
             nullptr, 0xabababab);
       }
       Utils::ApiCheck(store_target_map.is_null() ||
                           *store_target_map == it.GetStoreTarget()->map(),
-                      it.IsElement() ? "v8::IndexedPropertySetterCallback"
-                                     : "v8::NamedPropertySetterCallback",
+                      it.IsElement() ? "v8::IndexedPropertyDefinerCallback"
+                                     : "v8::NamedPropertyDefinerCallback",
                       "Interceptor silently changed store target.");
     }
   }
