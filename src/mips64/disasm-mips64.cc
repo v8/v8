@@ -1483,6 +1483,10 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
       }
       break;
     }
+    case DINS: {
+      Format(instr, "dins    'rt, 'rs, 'sa, 'ss2");
+      break;
+    }
     case DBSHFL: {
       int sa = instr->SaFieldRaw() >> kSaShift;
       switch (sa) {

@@ -699,6 +699,10 @@ TEST(Type0) {
   COMPARE(dsbh(s6, s7), "7c17b0a4       dsbh    s6, s7");
   COMPARE(dsbh(v0, v1), "7c0310a4       dsbh    v0, v1");
 
+  COMPARE(dins_(a0, a1, 31, 1), "7ca4ffc7       dins    a0, a1, 31, 1");
+  COMPARE(dins_(s6, s7, 30, 2), "7ef6ff87       dins    s6, s7, 30, 2");
+  COMPARE(dins_(v0, v1, 0, 32), "7c62f807       dins    v0, v1, 0, 32");
+
   COMPARE(dshd(a0, a1), "7c052164       dshd    a0, a1");
   COMPARE(dshd(s6, s7), "7c17b164       dshd    s6, s7");
   COMPARE(dshd(v0, v1), "7c031164       dshd    v0, v1");
