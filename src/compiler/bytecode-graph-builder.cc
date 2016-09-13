@@ -648,10 +648,6 @@ VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
 }
 
 bool BytecodeGraphBuilder::CreateGraph() {
-  // Set up the basic structure of the graph. Outputs for {Start} are
-  // the formal parameters (including the receiver) plus context and
-  // closure.
-
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
   // parameters (including the receiver) plus new target, number of arguments,
   // context and closure.
@@ -662,10 +658,6 @@ bool BytecodeGraphBuilder::CreateGraph() {
                   bytecode_array()->parameter_count(), graph()->start(),
                   GetFunctionContext());
   set_environment(&env);
-
-  // For OSR add an {OsrNormalEntry} as the start of the top-level environment.
-  // It will be replaced with {Dead} after typing and optimizations.
-  if (!osr_ast_id_.IsNone()) NewNode(common()->OsrNormalEntry());
 
   VisitBytecodes();
 
@@ -704,12 +696,14 @@ void BytecodeGraphBuilder::VisitBytecodes() {
   set_loop_analysis(&loop_analysis);
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
   set_bytecode_iterator(&iterator);
+  BuildOSRNormalEntryPoint();
   while (!iterator.done()) {
     int current_offset = iterator.current_offset();
     EnterAndExitExceptionHandlers(current_offset);
     SwitchToMergeEnvironment(current_offset);
     if (environment() != nullptr) {
       BuildLoopHeaderEnvironment(current_offset);
+      BuildOSRLoopEntryPoint(current_offset);
 
       switch (iterator.current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
@@ -1632,14 +1626,7 @@ void BytecodeGraphBuilder::VisitStackCheck() {
   environment()->RecordAfterState(node, &states);
 }
 
-void BytecodeGraphBuilder::VisitOsrPoll() {
-  // TODO(4764): This should be moved into the {VisitBytecodes} once we merge
-  // the polling with existing bytecode. This will also guarantee that we are
-  // not missing the OSR entry point, which we wouldn't catch right now.
-  if (osr_ast_id_.ToInt() == bytecode_iterator().current_offset()) {
-    environment()->PrepareForOsr();
-  }
-}
+void BytecodeGraphBuilder::VisitOsrPoll() {}
 
 void BytecodeGraphBuilder::VisitReturn() {
   BuildLoopExitsForFunctionExit();
@@ -1810,6 +1797,25 @@ void BytecodeGraphBuilder::MergeIntoSuccessorEnvironment(int target_offset) {
 void BytecodeGraphBuilder::MergeControlToLeaveFunction(Node* exit) {
   exit_controls_.push_back(exit);
   set_environment(nullptr);
+}
+
+void BytecodeGraphBuilder::BuildOSRLoopEntryPoint(int current_offset) {
+  if (!osr_ast_id_.IsNone() && osr_ast_id_.ToInt() == current_offset) {
+    // For OSR add a special {OsrLoopEntry} node into the current loop header.
+    // It will be turned into a usable entry by the OSR deconstruction.
+    environment()->PrepareForOsr();
+  }
+}
+
+void BytecodeGraphBuilder::BuildOSRNormalEntryPoint() {
+  if (!osr_ast_id_.IsNone()) {
+    // For OSR add an {OsrNormalEntry} as the the top-level environment start.
+    // It will be replaced with {Dead} by the OSR deconstruction.
+    NewNode(common()->OsrNormalEntry());
+    // Note that the requested OSR entry point must be the target of a backward
+    // branch, otherwise there will not be a proper loop header available.
+    DCHECK(branch_analysis()->backward_branches_target(osr_ast_id_.ToInt()));
+  }
 }
 
 void BytecodeGraphBuilder::BuildLoopExitsForBranch(int target_offset) {

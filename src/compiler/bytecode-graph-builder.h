@@ -170,6 +170,10 @@ class BytecodeGraphBuilder {
   // Simulates control flow that exits the function body.
   void MergeControlToLeaveFunction(Node* exit);
 
+  // Builds entry points that are used by OSR deconstruction.
+  void BuildOSRLoopEntryPoint(int current_offset);
+  void BuildOSRNormalEntryPoint();
+
   // Builds loop exit nodes for every exited loop between the current bytecode
   // offset and {target_offset}.
   void BuildLoopExitsForBranch(int target_offset);
