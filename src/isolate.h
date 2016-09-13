@@ -1164,6 +1164,10 @@ class Isolate {
 
   PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
 
+#ifdef USE_SIMULATOR
+  base::Mutex* simulator_i_cache_mutex() { return &simulator_i_cache_mutex_; }
+#endif
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectPrototype(Object* object);
@@ -1439,6 +1443,10 @@ class Isolate {
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_;
+
+#ifdef USE_SIMULATOR
+  base::Mutex simulator_i_cache_mutex_;
+#endif
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
