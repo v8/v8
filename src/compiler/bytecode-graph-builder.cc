@@ -835,14 +835,12 @@ void BytecodeGraphBuilder::VisitStaGlobalStrict() {
 }
 
 Node* BytecodeGraphBuilder::BuildLoadContextSlot() {
-  // TODO(mythria): LoadContextSlots are unrolled by the required depth when
-  // generating bytecode. Hence the value of depth is always 0. Update this
-  // code, when the implementation changes.
   // TODO(mythria): immutable flag is also set to false. This information is not
   // available in bytecode array. update this code when the implementation
   // changes.
-  const Operator* op = javascript()->LoadContext(
-      0, bytecode_iterator().GetIndexOperand(1), false);
+  const Operator* op =
+      javascript()->LoadContext(bytecode_iterator().GetIndexOperand(2),
+                                bytecode_iterator().GetIndexOperand(1), false);
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   return NewNode(op, context);
@@ -855,15 +853,13 @@ void BytecodeGraphBuilder::VisitLdaContextSlot() {
 
 void BytecodeGraphBuilder::VisitLdrContextSlot() {
   Node* node = BuildLoadContextSlot();
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(2), node);
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(3), node);
 }
 
 void BytecodeGraphBuilder::VisitStaContextSlot() {
-  // TODO(mythria): LoadContextSlots are unrolled by the required depth when
-  // generating bytecode. Hence the value of depth is always 0. Update this
-  // code, when the implementation changes.
   const Operator* op =
-      javascript()->StoreContext(0, bytecode_iterator().GetIndexOperand(1));
+      javascript()->StoreContext(bytecode_iterator().GetIndexOperand(2),
+                                 bytecode_iterator().GetIndexOperand(1));
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* value = environment()->LookupAccumulator();

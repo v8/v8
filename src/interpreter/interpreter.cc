@@ -520,37 +520,44 @@ compiler::Node* Interpreter::BuildLoadContextSlot(
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* context = __ LoadRegister(reg_index);
   Node* slot_index = __ BytecodeOperandIdx(1);
-  return __ LoadContextSlot(context, slot_index);
+  Node* depth = __ BytecodeOperandIdx(2);
+  Node* slot_context = __ GetContextAtDepth(context, depth);
+  return __ LoadContextSlot(slot_context, slot_index);
 }
 
-// LdaContextSlot <context> <slot_index>
+// LdaContextSlot <context> <slot_index> <depth>
 //
-// Load the object in |slot_index| of |context| into the accumulator.
+// Load the object in |slot_index| of the context at |depth| in the context
+// chain starting at |context| into the accumulator.
 void Interpreter::DoLdaContextSlot(InterpreterAssembler* assembler) {
   Node* result = BuildLoadContextSlot(assembler);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
-// LdrContextSlot <context> <slot_index> <reg>
+// LdrContextSlot <context> <slot_index> <depth> <reg>
 //
-// Load the object in <slot_index> of <context> into register <reg>.
+// Load the object in |slot_index| of the context at |depth| in the context
+// chain of |context| into register |reg|.
 void Interpreter::DoLdrContextSlot(InterpreterAssembler* assembler) {
   Node* result = BuildLoadContextSlot(assembler);
-  Node* destination = __ BytecodeOperandReg(2);
+  Node* destination = __ BytecodeOperandReg(3);
   __ StoreRegister(result, destination);
   __ Dispatch();
 }
 
-// StaContextSlot <context> <slot_index>
+// StaContextSlot <context> <slot_index> <depth>
 //
-// Stores the object in the accumulator into |slot_index| of |context|.
+// Stores the object in the accumulator into |slot_index| of the context at
+// |depth| in the context chain starting at |context|.
 void Interpreter::DoStaContextSlot(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* context = __ LoadRegister(reg_index);
   Node* slot_index = __ BytecodeOperandIdx(1);
-  __ StoreContextSlot(context, slot_index, value);
+  Node* depth = __ BytecodeOperandIdx(2);
+  Node* slot_context = __ GetContextAtDepth(context, depth);
+  __ StoreContextSlot(slot_context, slot_index, value);
   __ Dispatch();
 }
 

@@ -922,8 +922,9 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       break;
     case VariableLocation::CONTEXT:
       if (variable->binding_needs_init()) {
+        DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
         builder()->LoadTheHole().StoreContextSlot(execution_context()->reg(),
-                                                  variable->index());
+                                                  variable->index(), 0);
       }
       break;
     case VariableLocation::LOOKUP: {
@@ -963,8 +964,8 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     case VariableLocation::CONTEXT: {
       DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
       VisitForAccumulatorValue(decl->fun());
-      builder()->StoreContextSlot(execution_context()->reg(),
-                                  variable->index());
+      builder()->StoreContextSlot(execution_context()->reg(), variable->index(),
+                                  0);
       break;
     }
     case VariableLocation::LOOKUP: {
@@ -1957,24 +1958,12 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       Register context_reg;
       if (context) {
         context_reg = context->reg();
+        depth = 0;
       } else {
-        context_reg = register_allocator()->NewRegister();
-        // Walk the context chain to find the context at the given depth.
-        // TODO(rmcilroy): Perform this work in a bytecode handler once we have
-        // a generic mechanism for performing jumps in interpreter.cc.
-        // TODO(mythria): Also update bytecode graph builder with correct depth
-        // when this changes.
-        builder()
-            ->LoadAccumulatorWithRegister(execution_context()->reg())
-            .StoreAccumulatorInRegister(context_reg);
-        for (int i = 0; i < depth; ++i) {
-          builder()
-              ->LoadContextSlot(context_reg, Context::PREVIOUS_INDEX)
-              .StoreAccumulatorInRegister(context_reg);
-        }
+        context_reg = execution_context()->reg();
       }
 
-      builder()->LoadContextSlot(context_reg, variable->index());
+      builder()->LoadContextSlot(context_reg, variable->index(), depth);
       BuildHoleCheckForVariableLoad(variable);
       break;
     }
@@ -2152,24 +2141,9 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
 
       if (context) {
         context_reg = context->reg();
+        depth = 0;
       } else {
-        Register value_temp = register_allocator()->NewRegister();
-        context_reg = register_allocator()->NewRegister();
-        // Walk the context chain to find the context at the given depth.
-        // TODO(rmcilroy): Perform this work in a bytecode handler once we have
-        // a generic mechanism for performing jumps in interpreter.cc.
-        // TODO(mythria): Also update bytecode graph builder with correct depth
-        // when this changes.
-        builder()
-            ->StoreAccumulatorInRegister(value_temp)
-            .LoadAccumulatorWithRegister(execution_context()->reg())
-            .StoreAccumulatorInRegister(context_reg);
-        for (int i = 0; i < depth; ++i) {
-          builder()
-              ->LoadContextSlot(context_reg, Context::PREVIOUS_INDEX)
-              .StoreAccumulatorInRegister(context_reg);
-        }
-        builder()->LoadAccumulatorWithRegister(value_temp);
+        context_reg = execution_context()->reg();
       }
 
       if (hole_check_required) {
@@ -2177,14 +2151,14 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         Register value_temp = register_allocator()->NewRegister();
         builder()
             ->StoreAccumulatorInRegister(value_temp)
-            .LoadContextSlot(context_reg, variable->index());
+            .LoadContextSlot(context_reg, variable->index(), depth);
 
         BuildHoleCheckForVariableAssignment(variable, op);
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
       if (mode != CONST || op == Token::INIT) {
-        builder()->StoreContextSlot(context_reg, variable->index());
+        builder()->StoreContextSlot(context_reg, variable->index(), depth);
       } else if (variable->throw_on_const_assignment(language_mode())) {
         builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(), 0);
       }
@@ -2875,9 +2849,9 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
         Register global_object = register_allocator()->NewRegister();
         builder()
             ->LoadContextSlot(execution_context()->reg(),
-                              Context::NATIVE_CONTEXT_INDEX)
+                              Context::NATIVE_CONTEXT_INDEX, 0)
             .StoreAccumulatorInRegister(native_context)
-            .LoadContextSlot(native_context, Context::EXTENSION_INDEX)
+            .LoadContextSlot(native_context, Context::EXTENSION_INDEX, 0)
             .StoreAccumulatorInRegister(global_object)
             .LoadLiteral(variable->name())
             .Delete(global_object, language_mode());
@@ -3223,7 +3197,7 @@ void BytecodeGenerator::BuildLocalActivationContextInitialization() {
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
     builder()->LoadAccumulatorWithRegister(receiver).StoreContextSlot(
-        execution_context()->reg(), variable->index());
+        execution_context()->reg(), variable->index(), 0);
   }
 
   // Copy parameters into context if necessary.
@@ -3237,8 +3211,8 @@ void BytecodeGenerator::BuildLocalActivationContextInitialization() {
     Register parameter(builder()->Parameter(i + 1));
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
-    builder()->LoadAccumulatorWithRegister(parameter)
-        .StoreContextSlot(execution_context()->reg(), variable->index());
+    builder()->LoadAccumulatorWithRegister(parameter).StoreContextSlot(
+        execution_context()->reg(), variable->index(), 0);
   }
 }
 
@@ -3359,15 +3333,15 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
     Register native_context = register_allocator()->NewRegister();
     builder()
         ->LoadContextSlot(execution_context()->reg(),
-                          Context::NATIVE_CONTEXT_INDEX)
+                          Context::NATIVE_CONTEXT_INDEX, 0)
         .StoreAccumulatorInRegister(native_context)
-        .LoadContextSlot(native_context, Context::CLOSURE_INDEX);
+        .LoadContextSlot(native_context, Context::CLOSURE_INDEX, 0);
   } else if (closure_scope->is_eval_scope()) {
     // Contexts created by a call to eval have the same closure as the
     // context calling eval, not the anonymous closure containing the eval
     // code. Fetch it from the context.
     builder()->LoadContextSlot(execution_context()->reg(),
-                               Context::CLOSURE_INDEX);
+                               Context::CLOSURE_INDEX, 0);
   } else {
     DCHECK(closure_scope->is_function_scope() ||
            closure_scope->is_module_scope());

@@ -270,16 +270,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
-                                                            int slot_index) {
+                                                            int slot_index,
+                                                            int depth) {
   Output(Bytecode::kLdaContextSlot, RegisterOperand(context),
-         UnsignedOperand(slot_index));
+         UnsignedOperand(slot_index), UnsignedOperand(depth));
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
-                                                             int slot_index) {
+                                                             int slot_index,
+                                                             int depth) {
   Output(Bytecode::kStaContextSlot, RegisterOperand(context),
-         UnsignedOperand(slot_index));
+         UnsignedOperand(slot_index), UnsignedOperand(depth));
   return *this;
 }
 

@@ -65,11 +65,11 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 16
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdrContextSlot), R(context), U8(3), R(0),
-                B(LdrContextSlot), R(0), U8(2), R(1),
+  /*   39 S> */ B(LdrContextSlot), R(context), U8(3), U8(0), R(0),
+                B(LdrContextSlot), R(0), U8(2), U8(0), R(1),
                 B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(1),
   /*   56 S> */ B(Return),
@@ -90,11 +90,11 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 16
 bytecodes: [
   /*   18 E> */ B(StackCheck),
-  /*   25 S> */ B(LdrContextSlot), R(context), U8(3), R(0),
-                B(LdrContextSlot), R(0), U8(2), R(1),
+  /*   25 S> */ B(LdrContextSlot), R(context), U8(3), U8(0), R(0),
+                B(LdrContextSlot), R(0), U8(2), U8(0), R(1),
                 B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(1),
   /*   42 S> */ B(Return),

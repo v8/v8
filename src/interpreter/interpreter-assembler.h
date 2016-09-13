@@ -53,6 +53,10 @@ class InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* GetContext();
   void SetContext(compiler::Node* value);
 
+  // Context at |depth| in the context chain starting at |context|
+  compiler::Node* GetContextAtDepth(compiler::Node* context,
+                                    compiler::Node* depth);
+
   // Number of registers.
   compiler::Node* RegisterCount();
 

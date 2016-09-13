@@ -94,11 +94,15 @@ class BytecodeArrayBuilder final : public ZoneObject {
                                     int feedback_slot,
                                     LanguageMode language_mode);
 
-  // Load the object at |slot_index| in |context| into the accumulator.
-  BytecodeArrayBuilder& LoadContextSlot(Register context, int slot_index);
+  // Load the object at |slot_index| at |depth| in the context chain starting
+  // with |context| into the accumulator.
+  BytecodeArrayBuilder& LoadContextSlot(Register context, int slot_index,
+                                        int depth);
 
-  // Stores the object in the accumulator into |slot_index| of |context|.
-  BytecodeArrayBuilder& StoreContextSlot(Register context, int slot_index);
+  // Stores the object in the accumulator into |slot_index| at |depth| in the
+  // context chain starting with |context|.
+  BytecodeArrayBuilder& StoreContextSlot(Register context, int slot_index,
+                                         int depth);
 
   // Register-accumulator transfers.
   BytecodeArrayBuilder& LoadAccumulatorWithRegister(Register reg);

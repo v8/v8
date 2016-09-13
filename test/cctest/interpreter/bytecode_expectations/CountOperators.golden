@@ -198,18 +198,18 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 27
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   42 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
   /*   53 S> */ B(CreateClosure), U8(0), U8(2),
                 B(Star), R(0),
-  /*   78 S> */ B(LdaContextSlot), R(context), U8(4),
+  /*   78 S> */ B(LdaContextSlot), R(context), U8(4), U8(0),
                 B(Inc), U8(1),
-  /*   87 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   87 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
   /*   90 S> */ B(Return),
 ]
 constant pool: [
@@ -224,19 +224,19 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 31
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   42 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
   /*   53 S> */ B(CreateClosure), U8(0), U8(2),
                 B(Star), R(0),
-  /*   78 S> */ B(LdaContextSlot), R(context), U8(4),
+  /*   78 S> */ B(LdaContextSlot), R(context), U8(4), U8(0),
                 B(ToNumber), R(2),
                 B(Dec), U8(1),
-  /*   86 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   86 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(Ldar), R(2),
   /*   90 S> */ B(Return),
 ]

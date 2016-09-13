@@ -106,11 +106,11 @@ namespace interpreter {
   V(PushContext, AccumulatorUse::kRead, OperandType::kRegOut)                  \
   V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                      \
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                 \
-    OperandType::kIdx)                                                         \
+    OperandType::kIdx, OperandType::kIdx)                                      \
   V(LdrContextSlot, AccumulatorUse::kNone, OperandType::kReg,                  \
-    OperandType::kIdx, OperandType::kRegOut)                                   \
+    OperandType::kIdx, OperandType::kIdx, OperandType::kRegOut)                \
   V(StaContextSlot, AccumulatorUse::kRead, OperandType::kReg,                  \
-    OperandType::kIdx)                                                         \
+    OperandType::kIdx, OperandType::kIdx)                                      \
                                                                                \
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, AccumulatorUse::kWrite, OperandType::kIdx)                  \

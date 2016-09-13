@@ -398,11 +398,13 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaGlobalStar) {
 TEST_F(BytecodePeepholeOptimizerTest, MergeLdaContextSlotStar) {
   const uint32_t operands[] = {
       static_cast<uint32_t>(Register(200000).ToOperand()), 55005500,
+      static_cast<uint32_t>(Register(0).ToOperand()),
       static_cast<uint32_t>(Register(1).ToOperand())};
   const int expected_operand_count = static_cast<int>(arraysize(operands));
 
-  BytecodeNode first(Bytecode::kLdaContextSlot, operands[0], operands[1]);
-  BytecodeNode second(Bytecode::kStar, operands[2]);
+  BytecodeNode first(Bytecode::kLdaContextSlot, operands[0], operands[1],
+                     operands[2]);
+  BytecodeNode second(Bytecode::kStar, operands[3]);
   BytecodeNode third(Bytecode::kReturn);
   optimizer()->Write(&first);
   optimizer()->Write(&second);

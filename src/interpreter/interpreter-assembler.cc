@@ -84,6 +84,36 @@ void InterpreterAssembler::SetContext(Node* value) {
   StoreRegister(value, Register::current_context());
 }
 
+Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
+  Variable cur_context(this, MachineRepresentation::kTaggedPointer);
+  cur_context.Bind(context);
+
+  Variable cur_depth(this, MachineRepresentation::kWord32);
+  cur_depth.Bind(depth);
+
+  Label context_found(this);
+
+  Variable* context_search_loop_variables[2] = {&cur_depth, &cur_context};
+  Label context_search(this, 2, context_search_loop_variables);
+
+  // Fast path if the depth is 0.
+  BranchIfWord32Equal(depth, Int32Constant(0), &context_found, &context_search);
+
+  // Loop until the depth is 0.
+  Bind(&context_search);
+  {
+    cur_depth.Bind(Int32Sub(cur_depth.value(), Int32Constant(1)));
+    cur_context.Bind(
+        LoadContextSlot(cur_context.value(), Context::PREVIOUS_INDEX));
+
+    BranchIfWord32Equal(cur_depth.value(), Int32Constant(0), &context_found,
+                        &context_search);
+  }
+
+  Bind(&context_found);
+  return cur_context.value();
+}
+
 Node* InterpreterAssembler::BytecodeOffset() {
   return bytecode_offset_.value();
 }
