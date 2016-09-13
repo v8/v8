@@ -150,6 +150,9 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
       case OperandType::kIdx:
         stream << bytecode_iterator.GetIndexOperand(op_index);
         break;
+      case OperandType::kUImm:
+        stream << bytecode_iterator.GetUnsignedImmediateOperand(op_index);
+        break;
       case OperandType::kImm:
         stream << bytecode_iterator.GetImmediateOperand(op_index);
         break;

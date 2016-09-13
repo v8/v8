@@ -32,6 +32,9 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Returns the index immediate for bytecode operand |operand_index| in the
   // current bytecode.
   compiler::Node* BytecodeOperandIdx(int operand_index);
+  // Returns the UImm8 immediate for bytecode operand |operand_index| in the
+  // current bytecode.
+  compiler::Node* BytecodeOperandUImm(int operand_index);
   // Returns the Imm8 immediate for bytecode operand |operand_index| in the
   // current bytecode.
   compiler::Node* BytecodeOperandImm(int operand_index);

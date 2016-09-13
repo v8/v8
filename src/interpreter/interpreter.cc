@@ -520,7 +520,7 @@ compiler::Node* Interpreter::BuildLoadContextSlot(
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* context = __ LoadRegister(reg_index);
   Node* slot_index = __ BytecodeOperandIdx(1);
-  Node* depth = __ BytecodeOperandIdx(2);
+  Node* depth = __ BytecodeOperandUImm(2);
   Node* slot_context = __ GetContextAtDepth(context, depth);
   return __ LoadContextSlot(slot_context, slot_index);
 }
@@ -555,7 +555,7 @@ void Interpreter::DoStaContextSlot(InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* context = __ LoadRegister(reg_index);
   Node* slot_index = __ BytecodeOperandIdx(1);
-  Node* depth = __ BytecodeOperandIdx(2);
+  Node* depth = __ BytecodeOperandUImm(2);
   Node* slot_context = __ GetContextAtDepth(context, depth);
   __ StoreContextSlot(slot_context, slot_index, value);
   __ Dispatch();
@@ -2039,7 +2039,7 @@ void Interpreter::DoCreateCatchContext(InterpreterAssembler* assembler) {
 // Creates a new context with number of |slots| for the function closure.
 void Interpreter::DoCreateFunctionContext(InterpreterAssembler* assembler) {
   Node* closure = __ LoadRegister(Register::function_closure());
-  Node* slots = __ BytecodeOperandIdx(0);
+  Node* slots = __ BytecodeOperandUImm(0);
   Node* context = __ GetContext();
   __ SetAccumulator(
       FastNewFunctionContextStub::Generate(assembler, closure, slots, context));

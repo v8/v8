@@ -838,9 +838,9 @@ Node* BytecodeGraphBuilder::BuildLoadContextSlot() {
   // TODO(mythria): immutable flag is also set to false. This information is not
   // available in bytecode array. update this code when the implementation
   // changes.
-  const Operator* op =
-      javascript()->LoadContext(bytecode_iterator().GetIndexOperand(2),
-                                bytecode_iterator().GetIndexOperand(1), false);
+  const Operator* op = javascript()->LoadContext(
+      bytecode_iterator().GetUnsignedImmediateOperand(2),
+      bytecode_iterator().GetIndexOperand(1), false);
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   return NewNode(op, context);
@@ -857,9 +857,9 @@ void BytecodeGraphBuilder::VisitLdrContextSlot() {
 }
 
 void BytecodeGraphBuilder::VisitStaContextSlot() {
-  const Operator* op =
-      javascript()->StoreContext(bytecode_iterator().GetIndexOperand(2),
-                                 bytecode_iterator().GetIndexOperand(1));
+  const Operator* op = javascript()->StoreContext(
+      bytecode_iterator().GetUnsignedImmediateOperand(2),
+      bytecode_iterator().GetIndexOperand(1));
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* value = environment()->LookupAccumulator();
@@ -1037,7 +1037,7 @@ void BytecodeGraphBuilder::VisitCreateBlockContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateFunctionContext() {
-  uint32_t slots = bytecode_iterator().GetIndexOperand(0);
+  uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(0);
   const Operator* op = javascript()->CreateFunctionContext(slots);
   Node* context = NewNode(op, GetFunctionClosure());
   environment()->BindAccumulator(context);

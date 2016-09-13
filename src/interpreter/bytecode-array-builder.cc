@@ -788,10 +788,10 @@ bool BytecodeArrayBuilder::OperandsAreValid(
         }
         break;
       case OperandType::kIdx:
-        // TODO(oth): Consider splitting OperandType::kIdx into two
-        // operand types. One which is a constant pool index that can
-        // be checked, and the other is an unsigned value.
+        // TODO(leszeks): Possibly split this up into constant pool indices and
+        // other indices, for checking
         break;
+      case OperandType::kUImm:
       case OperandType::kImm:
         break;
       case OperandType::kMaybeReg:

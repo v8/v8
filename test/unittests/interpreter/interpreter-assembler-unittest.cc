@@ -421,6 +421,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
             EXPECT_THAT(m.BytecodeOperandIdx(i),
                         m.IsUnsignedOperand(offset, operand_size));
             break;
+          case interpreter::OperandType::kUImm:
+            EXPECT_THAT(m.BytecodeOperandUImm(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
           case interpreter::OperandType::kImm: {
             EXPECT_THAT(m.BytecodeOperandImm(i),
                         m.IsSignedOperand(offset, operand_size));

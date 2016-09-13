@@ -33,6 +33,7 @@ namespace interpreter {
   V(Flag8, OperandTypeInfo::kFixedUnsignedByte)       \
   V(IntrinsicId, OperandTypeInfo::kFixedUnsignedByte) \
   V(Idx, OperandTypeInfo::kScalableUnsignedByte)      \
+  V(UImm, OperandTypeInfo::kScalableUnsignedByte)     \
   V(Imm, OperandTypeInfo::kScalableSignedByte)        \
   V(RegCount, OperandTypeInfo::kScalableUnsignedByte) \
   V(RuntimeId, OperandTypeInfo::kFixedUnsignedShort)
@@ -106,11 +107,11 @@ namespace interpreter {
   V(PushContext, AccumulatorUse::kRead, OperandType::kRegOut)                  \
   V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                      \
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                 \
-    OperandType::kIdx, OperandType::kIdx)                                      \
+    OperandType::kIdx, OperandType::kUImm)                                     \
   V(LdrContextSlot, AccumulatorUse::kNone, OperandType::kReg,                  \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kRegOut)                \
+    OperandType::kIdx, OperandType::kUImm, OperandType::kRegOut)               \
   V(StaContextSlot, AccumulatorUse::kRead, OperandType::kReg,                  \
-    OperandType::kIdx, OperandType::kIdx)                                      \
+    OperandType::kIdx, OperandType::kUImm)                                     \
                                                                                \
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, AccumulatorUse::kWrite, OperandType::kIdx)                  \
@@ -246,8 +247,7 @@ namespace interpreter {
   V(CreateBlockContext, AccumulatorUse::kReadWrite, OperandType::kIdx)         \
   V(CreateCatchContext, AccumulatorUse::kReadWrite, OperandType::kReg,         \
     OperandType::kIdx, OperandType::kIdx)                                      \
-  /* TODO(klaasb) rename Idx or add unsigned Imm OperandType? */               \
-  V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kIdx)          \
+  V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kUImm)         \
   V(CreateWithContext, AccumulatorUse::kReadWrite, OperandType::kReg,          \
     OperandType::kIdx)                                                         \
                                                                                \

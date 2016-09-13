@@ -371,6 +371,14 @@ Node* InterpreterAssembler::BytecodeOperandFlag(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
+Node* InterpreterAssembler::BytecodeOperandUImm(int operand_index) {
+  DCHECK_EQ(OperandType::kUImm,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  return BytecodeUnsignedOperand(operand_index, operand_size);
+}
+
 Node* InterpreterAssembler::BytecodeOperandImm(int operand_index) {
   DCHECK_EQ(OperandType::kImm,
             Bytecodes::GetOperandType(bytecode_, operand_index));
