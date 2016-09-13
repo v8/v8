@@ -1408,7 +1408,7 @@ TEST(InterpreterJumps) {
       .Jump(&label[2]);
   SetRegister(builder, reg, 2048, scratch).Bind(&label[1]);
   IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot1))
-      .Jump(&label[0]);
+      .JumpLoop(&label[0], 0);
   SetRegister(builder, reg, 4096, scratch).Bind(&label[2]);
   IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot2))
       .LoadAccumulatorWithRegister(reg)

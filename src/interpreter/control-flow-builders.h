@@ -86,8 +86,7 @@ class LoopBuilder final : public BreakableControlFlowBuilder {
   ~LoopBuilder();
 
   void LoopHeader(ZoneVector<BytecodeLabel>* additional_labels);
-  void JumpToHeader();
-  void JumpToHeaderIfTrue();
+  void JumpToHeader(int loop_depth);
   void BindContinueTarget();
   void EndLoop();
 
@@ -98,9 +97,6 @@ class LoopBuilder final : public BreakableControlFlowBuilder {
   void ContinueIfTrue() { EmitJumpIfTrue(&continue_labels_); }
   void ContinueIfUndefined() { EmitJumpIfUndefined(&continue_labels_); }
   void ContinueIfNull() { EmitJumpIfNull(&continue_labels_); }
-
-  BytecodeLabels* header_labels() { return &header_labels_; }
-  BytecodeLabels* continue_labels() { return &continue_labels_; }
 
  private:
   BytecodeLabel loop_header_;

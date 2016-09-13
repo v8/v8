@@ -1616,13 +1616,13 @@ void BytecodeGraphBuilder::VisitJumpIfUndefinedConstant() {
   BuildJumpIfEqual(jsgraph()->UndefinedConstant());
 }
 
+void BytecodeGraphBuilder::VisitJumpLoop() { BuildJump(); }
+
 void BytecodeGraphBuilder::VisitStackCheck() {
   FrameStateBeforeAndAfter states(this);
   Node* node = NewNode(javascript()->StackCheck());
   environment()->RecordAfterState(node, &states);
 }
-
-void BytecodeGraphBuilder::VisitOsrPoll() {}
 
 void BytecodeGraphBuilder::VisitReturn() {
   BuildLoopExitsForFunctionExit();

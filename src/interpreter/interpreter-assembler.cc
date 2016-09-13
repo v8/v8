@@ -938,6 +938,9 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
 }
 
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
+  // TODO(rmcilroy): It might be worthwhile to only update the budget for
+  // backwards branches. Those are distinguishable by the {JumpLoop} bytecode.
+
   Label ok(this), interrupt_check(this, Label::kDeferred), end(this);
   Node* budget_offset =
       IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);

@@ -254,10 +254,9 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& JumpIfNotHole(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);
 
   BytecodeArrayBuilder& StackCheck(int position);
-
-  BytecodeArrayBuilder& OsrPoll(int loop_depth);
 
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& ReThrow();
@@ -352,8 +351,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   void Output(Bytecode bytecode, uint32_t operand0);
   void Output(Bytecode bytecode);
 
-  BytecodeArrayBuilder& OutputJump(Bytecode jump_bytecode,
-                                   BytecodeLabel* label);
+  BytecodeArrayBuilder& OutputJump(BytecodeNode* node, BytecodeLabel* label);
 
   bool RegisterIsValid(Register reg) const;
   bool OperandsAreValid(Bytecode bytecode, int operand_count,

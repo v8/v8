@@ -273,6 +273,7 @@ namespace interpreter {
   V(JumpIfUndefinedConstant, AccumulatorUse::kRead, OperandType::kIdx)         \
   V(JumpIfNotHole, AccumulatorUse::kRead, OperandType::kImm)                   \
   V(JumpIfNotHoleConstant, AccumulatorUse::kRead, OperandType::kIdx)           \
+  V(JumpLoop, AccumulatorUse::kNone, OperandType::kImm, OperandType::kImm)     \
                                                                                \
   /* Complex flow control For..in */                                           \
   V(ForInPrepare, AccumulatorUse::kNone, OperandType::kReg,                    \
@@ -285,9 +286,6 @@ namespace interpreter {
                                                                                \
   /* Perform a stack guard check */                                            \
   V(StackCheck, AccumulatorUse::kNone)                                         \
-                                                                               \
-  /* Perform a check to trigger on-stack replacement */                        \
-  V(OsrPoll, AccumulatorUse::kNone, OperandType::kImm)                         \
                                                                                \
   /* Non-local flow control */                                                 \
   V(Throw, AccumulatorUse::kRead)                                              \

@@ -407,7 +407,8 @@ bool Bytecodes::IsConditionalJump(Bytecode bytecode) {
 
 // static
 bool Bytecodes::IsJumpImmediate(Bytecode bytecode) {
-  return bytecode == Bytecode::kJump || IsConditionalJumpImmediate(bytecode);
+  return bytecode == Bytecode::kJump || bytecode == Bytecode::kJumpLoop ||
+         IsConditionalJumpImmediate(bytecode);
 }
 
 

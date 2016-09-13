@@ -452,43 +452,54 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
+BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(BytecodeNode* node,
                                                        BytecodeLabel* label) {
-  BytecodeNode node(jump_bytecode, 0);
-  AttachSourceInfo(&node);
-  pipeline_->WriteJump(&node, label);
+  AttachSourceInfo(node);
+  pipeline_->WriteJump(node, label);
   LeaveBasicBlock();
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Jump(BytecodeLabel* label) {
-  return OutputJump(Bytecode::kJump, label);
+  BytecodeNode node(Bytecode::kJump, 0);
+  return OutputJump(&node, label);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfTrue(BytecodeLabel* label) {
   // The peephole optimizer attempts to simplify JumpIfToBooleanTrue
   // to JumpIfTrue.
-  return OutputJump(Bytecode::kJumpIfToBooleanTrue, label);
+  BytecodeNode node(Bytecode::kJumpIfToBooleanTrue, 0);
+  return OutputJump(&node, label);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfFalse(BytecodeLabel* label) {
   // The peephole optimizer attempts to simplify JumpIfToBooleanFalse
   // to JumpIfFalse.
-  return OutputJump(Bytecode::kJumpIfToBooleanFalse, label);
+  BytecodeNode node(Bytecode::kJumpIfToBooleanFalse, 0);
+  return OutputJump(&node, label);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNull(BytecodeLabel* label) {
-  return OutputJump(Bytecode::kJumpIfNull, label);
+  BytecodeNode node(Bytecode::kJumpIfNull, 0);
+  return OutputJump(&node, label);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
     BytecodeLabel* label) {
-  return OutputJump(Bytecode::kJumpIfUndefined, label);
+  BytecodeNode node(Bytecode::kJumpIfUndefined, 0);
+  return OutputJump(&node, label);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
     BytecodeLabel* label) {
-  return OutputJump(Bytecode::kJumpIfNotHole, label);
+  BytecodeNode node(Bytecode::kJumpIfNotHole, 0);
+  return OutputJump(&node, label);
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(BytecodeLabel* label,
+                                                     int loop_depth) {
+  BytecodeNode node(Bytecode::kJumpLoop, 0, UnsignedOperand(loop_depth));
+  return OutputJump(&node, label);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
@@ -506,11 +517,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
     latest_source_info_.ForceExpressionPosition(position);
   }
   Output(Bytecode::kStackCheck);
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::OsrPoll(int loop_depth) {
-  Output(Bytecode::kOsrPoll, UnsignedOperand(loop_depth));
   return *this;
 }
 

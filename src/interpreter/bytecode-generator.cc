@@ -826,14 +826,6 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
 
   loop_builder->LoopHeader(&resume_points_in_loop);
 
-  // Insert an explicit {OsrPoll} right after the loop header, to trigger
-  // on-stack replacement when armed for the given loop nesting depth.
-  if (FLAG_ignition_osr) {
-    // TODO(4764): Merge this with another bytecode (e.g. {Jump} back edge).
-    int level = Min(loop_depth_, AbstractCode::kMaxLoopNestingMarker - 1);
-    builder()->OsrPoll(level);
-  }
-
   if (stmt->yield_count() > 0) {
     // If we are not resuming, fall through to loop body.
     // If we are resuming, perform state dispatch.
@@ -1170,13 +1162,16 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   } else if (stmt->cond()->ToBooleanIsTrue()) {
     VisitIterationHeader(stmt, &loop_builder);
     VisitIterationBody(stmt, &loop_builder);
-    loop_builder.JumpToHeader();
+    loop_builder.JumpToHeader(loop_depth_);
   } else {
     VisitIterationHeader(stmt, &loop_builder);
     VisitIterationBody(stmt, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->cond());
-    VisitForTest(stmt->cond(), loop_builder.header_labels(),
-                 loop_builder.break_labels(), TestFallthrough::kElse);
+    BytecodeLabels loop_backbranch(zone());
+    VisitForTest(stmt->cond(), &loop_backbranch, loop_builder.break_labels(),
+                 TestFallthrough::kThen);
+    loop_backbranch.Bind(builder());
+    loop_builder.JumpToHeader(loop_depth_);
   }
   loop_builder.EndLoop();
 }
@@ -1197,7 +1192,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
     loop_body.Bind(builder());
   }
   VisitIterationBody(stmt, &loop_builder);
-  loop_builder.JumpToHeader();
+  loop_builder.JumpToHeader(loop_depth_);
   loop_builder.EndLoop();
 }
 
@@ -1225,7 +1220,7 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
     builder()->SetStatementPosition(stmt->next());
     Visit(stmt->next());
   }
-  loop_builder.JumpToHeader();
+  loop_builder.JumpToHeader(loop_depth_);
   loop_builder.EndLoop();
 }
 
@@ -1346,7 +1341,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   VisitIterationBody(stmt, &loop_builder);
   builder()->ForInStep(index);
   builder()->StoreAccumulatorInRegister(index);
-  loop_builder.JumpToHeader();
+  loop_builder.JumpToHeader(loop_depth_);
   loop_builder.EndLoop();
   builder()->Bind(&subject_null_label);
   builder()->Bind(&subject_undefined_label);
@@ -1366,7 +1361,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 
   VisitForEffect(stmt->assign_each());
   VisitIterationBody(stmt, &loop_builder);
-  loop_builder.JumpToHeader();
+  loop_builder.JumpToHeader(loop_depth_);
   loop_builder.EndLoop();
 }
 

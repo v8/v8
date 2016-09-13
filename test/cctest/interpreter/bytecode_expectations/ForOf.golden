@@ -12,7 +12,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 278
+bytecode array length: 279
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -33,7 +33,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(3), U8(1),
                 B(LdaNamedProperty), R(3), U8(3), U8(9),
-                B(JumpIfToBooleanTrue), U8(23),
+                B(JumpIfToBooleanTrue), U8(24),
                 B(LdrNamedProperty), R(3), U8(4), U8(11), R(5),
                 B(LdaSmi), U8(2),
                 B(Star), R(4),
@@ -42,7 +42,7 @@ bytecodes: [
                 B(Mov), R(0), R(1),
                 B(LdaZero),
                 B(Star), R(4),
-                B(Jump), U8(-49),
+                B(JumpLoop), U8(-49), U8(0),
                 B(Jump), U8(37),
                 B(Star), R(13),
                 B(Ldar), R(closure),
@@ -138,9 +138,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [7, 117, 123],
-  [10, 80, 82],
-  [200, 210, 212],
+  [7, 118, 124],
+  [10, 81, 83],
+  [201, 211, 213],
 ]
 
 ---
@@ -296,7 +296,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 296
+bytecode array length: 297
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -317,7 +317,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(3), U8(1),
                 B(LdaNamedProperty), R(3), U8(3), U8(9),
-                B(JumpIfToBooleanTrue), U8(41),
+                B(JumpIfToBooleanTrue), U8(42),
                 B(LdrNamedProperty), R(3), U8(4), U8(11), R(5),
                 B(LdaSmi), U8(2),
                 B(Star), R(4),
@@ -331,10 +331,10 @@ bytecodes: [
   /*   91 S> */ B(LdaSmi), U8(20),
   /*   97 E> */ B(TestEqual), R(1), U8(14),
                 B(JumpIfFalse), U8(4),
-  /*  104 S> */ B(Jump), U8(7),
+  /*  104 S> */ B(Jump), U8(8),
                 B(LdaZero),
                 B(Star), R(4),
-                B(Jump), U8(-67),
+                B(JumpLoop), U8(-67), U8(0),
                 B(Jump), U8(37),
                 B(Star), R(13),
                 B(Ldar), R(closure),
@@ -430,9 +430,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [7, 135, 141],
-  [10, 98, 100],
-  [218, 228, 230],
+  [7, 136, 142],
+  [10, 99, 101],
+  [219, 229, 231],
 ]
 
 ---

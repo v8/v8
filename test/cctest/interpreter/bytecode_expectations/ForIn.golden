@@ -64,19 +64,19 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 44
+bytecode array length: 45
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
-  /*   68 S> */ B(JumpIfUndefined), U8(37),
-                B(JumpIfNull), U8(35),
+  /*   68 S> */ B(JumpIfUndefined), U8(38),
+                B(JumpIfNull), U8(36),
                 B(ToObject), R(3),
                 B(ForInPrepare), R(3), R(4),
                 B(LdaZero),
                 B(Star), R(7),
   /*   63 S> */ B(ForInContinue), R(7), R(6),
-                B(JumpIfFalse), U8(22),
+                B(JumpIfFalse), U8(23),
                 B(ForInNext), R(3), R(7), R(4), U8(1),
                 B(JumpIfUndefined), U8(9),
                 B(Star), R(1),
@@ -86,7 +86,7 @@ bytecodes: [
   /*   85 S> */ B(Return),
                 B(ForInStep), R(7),
                 B(Star), R(7),
-                B(Jump), U8(-23),
+                B(JumpLoop), U8(-23), U8(0),
                 B(LdaUndefined),
   /*   85 S> */ B(Return),
 ]
@@ -103,20 +103,20 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 55
+bytecode array length: 56
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
   /*   59 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(1),
-                B(JumpIfUndefined), U8(45),
-                B(JumpIfNull), U8(43),
+                B(JumpIfUndefined), U8(46),
+                B(JumpIfNull), U8(44),
                 B(ToObject), R(3),
                 B(ForInPrepare), R(3), R(4),
                 B(LdaZero),
                 B(Star), R(7),
   /*   54 S> */ B(ForInContinue), R(7), R(6),
-                B(JumpIfFalse), U8(30),
+                B(JumpIfFalse), U8(31),
                 B(ForInNext), R(3), R(7), R(4), U8(2),
                 B(JumpIfUndefined), U8(17),
                 B(Star), R(1),
@@ -128,7 +128,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   72 E> */ B(ForInStep), R(7),
                 B(Star), R(7),
-                B(Jump), U8(-31),
+                B(JumpLoop), U8(-31), U8(0),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]
@@ -148,20 +148,20 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 82
+bytecode array length: 83
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(1),
                 B(Mov), R(1), R(0),
   /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(1),
-                B(JumpIfUndefined), U8(67),
-                B(JumpIfNull), U8(65),
+                B(JumpIfUndefined), U8(68),
+                B(JumpIfNull), U8(66),
                 B(ToObject), R(1),
                 B(ForInPrepare), R(1), R(2),
                 B(LdaZero),
                 B(Star), R(5),
   /*   68 S> */ B(ForInContinue), R(5), R(4),
-                B(JumpIfFalse), U8(52),
+                B(JumpIfFalse), U8(53),
                 B(ForInNext), R(1), R(5), R(2), U8(11),
                 B(JumpIfUndefined), U8(39),
                 B(Star), R(6),
@@ -178,10 +178,10 @@ bytecodes: [
                 B(LdaSmi), U8(20),
   /*  136 E> */ B(TestEqual), R(7), U8(8),
                 B(JumpIfFalse), U8(4),
-  /*  143 S> */ B(Jump), U8(8),
+  /*  143 S> */ B(Jump), U8(9),
                 B(ForInStep), R(5),
                 B(Star), R(5),
-                B(Jump), U8(-53),
+                B(JumpLoop), U8(-53), U8(0),
                 B(LdaUndefined),
   /*  152 S> */ B(Return),
 ]
@@ -200,20 +200,20 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 62
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(0),
   /*   72 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(1),
-                B(JumpIfUndefined), U8(48),
-                B(JumpIfNull), U8(46),
+                B(JumpIfUndefined), U8(49),
+                B(JumpIfNull), U8(47),
                 B(ToObject), R(1),
                 B(ForInPrepare), R(1), R(2),
                 B(LdaZero),
                 B(Star), R(5),
   /*   65 S> */ B(ForInContinue), R(5), R(4),
-                B(JumpIfFalse), U8(33),
+                B(JumpIfFalse), U8(34),
                 B(ForInNext), R(1), R(5), R(2), U8(7),
                 B(JumpIfUndefined), U8(20),
                 B(Star), R(6),
@@ -227,7 +227,7 @@ bytecodes: [
   /*   98 S> */ B(Return),
                 B(ForInStep), R(5),
                 B(Star), R(5),
-                B(Jump), U8(-34),
+                B(JumpLoop), U8(-34), U8(0),
                 B(LdaUndefined),
   /*   98 S> */ B(Return),
 ]

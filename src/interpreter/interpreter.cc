@@ -1854,6 +1854,35 @@ void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
   __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
 }
 
+// JumpLoop <imm> <loop_depth>
+//
+// Jump by number of bytes represented by the immediate operand |imm|. Also
+// performs a loop nesting check and potentially triggers OSR in case the
+// current OSR level matches (or exceeds) the specified |loop_depth|.
+void Interpreter::DoJumpLoop(InterpreterAssembler* assembler) {
+  Node* relative_jump = __ BytecodeOperandImm(0);
+  Node* loop_depth = __ BytecodeOperandImm(1);
+  Node* osr_level = __ LoadOSRNestingLevel();
+
+  // Check if OSR points at the given {loop_depth} are armed by comparing it to
+  // the current {osr_level} loaded from the header of the BytecodeArray.
+  Label ok(assembler), osr_armed(assembler, Label::kDeferred);
+  Node* condition = __ Int32GreaterThanOrEqual(loop_depth, osr_level);
+  __ Branch(condition, &ok, &osr_armed);
+
+  __ Bind(&ok);
+  __ Jump(relative_jump);
+
+  __ Bind(&osr_armed);
+  {
+    Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate_);
+    Node* target = __ HeapConstant(callable.code());
+    Node* context = __ GetContext();
+    __ CallStub(callable.descriptor(), target, context);
+    __ Jump(relative_jump);
+  }
+}
+
 // CreateRegExpLiteral <pattern_idx> <literal_idx> <flags>
 //
 // Creates a regular expression literal for literal index <literal_idx> with
@@ -2120,32 +2149,6 @@ void Interpreter::DoStackCheck(InterpreterAssembler* assembler) {
   {
     Node* context = __ GetContext();
     __ CallRuntime(Runtime::kStackGuard, context);
-    __ Dispatch();
-  }
-}
-
-// OsrPoll <loop_depth>
-//
-// Performs a loop nesting check and potentially triggers OSR.
-void Interpreter::DoOsrPoll(InterpreterAssembler* assembler) {
-  Node* loop_depth = __ BytecodeOperandImm(0);
-  Node* osr_level = __ LoadOSRNestingLevel();
-
-  // Check if OSR points at the given {loop_depth} are armed by comparing it to
-  // the current {osr_level} loaded from the header of the BytecodeArray.
-  Label ok(assembler), osr_armed(assembler, Label::kDeferred);
-  Node* condition = __ Int32GreaterThanOrEqual(loop_depth, osr_level);
-  __ Branch(condition, &ok, &osr_armed);
-
-  __ Bind(&ok);
-  __ Dispatch();
-
-  __ Bind(&osr_armed);
-  {
-    Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate_);
-    Node* target = __ HeapConstant(callable.code());
-    Node* context = __ GetContext();
-    __ CallStub(callable.descriptor(), target, context);
     __ Dispatch();
   }
 }
