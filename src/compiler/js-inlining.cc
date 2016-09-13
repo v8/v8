@@ -275,6 +275,56 @@ Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
 
 namespace {
 
+// TODO(bmeurer): Unify this with the witness helper functions in the
+// js-builtin-reducer.cc once we have a better understanding of the
+// map tracking we want to do, and eventually changed the CheckMaps
+// operator to carry map constants on the operator instead of inputs.
+// I.e. if the CheckMaps has some kind of SmallMapSet as operator
+// parameter, then this could be changed to call a generic
+//
+//   SmallMapSet NodeProperties::CollectMapWitness(receiver, effect)
+//
+// function, which either returns the map set from the CheckMaps or
+// a singleton set from a StoreField.
+bool NeedsConvertReceiver(Node* receiver, Node* effect) {
+  for (Node* dominator = effect;;) {
+    if (dominator->opcode() == IrOpcode::kCheckMaps &&
+        dominator->InputAt(0) == receiver) {
+      // Check if all maps have the given {instance_type}.
+      for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
+        HeapObjectMatcher m(NodeProperties::GetValueInput(dominator, i));
+        if (!m.HasValue()) return true;
+        Handle<Map> const map = Handle<Map>::cast(m.Value());
+        if (!map->IsJSReceiverMap()) return true;
+      }
+      return false;
+    }
+    switch (dominator->opcode()) {
+      case IrOpcode::kStoreField: {
+        FieldAccess const& access = FieldAccessOf(dominator->op());
+        if (access.base_is_tagged == kTaggedBase &&
+            access.offset == HeapObject::kMapOffset) {
+          return true;
+        }
+        break;
+      }
+      case IrOpcode::kStoreElement:
+      case IrOpcode::kStoreTypedElement:
+        break;
+      default: {
+        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+        if (dominator->op()->EffectInputCount() != 1 ||
+            !dominator->op()->HasProperty(Operator::kNoWrite)) {
+          // Didn't find any appropriate CheckMaps node.
+          return true;
+        }
+        break;
+      }
+    }
+    dominator = NodeProperties::GetEffectInput(dominator);
+  }
+}
+
 // TODO(mstarzinger,verwaest): Move this predicate onto SharedFunctionInfo?
 bool NeedsImplicitReceiver(Handle<SharedFunctionInfo> shared_info) {
   DisallowHeapAllocation no_gc;
@@ -561,14 +611,16 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // any number of times, it's not observable.
   if (node->opcode() == IrOpcode::kJSCallFunction &&
       is_sloppy(parse_info.language_mode()) && !shared_info->native()) {
-    const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
-    Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
     Node* effect = NodeProperties::GetEffectInput(node);
-    Node* convert = graph()->NewNode(
-        javascript()->ConvertReceiver(p.convert_mode()), call.receiver(),
-        context, frame_state_before, effect, start);
-    NodeProperties::ReplaceValueInput(node, convert, 1);
-    NodeProperties::ReplaceEffectInput(node, convert);
+    if (NeedsConvertReceiver(call.receiver(), effect)) {
+      const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+      Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
+      Node* convert = effect = graph()->NewNode(
+          javascript()->ConvertReceiver(p.convert_mode()), call.receiver(),
+          context, frame_state_before, effect, start);
+      NodeProperties::ReplaceValueInput(node, convert, 1);
+      NodeProperties::ReplaceEffectInput(node, effect);
+    }
   }
 
   // If we are inlining a JS call at tail position then we have to pop current
