@@ -550,7 +550,8 @@
     },
 
     'simulate_mipsel': {
-      'gn_args': 'target_cpu="x86" v8_target_cpu="mipsel"',
+      'gn_args':
+          'target_cpu="x86" v8_target_cpu="mipsel" mips_arch_variant="r2"',
       'gyp_defines': 'target_arch=ia32 v8_target_arch=mipsel',
     },
 

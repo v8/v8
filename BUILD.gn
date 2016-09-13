@@ -94,6 +94,11 @@ if (v8_enable_disassembler == "") {
   v8_enable_disassembler = is_debug && !v8_optimized_debug
 }
 
+# Specifies if the target build is a simulator build. Comparing target cpu
+# with v8 target cpu to not affect simulator builds for making cross-compile
+# snapshots.
+is_target_simulator = target_cpu != v8_target_cpu
+
 v8_generated_peephole_source = "$target_gen_dir/bytecode-peephole-table.cc"
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
@@ -234,6 +239,12 @@ config("toolchain") {
   }
   if (v8_current_cpu == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
+  }
+
+  # Mips64el/mipsel simulators.
+  if (is_target_simulator &&
+      (v8_current_cpu == "mipsel" || v8_current_cpu == "mips64el")) {
+    defines += [ "_MIPS_TARGET_SIMULATOR" ]
   }
 
   # TODO(jochen): Add support for mips.
