@@ -2421,6 +2421,14 @@ void Simulator::DecodeTypeRegisterSRsType() {
     case SUB_S:
       set_fpu_register_float(fd_reg(), fs - ft);
       break;
+    case MADDF_S:
+      DCHECK(kArchVariant == kMips64r6);
+      set_fpu_register_float(fd_reg(), fd + (fs * ft));
+      break;
+    case MSUBF_S:
+      DCHECK(kArchVariant == kMips64r6);
+      set_fpu_register_float(fd_reg(), fd - (fs * ft));
+      break;
     case MUL_S:
       set_fpu_register_float(fd_reg(), fs * ft);
       break;
@@ -2823,6 +2831,14 @@ void Simulator::DecodeTypeRegisterDRsType() {
       break;
     case SUB_D:
       set_fpu_register_double(fd_reg(), fs - ft);
+      break;
+    case MADDF_D:
+      DCHECK(kArchVariant == kMips64r6);
+      set_fpu_register_double(fd_reg(), fd + (fs * ft));
+      break;
+    case MSUBF_D:
+      DCHECK(kArchVariant == kMips64r6);
+      set_fpu_register_double(fd_reg(), fd - (fs * ft));
       break;
     case MUL_D:
       set_fpu_register_double(fd_reg(), fs * ft);
@@ -3305,13 +3321,42 @@ void Simulator::DecodeTypeRegisterCOP1() {
 
 void Simulator::DecodeTypeRegisterCOP1X() {
   switch (get_instr()->FunctionFieldRaw()) {
-    case MADD_D:
+    case MADD_S: {
+      DCHECK(kArchVariant == kMips64r2);
+      float fr, ft, fs;
+      fr = get_fpu_register_float(fr_reg());
+      fs = get_fpu_register_float(fs_reg());
+      ft = get_fpu_register_float(ft_reg());
+      set_fpu_register_float(fd_reg(), fs * ft + fr);
+      break;
+    }
+    case MSUB_S: {
+      DCHECK(kArchVariant == kMips64r2);
+      float fr, ft, fs;
+      fr = get_fpu_register_float(fr_reg());
+      fs = get_fpu_register_float(fs_reg());
+      ft = get_fpu_register_float(ft_reg());
+      set_fpu_register_float(fd_reg(), fs * ft - fr);
+      break;
+    }
+    case MADD_D: {
+      DCHECK(kArchVariant == kMips64r2);
       double fr, ft, fs;
       fr = get_fpu_register_double(fr_reg());
       fs = get_fpu_register_double(fs_reg());
       ft = get_fpu_register_double(ft_reg());
       set_fpu_register_double(fd_reg(), fs * ft + fr);
       break;
+    }
+    case MSUB_D: {
+      DCHECK(kArchVariant == kMips64r2);
+      double fr, ft, fs;
+      fr = get_fpu_register_double(fr_reg());
+      fs = get_fpu_register_double(fs_reg());
+      ft = get_fpu_register_double(ft_reg());
+      set_fpu_register_double(fd_reg(), fs * ft - fr);
+      break;
+    }
     default:
       UNREACHABLE();
   }

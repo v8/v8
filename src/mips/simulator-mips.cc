@@ -2482,6 +2482,14 @@ void Simulator::DecodeTypeRegisterDRsType() {
     case SUB_D:
       set_fpu_register_double(fd_reg(), fs - ft);
       break;
+    case MADDF_D:
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      set_fpu_register_double(fd_reg(), fd + (fs * ft));
+      break;
+    case MSUBF_D:
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      set_fpu_register_double(fd_reg(), fd - (fs * ft));
+      break;
     case MUL_D:
       set_fpu_register_double(fd_reg(), fs * ft);
       break;
@@ -2886,6 +2894,14 @@ void Simulator::DecodeTypeRegisterSRsType() {
       break;
     case SUB_S:
       set_fpu_register_float(fd_reg(), fs - ft);
+      break;
+    case MADDF_S:
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      set_fpu_register_float(fd_reg(), fd + (fs * ft));
+      break;
+    case MSUBF_S:
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      set_fpu_register_float(fd_reg(), fd - (fs * ft));
       break;
     case MUL_S:
       set_fpu_register_float(fd_reg(), fs * ft);
@@ -3375,13 +3391,42 @@ void Simulator::DecodeTypeRegisterCOP1() {
 
 void Simulator::DecodeTypeRegisterCOP1X() {
   switch (get_instr()->FunctionFieldRaw()) {
-    case MADD_D:
+    case MADD_S: {
+      DCHECK(IsMipsArchVariant(kMips32r2));
+      float fr, ft, fs;
+      fr = get_fpu_register_float(fr_reg());
+      fs = get_fpu_register_float(fs_reg());
+      ft = get_fpu_register_float(ft_reg());
+      set_fpu_register_float(fd_reg(), fs * ft + fr);
+      break;
+    }
+    case MSUB_S: {
+      DCHECK(IsMipsArchVariant(kMips32r2));
+      float fr, ft, fs;
+      fr = get_fpu_register_float(fr_reg());
+      fs = get_fpu_register_float(fs_reg());
+      ft = get_fpu_register_float(ft_reg());
+      set_fpu_register_float(fd_reg(), fs * ft - fr);
+      break;
+    }
+    case MADD_D: {
+      DCHECK(IsMipsArchVariant(kMips32r2));
       double fr, ft, fs;
       fr = get_fpu_register_double(fr_reg());
       fs = get_fpu_register_double(fs_reg());
       ft = get_fpu_register_double(ft_reg());
       set_fpu_register_double(fd_reg(), fs * ft + fr);
       break;
+    }
+    case MSUB_D: {
+      DCHECK(IsMipsArchVariant(kMips32r2));
+      double fr, ft, fs;
+      fr = get_fpu_register_double(fr_reg());
+      fs = get_fpu_register_double(fs_reg());
+      ft = get_fpu_register_double(ft_reg());
+      set_fpu_register_double(fd_reg(), fs * ft - fr);
+      break;
+    }
     default:
       UNREACHABLE();
   }

@@ -1276,3 +1276,20 @@ TEST(ctc1_cfc1_disasm) {
   COMPARE(cfc1(a0, FCSR), "4444f800       cfc1    a0, FCSR");
   VERIFY_RUN();
 }
+
+TEST(madd_msub_maddf_msubf) {
+  SET_UP();
+  if (kArchVariant == kMips64r2) {
+    COMPARE(madd_s(f4, f6, f8, f10), "4cca4120       madd.s  f4, f6, f8, f10");
+    COMPARE(madd_d(f4, f6, f8, f10), "4cca4121       madd.d  f4, f6, f8, f10");
+    COMPARE(msub_s(f4, f6, f8, f10), "4cca4128       msub.s  f4, f6, f8, f10");
+    COMPARE(msub_d(f4, f6, f8, f10), "4cca4129       msub.d  f4, f6, f8, f10");
+  }
+  if (kArchVariant == kMips64r6) {
+    COMPARE(maddf_s(f4, f8, f10), "460a4118       maddf.s  f4, f8, f10");
+    COMPARE(maddf_d(f4, f8, f10), "462a4118       maddf.d  f4, f8, f10");
+    COMPARE(msubf_s(f4, f8, f10), "460a4119       msubf.s  f4, f8, f10");
+    COMPARE(msubf_d(f4, f8, f10), "462a4119       msubf.d  f4, f8, f10");
+  }
+  VERIFY_RUN();
+}
