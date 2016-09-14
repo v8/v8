@@ -96,8 +96,8 @@ v8::Local<v8::Value> V8FunctionCall::callWithoutExceptionHandling() {
   }
   v8::MicrotasksScope microtasksScope(m_context->GetIsolate(),
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
-  v8::MaybeLocal<v8::Value> maybeResult =
-      function->Call(m_context, thisObject, m_arguments.size(), info.get());
+  v8::MaybeLocal<v8::Value> maybeResult = function->Call(
+      m_context, thisObject, static_cast<int>(m_arguments.size()), info.get());
   if (contextGroupId) {
     m_inspector->client()->unmuteMetrics(contextGroupId);
     m_inspector->unmuteExceptions(contextGroupId);

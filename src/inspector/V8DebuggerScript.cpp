@@ -11,7 +11,7 @@ namespace v8_inspector {
 
 static const char hexDigits[17] = "0123456789ABCDEF";
 
-static void appendUnsignedAsHex(unsigned number, String16Builder* destination) {
+static void appendUnsignedAsHex(uint64_t number, String16Builder* destination) {
   for (size_t i = 0; i < 8; ++i) {
     UChar c = hexDigits[number & 0xF];
     destination->append(c);
@@ -81,24 +81,28 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
       object->Get(toV8StringInternalized(isolate, "sourceURL")));
   m_sourceMappingURL = toProtocolStringWithTypeCheck(
       object->Get(toV8StringInternalized(isolate, "sourceMappingURL")));
-  m_startLine = object->Get(toV8StringInternalized(isolate, "startLine"))
-                    ->ToInteger(isolate)
-                    ->Value();
-  m_startColumn = object->Get(toV8StringInternalized(isolate, "startColumn"))
-                      ->ToInteger(isolate)
-                      ->Value();
-  m_endLine = object->Get(toV8StringInternalized(isolate, "endLine"))
-                  ->ToInteger(isolate)
-                  ->Value();
-  m_endColumn = object->Get(toV8StringInternalized(isolate, "endColumn"))
-                    ->ToInteger(isolate)
-                    ->Value();
+  m_startLine =
+      static_cast<int>(object->Get(toV8StringInternalized(isolate, "startLine"))
+                           ->ToInteger(isolate)
+                           ->Value());
+  m_startColumn = static_cast<int>(
+      object->Get(toV8StringInternalized(isolate, "startColumn"))
+          ->ToInteger(isolate)
+          ->Value());
+  m_endLine =
+      static_cast<int>(object->Get(toV8StringInternalized(isolate, "endLine"))
+                           ->ToInteger(isolate)
+                           ->Value());
+  m_endColumn =
+      static_cast<int>(object->Get(toV8StringInternalized(isolate, "endColumn"))
+                           ->ToInteger(isolate)
+                           ->Value());
   m_executionContextAuxData = toProtocolStringWithTypeCheck(
       object->Get(toV8StringInternalized(isolate, "executionContextAuxData")));
-  m_executionContextId =
+  m_executionContextId = static_cast<int>(
       object->Get(toV8StringInternalized(isolate, "executionContextId"))
           ->ToInteger(isolate)
-          ->Value();
+          ->Value());
   m_isLiveEdit = isLiveEdit;
 
   v8::Local<v8::Value> sourceValue =

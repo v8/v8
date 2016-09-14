@@ -30,7 +30,7 @@ class V8ValueCopier {
       v8::Local<v8::Array> result = v8::Array::New(m_isolate, array->Length());
       if (!result->SetPrototype(m_to, v8::Null(m_isolate)).FromMaybe(false))
         return v8::MaybeLocal<v8::Value>();
-      for (size_t i = 0; i < array->Length(); ++i) {
+      for (uint32_t i = 0; i < array->Length(); ++i) {
         v8::Local<v8::Value> item;
         if (!array->Get(m_from, i).ToLocal(&item))
           return v8::MaybeLocal<v8::Value>();
@@ -49,7 +49,7 @@ class V8ValueCopier {
     v8::Local<v8::Array> properties;
     if (!object->GetOwnPropertyNames(m_from).ToLocal(&properties))
       return v8::MaybeLocal<v8::Value>();
-    for (size_t i = 0; i < properties->Length(); ++i) {
+    for (uint32_t i = 0; i < properties->Length(); ++i) {
       v8::Local<v8::Value> name;
       if (!properties->Get(m_from, i).ToLocal(&name) || !name->IsString())
         return v8::MaybeLocal<v8::Value>();
