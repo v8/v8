@@ -67,14 +67,14 @@
       'V8 Linux - arm64 - sim - MSAN': 'gn_release_simulate_arm64_msan',
       # Clusterfuzz.
       'V8 Linux64 ASAN no inline - release builder':
-          'gyp_release_x64_asan_symbolized_edge_verify_heap',
-      'V8 Linux64 ASAN - debug builder': 'gyp_debug_x64_asan_edge',
+          'gn_release_x64_asan_symbolized_edge_verify_heap',
+      'V8 Linux64 ASAN - debug builder': 'gn_debug_x64_asan_edge',
       'V8 Linux64 ASAN arm64 - debug builder':
-          'gyp_debug_simulate_arm64_asan_edge',
+          'gn_debug_simulate_arm64_asan_edge',
       'V8 Linux ASAN arm - debug builder':
-          'gyp_debug_simulate_arm_asan_edge',
+          'gn_debug_simulate_arm_asan_edge',
       'V8 Linux ASAN mipsel - debug builder':
-          'gyp_debug_simulate_mipsel_asan_edge',
+          'gn_debug_simulate_mipsel_asan_edge',
       # Misc.
       'V8 Linux gcc 4.8': 'gn_release_x86_gcc',
       # FYI.
@@ -227,14 +227,16 @@
     # GN debug configs for simulators.
     'gn_debug_simulate_arm': [
       'gn', 'debug_bot', 'simulate_arm', 'swarming'],
+    'gn_debug_simulate_arm_asan_edge': [
+      'gn', 'debug_bot', 'simulate_arm', 'asan', 'edge'],
     'gn_debug_simulate_arm64': [
       'gn', 'debug_bot', 'simulate_arm64', 'swarming'],
+    'gn_debug_simulate_arm64_asan_edge': [
+      'gn', 'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
     'gn_debug_simulate_arm64_no_snap': [
       'gn', 'debug_bot', 'simulate_arm64', 'swarming', 'v8_snapshot_none'],
-    'gn_release_simulate_mipsel': [
-      'gn', 'release_bot', 'simulate_mipsel', 'swarming'],
-    'gn_release_simulate_mips64el': [
-      'gn', 'release_bot', 'simulate_mips64el', 'swarming'],
+    'gn_debug_simulate_mipsel_asan_edge': [
+      'gn', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
 
     # GN release configs for simulators.
     'gn_release_simulate_arm': [
@@ -250,6 +252,10 @@
       'swarming'],
     'gn_release_simulate_arm64_trybot': [
       'gn', 'release_trybot', 'simulate_arm64', 'swarming'],
+    'gn_release_simulate_mipsel': [
+      'gn', 'release_bot', 'simulate_mipsel', 'swarming'],
+    'gn_release_simulate_mips64el': [
+      'gn', 'release_bot', 'simulate_mips64el', 'swarming'],
 
     # GN debug configs for arm.
     'gn_debug_arm': [
@@ -273,6 +279,9 @@
       'swarming'],
     'gn_release_x64_asan_no_lsan': [
       'gn', 'release_bot', 'x64', 'asan', 'swarming'],
+    'gn_release_x64_asan_symbolized_edge_verify_heap': [
+      'gn', 'release_bot', 'x64', 'asan', 'edge', 'lsan', 'symbolized',
+      'v8_verify_heap'],
     'gn_release_x64_clang_no_plugins': [
       'gn', 'release_bot', 'x64', 'clang', 'no_plugins', 'swarming'],
     'gn_release_x64_internal': [
@@ -289,6 +298,8 @@
     # GN debug configs for x64.
     'gn_debug_x64': [
       'gn', 'debug_bot', 'x64', 'swarming'],
+    'gn_debug_x64_asan_edge': [
+      'gn', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
     'gn_debug_x64_custom': [
       'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gn_debug_x64_minimal_symbols': [
@@ -340,18 +351,8 @@
       'gn', 'release_trybot', 'x86', 'swarming'],
 
     # Gyp debug configs for simulators.
-    'gyp_debug_simulate_arm_asan_edge': [
-      'gyp', 'debug_bot', 'simulate_arm', 'asan', 'edge'],
-    'gyp_debug_simulate_arm64_asan_edge': [
-      'gyp', 'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
-    'gyp_debug_simulate_mipsel_asan_edge': [
-      'gyp', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
     'gyp_debug_simulate_x87_no_snap': [
       'gyp', 'debug_bot', 'simulate_x87', 'swarming', 'v8_snapshot_none'],
-
-    # Gyp debug configs for x64.
-    'gyp_debug_x64_asan_edge': [
-      'gyp', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
 
     # Gyp debug configs for x86.
     'gyp_debug_x86': [
@@ -383,9 +384,6 @@
     'gyp_release_x64_asan_minimal_symbols_coverage': [
       'gyp', 'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan',
       'minimal_symbols', 'swarming'],
-    'gyp_release_x64_asan_symbolized_edge_verify_heap': [
-      'gyp', 'release_bot', 'x64', 'asan', 'edge', 'lsan', 'symbolized',
-      'v8_verify_heap'],
     'gyp_release_x64_cfi_symbolized': [
       'gyp', 'release_bot', 'x64', 'cfi', 'swarming', 'symbolized'],
     'gyp_release_x64_gcc_coverage': [
