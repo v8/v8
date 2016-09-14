@@ -744,6 +744,9 @@ void ValueSerializer::ThrowDataCloneError(
     isolate_->Throw(
         *isolate_->factory()->NewError(isolate_->error_function(), message));
   }
+  if (isolate_->has_scheduled_exception()) {
+    isolate_->PromoteScheduledException();
+  }
 }
 
 ValueDeserializer::ValueDeserializer(Isolate* isolate,
