@@ -402,7 +402,6 @@ TEST_P(InstructionSelectorLogicalTest, Parameter) {
 TEST_P(InstructionSelectorLogicalTest, Immediate) {
   const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
-  // TODO(all): Add support for testing 64-bit immediates.
   if (type == MachineType::Int32()) {
     // Immediate on the right.
     TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
@@ -427,6 +426,32 @@ TEST_P(InstructionSelectorLogicalTest, Immediate) {
       ASSERT_EQ(2U, s[0]->InputCount());
       EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
       EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    }
+  } else if (type == MachineType::Int64()) {
+    // Immediate on the right.
+    TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
+      StreamBuilder m(this, type, type);
+      m.Return((m.*dpi.constructor)(m.Parameter(0), m.Int64Constant(imm)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+      ASSERT_EQ(2U, s[0]->InputCount());
+      EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+      EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    }
+
+    // Immediate on the left; all logical ops should commute.
+    TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
+      StreamBuilder m(this, type, type);
+      m.Return((m.*dpi.constructor)(m.Int64Constant(imm), m.Parameter(0)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+      ASSERT_EQ(2U, s[0]->InputCount());
+      EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+      EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(1)));
       EXPECT_EQ(1U, s[0]->OutputCount());
     }
   }
