@@ -172,29 +172,26 @@ function RegExpSubclassExecJS(string) {
   }
 
   string = TO_STRING(string);
-  var lastIndex = this.lastIndex;
 
-  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
-  // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH(lastIndex);
-
+  var lastIndex;
   var global = TO_BOOLEAN(REGEXP_GLOBAL(this));
   var sticky = TO_BOOLEAN(REGEXP_STICKY(this));
   var updateLastIndex = global || sticky;
   if (updateLastIndex) {
-    if (i > string.length) {
+    lastIndex = TO_LENGTH(this.lastIndex);
+    if (lastIndex > string.length) {
       this.lastIndex = 0;
       return null;
     }
   } else {
-    i = 0;
+    lastIndex = 0;
   }
 
   // matchIndices is either null or the RegExpLastMatchInfo array.
-  var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
+  var matchIndices = %_RegExpExec(this, string, lastIndex, RegExpLastMatchInfo);
 
   if (IS_NULL(matchIndices)) {
-    this.lastIndex = 0;
+    if (updateLastIndex) this.lastIndex = 0;
     return null;
   }
 
@@ -851,9 +848,10 @@ function RegExpSubclassSearch(string) {
   }
   string = TO_STRING(string);
   var previousLastIndex = this.lastIndex;
-  this.lastIndex = 0;
+  if (previousLastIndex != 0) this.lastIndex = 0;
   var result = RegExpSubclassExec(this, string);
-  this.lastIndex = previousLastIndex;
+  var currentLastIndex = this.lastIndex;
+  if (currentLastIndex != previousLastIndex) this.lastIndex = previousLastIndex;
   if (IS_NULL(result)) return -1;
   return result.index;
 }

@@ -126,6 +126,11 @@
 
   ###### END REGEXP SUBCLASSING SECTION ######
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5360
+  'built-ins/RegExp/prototype/Symbol.match/builtin-coerce-lastindex-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore': [FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],
   'intl402/DateTimeFormat/12.1.1_1': [FAIL],

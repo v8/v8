@@ -564,21 +564,21 @@ log = [];
 re.lastIndex = fakeLastIndex;
 var result = re.exec(fakeString);
 assertEquals(["str"], result);
-assertEquals(["ts", "li"], log);
+assertEquals(["ts"], log);
 
 // Again, to check if caching interferes.
 log = [];
 re.lastIndex = fakeLastIndex;
 result = re.exec(fakeString);
 assertEquals(["str"], result);
-assertEquals(["ts", "li"], log);
+assertEquals(["ts"], log);
 
 // And one more time, just to be certain.
 log = [];
 re.lastIndex = fakeLastIndex;
 result = re.exec(fakeString);
 assertEquals(["str"], result);
-assertEquals(["ts", "li"], log);
+assertEquals(["ts"], log);
 
 // Now with a global regexp, where lastIndex is actually used.
 re = /str/g;
