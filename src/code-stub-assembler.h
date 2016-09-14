@@ -662,6 +662,30 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Loads script context from the script context table.
   compiler::Node* LoadScriptContext(compiler::Node* context, int context_index);
 
+  compiler::Node* ClampedToUint8(compiler::Node* int32_value);
+
+  // Store value to an elements array with given elements kind.
+  void StoreElement(compiler::Node* elements, ElementsKind kind,
+                    compiler::Node* index, compiler::Node* value,
+                    ParameterMode mode);
+
+  void EmitElementStore(compiler::Node* object, compiler::Node* key,
+                        compiler::Node* value, bool is_jsarray,
+                        ElementsKind elements_kind,
+                        KeyedAccessStoreMode store_mode, Label* bailout);
+
+  compiler::Node* CheckForCapacityGrow(compiler::Node* object,
+                                       compiler::Node* elements,
+                                       ElementsKind kind,
+                                       compiler::Node* length,
+                                       compiler::Node* key, ParameterMode mode,
+                                       bool is_js_array, Label* bailout);
+
+  compiler::Node* CopyElementsOnWrite(compiler::Node* object,
+                                      compiler::Node* elements,
+                                      ElementsKind kind, compiler::Node* length,
+                                      ParameterMode mode, Label* bailout);
+
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);
   void KeyedLoadIC(const LoadICParameters* p);

@@ -86,7 +86,6 @@ class ObjectLiteral;
   V(LoadDictionaryElement)                    \
   V(LoadFastElement)                          \
   V(LoadField)                                \
-  V(StoreFastElement)                         \
   V(StoreTransition)                          \
   /* These should never be ported to TF */    \
   /* because they are either used only by */  \
@@ -165,6 +164,7 @@ class ObjectLiteral;
   V(GetProperty)                              \
   V(LoadICTF)                                 \
   V(KeyedLoadICTF)                            \
+  V(StoreFastElement)                         \
   V(StoreField)                               \
   V(StoreGlobal)                              \
   V(StoreInterceptor)                         \
@@ -2774,38 +2774,38 @@ class LoadFastElementStub : public HandlerStub {
   DEFINE_HANDLER_CODE_STUB(LoadFastElement, HandlerStub);
 };
 
-
-class StoreFastElementStub : public HydrogenCodeStub {
+class StoreFastElementStub : public TurboFanCodeStub {
  public:
   StoreFastElementStub(Isolate* isolate, bool is_js_array,
                        ElementsKind elements_kind, KeyedAccessStoreMode mode)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(CommonStoreModeBits::encode(mode) |
-                      ElementsKindBits::encode(elements_kind) |
-                      IsJSArrayBits::encode(is_js_array));
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = CommonStoreModeBits::encode(mode) |
+                 ElementsKindBits::encode(elements_kind) |
+                 IsJSArrayBits::encode(is_js_array);
   }
 
   static void GenerateAheadOfTime(Isolate* isolate);
 
-  bool is_js_array() const { return IsJSArrayBits::decode(sub_minor_key()); }
+  bool is_js_array() const { return IsJSArrayBits::decode(minor_key_); }
 
   ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(sub_minor_key());
+    return ElementsKindBits::decode(minor_key_);
   }
 
   KeyedAccessStoreMode store_mode() const {
-    return CommonStoreModeBits::decode(sub_minor_key());
+    return CommonStoreModeBits::decode(minor_key_);
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::KEYED_STORE_IC; }
 
  private:
-  class ElementsKindBits : public BitField<ElementsKind, 3, 8> {};
-  class IsJSArrayBits : public BitField<bool, 11, 1> {};
+  class ElementsKindBits
+      : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
+  class IsJSArrayBits : public BitField<bool, ElementsKindBits::kNext, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_HYDROGEN_CODE_STUB(StoreFastElement, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(StoreFastElement, TurboFanCodeStub);
 };
 
 
@@ -3004,7 +3004,8 @@ class StoreElementStub : public PlatformCodeStub {
     return ElementsKindBits::decode(minor_key_);
   }
 
-  class ElementsKindBits : public BitField<ElementsKind, 3, 8> {};
+  class ElementsKindBits
+      : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
 
   DEFINE_PLATFORM_CODE_STUB(StoreElement, PlatformCodeStub);
 };
@@ -3104,7 +3105,8 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
   ExtraICState GetExtraICState() const override { return Code::KEYED_STORE_IC; }
 
  private:
-  class FromBits : public BitField<ElementsKind, 3, 8> {};
+  class FromBits
+      : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
   class ToBits : public BitField<ElementsKind, 11, 8> {};
   class IsJSArrayBits : public BitField<bool, 19, 1> {};
 

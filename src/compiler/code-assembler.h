@@ -54,6 +54,7 @@ class RawMachineLabel;
   V(IntPtrGreaterThanOrEqual)                    \
   V(IntPtrEqual)                                 \
   V(Uint32LessThan)                              \
+  V(Uint32LessThanOrEqual)                       \
   V(Uint32GreaterThanOrEqual)                    \
   V(UintPtrLessThan)                             \
   V(UintPtrGreaterThan)                          \
@@ -145,6 +146,7 @@ class RawMachineLabel;
   V(ChangeUint32ToFloat64)              \
   V(ChangeUint32ToUint64)               \
   V(RoundFloat64ToInt32)                \
+  V(Float64SilenceNaN)                  \
   V(Float64RoundDown)                   \
   V(Float64RoundUp)                     \
   V(Float64RoundTruncate)               \
@@ -293,6 +295,10 @@ class CodeAssembler {
   Node* ChangeUint32ToWord(Node* value);
   // No-op on 32-bit, otherwise sign extend.
   Node* ChangeInt32ToIntPtr(Node* value);
+
+  // No-op that guarantees that the value is kept alive till this point even
+  // if GC happens.
+  Node* Retain(Node* value);
 
   // Projections
   Node* Projection(int index, Node* value);

@@ -5122,13 +5122,6 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
 }
 
 
-void StoreFastElementStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      FUNCTION_ADDR(Runtime_KeyedStoreIC_MissFromStubFailure));
-}
-
-
 void ElementsTransitionAndStoreStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
@@ -5680,6 +5673,35 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
   ElementHandlerCompiler::GenerateStoreSlow(masm);
 }
 
+void StoreFastElementStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  assembler->Comment(
+      "StoreFastElementStub: js_array=%d, elements_kind=%s, store_mode=%d",
+      is_js_array(), ElementsKindToString(elements_kind()), store_mode());
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* key = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  assembler->EmitElementStore(receiver, key, value, is_js_array(),
+                              elements_kind(), store_mode(), &miss);
+  assembler->Return(value);
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, receiver,
+                               key, value, slot, vector);
+  }
+}
 
 // static
 void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {

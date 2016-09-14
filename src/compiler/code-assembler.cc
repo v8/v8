@@ -306,6 +306,10 @@ Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
                              IntPtrConstant(root_index * kPointerSize), value);
 }
 
+Node* CodeAssembler::Retain(Node* value) {
+  return raw_assembler_->Retain(value);
+}
+
 Node* CodeAssembler::Projection(int index, Node* value) {
   return raw_assembler_->Projection(index, value);
 }

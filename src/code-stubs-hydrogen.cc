@@ -977,23 +977,6 @@ Handle<Code> StoreTransitionStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<StoreFastElementStub>::BuildCodeStub() {
-  BuildUncheckedMonomorphicElementAccess(
-      GetParameter(Descriptor::kReceiver), GetParameter(Descriptor::kName),
-      GetParameter(Descriptor::kValue), casted_stub()->is_js_array(),
-      casted_stub()->elements_kind(), STORE, NEVER_RETURN_HOLE,
-      casted_stub()->store_mode());
-
-  return GetParameter(Descriptor::kValue);
-}
-
-
-Handle<Code> StoreFastElementStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   ElementsKind const from_kind = casted_stub()->from_kind();
   ElementsKind const to_kind = casted_stub()->to_kind();

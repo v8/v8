@@ -3535,8 +3535,7 @@ compiler::Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
                                                           ElementsKind kind,
                                                           ParameterMode mode,
                                                           int base_size) {
-  bool is_double = IsFastDoubleElementsKind(kind);
-  int element_size_shift = is_double ? kDoubleSizeLog2 : kPointerSizeLog2;
+  int element_size_shift = ElementsKindToShiftSize(kind);
   int element_size = 1 << element_size_shift;
   int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
   intptr_t index = 0;
@@ -4635,6 +4634,252 @@ Node* CodeStubAssembler::LoadScriptContext(Node* context, int context_index) {
       ScriptContextTable::GetContextOffset(context_index) - kHeapObjectTag;
   return Load(MachineType::AnyTagged(), script_context_table,
               IntPtrConstant(offset));
+}
+
+Node* CodeStubAssembler::ClampedToUint8(Node* int32_value) {
+  Label done(this);
+  Node* int32_zero = Int32Constant(0);
+  Node* int32_255 = Int32Constant(255);
+  Variable var_value(this, MachineRepresentation::kWord32);
+  var_value.Bind(int32_value);
+  GotoIf(Uint32LessThanOrEqual(int32_value, int32_255), &done);
+  var_value.Bind(int32_zero);
+  GotoIf(Int32LessThan(int32_value, int32_zero), &done);
+  var_value.Bind(int32_255);
+  Goto(&done);
+  Bind(&done);
+  return var_value.value();
+}
+
+namespace {
+
+// Converts typed array elements kind to a machine representations.
+MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
+  switch (kind) {
+    case UINT8_CLAMPED_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+      return MachineRepresentation::kWord8;
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+      return MachineRepresentation::kWord16;
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+      return MachineRepresentation::kWord32;
+    case FLOAT32_ELEMENTS:
+      return MachineRepresentation::kFloat32;
+    case FLOAT64_ELEMENTS:
+      return MachineRepresentation::kFloat64;
+    default:
+      UNREACHABLE();
+      return MachineRepresentation::kNone;
+  }
+}
+
+}  // namespace
+
+void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
+                                     Node* index, Node* value,
+                                     ParameterMode mode) {
+  if (IsFixedTypedArrayElementsKind(kind)) {
+    if (kind == UINT8_CLAMPED_ELEMENTS) {
+      value = ClampedToUint8(value);
+    }
+    Node* offset = ElementOffsetFromIndex(index, kind, mode, 0);
+    MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
+    StoreNoWriteBarrier(rep, elements, offset, value);
+    return;
+  }
+
+  WriteBarrierMode barrier_mode =
+      IsFastSmiElementsKind(kind) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
+  if (IsFastDoubleElementsKind(kind)) {
+    // Make sure we do not store signalling NaNs into double arrays.
+    value = Float64SilenceNaN(value);
+    StoreFixedDoubleArrayElement(elements, index, value, mode);
+  } else {
+    StoreFixedArrayElement(elements, index, value, barrier_mode, mode);
+  }
+}
+
+void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
+                                         bool is_jsarray,
+                                         ElementsKind elements_kind,
+                                         KeyedAccessStoreMode store_mode,
+                                         Label* bailout) {
+  Node* elements = LoadElements(object);
+  if (IsFastSmiOrObjectElementsKind(elements_kind) &&
+      store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
+    // Bailout in case of COW elements.
+    GotoIf(WordNotEqual(LoadMap(elements),
+                        LoadRoot(Heap::kFixedArrayMapRootIndex)),
+           bailout);
+  }
+  // TODO(ishell): introduce TryToIntPtrOrSmi() and use OptimalParameterMode().
+  ParameterMode parameter_mode = INTPTR_PARAMETERS;
+  key = TryToIntptr(key, bailout);
+
+  if (IsFixedTypedArrayElementsKind(elements_kind)) {
+    Label done(this);
+    // TODO(ishell): call ToNumber() on value and don't bailout but be careful
+    // to call it only once if we decide to bailout because of bounds checks.
+
+    if (IsFixedFloatElementsKind(elements_kind)) {
+      // TODO(ishell): move float32 truncation into PrepareValueForWrite.
+      value = PrepareValueForWrite(value, Representation::Double(), bailout);
+      if (elements_kind == FLOAT32_ELEMENTS) {
+        value = TruncateFloat64ToFloat32(value);
+      }
+    } else {
+      // TODO(ishell): It's fine for word8/16/32 to truncate the result.
+      value = TryToIntptr(value, bailout);
+    }
+
+    // There must be no allocations between the buffer load and
+    // and the actual store to backing store, because GC may decide that
+    // the buffer is not alive or move the elements.
+    // TODO(ishell): introduce DisallowHeapAllocationCode scope here.
+
+    // Check if buffer has been neutered.
+    Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
+    Node* bitfield = LoadObjectField(buffer, JSArrayBuffer::kBitFieldOffset,
+                                     MachineType::Uint32());
+    Node* neutered_bit =
+        Word32And(bitfield, Int32Constant(JSArrayBuffer::WasNeutered::kMask));
+    GotoUnless(Word32Equal(neutered_bit, Int32Constant(0)), bailout);
+
+    // Bounds check.
+    Node* length = UntagParameter(
+        LoadObjectField(object, JSTypedArray::kLengthOffset), parameter_mode);
+
+    if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+      // Skip the store if we write beyond the length.
+      GotoUnless(IntPtrLessThan(key, length), &done);
+      // ... but bailout if the key is negative.
+    } else {
+      DCHECK_EQ(STANDARD_STORE, store_mode);
+    }
+    GotoUnless(UintPtrLessThan(key, length), bailout);
+
+    // Backing store = external_pointer + base_pointer.
+    Node* external_pointer =
+        LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
+                        MachineType::Pointer());
+    Node* base_pointer =
+        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
+    Node* backing_store = IntPtrAdd(external_pointer, base_pointer);
+    StoreElement(backing_store, elements_kind, key, value, parameter_mode);
+    Goto(&done);
+
+    Bind(&done);
+    return;
+  }
+  DCHECK(IsFastSmiOrObjectElementsKind(elements_kind) ||
+         IsFastDoubleElementsKind(elements_kind));
+
+  Node* length = is_jsarray ? LoadObjectField(object, JSArray::kLengthOffset)
+                            : LoadFixedArrayBaseLength(elements);
+  length = UntagParameter(length, parameter_mode);
+
+  // In case value is stored into a fast smi array, assure that the value is
+  // a smi before manipulating the backing store. Otherwise the backing store
+  // may be left in an invalid state.
+  if (IsFastSmiElementsKind(elements_kind)) {
+    GotoUnless(WordIsSmi(value), bailout);
+  } else if (IsFastDoubleElementsKind(elements_kind)) {
+    value = PrepareValueForWrite(value, Representation::Double(), bailout);
+  }
+
+  if (IsGrowStoreMode(store_mode)) {
+    elements = CheckForCapacityGrow(object, elements, elements_kind, length,
+                                    key, parameter_mode, is_jsarray, bailout);
+  } else {
+    GotoUnless(UintPtrLessThan(key, length), bailout);
+
+    if ((store_mode == STORE_NO_TRANSITION_HANDLE_COW) &&
+        IsFastSmiOrObjectElementsKind(elements_kind)) {
+      elements = CopyElementsOnWrite(object, elements, elements_kind, length,
+                                     parameter_mode, bailout);
+    }
+  }
+  StoreElement(elements, elements_kind, key, value, parameter_mode);
+}
+
+Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
+                                              ElementsKind kind, Node* length,
+                                              Node* key, ParameterMode mode,
+                                              bool is_js_array,
+                                              Label* bailout) {
+  Variable checked_elements(this, MachineRepresentation::kTagged);
+  Label grow_case(this), no_grow_case(this), done(this);
+
+  Node* condition;
+  if (IsHoleyElementsKind(kind)) {
+    condition = UintPtrGreaterThanOrEqual(key, length);
+  } else {
+    condition = WordEqual(key, length);
+  }
+  Branch(condition, &grow_case, &no_grow_case);
+
+  Bind(&grow_case);
+  {
+    Node* current_capacity =
+        UntagParameter(LoadFixedArrayBaseLength(elements), mode);
+
+    checked_elements.Bind(elements);
+
+    Label fits_capacity(this);
+    GotoIf(UintPtrLessThan(key, current_capacity), &fits_capacity);
+    {
+      Node* new_elements = TryGrowElementsCapacity(
+          object, elements, kind, key, current_capacity, mode, bailout);
+
+      checked_elements.Bind(new_elements);
+      Goto(&fits_capacity);
+    }
+    Bind(&fits_capacity);
+
+    if (is_js_array) {
+      Node* new_length = IntPtrAdd(key, IntPtrOrSmiConstant(1, mode));
+      StoreObjectFieldNoWriteBarrier(object, JSArray::kLengthOffset,
+                                     TagParameter(new_length, mode));
+    }
+    Goto(&done);
+  }
+
+  Bind(&no_grow_case);
+  {
+    GotoUnless(UintPtrLessThan(key, length), bailout);
+    checked_elements.Bind(elements);
+    Goto(&done);
+  }
+
+  Bind(&done);
+  return checked_elements.value();
+}
+
+Node* CodeStubAssembler::CopyElementsOnWrite(Node* object, Node* elements,
+                                             ElementsKind kind, Node* length,
+                                             ParameterMode mode,
+                                             Label* bailout) {
+  Variable new_elements_var(this, MachineRepresentation::kTagged);
+  Label done(this);
+
+  new_elements_var.Bind(elements);
+  GotoUnless(
+      WordEqual(LoadMap(elements), LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
+      &done);
+  {
+    Node* capacity = UntagParameter(LoadFixedArrayBaseLength(elements), mode);
+    Node* new_elements = GrowElementsCapacity(object, elements, kind, kind,
+                                              length, capacity, mode, bailout);
+
+    new_elements_var.Bind(new_elements);
+    Goto(&done);
+  }
+
+  Bind(&done);
+  return new_elements_var.value();
 }
 
 Node* CodeStubAssembler::EnumLength(Node* map) {
