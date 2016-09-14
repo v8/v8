@@ -293,7 +293,7 @@ function AtSurrogatePair(subject, index) {
   var first = %_StringCharCodeAt(subject, index);
   if (first < 0xD800 || first > 0xDBFF) return false;
   var second = %_StringCharCodeAt(subject, index + 1);
-  return second >= 0xDC00 || second <= 0xDFFF;
+  return second >= 0xDC00 && second <= 0xDFFF;
 }
 
 
