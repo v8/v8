@@ -224,6 +224,7 @@ class ValueDeserializer {
   Isolate* const isolate_;
   const uint8_t* position_;
   const uint8_t* const end_;
+  PretenureFlag pretenure_;
   uint32_t version_ = 0;
   uint32_t next_id_ = 0;
 
