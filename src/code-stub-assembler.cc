@@ -4949,6 +4949,52 @@ void CodeStubAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
   }
 }
 
+Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
+    Node* feedback_vector, Node* slot) {
+  Node* size = IntPtrConstant(AllocationSite::kSize);
+  Node* site = Allocate(size, CodeStubAssembler::kPretenured);
+
+  // Store the map
+  StoreObjectFieldRoot(site, AllocationSite::kMapOffset,
+                       Heap::kAllocationSiteMapRootIndex);
+  Node* kind = SmiConstant(Smi::FromInt(GetInitialFastElementsKind()));
+  StoreObjectFieldNoWriteBarrier(site, AllocationSite::kTransitionInfoOffset,
+                                 kind);
+
+  // Unlike literals, constructed arrays don't have nested sites
+  Node* zero = IntPtrConstant(0);
+  StoreObjectFieldNoWriteBarrier(site, AllocationSite::kNestedSiteOffset, zero);
+
+  // Pretenuring calculation field.
+  StoreObjectFieldNoWriteBarrier(site, AllocationSite::kPretenureDataOffset,
+                                 zero);
+
+  // Pretenuring memento creation count field.
+  StoreObjectFieldNoWriteBarrier(
+      site, AllocationSite::kPretenureCreateCountOffset, zero);
+
+  // Store an empty fixed array for the code dependency.
+  StoreObjectFieldRoot(site, AllocationSite::kDependentCodeOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+
+  // Link the object to the allocation site list
+  Node* site_list = ExternalConstant(
+      ExternalReference::allocation_sites_list_address(isolate()));
+  Node* next_site = LoadBufferObject(site_list, 0);
+
+  // TODO(mvstanton): This is a store to a weak pointer, which we may want to
+  // mark as such in order to skip the write barrier, once we have a unified
+  // system for weakness. For now we decided to keep it like this because having
+  // an initial write barrier backed store makes this pointer strong until the
+  // next GC, and allocation sites are designed to survive several GCs anyway.
+  StoreObjectField(site, AllocationSite::kWeakNextOffset, next_site);
+  StoreNoWriteBarrier(MachineRepresentation::kTagged, site_list, site);
+
+  StoreFixedArrayElement(feedback_vector, slot, site, UPDATE_WRITE_BARRIER,
+                         CodeStubAssembler::SMI_PARAMETERS);
+  return site;
+}
+
 Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
                                                         Node* slot,
                                                         Node* value) {

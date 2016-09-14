@@ -706,6 +706,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       compiler::Node* feedback_vector, compiler::Node* slot,
       compiler::Node* value);
 
+  // Create a new AllocationSite and install it into a feedback vector.
+  compiler::Node* CreateAllocationSiteInFeedbackVector(
+      compiler::Node* feedback_vector, compiler::Node* slot);
+
   compiler::Node* GetFixedAarrayAllocationSize(compiler::Node* element_count,
                                                ElementsKind kind,
                                                ParameterMode mode) {

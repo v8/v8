@@ -5833,58 +5833,9 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
 
 void CreateAllocationSiteStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
-  typedef compiler::Node Node;
-  Node* size = assembler->IntPtrConstant(AllocationSite::kSize);
-  Node* site = assembler->Allocate(size, CodeStubAssembler::kPretenured);
-
-  // Store the map
-  assembler->StoreObjectFieldRoot(site, AllocationSite::kMapOffset,
-                                  Heap::kAllocationSiteMapRootIndex);
-
-  Node* kind =
-      assembler->SmiConstant(Smi::FromInt(GetInitialFastElementsKind()));
-  assembler->StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kTransitionInfoOffset, kind);
-
-  // Unlike literals, constructed arrays don't have nested sites
-  Node* zero = assembler->IntPtrConstant(0);
-  assembler->StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kNestedSiteOffset, zero);
-
-  // Pretenuring calculation field.
-  assembler->StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kPretenureDataOffset, zero);
-
-  // Pretenuring memento creation count field.
-  assembler->StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kPretenureCreateCountOffset, zero);
-
-  // Store an empty fixed array for the code dependency.
-  assembler->StoreObjectFieldRoot(site, AllocationSite::kDependentCodeOffset,
-                                  Heap::kEmptyFixedArrayRootIndex);
-
-  // Link the object to the allocation site list
-  Node* site_list = assembler->ExternalConstant(
-      ExternalReference::allocation_sites_list_address(isolate()));
-  Node* next_site = assembler->LoadBufferObject(site_list, 0);
-
-  // TODO(mvstanton): This is a store to a weak pointer, which we may want to
-  // mark as such in order to skip the write barrier, once we have a unified
-  // system for weakness. For now we decided to keep it like this because having
-  // an initial write barrier backed store makes this pointer strong until the
-  // next GC, and allocation sites are designed to survive several GCs anyway.
-  assembler->StoreObjectField(site, AllocationSite::kWeakNextOffset, next_site);
-  assembler->StoreNoWriteBarrier(MachineRepresentation::kTagged, site_list,
-                                 site);
-
-  Node* feedback_vector = assembler->Parameter(Descriptor::kVector);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-
-  assembler->StoreFixedArrayElement(feedback_vector, slot, site,
-                                    UPDATE_WRITE_BARRIER,
-                                    CodeStubAssembler::SMI_PARAMETERS);
-
-  assembler->Return(site);
+  assembler->Return(assembler->CreateAllocationSiteInFeedbackVector(
+      assembler->Parameter(Descriptor::kVector),
+      assembler->Parameter(Descriptor::kSlot)));
 }
 
 void CreateWeakCellStub::GenerateAssembly(CodeStubAssembler* assembler) const {

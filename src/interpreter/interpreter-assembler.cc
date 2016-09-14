@@ -646,11 +646,8 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
     Bind(&create_allocation_site);
     {
-      // TODO(mythria): Inline the creation of the allocation site.
-      CreateAllocationSiteStub create_stub(isolate());
-      CallStub(create_stub.GetCallInterfaceDescriptor(),
-               HeapConstant(create_stub.GetCode()), context,
-               type_feedback_vector, SmiTag(slot_id));
+      CreateAllocationSiteInFeedbackVector(type_feedback_vector,
+                                           SmiTag(slot_id));
 
       // Call using CallFunction builtin. CallICs have a PREMONOMORPHIC state.
       // They start collecting feedback only when a call is executed the second
@@ -835,14 +832,9 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
         Bind(&create_allocation_site);
         {
-          // TODO(mythria): Inline the creation of allocation site.
-          CreateAllocationSiteStub create_stub(isolate());
-          CallStub(create_stub.GetCallInterfaceDescriptor(),
-                   HeapConstant(create_stub.GetCode()), context,
-                   type_feedback_vector, SmiTag(slot_id));
-          Node* feedback_element =
-              LoadFixedArrayElement(type_feedback_vector, slot_id);
-          allocation_feedback.Bind(feedback_element);
+          Node* site = CreateAllocationSiteInFeedbackVector(
+              type_feedback_vector, SmiTag(slot_id));
+          allocation_feedback.Bind(site);
           Goto(&call_construct_function);
         }
 
