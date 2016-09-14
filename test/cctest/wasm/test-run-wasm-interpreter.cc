@@ -286,6 +286,26 @@ TEST(Breakpoint_I32And_disable) {
   }
 }
 
+TEST(GrowMemory) {
+  TestingModule module(kExecuteInterpreted);
+  WasmRunner<int32_t> r(&module, MachineType::Uint32());
+  module.AddMemory(WasmModule::kPageSize);
+  BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
+  CHECK_EQ(1, r.Call(1));
+}
+
+TEST(GrowMemoryPreservesData) {
+  int32_t index = 16;
+  int32_t value = 2335;
+  TestingModule module(kExecuteInterpreted);
+  WasmRunner<int32_t> r(&module, MachineType::Uint32());
+  module.AddMemory(WasmModule::kPageSize);
+  BUILD(r, WASM_BLOCK(WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
+                                     WASM_I32V(value)),
+                      WASM_GROW_MEMORY(WASM_GET_LOCAL(0)),
+                      WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V(index))));
+  CHECK_EQ(value, r.Call(1));
+}
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
