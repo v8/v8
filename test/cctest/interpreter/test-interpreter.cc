@@ -423,7 +423,7 @@ TEST(InterpreterStringAdd) {
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-    InterpreterTester tester(isolate, bytecode_array);
+    InterpreterTester tester(isolate, bytecode_array, vector);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*test_cases[i].expected_value));

@@ -230,11 +230,13 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
   const int slot_count = metadata->slot_count();
   const int length = slot_count + kReservedIndexCount;
   if (length == kReservedIndexCount) {
-    return Handle<TypeFeedbackVector>::cast(factory->empty_fixed_array());
+    return Handle<TypeFeedbackVector>::cast(
+        factory->empty_type_feedback_vector());
   }
 
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set(kMetadataIndex, *metadata);
+  array->set(kInvocationCountIndex, Smi::FromInt(0));
 
   DisallowHeapAllocation no_gc;
 
@@ -626,6 +628,12 @@ int CallICNexus::ExtractCallCount() {
   CHECK(call_count->IsSmi());
   int value = Smi::cast(call_count)->value();
   return value;
+}
+
+float CallICNexus::ComputeCallFrequency() {
+  double const invocation_count = vector()->invocation_count();
+  double const call_count = ExtractCallCount();
+  return static_cast<float>(call_count / invocation_count);
 }
 
 void CallICNexus::Clear(Code* host) { CallIC::Clear(GetIsolate(), host, this); }

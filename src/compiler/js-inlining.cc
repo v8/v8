@@ -69,6 +69,12 @@ class JSCallAccessor {
     return call_->op()->ValueInputCount() - 2;
   }
 
+  float frequency() const {
+    return (call_->opcode() == IrOpcode::kJSCallFunction)
+               ? CallFunctionParametersOf(call_->op()).frequency()
+               : CallConstructParametersOf(call_->op()).frequency();
+  }
+
  private:
   Node* call_;
 };
@@ -519,8 +525,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
     // Run the AstGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
-    AstGraphBuilder graph_builder(&zone, &info, jsgraph(), loop_assignment,
-                                  type_hint_analysis);
+    AstGraphBuilder graph_builder(&zone, &info, jsgraph(), call.frequency(),
+                                  loop_assignment, type_hint_analysis);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.

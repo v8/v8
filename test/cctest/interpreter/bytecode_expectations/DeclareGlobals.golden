@@ -87,7 +87,7 @@ bytecodes: [
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),
   /*   11 S> */ B(LdaSmi), U8(2),
-  /*   12 E> */ B(StaGlobalSloppy), U8(1), U8(3),
+  /*   12 E> */ B(StaGlobalSloppy), U8(1), U8(4),
                 B(Star), R(0),
   /*   15 S> */ B(Return),
 ]
@@ -115,8 +115,8 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
   /*    0 E> */ B(StackCheck),
   /*   16 S> */ B(LdrUndefined), R(2),
-                B(LdrGlobal), U8(1), R(1),
-  /*   16 E> */ B(Call), R(1), R(2), U8(1), U8(3),
+                B(LdrGlobal), U8(2), R(1),
+  /*   16 E> */ B(Call), R(1), R(2), U8(1), U8(4),
                 B(Star), R(0),
   /*   20 S> */ B(Return),
 ]

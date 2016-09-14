@@ -571,9 +571,11 @@ bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
                                            CompilationInfo* info,
-                                           JSGraph* jsgraph)
+                                           JSGraph* jsgraph,
+                                           float invocation_frequency)
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
+      invocation_frequency_(invocation_frequency),
       bytecode_array_(handle(info->shared_info()->bytecode_array())),
       exception_handler_table_(
           handle(HandlerTable::cast(bytecode_array()->handler_table()))),
@@ -1354,7 +1356,7 @@ CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
 float BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
   if (slot_id >= TypeFeedbackVector::kReservedIndexCount) {
     CallICNexus nexus(feedback_vector(), feedback_vector()->ToSlot(slot_id));
-    return nexus.ExtractCallCount();
+    return nexus.ComputeCallFrequency() * invocation_frequency_;
   }
   return 0.0f;
 }

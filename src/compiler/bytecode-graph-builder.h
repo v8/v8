@@ -27,7 +27,7 @@ namespace compiler {
 class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                       JSGraph* jsgraph);
+                       JSGraph* jsgraph, float invocation_frequency);
 
   // Creates a graph by visiting bytecodes.
   bool CreateGraph();
@@ -257,6 +257,7 @@ class BytecodeGraphBuilder {
 
   Zone* local_zone_;
   JSGraph* jsgraph_;
+  float const invocation_frequency_;
   Handle<BytecodeArray> bytecode_array_;
   Handle<HandlerTable> exception_handler_table_;
   Handle<TypeFeedbackVector> feedback_vector_;

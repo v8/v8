@@ -41,8 +41,8 @@ TEST(VectorStructure) {
   // Empty vectors are the empty fixed array.
   StaticFeedbackVectorSpec empty;
   Handle<TypeFeedbackVector> vector = NewTypeFeedbackVector(isolate, &empty);
-  CHECK(Handle<FixedArray>::cast(vector)
-            .is_identical_to(factory->empty_fixed_array()));
+  CHECK(Handle<FixedArray>::cast(vector).is_identical_to(
+      factory->empty_type_feedback_vector()));
   // Which can nonetheless be queried.
   CHECK(vector->is_empty());
 

@@ -61,6 +61,7 @@ using v8::MemoryPressureLevel;
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, transition_array_map, TransitionArrayMap)                             \
   V(FixedArray, empty_literals_array, EmptyLiteralsArray)                      \
+  V(FixedArray, empty_type_feedback_vector, EmptyTypeFeedbackVector)           \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(FixedArray, cleared_optimized_code_map, ClearedOptimizedCodeMap)           \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \

@@ -77,22 +77,20 @@ bool TypeFeedbackMetadata::SlotRequiresName(FeedbackVectorSlotKind kind) {
 }
 
 bool TypeFeedbackVector::is_empty() const {
-  if (length() == 0) return true;
-  DCHECK(length() > kReservedIndexCount);
-  return false;
+  return length() == kReservedIndexCount;
 }
 
-
 int TypeFeedbackVector::slot_count() const {
-  if (length() == 0) return 0;
-  DCHECK(length() > kReservedIndexCount);
   return length() - kReservedIndexCount;
 }
 
 
 TypeFeedbackMetadata* TypeFeedbackVector::metadata() const {
-  return is_empty() ? TypeFeedbackMetadata::cast(GetHeap()->empty_fixed_array())
-                    : TypeFeedbackMetadata::cast(get(kMetadataIndex));
+  return TypeFeedbackMetadata::cast(get(kMetadataIndex));
+}
+
+int TypeFeedbackVector::invocation_count() const {
+  return Smi::cast(get(kInvocationCountIndex))->value();
 }
 
 // Conversion from an integer index to either a slot or an ic slot.

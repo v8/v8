@@ -117,6 +117,18 @@ void FullCodeGenerator::Generate() {
   info->set_prologue_offset(masm_->pc_offset());
   __ Prologue(info->GeneratePreagedPrologue());
 
+  // Increment invocation count for the function.
+  {
+    Comment cmnt(masm_, "[ Increment invocation count");
+    __ movp(rcx, FieldOperand(rdi, JSFunction::kLiteralsOffset));
+    __ movp(rcx, FieldOperand(rcx, LiteralsArray::kFeedbackVectorOffset));
+    __ SmiAddConstant(
+        FieldOperand(rcx,
+                     TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
+                         TypeFeedbackVector::kHeaderSize),
+        Smi::FromInt(1));
+  }
+
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
     // Generators allocate locals, if any, in context slots.

@@ -443,7 +443,7 @@ class AstGraphBuilderWithPositions final : public AstGraphBuilder {
                                LoopAssignmentAnalysis* loop_assignment,
                                TypeHintAnalysis* type_hint_analysis,
                                SourcePositionTable* source_positions)
-      : AstGraphBuilder(local_zone, info, jsgraph, loop_assignment,
+      : AstGraphBuilder(local_zone, info, jsgraph, 1.0f, loop_assignment,
                         type_hint_analysis),
         source_positions_(source_positions),
         start_position_(info->shared_info()->start_position()) {}
@@ -768,7 +768,7 @@ struct GraphBuilderPhase {
 
     if (data->info()->is_optimizing_from_bytecode()) {
       BytecodeGraphBuilder graph_builder(temp_zone, data->info(),
-                                         data->jsgraph());
+                                         data->jsgraph(), 1.0f);
       succeeded = graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(

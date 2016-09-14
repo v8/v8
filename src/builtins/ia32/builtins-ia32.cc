@@ -590,6 +590,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ cmp(ecx, FieldOperand(eax, SharedFunctionInfo::kCodeOffset));
   __ j(not_equal, &switch_to_different_code_kind);
 
+  // Increment invocation count for the function.
+  __ EmitLoadTypeFeedbackVector(ecx);
+  __ add(FieldOperand(ecx,
+                      TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
+                          TypeFeedbackVector::kHeaderSize),
+         Immediate(Smi::FromInt(1)));
+
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {
     __ AssertNotSmi(kInterpreterBytecodeArrayRegister);

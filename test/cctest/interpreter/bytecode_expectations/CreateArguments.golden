@@ -40,7 +40,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(LdaZero),
-  /*   31 E> */ B(LdaKeyedProperty), R(0), U8(1),
+  /*   31 E> */ B(LdaKeyedProperty), R(0), U8(2),
   /*   36 S> */ B(Return),
 ]
 constant pool: [
@@ -85,7 +85,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(LdaZero),
-  /*   32 E> */ B(LdaKeyedProperty), R(0), U8(1),
+  /*   32 E> */ B(LdaKeyedProperty), R(0), U8(2),
   /*   37 S> */ B(Return),
 ]
 constant pool: [

@@ -43,7 +43,7 @@ parameter count: 1
 bytecode array length: 5
 bytecodes: [
   /*   22 E> */ B(StackCheck),
-  /*   28 S> */ B(LdaGlobalInsideTypeof), U8(1),
+  /*   28 S> */ B(LdaGlobalInsideTypeof), U8(2),
                 B(TypeOf),
   /*   46 S> */ B(Return),
 ]

@@ -411,14 +411,15 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
   TryFinallyBuilder* control_;
 };
 
-
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                                 JSGraph* jsgraph, LoopAssignmentAnalysis* loop,
+                                 JSGraph* jsgraph, float invocation_frequency,
+                                 LoopAssignmentAnalysis* loop,
                                  TypeHintAnalysis* type_hint_analysis)
     : isolate_(info->isolate()),
       local_zone_(local_zone),
       info_(info),
       jsgraph_(jsgraph),
+      invocation_frequency_(invocation_frequency),
       environment_(nullptr),
       ast_context_(nullptr),
       globals_(0, local_zone),
@@ -3104,7 +3105,7 @@ float AstGraphBuilder::ComputeCallFrequency(FeedbackVectorSlot slot) const {
   Handle<TypeFeedbackVector> feedback_vector(
       info()->closure()->feedback_vector(), isolate());
   CallICNexus nexus(feedback_vector, slot);
-  return nexus.ExtractCallCount();
+  return nexus.ComputeCallFrequency() * invocation_frequency_;
 }
 
 Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {

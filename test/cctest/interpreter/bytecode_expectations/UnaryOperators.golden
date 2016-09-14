@@ -22,10 +22,10 @@ bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
   /*   54 S> */ B(LdaSmi), U8(10),
-  /*   54 E> */ B(TestEqual), R(0), U8(1),
+  /*   54 E> */ B(TestEqual), R(0), U8(2),
                 B(JumpIfTrue), U8(12),
   /*   45 E> */ B(StackCheck),
-  /*   65 S> */ B(AddSmi), U8(10), R(0), U8(2),
+  /*   65 S> */ B(AddSmi), U8(10), R(0), U8(3),
                 B(Star), R(0),
                 B(JumpLoop), U8(-14), U8(0),
   /*   79 S> */ B(Ldar), R(0),
@@ -56,7 +56,7 @@ bytecodes: [
                 B(ToBooleanLogicalNot),
                 B(Star), R(0),
   /*   74 S> */ B(LdaFalse),
-  /*   74 E> */ B(TestEqual), R(0), U8(1),
+  /*   74 E> */ B(TestEqual), R(0), U8(2),
                 B(JumpIfFalse), U8(5),
                 B(JumpLoop), U8(-12), U8(0),
   /*   85 S> */ B(Ldar), R(0),
@@ -80,7 +80,7 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), U8(101),
                 B(Star), R(0),
   /*   47 S> */ B(LdaSmi), U8(3),
-                B(Mul), R(0), U8(1),
+                B(Mul), R(0), U8(2),
                 B(LdaUndefined),
   /*   67 S> */ B(Return),
 ]
@@ -103,9 +103,9 @@ bytecodes: [
   /*   42 S> */ B(Wide), B(LdaSmi), U16(1234),
                 B(Star), R(0),
   /*   56 S> */ B(Nop),
-  /*   66 E> */ B(Mul), R(0), U8(1),
+  /*   66 E> */ B(Mul), R(0), U8(2),
                 B(Star), R(3),
-                B(SubSmi), U8(1), R(3), U8(2),
+                B(SubSmi), U8(1), R(3), U8(3),
                 B(LdrUndefined), R(1),
                 B(Ldar), R(1),
   /*   74 S> */ B(Nop),
@@ -129,7 +129,7 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
   /*   46 S> */ B(LdaSmi), U8(-1),
-                B(BitwiseXor), R(0), U8(1),
+                B(BitwiseXor), R(0), U8(2),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -150,7 +150,7 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
   /*   46 S> */ B(LdaSmi), U8(1),
-                B(Mul), R(0), U8(1),
+                B(Mul), R(0), U8(2),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -171,7 +171,7 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
   /*   46 S> */ B(LdaSmi), U8(-1),
-                B(Mul), R(0), U8(1),
+                B(Mul), R(0), U8(2),
   /*   57 S> */ B(Return),
 ]
 constant pool: [

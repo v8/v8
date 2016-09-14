@@ -222,9 +222,10 @@ class TypeFeedbackMetadata : public FixedArray {
 
 // The shape of the TypeFeedbackVector is an array with:
 // 0: feedback metadata
-// 1: feedback slot #0
+// 1: invocation count
+// 2: feedback slot #0
 // ...
-// 1 + slot_count - 1: feedback slot #(slot_count-1)
+// 2 + slot_count - 1: feedback slot #(slot_count-1)
 //
 class TypeFeedbackVector : public FixedArray {
  public:
@@ -232,7 +233,8 @@ class TypeFeedbackVector : public FixedArray {
   static inline TypeFeedbackVector* cast(Object* obj);
 
   static const int kMetadataIndex = 0;
-  static const int kReservedIndexCount = 1;
+  static const int kInvocationCountIndex = 1;
+  static const int kReservedIndexCount = 2;
 
   inline void ComputeCounts(int* with_type_info, int* generic);
 
@@ -242,6 +244,7 @@ class TypeFeedbackVector : public FixedArray {
   inline int slot_count() const;
 
   inline TypeFeedbackMetadata* metadata() const;
+  inline int invocation_count() const;
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackVectorSlot slot) {
@@ -480,6 +483,10 @@ class CallICNexus final : public FeedbackNexus {
   }
 
   int ExtractCallCount();
+
+  // Compute the call frequency based on the call count and the invocation
+  // count (taken from the type feedback vector).
+  float ComputeCallFrequency();
 };
 
 

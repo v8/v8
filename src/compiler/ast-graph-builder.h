@@ -37,6 +37,7 @@ class TypeHintAnalysis;
 class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
+                  float invocation_frequency,
                   LoopAssignmentAnalysis* loop_assignment = nullptr,
                   TypeHintAnalysis* type_hint_analysis = nullptr);
   virtual ~AstGraphBuilder() {}
@@ -80,6 +81,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Zone* local_zone_;
   CompilationInfo* info_;
   JSGraph* jsgraph_;
+  float const invocation_frequency_;
   Environment* environment_;
   AstContext* ast_context_;
 

@@ -1060,6 +1060,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ cmp(r0, Operand(masm->CodeObject()));  // Self-reference to this code.
   __ b(ne, &switch_to_different_code_kind);
 
+  // Increment invocation count for the function.
+  __ ldr(r2, FieldMemOperand(r1, JSFunction::kLiteralsOffset));
+  __ ldr(r2, FieldMemOperand(r2, LiteralsArray::kFeedbackVectorOffset));
+  __ ldr(r9, FieldMemOperand(
+                 r2, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
+                         TypeFeedbackVector::kHeaderSize));
+  __ add(r9, r9, Operand(Smi::FromInt(1)));
+  __ str(r9, FieldMemOperand(
+                 r2, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
+                         TypeFeedbackVector::kHeaderSize));
+
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {
     __ SmiTst(kInterpreterBytecodeArrayRegister);

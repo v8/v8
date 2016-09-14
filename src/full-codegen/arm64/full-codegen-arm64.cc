@@ -132,6 +132,20 @@ void FullCodeGenerator::Generate() {
   info->set_prologue_offset(masm_->pc_offset());
   __ Prologue(info->GeneratePreagedPrologue());
 
+  // Increment invocation count for the function.
+  {
+    Comment cmnt(masm_, "[ Increment invocation count");
+    __ Ldr(x11, FieldMemOperand(x1, JSFunction::kLiteralsOffset));
+    __ Ldr(x11, FieldMemOperand(x11, LiteralsArray::kFeedbackVectorOffset));
+    __ Ldr(x10, FieldMemOperand(x11, TypeFeedbackVector::kInvocationCountIndex *
+                                             kPointerSize +
+                                         TypeFeedbackVector::kHeaderSize));
+    __ Add(x10, x10, Operand(Smi::FromInt(1)));
+    __ Str(x10, FieldMemOperand(x11, TypeFeedbackVector::kInvocationCountIndex *
+                                             kPointerSize +
+                                         TypeFeedbackVector::kHeaderSize));
+  }
+
   // Reserve space on the stack for locals.
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();

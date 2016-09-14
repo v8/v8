@@ -2820,9 +2820,26 @@ void Heap::CreateInitialObjects() {
   }
 
   {
+    // Create a canonical empty TypeFeedbackVector, which is shared by all
+    // functions that don't need actual type feedback slots. Note however
+    // that all these functions will share the same invocation count, but
+    // that shouldn't matter since we only use the invocation count to
+    // relativize the absolute call counts, but we can only have call counts
+    // if we have actual feedback slots.
+    Handle<FixedArray> empty_type_feedback_vector = factory->NewFixedArray(
+        TypeFeedbackVector::kReservedIndexCount, TENURED);
+    empty_type_feedback_vector->set(TypeFeedbackVector::kMetadataIndex,
+                                    empty_fixed_array());
+    empty_type_feedback_vector->set(TypeFeedbackVector::kInvocationCountIndex,
+                                    Smi::FromInt(0));
+    set_empty_type_feedback_vector(*empty_type_feedback_vector);
+
+    // We use a canonical empty LiteralsArray for all functions that neither
+    // have literals nor need a TypeFeedbackVector (besides the invocation
+    // count special slot).
     Handle<FixedArray> empty_literals_array =
         factory->NewFixedArray(1, TENURED);
-    empty_literals_array->set(0, *factory->empty_fixed_array());
+    empty_literals_array->set(0, *empty_type_feedback_vector);
     set_empty_literals_array(*empty_literals_array);
   }
 

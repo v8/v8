@@ -86,7 +86,7 @@ bytecodes: [
   /*   41 S> */ B(LdrUndefined), R(2),
                 B(CreateClosure), U8(0), U8(2),
                 B(Star), R(1),
-  /*   64 E> */ B(Call), R(1), R(2), U8(1), U8(1),
+  /*   64 E> */ B(Call), R(1), R(2), U8(1), U8(2),
   /*   68 S> */ B(LdaContextSlot), R(context), U8(4), U8(0),
   /*   78 S> */ B(Return),
 ]
@@ -902,7 +902,7 @@ bytecodes: [
   /* 3435 S> */ B(LdaZero),
   /* 3435 E> */ B(StaContextSlot), R(context), U8(255), U8(0),
   /* 3438 S> */ B(LdrUndefined), R(2),
-  /* 3438 E> */ B(LdrGlobal), U8(1), R(1),
+  /* 3438 E> */ B(LdrGlobal), U8(2), R(1),
   /* 3438 E> */ B(Call), R(1), R(2), U8(1), U8(0),
   /* 3454 S> */ B(LdaSmi), U8(100),
   /* 3454 E> */ B(Wide), B(StaContextSlot), R16(context), U16(256), U16(0),
