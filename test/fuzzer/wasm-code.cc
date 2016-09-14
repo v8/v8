@@ -12,7 +12,7 @@
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "test/cctest/wasm/test-signatures.h"
-#include "test/cctest/wasm/wasm-module-runner.h"
+#include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 using namespace v8::internal::wasm;

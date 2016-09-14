@@ -110,8 +110,8 @@
       ],
       'sources': [  ### gcmole(all) ###
         'wasm.cc',
-        '../cctest/wasm/wasm-module-runner.cc',
-        '../cctest/wasm/wasm-module-runner.h',
+        '../common/wasm/wasm-module-runner.cc',
+        '../common/wasm/wasm-module-runner.h',
       ],
     },
     {
@@ -138,8 +138,8 @@
       ],
       'sources': [  ### gcmole(all) ###
         'wasm-asmjs.cc',
-        '../cctest/wasm/wasm-module-runner.cc',
-        '../cctest/wasm/wasm-module-runner.h',
+        '../common/wasm/wasm-module-runner.cc',
+        '../common/wasm/wasm-module-runner.h',
       ],
     },
     {
@@ -166,8 +166,8 @@
       ],
       'sources': [  ### gcmole(all) ###
         'wasm-code.cc',
-        '../cctest/wasm/wasm-module-runner.cc',
-        '../cctest/wasm/wasm-module-runner.h',
+        '../common/wasm/wasm-module-runner.cc',
+        '../common/wasm/wasm-module-runner.h',
       ],
     },
     {

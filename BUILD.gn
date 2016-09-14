@@ -2584,15 +2584,23 @@ v8_source_set("regexp_fuzzer") {
 v8_fuzzer("regexp_fuzzer") {
 }
 
+v8_source_set("wasm_module_runner") {
+  sources = [
+    "test/common/wasm/wasm-module-runner.cc",
+    "test/common/wasm/wasm-module-runner.h",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
 v8_source_set("wasm_fuzzer") {
   sources = [
-    "test/cctest/wasm/wasm-module-runner.cc",
-    "test/cctest/wasm/wasm-module-runner.h",
     "test/fuzzer/wasm.cc",
   ]
 
   deps = [
     ":fuzzer_support",
+    ":wasm_module_runner",
   ]
 
   configs = [ ":internal_config" ]
@@ -2603,13 +2611,12 @@ v8_fuzzer("wasm_fuzzer") {
 
 v8_source_set("wasm_asmjs_fuzzer") {
   sources = [
-    "test/cctest/wasm/wasm-module-runner.cc",
-    "test/cctest/wasm/wasm-module-runner.h",
     "test/fuzzer/wasm-asmjs.cc",
   ]
 
   deps = [
     ":fuzzer_support",
+    ":wasm_module_runner",
   ]
 
   configs = [ ":internal_config" ]
@@ -2620,13 +2627,12 @@ v8_fuzzer("wasm_asmjs_fuzzer") {
 
 v8_source_set("wasm_code_fuzzer") {
   sources = [
-    "test/cctest/wasm/wasm-module-runner.cc",
-    "test/cctest/wasm/wasm-module-runner.h",
     "test/fuzzer/wasm-code.cc",
   ]
 
   deps = [
     ":fuzzer_support",
+    ":wasm_module_runner",
   ]
 
   configs = [ ":internal_config" ]

@@ -14,7 +14,7 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/test-signatures.h"
-#include "test/cctest/wasm/wasm-module-runner.h"
+#include "test/common/wasm/wasm-module-runner.h"
 
 using namespace v8::base;
 using namespace v8::internal;

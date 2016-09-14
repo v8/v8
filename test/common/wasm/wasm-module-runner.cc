@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/wasm/wasm-module-runner.h"
+#include "test/common/wasm/wasm-module-runner.h"
 
 #include "src/handles.h"
 #include "src/isolate.h"
