@@ -165,7 +165,7 @@ endmacro
 
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
-function RegExpSubclassExecJS(string) {
+function RegExpExecJS(string) {
   if (!IS_REGEXP(this)) {
     throw %make_type_error(kIncompatibleMethodReceiver,
                         'RegExp.prototype.exec', this);
@@ -201,47 +201,7 @@ function RegExpSubclassExecJS(string) {
   }
   RETURN_NEW_RESULT_FROM_MATCH_INFO(matchIndices, string);
 }
-%FunctionRemovePrototype(RegExpSubclassExecJS);
-
-
-// Legacy implementation of RegExp.prototype.exec
-function RegExpExecJS(string) {
-  if (!IS_REGEXP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.exec', this);
-  }
-
-  string = TO_STRING(string);
-  var lastIndex = this.lastIndex;
-
-  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
-  // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH(lastIndex);
-
-  var updateLastIndex = REGEXP_GLOBAL(this) || REGEXP_STICKY(this);
-  if (updateLastIndex) {
-    if (i < 0 || i > string.length) {
-      this.lastIndex = 0;
-      return null;
-    }
-  } else {
-    i = 0;
-  }
-
-  // matchIndices is either null or the RegExpLastMatchInfo array.
-  var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
-
-  if (IS_NULL(matchIndices)) {
-    this.lastIndex = 0;
-    return null;
-  }
-
-  // Successful match.
-  if (updateLastIndex) {
-    this.lastIndex = RegExpLastMatchInfo[CAPTURE1];
-  }
-  RETURN_NEW_RESULT_FROM_MATCH_INFO(matchIndices, string);
-}
+%FunctionRemovePrototype(RegExpExecJS);
 
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
@@ -387,7 +347,7 @@ function RegExpSubclassSplit(string, limit) {
   var exec;
   if (IS_REGEXP(this) && constructor === GlobalRegExp) {
     exec = this.exec;
-    if (exec === RegExpSubclassExecJS) {
+    if (exec === RegExpExecJS) {
       return %_Call(RegExpSplit, this, string, limit);
     }
   }
@@ -780,7 +740,7 @@ function RegExpSubclassReplace(string, replace) {
   var exec;
   if (IS_REGEXP(this)) {
     exec = this.exec;
-    if (exec === RegExpSubclassExecJS) {
+    if (exec === RegExpExecJS) {
       return %_Call(RegExpReplace, this, string, replace);
     }
   }
@@ -1033,7 +993,7 @@ GlobalRegExpPrototype = new GlobalObject();
 utils.InstallGetter(GlobalRegExp, speciesSymbol, RegExpSpecies);
 
 utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
-  "exec", RegExpSubclassExecJS,
+  "exec", RegExpExecJS,
   "test", RegExpSubclassTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS,
