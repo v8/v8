@@ -54,7 +54,8 @@ ToBooleanHints ToBooleanHintsOf(Operator const* op) {
 
 bool operator==(CallConstructParameters const& lhs,
                 CallConstructParameters const& rhs) {
-  return lhs.arity() == rhs.arity() && lhs.feedback() == rhs.feedback();
+  return lhs.arity() == rhs.arity() && lhs.frequency() == rhs.frequency() &&
+         lhs.feedback() == rhs.feedback();
 }
 
 
@@ -65,12 +66,12 @@ bool operator!=(CallConstructParameters const& lhs,
 
 
 size_t hash_value(CallConstructParameters const& p) {
-  return base::hash_combine(p.arity(), p.feedback());
+  return base::hash_combine(p.arity(), p.frequency(), p.feedback());
 }
 
 
 std::ostream& operator<<(std::ostream& os, CallConstructParameters const& p) {
-  return os << p.arity();
+  return os << p.arity() << ", " << p.frequency();
 }
 
 
@@ -81,7 +82,8 @@ CallConstructParameters const& CallConstructParametersOf(Operator const* op) {
 
 
 std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
-  os << p.arity() << ", " << p.convert_mode() << ", " << p.tail_call_mode();
+  os << p.arity() << ", " << p.frequency() << ", " << p.convert_mode() << ", "
+     << p.tail_call_mode();
   return os;
 }
 
@@ -590,9 +592,9 @@ const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
 }
 
 const Operator* JSOperatorBuilder::CallFunction(
-    size_t arity, VectorSlotPair const& feedback,
+    size_t arity, float frequency, VectorSlotPair const& feedback,
     ConvertReceiverMode convert_mode, TailCallMode tail_call_mode) {
-  CallFunctionParameters parameters(arity, feedback, tail_call_mode,
+  CallFunctionParameters parameters(arity, frequency, feedback, tail_call_mode,
                                     convert_mode);
   return new (zone()) Operator1<CallFunctionParameters>(   // --
       IrOpcode::kJSCallFunction, Operator::kNoProperties,  // opcode
@@ -626,10 +628,9 @@ const Operator* JSOperatorBuilder::CallRuntime(const Runtime::Function* f,
       parameters);                                        // parameter
 }
 
-
 const Operator* JSOperatorBuilder::CallConstruct(
-    size_t arity, VectorSlotPair const& feedback) {
-  CallConstructParameters parameters(arity, feedback);
+    uint32_t arity, float frequency, VectorSlotPair const& feedback) {
+  CallConstructParameters parameters(arity, frequency, feedback);
   return new (zone()) Operator1<CallConstructParameters>(   // --
       IrOpcode::kJSCallConstruct, Operator::kNoProperties,  // opcode
       "JSCallConstruct",                                    // name

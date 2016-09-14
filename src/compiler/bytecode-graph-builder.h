@@ -151,6 +151,10 @@ class BytecodeGraphBuilder {
   // type feedback.
   CompareOperationHint GetCompareOperationHint();
 
+  // Helper function to compute call frequency from the recorded type
+  // feedback.
+  float ComputeCallFrequency(int slot_id) const;
+
   // Control flow plumbing.
   void BuildJump();
   void BuildJumpIf(Node* condition);

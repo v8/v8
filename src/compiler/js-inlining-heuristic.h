@@ -37,8 +37,8 @@ class JSInliningHeuristic final : public AdvancedReducer {
   struct Candidate {
     Handle<JSFunction> functions[kMaxCallPolymorphism];
     int num_functions;
-    Node* node = nullptr;  // The call site at which to inline.
-    int calls = -1;        // Number of times the call site was hit.
+    Node* node = nullptr;    // The call site at which to inline.
+    float frequency = 0.0f;  // Relative frequency of this call site.
   };
 
   // Comparator for candidates.

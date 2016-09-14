@@ -55,14 +55,17 @@ ToBooleanHints ToBooleanHintsOf(Operator const* op);
 // used as a parameter by JSCallConstruct operators.
 class CallConstructParameters final {
  public:
-  CallConstructParameters(size_t arity, VectorSlotPair const& feedback)
-      : arity_(arity), feedback_(feedback) {}
+  CallConstructParameters(uint32_t arity, float frequency,
+                          VectorSlotPair const& feedback)
+      : arity_(arity), frequency_(frequency), feedback_(feedback) {}
 
-  size_t arity() const { return arity_; }
+  uint32_t arity() const { return arity_; }
+  float frequency() const { return frequency_; }
   VectorSlotPair const& feedback() const { return feedback_; }
 
  private:
-  size_t const arity_;
+  uint32_t const arity_;
+  float const frequency_;
   VectorSlotPair const feedback_;
 };
 
@@ -80,15 +83,18 @@ CallConstructParameters const& CallConstructParametersOf(Operator const*);
 // used as a parameter by JSCallFunction operators.
 class CallFunctionParameters final {
  public:
-  CallFunctionParameters(size_t arity, VectorSlotPair const& feedback,
+  CallFunctionParameters(size_t arity, float frequency,
+                         VectorSlotPair const& feedback,
                          TailCallMode tail_call_mode,
                          ConvertReceiverMode convert_mode)
       : bit_field_(ArityField::encode(arity) |
                    ConvertReceiverModeField::encode(convert_mode) |
                    TailCallModeField::encode(tail_call_mode)),
+        frequency_(frequency),
         feedback_(feedback) {}
 
   size_t arity() const { return ArityField::decode(bit_field_); }
+  float frequency() const { return frequency_; }
   ConvertReceiverMode convert_mode() const {
     return ConvertReceiverModeField::decode(bit_field_);
   }
@@ -99,6 +105,7 @@ class CallFunctionParameters final {
 
   bool operator==(CallFunctionParameters const& that) const {
     return this->bit_field_ == that.bit_field_ &&
+           this->frequency_ == that.frequency_ &&
            this->feedback_ == that.feedback_;
   }
   bool operator!=(CallFunctionParameters const& that) const {
@@ -107,15 +114,16 @@ class CallFunctionParameters final {
 
  private:
   friend size_t hash_value(CallFunctionParameters const& p) {
-    return base::hash_combine(p.bit_field_, p.feedback_);
+    return base::hash_combine(p.bit_field_, p.frequency_, p.feedback_);
   }
 
   typedef BitField<size_t, 0, 29> ArityField;
   typedef BitField<ConvertReceiverMode, 29, 2> ConvertReceiverModeField;
   typedef BitField<TailCallMode, 31, 1> TailCallModeField;
 
-  const uint32_t bit_field_;
-  const VectorSlotPair feedback_;
+  uint32_t const bit_field_;
+  float const frequency_;
+  VectorSlotPair const feedback_;
 };
 
 size_t hash_value(CallFunctionParameters const&);
@@ -457,13 +465,15 @@ class JSOperatorBuilder final : public ZoneObject {
                                       int literal_flags, int literal_index);
 
   const Operator* CallFunction(
-      size_t arity, VectorSlotPair const& feedback = VectorSlotPair(),
+      size_t arity, float frequency = 0.0f,
+      VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
-  const Operator* CallConstruct(size_t arity, VectorSlotPair const& feedback);
+  const Operator* CallConstruct(uint32_t arity, float frequency,
+                                VectorSlotPair const& feedback);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
 

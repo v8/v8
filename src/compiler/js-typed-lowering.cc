@@ -1754,8 +1754,8 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   // Maybe we did at least learn something about the {receiver}.
   if (p.convert_mode() != convert_mode) {
     NodeProperties::ChangeOp(
-        node, javascript()->CallFunction(p.arity(), p.feedback(), convert_mode,
-                                         p.tail_call_mode()));
+        node, javascript()->CallFunction(p.arity(), p.frequency(), p.feedback(),
+                                         convert_mode, p.tail_call_mode()));
     return Changed(node);
   }
 

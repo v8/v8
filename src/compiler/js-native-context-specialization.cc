@@ -849,7 +849,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         // Introduce the call to the getter function.
         value = effect = graph()->NewNode(
             javascript()->CallFunction(
-                2, VectorSlotPair(), ConvertReceiverMode::kNotNullOrUndefined),
+                2, 0.0f, VectorSlotPair(),
+                ConvertReceiverMode::kNotNullOrUndefined),
             target, receiver, context, frame_state0, effect, control);
         control = graph()->NewNode(common()->IfSuccess(), value);
         break;
@@ -869,10 +870,11 @@ JSNativeContextSpecialization::BuildPropertyAccess(
             context, target, frame_state);
 
         // Introduce the call to the setter function.
-        effect = graph()->NewNode(
-            javascript()->CallFunction(
-                3, VectorSlotPair(), ConvertReceiverMode::kNotNullOrUndefined),
-            target, receiver, value, context, frame_state0, effect, control);
+        effect = graph()->NewNode(javascript()->CallFunction(
+                                      3, 0.0f, VectorSlotPair(),
+                                      ConvertReceiverMode::kNotNullOrUndefined),
+                                  target, receiver, value, context,
+                                  frame_state0, effect, control);
         control = graph()->NewNode(common()->IfSuccess(), effect);
         break;
       }

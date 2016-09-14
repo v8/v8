@@ -264,6 +264,9 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   uint32_t ComputeBitsetForDynamicGlobal(Variable* variable);
   uint32_t ComputeBitsetForDynamicContext(Variable* variable);
 
+  // Computes the frequency for JSCallFunction and JSCallConstruct nodes.
+  float ComputeCallFrequency(FeedbackVectorSlot slot) const;
+
   // ===========================================================================
   // The following build methods all generate graph fragments and return one
   // resulting node. The operand stack height remains the same, variables and

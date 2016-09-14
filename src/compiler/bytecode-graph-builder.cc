@@ -1164,11 +1164,12 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode) {
   // Slot index of 0 is used indicate no feedback slot is available. Assert
   // the assumption that slot index 0 is never a valid feedback slot.
   STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
-  VectorSlotPair feedback =
-      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
+  int const slot_id = bytecode_iterator().GetIndexOperand(3);
+  VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
+  float const frequency = ComputeCallFrequency(slot_id);
   const Operator* call = javascript()->CallFunction(
-      arg_count + 1, feedback, receiver_hint, tail_call_mode);
+      arg_count + 1, frequency, feedback, receiver_hint, tail_call_mode);
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, &states);
 }
@@ -1271,14 +1272,15 @@ void BytecodeGraphBuilder::VisitNew() {
   // Slot index of 0 is used indicate no feedback slot is available. Assert
   // the assumption that slot index 0 is never a valid feedback slot.
   STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
-  VectorSlotPair feedback =
-      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
+  int const slot_id = bytecode_iterator().GetIndexOperand(3);
+  VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
   Node* new_target = environment()->LookupAccumulator();
   Node* callee = environment()->LookupRegister(callee_reg);
 
-  const Operator* call =
-      javascript()->CallConstruct(static_cast<int>(arg_count) + 2, feedback);
+  float const frequency = ComputeCallFrequency(slot_id);
+  const Operator* call = javascript()->CallConstruct(
+      static_cast<int>(arg_count) + 2, frequency, feedback);
   Node* value = ProcessCallNewArguments(call, callee, new_target, first_arg,
                                         arg_count + 2);
   environment()->BindAccumulator(value, &states);
@@ -1347,6 +1349,14 @@ CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
     hint = CompareOperationHintFromFeedback((Smi::cast(feedback))->value());
   }
   return hint;
+}
+
+float BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
+  if (slot_id >= TypeFeedbackVector::kReservedIndexCount) {
+    CallICNexus nexus(feedback_vector(), feedback_vector()->ToSlot(slot_id));
+    return nexus.ExtractCallCount();
+  }
+  return 0.0f;
 }
 
 void BytecodeGraphBuilder::VisitAdd() {

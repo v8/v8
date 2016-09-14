@@ -123,18 +123,11 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Gather feedback on how often this call site has been hit before.
   if (node->opcode() == IrOpcode::kJSCallFunction) {
-    CallFunctionParameters p = CallFunctionParametersOf(node->op());
-    if (p.feedback().IsValid()) {
-      CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-      candidate.calls = nexus.ExtractCallCount();
-    }
+    CallFunctionParameters const p = CallFunctionParametersOf(node->op());
+    candidate.frequency = p.frequency();
   } else {
-    DCHECK_EQ(IrOpcode::kJSCallConstruct, node->opcode());
-    CallConstructParameters p = CallConstructParametersOf(node->op());
-    if (p.feedback().IsValid()) {
-      CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-      candidate.calls = nexus.ExtractCallCount();
-    }
+    CallConstructParameters const p = CallConstructParametersOf(node->op());
+    candidate.frequency = p.frequency();
   }
 
   // Handling of special inlining modes right away:
@@ -278,17 +271,20 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
 
 bool JSInliningHeuristic::CandidateCompare::operator()(
     const Candidate& left, const Candidate& right) const {
-  if (left.calls != right.calls) {
-    return left.calls > right.calls;
+  if (left.frequency > right.frequency) {
+    return true;
+  } else if (left.frequency < right.frequency) {
+    return false;
+  } else {
+    return left.node->id() > right.node->id();
   }
-  return left.node->id() > right.node->id();
 }
 
 void JSInliningHeuristic::PrintCandidates() {
   PrintF("Candidates for inlining (size=%zu):\n", candidates_.size());
   for (const Candidate& candidate : candidates_) {
-    PrintF("  #%d:%s, calls:%d\n", candidate.node->id(),
-           candidate.node->op()->mnemonic(), candidate.calls);
+    PrintF("  #%d:%s, frequency:%g\n", candidate.node->id(),
+           candidate.node->op()->mnemonic(), candidate.frequency);
     for (int i = 0; i < candidate.num_functions; ++i) {
       Handle<JSFunction> function = candidate.functions[i];
       PrintF("  - size[source]:%d, size[ast]:%d, name: %s\n",

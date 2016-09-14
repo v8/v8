@@ -2430,9 +2430,11 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   }
 
   // Create node to perform the function call.
+  float const frequency = ComputeCallFrequency(expr->CallFeedbackICSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
-  const Operator* call = javascript()->CallFunction(
-      args->length() + 2, feedback, receiver_hint, expr->tail_call_mode());
+  const Operator* call =
+      javascript()->CallFunction(args->length() + 2, frequency, feedback,
+                                 receiver_hint, expr->tail_call_mode());
   PrepareEagerCheckpoint(possibly_eval ? expr->EvalId() : expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
   // The callee passed to the call, we just need to push something here to
@@ -2466,7 +2468,7 @@ void AstGraphBuilder::VisitCallSuper(Call* expr) {
 
   // Create node to perform the super call.
   const Operator* call =
-      javascript()->CallConstruct(args->length() + 2, VectorSlotPair());
+      javascript()->CallConstruct(args->length() + 2, 0.0f, VectorSlotPair());
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   ast_context()->ProduceValue(expr, value);
@@ -2484,9 +2486,10 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   environment()->Push(environment()->Peek(args->length()));
 
   // Create node to perform the construct call.
+  float const frequency = ComputeCallFrequency(expr->CallNewFeedbackSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallNewFeedbackSlot());
   const Operator* call =
-      javascript()->CallConstruct(args->length() + 2, feedback);
+      javascript()->CallConstruct(args->length() + 2, frequency, feedback);
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   ast_context()->ProduceValue(expr, value);
@@ -3096,6 +3099,13 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicContext(Variable* variable) {
   return check_depths;
 }
 
+float AstGraphBuilder::ComputeCallFrequency(FeedbackVectorSlot slot) const {
+  if (slot.IsInvalid()) return 0.0f;
+  Handle<TypeFeedbackVector> feedback_vector(
+      info()->closure()->feedback_vector(), isolate());
+  CallICNexus nexus(feedback_vector, slot);
+  return nexus.ExtractCallCount();
+}
 
 Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {
   DCHECK(environment()->stack_height() >= arity);
