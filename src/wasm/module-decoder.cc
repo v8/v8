@@ -467,6 +467,9 @@ class ModuleDecoder : public Decoder {
       error("global name is not valid utf8");
     }
     global->type = consume_local_type();
+    if (global->type == kAstStmt) {
+      error("invalid global type");
+    }
     global->offset = 0;
     global->exported = consume_u8("exported") != 0;
   }

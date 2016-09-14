@@ -213,7 +213,22 @@ TEST_F(WasmModuleVerifyTest, Global_invalid_type) {
       0,    // exported
   };
 
-  ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_FALSE(result.ok());
+  if (result.val) delete result.val;
+}
+
+TEST_F(WasmModuleVerifyTest, Global_invalid_type2) {
+  static const byte data[] = {
+      SECTION(GLOBALS, 5),  // --
+      1,
+      NAME_LENGTH(1),
+      'g',         // name
+      kLocalVoid,  // invalid memory type
+      0,           // exported
+  };
+
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_FALSE(result.ok());
   if (result.val) delete result.val;
 }
