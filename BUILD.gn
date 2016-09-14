@@ -2640,3 +2640,131 @@ v8_source_set("wasm_code_fuzzer") {
 
 v8_fuzzer("wasm_code_fuzzer") {
 }
+
+v8_source_set("lib_wasm_section_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-section-fuzzers.cc",
+    "test/fuzzer/wasm-section-fuzzers.h",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_source_set("wasm_types_section_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-types-section.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":lib_wasm_section_fuzzer",
+    ":wasm_module_runner",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_fuzzer("wasm_types_section_fuzzer") {
+}
+
+v8_source_set("wasm_names_section_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-names-section.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":lib_wasm_section_fuzzer",
+    ":wasm_module_runner",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_fuzzer("wasm_names_section_fuzzer") {
+}
+
+v8_source_set("wasm_globals_section_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-globals-section.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":lib_wasm_section_fuzzer",
+    ":wasm_module_runner",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_fuzzer("wasm_globals_section_fuzzer") {
+}
+
+v8_source_set("wasm_imports_section_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-imports-section.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":lib_wasm_section_fuzzer",
+    ":wasm_module_runner",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_fuzzer("wasm_imports_section_fuzzer") {
+}
+
+v8_source_set("wasm_function_sigs_section_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-function-sigs-section.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":lib_wasm_section_fuzzer",
+    ":wasm_module_runner",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_fuzzer("wasm_function_sigs_section_fuzzer") {
+}
+
+v8_source_set("wasm_memory_section_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-memory-section.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":lib_wasm_section_fuzzer",
+    ":wasm_module_runner",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_fuzzer("wasm_memory_section_fuzzer") {
+}
+
+v8_source_set("wasm_data_section_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-data-section.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":lib_wasm_section_fuzzer",
+    ":wasm_module_runner",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+v8_fuzzer("wasm_data_section_fuzzer") {
+}
