@@ -206,6 +206,14 @@ uint8_t* ValueSerializer::ReserveRawBytes(size_t bytes) {
   return &buffer_[old_size];
 }
 
+void ValueSerializer::WriteUint32(uint32_t value) {
+  WriteVarint<uint32_t>(value);
+}
+
+void ValueSerializer::WriteUint64(uint64_t value) {
+  WriteVarint<uint64_t>(value);
+}
+
 void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
                                           Handle<JSArrayBuffer> array_buffer) {
   DCHECK(!array_buffer_transfer_map_.Find(array_buffer));
@@ -353,8 +361,11 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_ARRAY_TYPE:
       return WriteJSArray(Handle<JSArray>::cast(receiver));
     case JS_OBJECT_TYPE:
-    case JS_API_OBJECT_TYPE:
-      return WriteJSObject(Handle<JSObject>::cast(receiver));
+    case JS_API_OBJECT_TYPE: {
+      Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
+      return js_object->GetInternalFieldCount() ? WriteHostObject(js_object)
+                                                : WriteJSObject(js_object);
+    }
     case JS_DATE_TYPE:
       WriteJSDate(JSDate::cast(*receiver));
       return Just(true);
@@ -701,6 +712,20 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
   return Just(true);
 }
 
+Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
+  if (!delegate_) {
+    isolate_->Throw(*isolate_->factory()->NewError(
+        isolate_->error_function(), MessageTemplate::kDataCloneError, object));
+    return Nothing<bool>();
+  }
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  Maybe<bool> result =
+      delegate_->WriteHostObject(v8_isolate, Utils::ToLocal(object));
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+  DCHECK(!result.IsNothing());
+  return result;
+}
+
 Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
     Handle<JSObject> object, Handle<FixedArray> keys) {
   uint32_t properties_written = 0;
@@ -751,8 +776,10 @@ void ValueSerializer::ThrowDataCloneError(
 }
 
 ValueDeserializer::ValueDeserializer(Isolate* isolate,
-                                     Vector<const uint8_t> data)
+                                     Vector<const uint8_t> data,
+                                     v8::ValueDeserializer::Delegate* delegate)
     : isolate_(isolate),
+      delegate_(delegate),
       position_(data.start()),
       end_(data.start() + data.length()),
       pretenure_(data.length() > kPretenureThreshold ? TENURED : NOT_TENURED),
@@ -863,6 +890,21 @@ Maybe<Vector<const uint8_t>> ValueDeserializer::ReadRawBytes(int size) {
   const uint8_t* start = position_;
   position_ += size;
   return Just(Vector<const uint8_t>(start, size));
+}
+
+bool ValueDeserializer::ReadUint32(uint32_t* value) {
+  return ReadVarint<uint32_t>().To(value);
+}
+
+bool ValueDeserializer::ReadUint64(uint64_t* value) {
+  return ReadVarint<uint64_t>().To(value);
+}
+
+bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
+  if (length > static_cast<size_t>(end_ - position_)) return false;
+  *data = position_;
+  position_ += length;
+  return true;
 }
 
 void ValueDeserializer::TransferArrayBuffer(
@@ -978,7 +1020,10 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
       return ReadTransferredJSArrayBuffer(is_shared);
     }
     default:
-      return MaybeHandle<Object>();
+      // TODO(jbroman): Introduce an explicit tag for host objects to avoid
+      // having to treat every unknown tag as a potential host object.
+      position_--;
+      return ReadHostObject();
   }
 }
 
@@ -1326,6 +1371,22 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       pretenure_);
   AddObjectWithID(id, typed_array);
   return typed_array;
+}
+
+MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
+  if (!delegate_) return MaybeHandle<JSObject>();
+  STACK_CHECK(isolate_, MaybeHandle<JSObject>());
+  uint32_t id = next_id_++;
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  v8::Local<v8::Object> object;
+  if (!delegate_->ReadHostObject(v8_isolate).ToLocal(&object)) {
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
+    return MaybeHandle<JSObject>();
+  }
+  Handle<JSObject> js_object =
+      Handle<JSObject>::cast(Utils::OpenHandle(*object));
+  AddObjectWithID(id, js_object);
+  return js_object;
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(

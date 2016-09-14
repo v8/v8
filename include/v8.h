@@ -1681,6 +1681,13 @@ class V8_EXPORT ValueSerializer {
      * type.
      */
     virtual void ThrowDataCloneError(Local<String> message) = 0;
+
+    /*
+     * The embedder overrides this method to write some kind of host object, if
+     * possible. If not, a suitable exception should be thrown and
+     * Nothing<bool>() returned.
+     */
+    virtual Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object);
   };
 
   explicit ValueSerializer(Isolate* isolate);
@@ -1718,6 +1725,15 @@ class V8_EXPORT ValueSerializer {
   void TransferSharedArrayBuffer(uint32_t transfer_id,
                                  Local<SharedArrayBuffer> shared_array_buffer);
 
+  /*
+   * Write raw data in various common formats to the buffer.
+   * Note that integer types are written in base-128 varint format, not with a
+   * binary copy. For use during an override of Delegate::WriteHostObject.
+   */
+  void WriteUint32(uint32_t value);
+  void WriteUint64(uint64_t value);
+  void WriteRawBytes(const void* source, size_t length);
+
  private:
   ValueSerializer(const ValueSerializer&) = delete;
   void operator=(const ValueSerializer&) = delete;
@@ -1736,7 +1752,21 @@ class V8_EXPORT ValueSerializer {
  */
 class V8_EXPORT ValueDeserializer {
  public:
+  class V8_EXPORT Delegate {
+   public:
+    virtual ~Delegate() {}
+
+    /*
+     * The embedder overrides this method to read some kind of host object, if
+     * possible. If not, a suitable exception should be thrown and
+     * MaybeLocal<Object>() returned.
+     */
+    virtual MaybeLocal<Object> ReadHostObject(Isolate* isolate);
+  };
+
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
+  ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size,
+                    Delegate* delegate);
   ~ValueDeserializer();
 
   /*
@@ -1780,6 +1810,15 @@ class V8_EXPORT ValueDeserializer {
    * ReadHeader.
    */
   uint32_t GetWireFormatVersion() const;
+
+  /*
+   * Reads raw data in various common formats to the buffer.
+   * Note that integer types are read in base-128 varint format, not with a
+   * binary copy. For use during an override of Delegate::ReadHostObject.
+   */
+  V8_WARN_UNUSED_RESULT bool ReadUint32(uint32_t* value);
+  V8_WARN_UNUSED_RESULT bool ReadUint64(uint64_t* value);
+  V8_WARN_UNUSED_RESULT bool ReadRawBytes(size_t length, const void** data);
 
  private:
   ValueDeserializer(const ValueDeserializer&) = delete;

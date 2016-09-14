@@ -2885,6 +2885,15 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
 
 // --- V a l u e   S e r i a l i z a t i o n ---
 
+Maybe<bool> ValueSerializer::Delegate::WriteHostObject(Isolate* v8_isolate,
+                                                       Local<Object> object) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->ScheduleThrow(*isolate->factory()->NewError(
+      isolate->error_function(), i::MessageTemplate::kDataCloneError,
+      Utils::OpenHandle(*object)));
+  return Nothing<bool>();
+}
+
 struct ValueSerializer::PrivateData {
   explicit PrivateData(i::Isolate* i, ValueSerializer::Delegate* delegate)
       : isolate(i), serializer(i, delegate) {}
@@ -2929,9 +2938,30 @@ void ValueSerializer::TransferSharedArrayBuffer(
       transfer_id, Utils::OpenHandle(*shared_array_buffer));
 }
 
+void ValueSerializer::WriteUint32(uint32_t value) {
+  private_->serializer.WriteUint32(value);
+}
+
+void ValueSerializer::WriteUint64(uint64_t value) {
+  private_->serializer.WriteUint64(value);
+}
+
+void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
+  private_->serializer.WriteRawBytes(source, length);
+}
+
+MaybeLocal<Object> ValueDeserializer::Delegate::ReadHostObject(
+    Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->ScheduleThrow(*isolate->factory()->NewError(
+      isolate->error_function(),
+      i::MessageTemplate::kDataCloneDeserializationError));
+  return MaybeLocal<Object>();
+}
+
 struct ValueDeserializer::PrivateData {
-  PrivateData(i::Isolate* i, i::Vector<const uint8_t> data)
-      : isolate(i), deserializer(i, data) {}
+  PrivateData(i::Isolate* i, i::Vector<const uint8_t> data, Delegate* delegate)
+      : isolate(i), deserializer(i, data, delegate) {}
   i::Isolate* isolate;
   i::ValueDeserializer deserializer;
   bool has_aborted = false;
@@ -2939,14 +2969,18 @@ struct ValueDeserializer::PrivateData {
 };
 
 ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
-                                     size_t size) {
+                                     size_t size)
+    : ValueDeserializer(isolate, data, size, nullptr) {}
+
+ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
+                                     size_t size, Delegate* delegate) {
   if (base::IsValueInRangeForNumericType<int>(size)) {
-    private_ =
-        new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
-                        i::Vector<const uint8_t>(data, static_cast<int>(size)));
+    private_ = new PrivateData(
+        reinterpret_cast<i::Isolate*>(isolate),
+        i::Vector<const uint8_t>(data, static_cast<int>(size)), delegate);
   } else {
     private_ = new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
-                               i::Vector<const uint8_t>(nullptr, 0));
+                               i::Vector<const uint8_t>(nullptr, 0), nullptr);
     private_->has_aborted = true;
   }
 }
@@ -3026,6 +3060,18 @@ void ValueDeserializer::TransferSharedArrayBuffer(
   CHECK(!private_->has_aborted);
   private_->deserializer.TransferArrayBuffer(
       transfer_id, Utils::OpenHandle(*shared_array_buffer));
+}
+
+bool ValueDeserializer::ReadUint32(uint32_t* value) {
+  return private_->deserializer.ReadUint32(value);
+}
+
+bool ValueDeserializer::ReadUint64(uint64_t* value) {
+  return private_->deserializer.ReadUint64(value);
+}
+
+bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
+  return private_->deserializer.ReadRawBytes(length, data);
 }
 
 // --- D a t a ---
