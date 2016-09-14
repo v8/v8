@@ -14880,8 +14880,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   isolate->Dispose();
 }
 
-
-THREADED_TEST(ExternalAllocatedMemory) {
+TEST(ExternalAllocatedMemory) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer(isolate);
   v8::Local<Context> env(Context::New(isolate));
