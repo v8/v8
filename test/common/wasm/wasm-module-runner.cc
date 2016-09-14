@@ -110,34 +110,43 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower& thrower,
 
   if (thrower.error()) return -1;
 
+  ModuleEnv module_env;
+  module_env.module = module;
+  module_env.origin = module->origin;
+
+  for (size_t i = 0; i < module->functions.size(); i++) {
+    FunctionBody body = {
+        &module_env, module->functions[i].sig, module->module_start,
+        module->module_start + module->functions[i].code_start_offset,
+        module->module_start + module->functions[i].code_end_offset};
+    DecodeResult result = VerifyWasmCode(isolate->allocator(), body);
+    if (result.failed()) {
+      thrower.Error("Function did not verify");
+      return -1;
+    }
+  }
+
+  // The code verifies, we create an instance to run it in the interpreter.
   WasmModuleInstance instance(module);
   instance.context = isolate->native_context();
   instance.mem_size = GetMinModuleMemSize(module);
-  instance.mem_start = nullptr;
+  // TODO(ahaas): Move memory allocation to wasm-module.cc for better
+  // encapsulation.
+  instance.mem_start =
+      static_cast<byte*>(calloc(GetMinModuleMemSize(module), 1));
   instance.globals_start = nullptr;
-
-  ModuleEnv module_env;
-  module_env.module = module;
   module_env.instance = &instance;
-  module_env.origin = module->origin;
-
-  const WasmFunction* function = &(module->functions[function_index]);
-
-  FunctionBody body = {&module_env, function->sig, module->module_start,
-                       module->module_start + function->code_start_offset,
-                       module->module_start + function->code_end_offset};
-  DecodeResult result = VerifyWasmCode(isolate->allocator(), body);
-  if (result.failed()) {
-    thrower.Error("Function did not verify");
-    return -1;
-  }
 
   WasmInterpreter interpreter(&instance, isolate->allocator());
 
   WasmInterpreter::Thread* thread = interpreter.GetThread(0);
   thread->Reset();
-  thread->PushFrame(function, args);
-  if (thread->Run() == WasmInterpreter::FINISHED) {
+  thread->PushFrame(&(module->functions[function_index]), args);
+  WasmInterpreter::State interpreter_result = thread->Run();
+  if (instance.mem_start) {
+    free(instance.mem_start);
+  }
+  if (interpreter_result == WasmInterpreter::FINISHED) {
     WasmVal val = thread->GetReturnValue();
     return val.to<int32_t>();
   } else if (thread->state() == WasmInterpreter::TRAPPED) {
