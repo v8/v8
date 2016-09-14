@@ -163,19 +163,6 @@ macro RETURN_NEW_RESULT_FROM_MATCH_INFO(MATCHINFO, STRING)
 endmacro
 
 
-function RegExpExecNoTests(regexp, string, start) {
-  // Must be called with RegExp, string and positive integer as arguments.
-  var matchInfo = %_RegExpExec(regexp, string, start, RegExpLastMatchInfo);
-  if (matchInfo !== null) {
-    // ES6 21.2.5.2.2 step 18.
-    if (REGEXP_STICKY(regexp)) regexp.lastIndex = matchInfo[CAPTURE1];
-    RETURN_NEW_RESULT_FROM_MATCH_INFO(matchInfo, string);
-  }
-  regexp.lastIndex = 0;
-  return null;
-}
-
-
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 function RegExpSubclassExecJS(string) {
@@ -279,65 +266,6 @@ function RegExpSubclassExec(regexp, string, exec) {
 %SetForceInlineFlag(RegExpSubclassExec);
 
 
-// One-element cache for the simplified test regexp.
-var regexp_key;
-var regexp_val;
-
-// Legacy implementation of RegExp.prototype.test
-// Section 15.10.6.3 doesn't actually make sense, but the intention seems to be
-// that test is defined in terms of String.prototype.exec. However, it probably
-// means the original value of String.prototype.exec, which is what everybody
-// else implements.
-function RegExpTest(string) {
-  if (!IS_REGEXP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.test', this);
-  }
-  string = TO_STRING(string);
-
-  var lastIndex = this.lastIndex;
-
-  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
-  // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH(lastIndex);
-
-  if (REGEXP_GLOBAL(this) || REGEXP_STICKY(this)) {
-    if (i < 0 || i > string.length) {
-      this.lastIndex = 0;
-      return false;
-    }
-    // matchIndices is either null or the RegExpLastMatchInfo array.
-    var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
-    if (IS_NULL(matchIndices)) {
-      this.lastIndex = 0;
-      return false;
-    }
-    this.lastIndex = RegExpLastMatchInfo[CAPTURE1];
-    return true;
-  } else {
-    // Non-global, non-sticky regexp.
-    // Remove irrelevant preceeding '.*' in a test regexp.  The expression
-    // checks whether this.source starts with '.*' and that the third char is
-    // not a '?'.  But see https://code.google.com/p/v8/issues/detail?id=3560
-    var regexp = this;
-    var source = REGEXP_SOURCE(regexp);
-    if (source.length >= 3 &&
-        %_StringCharCodeAt(source, 0) == 46 &&  // '.'
-        %_StringCharCodeAt(source, 1) == 42 &&  // '*'
-        %_StringCharCodeAt(source, 2) != 63) {  // '?'
-      regexp = TrimRegExp(regexp);
-    }
-    // matchIndices is either null or the RegExpLastMatchInfo array.
-    var matchIndices = %_RegExpExec(regexp, string, 0, RegExpLastMatchInfo);
-    if (IS_NULL(matchIndices)) {
-      this.lastIndex = 0;
-      return false;
-    }
-    return true;
-  }
-}
-
-
 // ES#sec-regexp.prototype.test RegExp.prototype.test ( S )
 function RegExpSubclassTest(string) {
   if (!IS_RECEIVER(this)) {
@@ -349,18 +277,6 @@ function RegExpSubclassTest(string) {
   return !IS_NULL(match);
 }
 %FunctionRemovePrototype(RegExpSubclassTest);
-
-function TrimRegExp(regexp) {
-  if (regexp_key !== regexp) {
-    regexp_key = regexp;
-    regexp_val =
-      new GlobalRegExp(
-          %_SubString(REGEXP_SOURCE(regexp), 2, REGEXP_SOURCE(regexp).length),
-          (REGEXP_IGNORE_CASE(regexp) ? REGEXP_MULTILINE(regexp) ? "im" : "i"
-                                      : REGEXP_MULTILINE(regexp) ? "m" : ""));
-  }
-  return regexp_val;
-}
 
 
 function RegExpToString() {
@@ -1225,7 +1141,6 @@ utils.Export(function(to) {
   to.RegExpExec = DoRegExpExec;
   to.RegExpInitialize = RegExpInitialize;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;
-  to.RegExpTest = RegExpTest;
 });
 
 })
