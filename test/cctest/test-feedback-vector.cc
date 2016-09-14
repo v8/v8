@@ -290,13 +290,21 @@ TEST(VectorConstructCounts) {
   Handle<JSFunction> f = GetFunction("f");
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+
   FeedbackVectorSlot slot(0);
+  CallICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+
   CHECK(feedback_vector->Get(slot)->IsWeakCell());
 
   CompileRun("f(Foo); f(Foo);");
-  FeedbackVectorSlot cslot(1);
-  CHECK(feedback_vector->Get(cslot)->IsSmi());
-  CHECK_EQ(3, Smi::cast(feedback_vector->Get(cslot))->value());
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(3, nexus.ExtractCallCount());
+
+  // Send the IC megamorphic, but we should still have incrementing counts.
+  CompileRun("f(function() {});");
+  CHECK_EQ(GENERIC, nexus.StateFromFeedback());
+  CHECK_EQ(4, nexus.ExtractCallCount());
 }
 
 TEST(VectorLoadICStates) {

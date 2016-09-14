@@ -500,6 +500,7 @@ void InterpreterAssembler::CallEpilogue() {
 
 Node* InterpreterAssembler::IncrementCallCount(Node* type_feedback_vector,
                                                Node* slot_id) {
+  Comment("increment call count");
   Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
   Node* call_count =
       LoadFixedArrayElement(type_feedback_vector, call_count_slot);
@@ -756,24 +757,20 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
     // are uninitialized, monomorphic (indicated by a JSFunction), and
     // megamorphic.
     // TODO(mythria/v8:5210): Check if it is better to mark extra_checks as a
-    // deferred block so that call_construct_function will be scheduled just
-    // after increment_count and in the fast path we can reduce one branch in
-    // the
-    // fast path.
-    Label increment_count(this), extra_checks(this),
-        call_construct_function(this);
+    // deferred block so that call_construct_function will be scheduled.
+    Label extra_checks(this), call_construct_function(this);
 
     Node* feedback_element =
         LoadFixedArrayElement(type_feedback_vector, slot_id);
     Node* feedback_value = LoadWeakCellValue(feedback_element);
     Node* is_monomorphic = WordEqual(constructor, feedback_value);
-    BranchIf(is_monomorphic, &increment_count, &extra_checks);
+    BranchIf(is_monomorphic, &call_construct_function, &extra_checks);
 
     Bind(&extra_checks);
     {
       Label mark_megamorphic(this), initialize(this),
           check_allocation_site(this), check_initialized(this),
-          set_alloc_feedback_and_inc_count(this);
+          set_alloc_feedback_and_call(this);
       {
         // Check if it is a megamorphic target
         Comment("check if megamorphic");
@@ -806,14 +803,14 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
             LoadFixedArrayElement(LoadNativeContext(context),
                                   Int32Constant(Context::ARRAY_FUNCTION_INDEX));
         Node* is_array_function = WordEqual(context_slot, constructor);
-        BranchIf(is_array_function, &set_alloc_feedback_and_inc_count,
+        BranchIf(is_array_function, &set_alloc_feedback_and_call,
                  &mark_megamorphic);
       }
 
-      Bind(&set_alloc_feedback_and_inc_count);
+      Bind(&set_alloc_feedback_and_call);
       {
         allocation_feedback.Bind(feedback_element);
-        Goto(&increment_count);
+        Goto(&call_construct_function);
       }
 
       Bind(&check_initialized);
@@ -827,8 +824,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
       Bind(&initialize);
       {
-        Label initialize_count(this), create_weak_cell(this),
-            create_allocation_site(this);
+        Label create_weak_cell(this), create_allocation_site(this);
         Comment("initialize the feedback element");
         // Check that it is the Array() function.
         Node* context_slot =
@@ -847,22 +843,13 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
           Node* feedback_element =
               LoadFixedArrayElement(type_feedback_vector, slot_id);
           allocation_feedback.Bind(feedback_element);
-          Goto(&initialize_count);
+          Goto(&call_construct_function);
         }
 
         Bind(&create_weak_cell);
         {
           CreateWeakCellInFeedbackVector(type_feedback_vector, SmiTag(slot_id),
                                          constructor);
-          Goto(&initialize_count);
-        }
-
-        Bind(&initialize_count);
-        {
-          Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-          // Count is Smi, so we don't need a write barrier.
-          StoreFixedArrayElement(type_feedback_vector, call_count_slot,
-                                 SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
           Goto(&call_construct_function);
         }
       }
@@ -882,23 +869,10 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
       }
     }
 
-    Bind(&increment_count);
-    {
-      // Increment the call count.
-      Comment("increment call count");
-      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-      Node* call_count =
-          LoadFixedArrayElement(type_feedback_vector, call_count_slot);
-      Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
-      // Count is Smi, so we don't need a write barrier.
-      StoreFixedArrayElement(type_feedback_vector, call_count_slot, new_count,
-                             SKIP_WRITE_BARRIER);
-      Goto(&call_construct_function);
-    }
-
     Bind(&call_construct_function);
     {
       Comment("call using callConstructFunction");
+      IncrementCallCount(type_feedback_vector, slot_id);
       Callable callable_function = CodeFactory::InterpreterPushArgsAndConstruct(
           isolate(), CallableType::kJSFunction);
       return_value.Bind(CallStub(callable_function.descriptor(),

@@ -1921,10 +1921,9 @@ class CallNew final : public Expression {
   // Type feedback information.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
-    callnew_feedback_slot_ = spec->AddGeneralSlot();
-    // Construct calls have two slots, one right after the other.
-    // The second slot stores the call count for monomorphic calls.
-    spec->AddGeneralSlot();
+    // CallNew stores feedback in the exact same way as Call. We can
+    // piggyback on the type feedback infrastructure for calls.
+    callnew_feedback_slot_ = spec->AddCallICSlot();
   }
 
   FeedbackVectorSlot CallNewFeedbackSlot() {

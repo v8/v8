@@ -132,12 +132,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     DCHECK_EQ(IrOpcode::kJSCallConstruct, node->opcode());
     CallConstructParameters p = CallConstructParametersOf(node->op());
     if (p.feedback().IsValid()) {
-      int const extra_index =
-          p.feedback().vector()->GetIndex(p.feedback().slot()) + 1;
-      Object* feedback_extra = p.feedback().vector()->get(extra_index);
-      if (feedback_extra->IsSmi()) {
-        candidate.calls = Smi::cast(feedback_extra)->value();
-      }
+      CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+      candidate.calls = nexus.ExtractCallCount();
     }
   }
 

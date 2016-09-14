@@ -386,8 +386,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
         // Check if we have an allocation site.
         Handle<AllocationSite> site;
         if (p.feedback().IsValid()) {
-          Handle<Object> feedback(
-              p.feedback().vector()->Get(p.feedback().slot()), isolate());
+          CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+          Handle<Object> feedback(nexus.GetFeedback(), isolate());
           if (feedback->IsAllocationSite()) {
             site = Handle<AllocationSite>::cast(feedback);
           }
@@ -412,10 +412,9 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   // Not much we can do if deoptimization support is disabled.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
-  // TODO(mvstanton): Use ConstructICNexus here, once available.
-  Handle<Object> feedback;
   if (!p.feedback().IsValid()) return NoChange();
-  feedback = handle(p.feedback().vector()->Get(p.feedback().slot()), isolate());
+  CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  Handle<Object> feedback(nexus.GetFeedback(), isolate());
   if (feedback->IsAllocationSite()) {
     // The feedback is an AllocationSite, which means we have called the
     // Array function and collected transition (and pretenuring) feedback
