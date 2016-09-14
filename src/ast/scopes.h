@@ -409,6 +409,7 @@ class Scope: public ZoneObject {
   // Retrieve `IsSimpleParameterList` of current or outer function.
   bool HasSimpleParameters();
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
+  bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
 
  protected:
   explicit Scope(Zone* zone);

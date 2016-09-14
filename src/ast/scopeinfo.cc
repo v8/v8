@@ -155,18 +155,20 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   }
 
   // Encode the flags.
-  int flags = ScopeTypeField::encode(scope->scope_type()) |
-              CallsEvalField::encode(scope->calls_eval()) |
-              LanguageModeField::encode(scope->language_mode()) |
-              DeclarationScopeField::encode(scope->is_declaration_scope()) |
-              ReceiverVariableField::encode(receiver_info) |
-              HasNewTargetField::encode(has_new_target) |
-              FunctionVariableField::encode(function_name_info) |
-              AsmModuleField::encode(asm_module) |
-              AsmFunctionField::encode(asm_function) |
-              HasSimpleParametersField::encode(has_simple_parameters) |
-              FunctionKindField::encode(function_kind) |
-              HasOuterScopeInfoField::encode(has_outer_scope_info);
+  int flags =
+      ScopeTypeField::encode(scope->scope_type()) |
+      CallsEvalField::encode(scope->calls_eval()) |
+      LanguageModeField::encode(scope->language_mode()) |
+      DeclarationScopeField::encode(scope->is_declaration_scope()) |
+      ReceiverVariableField::encode(receiver_info) |
+      HasNewTargetField::encode(has_new_target) |
+      FunctionVariableField::encode(function_name_info) |
+      AsmModuleField::encode(asm_module) |
+      AsmFunctionField::encode(asm_function) |
+      HasSimpleParametersField::encode(has_simple_parameters) |
+      FunctionKindField::encode(function_kind) |
+      HasOuterScopeInfoField::encode(has_outer_scope_info) |
+      IsDebugEvaluateScopeField::encode(scope->is_debug_evaluate_scope());
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(parameter_count);
@@ -302,7 +304,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       FunctionVariableField::encode(NONE) | AsmModuleField::encode(false) |
       AsmFunctionField::encode(false) | HasSimpleParametersField::encode(true) |
       FunctionKindField::encode(kNormalFunction) |
-      HasOuterScopeInfoField::encode(has_outer_scope_info);
+      HasOuterScopeInfoField::encode(has_outer_scope_info) |
+      IsDebugEvaluateScopeField::encode(false);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -355,7 +358,8 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
       AsmModuleField::encode(false) | AsmFunctionField::encode(false) |
       HasSimpleParametersField::encode(has_simple_parameters) |
       FunctionKindField::encode(FunctionKind::kNormalFunction) |
-      HasOuterScopeInfoField::encode(has_outer_scope_info);
+      HasOuterScopeInfoField::encode(has_outer_scope_info) |
+      IsDebugEvaluateScopeField::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
@@ -488,6 +492,23 @@ bool ScopeInfo::HasOuterScopeInfo() {
     return HasOuterScopeInfoField::decode(Flags());
   } else {
     return false;
+  }
+}
+
+bool ScopeInfo::IsDebugEvaluateScope() {
+  if (length() > 0) {
+    return IsDebugEvaluateScopeField::decode(Flags());
+  } else {
+    return false;
+  }
+}
+
+void ScopeInfo::SetIsDebugEvaluateScope() {
+  if (length() > 0) {
+    DCHECK_EQ(scope_type(), WITH_SCOPE);
+    SetFlags(Flags() | IsDebugEvaluateScopeField::encode(true));
+  } else {
+    UNREACHABLE();
   }
 }
 

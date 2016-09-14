@@ -4394,6 +4394,13 @@ class ScopeInfo : public FixedArray {
   // Returns true if this ScopeInfo is linked to a outer ScopeInfo.
   bool HasOuterScopeInfo();
 
+  // Returns true if this ScopeInfo was created for a debug-evaluate scope.
+  bool IsDebugEvaluateScope();
+
+  // Can be used to mark a ScopeInfo that looks like a with-scope as actually
+  // being a debug-evaluate scope.
+  void SetIsDebugEvaluateScope();
+
   // Return the outer ScopeInfo if present.
   ScopeInfo* OuterScopeInfo();
 
@@ -4525,6 +4532,8 @@ class ScopeInfo : public FixedArray {
       : public BitField<FunctionKind, HasSimpleParametersField::kNext, 9> {};
   class HasOuterScopeInfoField
       : public BitField<bool, FunctionKindField::kNext, 1> {};
+  class IsDebugEvaluateScopeField
+      : public BitField<bool, HasOuterScopeInfoField::kNext, 1> {};
 
   // Properties of variables.
   class VariableModeField : public BitField<VariableMode, 0, 3> {};

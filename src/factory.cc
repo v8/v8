@@ -844,6 +844,7 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                                  Handle<Context> wrapped,
                                                  Handle<StringSet> whitelist) {
   STATIC_ASSERT(Context::WHITE_LIST_INDEX == Context::MIN_CONTEXT_SLOTS + 1);
+  DCHECK(scope_info->IsDebugEvaluateScope());
   Handle<ContextExtension> context_extension = NewContextExtension(
       scope_info, extension.is_null() ? Handle<Object>::cast(undefined_value())
                                       : Handle<Object>::cast(extension));
