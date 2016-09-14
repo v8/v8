@@ -82,7 +82,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   int32_t result_compiled;
   {
     v8::internal::Handle<v8::internal::Object> arguments[] = {
-        v8::internal::handle(v8::internal::Smi::FromInt(1), i_isolate)};
+        v8::internal::handle(v8::internal::Smi::FromInt(1), i_isolate),
+        v8::internal::handle(v8::internal::Smi::FromInt(2), i_isolate),
+        v8::internal::handle(v8::internal::Smi::FromInt(3), i_isolate)};
     result_compiled = testing::CallWasmFunctionForTesting(
         i_isolate, instance, compiler_thrower, "main", arraysize(arguments),
         arguments, v8::internal::wasm::ModuleOrigin::kWasmOrigin);
