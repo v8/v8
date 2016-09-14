@@ -8,19 +8,19 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "9d601d07a9adaa2719d114290e79084d429a7dab",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "4e62debd8bf6e75229861c7b8b352953f8bfec2e",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "702ac58e477214c635d9b541932e75a95d349352",
   "v8/third_party/icu":
-    Var("git_url") + "/chromium/deps/icu.git" + "@" + "2341038bf72869a5683a893a2b319a48ffec7f62",
+    Var("git_url") + "/chromium/deps/icu.git" + "@" + "b0bd3ee50bc2e768d7a17cbc60d87f517f024dbe",
   "v8/third_party/instrumented_libraries":
     Var("git_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "f15768d7fdf68c0748d20738184120c8ab2e6db7",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "adb8bf4e8fc92aa1717bf151b862d58e6f27c4f2",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "b97d6c93a3e805c9ba5356dca872f1801639fbc5",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "26eac53e73b09625e9b8f783b479e54fcae85f58",
   "v8/third_party/WebKit/Source/platform/inspector_protocol":
-    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "f9c1216417fe8e8f99d861a4d9cf360ae1d8645e",
+    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "f010dd827c6d3a8ec2f355168fc4342ba39a78f8",
   "v8/third_party/jinja2":
     Var("git_url") + "/chromium/src/third_party/jinja2.git" + "@" + "b61a2c009a579593a259c1b300e0ad02bf48fd78",
   "v8/third_party/markupsafe":
@@ -41,7 +41,7 @@ deps = {
   "v8/test/test262/harness":
     Var("git_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "4ac706a04b38c05a8012257dc657e069134902c7",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "23638ab6411fb9e25ea7f1837835b67a793b5499",
 }
 
 deps_os = {
