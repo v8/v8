@@ -204,6 +204,10 @@ class ValueDeserializer {
   Maybe<double> ReadDouble() WARN_UNUSED_RESULT;
   Maybe<Vector<const uint8_t>> ReadRawBytes(int size) WARN_UNUSED_RESULT;
 
+  // Reads a string if it matches the one provided.
+  // Returns true if this was the case. Otherwise, nothing is consumed.
+  bool ReadExpectedString(Handle<String> expected) WARN_UNUSED_RESULT;
+
   // Like ReadObject, but skips logic for special cases in simulating the
   // "stack machine".
   MaybeHandle<Object> ReadObjectInternal() WARN_UNUSED_RESULT;
@@ -232,7 +236,8 @@ class ValueDeserializer {
    * encountered. If successful, returns the number of properties read.
    */
   Maybe<uint32_t> ReadJSObjectProperties(Handle<JSObject> object,
-                                         SerializationTag end_tag);
+                                         SerializationTag end_tag,
+                                         bool can_use_transitions);
 
   // Manipulating the map from IDs to reified objects.
   bool HasObjectWithID(uint32_t id);

@@ -86,6 +86,21 @@ class ValueSerializerTest : public TestWithIsolate {
                   output_functor);
   }
 
+  // Variant which uses JSON.parse/stringify to check the result.
+  void RoundTripJSON(const char* source) {
+    RoundTripTest(
+        [this, source]() {
+          return JSON::Parse(serialization_context_, StringFromUtf8(source))
+              .ToLocalChecked();
+        },
+        [this, source](Local<Value> value) {
+          ASSERT_TRUE(value->IsObject());
+          EXPECT_EQ(source, Utf8Value(JSON::Stringify(deserialization_context_,
+                                                      value.As<Object>())
+                                          .ToLocalChecked()));
+        });
+  }
+
   Maybe<std::vector<uint8_t>> DoEncode(Local<Value> value) {
     Local<Context> context = serialization_context();
     ValueSerializer serializer(isolate(), GetSerializerDelegate());
@@ -702,6 +717,31 @@ TEST_F(ValueSerializerTest, RoundTripTrickyGetters) {
                       EXPECT_NE(std::string::npos,
                                 Utf8Value(message->Get()).find("sentinel"));
                     });
+}
+
+TEST_F(ValueSerializerTest, RoundTripDictionaryObjectForTransitions) {
+  // A case which should run on the fast path, and should reach all of the
+  // different cases:
+  // 1. no known transition (first time creating this kind of object)
+  // 2. expected transitions match to end
+  // 3. transition partially matches, but falls back due to new property 'w'
+  // 4. transition to 'z' is now a full transition (needs to be looked up)
+  // 5. same for 'w'
+  // 6. new property after complex transition succeeded
+  // 7. new property after complex transition failed (due to new property)
+  RoundTripJSON(
+      "[{\"x\":1,\"y\":2,\"z\":3}"
+      ",{\"x\":4,\"y\":5,\"z\":6}"
+      ",{\"x\":5,\"y\":6,\"w\":7}"
+      ",{\"x\":6,\"y\":7,\"z\":8}"
+      ",{\"x\":0,\"y\":0,\"w\":0}"
+      ",{\"x\":3,\"y\":1,\"w\":4,\"z\":1}"
+      ",{\"x\":5,\"y\":9,\"k\":2,\"z\":6}]");
+  // A simpler case that uses two-byte strings.
+  RoundTripJSON(
+      "[{\"\xF0\x9F\x91\x8A\":1,\"\xF0\x9F\x91\x8B\":2}"
+      ",{\"\xF0\x9F\x91\x8A\":3,\"\xF0\x9F\x91\x8C\":4}"
+      ",{\"\xF0\x9F\x91\x8A\":5,\"\xF0\x9F\x91\x9B\":6}]");
 }
 
 TEST_F(ValueSerializerTest, DecodeDictionaryObjectVersion0) {

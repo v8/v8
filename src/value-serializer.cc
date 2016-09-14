@@ -13,6 +13,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/transitions.h"
 
 namespace v8 {
 namespace internal {
@@ -1062,6 +1063,46 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   return string;
 }
 
+bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
+  // In the case of failure, the position in the stream is reset.
+  const uint8_t* original_position = position_;
+
+  SerializationTag tag;
+  uint32_t byte_length;
+  Vector<const uint8_t> bytes;
+  if (!ReadTag().To(&tag) || !ReadVarint<uint32_t>().To(&byte_length) ||
+      byte_length >
+          static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
+      !ReadRawBytes(byte_length).To(&bytes)) {
+    position_ = original_position;
+    return false;
+  }
+
+  expected = String::Flatten(expected);
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat = expected->GetFlatContent();
+
+  // If the bytes are verbatim what is in the flattened string, then the string
+  // is successfully consumed.
+  if (tag == SerializationTag::kUtf8String && flat.IsOneByte()) {
+    Vector<const uint8_t> chars = flat.ToOneByteVector();
+    if (byte_length == chars.length() &&
+        String::IsAscii(chars.begin(), chars.length()) &&
+        memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
+      return true;
+    }
+  } else if (tag == SerializationTag::kTwoByteString && flat.IsTwoByte()) {
+    Vector<const uc16> chars = flat.ToUC16Vector();
+    if (byte_length == static_cast<unsigned>(chars.length()) * sizeof(uc16) &&
+        memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
+      return true;
+    }
+  }
+
+  position_ = original_position;
+  return false;
+}
+
 MaybeHandle<JSObject> ValueDeserializer::ReadJSObject() {
   // If we are at the end of the stack, abort. This function may recurse.
   STACK_CHECK(isolate_, MaybeHandle<JSObject>());
@@ -1074,7 +1115,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadJSObject() {
 
   uint32_t num_properties;
   uint32_t expected_num_properties;
-  if (!ReadJSObjectProperties(object, SerializationTag::kEndJSObject)
+  if (!ReadJSObjectProperties(object, SerializationTag::kEndJSObject, true)
            .To(&num_properties) ||
       !ReadVarint<uint32_t>().To(&expected_num_properties) ||
       num_properties != expected_num_properties) {
@@ -1102,7 +1143,7 @@ MaybeHandle<JSArray> ValueDeserializer::ReadSparseJSArray() {
   uint32_t num_properties;
   uint32_t expected_num_properties;
   uint32_t expected_length;
-  if (!ReadJSObjectProperties(array, SerializationTag::kEndSparseJSArray)
+  if (!ReadJSObjectProperties(array, SerializationTag::kEndSparseJSArray, false)
            .To(&num_properties) ||
       !ReadVarint<uint32_t>().To(&expected_num_properties) ||
       !ReadVarint<uint32_t>().To(&expected_length) ||
@@ -1140,7 +1181,7 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   uint32_t num_properties;
   uint32_t expected_num_properties;
   uint32_t expected_length;
-  if (!ReadJSObjectProperties(array, SerializationTag::kEndDenseJSArray)
+  if (!ReadJSObjectProperties(array, SerializationTag::kEndDenseJSArray, false)
            .To(&num_properties) ||
       !ReadVarint<uint32_t>().To(&expected_num_properties) ||
       !ReadVarint<uint32_t>().To(&expected_length) ||
@@ -1389,9 +1430,127 @@ MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
   return js_object;
 }
 
+// Copies a vector of property values into an object, given the map that should
+// be used.
+static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
+                             const std::vector<Handle<Object>>& properties) {
+  JSObject::AllocateStorageForMap(object, map);
+  DCHECK(!object->map()->is_dictionary_map());
+
+  DisallowHeapAllocation no_gc;
+  DescriptorArray* descriptors = object->map()->instance_descriptors();
+  for (unsigned i = 0; i < properties.size(); i++) {
+    object->WriteToField(i, descriptors->GetDetails(i), *properties[i]);
+  }
+}
+
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
-    Handle<JSObject> object, SerializationTag end_tag) {
-  for (uint32_t num_properties = 0;; num_properties++) {
+    Handle<JSObject> object, SerializationTag end_tag,
+    bool can_use_transitions) {
+  uint32_t num_properties = 0;
+
+  // Fast path (following map transitions).
+  if (can_use_transitions) {
+    bool transitioning = true;
+    Handle<Map> map(object->map(), isolate_);
+    DCHECK(!map->is_dictionary_map());
+    DCHECK(map->instance_descriptors()->IsEmpty());
+    std::vector<Handle<Object>> properties;
+    properties.reserve(8);
+
+    while (transitioning) {
+      // If there are no more properties, finish.
+      SerializationTag tag;
+      if (!PeekTag().To(&tag)) return Nothing<uint32_t>();
+      if (tag == end_tag) {
+        ConsumeTag(end_tag);
+        CommitProperties(object, map, properties);
+        CHECK_LT(properties.size(), std::numeric_limits<uint32_t>::max());
+        return Just(static_cast<uint32_t>(properties.size()));
+      }
+
+      // Determine the key to be used and the target map to transition to, if
+      // possible. Transitioning may abort if the key is not a string, or if no
+      // transition was found.
+      Handle<Object> key;
+      Handle<Map> target;
+      Handle<String> expected_key = TransitionArray::ExpectedTransitionKey(map);
+      if (!expected_key.is_null() && ReadExpectedString(expected_key)) {
+        key = expected_key;
+        target = TransitionArray::ExpectedTransitionTarget(map);
+      } else {
+        if (!ReadObject().ToHandle(&key)) return Nothing<uint32_t>();
+        if (key->IsString()) {
+          key =
+              isolate_->factory()->InternalizeString(Handle<String>::cast(key));
+          target = TransitionArray::FindTransitionToField(
+              map, Handle<String>::cast(key));
+          transitioning = !target.is_null();
+        } else {
+          transitioning = false;
+        }
+      }
+
+      // Read the value that corresponds to it.
+      Handle<Object> value;
+      if (!ReadObject().ToHandle(&value)) return Nothing<uint32_t>();
+
+      // If still transitioning and the value fits the field representation
+      // (though generalization may be required), store the property value so
+      // that we can copy them all at once. Otherwise, stop transitioning.
+      if (transitioning) {
+        int descriptor = static_cast<int>(properties.size());
+        PropertyDetails details =
+            target->instance_descriptors()->GetDetails(descriptor);
+        Representation expected_representation = details.representation();
+        if (value->FitsRepresentation(expected_representation)) {
+          if (expected_representation.IsHeapObject() &&
+              !target->instance_descriptors()
+                   ->GetFieldType(descriptor)
+                   ->NowContains(value)) {
+            Handle<FieldType> value_type =
+                value->OptimalType(isolate_, expected_representation);
+            Map::GeneralizeFieldType(target, descriptor,
+                                     expected_representation, value_type);
+          }
+          DCHECK(target->instance_descriptors()
+                     ->GetFieldType(descriptor)
+                     ->NowContains(value));
+          properties.push_back(value);
+          map = target;
+          continue;
+        } else {
+          transitioning = false;
+        }
+      }
+
+      // Fell out of transitioning fast path. Commit the properties gathered so
+      // far, and then start setting properties slowly instead.
+      DCHECK(!transitioning);
+      CHECK_LT(properties.size(), std::numeric_limits<uint32_t>::max());
+      CommitProperties(object, map, properties);
+      num_properties = static_cast<uint32_t>(properties.size());
+
+      bool success;
+      LookupIterator it = LookupIterator::PropertyOrElement(
+          isolate_, object, key, &success, LookupIterator::OWN);
+      if (!success ||
+          JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
+              .is_null()) {
+        return Nothing<uint32_t>();
+      }
+      num_properties++;
+    }
+
+    // At this point, transitioning should be done, but at least one property
+    // should have been written (in the zero-property case, there is an early
+    // return).
+    DCHECK(!transitioning);
+    DCHECK_GE(num_properties, 1u);
+  }
+
+  // Slow path.
+  for (;; num_properties++) {
     SerializationTag tag;
     if (!PeekTag().To(&tag)) return Nothing<uint32_t>();
     if (tag == end_tag) {
