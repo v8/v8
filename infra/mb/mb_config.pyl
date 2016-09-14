@@ -595,9 +595,9 @@
       'gyp_defines': 'test_isolation_mode=prepare',
     },
 
-    # TODO(machenbach): Remove the symbolized config after the bots are  gone.
+    # TODO(machenbach): Remove the symbolized config after the bots are gone.
     'symbolized': {
-      'gn_args': 'symbolized=true',
+      'gn_args': 'v8_no_inline=true',
       'gyp_defines':
         'release_extra_cflags="-fno-inline-functions -fno-inline"',
     },

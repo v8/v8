@@ -62,6 +62,9 @@ declare_args() {
   # tools/gen-postmortem-metadata.py for details.
   v8_postmortem_support = false
 
+  # Switches off inlining in V8.
+  v8_no_inline = false
+
   # Similar to vfp but on MIPS.
   v8_can_use_fpu_instructions = true
 
@@ -356,6 +359,13 @@ config("toolchain") {
     }
   } else if (dcheck_always_on) {
     defines += [ "DEBUG" ]
+  }
+
+  if (v8_no_inline) {
+    cflags += [
+      "-fno-inline-functions",
+      "-fno-inline",
+    ]
   }
 }
 
