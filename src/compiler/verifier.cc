@@ -993,6 +993,9 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckTypeIs(node, to));
       break;
     }
+    case IrOpcode::kTruncateTaggedToBit:
+      break;
+
     case IrOpcode::kCheckBounds:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Unsigned31());

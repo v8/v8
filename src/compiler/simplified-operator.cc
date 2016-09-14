@@ -399,6 +399,7 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   V(ChangeUint32ToTagged, Operator::kNoProperties, 1, 0)         \
   V(ChangeTaggedToBit, Operator::kNoProperties, 1, 0)            \
   V(ChangeBitToTagged, Operator::kNoProperties, 1, 0)            \
+  V(TruncateTaggedToBit, Operator::kNoProperties, 1, 0)          \
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)       \
   V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)      \
   V(ObjectIsCallable, Operator::kNoProperties, 1, 0)             \

@@ -63,6 +63,8 @@ const PureOperator kPureOperators[] = {
     PURE(ChangeTaggedToBit, Operator::kNoProperties, 1),
     PURE(ChangeBitToTagged, Operator::kNoProperties, 1),
     PURE(TruncateTaggedToWord32, Operator::kNoProperties, 1),
+    PURE(TruncateTaggedToFloat64, Operator::kNoProperties, 1),
+    PURE(TruncateTaggedToBit, Operator::kNoProperties, 1),
     PURE(ObjectIsNumber, Operator::kNoProperties, 1),
     PURE(ObjectIsReceiver, Operator::kNoProperties, 1),
     PURE(ObjectIsSmi, Operator::kNoProperties, 1)

@@ -1343,6 +1343,18 @@ class RepresentationSelector {
       //------------------------------------------------------------------
       // JavaScript operators.
       //------------------------------------------------------------------
+      case IrOpcode::kJSToBoolean: {
+        if (truncation.IsUsedAsBool()) {
+          ProcessInput(node, 0, UseInfo::Bool());
+          ProcessInput(node, 1, UseInfo::None());
+          SetOutput(node, MachineRepresentation::kBit);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitInputs(node);
+          SetOutput(node, MachineRepresentation::kTagged);
+        }
+        return;
+      }
       case IrOpcode::kJSToNumber: {
         VisitInputs(node);
         // TODO(bmeurer): Optimize somewhat based on input type?
@@ -2465,7 +2477,6 @@ class RepresentationSelector {
         JS_CONTEXT_OP_LIST(OPCODE_CASE)
         JS_OTHER_OP_LIST(OPCODE_CASE)
 #undef OPCODE_CASE
-      case IrOpcode::kJSToBoolean:
       case IrOpcode::kJSToInteger:
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:

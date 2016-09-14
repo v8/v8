@@ -29,6 +29,9 @@ class Truncation final {
 
   // Queries.
   bool IsUnused() const { return kind_ == TruncationKind::kNone; }
+  bool IsUsedAsBool() const {
+    return LessGeneral(kind_, TruncationKind::kBool);
+  }
   bool IsUsedAsWord32() const {
     return LessGeneral(kind_, TruncationKind::kWord32);
   }

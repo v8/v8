@@ -650,10 +650,7 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
       Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
-      DCHECK(value.is_identical_to(factory()->true_value()) ||
-             value.is_identical_to(factory()->false_value()));
-      return jsgraph()->Int32Constant(
-          value.is_identical_to(factory()->true_value()) ? 1 : 0);
+      return jsgraph()->Int32Constant(value->BooleanValue() ? 1 : 0);
     }
     default:
       break;
@@ -665,9 +662,31 @@ Node* RepresentationChanger::GetBitRepresentationFor(
     // We just provide a dummy value here.
     return jsgraph()->Int32Constant(0);
   } else if (output_rep == MachineRepresentation::kTagged ||
-             output_rep == MachineRepresentation::kTaggedSigned ||
              output_rep == MachineRepresentation::kTaggedPointer) {
-    op = simplified()->ChangeTaggedToBit();
+    if (output_type->Is(Type::BooleanOrNullOrUndefined())) {
+      // true is the only trueish Oddball.
+      op = simplified()->ChangeTaggedToBit();
+    } else {
+      op = simplified()->TruncateTaggedToBit();
+    }
+  } else if (output_rep == MachineRepresentation::kTaggedSigned) {
+    node = jsgraph()->graph()->NewNode(machine()->WordEqual(), node,
+                                       jsgraph()->ZeroConstant());
+    return jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
+                                       jsgraph()->Int32Constant(0));
+  } else if (IsWord(output_rep)) {
+    node = jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
+                                       jsgraph()->Int32Constant(0));
+    return jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
+                                       jsgraph()->Int32Constant(0));
+  } else if (output_rep == MachineRepresentation::kFloat32) {
+    node = jsgraph()->graph()->NewNode(machine()->Float32Abs(), node);
+    return jsgraph()->graph()->NewNode(machine()->Float32LessThan(),
+                                       jsgraph()->Float32Constant(0.0), node);
+  } else if (output_rep == MachineRepresentation::kFloat64) {
+    node = jsgraph()->graph()->NewNode(machine()->Float64Abs(), node);
+    return jsgraph()->graph()->NewNode(machine()->Float64LessThan(),
+                                       jsgraph()->Float64Constant(0.0), node);
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kBit);
