@@ -136,30 +136,17 @@ void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
 
 const ModuleDescriptor::Entry* ModuleDescriptor::FindDuplicateExport(
     Zone* zone) const {
-  const ModuleDescriptor::Entry* candidate = nullptr;
   ZoneSet<const AstRawString*> export_names(zone);
   for (const auto& it : regular_exports_) {
     const Entry* entry = it.second;
     DCHECK_NOT_NULL(entry->export_name);
-    DCHECK(entry->location.IsValid());
-    bool is_duplicate = !export_names.insert(entry->export_name).second;
-    if (is_duplicate &&
-        (candidate == nullptr ||
-         entry->location.beg_pos > candidate->location.beg_pos)) {
-      candidate = entry;
-    }
+    if (!export_names.insert(entry->export_name).second) return entry;
   }
   for (auto entry : special_exports_) {
     if (entry->export_name == nullptr) continue;  // Star export.
-    DCHECK(entry->location.IsValid());
-    bool is_duplicate = !export_names.insert(entry->export_name).second;
-    if (is_duplicate &&
-        (candidate == nullptr ||
-         entry->location.beg_pos > candidate->location.beg_pos)) {
-      candidate = entry;
-    }
+    if (!export_names.insert(entry->export_name).second) return entry;
   }
-  return candidate;
+  return nullptr;
 }
 
 bool ModuleDescriptor::Validate(ModuleScope* module_scope,

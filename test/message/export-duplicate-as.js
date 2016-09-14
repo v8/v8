@@ -4,6 +4,6 @@
 //
 // MODULE
 
-var a, b, c;
+var a, b;
 export { a as c };
-export { a, b as c, c, b };
+export { a, b as c };

@@ -151,8 +151,8 @@ class ModuleDescriptor : public ZoneObject {
   ZoneMultimap<const AstRawString*, Entry*> regular_exports_;
   ZoneMap<const AstRawString*, const Entry*> regular_imports_;
 
-  // If there are multiple export entries with the same export name, return the
-  // last of them (in source order).  Otherwise return nullptr.
+  // If there are multiple export entries with the same export name, return one
+  // of them.  Otherwise return nullptr.
   const Entry* FindDuplicateExport(Zone* zone) const;
 
   // Find any implicitly indirect exports and make them explicit.
