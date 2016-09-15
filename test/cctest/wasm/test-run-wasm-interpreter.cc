@@ -306,6 +306,25 @@ TEST(GrowMemoryPreservesData) {
                       WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V(index))));
   CHECK_EQ(value, r.Call(1));
 }
+
+TEST(GrowMemoryInvalidSize) {
+  {
+    // Grow memory by an invalid amount without initial memory.
+    TestingModule module(kExecuteInterpreted);
+    WasmRunner<int32_t> r(&module, MachineType::Uint32());
+    BUILD(r, WASM_BLOCK(WASM_GROW_MEMORY(WASM_GET_LOCAL(0))));
+    CHECK_EQ(-1, r.Call(1048575));
+  }
+  {
+    // Grow memory by an invalid amount without initial memory.
+    TestingModule module(kExecuteInterpreted);
+    WasmRunner<int32_t> r(&module, MachineType::Uint32());
+    module.AddMemory(WasmModule::kPageSize);
+    BUILD(r, WASM_BLOCK(WASM_GROW_MEMORY(WASM_GET_LOCAL(0))));
+    CHECK_EQ(-1, r.Call(1048575));
+  }
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
