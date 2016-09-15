@@ -482,7 +482,9 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     TRACE("Not inlining %s into %s because bytecode generation failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
-    DCHECK(!info_->isolate()->has_pending_exception());
+    if (info_->isolate()->has_pending_exception()) {
+      info_->isolate()->clear_pending_exception();
+    }
     return NoChange();
   }
 
