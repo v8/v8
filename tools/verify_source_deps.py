@@ -25,20 +25,40 @@ V8_INCLUDE_BASE = os.path.join(V8_BASE, 'include')
 GYP_FILES = [
   os.path.join(V8_BASE, 'src', 'd8.gyp'),
   os.path.join(V8_BASE, 'src', 'v8.gyp'),
+  os.path.join(V8_BASE, 'src', 'inspector', 'inspector.gyp'),
   os.path.join(V8_BASE, 'src', 'third_party', 'vtune', 'v8vtune.gyp'),
   os.path.join(V8_BASE, 'test', 'cctest', 'cctest.gyp'),
   os.path.join(V8_BASE, 'test', 'unittests', 'unittests.gyp'),
   os.path.join(V8_BASE, 'tools', 'parser-shell.gyp'),
 ]
 
+GN_FILES = [
+  os.path.join(V8_BASE, 'BUILD.gn'),
+  os.path.join(V8_BASE, 'src', 'inspector', 'BUILD.gn'),
+  os.path.join(V8_BASE, 'test', 'cctest', 'BUILD.gn'),
+  os.path.join(V8_BASE, 'test', 'unittests', 'BUILD.gn'),
+  os.path.join(V8_BASE, 'tools', 'BUILD.gn'),
+]
+
+GN_UNSUPPORTED_FEATURES = [
+  'aix',
+  'cygwin',
+  'freebsd',
+  'openbsd',
+  'ppc',
+  'qnx',
+  'solaris',
+  'valgrind',
+  'vtune',
+  'x87',
+]
+
 
 def path_no_prefix(path):
-  if path.startswith('../'):
-    return path_no_prefix(path[3:])
-  elif path.startswith('src/'):
-    return path_no_prefix(path[4:])
-  else:
-    return path
+  for prefix in ['../', 'src/inspector/', 'src/']:
+    if path.startswith(prefix):
+      return path_no_prefix(path[len(prefix):])
+  return path
 
 
 def isources(directory):
@@ -99,8 +119,11 @@ print "----------- Files not in gyp: ------------"
 for i in sorted(icheck_values(gyp_values, V8_SRC_BASE, V8_INCLUDE_BASE)):
   print i
 
-gn_values = set(iflatten_gn_file(os.path.join(V8_BASE, 'BUILD.gn')))
+gn_values = set(itertools.chain(
+  *[iflatten_gn_file(gn_file) for gn_file in GN_FILES]
+  ))
 
 print "\n----------- Files not in gn: -------------"
 for i in sorted(icheck_values(gn_values, V8_SRC_BASE, V8_INCLUDE_BASE)):
-  print i
+  if not any(f in i for f in GN_UNSUPPORTED_FEATURES):
+    print i
