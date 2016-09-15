@@ -83,9 +83,8 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   parse_info_->set_language_mode(shared->language_mode());
 
   parser_.reset(new Parser(parse_info_.get()));
-  parser_->DeserializeScopeChain(
-      parse_info_.get(), handle(function_->context(), isolate_),
-      Scope::DeserializationMode::kDeserializeOffHeap);
+  parser_->DeserializeScopeChain(parse_info_.get(),
+                                 handle(function_->context(), isolate_));
 
   Handle<String> name(String::cast(shared->name()));
   parse_info_->set_function_name(

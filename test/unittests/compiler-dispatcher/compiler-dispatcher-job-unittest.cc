@@ -170,13 +170,14 @@ TEST_F(CompilerDispatcherJobTest, ScopeChain) {
   job->PrepareToParseOnMainThread();
   job->Parse();
   ASSERT_TRUE(job->FinalizeParsingOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToAnalyse);
+  ASSERT_TRUE(job->PrepareToCompileOnMainThread());
+  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToCompile);
 
   const AstRawString* var_x =
       job->parse_info_->ast_value_factory()->GetOneByteString("x");
   Variable* var = job->parse_info_->literal()->scope()->Lookup(var_x);
   ASSERT_TRUE(var);
-  ASSERT_TRUE(var->IsUnallocated());
+  ASSERT_TRUE(var->IsParameter());
 
   const AstRawString* var_g =
       job->parse_info_->ast_value_factory()->GetOneByteString("g");

@@ -50,9 +50,8 @@ BackgroundParsingTask::BackgroundParsingTask(
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
   source_->parser.reset(new Parser(source_->info.get()));
-  source_->parser->DeserializeScopeChain(
-      source_->info.get(), Handle<Context>::null(),
-      Scope::DeserializationMode::kDeserializeOffHeap);
+  source_->parser->DeserializeScopeChain(source_->info.get(),
+                                         MaybeHandle<Context>());
 }
 
 

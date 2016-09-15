@@ -184,8 +184,16 @@ class Parser : public ParserBase<Parser> {
   bool Parse(ParseInfo* info);
   void ParseOnBackground(ParseInfo* info);
 
-  void DeserializeScopeChain(ParseInfo* info, Handle<Context> context,
-                             Scope::DeserializationMode deserialization_mode);
+  // Deserialize the scope chain prior to parsing in which the script is going
+  // to be executed. If the script is a top-level script, or the scope chain
+  // consists of only a native context, maybe_context should be an empty
+  // handle.
+  //
+  // This only deserializes the scope chain, but doesn't connect the scopes to
+  // their corresponding scope infos. Therefore, looking up variables in the
+  // deserialized scopes is not possible.
+  void DeserializeScopeChain(ParseInfo* info,
+                             MaybeHandle<Context> maybe_context);
 
   // Handle errors detected during parsing, move statistics to Isolate,
   // internalize strings (move them to the heap).
@@ -433,8 +441,7 @@ class Parser : public ParserBase<Parser> {
   void InsertShadowingVarBindingInitializers(Block* block);
 
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
-  void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
-                                            bool* ok);
+  void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope);
 
   VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
                                int end_pos = kNoSourcePosition,

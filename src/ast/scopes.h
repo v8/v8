@@ -98,7 +98,7 @@ class Scope: public ZoneObject {
     int top_decl_;
   };
 
-  enum class DeserializationMode { kDeserializeOffHeap, kKeepScopeInfo };
+  enum class DeserializationMode { kIncludingVariables, kScopesOnly };
 
   static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
                                       Context* context,
@@ -576,9 +576,6 @@ class Scope: public ZoneObject {
 
   void SetDefaults();
 
-  void DeserializeScopeInfo(Isolate* isolate,
-                            AstValueFactory* ast_value_factory);
-
   friend class DeclarationScope;
 };
 
@@ -748,7 +745,7 @@ class DeclarationScope : public Scope {
 
   // Go through sloppy_block_function_map_ and hoist those (into this scope)
   // which should be hoisted.
-  void HoistSloppyBlockFunctions(AstNodeFactory* factory, bool* ok);
+  void HoistSloppyBlockFunctions(AstNodeFactory* factory);
 
   SloppyBlockFunctionMap* sloppy_block_function_map() {
     return &sloppy_block_function_map_;

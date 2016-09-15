@@ -603,31 +603,20 @@ Parser::Parser(ParseInfo* info)
   }
 }
 
-void Parser::DeserializeScopeChain(
-    ParseInfo* info, Handle<Context> context,
-    Scope::DeserializationMode deserialization_mode) {
+void Parser::DeserializeScopeChain(ParseInfo* info,
+                                   MaybeHandle<Context> maybe_context) {
   DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
   // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
   // context, which will have the "this" binding for script scopes.
   DeclarationScope* script_scope = NewScriptScope();
   info->set_script_scope(script_scope);
   Scope* scope = script_scope;
-  if (!context.is_null() && !context->IsNativeContext()) {
-    scope = Scope::DeserializeScopeChain(info->isolate(), zone(), *context,
-                                         script_scope, ast_value_factory(),
-                                         deserialization_mode);
+  Handle<Context> context;
+  if (maybe_context.ToHandle(&context) && !context->IsNativeContext()) {
+    scope = Scope::DeserializeScopeChain(
+        info->isolate(), zone(), *context, script_scope, ast_value_factory(),
+        Scope::DeserializationMode::kScopesOnly);
     DCHECK(!info->is_module() || scope->is_module_scope());
-    if (info->context().is_null()) {
-      DCHECK(deserialization_mode ==
-             Scope::DeserializationMode::kDeserializeOffHeap);
-    } else {
-      // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
-      // means the Parser cannot operate independent of the V8 heap. Tell the
-      // string table to internalize strings and values right after they're
-      // created. This kind of parsing can only be done in the main thread.
-      DCHECK(parsing_on_main_thread_);
-      ast_value_factory()->Internalize(info->isolate());
-    }
   }
   original_scope_ = scope;
 }
@@ -660,8 +649,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
     cached_parse_data_->Initialize();
   }
 
-  DeserializeScopeChain(info, info->context(),
-                        Scope::DeserializationMode::kKeepScopeInfo);
+  DeserializeScopeChain(info, info->context());
 
   source = String::Flatten(source);
   FunctionLiteral* result;
@@ -780,7 +768,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       // pre-existing bindings should be made writable, enumerable and
       // nonconfigurable if possible, whereas this code will leave attributes
       // unchanged if the property already exists.
-      InsertSloppyBlockFunctionVarBindings(scope, &ok);
+      InsertSloppyBlockFunctionVarBindings(scope);
     }
     if (ok) {
       CheckConflictingVarDeclarations(scope, &ok);
@@ -826,8 +814,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
     timer.Start();
   }
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
-  DeserializeScopeChain(info, info->context(),
-                        Scope::DeserializationMode::kKeepScopeInfo);
+  DeserializeScopeChain(info, info->context());
 
   // Initialize parser state.
   source = String::Flatten(source);
@@ -3668,7 +3655,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     Block* init_block = BuildParameterInitializationBlock(parameters, CHECK_OK);
 
     if (is_sloppy(inner_scope->language_mode())) {
-      InsertSloppyBlockFunctionVarBindings(inner_scope, CHECK_OK);
+      InsertSloppyBlockFunctionVarBindings(inner_scope);
     }
 
     // TODO(littledan): Merge the two rejection blocks into one
@@ -3690,7 +3677,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   } else {
     DCHECK_EQ(inner_scope, function_scope);
     if (is_sloppy(function_scope->language_mode())) {
-      InsertSloppyBlockFunctionVarBindings(function_scope, CHECK_OK);
+      InsertSloppyBlockFunctionVarBindings(function_scope);
     }
   }
 
@@ -3908,28 +3895,16 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
   }
 }
 
-void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
-                                                  bool* ok) {
-  scope->HoistSloppyBlockFunctions(factory(), CHECK_OK_VOID);
-
-  SloppyBlockFunctionMap* map = scope->sloppy_block_function_map();
-  for (ZoneHashMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
-    // Write in assignments to var for each block-scoped function declaration
-    auto delegates = static_cast<SloppyBlockFunctionStatement*>(p->value);
-    for (SloppyBlockFunctionStatement* delegate = delegates;
-         delegate != nullptr; delegate = delegate->next()) {
-      if (delegate->to() == nullptr) {
-        continue;
-      }
-      Expression* assignment = factory()->NewAssignment(
-          Token::ASSIGN, delegate->to(), delegate->from(), kNoSourcePosition);
-      Statement* statement =
-          factory()->NewExpressionStatement(assignment, kNoSourcePosition);
-      delegate->set_statement(statement);
-    }
+void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
+  // For the outermost eval scope, we cannot hoist during parsing: let
+  // declarations in the surrounding scope may prevent hoisting, but the
+  // information is unaccessible during parsing. In this case, we hoist later in
+  // DeclarationScope::Analyze.
+  if (scope->is_eval_scope() && scope->outer_scope() == original_scope_) {
+    return;
   }
+  scope->HoistSloppyBlockFunctions(factory());
 }
-
 
 // ----------------------------------------------------------------------------
 // Parser support
