@@ -421,6 +421,11 @@ class CodeAssembler {
   Node* CallJS(Callable const& callable, Node* context, Node* function,
                Node* receiver, Node* arg1, Node* arg2, size_t result_size = 1);
 
+  // Call to a C function with two arguments.
+  Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, Node* function, Node* arg0,
+                       Node* arg1);
+
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,
                        Variable* exception_var = nullptr);

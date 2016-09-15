@@ -270,41 +270,41 @@ namespace internal {
   CPP(DateConstructor)                                                        \
   CPP(DateConstructor_ConstructStub)                                          \
   /* ES6 section 20.3.4.2 Date.prototype.getDate ( ) */                       \
-  ASM(DatePrototypeGetDate)                                                   \
+  TFJ(DatePrototypeGetDate, 1)                                                \
   /* ES6 section 20.3.4.3 Date.prototype.getDay ( ) */                        \
-  ASM(DatePrototypeGetDay)                                                    \
+  TFJ(DatePrototypeGetDay, 1)                                                 \
   /* ES6 section 20.3.4.4 Date.prototype.getFullYear ( ) */                   \
-  ASM(DatePrototypeGetFullYear)                                               \
+  TFJ(DatePrototypeGetFullYear, 1)                                            \
   /* ES6 section 20.3.4.5 Date.prototype.getHours ( ) */                      \
-  ASM(DatePrototypeGetHours)                                                  \
+  TFJ(DatePrototypeGetHours, 1)                                               \
   /* ES6 section 20.3.4.6 Date.prototype.getMilliseconds ( ) */               \
-  ASM(DatePrototypeGetMilliseconds)                                           \
+  TFJ(DatePrototypeGetMilliseconds, 1)                                        \
   /* ES6 section 20.3.4.7 Date.prototype.getMinutes ( ) */                    \
-  ASM(DatePrototypeGetMinutes)                                                \
+  TFJ(DatePrototypeGetMinutes, 1)                                             \
   /* ES6 section 20.3.4.8 Date.prototype.getMonth */                          \
-  ASM(DatePrototypeGetMonth)                                                  \
+  TFJ(DatePrototypeGetMonth, 1)                                               \
   /* ES6 section 20.3.4.9 Date.prototype.getSeconds ( ) */                    \
-  ASM(DatePrototypeGetSeconds)                                                \
+  TFJ(DatePrototypeGetSeconds, 1)                                             \
   /* ES6 section 20.3.4.10 Date.prototype.getTime ( ) */                      \
-  ASM(DatePrototypeGetTime)                                                   \
+  TFJ(DatePrototypeGetTime, 1)                                                \
   /* ES6 section 20.3.4.11 Date.prototype.getTimezoneOffset ( ) */            \
-  ASM(DatePrototypeGetTimezoneOffset)                                         \
+  TFJ(DatePrototypeGetTimezoneOffset, 1)                                      \
   /* ES6 section 20.3.4.12 Date.prototype.getUTCDate ( ) */                   \
-  ASM(DatePrototypeGetUTCDate)                                                \
+  TFJ(DatePrototypeGetUTCDate, 1)                                             \
   /* ES6 section 20.3.4.13 Date.prototype.getUTCDay ( ) */                    \
-  ASM(DatePrototypeGetUTCDay)                                                 \
+  TFJ(DatePrototypeGetUTCDay, 1)                                              \
   /* ES6 section 20.3.4.14 Date.prototype.getUTCFullYear ( ) */               \
-  ASM(DatePrototypeGetUTCFullYear)                                            \
+  TFJ(DatePrototypeGetUTCFullYear, 1)                                         \
   /* ES6 section 20.3.4.15 Date.prototype.getUTCHours ( ) */                  \
-  ASM(DatePrototypeGetUTCHours)                                               \
+  TFJ(DatePrototypeGetUTCHours, 1)                                            \
   /* ES6 section 20.3.4.16 Date.prototype.getUTCMilliseconds ( ) */           \
-  ASM(DatePrototypeGetUTCMilliseconds)                                        \
+  TFJ(DatePrototypeGetUTCMilliseconds, 1)                                     \
   /* ES6 section 20.3.4.17 Date.prototype.getUTCMinutes ( ) */                \
-  ASM(DatePrototypeGetUTCMinutes)                                             \
+  TFJ(DatePrototypeGetUTCMinutes, 1)                                          \
   /* ES6 section 20.3.4.18 Date.prototype.getUTCMonth ( ) */                  \
-  ASM(DatePrototypeGetUTCMonth)                                               \
+  TFJ(DatePrototypeGetUTCMonth, 1)                                            \
   /* ES6 section 20.3.4.19 Date.prototype.getUTCSeconds ( ) */                \
-  ASM(DatePrototypeGetUTCSeconds)                                             \
+  TFJ(DatePrototypeGetUTCSeconds, 1)                                          \
   CPP(DatePrototypeGetYear)                                                   \
   CPP(DatePrototypeSetYear)                                                   \
   CPP(DateNow)                                                                \
@@ -682,7 +682,7 @@ class Builtins {
   static void Generate_InterpreterPushArgsAndConstructImpl(
       MacroAssembler* masm, CallableType function_type);
 
-  static void Generate_DatePrototype_GetField(MacroAssembler* masm,
+  static void Generate_DatePrototype_GetField(CodeStubAssembler* masm,
                                               int field_index);
 
   enum class MathMaxMinKind { kMax, kMin };

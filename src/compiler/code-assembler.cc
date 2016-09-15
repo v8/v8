@@ -878,6 +878,14 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
   return CallN(call_descriptor, target, args);
 }
 
+Node* CodeAssembler::CallCFunction2(MachineType return_type,
+                                    MachineType arg0_type,
+                                    MachineType arg1_type, Node* function,
+                                    Node* arg0, Node* arg1) {
+  return raw_assembler_->CallCFunction2(return_type, arg0_type, arg1_type,
+                                        function, arg0, arg1);
+}
+
 void CodeAssembler::Goto(CodeAssembler::Label* label) {
   label->MergeVariables();
   raw_assembler_->Goto(label->label_);
