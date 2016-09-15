@@ -106,19 +106,8 @@
   'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5360
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-y-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-success-g-set-lastindex-err': [SKIP],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-success-y-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/g-init-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/g-match-empty-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/g-init-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-init-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/exec/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/test/y-fail-lastindex-no-write': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-err': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5123
   'built-ins/RegExp/prototype/Symbol.replace/coerce-global': [FAIL],
