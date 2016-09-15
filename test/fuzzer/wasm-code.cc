@@ -56,7 +56,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
   std::unique_ptr<const WasmModule> module(testing::DecodeWasmModuleForTesting(
-      i_isolate, &zone, interpreter_thrower, buffer.begin(), buffer.end(),
+      i_isolate, &zone, &interpreter_thrower, buffer.begin(), buffer.end(),
       v8::internal::wasm::ModuleOrigin::kWasmOrigin));
 
   if (module == nullptr) {
@@ -66,12 +66,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   {
     WasmVal args[] = {WasmVal(1), WasmVal(2), WasmVal(3)};
     result_interpreted = testing::InterpretWasmModule(
-        i_isolate, interpreter_thrower, module.get(), 0, args);
+        i_isolate, &interpreter_thrower, module.get(), 0, args);
   }
 
   ErrorThrower compiler_thrower(i_isolate, "Compiler");
   v8::internal::Handle<v8::internal::JSObject> instance =
-      testing::InstantiateModuleForTesting(i_isolate, compiler_thrower,
+      testing::InstantiateModuleForTesting(i_isolate, &compiler_thrower,
                                            module.get());
 
   if (!interpreter_thrower.error()) {
@@ -86,7 +86,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         v8::internal::handle(v8::internal::Smi::FromInt(2), i_isolate),
         v8::internal::handle(v8::internal::Smi::FromInt(3), i_isolate)};
     result_compiled = testing::CallWasmFunctionForTesting(
-        i_isolate, instance, compiler_thrower, "main", arraysize(arguments),
+        i_isolate, instance, &compiler_thrower, "main", arraysize(arguments),
         arguments, v8::internal::wasm::ModuleOrigin::kWasmOrigin);
   }
   if (result_interpreted == 0xdeadbeef) {

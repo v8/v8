@@ -251,7 +251,7 @@ TEST(Run_WasmModule_Serialization) {
             .ToHandleChecked();
     Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(41), isolate)};
     int32_t result = testing::CallWasmFunctionForTesting(
-        isolate, instance, thrower, kFunctionName, 1, params,
+        isolate, instance, &thrower, kFunctionName, 1, params,
         ModuleOrigin::kWasmOrigin);
     CHECK(result == 42);
     new_ctx->Exit();

@@ -24,7 +24,7 @@ uint32_t GetMinModuleMemSize(const WasmModule* module) {
 }
 
 const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate, Zone* zone,
-                                             ErrorThrower& thrower,
+                                             ErrorThrower* thrower,
                                              const byte* module_start,
                                              const byte* module_end,
                                              ModuleOrigin origin) {
@@ -36,33 +36,33 @@ const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate, Zone* zone,
   std::unique_ptr<const WasmModule> module(decoding_result.val);
   if (decoding_result.failed()) {
     // Module verification failed. throw.
-    thrower.Error("WASM.compileRun() failed: %s",
-                  decoding_result.error_msg.get());
+    thrower->Error("WASM.compileRun() failed: %s",
+                   decoding_result.error_msg.get());
     return nullptr;
   }
 
-  if (thrower.error()) return nullptr;
+  if (thrower->error()) return nullptr;
   return module.release();
 }
 
 const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
-                                                   ErrorThrower& thrower,
+                                                   ErrorThrower* thrower,
                                                    const WasmModule* module) {
   CHECK(module != nullptr);
 
   if (module->import_table.size() > 0) {
-    thrower.Error("Not supported: module has imports.");
+    thrower->Error("Not supported: module has imports.");
   }
   if (module->export_table.size() == 0) {
-    thrower.Error("Not supported: module has no exports.");
+    thrower->Error("Not supported: module has no exports.");
   }
 
-  if (thrower.error()) return Handle<JSObject>::null();
+  if (thrower->error()) return Handle<JSObject>::null();
 
   // Although we decoded the module for some pre-validation, run the bytes
   // again through the normal pipeline.
   MaybeHandle<JSObject> module_object = CreateModuleObjectFromBytes(
-      isolate, module->module_start, module->module_end, &thrower,
+      isolate, module->module_start, module->module_end, thrower,
       ModuleOrigin::kWasmOrigin);
   if (module_object.is_null()) return Handle<JSObject>::null();
   return WasmModule::Instantiate(isolate, module_object.ToHandleChecked(),
@@ -78,22 +78,22 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
-      isolate, &zone, thrower, module_start, module_end, origin));
+      isolate, &zone, &thrower, module_start, module_end, origin));
 
   if (module == nullptr) {
     return -1;
   }
   Handle<JSObject> instance =
-      InstantiateModuleForTesting(isolate, thrower, module.get());
+      InstantiateModuleForTesting(isolate, &thrower, module.get());
   if (instance.is_null()) {
     return -1;
   }
   const char* f_name = origin == ModuleOrigin::kAsmJsOrigin ? "caller" : "main";
-  return CallWasmFunctionForTesting(isolate, instance, thrower, f_name, 0,
+  return CallWasmFunctionForTesting(isolate, instance, &thrower, f_name, 0,
                                     nullptr, origin);
 }
 
-int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower& thrower,
+int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
                             const WasmModule* module, int function_index,
                             WasmVal* args) {
   CHECK(module != nullptr);
@@ -102,13 +102,13 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower& thrower,
   v8::internal::HandleScope scope(isolate);
 
   if (module->import_table.size() > 0) {
-    thrower.Error("Not supported: module has imports.");
+    thrower->Error("Not supported: module has imports.");
   }
   if (module->export_table.size() == 0) {
-    thrower.Error("Not supported: module has no exports.");
+    thrower->Error("Not supported: module has no exports.");
   }
 
-  if (thrower.error()) return -1;
+  if (thrower->error()) return -1;
 
   ModuleEnv module_env;
   module_env.module = module;
@@ -121,7 +121,7 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower& thrower,
         module->module_start + module->functions[i].code_end_offset};
     DecodeResult result = VerifyWasmCode(isolate->allocator(), body);
     if (result.failed()) {
-      thrower.Error("Function did not verify");
+      thrower->Error("Function did not verify");
       return -1;
     }
   }
@@ -152,13 +152,14 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower& thrower,
   } else if (thread->state() == WasmInterpreter::TRAPPED) {
     return 0xdeadbeef;
   } else {
-    thrower.Error("Interpreter did not finish execution within its step bound");
+    thrower->Error(
+        "Interpreter did not finish execution within its step bound");
     return -1;
   }
 }
 
 int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
-                                   ErrorThrower& thrower, const char* name,
+                                   ErrorThrower* thrower, const char* name,
                                    int argc, Handle<Object> argv[],
                                    ModuleOrigin origin) {
   Handle<JSObject> exports_object;
@@ -184,7 +185,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
 
   // The result should be a number.
   if (retval.is_null()) {
-    thrower.Error("WASM.compileRun() failed: Invocation was null");
+    thrower->Error("WASM.compileRun() failed: Invocation was null");
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();
@@ -194,7 +195,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
   if (result->IsHeapNumber()) {
     return static_cast<int32_t>(HeapNumber::cast(*result)->value());
   }
-  thrower.Error("WASM.compileRun() failed: Return value should be number");
+  thrower->Error("WASM.compileRun() failed: Return value should be number");
   return -1;
 }
 

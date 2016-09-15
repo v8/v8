@@ -484,24 +484,25 @@ WasmModule::WasmModule(byte* module_start)
       pending_tasks(new base::Semaphore(0)) {}
 
 static MaybeHandle<JSFunction> ReportFFIError(
-    ErrorThrower& thrower, const char* error, uint32_t index,
+    ErrorThrower* thrower, const char* error, uint32_t index,
     Handle<String> module_name, MaybeHandle<String> function_name) {
   Handle<String> function_name_handle;
   if (function_name.ToHandle(&function_name_handle)) {
-    thrower.Error("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",
-                  index, module_name->length(), module_name->ToCString().get(),
-                  function_name_handle->length(),
-                  function_name_handle->ToCString().get(), error);
+    thrower->Error("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",
+                   index, module_name->length(), module_name->ToCString().get(),
+                   function_name_handle->length(),
+                   function_name_handle->ToCString().get(), error);
   } else {
-    thrower.Error("Import #%d module=\"%.*s\" error: %s", index,
-                  module_name->length(), module_name->ToCString().get(), error);
+    thrower->Error("Import #%d module=\"%.*s\" error: %s", index,
+                   module_name->length(), module_name->ToCString().get(),
+                   error);
   }
-  thrower.Error("Import ");
+  thrower->Error("Import ");
   return MaybeHandle<JSFunction>();
 }
 
 static MaybeHandle<JSReceiver> LookupFunction(
-    ErrorThrower& thrower, Factory* factory, Handle<JSReceiver> ffi,
+    ErrorThrower* thrower, Factory* factory, Handle<JSReceiver> ffi,
     uint32_t index, Handle<String> module_name,
     MaybeHandle<String> function_name) {
   if (ffi.is_null()) {
@@ -702,7 +703,7 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate,
       CHECK(param_count >= 0);
 
       MaybeHandle<JSReceiver> function = LookupFunction(
-          *thrower, isolate->factory(), ffi, index, module_name, function_name);
+          thrower, isolate->factory(), ffi, index, module_name, function_name);
       if (function.is_null()) return false;
       Handle<Code> code;
       Handle<JSReceiver> target = function.ToHandleChecked();
@@ -760,10 +761,10 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate,
 void InitializeParallelCompilation(
     Isolate* isolate, const std::vector<WasmFunction>& functions,
     std::vector<compiler::WasmCompilationUnit*>& compilation_units,
-    ModuleEnv& module_env, ErrorThrower& thrower) {
+    ModuleEnv& module_env, ErrorThrower* thrower) {
   for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size(); ++i) {
     compilation_units[i] = new compiler::WasmCompilationUnit(
-        &thrower, isolate, &module_env, &functions[i], i);
+        thrower, isolate, &module_env, &functions[i], i);
   }
 }
 
@@ -852,7 +853,7 @@ void CompileInParallel(Isolate* isolate, const WasmModule* module,
   // 1) The main thread allocates a compilation unit for each wasm function
   //    and stores them in the vector {compilation_units}.
   InitializeParallelCompilation(isolate, module->functions, compilation_units,
-                                *module_env, *thrower);
+                                *module_env, thrower);
 
   // Objects for the synchronization with the background threads.
   base::Mutex result_mutex;

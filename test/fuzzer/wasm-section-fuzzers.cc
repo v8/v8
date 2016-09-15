@@ -47,7 +47,7 @@ int fuzz_wasm_section(WasmSection::Code section, const uint8_t* data,
   ErrorThrower thrower(i_isolate, "decoder");
 
   std::unique_ptr<const WasmModule> module(testing::DecodeWasmModuleForTesting(
-      i_isolate, &zone, thrower, buffer.begin(), buffer.end(), kWasmOrigin));
+      i_isolate, &zone, &thrower, buffer.begin(), buffer.end(), kWasmOrigin));
 
   return 0;
 }
