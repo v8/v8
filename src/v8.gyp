@@ -2242,7 +2242,6 @@
             'experimental_library_files': [
               'js/datetime-format-to-parts.js',
               'js/icu-case-mapping.js',
-              'js/intl-extra.js',
              ],
           }],
         ],

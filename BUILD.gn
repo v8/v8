@@ -465,7 +465,6 @@ action("js2c_experimental") {
     sources += [
       "src/js/datetime-format-to-parts.js",
       "src/js/icu-case-mapping.js",
-      "src/js/intl-extra.js",
     ]
   }
 

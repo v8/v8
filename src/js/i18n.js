@@ -19,7 +19,6 @@
 
 var ArrayJoin;
 var ArrayPush;
-var FLAG_intl_extra;
 var GlobalDate = global.Date;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
@@ -48,10 +47,6 @@ utils.Import(function(from) {
   StringLastIndexOf = from.StringLastIndexOf;
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
-});
-
-utils.ImportFromExperimental(function(from) {
-  FLAG_intl_extra = from.FLAG_intl_extra;
 });
 
 // Utilities for definitions
@@ -1036,9 +1031,6 @@ function initializeCollator(collator, locales, options) {
   // Writable, configurable and enumerable are set to false by default.
   %MarkAsInitializedIntlObjectOfType(collator, 'collator', internalCollator);
   collator[resolvedSymbol] = resolved;
-  if (FLAG_intl_extra) {
-    %object_define_property(collator, 'resolved', resolvedAccessor);
-  }
 
   return collator;
 }
@@ -1280,10 +1272,6 @@ function initializeNumberFormat(numberFormat, locales, options) {
 
   %MarkAsInitializedIntlObjectOfType(numberFormat, 'numberformat', formatter);
   numberFormat[resolvedSymbol] = resolved;
-  if (FLAG_intl_extra) {
-    %object_define_property(resolved, 'pattern', patternAccessor);
-    %object_define_property(numberFormat, 'resolved', resolvedAccessor);
-  }
 
   return numberFormat;
 }
@@ -1385,14 +1373,6 @@ function formatNumber(formatter, value) {
                                number);
 }
 
-
-/**
- * Returns a Number that represents string value that was passed in.
- */
-function IntlParseNumber(formatter, value) {
-  return %InternalNumberParse(%GetImplFromInitializedIntlObject(formatter),
-                              TO_STRING(value));
-}
 
 AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1, 'numberformat');
 
@@ -1674,10 +1654,6 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
 
   %MarkAsInitializedIntlObjectOfType(dateFormat, 'dateformat', formatter);
   dateFormat[resolvedSymbol] = resolved;
-  if (FLAG_intl_extra) {
-    %object_define_property(resolved, 'pattern', patternAccessor);
-    %object_define_property(dateFormat, 'resolved', resolvedAccessor);
-  }
 
   return dateFormat;
 }
@@ -1819,18 +1795,6 @@ function FormatDateToParts(dateValue) {
 %FunctionSetLength(FormatDateToParts, 0);
 
 
-/**
- * Returns a Date object representing the result of calling ToString(value)
- * according to the effective locale and the formatting options of this
- * DateTimeFormat.
- * Returns undefined if date string cannot be parsed.
- */
-function IntlParseDate(formatter, value) {
-  return %InternalDateParse(%GetImplFromInitializedIntlObject(formatter),
-                            TO_STRING(value));
-}
-
-
 // 0 because date is optional argument.
 AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0, 'dateformat');
 
@@ -1910,9 +1874,6 @@ function initializeBreakIterator(iterator, locales, options) {
   %MarkAsInitializedIntlObjectOfType(iterator, 'breakiterator',
                                      internalIterator);
   iterator[resolvedSymbol] = resolved;
-  if (FLAG_intl_extra) {
-    %object_define_property(iterator, 'resolved', resolvedAccessor);
-  }
 
   return iterator;
 }
@@ -2316,10 +2277,7 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
 %FunctionRemovePrototype(FormatDateToParts);
 
 utils.Export(function(to) {
-  to.AddBoundMethod = AddBoundMethod;
   to.FormatDateToParts = FormatDateToParts;
-  to.IntlParseDate = IntlParseDate;
-  to.IntlParseNumber = IntlParseNumber;
 });
 
 })

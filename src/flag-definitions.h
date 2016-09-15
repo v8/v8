@@ -180,11 +180,6 @@ DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 
-#ifdef V8_I18N_SUPPORT
-DEFINE_BOOL(intl_extra, false, "additional V8 Intl functions")
-// Removing extra Intl functions is shipped
-DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, intl_extra, true)
-#endif
 
 // Activate on ClusterFuzz.
 DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)

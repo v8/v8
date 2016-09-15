@@ -181,7 +181,6 @@ function PostNatives(utils) {
 
   // Whitelist of exports from normal natives to experimental natives and debug.
   var expose_list = [
-    "AddBoundMethod",
     "ArrayToString",
     "AsyncFunctionNext",
     "AsyncFunctionThrow",
@@ -189,8 +188,6 @@ function PostNatives(utils) {
     "GetIterator",
     "GetMethod",
     "GlobalPromise",
-    "IntlParseDate",
-    "IntlParseNumber",
     "IsPromise",
     "MapEntries",
     "MapIterator",
