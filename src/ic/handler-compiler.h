@@ -283,8 +283,6 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
                                             Isolate* isolate);
   void CompileElementHandlers(MapHandleList* receiver_maps,
                               List<Handle<Object>>* handlers);
-
-  static void GenerateStoreSlow(MacroAssembler* masm);
 };
 }  // namespace internal
 }  // namespace v8

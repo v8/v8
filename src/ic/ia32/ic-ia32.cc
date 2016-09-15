@@ -770,6 +770,13 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss);
 }
 
+void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
+  // Return address is on the stack.
+  StoreIC_PushArgs(masm);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
+}
 
 #undef __
 

@@ -5670,7 +5670,7 @@ void CreateWeakCellStub::GenerateAheadOfTime(Isolate* isolate) {
 
 void StoreElementStub::Generate(MacroAssembler* masm) {
   DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind());
-  ElementHandlerCompiler::GenerateStoreSlow(masm);
+  KeyedStoreIC::GenerateSlow(masm);
 }
 
 void StoreFastElementStub::GenerateAssembly(

@@ -321,34 +321,6 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
   __ ret(0);
 }
 
-
-static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-
-  Register slot = StoreWithVectorDescriptor::SlotRegister();
-  Register vector = StoreWithVectorDescriptor::VectorRegister();
-
-  __ PopReturnAddressTo(r11);
-  __ Push(receiver);
-  __ Push(name);
-  __ Push(value);
-  __ Push(slot);
-  __ Push(vector);
-  __ PushReturnAddressFrom(r11);
-}
-
-
-void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
-}
-
-
 #undef __
 #define __ ACCESS_MASM((masm()))
 

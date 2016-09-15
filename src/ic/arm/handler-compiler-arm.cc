@@ -330,24 +330,6 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ TailCallStub(&stub);
 }
 
-
-static void StoreIC_PushArgs(MacroAssembler* masm) {
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister(),
-          StoreWithVectorDescriptor::SlotRegister(),
-          StoreWithVectorDescriptor::VectorRegister());
-}
-
-
-void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
-  StoreIC_PushArgs(masm);
-
-  // The slow case calls into the runtime to complete the store without causing
-  // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
-}
-
-
 #undef __
 #define __ ACCESS_MASM(masm())
 

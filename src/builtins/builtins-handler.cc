@@ -49,7 +49,7 @@ void Builtins::Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
-  ElementHandlerCompiler::GenerateStoreSlow(masm);
+  KeyedStoreIC::GenerateSlow(masm);
 }
 
 void Builtins::Generate_LoadGlobalIC_Miss(CodeStubAssembler* assembler) {
