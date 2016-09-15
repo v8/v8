@@ -11,6 +11,7 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
+#include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
@@ -475,8 +476,18 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   if (info_->is_type_feedback_enabled()) info.MarkAsTypeFeedbackEnabled();
+  if (info_->is_optimizing_from_bytecode()) info.MarkAsOptimizeFromBytecode();
 
-  if (!Compiler::ParseAndAnalyze(info.parse_info())) {
+  if (info.is_optimizing_from_bytecode() && !Compiler::EnsureBytecode(&info)) {
+    TRACE("Not inlining %s into %s because bytecode generation failed\n",
+          shared_info->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    DCHECK(!info_->isolate()->has_pending_exception());
+    return NoChange();
+  }
+
+  if (!info.is_optimizing_from_bytecode() &&
+      !Compiler::ParseAndAnalyze(info.parse_info())) {
     TRACE("Not inlining %s into %s because parsing failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -486,7 +497,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     return NoChange();
   }
 
-  if (!Compiler::EnsureDeoptimizationSupport(&info)) {
+  if (!info.is_optimizing_from_bytecode() &&
+      !Compiler::EnsureDeoptimizationSupport(&info)) {
     TRACE("Not inlining %s into %s because deoptimization support failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -512,7 +524,17 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // Create the subgraph for the inlinee.
   Node* start;
   Node* end;
-  {
+  if (info.is_optimizing_from_bytecode()) {
+    // Run the BytecodeGraphBuilder to create the subgraph.
+    Graph::SubgraphScope scope(graph());
+    BytecodeGraphBuilder graph_builder(&zone, &info, jsgraph(),
+                                       call.frequency());
+    graph_builder.CreateGraph();
+
+    // Extract the inlinee start/end nodes.
+    start = graph()->start();
+    end = graph()->end();
+  } else {
     // Run the loop assignment analyzer on the inlinee.
     AstLoopAssignmentAnalyzer loop_assignment_analyzer(&zone, &info);
     LoopAssignmentAnalysis* loop_assignment =
@@ -616,7 +638,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // in that frame state tho, as the conversion of the receiver can be repeated
   // any number of times, it's not observable.
   if (node->opcode() == IrOpcode::kJSCallFunction &&
-      is_sloppy(parse_info.language_mode()) && !shared_info->native()) {
+      is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
     if (NeedsConvertReceiver(call.receiver(), effect)) {
       const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
@@ -647,7 +669,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // count (i.e. value outputs of start node minus target, receiver, new target,
   // arguments count and context) have to match the number of arguments passed
   // to the call.
-  int parameter_count = info.literal()->parameter_count();
+  int parameter_count = shared_info->internal_formal_parameter_count();
   DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 5);
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArtificialFrameState(
