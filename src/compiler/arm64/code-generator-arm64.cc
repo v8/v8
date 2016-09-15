@@ -1956,10 +1956,14 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Fmov(dst, src.ToFloat32());
       } else {
         DCHECK(destination->IsFPStackSlot());
-        UseScratchRegisterScope scope(masm());
-        FPRegister temp = scope.AcquireS();
-        __ Fmov(temp, src.ToFloat32());
-        __ Str(temp, g.ToMemOperand(destination, masm()));
+        if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
+          __ Str(wzr, g.ToMemOperand(destination, masm()));
+        } else {
+          UseScratchRegisterScope scope(masm());
+          FPRegister temp = scope.AcquireS();
+          __ Fmov(temp, src.ToFloat32());
+          __ Str(temp, g.ToMemOperand(destination, masm()));
+        }
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
@@ -1968,10 +1972,14 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Fmov(dst, src.ToFloat64());
       } else {
         DCHECK(destination->IsFPStackSlot());
-        UseScratchRegisterScope scope(masm());
-        FPRegister temp = scope.AcquireD();
-        __ Fmov(temp, src.ToFloat64());
-        __ Str(temp, g.ToMemOperand(destination, masm()));
+        if (bit_cast<int64_t>(src.ToFloat64()) == 0) {
+          __ Str(xzr, g.ToMemOperand(destination, masm()));
+        } else {
+          UseScratchRegisterScope scope(masm());
+          FPRegister temp = scope.AcquireD();
+          __ Fmov(temp, src.ToFloat64());
+          __ Str(temp, g.ToMemOperand(destination, masm()));
+        }
       }
     }
   } else if (source->IsFPRegister()) {
