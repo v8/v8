@@ -691,6 +691,7 @@ class RuntimeCallTimer {
   V(IndexedPropertyGetterCallback)                  \
   V(IndexedPropertyQueryCallback)                   \
   V(IndexedPropertySetterCallback)                  \
+  V(InvokeApiInterruptCallbacks)                    \
   V(InvokeFunctionCallback)                         \
   V(JS_Execution)                                   \
   V(Map_SetPrototype)                               \

@@ -979,6 +979,8 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
 
 
 void Isolate::InvokeApiInterruptCallbacks() {
+  RuntimeCallTimerScope runtimeTimer(
+      this, &RuntimeCallStats::InvokeApiInterruptCallbacks);
   // Note: callback below should be called outside of execution access lock.
   while (true) {
     InterruptEntry entry;
