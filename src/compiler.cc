@@ -257,6 +257,16 @@ bool IsEvalToplevel(Handle<SharedFunctionInfo> shared) {
              Script::COMPILATION_TYPE_EVAL;
 }
 
+bool Parse(ParseInfo* info) {
+  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // required by the constant array builder to de-duplicate objects without
+  // dereferencing handles.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
+
+  return Parser::ParseStatic(info);
+}
+
 void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                CompilationInfo* info) {
   // Log the code generation. If source information is available include
@@ -421,13 +431,8 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
-  // Create a canonical handle scope before internalizing parsed values if
-  // compiling bytecode. This is required for off-thread bytecode generation.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
-
   // Parse and update CompilationInfo with the results.
-  if (!Parser::ParseStatic(info->parse_info())) return MaybeHandle<Code>();
+  if (!Parse(info->parse_info())) return MaybeHandle<Code>();
   DCHECK_EQ(info->shared_info()->language_mode(),
             info->literal()->language_mode());
 
@@ -501,6 +506,14 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 }
 
 bool Renumber(ParseInfo* parse_info) {
+  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // required by the constant array builder to de-duplicate objects without
+  // dereferencing handles.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) {
+    canonical.reset(new CanonicalHandleScope(parse_info->isolate()));
+  }
+
   if (!AstNumbering::Renumber(parse_info->isolate(), parse_info->zone(),
                               parse_info->literal())) {
     return false;
@@ -924,7 +937,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   }
 
   // Parse and update CompilationInfo with the results.
-  if (!Parser::ParseStatic(info.parse_info())) return MaybeHandle<Code>();
+  if (!Parse(info.parse_info())) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info.shared_info();
   DCHECK_EQ(shared->language_mode(), info.literal()->language_mode());
 
@@ -1027,11 +1040,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   ParseInfo* parse_info = info->parse_info();
   Handle<Script> script = parse_info->script();
 
-  // Create a canonical handle scope before internalizing parsed values if
-  // compiling bytecode. This is required for off-thread bytecode generation.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate));
-
   // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
   FixedArray* array = isolate->native_context()->embedder_data();
   script->set_context_data(array->get(v8::Context::kDebugIdIndex));
@@ -1075,7 +1083,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         parse_info->set_compile_options(ScriptCompiler::kNoCompileOptions);
       }
 
-      if (!Parser::ParseStatic(parse_info)) {
+      if (!Parse(parse_info)) {
         return Handle<SharedFunctionInfo>::null();
       }
     }
@@ -1152,7 +1160,7 @@ bool Compiler::Analyze(ParseInfo* info) {
 }
 
 bool Compiler::ParseAndAnalyze(ParseInfo* info) {
-  if (!Parser::ParseStatic(info)) return false;
+  if (!Parse(info)) return false;
   if (!Compiler::Analyze(info)) return false;
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
@@ -1773,12 +1781,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   TimerEventScope<TimerEventCompileCode> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
-
-  // Create a canonical handle scope if compiling ignition bytecode. This is
-  // required by the constant array builder to de-duplicate common objects
-  // without dereferencing handles.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info.isolate()));
 
   if (lazy) {
     info.SetCode(isolate->builtins()->CompileLazy());
