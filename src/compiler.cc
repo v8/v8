@@ -705,6 +705,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   // TurboFan can optimize directly from existing bytecode.
   if (FLAG_turbo_from_bytecode && use_turbofan && ShouldUseIgnition(info)) {
+    if (info->is_osr() && !ignition_osr) return MaybeHandle<Code>();
     if (!Compiler::EnsureBytecode(info)) {
       if (isolate->has_pending_exception()) isolate->clear_pending_exception();
       return MaybeHandle<Code>();
@@ -719,6 +720,16 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     parse_info->set_allow_lazy_parsing(false);
     parse_info->set_lazy(false);
   }
+
+  // Verify that OSR compilations are delegated to the correct graph builder.
+  // Depending on the underlying frame the semantics of the {BailoutId} differ
+  // and the various graph builders hard-code a certain semantic:
+  //  - Interpreter : The BailoutId represents a bytecode offset.
+  //  - FullCodegen : The BailoutId represents the id of an AST node.
+  DCHECK_IMPLIES(info->is_osr() && ignition_osr,
+                 info->is_optimizing_from_bytecode());
+  DCHECK_IMPLIES(info->is_osr() && !ignition_osr,
+                 !info->is_optimizing_from_bytecode());
 
   // In case of concurrent recompilation, all handles below this point will be
   // allocated in a deferred handle scope that is detached and handed off to
