@@ -378,13 +378,9 @@ bool V8Debugger::setScriptSource(
               .setExceptionId(m_inspector->nextExceptionId())
               .setText(toProtocolStringWithTypeCheck(resultTuple->Get(2)))
               .setLineNumber(
-                  static_cast<int>(
-                      resultTuple->Get(3)->ToInteger(m_isolate)->Value()) -
-                  1)
+                  resultTuple->Get(3)->ToInteger(m_isolate)->Value() - 1)
               .setColumnNumber(
-                  static_cast<int>(
-                      resultTuple->Get(4)->ToInteger(m_isolate)->Value()) -
-                  1)
+                  resultTuple->Get(4)->ToInteger(m_isolate)->Value() - 1)
               .build();
       return false;
     }
@@ -416,7 +412,7 @@ JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
   if (!currentCallFramesV8->IsArray()) return JavaScriptCallFrames();
   v8::Local<v8::Array> callFramesArray = currentCallFramesV8.As<v8::Array>();
   JavaScriptCallFrames callFrames;
-  for (uint32_t i = 0; i < callFramesArray->Length(); ++i) {
+  for (size_t i = 0; i < callFramesArray->Length(); ++i) {
     v8::Local<v8::Value> callFrameValue;
     if (!callFramesArray->Get(debuggerContext(), i).ToLocal(&callFrameValue))
       return JavaScriptCallFrames();
@@ -462,7 +458,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   std::vector<String16> breakpointIds;
   if (!hitBreakpointNumbers.IsEmpty()) {
     breakpointIds.reserve(hitBreakpointNumbers->Length());
-    for (uint32_t i = 0; i < hitBreakpointNumbers->Length(); i++) {
+    for (size_t i = 0; i < hitBreakpointNumbers->Length(); i++) {
       v8::Local<v8::Value> hitBreakpointNumber = hitBreakpointNumbers->Get(i);
       DCHECK(!hitBreakpointNumber.IsEmpty() && hitBreakpointNumber->IsInt32());
       breakpointIds.push_back(
@@ -583,9 +579,9 @@ void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Context> context,
       callInternalGetterFunction(eventData, "type"));
   String16 name = toProtocolStringWithTypeCheck(
       callInternalGetterFunction(eventData, "name"));
-  int id = static_cast<int>(callInternalGetterFunction(eventData, "id")
-                                ->ToInteger(m_isolate)
-                                ->Value());
+  int id = callInternalGetterFunction(eventData, "id")
+               ->ToInteger(m_isolate)
+               ->Value();
   // The scopes for the ids are defined by the eventData.name namespaces. There
   // are currently two namespaces: "Object." and "Promise.".
   void* ptr = reinterpret_cast<void*>(id * 4 + (name[0] == 'P' ? 2 : 0) + 1);

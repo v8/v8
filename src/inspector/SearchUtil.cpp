@@ -16,8 +16,8 @@ namespace {
 String16 findMagicComment(const String16& content, const String16& name,
                           bool multiline) {
   DCHECK(name.find("=") == String16::kNotFound);
-  size_t length = content.length();
-  size_t nameLength = name.length();
+  unsigned length = content.length();
+  unsigned nameLength = name.length();
 
   size_t pos = length;
   size_t equalSignPos = 0;
@@ -56,7 +56,7 @@ String16 findMagicComment(const String16& content, const String16& name,
   if (newLine != String16::kNotFound) match = match.substring(0, newLine);
   match = match.stripWhiteSpace();
 
-  for (size_t i = 0; i < match.length(); ++i) {
+  for (unsigned i = 0; i < match.length(); ++i) {
     UChar c = match[i];
     if (c == '"' || c == '\'' || c == ' ' || c == '\t') return "";
   }
@@ -67,7 +67,7 @@ String16 findMagicComment(const String16& content, const String16& name,
 String16 createSearchRegexSource(const String16& text) {
   String16Builder result;
 
-  for (size_t i = 0; i < text.length(); i++) {
+  for (unsigned i = 0; i < text.length(); i++) {
     UChar c = text[i];
     if (c == '[' || c == ']' || c == '(' || c == ')' || c == '{' || c == '}' ||
         c == '+' || c == '-' || c == '*' || c == '.' || c == ',' || c == '?' ||
@@ -80,19 +80,19 @@ String16 createSearchRegexSource(const String16& text) {
   return result.toString();
 }
 
-std::unique_ptr<std::vector<size_t>> lineEndings(const String16& text) {
-  std::unique_ptr<std::vector<size_t>> result(new std::vector<size_t>());
+std::unique_ptr<std::vector<unsigned>> lineEndings(const String16& text) {
+  std::unique_ptr<std::vector<unsigned>> result(new std::vector<unsigned>());
 
   const String16 lineEndString = "\n";
-  size_t start = 0;
+  unsigned start = 0;
   while (start < text.length()) {
     size_t lineEnd = text.find(lineEndString, start);
     if (lineEnd == String16::kNotFound) break;
 
-    result->push_back(lineEnd);
+    result->push_back(static_cast<unsigned>(lineEnd));
     start = lineEnd + 1;
   }
-  result->push_back(text.length());
+  result->push_back(static_cast<unsigned>(text.length()));
 
   return result;
 }
@@ -102,11 +102,11 @@ std::vector<std::pair<int, String16>> scriptRegexpMatchesByLines(
   std::vector<std::pair<int, String16>> result;
   if (text.isEmpty()) return result;
 
-  std::unique_ptr<std::vector<size_t>> endings(lineEndings(text));
-  size_t size = endings->size();
-  size_t start = 0;
-  for (size_t lineNumber = 0; lineNumber < size; ++lineNumber) {
-    size_t lineEnd = endings->at(lineNumber);
+  std::unique_ptr<std::vector<unsigned>> endings(lineEndings(text));
+  unsigned size = endings->size();
+  unsigned start = 0;
+  for (unsigned lineNumber = 0; lineNumber < size; ++lineNumber) {
+    unsigned lineEnd = endings->at(lineNumber);
     String16 line = text.substring(start, lineEnd - start);
     if (line.length() && line[line.length() - 1] == '\r')
       line = line.substring(0, line.length() - 1);
