@@ -1112,7 +1112,7 @@ void IncrementalMarking::SpeedUp() {
   }
 
   bool size_of_old_space_multiplied_by_n_during_marking =
-      (heap_->PromotedSpaceSizeOfObjects() >
+      (heap_->PromotedTotalSize() >
        (marking_speed_ + 1) *
            old_generation_space_used_at_start_of_incremental_);
   if (size_of_old_space_multiplied_by_n_during_marking) {
@@ -1125,7 +1125,7 @@ void IncrementalMarking::SpeedUp() {
   }
 
   int64_t promoted_during_marking =
-      heap_->PromotedSpaceSizeOfObjects() -
+      heap_->PromotedTotalSize() -
       old_generation_space_used_at_start_of_incremental_;
   intptr_t delay = marking_speed_ * MB;
   intptr_t scavenge_slack = heap_->MaxSemiSpaceSize();
@@ -1300,7 +1300,7 @@ void IncrementalMarking::ResetStepCounters() {
   old_generation_space_available_at_start_of_incremental_ =
       SpaceLeftInOldSpace();
   old_generation_space_used_at_start_of_incremental_ =
-      heap_->PromotedSpaceSizeOfObjects();
+      heap_->PromotedTotalSize();
   bytes_rescanned_ = 0;
   marking_speed_ = kInitialMarkingSpeed;
   bytes_scanned_ = 0;
