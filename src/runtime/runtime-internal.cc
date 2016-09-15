@@ -274,7 +274,7 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
 namespace {
 
 void PromiseRejectEvent(Isolate* isolate, Handle<JSObject> promise,
-                        Handle<JSObject> rejected_promise, Handle<Object> value,
+                        Handle<Object> rejected_promise, Handle<Object> value,
                         bool debug_event) {
   if (isolate->debug()->is_active() && debug_event) {
     isolate->debug()->OnPromiseReject(rejected_promise, value);
@@ -306,12 +306,12 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
 
-  Handle<JSObject> rejected_promise = promise;
+  Handle<Object> rejected_promise = promise;
   if (isolate->debug()->is_active()) {
-    Handle<Object> promise_on_stack = isolate->GetPromiseOnStackOnThrow();
-    if (promise_on_stack->IsJSObject()) {
-      rejected_promise = Handle<JSObject>::cast(promise_on_stack);
-    }
+    // If the Promise.reject call is caught, then this will return
+    // undefined, which will be interpreted by PromiseRejectEvent
+    // as being a caught exception event.
+    rejected_promise = isolate->GetPromiseOnStackOnThrow();
   }
   PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
   return isolate->heap()->undefined_value();

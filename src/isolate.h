@@ -673,7 +673,13 @@ class Isolate {
   // Push and pop a promise and the current try-catch handler.
   void PushPromise(Handle<JSObject> promise);
   void PopPromise();
+
+  // Return the relevant Promise that a throw/rejection pertains to, based
+  // on the contents of the Promise stack
   Handle<Object> GetPromiseOnStackOnThrow();
+
+  // Heuristically guess whether a Promise is handled by user catch handler
+  bool PromiseHasUserDefinedRejectHandler(Handle<Object> promise);
 
   class ExceptionScope {
    public:

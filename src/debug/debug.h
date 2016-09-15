@@ -413,7 +413,7 @@ class Debug {
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
 
   void OnThrow(Handle<Object> exception);
-  void OnPromiseReject(Handle<JSObject> promise, Handle<Object> value);
+  void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
   void OnBeforeCompile(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
@@ -593,9 +593,6 @@ class Debug {
 
   // Mirror cache handling.
   void ClearMirrorCache();
-
-  MaybeHandle<Object> PromiseHasUserDefinedRejectHandler(
-      Handle<JSObject> promise);
 
   void CallEventCallback(v8::DebugEvent event,
                          Handle<Object> exec_state,

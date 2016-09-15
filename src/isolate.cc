@@ -1703,6 +1703,19 @@ void Isolate::PopPromise() {
   global_handles()->Destroy(global_promise.location());
 }
 
+bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
+  Handle<JSFunction> fun = promise_has_user_defined_reject_handler();
+  Handle<Object> has_reject_handler;
+  if (Execution::TryCall(this, fun, promise, 0, NULL)
+          .ToHandle(&has_reject_handler)) {
+    return has_reject_handler->IsTrue(this);
+  }
+  // If an exception is thrown in the course of execution of this built-in
+  // function, it indicates either a bug, or a synthetic uncatchable
+  // exception in the shutdown path. In either case, it's OK to predict either
+  // way in DevTools.
+  return false;
+}
 
 Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   Handle<Object> undefined = factory()->undefined_value();
@@ -1713,19 +1726,46 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   if (prediction == NOT_CAUGHT || prediction == CAUGHT_BY_EXTERNAL) {
     return undefined;
   }
+  Handle<Object> retval = undefined;
+  PromiseOnStack* promise_on_stack = tltop->promise_on_stack_;
   for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
     switch (PredictException(it.frame())) {
       case HandlerTable::UNCAUGHT:
-      case HandlerTable::ASYNC_AWAIT:
-        break;
+        continue;
       case HandlerTable::CAUGHT:
       case HandlerTable::DESUGARING:
-        return undefined;
+        if (retval->IsJSObject()) {
+          // Caught the result of an inner async/await invocation.
+          // Mark the inner promise as caught in the "synchronous case" so
+          // that Debug::OnException will see. In the synchronous case,
+          // namely in the code in an async function before the first
+          // await, the function which has this exception event has not yet
+          // returned, so the generated Promise has not yet been marked
+          // by AsyncFunctionAwaitCaught with promiseHandledHintSymbol.
+          Handle<Symbol> key = factory()->promise_handled_hint_symbol();
+          JSObject::SetProperty(Handle<JSObject>::cast(retval), key,
+                                factory()->true_value(), STRICT)
+              .Assert();
+        }
+        return retval;
       case HandlerTable::PROMISE:
-        return tltop->promise_on_stack_->promise();
+        return promise_on_stack->promise();
+      case HandlerTable::ASYNC_AWAIT: {
+        // If in the initial portion of async/await, continue the loop to pop up
+        // successive async/await stack frames until an asynchronous one with
+        // dependents is found, or a non-async stack frame is encountered, in
+        // order to handle the synchronous async/await catch prediction case:
+        // assume that async function calls are awaited.
+        retval = promise_on_stack->promise();
+        if (PromiseHasUserDefinedRejectHandler(retval)) {
+          return retval;
+        }
+        promise_on_stack = promise_on_stack->prev();
+        continue;
+      }
     }
   }
-  return undefined;
+  return retval;
 }
 
 
