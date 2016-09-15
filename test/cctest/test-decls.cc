@@ -249,9 +249,7 @@ TEST(Unknown) {
   { DeclarationContext context;
     context.Check("function x() { }; x",
                   1,  // access
-                  0,
-                  0,
-                  EXPECT_RESULT);
+                  1, 1, EXPECT_RESULT);
   }
 }
 
@@ -285,9 +283,7 @@ TEST(Absent) {
   { AbsentPropertyContext context;
     context.Check("function x() { }; x",
                   1,  // access
-                  0,
-                  0,
-                  EXPECT_RESULT);
+                  1, 1, EXPECT_RESULT);
   }
 
   { AbsentPropertyContext context;
@@ -355,9 +351,7 @@ TEST(Appearing) {
   { AppearingPropertyContext context;
     context.Check("function x() { }; x",
                   1,  // access
-                  0,
-                  0,
-                  EXPECT_RESULT);
+                  1, 1, EXPECT_RESULT);
   }
 }
 
@@ -486,11 +480,7 @@ TEST(ExistsInHiddenPrototype) {
   }
 
   { ExistsInHiddenPrototypeContext context;
-    context.Check("function x() { }; x",
-                  0,
-                  0,
-                  0,
-                  EXPECT_RESULT);
+    context.Check("function x() { }; x", 0, 1, 1, EXPECT_RESULT);
   }
 }
 
