@@ -101,7 +101,7 @@ class Scope: public ZoneObject {
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
 
   static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
-                                      Context* context,
+                                      ScopeInfo* scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
                                       DeserializationMode deserialization_mode);

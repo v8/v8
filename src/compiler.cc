@@ -1482,7 +1482,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     if (context->IsNativeContext()) parse_info.set_global();
     parse_info.set_language_mode(language_mode);
     parse_info.set_parse_restriction(restriction);
-    parse_info.set_context(context);
+    if (!context->IsNativeContext()) {
+      parse_info.set_outer_scope_info(handle(context->scope_info()));
+    }
 
     shared_info = CompileToplevel(&info);
 
@@ -1655,7 +1657,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
     parse_info.set_compile_options(compile_options);
     parse_info.set_extension(extension);
-    parse_info.set_context(context);
+    if (!context->IsNativeContext()) {
+      parse_info.set_outer_scope_info(handle(context->scope_info()));
+    }
     if (FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kProduceCodeCache) {
       info.PrepareForSerializing();

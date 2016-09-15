@@ -33,7 +33,9 @@ ParseInfo::ParseInfo(Zone* zone)
 
 ParseInfo::ParseInfo(Zone* zone, Handle<JSFunction> function)
     : ParseInfo(zone, Handle<SharedFunctionInfo>(function->shared())) {
-  set_context(Handle<Context>(function->context()));
+  if (!function->context()->IsNativeContext()) {
+    set_outer_scope_info(handle(function->context()->scope_info()));
+  }
 }
 
 ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)

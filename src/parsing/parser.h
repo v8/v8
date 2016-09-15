@@ -186,14 +186,14 @@ class Parser : public ParserBase<Parser> {
 
   // Deserialize the scope chain prior to parsing in which the script is going
   // to be executed. If the script is a top-level script, or the scope chain
-  // consists of only a native context, maybe_context should be an empty
-  // handle.
+  // consists of only a native context, maybe_outer_scope_info should be an
+  // empty handle.
   //
   // This only deserializes the scope chain, but doesn't connect the scopes to
   // their corresponding scope infos. Therefore, looking up variables in the
   // deserialized scopes is not possible.
   void DeserializeScopeChain(ParseInfo* info,
-                             MaybeHandle<Context> maybe_context);
+                             MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
   // Handle errors detected during parsing, move statistics to Isolate,
   // internalize strings (move them to the heap).

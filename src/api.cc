@@ -2221,7 +2221,6 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   }
 
   source->info->set_script(script);
-  source->info->set_context(isolate->native_context());
 
   {
     // Create a canonical handle scope if compiling ignition bytecode. This is

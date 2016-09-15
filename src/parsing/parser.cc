@@ -603,19 +603,19 @@ Parser::Parser(ParseInfo* info)
   }
 }
 
-void Parser::DeserializeScopeChain(ParseInfo* info,
-                                   MaybeHandle<Context> maybe_context) {
+void Parser::DeserializeScopeChain(
+    ParseInfo* info, MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
   DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
   // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
   // context, which will have the "this" binding for script scopes.
   DeclarationScope* script_scope = NewScriptScope();
   info->set_script_scope(script_scope);
   Scope* scope = script_scope;
-  Handle<Context> context;
-  if (maybe_context.ToHandle(&context) && !context->IsNativeContext()) {
+  Handle<ScopeInfo> outer_scope_info;
+  if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
     scope = Scope::DeserializeScopeChain(
-        info->isolate(), zone(), *context, script_scope, ast_value_factory(),
-        Scope::DeserializationMode::kScopesOnly);
+        info->isolate(), zone(), *outer_scope_info, script_scope,
+        ast_value_factory(), Scope::DeserializationMode::kScopesOnly);
     DCHECK(!info->is_module() || scope->is_module_scope());
   }
   original_scope_ = scope;
@@ -649,7 +649,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
     cached_parse_data_->Initialize();
   }
 
-  DeserializeScopeChain(info, info->context());
+  DeserializeScopeChain(info, info->maybe_outer_scope_info());
 
   source = String::Flatten(source);
   FunctionLiteral* result;
@@ -814,7 +814,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
     timer.Start();
   }
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
-  DeserializeScopeChain(info, info->context());
+  DeserializeScopeChain(info, info->maybe_outer_scope_info());
 
   // Initialize parser state.
   source = String::Flatten(source);
@@ -4052,7 +4052,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
                                              info->source_stream_encoding()));
     stream_ptr = stream.get();
   }
-  DCHECK(info->context().is_null() || info->context()->IsNativeContext());
+  DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);
 

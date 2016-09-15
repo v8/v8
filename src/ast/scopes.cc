@@ -308,7 +308,7 @@ bool Scope::IsAsmFunction() const {
 }
 
 Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
-                                    Context* context,
+                                    ScopeInfo* scope_info,
                                     DeclarationScope* script_scope,
                                     AstValueFactory* ast_value_factory,
                                     DeserializationMode deserialization_mode) {
@@ -316,93 +316,68 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   Scope* current_scope = nullptr;
   Scope* innermost_scope = nullptr;
   Scope* outer_scope = nullptr;
-  while (!context->IsNativeContext()) {
-    if (context->IsWithContext() || context->IsDebugEvaluateContext()) {
+  while (scope_info) {
+    if (scope_info->scope_type() == WITH_SCOPE) {
       // For scope analysis, debug-evaluate is equivalent to a with scope.
-      outer_scope = new (zone)
-          Scope(zone, WITH_SCOPE, Handle<ScopeInfo>(context->scope_info()));
+      outer_scope = new (zone) Scope(zone, WITH_SCOPE, handle(scope_info));
 
       // TODO(yangguo): Remove once debug-evaluate properly keeps track of the
       // function scope in which we are evaluating.
-      if (context->IsDebugEvaluateContext()) {
+      if (scope_info->IsDebugEvaluateScope()) {
         outer_scope->set_is_debug_evaluate_scope();
       }
-    } else if (context->IsScriptContext()) {
-      // If we reach a script context, it's the outermost context with scope
-      // info. The next context will be the native context. Install the scope
-      // info of this script context onto the existing script scope to avoid
-      // nesting script scopes.
-      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+    } else if (scope_info->scope_type() == SCRIPT_SCOPE) {
+      // If we reach a script scope, it's the outermost scope. Install the
+      // scope info of this script context onto the existing script scope to
+      // avoid nesting script scopes.
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
-        script_scope->SetScriptScopeInfo(scope_info);
+        script_scope->SetScriptScopeInfo(handle(scope_info));
       }
-      DCHECK(context->previous()->IsNativeContext());
+      DCHECK(!scope_info->HasOuterScopeInfo());
       break;
-    } else if (context->IsFunctionContext()) {
-      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+    } else if (scope_info->scope_type() == FUNCTION_SCOPE ||
+               scope_info->scope_type() == EVAL_SCOPE) {
       // TODO(neis): For an eval scope, we currently create an ordinary function
       // context.  This is wrong and needs to be fixed.
       // https://bugs.chromium.org/p/v8/issues/detail?id=5295
-      DCHECK(scope_info->scope_type() == FUNCTION_SCOPE ||
-             scope_info->scope_type() == EVAL_SCOPE);
       outer_scope =
-          new (zone) DeclarationScope(zone, FUNCTION_SCOPE, scope_info);
+          new (zone) DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info));
       if (scope_info->IsAsmFunction())
         outer_scope->AsDeclarationScope()->set_asm_function();
       if (scope_info->IsAsmModule())
         outer_scope->AsDeclarationScope()->set_asm_module();
-    } else if (context->IsBlockContext()) {
-      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
-      DCHECK_EQ(scope_info->scope_type(), BLOCK_SCOPE);
+    } else if (scope_info->scope_type() == BLOCK_SCOPE) {
       if (scope_info->is_declaration_scope()) {
         outer_scope =
-            new (zone) DeclarationScope(zone, BLOCK_SCOPE, scope_info);
+            new (zone) DeclarationScope(zone, BLOCK_SCOPE, handle(scope_info));
       } else {
-        outer_scope = new (zone) Scope(zone, BLOCK_SCOPE, scope_info);
+        outer_scope = new (zone) Scope(zone, BLOCK_SCOPE, handle(scope_info));
       }
-    } else if (context->IsModuleContext()) {
-      ScopeInfo* scope_info = context->scope_info();
-      DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
-      outer_scope = new (zone) ModuleScope(
-          isolate, Handle<ScopeInfo>(scope_info), ast_value_factory);
+    } else if (scope_info->scope_type() == MODULE_SCOPE) {
+      outer_scope = new (zone)
+          ModuleScope(isolate, handle(scope_info), ast_value_factory);
     } else {
-      DCHECK(context->IsCatchContext());
-      String* name = context->catch_name();
+      DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
+      DCHECK_EQ(scope_info->LocalCount(), 1);
+      String* name = scope_info->LocalName(0);
       outer_scope = new (zone)
           Scope(zone, ast_value_factory->GetString(handle(name, isolate)),
-                Handle<ScopeInfo>(context->scope_info()));
+                handle(scope_info));
     }
     if (deserialization_mode == DeserializationMode::kScopesOnly) {
       outer_scope->scope_info_ = Handle<ScopeInfo>::null();
     }
     if (current_scope != nullptr) {
       outer_scope->AddInnerScope(current_scope);
-      DCHECK_IMPLIES(
-          deserialization_mode == DeserializationMode::kIncludingVariables,
-          current_scope->scope_info_->HasOuterScopeInfo());
-      DCHECK_IMPLIES(
-          deserialization_mode == DeserializationMode::kIncludingVariables,
-          outer_scope->scope_info_->Equals(
-              current_scope->scope_info_->OuterScopeInfo()));
     }
     current_scope = outer_scope;
     if (innermost_scope == nullptr) innermost_scope = current_scope;
-    context = context->previous();
+    scope_info = scope_info->HasOuterScopeInfo() ? scope_info->OuterScopeInfo()
+                                                 : nullptr;
   }
 
   if (innermost_scope == nullptr) return script_scope;
   script_scope->AddInnerScope(current_scope);
-#if DEBUG
-  if (deserialization_mode == DeserializationMode::kIncludingVariables) {
-    if (script_scope->scope_info_.is_null()) {
-      DCHECK(!current_scope->scope_info_->HasOuterScopeInfo());
-    } else {
-      DCHECK(!script_scope->scope_info_->HasOuterScopeInfo());
-      DCHECK(script_scope->scope_info_->Equals(
-          current_scope->scope_info_->OuterScopeInfo()));
-    }
-  }
-#endif
   return innermost_scope;
 }
 
@@ -527,20 +502,19 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();
 
-  if (!info->context().is_null() && !info->context()->IsNativeContext()) {
+  Handle<ScopeInfo> outer_scope_info;
+  if (info->maybe_outer_scope_info().ToHandle(&outer_scope_info)) {
     if (scope->outer_scope()) {
       DeclarationScope* script_scope = new (info->zone())
           DeclarationScope(info->zone(), info->ast_value_factory());
       info->set_script_scope(script_scope);
       scope->ReplaceOuterScope(Scope::DeserializeScopeChain(
-          info->isolate(), info->zone(), *info->context(), script_scope,
+          info->isolate(), info->zone(), *outer_scope_info, script_scope,
           info->ast_value_factory(),
           Scope::DeserializationMode::kIncludingVariables));
     } else {
-      DCHECK(info->context()->IsScriptContext());
-      Handle<ScopeInfo> scope_info(info->context()->scope_info(),
-                                   info->isolate());
-      scope->SetScriptScopeInfo(scope_info);
+      DCHECK_EQ(outer_scope_info->scope_type(), SCRIPT_SCOPE);
+      scope->SetScriptScopeInfo(outer_scope_info);
     }
   }
 

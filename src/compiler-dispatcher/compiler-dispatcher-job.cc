@@ -83,8 +83,12 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   parse_info_->set_language_mode(shared->language_mode());
 
   parser_.reset(new Parser(parse_info_.get()));
-  parser_->DeserializeScopeChain(parse_info_.get(),
-                                 handle(function_->context(), isolate_));
+  parser_->DeserializeScopeChain(
+      parse_info_.get(),
+      function_->context()->IsNativeContext()
+          ? MaybeHandle<ScopeInfo>()
+          : MaybeHandle<ScopeInfo>(function_->context()->scope_info(),
+                                   isolate_));
 
   Handle<String> name(String::cast(shared->name()));
   parse_info_->set_function_name(
@@ -141,7 +145,10 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
     Handle<Script> script(Script::cast(shared->script()), isolate_);
 
     parse_info_->set_script(script);
-    parse_info_->set_context(handle(function_->context(), isolate_));
+    if (!function_->context()->IsNativeContext()) {
+      parse_info_->set_outer_scope_info(
+          handle(function_->context()->scope_info(), isolate_));
+    }
     parse_info_->set_shared_info(handle(function_->shared(), isolate_));
 
     {

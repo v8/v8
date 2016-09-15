@@ -206,6 +206,10 @@ class MaybeHandle final {
     USE(a);
   }
 
+  template <typename S>
+  V8_INLINE MaybeHandle(S* object, Isolate* isolate)
+      : MaybeHandle(handle(object, isolate)) {}
+
   V8_INLINE void Assert() const { DCHECK_NOT_NULL(location_); }
   V8_INLINE void Check() const { CHECK_NOT_NULL(location_); }
 
