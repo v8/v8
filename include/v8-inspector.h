@@ -37,14 +37,14 @@ class V8_EXPORT StringView {
  public:
   StringView() : m_is8Bit(true), m_length(0), m_characters8(nullptr) {}
 
-  StringView(const uint8_t* characters, size_t length)
+  StringView(const uint8_t* characters, unsigned length)
       : m_is8Bit(true), m_length(length), m_characters8(characters) {}
 
-  StringView(const uint16_t* characters, size_t length)
+  StringView(const uint16_t* characters, unsigned length)
       : m_is8Bit(false), m_length(length), m_characters16(characters) {}
 
   bool is8Bit() const { return m_is8Bit; }
-  size_t length() const { return m_length; }
+  unsigned length() const { return m_length; }
 
   // TODO(dgozman): add DCHECK(m_is8Bit) to accessors once platform can be used
   // here.
@@ -53,7 +53,7 @@ class V8_EXPORT StringView {
 
  private:
   bool m_is8Bit;
-  size_t m_length;
+  unsigned m_length;
   union {
     const uint8_t* m_characters8;
     const uint16_t* m_characters16;

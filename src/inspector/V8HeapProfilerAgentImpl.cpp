@@ -294,7 +294,7 @@ void V8HeapProfilerAgentImpl::getHeapObjectId(ErrorString* errorString,
     return;
 
   v8::SnapshotObjectId id = m_isolate->GetHeapProfiler()->GetObjectId(value);
-  *heapSnapshotObjectId = String16::fromInteger(static_cast<size_t>(id));
+  *heapSnapshotObjectId = String16::fromInteger(id);
 }
 
 void V8HeapProfilerAgentImpl::requestHeapStatsUpdate() {

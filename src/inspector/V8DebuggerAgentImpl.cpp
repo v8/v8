@@ -934,7 +934,7 @@ std::unique_ptr<Array<CallFrame>> V8DebuggerAgentImpl::currentCallFrames(
                   : nullptr;
 
     String16 callFrameId =
-        RemoteCallFrameId::serialize(contextId, static_cast<int>(frameOrdinal));
+        RemoteCallFrameId::serialize(contextId, frameOrdinal);
     if (hasInternalError(
             errorString,
             !details
@@ -1006,11 +1006,9 @@ std::unique_ptr<Array<CallFrame>> V8DebuggerAgentImpl::currentCallFrames(
         return Array<CallFrame>::create();
     }
 
-    if (hasInternalError(
-            errorString,
-            !objects
-                 ->Set(debuggerContext, static_cast<int>(frameOrdinal), details)
-                 .FromMaybe(false)))
+    if (hasInternalError(errorString,
+                         !objects->Set(debuggerContext, frameOrdinal, details)
+                              .FromMaybe(false)))
       return Array<CallFrame>::create();
   }
 

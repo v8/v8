@@ -12,8 +12,6 @@
 #include "include/v8-profiler.h"
 #include "include/v8-version.h"
 
-#include <limits>
-
 namespace v8_inspector {
 
 namespace {
@@ -47,8 +45,7 @@ void toFramesVector(v8::Local<v8::StackTrace> stackTrace,
                     size_t maxStackSize, v8::Isolate* isolate) {
   DCHECK(isolate->InContext());
   int frameCount = stackTrace->GetFrameCount();
-  if (frameCount > static_cast<int>(maxStackSize))
-    frameCount = static_cast<int>(maxStackSize);
+  if (frameCount > static_cast<int>(maxStackSize)) frameCount = maxStackSize;
   for (int i = 0; i < frameCount; i++) {
     v8::Local<v8::StackFrame> stackFrame = stackTrace->GetFrame(i);
     frames.push_back(toFrame(stackFrame));
@@ -162,9 +159,8 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
   v8::Local<v8::StackTrace> stackTrace;
   if (isolate->InContext()) {
     isolate->GetCpuProfiler()->CollectSample();
-    DCHECK(maxStackSize <= std::numeric_limits<int>::max());
-    stackTrace = v8::StackTrace::CurrentStackTrace(
-        isolate, static_cast<int>(maxStackSize), stackTraceOptions);
+    stackTrace = v8::StackTrace::CurrentStackTrace(isolate, maxStackSize,
+                                                   stackTraceOptions);
   }
   return V8StackTraceImpl::create(debugger, contextGroupId, stackTrace,
                                   maxStackSize, description);

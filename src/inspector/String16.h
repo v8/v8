@@ -32,7 +32,6 @@ class String16 {
   }
 
   static String16 fromInteger(int);
-  static String16 fromInteger(size_t);
   static String16 fromDouble(double);
   static String16 fromDoublePrecision3(double);
   static String16 fromDoublePrecision6(double);
@@ -42,14 +41,14 @@ class String16 {
   const UChar* characters16() const { return m_impl.c_str(); }
   size_t length() const { return m_impl.length(); }
   bool isEmpty() const { return !m_impl.length(); }
-  UChar operator[](size_t index) const { return m_impl[index]; }
-  String16 substring(size_t pos, size_t len = UINT_MAX) const {
+  UChar operator[](unsigned index) const { return m_impl[index]; }
+  String16 substring(unsigned pos, unsigned len = UINT_MAX) const {
     return String16(m_impl.substr(pos, len));
   }
-  size_t find(const String16& str, size_t start = 0) const {
+  size_t find(const String16& str, unsigned start = 0) const {
     return m_impl.find(str.m_impl, start);
   }
-  size_t reverseFind(const String16& str, size_t start = UINT_MAX) const {
+  size_t reverseFind(const String16& str, unsigned start = UINT_MAX) const {
     return m_impl.rfind(str.m_impl, start);
   }
   void swap(String16& other) { m_impl.swap(other.m_impl); }

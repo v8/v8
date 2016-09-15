@@ -49,7 +49,7 @@ bool markArrayEntriesAsInternal(v8::Local<v8::Context> context,
   v8::Isolate* isolate = context->GetIsolate();
   v8::Local<v8::Private> privateValue = internalSubtypePrivate(isolate);
   v8::Local<v8::String> subtype = subtypeForInternalType(isolate, type);
-  for (uint32_t i = 0; i < array->Length(); ++i) {
+  for (size_t i = 0; i < array->Length(); ++i) {
     v8::Local<v8::Value> entry;
     if (!array->Get(context, i).ToLocal(&entry) || !entry->IsObject())
       return false;
