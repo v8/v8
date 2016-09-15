@@ -1755,6 +1755,7 @@
             4996,  # Deprecated function call.
           ],
           'cflags': [
+            '-Wno-zero-length-array',
             '-Wno-deprecated-declarations',
           ],
         }],

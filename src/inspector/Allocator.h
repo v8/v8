@@ -27,6 +27,11 @@ enum NotNullTagEnum { NotNullLiteral };
 // gives an error if passed a non-array.
 template <typename T, std::size_t Size>
 char (&ArrayLengthHelperFunction(T (&)[Size]))[Size];
+// GCC needs some help to deduce a 0 length array.
+#if defined(__GNUC__)
+template <typename T>
+char (&ArrayLengthHelperFunction(T (&)[0]))[0];
+#endif
 #define V8_INSPECTOR_ARRAY_LENGTH(array) \
   sizeof(::ArrayLengthHelperFunction(array))
 
