@@ -134,6 +134,7 @@ class WasmGraphBuilder {
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* GrowMemory(Node* input);
+  Node* Throw(Node* input);
   unsigned InputCount(Node* node);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   void AppendToMerge(Node* merge, Node* from);
@@ -306,6 +307,7 @@ class WasmGraphBuilder {
 
   Node* BuildJavaScriptToNumber(Node* node, Node* context, Node* effect,
                                 Node* control);
+
   Node* BuildChangeInt32ToTagged(Node* value);
   Node* BuildChangeFloat64ToTagged(Node* value);
   Node* BuildChangeTaggedToFloat64(Node* value);

@@ -914,7 +914,8 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_WASM(F) \
   F(WasmGrowMemory, 1, 1)          \
-  F(WasmThrowTypeError, 0, 1)
+  F(WasmThrowTypeError, 0, 1)      \
+  F(WasmThrow, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)

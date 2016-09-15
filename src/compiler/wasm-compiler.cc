@@ -1703,6 +1703,29 @@ Node* WasmGraphBuilder::GrowMemory(Node* input) {
   return result;
 }
 
+Node* WasmGraphBuilder::Throw(Node* input) {
+  MachineOperatorBuilder* machine = jsgraph()->machine();
+
+  // Pass the thrown value as two SMIs:
+  //
+  // upper = static_cast<uint32_t>(input) >> 16;
+  // lower = input & 0xFFFF;
+  //
+  // This is needed because we can't safely call BuildChangeInt32ToTagged from
+  // this method.
+  //
+  // TODO(wasm): figure out how to properly pass this to the runtime function.
+  Node* upper = BuildChangeInt32ToSmi(
+      graph()->NewNode(machine->Word32Shr(), input, Int32Constant(16)));
+  Node* lower = BuildChangeInt32ToSmi(
+      graph()->NewNode(machine->Word32And(), input, Int32Constant(0xFFFFu)));
+
+  Node* parameters[] = {lower, upper};  // thrown value
+  return BuildCallToRuntime(Runtime::kWasmThrow, jsgraph(),
+                            module_->instance->context, parameters,
+                            arraysize(parameters), effect_, *control_);
+}
+
 Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right,
                                      wasm::WasmCodePosition position) {
   MachineOperatorBuilder* m = jsgraph()->machine();

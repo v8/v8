@@ -106,6 +106,7 @@ var kSig_v_ii = makeSig([kAstI32, kAstI32], []);
 var kSig_v_iii = makeSig([kAstI32, kAstI32, kAstI32], []);
 var kSig_v_d = makeSig([kAstF64], []);
 var kSig_v_dd = makeSig([kAstF64, kAstF64], []);
+var kSig_v_ddi = makeSig([kAstF64, kAstF64, kAstI32], []);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -143,6 +144,7 @@ var kExprBrIf = 0x07;
 var kExprBrTable = 0x08;
 var kExprReturn = 0x09;
 var kExprUnreachable = 0x0a;
+var kExprThrow = 0xfa;
 var kExprEnd = 0x0f;
 
 var kExprI32Const = 0x10;
@@ -347,4 +349,21 @@ function assertTraps(trap, code) {
       return;
     }
     throw new MjsUnitAssertionError("Did not trap, expected: " + kTrapMsgs[trap]);
+}
+
+function assertWasmThrows(value, code) {
+    assertEquals("number", typeof(value));
+    try {
+      if (typeof code === 'function') {
+        code();
+      } else {
+        eval(code);
+      }
+    } catch (e) {
+      assertEquals("number", typeof e);
+      assertEquals(value, e);
+      // Success.
+      return;
+    }
+    throw new MjsUnitAssertionError("Did not throw at all, expected: " + value);
 }

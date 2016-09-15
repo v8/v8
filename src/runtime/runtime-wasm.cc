@@ -21,8 +21,7 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  uint32_t delta_pages = 0;
-  CHECK(args[0]->ToUint32(&delta_pages));
+  CONVERT_UINT32_ARG_CHECKED(delta_pages, 0);
   Handle<JSObject> module_instance;
 
   {
@@ -118,5 +117,17 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kWasmTrapTypeError));
 }
+
+RUNTIME_FUNCTION(Runtime_WasmThrow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_SMI_ARG_CHECKED(lower, 0);
+  CONVERT_SMI_ARG_CHECKED(upper, 1);
+
+  const int32_t thrown_value = (upper << 16) | lower;
+
+  return isolate->Throw(*isolate->factory()->NewNumberFromInt(thrown_value));
+}
+
 }  // namespace internal
 }  // namespace v8

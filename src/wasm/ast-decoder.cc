@@ -667,9 +667,8 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprThrow: {
             CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
-            Pop(0, kAstI32);
-
-            // TODO(jpp): start exception propagation.
+            Value value = Pop(0, kAstI32);
+            BUILD(Throw, value.node);
             break;
           }
           case kExprTry: {
