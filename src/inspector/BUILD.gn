@@ -135,7 +135,6 @@ v8_source_set("inspector") {
   sources += get_target_outputs(":inspector_debugger_script")
   sources += [
     "Allocator.h",
-    "Atomics.h",
     "InjectedScript.cpp",
     "InjectedScript.h",
     "InjectedScriptNative.cpp",

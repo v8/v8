@@ -37,7 +37,6 @@
       '../../include/v8-inspector.h',
       '../../include/v8-inspector-protocol.h',
       'inspector/Allocator.h',
-      'inspector/Atomics.h',
       'inspector/InjectedScript.cpp',
       'inspector/InjectedScript.h',
       'inspector/InjectedScriptNative.cpp',

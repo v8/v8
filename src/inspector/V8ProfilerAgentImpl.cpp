@@ -4,7 +4,7 @@
 
 #include "src/inspector/V8ProfilerAgentImpl.h"
 
-#include "src/inspector/Atomics.h"
+#include "src/base/atomicops.h"
 #include "src/inspector/StringUtil.h"
 #include "src/inspector/V8Debugger.h"
 #include "src/inspector/V8InspectorImpl.h"
@@ -279,7 +279,8 @@ void V8ProfilerAgentImpl::stop(
 }
 
 String16 V8ProfilerAgentImpl::nextProfileId() {
-  return String16::fromInteger(atomicIncrement(&s_lastProfileId));
+  return String16::fromInteger(
+      v8::base::NoBarrier_AtomicIncrement(&s_lastProfileId, 1));
 }
 
 void V8ProfilerAgentImpl::startProfiling(const String16& title) {
