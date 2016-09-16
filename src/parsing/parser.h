@@ -481,10 +481,11 @@ class Parser : public ParserBase<Parser> {
   // in order to force the function to be eagerly parsed, after all.
   LazyParsingResult SkipLazyFunctionBody(int* materialized_literal_count,
                                          int* expected_property_count,
-                                         bool may_abort, bool* ok);
+                                         bool is_inner_function, bool may_abort,
+                                         bool* ok);
 
   PreParser::PreParseResult ParseLazyFunctionBodyWithPreParser(
-      SingletonLogger* logger, bool may_abort);
+      SingletonLogger* logger, bool is_inner_function, bool may_abort);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
@@ -1066,6 +1067,7 @@ class Parser : public ParserBase<Parser> {
   }
 
   // Parser's private field members.
+  friend class DiscardableZoneScope;  // Uses reusable_preparser_.
 
   Scanner scanner_;
   PreParser* reusable_preparser_;
