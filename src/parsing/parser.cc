@@ -4549,21 +4549,46 @@ Expression* Parser::ExpressionListToExpression(ZoneList<Expression*>* args) {
 
 Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   // yield do {
+  //   promise_tmp = .promise;
   //   tmp = <operand>;
-  //   tmp = %AsyncFunctionAwait(.generator_object, tmp);
+  //   %AsyncFunctionAwait(.generator_object, tmp);
+  //   promise_tmp
   // }
+  // The value of the expression is returned to the caller of the async
+  // function for the first yield statement; for this, .promise is the
+  // appropriate return value, being a Promise that will be fulfilled or
+  // rejected with the appropriate value by the desugaring. Subsequent yield
+  // occurrences will return to the AsyncFunctionNext call within the
+  // implemementation of the intermediate throwaway Promise's then handler.
+  // This handler has nothing useful to do with the value, as the Promise is
+  // ignored. If we yielded the value of the throwawayPromise that
+  // AsyncFunctionAwait creates as an intermediate, it would create a memory
+  // leak; we must return .promise instead;
+  // The operand needs to be evaluated on a separate statement in order to get
+  // a break location, and the .promise needs to be read earlier so that it
+  // doesn't insert a false location.
+  // TODO(littledan): investigate why this ordering is needed in more detail.
   Variable* generator_object_variable =
       function_state_->generator_object_variable();
 
   // If generator_object_variable is null,
+  // TODO(littledan): Is this necessary?
   if (!generator_object_variable) return value;
 
   const int nopos = kNoSourcePosition;
 
-  Variable* temp_var = NewTemporary(ast_value_factory()->empty_string());
-  Block* do_block = factory()->NewBlock(nullptr, 2, false, nopos);
+  Block* do_block = factory()->NewBlock(nullptr, 3, false, nopos);
+
+  Variable* promise_temp_var =
+      NewTemporary(ast_value_factory()->empty_string());
+  Expression* promise_assignment = factory()->NewAssignment(
+      Token::ASSIGN, factory()->NewVariableProxy(promise_temp_var),
+      BuildDotPromise(), nopos);
+  do_block->statements()->Add(
+      factory()->NewExpressionStatement(promise_assignment, nopos), zone());
 
   // Wrap value evaluation to provide a break location.
+  Variable* temp_var = NewTemporary(ast_value_factory()->empty_string());
   Expression* value_assignment = factory()->NewAssignment(
       Token::ASSIGN, factory()->NewVariableProxy(temp_var), value, nopos);
   do_block->statements()->Add(
@@ -4583,14 +4608,13 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   Expression* async_function_await =
       factory()->NewCallRuntime(Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX,
                                 async_function_await_args, nopos);
+  do_block->statements()->Add(
+      factory()->NewExpressionStatement(async_function_await, await_pos),
+      zone());
 
   // Wrap await to provide a break location between value evaluation and yield.
-  Expression* await_assignment = factory()->NewAssignment(
-      Token::ASSIGN, factory()->NewVariableProxy(temp_var),
-      async_function_await, nopos);
-  do_block->statements()->Add(
-      factory()->NewExpressionStatement(await_assignment, await_pos), zone());
-  Expression* do_expr = factory()->NewDoExpression(do_block, temp_var, nopos);
+  Expression* do_expr =
+      factory()->NewDoExpression(do_block, promise_temp_var, nopos);
 
   generator_object = factory()->NewVariableProxy(generator_object_variable);
   return factory()->NewYield(generator_object, do_expr, nopos,
