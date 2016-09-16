@@ -151,6 +151,8 @@ class ParseInfo {
   bool is_arrow() const;
   bool is_async() const;
   bool is_default_constructor() const;
+  bool requires_class_field_init() const;
+  bool is_class_field_initializer() const;
   FunctionKind function_kind() const;
 
   //--------------------------------------------------------------------------

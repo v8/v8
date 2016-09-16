@@ -1593,6 +1593,10 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
                                receiver, 4);
         break;
       }
+      case ClassLiteral::Property::FIELD: {
+        UNREACHABLE();
+        break;
+      }
     }
   }
 }

@@ -13630,7 +13630,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     Handle<SharedFunctionInfo> shared_info, FunctionLiteral* lit) {
   // When adding fields here, make sure DeclarationScope::AnalyzePartially is
   // updated accordingly.
-  shared_info->set_length(lit->scope()->default_function_length());
+  shared_info->set_length(lit->scope()->arity());
   shared_info->set_internal_formal_parameter_count(lit->parameter_count());
   shared_info->set_function_token_position(lit->function_token_position());
   shared_info->set_start_position(lit->start_position());
@@ -13654,6 +13654,9 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   }
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   shared_info->set_asm_function(lit->scope()->asm_function());
+  shared_info->set_requires_class_field_init(lit->requires_class_field_init());
+  shared_info->set_is_class_field_initializer(
+      lit->is_class_field_initializer());
   SetExpectedNofPropertiesFromEstimate(shared_info, lit);
 }
 

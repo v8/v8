@@ -2626,6 +2626,21 @@ class FunctionLiteral final : public Expression {
   int yield_count() { return yield_count_; }
   void set_yield_count(int yield_count) { yield_count_ = yield_count; }
 
+  bool requires_class_field_init() {
+    return RequiresClassFieldInit::decode(bitfield_);
+  }
+  void set_requires_class_field_init(bool requires_class_field_init) {
+    bitfield_ =
+        RequiresClassFieldInit::update(bitfield_, requires_class_field_init);
+  }
+  bool is_class_field_initializer() {
+    return IsClassFieldInitializer::decode(bitfield_);
+  }
+  void set_is_class_field_initializer(bool is_class_field_initializer) {
+    bitfield_ =
+        IsClassFieldInitializer::update(bitfield_, is_class_field_initializer);
+  }
+
  private:
   friend class AstNodeFactory;
 
@@ -2655,21 +2670,23 @@ class FunctionLiteral final : public Expression {
                                        kHasDuplicateParameters) |
         IsFunction::encode(is_function) |
         ShouldEagerCompile::encode(eager_compile_hint == kShouldEagerCompile) |
+        RequiresClassFieldInit::encode(false) |
+        IsClassFieldInitializer::encode(false) |
         FunctionKindBits::encode(kind) | ShouldBeUsedOnceHint::encode(false);
     DCHECK(IsValidFunctionKind(kind));
   }
 
-  class FunctionTypeBits : public BitField16<FunctionType, 0, 2> {};
-  class Pretenure : public BitField16<bool, 2, 1> {};
-  class HasDuplicateParameters : public BitField16<bool, 3, 1> {};
-  class IsFunction : public BitField16<bool, 4, 1> {};
-  class ShouldEagerCompile : public BitField16<bool, 5, 1> {};
-  class ShouldBeUsedOnceHint : public BitField16<bool, 6, 1> {};
-  class FunctionKindBits : public BitField16<FunctionKind, 7, 9> {};
+  class FunctionTypeBits : public BitField<FunctionType, 0, 2> {};
+  class Pretenure : public BitField<bool, 2, 1> {};
+  class HasDuplicateParameters : public BitField<bool, 3, 1> {};
+  class IsFunction : public BitField<bool, 4, 1> {};
+  class ShouldEagerCompile : public BitField<bool, 5, 1> {};
+  class ShouldBeUsedOnceHint : public BitField<bool, 6, 1> {};
+  class RequiresClassFieldInit : public BitField<bool, 7, 1> {};
+  class IsClassFieldInitializer : public BitField<bool, 8, 1> {};
+  class FunctionKindBits : public BitField<FunctionKind, 9, 9> {};
 
-  // Start with 16-bit field, which should get packed together
-  // with Expression's trailing 16-bit field.
-  uint16_t bitfield_;
+  uint32_t bitfield_;
 
   BailoutReason dont_optimize_reason_;
 
@@ -2691,7 +2708,7 @@ class FunctionLiteral final : public Expression {
 // about a class literal's properties from the parser to the code generator.
 class ClassLiteralProperty final : public LiteralProperty {
  public:
-  enum Kind : uint8_t { METHOD, GETTER, SETTER };
+  enum Kind : uint8_t { METHOD, GETTER, SETTER, FIELD };
 
   Kind kind() const { return kind_; }
 
@@ -2719,6 +2736,13 @@ class ClassLiteral final : public Expression {
   ZoneList<Property*>* properties() const { return properties_; }
   int start_position() const { return position(); }
   int end_position() const { return end_position_; }
+
+  VariableProxy* static_initializer_proxy() const {
+    return static_initializer_proxy_;
+  }
+  void set_static_initializer_proxy(VariableProxy* proxy) {
+    static_initializer_proxy_ = proxy;
+  }
 
   BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
   BailoutId PrototypeId() { return BailoutId(local_id(1)); }
@@ -2754,7 +2778,8 @@ class ClassLiteral final : public Expression {
         class_variable_proxy_(class_variable_proxy),
         extends_(extends),
         constructor_(constructor),
-        properties_(properties) {}
+        properties_(properties),
+        static_initializer_proxy_(nullptr) {}
 
   static int parent_num_ids() { return Expression::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
@@ -2766,6 +2791,7 @@ class ClassLiteral final : public Expression {
   Expression* extends_;
   FunctionLiteral* constructor_;
   ZoneList<Property*>* properties_;
+  VariableProxy* static_initializer_proxy_;
 };
 
 

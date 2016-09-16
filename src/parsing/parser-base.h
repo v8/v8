@@ -199,7 +199,8 @@ class ParserBase {
         allow_harmony_function_sent_(false),
         allow_harmony_async_await_(false),
         allow_harmony_restrictive_generators_(false),
-        allow_harmony_trailing_commas_(false) {}
+        allow_harmony_trailing_commas_(false),
+        allow_harmony_class_fields_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -215,6 +216,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_async_await);
   ALLOW_ACCESSORS(harmony_restrictive_generators);
   ALLOW_ACCESSORS(harmony_trailing_commas);
+  ALLOW_ACCESSORS(harmony_class_fields);
 
 #undef ALLOW_ACCESSORS
 
@@ -1100,6 +1102,7 @@ class ParserBase {
     kValueProperty,
     kShorthandProperty,
     kMethodProperty,
+    kClassField,
     kNotSet
   };
 
@@ -1112,6 +1115,8 @@ class ParserBase {
   ClassLiteralPropertyT ParseClassPropertyDefinition(
       ClassLiteralChecker* checker, bool has_extends, bool* is_computed_name,
       bool* has_seen_constructor, bool* ok);
+  FunctionLiteralT ParseClassFieldForInitializer(bool has_initializer,
+                                                 bool* ok);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ObjectLiteralChecker* checker, bool* is_computed_name, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
@@ -1387,6 +1392,7 @@ class ParserBase {
   bool allow_harmony_async_await_;
   bool allow_harmony_restrictive_generators_;
   bool allow_harmony_trailing_commas_;
+  bool allow_harmony_class_fields_;
 
   friend class DiscardableZoneScope;
 };
@@ -1942,6 +1948,10 @@ bool ParserBase<Impl>::SetPropertyKindFromToken(Token::Value token,
     case Token::LPAREN:
       *kind = PropertyKind::kMethodProperty;
       return true;
+    case Token::MUL:
+    case Token::SEMICOLON:
+      *kind = PropertyKind::kClassField;
+      return true;
     default:
       break;
   }
@@ -2079,6 +2089,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassLiteralChecker* checker,
       kind = PropertyKind::kMethodProperty;
       name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
       name_expression = factory()->NewStringLiteral(name, position());
+    } else if (peek() == Token::ASSIGN || peek() == Token::SEMICOLON ||
+               peek() == Token::RBRACE) {
+      name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
+      name_expression = factory()->NewStringLiteral(name, position());
     } else {
       is_static = true;
       name_expression = ParsePropertyName(
@@ -2092,11 +2106,29 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassLiteralChecker* checker,
   }
 
   switch (kind) {
+    case PropertyKind::kClassField:
+    case PropertyKind::kNotSet:  // This case is a name followed by a name or
+                                 // other property. Here we have to assume
+                                 // that's an uninitialized field followed by a
+                                 // linebreak followed by a property, with ASI
+                                 // adding the semicolon. If not, there will be
+                                 // a syntax error after parsing the first name
+                                 // as an uninitialized field.
     case PropertyKind::kShorthandProperty:
     case PropertyKind::kValueProperty:
-      ReportUnexpectedToken(Next());
-      *ok = false;
-      return impl()->EmptyClassLiteralProperty();
+      if (allow_harmony_class_fields()) {
+        bool has_initializer = Check(Token::ASSIGN);
+        ExpressionT function_literal = ParseClassFieldForInitializer(
+            has_initializer, CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
+        ExpectSemicolon(CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
+        return factory()->NewClassLiteralProperty(
+            name_expression, function_literal, ClassLiteralProperty::FIELD,
+            is_static, *is_computed_name);
+      } else {
+        ReportUnexpectedToken(Next());
+        *ok = false;
+        return impl()->EmptyClassLiteralProperty();
+      }
 
     case PropertyKind::kMethodProperty: {
       DCHECK(!is_get && !is_set);
@@ -2163,14 +2195,46 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassLiteralChecker* checker,
           is_get ? ClassLiteralProperty::GETTER : ClassLiteralProperty::SETTER,
           is_static, *is_computed_name);
     }
-
-    case PropertyKind::kNotSet:
-      ReportUnexpectedToken(Next());
-      *ok = false;
-      return impl()->EmptyClassLiteralProperty();
   }
   UNREACHABLE();
   return impl()->EmptyClassLiteralProperty();
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::FunctionLiteralT
+ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
+                                                bool* ok) {
+  // Makes a concise method which evaluates and returns the initialized value
+  // (or undefined if absent).
+  FunctionKind kind = FunctionKind::kConciseMethod;
+  DeclarationScope* initializer_scope = NewFunctionScope(kind);
+  initializer_scope->set_start_position(scanner()->location().end_pos);
+  FunctionState initializer_state(&function_state_, &scope_state_,
+                                  initializer_scope, kind);
+  DCHECK(scope() == initializer_scope);
+  scope()->SetLanguageMode(STRICT);
+  ExpressionClassifier expression_classifier(this);
+  ExpressionT value;
+  if (has_initializer) {
+    value = this->ParseAssignmentExpression(
+        true, CHECK_OK_CUSTOM(EmptyFunctionLiteral));
+    impl()->RewriteNonPattern(CHECK_OK_CUSTOM(EmptyFunctionLiteral));
+  } else {
+    value = factory()->NewUndefinedLiteral(kNoSourcePosition);
+  }
+  initializer_scope->set_end_position(scanner()->location().end_pos);
+  typename Types::StatementList body = impl()->NewStatementList(1);
+  body->Add(factory()->NewReturnStatement(value, kNoSourcePosition), zone());
+  FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
+      impl()->EmptyIdentifierString(), initializer_scope, body,
+      initializer_state.materialized_literal_count(),
+      initializer_state.expected_property_count(), 0,
+      FunctionLiteral::kNoDuplicateParameters,
+      FunctionLiteral::kAnonymousExpression,
+      FunctionLiteral::kShouldLazyCompile, kind,
+      initializer_scope->start_position());
+  function_literal->set_is_class_field_initializer(true);
+  return function_literal;
 }
 
 template <typename Impl>
@@ -2343,6 +2407,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
           *is_computed_name);
     }
 
+    case PropertyKind::kClassField:
     case PropertyKind::kNotSet:
       ReportUnexpectedToken(Next());
       *ok = false;

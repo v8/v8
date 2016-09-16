@@ -685,7 +685,14 @@ class DeclarationScope : public Scope {
   }
 
   // Returns the default function arity excluding default or rest parameters.
-  int default_function_length() const { return arity_; }
+  // This will be used to set the length of the function, by default.
+  // Class field initializers use this property to indicate the number of
+  // fields being initialized.
+  int arity() const { return arity_; }
+
+  // Normal code should not need to call this. Class field initializers use this
+  // property to indicate the number of fields being initialized.
+  void set_arity(int arity) { arity_ = arity; }
 
   // Returns the number of formal parameters, excluding a possible rest
   // parameter.  Examples:

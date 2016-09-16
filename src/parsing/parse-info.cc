@@ -101,6 +101,15 @@ bool ParseInfo::is_default_constructor() const {
          0;
 }
 
+bool ParseInfo::requires_class_field_init() const {
+  return (compiler_hints_ &
+          (1 << SharedFunctionInfo::kRequiresClassFieldInit)) != 0;
+}
+bool ParseInfo::is_class_field_initializer() const {
+  return (compiler_hints_ &
+          (1 << SharedFunctionInfo::kIsClassFieldInitializer)) != 0;
+}
+
 FunctionKind ParseInfo::function_kind() const {
   return SharedFunctionInfo::FunctionKindBits::decode(compiler_hints_);
 }

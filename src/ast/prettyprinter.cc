@@ -919,6 +919,9 @@ void AstPrinter::PrintClassProperties(
       case ClassLiteral::Property::SETTER:
         prop_kind = "SETTER";
         break;
+      case ClassLiteral::Property::FIELD:
+        prop_kind = "FIELD";
+        break;
     }
     EmbeddedVector<char, 128> buf;
     SNPrintF(buf, "PROPERTY%s - %s", property->is_static() ? " - STATIC" : "",

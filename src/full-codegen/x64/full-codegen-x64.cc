@@ -1916,6 +1916,7 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
         CallRuntimeWithOperands(Runtime::kDefineSetterPropertyUnchecked);
         break;
 
+      case ClassLiteral::Property::FIELD:
       default:
         UNREACHABLE();
     }

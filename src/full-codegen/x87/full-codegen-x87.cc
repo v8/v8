@@ -1904,6 +1904,10 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
         PushOperand(Smi::FromInt(DONT_ENUM));
         CallRuntimeWithOperands(Runtime::kDefineSetterPropertyUnchecked);
         break;
+
+      case ClassLiteral::Property::FIELD:
+        UNREACHABLE();
+        break;
     }
   }
 }

@@ -1490,6 +1490,7 @@ enum ParserFlag {
   kAllowHarmonyAsyncAwait,
   kAllowHarmonyRestrictiveGenerators,
   kAllowHarmonyTrailingCommas,
+  kAllowHarmonyClassFields,
 };
 
 enum ParserSyncTestResult {
@@ -1514,6 +1515,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyRestrictiveGenerators));
   parser->set_allow_harmony_trailing_commas(
       flags.Contains(kAllowHarmonyTrailingCommas));
+  parser->set_allow_harmony_class_fields(
+      flags.Contains(kAllowHarmonyClassFields));
 }
 
 
@@ -4569,6 +4572,160 @@ TEST(ClassPropertyNameNoErrors) {
   RunParserSyncTest(context_data, name_data, kSuccess);
 }
 
+TEST(ClassFieldsNoErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {NULL, NULL}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "a = 0;",
+    "a = 0; b",
+    "a = 0; b(){}",
+    "a = 0; *b(){}",
+    "a = 0; ['b'](){}",
+    "a;",
+    "a; b;",
+    "a; b(){}",
+    "a; *b(){}",
+    "a; ['b'](){}",
+    "['a'] = 0;",
+    "['a'] = 0; b",
+    "['a'] = 0; b(){}",
+    "['a'] = 0; *b(){}",
+    "['a'] = 0; ['b'](){}",
+    "['a'];",
+    "['a']; b;",
+    "['a']; b(){}",
+    "['a']; *b(){}",
+    "['a']; ['b'](){}",
+
+    "0 = 0;",
+    "0;",
+    "'a' = 0;",
+    "'a';",
+
+    "static a = 0;",
+    "static a;",
+    "static ['a'] = 0",
+    "static ['a']",
+    "static 0 = 0;",
+    "static 0;",
+    "static 'a' = 0;",
+    "static 'a';",
+
+    // ASI
+    "a = 0\n",
+    "a = 0\n b",
+    "a = 0\n b(){}",
+    "a\n",
+    "a\n b\n",
+    "a\n b(){}",
+    "a\n *b(){}",
+    "a\n ['b'](){}",
+    "['a'] = 0\n",
+    "['a'] = 0\n b",
+    "['a'] = 0\n b(){}",
+    "['a']\n",
+    "['a']\n b\n",
+    "['a']\n b(){}",
+    "['a']\n *b(){}",
+    "['a']\n ['b'](){}",
+
+    // ASI edge cases
+    "a\n get",
+    "get\n *a(){}",
+    "a\n static",
+
+    // Misc edge cases
+    "yield",
+    "yield = 0",
+    "yield\n a",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag without_async[] = {kAllowHarmonyClassFields};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, NULL, 0,
+                    without_async, arraysize(without_async));
+
+  // clang-format off
+  const char* async_data[] = {
+    "async;",
+    "async = 0;",
+    "static async;"
+    "async",
+    "async = 0",
+    "static async",
+    "async\n a(){}",  // a field named async, and a method named a.
+    "async\n a",
+    "await;",
+    "await = 0;",
+    "await\n a",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag with_async[] = {kAllowHarmonyClassFields,
+                                          kAllowHarmonyAsyncAwait};
+  RunParserSyncTest(context_data, async_data, kSuccess, NULL, 0, with_async,
+                    arraysize(with_async));
+}
+
+TEST(ClassFieldsErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {NULL, NULL}};
+  const char* class_body_data[] = {
+    "a : 0",
+    "a =",
+    "*a = 0",
+    "*a",
+    "get a",
+    "yield a",
+    "a : 0;",
+    "a =;",
+    "*a = 0;",
+    "*a;",
+    "get a;",
+    "yield a;",
+
+    // ASI requires a linebreak
+    "a b",
+    "a = 0 b",
+
+    // ASI requires that the next token is not part of any legal production
+    "a = 0\n *b(){}",
+    "a = 0\n ['b'](){}",
+    "get\n a",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag without_async[] = {kAllowHarmonyClassFields};
+  RunParserSyncTest(context_data, class_body_data, kError, NULL, 0,
+                    without_async, arraysize(without_async));
+
+  // clang-format off
+  const char* async_data[] = {
+    "async a = 0",
+    "async a",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag with_async[] = {kAllowHarmonyClassFields,
+                                          kAllowHarmonyAsyncAwait};
+  RunParserSyncTest(context_data, async_data, kError, NULL, 0, with_async,
+                    arraysize(with_async));
+}
 
 TEST(ClassExpressionErrors) {
   const char* context_data[][2] = {{"(", ");"},

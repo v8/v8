@@ -199,7 +199,8 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
   V(harmony_for_in, "harmony for-in syntax")                            \
   V(harmony_trailing_commas,                                            \
-    "harmony trailing commas in function parameter lists")
+    "harmony trailing commas in function parameter lists")              \
+  V(harmony_class_fields, "harmony public fields in class literals")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                               \

@@ -1652,6 +1652,10 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
         NewNode(op, receiver, key, value, attr);
         break;
       }
+      case ClassLiteral::Property::FIELD: {
+        UNREACHABLE();
+        break;
+      }
     }
   }
 

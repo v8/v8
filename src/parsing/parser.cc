@@ -151,8 +151,9 @@ void Parser::SetCachedData(ParseInfo* info) {
 }
 
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
-                                            bool call_super, int pos,
-                                            int end_pos,
+                                            bool call_super,
+                                            bool requires_class_field_init,
+                                            int pos, int end_pos,
                                             LanguageMode language_mode) {
   int materialized_literal_count = -1;
   int expected_property_count = -1;
@@ -220,6 +221,8 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldLazyCompile, kind, pos);
+
+  function_literal->set_requires_class_field_init(requires_class_field_init);
 
   return function_literal;
 }
@@ -590,6 +593,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_async_await(FLAG_harmony_async_await);
   set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
   set_allow_harmony_trailing_commas(FLAG_harmony_trailing_commas);
+  set_allow_harmony_class_fields(FLAG_harmony_class_fields);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -962,7 +966,8 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
       DCHECK_EQ(scope(), outer);
       result = DefaultConstructor(
           raw_name, IsSubclassConstructor(info->function_kind()),
-          info->start_position(), info->end_position(), info->language_mode());
+          info->requires_class_field_init(), info->start_position(),
+          info->end_position(), info->language_mode());
     } else {
       result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
                                     kSkipFunctionNameCheck,
@@ -3722,6 +3727,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_restrictive_declarations);
     SET_ALLOW(harmony_async_await);
     SET_ALLOW(harmony_trailing_commas);
+    SET_ALLOW(harmony_class_fields);
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
@@ -3782,8 +3788,15 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
 
   ClassLiteralChecker checker(this);
   ZoneList<ClassLiteral::Property*>* properties = NewClassPropertyList(4);
+  ZoneList<Expression*>* instance_field_initializers =
+      new (zone()) ZoneList<Expression*>(0, zone());
   FunctionLiteral* constructor = nullptr;
   bool has_seen_constructor = false;
+  Variable* static_initializer_var = nullptr;
+
+  Block* do_block = factory()->NewBlock(nullptr, 1, false, pos);
+  Variable* result_var = NewTemporary(ast_value_factory()->empty_string());
+  DoExpression* do_expr = factory()->NewDoExpression(do_block, result_var, pos);
 
   Expect(Token::LBRACE, CHECK_OK);
 
@@ -3806,6 +3819,10 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
       constructor->set_raw_name(
           name != nullptr ? name : ast_value_factory()->empty_string());
     } else {
+      if (property->kind() == ClassLiteralProperty::FIELD) {
+        DCHECK(allow_harmony_class_fields());
+        continue;  // TODO(bakkot) implementation
+      }
       properties->Add(property, zone());
     }
 
@@ -3816,13 +3833,18 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
   Expect(Token::RBRACE, CHECK_OK);
   int end_pos = scanner()->location().end_pos;
 
-  if (constructor == nullptr) {
-    constructor = DefaultConstructor(name, has_extends, pos, end_pos,
-                                     block_state.language_mode());
+  bool has_instance_fields = instance_field_initializers->length() > 0;
+  DCHECK(!has_instance_fields || allow_harmony_class_fields());
+  bool has_default_constructor = constructor == nullptr;
+  if (has_default_constructor) {
+    constructor = DefaultConstructor(name, has_extends, has_instance_fields,
+                                     pos, end_pos, block_state.language_mode());
   }
 
-  // Note that we do not finalize this block scope because it is
-  // used as a sentinel value indicating an anonymous class.
+  if (has_instance_fields && extends == nullptr) {
+    constructor->set_requires_class_field_init(true);
+  }  // The derived case is handled by rewriting super calls.
+
   block_state.set_end_position(end_pos);
 
   if (name != nullptr) {
@@ -3830,18 +3852,23 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
     proxy->var()->set_initializer_position(end_pos);
   }
 
-  Block* do_block = factory()->NewBlock(nullptr, 1, false, pos);
-  Variable* result_var = NewTemporary(ast_value_factory()->empty_string());
-  do_block->set_scope(block_state.FinalizedBlockScope());
-  DoExpression* do_expr = factory()->NewDoExpression(do_block, result_var, pos);
-
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       proxy, extends, constructor, properties, pos, end_pos);
 
+  if (static_initializer_var != nullptr) {
+    class_literal->set_static_initializer_proxy(
+        factory()->NewVariableProxy(static_initializer_var));
+  }
+
   do_block->statements()->Add(
-      factory()->NewExpressionStatement(class_literal, pos), zone());
+      factory()->NewExpressionStatement(
+          factory()->NewAssignment(Token::ASSIGN,
+                                   factory()->NewVariableProxy(result_var),
+                                   class_literal, kNoSourcePosition),
+          pos),
+      zone());
+  do_block->set_scope(block_state.FinalizedBlockScope());
   do_expr->set_represented_function(constructor);
-  Rewriter::Rewrite(this, GetClosureScope(), do_expr, ast_value_factory());
 
   return do_expr;
 }

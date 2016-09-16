@@ -464,8 +464,8 @@ class Parser : public ParserBase<Parser> {
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
-                                      int pos, int end_pos,
-                                      LanguageMode language_mode);
+                                      bool requires_class_field_init, int pos,
+                                      int end_pos, LanguageMode language_mode);
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.
@@ -542,6 +542,8 @@ class Parser : public ParserBase<Parser> {
                          int pos);
   Expression* SpreadCallNew(Expression* function, ZoneList<Expression*>* args,
                             int pos);
+  Expression* CallClassFieldInitializer(Scope* scope, Expression* this_expr);
+  Expression* RewriteSuperCall(Expression* call_expression);
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
   void SetAsmModule();
