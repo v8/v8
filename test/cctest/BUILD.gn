@@ -81,6 +81,7 @@ v8_executable("cctest") {
     "interpreter/test-source-positions.cc",
     "libplatform/test-tracing.cc",
     "libsampler/test-sampler.cc",
+    "parsing/test-scanner-streams.cc",
     "print-extension.cc",
     "profiler-extension.cc",
     "test-access-checks.cc",
