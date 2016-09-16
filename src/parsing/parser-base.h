@@ -633,6 +633,29 @@ class ParserBase {
     Scanner::Location bindings_loc;
   };
 
+  struct CatchInfo {
+   public:
+    explicit CatchInfo(ParserBase* parser)
+        : name(parser->impl()->EmptyIdentifier()),
+          variable(nullptr),
+          pattern(parser->impl()->EmptyExpression()),
+          scope(nullptr),
+          init_block(parser->impl()->NullBlock()),
+          inner_block(parser->impl()->NullBlock()),
+          for_promise_reject(false),
+          bound_names(1, parser->zone()),
+          tail_call_expressions(parser->zone()) {}
+    IdentifierT name;
+    Variable* variable;
+    ExpressionT pattern;
+    Scope* scope;
+    BlockT init_block;
+    BlockT inner_block;
+    bool for_promise_reject;
+    ZoneList<const AstRawString*> bound_names;
+    TailCallExpressionList tail_call_expressions;
+  };
+
   DeclarationScope* NewScriptScope() const {
     return new (zone()) DeclarationScope(zone(), ast_value_factory());
   }
@@ -1226,6 +1249,7 @@ class ParserBase {
   StatementT ParseThrowStatement(bool* ok);
   StatementT ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
                                   bool* ok);
+  StatementT ParseTryStatement(bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -4391,7 +4415,7 @@ ParserBase<Impl>::ParseStatementAsUnlabelled(
     case Token::THROW:
       return ParseThrowStatement(ok);
     case Token::TRY:
-      return impl()->ParseTryStatement(ok);
+      return ParseTryStatement(ok);
     default:
       UNREACHABLE();
       return impl()->NullStatement();
@@ -4846,6 +4870,113 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     return impl()->RewriteSwitchStatement(
         tag, switch_statement, cases, cases_block_state.FinalizedBlockScope());
   }
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
+    bool* ok) {
+  // TryStatement ::
+  //   'try' Block Catch
+  //   'try' Block Finally
+  //   'try' Block Catch Finally
+  //
+  // Catch ::
+  //   'catch' '(' Identifier ')' Block
+  //
+  // Finally ::
+  //   'finally' Block
+
+  Expect(Token::TRY, CHECK_OK);
+  int pos = position();
+
+  BlockT try_block = impl()->NullBlock();
+  {
+    ReturnExprScope no_tail_calls(function_state_,
+                                  ReturnExprContext::kInsideTryBlock);
+    try_block = ParseBlock(nullptr, CHECK_OK);
+  }
+
+  CatchInfo catch_info(this);
+  catch_info.for_promise_reject = allow_natives() && Check(Token::MOD);
+
+  if (peek() != Token::CATCH && peek() != Token::FINALLY) {
+    ReportMessage(MessageTemplate::kNoCatchOrFinally);
+    *ok = false;
+    return impl()->NullStatement();
+  }
+
+  BlockT catch_block = impl()->NullBlock();
+  if (Check(Token::CATCH)) {
+    Expect(Token::LPAREN, CHECK_OK);
+    catch_info.scope = NewScope(CATCH_SCOPE);
+    catch_info.scope->set_start_position(scanner()->location().beg_pos);
+
+    {
+      CollectExpressionsInTailPositionToListScope
+          collect_tail_call_expressions_scope(
+              function_state_, &catch_info.tail_call_expressions);
+      BlockState catch_block_state(&scope_state_, catch_info.scope);
+
+      catch_block = factory()->NewBlock(nullptr, 16, false, kNoSourcePosition);
+
+      // Create a block scope to hold any lexical declarations created
+      // as part of destructuring the catch parameter.
+      {
+        BlockState catch_variable_block_state(&scope_state_);
+        catch_variable_block_state.set_start_position(
+            scanner()->location().beg_pos);
+        typename Types::Target target(this, catch_block);
+
+        // This does not simply call ParsePrimaryExpression to avoid
+        // ExpressionFromIdentifier from being called in the first
+        // branch, which would introduce an unresolved symbol and mess
+        // with arrow function names.
+        if (peek_any_identifier()) {
+          catch_info.name =
+              ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
+        } else {
+          ExpressionClassifier pattern_classifier(this);
+          catch_info.pattern = ParsePrimaryExpression(CHECK_OK);
+          ValidateBindingPattern(CHECK_OK);
+        }
+
+        Expect(Token::RPAREN, CHECK_OK);
+        impl()->RewriteCatchPattern(&catch_info, CHECK_OK);
+        if (!impl()->IsNullStatement(catch_info.init_block)) {
+          catch_block->statements()->Add(catch_info.init_block, zone());
+        }
+
+        catch_info.inner_block = ParseBlock(nullptr, CHECK_OK);
+        catch_block->statements()->Add(catch_info.inner_block, zone());
+        impl()->ValidateCatchBlock(catch_info, CHECK_OK);
+        catch_variable_block_state.set_end_position(
+            scanner()->location().end_pos);
+        catch_block->set_scope(
+            catch_variable_block_state.FinalizedBlockScope());
+      }
+    }
+
+    catch_info.scope->set_end_position(scanner()->location().end_pos);
+  }
+
+  BlockT finally_block = impl()->NullBlock();
+  DCHECK(peek() == Token::FINALLY || !impl()->IsNullStatement(catch_block));
+  if (Check(Token::FINALLY)) {
+    finally_block = ParseBlock(nullptr, CHECK_OK);
+
+    if (FLAG_harmony_explicit_tailcalls &&
+        catch_info.tail_call_expressions.has_explicit_tail_calls()) {
+      // TODO(ishell): update chapter number.
+      // ES8 XX.YY.ZZ
+      impl()->ReportMessageAt(catch_info.tail_call_expressions.location(),
+                              MessageTemplate::kUnexpectedTailCallInCatchBlock);
+      *ok = false;
+      return impl()->NullStatement();
+    }
+  }
+
+  return impl()->RewriteTryStatement(try_block, catch_block, finally_block,
+                                     catch_info, pos);
 }
 
 #undef CHECK_OK

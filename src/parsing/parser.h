@@ -292,6 +292,11 @@ class Parser : public ParserBase<Parser> {
   Statement* RewriteSwitchStatement(Expression* tag,
                                     SwitchStatement* switch_statement,
                                     ZoneList<CaseClause*>* cases, Scope* scope);
+  void RewriteCatchPattern(CatchInfo* catch_info, bool* ok);
+  void ValidateCatchBlock(const CatchInfo& catch_info, bool* ok);
+  Statement* RewriteTryStatement(Block* try_block, Block* catch_block,
+                                 Block* finally_block,
+                                 const CatchInfo& catch_info, int pos);
 
   Statement* DeclareFunction(const AstRawString* variable_name,
                              FunctionLiteral* function, int pos,
@@ -382,8 +387,6 @@ class Parser : public ParserBase<Parser> {
   };
 
   Statement* ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
-  Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
-  TryStatement* ParseTryStatement(bool* ok);
 
   // !%_IsJSReceiver(result = iterator.next()) &&
   //     %ThrowIteratorResultNotAnObject(result)

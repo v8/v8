@@ -1829,198 +1829,102 @@ Statement* Parser::RewriteSwitchStatement(Expression* tag,
   return switch_block;
 }
 
-TryStatement* Parser::ParseTryStatement(bool* ok) {
-  // TryStatement ::
-  //   'try' Block Catch
-  //   'try' Block Finally
-  //   'try' Block Catch Finally
-  //
-  // Catch ::
-  //   'catch' '(' Identifier ')' Block
-  //
-  // Finally ::
-  //   'finally' Block
-
-  Expect(Token::TRY, CHECK_OK);
-  int pos = position();
-
-  Block* try_block;
-  {
-    ReturnExprScope no_tail_calls(function_state_,
-                                  ReturnExprContext::kInsideTryBlock);
-    try_block = ParseBlock(NULL, CHECK_OK);
+void Parser::RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {
+  if (catch_info->name == nullptr) {
+    DCHECK_NOT_NULL(catch_info->pattern);
+    catch_info->name = ast_value_factory()->dot_catch_string();
   }
+  catch_info->variable = catch_info->scope->DeclareLocal(
+      catch_info->name, VAR, kCreatedInitialized, NORMAL_VARIABLE);
+  if (catch_info->pattern != nullptr) {
+    DeclarationDescriptor descriptor;
+    descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
+    descriptor.scope = scope();
+    descriptor.hoist_scope = nullptr;
+    descriptor.mode = LET;
+    descriptor.declaration_pos = catch_info->pattern->position();
+    descriptor.initialization_pos = catch_info->pattern->position();
 
-  Token::Value tok = peek();
+    // Initializer position for variables declared by the pattern.
+    const int initializer_position = position();
 
-  bool catch_for_promise_reject = false;
-  if (allow_natives() && tok == Token::MOD) {
-    Consume(Token::MOD);
-    catch_for_promise_reject = true;
-    tok = peek();
+    DeclarationParsingResult::Declaration decl(
+        catch_info->pattern, initializer_position,
+        factory()->NewVariableProxy(catch_info->variable));
+
+    catch_info->init_block =
+        factory()->NewBlock(nullptr, 8, true, kNoSourcePosition);
+    PatternRewriter::DeclareAndInitializeVariables(
+        this, catch_info->init_block, &descriptor, &decl,
+        &catch_info->bound_names, ok);
+  } else {
+    catch_info->bound_names.Add(catch_info->name, zone());
   }
+}
 
-  if (tok != Token::CATCH && tok != Token::FINALLY) {
-    ReportMessage(MessageTemplate::kNoCatchOrFinally);
-    *ok = false;
-    return NULL;
-  }
-
-  Scope* catch_scope = NULL;
-  Variable* catch_variable = NULL;
-  Block* catch_block = NULL;
-  TailCallExpressionList tail_call_expressions_in_catch_block(zone());
-  if (tok == Token::CATCH) {
-    Consume(Token::CATCH);
-
-    Expect(Token::LPAREN, CHECK_OK);
-    catch_scope = NewScope(CATCH_SCOPE);
-    catch_scope->set_start_position(scanner()->location().beg_pos);
-
-    {
-      CollectExpressionsInTailPositionToListScope
-          collect_tail_call_expressions_scope(
-              function_state_, &tail_call_expressions_in_catch_block);
-      BlockState block_state(&scope_state_, catch_scope);
-
-      catch_block = factory()->NewBlock(nullptr, 16, false, kNoSourcePosition);
-
-      // Create a block scope to hold any lexical declarations created
-      // as part of destructuring the catch parameter.
-      {
-        BlockState block_state(&scope_state_);
-        block_state.set_start_position(scanner()->location().beg_pos);
-        ParserTarget target(this, catch_block);
-
-        const AstRawString* name = ast_value_factory()->dot_catch_string();
-        Expression* pattern = nullptr;
-        if (peek_any_identifier()) {
-          name = ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
-        } else {
-          ExpressionClassifier pattern_classifier(this);
-          pattern = ParsePrimaryExpression(CHECK_OK);
-          ValidateBindingPattern(CHECK_OK);
-        }
-        catch_variable = catch_scope->DeclareLocal(
-            name, VAR, kCreatedInitialized, NORMAL_VARIABLE);
-
-        Expect(Token::RPAREN, CHECK_OK);
-
-        ZoneList<const AstRawString*> bound_names(1, zone());
-        if (pattern != nullptr) {
-          DeclarationDescriptor descriptor;
-          descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
-          descriptor.scope = scope();
-          descriptor.hoist_scope = nullptr;
-          descriptor.mode = LET;
-          descriptor.declaration_pos = pattern->position();
-          descriptor.initialization_pos = pattern->position();
-
-          // Initializer position for variables declared by the pattern.
-          const int initializer_position = position();
-
-          DeclarationParsingResult::Declaration decl(
-              pattern, initializer_position,
-              factory()->NewVariableProxy(catch_variable));
-
-          Block* init_block =
-              factory()->NewBlock(nullptr, 8, true, kNoSourcePosition);
-          PatternRewriter::DeclareAndInitializeVariables(
-              this, init_block, &descriptor, &decl, &bound_names, CHECK_OK);
-          catch_block->statements()->Add(init_block, zone());
-        } else {
-          bound_names.Add(name, zone());
-        }
-
-        Block* inner_block = ParseBlock(nullptr, CHECK_OK);
-        catch_block->statements()->Add(inner_block, zone());
-
-        // Check for `catch(e) { let e; }` and similar errors.
-        Scope* inner_block_scope = inner_block->scope();
-        if (inner_block_scope != nullptr) {
-          Declaration* decl =
-              inner_block_scope->CheckLexDeclarationsConflictingWith(
-                  bound_names);
-          if (decl != nullptr) {
-            const AstRawString* name = decl->proxy()->raw_name();
-            int position = decl->proxy()->position();
-            Scanner::Location location =
-                position == kNoSourcePosition
-                    ? Scanner::Location::invalid()
-                    : Scanner::Location(position, position + 1);
-            ReportMessageAt(location, MessageTemplate::kVarRedeclaration, name);
-            *ok = false;
-            return nullptr;
-          }
-        }
-        block_state.set_end_position(scanner()->location().end_pos);
-        catch_block->set_scope(block_state.FinalizedBlockScope());
-      }
+void Parser::ValidateCatchBlock(const CatchInfo& catch_info, bool* ok) {
+  // Check for `catch(e) { let e; }` and similar errors.
+  Scope* inner_block_scope = catch_info.inner_block->scope();
+  if (inner_block_scope != nullptr) {
+    Declaration* decl = inner_block_scope->CheckLexDeclarationsConflictingWith(
+        catch_info.bound_names);
+    if (decl != nullptr) {
+      const AstRawString* name = decl->proxy()->raw_name();
+      int position = decl->proxy()->position();
+      Scanner::Location location =
+          position == kNoSourcePosition
+              ? Scanner::Location::invalid()
+              : Scanner::Location(position, position + 1);
+      ReportMessageAt(location, MessageTemplate::kVarRedeclaration, name);
+      *ok = false;
     }
-
-    catch_scope->set_end_position(scanner()->location().end_pos);
-    tok = peek();
   }
+}
 
-  Block* finally_block = NULL;
-  DCHECK(tok == Token::FINALLY || catch_block != NULL);
-  if (tok == Token::FINALLY) {
-    Consume(Token::FINALLY);
-    finally_block = ParseBlock(NULL, CHECK_OK);
-  }
-
+Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
+                                       Block* finally_block,
+                                       const CatchInfo& catch_info, int pos) {
   // Simplify the AST nodes by converting:
   //   'try B0 catch B1 finally B2'
   // to:
   //   'try { try B0 catch B1 } finally B2'
 
-  if (catch_block != NULL && finally_block != NULL) {
+  if (catch_block != nullptr && finally_block != nullptr) {
     // If we have both, create an inner try/catch.
-    DCHECK(catch_scope != NULL && catch_variable != NULL);
+    DCHECK_NOT_NULL(catch_info.scope);
+    DCHECK_NOT_NULL(catch_info.variable);
     TryCatchStatement* statement;
-    if (catch_for_promise_reject) {
+    if (catch_info.for_promise_reject) {
       statement = factory()->NewTryCatchStatementForPromiseReject(
-          try_block, catch_scope, catch_variable, catch_block,
+          try_block, catch_info.scope, catch_info.variable, catch_block,
           kNoSourcePosition);
     } else {
-      statement = factory()->NewTryCatchStatement(try_block, catch_scope,
-                                                  catch_variable, catch_block,
-                                                  kNoSourcePosition);
+      statement = factory()->NewTryCatchStatement(
+          try_block, catch_info.scope, catch_info.variable, catch_block,
+          kNoSourcePosition);
     }
 
-    try_block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
+    try_block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
     try_block->statements()->Add(statement, zone());
-    catch_block = NULL;  // Clear to indicate it's been handled.
+    catch_block = nullptr;  // Clear to indicate it's been handled.
   }
 
-  TryStatement* result = NULL;
-  if (catch_block != NULL) {
+  if (catch_block != nullptr) {
     // For a try-catch construct append return expressions from the catch block
     // to the list of return expressions.
     function_state_->tail_call_expressions().Append(
-        tail_call_expressions_in_catch_block);
+        catch_info.tail_call_expressions);
 
-    DCHECK(finally_block == NULL);
-    DCHECK(catch_scope != NULL && catch_variable != NULL);
-    result = factory()->NewTryCatchStatement(try_block, catch_scope,
-                                             catch_variable, catch_block, pos);
+    DCHECK_NULL(finally_block);
+    DCHECK_NOT_NULL(catch_info.scope);
+    DCHECK_NOT_NULL(catch_info.variable);
+    return factory()->NewTryCatchStatement(
+        try_block, catch_info.scope, catch_info.variable, catch_block, pos);
   } else {
-    if (FLAG_harmony_explicit_tailcalls &&
-        tail_call_expressions_in_catch_block.has_explicit_tail_calls()) {
-      // TODO(ishell): update chapter number.
-      // ES8 XX.YY.ZZ
-      ReportMessageAt(tail_call_expressions_in_catch_block.location(),
-                      MessageTemplate::kUnexpectedTailCallInCatchBlock);
-      *ok = false;
-      return NULL;
-    }
-    DCHECK(finally_block != NULL);
-    result = factory()->NewTryFinallyStatement(try_block, finally_block, pos);
+    DCHECK_NOT_NULL(finally_block);
+    return factory()->NewTryFinallyStatement(try_block, finally_block, pos);
   }
-
-  return result;
 }
-
 
 // !%_IsJSReceiver(result = iterator.next()) &&
 //     %ThrowIteratorResultNotAnObject(result)

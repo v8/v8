@@ -830,7 +830,6 @@ class PreParser : public ParserBase<PreParser> {
   Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                   bool default_export, bool* ok);
   Statement ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
-  Statement ParseTryStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseObjectLiteral(bool* ok);
 
@@ -954,6 +953,13 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserStatement RewriteSwitchStatement(
       PreParserExpression tag, PreParserStatement switch_statement,
       PreParserStatementList cases, Scope* scope) {
+    return PreParserStatement::Default();
+  }
+  V8_INLINE void RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {}
+  V8_INLINE void ValidateCatchBlock(const CatchInfo& catch_info, bool* ok) {}
+  V8_INLINE PreParserStatement RewriteTryStatement(
+      PreParserStatement try_block, PreParserStatement catch_block,
+      PreParserStatement finally_block, const CatchInfo& catch_info, int pos) {
     return PreParserStatement::Default();
   }
 
@@ -1190,7 +1196,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE static PreParserStatement NullStatement() {
-    return PreParserStatement::Default();
+    return PreParserStatement::Null();
   }
 
   V8_INLINE bool IsNullStatement(PreParserStatement stmt) {
@@ -1202,7 +1208,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE static PreParserStatement NullBlock() {
-    return PreParserStatement::Default();
+    return PreParserStatement::Null();
   }
 
   V8_INLINE PreParserIdentifier EmptyIdentifierString() const {
