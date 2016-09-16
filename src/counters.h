@@ -803,8 +803,6 @@ class RuntimeCallStats {
 
  private:
   std::stringstream buffer_;
-  std::unique_ptr<char[]> buffer_c_str_;
-  size_t len_ = 0;
   // Counter to track recursive time events.
   RuntimeCallTimer* current_timer_ = NULL;
   // Used to track nested tracing scopes.
