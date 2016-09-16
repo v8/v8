@@ -2711,7 +2711,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Statement* final_loop = InitializeForEachStatement(
             loop, expression, enumerable, body, each_keyword_position);
 
-        DCHECK_NULL(for_state.FinalizedBlockScope());
+        Scope* for_scope = for_state.FinalizedBlockScope();
+        DCHECK_NULL(for_scope);
+        USE(for_scope);
         return final_loop;
 
       } else {

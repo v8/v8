@@ -1185,6 +1185,102 @@ listener_delegate = function(exec_state) {
 eval(code3);
 EndTest();
 
+BeginTest("Scope positions in for statement with lexical block");
+var code4 = "function for_statement() {         \n" +
+            "  for (let i = 0; i < 1; i++) {    \n" +
+            "    let j;                         \n" +
+            "    debugger;                      \n" +
+            "  }                                \n" +
+            "}                                  \n" +
+            "for_statement();                   \n";
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Script,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeChainPositions([{start: 66, end: 147}, {start: 52, end: 147}, {start: 22, end: 181}, {}, {}], exec_state);
+}
+eval(code4);
+EndTest();
+
+BeginTest("Scope positions in lexical for each statement");
+var code5 = "function for_each_statement() {    \n" +
+            "  for (let i of [0]) {             \n" +
+            "    debugger;                      \n" +
+            "  }                                \n" +
+            "}                                  \n" +
+            "for_each_statement();              \n";
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Script,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeChainPositions([{start: 55, end: 111}, {start: 27, end: 145}, {}, {}], exec_state);
+}
+eval(code5);
+EndTest();
+
+BeginTest("Scope positions in lexical for each statement with lexical block");
+var code6 = "function for_each_statement() {    \n" +
+            "  for (let i of [0]) {             \n" +
+            "    let j;                         \n" +
+            "    debugger;                      \n" +
+            "  }                                \n" +
+            "}                                  \n" +
+            "for_each_statement();              \n";
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Script,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeChainPositions([{start: 57, end: 147}, {start: 55, end: 147}, {start: 27, end: 181}, {}, {}], exec_state);
+}
+eval(code6);
+EndTest();
+
+BeginTest("Scope positions in non-lexical for each statement");
+var code7 = "function for_each_statement() {    \n" +
+            "  var i;                           \n" +
+            "  for (i of [0]) {                 \n" +
+            "    debugger;                      \n" +
+            "  }                                \n" +
+            "}                                  \n" +
+            "for_each_statement();              \n";
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Script,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeChainPositions([{start: 27, end: 181}, {}, {}], exec_state);
+}
+eval(code7);
+EndTest();
+
+BeginTest("Scope positions in non-lexical for each statement with lexical block");
+var code8 = "function for_each_statement() {    \n" +
+            "  var i;                           \n" +
+            "  for (i of [0]) {                 \n" +
+            "    let j;                         \n" +
+            "    debugger;                      \n" +
+            "  }                                \n" +
+            "}                                  \n" +
+            "for_each_statement();              \n";
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Script,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeChainPositions([{start: 89, end: 183}, {start: 27, end: 217}, {}, {}], exec_state);
+}
+eval(code8);
+EndTest();
+
 assertEquals(begin_test_count, break_count,
              'one or more tests did not enter the debugger');
 assertEquals(begin_test_count, end_test_count,
