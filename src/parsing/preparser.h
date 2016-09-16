@@ -893,6 +893,11 @@ class PreParser : public ParserBase<PreParser> {
                                               PreParserExpressionList args,
                                               int pos);
 
+  V8_INLINE PreParserExpression
+  RewriteSuperCall(PreParserExpression call_expression) {
+    return call_expression;
+  }
+
   V8_INLINE void RewriteDestructuringAssignments() {}
 
   V8_INLINE PreParserExpression RewriteExponentiation(PreParserExpression left,

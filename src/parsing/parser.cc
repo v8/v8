@@ -150,6 +150,60 @@ void Parser::SetCachedData(ParseInfo* info) {
   }
 }
 
+Expression* Parser::CallClassFieldInitializer(Scope* scope,
+                                              Expression* this_expr) {
+  // This produces the expression
+  // `.class_field_intializer(this_expr)`, where '.class_field_intializer' is
+  // the name
+  // of a synthetic variable.
+  // 'this_expr' will be 'this' in a base constructor and the result of calling
+  // 'super' in a derived one.
+  const AstRawString* init_fn_name =
+      ast_value_factory()->dot_class_field_init_string();
+  VariableProxy* init_fn_proxy = scope->NewUnresolved(factory(), init_fn_name);
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  args->Add(init_fn_proxy, zone());
+  args->Add(this_expr, zone());
+  return factory()->NewCallRuntime(Runtime::kInlineCall, args,
+                                   kNoSourcePosition);
+}
+
+Expression* Parser::RewriteSuperCall(Expression* super_call) {
+  // TODO(bakkot) find a way to avoid this for classes without fields.
+  if (!allow_harmony_class_fields()) {
+    return super_call;
+  }
+  // This turns a super call `super()` into a do expression of the form
+  // do {
+  //   tmp x = super();
+  //   if (.class-field-init)
+  //     .class-field-init(x)
+  //   x; // This isn't actually present; our do-expression representation
+  // allows specifying that the expression returns x directly.
+  // }
+  Variable* var_tmp =
+      scope()->NewTemporary(ast_value_factory()->empty_string());
+  Block* block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
+  Assignment* assignment = factory()->NewAssignment(
+      Token::ASSIGN, factory()->NewVariableProxy(var_tmp), super_call,
+      kNoSourcePosition);
+  block->statements()->Add(
+      factory()->NewExpressionStatement(assignment, kNoSourcePosition), zone());
+  const AstRawString* init_fn_name =
+      ast_value_factory()->dot_class_field_init_string();
+  VariableProxy* init_fn_proxy =
+      scope()->NewUnresolved(factory(), init_fn_name);
+  Expression* condition = init_fn_proxy;
+  Statement* initialize = factory()->NewExpressionStatement(
+      CallClassFieldInitializer(scope(), factory()->NewVariableProxy(var_tmp)),
+      kNoSourcePosition);
+  IfStatement* if_statement = factory()->NewIfStatement(
+      condition, initialize, factory()->NewEmptyStatement(kNoSourcePosition),
+      kNoSourcePosition);
+  block->statements()->Add(if_statement, zone());
+  return factory()->NewDoExpression(block, var_tmp, kNoSourcePosition);
+}
+
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
                                             bool call_super,
                                             bool requires_class_field_init,
@@ -206,8 +260,11 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       VariableProxy* new_target_proxy =
           NewUnresolved(ast_value_factory()->new_target_string(), pos);
       args->Add(new_target_proxy, zone());
-      CallRuntime* call = factory()->NewCallRuntime(
+      Expression* call = factory()->NewCallRuntime(
           Context::REFLECT_CONSTRUCT_INDEX, args, pos);
+      if (requires_class_field_init) {
+        call = CallClassFieldInitializer(scope(), call);
+      }
       body->Add(factory()->NewReturnStatement(call, pos), zone());
     }
 
@@ -964,15 +1021,31 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
       }
     } else if (info->is_default_constructor()) {
       DCHECK_EQ(scope(), outer);
+      bool is_subclass_constructor =
+          IsSubclassConstructor(info->function_kind());
       result = DefaultConstructor(
-          raw_name, IsSubclassConstructor(info->function_kind()),
-          info->requires_class_field_init(), info->start_position(),
-          info->end_position(), info->language_mode());
+          raw_name, is_subclass_constructor, info->requires_class_field_init(),
+          info->start_position(), info->end_position(), info->language_mode());
+      if (!is_subclass_constructor && info->requires_class_field_init()) {
+        result = InsertClassFieldInitializer(result);
+      }
+    } else if (info->is_class_field_initializer()) {
+      Handle<SharedFunctionInfo> shared_info = info->shared_info();
+      DCHECK(!shared_info.is_null());
+      if (shared_info->length() == 0) {
+        result = ParseClassFieldForInitializer(
+            info->start_position() != info->end_position(), &ok);
+      } else {
+        result = SynthesizeClassFieldInitializer(shared_info->length());
+      }
     } else {
       result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
                                     kSkipFunctionNameCheck,
                                     info->function_kind(), kNoSourcePosition,
                                     function_type, info->language_mode(), &ok);
+      if (info->requires_class_field_init()) {
+        result = InsertClassFieldInitializer(result);
+      }
     }
     // Make sure the results agree.
     DCHECK(ok == (result != nullptr));
@@ -3740,6 +3813,129 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   return result;
 }
 
+Expression* Parser::InstallHomeObject(Expression* function_literal,
+                                      Expression* home_object) {
+  Block* do_block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
+  Variable* result_var =
+      scope()->NewTemporary(ast_value_factory()->empty_string());
+  DoExpression* do_expr =
+      factory()->NewDoExpression(do_block, result_var, kNoSourcePosition);
+  Assignment* init = factory()->NewAssignment(
+      Token::ASSIGN, factory()->NewVariableProxy(result_var), function_literal,
+      kNoSourcePosition);
+  do_block->statements()->Add(
+      factory()->NewExpressionStatement(init, kNoSourcePosition), zone());
+  Property* home_object_property = factory()->NewProperty(
+      factory()->NewVariableProxy(result_var),
+      factory()->NewSymbolLiteral("home_object_symbol", kNoSourcePosition),
+      kNoSourcePosition);
+  Assignment* assignment = factory()->NewAssignment(
+      Token::ASSIGN, home_object_property, home_object, kNoSourcePosition);
+  do_block->statements()->Add(
+      factory()->NewExpressionStatement(assignment, kNoSourcePosition), zone());
+  return do_expr;
+}
+
+const AstRawString* ClassFieldVariableName(bool is_name,
+                                           AstValueFactory* ast_value_factory,
+                                           int index) {
+  std::string name =
+      ".class-field-" + std::to_string(index) + (is_name ? "-name" : "-func");
+  return ast_value_factory->GetOneByteString(name.c_str());
+}
+
+FunctionLiteral* Parser::SynthesizeClassFieldInitializer(int count) {
+  DCHECK(count > 0);
+  // Makes a function which reads the names and initializers for each class
+  // field out of deterministically named local variables and sets each property
+  // to the result of evaluating its corresponding initializer in turn.
+
+  // This produces a function which looks like
+  // function () {
+  //   this[.class-field-0-name] = .class-field-0-func();
+  //   this[.class-field-1-name] = .class-field-1-func();
+  //   [...]
+  //   this[.class-field-n-name] = .class-field-n-func();
+  //   return this;
+  // }
+  // except that it performs defineProperty, so that instead of '=' it has
+  // %DefineDataPropertyInLiteral(this, .class-field-0-name,
+  // .class-field-0-func(),
+  //   DONT_ENUM, false)
+
+  RaiseLanguageMode(STRICT);
+  FunctionKind kind = FunctionKind::kConciseMethod;
+  DeclarationScope* initializer_scope = NewFunctionScope(kind);
+  SetLanguageMode(initializer_scope, language_mode());
+  initializer_scope->set_start_position(scanner()->location().end_pos);
+  initializer_scope->set_end_position(scanner()->location().end_pos);
+  FunctionState initializer_state(&function_state_, &scope_state_,
+                                  initializer_scope, kind);
+  ZoneList<Statement*>* body = new (zone()) ZoneList<Statement*>(count, zone());
+  for (int i = 0; i < count; ++i) {
+    const AstRawString* name =
+        ClassFieldVariableName(true, ast_value_factory(), i);
+    VariableProxy* name_proxy = scope()->NewUnresolved(factory(), name);
+    const AstRawString* function_name =
+        ClassFieldVariableName(false, ast_value_factory(), i);
+    VariableProxy* function_proxy =
+        scope()->NewUnresolved(factory(), function_name);
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+    args->Add(function_proxy, zone());
+    args->Add(ThisExpression(kNoSourcePosition), zone());
+    Expression* call = factory()->NewCallRuntime(Runtime::kInlineCall, args,
+                                                 kNoSourcePosition);
+    ZoneList<Expression*>* define_property_args =
+        new (zone()) ZoneList<Expression*>(5, zone());
+    define_property_args->Add(ThisExpression(kNoSourcePosition), zone());
+    define_property_args->Add(name_proxy, zone());
+    define_property_args->Add(call, zone());
+    define_property_args->Add(
+        factory()->NewNumberLiteral(DONT_ENUM, kNoSourcePosition), zone());
+    define_property_args->Add(
+        factory()->NewNumberLiteral(
+            false,  // TODO(bakkot) function name inference a la class { x =
+                    // function(){}; static y = function(){}; }
+            kNoSourcePosition),
+        zone());
+    body->Add(factory()->NewExpressionStatement(
+                  factory()->NewCallRuntime(
+                      Runtime::kDefineDataProperty,
+                      define_property_args,  // TODO(bakkot) verify that this is
+                      // the same as object_define_property
+                      kNoSourcePosition),
+                  kNoSourcePosition),
+              zone());
+  }
+  body->Add(factory()->NewReturnStatement(ThisExpression(kNoSourcePosition),
+                                          kNoSourcePosition),
+            zone());
+  FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
+      ast_value_factory()->empty_string(), initializer_scope, body,
+      initializer_state.materialized_literal_count(),
+      initializer_state.expected_property_count(), 0,
+      FunctionLiteral::kNoDuplicateParameters,
+      FunctionLiteral::kAnonymousExpression,
+      FunctionLiteral::kShouldLazyCompile, kind,
+      initializer_scope->start_position());
+  function_literal->set_is_class_field_initializer(true);
+  function_literal->scope()->set_arity(count);
+  return function_literal;
+}
+
+FunctionLiteral* Parser::InsertClassFieldInitializer(
+    FunctionLiteral* constructor) {
+  Statement* call_initializer = factory()->NewExpressionStatement(
+      CallClassFieldInitializer(
+          constructor->scope(),
+          constructor->scope()->NewUnresolved(
+              factory(), ast_value_factory()->this_string(), kNoSourcePosition,
+              kNoSourcePosition + 4, THIS_VARIABLE)),
+      kNoSourcePosition);
+  constructor->body()->InsertAt(0, call_initializer, zone());
+  return constructor;
+}
+
 Expression* Parser::ParseClassLiteral(const AstRawString* name,
                                       Scanner::Location class_name_location,
                                       bool name_is_strict_reserved, int pos,
@@ -3821,7 +4017,45 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
     } else {
       if (property->kind() == ClassLiteralProperty::FIELD) {
         DCHECK(allow_harmony_class_fields());
-        continue;  // TODO(bakkot) implementation
+        if (property->is_static()) {
+          if (static_initializer_var == nullptr) {
+            static_initializer_var =
+                NewTemporary(ast_value_factory()->empty_string());
+          }
+          // TODO(bakkot) only do this conditionally
+          Expression* function = InstallHomeObject(
+              property->value(),
+              factory()->NewVariableProxy(static_initializer_var));
+          ZoneList<Expression*>* args =
+              new (zone()) ZoneList<Expression*>(2, zone());
+          args->Add(function, zone());
+          args->Add(factory()->NewVariableProxy(static_initializer_var),
+                    zone());
+          Expression* call = factory()->NewCallRuntime(Runtime::kInlineCall,
+                                                       args, kNoSourcePosition);
+          property->set_value(call);
+        } else {
+          // if (is_computed_name) { // TODO(bakkot) figure out why this is
+          // necessary for non-computed names in full-codegen
+          ZoneList<Expression*>* to_name_args =
+              new (zone()) ZoneList<Expression*>(1, zone());
+          to_name_args->Add(property->key(), zone());
+          property->set_key(factory()->NewCallRuntime(
+              Runtime::kToName, to_name_args, kNoSourcePosition));
+          //}
+          const AstRawString* name = ClassFieldVariableName(
+              true, ast_value_factory(), instance_field_initializers->length());
+          VariableProxy* name_proxy = NewUnresolved(name);
+          Declaration* name_declaration = factory()->NewVariableDeclaration(
+              name_proxy, scope(), kNoSourcePosition);
+          Variable* name_var =
+              Declare(name_declaration, DeclarationDescriptor::NORMAL, CONST,
+                      kNeedsInitialization, ok, scope());
+          DCHECK(ok);
+          if (!ok) return nullptr;
+          instance_field_initializers->Add(property->value(), zone());
+          property->set_value(factory()->NewVariableProxy(name_var));
+        }
       }
       properties->Add(property, zone());
     }
@@ -3842,6 +4076,7 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
   }
 
   if (has_instance_fields && extends == nullptr) {
+    constructor = InsertClassFieldInitializer(constructor);
     constructor->set_requires_class_field_init(true);
   }  // The derived case is handled by rewriting super calls.
 
@@ -3867,6 +4102,54 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
                                    class_literal, kNoSourcePosition),
           pos),
       zone());
+  if (allow_harmony_class_fields() &&
+      (has_instance_fields ||
+       (extends != nullptr && !has_default_constructor))) {
+    // Default constructors for derived classes without fields will not try to
+    // read this variable, so there's no need to create it.
+    const AstRawString* init_fn_name =
+        ast_value_factory()->dot_class_field_init_string();
+    Variable* init_fn_var = scope()->DeclareLocal(
+        init_fn_name, CONST, kCreatedInitialized, NORMAL_VARIABLE);
+    Expression* initializer =
+        has_instance_fields
+            ? static_cast<Expression*>(SynthesizeClassFieldInitializer(
+                  instance_field_initializers->length()))
+            : factory()->NewBooleanLiteral(false, kNoSourcePosition);
+    Assignment* assignment = factory()->NewAssignment(
+        Token::INIT, factory()->NewVariableProxy(init_fn_var), initializer,
+        kNoSourcePosition);
+    do_block->statements()->Add(
+        factory()->NewExpressionStatement(assignment, kNoSourcePosition),
+        zone());
+  }
+  for (int i = 0; i < instance_field_initializers->length(); ++i) {
+    const AstRawString* function_name =
+        ClassFieldVariableName(false, ast_value_factory(), i);
+    VariableProxy* function_proxy = NewUnresolved(function_name);
+    Declaration* function_declaration = factory()->NewVariableDeclaration(
+        function_proxy, scope(), kNoSourcePosition);
+    Variable* function_var =
+        Declare(function_declaration, DeclarationDescriptor::NORMAL, CONST,
+                kNeedsInitialization, ok, scope());
+    DCHECK(ok);
+    if (!ok) return nullptr;
+    Property* prototype_property = factory()->NewProperty(
+        factory()->NewVariableProxy(result_var),
+        factory()->NewStringLiteral(ast_value_factory()->prototype_string(),
+                                    kNoSourcePosition),
+        kNoSourcePosition);
+    Expression* function_value = InstallHomeObject(
+        instance_field_initializers->at(i),
+        prototype_property);  // TODO(bakkot) ideally this would be conditional,
+                              // especially in trivial cases
+    Assignment* function_assignment = factory()->NewAssignment(
+        Token::INIT, factory()->NewVariableProxy(function_var), function_value,
+        kNoSourcePosition);
+    do_block->statements()->Add(factory()->NewExpressionStatement(
+                                    function_assignment, kNoSourcePosition),
+                                zone());
+  }
   do_block->set_scope(block_state.FinalizedBlockScope());
   do_expr->set_represented_function(constructor);
 

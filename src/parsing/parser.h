@@ -417,6 +417,11 @@ class Parser : public ParserBase<Parser> {
       int function_token_position, FunctionLiteral::FunctionType type,
       LanguageMode language_mode, bool* ok);
 
+  Expression* InstallHomeObject(Expression* function_literal,
+                                Expression* home_object);
+  FunctionLiteral* SynthesizeClassFieldInitializer(int count);
+  FunctionLiteral* InsertClassFieldInitializer(FunctionLiteral* constructor);
+
   Expression* ParseClassLiteral(const AstRawString* name,
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved, int pos,

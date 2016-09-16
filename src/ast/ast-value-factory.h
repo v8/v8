@@ -283,6 +283,7 @@ class AstValue : public ZoneObject {
   F(default, "default")                         \
   F(done, "done")                               \
   F(dot, ".")                                   \
+  F(dot_class_field_init, ".class-field-init")  \
   F(dot_debug_is_active, ".debug_is_active")    \
   F(dot_for, ".for")                            \
   F(dot_generator, ".generator")                \
