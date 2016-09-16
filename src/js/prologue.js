@@ -221,6 +221,7 @@ function PostNatives(utils) {
     "promise_state_symbol",
     "promise_await_handler_symbol",
     "promise_handled_hint_symbol",
+    "promise_has_handler_symbol",
     "object_freeze",
     "object_is_frozen",
     "object_is_sealed",

@@ -36,6 +36,8 @@ utils.Import(function(from) {
 var promiseAwaitHandlerSymbol = utils.ImportNow("promise_await_handler_symbol");
 var promiseHandledHintSymbol =
     utils.ImportNow("promise_handled_hint_symbol");
+var promiseHasHandlerSymbol =
+    utils.ImportNow("promise_has_handler_symbol");
 
 // -------------------------------------------------------------------
 
@@ -89,6 +91,11 @@ function AsyncFunctionAwait(generator, awaited, mark) {
 
   // Just forwarding the exception, so no debugEvent for throwawayCapability
   var throwawayCapability = NewPromiseCapability(GlobalPromise, false);
+
+  // The Promise will be thrown away and not handled, but it shouldn't trigger
+  // unhandled reject events as its work is done
+  SET_PRIVATE(throwawayCapability.promise, promiseHasHandlerSymbol, true);
+
   return PerformPromiseThen(promise, onFulfilled, onRejected,
                             throwawayCapability);
 }
