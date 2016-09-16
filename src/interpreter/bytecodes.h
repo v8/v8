@@ -115,7 +115,11 @@ namespace interpreter {
                                                                                \
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, AccumulatorUse::kWrite, OperandType::kIdx)                  \
+  V(LdaLookupContextSlot, AccumulatorUse::kWrite, OperandType::kIdx,           \
+    OperandType::kIdx, OperandType::kUImm)                                     \
   V(LdaLookupSlotInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx)      \
+  V(LdaLookupContextSlotInsideTypeof, AccumulatorUse::kWrite,                  \
+    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(StaLookupSlotSloppy, AccumulatorUse::kReadWrite, OperandType::kIdx)        \
   V(StaLookupSlotStrict, AccumulatorUse::kReadWrite, OperandType::kIdx)        \
                                                                                \

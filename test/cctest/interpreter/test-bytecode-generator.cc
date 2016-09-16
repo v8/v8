@@ -1799,14 +1799,24 @@ TEST(Eval) {
 TEST(LookupSlot) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_test_function_name("f");
 
+  // clang-format off
   const char* snippets[] = {
       "eval('var x = 10;'); return x;\n",
 
       "eval('var x = 10;'); return typeof x;\n",
 
       "x = 20; return eval('');\n",
+
+      "var x = 20;\n"
+      "f = function(){\n"
+      "  eval('var x = 10');\n"
+      "  return x;\n"
+      "}\n"
+      "f();\n"
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("LookupSlot.golden")));

@@ -888,6 +888,33 @@ void BytecodeGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
   BuildLdaLookupSlot(TypeofMode::INSIDE_TYPEOF);
 }
 
+void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
+  // TODO(leszeks): Build the fast path here.
+
+  // Slow path, do a runtime load lookup.
+  {
+    FrameStateBeforeAndAfter states(this);
+
+    Node* name =
+        jsgraph()->Constant(bytecode_iterator().GetConstantForIndexOperand(0));
+
+    const Operator* op =
+        javascript()->CallRuntime(typeof_mode == TypeofMode::NOT_INSIDE_TYPEOF
+                                      ? Runtime::kLoadLookupSlot
+                                      : Runtime::kLoadLookupSlotInsideTypeof);
+    Node* value = NewNode(op, name);
+    environment()->BindAccumulator(value, &states);
+  }
+}
+
+void BytecodeGraphBuilder::VisitLdaLookupContextSlot() {
+  BuildLdaLookupContextSlot(TypeofMode::NOT_INSIDE_TYPEOF);
+}
+
+void BytecodeGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
+  BuildLdaLookupContextSlot(TypeofMode::INSIDE_TYPEOF);
+}
+
 void BytecodeGraphBuilder::BuildStaLookupSlot(LanguageMode language_mode) {
   FrameStateBeforeAndAfter states(this);
   Node* value = environment()->LookupAccumulator();

@@ -1967,7 +1967,19 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       break;
     }
     case VariableLocation::LOOKUP: {
-      builder()->LoadLookupSlot(variable->name(), typeof_mode);
+      switch (variable->mode()) {
+        case DYNAMIC_LOCAL: {
+          Variable* local_variable = variable->local_if_not_shadowed();
+          int depth =
+              execution_context()->ContextChainDepth(local_variable->scope());
+          builder()->LoadLookupContextSlot(variable->name(), typeof_mode,
+                                           local_variable->index(), depth);
+          BuildHoleCheckForVariableLoad(variable);
+          break;
+        }
+        default:
+          builder()->LoadLookupSlot(variable->name(), typeof_mode);
+      }
       break;
     }
     case VariableLocation::MODULE: {

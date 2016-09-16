@@ -131,6 +131,13 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& LoadLookupSlot(const Handle<String> name,
                                        TypeofMode typeof_mode);
 
+  // Lookup the variable with |name|, which is known to be at |slot_index| at
+  // |depth| in the context chain if not shadowed by a context extension
+  // somewhere in that context chain.
+  BytecodeArrayBuilder& LoadLookupContextSlot(const Handle<String> name,
+                                              TypeofMode typeof_mode,
+                                              int slot_index, int depth);
+
   // Store value in the accumulator into the variable with |name|.
   BytecodeArrayBuilder& StoreLookupSlot(const Handle<String> name,
                                         LanguageMode language_mode);

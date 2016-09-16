@@ -587,6 +587,53 @@ void Interpreter::DoLdaLookupSlotInsideTypeof(InterpreterAssembler* assembler) {
   DoLdaLookupSlot(Runtime::kLoadLookupSlotInsideTypeof, assembler);
 }
 
+void Interpreter::DoLdaLookupContextSlot(Runtime::FunctionId function_id,
+                                         InterpreterAssembler* assembler) {
+  Node* context = __ GetContext();
+  Node* name_index = __ BytecodeOperandIdx(0);
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  Node* depth = __ BytecodeOperandUImm(2);
+
+  Label slowpath(assembler, Label::kDeferred);
+
+  // Check for context extensions to allow the fast path.
+  __ GotoIfHasContextExtensionUpToDepth(context, depth, &slowpath);
+
+  // Fast path does a normal load context.
+  {
+    Node* slot_context = __ GetContextAtDepth(context, depth);
+    Node* result = __ LoadContextSlot(slot_context, slot_index);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
+
+  // Slow path when we have to call out to the runtime.
+  __ Bind(&slowpath);
+  {
+    Node* name = __ LoadConstantPoolEntry(name_index);
+    Node* result = __ CallRuntime(function_id, context, name);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
+}
+
+// LdaLookupSlot <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically.
+void Interpreter::DoLdaLookupContextSlot(InterpreterAssembler* assembler) {
+  DoLdaLookupContextSlot(Runtime::kLoadLookupSlot, assembler);
+}
+
+// LdaLookupSlotInsideTypeof <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically without causing a NoReferenceError.
+void Interpreter::DoLdaLookupContextSlotInsideTypeof(
+    InterpreterAssembler* assembler) {
+  DoLdaLookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof, assembler);
+}
+
 void Interpreter::DoStaLookupSlot(LanguageMode language_mode,
                                   InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();

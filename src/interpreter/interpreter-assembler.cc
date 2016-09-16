@@ -114,6 +114,41 @@ Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
   return cur_context.value();
 }
 
+void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
+                                                              Node* depth,
+                                                              Label* target) {
+  Variable cur_context(this, MachineRepresentation::kTaggedPointer);
+  cur_context.Bind(context);
+
+  Variable cur_depth(this, MachineRepresentation::kWord32);
+  cur_depth.Bind(depth);
+
+  Variable* context_search_loop_variables[2] = {&cur_depth, &cur_context};
+  Label context_search(this, 2, context_search_loop_variables);
+
+  // Loop until the depth is 0.
+  Goto(&context_search);
+  Bind(&context_search);
+  {
+    // TODO(leszeks): We only need to do this check if the context had a sloppy
+    // eval, we could pass in a context chain bitmask to figure out which
+    // contexts actually need to be checked.
+
+    Node* extension_slot =
+        LoadContextSlot(cur_context.value(), Context::EXTENSION_INDEX);
+
+    // Jump to the target if the extension slot is not a hole.
+    GotoIf(WordNotEqual(extension_slot, TheHoleConstant()), target);
+
+    cur_depth.Bind(Int32Sub(cur_depth.value(), Int32Constant(1)));
+    cur_context.Bind(
+        LoadContextSlot(cur_context.value(), Context::PREVIOUS_INDEX));
+
+    GotoIf(Word32NotEqual(cur_depth.value(), Int32Constant(0)),
+           &context_search);
+  }
+}
+
 Node* InterpreterAssembler::BytecodeOffset() {
   return bytecode_offset_.value();
 }
