@@ -2302,7 +2302,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info_entry)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info)
-    ALLOCATE_MAP(JS_MODULE_TYPE, JSModule::kSize, js_module)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
@@ -2507,7 +2506,6 @@ AllocationResult Heap::AllocateCell(Object* value) {
   Cell::cast(result)->set_value(value);
   return result;
 }
-
 
 AllocationResult Heap::AllocatePropertyCell() {
   int size = PropertyCell::kSize;

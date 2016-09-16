@@ -2009,35 +2009,39 @@ MaybeLocal<Script> ScriptCompiler::CompileModule(Local<Context> context,
                                                  Source* source,
                                                  CompileOptions options) {
   auto isolate = context->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
   auto maybe = CompileUnboundInternal(isolate, source, options, true);
   Local<UnboundScript> generic;
   if (!maybe.ToLocal(&generic)) return MaybeLocal<Script>();
   v8::Context::Scope scope(context);
   auto result = generic->BindToCurrentContext();
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::JSModule> module = i_isolate->factory()->NewJSModule();
+  i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*generic);
+  i::Handle<i::FixedArray> regular_exports =
+      i::handle(shared->scope_info()->ModuleDescriptorInfo()->regular_exports(),
+                i_isolate);
+  int regular_exports_length = regular_exports->length();
+
+  i::Handle<i::Module> module =
+      i_isolate->factory()->NewModule(regular_exports_length);
+
   // TODO(neis): Storing the module into the native context is a temporary hack
   // to pass it to the Script::Run function.  This will be removed once we
   // support modules in the API.
   i_isolate->native_context()->set_current_module(*module);
 
-  i::Handle<i::SharedFunctionInfo> shared =
-      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(*generic));
-  i::Handle<i::FixedArray> regular_exports =
-      i::handle(shared->scope_info()->ModuleDescriptorInfo()->regular_exports(),
-                i_isolate);
   // TODO(neis): This will create multiple cells for the same local variable if
   // exported under multiple names, which is wrong but cannot be observed at the
   // moment. This will be fixed by doing the full-fledged linking here once we
   // get there.
-  for (int i = 0; i < regular_exports->length(); ++i) {
+  for (int i = 0; i < regular_exports_length; ++i) {
     i::Handle<i::ModuleInfoEntry> entry =
         i::handle(i::ModuleInfoEntry::cast(regular_exports->get(i)), i_isolate);
     DCHECK(entry->import_name()->IsUndefined(i_isolate));
     i::Handle<i::String> export_name =
         handle(i::String::cast(entry->export_name()), i_isolate);
-    i::JSModule::CreateExport(module, export_name);
+    i::Module::CreateExport(module, export_name);
   }
 
   return result;

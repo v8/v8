@@ -166,9 +166,6 @@ void HeapObject::HeapObjectVerify() {
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyVerify();
       break;
-    case JS_MODULE_TYPE:
-      JSModule::cast(this)->JSModuleVerify();
-      break;
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignVerify();
       break;
@@ -834,8 +831,6 @@ void JSRegExp::JSRegExpVerify() {
   }
 }
 
-void JSModule::JSModuleVerify() { CHECK(IsJSModule()); }
-
 void JSProxy::JSProxyVerify() {
   CHECK(IsJSProxy());
   VerifyPointer(target());
@@ -904,6 +899,11 @@ void Box::BoxVerify() {
   value()->ObjectVerify();
 }
 
+void Module::ModuleVerify() {
+  CHECK(IsModule());
+  exports()->ObjectVerify();
+  // TODO(neis): Check more.
+}
 
 void PrototypeInfo::PrototypeInfoVerify() {
   CHECK(IsPrototypeInfo());

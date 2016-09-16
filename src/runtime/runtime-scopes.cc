@@ -713,7 +713,7 @@ RUNTIME_FUNCTION(Runtime_PushWithContext) {
 RUNTIME_FUNCTION(Runtime_PushModuleContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSModule, module, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Module, module, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 2);
   DCHECK(function->context() == isolate->context());

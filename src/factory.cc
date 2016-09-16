@@ -789,7 +789,7 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
   return context_table;
 }
 
-Handle<Context> Factory::NewModuleContext(Handle<JSModule> module,
+Handle<Context> Factory::NewModuleContext(Handle<Module> module,
                                           Handle<JSFunction> function,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
@@ -1705,9 +1705,10 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
       JSGeneratorObject);
 }
 
-Handle<JSModule> Factory::NewJSModule() {
-  Handle<JSModule> module =
-      Handle<JSModule>::cast(NewJSObjectFromMap(js_module_map(), TENURED));
+Handle<Module> Factory::NewModule(int min_size) {
+  Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
+  Handle<ObjectHashTable> exports = ObjectHashTable::New(isolate(), min_size);
+  module->set_exports(*exports);
   return module;
 }
 

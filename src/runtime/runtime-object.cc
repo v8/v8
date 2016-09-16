@@ -964,8 +964,8 @@ RUNTIME_FUNCTION(Runtime_LoadModuleExport) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  Handle<JSModule> module(isolate->context()->module());
-  return *JSModule::LoadExport(module, name);
+  Handle<Module> module(isolate->context()->module());
+  return *Module::LoadExport(module, name);
 }
 
 RUNTIME_FUNCTION(Runtime_StoreModuleExport) {
@@ -973,8 +973,8 @@ RUNTIME_FUNCTION(Runtime_StoreModuleExport) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  Handle<JSModule> module(isolate->context()->module());
-  JSModule::StoreExport(module, name, value);
+  Handle<Module> module(isolate->context()->module());
+  Module::StoreExport(module, name, value);
   return isolate->heap()->undefined_value();
 }
 

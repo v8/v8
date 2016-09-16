@@ -124,12 +124,12 @@ ScopeInfo* Context::scope_info() {
   return ScopeInfo::cast(object);
 }
 
-JSModule* Context::module() {
+Module* Context::module() {
   Context* current = this;
   while (!current->IsModuleContext()) {
     current = current->previous();
   }
-  return JSModule::cast(current->extension());
+  return Module::cast(current->extension());
 }
 
 String* Context::catch_name() {

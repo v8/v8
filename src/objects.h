@@ -70,7 +70,6 @@
 //         - JSValue
 //           - JSDate
 //         - JSMessageObject
-//         - JSModule
 //       - JSProxy
 //     - FixedArrayBase
 //       - ByteArray
@@ -154,6 +153,7 @@
 //       - BreakPointInfo
 //       - CodeCache
 //       - PrototypeInfo
+//       - Module
 //     - WeakCell
 //
 // Formats of Object*:
@@ -398,6 +398,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(BOX_TYPE)                                                   \
   V(PROTOTYPE_INFO_TYPE)                                        \
   V(CONTEXT_EXTENSION_TYPE)                                     \
+  V(MODULE_TYPE)                                                \
                                                                 \
   V(FIXED_ARRAY_TYPE)                                           \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
@@ -413,7 +414,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_ARGUMENTS_TYPE)                                          \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
   V(JS_GENERATOR_OBJECT_TYPE)                                   \
-  V(JS_MODULE_TYPE)                                             \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
   V(JS_GLOBAL_PROXY_TYPE)                                       \
   V(JS_API_OBJECT_TYPE)                                         \
@@ -515,6 +515,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)                      \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
+  V(MODULE, Module, module)                                                  \
   V(CONTEXT_EXTENSION, ContextExtension, context_extension)
 
 // We use the full 8 bits of the instance_type field to encode heap object
@@ -690,6 +691,7 @@ enum InstanceType {
   PROPERTY_CELL_TYPE,
   PROTOTYPE_INFO_TYPE,
   CONTEXT_EXTENSION_TYPE,
+  MODULE_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -710,7 +712,6 @@ enum InstanceType {
   JS_ARGUMENTS_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GENERATOR_OBJECT_TYPE,
-  JS_MODULE_TYPE,
   JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
   JS_TYPED_ARRAY_TYPE,
@@ -963,7 +964,6 @@ template <class C> inline bool Is(Object* obj);
   V(JSObject)                    \
   V(JSContextExtensionObject)    \
   V(JSGeneratorObject)           \
-  V(JSModule)                    \
   V(Map)                         \
   V(DescriptorArray)             \
   V(FrameArray)                  \
@@ -6377,7 +6377,7 @@ class Map: public HeapObject {
   inline bool IsJSFunctionMap();
   inline bool IsStringMap();
   inline bool IsJSProxyMap();
-  inline bool IsJSModuleMap();
+  inline bool IsModuleMap();
   inline bool IsJSGlobalProxyMap();
   inline bool IsJSGlobalObjectMap();
   inline bool IsJSTypedArrayMap();
@@ -7863,20 +7863,26 @@ class JSGeneratorObject: public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };
 
-// A JSModule object is a mapping from export names to cells
+// A Module object is a mapping from export names to cells
 // This is still very much in flux.
-class JSModule : public JSObject {
+class Module : public Struct {
  public:
-  DECLARE_CAST(JSModule)
-  DECLARE_VERIFIER(JSModule)
+  DECLARE_CAST(Module)
+  DECLARE_VERIFIER(Module)
+  DECLARE_PRINTER(Module)
 
-  static const int kSize = JSObject::kHeaderSize;
+  DECL_ACCESSORS(exports, ObjectHashTable)
 
-  static void CreateExport(Handle<JSModule> module, Handle<String> name);
-  static void StoreExport(Handle<JSModule> module, Handle<String> name,
+  static void CreateExport(Handle<Module> module, Handle<String> name);
+  static void StoreExport(Handle<Module> module, Handle<String> name,
                           Handle<Object> value);
-  static Handle<Object> LoadExport(Handle<JSModule> module,
-                                   Handle<String> name);
+  static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
+
+  static const int kExportsOffset = HeapObject::kHeaderSize;
+  static const int kSize = kExportsOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
 };
 
 // JSBoundFunction describes a bound function exotic object.

@@ -3276,7 +3276,6 @@ CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSMapIterator)
 CAST_ACCESSOR(JSMessageObject)
-CAST_ACCESSOR(JSModule)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
@@ -5702,6 +5701,8 @@ BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
 ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
+ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
+
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 
@@ -6658,8 +6659,6 @@ bool JSGeneratorObject::is_closed() const {
 bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
-
-TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
 
 ACCESSORS(JSValue, value, Object, kValueOffset)
 

@@ -205,7 +205,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
-    case JS_MODULE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
@@ -241,6 +240,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SCRIPT_TYPE:
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
+    case MODULE_TYPE:
       return kOtherInternal & kTaggedPointer;
 
     // Remaining instance types are unsupported for now. If any of them do

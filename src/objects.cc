@@ -2480,10 +2480,6 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JS Generator>");
       break;
     }
-    case JS_MODULE_TYPE: {
-      accumulator->Add("<JS Module>");
-      break;
-    }
     // All other JSObjects are rather similar to each other (JSObject,
     // JSGlobalProxy, JSGlobalObject, JSUndetectable, JSValue).
     default: {
@@ -12735,7 +12731,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_MAP_ITERATOR_TYPE:
     case JS_MAP_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
-    case JS_MODULE_TYPE:
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_ARGUMENTS_TYPE:
@@ -19473,26 +19468,27 @@ bool JSReceiver::HasProxyInPrototype(Isolate* isolate) {
   return false;
 }
 
-void JSModule::CreateExport(Handle<JSModule> module, Handle<String> name) {
+void Module::CreateExport(Handle<Module> module, Handle<String> name) {
   Isolate* isolate = module->GetIsolate();
   Handle<Cell> cell =
       isolate->factory()->NewCell(isolate->factory()->undefined_value());
-  LookupIterator it(module, name);
-  JSObject::CreateDataProperty(&it, cell, Object::THROW_ON_ERROR).ToChecked();
+  Handle<ObjectHashTable> exports(module->exports(), isolate);
+  DCHECK(exports->Lookup(name)->IsTheHole(isolate));
+  exports = ObjectHashTable::Put(exports, name, cell);
+  module->set_exports(*exports);
 }
 
-void JSModule::StoreExport(Handle<JSModule> module, Handle<String> name,
-                           Handle<Object> value) {
-  LookupIterator it(module, name);
-  Handle<Cell> cell = Handle<Cell>::cast(JSObject::GetDataProperty(&it));
+void Module::StoreExport(Handle<Module> module, Handle<String> name,
+                         Handle<Object> value) {
+  Handle<ObjectHashTable> exports(module->exports());
+  Handle<Cell> cell(Cell::cast(exports->Lookup(name)));
   cell->set_value(*value);
 }
 
-Handle<Object> JSModule::LoadExport(Handle<JSModule> module,
-                                    Handle<String> name) {
+Handle<Object> Module::LoadExport(Handle<Module> module, Handle<String> name) {
   Isolate* isolate = module->GetIsolate();
-  LookupIterator it(module, name);
-  Handle<Cell> cell = Handle<Cell>::cast(JSObject::GetDataProperty(&it));
+  Handle<ObjectHashTable> exports(module->exports(), isolate);
+  Handle<Cell> cell(Cell::cast(exports->Lookup(name)));
   return handle(cell->value(), isolate);
 }
 
