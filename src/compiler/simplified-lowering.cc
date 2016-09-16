@@ -911,6 +911,21 @@ class RepresentationSelector {
     }
   }
 
+  void VisitObjectIs(Node* node, Type* type, SimplifiedLowering* lowering) {
+    Type* const input_type = TypeOf(node->InputAt(0));
+    if (input_type->Is(type)) {
+      VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
+      if (lower()) {
+        DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+      }
+    } else {
+      VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
+      if (lower() && !input_type->Maybe(type)) {
+        DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+      }
+    }
+  }
+
   void VisitCall(Node* node, SimplifiedLowering* lowering) {
     const CallDescriptor* desc = CallDescriptorOf(node->op());
     int params = static_cast<int>(desc->ParameterCount());
@@ -2339,12 +2354,32 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kObjectIsCallable:
-      case IrOpcode::kObjectIsNumber:
-      case IrOpcode::kObjectIsReceiver:
-      case IrOpcode::kObjectIsSmi:
-      case IrOpcode::kObjectIsString:
-      case IrOpcode::kObjectIsUndetectable:
+      case IrOpcode::kObjectIsCallable: {
+        // TODO(turbofan): Add Type::Callable to optimize this?
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
+        return;
+      }
+      case IrOpcode::kObjectIsNumber: {
+        VisitObjectIs(node, Type::Number(), lowering);
+        return;
+      }
+      case IrOpcode::kObjectIsReceiver: {
+        VisitObjectIs(node, Type::Receiver(), lowering);
+        return;
+      }
+      case IrOpcode::kObjectIsSmi: {
+        // TODO(turbofan): Optimize based on input representation.
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
+        return;
+      }
+      case IrOpcode::kObjectIsString: {
+        VisitObjectIs(node, Type::String(), lowering);
+        return;
+      }
+      case IrOpcode::kObjectIsUndetectable: {
+        VisitObjectIs(node, Type::Undetectable(), lowering);
+        return;
+      }
       case IrOpcode::kArrayBufferWasNeutered: {
         VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         return;
