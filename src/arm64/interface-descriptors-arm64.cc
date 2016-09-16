@@ -42,13 +42,9 @@ const Register StoreDescriptor::SlotRegister() { return x4; }
 
 const Register StoreWithVectorDescriptor::VectorRegister() { return x3; }
 
-const Register VectorStoreTransitionDescriptor::SlotRegister() { return x4; }
-const Register VectorStoreTransitionDescriptor::VectorRegister() { return x3; }
-const Register VectorStoreTransitionDescriptor::MapRegister() { return x5; }
-
-
-const Register StoreTransitionDescriptor::MapRegister() { return x3; }
-
+const Register StoreTransitionDescriptor::SlotRegister() { return x4; }
+const Register StoreTransitionDescriptor::VectorRegister() { return x3; }
+const Register StoreTransitionDescriptor::MapRegister() { return x5; }
 
 const Register StoreGlobalViaContextDescriptor::SlotRegister() { return x2; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return x0; }

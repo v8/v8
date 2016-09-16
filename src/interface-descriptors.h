@@ -32,7 +32,6 @@ class PlatformInterfaceDescriptor;
   V(Store)                                \
   V(StoreWithVector)                      \
   V(StoreTransition)                      \
-  V(VectorStoreTransition)                \
   V(VarArgFunction)                       \
   V(FastNewClosure)                       \
   V(FastNewFunctionContext)               \
@@ -400,40 +399,17 @@ class StoreDescriptor : public CallInterfaceDescriptor {
   static const Register SlotRegister();
 };
 
-
 class StoreTransitionDescriptor : public StoreDescriptor {
  public:
-  DEFINE_PARAMETERS(kReceiver, kName, kValue, kMap)
+  DEFINE_PARAMETERS(kReceiver, kName, kMap, kValue, kSlot, kVector)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreTransitionDescriptor,
                                                StoreDescriptor)
 
   static const Register MapRegister();
-};
-
-
-class VectorStoreTransitionDescriptor : public StoreDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(VectorStoreTransitionDescriptor,
-                                               StoreDescriptor)
-
-  // TODO(ishell): use DEFINE_PARAMETERS macro here
-  // Extends StoreDescriptor with Map parameter.
-  enum ParameterIndices {
-    kReceiver = 0,
-    kName = 1,
-    kValue = 2,
-
-    kMap = 3,
-
-    kSlot = 4,  // not present on ia32.
-    kVirtualSlotVector = 4,
-
-    kVector = 5
-  };
-
-  static const Register MapRegister();
   static const Register SlotRegister();
   static const Register VectorRegister();
+
+  static bool PassVectorAndSlotOnStack();
 };
 
 class StoreWithVectorDescriptor : public StoreDescriptor {

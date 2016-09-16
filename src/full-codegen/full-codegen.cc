@@ -238,6 +238,7 @@ void FullCodeGenerator::CallLoadGlobalIC(TypeofMode typeof_mode,
 void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
   CallIC(ic, id);
+  RestoreContext();
 }
 
 void FullCodeGenerator::CallKeyedStoreIC() {

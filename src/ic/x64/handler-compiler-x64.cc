@@ -20,15 +20,21 @@ namespace internal {
 void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
                                                 Register slot) {
   MacroAssembler* masm = this->masm();
-  __ Push(vector);
+  STATIC_ASSERT(LoadWithVectorDescriptor::kSlot <
+                LoadWithVectorDescriptor::kVector);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kSlot <
+                StoreWithVectorDescriptor::kVector);
+  STATIC_ASSERT(StoreTransitionDescriptor::kSlot <
+                StoreTransitionDescriptor::kVector);
   __ Push(slot);
+  __ Push(vector);
 }
 
 
 void PropertyHandlerCompiler::PopVectorAndSlot(Register vector, Register slot) {
   MacroAssembler* masm = this->masm();
-  __ Pop(slot);
   __ Pop(vector);
+  __ Pop(slot);
 }
 
 
@@ -38,6 +44,9 @@ void PropertyHandlerCompiler::DiscardVectorAndSlot() {
   __ addp(rsp, Immediate(2 * kPointerSize));
 }
 
+void PropertyHandlerCompiler::PushReturnAddress(Register tmp) { UNREACHABLE(); }
+
+void PropertyHandlerCompiler::PopReturnAddress(Register tmp) { UNREACHABLE(); }
 
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
@@ -336,12 +345,6 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
 
 void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
   __ Move(this->name(), name);
-}
-
-
-void NamedStoreHandlerCompiler::RearrangeVectorAndSlot(
-    Register current_map, Register destination_map) {
-  DCHECK(false);  // Not implemented.
 }
 
 

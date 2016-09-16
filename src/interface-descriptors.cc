@@ -137,36 +137,35 @@ void StoreDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+bool StoreTransitionDescriptor::PassVectorAndSlotOnStack() {
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+  return true;
+#else
+  return false;
+#endif
+}
 
 void StoreTransitionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
-                          MapRegister()};
-
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void VectorStoreTransitionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  if (SlotRegister().is(no_reg)) {
-    Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
-                            MapRegister(), VectorRegister()};
-    data->InitializePlatformSpecific(arraysize(registers), registers);
-  } else {
-    Register registers[] = {ReceiverRegister(), NameRegister(),
-                            ValueRegister(),    MapRegister(),
-                            SlotRegister(),     VectorRegister()};
-    data->InitializePlatformSpecific(arraysize(registers), registers);
+  Register registers[] = {
+      ReceiverRegister(), NameRegister(), MapRegister(),
+      ValueRegister(),    SlotRegister(), VectorRegister(),
+  };
+  int len = arraysize(registers);
+  if (PassVectorAndSlotOnStack()) {
+    // Pass slot and vector on the stack.
+    len -= 2;
   }
+  data->InitializePlatformSpecific(len, registers);
 }
 
 void StoreTransitionDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kReceiver, kName, kValue, kMap
+  // kReceiver, kName, kMap, kValue, kSlot, kVector
   MachineType machine_types[] = {
-      MachineType::AnyTagged(), MachineType::AnyTagged(),
-      MachineType::AnyTagged(), MachineType::AnyTagged()};
+      MachineType::AnyTagged(),    MachineType::AnyTagged(),
+      MachineType::AnyTagged(),    MachineType::AnyTagged(),
+      MachineType::TaggedSigned(), MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
@@ -227,29 +226,6 @@ void LoadWithVectorDescriptor::InitializePlatformSpecific(
   Register registers[] = {ReceiverRegister(), NameRegister(), SlotRegister(),
                           VectorRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void VectorStoreTransitionDescriptor::InitializePlatformIndependent(
-    CallInterfaceDescriptorData* data) {
-  bool has_slot = !VectorStoreTransitionDescriptor::SlotRegister().is(no_reg);
-
-  if (has_slot) {
-    // kReceiver, kName, kValue, kMap, kSlot, kVector
-    MachineType machine_types[] = {
-        MachineType::AnyTagged(),    MachineType::AnyTagged(),
-        MachineType::AnyTagged(),    MachineType::AnyTagged(),
-        MachineType::TaggedSigned(), MachineType::AnyTagged()};
-    data->InitializePlatformIndependent(arraysize(machine_types), 0,
-                                        machine_types);
-  } else {
-    // kReceiver, kName, kValue, kMap, kVector
-    MachineType machine_types[] = {
-        MachineType::AnyTagged(), MachineType::AnyTagged(),
-        MachineType::AnyTagged(), MachineType::AnyTagged(),
-        MachineType::AnyTagged()};
-    data->InitializePlatformIndependent(arraysize(machine_types), 0,
-                                        machine_types);
-  }
 }
 
 void StoreWithVectorDescriptor::InitializePlatformIndependent(

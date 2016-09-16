@@ -59,15 +59,21 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
                                                 Register slot) {
   MacroAssembler* masm = this->masm();
-  __ push(vector);
+  STATIC_ASSERT(LoadWithVectorDescriptor::kSlot <
+                LoadWithVectorDescriptor::kVector);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kSlot <
+                StoreWithVectorDescriptor::kVector);
+  STATIC_ASSERT(StoreTransitionDescriptor::kSlot <
+                StoreTransitionDescriptor::kVector);
   __ push(slot);
+  __ push(vector);
 }
 
 
 void PropertyHandlerCompiler::PopVectorAndSlot(Register vector, Register slot) {
   MacroAssembler* masm = this->masm();
-  __ pop(slot);
   __ pop(vector);
+  __ pop(slot);
 }
 
 
@@ -77,6 +83,15 @@ void PropertyHandlerCompiler::DiscardVectorAndSlot() {
   __ add(esp, Immediate(2 * kPointerSize));
 }
 
+void PropertyHandlerCompiler::PushReturnAddress(Register tmp) {
+  MacroAssembler* masm = this->masm();
+  __ push(tmp);
+}
+
+void PropertyHandlerCompiler::PopReturnAddress(Register tmp) {
+  MacroAssembler* masm = this->masm();
+  __ pop(tmp);
+}
 
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
@@ -331,19 +346,6 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
 
 void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
   __ mov(this->name(), Immediate(name));
-}
-
-
-void NamedStoreHandlerCompiler::RearrangeVectorAndSlot(
-    Register current_map, Register destination_map) {
-  DCHECK(destination_map.is(StoreTransitionHelper::MapRegister()));
-  DCHECK(current_map.is(StoreTransitionHelper::VectorRegister()));
-  ExternalReference virtual_slot =
-      ExternalReference::virtual_slot_register(isolate());
-  __ mov(destination_map, current_map);
-  __ pop(current_map);
-  __ mov(Operand::StaticVariable(virtual_slot), current_map);
-  __ pop(current_map);  // put vector in place.
 }
 
 

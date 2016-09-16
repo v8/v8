@@ -913,70 +913,6 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
 
 
 template <>
-HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
-  HValue* object = GetParameter(StoreTransitionHelper::ReceiverIndex());
-  HValue* value = GetParameter(StoreTransitionHelper::ValueIndex());
-  StoreTransitionStub::StoreMode store_mode = casted_stub()->store_mode();
-
-  if (store_mode != StoreTransitionStub::StoreMapOnly) {
-    value = GetParameter(StoreTransitionHelper::ValueIndex());
-    Representation representation = casted_stub()->representation();
-    if (representation.IsDouble()) {
-      // In case we are storing a double, assure that the value is a double
-      // before manipulating the properties backing store. Otherwise the actual
-      // store may deopt, leaving the backing store in an overallocated state.
-      value = AddUncasted<HForceRepresentation>(value, representation);
-    }
-  }
-
-  switch (store_mode) {
-    case StoreTransitionStub::ExtendStorageAndStoreMapAndValue: {
-      HValue* properties = Add<HLoadNamedField>(
-          object, nullptr, HObjectAccess::ForPropertiesPointer());
-      HValue* length = AddLoadFixedArrayLength(properties);
-      HValue* delta =
-          Add<HConstant>(static_cast<int32_t>(JSObject::kFieldsAdded));
-      HValue* new_capacity = AddUncasted<HAdd>(length, delta);
-
-      // Grow properties array.
-      ElementsKind kind = FAST_ELEMENTS;
-      Add<HBoundsCheck>(new_capacity,
-                        Add<HConstant>((kMaxRegularHeapObjectSize -
-                                        FixedArray::kHeaderSize) >>
-                                       ElementsKindToShiftSize(kind)));
-
-      // Reuse this code for properties backing store allocation.
-      HValue* new_properties =
-          BuildAllocateAndInitializeArray(kind, new_capacity);
-
-      BuildCopyProperties(properties, new_properties, length, new_capacity);
-
-      Add<HStoreNamedField>(object, HObjectAccess::ForPropertiesPointer(),
-                            new_properties);
-    }
-    // Fall through.
-    case StoreTransitionStub::StoreMapAndValue:
-      // Store the new value into the "extended" object.
-      BuildStoreNamedField(object, value, casted_stub()->index(),
-                           casted_stub()->representation(), true);
-    // Fall through.
-
-    case StoreTransitionStub::StoreMapOnly:
-      // And finally update the map.
-      Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
-                            GetParameter(StoreTransitionHelper::MapIndex()));
-      break;
-  }
-  return value;
-}
-
-
-Handle<Code> StoreTransitionStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   ElementsKind const from_kind = casted_stub()->from_kind();
   ElementsKind const to_kind = casted_stub()->to_kind();
@@ -1314,41 +1250,6 @@ HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {
 }
 
 Handle<Code> ToBooleanICStub::GenerateCode() { return DoGenerateCode(this); }
-
-template <>
-HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
-  HValue* object = GetParameter(StoreTransitionHelper::ReceiverIndex());
-  HValue* key = GetParameter(StoreTransitionHelper::NameIndex());
-  HValue* value = GetParameter(StoreTransitionHelper::ValueIndex());
-  HValue* map = GetParameter(StoreTransitionHelper::MapIndex());
-
-  if (FLAG_trace_elements_transitions) {
-    // Tracing elements transitions is the job of the runtime.
-    Add<HDeoptimize>(DeoptimizeReason::kTracingElementsTransitions,
-                     Deoptimizer::EAGER);
-  } else {
-    info()->MarkAsSavesCallerDoubles();
-
-    BuildTransitionElementsKind(object, map,
-                                casted_stub()->from_kind(),
-                                casted_stub()->to_kind(),
-                                casted_stub()->is_jsarray());
-
-    BuildUncheckedMonomorphicElementAccess(object, key, value,
-                                           casted_stub()->is_jsarray(),
-                                           casted_stub()->to_kind(),
-                                           STORE, ALLOW_RETURN_HOLE,
-                                           casted_stub()->store_mode());
-  }
-
-  return value;
-}
-
-
-Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
 
 template <>
 HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {

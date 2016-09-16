@@ -3778,6 +3778,8 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ lea(feedback, FieldOperand(feedback, Code::kHeaderSize));
   __ mov(Operand::StaticVariable(virtual_register), feedback);
   __ pop(value);
+
+  // Call store handler using StoreWithVectorDescriptor calling convention.
   __ jmp(Operand::StaticVariable(virtual_register));
 
   __ bind(&transition_call);
@@ -3801,14 +3803,21 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ mov(cached_map, FieldOperand(cached_map, WeakCell::kValueOffset));
   // The weak cell may have been cleared.
   __ JumpIfSmi(cached_map, &pop_and_miss);
-  DCHECK(!cached_map.is(VectorStoreTransitionDescriptor::MapRegister()));
-  __ mov(VectorStoreTransitionDescriptor::MapRegister(), cached_map);
+  DCHECK(!cached_map.is(StoreTransitionDescriptor::MapRegister()));
+  __ mov(StoreTransitionDescriptor::MapRegister(), cached_map);
 
-  // Pop key into place.
+  // Call store transition handler using StoreTransitionDescriptor calling
+  // convention.
   __ pop(key);
   __ pop(vector);
   __ pop(receiver);
   __ pop(value);
+  {
+    // Put vector and slot beneath return address.
+    __ push(vector);
+    __ push(Operand(esp, 1 * kPointerSize));  // push return address
+    __ mov(Operand(esp, 2 * kPointerSize), slot);
+  }
   __ jmp(Operand::StaticVariable(virtual_register));
 
   __ bind(&prepare_next);

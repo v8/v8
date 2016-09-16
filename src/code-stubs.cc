@@ -498,6 +498,107 @@ void KeyedLoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->KeyedLoadIC(&p);
 }
 
+void StoreTransitionStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* map = assembler->Parameter(Descriptor::kMap);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  StoreMode store_mode = this->store_mode();
+  Node* prepared_value = value;
+
+  Label miss(assembler);
+  bool needs_miss_case = false;
+
+  if (store_mode != StoreTransitionStub::StoreMapOnly) {
+    Representation representation = this->representation();
+    FieldIndex index = this->index();
+    assembler->Comment(
+        "Prepare value for write: representation: %s, index.is_inobject: %d, "
+        "index.offset: %d",
+        representation.Mnemonic(), index.is_inobject(), index.offset());
+    prepared_value =
+        assembler->PrepareValueForWrite(prepared_value, representation, &miss);
+    // Only store to tagged field never bails out.
+    needs_miss_case |= !representation.IsTagged();
+  }
+
+  switch (store_mode) {
+    case StoreTransitionStub::ExtendStorageAndStoreMapAndValue:
+      assembler->Comment("Extend storage");
+      assembler->ExtendPropertiesBackingStore(receiver);
+    // Fall through.
+    case StoreTransitionStub::StoreMapAndValue:
+      assembler->Comment("Store value");
+      // Store the new value into the "extended" object.
+      assembler->StoreNamedField(receiver, index(), representation(),
+                                 prepared_value, true);
+    // Fall through.
+    case StoreTransitionStub::StoreMapOnly:
+      assembler->Comment("Store map");
+      // And finally update the map.
+      assembler->StoreObjectField(receiver, JSObject::kMapOffset, map);
+      break;
+  }
+  assembler->Return(value);
+
+  if (needs_miss_case) {
+    assembler->Bind(&miss);
+    {
+      assembler->Comment("Miss");
+      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, receiver,
+                                 name, value, slot, vector);
+    }
+  }
+}
+
+void ElementsTransitionAndStoreStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* key = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* map = assembler->Parameter(Descriptor::kMap);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Comment(
+      "ElementsTransitionAndStoreStub: from_kind=%s, to_kind=%s,"
+      " is_jsarray=%d, store_mode=%d",
+      ElementsKindToString(from_kind()), ElementsKindToString(to_kind()),
+      is_jsarray(), store_mode());
+
+  Label miss(assembler);
+
+  if (FLAG_trace_elements_transitions) {
+    // Tracing elements transitions is the job of the runtime.
+    assembler->Goto(&miss);
+  } else {
+    assembler->TransitionElementsKind(receiver, map, from_kind(), to_kind(),
+                                      is_jsarray(), &miss);
+    assembler->EmitElementStore(receiver, key, value, is_jsarray(), to_kind(),
+                                store_mode(), &miss);
+    assembler->Return(value);
+  }
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kElementsTransitionAndStoreIC_Miss,
+                               context, receiver, key, value, map, slot,
+                               vector);
+  }
+}
+
 void AllocateHeapNumberStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
@@ -5121,17 +5222,6 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
   }
 }
 
-
-void ElementsTransitionAndStoreStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      FUNCTION_ADDR(Runtime_ElementsTransitionAndStoreIC_Miss));
-}
-
-void StoreTransitionStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      FUNCTION_ADDR(Runtime_TransitionStoreIC_MissFromStubFailure));
-}
 
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(

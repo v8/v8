@@ -53,6 +53,9 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 
   void DiscardVectorAndSlot();
 
+  void PushReturnAddress(Register tmp);
+  void PopReturnAddress(Register tmp);
+
   // TODO(verwaest): Make non-static.
   static void GenerateApiAccessorCall(MacroAssembler* masm,
                                       const CallOptimization& optimization,
@@ -248,10 +251,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
   void GenerateRestoreName(Label* label, Handle<Name> name);
-
-  // Pop the vector and slot into appropriate registers, moving the map in
-  // the process. (This is an accomodation for register pressure on ia32).
-  void RearrangeVectorAndSlot(Register current_map, Register destination_map);
 
  private:
   void GenerateRestoreName(Handle<Name> name);

@@ -3532,7 +3532,7 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ jmp(feedback);
 
   __ bind(&transition_call);
-  DCHECK(receiver_map.is(VectorStoreTransitionDescriptor::MapRegister()));
+  DCHECK(receiver_map.is(StoreTransitionDescriptor::MapRegister()));
   __ movp(receiver_map, FieldOperand(cached_map, WeakCell::kValueOffset));
   // The weak cell may have been cleared.
   __ JumpIfSmi(receiver_map, miss);

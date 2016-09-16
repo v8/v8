@@ -637,6 +637,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                          compiler::Node* name, Label* if_handler,
                          Variable* var_handler, Label* if_miss);
 
+  // Extends properties backing store by JSObject::kFieldsAdded elements.
+  void ExtendPropertiesBackingStore(compiler::Node* object);
+
   compiler::Node* PrepareValueForWrite(compiler::Node* value,
                                        Representation representation,
                                        Label* bailout);
@@ -690,6 +693,14 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void LoadGlobalIC(const LoadICParameters* p);
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
+
+  void TransitionElementsKind(compiler::Node* object, compiler::Node* map,
+                              ElementsKind from_kind, ElementsKind to_kind,
+                              bool is_jsarray, Label* bailout);
+
+  void TrapAllocationMemento(compiler::Node* object, Label* memento_found);
+
+  compiler::Node* PageFromAddress(compiler::Node* address);
 
   // Get the enumerable length from |map| and return the result as a Smi.
   compiler::Node* EnumLength(compiler::Node* map);

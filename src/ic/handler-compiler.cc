@@ -438,7 +438,18 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     Handle<Map> transition, Handle<Name> name) {
   Label miss;
 
-  PushVectorAndSlot();
+  bool vector_and_slot_on_stack =
+      StoreTransitionDescriptor::PassVectorAndSlotOnStack();
+  if (vector_and_slot_on_stack) {
+    // Speculatively prepare for calling StoreTransitionStub by converting
+    // StoreWithVectorDescriptor arguments to StoreTransitionDescriptor
+    // arguments.
+    PopReturnAddress(this->name());
+    PushVectorAndSlot();
+    PushReturnAddress(this->name());
+  } else {
+    PushVectorAndSlot();
+  }
 
   // Check that we are allowed to write this.
   bool is_nonexistent = holder()->map() == transition->GetBackPointer();
@@ -470,19 +481,13 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   DCHECK(!transition->is_access_check_needed());
 
   // Call to respective StoreTransitionStub.
-  bool virtual_args = StoreTransitionHelper::HasVirtualSlotArg();
-  Register map_reg = StoreTransitionHelper::MapRegister();
+  Register map_reg = StoreTransitionDescriptor::MapRegister();
 
   if (details.type() == DATA_CONSTANT) {
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
-    Register tmp =
-        virtual_args ? StoreWithVectorDescriptor::VectorRegister() : map_reg;
-    GenerateRestoreMap(transition, tmp, scratch2(), &miss);
-    GenerateConstantCheck(tmp, descriptor, value(), scratch2(), &miss);
-    if (virtual_args) {
-      // This will move the map from tmp into map_reg.
-      RearrangeVectorAndSlot(tmp, map_reg);
-    } else {
+    GenerateRestoreMap(transition, map_reg, scratch1(), &miss);
+    GenerateConstantCheck(map_reg, descriptor, value(), scratch1(), &miss);
+    if (!vector_and_slot_on_stack) {
       PopVectorAndSlot();
     }
     GenerateRestoreName(name);
@@ -498,13 +503,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
         Map::cast(transition->GetBackPointer())->unused_property_fields() == 0
             ? StoreTransitionStub::ExtendStorageAndStoreMapAndValue
             : StoreTransitionStub::StoreMapAndValue;
-
-    Register tmp =
-        virtual_args ? StoreWithVectorDescriptor::VectorRegister() : map_reg;
-    GenerateRestoreMap(transition, tmp, scratch2(), &miss);
-    if (virtual_args) {
-      RearrangeVectorAndSlot(tmp, map_reg);
-    } else {
+    GenerateRestoreMap(transition, map_reg, scratch1(), &miss);
+    if (!vector_and_slot_on_stack) {
       PopVectorAndSlot();
     }
     GenerateRestoreName(name);
@@ -514,8 +514,16 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     GenerateTailCall(masm(), stub.GetCode());
   }
 
-  GenerateRestoreName(&miss, name);
-  PopVectorAndSlot();
+  __ bind(&miss);
+  if (vector_and_slot_on_stack) {
+    // Prepare for calling miss builtin with StoreWithVectorDescriptor.
+    PopReturnAddress(this->name());
+    PopVectorAndSlot();
+    PushReturnAddress(this->name());
+  } else {
+    PopVectorAndSlot();
+  }
+  GenerateRestoreName(name);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   return GetCode(kind(), name);

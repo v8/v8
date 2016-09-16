@@ -1645,48 +1645,6 @@ HValue* HGraphBuilder::BuildCopyElementsOnWrite(HValue* object,
 }
 
 
-void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
-                                                HValue* map,
-                                                ElementsKind from_kind,
-                                                ElementsKind to_kind,
-                                                bool is_jsarray) {
-  DCHECK(!IsFastHoleyElementsKind(from_kind) ||
-         IsFastHoleyElementsKind(to_kind));
-
-  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
-    Add<HTrapAllocationMemento>(object);
-  }
-
-  if (!IsSimpleMapChangeTransition(from_kind, to_kind)) {
-    HInstruction* elements = AddLoadElements(object);
-
-    HInstruction* empty_fixed_array = Add<HConstant>(
-        isolate()->factory()->empty_fixed_array());
-
-    IfBuilder if_builder(this);
-
-    if_builder.IfNot<HCompareObjectEqAndBranch>(elements, empty_fixed_array);
-
-    if_builder.Then();
-
-    HInstruction* elements_length = AddLoadFixedArrayLength(elements);
-
-    HInstruction* array_length =
-        is_jsarray
-            ? Add<HLoadNamedField>(object, nullptr,
-                                   HObjectAccess::ForArrayLength(from_kind))
-            : elements_length;
-
-    BuildGrowElementsCapacity(object, elements, from_kind, to_kind,
-                              array_length, elements_length);
-
-    if_builder.End();
-  }
-
-  Add<HStoreNamedField>(object, HObjectAccess::ForMap(), map);
-}
-
-
 void HGraphBuilder::BuildJSObjectCheck(HValue* receiver,
                                        int bit_field_mask) {
   // Check that the object isn't a smi.

@@ -108,13 +108,19 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
 void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
                                                 Register slot) {
   MacroAssembler* masm = this->masm();
-  __ Push(vector, slot);
+  STATIC_ASSERT(LoadWithVectorDescriptor::kSlot <
+                LoadWithVectorDescriptor::kVector);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kSlot <
+                StoreWithVectorDescriptor::kVector);
+  STATIC_ASSERT(StoreTransitionDescriptor::kSlot <
+                StoreTransitionDescriptor::kVector);
+  __ Push(slot, vector);
 }
 
 
 void PropertyHandlerCompiler::PopVectorAndSlot(Register vector, Register slot) {
   MacroAssembler* masm = this->masm();
-  __ Pop(vector, slot);
+  __ Pop(slot, vector);
 }
 
 
@@ -124,6 +130,9 @@ void PropertyHandlerCompiler::DiscardVectorAndSlot() {
   __ addi(sp, sp, Operand(2 * kPointerSize));
 }
 
+void PropertyHandlerCompiler::PushReturnAddress(Register tmp) { UNREACHABLE(); }
+
+void PropertyHandlerCompiler::PopReturnAddress(Register tmp) { UNREACHABLE(); }
 
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
@@ -340,12 +349,6 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
 
 void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
   __ mov(this->name(), Operand(name));
-}
-
-
-void NamedStoreHandlerCompiler::RearrangeVectorAndSlot(
-    Register current_map, Register destination_map) {
-  DCHECK(false);  // Not implemented.
 }
 
 

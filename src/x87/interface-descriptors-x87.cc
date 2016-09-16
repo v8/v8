@@ -39,19 +39,11 @@ const Register StoreDescriptor::SlotRegister() { return edi; }
 
 const Register StoreWithVectorDescriptor::VectorRegister() { return ebx; }
 
-const Register VectorStoreTransitionDescriptor::SlotRegister() {
-  return no_reg;
-}
+const Register StoreTransitionDescriptor::SlotRegister() { return no_reg; }
 
+const Register StoreTransitionDescriptor::VectorRegister() { return ebx; }
 
-const Register VectorStoreTransitionDescriptor::VectorRegister() { return ebx; }
-
-
-const Register VectorStoreTransitionDescriptor::MapRegister() { return edi; }
-
-
-const Register StoreTransitionDescriptor::MapRegister() { return ebx; }
-
+const Register StoreTransitionDescriptor::MapRegister() { return edi; }
 
 const Register StoreGlobalViaContextDescriptor::SlotRegister() { return ebx; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return eax; }

@@ -3812,7 +3812,7 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register feedback,
   __ LoadP(receiver_map, MemOperand(pointer_reg, kPointerSize * 2));
 
   // Load the map into the correct register.
-  DCHECK(feedback.is(VectorStoreTransitionDescriptor::MapRegister()));
+  DCHECK(feedback.is(StoreTransitionDescriptor::MapRegister()));
   __ mr(feedback, too_far);
 
   __ addi(ip, receiver_map, Operand(Code::kHeaderSize - kHeapObjectTag));

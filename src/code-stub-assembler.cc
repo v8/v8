@@ -4450,6 +4450,38 @@ void CodeStubAssembler::LoadGlobalIC(const LoadICParameters* p) {
   }
 }
 
+void CodeStubAssembler::ExtendPropertiesBackingStore(compiler::Node* object) {
+  Node* properties = LoadProperties(object);
+  Node* length = LoadFixedArrayBaseLength(properties);
+
+  ParameterMode mode = OptimalParameterMode();
+  length = UntagParameter(length, mode);
+
+  Node* delta = IntPtrOrSmiConstant(JSObject::kFieldsAdded, mode);
+  Node* new_capacity = IntPtrAdd(length, delta);
+
+  // Grow properties array.
+  ElementsKind kind = FAST_ELEMENTS;
+  DCHECK(kMaxNumberOfDescriptors + JSObject::kFieldsAdded <
+         FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind));
+  // The size of a new properties backing store is guaranteed to be small
+  // enough that the new backing store will be allocated in new space.
+  Assert(UintPtrLessThan(new_capacity, IntPtrConstant(kMaxNumberOfDescriptors +
+                                                      JSObject::kFieldsAdded)));
+
+  Node* new_properties = AllocateFixedArray(kind, new_capacity, mode);
+
+  FillFixedArrayWithValue(kind, new_properties, length, new_capacity,
+                          Heap::kUndefinedValueRootIndex, mode);
+
+  // |new_properties| is guaranteed to be in new space, so we can skip
+  // the write barrier.
+  CopyFixedArrayElements(kind, properties, new_properties, length,
+                         SKIP_WRITE_BARRIER, mode);
+
+  StoreObjectField(object, JSObject::kPropertiesOffset, new_properties);
+}
+
 Node* CodeStubAssembler::PrepareValueForWrite(Node* value,
                                               Representation representation,
                                               Label* bailout) {
@@ -4880,6 +4912,103 @@ Node* CodeStubAssembler::CopyElementsOnWrite(Node* object, Node* elements,
 
   Bind(&done);
   return new_elements_var.value();
+}
+
+void CodeStubAssembler::TransitionElementsKind(
+    compiler::Node* object, compiler::Node* map, ElementsKind from_kind,
+    ElementsKind to_kind, bool is_jsarray, Label* bailout) {
+  DCHECK(!IsFastHoleyElementsKind(from_kind) ||
+         IsFastHoleyElementsKind(to_kind));
+  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    TrapAllocationMemento(object, bailout);
+  }
+
+  if (!IsSimpleMapChangeTransition(from_kind, to_kind)) {
+    Comment("Non-simple map transition");
+    Node* elements = LoadElements(object);
+
+    Node* empty_fixed_array =
+        HeapConstant(isolate()->factory()->empty_fixed_array());
+
+    Label done(this);
+    GotoIf(WordEqual(elements, empty_fixed_array), &done);
+
+    // TODO(ishell): Use OptimalParameterMode().
+    ParameterMode mode = INTPTR_PARAMETERS;
+    Node* elements_length = SmiUntag(LoadFixedArrayBaseLength(elements));
+    Node* array_length =
+        is_jsarray ? SmiUntag(LoadObjectField(object, JSArray::kLengthOffset))
+                   : elements_length;
+
+    GrowElementsCapacity(object, elements, from_kind, to_kind, array_length,
+                         elements_length, mode, bailout);
+    Goto(&done);
+    Bind(&done);
+  }
+
+  StoreObjectField(object, JSObject::kMapOffset, map);
+}
+
+void CodeStubAssembler::TrapAllocationMemento(Node* object,
+                                              Label* memento_found) {
+  Comment("[ TrapAllocationMemento");
+  Label no_memento_found(this);
+  Label top_check(this), map_check(this);
+
+  Node* new_space_top_address = ExternalConstant(
+      ExternalReference::new_space_allocation_top_address(isolate()));
+  const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
+  const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
+
+  // Bail out if the object is not in new space.
+  Node* object_page = PageFromAddress(object);
+  {
+    const int mask =
+        (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
+    Node* page_flags = Load(MachineType::IntPtr(), object_page);
+    GotoIf(
+        WordEqual(WordAnd(page_flags, IntPtrConstant(mask)), IntPtrConstant(0)),
+        &no_memento_found);
+  }
+
+  Node* memento_end = IntPtrAdd(object, IntPtrConstant(kMementoEndOffset));
+  Node* memento_end_page = PageFromAddress(memento_end);
+
+  Node* new_space_top = Load(MachineType::Pointer(), new_space_top_address);
+  Node* new_space_top_page = PageFromAddress(new_space_top);
+
+  // If the object is in new space, we need to check whether it is and
+  // respective potential memento object on the same page as the current top.
+  GotoIf(WordEqual(memento_end_page, new_space_top_page), &top_check);
+
+  // The object is on a different page than allocation top. Bail out if the
+  // object sits on the page boundary as no memento can follow and we cannot
+  // touch the memory following it.
+  Branch(WordEqual(object_page, memento_end_page), &map_check,
+         &no_memento_found);
+
+  // If top is on the same page as the current object, we need to check whether
+  // we are below top.
+  Bind(&top_check);
+  {
+    Branch(UintPtrGreaterThan(memento_end, new_space_top), &no_memento_found,
+           &map_check);
+  }
+
+  // Memento map check.
+  Bind(&map_check);
+  {
+    Node* memento_map = LoadObjectField(object, kMementoMapOffset);
+    Branch(
+        WordEqual(memento_map, LoadRoot(Heap::kAllocationMementoMapRootIndex)),
+        memento_found, &no_memento_found);
+  }
+  Bind(&no_memento_found);
+  Comment("] TrapAllocationMemento");
+}
+
+Node* CodeStubAssembler::PageFromAddress(Node* address) {
+  return WordAnd(address, IntPtrConstant(~Page::kPageAlignmentMask));
 }
 
 Node* CodeStubAssembler::EnumLength(Node* map) {
