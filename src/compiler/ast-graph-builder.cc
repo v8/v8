@@ -3988,8 +3988,8 @@ Node* AstGraphBuilder::TryFastToName(Node* input) {
 
 bool AstGraphBuilder::CheckOsrEntry(IterationStatement* stmt) {
   if (info()->osr_ast_id() == stmt->OsrEntryId()) {
-    info()->set_osr_expr_stack_height(std::max(
-        environment()->stack_height(), info()->osr_expr_stack_height()));
+    DCHECK_EQ(-1, info()->osr_expr_stack_height());
+    info()->set_osr_expr_stack_height(environment()->stack_height());
     return true;
   }
   return false;
