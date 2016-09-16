@@ -1351,7 +1351,7 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 }
 
 bool Compiler::EnsureBytecode(CompilationInfo* info) {
-  DCHECK(ShouldUseIgnition(info));
+  if (!ShouldUseIgnition(info)) return false;
   if (!info->shared_info()->HasBytecodeArray()) {
     Handle<Code> original_code(info->shared_info()->code());
     if (GetUnoptimizedCode(info).is_null()) return false;
