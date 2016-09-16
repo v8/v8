@@ -355,6 +355,8 @@ class AstValueFactory {
   const AstRawString* GetString(Handle<String> literal);
   const AstConsString* NewConsString(const AstString* left,
                                      const AstString* right);
+  const AstRawString* ConcatStrings(const AstRawString* left,
+                                    const AstRawString* right);
 
   void Internalize(Isolate* isolate);
   bool IsInternalized() {

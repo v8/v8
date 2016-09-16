@@ -274,6 +274,38 @@ const AstConsString* AstValueFactory::NewConsString(
   return new_string;
 }
 
+const AstRawString* AstValueFactory::ConcatStrings(const AstRawString* left,
+                                                   const AstRawString* right) {
+  int left_length = left->length();
+  int right_length = right->length();
+  const unsigned char* left_data = left->raw_data();
+  const unsigned char* right_data = right->raw_data();
+  if (left->is_one_byte() && right->is_one_byte()) {
+    uint8_t* buffer = zone_->NewArray<uint8_t>(left_length + right_length);
+    memcpy(buffer, left_data, left_length);
+    memcpy(buffer + left_length, right_data, right_length);
+    Vector<const uint8_t> literal(buffer, left_length + right_length);
+    return GetOneByteStringInternal(literal);
+  } else {
+    uint16_t* buffer = zone_->NewArray<uint16_t>(left_length + right_length);
+    if (left->is_one_byte()) {
+      for (int i = 0; i < left_length; ++i) {
+        buffer[i] = left_data[i];
+      }
+    } else {
+      memcpy(buffer, left_data, 2 * left_length);
+    }
+    if (right->is_one_byte()) {
+      for (int i = 0; i < right_length; ++i) {
+        buffer[i + left_length] = right_data[i];
+      }
+    } else {
+      memcpy(buffer + left_length, right_data, 2 * right_length);
+    }
+    Vector<const uint16_t> literal(buffer, left_length + right_length);
+    return GetTwoByteStringInternal(literal);
+  }
+}
 
 void AstValueFactory::Internalize(Isolate* isolate) {
   if (isolate_) {
