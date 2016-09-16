@@ -1173,15 +1173,33 @@ void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
   __ Jump(lr);
 }
 
+static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
+                                        Register scratch,
+                                        Label* stack_overflow) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  __ LoadRoot(scratch, Heap::kRealStackLimitRootIndex);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  __ sub(scratch, sp, scratch);
+  // Check if the arguments will overflow the stack.
+  __ cmp(scratch, Operand(num_args, LSL, kPointerSizeLog2));
+  __ b(le, stack_overflow);  // Signed comparison.
+}
+
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register num_args, Register index,
-                                         Register limit, Register scratch) {
+                                         Register limit, Register scratch,
+                                         Label* stack_overflow) {
+  // Add a stack check before pushing arguments.
+  Generate_StackOverflowCheck(masm, num_args, scratch, stack_overflow);
+
   // Find the address of the last argument.
   __ mov(limit, num_args);
   __ mov(limit, Operand(limit, LSL, kPointerSizeLog2));
   __ sub(limit, index, limit);
 
-  // TODO(mythria): Add a stack check before pushing arguments.
   Label loop_header, loop_check;
   __ b(al, &loop_check);
   __ bind(&loop_header);
@@ -1203,11 +1221,12 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   //          they are to be pushed onto the stack.
   //  -- r1 : the target to call (can be any Object).
   // -----------------------------------
+  Label stack_overflow;
 
   __ add(r3, r0, Operand(1));  // Add one for receiver.
 
   // Push the arguments. r2, r4, r5 will be modified.
-  Generate_InterpreterPushArgs(masm, r3, r2, r4, r5);
+  Generate_InterpreterPushArgs(masm, r3, r2, r4, r5, &stack_overflow);
 
   // Call the target.
   if (function_type == CallableType::kJSFunction) {
@@ -1219,6 +1238,13 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
     __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny,
                                               tail_call_mode),
             RelocInfo::CODE_TARGET);
+  }
+
+  __ bind(&stack_overflow);
+  {
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    // Unreachable code.
+    __ bkpt(0);
   }
 }
 
@@ -1232,14 +1258,14 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   // -- r2 : allocation site feedback if available, undefined otherwise.
   // -- r4 : address of the first argument
   // -----------------------------------
+  Label stack_overflow;
 
   // Push a slot for the receiver to be constructed.
   __ mov(ip, Operand::Zero());
   __ push(ip);
 
-  // TODO(mythria): Add a stack check before pushing arguments.
   // Push the arguments. r5, r4, r6 will be modified.
-  Generate_InterpreterPushArgs(masm, r0, r4, r5, r6);
+  Generate_InterpreterPushArgs(masm, r0, r4, r5, r6, &stack_overflow);
 
   __ AssertUndefinedOrAllocationSite(r2, r5);
   if (construct_type == CallableType::kJSFunction) {
@@ -1257,6 +1283,13 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     // Call the constructor with r0, r1, and r3 unmodified.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
+
+  __ bind(&stack_overflow);
+  {
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    // Unreachable code.
+    __ bkpt(0);
+  }
 }
 
 // static
@@ -1268,18 +1301,26 @@ void Builtins::Generate_InterpreterPushArgsAndConstructArray(
   // -- r2 : allocation site feedback if available, undefined otherwise.
   // -- r3 : address of the first argument
   // -----------------------------------
+  Label stack_overflow;
 
   __ add(r4, r0, Operand(1));  // Add one for receiver.
 
   // TODO(mythria): Add a stack check before pushing arguments.
   // Push the arguments. r3, r5, r6 will be modified.
-  Generate_InterpreterPushArgs(masm, r4, r3, r5, r6);
+  Generate_InterpreterPushArgs(masm, r4, r3, r5, r6, &stack_overflow);
 
   // Array constructor expects constructor in r3. It is same as r1 here.
   __ mov(r3, r1);
 
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
+
+  __ bind(&stack_overflow);
+  {
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    // Unreachable code.
+    __ bkpt(0);
+  }
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
@@ -2097,26 +2138,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   }
 }
 
-static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
-                                      Label* stack_overflow) {
-  // ----------- S t a t e -------------
-  //  -- r0 : actual number of arguments
-  //  -- r1 : function (passed through to callee)
-  //  -- r2 : expected number of arguments
-  //  -- r3 : new target (passed through to callee)
-  // -----------------------------------
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  __ LoadRoot(r5, Heap::kRealStackLimitRootIndex);
-  // Make r5 the space we have left. The stack might already be overflowed
-  // here which will cause r5 to become negative.
-  __ sub(r5, sp, r5);
-  // Check if the arguments will overflow the stack.
-  __ cmp(r5, Operand(r2, LSL, kPointerSizeLog2));
-  __ b(le, stack_overflow);  // Signed comparison.
-}
-
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(r0);
   __ mov(r4, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
@@ -2801,7 +2822,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Enough parameters: actual >= expected
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
-    ArgumentAdaptorStackCheck(masm, &stack_overflow);
+    Generate_StackOverflowCheck(masm, r2, r5, &stack_overflow);
 
     // Calculate copy start address into r0 and copy end address into r4.
     // r0: actual number of arguments as a smi
@@ -2834,7 +2855,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Too few parameters: Actual < expected
     __ bind(&too_few);
     EnterArgumentsAdaptorFrame(masm);
-    ArgumentAdaptorStackCheck(masm, &stack_overflow);
+    Generate_StackOverflowCheck(masm, r2, r5, &stack_overflow);
 
     // Calculate copy start address into r0 and copy end address is fp.
     // r0: actual number of arguments as a smi

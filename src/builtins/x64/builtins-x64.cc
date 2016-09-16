@@ -791,6 +791,26 @@ void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
   __ ret(0);
 }
 
+static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
+                                        Register scratch1, Register scratch2,
+                                        Label* stack_overflow) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  __ LoadRoot(scratch1, Heap::kRealStackLimitRootIndex);
+  __ movp(scratch2, rsp);
+  // Make scratch2 the space we have left. The stack might already be overflowed
+  // here which will cause scratch2 to become negative.
+  __ subp(scratch2, scratch1);
+  // Make scratch1 the space we need for the array when it is unrolled onto the
+  // stack.
+  __ movp(scratch1, num_args);
+  __ shlp(scratch1, Immediate(kPointerSizeLog2));
+  // Check if the arguments will overflow the stack.
+  __ cmpp(scratch2, scratch1);
+  __ j(less_equal, stack_overflow);  // Signed comparison.
+}
+
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register num_args,
                                          Register start_address,
@@ -801,7 +821,6 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ negp(scratch);
   __ addp(scratch, start_address);
 
-  // TODO(mythria): Add a stack check before pushing arguments.
   // Push the arguments.
   Label loop_header, loop_check;
   __ j(always, &loop_check);
@@ -824,13 +843,17 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   //           they are to be pushed onto the stack.
   //  -- rdi : the target to call (can be any Object).
   // -----------------------------------
-
-  // Pop return address to allow tail-call after pushing arguments.
-  __ PopReturnAddressTo(kScratchRegister);
+  Label stack_overflow;
 
   // Number of values to be pushed.
   __ Move(rcx, rax);
   __ addp(rcx, Immediate(1));  // Add one for receiver.
+
+  // Add a stack check before pushing arguments.
+  Generate_StackOverflowCheck(masm, rcx, rdx, r8, &stack_overflow);
+
+  // Pop return address to allow tail-call after pushing arguments.
+  __ PopReturnAddressTo(kScratchRegister);
 
   // rbx and rdx will be modified.
   Generate_InterpreterPushArgs(masm, rcx, rbx, rdx);
@@ -848,6 +871,14 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
                                               tail_call_mode),
             RelocInfo::CODE_TARGET);
   }
+
+  // Throw stack overflow exception.
+  __ bind(&stack_overflow);
+  {
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    // This should be unreachable.
+    __ int3();
+  }
 }
 
 // static
@@ -863,6 +894,10 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   //           arguments should be consecutive above this, in the same order as
   //           they are to be pushed onto the stack.
   // -----------------------------------
+  Label stack_overflow;
+
+  // Add a stack check before pushing arguments.
+  Generate_StackOverflowCheck(masm, rax, r8, r9, &stack_overflow);
 
   // Pop return address to allow tail-call after pushing arguments.
   __ PopReturnAddressTo(kScratchRegister);
@@ -892,6 +927,14 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     // Call the constructor (rax, rdx, rdi passed on).
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
+
+  // Throw stack overflow exception.
+  __ bind(&stack_overflow);
+  {
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    // This should be unreachable.
+    __ int3();
+  }
 }
 
 // static
@@ -905,13 +948,17 @@ void Builtins::Generate_InterpreterPushArgsAndConstructArray(
   //           arguments should be consecutive above this, in the same order as
   //           they are to be pushed onto the stack.
   // -----------------------------------
-
-  // Pop return address to allow tail-call after pushing arguments.
-  __ PopReturnAddressTo(kScratchRegister);
+  Label stack_overflow;
 
   // Number of values to be pushed.
   __ Move(r8, rax);
   __ addp(r8, Immediate(1));  // Add one for receiver.
+
+  // Add a stack check before pushing arguments.
+  Generate_StackOverflowCheck(masm, r8, rdi, r9, &stack_overflow);
+
+  // Pop return address to allow tail-call after pushing arguments.
+  __ PopReturnAddressTo(kScratchRegister);
 
   // rcx and rdi will be modified.
   Generate_InterpreterPushArgs(masm, r8, rcx, rdi);
@@ -924,6 +971,14 @@ void Builtins::Generate_InterpreterPushArgsAndConstructArray(
 
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
+
+  // Throw stack overflow exception.
+  __ bind(&stack_overflow);
+  {
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    // This should be unreachable.
+    __ int3();
+  }
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
@@ -2062,32 +2117,6 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   }
 }
 
-static void ArgumentsAdaptorStackCheck(MacroAssembler* masm,
-                                       Label* stack_overflow) {
-  // ----------- S t a t e -------------
-  //  -- rax : actual number of arguments
-  //  -- rbx : expected number of arguments
-  //  -- rdx : new target (passed through to callee)
-  //  -- rdi : function (passed through to callee)
-  // -----------------------------------
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  Label okay;
-  __ LoadRoot(r8, Heap::kRealStackLimitRootIndex);
-  __ movp(rcx, rsp);
-  // Make rcx the space we have left. The stack might already be overflowed
-  // here which will cause rcx to become negative.
-  __ subp(rcx, r8);
-  // Make r8 the space we need for the array when it is unrolled onto the
-  // stack.
-  __ movp(r8, rbx);
-  __ shlp(r8, Immediate(kPointerSizeLog2));
-  // Check if the arguments will overflow the stack.
-  __ cmpp(rcx, r8);
-  __ j(less_equal, stack_overflow);  // Signed comparison.
-}
-
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ pushq(rbp);
   __ movp(rbp, rsp);
@@ -2183,7 +2212,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Enough parameters: Actual >= expected.
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
-    ArgumentsAdaptorStackCheck(masm, &stack_overflow);
+    // The registers rcx and r8 will be modified. The register rbx is only read.
+    Generate_StackOverflowCheck(masm, rbx, rcx, r8, &stack_overflow);
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
@@ -2204,7 +2234,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&too_few);
 
     EnterArgumentsAdaptorFrame(masm);
-    ArgumentsAdaptorStackCheck(masm, &stack_overflow);
+    // The registers rcx and r8 will be modified. The register rbx is only read.
+    Generate_StackOverflowCheck(masm, rbx, rcx, r8, &stack_overflow);
 
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
