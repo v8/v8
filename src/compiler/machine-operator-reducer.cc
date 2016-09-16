@@ -418,6 +418,11 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // K * K => K
         return ReplaceFloat64(m.left().Value() * m.right().Value());
       }
+      if (m.right().Is(2)) {  // x * 2.0 => x + x
+        node->ReplaceInput(1, m.left().node());
+        NodeProperties::ChangeOp(node, machine()->Float64Add());
+        return Changed(node);
+      }
       break;
     }
     case IrOpcode::kFloat64Div: {
@@ -431,6 +436,19 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       if (m.IsFoldable()) {  // K / K => K
         return ReplaceFloat64(m.left().Value() / m.right().Value());
+      }
+      if (m.right().Is(-1)) {  // x / -1.0 => -x
+        node->RemoveInput(1);
+        NodeProperties::ChangeOp(node, machine()->Float64Neg());
+        return Changed(node);
+      }
+      if (m.right().IsNormal() && m.right().IsPositiveOrNegativePowerOf2()) {
+        // All reciprocals of non-denormal powers of two can be represented
+        // exactly, so division by power of two can be reduced to
+        // multiplication by reciprocal, with the same result.
+        node->ReplaceInput(1, Float64Constant(1.0 / m.right().Value()));
+        NodeProperties::ChangeOp(node, machine()->Float64Mul());
+        return Changed(node);
       }
       break;
     }

@@ -1587,6 +1587,48 @@ TEST_F(MachineOperatorReducerTest, Float32SubMinusZeroMinusX) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Float64MulWithTwo) {
+  Node* const p0 = Parameter(0);
+  {
+    Reduction r = Reduce(
+        graph()->NewNode(machine()->Float64Mul(), Float64Constant(2.0), p0));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Add(p0, p0));
+  }
+  {
+    Reduction r = Reduce(
+        graph()->NewNode(machine()->Float64Mul(), p0, Float64Constant(2.0)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Add(p0, p0));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64Div
+
+TEST_F(MachineOperatorReducerTest, Float64DivWithMinusOne) {
+  Node* const p0 = Parameter(0);
+  {
+    Reduction r = Reduce(
+        graph()->NewNode(machine()->Float64Div(), p0, Float64Constant(-1.0)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Neg(p0));
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Float64DivWithPowerOfTwo) {
+  Node* const p0 = Parameter(0);
+  TRACED_FORRANGE(uint64_t, exponent, 1, 0x7fe) {
+    Double divisor = Double(exponent << Double::kPhysicalSignificandSize);
+    if (divisor.value() == 1.0) continue;  // Skip x / 1.0 => x.
+    Reduction r = Reduce(graph()->NewNode(machine()->Float64Div(), p0,
+                                          Float64Constant(divisor.value())));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsFloat64Mul(p0, IsFloat64Constant(1.0 / divisor.value())));
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Float64Acos
 

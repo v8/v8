@@ -407,7 +407,11 @@ Matcher<Node*> IsFloat64Max(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Min(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat64Add(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Sub(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat64Mul(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Abs(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64Neg(const Matcher<Node*>& input_matcher);
