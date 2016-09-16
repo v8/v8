@@ -716,17 +716,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   FunctionLiteral* result;
 
   {
-    std::unique_ptr<Utf16CharacterStream> stream;
-    if (source->IsExternalTwoByteString()) {
-      stream.reset(new ExternalTwoByteStringUtf16CharacterStream(
-          Handle<ExternalTwoByteString>::cast(source), 0, source->length()));
-    } else if (source->IsExternalOneByteString()) {
-      stream.reset(new ExternalOneByteStringUtf16CharacterStream(
-          Handle<ExternalOneByteString>::cast(source), 0, source->length()));
-    } else {
-      stream.reset(
-          new GenericStringUtf16CharacterStream(source, 0, source->length()));
-    }
+    std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(source));
     scanner_.Initialize(stream.get());
     result = DoParseProgram(info);
   }
@@ -881,19 +871,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
   source = String::Flatten(source);
   FunctionLiteral* result;
   {
-    std::unique_ptr<Utf16CharacterStream> stream;
-    if (source->IsExternalTwoByteString()) {
-      stream.reset(new ExternalTwoByteStringUtf16CharacterStream(
-          Handle<ExternalTwoByteString>::cast(source),
-          shared_info->start_position(), shared_info->end_position()));
-    } else if (source->IsExternalOneByteString()) {
-      stream.reset(new ExternalOneByteStringUtf16CharacterStream(
-          Handle<ExternalOneByteString>::cast(source),
-          shared_info->start_position(), shared_info->end_position()));
-    } else {
-      stream.reset(new GenericStringUtf16CharacterStream(
-          source, shared_info->start_position(), shared_info->end_position()));
-    }
+    std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
+        source, shared_info->start_position(), shared_info->end_position()));
     Handle<String> name(String::cast(shared_info->name()));
     result =
         DoParseLazy(info, ast_value_factory()->GetString(name), stream.get());
@@ -4358,8 +4337,8 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     stream_ptr = info->character_stream();
   } else {
     DCHECK(info->character_stream() == nullptr);
-    stream.reset(new ExternalStreamingStream(info->source_stream(),
-                                             info->source_stream_encoding()));
+    stream.reset(ScannerStream::For(info->source_stream(),
+                                    info->source_stream_encoding()));
     stream_ptr = stream.get();
   }
   DCHECK(info->maybe_outer_scope_info().is_null());

@@ -53,20 +53,15 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   DCHECK(script->type() != Script::TYPE_NATIVE);
 
   Handle<String> source(String::cast(script->source()), isolate_);
-  if (source->IsExternalTwoByteString()) {
-    character_stream_.reset(new ExternalTwoByteStringUtf16CharacterStream(
-        Handle<ExternalTwoByteString>::cast(source), shared->start_position(),
-        shared->end_position()));
-  } else if (source->IsExternalOneByteString()) {
-    character_stream_.reset(new ExternalOneByteStringUtf16CharacterStream(
-        Handle<ExternalOneByteString>::cast(source), shared->start_position(),
-        shared->end_position()));
+  if (source->IsExternalTwoByteString() || source->IsExternalOneByteString()) {
+    character_stream_.reset(ScannerStream::For(source, shared->start_position(),
+                                               shared->end_position()));
   } else {
     source = String::Flatten(source);
     // Have to globalize the reference here, so it survives between function
     // calls.
     source_ = Handle<String>::cast(isolate_->global_handles()->Create(*source));
-    character_stream_.reset(new GenericStringUtf16CharacterStream(
+    character_stream_.reset(ScannerStream::For(
         source_, shared->start_position(), shared->end_position()));
   }
   parse_info_.reset(new ParseInfo(zone_.get()));

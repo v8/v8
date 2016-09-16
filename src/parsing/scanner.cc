@@ -19,6 +19,9 @@
 namespace v8 {
 namespace internal {
 
+const size_t Utf16CharacterStream::kNoBookmark =
+    std::numeric_limits<size_t>::max();
+
 Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
   if (is_one_byte()) {
     return isolate->factory()->InternalizeOneByteString(one_byte_literal());
@@ -26,10 +29,6 @@ Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
   return isolate->factory()->InternalizeTwoByteString(two_byte_literal());
 }
 
-
-// Default implementation for streams that do not support bookmarks.
-bool Utf16CharacterStream::SetBookmark() { return false; }
-void Utf16CharacterStream::ResetToBookmark() { UNREACHABLE(); }
 
 
 // ----------------------------------------------------------------------------
@@ -312,7 +311,7 @@ bool Scanner::SkipWhiteSpace() {
   while (true) {
     while (true) {
       // The unicode cache accepts unsigned inputs.
-      if (c0_ < 0) break;
+      if (c0_ == kEndOfInput) break;
       // Advance as long as character is a WhiteSpace or LineTerminator.
       // Remember if the latter is the case.
       if (unicode_cache_->IsLineTerminator(c0_)) {
@@ -356,7 +355,7 @@ Token::Value Scanner::SkipSingleLineComment() {
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4).
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unicode_cache_->IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -366,7 +365,7 @@ Token::Value Scanner::SkipSingleLineComment() {
 
 Token::Value Scanner::SkipSourceURLComment() {
   TryToParseSourceURLComment();
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unicode_cache_->IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -377,11 +376,11 @@ Token::Value Scanner::SkipSourceURLComment() {
 void Scanner::TryToParseSourceURLComment() {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
-  if (c0_ < 0 || !unicode_cache_->IsWhiteSpace(c0_)) return;
+  if (c0_ == kEndOfInput || !unicode_cache_->IsWhiteSpace(c0_)) return;
   Advance();
   LiteralBuffer name;
-  while (c0_ >= 0 && !unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_) &&
-         c0_ != '=') {
+  while (c0_ != kEndOfInput &&
+         !unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_) && c0_ != '=') {
     name.AddChar(c0_);
     Advance();
   }
@@ -399,10 +398,10 @@ void Scanner::TryToParseSourceURLComment() {
     return;
   Advance();
   value->Reset();
-  while (c0_ >= 0 && unicode_cache_->IsWhiteSpace(c0_)) {
+  while (c0_ != kEndOfInput && unicode_cache_->IsWhiteSpace(c0_)) {
     Advance();
   }
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unicode_cache_->IsLineTerminator(c0_)) {
     // Disallowed characters.
     if (c0_ == '"' || c0_ == '\'') {
       value->Reset();
@@ -415,7 +414,7 @@ void Scanner::TryToParseSourceURLComment() {
     Advance();
   }
   // Allow whitespace at the end.
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unicode_cache_->IsLineTerminator(c0_)) {
     if (!unicode_cache_->IsWhiteSpace(c0_)) {
       value->Reset();
       break;
@@ -429,10 +428,10 @@ Token::Value Scanner::SkipMultiLineComment() {
   DCHECK(c0_ == '*');
   Advance();
 
-  while (c0_ >= 0) {
+  while (c0_ != kEndOfInput) {
     uc32 ch = c0_;
     Advance();
-    if (c0_ >= 0 && unicode_cache_->IsLineTerminator(ch)) {
+    if (c0_ != kEndOfInput && unicode_cache_->IsLineTerminator(ch)) {
       // Following ECMA-262, section 7.4, a comment containing
       // a newline will make the comment count as a line-terminator.
       has_multiline_comment_before_next_ = true;
@@ -716,7 +715,7 @@ void Scanner::Scan() {
         break;
 
       default:
-        if (c0_ < 0) {
+        if (c0_ == kEndOfInput) {
           token = Token::EOS;
         } else if (unicode_cache_->IsIdentifierStart(c0_)) {
           token = ScanIdentifierOrKeyword();
@@ -808,7 +807,8 @@ bool Scanner::ScanEscape() {
   Advance<capture_raw>();
 
   // Skip escaped newlines.
-  if (!in_template_literal && c0_ >= 0 && unicode_cache_->IsLineTerminator(c)) {
+  if (!in_template_literal && c0_ != kEndOfInput &&
+      unicode_cache_->IsLineTerminator(c)) {
     // Allow CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance<capture_raw>();
     // Allow LF+CR newlines in multiline string literals.
@@ -894,7 +894,7 @@ Token::Value Scanner::ScanString() {
       HandleLeadSurrogate();
       break;
     }
-    if (c0_ < 0 || c0_ == '\n' || c0_ == '\r') return Token::ILLEGAL;
+    if (c0_ == kEndOfInput || c0_ == '\n' || c0_ == '\r') return Token::ILLEGAL;
     if (c0_ == quote) {
       literal.Complete();
       Advance<false, false>();
@@ -906,12 +906,12 @@ Token::Value Scanner::ScanString() {
     AddLiteralChar(c);
   }
 
-  while (c0_ != quote && c0_ >= 0
-         && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != quote && c0_ != kEndOfInput &&
+         !unicode_cache_->IsLineTerminator(c0_)) {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
-      if (c0_ < 0 || !ScanEscape<false, false>()) {
+      if (c0_ == kEndOfInput || !ScanEscape<false, false>()) {
         return Token::ILLEGAL;
       }
     } else {
@@ -957,7 +957,7 @@ Token::Value Scanner::ScanTemplateSpan() {
       ReduceRawLiteralLength(2);
       break;
     } else if (c == '\\') {
-      if (c0_ > 0 && unicode_cache_->IsLineTerminator(c0_)) {
+      if (c0_ != kEndOfInput && unicode_cache_->IsLineTerminator(c0_)) {
         // The TV of LineContinuation :: \ LineTerminatorSequence is the empty
         // code unit sequence.
         uc32 lastChar = c0_;
@@ -1155,7 +1155,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
   if (IsDecimalDigit(c0_) ||
-      (c0_ >= 0 && unicode_cache_->IsIdentifierStart(c0_)))
+      (c0_ != kEndOfInput && unicode_cache_->IsIdentifierStart(c0_)))
     return Token::ILLEGAL;
 
   literal.Complete();
@@ -1382,7 +1382,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
   }
 
   // Scan the rest of the identifier characters.
-  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
+  while (c0_ != kEndOfInput && unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ != '\\') {
       uc32 next_char = c0_;
       Advance();
@@ -1408,7 +1408,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
 Token::Value Scanner::ScanIdentifierSuffix(LiteralScope* literal,
                                            bool escaped) {
   // Scan the rest of the identifier characters.
-  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
+  while (c0_ != kEndOfInput && unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       escaped = true;
@@ -1465,10 +1465,12 @@ bool Scanner::ScanRegExpPattern() {
   }
 
   while (c0_ != '/' || in_character_class) {
-    if (c0_ < 0 || unicode_cache_->IsLineTerminator(c0_)) return false;
+    if (c0_ == kEndOfInput || unicode_cache_->IsLineTerminator(c0_))
+      return false;
     if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
-      if (c0_ < 0 || unicode_cache_->IsLineTerminator(c0_)) return false;
+      if (c0_ == kEndOfInput || unicode_cache_->IsLineTerminator(c0_))
+        return false;
       AddLiteralCharAdvance();
       // If the escape allows more characters, i.e., \x??, \u????, or \c?,
       // only "safe" characters are allowed (letters, digits, underscore),
@@ -1499,7 +1501,7 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
 
   // Scan regular expression flags.
   int flags = 0;
-  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
+  while (c0_ != kEndOfInput && unicode_cache_->IsIdentifierPart(c0_)) {
     RegExp::Flags flag = RegExp::kNone;
     switch (c0_) {
       case 'g':

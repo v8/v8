@@ -71,17 +71,17 @@ TEST(ScanKeywords) {
     size_t length = strlen(key_token.keyword);
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
     {
-      i::ExternalOneByteStringUtf16CharacterStream stream(keyword, length);
+      auto stream = i::ScannerStream::ForTesting(keyword, length);
       i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(&stream);
+      scanner.Initialize(stream.get());
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
     // Removing characters will make keyword matching fail.
     {
-      i::ExternalOneByteStringUtf16CharacterStream stream(keyword, length - 1);
+      auto stream = i::ScannerStream::ForTesting(keyword, length - 1);
       i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(&stream);
+      scanner.Initialize(stream.get());
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -90,9 +90,9 @@ TEST(ScanKeywords) {
     for (int j = 0; j < static_cast<int>(arraysize(chars_to_append)); ++j) {
       i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
-      i::ExternalOneByteStringUtf16CharacterStream stream(buffer, length + 1);
+      auto stream = i::ScannerStream::ForTesting(buffer, length + 1);
       i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(&stream);
+      scanner.Initialize(stream.get());
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -100,9 +100,9 @@ TEST(ScanKeywords) {
     {
       i::MemMove(buffer, keyword, length);
       buffer[length - 1] = '_';
-      i::ExternalOneByteStringUtf16CharacterStream stream(buffer, length);
+      auto stream = i::ScannerStream::ForTesting(buffer, length);
       i::Scanner scanner(&unicode_cache);
-      scanner.Initialize(&stream);
+      scanner.Initialize(stream.get());
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -166,10 +166,10 @@ TEST(ScanHTMLEndComments) {
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; tests[i]; i++) {
     const char* source = tests[i];
-    i::ExternalOneByteStringUtf16CharacterStream stream(source);
+    auto stream = i::ScannerStream::ForTesting(source);
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-    scanner.Initialize(&stream);
+    scanner.Initialize(stream.get());
     i::Zone zone(CcTest::i_isolate()->allocator());
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
@@ -183,10 +183,10 @@ TEST(ScanHTMLEndComments) {
 
   for (int i = 0; fail_tests[i]; i++) {
     const char* source = fail_tests[i];
-    i::ExternalOneByteStringUtf16CharacterStream stream(source);
+    auto stream = i::ScannerStream::ForTesting(source);
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-    scanner.Initialize(&stream);
+    scanner.Initialize(stream.get());
     i::Zone zone(CcTest::i_isolate()->allocator());
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
@@ -340,11 +340,10 @@ TEST(StandAlonePreParser) {
 
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
-    const char* program = programs[i];
-    i::ExternalOneByteStringUtf16CharacterStream stream(program);
+    auto stream = i::ScannerStream::ForTesting(programs[i]);
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-    scanner.Initialize(&stream);
+    scanner.Initialize(stream.get());
 
     i::Zone zone(CcTest::i_isolate()->allocator());
     i::AstValueFactory ast_value_factory(
@@ -374,11 +373,10 @@ TEST(StandAlonePreParserNoNatives) {
 
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
-    const char* program = programs[i];
-    i::ExternalOneByteStringUtf16CharacterStream stream(program);
+    auto stream = i::ScannerStream::ForTesting(programs[i]);
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-    scanner.Initialize(&stream);
+    scanner.Initialize(stream.get());
 
     // Preparser defaults to disallowing natives syntax.
     i::Zone zone(CcTest::i_isolate()->allocator());
@@ -444,10 +442,10 @@ TEST(RegressChromium62639) {
   // and then used the invalid currently scanned literal. This always
   // failed in debug mode, and sometimes crashed in release mode.
 
-  i::ExternalOneByteStringUtf16CharacterStream stream(program);
+  auto stream = i::ScannerStream::ForTesting(program);
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(&stream);
+  scanner.Initialize(stream.get());
   i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
@@ -464,7 +462,6 @@ TEST(RegressChromium62639) {
 TEST(Regress928) {
   v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
 
   // Preparsing didn't consider the catch clause of a try statement
   // as with-content, which made it assume that a function inside
@@ -478,11 +475,10 @@ TEST(Regress928) {
       "var bar = function () { /* second */ }";
 
   v8::HandleScope handles(CcTest::isolate());
-  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(program);
-  i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
+  auto stream = i::ScannerStream::ForTesting(program);
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(&stream);
+  scanner.Initialize(stream.get());
   i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
@@ -528,11 +524,10 @@ TEST(PreParseOverflow) {
 
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
 
-  i::ExternalOneByteStringUtf16CharacterStream stream(program.get(),
-                                                      kProgramSize);
+  auto stream = i::ScannerStream::ForTesting(program.get(), kProgramSize);
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(&stream);
+  scanner.Initialize(stream.get());
 
   i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,
@@ -542,189 +537,6 @@ TEST(PreParseOverflow) {
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
-}
-
-
-class TestExternalResource: public v8::String::ExternalStringResource {
- public:
-  explicit TestExternalResource(uint16_t* data, int length)
-      : data_(data), length_(static_cast<size_t>(length)) { }
-
-  ~TestExternalResource() { }
-
-  const uint16_t* data() const {
-    return data_;
-  }
-
-  size_t length() const {
-    return length_;
-  }
- private:
-  uint16_t* data_;
-  size_t length_;
-};
-
-
-#define CHECK_EQU(v1, v2) CHECK_EQ(static_cast<int>(v1), static_cast<int>(v2))
-
-void TestCharacterStream(const char* one_byte_source, unsigned length,
-                         unsigned start = 0, unsigned end = 0) {
-  if (end == 0) end = length;
-  unsigned sub_length = end - start;
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
-  i::HandleScope test_scope(isolate);
-  std::unique_ptr<i::uc16[]> uc16_buffer(new i::uc16[length]);
-  for (unsigned i = 0; i < length; i++) {
-    uc16_buffer[i] = static_cast<i::uc16>(one_byte_source[i]);
-  }
-  i::Vector<const char> one_byte_vector(one_byte_source,
-                                        static_cast<int>(length));
-  i::Handle<i::String> one_byte_string =
-      factory->NewStringFromAscii(one_byte_vector).ToHandleChecked();
-  TestExternalResource resource(uc16_buffer.get(), length);
-  i::Handle<i::String> uc16_string(
-      factory->NewExternalStringFromTwoByte(&resource).ToHandleChecked());
-  ScriptResource one_byte_resource(one_byte_source, length);
-  i::Handle<i::String> ext_one_byte_string(
-      factory->NewExternalStringFromOneByte(&one_byte_resource)
-          .ToHandleChecked());
-
-  i::ExternalTwoByteStringUtf16CharacterStream uc16_stream(
-      i::Handle<i::ExternalTwoByteString>::cast(uc16_string), start, end);
-  i::ExternalOneByteStringUtf16CharacterStream one_byte_stream(
-      i::Handle<i::ExternalOneByteString>::cast(ext_one_byte_string), start,
-      end);
-  i::GenericStringUtf16CharacterStream string_stream(one_byte_string, start,
-                                                     end);
-  i::ExternalOneByteStringUtf16CharacterStream utf8_stream(one_byte_source,
-                                                           end);
-  utf8_stream.SeekForward(start);
-
-  unsigned i = start;
-  while (i < end) {
-    // Read streams one char at a time
-    CHECK_EQU(i, uc16_stream.pos());
-    CHECK_EQU(i, string_stream.pos());
-    CHECK_EQU(i, utf8_stream.pos());
-    CHECK_EQU(i, one_byte_stream.pos());
-    int32_t c0 = one_byte_source[i];
-    int32_t c1 = uc16_stream.Advance();
-    int32_t c2 = string_stream.Advance();
-    int32_t c3 = utf8_stream.Advance();
-    int32_t c4 = one_byte_stream.Advance();
-    i++;
-    CHECK_EQ(c0, c1);
-    CHECK_EQ(c0, c2);
-    CHECK_EQ(c0, c3);
-    CHECK_EQ(c0, c4);
-    CHECK_EQU(i, uc16_stream.pos());
-    CHECK_EQU(i, string_stream.pos());
-    CHECK_EQU(i, utf8_stream.pos());
-    CHECK_EQU(i, one_byte_stream.pos());
-  }
-  while (i > start + sub_length / 4) {
-    // Pushback, re-read, pushback again.
-    int32_t c0 = one_byte_source[i - 1];
-    CHECK_EQU(i, uc16_stream.pos());
-    CHECK_EQU(i, string_stream.pos());
-    CHECK_EQU(i, utf8_stream.pos());
-    CHECK_EQU(i, one_byte_stream.pos());
-    uc16_stream.PushBack(c0);
-    string_stream.PushBack(c0);
-    utf8_stream.PushBack(c0);
-    one_byte_stream.PushBack(c0);
-    i--;
-    CHECK_EQU(i, uc16_stream.pos());
-    CHECK_EQU(i, string_stream.pos());
-    CHECK_EQU(i, utf8_stream.pos());
-    CHECK_EQU(i, one_byte_stream.pos());
-    int32_t c1 = uc16_stream.Advance();
-    int32_t c2 = string_stream.Advance();
-    int32_t c3 = utf8_stream.Advance();
-    int32_t c4 = one_byte_stream.Advance();
-    i++;
-    CHECK_EQU(i, uc16_stream.pos());
-    CHECK_EQU(i, string_stream.pos());
-    CHECK_EQU(i, utf8_stream.pos());
-    CHECK_EQU(i, one_byte_stream.pos());
-    CHECK_EQ(c0, c1);
-    CHECK_EQ(c0, c2);
-    CHECK_EQ(c0, c3);
-    CHECK_EQ(c0, c4);
-    uc16_stream.PushBack(c0);
-    string_stream.PushBack(c0);
-    utf8_stream.PushBack(c0);
-    one_byte_stream.PushBack(c0);
-    i--;
-    CHECK_EQU(i, uc16_stream.pos());
-    CHECK_EQU(i, string_stream.pos());
-    CHECK_EQU(i, utf8_stream.pos());
-    CHECK_EQU(i, one_byte_stream.pos());
-  }
-  unsigned halfway = start + sub_length / 2;
-  uc16_stream.SeekForward(halfway - i);
-  string_stream.SeekForward(halfway - i);
-  utf8_stream.SeekForward(halfway - i);
-  one_byte_stream.SeekForward(halfway - i);
-  i = halfway;
-  CHECK_EQU(i, uc16_stream.pos());
-  CHECK_EQU(i, string_stream.pos());
-  CHECK_EQU(i, utf8_stream.pos());
-  CHECK_EQU(i, one_byte_stream.pos());
-
-  while (i < end) {
-    // Read streams one char at a time
-    CHECK_EQU(i, uc16_stream.pos());
-    CHECK_EQU(i, string_stream.pos());
-    CHECK_EQU(i, utf8_stream.pos());
-    CHECK_EQU(i, one_byte_stream.pos());
-    int32_t c0 = one_byte_source[i];
-    int32_t c1 = uc16_stream.Advance();
-    int32_t c2 = string_stream.Advance();
-    int32_t c3 = utf8_stream.Advance();
-    int32_t c4 = one_byte_stream.Advance();
-    i++;
-    CHECK_EQ(c0, c1);
-    CHECK_EQ(c0, c2);
-    CHECK_EQ(c0, c3);
-    CHECK_EQ(c0, c4);
-    CHECK_EQU(i, uc16_stream.pos());
-    CHECK_EQU(i, string_stream.pos());
-    CHECK_EQU(i, utf8_stream.pos());
-    CHECK_EQU(i, one_byte_stream.pos());
-  }
-
-  int32_t c1 = uc16_stream.Advance();
-  int32_t c2 = string_stream.Advance();
-  int32_t c3 = utf8_stream.Advance();
-  int32_t c4 = one_byte_stream.Advance();
-  CHECK_LT(c1, 0);
-  CHECK_LT(c2, 0);
-  CHECK_LT(c3, 0);
-  CHECK_LT(c4, 0);
-}
-
-#undef CHECK_EQU
-
-TEST(CharacterStreams) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handles(isolate);
-  v8::Local<v8::Context> context = v8::Context::New(isolate);
-  v8::Context::Scope context_scope(context);
-
-  TestCharacterStream("abc\0\n\r\x7f", 7);
-  static const unsigned kBigStringSize = 4096;
-  char buffer[kBigStringSize + 1];
-  for (unsigned i = 0; i < kBigStringSize; i++) {
-    buffer[i] = static_cast<char>(i & 0x7f);
-  }
-  TestCharacterStream(buffer, kBigStringSize);
-
-  TestCharacterStream(buffer, kBigStringSize, 576, 3298);
-
-  TestCharacterStream("\0", 1);
-  TestCharacterStream("", 0);
 }
 
 
@@ -750,9 +562,9 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
 
 TEST(StreamScanner) {
   v8::V8::Initialize();
-
   const char* str1 = "{ foo get for : */ <- \n\n /*foo*/ bib";
-  i::ExternalOneByteStringUtf16CharacterStream stream1(str1);
+  std::unique_ptr<i::Utf16CharacterStream> stream1(
+      i::ScannerStream::ForTesting(str1));
   i::Token::Value expectations1[] = {
       i::Token::LBRACE,
       i::Token::IDENTIFIER,
@@ -767,10 +579,11 @@ TEST(StreamScanner) {
       i::Token::EOS,
       i::Token::ILLEGAL
   };
-  TestStreamScanner(&stream1, expectations1, 0, 0);
+  TestStreamScanner(stream1.get(), expectations1, 0, 0);
 
   const char* str2 = "case default const {THIS\nPART\nSKIPPED} do";
-  i::ExternalOneByteStringUtf16CharacterStream stream2(str2);
+  std::unique_ptr<i::Utf16CharacterStream> stream2(
+      i::ScannerStream::ForTesting(str2));
   i::Token::Value expectations2[] = {
       i::Token::CASE,
       i::Token::DEFAULT,
@@ -784,7 +597,7 @@ TEST(StreamScanner) {
   };
   CHECK_EQ('{', str2[19]);
   CHECK_EQ('}', str2[37]);
-  TestStreamScanner(&stream2, expectations2, 20, 37);
+  TestStreamScanner(stream2.get(), expectations2, 20, 37);
 
   const char* str3 = "{}}}}";
   i::Token::Value expectations3[] = {
@@ -800,17 +613,17 @@ TEST(StreamScanner) {
   for (int i = 0; i <= 4; i++) {
      expectations3[6 - i] = i::Token::ILLEGAL;
      expectations3[5 - i] = i::Token::EOS;
-     i::ExternalOneByteStringUtf16CharacterStream stream3(str3);
-     TestStreamScanner(&stream3, expectations3, 1, 1 + i);
+     std::unique_ptr<i::Utf16CharacterStream> stream3(
+         i::ScannerStream::ForTesting(str3));
+     TestStreamScanner(stream3.get(), expectations3, 1, 1 + i);
   }
 }
 
-
 void TestScanRegExp(const char* re_source, const char* expected) {
-  i::ExternalOneByteStringUtf16CharacterStream stream(re_source);
+  auto stream = i::ScannerStream::ForTesting(re_source);
   i::HandleScope scope(CcTest::i_isolate());
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-  scanner.Initialize(&stream);
+  scanner.Initialize(stream.get());
 
   i::Token::Value start = scanner.peek();
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
@@ -1536,14 +1349,15 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::CompleteParserRecorder log;
   if (test_preparser) {
     i::Scanner scanner(isolate->unicode_cache());
-    i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
+    std::unique_ptr<i::Utf16CharacterStream> stream(
+        i::ScannerStream::For(source));
     i::Zone zone(CcTest::i_isolate()->allocator());
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
                            stack_limit);
     SetParserFlags(&preparser, flags);
-    scanner.Initialize(&stream);
+    scanner.Initialize(stream.get());
     i::PreParser::PreParseResult result =
         preparser.PreParseProgram(&preparser_materialized_literals, is_module);
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);

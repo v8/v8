@@ -104,6 +104,7 @@
       'heap/test-spaces.cc',
       'libplatform/test-tracing.cc',
       'libsampler/test-sampler.cc',
+      'parsing/test-scanner-streams.cc',
       'print-extension.cc',
       'profiler-extension.cc',
       'test-access-checks.cc',

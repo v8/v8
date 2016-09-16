@@ -23,77 +23,157 @@ namespace internal {
 class AstRawString;
 class AstValueFactory;
 class DuplicateFinder;
+class ExternalOneByteString;
+class ExternalTwoByteString;
 class ParserRecorder;
 class UnicodeCache;
-
 
 // ---------------------------------------------------------------------
 // Buffered stream of UTF-16 code units, using an internal UTF-16 buffer.
 // A code unit is a 16 bit value representing either a 16 bit code point
 // or one part of a surrogate pair that make a single 21 bit code point.
-
 class Utf16CharacterStream {
  public:
-  Utf16CharacterStream() : pos_(0) { }
+  static const uc32 kEndOfInput = -1;
+
   virtual ~Utf16CharacterStream() { }
 
   // Returns and advances past the next UTF-16 code unit in the input
-  // stream. If there are no more code units, it returns a negative
-  // value.
+  // stream. If there are no more code units it returns kEndOfInput.
   inline uc32 Advance() {
-    if (buffer_cursor_ < buffer_end_ || ReadBlock()) {
-      pos_++;
+    if (V8_LIKELY(buffer_cursor_ < buffer_end_)) {
       return static_cast<uc32>(*(buffer_cursor_++));
+    } else if (ReadBlock()) {
+      return static_cast<uc32>(*(buffer_cursor_++));
+    } else {
+      // Note: currently the following increment is necessary to avoid a
+      // parser problem! The scanner treats the final kEndOfInput as
+      // a code unit with a position, and does math relative to that
+      // position.
+      buffer_cursor_++;
+      return kEndOfInput;
     }
-    // Note: currently the following increment is necessary to avoid a
-    // parser problem! The scanner treats the final kEndOfInput as
-    // a code unit with a position, and does math relative to that
-    // position.
-    pos_++;
-
-    return kEndOfInput;
   }
 
-  // Return the current position in the code unit stream.
-  // Starts at zero.
-  inline size_t pos() const { return pos_; }
-
-  // Skips forward past the next code_unit_count UTF-16 code units
-  // in the input, or until the end of input if that comes sooner.
-  // Returns the number of code units actually skipped. If less
-  // than code_unit_count,
-  inline size_t SeekForward(size_t code_unit_count) {
-    size_t buffered_chars = buffer_end_ - buffer_cursor_;
-    if (code_unit_count <= buffered_chars) {
-      buffer_cursor_ += code_unit_count;
-      pos_ += code_unit_count;
-      return code_unit_count;
+  // Go back one by one character in the input stream.
+  // This undoes the most recent Advance().
+  inline void Back() {
+    // The common case - if the previous character is within
+    // buffer_start_ .. buffer_end_ will be handles locally.
+    // Otherwise, a new block is requested.
+    if (V8_LIKELY(buffer_cursor_ > buffer_start_)) {
+      buffer_cursor_--;
+    } else {
+      ReadBlockAt(pos() - 1);
     }
-    return SlowSeekForward(code_unit_count);
   }
 
-  // Pushes back the most recently read UTF-16 code unit (or negative
-  // value if at end of input), i.e., the value returned by the most recent
-  // call to Advance.
-  // Must not be used right after calling SeekForward.
-  virtual void PushBack(int32_t code_unit) = 0;
+  // Go back one by two characters in the input stream. (This is the same as
+  // calling Back() twice. But Back() may - in some instances - do substantial
+  // work. Back2() guarantees this work will be done only once.)
+  inline void Back2() {
+    if (V8_LIKELY(buffer_cursor_ - 2 >= buffer_start_)) {
+      buffer_cursor_ -= 2;
+    } else {
+      ReadBlockAt(pos() - 2);
+    }
+  }
 
-  virtual bool SetBookmark();
-  virtual void ResetToBookmark();
+  inline size_t pos() const {
+    return buffer_pos_ + (buffer_cursor_ - buffer_start_);
+  }
+
+  inline void Seek(size_t pos) {
+    if (V8_LIKELY(pos >= buffer_pos_ &&
+                  pos < (buffer_pos_ + (buffer_end_ - buffer_start_)))) {
+      buffer_cursor_ = buffer_start_ + (pos - buffer_pos_);
+    } else {
+      ReadBlockAt(pos);
+    }
+  }
+
+  // Legacy API:
+  void SeekForward(size_t code_unit_count) { Seek(pos() + code_unit_count); }
+  void PushBack(int32_t code_unit) {
+    Back();
+#ifdef DEBUG
+    uc32 t = Advance();
+    DCHECK_EQ(t, code_unit);
+    Back();
+#endif  // DEBUG
+  }
+  void PushBack2(int32_t code_unit_back_1, int32_t code_unit_back_2) {
+    Back2();
+#ifdef DEBUG
+    DCHECK_EQ(Advance(), code_unit_back_2);
+    DCHECK_EQ(Advance(), code_unit_back_1);
+    Back2();
+#endif  // DEBUG
+  }
+  bool SetBookmark() {
+    bookmark_ = pos();
+    return true;
+  }
+  void ResetToBookmark() {
+    DCHECK_NE(bookmark_, kNoBookmark);
+    Seek(bookmark_);
+  }
 
  protected:
-  static const uc32 kEndOfInput = -1;
+  static const size_t kNoBookmark;
 
-  // Ensures that the buffer_cursor_ points to the code_unit at
-  // position pos_ of the input, if possible. If the position
-  // is at or after the end of the input, return false. If there
-  // are more code_units available, return true.
+  Utf16CharacterStream(const uint16_t* buffer_start,
+                       const uint16_t* buffer_cursor,
+                       const uint16_t* buffer_end, size_t buffer_pos)
+      : buffer_start_(buffer_start),
+        buffer_cursor_(buffer_cursor),
+        buffer_end_(buffer_end),
+        buffer_pos_(buffer_pos),
+        bookmark_(kNoBookmark) {}
+  Utf16CharacterStream() : Utf16CharacterStream(nullptr, nullptr, nullptr, 0) {}
+
+  void ReadBlockAt(size_t new_pos) {
+    // The callers of this method (Back/Back2/Seek) should handle the easy
+    // case (seeking within the current buffer), and we should only get here
+    // if we actually require new data.
+    // (This is really an efficiency check, not a correctness invariant.)
+    DCHECK(new_pos < buffer_pos_ ||
+           new_pos >= buffer_pos_ + (buffer_end_ - buffer_start_));
+
+    // Change pos() to point to new_pos.
+    buffer_pos_ = new_pos;
+    buffer_cursor_ = buffer_start_;
+    bool success = ReadBlock();
+    USE(success);
+
+    // Post-conditions: 1, on success, we should be at the right position.
+    //                  2, success == we should have more characters available.
+    DCHECK_IMPLIES(success, pos() == new_pos);
+    DCHECK_EQ(success, buffer_cursor_ < buffer_end_);
+    DCHECK_EQ(success, buffer_start_ < buffer_end_);
+  }
+
+  // Read more data, and update buffer_*_ to point to it.
+  // Returns true if more data was available.
+  //
+  // ReadBlock() may modify any of the buffer_*_ members, but must sure that
+  // the result of pos() remains unaffected.
+  //
+  // Examples:
+  // - a stream could either fill a separate buffer. Then buffer_start_ and
+  //   buffer_cursor_ would point to the beginning of the buffer, and
+  //   buffer_pos would be the old pos().
+  // - a stream with existing buffer chunks would set buffer_start_ and
+  //   buffer_end_ to cover the full chunk, and then buffer_cursor_ would
+  //   point into the middle of the buffer, while buffer_pos_ would describe
+  //   the start of the buffer.
   virtual bool ReadBlock() = 0;
-  virtual size_t SlowSeekForward(size_t code_unit_count) = 0;
 
+  const uint16_t* buffer_start_;
   const uint16_t* buffer_cursor_;
   const uint16_t* buffer_end_;
-  size_t pos_;
+  size_t buffer_pos_;
+  size_t bookmark_;
 };
 
 
@@ -138,6 +218,7 @@ class Scanner {
 
   // -1 is outside of the range of any real source code.
   static const int kNoOctalLocation = -1;
+  static const uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
 
   explicit Scanner(UnicodeCache* scanner_contants);
 

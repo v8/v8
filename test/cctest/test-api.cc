@@ -24551,7 +24551,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
 TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
   // Test cases where a UTF-8 character is split over several chunks. Those
   // cases are not supported (the embedder should give the data in big enough
-  // chunks), but we shouldn't crash, just produce a parse error.
+  // chunks), but we shouldn't crash and parse this just fine.
   const char* reference = "\xec\x92\x81";
   char chunk1[] =
       "function foo() {\n"
@@ -24568,7 +24568,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
   chunk3[0] = reference[2];
   const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", NULL};
 
-  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, false);
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
 
