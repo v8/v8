@@ -393,8 +393,15 @@ const char* RuntimeCallStats::Dump() {
   FOR_EACH_HANDLER_COUNTER(DUMP_COUNTER)
 #undef DUMP_COUNTER
   buffer_ << "\"END\":[]}";
+  const std::string& buffer_str = buffer_.str();
+  size_t length = buffer_str.size();
+  if (length > len_) {
+    buffer_c_str_.reset(new char[length + 1]);
+    len_ = length;
+  }
+  strncpy(buffer_c_str_.get(), buffer_str.c_str(), length + 1);
   in_use_ = false;
-  return buffer_.str().c_str();
+  return buffer_c_str_.get();
 }
 
 }  // namespace internal
