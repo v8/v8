@@ -460,18 +460,12 @@ ScriptCompiler::CachedData* CompileForCachedData(
 // Compile a string within the current v8 context.
 MaybeLocal<Script> Shell::CompileString(
     Isolate* isolate, Local<String> source, Local<Value> name,
-    ScriptCompiler::CompileOptions compile_options, SourceType source_type) {
+    ScriptCompiler::CompileOptions compile_options) {
   Local<Context> context(isolate->GetCurrentContext());
   ScriptOrigin origin(name);
-  // TODO(adamk): Make use of compile options for Modules.
-  if (compile_options == ScriptCompiler::kNoCompileOptions ||
-      source_type == MODULE) {
+  if (compile_options == ScriptCompiler::kNoCompileOptions) {
     ScriptCompiler::Source script_source(source, origin);
-    return source_type == SCRIPT
-               ? ScriptCompiler::Compile(context, &script_source,
-                                         compile_options)
-               : ScriptCompiler::CompileModule(context, &script_source,
-                                               compile_options);
+    return ScriptCompiler::Compile(context, &script_source, compile_options);
   }
 
   ScriptCompiler::CachedData* data =
@@ -485,7 +479,6 @@ MaybeLocal<Script> Shell::CompileString(
     DCHECK(false);  // A new compile option?
   }
   if (data == NULL) compile_options = ScriptCompiler::kNoCompileOptions;
-  DCHECK_EQ(SCRIPT, source_type);
   MaybeLocal<Script> result =
       ScriptCompiler::Compile(context, &cached_source, compile_options);
   CHECK(data == NULL || !data->rejected);
@@ -507,14 +500,31 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> realm =
         Local<Context>::New(isolate, data->realms_[data->realm_current_]);
     Context::Scope context_scope(realm);
-    Local<Script> script;
-    if (!Shell::CompileString(isolate, source, name, options.compile_options,
-                              source_type).ToLocal(&script)) {
-      // Print errors that happened during compilation.
-      if (report_exceptions) ReportException(isolate, &try_catch);
-      return false;
+    if (source_type == SCRIPT) {
+      Local<Script> script;
+      if (!Shell::CompileString(isolate, source, name, options.compile_options)
+               .ToLocal(&script)) {
+        // Print errors that happened during compilation.
+        if (report_exceptions) ReportException(isolate, &try_catch);
+        return false;
+      }
+      maybe_result = script->Run(realm);
+    } else {
+      DCHECK_EQ(MODULE, source_type);
+      Local<Module> module;
+      ScriptOrigin origin(name);
+      ScriptCompiler::Source script_source(source, origin);
+      // TODO(adamk): Make use of compile options for Modules.
+      if (!ScriptCompiler::CompileModule(isolate, &script_source)
+               .ToLocal(&module)) {
+        // Print errors that happened during compilation.
+        if (report_exceptions) ReportException(isolate, &try_catch);
+        return false;
+      }
+      // This can't fail until we support linking.
+      CHECK(module->Instantiate(realm));
+      maybe_result = module->Evaluate(realm);
     }
-    maybe_result = script->Run(realm);
     EmptyMessageQueues(isolate);
     data->realm_current_ = data->realm_switch_;
   }

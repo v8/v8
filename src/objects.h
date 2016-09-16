@@ -7871,6 +7871,11 @@ class Module : public Struct {
   DECLARE_VERIFIER(Module)
   DECLARE_PRINTER(Module)
 
+  // The code representing this Module, either a
+  // SharedFunctionInfo or a JSFunction depending
+  // on whether it's been instantiated.
+  DECL_ACCESSORS(code, Object)
+
   DECL_ACCESSORS(exports, ObjectHashTable)
 
   static void CreateExport(Handle<Module> module, Handle<String> name);
@@ -7878,7 +7883,8 @@ class Module : public Struct {
                           Handle<Object> value);
   static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
 
-  static const int kExportsOffset = HeapObject::kHeaderSize;
+  static const int kCodeOffset = HeapObject::kHeaderSize;
+  static const int kExportsOffset = kCodeOffset + kPointerSize;
   static const int kSize = kExportsOffset + kPointerSize;
 
  private:

@@ -335,8 +335,7 @@ class Shell : public i::AllStatic {
 
   static MaybeLocal<Script> CompileString(
       Isolate* isolate, Local<String> source, Local<Value> name,
-      v8::ScriptCompiler::CompileOptions compile_options,
-      SourceType source_type);
+      v8::ScriptCompiler::CompileOptions compile_options);
   static bool ExecuteString(Isolate* isolate, Local<String> source,
                             Local<Value> name, bool print_result,
                             bool report_exceptions,

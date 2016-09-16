@@ -1705,9 +1705,11 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
       JSGeneratorObject);
 }
 
-Handle<Module> Factory::NewModule(int min_size) {
-  Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
+Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code,
+                                  int min_size) {
   Handle<ObjectHashTable> exports = ObjectHashTable::New(isolate(), min_size);
+  Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
+  module->set_code(*code);
   module->set_exports(*exports);
   return module;
 }

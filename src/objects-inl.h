@@ -5701,6 +5701,7 @@ BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
 ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
+ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)

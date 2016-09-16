@@ -901,6 +901,8 @@ void Box::BoxVerify() {
 
 void Module::ModuleVerify() {
   CHECK(IsModule());
+  CHECK(code()->IsSharedFunctionInfo() || code()->IsJSFunction());
+  code()->ObjectVerify();
   exports()->ObjectVerify();
   // TODO(neis): Check more.
 }

@@ -1858,20 +1858,10 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
 
-  i::Handle<i::Object> receiver;
+  i::Handle<i::Object> receiver = isolate->global_proxy();
   Local<Value> result;
-
-  if (fun->shared()->scope_info()->scope_type() == i::MODULE_SCOPE) {
-    receiver = isolate->factory()->undefined_value();
-    i::Handle<i::Object> argv[] = {
-        handle(isolate->native_context()->current_module())};
-    has_pending_exception = !ToLocal<Value>(
-        i::Execution::Call(isolate, fun, receiver, 1, argv), &result);
-  } else {
-    receiver = isolate->global_proxy();
-    has_pending_exception = !ToLocal<Value>(
-        i::Execution::Call(isolate, fun, receiver, 0, nullptr), &result);
-  }
+  has_pending_exception = !ToLocal<Value>(
+      i::Execution::Call(isolate, fun, receiver, 0, nullptr), &result);
 
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
@@ -1894,6 +1884,51 @@ Local<UnboundScript> Script::GetUnboundScript() {
       i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared()));
 }
 
+bool Module::Instantiate(Local<Context> v8_context) {
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+
+  // Already instantiated.
+  if (self->code()->IsJSFunction()) return true;
+
+  i::Handle<i::SharedFunctionInfo> shared(
+      i::SharedFunctionInfo::cast(self->code()), isolate);
+  i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
+  i::Handle<i::JSFunction> function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared, handle(context->native_context(), isolate));
+  self->set_code(*function);
+
+  // TODO(adamk): This could fail in the future when Instantiate
+  // does linking.
+  return true;
+}
+
+MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
+  PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
+      "v8", "V8.Execute", context, Script, Run, MaybeLocal<Value>(),
+      InternalEscapableScope, true);
+  i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
+  i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
+  i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  // It's an API error to call Evaluate before Instantiate.
+  CHECK(self->code()->IsJSFunction());
+
+  i::Handle<i::JSFunction> function(i::JSFunction::cast(self->code()), isolate);
+  DCHECK_EQ(i::MODULE_SCOPE, function->shared()->scope_info()->scope_type());
+  i::Handle<i::Object> receiver = isolate->factory()->undefined_value();
+
+  Local<Value> result;
+  i::Handle<i::Object> argv[] = {self};
+  has_pending_exception = !ToLocal<Value>(
+      i::Execution::Call(isolate, function, receiver, arraysize(argv), argv),
+      &result);
+
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
+}
 
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     Isolate* v8_isolate, Source* source, CompileOptions options,
@@ -2004,32 +2039,22 @@ Local<Script> ScriptCompiler::Compile(
   RETURN_TO_LOCAL_UNCHECKED(Compile(context, source, options), Script);
 }
 
-
-MaybeLocal<Script> ScriptCompiler::CompileModule(Local<Context> context,
-                                                 Source* source,
-                                                 CompileOptions options) {
-  auto isolate = context->GetIsolate();
+MaybeLocal<Module> ScriptCompiler::CompileModule(Isolate* isolate,
+                                                 Source* source) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  auto maybe = CompileUnboundInternal(isolate, source, options, true);
-  Local<UnboundScript> generic;
-  if (!maybe.ToLocal(&generic)) return MaybeLocal<Script>();
-  v8::Context::Scope scope(context);
-  auto result = generic->BindToCurrentContext();
+  auto maybe = CompileUnboundInternal(isolate, source, kNoCompileOptions, true);
+  Local<UnboundScript> unbound;
+  if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
 
-  i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*generic);
+  i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound);
   i::Handle<i::FixedArray> regular_exports =
       i::handle(shared->scope_info()->ModuleDescriptorInfo()->regular_exports(),
                 i_isolate);
   int regular_exports_length = regular_exports->length();
 
   i::Handle<i::Module> module =
-      i_isolate->factory()->NewModule(regular_exports_length);
-
-  // TODO(neis): Storing the module into the native context is a temporary hack
-  // to pass it to the Script::Run function.  This will be removed once we
-  // support modules in the API.
-  i_isolate->native_context()->set_current_module(*module);
+      i_isolate->factory()->NewModule(shared, regular_exports_length);
 
   // TODO(neis): This will create multiple cells for the same local variable if
   // exported under multiple names, which is wrong but cannot be observed at the
@@ -2044,7 +2069,7 @@ MaybeLocal<Script> ScriptCompiler::CompileModule(Local<Context> context,
     i::Module::CreateExport(module, export_name);
   }
 
-  return result;
+  return ToApiHandle<Module>(module);
 }
 
 

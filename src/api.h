@@ -69,7 +69,6 @@ class RegisteredExtension {
   static RegisteredExtension* first_extension_;
 };
 
-
 #define OPEN_HANDLE_LIST(V)                  \
   V(Template, TemplateInfo)                  \
   V(FunctionTemplate, FunctionTemplateInfo)  \
@@ -101,6 +100,7 @@ class RegisteredExtension {
   V(Symbol, Symbol)                          \
   V(Script, JSFunction)                      \
   V(UnboundScript, SharedFunctionInfo)       \
+  V(Module, Module)                          \
   V(Function, JSReceiver)                    \
   V(Message, JSMessageObject)                \
   V(Context, Context)                        \

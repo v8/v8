@@ -1147,6 +1147,7 @@ void Box::BoxPrint(std::ostream& os) {  // NOLINT
 
 void Module::ModulePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Module");
+  os << "\n - code: " << Brief(code());
   os << "\n - exports: " << Brief(exports());
   os << "\n";
 }
