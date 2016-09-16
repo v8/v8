@@ -3889,17 +3889,14 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       // Multiple statement body
       Consume(Token::LBRACE);
       DCHECK_EQ(scope(), formal_parameters.scope);
-      bool is_lazily_parsed =
-          (mode() == PARSE_LAZILY &&
-           formal_parameters.scope
-               ->AllowsLazyParsingWithoutUnresolvedVariables());
-      // TODO(marja): consider lazy-parsing inner arrow functions too.
+      bool is_lazily_parsed = (mode() == PARSE_LAZILY &&
+                               formal_parameters.scope->AllowsLazyParsing());
       if (is_lazily_parsed) {
         Scanner::BookmarkScope bookmark(scanner());
         bool may_abort = bookmark.Set();
         LazyParsingResult result = impl()->SkipLazyFunctionBody(
-            &materialized_literal_count, &expected_property_count, false,
-            may_abort, CHECK_OK);
+            &materialized_literal_count, &expected_property_count, may_abort,
+            CHECK_OK);
 
         if (formal_parameters.materialized_literals_count > 0) {
           materialized_literal_count +=

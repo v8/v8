@@ -38,10 +38,8 @@ namespace internal {
 #define CHECK_OK CHECK_OK_VALUE(Statement::Default())
 #define CHECK_OK_VOID CHECK_OK_VALUE(this->Void())
 
-namespace {
-
-PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
-  switch (scanner->current_token()) {
+PreParserIdentifier PreParser::GetSymbol() const {
+  switch (scanner()->current_token()) {
     case Token::ENUM:
       return PreParserIdentifier::Enum();
     case Token::AWAIT:
@@ -57,46 +55,34 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
     case Token::ASYNC:
       return PreParserIdentifier::Async();
     default:
-      if (scanner->UnescapedLiteralMatches("eval", 4))
+      if (scanner()->UnescapedLiteralMatches("eval", 4))
         return PreParserIdentifier::Eval();
-      if (scanner->UnescapedLiteralMatches("arguments", 9))
+      if (scanner()->UnescapedLiteralMatches("arguments", 9))
         return PreParserIdentifier::Arguments();
-      if (scanner->UnescapedLiteralMatches("undefined", 9))
+      if (scanner()->UnescapedLiteralMatches("undefined", 9))
         return PreParserIdentifier::Undefined();
-      if (scanner->LiteralMatches("prototype", 9))
+      if (scanner()->LiteralMatches("prototype", 9))
         return PreParserIdentifier::Prototype();
-      if (scanner->LiteralMatches("constructor", 11))
+      if (scanner()->LiteralMatches("constructor", 11))
         return PreParserIdentifier::Constructor();
       return PreParserIdentifier::Default();
   }
 }
 
-}  // unnamed namespace
-
-PreParserIdentifier PreParser::GetSymbol() const {
-  PreParserIdentifier symbol = GetSymbolHelper(scanner());
-  if (track_unresolved_variables_) {
-    const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
-    DCHECK_NOT_NULL(result);
-    symbol.string_ = result;
-  }
-  return symbol;
-}
-
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
-    FunctionKind kind, DeclarationScope* function_scope, bool parsing_module,
-    ParserRecorder* log, bool is_inner_function, bool may_abort,
-    int* use_counts) {
+    LanguageMode language_mode, FunctionKind kind, bool has_simple_parameters,
+    bool parsing_module, ParserRecorder* log, bool may_abort, int* use_counts) {
   parsing_module_ = parsing_module;
   log_ = log;
   use_counts_ = use_counts;
-  DCHECK(!track_unresolved_variables_);
-  track_unresolved_variables_ = is_inner_function;
-
-  // The caller passes the function_scope which is not yet inserted into the
-  // scope_state_. All scopes above the function_scope are ignored by the
-  // PreParser.
+  // Lazy functions always have trivial outer scopes (no with/catch scopes).
   DCHECK_NULL(scope_state_);
+  DeclarationScope* top_scope = NewScriptScope();
+  FunctionState top_state(&function_state_, &scope_state_, top_scope,
+                          kNormalFunction);
+  scope()->SetLanguageMode(language_mode);
+  DeclarationScope* function_scope = NewFunctionScope(kind);
+  if (!has_simple_parameters) function_scope->SetHasNonSimpleParameters();
   FunctionState function_state(&function_state_, &scope_state_, function_scope,
                                kind);
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
@@ -104,7 +90,6 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   int start_position = peek_position();
   LazyParsingResult result = ParseLazyFunctionLiteralBody(may_abort, &ok);
   use_counts_ = nullptr;
-  track_unresolved_variables_ = false;
   if (result == kLazyParsingAborted) {
     return kPreParseAbort;
   } else if (stack_overflow()) {
@@ -487,21 +472,6 @@ void PreParser::ParseAsyncArrowSingleExpressionBody(PreParserStatementList body,
       ParseAssignmentExpression(accept_IN, CHECK_OK_VOID);
 
   body->Add(PreParserStatement::ExpressionStatement(return_value), zone());
-}
-
-PreParserExpression PreParser::ExpressionFromIdentifier(
-    PreParserIdentifier name, int start_position, int end_position,
-    InferName infer) {
-  if (track_unresolved_variables_) {
-    AstNodeFactory factory(ast_value_factory());
-    // Setting the Zone is necessary because zone_ might be the temp Zone, and
-    // AstValueFactory doesn't know about it.
-    factory.set_zone(zone());
-    DCHECK_NOT_NULL(name.string_);
-    scope()->NewUnresolved(&factory, name.string_, start_position, end_position,
-                           NORMAL_VARIABLE);
-  }
-  return PreParserExpression::FromIdentifier(name);
 }
 
 #undef CHECK_OK

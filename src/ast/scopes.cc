@@ -1045,14 +1045,12 @@ void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
   AllocateScopeInfosRecursively(info->isolate(), mode, outer_scope);
 }
 
-bool Scope::AllowsLazyParsingWithoutUnresolvedVariables() const {
-  // If we are inside a block scope, we must find unresolved variables in the
-  // inner scopes to find out how to allocate variables on the block scope. At
-  // this point, declarations may not have yet been parsed.
+bool Scope::AllowsLazyParsing() const {
+  // If we are inside a block scope, we must parse eagerly to find out how
+  // to allocate variables on the block scope. At this point, declarations may
+  // not have yet been parsed.
   for (const Scope* s = this; s != nullptr; s = s->outer_scope_) {
     if (s->is_block_scope()) return false;
-    // TODO(marja): Refactor parsing modes: also add s->is_function_scope()
-    // here.
   }
   return true;
 }
