@@ -784,9 +784,8 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
       position_(data.start()),
       end_(data.start() + data.length()),
       pretenure_(data.length() > kPretenureThreshold ? TENURED : NOT_TENURED),
-      id_map_(Handle<SeededNumberDictionary>::cast(
-          isolate->global_handles()->Create(
-              *SeededNumberDictionary::New(isolate, 0)))) {}
+      id_map_(Handle<FixedArray>::cast(isolate->global_handles()->Create(
+          isolate_->heap()->empty_fixed_array()))) {}
 
 ValueDeserializer::~ValueDeserializer() {
   GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
@@ -1575,15 +1574,16 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
 }
 
 bool ValueDeserializer::HasObjectWithID(uint32_t id) {
-  return id_map_->Has(isolate_, id);
+  return id < static_cast<unsigned>(id_map_->length()) &&
+         !id_map_->get(id)->IsTheHole(isolate_);
 }
 
 MaybeHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
-  int index = id_map_->FindEntry(isolate_, id);
-  if (index == SeededNumberDictionary::kNotFound) {
+  if (id >= static_cast<unsigned>(id_map_->length())) {
     return MaybeHandle<JSReceiver>();
   }
-  Object* value = id_map_->ValueAt(index);
+  Object* value = id_map_->get(id);
+  if (value->IsTheHole(isolate_)) return MaybeHandle<JSReceiver>();
   DCHECK(value->IsJSReceiver());
   return Handle<JSReceiver>(JSReceiver::cast(value), isolate_);
 }
@@ -1591,16 +1591,13 @@ MaybeHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
 void ValueDeserializer::AddObjectWithID(uint32_t id,
                                         Handle<JSReceiver> object) {
   DCHECK(!HasObjectWithID(id));
-  const bool used_as_prototype = false;
-  Handle<SeededNumberDictionary> new_dictionary =
-      SeededNumberDictionary::AtNumberPut(id_map_, id, object,
-                                          used_as_prototype);
+  Handle<FixedArray> new_array = FixedArray::SetAndGrow(id_map_, id, object);
 
   // If the dictionary was reallocated, update the global handle.
-  if (!new_dictionary.is_identical_to(id_map_)) {
+  if (!new_array.is_identical_to(id_map_)) {
     GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
-    id_map_ = Handle<SeededNumberDictionary>::cast(
-        isolate_->global_handles()->Create(*new_dictionary));
+    id_map_ = Handle<FixedArray>::cast(
+        isolate_->global_handles()->Create(*new_array));
   }
 }
 
