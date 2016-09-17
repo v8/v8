@@ -7,7 +7,6 @@
 
 #include "src/wasm/encoder.h"
 #include "src/wasm/module-decoder.h"
-#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -29,7 +28,7 @@ void TestModule(Zone* zone, WasmModuleBuilder* builder,
 
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-  WasmJs::SetupIsolateForWasm(isolate);
+  testing::SetupIsolateForWasmModule(isolate);
   int32_t result = testing::CompileAndRunWasmModule(
       isolate, buffer.begin(), buffer.end(), ModuleOrigin::kWasmOrigin);
   CHECK_EQ(expected_result, result);
@@ -205,7 +204,7 @@ TEST(Run_WasmModule_Serialization) {
   v8::WasmCompiledModule::SerializedModule data;
   {
     HandleScope scope(isolate);
-    WasmJs::SetupIsolateForWasm(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
 
     ModuleResult decoding_result = DecodeWasmModule(
         isolate, &zone, buffer.begin(), buffer.end(), false, kWasmOrigin);
@@ -236,7 +235,7 @@ TEST(Run_WasmModule_Serialization) {
     v8::Local<v8::Context> new_ctx = v8::Context::New(v8_isolate);
     new_ctx->Enter();
     isolate = reinterpret_cast<Isolate*>(v8_isolate);
-    WasmJs::SetupIsolateForWasm(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
 
     v8::MaybeLocal<v8::WasmCompiledModule> deserialized =
         v8::WasmCompiledModule::Deserialize(v8_isolate, data);

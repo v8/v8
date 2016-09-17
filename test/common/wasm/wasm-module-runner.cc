@@ -10,6 +10,7 @@
 #include "src/property-descriptor.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-interpreter.h"
+#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone.h"
@@ -197,6 +198,12 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
   }
   thrower->Error("WASM.compileRun() failed: Return value should be number");
   return -1;
+}
+
+void SetupIsolateForWasmModule(Isolate* isolate) {
+  WasmJs::InstallWasmFunctionMapIfNeeded(isolate, isolate->native_context());
+  WasmJs::InstallWasmModuleSymbolIfNeeded(isolate, isolate->global_object(),
+                                          isolate->native_context());
 }
 
 }  // namespace testing

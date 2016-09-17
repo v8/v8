@@ -19,11 +19,11 @@ namespace internal {
 class WasmJs {
  public:
   static void Install(Isolate* isolate, Handle<JSGlobalObject> global_object);
-  static void InstallWasmFunctionMap(Isolate* isolate, Handle<Context> context);
-  static void InstallWasmModuleSymbol(Isolate* isolate,
-                                      Handle<JSGlobalObject> global,
-                                      Handle<Context> context);
-  static void SetupIsolateForWasm(Isolate* isolate);
+  static void InstallWasmFunctionMapIfNeeded(Isolate* isolate,
+                                             Handle<Context> context);
+  static void InstallWasmModuleSymbolIfNeeded(Isolate* isolate,
+                                              Handle<JSGlobalObject> global,
+                                              Handle<Context> context);
 };
 
 }  // namespace internal

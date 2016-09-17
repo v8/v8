@@ -316,45 +316,42 @@ static Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
   return function;
 }
 
-void WasmJs::SetupIsolateForWasm(Isolate* isolate) {
-  InstallWasmFunctionMap(isolate, isolate->native_context());
-  InstallWasmModuleSymbol(isolate, isolate->global_object(),
-                          isolate->native_context());
-}
+void WasmJs::InstallWasmModuleSymbolIfNeeded(Isolate* isolate,
+                                             Handle<JSGlobalObject> global,
+                                             Handle<Context> context) {
+  if (!context->get(Context::WASM_MODULE_SYM_INDEX)->IsSymbol() ||
+      !context->get(Context::WASM_INSTANCE_SYM_INDEX)->IsSymbol()) {
+    Factory* factory = isolate->factory();
+    // Create private symbols.
+    Handle<Symbol> module_sym = factory->NewPrivateSymbol();
+    Handle<Symbol> instance_sym = factory->NewPrivateSymbol();
+    context->set_wasm_module_sym(*module_sym);
+    context->set_wasm_instance_sym(*instance_sym);
 
-void WasmJs::InstallWasmModuleSymbol(Isolate* isolate,
-                                     Handle<JSGlobalObject> global,
-                                     Handle<Context> context) {
-  Factory* factory = isolate->factory();
-  // Create private symbols.
-  Handle<Symbol> module_sym = factory->NewPrivateSymbol();
-  Handle<Symbol> instance_sym = factory->NewPrivateSymbol();
-  context->set_wasm_module_sym(*module_sym);
-  context->set_wasm_instance_sym(*instance_sym);
+    // Bind the WebAssembly object.
+    Handle<String> name = v8_str(isolate, "WebAssembly");
+    Handle<JSFunction> cons = factory->NewFunction(name);
+    JSFunction::SetInstancePrototype(
+        cons, Handle<Object>(context->initial_object_prototype(), isolate));
+    cons->shared()->set_instance_class_name(*name);
+    Handle<JSObject> wasm_object = factory->NewJSObject(cons, TENURED);
+    PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
+    JSObject::AddProperty(global, name, wasm_object, attributes);
 
-  // Bind the WebAssembly object.
-  Handle<String> name = v8_str(isolate, "WebAssembly");
-  Handle<JSFunction> cons = factory->NewFunction(name);
-  JSFunction::SetInstancePrototype(
-      cons, Handle<Object>(context->initial_object_prototype(), isolate));
-  cons->shared()->set_instance_class_name(*name);
-  Handle<JSObject> wasm_object = factory->NewJSObject(cons, TENURED);
-  PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
-  JSObject::AddProperty(global, name, wasm_object, attributes);
+    // Install static methods on WebAssembly object.
+    InstallFunc(isolate, wasm_object, "compile", WebAssemblyCompile);
+    Handle<JSFunction> module_constructor =
+        InstallFunc(isolate, wasm_object, "Module", WebAssemblyModule);
+    Handle<JSFunction> instance_constructor =
+        InstallFunc(isolate, wasm_object, "Instance", WebAssemblyInstance);
+    i::Handle<i::Map> map = isolate->factory()->NewMap(
+        i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize + i::kPointerSize);
+    module_constructor->set_prototype_or_initial_map(*map);
+    map->SetConstructor(*module_constructor);
 
-  // Install static methods on WebAssembly object.
-  InstallFunc(isolate, wasm_object, "compile", WebAssemblyCompile);
-  Handle<JSFunction> module_constructor =
-      InstallFunc(isolate, wasm_object, "Module", WebAssemblyModule);
-  Handle<JSFunction> instance_constructor =
-      InstallFunc(isolate, wasm_object, "Instance", WebAssemblyInstance);
-  i::Handle<i::Map> map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize + i::kPointerSize);
-  module_constructor->set_prototype_or_initial_map(*map);
-  map->SetConstructor(*module_constructor);
-
-  context->set_wasm_module_constructor(*module_constructor);
-  context->set_wasm_instance_constructor(*instance_constructor);
+    context->set_wasm_module_constructor(*module_constructor);
+    context->set_wasm_instance_constructor(*instance_constructor);
+  }
 }
 
 void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
@@ -366,7 +363,7 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
 
   // Setup wasm function map.
   Handle<Context> context(global->native_context(), isolate);
-  InstallWasmFunctionMap(isolate, context);
+  InstallWasmFunctionMapIfNeeded(isolate, context);
 
   if (!FLAG_expose_wasm) {
     return;
@@ -399,10 +396,11 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
       JSObject::AddProperty(wasm_object, name, value, attributes);
     }
   }
-  InstallWasmModuleSymbol(isolate, global, context);
+  InstallWasmModuleSymbolIfNeeded(isolate, global, context);
 }
 
-void WasmJs::InstallWasmFunctionMap(Isolate* isolate, Handle<Context> context) {
+void WasmJs::InstallWasmFunctionMapIfNeeded(Isolate* isolate,
+                                            Handle<Context> context) {
   if (!context->get(Context::WASM_FUNCTION_MAP_INDEX)->IsMap()) {
     // TODO(titzer): Move this to bootstrapper.cc??
     // TODO(titzer): Also make one for strict mode functions?

@@ -9,7 +9,6 @@
 #include "src/isolate.h"
 #include "src/wasm/encoder.h"
 #include "src/wasm/wasm-interpreter.h"
-#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "test/cctest/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-module-runner.h"
@@ -50,7 +49,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   ZoneBuffer buffer(&zone);
   builder.WriteTo(buffer);
 
-  v8::internal::WasmJs::SetupIsolateForWasm(i_isolate);
+  v8::internal::wasm::testing::SetupIsolateForWasmModule(i_isolate);
 
   v8::internal::HandleScope scope(i_isolate);
 

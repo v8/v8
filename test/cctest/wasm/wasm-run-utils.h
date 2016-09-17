@@ -208,7 +208,8 @@ class TestingModule : public ModuleEnv {
     Handle<String> name = isolate_->factory()->NewStringFromStaticChars("main");
     Handle<JSObject> module_object = Handle<JSObject>(0, isolate_);
     Handle<Code> code = instance->function_code[index];
-    WasmJs::InstallWasmFunctionMap(isolate_, isolate_->native_context());
+    WasmJs::InstallWasmFunctionMapIfNeeded(isolate_,
+                                           isolate_->native_context());
     Handle<Code> ret_code =
         compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
     FunctionSig* funcSig = this->module->functions[index].sig;
