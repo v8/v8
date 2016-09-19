@@ -43,6 +43,11 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
   void consoleProfile(const String16& title);
   void consoleProfileEnd(const String16& title);
 
+  bool idleStarted();
+  bool idleFinished();
+
+  void collectSample();
+
  private:
   String16 nextProfileId();
 

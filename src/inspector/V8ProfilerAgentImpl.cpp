@@ -304,4 +304,18 @@ bool V8ProfilerAgentImpl::isRecording() const {
   return m_recordingCPUProfile || !m_startedProfiles.empty();
 }
 
+bool V8ProfilerAgentImpl::idleStarted() {
+  if (m_profiler) m_profiler->SetIdle(true);
+  return m_profiler;
+}
+
+bool V8ProfilerAgentImpl::idleFinished() {
+  if (m_profiler) m_profiler->SetIdle(false);
+  return m_profiler;
+}
+
+void V8ProfilerAgentImpl::collectSample() {
+  if (m_profiler) m_profiler->CollectSample();
+}
+
 }  // namespace v8_inspector

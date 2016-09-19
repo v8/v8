@@ -6,6 +6,8 @@
 
 #include "src/inspector/StringUtil.h"
 #include "src/inspector/V8Debugger.h"
+#include "src/inspector/V8InspectorImpl.h"
+#include "src/inspector/V8ProfilerAgentImpl.h"
 #include "src/inspector/protocol/Protocol.h"
 
 #include "include/v8-debug.h"
@@ -158,7 +160,12 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
   v8::HandleScope handleScope(isolate);
   v8::Local<v8::StackTrace> stackTrace;
   if (isolate->InContext()) {
-    isolate->GetCpuProfiler()->CollectSample();
+    if (debugger) {
+      V8InspectorImpl* inspector = debugger->inspector();
+      V8ProfilerAgentImpl* profilerAgent =
+          inspector->enabledProfilerAgentForGroup(contextGroupId);
+      if (profilerAgent) profilerAgent->collectSample();
+    }
     stackTrace = v8::StackTrace::CurrentStackTrace(isolate, maxStackSize,
                                                    stackTraceOptions);
   }

@@ -100,6 +100,8 @@ class V8Debugger {
   void muteScriptParsedEvents();
   void unmuteScriptParsedEvents();
 
+  V8InspectorImpl* inspector() { return m_inspector; }
+
  private:
   void compileDebuggerScript();
   v8::MaybeLocal<v8::Value> callDebuggerMethod(const char* functionName,

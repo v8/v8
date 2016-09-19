@@ -1753,11 +1753,9 @@
             4324,  # Struct padded due to declspec(align).
             4714,  # Function marked forceinline not inlined.
             4800,  # Value forced to bool.
-            4996,  # Deprecated function call.
           ],
           'cflags': [
             '-Wno-shorten-64-to-32',
-            '-Wno-deprecated-declarations',
           ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {

@@ -41,7 +41,8 @@ class V8DebuggerScript {
   V8_INSPECTOR_DISALLOW_COPY(V8DebuggerScript);
 
  public:
-  V8DebuggerScript(v8::Isolate*, v8::Local<v8::Object>, bool isLiveEdit);
+  V8DebuggerScript(v8::Local<v8::Context>, v8::Local<v8::Object>,
+                   bool isLiveEdit);
   ~V8DebuggerScript();
 
   const String16& scriptId() const { return m_id; }

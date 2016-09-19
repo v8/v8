@@ -37,11 +37,10 @@
 #include "src/inspector/V8Debugger.h"
 #include "src/inspector/V8DebuggerAgentImpl.h"
 #include "src/inspector/V8InspectorSessionImpl.h"
+#include "src/inspector/V8ProfilerAgentImpl.h"
 #include "src/inspector/V8RuntimeAgentImpl.h"
 #include "src/inspector/V8StackTraceImpl.h"
 #include "src/inspector/protocol/Protocol.h"
-
-#include "include/v8-profiler.h"
 
 namespace v8_inspector {
 
@@ -71,6 +70,13 @@ V8RuntimeAgentImpl* V8InspectorImpl::enabledRuntimeAgentForGroup(
     int contextGroupId) {
   V8InspectorSessionImpl* session = sessionForContextGroup(contextGroupId);
   V8RuntimeAgentImpl* agent = session ? session->runtimeAgent() : nullptr;
+  return agent && agent->enabled() ? agent : nullptr;
+}
+
+V8ProfilerAgentImpl* V8InspectorImpl::enabledProfilerAgentForGroup(
+    int contextGroupId) {
+  V8InspectorSessionImpl* session = sessionForContextGroup(contextGroupId);
+  V8ProfilerAgentImpl* agent = session ? session->profilerAgent() : nullptr;
   return agent && agent->enabled() ? agent : nullptr;
 }
 
@@ -271,11 +277,15 @@ void V8InspectorImpl::didExecuteScript(v8::Local<v8::Context> context) {
 }
 
 void V8InspectorImpl::idleStarted() {
-  m_isolate->GetCpuProfiler()->SetIdle(true);
+  for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
+    if (it->second->profilerAgent()->idleStarted()) return;
+  }
 }
 
 void V8InspectorImpl::idleFinished() {
-  m_isolate->GetCpuProfiler()->SetIdle(false);
+  for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
+    if (it->second->profilerAgent()->idleFinished()) return;
+  }
 }
 
 unsigned V8InspectorImpl::exceptionThrown(

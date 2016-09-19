@@ -19,7 +19,8 @@ class InjectedScriptNative final {
   ~InjectedScriptNative();
 
   void setOnInjectedScriptHost(v8::Local<v8::Object>);
-  static InjectedScriptNative* fromInjectedScriptHost(v8::Local<v8::Object>);
+  static InjectedScriptNative* fromInjectedScriptHost(v8::Isolate* isolate,
+                                                      v8::Local<v8::Object>);
 
   int bind(v8::Local<v8::Value>, const String16& groupName);
   void unbind(int id);

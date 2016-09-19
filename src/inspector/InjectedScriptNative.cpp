@@ -26,8 +26,7 @@ void InjectedScriptNative::setOnInjectedScriptHost(
 }
 
 InjectedScriptNative* InjectedScriptNative::fromInjectedScriptHost(
-    v8::Local<v8::Object> injectedScriptObject) {
-  v8::Isolate* isolate = injectedScriptObject->GetIsolate();
+    v8::Isolate* isolate, v8::Local<v8::Object> injectedScriptObject) {
   v8::HandleScope handleScope(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Private> privateKey = v8::Private::ForApi(

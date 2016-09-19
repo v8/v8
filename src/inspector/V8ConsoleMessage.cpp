@@ -63,8 +63,9 @@ const unsigned maxStackDepthLimit = 32;
 
 class V8ValueStringBuilder {
  public:
-  static String16 toString(v8::Local<v8::Value> value, v8::Isolate* isolate) {
-    V8ValueStringBuilder builder(isolate);
+  static String16 toString(v8::Local<v8::Value> value,
+                           v8::Local<v8::Context> context) {
+    V8ValueStringBuilder builder(context);
     if (!builder.append(value)) return String16();
     return builder.toString();
   }
@@ -75,10 +76,11 @@ class V8ValueStringBuilder {
     IgnoreUndefined = 1 << 1,
   };
 
-  V8ValueStringBuilder(v8::Isolate* isolate)
+  V8ValueStringBuilder(v8::Local<v8::Context> context)
       : m_arrayLimit(maxArrayItemsLimit),
-        m_isolate(isolate),
-        m_tryCatch(isolate) {}
+        m_isolate(context->GetIsolate()),
+        m_tryCatch(context->GetIsolate()),
+        m_context(context) {}
 
   bool append(v8::Local<v8::Value> value, unsigned ignoreOptions = 0) {
     if (value.IsEmpty()) return true;
@@ -133,7 +135,9 @@ class V8ValueStringBuilder {
     m_visitedArrays.push_back(array);
     for (uint32_t i = 0; i < length; ++i) {
       if (i) m_builder.append(',');
-      if (!append(array->Get(i), IgnoreNull | IgnoreUndefined)) {
+      v8::Local<v8::Value> value;
+      if (!array->Get(m_context, i).ToLocal(&value)) continue;
+      if (!append(value, IgnoreNull | IgnoreUndefined)) {
         result = false;
         break;
       }
@@ -165,6 +169,7 @@ class V8ValueStringBuilder {
   String16Builder m_builder;
   std::vector<v8::Local<v8::Array>> m_visitedArrays;
   v8::TryCatch m_tryCatch;
+  v8::Local<v8::Context> m_context;
 };
 
 }  // namespace
@@ -336,11 +341,13 @@ ConsoleAPIType V8ConsoleMessage::type() const { return m_type; }
 std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     double timestamp, ConsoleAPIType type,
     const std::vector<v8::Local<v8::Value>>& arguments,
-    std::unique_ptr<V8StackTraceImpl> stackTrace, InspectedContext* context) {
-  v8::Isolate* isolate = context->isolate();
-  int contextId = context->contextId();
-  int contextGroupId = context->contextGroupId();
-  V8InspectorImpl* inspector = context->inspector();
+    std::unique_ptr<V8StackTraceImpl> stackTrace,
+    InspectedContext* inspectedContext) {
+  v8::Isolate* isolate = inspectedContext->isolate();
+  int contextId = inspectedContext->contextId();
+  int contextGroupId = inspectedContext->contextGroupId();
+  V8InspectorImpl* inspector = inspectedContext->inspector();
+  v8::Local<v8::Context> context = inspectedContext->context();
 
   std::unique_ptr<V8ConsoleMessage> message = wrapUnique(
       new V8ConsoleMessage(V8MessageOrigin::kConsole, timestamp, String16()));
@@ -356,7 +363,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     message->m_arguments.push_back(
         wrapUnique(new v8::Global<v8::Value>(isolate, arguments.at(i))));
   if (arguments.size())
-    message->m_message = V8ValueStringBuilder::toString(arguments[0], isolate);
+    message->m_message = V8ValueStringBuilder::toString(arguments[0], context);
 
   V8ConsoleAPIType clientType = V8ConsoleAPIType::kLog;
   if (type == ConsoleAPIType::kDebug || type == ConsoleAPIType::kCount ||

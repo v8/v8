@@ -53,7 +53,8 @@ int JavaScriptCallFrame::callV8FunctionReturnInt(const char* name) const {
   v8::Local<v8::Object> callFrame =
       v8::Local<v8::Object>::New(m_isolate, m_callFrame);
   v8::Local<v8::Function> func = v8::Local<v8::Function>::Cast(
-      callFrame->Get(toV8StringInternalized(m_isolate, name)));
+      callFrame->Get(context, toV8StringInternalized(m_isolate, name))
+          .ToLocalChecked());
   v8::Local<v8::Value> result;
   if (!func->Call(context, callFrame, 0, nullptr).ToLocal(&result) ||
       !result->IsInt32())
@@ -79,44 +80,56 @@ int JavaScriptCallFrame::contextId() const {
 
 bool JavaScriptCallFrame::isAtReturn() const {
   v8::HandleScope handleScope(m_isolate);
-  v8::Local<v8::Value> result =
-      v8::Local<v8::Object>::New(m_isolate, m_callFrame)
-          ->Get(toV8StringInternalized(m_isolate, "isAtReturn"));
-  if (result.IsEmpty() || !result->IsBoolean()) return false;
-  return result->BooleanValue();
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(m_isolate, m_debuggerContext);
+  v8::Local<v8::Object> callFrame =
+      v8::Local<v8::Object>::New(m_isolate, m_callFrame);
+  v8::Local<v8::Value> result;
+  if (!callFrame->Get(context, toV8StringInternalized(m_isolate, "isAtReturn"))
+           .ToLocal(&result) ||
+      !result->IsBoolean())
+    return false;
+  return result.As<v8::Boolean>()->BooleanValue(context).FromMaybe(false);
 }
 
 v8::Local<v8::Object> JavaScriptCallFrame::details() const {
   v8::MicrotasksScope microtasks(m_isolate,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(m_isolate, m_debuggerContext);
   v8::Local<v8::Object> callFrame =
       v8::Local<v8::Object>::New(m_isolate, m_callFrame);
   v8::Local<v8::Function> func = v8::Local<v8::Function>::Cast(
-      callFrame->Get(toV8StringInternalized(m_isolate, "details")));
-  return v8::Local<v8::Object>::Cast(
-      func->Call(m_debuggerContext.Get(m_isolate), callFrame, 0, nullptr)
+      callFrame->Get(context, toV8StringInternalized(m_isolate, "details"))
           .ToLocalChecked());
+  return v8::Local<v8::Object>::Cast(
+      func->Call(context, callFrame, 0, nullptr).ToLocalChecked());
 }
 
 v8::MaybeLocal<v8::Value> JavaScriptCallFrame::evaluate(
     v8::Local<v8::Value> expression) {
   v8::MicrotasksScope microtasks(m_isolate,
                                  v8::MicrotasksScope::kRunMicrotasks);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(m_isolate, m_debuggerContext);
   v8::Local<v8::Object> callFrame =
       v8::Local<v8::Object>::New(m_isolate, m_callFrame);
   v8::Local<v8::Function> evalFunction = v8::Local<v8::Function>::Cast(
-      callFrame->Get(toV8StringInternalized(m_isolate, "evaluate")));
-  return evalFunction->Call(m_debuggerContext.Get(m_isolate), callFrame, 1,
-                            &expression);
+      callFrame->Get(context, toV8StringInternalized(m_isolate, "evaluate"))
+          .ToLocalChecked());
+  return evalFunction->Call(context, callFrame, 1, &expression);
 }
 
 v8::MaybeLocal<v8::Value> JavaScriptCallFrame::restart() {
   v8::MicrotasksScope microtasks(m_isolate,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(m_isolate, m_debuggerContext);
   v8::Local<v8::Object> callFrame =
       v8::Local<v8::Object>::New(m_isolate, m_callFrame);
   v8::Local<v8::Function> restartFunction = v8::Local<v8::Function>::Cast(
-      callFrame->Get(toV8StringInternalized(m_isolate, "restart")));
+      callFrame->Get(context, toV8StringInternalized(m_isolate, "restart"))
+          .ToLocalChecked());
   v8::Debug::SetLiveEditEnabled(m_isolate, true);
   v8::MaybeLocal<v8::Value> result = restartFunction->Call(
       m_debuggerContext.Get(m_isolate), callFrame, 0, nullptr);
@@ -129,16 +142,20 @@ v8::MaybeLocal<v8::Value> JavaScriptCallFrame::setVariableValue(
     v8::Local<v8::Value> newValue) {
   v8::MicrotasksScope microtasks(m_isolate,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(m_isolate, m_debuggerContext);
   v8::Local<v8::Object> callFrame =
       v8::Local<v8::Object>::New(m_isolate, m_callFrame);
   v8::Local<v8::Function> setVariableValueFunction =
-      v8::Local<v8::Function>::Cast(callFrame->Get(
-          toV8StringInternalized(m_isolate, "setVariableValue")));
+      v8::Local<v8::Function>::Cast(
+          callFrame
+              ->Get(context,
+                    toV8StringInternalized(m_isolate, "setVariableValue"))
+              .ToLocalChecked());
   v8::Local<v8::Value> argv[] = {
       v8::Local<v8::Value>(v8::Integer::New(m_isolate, scopeNumber)),
       variableName, newValue};
-  return setVariableValueFunction->Call(m_debuggerContext.Get(m_isolate),
-                                        callFrame,
+  return setVariableValueFunction->Call(context, callFrame,
                                         V8_INSPECTOR_ARRAY_LENGTH(argv), argv);
 }
 
