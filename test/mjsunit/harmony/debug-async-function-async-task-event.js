@@ -9,20 +9,14 @@ Debug = debug.Debug;
 var base_id = -1;
 var exception = null;
 var expected = [
-  "enqueue #1",
-  "willHandle #1",
-  "then #1",
-  "enqueue #2",
-  "enqueue #3",
-  "didHandle #1",
-  "willHandle #2",
-  "then #2",
-  "didHandle #2",
-  "willHandle #3",
-  "enqueue #4",
-  "didHandle #3",
-  "willHandle #4",
-  "didHandle #4",
+  'enqueue #1',
+  'willHandle #1',
+  'then #1',
+  'enqueue #2',
+  'didHandle #1',
+  'willHandle #2',
+  'then #2',
+  'didHandle #2',
 ];
 
 function assertLog(msg) {
