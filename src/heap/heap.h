@@ -166,7 +166,6 @@ using v8::MemoryPressureLevel;
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
   V(PropertyCell, has_instance_protector, HasInstanceProtector)                \
   V(Cell, species_protector, SpeciesProtector)                                 \
-  V(PropertyCell, string_length_protector, StringLengthProtector)              \
   /* Special numbers */                                                        \
   V(HeapNumber, nan_value, NanValue)                                           \
   V(HeapNumber, hole_nan_value, HoleNanValue)                                  \

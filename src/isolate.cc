@@ -2818,15 +2818,6 @@ void Isolate::InvalidateArraySpeciesProtector() {
   DCHECK(!IsArraySpeciesLookupChainIntact());
 }
 
-void Isolate::InvalidateStringLengthOverflowProtector() {
-  DCHECK(factory()->string_length_protector()->value()->IsSmi());
-  DCHECK(IsStringLengthOverflowIntact());
-  PropertyCell::SetValueWithInvalidation(
-      factory()->string_length_protector(),
-      handle(Smi::FromInt(kArrayProtectorInvalid), this));
-  DCHECK(!IsStringLengthOverflowIntact());
-}
-
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
   DisallowHeapAllocation no_gc;
   return IsInAnyContext(*array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);

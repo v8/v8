@@ -440,13 +440,6 @@ class HGraph final : public ZoneObject {
     return depends_on_empty_array_proto_elements_;
   }
 
-  void MarkDependsOnStringLengthOverflow() {
-    if (depends_on_string_length_overflow_) return;
-    info()->dependencies()->AssumePropertyCell(
-        isolate()->factory()->string_length_protector());
-    depends_on_string_length_overflow_ = true;
-  }
-
   bool has_uint32_instructions() {
     DCHECK(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
     return uint32_instructions_ != NULL;
@@ -522,7 +515,6 @@ class HGraph final : public ZoneObject {
   bool allow_code_motion_;
   bool use_optimistic_licm_;
   bool depends_on_empty_array_proto_elements_;
-  bool depends_on_string_length_overflow_;
   int type_change_checksum_;
   int maximum_environment_size_;
   int no_side_effects_scope_count_;

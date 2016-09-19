@@ -1214,13 +1214,6 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
   return maybe_error.ToHandleChecked();
 }
 
-Handle<Object> Factory::NewInvalidStringLengthError() {
-  // Invalidate the "string length" protector.
-  if (isolate()->IsStringLengthOverflowIntact()) {
-    isolate()->InvalidateStringLengthOverflowProtector();
-  }
-  return NewRangeError(MessageTemplate::kInvalidStringLength);
-}
 
 #define DEFINE_ERROR(NAME, name)                                              \
   Handle<Object> Factory::New##NAME(MessageTemplate::Template template_index, \

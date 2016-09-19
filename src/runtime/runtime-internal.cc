@@ -234,7 +234,8 @@ RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
 
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
   HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewRangeError(MessageTemplate::kInvalidStringLength));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {

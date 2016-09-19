@@ -2911,10 +2911,6 @@ void Heap::CreateInitialObjects() {
       handle(Smi::FromInt(Isolate::kArrayProtectorValid), isolate()));
   set_species_protector(*species_cell);
 
-  cell = factory->NewPropertyCell();
-  cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
-  set_string_length_protector(*cell);
-
   set_serialized_templates(empty_fixed_array());
 
   set_weak_stack_trace_list(Smi::FromInt(0));
