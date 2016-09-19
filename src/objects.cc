@@ -11632,6 +11632,118 @@ int String::IndexOf(Isolate* isolate, Handle<String> sub, Handle<String> pat,
   return SearchString(isolate, seq_sub.ToUC16Vector(), pat_vector, start_index);
 }
 
+namespace {  // for String.Prototype.lastIndexOf
+
+template <typename schar, typename pchar>
+int StringMatchBackwards(Vector<const schar> subject,
+                         Vector<const pchar> pattern, int idx) {
+  int pattern_length = pattern.length();
+  DCHECK(pattern_length >= 1);
+  DCHECK(idx + pattern_length <= subject.length());
+
+  if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
+    for (int i = 0; i < pattern_length; i++) {
+      uc16 c = pattern[i];
+      if (c > String::kMaxOneByteCharCode) {
+        return -1;
+      }
+    }
+  }
+
+  pchar pattern_first_char = pattern[0];
+  for (int i = idx; i >= 0; i--) {
+    if (subject[i] != pattern_first_char) continue;
+    int j = 1;
+    while (j < pattern_length) {
+      if (pattern[j] != subject[i + j]) {
+        break;
+      }
+      j++;
+    }
+    if (j == pattern_length) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+}  // namespace
+
+Object* String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
+                            Handle<Object> search, Handle<Object> position) {
+  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "String.prototype.lastIndexOf")));
+  }
+  Handle<String> receiver_string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver_string,
+                                     Object::ToString(isolate, receiver));
+
+  Handle<String> search_string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
+                                     Object::ToString(isolate, search));
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
+                                     Object::ToNumber(position));
+
+  uint32_t start_index;
+
+  if (position->IsNaN()) {
+    start_index = receiver_string->length();
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
+                                       Object::ToInteger(isolate, position));
+
+    double position_number = std::max(position->Number(), 0.0);
+    position_number = std::min(position_number,
+                               static_cast<double>(receiver_string->length()));
+    start_index = static_cast<uint32_t>(position_number);
+  }
+
+  uint32_t pattern_length = search_string->length();
+  uint32_t receiver_length = receiver_string->length();
+
+  if (start_index + pattern_length > receiver_length) {
+    start_index = receiver_length - pattern_length;
+  }
+
+  if (pattern_length == 0) {
+    return Smi::FromInt(start_index);
+  }
+
+  receiver_string = String::Flatten(receiver_string);
+  search_string = String::Flatten(search_string);
+
+  int last_index = -1;
+  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
+
+  String::FlatContent receiver_content = receiver_string->GetFlatContent();
+  String::FlatContent search_content = search_string->GetFlatContent();
+
+  if (search_content.IsOneByte()) {
+    Vector<const uint8_t> pat_vector = search_content.ToOneByteVector();
+    if (receiver_content.IsOneByte()) {
+      last_index = StringMatchBackwards(receiver_content.ToOneByteVector(),
+                                        pat_vector, start_index);
+    } else {
+      last_index = StringMatchBackwards(receiver_content.ToUC16Vector(),
+                                        pat_vector, start_index);
+    }
+  } else {
+    Vector<const uc16> pat_vector = search_content.ToUC16Vector();
+    if (receiver_content.IsOneByte()) {
+      last_index = StringMatchBackwards(receiver_content.ToOneByteVector(),
+                                        pat_vector, start_index);
+    } else {
+      last_index = StringMatchBackwards(receiver_content.ToUC16Vector(),
+                                        pat_vector, start_index);
+    }
+  }
+  return Smi::FromInt(last_index);
+}
+
 bool String::IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match) {
   int slen = length();
   // Can't check exact length equality, but we can check bounds.

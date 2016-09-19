@@ -7451,12 +7451,10 @@ TEST(ExceptionExtensions) {
   CHECK(context.IsEmpty());
 }
 
-
 static const char* kNativeCallInExtensionSource =
     "function call_runtime_last_index_of(x) {"
-    "  return %StringLastIndexOf(x, 'bob', 10);"
+    "  return %StringLastIndexOf(x, 'bob');"
     "}";
-
 
 static const char* kNativeCallTest =
     "call_runtime_last_index_of('bobbobboellebobboellebobbob');";
@@ -7471,7 +7469,7 @@ TEST(NativeCallInExtensions) {
   v8::Local<Context> context = Context::New(CcTest::isolate(), &extensions);
   Context::Scope lock(context);
   v8::Local<Value> result = CompileRun(kNativeCallTest);
-  CHECK(result->Equals(context, v8::Integer::New(CcTest::isolate(), 3))
+  CHECK(result->Equals(context, v8::Integer::New(CcTest::isolate(), 24))
             .FromJust());
 }
 

@@ -34,7 +34,6 @@ var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var SetFunctionName = utils.SetFunctionName;
 var StringIndexOf;
-var StringLastIndexOf;
 var StringSubstr;
 var StringSubstring;
 
@@ -44,7 +43,6 @@ utils.Import(function(from) {
   InternalRegExpMatch = from.InternalRegExpMatch;
   InternalRegExpReplace = from.InternalRegExpReplace;
   StringIndexOf = from.StringIndexOf;
-  StringLastIndexOf = from.StringLastIndexOf;
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
 });
@@ -311,7 +309,7 @@ function lookupSupportedLocalesOf(requestedLocales, availableLocales) {
         break;
       }
       // Truncate locale if possible, if not break.
-      var pos = %_Call(StringLastIndexOf, locale, '-');
+      var pos = %StringLastIndexOf(locale, '-');
       if (pos === -1) {
         break;
       }
@@ -434,7 +432,7 @@ function lookupMatcher(service, requestedLocales) {
         return {'locale': locale, 'extension': extension, 'position': i};
       }
       // Truncate locale if possible.
-      var pos = %_Call(StringLastIndexOf, locale, '-');
+      var pos = %StringLastIndexOf(locale, '-');
       if (pos === -1) {
         break;
       }

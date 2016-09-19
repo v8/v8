@@ -59,34 +59,6 @@ function StringIndexOf(pattern, position) {  // length == 1
 %FunctionSetLength(StringIndexOf, 1);
 
 
-// ECMA-262 section 15.5.4.8
-function StringLastIndexOf(pat, pos) {  // length == 1
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.lastIndexOf");
-
-  var sub = TO_STRING(this);
-  var subLength = sub.length;
-  var pat = TO_STRING(pat);
-  var patLength = pat.length;
-  var index = subLength - patLength;
-  var position = TO_NUMBER(pos);
-  if (!NUMBER_IS_NAN(position)) {
-    position = TO_INTEGER(position);
-    if (position < 0) {
-      position = 0;
-    }
-    if (position + patLength < subLength) {
-      index = position;
-    }
-  }
-  if (index < 0) {
-    return -1;
-  }
-  return %StringLastIndexOf(sub, pat, index);
-}
-
-%FunctionSetLength(StringLastIndexOf, 1);
-
-
 // ES6 21.1.3.11.
 function StringMatchJS(pattern) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.match");
@@ -702,7 +674,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "endsWith", StringEndsWith,
   "includes", StringIncludes,
   "indexOf", StringIndexOf,
-  "lastIndexOf", StringLastIndexOf,
   "match", StringMatchJS,
   "repeat", StringRepeat,
   "replace", StringReplace,
@@ -738,7 +709,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
 utils.Export(function(to) {
   to.ExpandReplacement = ExpandReplacement;
   to.StringIndexOf = StringIndexOf;
-  to.StringLastIndexOf = StringLastIndexOf;
   to.StringMatch = StringMatchJS;
   to.StringReplace = StringReplace;
   to.StringSlice = StringSlice;

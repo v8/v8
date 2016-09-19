@@ -9328,6 +9328,9 @@ class String: public Name {
   static int IndexOf(Isolate* isolate, Handle<String> sub, Handle<String> pat,
                      int start_index);
 
+  static Object* LastIndexOf(Isolate* isolate, Handle<Object> receiver,
+                             Handle<Object> search, Handle<Object> position);
+
   // String equality operations.
   inline bool Equals(String* other);
   inline static bool Equals(Handle<String> one, Handle<String> two);

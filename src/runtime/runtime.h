@@ -801,7 +801,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_STRINGS(F)     \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringIndexOf, 3, 1)                  \
-  F(StringLastIndexOf, 3, 1)              \
+  F(StringLastIndexOf, 2, 1)              \
   F(SubString, 3, 1)                      \
   F(StringAdd, 2, 1)                      \
   F(InternalizeString, 1, 1)              \

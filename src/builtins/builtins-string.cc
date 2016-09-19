@@ -477,6 +477,15 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
   assembler->Return(result);
 }
 
+// ES6 section 21.1.3.9
+// String.prototype.lastIndexOf ( searchString [ , position ] )
+BUILTIN(StringPrototypeLastIndexOf) {
+  HandleScope handle_scope(isolate);
+  return String::LastIndexOf(isolate, args.receiver(),
+                             args.atOrUndefined(isolate, 1),
+                             args.atOrUndefined(isolate, 2));
+}
+
 // ES6 section 21.1.3.10 String.prototype.localeCompare ( that )
 //
 // This function is implementation specific.  For now, we do not

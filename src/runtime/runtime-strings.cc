@@ -103,95 +103,11 @@ RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   return Smi::FromInt(position);
 }
 
-
-template <typename schar, typename pchar>
-static int StringMatchBackwards(Vector<const schar> subject,
-                                Vector<const pchar> pattern, int idx) {
-  int pattern_length = pattern.length();
-  DCHECK(pattern_length >= 1);
-  DCHECK(idx + pattern_length <= subject.length());
-
-  if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
-    for (int i = 0; i < pattern_length; i++) {
-      uc16 c = pattern[i];
-      if (c > String::kMaxOneByteCharCode) {
-        return -1;
-      }
-    }
-  }
-
-  pchar pattern_first_char = pattern[0];
-  for (int i = idx; i >= 0; i--) {
-    if (subject[i] != pattern_first_char) continue;
-    int j = 1;
-    while (j < pattern_length) {
-      if (pattern[j] != subject[i + j]) {
-        break;
-      }
-      j++;
-    }
-    if (j == pattern_length) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-
 RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, sub, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
-
-  uint32_t start_index = 0;
-  if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
-
-  uint32_t pat_length = pat->length();
-  uint32_t sub_length = sub->length();
-
-  if (start_index + pat_length > sub_length) {
-    start_index = sub_length - pat_length;
-  }
-
-  if (pat_length == 0) {
-    return Smi::FromInt(start_index);
-  }
-
-  sub = String::Flatten(sub);
-  pat = String::Flatten(pat);
-
-  int position = -1;
-  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
-
-  String::FlatContent sub_content = sub->GetFlatContent();
-  String::FlatContent pat_content = pat->GetFlatContent();
-
-  if (pat_content.IsOneByte()) {
-    Vector<const uint8_t> pat_vector = pat_content.ToOneByteVector();
-    if (sub_content.IsOneByte()) {
-      position = StringMatchBackwards(sub_content.ToOneByteVector(), pat_vector,
-                                      start_index);
-    } else {
-      position = StringMatchBackwards(sub_content.ToUC16Vector(), pat_vector,
-                                      start_index);
-    }
-  } else {
-    Vector<const uc16> pat_vector = pat_content.ToUC16Vector();
-    if (sub_content.IsOneByte()) {
-      position = StringMatchBackwards(sub_content.ToOneByteVector(), pat_vector,
-                                      start_index);
-    } else {
-      position = StringMatchBackwards(sub_content.ToUC16Vector(), pat_vector,
-                                      start_index);
-    }
-  }
-
-  return Smi::FromInt(position);
+  HandleScope handle_scope(isolate);
+  return String::LastIndexOf(isolate, args.at<Object>(0), args.at<Object>(1),
+                             isolate->factory()->undefined_value());
 }
-
 
 RUNTIME_FUNCTION(Runtime_SubString) {
   HandleScope scope(isolate);
