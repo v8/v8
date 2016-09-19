@@ -115,6 +115,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
   force_context_allocation_ =
       !is_function_scope() && outer_scope->has_forced_context_allocation();
   outer_scope_->AddInnerScope(this);
+  if (outer_scope_->is_lazily_parsed_) is_lazily_parsed_ = true;
 }
 
 Scope::Snapshot::Snapshot(Scope* scope)
@@ -282,6 +283,8 @@ void Scope::SetDefaults() {
   force_context_allocation_ = false;
 
   is_declaration_scope_ = false;
+
+  is_lazily_parsed_ = false;
 }
 
 bool Scope::HasSimpleParameters() {
@@ -1167,6 +1170,7 @@ void DeclarationScope::AnalyzePartially(DeclarationScope* migrate_to,
   PropagateUsageFlagsToScope(migrate_to);
   if (scope_uses_super_property_) migrate_to->scope_uses_super_property_ = true;
   if (inner_scope_calls_eval_) migrate_to->inner_scope_calls_eval_ = true;
+  if (is_lazily_parsed_) migrate_to->is_lazily_parsed_ = true;
   DCHECK(!force_eager_compilation_);
   migrate_to->set_start_position(start_position_);
   migrate_to->set_end_position(end_position_);
@@ -1328,6 +1332,7 @@ void Scope::Print(int n) {
     Indent(n1, "// scope uses 'super' property\n");
   }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
+  if (is_lazily_parsed_) Indent(n1, "// lazily parsed\n");
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
     PrintF("%d stack slots\n", num_stack_slots_);

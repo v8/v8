@@ -411,6 +411,10 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
 
+  void set_is_lazily_parsed(bool is_lazily_parsed) {
+    is_lazily_parsed_ = is_lazily_parsed;
+  }
+
  protected:
   explicit Scope(Zone* zone);
 
@@ -437,6 +441,9 @@ class Scope: public ZoneObject {
   // should also be invoked after resolution.
   bool NeedsScopeInfo() const {
     DCHECK(!already_resolved_);
+    // A lazily parsed scope doesn't contain enough information to create a
+    // ScopeInfo from it.
+    if (is_lazily_parsed_) return false;
     return NeedsContext() || is_script_scope() || is_function_scope() ||
            is_eval_scope() || is_module_scope();
   }
@@ -505,6 +512,8 @@ class Scope: public ZoneObject {
 
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
+
+  bool is_lazily_parsed_ : 1;
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.

@@ -3148,6 +3148,7 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
   int function_block_pos = position();
   DeclarationScope* scope = this->scope()->AsDeclarationScope();
   DCHECK(scope->is_function_scope());
+  scope->set_is_lazily_parsed(true);
   if (consume_cached_parse_data() && !cached_parse_data_->rejected()) {
     // If we have cached data, we use it to skip parsing the function body. The
     // data contains the information we need to construct the lazy function.
@@ -3178,6 +3179,7 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
       ParseLazyFunctionBodyWithPreParser(&logger, may_abort);
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) {
+    scope->set_is_lazily_parsed(false);
     return kLazyParsingAborted;
   }
   if (result == PreParser::kPreParseStackOverflow) {
