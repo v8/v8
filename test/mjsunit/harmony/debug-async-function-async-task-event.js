@@ -4,25 +4,26 @@
 
 // Flags: --harmony-async-await --expose-debug-as debug --allow-natives-syntax
 
+// The test observes the callbacks that async/await makes to the inspector
+// to make accurate stack traces. The limited number of events is an
+// indirect indication that we are not doing extra Promise processing that
+// could be associated with memory leaks (v8:5380).
+// TODO(littledan): Write a test that demonstrates that the memory leak in
+// the exception case is fixed.
+
 Debug = debug.Debug;
 
 var base_id = -1;
 var exception = null;
 var expected = [
-  "enqueue #1",
-  "willHandle #1",
-  "then #1",
-  "enqueue #2",
-  "enqueue #3",
-  "didHandle #1",
-  "willHandle #2",
-  "then #2",
-  "didHandle #2",
-  "willHandle #3",
-  "enqueue #4",
-  "didHandle #3",
-  "willHandle #4",
-  "didHandle #4",
+  'enqueue #1',
+  'willHandle #1',
+  'then #1',
+  'enqueue #2',
+  'didHandle #1',
+  'willHandle #2',
+  'then #2',
+  'didHandle #2',
 ];
 
 function assertLog(msg) {
