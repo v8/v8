@@ -2609,17 +2609,27 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
         Expect(Token::RPAREN, CHECK_OK);
 
-        // For legacy compat reasons, give for loops similar treatment to
-        // if statements in allowing a function declaration for a body
-        Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
-        Statement* final_loop = InitializeForEachStatement(
-            loop, expression, enumerable, body, each_keyword_position);
+        {
+          ReturnExprScope no_tail_calls(function_state_,
+                                        ReturnExprContext::kInsideForInOfBody);
+          BlockState block_state(&scope_state_);
+          block_state.set_start_position(scanner()->location().beg_pos);
 
-        Scope* for_scope = for_state.FinalizedBlockScope();
-        DCHECK_NULL(for_scope);
-        USE(for_scope);
-        return final_loop;
+          // For legacy compat reasons, give for loops similar treatment to
+          // if statements in allowing a function declaration for a body
+          Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
+          block_state.set_end_position(scanner()->location().end_pos);
+          Statement* final_loop = InitializeForEachStatement(
+              loop, expression, enumerable, body, each_keyword_position);
 
+          Scope* for_scope = for_state.FinalizedBlockScope();
+          DCHECK_NULL(for_scope);
+          USE(for_scope);
+          Scope* block_scope = block_state.FinalizedBlockScope();
+          DCHECK_NULL(block_scope);
+          USE(block_scope);
+          return final_loop;
+        }
       } else {
         init = factory()->NewExpressionStatement(expression, lhs_beg_pos);
       }
