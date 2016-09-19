@@ -524,11 +524,7 @@ class Scope: public ZoneObject {
   // scope, and stopping when reaching the outer_scope_end scope. If the code is
   // executed because of a call to 'eval', the context parameter should be set
   // to the calling context of 'eval'.
-  // {declare_free} indicates whether nullptr should be returned for free
-  // variables when falling off outer_scope_end, or whether they should be
-  // declared automatically as non-locals.
-  Variable* LookupRecursive(VariableProxy* proxy, bool declare_free,
-                            Scope* outer_scope_end);
+  Variable* LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
   void ResolveVariable(ParseInfo* info, VariableProxy* proxy);
   void ResolveVariablesRecursively(ParseInfo* info);

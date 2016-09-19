@@ -1397,8 +1397,7 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   return var;
 }
 
-Variable* Scope::LookupRecursive(VariableProxy* proxy, bool declare_free,
-                                 Scope* outer_scope_end) {
+Variable* Scope::LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end) {
   DCHECK_NE(outer_scope_end, this);
   // Short-cut: whenever we find a debug-evaluate scope, just look everything up
   // dynamically. Debug-evaluate doesn't properly create scope info for the
@@ -1407,10 +1406,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, bool declare_free,
   // variables.
   // TODO(yangguo): Remove once debug-evaluate creates proper ScopeInfo for the
   // scopes in which it's evaluating.
-  if (is_debug_evaluate_scope_) {
-    if (!declare_free) return nullptr;
-    return NonLocal(proxy->raw_name(), DYNAMIC);
-  }
+  if (is_debug_evaluate_scope_) return NonLocal(proxy->raw_name(), DYNAMIC);
 
   // Try to find the variable in this scope.
   Variable* var = LookupLocal(proxy->raw_name());
@@ -1431,8 +1427,9 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, bool declare_free,
   }
 
   if (outer_scope_ == outer_scope_end) {
-    if (!declare_free) return nullptr;
-    DCHECK(is_script_scope());
+    // We may just be trying to find all free variables. In that case, don't
+    // declare them in the outer scope.
+    if (!is_script_scope()) return nullptr;
     // No binding has been found. Declare a variable on the global object.
     return AsDeclarationScope()->DeclareDynamicGlobal(proxy->raw_name(),
                                                       NORMAL_VARIABLE);
@@ -1440,7 +1437,7 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, bool declare_free,
 
   DCHECK(!is_script_scope());
 
-  var = outer_scope_->LookupRecursive(proxy, declare_free, outer_scope_end);
+  var = outer_scope_->LookupRecursive(proxy, outer_scope_end);
 
   // The variable could not be resolved statically.
   if (var == nullptr) return var;
@@ -1499,7 +1496,7 @@ void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   if (proxy->is_resolved()) return;
 
   // Otherwise, try to resolve the variable.
-  Variable* var = LookupRecursive(proxy, true, nullptr);
+  Variable* var = LookupRecursive(proxy, nullptr);
 
   ResolveTo(info, proxy, var);
 }
@@ -1553,8 +1550,7 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
        proxy = next) {
     next = proxy->next_unresolved();
     if (proxy->is_resolved()) continue;
-    Variable* var =
-        LookupRecursive(proxy, false, max_outer_scope->outer_scope());
+    Variable* var = LookupRecursive(proxy, max_outer_scope->outer_scope());
     if (var == nullptr) {
       proxy->set_next_unresolved(stack);
       stack = proxy;
