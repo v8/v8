@@ -1772,6 +1772,7 @@ v8_source_set("v8_base") {
       "src/ic/x64/stub-cache-x64.cc",
       "src/regexp/x64/regexp-macro-assembler-x64.cc",
       "src/regexp/x64/regexp-macro-assembler-x64.h",
+      "src/third_party/valgrind/valgrind.h",
       "src/x64/assembler-x64-inl.h",
       "src/x64/assembler-x64.cc",
       "src/x64/assembler-x64.h",
