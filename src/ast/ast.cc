@@ -162,12 +162,11 @@ bool Statement::IsJump() const {
 VariableProxy::VariableProxy(Variable* var, int start_position,
                              int end_position)
     : Expression(start_position, kVariableProxy),
-      bit_field_(IsThisField::encode(var->is_this()) |
-                 IsAssignedField::encode(false) |
-                 IsResolvedField::encode(false)),
       end_position_(end_position),
       raw_name_(var->raw_name()),
       next_unresolved_(nullptr) {
+  bit_field_ |= IsThisField::encode(var->is_this()) |
+                IsAssignedField::encode(false) | IsResolvedField::encode(false);
   BindTo(var);
 }
 
@@ -175,18 +174,18 @@ VariableProxy::VariableProxy(const AstRawString* name,
                              VariableKind variable_kind, int start_position,
                              int end_position)
     : Expression(start_position, kVariableProxy),
-      bit_field_(IsThisField::encode(variable_kind == THIS_VARIABLE) |
-                 IsAssignedField::encode(false) |
-                 IsResolvedField::encode(false)),
       end_position_(end_position),
       raw_name_(name),
-      next_unresolved_(nullptr) {}
+      next_unresolved_(nullptr) {
+  bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
+                IsAssignedField::encode(false) | IsResolvedField::encode(false);
+}
 
 VariableProxy::VariableProxy(const VariableProxy* copy_from)
     : Expression(copy_from->position(), kVariableProxy),
-      bit_field_(copy_from->bit_field_),
       end_position_(copy_from->end_position_),
       next_unresolved_(nullptr) {
+  bit_field_ = copy_from->bit_field_;
   if (copy_from->is_resolved()) {
     var_ = copy_from->var_;
   } else {
@@ -249,12 +248,13 @@ void ForInStatement::AssignFeedbackVectorSlots(Isolate* isolate,
 Assignment::Assignment(Token::Value op, Expression* target, Expression* value,
                        int pos)
     : Expression(pos, kAssignment),
-      bit_field_(
-          IsUninitializedField::encode(false) | KeyTypeField::encode(ELEMENT) |
-          StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op)),
       target_(target),
       value_(value),
-      binary_operation_(NULL) {}
+      binary_operation_(NULL) {
+  bit_field_ |= IsUninitializedField::encode(false) |
+                KeyTypeField::encode(ELEMENT) |
+                StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op);
+}
 
 void Assignment::AssignFeedbackVectorSlots(Isolate* isolate,
                                            FeedbackVectorSpec* spec,
@@ -538,7 +538,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     // TODO(verwaest): Remove once we can store them inline.
     if (FLAG_track_double_fields &&
         (value->IsNumber() || value->IsUninitialized(isolate))) {
-      may_store_doubles_ = true;
+      bit_field_ = MayStoreDoublesField::update(bit_field_, true);
     }
 
     is_simple = is_simple && !value->IsUninitialized(isolate);
@@ -565,9 +565,11 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   }
 
   constant_properties_ = constant_properties;
-  fast_elements_ =
-      (max_element_index <= 32) || ((2 * elements) >= max_element_index);
-  has_elements_ = elements > 0;
+  bit_field_ = FastElementsField::update(
+      bit_field_,
+      (max_element_index <= 32) || ((2 * elements) >= max_element_index));
+  bit_field_ = HasElementsField::update(bit_field_, elements > 0);
+
   set_is_simple(is_simple);
   set_depth(depth_acc);
 }
@@ -759,8 +761,8 @@ static bool MatchLiteralCompareTypeof(Expression* left,
 
 bool CompareOperation::IsLiteralCompareTypeof(Expression** expr,
                                               Handle<String>* check) {
-  return MatchLiteralCompareTypeof(left_, op_, right_, expr, check) ||
-      MatchLiteralCompareTypeof(right_, op_, left_, expr, check);
+  return MatchLiteralCompareTypeof(left_, op(), right_, expr, check) ||
+         MatchLiteralCompareTypeof(right_, op(), left_, expr, check);
 }
 
 
@@ -790,8 +792,8 @@ static bool MatchLiteralCompareUndefined(Expression* left,
 }
 
 bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
-  return MatchLiteralCompareUndefined(left_, op_, right_, expr) ||
-         MatchLiteralCompareUndefined(right_, op_, left_, expr);
+  return MatchLiteralCompareUndefined(left_, op(), right_, expr) ||
+         MatchLiteralCompareUndefined(right_, op(), left_, expr);
 }
 
 
@@ -809,8 +811,8 @@ static bool MatchLiteralCompareNull(Expression* left,
 
 
 bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
-  return MatchLiteralCompareNull(left_, op_, right_, expr) ||
-      MatchLiteralCompareNull(right_, op_, left_, expr);
+  return MatchLiteralCompareNull(left_, op(), right_, expr) ||
+         MatchLiteralCompareNull(right_, op(), left_, expr);
 }
 
 
