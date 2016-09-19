@@ -842,8 +842,8 @@ class Scanner {
   // To be able to restore this state, we will keep copies of current_, next_,
   // and c0_; we'll ask the stream to bookmark itself, and we'll copy the
   // contents of current_'s and next_'s literal buffers to bookmark_*_literal_.
-  static const uc32 kNoBookmark = -1;
-  static const uc32 kBookmarkWasApplied = -2;
+  static const uc32 kNoBookmark = -2;
+  static const uc32 kBookmarkWasApplied = -3;
   uc32 bookmark_c0_;
   TokenDesc bookmark_current_;
   TokenDesc bookmark_next_;

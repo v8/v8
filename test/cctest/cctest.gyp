@@ -114,6 +114,7 @@
       'libplatform/test-tracing.cc',
       'libsampler/test-sampler.cc',
       'parsing/test-scanner-streams.cc',
+      'parsing/test-scanner.cc',
       'print-extension.cc',
       'print-extension.h',
       'profiler-extension.cc',

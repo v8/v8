@@ -1608,9 +1608,9 @@ void Scanner::ResetToBookmark() {
   bookmark_c0_ = kBookmarkWasApplied;
 }
 
-
-bool Scanner::BookmarkHasBeenSet() { return bookmark_c0_ >= 0; }
-
+bool Scanner::BookmarkHasBeenSet() {
+  return bookmark_c0_ != kNoBookmark && bookmark_c0_ != kBookmarkWasApplied;
+}
 
 bool Scanner::BookmarkHasBeenReset() {
   return bookmark_c0_ == kBookmarkWasApplied;
