@@ -3591,8 +3591,8 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
   BlockT init_block = impl()->NullBlock();
   if (var_context != kForStatement) {
-    init_block = impl()->NewBlock(nullptr, 1, true,
-                                  parsing_result->descriptor.declaration_pos);
+    init_block = factory()->NewBlock(
+        nullptr, 1, true, parsing_result->descriptor.declaration_pos);
   }
 
   switch (peek()) {
@@ -4194,8 +4194,8 @@ ParserBase<Impl>::ParseStatementList(StatementListT body, int end_token,
 
     bool starts_with_identifier = peek() == Token::IDENTIFIER;
     Scanner::Location token_loc = scanner()->peek_location();
-    StatementT stat = impl()->ParseStatementListItem(
-        CHECK_OK_CUSTOM(Return, kLazyParsingComplete));
+    StatementT stat =
+        ParseStatementListItem(CHECK_OK_CUSTOM(Return, kLazyParsingComplete));
 
     if (impl()->IsNullStatement(stat) || impl()->IsEmptyStatement(stat)) {
       directive_prologue = false;  // End of directive prologue.
@@ -4233,18 +4233,15 @@ ParserBase<Impl>::ParseStatementList(StatementListT body, int end_token,
         impl()->SetAsmModule();
       } else if (impl()->IsStringLiteral(stat)) {
         // Possibly an unknown directive.
-        // TODO(nikolaos): Check if the following is really what we want!
-        // """Should not change mode, but will increment UseCounter
-        // if appropriate. Ditto usages below."""  ???
+        // Should not change mode, but will increment usage counters
+        // as appropriate. Ditto usages below.
         RaiseLanguageMode(SLOPPY);
       } else {
         // End of the directive prologue.
         directive_prologue = false;
-        // TODO(nikolaos): Check if the following is really what we want!
         RaiseLanguageMode(SLOPPY);
       }
     } else {
-      // TODO(nikolaos): Check if the following is really what we want!
       RaiseLanguageMode(SLOPPY);
     }
 
@@ -4287,7 +4284,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
 
   switch (peek()) {
     case Token::FUNCTION:
-      return impl()->ParseHoistableDeclaration(nullptr, false, ok);
+      return ParseHoistableDeclaration(nullptr, false, ok);
     case Token::CLASS:
       Consume(Token::CLASS);
       return impl()->ParseClassDeclaration(nullptr, false, ok);
@@ -4309,7 +4306,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
     default:
       break;
   }
-  return impl()->ParseStatement(nullptr, kAllowLabelledFunctionStatement, ok);
+  return ParseStatement(nullptr, kAllowLabelledFunctionStatement, ok);
 }
 
 template <typename Impl>
@@ -4341,7 +4338,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
   // parsed into an empty statement.
   switch (peek()) {
     case Token::LBRACE:
-      return impl()->ParseBlock(labels, ok);
+      return ParseBlock(labels, ok);
     case Token::SEMICOLON:
       Next();
       return factory()->NewEmptyStatement(kNoSourcePosition);

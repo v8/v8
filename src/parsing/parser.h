@@ -960,11 +960,6 @@ class Parser : public ParserBase<Parser> {
     return new (zone()) ZoneList<CaseClause*>(size, zone());
   }
 
-  V8_INLINE Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,
-                            bool ignore_completion_value, int pos) {
-    return factory()->NewBlock(labels, capacity, ignore_completion_value, pos);
-  }
-
   V8_INLINE Expression* NewV8Intrinsic(const AstRawString* name,
                                        ZoneList<Expression*>* args, int pos,
                                        bool* ok);

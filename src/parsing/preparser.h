@@ -1289,12 +1289,6 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatementList();
   }
 
-  V8_INLINE static PreParserStatement NewBlock(
-      ZoneList<const AstRawString*>* labels, int capacity,
-      bool ignore_completion_value, int pos) {
-    return PreParserStatement::Default();
-  }
-
   V8_INLINE PreParserExpression
   NewV8Intrinsic(PreParserIdentifier name, PreParserExpressionList arguments,
                  int pos, bool* ok) {
