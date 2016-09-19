@@ -257,6 +257,10 @@ TEST(TestEventWithId) {
   i::V8::SetPlatformForTesting(old_platform);
 }
 
+/*
+TODO(chiniforooshan, crbug.com/647986): enable this again after landing
+https://codereview.chromium.org/2253973003
+
 TEST(TestEventInContext) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   MockTracingPlatform platform(old_platform);
@@ -280,3 +284,4 @@ TEST(TestEventInContext) {
 
   i::V8::SetPlatformForTesting(old_platform);
 }
+*/
