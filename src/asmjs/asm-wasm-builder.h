@@ -24,6 +24,9 @@ class AsmWasmBuilder {
                           AsmTyper* typer);
   ZoneBuffer* Run(Handle<FixedArray>* foreign_args);
 
+  static const char* foreign_init_name;
+  static const char* single_function_name;
+
  private:
   Isolate* isolate_;
   Zone* zone_;

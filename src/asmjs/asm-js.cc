@@ -212,12 +212,12 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
     return MaybeHandle<Object>();
   }
 
-  i::Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("__foreign_init__")));
+  i::Handle<i::Name> init_name(isolate->factory()->InternalizeUtf8String(
+      wasm::AsmWasmBuilder::foreign_init_name));
 
   i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
   i::MaybeHandle<i::Object> maybe_init =
-      i::Object::GetProperty(module_object, name);
+      i::Object::GetProperty(module_object, init_name);
   DCHECK(!maybe_init.is_null());
 
   i::Handle<i::Object> init = maybe_init.ToHandleChecked();
@@ -242,10 +242,18 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   i::MaybeHandle<i::Object> retval = i::Execution::Call(
       isolate, init, undefined, foreign_globals->length(), foreign_args_array);
   delete[] foreign_args_array;
-
   DCHECK(!retval.is_null());
 
-  return maybe_module_object;
+  i::Handle<i::Name> single_function_name(
+      isolate->factory()->InternalizeUtf8String(
+          wasm::AsmWasmBuilder::single_function_name));
+  i::MaybeHandle<i::Object> single_function =
+      i::Object::GetProperty(module_object, single_function_name);
+  if (!single_function.is_null() &&
+      !single_function.ToHandleChecked()->IsUndefined(isolate)) {
+    return single_function;
+  }
+  return module_object;
 }
 
 }  // namespace internal

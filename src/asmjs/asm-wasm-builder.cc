@@ -90,9 +90,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     current_function_builder_ =
         builder_->FunctionAt(foreign_init_function_index_);
     current_function_builder_->SetExported();
-    std::string raw_name = "__foreign_init__";
-    current_function_builder_->SetName(raw_name.data(),
-                                       static_cast<int>(raw_name.size()));
+    current_function_builder_->SetName(
+        AsmWasmBuilder::foreign_init_name,
+        static_cast<int>(strlen(AsmWasmBuilder::foreign_init_name)));
     current_function_builder_->SetSignature(b.Build());
     for (size_t pos = 0; pos < foreign_variables_.size(); ++pos) {
       current_function_builder_->EmitGetLocal(static_cast<uint32_t>(pos));
@@ -551,6 +551,14 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         current_function_builder_->EmitGetLocal(
             LookupOrInsertLocal(var, var_type));
       }
+    } else if (scope_ == kExportScope) {
+      Variable* var = expr->var();
+      DCHECK(var->is_function());
+      uint32_t index = LookupOrInsertFunction(var);
+      builder_->FunctionAt(index)->SetExported();
+      builder_->FunctionAt(index)->SetName(
+          AsmWasmBuilder::single_function_name,
+          static_cast<int>(strlen(AsmWasmBuilder::single_function_name)));
     }
   }
 
@@ -1792,6 +1800,10 @@ ZoneBuffer* AsmWasmBuilder::Run(i::Handle<i::FixedArray>* foreign_args) {
   impl.builder_->WriteTo(*buffer);
   return buffer;
 }
+
+const char* AsmWasmBuilder::foreign_init_name = "__foreign_init__";
+const char* AsmWasmBuilder::single_function_name = "__single_function__";
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
