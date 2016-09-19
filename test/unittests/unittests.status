@@ -19,4 +19,9 @@
   'Ieee754.Acosh': [SKIP],
   'Ieee754.Asinh': [SKIP],
 }],  # 'arch == x87'
+
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
 ]

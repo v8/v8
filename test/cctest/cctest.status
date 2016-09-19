@@ -435,4 +435,8 @@
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition_turbofan
 
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
 ]
