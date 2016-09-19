@@ -638,7 +638,8 @@ Parser::Parser(ParseInfo* info)
   // ParseInfo during background parsing.
   DCHECK(!info->script().is_null() || info->source_stream() != nullptr ||
          info->character_stream() != nullptr);
-  set_allow_lazy(info->allow_lazy_parsing());
+  set_allow_lazy(FLAG_lazy && info->allow_lazy_parsing() &&
+                 !info->is_native() && info->extension() == nullptr);
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_tailcalls(FLAG_harmony_tailcalls && !info->is_native() &&
                       info->isolate()->is_tail_call_elimination_enabled());
@@ -753,8 +754,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   DCHECK_NULL(scope_state_);
   DCHECK_NULL(target_stack_);
 
-  Mode parsing_mode = FLAG_lazy && allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY;
-  if (allow_natives() || extension_ != NULL) parsing_mode = PARSE_EAGERLY;
+  Mode parsing_mode = allow_lazy() ? PARSE_LAZILY : PARSE_EAGERLY;
 
   FunctionLiteral* result = NULL;
   {
@@ -2946,8 +2946,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // - For asm.js functions the body needs to be available when module
   //   validation is active, because we examine the entire module at once.
   bool use_temp_zone =
-      !is_lazily_parsed && FLAG_lazy && !allow_natives() &&
-      extension_ == NULL && allow_lazy() &&
+      !is_lazily_parsed && allow_lazy() &&
       function_type == FunctionLiteral::kDeclaration &&
       eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
       !(FLAG_validate_asm && scope()->IsAsmModule());
