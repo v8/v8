@@ -791,7 +791,7 @@ class RuntimeCallStats {
 
   void Reset();
   V8_NOINLINE void Print(std::ostream& os);
-  V8_NOINLINE const char* Dump();
+  V8_NOINLINE std::string Dump();
 
   RuntimeCallStats() {
     Reset();
@@ -803,8 +803,6 @@ class RuntimeCallStats {
 
  private:
   std::stringstream buffer_;
-  std::unique_ptr<char[]> buffer_c_str_;
-  size_t len_ = 0;
   // Counter to track recursive time events.
   RuntimeCallTimer* current_timer_ = NULL;
   // Used to track nested tracing scopes.
