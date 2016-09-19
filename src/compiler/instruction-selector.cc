@@ -38,12 +38,12 @@ InstructionSelector::InstructionSelector(
       effect_level_(node_count, 0, zone),
       virtual_registers_(node_count,
                          InstructionOperand::kInvalidVirtualRegister, zone),
+      virtual_register_rename_(zone),
       scheduler_(nullptr),
       enable_scheduling_(enable_scheduling),
       frame_(frame) {
   instructions_.reserve(node_count);
 }
-
 
 void InstructionSelector::SelectInstructions() {
   // Mark the inputs of all phis in loop headers as used.
@@ -74,11 +74,15 @@ void InstructionSelector::SelectInstructions() {
   for (auto const block : *blocks) {
     InstructionBlock* instruction_block =
         sequence()->InstructionBlockAt(RpoNumber::FromInt(block->rpo_number()));
+    for (size_t i = 0; i < instruction_block->phis().size(); i++) {
+      UpdateRenamesInPhi(instruction_block->PhiAt(i));
+    }
     size_t end = instruction_block->code_end();
     size_t start = instruction_block->code_start();
     DCHECK_LE(end, start);
     StartBlock(RpoNumber::FromInt(block->rpo_number()));
     while (start-- > end) {
+      UpdateRenames(instructions_[start]);
       AddInstruction(instructions_[start]);
     }
     EndBlock(RpoNumber::FromInt(block->rpo_number()));
@@ -251,6 +255,53 @@ bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(Node* user,
     }
   }
   return true;
+}
+
+void InstructionSelector::UpdateRenames(Instruction* instruction) {
+  for (size_t i = 0; i < instruction->InputCount(); i++) {
+    TryRename(instruction->InputAt(i));
+  }
+}
+
+void InstructionSelector::UpdateRenamesInPhi(PhiInstruction* phi) {
+  for (size_t i = 0; i < phi->operands().size(); i++) {
+    int vreg = phi->operands()[i];
+    int renamed = GetRename(vreg);
+    if (vreg != renamed) {
+      phi->RenameInput(i, renamed);
+    }
+  }
+}
+
+int InstructionSelector::GetRename(int virtual_register) {
+  int rename = virtual_register;
+  while (true) {
+    if (static_cast<size_t>(rename) >= virtual_register_rename_.size()) break;
+    int next = virtual_register_rename_[rename];
+    if (next == InstructionOperand::kInvalidVirtualRegister) {
+      break;
+    }
+    rename = next;
+  }
+  return rename;
+}
+
+void InstructionSelector::TryRename(InstructionOperand* op) {
+  if (!op->IsUnallocated()) return;
+  int vreg = UnallocatedOperand::cast(op)->virtual_register();
+  int rename = GetRename(vreg);
+  if (rename != vreg) {
+    UnallocatedOperand::cast(op)->set_virtual_register(rename);
+  }
+}
+
+void InstructionSelector::SetRename(const Node* node, const Node* rename) {
+  int vreg = GetVirtualRegister(node);
+  if (static_cast<size_t>(vreg) >= virtual_register_rename_.size()) {
+    int invalid = InstructionOperand::kInvalidVirtualRegister;
+    virtual_register_rename_.resize(vreg + 1, invalid);
+  }
+  virtual_register_rename_[vreg] = GetVirtualRegister(rename);
 }
 
 int InstructionSelector::GetVirtualRegister(const Node* node) {
@@ -1451,7 +1502,8 @@ void InstructionSelector::VisitStackSlot(Node* node) {
 }
 
 void InstructionSelector::VisitBitcastWordToTagged(Node* node) {
-  EmitIdentity(node);
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
 }
 
 // 32 bit targets do not implement the following instructions.
@@ -1948,8 +2000,8 @@ Instruction* InstructionSelector::EmitDeoptimize(
 
 void InstructionSelector::EmitIdentity(Node* node) {
   OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+  MarkAsUsed(node->InputAt(0));
+  SetRename(node, node->InputAt(0));
 }
 
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,

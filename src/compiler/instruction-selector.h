@@ -212,6 +212,12 @@ class InstructionSelector final {
   void EmitLookupSwitch(const SwitchInfo& sw,
                         InstructionOperand& value_operand);
 
+  void TryRename(InstructionOperand* op);
+  int GetRename(int virtual_register);
+  void SetRename(const Node* node, const Node* rename);
+  void UpdateRenames(Instruction* instruction);
+  void UpdateRenamesInPhi(PhiInstruction* phi);
+
   // Inform the instruction selection that {node} was just defined.
   void MarkAsDefined(Node* node);
 
@@ -341,6 +347,7 @@ class InstructionSelector final {
   BoolVector used_;
   IntVector effect_level_;
   IntVector virtual_registers_;
+  IntVector virtual_register_rename_;
   InstructionScheduler* scheduler_;
   EnableScheduling enable_scheduling_;
   Frame* frame_;

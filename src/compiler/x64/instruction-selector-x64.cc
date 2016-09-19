@@ -1245,8 +1245,7 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   if (ZeroExtendsWord32ToWord64(value)) {
     // These 32-bit operations implicitly zero-extend to 64-bit on x64, so the
     // zero-extension is a no-op.
-    Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
-    return;
+    return EmitIdentity(node);
   }
   Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
 }
@@ -1320,8 +1319,7 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
         Int64BinopMatcher m(value);
         if (m.right().Is(32)) {
           if (TryMatchLoadWord64AndShiftRight(this, value, kX64Movl)) {
-            Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
-            return;
+            return EmitIdentity(node);
           }
           Emit(kX64Shr, g.DefineSameAsFirst(node),
                g.UseRegister(m.left().node()), g.TempImmediate(32));
