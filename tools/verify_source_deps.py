@@ -8,9 +8,8 @@ Script to print potentially missing source dependencies based on the actual
 .h and .cc files in the source tree and which files are included in the gyp
 and gn files. The latter inclusion is overapproximated.
 
-TODO(machenbach): Gyp files in src will point to source files in src without a
-src/ prefix. For simplicity, all paths relative to src are stripped. But this
-tool won't be accurate for other sources in other directories (e.g. cctest).
+TODO(machenbach): If two source files with the same name exist, but only one
+is referenced from a gyp/gn file, we won't necessarily detect it.
 """
 
 import itertools
