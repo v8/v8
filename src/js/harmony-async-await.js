@@ -66,22 +66,10 @@ function AsyncFunctionAwait(generator, awaited, mark) {
   // );
   var promise = PromiseCastResolved(awaited);
 
-  var onFulfilled = sentValue => {
-    %_Call(AsyncFunctionNext, generator, sentValue);
-    // The resulting Promise is a throwaway, so it doesn't matter what it
-    // resolves to. What is important is that we don't end up keeping the
-    // whole chain of intermediate Promises alive by returning the value
-    // of AsyncFunctionNext, as that would create a memory leak.
-    return;
-  };
-  var onRejected = sentError => {
-    %_Call(AsyncFunctionThrow, generator, sentError);
-    // Similarly, returning the huge Promise here would cause a long
-    // resolution chain to find what the exception to throw is, and
-    // create a similar memory leak, and it does not matter what
-    // sort of rejection this intermediate Promise becomes.
-    return;
-  }
+  var onFulfilled =
+      (sentValue) => %_Call(AsyncFunctionNext, generator, sentValue);
+  var onRejected =
+      (sentError) => %_Call(AsyncFunctionThrow, generator, sentError);
 
   if (mark && DEBUG_IS_ACTIVE && IsPromise(awaited)) {
     // Mark the reject handler callback such that it does not influence
