@@ -28,9 +28,8 @@ class Factory final {
                              byte kind);
 
   // Allocates a fixed array initialized with undefined values.
-  Handle<FixedArray> NewFixedArray(
-      int size,
-      PretenureFlag pretenure = NOT_TENURED);
+  V8_EXPORT_PRIVATE Handle<FixedArray> NewFixedArray(
+      int size, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new fixed array with non-existing entries (the hole).
   Handle<FixedArray> NewFixedArrayWithHoles(
@@ -165,9 +164,8 @@ class Factory final {
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
-  MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8(
-      Vector<const char> str,
-      PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT V8_EXPORT_PRIVATE MaybeHandle<String> NewStringFromUtf8(
+      Vector<const char> str, PretenureFlag pretenure = NOT_TENURED);
 
   MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
       Vector<const uc16> str,
@@ -457,11 +455,11 @@ class Factory final {
   }
 
   // Create a JSArray with the given elements.
-  Handle<JSArray> NewJSArrayWithElements(Handle<FixedArrayBase> elements,
-                                         ElementsKind elements_kind, int length,
-                                         PretenureFlag pretenure = NOT_TENURED);
+  V8_EXPORT_PRIVATE Handle<JSArray> NewJSArrayWithElements(
+      Handle<FixedArrayBase> elements, ElementsKind elements_kind, int length,
+      PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<JSArray> NewJSArrayWithElements(
+  V8_EXPORT_PRIVATE Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED) {

@@ -56,7 +56,7 @@ class Interpreter {
   void TraceCodegen(Handle<Code> code);
   const char* LookupNameOfBytecodeHandler(Code* code);
 
-  Local<v8::Object> GetDispatchCountersObject();
+  V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
 
   Address dispatch_table_address() {
     return reinterpret_cast<Address>(&dispatch_table_[0]);

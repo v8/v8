@@ -5,15 +5,10 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
-#ifndef V8_SHARED
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
 #include "src/list.h"
-#else
-#include "include/v8.h"
-#include "src/base/compiler-specific.h"
-#endif  // !V8_SHARED
 
 #include "src/base/once.h"
 
@@ -21,7 +16,6 @@
 namespace v8 {
 
 
-#ifndef V8_SHARED
 // A single counter in a counter collection.
 class Counter {
  public:
@@ -90,17 +84,14 @@ class CounterMap {
   static bool Match(void* key1, void* key2);
   base::HashMap hash_map_;
 };
-#endif  // !V8_SHARED
 
 
 class SourceGroup {
  public:
   SourceGroup() :
-#ifndef V8_SHARED
       next_semaphore_(0),
       done_semaphore_(0),
       thread_(NULL),
-#endif  // !V8_SHARED
       argv_(NULL),
       begin_offset_(0),
       end_offset_(0) {}
@@ -116,7 +107,6 @@ class SourceGroup {
 
   void Execute(Isolate* isolate);
 
-#ifndef V8_SHARED
   void StartExecuteInThread();
   void WaitForThread();
   void JoinThread();
@@ -141,7 +131,6 @@ class SourceGroup {
   base::Semaphore next_semaphore_;
   base::Semaphore done_semaphore_;
   base::Thread* thread_;
-#endif  // !V8_SHARED
 
   void ExitShell(int exit_code);
   Local<String> ReadFile(Isolate* isolate, const char* name);
@@ -151,7 +140,6 @@ class SourceGroup {
   int end_offset_;
 };
 
-#ifndef V8_SHARED
 enum SerializationTag {
   kSerializationTagUndefined,
   kSerializationTagNull,
@@ -267,7 +255,6 @@ class Worker {
   char* script_;
   base::Atomic32 running_;
 };
-#endif  // !V8_SHARED
 
 
 class ShellOptions {
@@ -324,12 +311,7 @@ class ShellOptions {
   const char* trace_config;
 };
 
-#ifdef V8_SHARED
-class Shell {
-#else
 class Shell : public i::AllStatic {
-#endif  // V8_SHARED
-
  public:
   enum SourceType { SCRIPT, MODULE };
 
@@ -351,7 +333,6 @@ class Shell : public i::AllStatic {
   static void CollectGarbage(Isolate* isolate);
   static void EmptyMessageQueues(Isolate* isolate);
 
-#ifndef V8_SHARED
   // TODO(binji): stupid implementation for now. Is there an easy way to hash an
   // object for use in base::HashMap? By pointer?
   typedef i::List<Local<Object>> ObjectList;
@@ -372,7 +353,6 @@ class Shell : public i::AllStatic {
   static void MapCounters(v8::Isolate* isolate, const char* name);
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif  // !V8_SHARED
 
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -450,7 +430,6 @@ class Shell : public i::AllStatic {
  private:
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
-#ifndef V8_SHARED
   static Global<Function> stringify_function_;
   static CounterMap* counter_map_;
   // We statically allocate a set of local counters to be used if we
@@ -469,7 +448,6 @@ class Shell : public i::AllStatic {
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   static Counter* GetCounter(const char* name, bool is_histogram);
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
-#endif  // !V8_SHARED
   static void Initialize(Isolate* isolate);
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
