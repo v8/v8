@@ -1485,11 +1485,9 @@ Declaration* Parser::DeclareVariable(const AstRawString* name,
                                      VariableMode mode, InitializationFlag init,
                                      int pos, bool* ok) {
   DCHECK_NOT_NULL(name);
-  Scope* scope =
-      IsLexicalVariableMode(mode) ? this->scope() : GetDeclarationScope();
-  VariableProxy* proxy =
-      scope->NewUnresolved(factory(), name, scanner()->location().beg_pos,
-                           scanner()->location().end_pos);
+  VariableProxy* proxy = factory()->NewVariableProxy(
+      name, NORMAL_VARIABLE, scanner()->location().beg_pos,
+      scanner()->location().end_pos);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, this->scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, init, CHECK_OK);
@@ -1656,7 +1654,8 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   VariableMode mode =
       (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
                                                                        : VAR;
-  VariableProxy* proxy = NewUnresolved(variable_name);
+  VariableProxy* proxy =
+      factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE);
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, function, scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
@@ -3857,7 +3856,7 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
 
   VariableProxy* proxy = nullptr;
   if (name != nullptr) {
-    proxy = NewUnresolved(name);
+    proxy = factory()->NewVariableProxy(name, NORMAL_VARIABLE);
     // TODO(verwaest): declare via block_state.
     Declaration* declaration =
         factory()->NewVariableDeclaration(proxy, block_state.scope(), pos);
@@ -3941,7 +3940,8 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
           //}
           const AstRawString* name = ClassFieldVariableName(
               true, ast_value_factory(), instance_field_initializers->length());
-          VariableProxy* name_proxy = NewUnresolved(name);
+          VariableProxy* name_proxy =
+              factory()->NewVariableProxy(name, NORMAL_VARIABLE);
           Declaration* name_declaration = factory()->NewVariableDeclaration(
               name_proxy, scope(), kNoSourcePosition);
           Variable* name_var =
@@ -4022,7 +4022,8 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
   for (int i = 0; i < instance_field_initializers->length(); ++i) {
     const AstRawString* function_name =
         ClassFieldVariableName(false, ast_value_factory(), i);
-    VariableProxy* function_proxy = NewUnresolved(function_name);
+    VariableProxy* function_proxy =
+        factory()->NewVariableProxy(function_name, NORMAL_VARIABLE);
     Declaration* function_declaration = factory()->NewVariableDeclaration(
         function_proxy, scope(), kNoSourcePosition);
     Variable* function_var =

@@ -478,7 +478,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       // Declare a var-style binding for the function in the outer scope
       if (!var_created) {
         var_created = true;
-        VariableProxy* proxy = NewUnresolved(factory, name);
+        VariableProxy* proxy = factory->NewVariableProxy(name, NORMAL_VARIABLE);
         Declaration* declaration =
             factory->NewVariableDeclaration(proxy, this, kNoSourcePosition);
         // Based on the preceding check, it doesn't matter what we pass as
@@ -1490,14 +1490,8 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end) {
 
 void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(info->script_scope()->is_script_scope());
-
-  // If the proxy is already resolved there's nothing to do
-  // (functions and consts may be resolved by the parser).
-  if (proxy->is_resolved()) return;
-
-  // Otherwise, try to resolve the variable.
+  DCHECK(!proxy->is_resolved());
   Variable* var = LookupRecursive(proxy, nullptr);
-
   ResolveTo(info, proxy, var);
 }
 
@@ -1549,7 +1543,7 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
   for (VariableProxy *proxy = unresolved_, *next = nullptr; proxy != nullptr;
        proxy = next) {
     next = proxy->next_unresolved();
-    if (proxy->is_resolved()) continue;
+    DCHECK(!proxy->is_resolved());
     Variable* var = LookupRecursive(proxy, max_outer_scope->outer_scope());
     if (var == nullptr) {
       proxy->set_next_unresolved(stack);
