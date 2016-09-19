@@ -15,7 +15,7 @@ void ModuleDescriptor::AddImport(
   Entry* entry = new (zone) Entry(loc);
   entry->local_name = local_name;
   entry->import_name = import_name;
-  entry->module_request = module_request;
+  entry->module_request = AddModuleRequest(module_request);
   AddRegularImport(entry);
 }
 
@@ -24,10 +24,9 @@ void ModuleDescriptor::AddStarImport(
     const AstRawString* local_name, const AstRawString* module_request,
     Scanner::Location loc, Zone* zone) {
   DCHECK_NOT_NULL(local_name);
-  DCHECK_NOT_NULL(module_request);
   Entry* entry = new (zone) Entry(loc);
   entry->local_name = local_name;
-  entry->module_request = module_request;
+  entry->module_request = AddModuleRequest(module_request);
   AddSpecialImport(entry, zone);
 }
 
@@ -35,7 +34,7 @@ void ModuleDescriptor::AddStarImport(
 void ModuleDescriptor::AddEmptyImport(
     const AstRawString* module_request, Scanner::Location loc, Zone* zone) {
   Entry* entry = new (zone) Entry(loc);
-  entry->module_request = module_request;
+  entry->module_request = AddModuleRequest(module_request);
   AddSpecialImport(entry, zone);
 }
 
@@ -58,7 +57,7 @@ void ModuleDescriptor::AddExport(
   Entry* entry = new (zone) Entry(loc);
   entry->export_name = export_name;
   entry->import_name = import_name;
-  entry->module_request = module_request;
+  entry->module_request = AddModuleRequest(module_request);
   AddSpecialExport(entry, zone);
 }
 
@@ -66,7 +65,7 @@ void ModuleDescriptor::AddExport(
 void ModuleDescriptor::AddStarExport(
     const AstRawString* module_request, Scanner::Location loc, Zone* zone) {
   Entry* entry = new (zone) Entry(loc);
-  entry->module_request = module_request;
+  entry->module_request = AddModuleRequest(module_request);
   AddSpecialExport(entry, zone);
 }
 
@@ -89,11 +88,12 @@ const AstRawString* FromStringOrUndefined(Isolate* isolate,
 
 Handle<ModuleInfoEntry> ModuleDescriptor::Entry::Serialize(
     Isolate* isolate) const {
-  return ModuleInfoEntry::New(isolate,
-                              ToStringOrUndefined(isolate, export_name),
-                              ToStringOrUndefined(isolate, local_name),
-                              ToStringOrUndefined(isolate, import_name),
-                              ToStringOrUndefined(isolate, module_request));
+  CHECK(Smi::IsValid(module_request));  // TODO(neis): Check earlier?
+  return ModuleInfoEntry::New(
+      isolate, ToStringOrUndefined(isolate, export_name),
+      ToStringOrUndefined(isolate, local_name),
+      ToStringOrUndefined(isolate, import_name),
+      Handle<Object>(Smi::FromInt(module_request), isolate));
 }
 
 ModuleDescriptor::Entry* ModuleDescriptor::Entry::Deserialize(
@@ -106,8 +106,7 @@ ModuleDescriptor::Entry* ModuleDescriptor::Entry::Deserialize(
       isolate, avfactory, handle(entry->local_name(), isolate));
   result->import_name = FromStringOrUndefined(
       isolate, avfactory, handle(entry->import_name(), isolate));
-  result->module_request = FromStringOrUndefined(
-      isolate, avfactory, handle(entry->module_request(), isolate));
+  result->module_request = Smi::cast(entry->module_request())->value();
   return result;
 }
 
@@ -120,9 +119,11 @@ void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
       // Found an indirect export.  Patch export entry and move it from regular
       // to special.
       DCHECK_NULL(entry->import_name);
-      DCHECK_NULL(entry->module_request);
+      DCHECK_LT(entry->module_request, 0);
       DCHECK_NOT_NULL(import->second->import_name);
-      DCHECK_NOT_NULL(import->second->module_request);
+      DCHECK_LE(0, import->second->module_request);
+      DCHECK_LT(import->second->module_request,
+                static_cast<int>(module_requests_.size()));
       entry->import_name = import->second->import_name;
       entry->module_request = import->second->module_request;
       entry->local_name = nullptr;
@@ -160,8 +161,8 @@ const ModuleDescriptor::Entry* ModuleDescriptor::FindDuplicateExport(
   const ModuleDescriptor::Entry* duplicate = nullptr;
   ZoneMap<const AstRawString*, const ModuleDescriptor::Entry*> export_names(
       zone);
-  for (const auto& it : regular_exports_) {
-    duplicate = BetterDuplicate(it.second, export_names, duplicate);
+  for (const auto& elem : regular_exports_) {
+    duplicate = BetterDuplicate(elem.second, export_names, duplicate);
   }
   for (auto entry : special_exports_) {
     if (entry->export_name == nullptr) continue;  // Star export.
@@ -188,8 +189,8 @@ bool ModuleDescriptor::Validate(ModuleScope* module_scope,
   }
 
   // Report error iff there are exports of non-existent local names.
-  for (const auto& it : regular_exports_) {
-    const Entry* entry = it.second;
+  for (const auto& elem : regular_exports_) {
+    const Entry* entry = elem.second;
     DCHECK_NOT_NULL(entry->local_name);
     if (module_scope->LookupLocal(entry->local_name) == nullptr) {
       error_handler->ReportMessageAt(

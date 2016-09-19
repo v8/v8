@@ -4572,6 +4572,7 @@ class ModuleInfo : public FixedArray {
  public:
   DECLARE_CAST(ModuleInfo)
   static Handle<ModuleInfo> New(Isolate* isolate, ModuleDescriptor* descr);
+  inline FixedArray* module_requests() const;
   inline FixedArray* special_exports() const;
   inline FixedArray* regular_exports() const;
 
@@ -4581,7 +4582,12 @@ class ModuleInfo : public FixedArray {
 
  private:
   friend class Factory;
-  enum { kSpecialExportsIndex, kRegularExportsIndex, kLength };
+  enum {
+    kModuleRequestsIndex,
+    kSpecialExportsIndex,
+    kRegularExportsIndex,
+    kLength
+  };
 };
 
 // The cache for maps used by normalized (dictionary mode) objects.

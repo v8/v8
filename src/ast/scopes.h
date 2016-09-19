@@ -855,6 +855,11 @@ class ModuleScope final : public DeclarationScope {
  public:
   ModuleScope(DeclarationScope* script_scope,
               AstValueFactory* ast_value_factory);
+
+  // Deserialization.
+  // The generated ModuleDescriptor does not preserve all information.  In
+  // particular, its module_requests map will be empty because we no longer need
+  // the map after parsing.
   ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
               AstValueFactory* ast_value_factory);
 

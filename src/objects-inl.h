@@ -7943,6 +7943,10 @@ Object* ModuleInfoEntry::module_request() const {
   return get(kModuleRequestIndex);
 }
 
+FixedArray* ModuleInfo::module_requests() const {
+  return FixedArray::cast(get(kModuleRequestsIndex));
+}
+
 FixedArray* ModuleInfo::special_exports() const {
   return FixedArray::cast(get(kSpecialExportsIndex));
 }

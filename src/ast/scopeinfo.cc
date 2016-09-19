@@ -853,6 +853,13 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
 }
 
 Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
+  // Serialize module requests.
+  Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(
+      static_cast<int>(descr->module_requests().size()));
+  for (const auto& elem : descr->module_requests()) {
+    module_requests->set(elem.second, *elem.first->string());
+  }
+
   // Serialize special exports.
   Handle<FixedArray> special_exports =
       isolate->factory()->NewFixedArray(descr->special_exports().length());
@@ -868,12 +875,13 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
       static_cast<int>(descr->regular_exports().size()));
   {
     int i = 0;
-    for (const auto& it : descr->regular_exports()) {
-      regular_exports->set(i++, *it.second->Serialize(isolate));
+    for (const auto& elem : descr->regular_exports()) {
+      regular_exports->set(i++, *elem.second->Serialize(isolate));
     }
   }
 
   Handle<ModuleInfo> result = isolate->factory()->NewModuleInfo();
+  result->set(kModuleRequestsIndex, *module_requests);
   result->set(kSpecialExportsIndex, *special_exports);
   result->set(kRegularExportsIndex, *regular_exports);
   return result;
