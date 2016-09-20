@@ -8,6 +8,8 @@ v8_executable("unittests") {
   testonly = true
 
   sources = [
+    "../../testing/gmock-support.h",
+    "../../testing/gtest-support.h",
     "base/atomic-utils-unittest.cc",
     "base/bits-unittest.cc",
     "base/cpu-unittest.cc",
