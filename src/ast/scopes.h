@@ -444,8 +444,10 @@ class Scope: public ZoneObject {
     // A lazily parsed scope doesn't contain enough information to create a
     // ScopeInfo from it.
     if (is_lazily_parsed_) return false;
-    return NeedsContext() || is_script_scope() || is_function_scope() ||
-           is_eval_scope() || is_module_scope();
+    // The debugger expects all functions to have scope infos.
+    // TODO(jochen|yangguo): Remove this requirement.
+    if (is_function_scope()) return true;
+    return NeedsContext();
   }
 
   Zone* zone_;

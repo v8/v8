@@ -1043,6 +1043,13 @@ void DeclarationScope::AllocateVariables(ParseInfo* info, AnalyzeMode mode) {
     break;
   }
   AllocateScopeInfosRecursively(info->isolate(), mode, outer_scope);
+  // The debugger expects all shared function infos to contain a scope info.
+  // Since the top-most scope will end up in a shared function info, make sure
+  // it has one, even if it doesn't need a scope info.
+  // TODO(jochen|yangguo): Remove this requirement.
+  if (scope_info_.is_null()) {
+    scope_info_ = ScopeInfo::Create(info->isolate(), zone(), this, outer_scope);
+  }
 }
 
 bool Scope::AllowsLazyParsing() const {
