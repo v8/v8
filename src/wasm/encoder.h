@@ -6,7 +6,7 @@
 #define V8_WASM_ENCODER_H_
 
 #include "src/signature.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-macro-gen.h"

@@ -7,7 +7,7 @@
 #include "src/bit-vector.h"
 #include "src/flags.h"
 #include "src/handles.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/decoder.h"
@@ -1649,7 +1649,7 @@ class WasmFullDecoder : public WasmDecoder {
 
 bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
                       const byte* end) {
-  base::AccountingAllocator allocator;
+  AccountingAllocator allocator;
   Zone tmp(&allocator);
   FunctionBody body = {nullptr, nullptr, nullptr, start, end};
   WasmFullDecoder decoder(&tmp, nullptr, body);
@@ -1667,7 +1667,7 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
   }
 }
 
-DecodeResult VerifyWasmCode(base::AccountingAllocator* allocator,
+DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                             FunctionBody& body) {
   Zone zone(allocator);
   WasmFullDecoder decoder(&zone, nullptr, body);
@@ -1675,8 +1675,8 @@ DecodeResult VerifyWasmCode(base::AccountingAllocator* allocator,
   return decoder.toResult<DecodeStruct*>(nullptr);
 }
 
-DecodeResult BuildTFGraph(base::AccountingAllocator* allocator,
-                          TFBuilder* builder, FunctionBody& body) {
+DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
+                          FunctionBody& body) {
   Zone zone(allocator);
   WasmFullDecoder decoder(&zone, builder, body);
   decoder.Decode();
@@ -1694,12 +1694,12 @@ unsigned OpcodeArity(const byte* pc, const byte* end) {
 }
 
 void PrintAstForDebugging(const byte* start, const byte* end) {
-  base::AccountingAllocator allocator;
+  AccountingAllocator allocator;
   OFStream os(stdout);
   PrintAst(&allocator, FunctionBodyForTesting(start, end), os, nullptr);
 }
 
-bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
+bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
               std::ostream& os,
               std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
   Zone zone(allocator);

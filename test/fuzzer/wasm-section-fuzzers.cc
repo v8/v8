@@ -8,7 +8,8 @@
 #include "src/isolate.h"
 #include "src/wasm/encoder.h"
 #include "src/wasm/wasm-module.h"
-#include "src/zone.h"
+#include "src/zone/accounting-allocator.h"
+#include "src/zone/zone.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
@@ -31,7 +32,7 @@ int fuzz_wasm_section(WasmSection::Code section, const uint8_t* data,
   v8::Context::Scope context_scope(support->GetContext());
   v8::TryCatch try_catch(isolate);
 
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   v8::internal::Zone zone(&allocator);
 
   ZoneBuffer buffer(&zone);

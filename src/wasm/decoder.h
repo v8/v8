@@ -12,7 +12,7 @@
 #include "src/signature.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

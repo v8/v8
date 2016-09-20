@@ -12,7 +12,7 @@
 #include "src/ast/variables.h"
 #include "src/effects.h"
 #include "src/type-info.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

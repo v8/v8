@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 #include <cstring>
 
@@ -41,38 +41,7 @@ const size_t kASanRedzoneBytes = 0;
 
 }  // namespace
 
-
-// Segments represent chunks of memory: They have starting address
-// (encoded in the this pointer) and a size in bytes. Segments are
-// chained together forming a LIFO structure with the newest segment
-// available as segment_head_. Segments are allocated using malloc()
-// and de-allocated using free().
-
-class Segment {
- public:
-  void Initialize(Segment* next, size_t size) {
-    next_ = next;
-    size_ = size;
-  }
-
-  Segment* next() const { return next_; }
-  void clear_next() { next_ = nullptr; }
-
-  size_t size() const { return size_; }
-  size_t capacity() const { return size_ - sizeof(Segment); }
-
-  Address start() const { return address(sizeof(Segment)); }
-  Address end() const { return address(size_); }
-
- private:
-  // Computes the address of the nth byte in this segment.
-  Address address(size_t n) const { return Address(this) + n; }
-
-  Segment* next_;
-  size_t size_;
-};
-
-Zone::Zone(base::AccountingAllocator* allocator)
+Zone::Zone(AccountingAllocator* allocator)
     : allocation_size_(0),
       segment_bytes_allocated_(0),
       position_(0),
@@ -86,7 +55,6 @@ Zone::~Zone() {
 
   DCHECK(segment_bytes_allocated_ == 0);
 }
-
 
 void* Zone::New(size_t size) {
   // Round up the requested size to fit the alignment.
@@ -123,7 +91,6 @@ void* Zone::New(size_t size) {
   return reinterpret_cast<void*>(result);
 }
 
-
 void Zone::DeleteAll() {
 #ifdef DEBUG
   // Constant byte value used for zapping dead memory in debug mode.
@@ -139,7 +106,7 @@ void Zone::DeleteAll() {
     if (!keep && current->size() <= kMaximumKeptSegmentSize) {
       // Unlink the segment we wish to keep from the list.
       keep = current;
-      keep->clear_next();
+      keep->set_next(nullptr);
     } else {
       size_t size = current->size();
 #ifdef DEBUG
@@ -148,7 +115,8 @@ void Zone::DeleteAll() {
       // Zap the entire current segment (including the header).
       memset(current, kZapDeadByte, size);
 #endif
-      DeleteSegment(current, size);
+      segment_bytes_allocated_ -= size;
+      allocator_->FreeSegment(current);
     }
     current = next;
   }
@@ -176,7 +144,6 @@ void Zone::DeleteAll() {
   segment_head_ = keep;
 }
 
-
 void Zone::DeleteKeptSegment() {
 #ifdef DEBUG
   // Constant byte value used for zapping dead memory in debug mode.
@@ -192,33 +159,25 @@ void Zone::DeleteKeptSegment() {
     // Zap the entire kept segment (including the header).
     memset(segment_head_, kZapDeadByte, size);
 #endif
-    DeleteSegment(segment_head_, size);
+    segment_bytes_allocated_ -= size;
+    allocator_->FreeSegment(segment_head_);
     segment_head_ = nullptr;
   }
 
   DCHECK(segment_bytes_allocated_ == 0);
 }
 
-
 // Creates a new segment, sets it size, and pushes it to the front
 // of the segment chain. Returns the new segment.
 Segment* Zone::NewSegment(size_t size) {
-  Segment* result = reinterpret_cast<Segment*>(allocator_->Allocate(size));
+  Segment* result = allocator_->AllocateSegment(size);
   segment_bytes_allocated_ += size;
   if (result != nullptr) {
-    result->Initialize(segment_head_, size);
+    result->Initialize(segment_head_, size, this);
     segment_head_ = result;
   }
   return result;
 }
-
-
-// Deletes the given segment. Does not touch the segment chain.
-void Zone::DeleteSegment(Segment* segment, size_t size) {
-  segment_bytes_allocated_ -= size;
-  allocator_->Free(segment, size);
-}
-
 
 Address Zone::NewExpand(size_t size) {
   // Make sure the requested size is already properly aligned and that

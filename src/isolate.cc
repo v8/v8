@@ -10,7 +10,6 @@
 #include <sstream>
 
 #include "src/ast/context-slot-cache.h"
-#include "src/base/accounting-allocator.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
@@ -43,6 +42,7 @@
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
+#include "src/zone/accounting-allocator.h"
 
 namespace v8 {
 namespace internal {
@@ -1898,13 +1898,13 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 #define TRACE_ISOLATE(tag)
 #endif
 
-class VerboseAccountingAllocator : public base::AccountingAllocator {
+class VerboseAccountingAllocator : public AccountingAllocator {
  public:
   VerboseAccountingAllocator(Heap* heap, size_t sample_bytes)
       : heap_(heap), last_memory_usage_(0), sample_bytes_(sample_bytes) {}
 
-  void* Allocate(size_t size) override {
-    void* memory = base::AccountingAllocator::Allocate(size);
+  v8::internal::Segment* AllocateSegment(size_t size) override {
+    v8::internal::Segment* memory = AccountingAllocator::AllocateSegment(size);
     if (memory) {
       size_t current = GetCurrentMemoryUsage();
       if (last_memory_usage_.Value() + sample_bytes_ < current) {
@@ -1915,8 +1915,8 @@ class VerboseAccountingAllocator : public base::AccountingAllocator {
     return memory;
   }
 
-  void Free(void* memory, size_t bytes) override {
-    base::AccountingAllocator::Free(memory, bytes);
+  void FreeSegment(v8::internal::Segment* memory) override {
+    AccountingAllocator::FreeSegment(memory);
     size_t current = GetCurrentMemoryUsage();
     if (current + sample_bytes_ < last_memory_usage_.Value()) {
       PrintJSON(current);
@@ -1971,7 +1971,7 @@ Isolate::Isolate(bool enable_serializer)
       unicode_cache_(NULL),
       allocator_(FLAG_trace_gc_object_stats
                      ? new VerboseAccountingAllocator(&heap_, 256 * KB)
-                     : new base::AccountingAllocator()),
+                     : new AccountingAllocator()),
       runtime_zone_(new Zone(allocator_)),
       inner_pointer_to_code_cache_(NULL),
       global_handles_(NULL),

@@ -10,8 +10,8 @@
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-module.h"
 
-#include "src/base/accounting-allocator.h"
-#include "src/zone-containers.h"
+#include "src/zone/accounting-allocator.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -1746,7 +1746,7 @@ class WasmInterpreterInternals : public ZoneObject {
 // Implementation of the public interface of the interpreter.
 //============================================================================
 WasmInterpreter::WasmInterpreter(WasmModuleInstance* instance,
-                                 base::AccountingAllocator* allocator)
+                                 AccountingAllocator* allocator)
     : zone_(allocator),
       internals_(new (&zone_) WasmInterpreterInternals(&zone_, instance)) {}
 

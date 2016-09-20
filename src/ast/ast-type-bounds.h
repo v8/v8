@@ -8,7 +8,7 @@
 #define V8_AST_AST_TYPE_BOUNDS_H_
 
 #include "src/ast/ast-types.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

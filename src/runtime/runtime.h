@@ -11,7 +11,7 @@
 #include "src/base/platform/time.h"
 #include "src/objects.h"
 #include "src/unicode.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

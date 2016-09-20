@@ -32,7 +32,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Context::Scope context_scope(support->GetContext());
   v8::TryCatch try_catch(isolate);
 
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   v8::internal::Zone zone(&allocator);
 
   TestSignatures sigs;

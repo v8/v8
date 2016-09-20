@@ -17,7 +17,7 @@
 #include "src/compiler/source-position.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
-#include "src/zone-allocator.h"
+#include "src/zone/zone-allocator.h"
 
 namespace v8 {
 namespace internal {

@@ -237,25 +237,24 @@ inline std::ostream& operator<<(std::ostream& os, const DecodeStruct& tree) {
   return os;
 }
 
-DecodeResult VerifyWasmCode(base::AccountingAllocator* allocator,
-                            FunctionBody& body);
-DecodeResult BuildTFGraph(base::AccountingAllocator* allocator,
-                          TFBuilder* builder, FunctionBody& body);
-bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
+DecodeResult VerifyWasmCode(AccountingAllocator* allocator, FunctionBody& body);
+DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
+                          FunctionBody& body);
+bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
               std::ostream& os,
               std::vector<std::tuple<uint32_t, int, int>>* offset_table);
 
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintAstForDebugging(const byte* start, const byte* end);
 
-inline DecodeResult VerifyWasmCode(base::AccountingAllocator* allocator,
+inline DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                    ModuleEnv* module, FunctionSig* sig,
                                    const byte* start, const byte* end) {
   FunctionBody body = {module, sig, nullptr, start, end};
   return VerifyWasmCode(allocator, body);
 }
 
-inline DecodeResult BuildTFGraph(base::AccountingAllocator* allocator,
+inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                                  TFBuilder* builder, ModuleEnv* module,
                                  FunctionSig* sig, const byte* start,
                                  const byte* end) {

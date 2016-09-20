@@ -8,7 +8,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 
 #include "src/interpreter/bytecode-label.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

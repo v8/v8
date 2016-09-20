@@ -6,6 +6,7 @@
 #include "src/identity-map.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/zone/zone.h"
 // FIXME(mstarzinger, marja): This is weird, but required because of the missing
 // (disallowed) include: src/factory.h -> src/objects-inl.h
 #include "src/objects-inl.h"
@@ -14,7 +15,6 @@
 // src/type-feedback-vector-inl.h
 #include "src/type-feedback-vector-inl.h"
 #include "src/v8.h"
-#include "src/zone.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

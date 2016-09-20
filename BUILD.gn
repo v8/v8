@@ -1696,10 +1696,14 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-opcodes.h",
     "src/wasm/wasm-result.cc",
     "src/wasm/wasm-result.h",
-    "src/zone-allocator.h",
-    "src/zone-containers.h",
-    "src/zone.cc",
-    "src/zone.h",
+    "src/zone/accounting-allocator.cc",
+    "src/zone/accounting-allocator.h",
+    "src/zone/zone-allocator.h",
+    "src/zone/zone-allocator.h",
+    "src/zone/zone-containers.h",
+    "src/zone/zone-segment.h",
+    "src/zone/zone.cc",
+    "src/zone/zone.h",
   ]
 
   if (v8_current_cpu == "x86") {
@@ -2062,8 +2066,6 @@ v8_source_set("v8_libbase") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
-    "src/base/accounting-allocator.cc",
-    "src/base/accounting-allocator.h",
     "src/base/adapters.h",
     "src/base/atomic-utils.h",
     "src/base/atomicops.h",

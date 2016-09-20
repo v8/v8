@@ -7,7 +7,7 @@
 
 #include "src/handles.h"
 #include "src/type-hints.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

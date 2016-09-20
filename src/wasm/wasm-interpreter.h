@@ -6,7 +6,7 @@
 #define V8_WASM_INTERPRETER_H_
 
 #include "src/wasm/wasm-opcodes.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace base {
@@ -139,8 +139,7 @@ class WasmInterpreter {
     bool GetBreakpoint(const WasmFunction* function, int pc);
   };
 
-  WasmInterpreter(WasmModuleInstance* instance,
-                  base::AccountingAllocator* allocator);
+  WasmInterpreter(WasmModuleInstance* instance, AccountingAllocator* allocator);
   ~WasmInterpreter();
 
   //==========================================================================

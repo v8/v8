@@ -10,7 +10,7 @@
 #include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

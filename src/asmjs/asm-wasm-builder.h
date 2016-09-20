@@ -9,7 +9,7 @@
 #include "src/asmjs/asm-typer.h"
 #include "src/objects.h"
 #include "src/wasm/encoder.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

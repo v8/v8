@@ -15,7 +15,7 @@ namespace compiler {
 class TypeCache final {
  private:
   // This has to be first for the initialization magic to work.
-  base::AccountingAllocator allocator;
+  AccountingAllocator allocator;
   Zone zone_;
 
  public:

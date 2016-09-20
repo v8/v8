@@ -2493,7 +2493,7 @@ typedef ZoneVector<LocalType> LocalTypeMap;
 
 class LocalDeclDecoderTest : public TestWithZone {
  public:
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
 
   size_t ExpectRun(LocalTypeMap map, size_t pos, LocalType expected,
                    size_t count) {

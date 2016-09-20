@@ -6,7 +6,7 @@
 #define V8_COMPILER_ALL_NODES_H_
 
 #include "src/compiler/node.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

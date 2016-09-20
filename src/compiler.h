@@ -11,7 +11,7 @@
 #include "src/bailout-reason.h"
 #include "src/contexts.h"
 #include "src/isolate.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

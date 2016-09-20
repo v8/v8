@@ -2,24 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ZONE_H_
-#define V8_ZONE_H_
+#ifndef V8_ZONE_ZONE_H_
+#define V8_ZONE_ZONE_H_
 
 #include <limits>
 
-#include "src/base/accounting-allocator.h"
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/globals.h"
 #include "src/list.h"
 #include "src/splay-tree.h"
+#include "src/zone/accounting-allocator.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class Segment;
-
 
 // The Zone supports very fast allocation of small chunks of
 // memory. The chunks cannot be deallocated individually, but instead
@@ -35,7 +31,7 @@ class Segment;
 // from multi-threaded code.
 class Zone final {
  public:
-  explicit Zone(base::AccountingAllocator* allocator);
+  explicit Zone(AccountingAllocator* allocator);
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
@@ -64,12 +60,12 @@ class Zone final {
 
   size_t allocation_size() const { return allocation_size_; }
 
-  base::AccountingAllocator* allocator() const { return allocator_; }
+  AccountingAllocator* allocator() const { return allocator_; }
 
  private:
-  // All pointers returned from New() have this alignment.  In addition, if the
-  // object being allocated has a size that is divisible by 8 then its alignment
-  // will be 8. ASan requires 8-byte alignment.
+// All pointers returned from New() have this alignment.  In addition, if the
+// object being allocated has a size that is divisible by 8 then its alignment
+// will be 8. ASan requires 8-byte alignment.
 #ifdef V8_USE_ADDRESS_SANITIZER
   static const size_t kAlignment = 8;
   STATIC_ASSERT(kPointerSize <= 8);
@@ -107,20 +103,16 @@ class Zone final {
   // of the segment chain. Returns the new segment.
   inline Segment* NewSegment(size_t size);
 
-  // Deletes the given segment. Does not touch the segment chain.
-  inline void DeleteSegment(Segment* segment, size_t size);
-
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
   // is guaranteed to be aligned as dictated by kAlignment.
   Address position_;
   Address limit_;
 
-  base::AccountingAllocator* allocator_;
+  AccountingAllocator* allocator_;
 
   Segment* segment_head_;
 };
-
 
 // ZoneObject is an abstraction that helps define classes of objects
 // allocated in the Zone. Use it as a base class; see ast.h.
@@ -141,12 +133,11 @@ class ZoneObject {
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
 };
 
-
 // The ZoneScope is used to automatically call DeleteAll() on a
 // Zone when the ZoneScope is destroyed (i.e. goes out of scope)
 class ZoneScope final {
  public:
-  explicit ZoneScope(Zone* zone) : zone_(zone) { }
+  explicit ZoneScope(Zone* zone) : zone_(zone) {}
   ~ZoneScope() { zone_->DeleteAll(); }
 
   Zone* zone() const { return zone_; }
@@ -155,12 +146,11 @@ class ZoneScope final {
   Zone* zone_;
 };
 
-
 // The ZoneAllocationPolicy is used to specialize generic data
 // structures to allocate themselves and their elements in the Zone.
 class ZoneAllocationPolicy final {
  public:
-  explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) { }
+  explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) {}
   void* New(size_t size) { return zone()->New(size); }
   static void Delete(void* pointer) {}
   Zone* zone() const { return zone_; }
@@ -168,7 +158,6 @@ class ZoneAllocationPolicy final {
  private:
   Zone* zone_;
 };
-
 
 // ZoneLists are growable lists with constant-time access to the
 // elements. The list itself and all its elements are allocated in the
@@ -180,7 +169,7 @@ class ZoneList final : public List<T, ZoneAllocationPolicy> {
   // Construct a new ZoneList with the given capacity; the length is
   // always zero. The capacity must be non-negative.
   ZoneList(int capacity, Zone* zone)
-      : List<T, ZoneAllocationPolicy>(capacity, ZoneAllocationPolicy(zone)) { }
+      : List<T, ZoneAllocationPolicy>(capacity, ZoneAllocationPolicy(zone)) {}
 
   void* operator new(size_t size, Zone* zone) { return zone->New(size); }
 
@@ -222,7 +211,6 @@ class ZoneList final : public List<T, ZoneAllocationPolicy> {
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
 };
 
-
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).
 // The tree itself and all its elements are allocated in the Zone.
@@ -250,4 +238,4 @@ typedef base::TemplateHashMapImpl<void*, void*, ZoneAllocationPolicy>
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ZONE_H_
+#endif  // V8_ZONE_ZONE_H_

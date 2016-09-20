@@ -49,7 +49,7 @@ void ExportAsMain(WasmFunctionBuilder* f) {
 TEST(Run_WasmModule_Return114) {
   static const int32_t kReturnValue = 114;
   TestSignatures sigs;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -63,7 +63,7 @@ TEST(Run_WasmModule_Return114) {
 }
 
 TEST(Run_WasmModule_CallAdd) {
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -89,7 +89,7 @@ TEST(Run_WasmModule_CallAdd) {
 
 TEST(Run_WasmModule_ReadLoadedDataSegment) {
   static const byte kDataSegmentDest0 = 12;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -110,7 +110,7 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
 
 TEST(Run_WasmModule_CheckMemoryIsZero) {
   static const int kCheckSize = 16 * 1024;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -133,7 +133,7 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
 }
 
 TEST(Run_WasmModule_CallMain_recursive) {
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -157,7 +157,7 @@ TEST(Run_WasmModule_CallMain_recursive) {
 }
 
 TEST(Run_WasmModule_Global) {
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -183,7 +183,7 @@ TEST(Run_WasmModule_Global) {
 
 TEST(Run_WasmModule_Serialization) {
   static const char* kFunctionName = "increment";
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -262,7 +262,7 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
   // Initial memory size = 16 + GrowMemory(10)
   static const int kExpectedValue = kPageSize * 26;
   TestSignatures sigs;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -277,7 +277,7 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
 
 TEST(Run_WasmModule_GrowMemoryInIf) {
   TestSignatures sigs;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();

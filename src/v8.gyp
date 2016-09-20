@@ -1266,10 +1266,13 @@
         'wasm/wasm-opcodes.h',
         'wasm/wasm-result.cc',
         'wasm/wasm-result.h',
-        'zone.cc',
-        'zone.h',
-        'zone-allocator.h',
-        'zone-containers.h',
+        'zone/accounting-allocator.cc',
+        'zone/accounting-allocator.h',
+        'zone/zone-segment.h',
+        'zone/zone.cc',
+        'zone/zone.h',
+        'zone/zone-allocator.h',
+        'zone/zone-containers.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -1775,8 +1778,6 @@
         '..',
       ],
       'sources': [
-        'base/accounting-allocator.cc',
-        'base/accounting-allocator.h',
         'base/adapters.h',
         'base/atomic-utils.h',
         'base/atomicops.h',

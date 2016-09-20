@@ -11,8 +11,8 @@
 
 #include <memory>
 
-#include "src/base/accounting-allocator.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/zone/accounting-allocator.h"
 
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
@@ -29,7 +29,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
@@ -260,7 +260,7 @@ class TestingModule : public ModuleEnv {
   WasmModule module_;
   WasmModuleInstance instance_;
   Isolate* isolate_;
-  v8::base::AccountingAllocator allocator_;
+  v8::internal::AccountingAllocator allocator_;
   uint32_t global_offset;
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
   WasmInterpreter* interpreter_;
@@ -750,7 +750,7 @@ class WasmRunner {
   WasmInterpreter* interpreter() { return compiler_.interpreter_; }
 
  protected:
-  v8::base::AccountingAllocator allocator_;
+  v8::internal::AccountingAllocator allocator_;
   Zone zone;
   bool compiled_;
   LocalType storage_[WASM_RUNNER_MAX_NUM_PARAMETERS];
