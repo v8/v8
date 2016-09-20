@@ -864,7 +864,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kSimulate:
     case HValue::kStackCheck:
     case HValue::kStoreContextSlot:
-    case HValue::kStoreKeyedGeneric:
     case HValue::kStringAdd:
     case HValue::kStringCompareAndBranch:
     case HValue::kSub:
@@ -3042,13 +3041,6 @@ std::ostream& HStoreKeyed::PrintDataTo(std::ostream& os) const {  // NOLINT
   os << "[" << NameOf(key());
   if (IsDehoisted()) os << " + " << base_offset();
   return os << "] = " << NameOf(value());
-}
-
-
-std::ostream& HStoreKeyedGeneric::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  return os << NameOf(object()) << "[" << NameOf(key())
-            << "] = " << NameOf(value());
 }
 
 

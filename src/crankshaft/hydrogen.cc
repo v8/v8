@@ -7200,26 +7200,28 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     Handle<TypeFeedbackVector> vector =
         handle(current_feedback_vector(), isolate());
 
+    HValue* key = Add<HConstant>(name);
+    HValue* vector_value = Add<HConstant>(vector);
+    HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
+    HValue* values[] = {context(), object,     key,
+                        value,     slot_value, vector_value};
+
     if (current_feedback_vector()->GetKind(slot) ==
         FeedbackVectorSlotKind::KEYED_STORE_IC) {
       // It's possible that a keyed store of a constant string was converted
       // to a named store. Here, at the last minute, we need to make sure to
       // use a generic Keyed Store if we are using the type vector, because
       // it has to share information with full code.
-      HConstant* key = Add<HConstant>(name);
-      HStoreKeyedGeneric* result = New<HStoreKeyedGeneric>(
-          object, key, value, function_language_mode(), vector, slot);
+      Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
+          isolate(), function_language_mode());
+      HValue* stub = Add<HConstant>(callable.code());
+      HCallWithDescriptor* result = New<HCallWithDescriptor>(
+          stub, 0, callable.descriptor(), ArrayVector(values));
       return result;
     }
-
-    HValue* name_value = Add<HConstant>(name);
-    HValue* vector_value = Add<HConstant>(vector);
-    HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
     Callable callable = CodeFactory::StoreICInOptimizedCode(
         isolate(), function_language_mode());
     HValue* stub = Add<HConstant>(callable.code());
-    HValue* values[] = {context(), object,     name_value,
-                        value,     slot_value, vector_value};
     HCallWithDescriptor* result = New<HCallWithDescriptor>(
         stub, 0, callable.descriptor(), ArrayVector(values));
     return result;
@@ -7237,8 +7239,16 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
         New<HLoadKeyedGeneric>(object, key, vector, slot);
     return result;
   } else {
-    HStoreKeyedGeneric* result = New<HStoreKeyedGeneric>(
-        object, key, value, function_language_mode(), vector, slot);
+    HValue* vector_value = Add<HConstant>(vector);
+    HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
+    HValue* values[] = {context(), object,     key,
+                        value,     slot_value, vector_value};
+
+    Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
+        isolate(), function_language_mode());
+    HValue* stub = Add<HConstant>(callable.code());
+    HCallWithDescriptor* result = New<HCallWithDescriptor>(
+        stub, 0, callable.descriptor(), ArrayVector(values));
     return result;
   }
 }

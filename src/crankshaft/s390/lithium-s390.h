@@ -132,7 +132,6 @@ class LCodeGen;
   V(StoreCodeEntry)                          \
   V(StoreContextSlot)                        \
   V(StoreKeyed)                              \
-  V(StoreKeyedGeneric)                       \
   V(StoreNamedField)                         \
   V(StringAdd)                               \
   V(StringCharCodeAt)                        \
@@ -1852,33 +1851,6 @@ class LStoreKeyed final : public LTemplateInstruction<0, 4, 0> {
     return hydrogen()->NeedsCanonicalization();
   }
   uint32_t base_offset() const { return hydrogen()->base_offset(); }
-};
-
-class LStoreKeyedGeneric final : public LTemplateInstruction<0, 4, 2> {
- public:
-  LStoreKeyedGeneric(LOperand* context, LOperand* object, LOperand* key,
-                     LOperand* value, LOperand* slot, LOperand* vector) {
-    inputs_[0] = context;
-    inputs_[1] = object;
-    inputs_[2] = key;
-    inputs_[3] = value;
-    temps_[0] = slot;
-    temps_[1] = vector;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-  LOperand* key() { return inputs_[2]; }
-  LOperand* value() { return inputs_[3]; }
-  LOperand* temp_slot() { return temps_[0]; }
-  LOperand* temp_vector() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
-  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedGeneric)
-
-  void PrintDataTo(StringStream* stream) override;
-
-  LanguageMode language_mode() { return hydrogen()->language_mode(); }
 };
 
 class LTransitionElementsKind final : public LTemplateInstruction<0, 2, 1> {

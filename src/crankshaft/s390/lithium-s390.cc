@@ -317,14 +317,6 @@ void LStoreKeyed::PrintDataTo(StringStream* stream) {
   }
 }
 
-void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
-  object()->PrintTo(stream);
-  stream->Add("[");
-  key()->PrintTo(stream);
-  stream->Add("] <- ");
-  value()->PrintTo(stream);
-}
-
 void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add(" %p -> %p", *original_map(), *transitioned_map());
@@ -1958,25 +1950,6 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   LOperand* backing_store = UseRegister(instr->elements());
   LOperand* backing_store_owner = UseAny(instr->backing_store_owner());
   return new (zone()) LStoreKeyed(backing_store, key, val, backing_store_owner);
-}
-
-LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* obj =
-      UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
-  LOperand* key = UseFixed(instr->key(), StoreDescriptor::NameRegister());
-  LOperand* val = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
-
-  DCHECK(instr->object()->representation().IsTagged());
-  DCHECK(instr->key()->representation().IsTagged());
-  DCHECK(instr->value()->representation().IsTagged());
-
-  LOperand* slot = FixedTemp(StoreWithVectorDescriptor::SlotRegister());
-  LOperand* vector = FixedTemp(StoreWithVectorDescriptor::VectorRegister());
-
-  LStoreKeyedGeneric* result =
-      new (zone()) LStoreKeyedGeneric(context, obj, key, val, slot, vector);
-  return MarkAsCall(result, instr);
 }
 
 LInstruction* LChunkBuilder::DoTransitionElementsKind(

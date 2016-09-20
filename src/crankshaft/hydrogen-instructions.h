@@ -133,7 +133,6 @@ class SmallMapList;
   V(StoreCodeEntry)                           \
   V(StoreContextSlot)                         \
   V(StoreKeyed)                               \
-  V(StoreKeyedGeneric)                        \
   V(StoreNamedField)                          \
   V(StringAdd)                                \
   V(StringCharCodeAt)                         \
@@ -6507,50 +6506,6 @@ class HStoreKeyed final : public HTemplateInstruction<4>,
   uint32_t base_offset_;
   uint32_t bit_field_;
   HValue* dominator_;
-};
-
-class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P6(HStoreKeyedGeneric, HValue*,
-                                              HValue*, HValue*, LanguageMode,
-                                              Handle<TypeFeedbackVector>,
-                                              FeedbackVectorSlot);
-
-  HValue* object() const { return OperandAt(0); }
-  HValue* key() const { return OperandAt(1); }
-  HValue* value() const { return OperandAt(2); }
-  HValue* context() const { return OperandAt(3); }
-  LanguageMode language_mode() const { return language_mode_; }
-
-  Representation RequiredInputRepresentation(int index) override {
-    // tagged[tagged] = tagged
-    return Representation::Tagged();
-  }
-
-  FeedbackVectorSlot slot() const { return slot_; }
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric)
-
- private:
-  HStoreKeyedGeneric(HValue* context, HValue* object, HValue* key,
-                     HValue* value, LanguageMode language_mode,
-                     Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
-      : feedback_vector_(vector), slot_(slot), language_mode_(language_mode) {
-    SetOperandAt(0, object);
-    SetOperandAt(1, key);
-    SetOperandAt(2, value);
-    SetOperandAt(3, context);
-    SetAllSideEffects();
-  }
-
-  Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorSlot slot_;
-  LanguageMode language_mode_;
 };
 
 class HTransitionElementsKind final : public HTemplateInstruction<2> {
