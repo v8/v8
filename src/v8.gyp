@@ -1818,6 +1818,7 @@
         'base/functional.cc',
         'base/functional.h',
         'base/hashmap.h',
+        'base/hashmap-entry.h',
         'base/ieee754.cc',
         'base/ieee754.h',
         'base/iterator.h',
