@@ -3043,7 +3043,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                     function_state.materialized_literal_count();
 
       if (result == kLazyParsingAborted) {
-        bookmark.Reset();
+        bookmark.Apply();
         // Trigger eager (re-)parsing, just below this block.
         is_lazily_parsed = false;
 

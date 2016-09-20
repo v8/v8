@@ -56,7 +56,7 @@ TEST(Bookmarks) {
       DCHECK_EQ(tokens[i], scanner->Next());
     }
 
-    bookmark.Reset();
+    bookmark.Apply();
     for (size_t i = bookmark_pos; i < tokens.size(); i++) {
       DCHECK_EQ(tokens[i], scanner->Next());
     }

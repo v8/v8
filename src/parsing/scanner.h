@@ -154,18 +154,24 @@ class Scanner {
   // Scoped helper for a re-settable bookmark.
   class BookmarkScope {
    public:
-    explicit BookmarkScope(Scanner* scanner) : scanner_(scanner) {
+    explicit BookmarkScope(Scanner* scanner)
+        : scanner_(scanner), bookmark_(kNoBookmark) {
       DCHECK_NOT_NULL(scanner_);
     }
-    ~BookmarkScope() { scanner_->DropBookmark(); }
+    ~BookmarkScope() {}
 
-    void Set() { scanner_->SetBookmark(); }
-    void Reset() { scanner_->ResetToBookmark(); }
-    bool HasBeenSet() { return scanner_->BookmarkHasBeenSet(); }
-    bool HasBeenReset() { return scanner_->BookmarkHasBeenReset(); }
+    void Set();
+    void Apply();
+    bool HasBeenSet();
+    bool HasBeenApplied();
 
    private:
+    static const size_t kNoBookmark;
+    static const size_t kBookmarkWasApplied;
+    static const size_t kBookmarkAtFirstPos;
+
     Scanner* scanner_;
+    size_t bookmark_;
 
     DISALLOW_COPY_AND_ASSIGN(BookmarkScope);
   };
@@ -418,23 +424,6 @@ class Scanner {
 
     Handle<String> Internalize(Isolate* isolate) const;
 
-    void CopyFrom(const LiteralBuffer* other) {
-      if (other == nullptr) {
-        Reset();
-      } else {
-        is_one_byte_ = other->is_one_byte_;
-        position_ = other->position_;
-        if (position_ < backing_store_.length()) {
-          std::copy(other->backing_store_.begin(),
-                    other->backing_store_.begin() + position_,
-                    backing_store_.begin());
-        } else {
-          backing_store_.Dispose();
-          backing_store_ = other->backing_store_.Clone();
-        }
-      }
-    }
-
    private:
     static const int kInitialCapacity = 16;
     static const int kGrowthFactory = 4;
@@ -528,15 +517,6 @@ class Scanner {
     scanner_error_ = MessageTemplate::kNone;
   }
 
-  // Support BookmarkScope functionality.
-  void SetBookmark();
-  void ResetToBookmark();
-  bool BookmarkHasBeenSet();
-  bool BookmarkHasBeenReset();
-  void DropBookmark();
-  void CopyToNextTokenDesc(TokenDesc* from);
-  static void CopyTokenDesc(TokenDesc* to, TokenDesc* from);
-
   void ReportScannerError(const Location& location,
                           MessageTemplate::Template error) {
     if (has_error()) return;
@@ -549,6 +529,9 @@ class Scanner {
     scanner_error_ = error;
     scanner_error_location_ = Location(pos, pos + 1);
   }
+
+  // Seek to the next_ token at the given position.
+  void SeekNext(size_t position);
 
   // Literal buffer support
   inline void StartLiteral() {
@@ -788,38 +771,6 @@ class Scanner {
   TokenDesc current_;    // desc for current token (as returned by Next())
   TokenDesc next_;       // desc for next token (one token look-ahead)
   TokenDesc next_next_;  // desc for the token after next (after PeakAhead())
-
-  // Variables for Scanner::BookmarkScope and the *Bookmark implementation.
-  // These variables contain the scanner state when a bookmark is set.
-  //
-  // We will use bookmark_c0_ as a 'control' variable, where:
-  // - bookmark_c0_ >= 0: A bookmark has been set and this contains c0_.
-  // - bookmark_c0_ == -1: No bookmark has been set.
-  // - bookmark_c0_ == -2: The bookmark has been applied (ResetToBookmark).
-  //
-  // Which state is being bookmarked? The parser state is distributed over
-  // several variables, roughly like this:
-  //   ...    1234        +       5678 ..... [character stream]
-  //       [current_] [next_] c0_ |      [scanner state]
-  // So when the scanner is logically at the beginning of an expression
-  // like "1234 + 4567", then:
-  // - current_ contains "1234"
-  // - next_ contains "+"
-  // - c0_ contains ' ' (the space between "+" and "5678",
-  // - the source_ character stream points to the beginning of "5678".
-  // To be able to restore this state, we will keep copies of current_, next_,
-  // and c0_; we'll ask the stream to bookmark itself, and we'll copy the
-  // contents of current_'s and next_'s literal buffers to bookmark_*_literal_.
-  static const uc32 kNoBookmark = -2;
-  static const uc32 kBookmarkWasApplied = -3;
-  uc32 bookmark_c0_;
-  size_t bookmark_position_;
-  TokenDesc bookmark_current_;
-  TokenDesc bookmark_next_;
-  LiteralBuffer bookmark_current_literal_;
-  LiteralBuffer bookmark_current_raw_literal_;
-  LiteralBuffer bookmark_next_literal_;
-  LiteralBuffer bookmark_next_raw_literal_;
 
   // Input stream. Must be initialized to an Utf16CharacterStream.
   Utf16CharacterStream* source_;

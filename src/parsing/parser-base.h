@@ -3904,7 +3904,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         }
 
         if (result == kLazyParsingAborted) {
-          bookmark.Reset();
+          bookmark.Apply();
           // Trigger eager (re-)parsing, just below this block.
           is_lazily_parsed = false;
 
