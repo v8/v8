@@ -332,6 +332,11 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   return OpParameter<NumberOperationHint>(op);
 }
 
+PretenureFlag PretenureFlagOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
+  return OpParameter<PretenureFlag>(op);
+}
+
 #define PURE_OP_LIST(V)                                          \
   V(BooleanNot, Operator::kNoProperties, 1, 0)                   \
   V(NumberEqual, Operator::kCommutative, 2, 0)                   \

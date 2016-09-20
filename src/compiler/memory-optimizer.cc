@@ -107,7 +107,7 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
   Node* size = node->InputAt(0);
   Node* effect = node->InputAt(1);
   Node* control = node->InputAt(2);
-  PretenureFlag pretenure = OpParameter<PretenureFlag>(node->op());
+  PretenureFlag pretenure = PretenureFlagOf(node->op());
 
   // Propagate tenuring from outer allocations to inner allocations, i.e.
   // when we allocate an object in old space and store a newly allocated
@@ -119,7 +119,7 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 0) {
         Node* const child = user->InputAt(1);
         if (child->opcode() == IrOpcode::kAllocate &&
-            OpParameter<PretenureFlag>(child) == NOT_TENURED) {
+            PretenureFlagOf(child->op()) == NOT_TENURED) {
           NodeProperties::ChangeOp(child, node->op());
           break;
         }
@@ -132,7 +132,7 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 1) {
         Node* const parent = user->InputAt(0);
         if (parent->opcode() == IrOpcode::kAllocate &&
-            OpParameter<PretenureFlag>(parent) == TENURED) {
+            PretenureFlagOf(parent->op()) == TENURED) {
           pretenure = TENURED;
           break;
         }

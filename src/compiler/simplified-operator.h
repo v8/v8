@@ -183,6 +183,8 @@ std::ostream& operator<<(std::ostream&, NumberOperationHint);
 NumberOperationHint NumberOperationHintOf(const Operator* op)
     WARN_UNUSED_RESULT;
 
+PretenureFlag PretenureFlagOf(const Operator* op) WARN_UNUSED_RESULT;
+
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.
