@@ -586,9 +586,7 @@ class Factory final {
   Handle<Object> NewError(Handle<JSFunction> constructor,
                           Handle<String> message);
 
-  Handle<Object> NewInvalidStringLengthError() {
-    return NewRangeError(MessageTemplate::kInvalidStringLength);
-  }
+  Handle<Object> NewInvalidStringLengthError();
 
   Handle<Object> NewURIError() {
     return NewError(isolate()->uri_error_function(),

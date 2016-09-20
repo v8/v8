@@ -1010,6 +1010,7 @@ class Isolate {
   inline bool IsHasInstanceLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
+  inline bool IsStringLengthOverflowIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -1028,6 +1029,7 @@ class Isolate {
   void InvalidateArraySpeciesProtector();
   void InvalidateHasInstanceProtector();
   void InvalidateIsConcatSpreadableProtector();
+  void InvalidateStringLengthOverflowProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);

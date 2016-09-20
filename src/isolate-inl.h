@@ -147,6 +147,11 @@ bool Isolate::IsHasInstanceLookupChainIntact() {
   return has_instance_cell->value() == Smi::FromInt(kArrayProtectorValid);
 }
 
+bool Isolate::IsStringLengthOverflowIntact() {
+  PropertyCell* has_instance_cell = heap()->string_length_protector();
+  return has_instance_cell->value() == Smi::FromInt(kArrayProtectorValid);
+}
+
 }  // namespace internal
 }  // namespace v8
 

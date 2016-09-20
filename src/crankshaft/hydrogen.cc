@@ -2368,7 +2368,7 @@ HValue* HGraphBuilder::BuildAddStringLengths(HValue* left_length,
   HValue* length = AddUncasted<HAdd>(left_length, right_length);
   // Check that length <= kMaxLength <=> length < MaxLength + 1.
   HValue* max_length = Add<HConstant>(String::kMaxLength + 1);
-  if (top_info()->IsStub()) {
+  if (top_info()->IsStub() || !isolate()->IsStringLengthOverflowIntact()) {
     // This is a mitigation for crbug.com/627934; the real fix
     // will be to migrate the StringAddStub to TurboFan one day.
     IfBuilder if_invalid(this);
@@ -2380,6 +2380,7 @@ HValue* HGraphBuilder::BuildAddStringLengths(HValue* left_length,
     }
     if_invalid.End();
   } else {
+    graph()->MarkDependsOnStringLengthOverflow();
     Add<HBoundsCheck>(length, max_length);
   }
   return length;
@@ -3570,6 +3571,7 @@ HGraph::HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor)
       allow_code_motion_(false),
       use_optimistic_licm_(false),
       depends_on_empty_array_proto_elements_(false),
+      depends_on_string_length_overflow_(false),
       type_change_checksum_(0),
       maximum_environment_size_(0),
       no_side_effects_scope_count_(0),
