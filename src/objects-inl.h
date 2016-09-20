@@ -6198,6 +6198,9 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
                             mode);
 }
 
+ACCESSORS(SharedFunctionInfo, outer_scope_info, HeapObject,
+          kOuterScopeInfoOffset)
+
 bool SharedFunctionInfo::is_compiled() const {
   Builtins* builtins = GetIsolate()->builtins();
   DCHECK(code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent));

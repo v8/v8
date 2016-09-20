@@ -2410,6 +2410,12 @@ bool Heap::CreateInitialMaps() {
   }
 
   {
+    AllocationResult allocation = AllocateEmptyScopeInfo();
+    if (!allocation.To(&obj)) return false;
+  }
+
+  set_empty_scope_info(ScopeInfo::cast(obj));
+  {
     AllocationResult allocation = Allocate(boolean_map(), OLD_SPACE);
     if (!allocation.To(&obj)) return false;
   }
@@ -3809,6 +3815,18 @@ AllocationResult Heap::AllocateEmptyFixedArray() {
   return result;
 }
 
+AllocationResult Heap::AllocateEmptyScopeInfo() {
+  int size = FixedArray::SizeFor(0);
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
+    if (!allocation.To(&result)) return allocation;
+  }
+  // Initialize the object.
+  result->set_map_no_write_barrier(scope_info_map());
+  FixedArray::cast(result)->set_length(0);
+  return result;
+}
 
 AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
   if (!InNewSpace(src)) {

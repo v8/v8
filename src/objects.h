@@ -7158,6 +7158,10 @@ class SharedFunctionInfo: public HeapObject {
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
 
+  // The outer scope info for the purpose of parsing this function, or the hole
+  // value if it isn't yet known.
+  DECL_ACCESSORS(outer_scope_info, HeapObject)
+
   // [construct stub]: Code stub for constructing instances of this function.
   DECL_ACCESSORS(construct_stub, Code)
 
@@ -7515,7 +7519,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCodeOffset = kNameOffset + kPointerSize;
   static const int kOptimizedCodeMapOffset = kCodeOffset + kPointerSize;
   static const int kScopeInfoOffset = kOptimizedCodeMapOffset + kPointerSize;
-  static const int kConstructStubOffset = kScopeInfoOffset + kPointerSize;
+  static const int kOuterScopeInfoOffset = kScopeInfoOffset + kPointerSize;
+  static const int kConstructStubOffset = kOuterScopeInfoOffset + kPointerSize;
   static const int kInstanceClassNameOffset =
       kConstructStubOffset + kPointerSize;
   static const int kFunctionDataOffset =

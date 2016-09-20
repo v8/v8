@@ -533,6 +533,13 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
 
   scope->AllocateVariables(info, mode);
 
+  // Ensuring that the outer script scope has a scope info avoids having
+  // special case for native contexts vs other contexts.
+  if (info->script_scope()->scope_info_.is_null()) {
+    info->script_scope()->scope_info_ =
+        handle(ScopeInfo::Empty(info->isolate()));
+  }
+
 #ifdef DEBUG
   if (info->script_is_native() ? FLAG_print_builtin_scopes
                                : FLAG_print_scopes) {
@@ -1145,6 +1152,14 @@ DeclarationScope* Scope::GetReceiverScope() {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
+}
+
+Scope* Scope::GetOuterScopeWithContext() {
+  Scope* scope = outer_scope_;
+  while (scope && !scope->NeedsContext()) {
+    scope = scope->outer_scope();
+  }
+  return scope;
 }
 
 Handle<StringSet> DeclarationScope::CollectNonLocals(

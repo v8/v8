@@ -2110,6 +2110,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
       name, code, IsConstructable(kind, scope_info->language_mode()));
   shared->set_scope_info(*scope_info);
+  shared->set_outer_scope_info(*the_hole_value());
   shared->set_kind(kind);
   shared->set_num_literals(number_of_literals);
   if (IsGeneratorFunction(kind)) {
@@ -2156,6 +2157,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_code(*code);
   share->set_optimized_code_map(*cleared_optimized_code_map());
   share->set_scope_info(ScopeInfo::Empty(isolate()));
+  share->set_outer_scope_info(*the_hole_value());
   Handle<Code> construct_stub =
       is_constructor ? isolate()->builtins()->JSConstructStubGeneric()
                      : isolate()->builtins()->ConstructedNonConstructable();

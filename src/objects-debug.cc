@@ -562,6 +562,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kOptimizedCodeMapOffset);
   VerifyObjectField(kFeedbackMetadataOffset);
   VerifyObjectField(kScopeInfoOffset);
+  VerifyObjectField(kOuterScopeInfoOffset);
   VerifyObjectField(kInstanceClassNameOffset);
   CHECK(function_data()->IsUndefined(GetIsolate()) || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData());

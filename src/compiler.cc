@@ -396,6 +396,10 @@ void InstallSharedScopeInfo(CompilationInfo* info,
                             Handle<SharedFunctionInfo> shared) {
   Handle<ScopeInfo> scope_info = info->scope()->scope_info();
   shared->set_scope_info(*scope_info);
+  Scope* outer_scope = info->scope()->GetOuterScopeWithContext();
+  if (outer_scope) {
+    shared->set_outer_scope_info(*outer_scope->scope_info());
+  }
 }
 
 void InstallSharedCompilationResult(CompilationInfo* info,
@@ -1799,6 +1803,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   if (lazy) {
     info.SetCode(isolate->builtins()->CompileLazy());
+    Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
+    if (outer_scope) {
+      result->set_outer_scope_info(*outer_scope->scope_info());
+    }
   } else if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
     // Code generation will ensure that the feedback vector is present and
     // appropriately sized.
@@ -1842,6 +1850,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
       name, fun->shared()->num_literals(), FunctionKind::kNormalFunction, code,
       Handle<ScopeInfo>(fun->shared()->scope_info()));
+  shared->set_outer_scope_info(fun->shared()->outer_scope_info());
   shared->SetConstructStub(*construct_stub);
   shared->set_feedback_metadata(fun->shared()->feedback_metadata());
 

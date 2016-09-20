@@ -1016,6 +1016,7 @@ void LiveEdit::ReplaceFunctionCode(
           handle(shared_info->GetDebugInfo()));
     }
     shared_info->set_scope_info(new_shared_info->scope_info());
+    shared_info->set_outer_scope_info(new_shared_info->outer_scope_info());
     shared_info->DisableOptimization(kLiveEdit);
     // Update the type feedback vector, if needed.
     Handle<TypeFeedbackMetadata> new_feedback_metadata(

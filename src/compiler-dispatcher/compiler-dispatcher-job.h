@@ -17,9 +17,9 @@ namespace internal {
 class CompilationInfo;
 class CompilationJob;
 class Isolate;
-class JSFunction;
 class ParseInfo;
 class Parser;
+class SharedFunctionInfo;
 class String;
 class UnicodeCache;
 class Utf16CharacterStream;
@@ -38,7 +38,7 @@ enum class CompileJobStatus {
 
 class CompilerDispatcherJob {
  public:
-  CompilerDispatcherJob(Isolate* isolate, Handle<JSFunction> function,
+  CompilerDispatcherJob(Isolate* isolate, Handle<SharedFunctionInfo> shared,
                         size_t max_stack_size);
   ~CompilerDispatcherJob();
 
@@ -81,7 +81,7 @@ class CompilerDispatcherJob {
 
   CompileJobStatus status_ = CompileJobStatus::kInitial;
   Isolate* isolate_;
-  Handle<JSFunction> function_;  // Global handle.
+  Handle<SharedFunctionInfo> shared_;  // Global handle.
   Handle<String> source_;        // Global handle.
   size_t max_stack_size_;
 

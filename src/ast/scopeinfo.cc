@@ -396,7 +396,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
 
 
 ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
-  return reinterpret_cast<ScopeInfo*>(isolate->heap()->empty_fixed_array());
+  return isolate->heap()->empty_scope_info();
 }
 
 
