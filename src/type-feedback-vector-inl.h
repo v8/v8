@@ -170,7 +170,7 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         // interpreter.
         // TODO(mvstanton): Remove code_is_interpreted when full code
         // is retired from service.
-        if (code_is_interpreted) continue;
+        if (!code_is_interpreted) continue;
 
         DCHECK(obj->IsSmi());
         int op_feedback = static_cast<int>(Smi::cast(obj)->value());
