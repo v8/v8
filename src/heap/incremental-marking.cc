@@ -1163,8 +1163,8 @@ void IncrementalMarking::SpeedUp() {
 void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
   if (heap_->mark_compact_collector()->sweeping_in_progress() &&
-      (heap_->mark_compact_collector()->sweeper().IsSweepingCompleted() ||
-       !FLAG_concurrent_sweeping)) {
+      (!FLAG_concurrent_sweeping ||
+       heap_->mark_compact_collector()->sweeper().IsSweepingCompleted())) {
     heap_->mark_compact_collector()->EnsureSweepingCompleted();
   }
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {

@@ -398,7 +398,7 @@ bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
   // We cannot free memory chunks in new space while the sweeper is running
   // since a sweeper thread might be stuck right before trying to lock the
   // corresponding page.
-  return !chunk->InNewSpace() || (mc == nullptr) ||
+  return !chunk->InNewSpace() || (mc == nullptr) || !FLAG_concurrent_sweeping ||
          mc->sweeper().IsSweepingCompleted();
 }
 
