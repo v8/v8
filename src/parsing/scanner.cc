@@ -19,9 +19,6 @@
 namespace v8 {
 namespace internal {
 
-const size_t Utf16CharacterStream::kNoBookmark =
-    std::numeric_limits<size_t>::max();
-
 Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
   if (is_one_byte()) {
     return isolate->factory()->InternalizeOneByteString(one_byte_literal());
@@ -30,13 +27,13 @@ Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
 }
 
 
-
 // ----------------------------------------------------------------------------
 // Scanner
 
 Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       bookmark_c0_(kNoBookmark),
+      bookmark_position_(0),
       octal_pos_(Location::invalid()),
       decimal_with_leading_zero_pos_(Location::invalid()),
       found_html_comment_(false) {
@@ -789,7 +786,7 @@ void Scanner::SeekForward(int pos) {
   // Positions inside the lookahead token aren't supported.
   DCHECK(pos >= current_pos);
   if (pos != current_pos) {
-    source_->SeekForward(pos - source_->pos());
+    source_->Seek(pos);
     Advance();
     // This function is only called to seek to the location
     // of the end of a function (at the "}" token). It doesn't matter
@@ -1584,23 +1581,20 @@ int Scanner::FindSymbol(DuplicateFinder* finder, int value) {
   return finder->AddTwoByteSymbol(literal_two_byte_string(), value);
 }
 
-
-bool Scanner::SetBookmark() {
-  if (c0_ != kNoBookmark && bookmark_c0_ == kNoBookmark &&
-      next_next_.token == Token::UNINITIALIZED && source_->SetBookmark()) {
-    bookmark_c0_ = c0_;
-    CopyTokenDesc(&bookmark_current_, &current_);
-    CopyTokenDesc(&bookmark_next_, &next_);
-    return true;
-  }
-  return false;
+void Scanner::SetBookmark() {
+  DCHECK_EQ(bookmark_c0_, kNoBookmark);
+  DCHECK_EQ(next_next_.token, Token::UNINITIALIZED);
+  bookmark_c0_ = c0_;
+  bookmark_position_ = source_->pos();
+  CopyTokenDesc(&bookmark_current_, &current_);
+  CopyTokenDesc(&bookmark_next_, &next_);
 }
 
 
 void Scanner::ResetToBookmark() {
   DCHECK(BookmarkHasBeenSet());  // Caller hasn't called SetBookmark.
 
-  source_->ResetToBookmark();
+  source_->Seek(bookmark_position_);
   c0_ = bookmark_c0_;
   CopyToNextTokenDesc(&bookmark_current_);
   current_ = next_;

@@ -3032,10 +3032,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // eagerly.
     if (is_lazily_parsed) {
       Scanner::BookmarkScope bookmark(scanner());
-      bool may_abort = bookmark.Set();
+      bookmark.Set();
       LazyParsingResult result =
           SkipLazyFunctionBody(&materialized_literal_count,
-                               &expected_property_count, may_abort, CHECK_OK);
+                               &expected_property_count, true, CHECK_OK);
 
       materialized_literal_count += formals.materialized_literals_count +
                                     function_state.materialized_literal_count();

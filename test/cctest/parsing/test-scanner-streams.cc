@@ -184,21 +184,21 @@ void TestCharacterStream(const char* reference, i::Utf16CharacterStream* stream,
   while (i > end / 4) {
     int32_t c0 = reference[i - 1];
     CHECK_EQU(i, stream->pos());
-    stream->PushBack(c0);
+    stream->Back();
     i--;
     CHECK_EQU(i, stream->pos());
     int32_t c1 = stream->Advance();
     i++;
     CHECK_EQU(i, stream->pos());
     CHECK_EQ(c0, c1);
-    stream->PushBack(c0);
+    stream->Back();
     i--;
     CHECK_EQU(i, stream->pos());
   }
 
   // Seek + read streams one char at a time.
   unsigned halfway = end / 2;
-  stream->SeekForward(halfway - i);
+  stream->Seek(stream->pos() + halfway - i);
   for (i = halfway; i < end; i++) {
     CHECK_EQU(i, stream->pos());
     CHECK_EQU(reference[i], stream->Advance());

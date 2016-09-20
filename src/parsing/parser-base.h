@@ -3893,9 +3893,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
                                formal_parameters.scope->AllowsLazyParsing());
       if (is_lazily_parsed) {
         Scanner::BookmarkScope bookmark(scanner());
-        bool may_abort = bookmark.Set();
+        bookmark.Set();
         LazyParsingResult result = impl()->SkipLazyFunctionBody(
-            &materialized_literal_count, &expected_property_count, may_abort,
+            &materialized_literal_count, &expected_property_count, true,
             CHECK_OK);
 
         if (formal_parameters.materialized_literals_count > 0) {

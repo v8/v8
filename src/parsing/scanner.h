@@ -92,44 +92,14 @@ class Utf16CharacterStream {
     }
   }
 
-  // Legacy API:
-  void SeekForward(size_t code_unit_count) { Seek(pos() + code_unit_count); }
-  void PushBack(int32_t code_unit) {
-    Back();
-#ifdef DEBUG
-    uc32 t = Advance();
-    DCHECK_EQ(t, code_unit);
-    Back();
-#endif  // DEBUG
-  }
-  void PushBack2(int32_t code_unit_back_1, int32_t code_unit_back_2) {
-    Back2();
-#ifdef DEBUG
-    DCHECK_EQ(Advance(), code_unit_back_2);
-    DCHECK_EQ(Advance(), code_unit_back_1);
-    Back2();
-#endif  // DEBUG
-  }
-  bool SetBookmark() {
-    bookmark_ = pos();
-    return true;
-  }
-  void ResetToBookmark() {
-    DCHECK_NE(bookmark_, kNoBookmark);
-    Seek(bookmark_);
-  }
-
  protected:
-  static const size_t kNoBookmark;
-
   Utf16CharacterStream(const uint16_t* buffer_start,
                        const uint16_t* buffer_cursor,
                        const uint16_t* buffer_end, size_t buffer_pos)
       : buffer_start_(buffer_start),
         buffer_cursor_(buffer_cursor),
         buffer_end_(buffer_end),
-        buffer_pos_(buffer_pos),
-        bookmark_(kNoBookmark) {}
+        buffer_pos_(buffer_pos) {}
   Utf16CharacterStream() : Utf16CharacterStream(nullptr, nullptr, nullptr, 0) {}
 
   void ReadBlockAt(size_t new_pos) {
@@ -173,7 +143,6 @@ class Utf16CharacterStream {
   const uint16_t* buffer_cursor_;
   const uint16_t* buffer_end_;
   size_t buffer_pos_;
-  size_t bookmark_;
 };
 
 
@@ -190,7 +159,7 @@ class Scanner {
     }
     ~BookmarkScope() { scanner_->DropBookmark(); }
 
-    bool Set() { return scanner_->SetBookmark(); }
+    void Set() { scanner_->SetBookmark(); }
     void Reset() { scanner_->ResetToBookmark(); }
     bool HasBeenSet() { return scanner_->BookmarkHasBeenSet(); }
     bool HasBeenReset() { return scanner_->BookmarkHasBeenReset(); }
@@ -560,7 +529,7 @@ class Scanner {
   }
 
   // Support BookmarkScope functionality.
-  bool SetBookmark();
+  void SetBookmark();
   void ResetToBookmark();
   bool BookmarkHasBeenSet();
   bool BookmarkHasBeenReset();
@@ -649,7 +618,7 @@ class Scanner {
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
       uc32 c1 = source_->Advance();
       if (!unibrow::Utf16::IsTrailSurrogate(c1)) {
-        source_->PushBack(c1);
+        source_->Back();
       } else {
         c0_ = unibrow::Utf16::CombineSurrogatePair(c0_, c1);
       }
@@ -658,10 +627,9 @@ class Scanner {
 
   void PushBack(uc32 ch) {
     if (c0_ > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
-      source_->PushBack(unibrow::Utf16::TrailSurrogate(c0_));
-      source_->PushBack(unibrow::Utf16::LeadSurrogate(c0_));
+      source_->Back2();
     } else {
-      source_->PushBack(c0_);
+      source_->Back();
     }
     c0_ = ch;
   }
@@ -845,6 +813,7 @@ class Scanner {
   static const uc32 kNoBookmark = -2;
   static const uc32 kBookmarkWasApplied = -3;
   uc32 bookmark_c0_;
+  size_t bookmark_position_;
   TokenDesc bookmark_current_;
   TokenDesc bookmark_next_;
   LiteralBuffer bookmark_current_literal_;
