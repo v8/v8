@@ -1117,6 +1117,56 @@ TEST(BytecodeGraphBuilderLookupContextSlot) {
   }
 }
 
+TEST(BytecodeGraphBuilderLookupGlobalSlot) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  // Testing with eval called in the current context.
+  const char* inner_eval_prologue = "x = 0; function inner() {";
+  const char* inner_eval_epilogue = "}; return inner();";
+
+  ExpectedSnippet<0> inner_eval_snippets[] = {
+      {"eval(''); return x;", {factory->NewNumber(0)}},
+      {"eval('var x = 1'); return x;", {factory->NewNumber(1)}},
+      {"'use strict'; eval('var x = 1'); return x;", {factory->NewNumber(0)}}};
+
+  for (size_t i = 0; i < arraysize(inner_eval_snippets); i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s(p1) { %s %s %s } ; %s() ;", kFunctionName,
+             inner_eval_prologue, inner_eval_snippets[i].code_snippet,
+             inner_eval_epilogue, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*inner_eval_snippets[i].return_value()));
+  }
+
+  // Testing with eval called in a parent context.
+  const char* outer_eval_prologue = "";
+  const char* outer_eval_epilogue =
+      "function inner() { return x; }; return inner();";
+
+  ExpectedSnippet<0> outer_eval_snippets[] = {
+      {"x = 0; eval('');", {factory->NewNumber(0)}},
+      {"x = 0; eval('var x = 1');", {factory->NewNumber(1)}},
+      {"'use strict'; x = 0; eval('var x = 1');", {factory->NewNumber(0)}}};
+
+  for (size_t i = 0; i < arraysize(outer_eval_snippets); i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s() { %s %s %s } ; %s() ;", kFunctionName,
+             outer_eval_prologue, outer_eval_snippets[i].code_snippet,
+             outer_eval_epilogue, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*outer_eval_snippets[i].return_value()));
+  }
+}
+
 TEST(BytecodeGraphBuilderLookupSlotWide) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();

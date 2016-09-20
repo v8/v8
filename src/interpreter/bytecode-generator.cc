@@ -1977,6 +1977,12 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
           BuildHoleCheckForVariableLoad(variable);
           break;
         }
+        case DYNAMIC_GLOBAL: {
+          int depth = scope()->ContextChainLengthUntilOutermostSloppyEval();
+          builder()->LoadLookupGlobalSlot(variable->name(), typeof_mode,
+                                          feedback_index(slot), depth);
+          break;
+        }
         default:
           builder()->LoadLookupSlot(variable->name(), typeof_mode);
       }

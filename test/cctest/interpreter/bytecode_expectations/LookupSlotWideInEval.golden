@@ -278,7 +278,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 1030
+bytecode array length: 1034
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   22 S> */ B(LdaConstant), U8(0),
@@ -793,7 +793,7 @@ bytecodes: [
                 B(Star), R(0),
   /* 3082 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
-  /* 3086 S> */ B(Wide), B(LdaLookupSlot), U16(256),
+  /* 3086 S> */ B(Wide), B(LdaLookupGlobalSlot), U16(256), U16(2), U16(1),
   /* 3095 S> */ B(Return),
 ]
 constant pool: [
@@ -1329,7 +1329,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 1031
+bytecode array length: 1035
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   22 S> */ B(LdaConstant), U8(0),
@@ -1844,7 +1844,7 @@ bytecodes: [
                 B(Star), R(0),
   /* 3082 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
-  /* 3086 S> */ B(Wide), B(LdaLookupSlotInsideTypeof), U16(256),
+  /* 3086 S> */ B(Wide), B(LdaLookupGlobalSlotInsideTypeof), U16(256), U16(2), U16(1),
                 B(TypeOf),
   /* 3102 S> */ B(Return),
 ]

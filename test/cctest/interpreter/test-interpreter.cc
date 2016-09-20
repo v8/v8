@@ -3906,6 +3906,47 @@ TEST(InterpreterLookupContextSlot) {
   }
 }
 
+TEST(InterpreterLookupGlobalSlot) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* inner_function_prologue = "function inner() {";
+  const char* inner_function_epilogue = "};";
+  const char* outer_function_epilogue = "return inner();";
+
+  std::tuple<const char*, const char*, Handle<Object>> lookup_slot[] = {
+      // Eval in inner context.
+      std::make_tuple("x = 0;", "eval(''); return x;",
+                      handle(Smi::FromInt(0), isolate)),
+      std::make_tuple("x = 0;", "eval('var x = 1'); return x;",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_tuple("x = 0;", "'use strict'; eval('var x = 1'); return x;",
+                      handle(Smi::FromInt(0), isolate)),
+      // Eval in outer context.
+      std::make_tuple("x = 0; eval('');", "return x;",
+                      handle(Smi::FromInt(0), isolate)),
+      std::make_tuple("x = 0; eval('var x = 1');", "return x;",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_tuple("'use strict'; x = 0; eval('var x = 1');", "return x;",
+                      handle(Smi::FromInt(0), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(lookup_slot); i++) {
+    std::string body = std::string(std::get<0>(lookup_slot[i])) +
+                       std::string(inner_function_prologue) +
+                       std::string(std::get<1>(lookup_slot[i])) +
+                       std::string(inner_function_epilogue) +
+                       std::string(outer_function_epilogue);
+    std::string script = InterpreterTester::SourceForBody(body.c_str());
+
+    InterpreterTester tester(isolate, script.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*std::get<2>(lookup_slot[i])));
+  }
+}
+
 TEST(InterpreterCallLookupSlot) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();

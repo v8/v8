@@ -18,10 +18,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 6
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(LdaLookupSlot), U8(0),
+  /*   15 S> */ B(LdaLookupGlobalSlot), U8(0), U8(2), U8(1),
   /*   25 S> */ B(Return),
 ]
 constant pool: [
@@ -91,10 +91,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 7
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(LdaLookupSlotInsideTypeof), U8(0),
+  /*   15 S> */ B(LdaLookupGlobalSlotInsideTypeof), U8(0), U8(2), U8(1),
                 B(TypeOf),
   /*   32 S> */ B(Return),
 ]

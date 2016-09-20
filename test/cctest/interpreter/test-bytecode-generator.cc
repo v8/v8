@@ -1814,6 +1814,13 @@ TEST(LookupSlot) {
       "  eval('var x = 10');\n"
       "  return x;\n"
       "}\n"
+      "f();\n",
+
+      "x = 20;\n"
+      "f = function(){\n"
+      "  eval('var x = 10');\n"
+      "  return x;\n"
+      "}\n"
       "f();\n"
   };
   // clang-format on

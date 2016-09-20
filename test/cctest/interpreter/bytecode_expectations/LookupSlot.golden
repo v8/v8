@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 71
+bytecode array length: 73
 bytecodes: [
                 B(CreateFunctionContext), U8(3),
                 B(PushContext), R(0),
@@ -41,7 +41,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(1),
   /*   14 E> */ B(Call), R(1), R(2), U8(2), U8(0),
-  /*   35 S> */ B(LdaLookupSlot), U8(2),
+  /*   35 S> */ B(LdaLookupGlobalSlot), U8(2), U8(4), U8(1),
   /*   45 S> */ B(Return),
 ]
 constant pool: [
@@ -58,7 +58,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 72
+bytecode array length: 74
 bytecodes: [
                 B(CreateFunctionContext), U8(3),
                 B(PushContext), R(0),
@@ -86,7 +86,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(1),
   /*   14 E> */ B(Call), R(1), R(2), U8(2), U8(0),
-  /*   35 S> */ B(LdaLookupSlotInsideTypeof), U8(2),
+  /*   35 S> */ B(LdaLookupGlobalSlotInsideTypeof), U8(2), U8(4), U8(1),
                 B(TypeOf),
   /*   52 S> */ B(Return),
 ]
@@ -185,6 +185,56 @@ bytecodes: [
   /*   44 E> */ B(Call), R(1), R(2), U8(2), U8(0),
   /*   66 S> */ B(LdaLookupContextSlot), U8(2), U8(6), U8(1),
   /*   76 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["var x = 10"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  x = 20;
+  f = function(){
+    eval('var x = 10');
+    return x;
+  }
+  f();
+"
+frame size: 10
+parameter count: 1
+bytecode array length: 73
+bytecodes: [
+                B(CreateFunctionContext), U8(3),
+                B(PushContext), R(0),
+                B(Ldar), R(this),
+                B(StaContextSlot), R(context), U8(4), U8(0),
+                B(CreateMappedArguments),
+                B(StaContextSlot), R(context), U8(6), U8(0),
+                B(Ldar), R(new_target),
+                B(StaContextSlot), R(context), U8(5), U8(0),
+  /*   34 E> */ B(StackCheck),
+  /*   40 S> */ B(LdaConstant), U8(0),
+                B(Star), R(3),
+                B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlotForCall), R(3), U8(1), R(1),
+                B(LdaConstant), U8(1),
+                B(Star), R(3),
+                B(LdaZero),
+                B(Star), R(7),
+                B(LdaSmi), U8(34),
+                B(Star), R(8),
+                B(LdaSmi), U8(40),
+                B(Star), R(9),
+                B(Mov), R(1), R(4),
+                B(Mov), R(3), R(5),
+                B(Mov), R(closure), R(6),
+                B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
+                B(Star), R(1),
+  /*   40 E> */ B(Call), R(1), R(2), U8(2), U8(0),
+  /*   62 S> */ B(LdaLookupGlobalSlot), U8(2), U8(4), U8(1),
+  /*   72 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],

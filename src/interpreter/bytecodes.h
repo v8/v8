@@ -117,8 +117,12 @@ namespace interpreter {
   V(LdaLookupSlot, AccumulatorUse::kWrite, OperandType::kIdx)                  \
   V(LdaLookupContextSlot, AccumulatorUse::kWrite, OperandType::kIdx,           \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(LdaLookupGlobalSlot, AccumulatorUse::kWrite, OperandType::kIdx,            \
+    OperandType::kIdx, OperandType::kUImm)                                     \
   V(LdaLookupSlotInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx)      \
   V(LdaLookupContextSlotInsideTypeof, AccumulatorUse::kWrite,                  \
+    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
+  V(LdaLookupGlobalSlotInsideTypeof, AccumulatorUse::kWrite,                   \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(StaLookupSlotSloppy, AccumulatorUse::kReadWrite, OperandType::kIdx)        \
   V(StaLookupSlotStrict, AccumulatorUse::kReadWrite, OperandType::kIdx)        \

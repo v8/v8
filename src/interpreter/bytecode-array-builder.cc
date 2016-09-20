@@ -307,6 +307,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupContextSlot(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupGlobalSlot(
+    const Handle<String> name, TypeofMode typeof_mode, int feedback_slot,
+    int depth) {
+  Bytecode bytecode = (typeof_mode == INSIDE_TYPEOF)
+                          ? Bytecode::kLdaLookupGlobalSlotInsideTypeof
+                          : Bytecode::kLdaLookupGlobalSlot;
+  size_t name_index = GetConstantPoolEntry(name);
+  Output(bytecode, UnsignedOperand(name_index), UnsignedOperand(feedback_slot),
+         UnsignedOperand(depth));
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
     const Handle<String> name, LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForStoreLookupSlot(language_mode);

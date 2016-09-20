@@ -138,6 +138,13 @@ class BytecodeArrayBuilder final : public ZoneObject {
                                               TypeofMode typeof_mode,
                                               int slot_index, int depth);
 
+  // Lookup the variable with |name|, which has its feedback in |feedback_slot|
+  // and is known to be global if not shadowed by a context extension somewhere
+  // up to |depth| in that context chain.
+  BytecodeArrayBuilder& LoadLookupGlobalSlot(const Handle<String> name,
+                                             TypeofMode typeof_mode,
+                                             int feedback_slot, int depth);
+
   // Store value in the accumulator into the variable with |name|.
   BytecodeArrayBuilder& StoreLookupSlot(const Handle<String> name,
                                         LanguageMode language_mode);
