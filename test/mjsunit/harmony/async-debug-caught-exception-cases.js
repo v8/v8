@@ -31,19 +31,6 @@ function rejectConstructor() {
 
 async function argThrower(x = (() => { throw "d"; })()) { }  // Exception d
 
-async function awaitThrow() {
-  await undefined;
-  throw "e";  // Exception e
-}
-
-function constructorThrow() {
-  return new Promise((resolve, reject) =>
-    Promise.resolve().then(() =>
-      reject("f")  // Exception f
-    )
-  );
-}
-
 function suppressThrow() {
   return thrower();
 }
@@ -93,43 +80,7 @@ async function indirectAwaitCatch(producer) {
   }
 }
 
-function switchCatch(producer) {
-  let resolve;
-  let promise = new Promise(r => resolve = r);
-  async function localCaught() {
-    try {
-      await promise;  // force switching to localUncaught and back
-      await producer();
-    } catch (e) { }
-  }
-  async function localUncaught() {
-    await undefined;
-    resolve();
-  }
-  localCaught();
-  localUncaught();
-}
-
-function switchDotCatch(producer) {
-  let resolve;
-  let promise = new Promise(r => resolve = r);
-  async function localCaught() {
-    await promise;  // force switching to localUncaught and back
-    await producer();
-  }
-  async function localUncaught() {
-    await undefined;
-    resolve();
-  }
-  localCaught().catch(() => {});
-  localUncaught();
-}
-
-let catches = [caught,
-               indirectCaught,
-               indirectAwaitCatch,
-               switchCatch,
-               switchDotCatch];
+let catches = [caught, indirectCaught, indirectAwaitCatch];
 let noncatches = [uncaught, indirectUncaught];
 let lateCatches = [dotCatch,
                    indirectReturnDotCatch,
@@ -138,19 +89,18 @@ let lateCatches = [dotCatch,
 
 let throws = [thrower, reject, argThrower, suppressThrow];
 let nonthrows = [awaitReturn, scalar, nothing];
-let lateThrows = [awaitThrow, constructorThrow];
 let uncatchable = [rejectConstructor];
 
 let cases = [];
 
-for (let producer of throws.concat(lateThrows)) {
+for (let producer of throws) {
   for (let consumer of catches) {
     cases.push({ producer, consumer, expectedEvents: 1, caught: true });
     cases.push({ producer, consumer, expectedEvents: 0, caught: false });
   }
 }
 
-for (let producer of throws.concat(lateThrows)) {
+for (let producer of throws) {
   for (let consumer of noncatches) {
     cases.push({ producer, consumer, expectedEvents: 1, caught: true });
     cases.push({ producer, consumer, expectedEvents: 1, caught: false });
@@ -168,13 +118,6 @@ for (let producer of uncatchable) {
   for (let consumer of catches.concat(noncatches, lateCatches)) {
     cases.push({ producer, consumer, expectedEvents: 1, caught: true });
     cases.push({ producer, consumer, expectedEvents: 1, caught: false });
-  }
-}
-
-for (let producer of lateThrows) {
-  for (let consumer of lateCatches) {
-    cases.push({ producer, consumer, expectedEvents: 1, caught: true });
-    cases.push({ producer, consumer, expectedEvents: 0, caught: false });
   }
 }
 

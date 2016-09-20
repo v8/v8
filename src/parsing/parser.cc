@@ -4563,7 +4563,7 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   // yield do {
   //   promise_tmp = .promise;
   //   tmp = <operand>;
-  //   %AsyncFunctionAwait(.generator_object, tmp, promise_tmp);
+  //   %AsyncFunctionAwait(.generator_object, tmp);
   //   promise_tmp
   // }
   // The value of the expression is returned to the caller of the async
@@ -4608,13 +4608,11 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
       zone());
 
   ZoneList<Expression*>* async_function_await_args =
-      new (zone()) ZoneList<Expression*>(3, zone());
+      new (zone()) ZoneList<Expression*>(2, zone());
   Expression* generator_object =
       factory()->NewVariableProxy(generator_object_variable);
   async_function_await_args->Add(generator_object, zone());
   async_function_await_args->Add(factory()->NewVariableProxy(temp_var), zone());
-  async_function_await_args->Add(factory()->NewVariableProxy(promise_temp_var),
-                                 zone());
 
   // The parser emits calls to AsyncFunctionAwaitCaught, but the
   // AstNumberingVisitor will rewrite this to AsyncFunctionAwaitUncaught
