@@ -480,7 +480,10 @@ function PromiseAll(iterable) {
 
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
-  SET_PRIVATE(deferred.reject, promiseForwardingHandlerSymbol, true);
+  var instrumenting = DEBUG_IS_ACTIVE;
+  if (instrumenting) {
+    SET_PRIVATE(deferred.reject, promiseForwardingHandlerSymbol, true);
+  }
 
   function CreateResolveElementFunction(index, values, promiseCapability) {
     var alreadyCalled = false;
@@ -507,7 +510,7 @@ function PromiseAll(iterable) {
           deferred.reject);
       // For catch prediction, mark that rejections here are semantically
       // handled by the combined Promise.
-      if (IsPromise(throwawayPromise)) {
+      if (instrumenting && IsPromise(throwawayPromise)) {
         SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, deferred.promise);
       }
       ++i;
@@ -539,7 +542,10 @@ function PromiseRace(iterable) {
 
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
-  SET_PRIVATE(deferred.reject, promiseForwardingHandlerSymbol, true);
+  var instrumenting = DEBUG_IS_ACTIVE;
+  if (instrumenting) {
+    SET_PRIVATE(deferred.reject, promiseForwardingHandlerSymbol, true);
+  }
 
   try {
     for (var value of iterable) {
@@ -547,7 +553,7 @@ function PromiseRace(iterable) {
                                                       deferred.reject);
       // For catch prediction, mark that rejections here are semantically
       // handled by the combined Promise.
-      if (IsPromise(throwawayPromise)) {
+      if (instrumenting && IsPromise(throwawayPromise)) {
         SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, deferred.promise);
       }
     }

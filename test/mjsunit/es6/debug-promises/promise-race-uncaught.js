@@ -16,19 +16,6 @@ var Debug = debug.Debug;
 var expected_events = 1;
 var log = [];
 
-var p1 = Promise.resolve();
-p1.name = "p1";
-
-var p2 = p1.then(function() {
-  log.push("throw");
-  throw new Error("uncaught");  // event
-});
-
-p2.name = "p2";
-
-var p3 = Promise.race([p2]);
-p3.name = "p3";
-
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Exception) return;
   try {
@@ -47,6 +34,19 @@ function listener(event, exec_state, event_data, data) {
 
 Debug.setBreakOnUncaughtException();
 Debug.setListener(listener);
+
+var p1 = Promise.resolve();
+p1.name = "p1";
+
+var p2 = p1.then(function() {
+  log.push("throw");
+  throw new Error("uncaught");  // event
+});
+
+p2.name = "p2";
+
+var p3 = Promise.race([p2]);
+p3.name = "p3";
 
 log.push("end main");
 
