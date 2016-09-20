@@ -1726,6 +1726,7 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   module->set_code(*code);
   module->set_exports(*exports);
   module->set_requested_modules(*requested_modules);
+  module->set_flags(0);
   return module;
 }
 

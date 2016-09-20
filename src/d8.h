@@ -5,6 +5,9 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
+#include <map>
+#include <string>
+
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
@@ -313,15 +316,13 @@ class ShellOptions {
 
 class Shell : public i::AllStatic {
  public:
-  enum SourceType { SCRIPT, MODULE };
-
   static MaybeLocal<Script> CompileString(
       Isolate* isolate, Local<String> source, Local<Value> name,
       v8::ScriptCompiler::CompileOptions compile_options);
   static bool ExecuteString(Isolate* isolate, Local<String> source,
                             Local<Value> name, bool print_result,
-                            bool report_exceptions,
-                            SourceType source_type = SCRIPT);
+                            bool report_exceptions);
+  static bool ExecuteModule(Isolate* isolate, const char* file_name);
   static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
@@ -454,6 +455,9 @@ class Shell : public i::AllStatic {
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static MaybeLocal<Module> FetchModuleTree(
+      Isolate* isolate, const std::string& file_name,
+      std::map<std::string, Global<Module>>* module_map);
 };
 
 

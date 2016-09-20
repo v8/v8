@@ -5704,6 +5704,8 @@ ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
 ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
+SMI_ACCESSORS(Module, flags, kFlagsOffset)
+BOOL_ACCESSORS(Module, flags, evaluated, kEvaluatedBit)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)

@@ -9,6 +9,8 @@
 
 #include <algorithm>
 #include <fstream>
+#include <map>
+#include <utility>
 #include <vector>
 
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
@@ -461,7 +463,7 @@ MaybeLocal<Script> Shell::CompileString(
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
                           Local<Value> name, bool print_result,
-                          bool report_exceptions, SourceType source_type) {
+                          bool report_exceptions) {
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
@@ -472,31 +474,14 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> realm =
         Local<Context>::New(isolate, data->realms_[data->realm_current_]);
     Context::Scope context_scope(realm);
-    if (source_type == SCRIPT) {
-      Local<Script> script;
-      if (!Shell::CompileString(isolate, source, name, options.compile_options)
-               .ToLocal(&script)) {
-        // Print errors that happened during compilation.
-        if (report_exceptions) ReportException(isolate, &try_catch);
-        return false;
-      }
-      maybe_result = script->Run(realm);
-    } else {
-      DCHECK_EQ(MODULE, source_type);
-      Local<Module> module;
-      ScriptOrigin origin(name);
-      ScriptCompiler::Source script_source(source, origin);
-      // TODO(adamk): Make use of compile options for Modules.
-      if (!ScriptCompiler::CompileModule(isolate, &script_source)
-               .ToLocal(&module)) {
-        // Print errors that happened during compilation.
-        if (report_exceptions) ReportException(isolate, &try_catch);
-        return false;
-      }
-      // This can't fail until we support linking.
-      CHECK(module->Instantiate(realm));
-      maybe_result = module->Evaluate(realm);
+    Local<Script> script;
+    if (!Shell::CompileString(isolate, source, name, options.compile_options)
+             .ToLocal(&script)) {
+      // Print errors that happened during compilation.
+      if (report_exceptions) ReportException(isolate, &try_catch);
+      return false;
     }
+    maybe_result = script->Run(realm);
     EmptyMessageQueues(isolate);
     data->realm_current_ = data->realm_switch_;
   }
@@ -526,6 +511,95 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   return true;
 }
 
+MaybeLocal<Module> Shell::FetchModuleTree(
+    Isolate* isolate, const std::string& file_name,
+    std::map<std::string, Global<Module>>* module_map) {
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  Local<String> source_text = ReadFile(isolate, file_name.c_str());
+  if (source_text.IsEmpty()) {
+    printf("Error reading '%s'\n", file_name.c_str());
+    Shell::Exit(1);
+  }
+  ScriptOrigin origin(
+      String::NewFromUtf8(isolate, file_name.c_str(), NewStringType::kNormal)
+          .ToLocalChecked());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module;
+  if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
+    ReportException(isolate, &try_catch);
+    return MaybeLocal<Module>();
+  }
+  module_map->insert(
+      std::make_pair(file_name, Global<Module>(isolate, module)));
+  for (int i = 0, length = module->GetModuleRequestsLength(); i < length; ++i) {
+    Local<String> name = module->GetModuleRequest(i);
+    // TODO(adamk): Resolve the imported module to a full path.
+    std::string str = *String::Utf8Value(name);
+    if (!module_map->count(str)) {
+      if (FetchModuleTree(isolate, str, module_map).IsEmpty()) {
+        return MaybeLocal<Module>();
+      }
+    }
+  }
+
+  return module;
+}
+
+namespace {
+
+MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
+                                         Local<String> specifier,
+                                         Local<Module> referrer,
+                                         Local<Value> data) {
+  Isolate* isolate = context->GetIsolate();
+  auto module_map = static_cast<std::map<std::string, Global<Module>>*>(
+      External::Cast(*data)->Value());
+  std::string str_specifier = *String::Utf8Value(specifier);
+  // TODO(adamk): Resolve the specifier using the referrer
+  auto it = module_map->find(str_specifier);
+  if (it != module_map->end()) {
+    return it->second.Get(isolate);
+  }
+  return MaybeLocal<Module>();
+}
+
+}  // anonymous namespace
+
+bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
+  HandleScope handle_scope(isolate);
+
+  Local<Module> root_module;
+  std::map<std::string, Global<Module>> module_map;
+  if (!FetchModuleTree(isolate, file_name, &module_map).ToLocal(&root_module)) {
+    return false;
+  }
+
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+
+  MaybeLocal<Value> maybe_result;
+  {
+    PerIsolateData* data = PerIsolateData::Get(isolate);
+    Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+    Context::Scope context_scope(realm);
+
+    // This can't fail until we support linking.
+    CHECK(root_module->Instantiate(realm, ResolveModuleCallback,
+                                   External::New(isolate, &module_map)));
+    maybe_result = root_module->Evaluate(realm);
+    EmptyMessageQueues(isolate);
+  }
+  Local<Value> result;
+  if (!maybe_result.ToLocal(&result)) {
+    DCHECK(try_catch.HasCaught());
+    // Print errors that happened during execution.
+    ReportException(isolate, &try_catch);
+    return false;
+  }
+  DCHECK(!try_catch.HasCaught());
+  return true;
+}
 
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_count_ = 1;
@@ -1580,7 +1654,6 @@ void SourceGroup::Execute(Isolate* isolate) {
   bool exception_was_thrown = false;
   for (int i = begin_offset_; i < end_offset_; ++i) {
     const char* arg = argv_[i];
-    Shell::SourceType source_type = Shell::SCRIPT;
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
       // Execute argument given to -e option directly.
       HandleScope handle_scope(isolate);
@@ -1599,8 +1672,13 @@ void SourceGroup::Execute(Isolate* isolate) {
       continue;
     } else if (strcmp(arg, "--module") == 0 && i + 1 < end_offset_) {
       // Treat the next file as a module.
-      source_type = Shell::MODULE;
       arg = argv_[++i];
+      Shell::options.script_executed = true;
+      if (!Shell::ExecuteModule(isolate, arg)) {
+        exception_was_thrown = true;
+        break;
+      }
+      continue;
     } else if (arg[0] == '-') {
       // Ignore other options. They have been parsed already.
       continue;
@@ -1617,8 +1695,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       Shell::Exit(1);
     }
     Shell::options.script_executed = true;
-    if (!Shell::ExecuteString(isolate, source, file_name, false, true,
-                              source_type)) {
+    if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
       exception_was_thrown = true;
       break;
     }

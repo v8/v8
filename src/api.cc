@@ -1884,7 +1884,40 @@ Local<UnboundScript> Script::GetUnboundScript() {
       i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared()));
 }
 
-bool Module::Instantiate(Local<Context> v8_context) {
+int Module::GetModuleRequestsLength() const {
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  i::Handle<i::SharedFunctionInfo> shared;
+  if (self->code()->IsSharedFunctionInfo()) {
+    shared = i::handle(i::SharedFunctionInfo::cast(self->code()), isolate);
+  } else {
+    shared = i::handle(i::JSFunction::cast(self->code())->shared(), isolate);
+  }
+  return shared->scope_info()
+      ->ModuleDescriptorInfo()
+      ->module_requests()
+      ->length();
+}
+
+Local<String> Module::GetModuleRequest(int i) const {
+  CHECK_GE(i, 0);
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  i::Handle<i::SharedFunctionInfo> shared;
+  if (self->code()->IsSharedFunctionInfo()) {
+    shared = i::handle(i::SharedFunctionInfo::cast(self->code()), isolate);
+  } else {
+    shared = i::handle(i::JSFunction::cast(self->code())->shared(), isolate);
+  }
+  i::Handle<i::FixedArray> module_requests(
+      shared->scope_info()->ModuleDescriptorInfo()->module_requests(), isolate);
+  CHECK_LT(i, module_requests->length());
+  return ToApiHandle<String>(i::handle(module_requests->get(i), isolate));
+}
+
+bool Module::Instantiate(Local<Context> v8_context,
+                         Module::ResolveCallback callback,
+                         Local<Value> callback_data) {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
 
@@ -1899,8 +1932,38 @@ bool Module::Instantiate(Local<Context> v8_context) {
           shared, handle(context->native_context(), isolate));
   self->set_code(*function);
 
-  // TODO(adamk): This could fail in the future when Instantiate
-  // does linking.
+  for (int i = 0, length = GetModuleRequestsLength(); i < length; ++i) {
+    Local<Module> import;
+    // TODO(adamk): Revisit these failure cases once d8 knows how to
+    // persist a module_map across multiple top-level module loads, as
+    // the current module is left in a "half-instantiated" state.
+    if (!callback(v8_context, GetModuleRequest(i), Utils::ToLocal(self),
+                  callback_data)
+             .ToLocal(&import)) {
+      // TODO(adamk): Throw an exception.
+      return false;
+    }
+    if (!import->Instantiate(v8_context, callback, callback_data)) {
+      return false;
+    }
+    self->requested_modules()->set(i, *Utils::OpenHandle(*import));
+  }
+
+  // TODO(neis): This will create multiple cells for the same local variable if
+  // exported under multiple names, which is wrong but cannot be observed at the
+  // moment. This will be fixed by doing the full-fledged linking here once we
+  // get there.
+  i::Handle<i::FixedArray> regular_exports = i::handle(
+      shared->scope_info()->ModuleDescriptorInfo()->regular_exports(), isolate);
+  for (int i = 0, length = regular_exports->length(); i < length; ++i) {
+    i::Handle<i::ModuleInfoEntry> entry =
+        i::handle(i::ModuleInfoEntry::cast(regular_exports->get(i)), isolate);
+    DCHECK(entry->import_name()->IsUndefined(isolate));
+    i::Handle<i::String> export_name =
+        handle(i::String::cast(entry->export_name()), isolate);
+    i::Module::CreateExport(self, export_name);
+  }
+
   return true;
 }
 
@@ -1915,6 +1978,19 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   // It's an API error to call Evaluate before Instantiate.
   CHECK(self->code()->IsJSFunction());
+
+  // Each module can only be evaluated once.
+  if (self->evaluated()) return Undefined(reinterpret_cast<Isolate*>(isolate));
+  self->set_evaluated(true);
+
+  i::Handle<i::FixedArray> requested_modules(self->requested_modules(),
+                                             isolate);
+  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+    i::Handle<i::Module> import(i::Module::cast(requested_modules->get(i)),
+                                isolate);
+    MaybeLocal<Value> maybe_result = Utils::ToLocal(import)->Evaluate(context);
+    if (maybe_result.IsEmpty()) return maybe_result;
+  }
 
   i::Handle<i::JSFunction> function(i::JSFunction::cast(self->code()), isolate);
   DCHECK_EQ(i::MODULE_SCOPE, function->shared()->scope_info()->scope_type());
@@ -2049,23 +2125,6 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(Isolate* isolate,
 
   i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound);
   i::Handle<i::Module> module = i_isolate->factory()->NewModule(shared);
-
-  // TODO(neis): This will create multiple cells for the same local variable if
-  // exported under multiple names, which is wrong but cannot be observed at the
-  // moment. This will be fixed by doing the full-fledged linking here once we
-  // get there.
-  i::Handle<i::FixedArray> regular_exports =
-      i::handle(shared->scope_info()->ModuleDescriptorInfo()->regular_exports(),
-                i_isolate);
-  for (int i = 0, length = regular_exports->length(); i < length; ++i) {
-    i::Handle<i::ModuleInfoEntry> entry =
-        i::handle(i::ModuleInfoEntry::cast(regular_exports->get(i)), i_isolate);
-    DCHECK(entry->import_name()->IsUndefined(i_isolate));
-    i::Handle<i::String> export_name =
-        handle(i::String::cast(entry->export_name()), i_isolate);
-    i::Module::CreateExport(module, export_name);
-  }
-
   return ToApiHandle<Module>(module);
 }
 

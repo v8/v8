@@ -1160,6 +1160,7 @@ void Module::ModulePrint(std::ostream& os) {  // NOLINT
   os << "\n - code: " << Brief(code());
   os << "\n - exports: " << Brief(exports());
   os << "\n - requested_modules: " << Brief(requested_modules());
+  os << "\n - evaluated: " << evaluated();
   os << "\n";
 }
 

@@ -1079,11 +1079,29 @@ class V8_EXPORT UnboundScript {
 class V8_EXPORT Module {
  public:
   /**
+   * Returns the number of modules requested by this module.
+   */
+  int GetModuleRequestsLength() const;
+
+  /**
+   * Returns the ith module specifier in this module.
+   * i must be < GetModuleRequestsLength() and >= 0.
+   */
+  Local<String> GetModuleRequest(int i) const;
+
+  typedef MaybeLocal<Module> (*ResolveCallback)(Local<Context> context,
+                                                Local<String> specifier,
+                                                Local<Module> referrer,
+                                                Local<Value> data);
+
+  /**
    * ModuleDeclarationInstantiation
    *
    * Returns false if an exception occurred during instantiation.
    */
-  V8_WARN_UNUSED_RESULT bool Instantiate(Local<Context> context);
+  V8_WARN_UNUSED_RESULT bool Instantiate(
+      Local<Context> context, ResolveCallback callback,
+      Local<Value> callback_data = Local<Value>());
 
   /**
    * ModuleEvaluation

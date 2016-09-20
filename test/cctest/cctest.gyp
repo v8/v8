@@ -169,6 +169,7 @@
       'test-lockers.cc',
       'test-log.cc',
       'test-mementos.cc',
+      'test-modules.cc',
       'test-object.cc',
       'test-parsing.cc',
       'test-platform.cc',

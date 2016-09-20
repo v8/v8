@@ -439,4 +439,10 @@
   '*': [SKIP],
 }],  # variant == asm_wasm
 
+['variant != ignition and variant != ignition_staging', {
+  # Ongoing implementation of modules.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
+  'test-modules/*': [SKIP],
+}],  # variants != ignition and variant != ignition_staging
+
 ]

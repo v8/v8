@@ -906,6 +906,7 @@ void Module::ModuleVerify() {
   code()->ObjectVerify();
   exports()->ObjectVerify();
   requested_modules()->ObjectVerify();
+  VerifySmiField(kFlagsOffset);
   // TODO(neis): Check more.
 }
 

@@ -7898,6 +7898,13 @@ class Module : public Struct {
   // ModuleInfo::module_requests.
   DECL_ACCESSORS(requested_modules, FixedArray)
 
+  // [[Evaluated]]: Whether this module has been evaluated. Modules
+  // are only evaluated a single time.
+  DECL_BOOLEAN_ACCESSORS(evaluated)
+
+  // Storage for [[Evaluated]]
+  DECL_INT_ACCESSORS(flags)
+
   static void CreateExport(Handle<Module> module, Handle<String> name);
   static void StoreExport(Handle<Module> module, Handle<String> name,
                           Handle<Object> value);
@@ -7906,9 +7913,12 @@ class Module : public Struct {
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
   static const int kRequestedModulesOffset = kExportsOffset + kPointerSize;
-  static const int kSize = kRequestedModulesOffset + kPointerSize;
+  static const int kFlagsOffset = kRequestedModulesOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
 
  private:
+  enum { kEvaluatedBit };
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
 };
 
