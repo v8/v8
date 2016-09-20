@@ -1712,12 +1712,20 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
       JSGeneratorObject);
 }
 
-Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code,
-                                  int min_size) {
-  Handle<ObjectHashTable> exports = ObjectHashTable::New(isolate(), min_size);
+Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
+  Handle<ModuleInfo> module_info(code->scope_info()->ModuleDescriptorInfo(),
+                                 isolate());
+  Handle<ObjectHashTable> exports =
+      ObjectHashTable::New(isolate(), module_info->regular_exports()->length());
+  int requested_modules_length = module_info->module_requests()->length();
+  Handle<FixedArray> requested_modules =
+      requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
+                                   : empty_fixed_array();
+
   Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
   module->set_code(*code);
   module->set_exports(*exports);
+  module->set_requested_modules(*requested_modules);
   return module;
 }
 

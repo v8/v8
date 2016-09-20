@@ -905,6 +905,7 @@ void Module::ModuleVerify() {
   CHECK(code()->IsSharedFunctionInfo() || code()->IsJSFunction());
   code()->ObjectVerify();
   exports()->ObjectVerify();
+  requested_modules()->ObjectVerify();
   // TODO(neis): Check more.
 }
 

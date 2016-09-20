@@ -5703,6 +5703,7 @@ ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
+ACCESSORS(Module, requested_modules, FixedArray, kRequestedModulesOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)

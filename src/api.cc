@@ -2048,19 +2048,16 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(Isolate* isolate,
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
 
   i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound);
-  i::Handle<i::FixedArray> regular_exports =
-      i::handle(shared->scope_info()->ModuleDescriptorInfo()->regular_exports(),
-                i_isolate);
-  int regular_exports_length = regular_exports->length();
-
-  i::Handle<i::Module> module =
-      i_isolate->factory()->NewModule(shared, regular_exports_length);
+  i::Handle<i::Module> module = i_isolate->factory()->NewModule(shared);
 
   // TODO(neis): This will create multiple cells for the same local variable if
   // exported under multiple names, which is wrong but cannot be observed at the
   // moment. This will be fixed by doing the full-fledged linking here once we
   // get there.
-  for (int i = 0; i < regular_exports_length; ++i) {
+  i::Handle<i::FixedArray> regular_exports =
+      i::handle(shared->scope_info()->ModuleDescriptorInfo()->regular_exports(),
+                i_isolate);
+  for (int i = 0, length = regular_exports->length(); i < length; ++i) {
     i::Handle<i::ModuleInfoEntry> entry =
         i::handle(i::ModuleInfoEntry::cast(regular_exports->get(i)), i_isolate);
     DCHECK(entry->import_name()->IsUndefined(i_isolate));
