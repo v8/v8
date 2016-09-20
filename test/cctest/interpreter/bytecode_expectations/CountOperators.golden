@@ -257,7 +257,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   44 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   55 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(1),
+  /*   55 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(9),
                 B(Star), R(1),
   /*   63 S> */ B(Ldar), R(0),
                 B(ToNumber), R(3),

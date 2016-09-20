@@ -1876,8 +1876,14 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // Deep-copy the literal boilerplate.
+  int runtime_flags = expr->ComputeFlags();
+  bool use_fast_shallow_clone =
+      (runtime_flags & ArrayLiteral::kShallowElements) != 0 &&
+      expr->values()->length() <= JSArray::kInitialMaxFastElementArray;
+  uint8_t flags =
+      CreateArrayLiteralFlags::Encode(use_fast_shallow_clone, runtime_flags);
   builder()->CreateArrayLiteral(expr->constant_elements(),
-                                expr->literal_index(), expr->ComputeFlags());
+                                expr->literal_index(), flags);
   Register index, literal;
 
   // Evaluate all the non-constant subexpressions and store them into the

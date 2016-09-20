@@ -1274,8 +1274,8 @@ class FastCloneShallowArrayStub : public TurboFanCodeStub {
   static compiler::Node* Generate(CodeStubAssembler* assembler,
                                   compiler::Node* closure,
                                   compiler::Node* literal_index,
-                                  compiler::Node* constant_elements,
                                   compiler::Node* context,
+                                  CodeStubAssembler::Label* call_runtime,
                                   AllocationSiteMode allocation_site_mode);
 
   AllocationSiteMode allocation_site_mode() const {

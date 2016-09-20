@@ -5788,15 +5788,15 @@ compiler::Node* NonEmptyShallowClone(CodeStubAssembler* assembler,
 // static
 compiler::Node* FastCloneShallowArrayStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* closure,
-    compiler::Node* literal_index, compiler::Node* constant_elements,
-    compiler::Node* context, AllocationSiteMode allocation_site_mode) {
+    compiler::Node* literal_index, compiler::Node* context,
+    CodeStubAssembler::Label* call_runtime,
+    AllocationSiteMode allocation_site_mode) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
   typedef compiler::Node Node;
 
-  Label call_runtime(assembler, Label::kDeferred), zero_capacity(assembler),
-      cow_elements(assembler), fast_elements(assembler),
-      return_result(assembler);
+  Label zero_capacity(assembler), cow_elements(assembler),
+      fast_elements(assembler), return_result(assembler);
   Variable result(assembler, MachineRepresentation::kTagged);
 
   Node* literals_array =
@@ -5808,7 +5808,7 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
 
   Node* undefined = assembler->UndefinedConstant();
   assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
-                    &call_runtime);
+                    call_runtime);
   allocation_site = assembler->LoadFixedArrayElement(
       literals_array, literal_index,
       LiteralsArray::kFirstLiteralIndex * kPointerSize,
@@ -5900,21 +5900,6 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
     assembler->Goto(&return_result);
   }
 
-  assembler->Bind(&call_runtime);
-  {
-    assembler->Comment("call runtime");
-    Node* flags = assembler->SmiConstant(
-        Smi::FromInt(ArrayLiteral::kShallowElements |
-                     (allocation_site_mode == TRACK_ALLOCATION_SITE
-                          ? 0
-                          : ArrayLiteral::kDisableMementos)));
-    Node* array =
-        assembler->CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
-                               literal_index, constant_elements, flags);
-    result.Bind(array);
-    assembler->Goto(&return_result);
-  }
-
   assembler->Bind(&return_result);
   return result.value();
 }
@@ -5922,14 +5907,27 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
 void FastCloneShallowArrayStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
   Node* closure = assembler->Parameter(Descriptor::kClosure);
   Node* literal_index = assembler->Parameter(Descriptor::kLiteralIndex);
   Node* constant_elements = assembler->Parameter(Descriptor::kConstantElements);
   Node* context = assembler->Parameter(Descriptor::kContext);
+  Label call_runtime(assembler, Label::kDeferred);
+  assembler->Return(Generate(assembler, closure, literal_index, context,
+                             &call_runtime, allocation_site_mode()));
 
-  assembler->Return(Generate(assembler, closure, literal_index,
-                             constant_elements, context,
-                             allocation_site_mode()));
+  assembler->Bind(&call_runtime);
+  {
+    assembler->Comment("call runtime");
+    Node* flags = assembler->SmiConstant(
+        Smi::FromInt(ArrayLiteral::kShallowElements |
+                     (allocation_site_mode() == TRACK_ALLOCATION_SITE
+                          ? 0
+                          : ArrayLiteral::kDisableMementos)));
+    assembler->Return(assembler->CallRuntime(Runtime::kCreateArrayLiteral,
+                                             context, closure, literal_index,
+                                             constant_elements, flags));
+  }
 }
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {

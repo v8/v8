@@ -15,7 +15,7 @@ parameter count: 1
 bytecode array length: 6
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(1),
+  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(9),
   /*   51 S> */ B(Return),
 ]
 constant pool: [
@@ -35,7 +35,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(1),
+  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(9),
                 B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(1),
@@ -87,7 +87,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(1),
-                B(CreateArrayLiteral), U8(1), U8(0), U8(1),
+                B(CreateArrayLiteral), U8(1), U8(0), U8(9),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(3),
@@ -97,7 +97,7 @@ bytecodes: [
                 B(StaKeyedPropertySloppy), R(2), R(1), U8(7),
                 B(LdaSmi), U8(1),
                 B(Star), R(1),
-                B(CreateArrayLiteral), U8(2), U8(1), U8(1),
+                B(CreateArrayLiteral), U8(2), U8(1), U8(9),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(3),

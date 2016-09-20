@@ -2011,21 +2011,47 @@ void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
 
 // CreateArrayLiteral <element_idx> <literal_idx> <flags>
 //
-// Creates an array literal for literal index <literal_idx> with flags <flags>
-// and constant elements in <element_idx>.
+// Creates an array literal for literal index <literal_idx> with
+// CreateArrayLiteral flags <flags> and constant elements in <element_idx>.
 void Interpreter::DoCreateArrayLiteral(InterpreterAssembler* assembler) {
-  Node* index = __ BytecodeOperandIdx(0);
-  Node* constant_elements = __ LoadConstantPoolEntry(index);
   Node* literal_index_raw = __ BytecodeOperandIdx(1);
   Node* literal_index = __ SmiTag(literal_index_raw);
-  Node* flags_raw = __ BytecodeOperandFlag(2);
-  Node* flags = __ SmiTag(flags_raw);
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
-                                literal_index, constant_elements, flags);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  Node* bytecode_flags = __ BytecodeOperandFlag(2);
+
+  Label fast_shallow_clone(assembler),
+      call_runtime(assembler, Label::kDeferred);
+  Node* use_fast_shallow_clone = __ Word32And(
+      bytecode_flags,
+      __ Int32Constant(CreateArrayLiteralFlags::FastShallowCloneBit::kMask));
+  __ BranchIf(use_fast_shallow_clone, &fast_shallow_clone, &call_runtime);
+
+  __ Bind(&fast_shallow_clone);
+  {
+    DCHECK(FLAG_allocation_site_pretenuring);
+    Node* result = FastCloneShallowArrayStub::Generate(
+        assembler, closure, literal_index, context, &call_runtime,
+        TRACK_ALLOCATION_SITE);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
+
+  __ Bind(&call_runtime);
+  {
+    STATIC_ASSERT(CreateArrayLiteralFlags::FlagsBits::kShift == 0);
+    Node* flags_raw = __ Word32And(
+        bytecode_flags,
+        __ Int32Constant(CreateArrayLiteralFlags::FlagsBits::kMask));
+    Node* flags = __ SmiTag(flags_raw);
+    Node* index = __ BytecodeOperandIdx(0);
+    Node* constant_elements = __ LoadConstantPoolEntry(index);
+    Node* result =
+        __ CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
+                       literal_index, constant_elements, flags);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
 }
 
 // CreateObjectLiteral <element_idx> <literal_idx> <flags>
