@@ -84,7 +84,7 @@ class TemplateHashMapImpl {
   // If entries are inserted during iteration, the effect of
   // calling Next() is undefined.
   Entry* Start() const;
-  Entry* Next(Entry* p) const;
+  Entry* Next(Entry* entry) const;
 
   // Some match functions defined for convenience.
   // TODO(leszeks): This isn't really matching pointers, so the name doesn't
@@ -104,6 +104,8 @@ class TemplateHashMapImpl {
 
   Entry* map_end() const { return map_ + capacity_; }
   Entry* Probe(const Key& key, uint32_t hash) const;
+  Entry* FillEmptyEntry(Entry* entry, const Key& key, const Value& value,
+                        uint32_t hash);
   void Initialize(uint32_t capacity);
   void Resize();
 };
@@ -139,8 +141,8 @@ template <typename Key, typename Value, class AllocationPolicy>
 typename TemplateHashMapImpl<Key, Value, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, AllocationPolicy>::Lookup(const Key& key,
                                                           uint32_t hash) const {
-  Entry* p = Probe(key, hash);
-  return p->exists() ? p : nullptr;
+  Entry* entry = Probe(key, hash);
+  return entry->exists() ? entry : nullptr;
 }
 
 template <typename Key, typename Value, class AllocationPolicy>
@@ -148,34 +150,20 @@ typename TemplateHashMapImpl<Key, Value, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, AllocationPolicy>::LookupOrInsert(
     const Key& key, uint32_t hash) {
   // Find a matching entry.
-  Entry* p = Probe(key, hash);
-  if (p->exists()) {
-    return p;
+  Entry* entry = Probe(key, hash);
+  if (entry->exists()) {
+    return entry;
   }
 
-  return InsertNew(key, hash);
+  return FillEmptyEntry(entry, key, Value(), hash);
 }
 
 template <typename Key, typename Value, class AllocationPolicy>
 typename TemplateHashMapImpl<Key, Value, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, AllocationPolicy>::InsertNew(const Key& key,
                                                              uint32_t hash) {
-  // Find a matching entry.
-  Entry* p = Probe(key, hash);
-  DCHECK(!p->exists());
-
-  // No entry found; construct one in-place in the empty slot using placement
-  // new.
-  new (p) Entry(key, Value(), hash);
-  occupancy_++;
-
-  // Grow the map if we reached >= 80% occupancy.
-  if (occupancy_ + occupancy_ / 4 >= capacity_) {
-    Resize();
-    p = Probe(key, hash);
-  }
-
-  return p;
+  Entry* entry = Probe(key, hash);
+  return FillEmptyEntry(entry, key, Value(), hash);
 }
 
 template <typename Key, typename Value, class AllocationPolicy>
@@ -243,8 +231,8 @@ template <typename Key, typename Value, class AllocationPolicy>
 void TemplateHashMapImpl<Key, Value, AllocationPolicy>::Clear() {
   // Mark all entries as empty.
   const Entry* end = map_end();
-  for (Entry* p = map_; p < end; p++) {
-    p->clear();
+  for (Entry* entry = map_; entry < end; entry++) {
+    entry->clear();
   }
   occupancy_ = 0;
 }
@@ -257,12 +245,12 @@ TemplateHashMapImpl<Key, Value, AllocationPolicy>::Start() const {
 
 template <typename Key, typename Value, class AllocationPolicy>
 typename TemplateHashMapImpl<Key, Value, AllocationPolicy>::Entry*
-TemplateHashMapImpl<Key, Value, AllocationPolicy>::Next(Entry* p) const {
+TemplateHashMapImpl<Key, Value, AllocationPolicy>::Next(Entry* entry) const {
   const Entry* end = map_end();
-  DCHECK(map_ - 1 <= p && p < end);
-  for (p++; p < end; p++) {
-    if (p->exists()) {
-      return p;
+  DCHECK(map_ - 1 <= entry && entry < end);
+  for (entry++; entry < end; entry++) {
+    if (entry->exists()) {
+      return entry;
     }
   }
   return nullptr;
@@ -273,19 +261,37 @@ typename TemplateHashMapImpl<Key, Value, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, AllocationPolicy>::Probe(const Key& key,
                                                          uint32_t hash) const {
   DCHECK(base::bits::IsPowerOfTwo32(capacity_));
-  Entry* p = map_ + (hash & (capacity_ - 1));
+  Entry* entry = map_ + (hash & (capacity_ - 1));
   const Entry* end = map_end();
-  DCHECK(map_ <= p && p < end);
+  DCHECK(map_ <= entry && entry < end);
 
   DCHECK(occupancy_ < capacity_);  // Guarantees loop termination.
-  while (p->exists() && (hash != p->hash || !match_(key, p->key))) {
-    p++;
-    if (p >= end) {
-      p = map_;
+  while (entry->exists() && (hash != entry->hash || !match_(key, entry->key))) {
+    entry++;
+    if (entry >= end) {
+      entry = map_;
     }
   }
 
-  return p;
+  return entry;
+}
+
+template <typename Key, typename Value, class AllocationPolicy>
+typename TemplateHashMapImpl<Key, Value, AllocationPolicy>::Entry*
+TemplateHashMapImpl<Key, Value, AllocationPolicy>::FillEmptyEntry(
+    Entry* entry, const Key& key, const Value& value, uint32_t hash) {
+  DCHECK(!entry->exists());
+
+  new (entry) Entry(key, value, hash);
+  occupancy_++;
+
+  // Grow the map if we reached >= 80% occupancy.
+  if (occupancy_ + occupancy_ / 4 >= capacity_) {
+    Resize();
+    entry = Probe(key, hash);
+  }
+
+  return entry;
 }
 
 template <typename Key, typename Value, class AllocationPolicy>
@@ -310,10 +316,11 @@ void TemplateHashMapImpl<Key, Value, AllocationPolicy>::Resize() {
   Initialize(capacity_ * 2);
 
   // Rehash all current entries.
-  for (Entry* p = map; n > 0; p++) {
-    if (p->exists()) {
-      Entry* entry = LookupOrInsert(p->key, p->hash);
-      entry->value = p->value;
+  for (Entry* entry = map; n > 0; entry++) {
+    if (entry->exists()) {
+      Entry* new_entry = Probe(entry->key, entry->hash);
+      new_entry =
+          FillEmptyEntry(new_entry, entry->key, entry->value, entry->hash);
       n--;
     }
   }
