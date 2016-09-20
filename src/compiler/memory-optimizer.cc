@@ -109,6 +109,37 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
   Node* control = node->InputAt(2);
   PretenureFlag pretenure = OpParameter<PretenureFlag>(node->op());
 
+  // Propagate tenuring from outer allocations to inner allocations, i.e.
+  // when we allocate an object in old space and store a newly allocated
+  // child object into the pretenured object, then the newly allocated
+  // child object also should get pretenured to old space.
+  if (pretenure == TENURED) {
+    for (Edge const edge : node->use_edges()) {
+      Node* const user = edge.from();
+      if (user->opcode() == IrOpcode::kStoreField && edge.index() == 0) {
+        Node* const child = user->InputAt(1);
+        if (child->opcode() == IrOpcode::kAllocate &&
+            OpParameter<PretenureFlag>(child) == NOT_TENURED) {
+          NodeProperties::ChangeOp(child, node->op());
+          break;
+        }
+      }
+    }
+  } else {
+    DCHECK_EQ(NOT_TENURED, pretenure);
+    for (Edge const edge : node->use_edges()) {
+      Node* const user = edge.from();
+      if (user->opcode() == IrOpcode::kStoreField && edge.index() == 1) {
+        Node* const parent = user->InputAt(0);
+        if (parent->opcode() == IrOpcode::kAllocate &&
+            OpParameter<PretenureFlag>(parent) == TENURED) {
+          pretenure = TENURED;
+          break;
+        }
+      }
+    }
+  }
+
   // Determine the top/limit addresses.
   Node* top_address = jsgraph()->ExternalConstant(
       pretenure == NOT_TENURED
