@@ -10,6 +10,7 @@
 // Imports
 
 var ArrayJoin;
+var GetSubstitution;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var IsRegExp;
@@ -23,6 +24,7 @@ var splitSymbol = utils.ImportNow("split_symbol");
 
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
+  GetSubstitution = from.GetSubstitution;
   IsRegExp = from.IsRegExp;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
@@ -79,14 +81,6 @@ function StringMatchJS(pattern) {
 }
 
 
-// This has the same size as the RegExpLastMatchInfo array, and can be used
-// for functions that expect that structure to be returned.  It is used when
-// the needle is a string rather than a regexp.  In this case we can't update
-// lastMatchArray without erroneously affecting the properties on the global
-// RegExp object.
-var reusableMatchInfo = [2, "", "", -1, -1];
-
-
 // ES6, section 21.1.3.14
 function StringReplace(search, replace) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.replace");
@@ -138,98 +132,15 @@ function StringReplace(search, replace) {
   if (IS_CALLABLE(replace)) {
     result += replace(search, start, subject);
   } else {
-    reusableMatchInfo[CAPTURE0] = start;
-    reusableMatchInfo[CAPTURE1] = end;
-    result = ExpandReplacement(TO_STRING(replace),
-                               subject,
-                               reusableMatchInfo,
-                               result);
+    // In this case, we don't have any capture groups and can get away with
+    // faking the captures object by simply setting its length to 1.
+    const captures = { length: 1 };
+    const matched = %_SubString(subject, start, end);
+    result += GetSubstitution(matched, subject, start, captures,
+                              TO_STRING(replace));
   }
 
   return result + %_SubString(subject, end, subject.length);
-}
-
-
-// Expand the $-expressions in the string and return a new string with
-// the result.
-function ExpandReplacement(string, subject, matchInfo, result) {
-  var length = string.length;
-  var next = %StringIndexOf(string, '$', 0);
-  if (next < 0) {
-    if (length > 0) result += string;
-    return result;
-  }
-
-  if (next > 0) result += %_SubString(string, 0, next);
-
-  while (true) {
-    var expansion = '$';
-    var position = next + 1;
-    if (position < length) {
-      var peek = %_StringCharCodeAt(string, position);
-      if (peek == 36) {         // $$
-        ++position;
-        result += '$';
-      } else if (peek == 38) {  // $& - match
-        ++position;
-        result +=
-          %_SubString(subject, matchInfo[CAPTURE0], matchInfo[CAPTURE1]);
-      } else if (peek == 96) {  // $` - prefix
-        ++position;
-        result += %_SubString(subject, 0, matchInfo[CAPTURE0]);
-      } else if (peek == 39) {  // $' - suffix
-        ++position;
-        result += %_SubString(subject, matchInfo[CAPTURE1], subject.length);
-      } else if (peek >= 48 && peek <= 57) {
-        // Valid indices are $1 .. $9, $01 .. $09 and $10 .. $99
-        var scaled_index = (peek - 48) << 1;
-        var advance = 1;
-        var number_of_captures = NUMBER_OF_CAPTURES(matchInfo);
-        if (position + 1 < string.length) {
-          var next = %_StringCharCodeAt(string, position + 1);
-          if (next >= 48 && next <= 57) {
-            var new_scaled_index = scaled_index * 10 + ((next - 48) << 1);
-            if (new_scaled_index < number_of_captures) {
-              scaled_index = new_scaled_index;
-              advance = 2;
-            }
-          }
-        }
-        if (scaled_index != 0 && scaled_index < number_of_captures) {
-          var start = matchInfo[CAPTURE(scaled_index)];
-          if (start >= 0) {
-            result +=
-              %_SubString(subject, start, matchInfo[CAPTURE(scaled_index + 1)]);
-          }
-          position += advance;
-        } else {
-          result += '$';
-        }
-      } else {
-        result += '$';
-      }
-    } else {
-      result += '$';
-    }
-
-    // Go the the next $ in the string.
-    next = %StringIndexOf(string, '$', position);
-
-    // Return if there are no more $ characters in the string. If we
-    // haven't reached the end, we need to append the suffix.
-    if (next < 0) {
-      if (position < length) {
-        result += %_SubString(string, position, length);
-      }
-      return result;
-    }
-
-    // Append substring between the previous and the next $ character.
-    if (next > position) {
-      result += %_SubString(string, position, next);
-    }
-  }
-  return result;
 }
 
 
@@ -707,7 +618,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
 // Exports
 
 utils.Export(function(to) {
-  to.ExpandReplacement = ExpandReplacement;
   to.StringIndexOf = StringIndexOf;
   to.StringMatch = StringMatchJS;
   to.StringReplace = StringReplace;

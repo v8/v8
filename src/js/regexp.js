@@ -11,7 +11,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ExpandReplacement;
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
@@ -28,7 +27,6 @@ var splitSymbol = utils.ImportNow("split_symbol");
 var SpeciesConstructor;
 
 utils.Import(function(from) {
-  ExpandReplacement = from.ExpandReplacement;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   SpeciesConstructor = from.SpeciesConstructor;
@@ -565,6 +563,31 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
   return result + %_SubString(subject, endOfMatch, subject.length);
 }
 
+// Wraps access to matchInfo's captures into a format understood by
+// GetSubstitution.
+function MatchInfoCaptureWrapper(matches, subject) {
+  this.length = NUMBER_OF_CAPTURES(matches) >> 1;
+  this.match = matches;
+  this.subject = subject;
+}
+
+MatchInfoCaptureWrapper.prototype.at = function(ix) {
+  const match = this.match;
+  const start = match[CAPTURE(ix << 1)];
+  if (start < 0) return UNDEFINED;
+  return %_SubString(this.subject, start, match[CAPTURE((ix << 1) + 1)]);
+};
+%SetForceInlineFlag(MatchInfoCaptureWrapper.prototype.at);
+
+function ArrayCaptureWrapper(array) {
+  this.length = array.length;
+  this.array = array;
+}
+
+ArrayCaptureWrapper.prototype.at = function(ix) {
+  return this.array[ix];
+};
+%SetForceInlineFlag(ArrayCaptureWrapper.prototype.at);
 
 function RegExpReplace(string, replace) {
   if (!IS_REGEXP(this)) {
@@ -588,9 +611,17 @@ function RegExpReplace(string, replace) {
         return %_SubString(subject, 0, match[CAPTURE0]) +
                %_SubString(subject, match[CAPTURE1], subject.length)
       }
-      return ExpandReplacement(replace, subject, RegExpLastMatchInfo,
-                                 %_SubString(subject, 0, match[CAPTURE0])) +
-             %_SubString(subject, match[CAPTURE1], subject.length);
+      const captures = new MatchInfoCaptureWrapper(match, subject);
+      const start = match[CAPTURE0];
+      const end = match[CAPTURE1];
+
+      const prefix = %_SubString(subject, 0, start);
+      const matched = %_SubString(subject, start, end);
+      const suffix = %_SubString(subject, end, subject.length);
+
+      return prefix +
+             GetSubstitution(matched, subject, start, captures, replace) +
+             suffix;
     }
 
     // Global regexp search, string replace.
@@ -612,8 +643,6 @@ function RegExpReplace(string, replace) {
 // GetSubstitution(matched, str, position, captures, replacement)
 // Expand the $-expressions in the string and return a new string with
 // the result.
-// TODO(littledan): Call this function from String.prototype.replace instead
-// of the very similar ExpandReplacement in src/js/string.js
 function GetSubstitution(matched, string, position, captures, replacement) {
   var matchLength = matched.length;
   var stringLength = string.length;
@@ -662,7 +691,7 @@ function GetSubstitution(matched, string, position, captures, replacement) {
           }
         }
         if (scaledIndex != 0 && scaledIndex < capturesLength) {
-          var capture = captures[scaledIndex];
+          var capture = captures.at(scaledIndex);
           if (!IS_UNDEFINED(capture)) result += capture;
           pos += advance;
         } else {
@@ -786,7 +815,8 @@ function RegExpSubclassReplace(string, replace) {
       replacement = %reflect_apply(replace, UNDEFINED, parameters, 0,
                                    parameters.length);
     } else {
-      replacement = GetSubstitution(matched, string, position, captures,
+      const capturesWrapper = new ArrayCaptureWrapper(captures);
+      replacement = GetSubstitution(matched, string, position, capturesWrapper,
                                     replace);
     }
     if (position >= nextSourcePosition) {
@@ -1095,6 +1125,7 @@ function InternalRegExpReplace(regexp, subject, replacement) {
 // Exports
 
 utils.Export(function(to) {
+  to.GetSubstitution = GetSubstitution;
   to.InternalRegExpMatch = InternalRegExpMatch;
   to.InternalRegExpReplace = InternalRegExpReplace;
   to.IsRegExp = IsRegExp;
