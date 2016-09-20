@@ -2,14 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
+// Defined when linking against shared lib on Windows.
+#if defined(USING_V8_SHARED) && !defined(V8_SHARED)
+#define V8_SHARED
+#endif
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
+#ifdef V8_SHARED
+#include <assert.h>
+#endif  // V8_SHARED
+
+#ifndef V8_SHARED
 #include <algorithm>
 #include <fstream>
 #include <vector>
+#endif  // !V8_SHARED
+
+#ifdef V8_SHARED
+#include "include/v8-testing.h"
+#endif  // V8_SHARED
 
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
 #include "src/third_party/vtune/v8-vtune.h"
@@ -20,6 +36,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
+#ifndef V8_SHARED
 #include "src/api.h"
 #include "src/base/cpu.h"
 #include "src/base/debug/stack_trace.h"
@@ -31,6 +48,7 @@
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
 #include "src/v8.h"
+#endif  // !V8_SHARED
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
@@ -54,7 +72,9 @@ namespace v8 {
 namespace {
 
 const int MB = 1024 * 1024;
+#ifndef V8_SHARED
 const int kMaxWorkers = 50;
+#endif
 
 
 class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
@@ -82,6 +102,7 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 
 
+#ifndef V8_SHARED
 // Predictable v8::Platform implementation. All background and foreground
 // tasks are run immediately, delayed tasks are not executed at all.
 class PredictablePlatform : public Platform {
@@ -142,6 +163,7 @@ class PredictablePlatform : public Platform {
 
   DISALLOW_COPY_AND_ASSIGN(PredictablePlatform);
 };
+#endif  // !V8_SHARED
 
 
 v8::Platform* g_platform = NULL;
@@ -154,6 +176,7 @@ static Local<Value> Throw(Isolate* isolate, const char* message) {
 }
 
 
+#ifndef V8_SHARED
 bool FindInObjectList(Local<Object> object, const Shell::ObjectList& list) {
   for (int i = 0; i < list.length(); ++i) {
     if (list[i]->StrictEquals(object)) {
@@ -179,6 +202,7 @@ Worker* GetWorkerFromInternalField(Isolate* isolate, Local<Object> object) {
 
   return worker;
 }
+#endif  // !V8_SHARED
 
 
 }  // namespace
@@ -346,6 +370,7 @@ class PerIsolateData {
 };
 
 
+#ifndef V8_SHARED
 CounterMap* Shell::counter_map_;
 base::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
 CounterCollection Shell::local_counters_;
@@ -358,17 +383,20 @@ base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 i::List<Worker*> Shell::workers_;
 i::List<SharedArrayBuffer::Contents> Shell::externalized_shared_contents_;
+#endif  // !V8_SHARED
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
+#ifndef V8_SHARED
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
   const char* name2 = reinterpret_cast<const char*>(key2);
   return strcmp(name1, name2) == 0;
 }
+#endif  // !V8_SHARED
 
 
 // Converts a V8 value to a C string.
@@ -509,7 +537,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   }
   DCHECK(!try_catch.HasCaught());
   if (print_result) {
+#if !defined(V8_SHARED)
     if (options.test_shell) {
+#endif
       if (!result->IsUndefined()) {
         // If all went well and the result wasn't undefined then print
         // the returned value.
@@ -517,11 +547,13 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
         fwrite(*str, sizeof(**str), str.length(), stdout);
         printf("\n");
       }
+#if !defined(V8_SHARED)
     } else {
       v8::String::Utf8Value str(Stringify(isolate, result));
       fwrite(*str, sizeof(**str), str.length(), stdout);
       printf("\n");
     }
+#endif
   }
   return true;
 }
@@ -573,6 +605,7 @@ int PerIsolateData::RealmIndexOrThrow(
 }
 
 
+#ifndef V8_SHARED
 // performance.now() returns a time stamp as double, measured in milliseconds.
 // When FLAG_verify_predictable mode is enabled it returns result of
 // v8::Platform::MonotonicallyIncreasingTime().
@@ -585,6 +618,7 @@ void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     args.GetReturnValue().Set(delta.InMillisecondsF());
   }
 }
+#endif  // !V8_SHARED
 
 
 // Realm.current() returns the index of the currently active realm.
@@ -855,6 +889,7 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
+#ifndef V8_SHARED
 void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
@@ -976,13 +1011,16 @@ void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   worker->Terminate();
 }
+#endif  // !V8_SHARED
 
 
 void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   int exit_code = (*args)[0]
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
+#ifndef V8_SHARED
   CleanupWorkers();
+#endif  // !V8_SHARED
   OnExit(args->GetIsolate());
   Exit(exit_code);
 }
@@ -1003,12 +1041,14 @@ void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   HandleScope handle_scope(isolate);
+#ifndef V8_SHARED
   Local<Context> context;
   bool enter_context = !isolate->InContext();
   if (enter_context) {
     context = Local<Context>::New(isolate, evaluation_context_);
     context->Enter();
   }
+#endif  // !V8_SHARED
   v8::String::Utf8Value exception(try_catch->Exception());
   const char* exception_string = ToCString(exception);
   Local<Message> message = try_catch->Message();
@@ -1052,10 +1092,13 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     }
   }
   printf("\n");
+#ifndef V8_SHARED
   if (enter_context) context->Exit();
+#endif  // !V8_SHARED
 }
 
 
+#ifndef V8_SHARED
 int32_t* Counter::Bind(const char* name, bool is_histogram) {
   int i;
   for (i = 0; i < kMaxNameSize - 1 && name[i]; i++)
@@ -1184,6 +1227,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
   if (result.IsEmpty()) return String::Empty(isolate);
   return result.ToLocalChecked().As<String>();
 }
+#endif  // !V8_SHARED
 
 
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
@@ -1274,6 +1318,7 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
           .ToLocalChecked(),
       realm_template);
 
+#ifndef V8_SHARED
   Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
   performance_template->Set(
       String::NewFromUtf8(isolate, "now", NewStringType::kNormal)
@@ -1312,6 +1357,7 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "Worker", NewStringType::kNormal)
           .ToLocalChecked(),
       worker_fun_template);
+#endif  // !V8_SHARED
 
   Local<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_templ);
@@ -1329,17 +1375,21 @@ static void EmptyMessageCallback(Local<Message> message, Local<Value> error) {
 }
 
 void Shell::Initialize(Isolate* isolate) {
+#ifndef V8_SHARED
   // Set up counters
   if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(isolate, i::FLAG_map_counters);
+#endif  // !V8_SHARED
   // Disable default message reporting.
   isolate->AddMessageListener(EmptyMessageCallback);
 }
 
 
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
+#ifndef V8_SHARED
   // This needs to be a critical section since this is not thread-safe
   base::LockGuard<base::Mutex> lock_guard(context_mutex_.Pointer());
+#endif  // !V8_SHARED
   // Initialize the global objects
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   EscapableHandleScope handle_scope(isolate);
@@ -1347,6 +1397,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   DCHECK(!context.IsEmpty());
   Context::Scope scope(context);
 
+#ifndef V8_SHARED
   i::Factory* factory = reinterpret_cast<i::Isolate*>(isolate)->factory();
   i::JSArguments js_args = i::FLAG_js_arguments;
   i::Handle<i::FixedArray> arguments_array =
@@ -1364,6 +1415,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
                 .ToLocalChecked(),
             Utils::ToLocal(arguments_jsarray))
       .FromJust();
+#endif  // !V8_SHARED
   return handle_scope.Escape(context);
 }
 
@@ -1377,6 +1429,7 @@ void Shell::Exit(int exit_code) {
 }
 
 
+#ifndef V8_SHARED
 struct CounterAndKey {
   Counter* counter;
   const char* key;
@@ -1401,8 +1454,11 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
       JSON::Stringify(context, dispatch_counters).ToLocalChecked());
 }
 
+#endif  // !V8_SHARED
+
 
 void Shell::OnExit(v8::Isolate* isolate) {
+#ifndef V8_SHARED
   if (i::FLAG_dump_counters) {
     int number_of_counters = 0;
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
@@ -1438,6 +1494,7 @@ void Shell::OnExit(v8::Isolate* isolate) {
 
   delete counters_file_;
   delete counter_map_;
+#endif  // !V8_SHARED
 }
 
 
@@ -1571,8 +1628,10 @@ void Shell::RunShell(Isolate* isolate) {
 
 
 SourceGroup::~SourceGroup() {
+#ifndef V8_SHARED
   delete thread_;
   thread_ = NULL;
+#endif  // !V8_SHARED
 }
 
 
@@ -1641,6 +1700,7 @@ Local<String> SourceGroup::ReadFile(Isolate* isolate, const char* name) {
 }
 
 
+#ifndef V8_SHARED
 base::Thread::Options SourceGroup::GetThreadOptions() {
   // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
   // which is not enough to parse the big literal expressions used in tests.
@@ -1964,6 +2024,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
     delete data;
   }
 }
+#endif  // !V8_SHARED
 
 
 void SetFlagsFromString(const char* flags) {
@@ -2019,16 +2080,30 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // JavaScript engines.
       continue;
     } else if (strcmp(argv[i], "--isolate") == 0) {
+#ifdef V8_SHARED
+      printf("D8 with shared library does not support multi-threading\n");
+      return false;
+#endif  // V8_SHARED
       options.num_isolates++;
     } else if (strcmp(argv[i], "--dump-heap-constants") == 0) {
+#ifdef V8_SHARED
+      printf("D8 with shared library does not support constant dumping\n");
+      return false;
+#else
       options.dump_heap_constants = true;
       argv[i] = NULL;
+#endif  // V8_SHARED
     } else if (strcmp(argv[i], "--throws") == 0) {
       options.expected_to_throw = true;
       argv[i] = NULL;
     } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
       options.icu_data_file = argv[i] + 16;
       argv[i] = NULL;
+#ifdef V8_SHARED
+    } else if (strcmp(argv[i], "--dump-counters") == 0) {
+      printf("D8 with shared library does not include counters\n");
+      return false;
+#endif  // V8_SHARED
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
     } else if (strncmp(argv[i], "--natives_blob=", 15) == 0) {
       options.natives_blob = argv[i] + 15;
@@ -2094,9 +2169,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
 
 int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
+#ifndef V8_SHARED
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
+#endif  // !V8_SHARED
   {
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
@@ -2111,6 +2188,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     }
   }
   CollectGarbage(isolate);
+#ifndef V8_SHARED
   for (int i = 1; i < options.num_isolates; ++i) {
     if (last_run) {
       options.isolate_sources[i].JoinThread();
@@ -2119,6 +2197,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     }
   }
   CleanupWorkers();
+#endif  // !V8_SHARED
   return 0;
 }
 
@@ -2140,12 +2219,17 @@ void Shell::CollectGarbage(Isolate* isolate) {
 
 
 void Shell::EmptyMessageQueues(Isolate* isolate) {
+#ifndef V8_SHARED
   if (!i::FLAG_verify_predictable) {
+#endif
     while (v8::platform::PumpMessageLoop(g_platform, isolate)) continue;
+#ifndef V8_SHARED
   }
+#endif
 }
 
 
+#ifndef V8_SHARED
 bool Shell::SerializeValue(Isolate* isolate, Local<Value> value,
                            const ObjectList& to_transfer,
                            ObjectList* seen_objects,
@@ -2460,11 +2544,14 @@ static void DumpHeapConstants(i::Isolate* isolate) {
   printf("}\n");
 #undef ROOT_LIST_CASE
 }
+#endif  // !V8_SHARED
 
 
 int Shell::Main(int argc, char* argv[]) {
   std::ofstream trace_file;
+#ifndef V8_SHARED
   v8::base::debug::EnableInProcessStackDumping();
+#endif
 #if (defined(_WIN32) || defined(_WIN64))
   UINT new_flags =
       SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
@@ -2482,9 +2569,13 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // defined(_WIN32) || defined(_WIN64)
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
+#ifndef V8_SHARED
   g_platform = i::FLAG_verify_predictable
                    ? new PredictablePlatform()
                    : v8::platform::CreateDefaultPlatform();
+#else
+  g_platform = v8::platform::CreateDefaultPlatform();
+#endif  // !V8_SHARED
 
   v8::V8::InitializePlatform(g_platform);
   v8::V8::Initialize();
@@ -2510,6 +2601,7 @@ int Shell::Main(int argc, char* argv[]) {
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
   create_params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
+#ifndef V8_SHARED
   create_params.constraints.ConfigureDefaults(
       base::SysInfo::AmountOfPhysicalMemory(),
       base::SysInfo::AmountOfVirtualMemory());
@@ -2520,6 +2612,7 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
+#endif
   Isolate* isolate = Isolate::New(create_params);
   {
     Isolate::Scope scope(isolate);
@@ -2549,15 +2642,21 @@ int Shell::Main(int argc, char* argv[]) {
       }
       tracing_controller->Initialize(trace_buffer);
       tracing_controller->StartTracing(trace_config);
+#ifndef V8_SHARED
       if (!i::FLAG_verify_predictable) {
         platform::SetTracingController(g_platform, tracing_controller);
       }
+#else
+      platform::SetTracingController(g_platform, tracing_controller);
+#endif
     }
 
+#ifndef V8_SHARED
     if (options.dump_heap_constants) {
       DumpHeapConstants(reinterpret_cast<i::Isolate*>(isolate));
       return 0;
     }
+#endif
 
     if (options.stress_opt || options.stress_deopt) {
       Testing::SetStressRunType(options.stress_opt
@@ -2573,6 +2672,7 @@ int Shell::Main(int argc, char* argv[]) {
       }
       printf("======== Full Deoptimization =======\n");
       Testing::DeoptimizeAll(isolate);
+#if !defined(V8_SHARED)
     } else if (i::FLAG_stress_runs > 0) {
       options.stress_runs = i::FLAG_stress_runs;
       for (int i = 0; i < options.stress_runs && result == 0; i++) {
@@ -2581,6 +2681,7 @@ int Shell::Main(int argc, char* argv[]) {
         bool last_run = i == options.stress_runs - 1;
         result = RunMain(isolate, argc, argv, last_run);
       }
+#endif
     } else {
       bool last_run = true;
       result = RunMain(isolate, argc, argv, last_run);
@@ -2592,23 +2693,29 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
 
+#ifndef V8_SHARED
     if (i::FLAG_ignition && i::FLAG_trace_ignition_dispatches &&
         i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
       WriteIgnitionDispatchCountersFile(isolate);
     }
+#endif
 
     // Shut down contexts and collect garbage.
     evaluation_context_.Reset();
+#ifndef V8_SHARED
     stringify_function_.Reset();
+#endif  // !V8_SHARED
     CollectGarbage(isolate);
   }
   OnExit(isolate);
+#ifndef V8_SHARED
   // Dump basic block profiling data.
   if (i::BasicBlockProfiler* profiler =
           reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
     i::OFStream os(stdout);
     os << *profiler;
   }
+#endif  // !V8_SHARED
   isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();

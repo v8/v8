@@ -22,15 +22,8 @@ enum NativeType {
   TEST
 };
 
-// Extra handling for V8_EXPORT_PRIVATE in combination with USING_V8_SHARED
-// since definition of methods of classes marked as dllimport is not allowed.
 template <NativeType type>
-#ifdef USING_V8_SHARED
 class NativesCollection {
-#else
-class V8_EXPORT_PRIVATE NativesCollection {
-#endif  // USING_V8_SHARED
-
  public:
   // The following methods are implemented in js2c-generated code:
 
