@@ -3362,8 +3362,8 @@ Block* Parser::BuildParameterInitializationBlock(
 }
 
 Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
-  // var .promise = %CreatePromise();
-  // var .debug_is_active = %_DebugIsActive();
+  // .promise = %CreatePromise();
+  // .debug_is_active = %_DebugIsActive();
   // if (.debug_is_active) %DebugPushPromise(.promise);
   // try {
   //   <inner_block>
@@ -3375,32 +3375,31 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
   // }
   Block* result = factory()->NewBlock(nullptr, 4, true, kNoSourcePosition);
 
-  // var .promise = %CreatePromise();
+  // .promise = %CreatePromise();
   Statement* set_promise;
   {
-    DeclareVariable(ast_value_factory()->dot_promise_string(), VAR,
-                    kNoSourcePosition, CHECK_OK);
     Expression* create_promise = factory()->NewCallRuntime(
         Context::PROMISE_CREATE_INDEX,
         new (zone()) ZoneList<Expression*>(0, zone()), kNoSourcePosition);
     Assignment* assign_promise = factory()->NewAssignment(
-        Token::INIT, BuildDotPromise(), create_promise, kNoSourcePosition);
+        Token::INIT, factory()->NewVariableProxy(PromiseVariable()),
+        create_promise, kNoSourcePosition);
     set_promise =
         factory()->NewExpressionStatement(assign_promise, kNoSourcePosition);
   }
   result->statements()->Add(set_promise, zone());
 
-  // var .debug_is_active = %_DebugIsActive();
+  Variable* debug_is_active =
+      scope()->NewTemporary(ast_value_factory()->empty_string());
+  // .debug_is_active = %_DebugIsActive();
   Statement* set_debug_is_active;
   {
-    DeclareVariable(ast_value_factory()->dot_debug_is_active_string(), VAR,
-                    kNoSourcePosition, CHECK_OK);
-    Expression* debug_is_active = factory()->NewCallRuntime(
+    Expression* call_debug_is_active = factory()->NewCallRuntime(
         Runtime::kInlineDebugIsActive,
         new (zone()) ZoneList<Expression*>(0, zone()), kNoSourcePosition);
-    Assignment* assign_debug_is_active =
-        factory()->NewAssignment(Token::INIT, BuildDotDebugIsActive(),
-                                 debug_is_active, kNoSourcePosition);
+    Assignment* assign_debug_is_active = factory()->NewAssignment(
+        Token::INIT, factory()->NewVariableProxy(debug_is_active),
+        call_debug_is_active, kNoSourcePosition);
     set_debug_is_active = factory()->NewExpressionStatement(
         assign_debug_is_active, kNoSourcePosition);
   }
@@ -3410,13 +3409,13 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
   Statement* conditionally_debug_push_promise;
   {
     ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
-    args->Add(BuildDotPromise(), zone());
+    args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
     Expression* call_push_promise = factory()->NewCallRuntime(
         Runtime::kDebugPushPromise, args, kNoSourcePosition);
     Statement* debug_push_promise =
         factory()->NewExpressionStatement(call_push_promise, kNoSourcePosition);
     conditionally_debug_push_promise = factory()->NewIfStatement(
-        BuildDotDebugIsActive(), debug_push_promise,
+        factory()->NewVariableProxy(debug_is_active), debug_push_promise,
         factory()->NewEmptyStatement(kNoSourcePosition), kNoSourcePosition);
   }
   result->statements()->Add(conditionally_debug_push_promise, zone());
@@ -3455,7 +3454,7 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
     Statement* debug_pop_promise =
         factory()->NewExpressionStatement(call_pop_promise, kNoSourcePosition);
     Statement* conditionally_debug_pop_promise = factory()->NewIfStatement(
-        BuildDotDebugIsActive(), debug_pop_promise,
+        factory()->NewVariableProxy(debug_is_active), debug_pop_promise,
         factory()->NewEmptyStatement(kNoSourcePosition), kNoSourcePosition);
     finally_block->statements()->Add(conditionally_debug_pop_promise, zone());
   }
@@ -3481,12 +3480,13 @@ Expression* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
 Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
   // %ResolvePromise(.promise, value), .promise
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-  args->Add(BuildDotPromise(), zone());
+  args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
   args->Add(value, zone());
   Expression* call_runtime =
       factory()->NewCallRuntime(Context::PROMISE_RESOLVE_INDEX, args, pos);
-  return factory()->NewBinaryOperation(Token::COMMA, call_runtime,
-                                       BuildDotPromise(), pos);
+  return factory()->NewBinaryOperation(
+      Token::COMMA, call_runtime,
+      factory()->NewVariableProxy(PromiseVariable()), pos);
 }
 
 Expression* Parser::BuildRejectPromise(Expression* value, int pos) {
@@ -3495,20 +3495,25 @@ Expression* Parser::BuildRejectPromise(Expression* value, int pos) {
   // rejection since a debug event already happened for the exception that got
   // us here.
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-  args->Add(BuildDotPromise(), zone());
+  args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
   args->Add(value, zone());
   Expression* call_runtime = factory()->NewCallRuntime(
       Context::REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, args, pos);
-  return factory()->NewBinaryOperation(Token::COMMA, call_runtime,
-                                       BuildDotPromise(), pos);
+  return factory()->NewBinaryOperation(
+      Token::COMMA, call_runtime,
+      factory()->NewVariableProxy(PromiseVariable()), pos);
 }
 
-VariableProxy* Parser::BuildDotPromise() {
-  return NewUnresolved(ast_value_factory()->dot_promise_string(), VAR);
-}
-
-VariableProxy* Parser::BuildDotDebugIsActive() {
-  return NewUnresolved(ast_value_factory()->dot_debug_is_active_string(), VAR);
+Variable* Parser::PromiseVariable() {
+  // Based on the various compilation paths, there are many different code
+  // paths which may be the first to access the Promise temporary. Whichever
+  // comes first should create it and stash it in the FunctionState.
+  Variable* promise = function_state_->promise_variable();
+  if (function_state_->promise_variable() == nullptr) {
+    promise = scope()->NewTemporary(ast_value_factory()->empty_string());
+    function_state_->set_promise_variable(promise);
+  }
+  return promise;
 }
 
 ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
@@ -4562,10 +4567,9 @@ Expression* Parser::ExpressionListToExpression(ZoneList<Expression*>* args) {
 
 Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
   // yield do {
-  //   promise_tmp = .promise;
   //   tmp = <operand>;
-  //   %AsyncFunctionAwait(.generator_object, tmp, promise_tmp);
-  //   promise_tmp
+  //   %AsyncFunctionAwait(.generator_object, tmp, .promise);
+  //   .promise
   // }
   // The value of the expression is returned to the caller of the async
   // function for the first yield statement; for this, .promise is the
@@ -4590,15 +4594,9 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
 
   const int nopos = kNoSourcePosition;
 
-  Block* do_block = factory()->NewBlock(nullptr, 3, false, nopos);
+  Block* do_block = factory()->NewBlock(nullptr, 2, false, nopos);
 
-  Variable* promise_temp_var =
-      NewTemporary(ast_value_factory()->empty_string());
-  Expression* promise_assignment = factory()->NewAssignment(
-      Token::ASSIGN, factory()->NewVariableProxy(promise_temp_var),
-      BuildDotPromise(), nopos);
-  do_block->statements()->Add(
-      factory()->NewExpressionStatement(promise_assignment, nopos), zone());
+  Variable* promise = PromiseVariable();
 
   // Wrap value evaluation to provide a break location.
   Variable* temp_var = NewTemporary(ast_value_factory()->empty_string());
@@ -4614,8 +4612,7 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
       factory()->NewVariableProxy(generator_object_variable);
   async_function_await_args->Add(generator_object, zone());
   async_function_await_args->Add(factory()->NewVariableProxy(temp_var), zone());
-  async_function_await_args->Add(factory()->NewVariableProxy(promise_temp_var),
-                                 zone());
+  async_function_await_args->Add(factory()->NewVariableProxy(promise), zone());
 
   // The parser emits calls to AsyncFunctionAwaitCaught, but the
   // AstNumberingVisitor will rewrite this to AsyncFunctionAwaitUncaught
@@ -4628,8 +4625,7 @@ Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {
       zone());
 
   // Wrap await to provide a break location between value evaluation and yield.
-  Expression* do_expr =
-      factory()->NewDoExpression(do_block, promise_temp_var, nopos);
+  Expression* do_expr = factory()->NewDoExpression(do_block, promise, nopos);
 
   generator_object = factory()->NewVariableProxy(generator_object_variable);
   return factory()->NewYield(generator_object, do_expr, nopos,

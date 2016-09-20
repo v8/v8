@@ -284,11 +284,9 @@ class AstValue : public ZoneObject {
   F(done, "done")                               \
   F(dot, ".")                                   \
   F(dot_class_field_init, ".class-field-init")  \
-  F(dot_debug_is_active, ".debug_is_active")    \
   F(dot_for, ".for")                            \
   F(dot_generator_object, ".generator_object")  \
   F(dot_iterator, ".iterator")                  \
-  F(dot_promise, ".promise")                    \
   F(dot_result, ".result")                      \
   F(dot_switch_tag, ".switch_tag")              \
   F(dot_catch, ".catch")                        \

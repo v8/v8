@@ -705,7 +705,7 @@ struct ParserTypes<PreParser> {
   typedef PreParser Impl;
 
   // PreParser doesn't need to store generator variables.
-  typedef void GeneratorVariable;
+  typedef void Variable;
 
   // Return types for traversing functions.
   typedef PreParserIdentifier Identifier;

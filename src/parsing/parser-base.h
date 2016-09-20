@@ -125,7 +125,7 @@ struct FormalParametersBase {
 //   typedef Impl;
 //   // TODO(nikolaos): this one will probably go away, as it is
 //   // not related to pure parsing.
-//   typedef GeneratorVariable;
+//   typedef Variable;
 //   // Return types for traversing functions.
 //   typedef Identifier;
 //   typedef Expression;
@@ -405,14 +405,22 @@ class ParserBase {
     FunctionKind kind() const { return kind_; }
     FunctionState* outer() const { return outer_function_state_; }
 
-    void set_generator_object_variable(
-        typename Types::GeneratorVariable* variable) {
+    void set_generator_object_variable(typename Types::Variable* variable) {
       DCHECK(variable != NULL);
       DCHECK(is_resumable());
       generator_object_variable_ = variable;
     }
-    typename Types::GeneratorVariable* generator_object_variable() const {
+    typename Types::Variable* generator_object_variable() const {
       return generator_object_variable_;
+    }
+
+    void set_promise_variable(typename Types::Variable* variable) {
+      DCHECK(variable != NULL);
+      DCHECK(is_async_function());
+      promise_variable_ = variable;
+    }
+    typename Types::Variable* promise_variable() const {
+      return promise_variable_;
     }
 
     const ZoneList<DestructuringAssignment>&
@@ -490,6 +498,9 @@ class ParserBase {
     // is used by yield expressions and return statements. It is not necessary
     // for generator functions to have this variable set.
     Variable* generator_object_variable_;
+    // For async functions, this variable holds a temporary for the Promise
+    // being created as output of the async function.
+    Variable* promise_variable_;
 
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
@@ -1429,7 +1440,8 @@ ParserBase<Impl>::FunctionState::FunctionState(
       next_materialized_literal_index_(0),
       expected_property_count_(0),
       kind_(kind),
-      generator_object_variable_(NULL),
+      generator_object_variable_(nullptr),
+      promise_variable_(nullptr),
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
       destructuring_assignments_to_rewrite_(16, scope->zone()),

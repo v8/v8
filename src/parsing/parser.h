@@ -143,7 +143,7 @@ struct ParserTypes<Parser> {
   typedef ParserBase<Parser> Base;
   typedef Parser Impl;
 
-  typedef Variable GeneratorVariable;
+  typedef v8::internal::Variable Variable;
 
   // Return types for traversing functions.
   typedef const AstRawString* Identifier;
@@ -583,8 +583,7 @@ class Parser : public ParserBase<Parser> {
   Expression* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
   Expression* BuildResolvePromise(Expression* value, int pos);
   Expression* BuildRejectPromise(Expression* value, int pos);
-  VariableProxy* BuildDotPromise();
-  VariableProxy* BuildDotDebugIsActive();
+  Variable* PromiseVariable();
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(Runtime::FunctionId function_id,
