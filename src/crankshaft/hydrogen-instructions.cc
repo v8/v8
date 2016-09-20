@@ -815,7 +815,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kStoreCodeEntry:
     case HValue::kStoreKeyed:
     case HValue::kStoreNamedField:
-    case HValue::kStoreNamedGeneric:
     case HValue::kStringCharCodeAt:
     case HValue::kStringCharFromCode:
     case HValue::kThisFunction:
@@ -3020,14 +3019,6 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
   }
 
   return this;
-}
-
-
-std::ostream& HStoreNamedGeneric::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  Handle<String> n = Handle<String>::cast(name());
-  return os << NameOf(object()) << "." << n->ToCString().get() << " = "
-            << NameOf(value());
 }
 
 

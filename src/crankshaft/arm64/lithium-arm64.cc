@@ -271,15 +271,6 @@ void LStoreNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
-void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
-  object()->PrintTo(stream);
-  stream->Add(".");
-  stream->Add(String::cast(*name())->ToCString().get());
-  stream->Add(" <- ");
-  value()->PrintTo(stream);
-}
-
-
 void LStringCompareAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if string_compare(");
   left()->PrintTo(stream);
@@ -2255,21 +2246,6 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   }
 
   return new(zone()) LStoreNamedField(object, value, temp0, temp1);
-}
-
-
-LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object =
-      UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
-  LOperand* value = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
-
-  LOperand* slot = FixedTemp(StoreWithVectorDescriptor::SlotRegister());
-  LOperand* vector = FixedTemp(StoreWithVectorDescriptor::VectorRegister());
-
-  LStoreNamedGeneric* result =
-      new (zone()) LStoreNamedGeneric(context, object, value, slot, vector);
-  return MarkAsCall(result, instr);
 }
 
 

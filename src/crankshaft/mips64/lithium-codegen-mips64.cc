@@ -4009,21 +4009,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 }
 
 
-void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  DCHECK(ToRegister(instr->object()).is(StoreDescriptor::ReceiverRegister()));
-  DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
-
-  EmitVectorStoreICRegisters<LStoreNamedGeneric>(instr);
-
-  __ li(StoreDescriptor::NameRegister(), Operand(instr->name()));
-  Handle<Code> ic =
-      CodeFactory::StoreICInOptimizedCode(isolate(), instr->language_mode())
-          .code();
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   Condition cc = instr->hydrogen()->allow_equality() ? hi : hs;
   Operand operand((int64_t)0);

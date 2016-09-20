@@ -138,7 +138,6 @@ class LCodeGen;
   V(StoreKeyed)                              \
   V(StoreKeyedGeneric)                       \
   V(StoreNamedField)                         \
-  V(StoreNamedGeneric)                       \
   V(StringAdd)                               \
   V(StringCharCodeAt)                        \
   V(StringCharFromCode)                      \
@@ -2019,32 +2018,6 @@ class LStoreNamedField final : public LTemplateInstruction<0, 2, 2> {
   DECLARE_HYDROGEN_ACCESSOR(StoreNamedField)
 
   void PrintDataTo(StringStream* stream) override;
-};
-
-
-class LStoreNamedGeneric final : public LTemplateInstruction<0, 3, 2> {
- public:
-  LStoreNamedGeneric(LOperand* context, LOperand* object, LOperand* value,
-                     LOperand* slot, LOperand* vector) {
-    inputs_[0] = context;
-    inputs_[1] = object;
-    inputs_[2] = value;
-    temps_[0] = slot;
-    temps_[1] = vector;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
-  LOperand* temp_slot() { return temps_[0]; }
-  LOperand* temp_vector() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store-named-generic")
-  DECLARE_HYDROGEN_ACCESSOR(StoreNamedGeneric)
-
-  void PrintDataTo(StringStream* stream) override;
-  Handle<Object> name() const { return hydrogen()->name(); }
-  LanguageMode language_mode() { return hydrogen()->language_mode(); }
 };
 
 

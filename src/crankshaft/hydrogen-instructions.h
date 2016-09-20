@@ -135,7 +135,6 @@ class SmallMapList;
   V(StoreKeyed)                               \
   V(StoreKeyedGeneric)                        \
   V(StoreNamedField)                          \
-  V(StoreNamedGeneric)                        \
   V(StringAdd)                                \
   V(StringCharCodeAt)                         \
   V(StringCharFromCode)                       \
@@ -6326,52 +6325,6 @@ class HStoreNamedField final : public HTemplateInstruction<3> {
   HObjectAccess access_;
   HValue* dominator_;
   uint32_t bit_field_;
-};
-
-class HStoreNamedGeneric final : public HTemplateInstruction<3> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P6(HStoreNamedGeneric, HValue*,
-                                              Handle<Name>, HValue*,
-                                              LanguageMode,
-                                              Handle<TypeFeedbackVector>,
-                                              FeedbackVectorSlot);
-  HValue* object() const { return OperandAt(0); }
-  HValue* value() const { return OperandAt(1); }
-  HValue* context() const { return OperandAt(2); }
-  Handle<Name> name() const { return name_; }
-  LanguageMode language_mode() const { return language_mode_; }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  FeedbackVectorSlot slot() const { return slot_; }
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric)
-
- private:
-  HStoreNamedGeneric(HValue* context, HValue* object, Handle<Name> name,
-                     HValue* value, LanguageMode language_mode,
-                     Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
-      : name_(name),
-        feedback_vector_(vector),
-        slot_(slot),
-        language_mode_(language_mode) {
-    SetOperandAt(0, object);
-    SetOperandAt(1, value);
-    SetOperandAt(2, context);
-    SetAllSideEffects();
-  }
-
-  Handle<Name> name_;
-  Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorSlot slot_;
-  LanguageMode language_mode_;
 };
 
 class HStoreKeyed final : public HTemplateInstruction<4>,

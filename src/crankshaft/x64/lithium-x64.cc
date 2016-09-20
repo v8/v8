@@ -348,15 +348,6 @@ void LStoreNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
-void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
-  object()->PrintTo(stream);
-  stream->Add(".");
-  stream->Add(String::cast(*name())->ToCString().get());
-  stream->Add(" <- ");
-  value()->PrintTo(stream);
-}
-
-
 void LLoadKeyed::PrintDataTo(StringStream* stream) {
   elements()->PrintTo(stream);
   stream->Add("[");
@@ -2334,20 +2325,6 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
       needs_write_barrier_for_map) ? TempRegister() : NULL;
 
   return new(zone()) LStoreNamedField(obj, val, temp);
-}
-
-
-LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), rsi);
-  LOperand* object =
-      UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
-  LOperand* value = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
-  LOperand* slot = FixedTemp(StoreWithVectorDescriptor::SlotRegister());
-  LOperand* vector = FixedTemp(StoreWithVectorDescriptor::VectorRegister());
-
-  LStoreNamedGeneric* result =
-      new (zone()) LStoreNamedGeneric(context, object, value, slot, vector);
-  return MarkAsCall(result, instr);
 }
 
 

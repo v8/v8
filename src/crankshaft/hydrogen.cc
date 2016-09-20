@@ -6868,9 +6868,16 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
         HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX));
     Handle<TypeFeedbackVector> vector =
         handle(current_feedback_vector(), isolate());
-    HStoreNamedGeneric* instr =
-        Add<HStoreNamedGeneric>(global_object, var->name(), value,
-                                function_language_mode(), vector, slot);
+    HValue* name = Add<HConstant>(var->name());
+    HValue* vector_value = Add<HConstant>(vector);
+    HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
+    Callable callable = CodeFactory::StoreICInOptimizedCode(
+        isolate(), function_language_mode());
+    HValue* stub = Add<HConstant>(callable.code());
+    HValue* values[] = {context(), global_object, name,
+                        value,     slot_value,    vector_value};
+    HCallWithDescriptor* instr = Add<HCallWithDescriptor>(
+        stub, 0, callable.descriptor(), ArrayVector(values));
     USE(instr);
     DCHECK(instr->HasObservableSideEffects());
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
@@ -7205,8 +7212,16 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       return result;
     }
 
-    HStoreNamedGeneric* result = New<HStoreNamedGeneric>(
-        object, name, value, function_language_mode(), vector, slot);
+    HValue* name_value = Add<HConstant>(name);
+    HValue* vector_value = Add<HConstant>(vector);
+    HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
+    Callable callable = CodeFactory::StoreICInOptimizedCode(
+        isolate(), function_language_mode());
+    HValue* stub = Add<HConstant>(callable.code());
+    HValue* values[] = {context(), object,     name_value,
+                        value,     slot_value, vector_value};
+    HCallWithDescriptor* result = New<HCallWithDescriptor>(
+        stub, 0, callable.descriptor(), ArrayVector(values));
     return result;
   }
 }
