@@ -90,13 +90,14 @@ class ZoneBuffer : public ZoneObject {
 
   void EnsureSpace(size_t size) {
     if ((pos_ + size) > end_) {
-      size_t new_size = 4096 + (end_ - buffer_) * 3;
+      size_t new_size = 4096 + size + (end_ - buffer_) * 3;
       byte* new_buffer = reinterpret_cast<byte*>(zone_->New(new_size));
       memcpy(new_buffer, buffer_, (pos_ - buffer_));
       pos_ = new_buffer + (pos_ - buffer_);
       buffer_ = new_buffer;
       end_ = new_buffer + new_size;
     }
+    DCHECK(pos_ + size <= end_);
   }
 
   byte** pos_ptr() { return &pos_; }
