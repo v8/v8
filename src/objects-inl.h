@@ -7959,10 +7959,20 @@ FixedArray* ModuleInfo::regular_exports() const {
   return FixedArray::cast(get(kRegularExportsIndex));
 }
 
+FixedArray* ModuleInfo::regular_imports() const {
+  return FixedArray::cast(get(kRegularImportsIndex));
+}
+
+FixedArray* ModuleInfo::special_imports() const {
+  return FixedArray::cast(get(kSpecialImportsIndex));
+}
+
 #ifdef DEBUG
 bool ModuleInfo::Equals(ModuleInfo* other) const {
-  return get(kSpecialExportsIndex) == other->get(kSpecialExportsIndex) &&
-         get(kRegularExportsIndex) == other->get(kRegularExportsIndex);
+  return regular_exports() == other->regular_exports() &&
+         regular_imports() == other->regular_imports() &&
+         special_exports() == other->special_exports() &&
+         special_imports() == other->special_imports();
 }
 #endif
 

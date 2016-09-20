@@ -870,6 +870,16 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
     }
   }
 
+  // Serialize special imports.
+  Handle<FixedArray> special_imports =
+      isolate->factory()->NewFixedArray(descr->special_imports().length());
+  {
+    int i = 0;
+    for (auto entry : descr->special_imports()) {
+      special_imports->set(i++, *entry->Serialize(isolate));
+    }
+  }
+
   // Serialize regular exports.
   Handle<FixedArray> regular_exports = isolate->factory()->NewFixedArray(
       static_cast<int>(descr->regular_exports().size()));
@@ -880,10 +890,22 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
     }
   }
 
+  // Serialize regular imports.
+  Handle<FixedArray> regular_imports = isolate->factory()->NewFixedArray(
+      static_cast<int>(descr->regular_imports().size()));
+  {
+    int i = 0;
+    for (const auto& elem : descr->regular_imports()) {
+      regular_imports->set(i++, *elem.second->Serialize(isolate));
+    }
+  }
+
   Handle<ModuleInfo> result = isolate->factory()->NewModuleInfo();
   result->set(kModuleRequestsIndex, *module_requests);
   result->set(kSpecialExportsIndex, *special_exports);
   result->set(kRegularExportsIndex, *regular_exports);
+  result->set(kSpecialImportsIndex, *special_imports);
+  result->set(kRegularImportsIndex, *regular_imports);
   return result;
 }
 

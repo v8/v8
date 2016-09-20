@@ -4575,6 +4575,8 @@ class ModuleInfo : public FixedArray {
   inline FixedArray* module_requests() const;
   inline FixedArray* special_exports() const;
   inline FixedArray* regular_exports() const;
+  inline FixedArray* special_imports() const;
+  inline FixedArray* regular_imports() const;
 
 #ifdef DEBUG
   inline bool Equals(ModuleInfo* other) const;
@@ -4586,6 +4588,8 @@ class ModuleInfo : public FixedArray {
     kModuleRequestsIndex,
     kSpecialExportsIndex,
     kRegularExportsIndex,
+    kSpecialImportsIndex,
+    kRegularImportsIndex,
     kLength
   };
 };

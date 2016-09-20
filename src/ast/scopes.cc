@@ -185,6 +185,26 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
     module_descriptor_->AddRegularExport(ModuleDescriptor::Entry::Deserialize(
         isolate, avfactory, serialized_entry));
   }
+
+  // Deserialize special imports.
+  Handle<FixedArray> special_imports = handle(module_info->special_imports());
+  for (int i = 0, n = special_imports->length(); i < n; ++i) {
+    Handle<ModuleInfoEntry> serialized_entry(
+        ModuleInfoEntry::cast(special_imports->get(i)), isolate);
+    module_descriptor_->AddSpecialImport(
+        ModuleDescriptor::Entry::Deserialize(isolate, avfactory,
+                                             serialized_entry),
+        avfactory->zone());
+  }
+
+  // Deserialize regular imports.
+  Handle<FixedArray> regular_imports = handle(module_info->regular_imports());
+  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
+    Handle<ModuleInfoEntry> serialized_entry(
+        ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
+    module_descriptor_->AddRegularImport(ModuleDescriptor::Entry::Deserialize(
+        isolate, avfactory, serialized_entry));
+  }
 }
 
 Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
