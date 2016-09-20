@@ -632,9 +632,10 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
+  const i::AstRawString* current_symbol =
+      scanner.CurrentSymbol(&ast_value_factory);
   ast_value_factory.Internalize(CcTest::i_isolate());
-  i::Handle<i::String> val =
-      scanner.CurrentSymbol(&ast_value_factory)->string();
+  i::Handle<i::String> val = current_symbol->string();
   i::DisallowHeapAllocation no_alloc;
   i::String::FlatContent content = val->GetFlatContent();
   CHECK(content.IsOneByte());
@@ -3214,8 +3215,8 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
   i::Context* context = f->context();
   i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
-  avf.Internalize(isolate);
   const i::AstRawString* name = avf.GetOneByteString("result");
+  avf.Internalize(isolate);
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
   i::DeclarationScope* script_scope =
@@ -3264,6 +3265,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
   i::Context* context = f->context();
   i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
+  const i::AstRawString* name_x = avf.GetOneByteString("x");
   avf.Internalize(isolate);
 
   i::DeclarationScope* script_scope =
@@ -3272,7 +3274,6 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
       isolate, &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
-  const i::AstRawString* name_x = avf.GetOneByteString("x");
 
   // Get result from f's function context (that is g's outer context)
   i::Variable* var_x = s->Lookup(name_x);

@@ -1082,10 +1082,6 @@ class Parser : public ParserBase<Parser> {
   HistogramTimer* pre_parse_timer_;
 
   bool parsing_on_main_thread_;
-
-#ifdef DEBUG
-  void Print(AstNode* node);
-#endif  // DEBUG
 };
 
 }  // namespace internal

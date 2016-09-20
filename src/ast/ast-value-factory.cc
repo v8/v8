@@ -237,28 +237,14 @@ AstRawString* AstValueFactory::GetTwoByteStringInternal(
 
 
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
-  // For the FlatContent to stay valid, we shouldn't do any heap
-  // allocation. Make sure we won't try to internalize the string in GetString.
   AstRawString* result = NULL;
-  Isolate* saved_isolate = isolate_;
-  isolate_ = NULL;
-  {
-    DisallowHeapAllocation no_gc;
-    String::FlatContent content = literal->GetFlatContent();
-    if (content.IsOneByte()) {
-      result = GetOneByteStringInternal(content.ToOneByteVector());
-    } else {
-      DCHECK(content.IsTwoByte());
-      result = GetTwoByteStringInternal(content.ToUC16Vector());
-    }
-  }
-  isolate_ = saved_isolate;
-  if (strings_ != nullptr && isolate_) {
-    // Only the string we are creating is uninternalized at this point.
-    DCHECK_EQ(result, strings_);
-    DCHECK_NULL(strings_->next());
-    result->Internalize(isolate_);
-    ResetStrings();
+  DisallowHeapAllocation no_gc;
+  String::FlatContent content = literal->GetFlatContent();
+  if (content.IsOneByte()) {
+    result = GetOneByteStringInternal(content.ToOneByteVector());
+  } else {
+    DCHECK(content.IsTwoByte());
+    result = GetTwoByteStringInternal(content.ToUC16Vector());
   }
   return result;
 }
@@ -308,13 +294,6 @@ const AstRawString* AstValueFactory::ConcatStrings(const AstRawString* left,
 }
 
 void AstValueFactory::Internalize(Isolate* isolate) {
-  if (isolate_) {
-    DCHECK_NULL(strings_);
-    DCHECK_NULL(values_);
-    // Everything is already internalized.
-    return;
-  }
-
   // Strings need to be internalized before values, because values refer to
   // strings.
   for (AstString* current = strings_; current != nullptr;) {
@@ -327,7 +306,6 @@ void AstValueFactory::Internalize(Isolate* isolate) {
     current->Internalize(isolate);
     current = next;
   }
-  isolate_ = isolate;
   ResetStrings();
   values_ = nullptr;
 }

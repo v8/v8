@@ -276,6 +276,7 @@ class AsmTyperHarnessBuilder {
  private:
   Variable* DeclareVariable(VariableName var_name) {
     auto* name_ast_string = ast_value_factory_.GetOneByteString(var_name.name_);
+    ast_value_factory_.Internalize(isolate_);
     return var_name.mode_ == DYNAMIC_GLOBAL
                ? outer_scope_->DeclareDynamicGlobal(name_ast_string,
                                                     NORMAL_VARIABLE)

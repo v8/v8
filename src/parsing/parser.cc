@@ -4167,7 +4167,7 @@ void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
 
 
 void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
-  // Internalize strings.
+  // Internalize strings and values.
   ast_value_factory()->Internalize(isolate);
 
   // Error processing.
@@ -4234,7 +4234,6 @@ bool Parser::Parse(ParseInfo* info) {
   info->set_literal(result);
 
   Internalize(isolate, info->script(), result == NULL);
-  DCHECK(ast_value_factory()->IsInternalized());
   return (result != NULL);
 }
 
@@ -5826,13 +5825,6 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
 
   return final_loop;
 }
-
-#ifdef DEBUG
-void Parser::Print(AstNode* node) {
-  ast_value_factory()->Internalize(Isolate::Current());
-  node->Print(Isolate::Current());
-}
-#endif  // DEBUG
 
 #undef CHECK_OK
 #undef CHECK_OK_VOID
