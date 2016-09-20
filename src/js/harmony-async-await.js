@@ -33,7 +33,10 @@ utils.Import(function(from) {
   ResolvePromise = from.ResolvePromise;
 });
 
-var promiseAwaitHandlerSymbol = utils.ImportNow("promise_await_handler_symbol");
+var promiseHandledBySymbol =
+    utils.ImportNow("promise_handled_by_symbol");
+var promiseForwardingHandlerSymbol =
+    utils.ImportNow("promise_forwarding_handler_symbol");
 var promiseHandledHintSymbol =
     utils.ImportNow("promise_handled_hint_symbol");
 var promiseHasHandlerSymbol =
@@ -56,10 +59,11 @@ function PromiseCastResolved(value) {
 // Shared logic for the core of await. The parser desugars
 //   await awaited
 // into
-//   yield AsyncFunctionAwait{Caught,Uncaught}(.generator, awaited)
+//   yield AsyncFunctionAwait{Caught,Uncaught}(.generator, awaited, .promise)
 // The 'awaited' parameter is the value; the generator stands in
-// for the asyncContext, and mark is metadata for debugging
-function AsyncFunctionAwait(generator, awaited, mark) {
+// for the asyncContext, and .promise is the larger promise under
+// construction by the enclosing async function.
+function AsyncFunctionAwait(generator, awaited, outerPromise) {
   // Promise.resolve(awaited).then(
   //     value => AsyncFunctionNext(value),
   //     error => AsyncFunctionThrow(error)
@@ -83,12 +87,6 @@ function AsyncFunctionAwait(generator, awaited, mark) {
     return;
   }
 
-  if (mark && DEBUG_IS_ACTIVE && IsPromise(awaited)) {
-    // Mark the reject handler callback such that it does not influence
-    // catch prediction.
-    SET_PRIVATE(onRejected, promiseAwaitHandlerSymbol, true);
-  }
-
   // Just forwarding the exception, so no debugEvent for throwawayCapability
   var throwawayCapability = NewPromiseCapability(GlobalPromise, false);
 
@@ -96,24 +94,38 @@ function AsyncFunctionAwait(generator, awaited, mark) {
   // unhandled reject events as its work is done
   SET_PRIVATE(throwawayCapability.promise, promiseHasHandlerSymbol, true);
 
-  return PerformPromiseThen(promise, onFulfilled, onRejected,
-                            throwawayCapability);
+  PerformPromiseThen(promise, onFulfilled, onRejected, throwawayCapability);
+
+  if (DEBUG_IS_ACTIVE && !IS_UNDEFINED(outerPromise)) {
+    if (IsPromise(awaited)) {
+      // Mark the reject handler callback to be a forwarding edge, rather
+      // than a meaningful catch handler
+      SET_PRIVATE(onRejected, promiseForwardingHandlerSymbol, true);
+    }
+
+    // Mark the dependency to outerPromise in case the throwaway Promise is
+    // found on the Promise stack
+    SET_PRIVATE(throwawayCapability.promise, promiseHandledBySymbol,
+                outerPromise);
+  }
 }
 
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates no locally surrounding catch block
-function AsyncFunctionAwaitUncaught(generator, awaited) {
-  // TODO(littledan): Install a dependency edge from awaited to outerPromise
-  return AsyncFunctionAwait(generator, awaited, true);
+function AsyncFunctionAwaitUncaught(generator, awaited, outerPromise) {
+  AsyncFunctionAwait(generator, awaited, outerPromise);
 }
 
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates that there is a locally surrounding catch block
-function AsyncFunctionAwaitCaught(generator, awaited) {
+function AsyncFunctionAwaitCaught(generator, awaited, outerPromise) {
   if (DEBUG_IS_ACTIVE && IsPromise(awaited)) {
     SET_PRIVATE(awaited, promiseHandledHintSymbol, true);
   }
-  return AsyncFunctionAwait(generator, awaited, false);
+  // Pass undefined for the outer Promise to not waste time setting up
+  // or following the dependency chain when this Promise is already marked
+  // as handled
+  AsyncFunctionAwait(generator, awaited, UNDEFINED);
 }
 
 // How the parser rejects promises from async/await desugaring

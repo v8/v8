@@ -12,10 +12,10 @@
 // Imports
 
 var InternalArray = utils.InternalArray;
-var promiseAwaitHandlerSymbol =
-    utils.ImportNow("promise_await_handler_symbol");
-var promiseCombinedDeferredSymbol =
-    utils.ImportNow("promise_combined_deferred_symbol");
+var promiseHandledBySymbol =
+    utils.ImportNow("promise_handled_by_symbol");
+var promiseForwardingHandlerSymbol =
+    utils.ImportNow("promise_forwarding_handler_symbol");
 var promiseHasHandlerSymbol =
     utils.ImportNow("promise_has_handler_symbol");
 var promiseRejectReactionsSymbol =
@@ -222,6 +222,7 @@ function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
 
 function PromiseIdResolveHandler(x) { return x; }
 function PromiseIdRejectHandler(r) { %_ReThrow(r); }
+SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
 
 function PromiseNopResolver() {}
 
@@ -236,7 +237,7 @@ function IsPromise(x) {
 }
 
 function PromiseCreate() {
-  return new GlobalPromise(PromiseNopResolver)
+  return new GlobalPromise(PromiseNopResolver);
 }
 
 // ES#sec-promise-resolve-functions
@@ -287,6 +288,10 @@ function ResolvePromise(promise, resolution) {
       var id;
       var name = "PromiseResolveThenableJob";
       var instrumenting = DEBUG_IS_ACTIVE;
+      if (instrumenting && IsPromise(resolution)) {
+        // Mark the dependency of the new promise on the resolution
+        SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
+      }
       %EnqueueMicrotask(function() {
         if (instrumenting) {
           %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
@@ -310,7 +315,8 @@ function ResolvePromise(promise, resolution) {
       return;
     }
   }
-  FulfillPromise(promise, kFulfilled, resolution, promiseFulfillReactionsSymbol);
+  FulfillPromise(promise, kFulfilled, resolution,
+                 promiseFulfillReactionsSymbol);
 }
 
 // ES#sec-rejectpromise
@@ -472,6 +478,10 @@ function PromiseAll(iterable) {
   var resolutions = new InternalArray();
   var count;
 
+  // For catch prediction, don't treat the .then calls as handling it;
+  // instead, recurse outwards.
+  SET_PRIVATE(deferred.reject, promiseForwardingHandlerSymbol, true);
+
   function CreateResolveElementFunction(index, values, promiseCapability) {
     var alreadyCalled = false;
     return (x) => {
@@ -492,10 +502,14 @@ function PromiseAll(iterable) {
     for (var value of iterable) {
       var nextPromise = this.resolve(value);
       ++count;
-      nextPromise.then(
+      var throwawayPromise = nextPromise.then(
           CreateResolveElementFunction(i, resolutions, deferred),
           deferred.reject);
-      SET_PRIVATE(deferred.reject, promiseCombinedDeferredSymbol, deferred);
+      // For catch prediction, mark that rejections here are semantically
+      // handled by the combined Promise.
+      if (IsPromise(throwawayPromise)) {
+        SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, deferred.promise);
+      }
       ++i;
     }
 
@@ -522,10 +536,20 @@ function PromiseRace(iterable) {
   // false debugEvent so that forwarding the rejection through race does not
   // trigger redundant ExceptionEvents
   var deferred = NewPromiseCapability(this, false);
+
+  // For catch prediction, don't treat the .then calls as handling it;
+  // instead, recurse outwards.
+  SET_PRIVATE(deferred.reject, promiseForwardingHandlerSymbol, true);
+
   try {
     for (var value of iterable) {
-      this.resolve(value).then(deferred.resolve, deferred.reject);
-      SET_PRIVATE(deferred.reject, promiseCombinedDeferredSymbol, deferred);
+      var throwawayPromise = this.resolve(value).then(deferred.resolve,
+                                                      deferred.reject);
+      // For catch prediction, mark that rejections here are semantically
+      // handled by the combined Promise.
+      if (IsPromise(throwawayPromise)) {
+        SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, deferred.promise);
+      }
     }
   } catch (e) {
     deferred.reject(e)
@@ -537,25 +561,35 @@ function PromiseRace(iterable) {
 // Utility for debugger
 
 function PromiseHasUserDefinedRejectHandlerCheck(handler, deferred) {
-  // If this handler was installed by async/await, it does not indicate
-  // that there is a user-defined reject handler.
-  if (GET_PRIVATE(handler, promiseAwaitHandlerSymbol)) return false;
-  if (handler !== PromiseIdRejectHandler) {
-    var combinedDeferred = GET_PRIVATE(handler, promiseCombinedDeferredSymbol);
-    if (IS_UNDEFINED(combinedDeferred)) return true;
-    if (PromiseHasUserDefinedRejectHandlerRecursive(combinedDeferred.promise)) {
-      return true;
-    }
-  } else if (PromiseHasUserDefinedRejectHandlerRecursive(deferred.promise)) {
-    return true;
+  // Recurse to the forwarding Promise, if any. This may be due to
+  //  - await reaction forwarding to the throwaway Promise, which has
+  //    a dependency edge to the outer Promise.
+  //  - PromiseIdResolveHandler forwarding to the output of .then
+  //  - Promise.all/Promise.race forwarding to a throwaway Promise, which
+  //    has a dependency edge to the generated outer Promise.
+  if (GET_PRIVATE(handler, promiseForwardingHandlerSymbol)) {
+    return PromiseHasUserDefinedRejectHandlerRecursive(deferred.promise);
   }
-  return false;
+
+  // Otherwise, this is a real reject handler for the Promise
+  return true;
 }
 
 function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
   // If this promise was marked as being handled by a catch block
   // in an async function, then it has a user-defined reject handler.
   if (GET_PRIVATE(promise, promiseHandledHintSymbol)) return true;
+
+  // If this Promise is subsumed by another Promise (a Promise resolved
+  // with another Promise, or an intermediate, hidden, throwaway Promise
+  // within async/await), then recurse on the outer Promise.
+  // In this case, the dependency is one possible way that the Promise
+  // could be resolved, so it does not subsume the other following cases.
+  var outerPromise = GET_PRIVATE(promise, promiseHandledBySymbol);
+  if (outerPromise &&
+      PromiseHasUserDefinedRejectHandlerRecursive(outerPromise)) {
+    return true;
+  }
 
   var queue = GET_PRIVATE(promise, promiseRejectReactionsSymbol);
   var deferreds = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
@@ -577,6 +611,8 @@ function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
 // Return whether the promise will be handled by a user-defined reject
 // handler somewhere down the promise chain. For this, we do a depth-first
 // search for a reject handler that's not the default PromiseIdRejectHandler.
+// This function also traverses dependencies of one Promise on another,
+// set up through async/await and Promises resolved with Promises.
 function PromiseHasUserDefinedRejectHandler() {
   return PromiseHasUserDefinedRejectHandlerRecursive(this);
 };

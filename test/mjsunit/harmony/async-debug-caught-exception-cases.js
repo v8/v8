@@ -31,6 +31,19 @@ function rejectConstructor() {
 
 async function argThrower(x = (() => { throw "d"; })()) { }  // Exception d
 
+async function awaitThrow() {
+  await undefined;
+  throw "e";  // Exception e
+}
+
+function constructorThrow() {
+  return new Promise((resolve, reject) =>
+    Promise.resolve().then(() =>
+      reject("f")  // Exception f
+    )
+  );
+}
+
 function suppressThrow() {
   return thrower();
 }
@@ -80,7 +93,43 @@ async function indirectAwaitCatch(producer) {
   }
 }
 
-let catches = [caught, indirectCaught, indirectAwaitCatch];
+function switchCatch(producer) {
+  let resolve;
+  let promise = new Promise(r => resolve = r);
+  async function localCaught() {
+    try {
+      await promise;  // force switching to localUncaught and back
+      await producer();
+    } catch (e) { }
+  }
+  async function localUncaught() {
+    await undefined;
+    resolve();
+  }
+  localCaught();
+  localUncaught();
+}
+
+function switchDotCatch(producer) {
+  let resolve;
+  let promise = new Promise(r => resolve = r);
+  async function localCaught() {
+    await promise;  // force switching to localUncaught and back
+    await producer();
+  }
+  async function localUncaught() {
+    await undefined;
+    resolve();
+  }
+  localCaught().catch(() => {});
+  localUncaught();
+}
+
+let catches = [caught,
+               indirectCaught,
+               indirectAwaitCatch,
+               switchCatch,
+               switchDotCatch];
 let noncatches = [uncaught, indirectUncaught];
 let lateCatches = [dotCatch,
                    indirectReturnDotCatch,
@@ -89,18 +138,19 @@ let lateCatches = [dotCatch,
 
 let throws = [thrower, reject, argThrower, suppressThrow];
 let nonthrows = [awaitReturn, scalar, nothing];
+let lateThrows = [awaitThrow, constructorThrow];
 let uncatchable = [rejectConstructor];
 
 let cases = [];
 
-for (let producer of throws) {
+for (let producer of throws.concat(lateThrows)) {
   for (let consumer of catches) {
     cases.push({ producer, consumer, expectedEvents: 1, caught: true });
     cases.push({ producer, consumer, expectedEvents: 0, caught: false });
   }
 }
 
-for (let producer of throws) {
+for (let producer of throws.concat(lateThrows)) {
   for (let consumer of noncatches) {
     cases.push({ producer, consumer, expectedEvents: 1, caught: true });
     cases.push({ producer, consumer, expectedEvents: 1, caught: false });
@@ -121,6 +171,13 @@ for (let producer of uncatchable) {
   }
 }
 
+for (let producer of lateThrows) {
+  for (let consumer of lateCatches) {
+    cases.push({ producer, consumer, expectedEvents: 1, caught: true });
+    cases.push({ producer, consumer, expectedEvents: 0, caught: false });
+  }
+}
+
 for (let producer of throws) {
   for (let consumer of lateCatches) {
     cases.push({ producer, consumer, expectedEvents: 1, caught: true });
@@ -128,27 +185,32 @@ for (let producer of throws) {
   }
 }
 
-for (let {producer, consumer, expectedEvents, caught} of cases) {
-  Debug.setListener(listener);
-  if (caught) {
-    Debug.setBreakOnException();
-  } else {
-    Debug.setBreakOnUncaughtException();
-  }
 
-  events = 0;
-  consumer(producer);
-  %RunMicrotasks();
+function runPart(n) {
+  let subcases = cases.slice(n * cases.length / 4,
+                             ((n + 1) * cases.length) / 4);
+  for (let {producer, consumer, expectedEvents, caught} of subcases) {
+    Debug.setListener(listener);
+    if (caught) {
+      Debug.setBreakOnException();
+    } else {
+      Debug.setBreakOnUncaughtException();
+    }
 
-  Debug.setListener(null);
-  if (caught) {
-    Debug.clearBreakOnException();
-  } else {
-    Debug.clearBreakOnUncaughtException();
-  }
-  if (expectedEvents != events) {
-    print(`producer ${producer} consumer ${consumer} expectedEvents ` +
-          `${expectedEvents} caught ${caught} events ${events}`);
-    quit(1);
+    events = 0;
+    consumer(producer);
+    %RunMicrotasks();
+
+    Debug.setListener(null);
+    if (caught) {
+      Debug.clearBreakOnException();
+    } else {
+      Debug.clearBreakOnUncaughtException();
+    }
+    if (expectedEvents != events) {
+      print(`producer ${producer} consumer ${consumer} expectedEvents ` +
+            `${expectedEvents} caught ${caught} events ${events}`);
+      quit(1);
+    }
   }
 }
