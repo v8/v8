@@ -361,8 +361,8 @@ bool AsmTyper::AddGlobal(Variable* variable, VariableInfo* info) {
     return false;
   }
 
-  ZoneHashMap::Entry* entry = global_scope_.LookupOrInsert(
-      variable, ComputePointerHash(variable), ZoneAllocationPolicy(zone_));
+  ZoneHashMap::Entry* entry =
+      global_scope_.LookupOrInsert(variable, ComputePointerHash(variable));
 
   if (entry->value != nullptr) {
     return false;
@@ -378,8 +378,8 @@ bool AsmTyper::AddLocal(Variable* variable, VariableInfo* info) {
   DCHECK(!info->IsGlobal());
   DCHECK(ValidAsmIdentifier(variable->name()));
 
-  ZoneHashMap::Entry* entry = local_scope_.LookupOrInsert(
-      variable, ComputePointerHash(variable), ZoneAllocationPolicy(zone_));
+  ZoneHashMap::Entry* entry =
+      local_scope_.LookupOrInsert(variable, ComputePointerHash(variable));
 
   if (entry->value != nullptr) {
     return false;

@@ -472,7 +472,7 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
     // If there is an existing entry do not emit a store unless the previous
     // entry was also an accessor.
     uint32_t hash = literal->Hash();
-    ZoneHashMap::Entry* entry = table.LookupOrInsert(literal, hash, allocator);
+    ZoneHashMap::Entry* entry = table.LookupOrInsert(literal, hash);
     if (entry->value != NULL) {
       auto previous_kind =
           static_cast<ObjectLiteral::Property*>(entry->value)->kind();
