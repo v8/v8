@@ -115,10 +115,7 @@ config("internal_config") {
   include_dirs = [ "." ]
 
   if (is_component_build) {
-    defines = [
-      "V8_SHARED",
-      "BUILDING_V8_SHARED",
-    ]
+    defines = [ "BUILDING_V8_SHARED" ]
   }
 }
 
@@ -142,10 +139,7 @@ config("libsampler_config") {
 # itself.
 config("external_config") {
   if (is_component_build) {
-    defines = [
-      "V8_SHARED",
-      "USING_V8_SHARED",
-    ]
+    defines = [ "USING_V8_SHARED" ]
   }
   include_dirs = [ "include" ]
   if (v8_enable_inspector_override) {
@@ -2390,6 +2384,7 @@ if (is_component_build) {
 
 v8_executable("d8") {
   sources = [
+    "$target_gen_dir/d8-js.cc",
     "src/d8.cc",
     "src/d8.h",
   ]
@@ -2417,9 +2412,6 @@ v8_executable("d8") {
     sources += [ "src/d8-windows.cc" ]
   }
 
-  if (!is_component_build) {
-    sources += [ "$target_gen_dir/d8-js.cc" ]
-  }
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
   }

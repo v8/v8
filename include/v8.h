@@ -51,7 +51,7 @@
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY && defined(V8_SHARED)
+#if V8_HAS_ATTRIBUTE_VISIBILITY
 # ifdef BUILDING_V8_SHARED
 #  define V8_EXPORT __attribute__ ((visibility("default")))
 # else

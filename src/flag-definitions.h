@@ -23,14 +23,21 @@
 // this will just be an extern declaration, but for a readonly flag we let the
 // compiler make better optimizations by giving it the value.
 #if defined(FLAG_MODE_DECLARE)
-#define FLAG_FULL(ftype, ctype, nam, def, cmt) extern ctype FLAG_##nam;
+#define FLAG_FULL(ftype, ctype, nam, def, cmt) \
+  V8_EXPORT_PRIVATE extern ctype FLAG_##nam;
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
   static ctype const FLAG_##nam = def;
 
 // We want to supply the actual storage and value for the flag variable in the
 // .cc file.  We only do this for writable flags.
 #elif defined(FLAG_MODE_DEFINE)
-#define FLAG_FULL(ftype, ctype, nam, def, cmt) ctype FLAG_##nam = def;
+#ifdef USING_V8_SHARED
+#define FLAG_FULL(ftype, ctype, nam, def, cmt) \
+  V8_EXPORT_PRIVATE extern ctype FLAG_##nam;
+#else
+#define FLAG_FULL(ftype, ctype, nam, def, cmt) \
+  V8_EXPORT_PRIVATE ctype FLAG_##nam = def;
+#endif
 
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,

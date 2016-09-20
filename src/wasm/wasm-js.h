@@ -5,13 +5,8 @@
 #ifndef V8_WASM_JS_H_
 #define V8_WASM_JS_H_
 
-#ifndef V8_SHARED
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
-#else
-#include "include/v8.h"
-#include "src/base/compiler-specific.h"
-#endif  // !V8_SHARED
 
 namespace v8 {
 namespace internal {

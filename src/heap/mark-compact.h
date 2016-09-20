@@ -776,8 +776,7 @@ class EvacuationScope BASE_EMBEDDED {
   MarkCompactCollector* collector_;
 };
 
-
-const char* AllocationSpaceName(AllocationSpace space);
+V8_EXPORT_PRIVATE const char* AllocationSpaceName(AllocationSpace space);
 }  // namespace internal
 }  // namespace v8
 

@@ -106,10 +106,7 @@ config("inspector_config") {
     ]
   }
   if (is_component_build) {
-    defines = [
-      "V8_SHARED",
-      "BUILDING_V8_SHARED",
-    ]
+    defines = [ "BUILDING_V8_SHARED" ]
   }
 }
 

@@ -2426,7 +2426,7 @@ class AllSpaces BASE_EMBEDDED {
 
 // Space iterator for iterating over all old spaces of the heap: Old space
 // and code space.  Returns each space in turn, and null when it is done.
-class OldSpaces BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE OldSpaces BASE_EMBEDDED {
  public:
   explicit OldSpaces(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
   OldSpace* next();
