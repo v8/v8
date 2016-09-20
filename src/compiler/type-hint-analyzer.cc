@@ -29,6 +29,7 @@ BinaryOperationHint ToBinaryOperationHint(Token::Value op,
     case BinaryOpICState::NUMBER:
       return BinaryOperationHint::kNumberOrOddball;
     case BinaryOpICState::STRING:
+      return BinaryOperationHint::kString;
     case BinaryOpICState::GENERIC:
       return BinaryOperationHint::kAny;
   }

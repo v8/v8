@@ -46,6 +46,7 @@ class JSBinopReduction final {
           return true;
         case BinaryOperationHint::kAny:
         case BinaryOperationHint::kNone:
+        case BinaryOperationHint::kString:
           break;
       }
     }
@@ -68,6 +69,30 @@ class JSBinopReduction final {
         case CompareOperationHint::kAny:
         case CompareOperationHint::kNone:
           break;
+      }
+    }
+    return false;
+  }
+
+  // Check if a string addition will definitely result in creating a ConsString,
+  // i.e. if the combined length of the resulting string exceeds the ConsString
+  // minimum length.
+  bool ShouldCreateConsString() {
+    DCHECK_EQ(IrOpcode::kJSAdd, node_->opcode());
+    if (BothInputsAre(Type::String()) ||
+        ((lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) &&
+         BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString)) {
+      if (left_type()->IsConstant() &&
+          left_type()->AsConstant()->Value()->IsString()) {
+        Handle<String> left_string =
+            Handle<String>::cast(left_type()->AsConstant()->Value());
+        if (left_string->length() >= ConsString::kMinLength) return true;
+      }
+      if (right_type()->IsConstant() &&
+          right_type()->AsConstant()->Value()->IsString()) {
+        Handle<String> right_string =
+            Handle<String>::cast(right_type()->AsConstant()->Value());
+        if (right_string->length() >= ConsString::kMinLength) return true;
       }
     }
     return false;
@@ -467,6 +492,9 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   if (r.OneInputIs(Type::String())) {
+    if (r.ShouldCreateConsString()) {
+      return ReduceCreateConsString(node);
+    }
     StringAddFlags flags = STRING_ADD_CHECK_NONE;
     if (!r.LeftInputIs(Type::String())) {
       flags = STRING_ADD_CONVERT_LEFT;
@@ -542,6 +570,123 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node, Signedness signedness) {
                                                     : Type::Signed32());
   }
   return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
+  Node* first = NodeProperties::GetValueInput(node, 0);
+  Node* second = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Make sure {first} is actually a String.
+  Type* first_type = NodeProperties::GetType(first);
+  if (!first_type->Is(Type::String())) {
+    first = effect =
+        graph()->NewNode(simplified()->CheckString(), first, effect, control);
+    first_type = NodeProperties::GetType(first);
+  }
+
+  // Make sure {second} is actually a String.
+  Type* second_type = NodeProperties::GetType(second);
+  if (!second_type->Is(Type::String())) {
+    second = effect =
+        graph()->NewNode(simplified()->CheckString(), second, effect, control);
+    second_type = NodeProperties::GetType(second);
+  }
+
+  // Determine the {first} length.
+  Node* first_length =
+      first_type->IsConstant()
+          ? jsgraph()->Constant(
+                Handle<String>::cast(first_type->AsConstant()->Value())
+                    ->length())
+          : effect = graph()->NewNode(
+                simplified()->LoadField(AccessBuilder::ForStringLength()),
+                first, effect, control);
+
+  // Determine the {second} length.
+  Node* second_length =
+      second_type->IsConstant()
+          ? jsgraph()->Constant(
+                Handle<String>::cast(second_type->AsConstant()->Value())
+                    ->length())
+          : effect = graph()->NewNode(
+                simplified()->LoadField(AccessBuilder::ForStringLength()),
+                second, effect, control);
+
+  // Compute the resulting length.
+  Node* length =
+      graph()->NewNode(simplified()->NumberAdd(), first_length, second_length);
+
+  // Check if we would overflow the allowed maximum string length.
+  Node* check = graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
+                                 jsgraph()->Constant(String::kMaxLength));
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  {
+    // Throw a RangeError in case of overflow.
+    Node* vfalse = efalse = graph()->NewNode(
+        javascript()->CallRuntime(Runtime::kThrowInvalidStringLength), context,
+        frame_state, efalse, if_false);
+    if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
+    if_false = graph()->NewNode(common()->Throw(), vfalse, efalse, if_false);
+    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+    NodeProperties::MergeControlToEnd(graph(), common(), if_false);
+    Revisit(graph()->end());
+
+    // Update potential {IfException} uses of {node} to point to the
+    // %ThrowInvalidStringLength runtime call node instead.
+    for (Edge edge : node->use_edges()) {
+      if (edge.from()->opcode() == IrOpcode::kIfException) {
+        DCHECK(NodeProperties::IsControlEdge(edge) ||
+               NodeProperties::IsEffectEdge(edge));
+        edge.UpdateTo(vfalse);
+        Revisit(edge.from());
+      }
+    }
+  }
+  control = graph()->NewNode(common()->IfTrue(), branch);
+
+  // Figure out the map for the resulting ConsString.
+  // TODO(turbofan): We currently just use the cons_string_map here for
+  // the sake of simplicity; we could also try to be smarter here and
+  // use the one_byte_cons_string_map instead when the resulting ConsString
+  // contains only one byte characters.
+  Node* value_map = jsgraph()->HeapConstant(factory()->cons_string_map());
+
+  // Allocate the resulting ConsString.
+  effect = graph()->NewNode(
+      common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  Node* value = effect =
+      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+                       jsgraph()->Constant(ConsString::kSize), effect, control);
+  NodeProperties::SetType(value, Type::OtherString());
+  effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                            value, value_map, effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForNameHashField()), value,
+      jsgraph()->Uint32Constant(Name::kEmptyHashField), effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForStringLength()), value, length,
+      effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForConsStringFirst()), value,
+      first, effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForConsStringSecond()), value,
+      second, effect, control);
+
+  // Morph the {node} into a {FinishRegion}.
+  ReplaceWithValue(node, node, node, control);
+  node->ReplaceInput(0, value);
+  node->ReplaceInput(1, effect);
+  node->TrimInputCount(2);
+  NodeProperties::ChangeOp(node, common()->FinishRegion());
+  return Changed(node);
 }
 
 Reduction JSTypedLowering::ReduceJSComparison(Node* node) {

@@ -73,6 +73,7 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceNumberBinop(Node* node);
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);
+  Reduction ReduceCreateConsString(Node* node);
 
   Factory* factory() const;
   Graph* graph() const;
