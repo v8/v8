@@ -25,6 +25,4 @@ let log = [];
   }
 })();
 
-// TODO(v8:5405): The log should actually be empty and not
-// contain new.target.
-assertArrayEquals(['new.target'], log);
+assertArrayEquals([], log);
