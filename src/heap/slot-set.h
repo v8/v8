@@ -6,6 +6,7 @@
 #define V8_SLOT_SET_H
 
 #include "src/allocation.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/bits.h"
 #include "src/utils.h"
 
@@ -24,7 +25,7 @@ class SlotSet : public Malloced {
  public:
   SlotSet() {
     for (int i = 0; i < kBuckets; i++) {
-      bucket[i] = nullptr;
+      bucket[i].SetValue(nullptr);
     }
   }
 
@@ -37,25 +38,30 @@ class SlotSet : public Malloced {
   void SetPageStart(Address page_start) { page_start_ = page_start; }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
+  // This method should only be called on the main thread because concurrent
+  // allocation of the bucket is not thread-safe.
   void Insert(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
-    if (bucket[bucket_index] == nullptr) {
-      bucket[bucket_index] = AllocateBucket();
+    base::AtomicValue<uint32_t>* current_bucket = bucket[bucket_index].Value();
+    if (current_bucket == nullptr) {
+      current_bucket = AllocateBucket();
+      bucket[bucket_index].SetValue(current_bucket);
     }
-    bucket[bucket_index][cell_index] |= 1u << bit_index;
+    current_bucket[cell_index].SetBit(bit_index);
   }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   void Remove(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
-    if (bucket[bucket_index] != nullptr) {
-      uint32_t cell = bucket[bucket_index][cell_index];
+    base::AtomicValue<uint32_t>* current_bucket = bucket[bucket_index].Value();
+    if (current_bucket != nullptr) {
+      uint32_t cell = current_bucket[cell_index].Value();
       if (cell) {
         uint32_t bit_mask = 1u << bit_index;
         if (cell & bit_mask) {
-          bucket[bucket_index][cell_index] ^= bit_mask;
+          current_bucket[cell_index].ClearBit(bit_index);
         }
       }
     }
@@ -73,17 +79,17 @@ class SlotSet : public Malloced {
     uint32_t start_mask = (1u << start_bit) - 1;
     uint32_t end_mask = ~((1u << end_bit) - 1);
     if (start_bucket == end_bucket && start_cell == end_cell) {
-      MaskCell(start_bucket, start_cell, start_mask | end_mask);
+      ClearCell(start_bucket, start_cell, ~(start_mask | end_mask));
       return;
     }
     int current_bucket = start_bucket;
     int current_cell = start_cell;
-    MaskCell(current_bucket, current_cell, start_mask);
+    ClearCell(current_bucket, current_cell, ~start_mask);
     current_cell++;
     if (current_bucket < end_bucket) {
-      if (bucket[current_bucket] != nullptr) {
+      if (bucket[current_bucket].Value() != nullptr) {
         while (current_cell < kCellsPerBucket) {
-          bucket[current_bucket][current_cell] = 0;
+          bucket[current_bucket].Value()[current_cell].SetValue(0);
           current_cell++;
         }
       }
@@ -100,24 +106,25 @@ class SlotSet : public Malloced {
     }
     // All buckets between start_bucket and end_bucket are cleared.
     DCHECK(current_bucket == end_bucket && current_cell <= end_cell);
-    if (current_bucket == kBuckets || bucket[current_bucket] == nullptr) {
+    if (current_bucket == kBuckets ||
+        bucket[current_bucket].Value() == nullptr) {
       return;
     }
     while (current_cell < end_cell) {
-      bucket[current_bucket][current_cell] = 0;
+      bucket[current_bucket].Value()[current_cell].SetValue(0);
       current_cell++;
     }
     // All cells between start_cell and end_cell are cleared.
     DCHECK(current_bucket == end_bucket && current_cell == end_cell);
-    MaskCell(end_bucket, end_cell, end_mask);
+    ClearCell(end_bucket, end_cell, ~end_mask);
   }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   bool Lookup(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
-    if (bucket[bucket_index] != nullptr) {
-      uint32_t cell = bucket[bucket_index][cell_index];
+    if (bucket[bucket_index].Value() != nullptr) {
+      uint32_t cell = bucket[bucket_index].Value()[cell_index].Value();
       return (cell & (1u << bit_index)) != 0;
     }
     return false;
@@ -126,6 +133,7 @@ class SlotSet : public Malloced {
   // Iterate over all slots in the set and for each slot invoke the callback.
   // If the callback returns REMOVE_SLOT then the slot is removed from the set.
   // Returns the new number of slots.
+  // This method should only be called on the main thread.
   //
   // Sample usage:
   // Iterate([](Address slot_address) {
@@ -136,13 +144,14 @@ class SlotSet : public Malloced {
   int Iterate(Callback callback) {
     int new_count = 0;
     for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
-      if (bucket[bucket_index] != nullptr) {
+      if (bucket[bucket_index].Value() != nullptr) {
         int in_bucket_count = 0;
-        uint32_t* current_bucket = bucket[bucket_index];
+        base::AtomicValue<uint32_t>* current_bucket =
+            bucket[bucket_index].Value();
         int cell_offset = bucket_index * kBitsPerBucket;
         for (int i = 0; i < kCellsPerBucket; i++, cell_offset += kBitsPerCell) {
-          if (current_bucket[i]) {
-            uint32_t cell = current_bucket[i];
+          if (current_bucket[i].Value()) {
+            uint32_t cell = current_bucket[i].Value();
             uint32_t old_cell = cell;
             uint32_t new_cell = cell;
             while (cell) {
@@ -157,7 +166,15 @@ class SlotSet : public Malloced {
               cell ^= bit_mask;
             }
             if (old_cell != new_cell) {
-              current_bucket[i] = new_cell;
+              while (!current_bucket[i].TrySetValue(old_cell, new_cell)) {
+                // If TrySetValue fails, the cell must have changed. We just
+                // have to read the current value of the cell, & it with the
+                // computed value, and retry. We can do this, because this
+                // method will only be called on the main thread and filtering
+                // threads will only remove slots.
+                old_cell = current_bucket[i].Value();
+                new_cell &= old_cell;
+              }
             }
           }
         }
@@ -180,24 +197,26 @@ class SlotSet : public Malloced {
   static const int kBitsPerBucketLog2 = kCellsPerBucketLog2 + kBitsPerCellLog2;
   static const int kBuckets = kMaxSlots / kCellsPerBucket / kBitsPerCell;
 
-  uint32_t* AllocateBucket() {
-    uint32_t* result = NewArray<uint32_t>(kCellsPerBucket);
+  base::AtomicValue<uint32_t>* AllocateBucket() {
+    base::AtomicValue<uint32_t>* result =
+        NewArray<base::AtomicValue<uint32_t>>(kCellsPerBucket);
     for (int i = 0; i < kCellsPerBucket; i++) {
-      result[i] = 0;
+      result[i].SetValue(0);
     }
     return result;
   }
 
   void ReleaseBucket(int bucket_index) {
-    DeleteArray<uint32_t>(bucket[bucket_index]);
-    bucket[bucket_index] = nullptr;
+    DeleteArray<base::AtomicValue<uint32_t>>(bucket[bucket_index].Value());
+    bucket[bucket_index].SetValue(nullptr);
   }
 
-  void MaskCell(int bucket_index, int cell_index, uint32_t mask) {
+  void ClearCell(int bucket_index, int cell_index, uint32_t mask) {
     if (bucket_index < kBuckets) {
-      uint32_t* cells = bucket[bucket_index];
-      if (cells != nullptr && cells[cell_index] != 0) {
-        cells[cell_index] &= mask;
+      base::AtomicValue<uint32_t>* cells = bucket[bucket_index].Value();
+      if (cells != nullptr) {
+        uint32_t cell = cells[cell_index].Value();
+        if (cell) cells[cell_index].SetBits(0, mask);
       }
     } else {
       // GCC bug 59124: Emits wrong warnings
@@ -217,7 +236,7 @@ class SlotSet : public Malloced {
     *bit_index = slot & (kBitsPerCell - 1);
   }
 
-  uint32_t* bucket[kBuckets];
+  base::AtomicValue<base::AtomicValue<uint32_t>*> bucket[kBuckets];
   Address page_start_;
 };
 
