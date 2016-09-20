@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_JS_OPERATOR_H_
 #define V8_COMPILER_JS_OPERATOR_H_
 
-#include "src/compiler/type-hints.h"
 #include "src/runtime/runtime.h"
+#include "src/type-hints.h"
 
 namespace v8 {
 namespace internal {

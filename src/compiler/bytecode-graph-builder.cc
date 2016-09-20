@@ -1380,13 +1380,10 @@ BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
     int operand_index) {
   FeedbackVectorSlot slot = feedback_vector()->ToSlot(
       bytecode_iterator().GetIndexOperand(operand_index));
-  DCHECK_EQ(FeedbackVectorSlotKind::GENERAL, feedback_vector()->GetKind(slot));
-  Object* feedback = feedback_vector()->Get(slot);
-  BinaryOperationHint hint = BinaryOperationHint::kAny;
-  if (feedback->IsSmi()) {
-    hint = BinaryOperationHintFromFeedback((Smi::cast(feedback))->value());
-  }
-  return hint;
+  DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC,
+            feedback_vector()->GetKind(slot));
+  BinaryOpICNexus nexus(feedback_vector(), slot);
+  return nexus.GetBinaryOperationFeedback();
 }
 
 // Helper function to create compare operation hint from the recorded type
@@ -1398,13 +1395,10 @@ CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
   }
   FeedbackVectorSlot slot =
       feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
-  DCHECK_EQ(FeedbackVectorSlotKind::GENERAL, feedback_vector()->GetKind(slot));
-  Object* feedback = feedback_vector()->Get(slot);
-  CompareOperationHint hint = CompareOperationHint::kAny;
-  if (feedback->IsSmi()) {
-    hint = CompareOperationHintFromFeedback((Smi::cast(feedback))->value());
-  }
-  return hint;
+  DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC,
+            feedback_vector()->GetKind(slot));
+  CompareICNexus nexus(feedback_vector(), slot);
+  return nexus.GetCompareOperationFeedback();
 }
 
 float BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {

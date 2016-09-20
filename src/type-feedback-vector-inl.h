@@ -5,6 +5,7 @@
 #ifndef V8_TYPE_FEEDBACK_VECTOR_INL_H_
 #define V8_TYPE_FEEDBACK_VECTOR_INL_H_
 
+#include "src/globals.h"
 #include "src/type-feedback-vector.h"
 
 namespace v8 {
@@ -52,7 +53,13 @@ TypeFeedbackVector* TypeFeedbackVector::cast(Object* obj) {
 int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
   DCHECK_NE(FeedbackVectorSlotKind::INVALID, kind);
   DCHECK_NE(FeedbackVectorSlotKind::KINDS_NUMBER, kind);
-  return kind == FeedbackVectorSlotKind::GENERAL ? 1 : 2;
+  if (kind == FeedbackVectorSlotKind::GENERAL ||
+      kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC ||
+      kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC) {
+    return 1;
+  }
+
+  return 2;
 }
 
 bool TypeFeedbackMetadata::SlotRequiresName(FeedbackVectorSlotKind kind) {
@@ -65,6 +72,8 @@ bool TypeFeedbackMetadata::SlotRequiresName(FeedbackVectorSlotKind kind) {
     case FeedbackVectorSlotKind::KEYED_LOAD_IC:
     case FeedbackVectorSlotKind::STORE_IC:
     case FeedbackVectorSlotKind::KEYED_STORE_IC:
+    case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+    case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
     case FeedbackVectorSlotKind::GENERAL:
     case FeedbackVectorSlotKind::INVALID:
       return false;
@@ -111,8 +120,35 @@ void TypeFeedbackVector::Set(FeedbackVectorSlot slot, Object* value,
   set(GetIndex(slot), value, mode);
 }
 
+// Helper function to transform the feedback to BinaryOperationHint.
+BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
+  switch (type_feedback) {
+    case BinaryOperationFeedback::kSignedSmall:
+      return BinaryOperationHint::kSignedSmall;
+    case BinaryOperationFeedback::kNumber:
+      return BinaryOperationHint::kNumberOrOddball;
+    case BinaryOperationFeedback::kAny:
+    default:
+      return BinaryOperationHint::kAny;
+  }
+  UNREACHABLE();
+  return BinaryOperationHint::kNone;
+}
 
-void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic) {
+// Helper function to transform the feedback to CompareOperationHint.
+CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
+  switch (type_feedback) {
+    case CompareOperationFeedback::kSignedSmall:
+      return CompareOperationHint::kSignedSmall;
+    case CompareOperationFeedback::kNumber:
+      return CompareOperationHint::kNumber;
+    default:
+      return CompareOperationHint::kAny;
+  }
+}
+
+void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
+                                       bool code_is_interpreted) {
   Object* uninitialized_sentinel =
       TypeFeedbackVector::RawUninitializedSentinel(GetIsolate());
   Object* megamorphic_sentinel =
@@ -127,7 +163,36 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic) {
     Object* obj = Get(slot);
     if (obj != uninitialized_sentinel &&
         kind != FeedbackVectorSlotKind::GENERAL) {
-      if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
+      if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
+          kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
+        // If we are not running interpreted code, we need to ignore
+        // the special ic slots for binaryop/compare used by the
+        // interpreter.
+        // TODO(mvstanton): Remove code_is_interpreted when full code
+        // is retired from service.
+        if (code_is_interpreted) continue;
+
+        DCHECK(obj->IsSmi());
+        int op_feedback = static_cast<int>(Smi::cast(obj)->value());
+        if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC) {
+          CompareOperationHint hint =
+              CompareOperationHintFromFeedback(op_feedback);
+          if (hint == CompareOperationHint::kAny) {
+            gen++;
+          } else if (hint != CompareOperationHint::kNone) {
+            with++;
+          }
+        } else {
+          DCHECK(kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC);
+          BinaryOperationHint hint =
+              BinaryOperationHintFromFeedback(op_feedback);
+          if (hint == BinaryOperationHint::kAny) {
+            gen++;
+          } else if (hint != BinaryOperationHint::kNone) {
+            with++;
+          }
+        }
+      } else if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
         with++;
       } else if (obj == megamorphic_sentinel) {
         gen++;

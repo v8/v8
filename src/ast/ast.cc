@@ -269,7 +269,7 @@ void CountOperation::AssignFeedbackVectorSlots(Isolate* isolate,
   AssignVectorSlots(expression(), spec, &slot_);
   // Assign a slot to collect feedback about binary operations. Used only in
   // ignition. Fullcodegen uses AstId to record type feedback.
-  binary_operation_slot_ = spec->AddGeneralSlot();
+  binary_operation_slot_ = spec->AddInterpreterBinaryOpICSlot();
 }
 
 
@@ -719,7 +719,7 @@ void BinaryOperation::AssignFeedbackVectorSlots(
     case Token::OR:
       return;
     default:
-      type_feedback_slot_ = spec->AddGeneralSlot();
+      type_feedback_slot_ = spec->AddInterpreterBinaryOpICSlot();
       return;
   }
 }
@@ -740,7 +740,7 @@ void CompareOperation::AssignFeedbackVectorSlots(
     case Token::IN:
       return;
     default:
-      type_feedback_slot_ = spec->AddGeneralSlot();
+      type_feedback_slot_ = spec->AddInterpreterCompareICSlot();
   }
 }
 
@@ -947,7 +947,7 @@ CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements,
 void CaseClause::AssignFeedbackVectorSlots(Isolate* isolate,
                                            FeedbackVectorSpec* spec,
                                            FeedbackVectorSlotCache* cache) {
-  type_feedback_slot_ = spec->AddGeneralSlot();
+  type_feedback_slot_ = spec->AddInterpreterCompareICSlot();
 }
 
 uint32_t Literal::Hash() {

@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TYPE_HINTS_H_
-#define V8_COMPILER_TYPE_HINTS_H_
+#ifndef V8_TYPE_HINTS_H_
+#define V8_TYPE_HINTS_H_
 
 #include "src/base/flags.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
-namespace compiler {
 
 // Type hints for an binary operation.
 enum class BinaryOperationHint : uint8_t {
@@ -67,8 +66,7 @@ std::ostream& operator<<(std::ostream&, ToBooleanHints);
 
 DEFINE_OPERATORS_FOR_FLAGS(ToBooleanHints)
 
-}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_TYPE_HINTS_H_
+#endif  // V8_TYPE_HINTS_H_

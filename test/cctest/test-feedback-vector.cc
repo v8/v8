@@ -559,8 +559,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
     CHECK_SLOT_KIND(helper, 5, FeedbackVectorSlotKind::LOAD_IC);
-    // Binary operation feedback is a general slot.
-    CHECK_SLOT_KIND(helper, 6, FeedbackVectorSlotKind::GENERAL);
+    CHECK_SLOT_KIND(helper, 6, FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC);
   }
 }
 

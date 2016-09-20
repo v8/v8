@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/elements-kind.h"
 #include "src/objects.h"
+#include "src/type-hints.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -27,6 +28,8 @@ enum class FeedbackVectorSlotKind {
   KEYED_LOAD_IC,
   STORE_IC,
   KEYED_STORE_IC,
+  INTERPRETER_BINARYOP_IC,
+  INTERPRETER_COMPARE_IC,
 
   // This is a general purpose slot that occupies one feedback vector element.
   GENERAL,
@@ -65,6 +68,14 @@ class FeedbackVectorSpecBase {
 
   FeedbackVectorSlot AddKeyedStoreICSlot() {
     return AddSlot(FeedbackVectorSlotKind::KEYED_STORE_IC);
+  }
+
+  FeedbackVectorSlot AddInterpreterBinaryOpICSlot() {
+    return AddSlot(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC);
+  }
+
+  FeedbackVectorSlot AddInterpreterCompareICSlot() {
+    return AddSlot(FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC);
   }
 
   FeedbackVectorSlot AddGeneralSlot() {
@@ -207,7 +218,7 @@ class TypeFeedbackMetadata : public FixedArray {
   static const char* Kind2String(FeedbackVectorSlotKind kind);
 
  private:
-  static const int kFeedbackVectorSlotKindBits = 4;
+  static const int kFeedbackVectorSlotKindBits = 5;
   STATIC_ASSERT(static_cast<int>(FeedbackVectorSlotKind::KINDS_NUMBER) <
                 (1 << kFeedbackVectorSlotKindBits));
 
@@ -236,7 +247,8 @@ class TypeFeedbackVector : public FixedArray {
   static const int kInvocationCountIndex = 1;
   static const int kReservedIndexCount = 2;
 
-  inline void ComputeCounts(int* with_type_info, int* generic);
+  inline void ComputeCounts(int* with_type_info, int* generic,
+                            bool code_is_interpreted);
 
   inline bool is_empty() const;
 
@@ -636,6 +648,72 @@ class KeyedStoreICNexus : public FeedbackNexus {
   InlineCacheState StateFromFeedback() const override;
   Name* FindFirstName() const override;
 };
+
+class BinaryOpICNexus final : public FeedbackNexus {
+ public:
+  BinaryOpICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC,
+              vector->GetKind(slot));
+  }
+  BinaryOpICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC,
+              vector->GetKind(slot));
+  }
+
+  void Clear(Code* host);
+
+  InlineCacheState StateFromFeedback() const final;
+  BinaryOperationHint GetBinaryOperationFeedback() const;
+
+  int ExtractMaps(MapHandleList* maps) const final {
+    // BinaryOpICs don't record map feedback.
+    return 0;
+  }
+  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
+    return MaybeHandle<Code>();
+  }
+  bool FindHandlers(List<Handle<Object>>* code_list,
+                    int length = -1) const final {
+    return length == 0;
+  }
+};
+
+class CompareICNexus final : public FeedbackNexus {
+ public:
+  CompareICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC,
+              vector->GetKind(slot));
+  }
+  CompareICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC,
+              vector->GetKind(slot));
+  }
+
+  void Clear(Code* host);
+
+  InlineCacheState StateFromFeedback() const final;
+  CompareOperationHint GetCompareOperationFeedback() const;
+
+  int ExtractMaps(MapHandleList* maps) const final {
+    // BinaryOpICs don't record map feedback.
+    return 0;
+  }
+  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
+    return MaybeHandle<Code>();
+  }
+  bool FindHandlers(List<Handle<Object>>* code_list,
+                    int length = -1) const final {
+    return length == 0;
+  }
+};
+
+inline BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
+inline CompareOperationHint CompareOperationHintFromFeedback(int type_feedback);
+
 }  // namespace internal
 }  // namespace v8
 

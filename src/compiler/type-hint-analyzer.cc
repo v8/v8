@@ -6,8 +6,8 @@
 
 #include "src/assembler.h"
 #include "src/code-stubs.h"
-#include "src/compiler/type-hints.h"
 #include "src/ic/ic-state.h"
+#include "src/type-hints.h"
 
 namespace v8 {
 namespace internal {
@@ -136,32 +136,6 @@ TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
   return new (zone()) TypeHintAnalysis(infos, zone());
 }
 
-// Helper function to transform the feedback to BinaryOperationHint.
-BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
-  switch (type_feedback) {
-    case BinaryOperationFeedback::kSignedSmall:
-      return BinaryOperationHint::kSignedSmall;
-    case BinaryOperationFeedback::kNumber:
-      return BinaryOperationHint::kNumberOrOddball;
-    case BinaryOperationFeedback::kAny:
-    default:
-      return BinaryOperationHint::kAny;
-  }
-  UNREACHABLE();
-  return BinaryOperationHint::kNone;
-}
-
-// Helper function to transform the feedback to CompareOperationHint.
-CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
-  switch (type_feedback) {
-    case CompareOperationFeedback::kSignedSmall:
-      return CompareOperationHint::kSignedSmall;
-    case CompareOperationFeedback::kNumber:
-      return CompareOperationHint::kNumber;
-    default:
-      return CompareOperationHint::kAny;
-  }
-}
 
 }  // namespace compiler
 }  // namespace internal

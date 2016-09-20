@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/type-hints.h"
+#include "src/type-hints.h"
 
 namespace v8 {
 namespace internal {
-namespace compiler {
 
 std::ostream& operator<<(std::ostream& os, BinaryOperationHint hint) {
   switch (hint) {
@@ -88,6 +87,5 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
   return os;
 }
 
-}  // namespace compiler
 }  // namespace internal
 }  // namespace v8

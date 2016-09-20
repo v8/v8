@@ -269,7 +269,7 @@ TEST(InterpreterShiftOpsSmi) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -308,7 +308,7 @@ TEST(InterpreterBinaryOpsSmi) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -349,7 +349,7 @@ TEST(InterpreterBinaryOpsHeapNumber) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -463,13 +463,13 @@ TEST(InterpreterParameter8) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 8, 0, 0);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot5 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot6 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot5 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot6 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -632,7 +632,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
     i::FeedbackVectorSpec feedback_spec(&zone);
-    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
     Handle<i::TypeFeedbackVector> vector =
         i::NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -736,7 +736,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
     i::FeedbackVectorSpec feedback_spec(&zone);
-    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
     Handle<i::TypeFeedbackVector> vector =
         i::NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -786,10 +786,10 @@ TEST(InterpreterUnaryOpFeedback) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 4, 0, 0);
 
     i::FeedbackVectorSpec feedback_spec(&zone);
-    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
     Handle<i::TypeFeedbackVector> vector =
         i::NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -850,9 +850,9 @@ TEST(InterpreterBitwiseTypeFeedback) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 4, 0, 0);
 
     i::FeedbackVectorSpec feedback_spec(&zone);
-    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
     Handle<i::TypeFeedbackVector> vector =
         i::NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -1392,9 +1392,9 @@ TEST(InterpreterJumps) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -1431,11 +1431,11 @@ TEST(InterpreterConditionalJumps) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -1481,11 +1481,11 @@ TEST(InterpreterConditionalJumps2) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -1531,7 +1531,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   Zone zone(isolate->allocator());
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -1677,7 +1677,7 @@ TEST(InterpreterSmiComparisons) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -1724,7 +1724,7 @@ TEST(InterpreterHeapNumberComparisons) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -1769,7 +1769,7 @@ TEST(InterpreterStringComparisons) {
         const char* rhs = inputs[j].c_str();
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -1825,7 +1825,7 @@ TEST(InterpreterMixedComparisons) {
           Zone zone(isolate->allocator());
 
           FeedbackVectorSpec feedback_spec(&zone);
-          FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+          FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
           Handle<i::TypeFeedbackVector> vector =
               NewTypeFeedbackVector(isolate, &feedback_spec);
 

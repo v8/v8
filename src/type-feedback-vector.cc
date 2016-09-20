@@ -202,6 +202,10 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
       return "STORE_IC";
     case FeedbackVectorSlotKind::KEYED_STORE_IC:
       return "KEYED_STORE_IC";
+    case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+      return "INTERPRETER_BINARYOP_IC";
+    case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
+      return "INTERPRETER_COMPARE_IC";
     case FeedbackVectorSlotKind::GENERAL:
       return "STUB";
     case FeedbackVectorSlotKind::KINDS_NUMBER:
@@ -252,6 +256,9 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
     Object* value;
     if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
       value = *factory->empty_weak_cell();
+    } else if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
+               kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
+      value = Smi::FromInt(0);
     } else {
       value = *uninitialized_sentinel;
     }
@@ -337,6 +344,13 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
         case FeedbackVectorSlotKind::KEYED_STORE_IC: {
           KeyedStoreICNexus nexus(this, slot);
           nexus.Clear(shared->code());
+          break;
+        }
+        case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+        case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
+          DCHECK(Get(slot)->IsSmi());
+          // don't clear these smi slots.
+          // Set(slot, Smi::FromInt(0));
           break;
         }
         case FeedbackVectorSlotKind::GENERAL: {
@@ -1037,5 +1051,38 @@ IcCheckType KeyedStoreICNexus::GetKeyType() const {
   }
   return IsPropertyNameFeedback(feedback) ? PROPERTY : ELEMENT;
 }
+
+InlineCacheState BinaryOpICNexus::StateFromFeedback() const {
+  BinaryOperationHint hint = GetBinaryOperationFeedback();
+  if (hint == BinaryOperationHint::kNone) {
+    return UNINITIALIZED;
+  } else if (hint == BinaryOperationHint::kAny) {
+    return GENERIC;
+  }
+
+  return MONOMORPHIC;
+}
+
+InlineCacheState CompareICNexus::StateFromFeedback() const {
+  CompareOperationHint hint = GetCompareOperationFeedback();
+  if (hint == CompareOperationHint::kNone) {
+    return UNINITIALIZED;
+  } else if (hint == CompareOperationHint::kAny) {
+    return GENERIC;
+  }
+
+  return MONOMORPHIC;
+}
+
+BinaryOperationHint BinaryOpICNexus::GetBinaryOperationFeedback() const {
+  int feedback = Smi::cast(GetFeedback())->value();
+  return BinaryOperationHintFromFeedback(feedback);
+}
+
+CompareOperationHint CompareICNexus::GetCompareOperationFeedback() const {
+  int feedback = Smi::cast(GetFeedback())->value();
+  return CompareOperationHintFromFeedback(feedback);
+}
+
 }  // namespace internal
 }  // namespace v8
