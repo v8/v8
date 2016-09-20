@@ -61,10 +61,12 @@
             '..',
           ],
           'defines': [
+            'V8_SHARED',
             'BUILDING_V8_SHARED',
           ],
           'direct_dependent_settings': {
             'defines': [
+              'V8_SHARED',
               'USING_V8_SHARED',
             ],
           },
@@ -162,10 +164,12 @@
         }],
         ['component=="shared_library"', {
           'defines': [
+            'V8_SHARED',
             'BUILDING_V8_SHARED',
           ],
           'direct_dependent_settings': {
             'defines': [
+              'V8_SHARED',
               'USING_V8_SHARED',
             ],
           },
@@ -255,6 +259,7 @@
         ['component=="shared_library"', {
           'defines': [
             'BUILDING_V8_SHARED',
+            'V8_SHARED',
           ],
         }],
       ]
@@ -281,10 +286,12 @@
             }],
             ['component=="shared_library"', {
               'defines': [
+                'V8_SHARED',
                 'BUILDING_V8_SHARED',
               ],
               'direct_dependent_settings': {
                 'defines': [
+                  'V8_SHARED',
                   'USING_V8_SHARED',
                 ],
               },
@@ -1706,6 +1713,7 @@
         ['component=="shared_library"', {
           'defines': [
             'BUILDING_V8_SHARED',
+            'V8_SHARED',
           ],
         }],
         ['v8_postmortem_support=="true"', {
