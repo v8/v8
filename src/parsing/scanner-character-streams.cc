@@ -574,8 +574,13 @@ bool TwoByteExternalStreamingStream::ReadBlock() {
   if (lonely_byte) {
     DCHECK_NE(chunk_no, 0);
     Chunk& previous_chunk = chunks_[chunk_no - 1];
+#ifdef V8_TARGET_BIG_ENDIAN
+    uc16 character = current.data[0] |
+                     previous_chunk.data[previous_chunk.byte_length - 1] << 8;
+#else
     uc16 character = previous_chunk.data[previous_chunk.byte_length - 1] |
                      current.data[0] << 8;
+#endif
 
     one_char_buffer_ = character;
     buffer_pos_ = position;
