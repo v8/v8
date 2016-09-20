@@ -706,21 +706,20 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-  Register temp = r11;
-  DCHECK(!temp.is(receiver) && !temp.is(name) && !temp.is(value));
-
-  __ PopReturnAddressTo(temp);
-  __ Push(receiver);
-  __ Push(name);
-  __ Push(value);
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();
+  Register name = StoreWithVectorDescriptor::NameRegister();
+  Register value = StoreWithVectorDescriptor::ValueRegister();
   Register slot = StoreWithVectorDescriptor::SlotRegister();
   Register vector = StoreWithVectorDescriptor::VectorRegister();
-  DCHECK(!temp.is(slot) && !temp.is(vector));
+  Register temp = r11;
+  DCHECK(!AreAliased(receiver, name, value, slot, vector, temp));
+
+  __ PopReturnAddressTo(temp);
+  __ Push(value);
   __ Push(slot);
   __ Push(vector);
+  __ Push(receiver);
+  __ Push(name);
   __ PushReturnAddressFrom(temp);
 }
 

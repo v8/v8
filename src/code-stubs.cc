@@ -552,8 +552,8 @@ void StoreTransitionStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     assembler->Bind(&miss);
     {
       assembler->Comment("Miss");
-      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, receiver,
-                                 name, value, slot, vector);
+      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                                 vector, receiver, name);
     }
   }
 }
@@ -4566,8 +4566,8 @@ void StoreFieldStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     assembler->Bind(&miss);
     {
       assembler->Comment("Miss");
-      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, receiver,
-                                 name, value, slot, vector);
+      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                                 vector, receiver, name);
     }
   }
 }
@@ -4662,8 +4662,8 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->Bind(&miss);
   {
     assembler->Comment("Miss");
-    assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, receiver, name,
-                               value, slot, vector);
+    assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                               vector, receiver, name);
   }
 }
 
@@ -4711,8 +4711,8 @@ void KeyedStoreSloppyArgumentsStub::GenerateAssembly(
   assembler->Bind(&miss);
   {
     assembler->Comment("Miss");
-    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, receiver,
-                               key, value, slot, vector);
+    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value,
+                               slot, vector, receiver, key);
   }
 }
 
@@ -5788,8 +5788,8 @@ void StoreFastElementStub::GenerateAssembly(
   assembler->Bind(&miss);
   {
     assembler->Comment("Miss");
-    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, receiver,
-                               key, value, slot, vector);
+    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value,
+                               slot, vector, receiver, key);
   }
 }
 

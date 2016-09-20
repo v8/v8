@@ -120,8 +120,8 @@ void Builtins::Generate_StoreIC_Miss(CodeStubAssembler* assembler) {
   Node* vector = assembler->Parameter(Descriptor::kVector);
   Node* context = assembler->Parameter(Descriptor::kContext);
 
-  assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, receiver, name,
-                             value, slot, vector);
+  assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                             vector, receiver, name);
 }
 
 void Builtins::Generate_StoreIC_Normal(MacroAssembler* masm) {

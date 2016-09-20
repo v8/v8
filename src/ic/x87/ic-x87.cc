@@ -711,12 +711,12 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register slot = StoreWithVectorDescriptor::SlotRegister();
   Register vector = StoreWithVectorDescriptor::VectorRegister();
 
-  __ xchg(receiver, Operand(esp, 0));
-  __ push(name);
-  __ push(value);
+  __ xchg(value, Operand(esp, 0));
   __ push(slot);
   __ push(vector);
-  __ push(receiver);  // Contains the return address.
+  __ push(receiver);
+  __ push(name);
+  __ push(value);  // Contains the return address.
 }
 
 

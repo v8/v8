@@ -437,10 +437,11 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 }
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister(),
+  __ Push(StoreWithVectorDescriptor::ValueRegister(),
           StoreWithVectorDescriptor::SlotRegister(),
-          StoreWithVectorDescriptor::VectorRegister());
+          StoreWithVectorDescriptor::VectorRegister(),
+          StoreWithVectorDescriptor::ReceiverRegister(),
+          StoreWithVectorDescriptor::NameRegister());
 }
 
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
