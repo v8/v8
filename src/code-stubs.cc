@@ -5042,13 +5042,13 @@ compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
   typedef compiler::CodeAssembler::Label Label;
   typedef compiler::CodeAssembler::Variable Variable;
 
-  Node* undefined = assembler->UndefinedConstant();
   Node* literals_array =
       assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* allocation_site = assembler->LoadFixedArrayElement(
       literals_array, literals_index,
       LiteralsArray::kFirstLiteralIndex * kPointerSize,
       CodeStubAssembler::SMI_PARAMETERS);
+  Node* undefined = assembler->UndefinedConstant();
   assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
                     call_runtime);
 
@@ -5227,15 +5227,6 @@ void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kNumberToString)->entry);
   descriptor->SetMissHandler(Runtime::kNumberToString);
-}
-
-
-void FastCloneShallowArrayStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  FastCloneShallowArrayDescriptor call_descriptor(isolate());
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry);
-  descriptor->SetMissHandler(Runtime::kCreateArrayLiteralStubBailout);
 }
 
 void RegExpConstructResultStub::InitializeDescriptor(
@@ -5746,6 +5737,201 @@ void FastCloneRegExpStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       Generate(assembler, closure, literal_index, pattern, flags, context));
 }
 
+namespace {
+
+compiler::Node* NonEmptyShallowClone(CodeStubAssembler* assembler,
+                                     compiler::Node* boilerplate,
+                                     compiler::Node* boilerplate_map,
+                                     compiler::Node* boilerplate_elements,
+                                     compiler::Node* allocation_site,
+                                     compiler::Node* capacity,
+                                     ElementsKind kind) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::ParameterMode ParameterMode;
+
+  ParameterMode param_mode = CodeStubAssembler::SMI_PARAMETERS;
+
+  Node* length = assembler->LoadJSArrayLength(boilerplate);
+
+  if (assembler->Is64()) {
+    capacity = assembler->SmiUntag(capacity);
+    param_mode = CodeStubAssembler::INTEGER_PARAMETERS;
+  }
+
+  Node *array, *elements;
+  std::tie(array, elements) =
+      assembler->AllocateUninitializedJSArrayWithElements(
+          kind, boilerplate_map, length, allocation_site, capacity, param_mode);
+
+  assembler->Comment("copy elements header");
+  for (int offset = 0; offset < FixedArrayBase::kHeaderSize;
+       offset += kPointerSize) {
+    Node* value = assembler->LoadObjectField(boilerplate_elements, offset);
+    assembler->StoreObjectField(elements, offset, value);
+  }
+
+  if (assembler->Is64()) {
+    length = assembler->SmiUntag(length);
+  }
+
+  assembler->Comment("copy boilerplate elements");
+  assembler->CopyFixedArrayElements(kind, boilerplate_elements, elements,
+                                    length, SKIP_WRITE_BARRIER, param_mode);
+  assembler->IncrementCounter(
+      assembler->isolate()->counters()->inlined_copied_elements(), 1);
+
+  return array;
+}
+
+}  // namespace
+
+// static
+compiler::Node* FastCloneShallowArrayStub::Generate(
+    CodeStubAssembler* assembler, compiler::Node* closure,
+    compiler::Node* literal_index, compiler::Node* constant_elements,
+    compiler::Node* context, AllocationSiteMode allocation_site_mode) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  typedef compiler::Node Node;
+
+  Label call_runtime(assembler, Label::kDeferred), zero_capacity(assembler),
+      cow_elements(assembler), fast_elements(assembler),
+      return_result(assembler);
+  Variable result(assembler, MachineRepresentation::kTagged);
+
+  Node* literals_array =
+      assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* allocation_site = assembler->LoadFixedArrayElement(
+      literals_array, literal_index,
+      LiteralsArray::kFirstLiteralIndex * kPointerSize,
+      CodeStubAssembler::SMI_PARAMETERS);
+
+  Node* undefined = assembler->UndefinedConstant();
+  assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
+                    &call_runtime);
+  allocation_site = assembler->LoadFixedArrayElement(
+      literals_array, literal_index,
+      LiteralsArray::kFirstLiteralIndex * kPointerSize,
+      CodeStubAssembler::SMI_PARAMETERS);
+
+  Node* boilerplate = assembler->LoadObjectField(
+      allocation_site, AllocationSite::kTransitionInfoOffset);
+  Node* boilerplate_map = assembler->LoadMap(boilerplate);
+  Node* boilerplate_elements = assembler->LoadElements(boilerplate);
+  Node* capacity = assembler->LoadFixedArrayBaseLength(boilerplate_elements);
+  allocation_site =
+      allocation_site_mode == TRACK_ALLOCATION_SITE ? allocation_site : nullptr;
+
+  Node* zero = assembler->SmiConstant(Smi::FromInt(0));
+  assembler->GotoIf(assembler->SmiEqual(capacity, zero), &zero_capacity);
+
+  Node* elements_map = assembler->LoadMap(boilerplate_elements);
+  assembler->GotoIf(
+      assembler->WordEqual(elements_map, assembler->FixedCowArrayMapConstant()),
+      &cow_elements);
+
+  assembler->GotoIf(
+      assembler->WordEqual(elements_map, assembler->FixedArrayMapConstant()),
+      &fast_elements);
+  {
+    assembler->Comment("fast double elements path");
+    if (FLAG_debug_code) {
+      Label correct_elements_map(assembler), abort(assembler, Label::kDeferred);
+      assembler->BranchIf(
+          assembler->WordEqual(elements_map,
+                               assembler->FixedDoubleArrayMapConstant()),
+          &correct_elements_map, &abort);
+
+      assembler->Bind(&abort);
+      {
+        Node* abort_id = assembler->SmiConstant(
+            Smi::FromInt(BailoutReason::kExpectedFixedDoubleArrayMap));
+        assembler->TailCallRuntime(Runtime::kAbort, context, abort_id);
+      }
+      assembler->Bind(&correct_elements_map);
+    }
+
+    Node* array = NonEmptyShallowClone(assembler, boilerplate, boilerplate_map,
+                                       boilerplate_elements, allocation_site,
+                                       capacity, FAST_DOUBLE_ELEMENTS);
+    result.Bind(array);
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&fast_elements);
+  {
+    assembler->Comment("fast elements path");
+    Node* array = NonEmptyShallowClone(assembler, boilerplate, boilerplate_map,
+                                       boilerplate_elements, allocation_site,
+                                       capacity, FAST_ELEMENTS);
+    result.Bind(array);
+    assembler->Goto(&return_result);
+  }
+
+  Variable length(assembler, MachineRepresentation::kTagged),
+      elements(assembler, MachineRepresentation::kTagged);
+  Label allocate_without_elements(assembler);
+
+  assembler->Bind(&cow_elements);
+  {
+    assembler->Comment("fixed cow path");
+    length.Bind(assembler->LoadJSArrayLength(boilerplate));
+    elements.Bind(boilerplate_elements);
+
+    assembler->Goto(&allocate_without_elements);
+  }
+
+  assembler->Bind(&zero_capacity);
+  {
+    assembler->Comment("zero capacity path");
+    length.Bind(zero);
+    elements.Bind(assembler->LoadRoot(Heap::kEmptyFixedArrayRootIndex));
+
+    assembler->Goto(&allocate_without_elements);
+  }
+
+  assembler->Bind(&allocate_without_elements);
+  {
+    Node* array = assembler->AllocateUninitializedJSArrayWithoutElements(
+        FAST_ELEMENTS, boilerplate_map, length.value(), allocation_site);
+    assembler->StoreObjectField(array, JSObject::kElementsOffset,
+                                elements.value());
+    result.Bind(array);
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&call_runtime);
+  {
+    assembler->Comment("call runtime");
+    Node* flags = assembler->SmiConstant(
+        Smi::FromInt(ArrayLiteral::kShallowElements |
+                     (allocation_site_mode == TRACK_ALLOCATION_SITE
+                          ? 0
+                          : ArrayLiteral::kDisableMementos)));
+    Node* array =
+        assembler->CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
+                               literal_index, constant_elements, flags);
+    result.Bind(array);
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&return_result);
+  return result.value();
+}
+
+void FastCloneShallowArrayStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* closure = assembler->Parameter(Descriptor::kClosure);
+  Node* literal_index = assembler->Parameter(Descriptor::kLiteralIndex);
+  Node* constant_elements = assembler->Parameter(Descriptor::kConstantElements);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(Generate(assembler, closure, literal_index,
+                             constant_elements, context,
+                             allocation_site_mode()));
+}
+
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub(isolate);
   stub.GetCode();
@@ -5951,7 +6137,7 @@ void ArrayNoArgumentConstructorStub::GenerateAssembly(
   Node* array = assembler->AllocateJSArray(
       elements_kind(), array_map,
       assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      assembler->IntPtrConstant(0), allocation_site);
+      assembler->SmiConstant(Smi::FromInt(0)), allocation_site);
   assembler->Return(array);
 }
 
@@ -5964,7 +6150,7 @@ void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
   Node* array = assembler->AllocateJSArray(
       elements_kind(), array_map,
       assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      assembler->IntPtrConstant(0), nullptr);
+      assembler->SmiConstant(Smi::FromInt(0)), nullptr);
   assembler->Return(array);
 }
 

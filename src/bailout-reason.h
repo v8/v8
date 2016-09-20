@@ -64,6 +64,8 @@ namespace internal {
   V(kEval, "eval")                                                             \
   V(kExpectedAllocationSite, "Expected allocation site")                       \
   V(kExpectedBooleanValue, "Expected boolean value")                           \
+  V(kExpectedFixedDoubleArrayMap,                                              \
+    "Expected a fixed double array map in fast shallow clone array literal")   \
   V(kExpectedFunctionObject, "Expected function object in register")           \
   V(kExpectedHeapNumber, "Expected HeapNumber")                                \
   V(kExpectedJSReceiver, "Expected object to have receiver type")              \

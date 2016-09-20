@@ -72,6 +72,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   compiler::Node* BooleanMapConstant();
   compiler::Node* EmptyStringConstant();
+  compiler::Node* FixedArrayMapConstant();
+  compiler::Node* FixedCowArrayMapConstant();
+  compiler::Node* FixedDoubleArrayMapConstant();
   compiler::Node* HeapNumberMapConstant();
   compiler::Node* NoContextConstant();
   compiler::Node* NanConstant();
@@ -210,6 +213,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadProperties(compiler::Node* object);
   // Load the elements backing store of a JSObject.
   compiler::Node* LoadElements(compiler::Node* object);
+  // Load the length of a JSArray instance.
+  compiler::Node* LoadJSArrayLength(compiler::Node* array);
   // Load the length of a fixed array base instance.
   compiler::Node* LoadFixedArrayBaseLength(compiler::Node* array);
   // Load the length of a fixed array base instance.
@@ -317,12 +322,24 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateSeqTwoByteString(int length);
   compiler::Node* AllocateSeqTwoByteString(compiler::Node* context,
                                            compiler::Node* length);
-  // Allocated an JSArray
-  compiler::Node* AllocateJSArray(ElementsKind kind, compiler::Node* array_map,
-                                  compiler::Node* capacity,
-                                  compiler::Node* length,
-                                  compiler::Node* allocation_site = nullptr,
-                                  ParameterMode mode = INTEGER_PARAMETERS);
+  // Allocate a JSArray without elements and initialize the header fields.
+  compiler::Node* AllocateUninitializedJSArrayWithoutElements(
+      ElementsKind kind, compiler::Node* array_map, compiler::Node* length,
+      compiler::Node* allocation_site);
+  // Allocate and return a JSArray with initialized header fields and its
+  // uninitialized elements.
+  // The ParameterMode argument is only used for the capacity parameter.
+  std::pair<compiler::Node*, compiler::Node*>
+  AllocateUninitializedJSArrayWithElements(
+      ElementsKind kind, compiler::Node* array_map, compiler::Node* length,
+      compiler::Node* allocation_site, compiler::Node* capacity,
+      ParameterMode capacity_mode = INTEGER_PARAMETERS);
+  // Allocate a JSArray and fill elements with the hole.
+  // The ParameterMode argument is only used for the capacity parameter.
+  compiler::Node* AllocateJSArray(
+      ElementsKind kind, compiler::Node* array_map, compiler::Node* capacity,
+      compiler::Node* length, compiler::Node* allocation_site = nullptr,
+      ParameterMode capacity_mode = INTEGER_PARAMETERS);
 
   compiler::Node* AllocateFixedArray(ElementsKind kind,
                                      compiler::Node* capacity,
@@ -762,6 +779,13 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                        AllocationFlags flags,
                                        compiler::Node* top_adddress,
                                        compiler::Node* limit_address);
+  // Allocate and return a JSArray of given total size in bytes with header
+  // fields initialized.
+  compiler::Node* AllocateUninitializedJSArray(ElementsKind kind,
+                                               compiler::Node* array_map,
+                                               compiler::Node* length,
+                                               compiler::Node* allocation_site,
+                                               compiler::Node* size_in_bytes);
 
   compiler::Node* SmiShiftBitsConstant();
 

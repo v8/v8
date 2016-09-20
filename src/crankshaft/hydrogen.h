@@ -1842,20 +1842,6 @@ class HGraphBuilder {
                          HValue* length,
                          HValue* capacity);
 
-  HValue* BuildCloneShallowArrayCow(HValue* boilerplate,
-                                    HValue* allocation_site,
-                                    AllocationSiteMode mode,
-                                    ElementsKind kind);
-
-  HValue* BuildCloneShallowArrayEmpty(HValue* boilerplate,
-                                      HValue* allocation_site,
-                                      AllocationSiteMode mode);
-
-  HValue* BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
-                                         HValue* allocation_site,
-                                         AllocationSiteMode mode,
-                                         ElementsKind kind);
-
   HValue* BuildElementIndexHash(HValue* index);
 
   void BuildCreateAllocationMemento(HValue* previous_object,

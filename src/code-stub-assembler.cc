@@ -46,6 +46,18 @@ Node* CodeStubAssembler::EmptyStringConstant() {
   return LoadRoot(Heap::kempty_stringRootIndex);
 }
 
+Node* CodeStubAssembler::FixedArrayMapConstant() {
+  return LoadRoot(Heap::kFixedArrayMapRootIndex);
+}
+
+Node* CodeStubAssembler::FixedCowArrayMapConstant() {
+  return LoadRoot(Heap::kFixedCOWArrayMapRootIndex);
+}
+
+Node* CodeStubAssembler::FixedDoubleArrayMapConstant() {
+  return LoadRoot(Heap::kFixedDoubleArrayMapRootIndex);
+}
+
 Node* CodeStubAssembler::HeapNumberMapConstant() {
   return LoadRoot(Heap::kHeapNumberMapRootIndex);
 }
@@ -1000,6 +1012,10 @@ Node* CodeStubAssembler::LoadElements(Node* object) {
   return LoadObjectField(object, JSObject::kElementsOffset);
 }
 
+Node* CodeStubAssembler::LoadJSArrayLength(compiler::Node* array) {
+  return LoadObjectField(array, JSArray::kLengthOffset);
+}
+
 Node* CodeStubAssembler::LoadFixedArrayBaseLength(compiler::Node* array) {
   return LoadObjectField(array, FixedArrayBase::kLengthOffset);
 }
@@ -1366,50 +1382,89 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
-                                         Node* capacity_node, Node* length_node,
-                                         compiler::Node* allocation_site,
-                                         ParameterMode mode) {
-  bool is_double = IsFastDoubleElementsKind(kind);
-  int base_size = JSArray::kSize + FixedArray::kHeaderSize;
-  int elements_offset = JSArray::kSize;
-
-  Comment("begin allocation of JSArray");
+Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
+    ElementsKind kind, Node* array_map, Node* length, Node* allocation_site) {
+  Comment("begin allocation of JSArray without elements");
+  int base_size = JSArray::kSize;
 
   if (allocation_site != nullptr) {
     base_size += AllocationMemento::kSize;
-    elements_offset += AllocationMemento::kSize;
   }
 
-  Node* total_size =
-      ElementOffsetFromIndex(capacity_node, kind, mode, base_size);
+  Node* size = IntPtrConstant(base_size);
+  Node* array = AllocateUninitializedJSArray(kind, array_map, length,
+                                             allocation_site, size);
+  return array;
+}
 
-  // Allocate both array and elements object, and initialize the JSArray.
-  Heap* heap = isolate()->heap();
-  Node* array = Allocate(total_size);
+std::pair<Node*, Node*>
+CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
+    ElementsKind kind, Node* array_map, Node* length, Node* allocation_site,
+    Node* capacity, ParameterMode capacity_mode) {
+  Comment("begin allocation of JSArray with elements");
+  int base_size = JSArray::kSize;
+
+  if (allocation_site != nullptr) {
+    base_size += AllocationMemento::kSize;
+  }
+
+  int elements_offset = base_size;
+
+  // Compute space for elements
+  base_size += FixedArray::kHeaderSize;
+  Node* size = ElementOffsetFromIndex(capacity, kind, capacity_mode, base_size);
+
+  Node* array = AllocateUninitializedJSArray(kind, array_map, length,
+                                             allocation_site, size);
+
+  Node* elements = InnerAllocate(array, elements_offset);
+  StoreObjectField(array, JSObject::kElementsOffset, elements);
+
+  return {array, elements};
+}
+
+Node* CodeStubAssembler::AllocateUninitializedJSArray(ElementsKind kind,
+                                                      Node* array_map,
+                                                      Node* length,
+                                                      Node* allocation_site,
+                                                      Node* size_in_bytes) {
+  Node* array = Allocate(size_in_bytes);
+
+  Comment("write JSArray headers");
   StoreMapNoWriteBarrier(array, array_map);
-  Node* empty_properties = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectFieldNoWriteBarrier(array, JSArray::kPropertiesOffset,
-                                 empty_properties);
-  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset,
-                                 TagParameter(length_node, mode));
+
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
+
+  StoreObjectFieldRoot(array, JSArray::kPropertiesOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
 
   if (allocation_site != nullptr) {
     InitializeAllocationMemento(array, JSArray::kSize, allocation_site);
   }
+  return array;
+}
 
+Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
+                                         Node* capacity, Node* length,
+                                         Node* allocation_site,
+                                         ParameterMode capacity_mode) {
+  bool is_double = IsFastDoubleElementsKind(kind);
+
+  // Allocate both array and elements object, and initialize the JSArray.
+  Node *array, *elements;
+  std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+      kind, array_map, length, allocation_site, capacity, capacity_mode);
   // Setup elements object.
-  Node* elements = InnerAllocate(array, elements_offset);
-  StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset, elements);
+  Heap* heap = isolate()->heap();
   Handle<Map> elements_map(is_double ? heap->fixed_double_array_map()
                                      : heap->fixed_array_map());
   StoreMapNoWriteBarrier(elements, HeapConstant(elements_map));
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
-                                 TagParameter(capacity_node, mode));
+                                 TagParameter(capacity, capacity_mode));
 
   // Fill in the elements with holes.
-  FillFixedArrayWithValue(kind, elements, IntPtrConstant(0), capacity_node,
-                          Heap::kTheHoleValueRootIndex, mode);
+  FillFixedArrayWithValue(kind, elements, IntPtrConstant(0), capacity,
+                          Heap::kTheHoleValueRootIndex, capacity_mode);
 
   return array;
 }
@@ -3859,7 +3914,7 @@ void CodeStubAssembler::EmitFastElementsBoundsCheck(Node* object,
   }
   Bind(&if_array);
   {
-    var_length.Bind(SmiUntag(LoadObjectField(object, JSArray::kLengthOffset)));
+    var_length.Bind(SmiUntag(LoadJSArrayLength(object)));
     Goto(&length_loaded);
   }
   Bind(&length_loaded);
@@ -4201,9 +4256,8 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
   {
     // Check polymorphic case.
     Comment("LoadIC_try_polymorphic");
-    GotoUnless(
-        WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
-        &try_megamorphic);
+    GotoUnless(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
+               &try_megamorphic);
     HandlePolymorphicCase(p, receiver_map, feedback, &if_handler, &var_handler,
                           &miss, 2);
   }
@@ -4247,9 +4301,8 @@ void CodeStubAssembler::KeyedLoadIC(const LoadICParameters* p) {
   {
     // Check polymorphic case.
     Comment("KeyedLoadIC_try_polymorphic");
-    GotoUnless(
-        WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
-        &try_megamorphic);
+    GotoUnless(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
+               &try_megamorphic);
     HandlePolymorphicCase(p, receiver_map, feedback, &if_handler, &var_handler,
                           &miss, 2);
   }
@@ -4632,8 +4685,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
   {
     Node* backing_store = LoadFixedArrayElement(elements, IntPtrConstant(1), 0,
                                                 INTPTR_PARAMETERS);
-    GotoIf(WordNotEqual(LoadMap(backing_store),
-                        LoadRoot(Heap::kFixedArrayMapRootIndex)),
+    GotoIf(WordNotEqual(LoadMap(backing_store), FixedArrayMapConstant()),
            bailout);
 
     Node* backing_store_length =

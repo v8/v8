@@ -339,85 +339,6 @@ Handle<Code> NumberToStringStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
-template <>
-HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
-  Factory* factory = isolate()->factory();
-  HValue* undefined = graph()->GetConstantUndefined();
-  AllocationSiteMode alloc_site_mode = casted_stub()->allocation_site_mode();
-  HValue* closure = GetParameter(Descriptor::kClosure);
-  HValue* literal_index = GetParameter(Descriptor::kLiteralIndex);
-
-  // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
-  // point and wasn't caught since it wasn't built in the snapshot. We should
-  // probably just replace with a TurboFan stub rather than fixing it.
-#if !(V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87)
-  // This stub is very performance sensitive, the generated code must be tuned
-  // so that it doesn't build and eager frame.
-  info()->MarkMustNotHaveEagerFrame();
-#endif
-
-  HValue* literals_array = Add<HLoadNamedField>(
-      closure, nullptr, HObjectAccess::ForLiteralsPointer());
-
-  HInstruction* allocation_site = Add<HLoadKeyed>(
-      literals_array, literal_index, nullptr, nullptr, FAST_ELEMENTS,
-      NEVER_RETURN_HOLE, LiteralsArray::kOffsetToFirstLiteral - kHeapObjectTag);
-  IfBuilder checker(this);
-  checker.IfNot<HCompareObjectEqAndBranch, HValue*>(allocation_site,
-                                                    undefined);
-  checker.Then();
-
-  HObjectAccess access = HObjectAccess::ForAllocationSiteOffset(
-      AllocationSite::kTransitionInfoOffset);
-  HInstruction* boilerplate =
-      Add<HLoadNamedField>(allocation_site, nullptr, access);
-  HValue* elements = AddLoadElements(boilerplate);
-  HValue* capacity = AddLoadFixedArrayLength(elements);
-  IfBuilder zero_capacity(this);
-  zero_capacity.If<HCompareNumericAndBranch>(capacity, graph()->GetConstant0(),
-                                           Token::EQ);
-  zero_capacity.Then();
-  Push(BuildCloneShallowArrayEmpty(boilerplate,
-                                   allocation_site,
-                                   alloc_site_mode));
-  zero_capacity.Else();
-  IfBuilder if_fixed_cow(this);
-  if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map());
-  if_fixed_cow.Then();
-  Push(BuildCloneShallowArrayCow(boilerplate,
-                                 allocation_site,
-                                 alloc_site_mode,
-                                 FAST_ELEMENTS));
-  if_fixed_cow.Else();
-  IfBuilder if_fixed(this);
-  if_fixed.If<HCompareMap>(elements, factory->fixed_array_map());
-  if_fixed.Then();
-  Push(BuildCloneShallowArrayNonEmpty(boilerplate,
-                                      allocation_site,
-                                      alloc_site_mode,
-                                      FAST_ELEMENTS));
-
-  if_fixed.Else();
-  Push(BuildCloneShallowArrayNonEmpty(boilerplate,
-                                      allocation_site,
-                                      alloc_site_mode,
-                                      FAST_DOUBLE_ELEMENTS));
-  if_fixed.End();
-  if_fixed_cow.End();
-  zero_capacity.End();
-
-  checker.ElseDeopt(DeoptimizeReason::kUninitializedBoilerplateLiterals);
-  checker.End();
-
-  return environment()->Pop();
-}
-
-
-Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
 HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
                                                    HValue* argument_elements,
                                                    ElementsKind kind) {
@@ -468,6 +389,7 @@ template <>
 HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
   // TODO(verwaest): Fix deoptimizer messages.
   HValue* argc = GetArgumentsLength();
+
   HInstruction* argument_elements = Add<HArgumentsElements>(false, false);
   HInstruction* object = Add<HAccessArgumentsAt>(argument_elements, argc,
                                                  graph()->GetConstantMinus1());

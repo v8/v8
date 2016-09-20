@@ -67,7 +67,6 @@ class ObjectLiteral;
   V(KeyedStoreICTrampoline)                   \
   V(StoreICTrampoline)                        \
   /* --- HydrogenCodeStubs --- */             \
-  V(FastCloneShallowArray)                    \
   V(NumberToString)                           \
   V(StringAdd)                                \
   V(ToObject)                                 \
@@ -133,8 +132,9 @@ class ObjectLiteral;
   V(InternalArraySingleArgumentConstructor)   \
   V(Dec)                                      \
   V(ElementsTransitionAndStore)               \
-  V(FastCloneShallowObject)                   \
   V(FastCloneRegExp)                          \
+  V(FastCloneShallowArray)                    \
+  V(FastCloneShallowObject)                   \
   V(FastNewClosure)                           \
   V(FastNewFunctionContext)                   \
   V(InstanceOf)                               \
@@ -1263,24 +1263,30 @@ class FastCloneRegExpStub final : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(FastCloneRegExp, TurboFanCodeStub);
 };
 
-
-class FastCloneShallowArrayStub : public HydrogenCodeStub {
+class FastCloneShallowArrayStub : public TurboFanCodeStub {
  public:
   FastCloneShallowArrayStub(Isolate* isolate,
                             AllocationSiteMode allocation_site_mode)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(AllocationSiteModeBits::encode(allocation_site_mode));
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = AllocationSiteModeBits::encode(allocation_site_mode);
   }
 
+  static compiler::Node* Generate(CodeStubAssembler* assembler,
+                                  compiler::Node* closure,
+                                  compiler::Node* literal_index,
+                                  compiler::Node* constant_elements,
+                                  compiler::Node* context,
+                                  AllocationSiteMode allocation_site_mode);
+
   AllocationSiteMode allocation_site_mode() const {
-    return AllocationSiteModeBits::decode(sub_minor_key());
+    return AllocationSiteModeBits::decode(minor_key_);
   }
 
  private:
   class AllocationSiteModeBits: public BitField<AllocationSiteMode, 0, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneShallowArray);
-  DEFINE_HYDROGEN_CODE_STUB(FastCloneShallowArray, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(FastCloneShallowArray, TurboFanCodeStub);
 };
 
 class FastCloneShallowObjectStub : public TurboFanCodeStub {
