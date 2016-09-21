@@ -164,6 +164,7 @@ class ModuleDecoder : public Decoder {
           uint32_t functions_count = consume_u32v("functions count");
           module->functions.reserve(SafeReserve(functions_count));
           for (uint32_t i = 0; i < functions_count; ++i) {
+            if (failed()) break;
             module->functions.push_back({nullptr,  // sig
                                          i,        // func_index
                                          0,        // sig_index

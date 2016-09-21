@@ -1160,6 +1160,15 @@ TEST_F(WasmModuleVerifyTest, FunctionSignatures_one) {
   EXPECT_VERIFIES(data);
 }
 
+TEST_F(WasmModuleVerifyTest, Regression_648070) {
+  static const byte data[] = {
+      SECTION(SIGNATURES, 1), 0,        // --
+      SECTION(FUNCTION_SIGNATURES, 5),  // --
+      U32V_5(3500228624)                // function count = 3500228624
+  };                                    // --
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, FunctionBodies_empty) {
   static const byte data[] = {
       EMPTY_SIGNATURES_SECTION,           // --
