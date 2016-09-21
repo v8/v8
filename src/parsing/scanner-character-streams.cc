@@ -286,6 +286,8 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
   uint16_t* cursor = buffer_ + (buffer_end_ - buffer_start_);
   DCHECK_EQ(cursor, buffer_end_);
 
+  static const unibrow::uchar kUtf8Bom = 0xfeff;
+
   unibrow::Utf8::Utf8IncrementalBuffer incomplete_char =
       current_.pos.incomplete_char;
   size_t it;
@@ -294,7 +296,11 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
     unibrow::uchar t =
         unibrow::Utf8::ValueOfIncremental(chunk.data[it], &incomplete_char);
     if (t == unibrow::Utf8::kIncomplete) continue;
-    if (t <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+    if (V8_LIKELY(t < kUtf8Bom)) {
+      *(cursor++) = static_cast<uc16>(t);  // The by most frequent case.
+    } else if (t == kUtf8Bom && current_.pos.bytes + it == 2) {
+      // BOM detected at beginning of the stream. Don't copy it.
+    } else if (t <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
       *(cursor++) = static_cast<uc16>(t);
     } else {
       *(cursor++) = unibrow::Utf16::LeadSurrogate(t);

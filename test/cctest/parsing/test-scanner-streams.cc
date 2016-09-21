@@ -109,6 +109,67 @@ TEST(Utf8StreamAsciiOnly) {
   } while (c != v8::internal::Utf16CharacterStream::kEndOfInput);
 }
 
+TEST(Utf8StreamBOM) {
+  // Construct test string w/ UTF-8 BOM (byte order mark)
+  char data[3 + arraysize(unicode_utf8)] = {"\xef\xbb\xbf"};
+  strncpy(data + 3, unicode_utf8, arraysize(unicode_utf8));
+
+  const char* chunks[] = {data, "\0"};
+  ChunkSource chunk_source(chunks);
+  std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
+      v8::internal::ScannerStream::For(
+          &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+
+  // Read the data without tripping over the BOM.
+  for (size_t i = 0; unicode_ucs2[i]; i++) {
+    CHECK_EQ(unicode_ucs2[i], stream->Advance());
+  }
+  CHECK_EQ(v8::internal::Utf16CharacterStream::kEndOfInput, stream->Advance());
+
+  // Make sure seek works.
+  stream->Seek(0);
+  CHECK_EQ(unicode_ucs2[0], stream->Advance());
+
+  stream->Seek(5);
+  CHECK_EQ(unicode_ucs2[5], stream->Advance());
+}
+
+TEST(Utf8SplitBOM) {
+  // Construct chunks with a BOM split into two chunks.
+  char partial_bom[] = "\xef\xbb";
+  char data[1 + arraysize(unicode_utf8)] = {"\xbf"};
+  strncpy(data + 1, unicode_utf8, arraysize(unicode_utf8));
+
+  {
+    const char* chunks[] = {partial_bom, data, "\0"};
+    ChunkSource chunk_source(chunks);
+    std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
+        v8::internal::ScannerStream::For(
+            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+
+    // Read the data without tripping over the BOM.
+    for (size_t i = 0; unicode_ucs2[i]; i++) {
+      CHECK_EQ(unicode_ucs2[i], stream->Advance());
+    }
+  }
+
+  // And now with single-byte BOM chunks.
+  char bom_byte_1[] = "\xef";
+  char bom_byte_2[] = "\xbb";
+  {
+    const char* chunks[] = {bom_byte_1, bom_byte_2, data, "\0"};
+    ChunkSource chunk_source(chunks);
+    std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
+        v8::internal::ScannerStream::For(
+            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+
+    // Read the data without tripping over the BOM.
+    for (size_t i = 0; unicode_ucs2[i]; i++) {
+      CHECK_EQ(unicode_ucs2[i], stream->Advance());
+    }
+  }
+}
+
 TEST(Utf8ChunkBoundaries) {
   // Test utf-8 parsing at chunk boundaries.
 
