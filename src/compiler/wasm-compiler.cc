@@ -2393,15 +2393,11 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
       break;
     }
     case wasm::kAstI64:
-      // TODO(titzer): JS->i64 has no good solution right now. Using 32 bits.
-      num = graph()->NewNode(jsgraph()->machine()->TruncateFloat64ToWord32(),
-                             num);
-      if (jsgraph()->machine()->Is64()) {
-        // We cannot change an int32 to an int64 on a 32 bit platform. Instead
-        // we will split the parameter node later.
-        num = graph()->NewNode(jsgraph()->machine()->ChangeInt32ToInt64(), num);
-      }
-      break;
+      // Throw a TypeError. The native context is good enough here because we
+      // only throw a TypeError.
+      return BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
+                                jsgraph()->isolate()->native_context(), nullptr,
+                                0, effect_, *control_);
     case wasm::kAstF32:
       num = graph()->NewNode(jsgraph()->machine()->TruncateFloat64ToFloat32(),
                              num);
