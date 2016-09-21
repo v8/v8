@@ -6662,7 +6662,7 @@ class Struct: public HeapObject {
 class PromiseContainer : public Struct {
  public:
   DECL_ACCESSORS(thenable, JSReceiver)
-  DECL_ACCESSORS(then, JSFunction)
+  DECL_ACCESSORS(then, JSReceiver)
   DECL_ACCESSORS(resolve, JSFunction)
   DECL_ACCESSORS(reject, JSFunction)
   DECL_ACCESSORS(before_debug_event, Object)

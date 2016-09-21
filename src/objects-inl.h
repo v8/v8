@@ -5655,7 +5655,7 @@ ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 ACCESSORS(Box, value, Object, kValueOffset)
 
 ACCESSORS(PromiseContainer, thenable, JSReceiver, kThenableOffset)
-ACCESSORS(PromiseContainer, then, JSFunction, kThenOffset)
+ACCESSORS(PromiseContainer, then, JSReceiver, kThenOffset)
 ACCESSORS(PromiseContainer, resolve, JSFunction, kResolveOffset)
 ACCESSORS(PromiseContainer, reject, JSFunction, kRejectOffset)
 ACCESSORS(PromiseContainer, before_debug_event, Object, kBeforeDebugEventOffset)

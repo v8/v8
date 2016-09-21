@@ -923,7 +923,7 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 }
 
 Handle<PromiseContainer> Factory::NewPromiseContainer(
-    Handle<JSReceiver> thenable, Handle<JSFunction> then,
+    Handle<JSReceiver> thenable, Handle<JSReceiver> then,
     Handle<JSFunction> resolve, Handle<JSFunction> reject,
     Handle<Object> before_debug_event, Handle<Object> after_debug_event) {
   Handle<PromiseContainer> result =

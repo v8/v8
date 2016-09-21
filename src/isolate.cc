@@ -2981,7 +2981,7 @@ void Isolate::PromiseResolveThenableJob(Handle<PromiseContainer> container,
   Handle<JSReceiver> thenable(container->thenable(), this);
   Handle<JSFunction> resolve(container->resolve(), this);
   Handle<JSFunction> reject(container->reject(), this);
-  Handle<JSFunction> then(container->then(), this);
+  Handle<JSReceiver> then(container->then(), this);
   Handle<Object> argv[] = {resolve, reject};
   *result = Execution::TryCall(this, then, thenable, arraysize(argv), argv,
                                maybe_exception);
@@ -3057,10 +3057,11 @@ void Isolate::RunMicrotasksInternal() {
         callback(data);
       } else {
         SaveContext save(this);
-        Context* context =
-            microtask->IsJSFunction()
-                ? Handle<JSFunction>::cast(microtask)->context()
-                : Handle<PromiseContainer>::cast(microtask)->then()->context();
+        Context* context = microtask->IsJSFunction()
+                               ? Handle<JSFunction>::cast(microtask)->context()
+                               : Handle<PromiseContainer>::cast(microtask)
+                                     ->resolve()
+                                     ->context();
         set_context(context->native_context());
         handle_scope_implementer_->EnterMicrotaskContext(
             Handle<Context>(context, this));

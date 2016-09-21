@@ -558,7 +558,7 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 6);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, resolution, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, then, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, then, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, resolve, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject, 3);
   CONVERT_ARG_HANDLE_CHECKED(Object, before_debug_event, 4);
