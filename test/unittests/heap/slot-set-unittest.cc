@@ -147,7 +147,7 @@ TEST(TypedSlotSet, Iterate) {
   uint32_t j = 0;
   for (uint32_t i = 0; i < TypedSlotSet::kMaxOffset;
        i += kDelta, j += kHostDelta) {
-    SlotType type = static_cast<SlotType>(i % NUMBER_OF_SLOT_TYPES);
+    SlotType type = static_cast<SlotType>(i % CLEARED_SLOT);
     set.Insert(type, j, i);
     ++added;
   }
@@ -156,7 +156,7 @@ TEST(TypedSlotSet, Iterate) {
                                               Address addr) {
     uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
     uint32_t j = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(host_addr));
-    EXPECT_EQ(i % NUMBER_OF_SLOT_TYPES, static_cast<uint32_t>(type));
+    EXPECT_EQ(i % CLEARED_SLOT, static_cast<uint32_t>(type));
     EXPECT_EQ(0, i % kDelta);
     EXPECT_EQ(0, j % kHostDelta);
     ++iterated;

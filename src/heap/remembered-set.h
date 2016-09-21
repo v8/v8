@@ -363,7 +363,7 @@ class UpdateTypedSlotHelper {
       case OBJECT_SLOT: {
         return callback(reinterpret_cast<Object**>(addr));
       }
-      case NUMBER_OF_SLOT_TYPES:
+      case CLEARED_SLOT:
         break;
     }
     UNREACHABLE();
@@ -382,7 +382,7 @@ inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
     return DEBUG_TARGET_SLOT;
   }
   UNREACHABLE();
-  return NUMBER_OF_SLOT_TYPES;
+  return CLEARED_SLOT;
 }
 
 }  // namespace internal
