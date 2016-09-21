@@ -201,7 +201,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
 }
 
 void SetupIsolateForWasmModule(Isolate* isolate) {
-  WasmJs::InstallWasmFunctionMapIfNeeded(isolate, isolate->native_context());
+  WasmJs::InstallWasmMapsIfNeeded(isolate, isolate->native_context());
   WasmJs::InstallWasmModuleSymbolIfNeeded(isolate, isolate->global_object(),
                                           isolate->native_context());
 }

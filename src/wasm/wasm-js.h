@@ -14,11 +14,16 @@ namespace internal {
 class WasmJs {
  public:
   static void Install(Isolate* isolate, Handle<JSGlobalObject> global_object);
-  static void InstallWasmFunctionMapIfNeeded(Isolate* isolate,
-                                             Handle<Context> context);
+
   static void InstallWasmModuleSymbolIfNeeded(Isolate* isolate,
                                               Handle<JSGlobalObject> global,
                                               Handle<Context> context);
+
+  static void InstallWasmMapsIfNeeded(Isolate* isolate,
+                                      Handle<Context> context);
+  static void InstallWasmConstructors(Isolate* isolate,
+                                      Handle<JSGlobalObject> global,
+                                      Handle<Context> context);
 };
 
 }  // namespace internal
