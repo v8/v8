@@ -2366,6 +2366,49 @@ static T FPUMaxA(T a, T b) {
   return result;
 }
 
+enum class KeepSign : bool { no = false, yes };
+
+template <typename T, typename std::enable_if<std::is_floating_point<T>::value,
+                                              int>::type = 0>
+T FPUCanonalizeNaNArg(T result, T arg, KeepSign keepSign = KeepSign::no) {
+  DCHECK(std::isnan(arg));
+  T qNaN = std::numeric_limits<T>::quiet_NaN();
+  if (keepSign == KeepSign::yes) {
+    return std::copysign(qNaN, result);
+  }
+  return qNaN;
+}
+
+template <typename T>
+T FPUCanonalizeNaNArgs(T result, KeepSign keepSign, T first) {
+  if (std::isnan(first)) {
+    return FPUCanonalizeNaNArg(result, first, keepSign);
+  }
+  return result;
+}
+
+template <typename T, typename... Args>
+T FPUCanonalizeNaNArgs(T result, KeepSign keepSign, T first, Args... args) {
+  if (std::isnan(first)) {
+    return FPUCanonalizeNaNArg(result, first, keepSign);
+  }
+  return FPUCanonalizeNaNArgs(result, keepSign, args...);
+}
+
+template <typename Func, typename T, typename... Args>
+T FPUCanonalizeOperation(Func f, T first, Args... args) {
+  return FPUCanonalizeOperation(f, KeepSign::no, first, args...);
+}
+
+template <typename Func, typename T, typename... Args>
+T FPUCanonalizeOperation(Func f, KeepSign keepSign, T first, Args... args) {
+  T result = f(first, args...);
+  if (std::isnan(result)) {
+    result = FPUCanonalizeNaNArgs(result, keepSign, first, args...);
+  }
+  return result;
+}
+
 // Handle execution based on instruction types.
 
 void Simulator::DecodeTypeRegisterDRsType() {
@@ -2477,10 +2520,16 @@ void Simulator::DecodeTypeRegisterDRsType() {
       set_fpu_register_double(fd_reg(), FPUMaxA(ft, fs));
       break;
     case ADD_D:
-      set_fpu_register_double(fd_reg(), fs + ft);
+      set_fpu_register_double(
+          fd_reg(),
+          FPUCanonalizeOperation(
+              [](double lhs, double rhs) { return lhs + rhs; }, fs, ft));
       break;
     case SUB_D:
-      set_fpu_register_double(fd_reg(), fs - ft);
+      set_fpu_register_double(
+          fd_reg(),
+          FPUCanonalizeOperation(
+              [](double lhs, double rhs) { return lhs - rhs; }, fs, ft));
       break;
     case MADDF_D:
       DCHECK(IsMipsArchVariant(kMips32r6));
@@ -2491,37 +2540,45 @@ void Simulator::DecodeTypeRegisterDRsType() {
       set_fpu_register_double(fd_reg(), fd - (fs * ft));
       break;
     case MUL_D:
-      set_fpu_register_double(fd_reg(), fs * ft);
+      set_fpu_register_double(
+          fd_reg(),
+          FPUCanonalizeOperation(
+              [](double lhs, double rhs) { return lhs * rhs; }, fs, ft));
       break;
     case DIV_D:
-      set_fpu_register_double(fd_reg(), fs / ft);
+      set_fpu_register_double(
+          fd_reg(),
+          FPUCanonalizeOperation(
+              [](double lhs, double rhs) { return lhs / rhs; }, fs, ft));
       break;
     case ABS_D:
-      set_fpu_register_double(fd_reg(), fabs(fs));
+      set_fpu_register_double(
+          fd_reg(),
+          FPUCanonalizeOperation([](double fs) { return FPAbs(fs); }, fs));
       break;
     case MOV_D:
       set_fpu_register_double(fd_reg(), fs);
       break;
     case NEG_D:
-      set_fpu_register_double(fd_reg(), -fs);
+      set_fpu_register_double(
+          fd_reg(), FPUCanonalizeOperation([](double src) { return -src; },
+                                           KeepSign::yes, fs));
       break;
     case SQRT_D:
-      lazily_initialize_fast_sqrt(isolate_);
-      set_fpu_register_double(fd_reg(), fast_sqrt(fs, isolate_));
+      set_fpu_register_double(
+          fd_reg(),
+          FPUCanonalizeOperation([](double fs) { return std::sqrt(fs); }, fs));
       break;
-    case RSQRT_D: {
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      lazily_initialize_fast_sqrt(isolate_);
-      double result = 1.0 / fast_sqrt(fs, isolate_);
-      set_fpu_register_double(fd_reg(), result);
+    case RSQRT_D:
+      set_fpu_register_double(
+          fd_reg(), FPUCanonalizeOperation(
+                        [](double fs) { return 1.0 / std::sqrt(fs); }, fs));
       break;
-    }
-    case RECIP_D: {
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      double result = 1.0 / fs;
-      set_fpu_register_double(fd_reg(), result);
+    case RECIP_D:
+      set_fpu_register_double(
+          fd_reg(),
+          FPUCanonalizeOperation([](double fs) { return 1.0 / fs; }, fs));
       break;
-    }
     case C_UN_D:
       set_fcsr_bit(fcsr_cc, std::isnan(fs) || std::isnan(ft));
       break;
@@ -2890,10 +2947,16 @@ void Simulator::DecodeTypeRegisterSRsType() {
       break;
     }
     case ADD_S:
-      set_fpu_register_float(fd_reg(), fs + ft);
+      set_fpu_register_float(
+          fd_reg(),
+          FPUCanonalizeOperation([](float lhs, float rhs) { return lhs + rhs; },
+                                 fs, ft));
       break;
     case SUB_S:
-      set_fpu_register_float(fd_reg(), fs - ft);
+      set_fpu_register_float(
+          fd_reg(),
+          FPUCanonalizeOperation([](float lhs, float rhs) { return lhs - rhs; },
+                                 fs, ft));
       break;
     case MADDF_S:
       DCHECK(IsMipsArchVariant(kMips32r6));
@@ -2904,37 +2967,45 @@ void Simulator::DecodeTypeRegisterSRsType() {
       set_fpu_register_float(fd_reg(), fd - (fs * ft));
       break;
     case MUL_S:
-      set_fpu_register_float(fd_reg(), fs * ft);
+      set_fpu_register_float(
+          fd_reg(),
+          FPUCanonalizeOperation([](float lhs, float rhs) { return lhs * rhs; },
+                                 fs, ft));
       break;
     case DIV_S:
-      set_fpu_register_float(fd_reg(), fs / ft);
+      set_fpu_register_float(
+          fd_reg(),
+          FPUCanonalizeOperation([](float lhs, float rhs) { return lhs / rhs; },
+                                 fs, ft));
       break;
     case ABS_S:
-      set_fpu_register_float(fd_reg(), fabs(fs));
+      set_fpu_register_float(
+          fd_reg(),
+          FPUCanonalizeOperation([](float fs) { return FPAbs(fs); }, fs));
       break;
     case MOV_S:
       set_fpu_register_float(fd_reg(), fs);
       break;
     case NEG_S:
-      set_fpu_register_float(fd_reg(), -fs);
+      set_fpu_register_float(
+          fd_reg(), FPUCanonalizeOperation([](float src) { return -src; },
+                                           KeepSign::yes, fs));
       break;
     case SQRT_S:
-      lazily_initialize_fast_sqrt(isolate_);
-      set_fpu_register_float(fd_reg(), fast_sqrt(fs, isolate_));
+      set_fpu_register_float(
+          fd_reg(),
+          FPUCanonalizeOperation([](float src) { return std::sqrt(src); }, fs));
       break;
-    case RSQRT_S: {
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      lazily_initialize_fast_sqrt(isolate_);
-      float result = 1.0 / fast_sqrt(fs, isolate_);
-      set_fpu_register_float(fd_reg(), result);
+    case RSQRT_S:
+      set_fpu_register_float(
+          fd_reg(), FPUCanonalizeOperation(
+                        [](float src) { return 1.0 / std::sqrt(src); }, fs));
       break;
-    }
-    case RECIP_S: {
-      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-      float result = 1.0 / fs;
-      set_fpu_register_float(fd_reg(), result);
+    case RECIP_S:
+      set_fpu_register_float(
+          fd_reg(),
+          FPUCanonalizeOperation([](float src) { return 1.0 / src; }, fs));
       break;
-    }
     case C_F_D:
       set_fcsr_bit(fcsr_cc, false);
       break;
