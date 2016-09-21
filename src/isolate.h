@@ -94,14 +94,6 @@ namespace interpreter {
 class Interpreter;
 }
 
-// Static indirection table for handles to constants.  If a frame
-// element represents a constant, the data contains an index into
-// this table of handles to the actual constants.
-// Static indirection table for handles to constants.  If a Result
-// represents a constant, the data contains an index into this table
-// of handles to the actual constants.
-typedef ZoneList<Handle<Object> > ZoneObjectList;
-
 #define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate)    \
   do {                                                    \
     Isolate* __isolate__ = (isolate);                     \

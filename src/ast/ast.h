@@ -126,11 +126,6 @@ AST_NODE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
 
 
-// Typedef only introduced to avoid unreadable code.
-typedef ZoneList<Handle<String>> ZoneStringList;
-typedef ZoneList<Handle<Object>> ZoneObjectList;
-
-
 class FeedbackVectorSlotCache {
  public:
   explicit FeedbackVectorSlotCache(Zone* zone)
