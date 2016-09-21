@@ -504,6 +504,28 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
+  Int32BinopMatcher m(node);
+  if (m.left().IsWord32Shl() && CanCover(node, m.left().node())) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (m.right().HasValue() && mleft.right().HasValue()) {
+      Mips64OperandGenerator g(this);
+      uint32_t sar = m.right().Value();
+      uint32_t shl = mleft.right().Value();
+      if ((sar == shl) && (sar == 16)) {
+        Emit(kMips64Seh, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()));
+        return;
+      } else if ((sar == shl) && (sar == 24)) {
+        Emit(kMips64Seb, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()));
+        return;
+      } else if ((sar == shl) && (sar == 32)) {
+        Emit(kMips64Shl, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(0));
+        return;
+      }
+    }
+  }
   VisitRRO(this, kMips64Sar, node);
 }
 

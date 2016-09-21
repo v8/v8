@@ -1355,7 +1355,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 
     // ... more basic instructions ...
-
+    case kMipsSeb:
+      __ seb(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kMipsSeh:
+      __ seh(i.OutputRegister(), i.InputRegister(0));
+      break;
     case kMipsLbu:
       __ lbu(i.OutputRegister(), i.MemoryOperand());
       break;

@@ -407,6 +407,24 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
+  Int32BinopMatcher m(node);
+  if (m.left().IsWord32Shl() && CanCover(node, m.left().node())) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (m.right().HasValue() && mleft.right().HasValue()) {
+      MipsOperandGenerator g(this);
+      uint32_t sar = m.right().Value();
+      uint32_t shl = mleft.right().Value();
+      if ((sar == shl) && (sar == 16)) {
+        Emit(kMipsSeh, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()));
+        return;
+      } else if ((sar == shl) && (sar == 24)) {
+        Emit(kMipsSeb, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()));
+        return;
+      }
+    }
+  }
   VisitRRO(this, kMipsSar, node);
 }
 

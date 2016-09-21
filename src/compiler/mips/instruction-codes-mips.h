@@ -126,7 +126,9 @@ namespace compiler {
   V(MipsPush)                      \
   V(MipsStoreToStackSlot)          \
   V(MipsByteSwap32)                \
-  V(MipsStackClaim)
+  V(MipsStackClaim)                \
+  V(MipsSeb)                       \
+  V(MipsSeh)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
