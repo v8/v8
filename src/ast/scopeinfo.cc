@@ -272,7 +272,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   // Module-specific information (only for module scopes).
   if (scope->is_module_scope()) {
     Handle<ModuleInfo> module_info =
-        ModuleInfo::New(isolate, scope->AsModuleScope()->module());
+        ModuleInfo::New(isolate, zone, scope->AsModuleScope()->module());
     DCHECK_EQ(index, scope_info->ModuleInfoIndex());
     scope_info->set(index++, *module_info);
     DCHECK_EQ(index, scope_info->ModuleVariableCountIndex());
@@ -852,7 +852,8 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
   return result;
 }
 
-Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
+Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
+                                   ModuleDescriptor* descr) {
   // Serialize module requests.
   Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(
       static_cast<int>(descr->module_requests().size()));
@@ -881,14 +882,8 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
   }
 
   // Serialize regular exports.
-  Handle<FixedArray> regular_exports = isolate->factory()->NewFixedArray(
-      static_cast<int>(descr->regular_exports().size()));
-  {
-    int i = 0;
-    for (const auto& elem : descr->regular_exports()) {
-      regular_exports->set(i++, *elem.second->Serialize(isolate));
-    }
-  }
+  Handle<FixedArray> regular_exports =
+      descr->SerializeRegularExports(isolate, zone);
 
   // Serialize regular imports.
   Handle<FixedArray> regular_imports = isolate->factory()->NewFixedArray(

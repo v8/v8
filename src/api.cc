@@ -1949,19 +1949,13 @@ bool Module::Instantiate(Local<Context> v8_context,
     self->requested_modules()->set(i, *Utils::OpenHandle(*import));
   }
 
-  // TODO(neis): This will create multiple cells for the same local variable if
-  // exported under multiple names, which is wrong but cannot be observed at the
-  // moment. This will be fixed by doing the full-fledged linking here once we
-  // get there.
+  // Set up local exports.
   i::Handle<i::FixedArray> regular_exports = i::handle(
       shared->scope_info()->ModuleDescriptorInfo()->regular_exports(), isolate);
-  for (int i = 0, length = regular_exports->length(); i < length; ++i) {
-    i::Handle<i::ModuleInfoEntry> entry =
-        i::handle(i::ModuleInfoEntry::cast(regular_exports->get(i)), isolate);
-    DCHECK(entry->import_name()->IsUndefined(isolate));
-    i::Handle<i::String> export_name =
-        handle(i::String::cast(entry->export_name()), isolate);
-    i::Module::CreateExport(self, export_name);
+  for (int i = 0, n = regular_exports->length(); i < n; i += 2) {
+    i::Handle<i::FixedArray> export_names(
+        i::FixedArray::cast(regular_exports->get(i + 1)), isolate);
+    i::Module::CreateExport(self, export_names);
   }
 
   return true;
@@ -2124,8 +2118,7 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(Isolate* isolate,
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
 
   i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound);
-  i::Handle<i::Module> module = i_isolate->factory()->NewModule(shared);
-  return ToApiHandle<Module>(module);
+  return ToApiHandle<Module>(i_isolate->factory()->NewModule(shared));
 }
 
 

@@ -19580,13 +19580,17 @@ bool JSReceiver::HasProxyInPrototype(Isolate* isolate) {
   return false;
 }
 
-void Module::CreateExport(Handle<Module> module, Handle<String> name) {
+void Module::CreateExport(Handle<Module> module, Handle<FixedArray> names) {
+  DCHECK_LT(0, names->length());
   Isolate* isolate = module->GetIsolate();
   Handle<Cell> cell =
       isolate->factory()->NewCell(isolate->factory()->undefined_value());
   Handle<ObjectHashTable> exports(module->exports(), isolate);
-  DCHECK(exports->Lookup(name)->IsTheHole(isolate));
-  exports = ObjectHashTable::Put(exports, name, cell);
+  for (int i = 0, n = names->length(); i < n; ++i) {
+    Handle<String> name(String::cast(names->get(i)), isolate);
+    DCHECK(exports->Lookup(name)->IsTheHole(isolate));
+    exports = ObjectHashTable::Put(exports, name, cell);
+  }
   module->set_exports(*exports);
 }
 

@@ -155,6 +155,11 @@ class ModuleDescriptor : public ZoneObject {
     special_imports_.Add(entry, zone);
   }
 
+  Handle<FixedArray> SerializeRegularExports(Isolate* isolate,
+                                             Zone* zone) const;
+  void DeserializeRegularExports(Isolate* isolate, AstValueFactory* avfactory,
+                                 Handle<FixedArray> data);
+
  private:
   // TODO(neis): Use STL datastructure instead of ZoneList?
   ZoneMap<const AstRawString*, int> module_requests_;

@@ -110,6 +110,69 @@ ModuleDescriptor::Entry* ModuleDescriptor::Entry::Deserialize(
   return result;
 }
 
+Handle<FixedArray> ModuleDescriptor::SerializeRegularExports(Isolate* isolate,
+                                                             Zone* zone) const {
+  // We serialize regular exports in a way that lets us later iterate over their
+  // local names and for each local name immediately access all its export
+  // names.  (Regular exports have neither import name nor module request.)
+
+  ZoneVector<Handle<Object>> data(zone);
+  data.reserve(2 * regular_exports_.size());
+
+  for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {
+    // Find out how many export names this local name has.
+    auto next = it;
+    int size = 0;
+    do {
+      ++next;
+      ++size;
+    } while (next != regular_exports_.end() && next->first == it->first);
+
+    Handle<FixedArray> export_names = isolate->factory()->NewFixedArray(size);
+    data.push_back(it->second->local_name->string());
+    data.push_back(export_names);
+
+    // Collect the export names.
+    int i = 0;
+    for (; it != next; ++it) {
+      export_names->set(i++, *it->second->export_name->string());
+    }
+    DCHECK_EQ(i, size);
+
+    // Continue with the next distinct key.
+    DCHECK(it == next);
+  }
+
+  // We cannot create the FixedArray earlier because we only now know the
+  // precise size (the number of unique keys in regular_exports).
+  int size = static_cast<int>(data.size());
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(size);
+  for (int i = 0; i < size; ++i) {
+    result->set(i, *data[i]);
+  }
+  return result;
+}
+
+void ModuleDescriptor::DeserializeRegularExports(Isolate* isolate,
+                                                 AstValueFactory* avfactory,
+                                                 Handle<FixedArray> data) {
+  for (int i = 0, length_i = data->length(); i < length_i;) {
+    Handle<String> local_name(String::cast(data->get(i++)), isolate);
+    Handle<FixedArray> export_names(FixedArray::cast(data->get(i++)), isolate);
+
+    for (int j = 0, length_j = export_names->length(); j < length_j; ++j) {
+      Handle<String> export_name(String::cast(export_names->get(j)), isolate);
+
+      Entry* entry =
+          new (avfactory->zone()) Entry(Scanner::Location::invalid());
+      entry->local_name = avfactory->GetString(local_name);
+      entry->export_name = avfactory->GetString(export_name);
+
+      AddRegularExport(entry);
+    }
+  }
+}
+
 void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {
     Entry* entry = it->second;

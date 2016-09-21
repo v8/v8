@@ -167,7 +167,7 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   module_descriptor_ = new (zone) ModuleDescriptor(zone);
 
   // Deserialize special exports.
-  Handle<FixedArray> special_exports = handle(module_info->special_exports());
+  Handle<FixedArray> special_exports(module_info->special_exports(), isolate);
   for (int i = 0, n = special_exports->length(); i < n; ++i) {
     Handle<ModuleInfoEntry> serialized_entry(
         ModuleInfoEntry::cast(special_exports->get(i)), isolate);
@@ -178,16 +178,12 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   }
 
   // Deserialize regular exports.
-  Handle<FixedArray> regular_exports = handle(module_info->regular_exports());
-  for (int i = 0, n = regular_exports->length(); i < n; ++i) {
-    Handle<ModuleInfoEntry> serialized_entry(
-        ModuleInfoEntry::cast(regular_exports->get(i)), isolate);
-    module_descriptor_->AddRegularExport(ModuleDescriptor::Entry::Deserialize(
-        isolate, avfactory, serialized_entry));
-  }
+  Handle<FixedArray> regular_exports(module_info->regular_exports(), isolate);
+  module_descriptor_->DeserializeRegularExports(isolate, avfactory,
+                                                regular_exports);
 
   // Deserialize special imports.
-  Handle<FixedArray> special_imports = handle(module_info->special_imports());
+  Handle<FixedArray> special_imports(module_info->special_imports(), isolate);
   for (int i = 0, n = special_imports->length(); i < n; ++i) {
     Handle<ModuleInfoEntry> serialized_entry(
         ModuleInfoEntry::cast(special_imports->get(i)), isolate);
@@ -198,7 +194,7 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   }
 
   // Deserialize regular imports.
-  Handle<FixedArray> regular_imports = handle(module_info->regular_imports());
+  Handle<FixedArray> regular_imports(module_info->regular_imports(), isolate);
   for (int i = 0, n = regular_imports->length(); i < n; ++i) {
     Handle<ModuleInfoEntry> serialized_entry(
         ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
