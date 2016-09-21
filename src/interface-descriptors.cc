@@ -272,39 +272,6 @@ void ContextOnlyDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(0, nullptr);
 }
 
-CallInterfaceDescriptor OnStackArgsDescriptorBase::ForArgs(
-    Isolate* isolate, int parameter_count) {
-  switch (parameter_count) {
-    case 1:
-      return OnStackWith1ArgsDescriptor(isolate);
-    case 2:
-      return OnStackWith2ArgsDescriptor(isolate);
-    case 3:
-      return OnStackWith3ArgsDescriptor(isolate);
-    case 4:
-      return OnStackWith4ArgsDescriptor(isolate);
-    case 5:
-      return OnStackWith5ArgsDescriptor(isolate);
-    case 6:
-      return OnStackWith6ArgsDescriptor(isolate);
-    case 7:
-      return OnStackWith7ArgsDescriptor(isolate);
-    default:
-      UNREACHABLE();
-      return VoidDescriptor(isolate);
-  }
-}
-
-void OnStackArgsDescriptorBase::InitializePlatformIndependent(
-    CallInterfaceDescriptorData* data) {
-  data->InitializePlatformIndependent(0, extra_args(), NULL);
-}
-
-void OnStackArgsDescriptorBase::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  data->InitializePlatformSpecific(0, nullptr);
-}
-
 void GrowArrayElementsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ObjectRegister(), KeyRegister()};

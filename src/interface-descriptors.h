@@ -18,13 +18,6 @@ class PlatformInterfaceDescriptor;
 #define INTERFACE_DESCRIPTOR_LIST(V)      \
   V(Void)                                 \
   V(ContextOnly)                          \
-  V(OnStackWith1Args)                     \
-  V(OnStackWith2Args)                     \
-  V(OnStackWith3Args)                     \
-  V(OnStackWith4Args)                     \
-  V(OnStackWith5Args)                     \
-  V(OnStackWith6Args)                     \
-  V(OnStackWith7Args)                     \
   V(Load)                                 \
   V(LoadWithVector)                       \
   V(LoadGlobal)                           \
@@ -53,6 +46,7 @@ class PlatformInterfaceDescriptor;
   V(CallTrampoline)                       \
   V(ConstructStub)                        \
   V(ConstructTrampoline)                  \
+  V(RegExpExec)                           \
   V(RegExpConstructResult)                \
   V(CopyFastSmiOrObjectElements)          \
   V(TransitionElementsKind)               \
@@ -77,6 +71,7 @@ class PlatformInterfaceDescriptor;
   V(CountOp)                              \
   V(StringAdd)                            \
   V(StringCompare)                        \
+  V(SubString)                            \
   V(Keyed)                                \
   V(Named)                                \
   V(HasProperty)                          \
@@ -264,11 +259,18 @@ class CallInterfaceDescriptor {
                                                                         \
  public:
 
-#define DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(name, base, arg) \
-  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                  \
- protected:                                                                 \
-  int extra_args() const override { return arg; }                           \
-                                                                            \
+#define DECLARE_DESCRIPTOR_WITH_STACK_ARGS(name, base)                  \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                              \
+ protected:                                                             \
+  void InitializePlatformIndependent(CallInterfaceDescriptorData* data) \
+      override {                                                        \
+    data->InitializePlatformIndependent(0, kParameterCount, NULL);      \
+  }                                                                     \
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)    \
+      override {                                                        \
+    data->InitializePlatformSpecific(0, nullptr);                       \
+  }                                                                     \
+                                                                        \
  public:
 
 #define DEFINE_PARAMETERS(...)                          \
@@ -287,74 +289,6 @@ class VoidDescriptor : public CallInterfaceDescriptor {
 class ContextOnlyDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
-};
-
-// The OnStackWith*ArgsDescriptors have a lot of boilerplate. The superclass
-// OnStackArgsDescriptorBase is not meant to be instantiated directly and has no
-// public constructors to ensure this is so.contains all the logic, and the
-//
-// Use OnStackArgsDescriptorBase::ForArgs(isolate, parameter_count) to
-// instantiate a descriptor with the number of args.
-class OnStackArgsDescriptorBase : public CallInterfaceDescriptor {
- public:
-  static CallInterfaceDescriptor ForArgs(Isolate* isolate, int parameter_count);
-
- protected:
-  virtual int extra_args() const { return 0; }
-  OnStackArgsDescriptorBase(Isolate* isolate, CallDescriptors::Key key)
-      : CallInterfaceDescriptor(isolate, key) {}
-  void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override;
-  void InitializePlatformIndependent(
-      CallInterfaceDescriptorData* data) override;
-};
-
-class OnStackWith1ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith1ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     1)
-};
-
-class OnStackWith2ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith2ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     2)
-};
-
-class OnStackWith3ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith3ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     3)
-};
-
-class OnStackWith4ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith4ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     4)
-};
-
-class OnStackWith5ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith5ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     5)
-};
-
-class OnStackWith6ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith6ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     6)
-};
-
-class OnStackWith7ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith7ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     7)
 };
 
 // LoadDescriptor is used by all stubs that implement Load/KeyedLoad ICs.
@@ -598,6 +532,12 @@ class CallConstructDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallConstructDescriptor, CallInterfaceDescriptor)
 };
 
+class RegExpExecDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kRegExpObject, kString, kPreviousIndex, kLastMatchInfo)
+  DECLARE_DESCRIPTOR_WITH_STACK_ARGS(RegExpExecDescriptor,
+                                     CallInterfaceDescriptor)
+};
 
 class RegExpConstructResultDescriptor : public CallInterfaceDescriptor {
  public:
@@ -715,6 +655,13 @@ class StringCompareDescriptor : public CallInterfaceDescriptor {
 
   static const Register LeftRegister();
   static const Register RightRegister();
+};
+
+class SubStringDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kString, kFrom, kTo)
+  DECLARE_DESCRIPTOR_WITH_STACK_ARGS(SubStringDescriptor,
+                                     CallInterfaceDescriptor)
 };
 
 // TODO(ishell): not used, remove.
