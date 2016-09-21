@@ -403,7 +403,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
                                    &default_descriptor);
 }
 
-void ApiCallbackDescriptorBase::InitializePlatformSpecific(
+void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   static PlatformInterfaceDescriptor default_descriptor =
       PlatformInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);

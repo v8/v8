@@ -1822,10 +1822,6 @@ class CallApiCallbackStub : public PlatformCodeStub {
       : CallApiCallbackStub(isolate, argc, false, call_data_undefined,
                             is_lazy) {}
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    return ApiCallbackDescriptorBase::ForArgs(isolate(), argc());
-  }
-
  private:
   CallApiCallbackStub(Isolate* isolate, int argc, bool is_store,
                       bool call_data_undefined, bool is_lazy)
@@ -1849,6 +1845,7 @@ class CallApiCallbackStub : public PlatformCodeStub {
   class ArgumentBits : public BitField<int, 2, kArgBits> {};
   class IsLazyAccessorBits : public BitField<bool, 3 + kArgBits, 1> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiCallback);
   DEFINE_PLATFORM_CODE_STUB(CallApiCallback, PlatformCodeStub);
 };
 

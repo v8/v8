@@ -657,9 +657,11 @@ Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
 }
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
-                               Node* target, Node** args, size_t result_size) {
+                               int js_parameter_count, Node* target,
+                               Node** args, size_t result_size) {
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      isolate(), zone(), descriptor,
+      descriptor.GetStackParameterCount() + js_parameter_count,
       CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), result_size);
 
@@ -822,10 +824,6 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
                             Node* function, Node* receiver,
                             size_t result_size) {
   const int argc = 0;
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), argc + 1,
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
   Node* target = HeapConstant(callable.code());
 
   Node** args = zone()->NewArray<Node*>(argc + 4);
@@ -834,17 +832,13 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
   args[2] = receiver;
   args[3] = context;
 
-  return CallN(call_descriptor, target, args);
+  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
 }
 
 Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
                             Node* function, Node* receiver, Node* arg1,
                             size_t result_size) {
   const int argc = 1;
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), argc + 1,
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
   Node* target = HeapConstant(callable.code());
 
   Node** args = zone()->NewArray<Node*>(argc + 4);
@@ -854,17 +848,13 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
   args[3] = arg1;
   args[4] = context;
 
-  return CallN(call_descriptor, target, args);
+  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
 }
 
 Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
                             Node* function, Node* receiver, Node* arg1,
                             Node* arg2, size_t result_size) {
   const int argc = 2;
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), argc + 1,
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
   Node* target = HeapConstant(callable.code());
 
   Node** args = zone()->NewArray<Node*>(argc + 4);
@@ -875,7 +865,7 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
   args[4] = arg2;
   args[5] = context;
 
-  return CallN(call_descriptor, target, args);
+  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
 }
 
 Node* CodeAssembler::CallCFunction2(MachineType return_type,

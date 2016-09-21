@@ -322,7 +322,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void ApiCallbackDescriptorBase::InitializePlatformSpecific(
+void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r2,  // callee

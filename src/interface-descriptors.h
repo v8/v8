@@ -84,14 +84,7 @@ class PlatformInterfaceDescriptor;
   V(GetProperty)                          \
   V(CallHandler)                          \
   V(ArgumentAdaptor)                      \
-  V(ApiCallbackWith0Args)                 \
-  V(ApiCallbackWith1Args)                 \
-  V(ApiCallbackWith2Args)                 \
-  V(ApiCallbackWith3Args)                 \
-  V(ApiCallbackWith4Args)                 \
-  V(ApiCallbackWith5Args)                 \
-  V(ApiCallbackWith6Args)                 \
-  V(ApiCallbackWith7Args)                 \
+  V(ApiCallback)                          \
   V(ApiGetter)                            \
   V(StoreGlobalViaContext)                \
   V(MathPowTagged)                        \
@@ -751,79 +744,12 @@ class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
-// The ApiCallback*Descriptors have a lot of boilerplate. The superclass
-// ApiCallbackDescriptorBase contains all the logic, and the
-// ApiCallbackWith*ArgsDescriptor merely instantiate these with a
-// parameter for the number of args.
-//
-// The base class is not meant to be instantiated directly and has no
-// public constructors to ensure this is so.
-//
-// The simplest usage for all the ApiCallback*Descriptors is probably
-//   ApiCallbackDescriptorBase::ForArgs(isolate, argc)
-//
-class ApiCallbackDescriptorBase : public CallInterfaceDescriptor {
+class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kFunction, kCallData, kHolder, kApiFunctionAddress)
-  static CallInterfaceDescriptor ForArgs(Isolate* isolate, int argc);
-
- protected:
-  virtual int extra_args() const { return 0; }
-  ApiCallbackDescriptorBase(Isolate* isolate, CallDescriptors::Key key)
-      : CallInterfaceDescriptor(isolate, key) {}
-  void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override;
-  void InitializePlatformIndependent(
-      CallInterfaceDescriptorData* data) override;
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiCallbackDescriptor,
+                                               CallInterfaceDescriptor)
 };
-
-class ApiCallbackWith0ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith0ArgsDescriptor, ApiCallbackDescriptorBase, 0)
-};
-
-class ApiCallbackWith1ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith1ArgsDescriptor, ApiCallbackDescriptorBase, 1)
-};
-
-class ApiCallbackWith2ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith2ArgsDescriptor, ApiCallbackDescriptorBase, 2)
-};
-
-class ApiCallbackWith3ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith3ArgsDescriptor, ApiCallbackDescriptorBase, 3)
-};
-
-class ApiCallbackWith4ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith4ArgsDescriptor, ApiCallbackDescriptorBase, 4)
-};
-
-class ApiCallbackWith5ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith5ArgsDescriptor, ApiCallbackDescriptorBase, 5)
-};
-
-class ApiCallbackWith6ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith6ArgsDescriptor, ApiCallbackDescriptorBase, 6)
-};
-
-class ApiCallbackWith7ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith7ArgsDescriptor, ApiCallbackDescriptorBase, 7)
-};
-
 
 class ApiGetterDescriptor : public CallInterfaceDescriptor {
  public:

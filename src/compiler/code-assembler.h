@@ -379,8 +379,13 @@ class CodeAssembler {
                  const Arg& arg3, const Arg& arg4, const Arg& arg5,
                  size_t result_size = 1);
 
+  Node* CallStubN(const CallInterfaceDescriptor& descriptor,
+                  int js_parameter_count, Node* target, Node** args,
+                  size_t result_size = 1);
   Node* CallStubN(const CallInterfaceDescriptor& descriptor, Node* target,
-                  Node** args, size_t result_size = 1);
+                  Node** args, size_t result_size = 1) {
+    return CallStubN(descriptor, 0, target, args, result_size);
+  }
 
   Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
                      size_t result_size = 1);
