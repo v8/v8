@@ -65,11 +65,20 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
     Verify(kSuccess, sigs.v_i(), code, code + sizeof(code)); \
   } while (false)
 
+static bool old_eh_flag;
+
 class AstDecoderTest : public TestWithZone {
  public:
   typedef std::pair<uint32_t, LocalType> LocalsDecl;
 
   AstDecoderTest() : module(nullptr), local_decls(zone()) {}
+
+  static void SetUpTestCase() { old_eh_flag = FLAG_wasm_eh_prototype; }
+
+  static void TearDownTestCase() {
+    // Reset the wasm_eh_prototype flag
+    FLAG_wasm_eh_prototype = old_eh_flag;
+  }
 
   TestSignatures sigs;
   ModuleEnv* module;
