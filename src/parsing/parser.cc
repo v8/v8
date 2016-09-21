@@ -3662,17 +3662,22 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   }
 
   if (function_type == FunctionLiteral::kNamedExpression) {
-    // Now that we know the language mode, we can create the const assignment
-    // in the previously reserved spot.
-    DCHECK_EQ(function_scope, scope());
-    Variable* fvar = function_scope->DeclareFunctionVar(function_name);
-    VariableProxy* fproxy = factory()->NewVariableProxy(fvar);
-    result->Set(kFunctionNameAssignmentIndex,
-                factory()->NewExpressionStatement(
-                    factory()->NewAssignment(Token::INIT, fproxy,
-                                             factory()->NewThisFunction(pos),
-                                             kNoSourcePosition),
-                    kNoSourcePosition));
+    Statement* statement;
+    if (function_scope->LookupLocal(function_name) == nullptr) {
+      // Now that we know the language mode, we can create the const assignment
+      // in the previously reserved spot.
+      DCHECK_EQ(function_scope, scope());
+      Variable* fvar = function_scope->DeclareFunctionVar(function_name);
+      VariableProxy* fproxy = factory()->NewVariableProxy(fvar);
+      statement = factory()->NewExpressionStatement(
+          factory()->NewAssignment(Token::INIT, fproxy,
+                                   factory()->NewThisFunction(pos),
+                                   kNoSourcePosition),
+          kNoSourcePosition);
+    } else {
+      statement = factory()->NewEmptyStatement(kNoSourcePosition);
+    }
+    result->Set(kFunctionNameAssignmentIndex, statement);
   }
 
   MarkCollectedTailCallExpressions();

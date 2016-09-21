@@ -638,15 +638,14 @@ class DeclarationScope : public Scope {
   void DeclareArguments(AstValueFactory* ast_value_factory);
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
 
-  // This lookup corresponds to a lookup in the "intermediate" scope sitting
-  // between this scope and the outer scope. (ECMA-262, 3rd., requires that
-  // the name of named function literal is kept in an intermediate scope
-  // in between this scope and the next outer scope.)
-  Variable* LookupFunctionVar(const AstRawString* name);
-
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
+  //
+  // This function needs to be called after all other variables have been
+  // declared in the scope. It will add a variable for {name} to {variables_};
+  // either the function variable itself, or a non-local in case the function
+  // calls sloppy eval.
   Variable* DeclareFunctionVar(const AstRawString* name);
 
   // Declare a parameter in this scope.  When there are duplicated

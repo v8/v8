@@ -624,10 +624,16 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
 Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
   DCHECK(is_function_scope());
   DCHECK_NULL(function_);
+  DCHECK_NULL(variables_.Lookup(name));
   VariableKind kind = is_sloppy(language_mode()) ? SLOPPY_FUNCTION_NAME_VARIABLE
                                                  : NORMAL_VARIABLE;
   function_ =
       new (zone()) Variable(this, name, CONST, kind, kCreatedInitialized);
+  if (calls_sloppy_eval()) {
+    NonLocal(name, DYNAMIC);
+  } else {
+    variables_.Add(function_);
+  }
   return function_;
 }
 
@@ -766,7 +772,15 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
     index = scope_info_->ModuleIndex(name_handle, &mode, &init_flag,
                                      &maybe_assigned_flag);
   }
-  if (index < 0) return nullptr;  // Nowhere found.
+
+  if (index < 0) {
+    index = scope_info_->FunctionContextSlotIndex(*name_handle);
+    if (index < 0) return nullptr;  // Nowhere found.
+    Variable* var = AsDeclarationScope()->DeclareFunctionVar(name);
+    DCHECK_EQ(CONST, var->mode());
+    var->AllocateTo(VariableLocation::CONTEXT, index);
+    return variables_.Lookup(name);
+  }
 
   VariableKind kind = NORMAL_VARIABLE;
   if (location == VariableLocation::CONTEXT &&
@@ -781,22 +795,6 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
   var->AllocateTo(location, index);
   return var;
 }
-
-Variable* DeclarationScope::LookupFunctionVar(const AstRawString* name) {
-  if (function_ != nullptr && function_->raw_name() == name) {
-    return function_;
-  } else if (!scope_info_.is_null()) {
-    // If we are backed by a scope info, try to lookup the variable there.
-    int index = scope_info_->FunctionContextSlotIndex(*(name->string()));
-    if (index < 0) return nullptr;
-    Variable* var = DeclareFunctionVar(name);
-    var->AllocateTo(VariableLocation::CONTEXT, index);
-    return var;
-  } else {
-    return nullptr;
-  }
-}
-
 
 Variable* Scope::Lookup(const AstRawString* name) {
   for (Scope* scope = this;
@@ -1454,16 +1452,6 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy, Scope* outer_scope_end) {
   // scope which introduces the same variable again, the resulting variable
   // remains the same.)
   if (var != nullptr) return var;
-
-  // We did not find a variable locally. Check against the function variable, if
-  // any.
-  if (is_function_scope()) {
-    var = AsDeclarationScope()->LookupFunctionVar(proxy->raw_name());
-    if (var != nullptr) {
-      if (calls_sloppy_eval()) return NonLocal(proxy->raw_name(), DYNAMIC);
-      return var;
-    }
-  }
 
   if (outer_scope_ == outer_scope_end) {
     // We may just be trying to find all free variables. In that case, don't
