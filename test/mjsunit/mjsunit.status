@@ -227,6 +227,14 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 
+  # Async function tests taking too long
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
+  'harmony/async-function-debug-scopes': [SKIP],
+  'harmony/async-debug-caught-exception-cases0': [SKIP],
+  'harmony/async-debug-caught-exception-cases1': [SKIP],
+  'harmony/async-debug-caught-exception-cases2': [SKIP],
+  'harmony/async-debug-caught-exception-cases3': [SKIP],
+
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
