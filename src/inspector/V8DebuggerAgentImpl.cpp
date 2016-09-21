@@ -1012,9 +1012,12 @@ std::unique_ptr<Array<CallFrame>> V8DebuggerAgentImpl::currentCallFrames(
       return Array<CallFrame>::create();
   }
 
+  std::unique_ptr<protocol::Value> protocolValue =
+      toProtocolValue(errorString, debuggerContext, objects);
+  if (!protocolValue) return Array<CallFrame>::create();
   protocol::ErrorSupport errorSupport;
-  std::unique_ptr<Array<CallFrame>> callFrames = Array<CallFrame>::parse(
-      toProtocolValue(debuggerContext, objects).get(), &errorSupport);
+  std::unique_ptr<Array<CallFrame>> callFrames =
+      Array<CallFrame>::parse(protocolValue.get(), &errorSupport);
   if (hasInternalError(errorString, !callFrames))
     return Array<CallFrame>::create();
   return callFrames;
