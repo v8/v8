@@ -3034,7 +3034,7 @@ class SloppyArgumentsElementsAccessor
       Handle<FixedArrayBase> backing_store, GetKeysConversion convert,
       PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
       uint32_t insertion_index = 0) {
-    FixedArray* parameter_map = FixedArray::cast(*backing_store);
+    Handle<FixedArray> parameter_map(FixedArray::cast(*backing_store), isolate);
     uint32_t length = parameter_map->length() - 2;
 
     for (uint32_t i = 0; i < length; ++i) {
@@ -3060,18 +3060,19 @@ class SloppyArgumentsElementsAccessor
                                        uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *object));
     Handle<Map> original_map = handle(object->map(), isolate);
-    FixedArray* parameter_map = FixedArray::cast(object->elements());
+    Handle<FixedArray> parameter_map(FixedArray::cast(object->elements()),
+                                     isolate);
     bool search_for_hole = value->IsUndefined(isolate);
 
     for (uint32_t k = start_from; k < length; ++k) {
       uint32_t entry =
-          GetEntryForIndexImpl(*object, parameter_map, k, ALL_PROPERTIES);
+          GetEntryForIndexImpl(*object, *parameter_map, k, ALL_PROPERTIES);
       if (entry == kMaxUInt32) {
         if (search_for_hole) return Just(true);
         continue;
       }
 
-      Handle<Object> element_k = GetImpl(parameter_map, entry);
+      Handle<Object> element_k = GetImpl(*parameter_map, entry);
 
       if (element_k->IsAccessorPair()) {
         LookupIterator it(isolate, object, k, LookupIterator::OWN);
