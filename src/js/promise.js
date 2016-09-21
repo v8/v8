@@ -284,34 +284,34 @@ function ResolvePromise(promise, resolution) {
     }
 
     if (IS_CALLABLE(then)) {
-      // PromiseResolveThenableJob
-      var id;
-      var name = "PromiseResolveThenableJob";
+      var callbacks = CreateResolvingFunctions(promise, false);
+      var id, before_debug_event, after_debug_event;
       var instrumenting = DEBUG_IS_ACTIVE;
-      if (instrumenting && IsPromise(resolution)) {
-        // Mark the dependency of the new promise on the resolution
-        SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
-      }
-      %EnqueueMicrotask(function() {
-        if (instrumenting) {
-          %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
-        }
-        // These resolving functions simply forward the exception, so
-        // don't create a new debugEvent.
-        var callbacks = CreateResolvingFunctions(promise, false);
-        try {
-          %_Call(then, resolution, callbacks.resolve, callbacks.reject);
-        } catch (e) {
-          %_Call(callbacks.reject, UNDEFINED, e);
-        }
-        if (instrumenting) {
-          %DebugAsyncTaskEvent({ type: "didHandle", id: id, name: name });
-        }
-      });
       if (instrumenting) {
+        if (IsPromise(resolution)) {
+          // Mark the dependency of the new promise on the resolution
+          SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
+        }
         id = ++lastMicrotaskId;
-        %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
+        before_debug_event = {
+          type: "willHandle",
+          id: id,
+          name: "PromiseResolveThenableJob"
+        };
+        after_debug_event = {
+          type: "didHandle",
+          id: id,
+          name: "PromiseResolveThenableJob"
+        };
+        %DebugAsyncTaskEvent({
+          type: "enqueue",
+          id: id,
+          name: "PromiseResolveThenableJob"
+        });
       }
+      %EnqueuePromiseResolveThenableJob(
+          resolution, then, callbacks.resolve, callbacks.reject,
+          before_debug_event, after_debug_event);
       return;
     }
   }
@@ -655,7 +655,7 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
   "promise_reject", DoRejectPromise,
   "promise_resolve", ResolvePromise,
-  "promise_then", PromiseThen,
+  "promise_then", PromiseThen
 ]);
 
 // This allows extras to create promises quickly without building extra

@@ -554,6 +554,21 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   }
 }
 
+RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 6);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, resolution, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, then, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, resolve, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, before_debug_event, 4);
+  CONVERT_ARG_HANDLE_CHECKED(Object, after_debug_event, 5);
+  Handle<PromiseContainer> container = isolate->factory()->NewPromiseContainer(
+      resolution, then, resolve, reject, before_debug_event, after_debug_event);
+  isolate->EnqueueMicrotask(container);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

@@ -92,7 +92,6 @@ Handle<Box> Factory::NewBox(Handle<Object> value) {
   return result;
 }
 
-
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   Handle<PrototypeInfo> result =
       Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE));
@@ -899,6 +898,20 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
       Struct);
 }
 
+Handle<PromiseContainer> Factory::NewPromiseContainer(
+    Handle<JSReceiver> thenable, Handle<JSFunction> then,
+    Handle<JSFunction> resolve, Handle<JSFunction> reject,
+    Handle<Object> before_debug_event, Handle<Object> after_debug_event) {
+  Handle<PromiseContainer> result =
+      Handle<PromiseContainer>::cast(NewStruct(PROMISE_CONTAINER_TYPE));
+  result->set_thenable(*thenable);
+  result->set_then(*then);
+  result->set_resolve(*resolve);
+  result->set_reject(*reject);
+  result->set_before_debug_event(*before_debug_event);
+  result->set_after_debug_event(*after_debug_event);
+  return result;
+}
 
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
     int aliased_context_slot) {

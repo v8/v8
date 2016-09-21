@@ -396,6 +396,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(TYPE_FEEDBACK_INFO_TYPE)                                    \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(BOX_TYPE)                                                   \
+  V(PROMISE_CONTAINER_TYPE)                                     \
   V(PROTOTYPE_INFO_TYPE)                                        \
   V(CONTEXT_EXTENSION_TYPE)                                     \
   V(MODULE_TYPE)                                                \
@@ -500,6 +501,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // manually.
 #define STRUCT_LIST(V)                                                       \
   V(BOX, Box, box)                                                           \
+  V(PROMISE_CONTAINER, PromiseContainer, promise_container)                  \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                              \
   V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                              \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
@@ -681,6 +683,7 @@ enum InstanceType {
   TYPE_FEEDBACK_INFO_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   BOX_TYPE,
+  PROMISE_CONTAINER_TYPE,
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
   FIXED_ARRAY_TYPE,
@@ -6644,6 +6647,34 @@ class Struct: public HeapObject {
   DECLARE_CAST(Struct)
 };
 
+// A container struct to hold state required for
+// PromiseResolveThenableJob. {before, after}_debug_event could
+// potentially be undefined if the debugger is turned off.
+class PromiseContainer : public Struct {
+ public:
+  DECL_ACCESSORS(thenable, JSReceiver)
+  DECL_ACCESSORS(then, JSFunction)
+  DECL_ACCESSORS(resolve, JSFunction)
+  DECL_ACCESSORS(reject, JSFunction)
+  DECL_ACCESSORS(before_debug_event, Object)
+  DECL_ACCESSORS(after_debug_event, Object)
+
+  static const int kThenableOffset = Struct::kHeaderSize;
+  static const int kThenOffset = kThenableOffset + kPointerSize;
+  static const int kResolveOffset = kThenOffset + kPointerSize;
+  static const int kRejectOffset = kResolveOffset + kPointerSize;
+  static const int kBeforeDebugEventOffset = kRejectOffset + kPointerSize;
+  static const int kAfterDebugEventOffset =
+      kBeforeDebugEventOffset + kPointerSize;
+  static const int kSize = kAfterDebugEventOffset + kPointerSize;
+
+  DECLARE_CAST(PromiseContainer)
+  DECLARE_PRINTER(PromiseContainer)
+  DECLARE_VERIFIER(PromiseContainer)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseContainer);
+};
 
 // A simple one-element struct, useful where smis need to be boxed.
 class Box : public Struct {

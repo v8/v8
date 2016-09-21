@@ -259,6 +259,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
     case CALL_HANDLER_INFO_TYPE:
+    case PROMISE_CONTAINER_TYPE:
     case FUNCTION_TEMPLATE_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
     case SIGNATURE_INFO_TYPE:

@@ -1155,6 +1155,17 @@ void Box::BoxPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void PromiseContainer::PromiseContainerPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "PromiseContainer");
+  os << "\n - thenable: " << Brief(thenable());
+  os << "\n - then: " << Brief(then());
+  os << "\n - resolve: " << Brief(resolve());
+  os << "\n - reject: " << Brief(reject());
+  os << "\n - before debug event: " << Brief(before_debug_event());
+  os << "\n - after debug event: " << Brief(after_debug_event());
+  os << "\n";
+}
+
 void Module::ModulePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Module");
   os << "\n - code: " << Brief(code());

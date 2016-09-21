@@ -5650,6 +5650,13 @@ ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
 ACCESSORS(Box, value, Object, kValueOffset)
 
+ACCESSORS(PromiseContainer, thenable, JSReceiver, kThenableOffset)
+ACCESSORS(PromiseContainer, then, JSFunction, kThenOffset)
+ACCESSORS(PromiseContainer, resolve, JSFunction, kResolveOffset)
+ACCESSORS(PromiseContainer, reject, JSFunction, kRejectOffset)
+ACCESSORS(PromiseContainer, before_debug_event, Object, kBeforeDebugEventOffset)
+ACCESSORS(PromiseContainer, after_debug_event, Object, kAfterDebugEventOffset)
+
 Map* PrototypeInfo::ObjectCreateMap() {
   return Map::cast(WeakCell::cast(object_create_map())->value());
 }

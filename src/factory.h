@@ -60,6 +60,12 @@ class Factory final {
   // Create a new boxed value.
   Handle<Box> NewBox(Handle<Object> value);
 
+  // Create a new PromiseContainer struct.
+  Handle<PromiseContainer> NewPromiseContainer(
+      Handle<JSReceiver> thenable, Handle<JSFunction> then,
+      Handle<JSFunction> resolve, Handle<JSFunction> reject,
+      Handle<Object> before_debug_event, Handle<Object> after_debug_event);
+
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
 

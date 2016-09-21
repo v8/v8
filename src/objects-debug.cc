@@ -900,6 +900,16 @@ void Box::BoxVerify() {
   value()->ObjectVerify();
 }
 
+void PromiseContainer::PromiseContainerVerify() {
+  CHECK(IsPromiseContainer());
+  thenable()->ObjectVerify();
+  then()->ObjectVerify();
+  resolve()->ObjectVerify();
+  reject()->ObjectVerify();
+  before_debug_event()->ObjectVerify();
+  after_debug_event()->ObjectVerify();
+}
+
 void Module::ModuleVerify() {
   CHECK(IsModule());
   CHECK(code()->IsSharedFunctionInfo() || code()->IsJSFunction());

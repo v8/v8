@@ -2968,9 +2968,44 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
+void Isolate::PromiseResolveThenableJob(Handle<PromiseContainer> container,
+                                        MaybeHandle<Object>* result,
+                                        MaybeHandle<Object>* maybe_exception) {
+  if (debug()->is_active()) {
+    Handle<Object> before_debug_event(container->before_debug_event(), this);
+    if (before_debug_event->IsJSObject()) {
+      debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(before_debug_event));
+    }
+  }
+
+  Handle<JSReceiver> thenable(container->thenable(), this);
+  Handle<JSFunction> resolve(container->resolve(), this);
+  Handle<JSFunction> reject(container->reject(), this);
+  Handle<JSFunction> then(container->then(), this);
+  Handle<Object> argv[] = {resolve, reject};
+  *result = Execution::TryCall(this, then, thenable, arraysize(argv), argv,
+                               maybe_exception);
+
+  Handle<Object> reason;
+  if (maybe_exception->ToHandle(&reason)) {
+    DCHECK(result->is_null());
+    Handle<Object> reason_arg[] = {reason};
+    *result =
+        Execution::TryCall(this, reject, factory()->undefined_value(),
+                           arraysize(reason_arg), reason_arg, maybe_exception);
+  }
+
+  if (debug()->is_active()) {
+    Handle<Object> after_debug_event(container->after_debug_event(), this);
+    if (after_debug_event->IsJSObject()) {
+      debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(after_debug_event));
+    }
+  }
+}
 
 void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
-  DCHECK(microtask->IsJSFunction() || microtask->IsCallHandlerInfo());
+  DCHECK(microtask->IsJSFunction() || microtask->IsCallHandlerInfo() ||
+         microtask->IsPromiseContainer());
   Handle<FixedArray> queue(heap()->microtask_queue(), this);
   int num_tasks = pending_microtask_count();
   DCHECK(num_tasks <= queue->length());
@@ -3012,18 +3047,40 @@ void Isolate::RunMicrotasksInternal() {
     Isolate* isolate = this;
     FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < num_tasks, i++, {
       Handle<Object> microtask(queue->get(i), this);
-      if (microtask->IsJSFunction()) {
-        Handle<JSFunction> microtask_function =
-            Handle<JSFunction>::cast(microtask);
+
+      if (microtask->IsCallHandlerInfo()) {
+        Handle<CallHandlerInfo> callback_info =
+            Handle<CallHandlerInfo>::cast(microtask);
+        v8::MicrotaskCallback callback =
+            v8::ToCData<v8::MicrotaskCallback>(callback_info->callback());
+        void* data = v8::ToCData<void*>(callback_info->data());
+        callback(data);
+      } else {
         SaveContext save(this);
-        set_context(microtask_function->context()->native_context());
+        Context* context =
+            microtask->IsJSFunction()
+                ? Handle<JSFunction>::cast(microtask)->context()
+                : Handle<PromiseContainer>::cast(microtask)->then()->context();
+        set_context(context->native_context());
         handle_scope_implementer_->EnterMicrotaskContext(
-            handle(microtask_function->context(), this));
+            Handle<Context>(context, this));
+
+        MaybeHandle<Object> result;
         MaybeHandle<Object> maybe_exception;
-        MaybeHandle<Object> result = Execution::TryCall(
-            this, microtask_function, factory()->undefined_value(), 0, NULL,
-            &maybe_exception);
+
+        if (microtask->IsJSFunction()) {
+          Handle<JSFunction> microtask_function =
+              Handle<JSFunction>::cast(microtask);
+          result = Execution::TryCall(this, microtask_function,
+                                      factory()->undefined_value(), 0, NULL,
+                                      &maybe_exception);
+        } else {
+          PromiseResolveThenableJob(Handle<PromiseContainer>::cast(microtask),
+                                    &result, &maybe_exception);
+        }
+
         handle_scope_implementer_->LeaveMicrotaskContext();
+
         // If execution is terminating, just bail out.
         if (result.is_null() && maybe_exception.is_null()) {
           // Clear out any remaining callbacks in the queue.
@@ -3031,13 +3088,6 @@ void Isolate::RunMicrotasksInternal() {
           set_pending_microtask_count(0);
           return;
         }
-      } else {
-        Handle<CallHandlerInfo> callback_info =
-            Handle<CallHandlerInfo>::cast(microtask);
-        v8::MicrotaskCallback callback =
-            v8::ToCData<v8::MicrotaskCallback>(callback_info->callback());
-        void* data = v8::ToCData<void*>(callback_info->data());
-        callback(data);
       }
     });
   }
