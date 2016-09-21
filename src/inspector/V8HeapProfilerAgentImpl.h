@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8HEAPPROFILERAGENTIMPL_H_
 #define V8_INSPECTOR_V8HEAPPROFILERAGENTIMPL_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/HeapProfiler.h"
 
@@ -19,7 +19,7 @@ using protocol::ErrorString;
 using protocol::Maybe;
 
 class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
-  V8_INSPECTOR_DISALLOW_COPY(V8HeapProfilerAgentImpl);
+  DISALLOW_COPY_AND_ASSIGN(V8HeapProfilerAgentImpl);
 
  public:
   V8HeapProfilerAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,

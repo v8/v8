@@ -155,8 +155,8 @@ v8::MaybeLocal<v8::Value> JavaScriptCallFrame::setVariableValue(
   v8::Local<v8::Value> argv[] = {
       v8::Local<v8::Value>(v8::Integer::New(m_isolate, scopeNumber)),
       variableName, newValue};
-  return setVariableValueFunction->Call(context, callFrame,
-                                        V8_INSPECTOR_ARRAY_LENGTH(argv), argv);
+  return setVariableValueFunction->Call(context, callFrame, arraysize(argv),
+                                        argv);
 }
 
 }  // namespace v8_inspector

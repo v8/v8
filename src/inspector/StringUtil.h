@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_STRINGUTIL_H_
 #define V8_INSPECTOR_STRINGUTIL_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/String16.h"
 
 #include "include/v8-inspector.h"
@@ -53,7 +53,7 @@ StringView toStringView(const String16&);
 bool stringViewStartsWith(const StringView&, const char*);
 
 class StringBufferImpl : public StringBuffer {
-  V8_INSPECTOR_DISALLOW_COPY(StringBufferImpl);
+  DISALLOW_COPY_AND_ASSIGN(StringBufferImpl);
 
  public:
   // Destroys string's content.

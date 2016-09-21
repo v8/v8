@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8DEBUGGERAGENTIMPL_H_
 #define V8_INSPECTOR_V8DEBUGGERAGENTIMPL_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/JavaScriptCallFrame.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
@@ -28,7 +28,7 @@ using protocol::ErrorString;
 using protocol::Maybe;
 
 class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
-  V8_INSPECTOR_DISALLOW_COPY(V8DebuggerAgentImpl);
+  DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 
  public:
   enum SkipPauseRequest {

@@ -31,7 +31,7 @@
 #ifndef V8_INSPECTOR_INJECTEDSCRIPT_H_
 #define V8_INSPECTOR_INJECTEDSCRIPT_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/InjectedScriptNative.h"
 #include "src/inspector/InspectedContext.h"
 #include "src/inspector/V8Console.h"
@@ -52,7 +52,7 @@ using protocol::ErrorString;
 using protocol::Maybe;
 
 class InjectedScript final {
-  V8_INSPECTOR_DISALLOW_COPY(InjectedScript);
+  DISALLOW_COPY_AND_ASSIGN(InjectedScript);
 
  public:
   static std::unique_ptr<InjectedScript> create(InspectedContext*);
@@ -141,7 +141,7 @@ class InjectedScript final {
   };
 
   class ContextScope : public Scope {
-    V8_INSPECTOR_DISALLOW_COPY(ContextScope);
+    DISALLOW_COPY_AND_ASSIGN(ContextScope);
 
    public:
     ContextScope(ErrorString*, V8InspectorImpl*, int contextGroupId,
@@ -154,7 +154,7 @@ class InjectedScript final {
   };
 
   class ObjectScope : public Scope {
-    V8_INSPECTOR_DISALLOW_COPY(ObjectScope);
+    DISALLOW_COPY_AND_ASSIGN(ObjectScope);
 
    public:
     ObjectScope(ErrorString*, V8InspectorImpl*, int contextGroupId,
@@ -171,7 +171,7 @@ class InjectedScript final {
   };
 
   class CallFrameScope : public Scope {
-    V8_INSPECTOR_DISALLOW_COPY(CallFrameScope);
+    DISALLOW_COPY_AND_ASSIGN(CallFrameScope);
 
    public:
     CallFrameScope(ErrorString*, V8InspectorImpl*, int contextGroupId,

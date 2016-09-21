@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8STACKTRACEIMPL_H_
 #define V8_INSPECTOR_V8STACKTRACEIMPL_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 
@@ -23,7 +23,7 @@ class V8Debugger;
 // that current native-only state had some async story.
 // On the other hand, any non-top async stack is guaranteed to be non-empty.
 class V8StackTraceImpl final : public V8StackTrace {
-  V8_INSPECTOR_DISALLOW_COPY(V8StackTraceImpl);
+  DISALLOW_COPY_AND_ASSIGN(V8StackTraceImpl);
 
  public:
   static const size_t maxCallStackSizeToCapture = 200;

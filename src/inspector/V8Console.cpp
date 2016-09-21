@@ -29,7 +29,7 @@ v8::Local<v8::Private> inspectedContextPrivateKey(v8::Isolate* isolate) {
 }
 
 class ConsoleHelper {
-  V8_INSPECTOR_DISALLOW_COPY(ConsoleHelper);
+  DISALLOW_COPY_AND_ASSIGN(ConsoleHelper);
 
  public:
   ConsoleHelper(const v8::FunctionCallbackInfo<v8::Value>& info)

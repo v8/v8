@@ -121,9 +121,7 @@ void V8Debugger::getCompiledScripts(
           .ToLocalChecked());
   v8::Local<v8::Value> argv[] = {v8::Integer::New(m_isolate, contextGroupId)};
   v8::Local<v8::Value> value;
-  if (!getScriptsFunction
-           ->Call(context, debuggerScript, V8_INSPECTOR_ARRAY_LENGTH(argv),
-                  argv)
+  if (!getScriptsFunction->Call(context, debuggerScript, arraysize(argv), argv)
            .ToLocal(&value))
     return;
   DCHECK(value->IsArray());
@@ -466,8 +464,7 @@ JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
     v8::Local<v8::Value> argv[] = {m_executionState,
                                    v8::Integer::New(m_isolate, limit)};
     currentCallFramesV8 =
-        callDebuggerMethod("currentCallFrames", V8_INSPECTOR_ARRAY_LENGTH(argv),
-                           argv)
+        callDebuggerMethod("currentCallFrames", arraysize(argv), argv)
             .ToLocalChecked();
   }
   DCHECK(!currentCallFramesV8.IsEmpty());

@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8REGEX_H_
 #define V8_INSPECTOR_V8REGEX_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/String16.h"
 
 #include "include/v8.h"
@@ -17,7 +17,7 @@ class V8InspectorImpl;
 enum MultilineMode { MultilineDisabled, MultilineEnabled };
 
 class V8Regex {
-  V8_INSPECTOR_DISALLOW_COPY(V8Regex);
+  DISALLOW_COPY_AND_ASSIGN(V8Regex);
 
  public:
   V8Regex(V8InspectorImpl*, const String16&, bool caseSensitive,

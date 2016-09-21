@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8PROFILERAGENTIMPL_H_
 #define V8_INSPECTOR_V8PROFILERAGENTIMPL_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Profiler.h"
 
@@ -23,7 +23,7 @@ class V8InspectorSessionImpl;
 using protocol::ErrorString;
 
 class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
-  V8_INSPECTOR_DISALLOW_COPY(V8ProfilerAgentImpl);
+  DISALLOW_COPY_AND_ASSIGN(V8ProfilerAgentImpl);
 
  public:
   V8ProfilerAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,

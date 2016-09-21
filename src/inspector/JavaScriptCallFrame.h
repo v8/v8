@@ -31,7 +31,7 @@
 #ifndef V8_INSPECTOR_JAVASCRIPTCALLFRAME_H_
 #define V8_INSPECTOR_JAVASCRIPTCALLFRAME_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/ProtocolPlatform.h"
 
 #include "include/v8.h"
@@ -41,7 +41,7 @@
 namespace v8_inspector {
 
 class JavaScriptCallFrame {
-  V8_INSPECTOR_DISALLOW_COPY(JavaScriptCallFrame);
+  DISALLOW_COPY_AND_ASSIGN(JavaScriptCallFrame);
 
  public:
   static std::unique_ptr<JavaScriptCallFrame> create(

@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8DEBUGGER_H_
 #define V8_INSPECTOR_V8DEBUGGER_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/JavaScriptCallFrame.h"
 #include "src/inspector/V8DebuggerScript.h"
 #include "src/inspector/protocol/Forward.h"
@@ -26,7 +26,7 @@ class V8StackTraceImpl;
 using protocol::ErrorString;
 
 class V8Debugger {
-  V8_INSPECTOR_DISALLOW_COPY(V8Debugger);
+  DISALLOW_COPY_AND_ASSIGN(V8Debugger);
 
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);

@@ -62,7 +62,7 @@ int V8Regex::match(const String16& string, int startFrom,
       toV8String(isolate, string.substring(startFrom))};
   v8::Local<v8::Value> returnValue;
   if (!exec.As<v8::Function>()
-           ->Call(context, regex, V8_INSPECTOR_ARRAY_LENGTH(argv), argv)
+           ->Call(context, regex, arraysize(argv), argv)
            .ToLocal(&returnValue))
     return -1;
 

@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_INSPECTEDCONTEXT_H_
 #define V8_INSPECTOR_INSPECTEDCONTEXT_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/String16.h"
 
 #include "include/v8.h"
@@ -18,7 +18,7 @@ class V8ContextInfo;
 class V8InspectorImpl;
 
 class InspectedContext {
-  V8_INSPECTOR_DISALLOW_COPY(InspectedContext);
+  DISALLOW_COPY_AND_ASSIGN(InspectedContext);
 
  public:
   ~InspectedContext();

@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8CONSOLE_H_
 #define V8_INSPECTOR_V8CONSOLE_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 
 #include "include/v8.h"
 
@@ -24,7 +24,7 @@ class V8Console {
   static v8::Local<v8::Object> createCommandLineAPI(InspectedContext*);
 
   class CommandLineAPIScope {
-    V8_INSPECTOR_DISALLOW_COPY(CommandLineAPIScope);
+    DISALLOW_COPY_AND_ASSIGN(CommandLineAPIScope);
 
    public:
     CommandLineAPIScope(v8::Local<v8::Context>,

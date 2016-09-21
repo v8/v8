@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8SCHEMAAGENTIMPL_H_
 #define V8_INSPECTOR_V8SCHEMAAGENTIMPL_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Schema.h"
 
@@ -16,7 +16,7 @@ class V8InspectorSessionImpl;
 using protocol::ErrorString;
 
 class V8SchemaAgentImpl : public protocol::Schema::Backend {
-  V8_INSPECTOR_DISALLOW_COPY(V8SchemaAgentImpl);
+  DISALLOW_COPY_AND_ASSIGN(V8SchemaAgentImpl);
 
  public:
   V8SchemaAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,

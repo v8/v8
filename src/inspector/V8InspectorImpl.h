@@ -31,7 +31,7 @@
 #ifndef V8_INSPECTOR_V8INSPECTORIMPL_H_
 #define V8_INSPECTOR_V8INSPECTORIMPL_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/protocol/Protocol.h"
 
 #include "include/v8-debug.h"
@@ -51,7 +51,7 @@ class V8RuntimeAgentImpl;
 class V8StackTraceImpl;
 
 class V8InspectorImpl : public V8Inspector {
-  V8_INSPECTOR_DISALLOW_COPY(V8InspectorImpl);
+  DISALLOW_COPY_AND_ASSIGN(V8InspectorImpl);
 
  public:
   V8InspectorImpl(v8::Isolate*, V8InspectorClient*);

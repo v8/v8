@@ -36,7 +36,6 @@
       '<(inspector_generated_debugger_script)',
       '../../include/v8-inspector.h',
       '../../include/v8-inspector-protocol.h',
-      'inspector/Allocator.h',
       'inspector/InjectedScript.cpp',
       'inspector/InjectedScript.h',
       'inspector/InjectedScriptNative.cpp',

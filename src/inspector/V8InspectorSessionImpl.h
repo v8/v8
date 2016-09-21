@@ -5,7 +5,7 @@
 #ifndef V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
 #define V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
 
-#include "src/inspector/Allocator.h"
+#include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/protocol/Schema.h"
@@ -30,7 +30,7 @@ using protocol::ErrorString;
 
 class V8InspectorSessionImpl : public V8InspectorSession,
                                public protocol::FrontendChannel {
-  V8_INSPECTOR_DISALLOW_COPY(V8InspectorSessionImpl);
+  DISALLOW_COPY_AND_ASSIGN(V8InspectorSessionImpl);
 
  public:
   static std::unique_ptr<V8InspectorSessionImpl> create(
