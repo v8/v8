@@ -1457,13 +1457,13 @@ void EscapeAnalysis::ProcessStoreField(Node* node) {
     int offset = OffsetForFieldAccess(node);
     if (static_cast<size_t>(offset) >= object->field_count()) return;
     Node* val = ResolveReplacement(NodeProperties::GetValueInput(node, 1));
-    // TODO(mstarzinger): The following is a workaround to not track the code
-    // entry field in virtual JSFunction objects. We only ever store the inner
-    // pointer into the compile lazy stub in this field and the deoptimizer has
-    // this assumption hard-coded in {TranslatedState::MaterializeAt} as well.
+    // TODO(mstarzinger): The following is a workaround to not track some well
+    // known raw fields. We only ever store default initial values into these
+    // fields which are hard-coded in {TranslatedState::MaterializeAt} as well.
     if (val->opcode() == IrOpcode::kInt32Constant ||
         val->opcode() == IrOpcode::kInt64Constant) {
-      DCHECK_EQ(JSFunction::kCodeEntryOffset, FieldAccessOf(node->op()).offset);
+      DCHECK(FieldAccessOf(node->op()).offset == JSFunction::kCodeEntryOffset ||
+             FieldAccessOf(node->op()).offset == Name::kHashFieldOffset);
       val = slot_not_analyzed_;
     }
     if (object->GetField(offset) != val) {
