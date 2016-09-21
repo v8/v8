@@ -143,10 +143,10 @@ void InjectedScript::getProperties(
     *properties = Array<PropertyDescriptor>::create();
     return;
   }
-  if (hasInternalError(errorString, resultValue.IsEmpty())) return;
+
   std::unique_ptr<protocol::Value> protocolValue =
-      toProtocolValue(errorString, context, resultValue);
-  if (!protocolValue) return;
+      toProtocolValue(context, resultValue);
+  if (hasInternalError(errorString, !protocolValue)) return;
   protocol::ErrorSupport errors(errorString);
   std::unique_ptr<Array<PropertyDescriptor>> result =
       Array<PropertyDescriptor>::parse(protocolValue.get(), &errors);
@@ -177,12 +177,10 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapObject(
            .ToLocal(&wrappedObject))
     return nullptr;
   protocol::ErrorSupport errors;
-  std::unique_ptr<protocol::Value> protocolValue =
-      toProtocolValue(errorString, context, wrappedObject);
-  if (!protocolValue) return nullptr;
   std::unique_ptr<protocol::Runtime::RemoteObject> remoteObject =
-      protocol::Runtime::RemoteObject::parse(protocolValue.get(), &errors);
-  if (!remoteObject) *errorString = errors.errors();
+      protocol::Runtime::RemoteObject::parse(
+          toProtocolValue(context, wrappedObject).get(), &errors);
+  if (!remoteObject) *errorString = "Object has too long reference chain";
   return remoteObject;
 }
 
@@ -273,13 +271,10 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
     function.appendArgument(columns);
   bool hadException = false;
   v8::Local<v8::Value> r = function.call(hadException);
-  if (hadException || r.IsEmpty()) return nullptr;
-  protocol::ErrorString errorString;
-  std::unique_ptr<protocol::Value> protocolValue =
-      toProtocolValue(&errorString, context, r);
-  if (!protocolValue) return nullptr;
+  if (hadException) return nullptr;
   protocol::ErrorSupport errors;
-  return protocol::Runtime::RemoteObject::parse(protocolValue.get(), &errors);
+  return protocol::Runtime::RemoteObject::parse(
+      toProtocolValue(context, r).get(), &errors);
 }
 
 bool InjectedScript::findObject(ErrorString* errorString,
