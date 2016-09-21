@@ -2392,9 +2392,7 @@ void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand(
   for (size_t i = 0; i < initial_range_count; ++i) {
     TopLevelLiveRange* range = data()->live_ranges()[i];
     if (!CanProcessRange(range)) continue;
-    if (range->HasNoSpillType() || (operands_only && range->HasSpillRange())) {
-      continue;
-    }
+    if (!range->HasSpillOperand()) continue;
 
     LifetimePosition start = range->Start();
     TRACE("Live range %d:%d is defined by a spill operand.\n",
