@@ -616,5 +616,59 @@ void Builtins::Generate_StringPrototypeValueOf(CodeStubAssembler* assembler) {
   assembler->Return(result);
 }
 
+BUILTIN(StringPrototypeIterator) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(object, "String.prototype[Symbol.iterator]");
+
+  Handle<String> string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
+                                     Object::ToString(isolate, object));
+
+  return *isolate->factory()->NewJSStringIterator(string);
+}
+
+BUILTIN(StringIteratorPrototypeNext) {
+  HandleScope scope(isolate);
+
+  if (!args.receiver()->IsJSStringIterator()) {
+    Handle<String> reason = isolate->factory()->NewStringFromAsciiChecked(
+        "String Iterator.prototype.next");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver, reason));
+  }
+  Handle<JSStringIterator> iterator =
+      Handle<JSStringIterator>::cast(args.receiver());
+  Handle<String> string(iterator->string());
+
+  int position = iterator->index();
+  int length = string->length();
+
+  if (position < length) {
+    uint16_t lead = string->Get(position);
+    if (lead >= 0xD800 && lead <= 0xDBFF && position + 1 < length) {
+      uint16_t trail = string->Get(position + 1);
+      if (V8_LIKELY(trail >= 0xDC00 && trail <= 0xDFFF)) {
+        // Return surrogate pair code units
+        iterator->set_index(position + 2);
+        Handle<String> value =
+            isolate->factory()->NewSurrogatePairString(lead, trail);
+        return *isolate->factory()->NewJSIteratorResult(value, false);
+      }
+    }
+
+    // Return single code unit
+    iterator->set_index(position + 1);
+    Handle<String> value =
+        isolate->factory()->LookupSingleCharacterStringFromCode(lead);
+    return *isolate->factory()->NewJSIteratorResult(value, false);
+  }
+
+  iterator->set_string(isolate->heap()->empty_string());
+
+  return *isolate->factory()->NewJSIteratorResult(
+      isolate->factory()->undefined_value(), true);
+}
+
 }  // namespace internal
 }  // namespace v8

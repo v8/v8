@@ -701,6 +701,7 @@ TYPE_CHECKER(Map, MAP_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
+TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
 
 bool HeapObject::IsJSWeakCollection() const {
   return IsJSWeakMap() || IsJSWeakSet();
@@ -2113,6 +2114,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSArgumentsObject::kHeaderSize;
     case JS_ERROR_TYPE:
       return JSObject::kHeaderSize;
+    case JS_STRING_ITERATOR_TYPE:
+      return JSStringIterator::kSize;
     default:
       UNREACHABLE();
       return 0;
@@ -3282,6 +3285,7 @@ CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
+CAST_ACCESSOR(JSStringIterator)
 CAST_ACCESSOR(JSTypedArray)
 CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(JSWeakCollection)
@@ -8269,6 +8273,12 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Name> key,
   return isolate->factory()->NewJSArrayWithElements(entry_storage,
                                                     FAST_ELEMENTS, 2);
 }
+
+ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
+ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
+
+ACCESSORS(JSStringIterator, string, String, kStringOffset)
+SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
 #undef TYPE_CHECKER
 #undef CAST_ACCESSOR

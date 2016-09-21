@@ -376,6 +376,9 @@ namespace internal {
   /* ES6 section 18.2.3 isNaN ( number ) */                                   \
   TFJ(GlobalIsNaN, 2)                                                         \
                                                                               \
+  /* ES6 #sec-%iteratorprototype%-@@iterator */                               \
+  TFJ(IteratorPrototypeIterator, 1)                                           \
+                                                                              \
   /* JSON */                                                                  \
   CPP(JsonParse)                                                              \
   CPP(JsonStringify)                                                          \
@@ -549,6 +552,11 @@ namespace internal {
   CPP(StringPrototypeTrimRight)                                               \
   /* ES6 section 21.1.3.28 String.prototype.valueOf () */                     \
   TFJ(StringPrototypeValueOf, 1)                                              \
+  /* ES6 #sec-string.prototype-@@iterator */                                  \
+  CPP(StringPrototypeIterator)                                                \
+                                                                              \
+  /* StringIterator */                                                        \
+  CPP(StringIteratorPrototypeNext)                                            \
                                                                               \
   /* Symbol */                                                                \
   CPP(SymbolConstructor)                                                      \

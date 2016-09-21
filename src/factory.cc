@@ -599,6 +599,19 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
   return result;
 }
 
+Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
+  DCHECK_GE(lead, 0xD800);
+  DCHECK_LE(lead, 0xDBFF);
+  DCHECK_GE(trail, 0xDC00);
+  DCHECK_LE(trail, 0xDFFF);
+
+  Handle<SeqTwoByteString> str =
+      isolate()->factory()->NewRawTwoByteString(2).ToHandleChecked();
+  uc16* dest = str->GetChars();
+  dest[0] = lead;
+  dest[1] = trail;
+  return str;
+}
 
 Handle<String> Factory::NewProperSubString(Handle<String> str,
                                            int begin,
@@ -733,6 +746,17 @@ Handle<ExternalOneByteString> Factory::NewNativeSourceString(
   return external_string;
 }
 
+Handle<JSStringIterator> Factory::NewJSStringIterator(Handle<String> string) {
+  Handle<Map> map(isolate()->native_context()->string_iterator_map(),
+                  isolate());
+  Handle<String> flat_string = String::Flatten(string);
+  Handle<JSStringIterator> iterator =
+      Handle<JSStringIterator>::cast(NewJSObjectFromMap(map));
+  iterator->set_string(*flat_string);
+  iterator->set_index(0);
+
+  return iterator;
+}
 
 Handle<Symbol> Factory::NewSymbol() {
   CALL_HEAP_FUNCTION(
@@ -1764,6 +1788,15 @@ Handle<JSDataView> Factory::NewJSDataView() {
       JSDataView);
 }
 
+Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
+                                                      bool done) {
+  Handle<Map> map(isolate()->native_context()->iterator_result_map());
+  Handle<JSIteratorResult> js_iter_result =
+      Handle<JSIteratorResult>::cast(NewJSObjectFromMap(map));
+  js_iter_result->set_value(*value);
+  js_iter_result->set_done(*ToBoolean(done));
+  return js_iter_result;
+}
 
 Handle<JSMap> Factory::NewJSMap() {
   Handle<Map> map(isolate()->native_context()->js_map_map());

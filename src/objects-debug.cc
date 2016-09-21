@@ -152,6 +152,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_MAP_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorVerify();
       break;
+    case JS_STRING_ITERATOR_TYPE:
+      JSStringIterator::cast(this)->JSStringIteratorVerify();
+      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapVerify();
       break;
@@ -779,6 +782,13 @@ void JSWeakMap::JSWeakMapVerify() {
   CHECK(table()->IsHashTable() || table()->IsUndefined(GetIsolate()));
 }
 
+void JSStringIterator::JSStringIteratorVerify() {
+  CHECK(IsJSStringIterator());
+  JSObjectVerify();
+  CHECK(string()->IsString());
+  CHECK_GE(index(), 0);
+  CHECK_LE(index(), String::kMaxLength);
+}
 
 void JSWeakSet::JSWeakSetVerify() {
   CHECK(IsJSWeakSet());

@@ -57,6 +57,7 @@
 //         - JSCollection
 //           - JSSet
 //           - JSMap
+//         - JSStringIterator
 //         - JSSetIterator
 //         - JSMapIterator
 //         - JSWeakCollection
@@ -433,6 +434,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_PROMISE_TYPE)                                            \
   V(JS_REGEXP_TYPE)                                             \
   V(JS_ERROR_TYPE)                                              \
+  V(JS_STRING_ITERATOR_TYPE)                                    \
                                                                 \
   V(JS_BOUND_FUNCTION_TYPE)                                     \
   V(JS_FUNCTION_TYPE)                                           \
@@ -728,6 +730,7 @@ enum InstanceType {
   JS_PROMISE_TYPE,
   JS_REGEXP_TYPE,
   JS_ERROR_TYPE,
+  JS_STRING_ITERATOR_TYPE,
   JS_BOUND_FUNCTION_TYPE,
   JS_FUNCTION_TYPE,  // LAST_JS_OBJECT_TYPE, LAST_JS_RECEIVER_TYPE
 
@@ -1009,6 +1012,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSProxy)                     \
   V(JSError)                     \
   V(JSPromise)                   \
+  V(JSStringIterator)            \
   V(JSSet)                       \
   V(JSMap)                       \
   V(JSSetIterator)               \
@@ -2615,6 +2619,10 @@ class JSDataPropertyDescriptor: public JSObject {
 // as specified by ES6 section 25.1.1.3 The IteratorResult Interface
 class JSIteratorResult: public JSObject {
  public:
+  DECL_ACCESSORS(value, Object)
+
+  DECL_ACCESSORS(done, Object)
+
   // Offsets of object fields.
   static const int kValueOffset = JSObject::kHeaderSize;
   static const int kDoneOffset = kValueOffset + kPointerSize;
@@ -10325,6 +10333,28 @@ class JSMap : public JSCollection {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSMap);
 };
 
+class JSStringIterator : public JSObject {
+ public:
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSStringIterator)
+  DECLARE_VERIFIER(JSStringIterator)
+
+  DECLARE_CAST(JSStringIterator)
+
+  // [string]: the [[IteratedString]] internal field.
+  DECL_ACCESSORS(string, String)
+
+  // [index]: The [[StringIteratorNextIndex]] internal field.
+  inline int index() const;
+  inline void set_index(int value);
+
+  static const int kStringOffset = JSObject::kHeaderSize;
+  static const int kNextIndexOffset = kStringOffset + kPointerSize;
+  static const int kSize = kNextIndexOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSStringIterator);
+};
 
 // OrderedHashTableIterator is an iterator that iterates over the keys and
 // values of an OrderedHashTable.

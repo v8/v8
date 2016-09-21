@@ -660,6 +660,16 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
   // Create iterator-related meta-objects.
   Handle<JSObject> iterator_prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
+
+  Handle<JSFunction> iterator_prototype_iterator = SimpleCreateFunction(
+      isolate(), factory()->NewStringFromAsciiChecked("[Symbol.iterator]"),
+      Builtins::kIteratorPrototypeIterator, 0, false);
+  iterator_prototype_iterator->shared()->set_native(true);
+
+  JSObject::AddProperty(iterator_prototype, factory()->iterator_symbol(),
+                        iterator_prototype_iterator, DONT_ENUM);
+  native_context()->set_initial_iterator_prototype(*iterator_prototype);
+
   Handle<JSObject> generator_object_prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   native_context()->set_initial_generator_prototype(
@@ -1408,6 +1418,38 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeTrimRight, 0, false);
     SimpleInstallFunction(prototype, "valueOf",
                           Builtins::kStringPrototypeValueOf, 0, true);
+
+    Handle<JSFunction> iterator = SimpleCreateFunction(
+        isolate, factory->NewStringFromAsciiChecked("[Symbol.iterator]"),
+        Builtins::kStringPrototypeIterator, 0, true);
+    iterator->shared()->set_native(true);
+    JSObject::AddProperty(prototype, factory->iterator_symbol(), iterator,
+                          static_cast<PropertyAttributes>(DONT_ENUM));
+  }
+
+  {  // --- S t r i n g I t e r a t o r ---
+    Handle<JSObject> iterator_prototype(
+        native_context()->initial_iterator_prototype());
+
+    Handle<JSObject> string_iterator_prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    JSObject::ForceSetPrototype(string_iterator_prototype, iterator_prototype);
+
+    JSObject::AddProperty(
+        string_iterator_prototype, factory->to_string_tag_symbol(),
+        factory->NewStringFromAsciiChecked("String Iterator"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    InstallFunction(string_iterator_prototype, "next", JS_OBJECT_TYPE,
+                    JSObject::kHeaderSize, MaybeHandle<JSObject>(),
+                    Builtins::kStringIteratorPrototypeNext);
+
+    Handle<JSFunction> string_iterator_function = CreateFunction(
+        isolate, factory->NewStringFromAsciiChecked("StringIterator"),
+        JS_STRING_ITERATOR_TYPE, JSStringIterator::kSize,
+        string_iterator_prototype, Builtins::kIllegal);
+    native_context()->set_string_iterator_map(
+        string_iterator_function->initial_map());
   }
 
   {
@@ -2468,17 +2510,12 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     native_context->set_object_to_string(*to_string);
   }
 
-  Handle<JSObject> iterator_prototype;
+  Handle<JSObject> iterator_prototype(
+      native_context->initial_iterator_prototype());
 
-  {
-    PrototypeIterator iter(native_context->generator_object_prototype_map());
-    iter.Advance();  // Advance to the prototype of generator_object_prototype.
-    iterator_prototype = Handle<JSObject>(iter.GetCurrent<JSObject>());
-
-    JSObject::AddProperty(container,
-                          factory->InternalizeUtf8String("IteratorPrototype"),
-                          iterator_prototype, NONE);
-  }
+  JSObject::AddProperty(container,
+                        factory->InternalizeUtf8String("IteratorPrototype"),
+                        iterator_prototype, NONE);
 
   {
     PrototypeIterator iter(native_context->sloppy_generator_function_map());
