@@ -386,8 +386,6 @@ class Parser : public ParserBase<Parser> {
     DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
   };
 
-  Statement* ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
-
   // !%_IsJSReceiver(result = iterator.next()) &&
   //     %ThrowIteratorResultNotAnObject(result)
   Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
@@ -403,10 +401,15 @@ class Parser : public ParserBase<Parser> {
                                       Expression* iterable, Statement* body,
                                       bool finalize,
                                       int next_result_pos = kNoSourcePosition);
+  Block* RewriteForVarInLegacy(const ForInfo& for_info);
+  void DesugarBindingInForEachStatement(ForInfo* for_info, Block** body_block,
+                                        Expression** each_variable, bool* ok);
+  Block* CreateForEachStatementTDZ(Block* init_block, const ForInfo& for_info,
+                                   bool* ok);
+
   Statement* DesugarLexicalBindingsInForStatement(
-      Scope* inner_scope, VariableMode mode,
-      ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,
-      Expression* cond, Statement* next, Statement* body, bool* ok);
+      ForStatement* loop, Statement* init, Expression* cond, Statement* next,
+      Statement* body, Scope* inner_scope, const ForInfo& for_info, bool* ok);
 
   void DesugarAsyncFunctionBody(Scope* scope, ZoneList<Statement*>* body,
                                 FunctionKind kind, FunctionBodyType type,

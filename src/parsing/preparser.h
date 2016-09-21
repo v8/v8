@@ -451,6 +451,8 @@ class PreParserStatement {
   PreParserStatementList statements() { return PreParserStatementList(); }
   void set_scope(Scope* scope) {}
   void Initialize(PreParserExpression cond, PreParserStatement body) {}
+  void Initialize(PreParserStatement init, PreParserExpression cond,
+                  PreParserStatement next, PreParserStatement body) {}
 
  private:
   enum Type {
@@ -666,6 +668,17 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
 
+  PreParserStatement NewForStatement(ZoneList<const AstRawString*>* labels,
+                                     int pos) {
+    return PreParserStatement::Default();
+  }
+
+  PreParserStatement NewForEachStatement(ForEachStatement::VisitMode visit_mode,
+                                         ZoneList<const AstRawString*>* labels,
+                                         int pos) {
+    return PreParserStatement::Default();
+  }
+
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }
@@ -829,7 +842,6 @@ class PreParser : public ParserBase<PreParser> {
   Expression ParseAsyncFunctionExpression(bool* ok);
   Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                   bool default_export, bool* ok);
-  Statement ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseObjectLiteral(bool* ok);
 
@@ -1119,6 +1131,38 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression BuildIteratorResult(PreParserExpression value,
                                                     bool done) {
     return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserStatement
+  BuildInitializationBlock(DeclarationParsingResult* parsing_result,
+                           ZoneList<const AstRawString*>* names, bool* ok) {
+    return PreParserStatement::Default();
+  }
+
+  V8_INLINE PreParserStatement
+  InitializeForEachStatement(PreParserStatement stmt, PreParserExpression each,
+                             PreParserExpression subject,
+                             PreParserStatement body, int each_keyword_pos) {
+    return stmt;
+  }
+
+  V8_INLINE PreParserStatement RewriteForVarInLegacy(const ForInfo& for_info) {
+    return PreParserStatement::Null();
+  }
+  V8_INLINE void DesugarBindingInForEachStatement(
+      ForInfo* for_info, PreParserStatement* body_block,
+      PreParserExpression* each_variable, bool* ok) {}
+  V8_INLINE PreParserStatement CreateForEachStatementTDZ(
+      PreParserStatement init_block, const ForInfo& for_info, bool* ok) {
+    return init_block;
+  }
+
+  V8_INLINE StatementT DesugarLexicalBindingsInForStatement(
+      PreParserStatement loop, PreParserStatement init,
+      PreParserExpression cond, PreParserStatement next,
+      PreParserStatement body, Scope* inner_scope, const ForInfo& for_info,
+      bool* ok) {
+    return loop;
   }
 
   V8_INLINE PreParserExpression

@@ -1995,6 +1995,138 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
   return stmt;
 }
 
+// Special case for legacy for
+//
+//    for (var x = initializer in enumerable) body
+//
+// An initialization block of the form
+//
+//    {
+//      x = initializer;
+//    }
+//
+// is returned in this case.  It has reserved space for two statements,
+// so that (later on during parsing), the equivalent of
+//
+//   for (x in enumerable) body
+//
+// is added as a second statement to it.
+Block* Parser::RewriteForVarInLegacy(const ForInfo& for_info) {
+  const DeclarationParsingResult::Declaration& decl =
+      for_info.parsing_result.declarations[0];
+  if (!IsLexicalVariableMode(for_info.parsing_result.descriptor.mode) &&
+      decl.pattern->IsVariableProxy() && decl.initializer != nullptr) {
+    DCHECK(!allow_harmony_for_in());
+    ++use_counts_[v8::Isolate::kForInInitializer];
+    const AstRawString* name = decl.pattern->AsVariableProxy()->raw_name();
+    VariableProxy* single_var = NewUnresolved(name);
+    Block* init_block = factory()->NewBlock(
+        nullptr, 2, true, for_info.parsing_result.descriptor.declaration_pos);
+    init_block->statements()->Add(
+        factory()->NewExpressionStatement(
+            factory()->NewAssignment(Token::ASSIGN, single_var,
+                                     decl.initializer, kNoSourcePosition),
+            kNoSourcePosition),
+        zone());
+    return init_block;
+  }
+  return nullptr;
+}
+
+// Rewrite a for-in/of statement of the form
+//
+//   for (let/const/var x in/of e) b
+//
+// into
+//
+//   {
+//     <let x' be a temporary variable>
+//     for (x' in/of e) {
+//       let/const/var x;
+//       x = x';
+//       b;
+//     }
+//     let x;  // for TDZ
+//   }
+void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
+                                              Block** body_block,
+                                              Expression** each_variable,
+                                              bool* ok) {
+  DeclarationParsingResult::Declaration& decl =
+      for_info->parsing_result.declarations[0];
+  Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
+  auto each_initialization_block =
+      factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+  {
+    auto descriptor = for_info->parsing_result.descriptor;
+    descriptor.declaration_pos = kNoSourcePosition;
+    descriptor.initialization_pos = kNoSourcePosition;
+    decl.initializer = factory()->NewVariableProxy(temp);
+
+    bool is_for_var_of =
+        for_info->mode == ForEachStatement::ITERATE &&
+        for_info->parsing_result.descriptor.mode == VariableMode::VAR;
+
+    PatternRewriter::DeclareAndInitializeVariables(
+        this, each_initialization_block, &descriptor, &decl,
+        (IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
+         is_for_var_of)
+            ? &for_info->bound_names
+            : nullptr,
+        CHECK_OK_VOID);
+
+    // Annex B.3.5 prohibits the form
+    // `try {} catch(e) { for (var e of {}); }`
+    // So if we are parsing a statement like `for (var ... of ...)`
+    // we need to walk up the scope chain and look for catch scopes
+    // which have a simple binding, then compare their binding against
+    // all of the names declared in the init of the for-of we're
+    // parsing.
+    if (is_for_var_of) {
+      Scope* catch_scope = scope();
+      while (catch_scope != nullptr && !catch_scope->is_declaration_scope()) {
+        if (catch_scope->is_catch_scope()) {
+          auto name = catch_scope->catch_variable_name();
+          // If it's a simple binding and the name is declared in the for loop.
+          if (name != ast_value_factory()->dot_catch_string() &&
+              for_info->bound_names.Contains(name)) {
+            ReportMessageAt(for_info->parsing_result.bindings_loc,
+                            MessageTemplate::kVarRedeclaration, name);
+            *ok = false;
+            return;
+          }
+        }
+        catch_scope = catch_scope->outer_scope();
+      }
+    }
+  }
+
+  *body_block = factory()->NewBlock(nullptr, 3, false, kNoSourcePosition);
+  (*body_block)->statements()->Add(each_initialization_block, zone());
+  *each_variable = factory()->NewVariableProxy(temp, for_info->each_loc.beg_pos,
+                                               for_info->each_loc.end_pos);
+}
+
+// Create a TDZ for any lexically-bound names in for in/of statements.
+Block* Parser::CreateForEachStatementTDZ(Block* init_block,
+                                         const ForInfo& for_info, bool* ok) {
+  if (IsLexicalVariableMode(for_info.parsing_result.descriptor.mode)) {
+    DCHECK_NULL(init_block);
+
+    init_block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
+
+    for (int i = 0; i < for_info.bound_names.length(); ++i) {
+      // TODO(adamk): This needs to be some sort of special
+      // INTERNAL variable that's invisible to the debugger
+      // but visible to everything else.
+      Declaration* tdz_decl = DeclareVariable(for_info.bound_names[i], LET,
+                                              kNoSourcePosition, CHECK_OK);
+      tdz_decl->proxy()->var()->set_initializer_position(position());
+    }
+  }
+  return init_block;
+}
+
 Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
                                             Expression* each,
                                             Expression* iterable,
@@ -2119,9 +2251,8 @@ Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
 }
 
 Statement* Parser::DesugarLexicalBindingsInForStatement(
-    Scope* inner_scope, VariableMode mode, ZoneList<const AstRawString*>* names,
     ForStatement* loop, Statement* init, Expression* cond, Statement* next,
-    Statement* body, bool* ok) {
+    Statement* body, Scope* inner_scope, const ForInfo& for_info, bool* ok) {
   // ES6 13.7.4.8 specifies that on each loop iteration the let variables are
   // copied into a new environment.  Moreover, the "next" statement must be
   // evaluated not in the environment of the just completed iteration but in
@@ -2159,11 +2290,11 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   //    }
   //  }
 
-  DCHECK(names->length() > 0);
-  ZoneList<Variable*> temps(names->length(), zone());
+  DCHECK(for_info.bound_names.length() > 0);
+  ZoneList<Variable*> temps(for_info.bound_names.length(), zone());
 
-  Block* outer_block =
-      factory()->NewBlock(NULL, names->length() + 4, false, kNoSourcePosition);
+  Block* outer_block = factory()->NewBlock(
+      nullptr, for_info.bound_names.length() + 4, false, kNoSourcePosition);
 
   // Add statement: let/const x = i.
   outer_block->statements()->Add(init, zone());
@@ -2172,8 +2303,8 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 
   // For each lexical variable x:
   //   make statement: temp_x = x.
-  for (int i = 0; i < names->length(); i++) {
-    VariableProxy* proxy = NewUnresolved(names->at(i));
+  for (int i = 0; i < for_info.bound_names.length(); i++) {
+    VariableProxy* proxy = NewUnresolved(for_info.bound_names[i]);
     Variable* temp = NewTemporary(temp_name);
     VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
     Assignment* assignment = factory()->NewAssignment(Token::ASSIGN, temp_proxy,
@@ -2217,14 +2348,15 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   {
     BlockState block_state(&scope_state_, inner_scope);
 
-    Block* ignore_completion_block =
-        factory()->NewBlock(NULL, names->length() + 3, true, kNoSourcePosition);
-    ZoneList<Variable*> inner_vars(names->length(), zone());
+    Block* ignore_completion_block = factory()->NewBlock(
+        nullptr, for_info.bound_names.length() + 3, true, kNoSourcePosition);
+    ZoneList<Variable*> inner_vars(for_info.bound_names.length(), zone());
     // For each let variable x:
     //    make statement: let/const x = temp_x.
-    for (int i = 0; i < names->length(); i++) {
-      Declaration* decl =
-          DeclareVariable(names->at(i), mode, kNoSourcePosition, CHECK_OK);
+    for (int i = 0; i < for_info.bound_names.length(); i++) {
+      Declaration* decl = DeclareVariable(
+          for_info.bound_names[i], for_info.parsing_result.descriptor.mode,
+          kNoSourcePosition, CHECK_OK);
       inner_vars.Add(decl->proxy()->var(), zone());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
       Assignment* assignment = factory()->NewAssignment(
@@ -2308,7 +2440,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 
       // Make the comma-separated list of temp_x = x assignments.
       int inner_var_proxy_pos = scanner()->location().beg_pos;
-      for (int i = 0; i < names->length(); i++) {
+      for (int i = 0; i < for_info.bound_names.length(); i++) {
         VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
         VariableProxy* proxy =
             factory()->NewVariableProxy(inner_vars.at(i), inner_var_proxy_pos);
@@ -2356,365 +2488,6 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 
   outer_loop->Initialize(NULL, NULL, NULL, inner_block);
   return outer_block;
-}
-
-Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
-                                     bool* ok) {
-  int stmt_pos = peek_position();
-  Statement* init = NULL;
-  ZoneList<const AstRawString*> bound_names(1, zone());
-  bool bound_names_are_lexical = false;
-
-  // Create an in-between scope for let-bound iteration variables.
-  BlockState for_state(&scope_state_);
-  Expect(Token::FOR, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  for_state.set_start_position(scanner()->location().beg_pos);
-  for_state.set_is_hidden();
-  DeclarationParsingResult parsing_result;
-  if (peek() != Token::SEMICOLON) {
-    if (peek() == Token::VAR || peek() == Token::CONST ||
-        (peek() == Token::LET && IsNextLetKeyword())) {
-      ParseVariableDeclarations(kForStatement, &parsing_result, nullptr,
-                                CHECK_OK);
-
-      ForEachStatement::VisitMode mode = ForEachStatement::ENUMERATE;
-      int each_beg_pos = scanner()->location().beg_pos;
-      int each_end_pos = scanner()->location().end_pos;
-
-      if (CheckInOrOf(&mode)) {
-        if (parsing_result.declarations.length() != 1) {
-          ReportMessageAt(parsing_result.bindings_loc,
-                          MessageTemplate::kForInOfLoopMultiBindings,
-                          ForEachStatement::VisitModeString(mode));
-          *ok = false;
-          return nullptr;
-        }
-        DeclarationParsingResult::Declaration& decl =
-            parsing_result.declarations[0];
-        if (parsing_result.first_initializer_loc.IsValid() &&
-            (is_strict(language_mode()) || mode == ForEachStatement::ITERATE ||
-             IsLexicalVariableMode(parsing_result.descriptor.mode) ||
-             !decl.pattern->IsVariableProxy() || allow_harmony_for_in())) {
-          // Only increment the use count if we would have let this through
-          // without the flag.
-          if (allow_harmony_for_in()) {
-            ++use_counts_[v8::Isolate::kForInInitializer];
-          }
-          ReportMessageAt(parsing_result.first_initializer_loc,
-                          MessageTemplate::kForInOfLoopInitializer,
-                          ForEachStatement::VisitModeString(mode));
-          *ok = false;
-          return nullptr;
-        }
-
-        Block* init_block = nullptr;
-        bound_names_are_lexical =
-            IsLexicalVariableMode(parsing_result.descriptor.mode);
-
-        // special case for legacy for (var ... = ... in ...)
-        if (!bound_names_are_lexical && decl.pattern->IsVariableProxy() &&
-            decl.initializer != nullptr) {
-          DCHECK(!allow_harmony_for_in());
-          ++use_counts_[v8::Isolate::kForInInitializer];
-          const AstRawString* name =
-              decl.pattern->AsVariableProxy()->raw_name();
-          VariableProxy* single_var = NewUnresolved(name);
-          init_block = factory()->NewBlock(
-              nullptr, 2, true, parsing_result.descriptor.declaration_pos);
-          init_block->statements()->Add(
-              factory()->NewExpressionStatement(
-                  factory()->NewAssignment(Token::ASSIGN, single_var,
-                                           decl.initializer, kNoSourcePosition),
-                  kNoSourcePosition),
-              zone());
-        }
-
-        // Rewrite a for-in/of statement of the form
-        //
-        //   for (let/const/var x in/of e) b
-        //
-        // into
-        //
-        //   {
-        //     <let x' be a temporary variable>
-        //     for (x' in/of e) {
-        //       let/const/var x;
-        //       x = x';
-        //       b;
-        //     }
-        //     let x;  // for TDZ
-        //   }
-
-        Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
-        ForEachStatement* loop =
-            factory()->NewForEachStatement(mode, labels, stmt_pos);
-        ParserTarget target(this, loop);
-
-        int each_keyword_position = scanner()->location().beg_pos;
-
-        Expression* enumerable;
-        if (mode == ForEachStatement::ITERATE) {
-          ExpressionClassifier classifier(this);
-          enumerable = ParseAssignmentExpression(true, CHECK_OK);
-          RewriteNonPattern(CHECK_OK);
-        } else {
-          enumerable = ParseExpression(true, CHECK_OK);
-        }
-
-        Expect(Token::RPAREN, CHECK_OK);
-
-
-        Block* body_block =
-            factory()->NewBlock(NULL, 3, false, kNoSourcePosition);
-
-        Statement* final_loop;
-        {
-          ReturnExprScope no_tail_calls(function_state_,
-                                        ReturnExprContext::kInsideForInOfBody);
-          BlockState block_state(&scope_state_);
-          block_state.set_start_position(scanner()->location().beg_pos);
-
-          Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
-
-          auto each_initialization_block =
-              factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
-          {
-            auto descriptor = parsing_result.descriptor;
-            descriptor.declaration_pos = kNoSourcePosition;
-            descriptor.initialization_pos = kNoSourcePosition;
-            decl.initializer = factory()->NewVariableProxy(temp);
-
-            bool is_for_var_of =
-                mode == ForEachStatement::ITERATE &&
-                parsing_result.descriptor.mode == VariableMode::VAR;
-
-            PatternRewriter::DeclareAndInitializeVariables(
-                this, each_initialization_block, &descriptor, &decl,
-                bound_names_are_lexical || is_for_var_of ? &bound_names
-                                                         : nullptr,
-                CHECK_OK);
-
-            // Annex B.3.5 prohibits the form
-            // `try {} catch(e) { for (var e of {}); }`
-            // So if we are parsing a statement like `for (var ... of ...)`
-            // we need to walk up the scope chain and look for catch scopes
-            // which have a simple binding, then compare their binding against
-            // all of the names declared in the init of the for-of we're
-            // parsing.
-            if (is_for_var_of) {
-              Scope* catch_scope = scope();
-              while (catch_scope != nullptr &&
-                     !catch_scope->is_declaration_scope()) {
-                if (catch_scope->is_catch_scope()) {
-                  auto name = catch_scope->catch_variable_name();
-                  if (name !=
-                      ast_value_factory()
-                          ->dot_catch_string()) {  // i.e. is a simple binding
-                    if (bound_names.Contains(name)) {
-                      ReportMessageAt(parsing_result.bindings_loc,
-                                      MessageTemplate::kVarRedeclaration, name);
-                      *ok = false;
-                      return nullptr;
-                    }
-                  }
-                }
-                catch_scope = catch_scope->outer_scope();
-              }
-            }
-          }
-
-          body_block->statements()->Add(each_initialization_block, zone());
-          body_block->statements()->Add(body, zone());
-          VariableProxy* temp_proxy =
-              factory()->NewVariableProxy(temp, each_beg_pos, each_end_pos);
-          final_loop = InitializeForEachStatement(
-              loop, temp_proxy, enumerable, body_block, each_keyword_position);
-          block_state.set_end_position(scanner()->location().end_pos);
-          body_block->set_scope(block_state.FinalizedBlockScope());
-        }
-
-        // Create a TDZ for any lexically-bound names.
-        if (bound_names_are_lexical) {
-          DCHECK_NULL(init_block);
-
-          init_block =
-              factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
-
-          for (int i = 0; i < bound_names.length(); ++i) {
-            // TODO(adamk): This needs to be some sort of special
-            // INTERNAL variable that's invisible to the debugger
-            // but visible to everything else.
-            Declaration* tdz_decl = DeclareVariable(
-                bound_names[i], LET, kNoSourcePosition, CHECK_OK);
-            tdz_decl->proxy()->var()->set_initializer_position(position());
-          }
-        }
-
-        for_state.set_end_position(scanner()->location().end_pos);
-        Scope* for_scope = for_state.FinalizedBlockScope();
-        // Parsed for-in loop w/ variable declarations.
-        if (init_block != nullptr) {
-          init_block->statements()->Add(final_loop, zone());
-          init_block->set_scope(for_scope);
-          return init_block;
-        } else {
-          DCHECK_NULL(for_scope);
-          return final_loop;
-        }
-      } else {
-        bound_names_are_lexical =
-            IsLexicalVariableMode(parsing_result.descriptor.mode);
-        init = BuildInitializationBlock(
-            &parsing_result, bound_names_are_lexical ? &bound_names : nullptr,
-            CHECK_OK);
-      }
-    } else {
-      int lhs_beg_pos = peek_position();
-      ExpressionClassifier classifier(this);
-      Expression* expression = ParseExpressionCoverGrammar(false, CHECK_OK);
-      int lhs_end_pos = scanner()->location().end_pos;
-      ForEachStatement::VisitMode mode = ForEachStatement::ENUMERATE;
-
-      bool is_for_each = CheckInOrOf(&mode);
-      bool is_destructuring = is_for_each && (expression->IsArrayLiteral() ||
-                                              expression->IsObjectLiteral());
-
-      if (is_destructuring) {
-        ValidateAssignmentPattern(CHECK_OK);
-      } else {
-        RewriteNonPattern(CHECK_OK);
-      }
-
-      if (is_for_each) {
-        if (!is_destructuring) {
-          expression = CheckAndRewriteReferenceExpression(
-              expression, lhs_beg_pos, lhs_end_pos,
-              MessageTemplate::kInvalidLhsInFor, kSyntaxError, CHECK_OK);
-        }
-
-        ForEachStatement* loop =
-            factory()->NewForEachStatement(mode, labels, stmt_pos);
-        ParserTarget target(this, loop);
-
-        int each_keyword_position = scanner()->location().beg_pos;
-
-        Expression* enumerable;
-        if (mode == ForEachStatement::ITERATE) {
-          ExpressionClassifier classifier(this);
-          enumerable = ParseAssignmentExpression(true, CHECK_OK);
-          RewriteNonPattern(CHECK_OK);
-        } else {
-          enumerable = ParseExpression(true, CHECK_OK);
-        }
-
-        Expect(Token::RPAREN, CHECK_OK);
-
-        {
-          ReturnExprScope no_tail_calls(function_state_,
-                                        ReturnExprContext::kInsideForInOfBody);
-          BlockState block_state(&scope_state_);
-          block_state.set_start_position(scanner()->location().beg_pos);
-
-          // For legacy compat reasons, give for loops similar treatment to
-          // if statements in allowing a function declaration for a body
-          Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
-          block_state.set_end_position(scanner()->location().end_pos);
-          Statement* final_loop = InitializeForEachStatement(
-              loop, expression, enumerable, body, each_keyword_position);
-
-          Scope* for_scope = for_state.FinalizedBlockScope();
-          DCHECK_NULL(for_scope);
-          USE(for_scope);
-          Scope* block_scope = block_state.FinalizedBlockScope();
-          DCHECK_NULL(block_scope);
-          USE(block_scope);
-          return final_loop;
-        }
-      } else {
-        init = factory()->NewExpressionStatement(expression, lhs_beg_pos);
-      }
-    }
-  }
-
-  // Standard 'for' loop
-  ForStatement* loop = factory()->NewForStatement(labels, stmt_pos);
-  ParserTarget target(this, loop);
-
-  // Parsed initializer at this point.
-  Expect(Token::SEMICOLON, CHECK_OK);
-
-  Expression* cond = NULL;
-  Statement* next = NULL;
-  Statement* body = NULL;
-
-  // If there are let bindings, then condition and the next statement of the
-  // for loop must be parsed in a new scope.
-  Scope* inner_scope = scope();
-  // TODO(verwaest): Allocate this through a ScopeState as well.
-  if (bound_names_are_lexical && bound_names.length() > 0) {
-    inner_scope = NewScopeWithParent(inner_scope, BLOCK_SCOPE);
-    inner_scope->set_start_position(scanner()->location().beg_pos);
-  }
-  {
-    BlockState block_state(&scope_state_, inner_scope);
-
-    if (peek() != Token::SEMICOLON) {
-      cond = ParseExpression(true, CHECK_OK);
-    }
-    Expect(Token::SEMICOLON, CHECK_OK);
-
-    if (peek() != Token::RPAREN) {
-      Expression* exp = ParseExpression(true, CHECK_OK);
-      next = factory()->NewExpressionStatement(exp, exp->position());
-    }
-    Expect(Token::RPAREN, CHECK_OK);
-
-    body = ParseScopedStatement(NULL, true, CHECK_OK);
-  }
-
-  Statement* result = NULL;
-  if (bound_names_are_lexical && bound_names.length() > 0) {
-    result = DesugarLexicalBindingsInForStatement(
-        inner_scope, parsing_result.descriptor.mode, &bound_names, loop, init,
-        cond, next, body, CHECK_OK);
-    for_state.set_end_position(scanner()->location().end_pos);
-  } else {
-    for_state.set_end_position(scanner()->location().end_pos);
-    Scope* for_scope = for_state.FinalizedBlockScope();
-    if (for_scope) {
-      // Rewrite a for statement of the form
-      //   for (const x = i; c; n) b
-      //
-      // into
-      //
-      //   {
-      //     const x = i;
-      //     for (; c; n) b
-      //   }
-      //
-      // or, desugar
-      //   for (; c; n) b
-      // into
-      //   {
-      //     for (; c; n) b
-      //   }
-      // just in case b introduces a lexical binding some other way, e.g., if b
-      // is a FunctionDeclaration.
-      Block* block = factory()->NewBlock(NULL, 2, false, kNoSourcePosition);
-      if (init != nullptr) {
-        block->statements()->Add(init, zone());
-      }
-      block->statements()->Add(loop, zone());
-      block->set_scope(for_scope);
-      loop->Initialize(NULL, cond, next, body);
-      result = block;
-    } else {
-      loop->Initialize(init, cond, next, body);
-      result = loop;
-    }
-  }
-  return result;
 }
 
 void Parser::ParseArrowFunctionFormalParameters(

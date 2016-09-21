@@ -667,6 +667,19 @@ class ParserBase {
     TailCallExpressionList tail_call_expressions;
   };
 
+  struct ForInfo {
+   public:
+    explicit ForInfo(ParserBase* parser)
+        : bound_names(1, parser->zone()),
+          mode(ForEachStatement::ENUMERATE),
+          each_loc(),
+          parsing_result() {}
+    ZoneList<const AstRawString*> bound_names;
+    ForEachStatement::VisitMode mode;
+    Scanner::Location each_loc;
+    DeclarationParsingResult parsing_result;
+  };
+
   DeclarationScope* NewScriptScope() const {
     return new (zone()) DeclarationScope(zone(), ast_value_factory());
   }
@@ -1261,6 +1274,7 @@ class ParserBase {
   StatementT ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
                                   bool* ok);
   StatementT ParseTryStatement(bool* ok);
+  StatementT ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -4361,7 +4375,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::WHILE:
       return ParseWhileStatement(labels, ok);
     case Token::FOR:
-      return impl()->ParseForStatement(labels, ok);
+      return ParseForStatement(labels, ok);
     case Token::CONTINUE:
     case Token::BREAK:
     case Token::RETURN:
@@ -4986,6 +5000,270 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
 
   return impl()->RewriteTryStatement(try_block, catch_block, finally_block,
                                      catch_info, pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  int stmt_pos = peek_position();
+  ForInfo for_info(this);
+  bool bound_names_are_lexical = false;
+
+  // Create an in-between scope for let-bound iteration variables.
+  BlockState for_state(&scope_state_);
+  Expect(Token::FOR, CHECK_OK);
+  Expect(Token::LPAREN, CHECK_OK);
+  for_state.set_start_position(scanner()->location().beg_pos);
+  for_state.set_is_hidden();
+
+  StatementT init = impl()->NullStatement();
+  if (peek() != Token::SEMICOLON) {
+    // An initializer is present.
+    if (peek() == Token::VAR || peek() == Token::CONST ||
+        (peek() == Token::LET && IsNextLetKeyword())) {
+      // The initializer contains declarations.
+      ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
+                                nullptr, CHECK_OK);
+      bound_names_are_lexical =
+          IsLexicalVariableMode(for_info.parsing_result.descriptor.mode);
+      for_info.each_loc = scanner()->location();
+
+      if (CheckInOrOf(&for_info.mode)) {
+        // Just one declaration followed by in/of.
+        if (for_info.parsing_result.declarations.length() != 1) {
+          impl()->ReportMessageAt(
+              for_info.parsing_result.bindings_loc,
+              MessageTemplate::kForInOfLoopMultiBindings,
+              ForEachStatement::VisitModeString(for_info.mode));
+          *ok = false;
+          return impl()->NullStatement();
+        }
+        if (for_info.parsing_result.first_initializer_loc.IsValid() &&
+            (is_strict(language_mode()) ||
+             for_info.mode == ForEachStatement::ITERATE ||
+             bound_names_are_lexical ||
+             !impl()->IsIdentifier(
+                 for_info.parsing_result.declarations[0].pattern) ||
+             allow_harmony_for_in())) {
+          // Only increment the use count if we would have let this through
+          // without the flag.
+          if (allow_harmony_for_in()) {
+            impl()->CountUsage(v8::Isolate::kForInInitializer);
+          }
+          impl()->ReportMessageAt(
+              for_info.parsing_result.first_initializer_loc,
+              MessageTemplate::kForInOfLoopInitializer,
+              ForEachStatement::VisitModeString(for_info.mode));
+          *ok = false;
+          return impl()->NullStatement();
+        }
+
+        BlockT init_block = impl()->RewriteForVarInLegacy(for_info);
+
+        auto loop =
+            factory()->NewForEachStatement(for_info.mode, labels, stmt_pos);
+        typename Types::Target target(this, loop);
+
+        int each_keyword_pos = scanner()->location().beg_pos;
+
+        ExpressionT enumerable = impl()->EmptyExpression();
+        if (for_info.mode == ForEachStatement::ITERATE) {
+          ExpressionClassifier classifier(this);
+          enumerable = ParseAssignmentExpression(true, CHECK_OK);
+          impl()->RewriteNonPattern(CHECK_OK);
+        } else {
+          enumerable = ParseExpression(true, CHECK_OK);
+        }
+
+        Expect(Token::RPAREN, CHECK_OK);
+
+        StatementT final_loop = impl()->NullStatement();
+        {
+          ReturnExprScope no_tail_calls(function_state_,
+                                        ReturnExprContext::kInsideForInOfBody);
+          BlockState block_state(&scope_state_);
+          block_state.set_start_position(scanner()->location().beg_pos);
+
+          StatementT body = ParseScopedStatement(nullptr, true, CHECK_OK);
+
+          BlockT body_block = impl()->NullBlock();
+          ExpressionT each_variable = impl()->EmptyExpression();
+          impl()->DesugarBindingInForEachStatement(&for_info, &body_block,
+                                                   &each_variable, CHECK_OK);
+          body_block->statements()->Add(body, zone());
+          final_loop = impl()->InitializeForEachStatement(
+              loop, each_variable, enumerable, body_block, each_keyword_pos);
+
+          block_state.set_end_position(scanner()->location().end_pos);
+          body_block->set_scope(block_state.FinalizedBlockScope());
+        }
+
+        init_block =
+            impl()->CreateForEachStatementTDZ(init_block, for_info, ok);
+
+        for_state.set_end_position(scanner()->location().end_pos);
+        Scope* for_scope = for_state.FinalizedBlockScope();
+        // Parsed for-in loop w/ variable declarations.
+        if (!impl()->IsNullStatement(init_block)) {
+          init_block->statements()->Add(final_loop, zone());
+          init_block->set_scope(for_scope);
+          return init_block;
+        } else {
+          DCHECK_NULL(for_scope);
+          return final_loop;
+        }
+      } else {
+        // One or more declaration not followed by in/of.
+        init = impl()->BuildInitializationBlock(
+            &for_info.parsing_result,
+            bound_names_are_lexical ? &for_info.bound_names : nullptr,
+            CHECK_OK);
+      }
+    } else {
+      // The initializer does not contain declarations.
+      int lhs_beg_pos = peek_position();
+      ExpressionClassifier classifier(this);
+      ExpressionT expression = ParseExpressionCoverGrammar(false, CHECK_OK);
+      int lhs_end_pos = scanner()->location().end_pos;
+
+      bool is_for_each = CheckInOrOf(&for_info.mode);
+      bool is_destructuring = is_for_each && (expression->IsArrayLiteral() ||
+                                              expression->IsObjectLiteral());
+
+      if (is_destructuring) {
+        ValidateAssignmentPattern(CHECK_OK);
+      } else {
+        impl()->RewriteNonPattern(CHECK_OK);
+      }
+
+      if (is_for_each) {
+        // Initializer is reference followed by in/of.
+        if (!is_destructuring) {
+          expression = impl()->CheckAndRewriteReferenceExpression(
+              expression, lhs_beg_pos, lhs_end_pos,
+              MessageTemplate::kInvalidLhsInFor, kSyntaxError, CHECK_OK);
+        }
+
+        auto loop =
+            factory()->NewForEachStatement(for_info.mode, labels, stmt_pos);
+        typename Types::Target target(this, loop);
+
+        int each_keyword_pos = scanner()->location().beg_pos;
+
+        ExpressionT enumerable = impl()->EmptyExpression();
+        if (for_info.mode == ForEachStatement::ITERATE) {
+          ExpressionClassifier classifier(this);
+          enumerable = ParseAssignmentExpression(true, CHECK_OK);
+          impl()->RewriteNonPattern(CHECK_OK);
+        } else {
+          enumerable = ParseExpression(true, CHECK_OK);
+        }
+
+        Expect(Token::RPAREN, CHECK_OK);
+
+        {
+          ReturnExprScope no_tail_calls(function_state_,
+                                        ReturnExprContext::kInsideForInOfBody);
+          BlockState block_state(&scope_state_);
+          block_state.set_start_position(scanner()->location().beg_pos);
+
+          // For legacy compat reasons, give for loops similar treatment to
+          // if statements in allowing a function declaration for a body
+          StatementT body = ParseScopedStatement(nullptr, true, CHECK_OK);
+          block_state.set_end_position(scanner()->location().end_pos);
+          StatementT final_loop = impl()->InitializeForEachStatement(
+              loop, expression, enumerable, body, each_keyword_pos);
+
+          Scope* for_scope = for_state.FinalizedBlockScope();
+          DCHECK_NULL(for_scope);
+          USE(for_scope);
+          Scope* block_scope = block_state.FinalizedBlockScope();
+          DCHECK_NULL(block_scope);
+          USE(block_scope);
+          return final_loop;
+        }
+      } else {
+        // Initializer is just an expression.
+        init = factory()->NewExpressionStatement(expression, lhs_beg_pos);
+      }
+    }
+  }
+
+  // Standard 'for' loop, we have parsed the initializer at this point.
+  auto loop = factory()->NewForStatement(labels, stmt_pos);
+  typename Types::Target target(this, loop);
+
+  Expect(Token::SEMICOLON, CHECK_OK);
+
+  ExpressionT cond = impl()->EmptyExpression();
+  StatementT next = impl()->NullStatement();
+  StatementT body = impl()->NullStatement();
+
+  // If there are let bindings, then condition and the next statement of the
+  // for loop must be parsed in a new scope.
+  Scope* inner_scope = scope();
+  // TODO(verwaest): Allocate this through a ScopeState as well.
+  if (bound_names_are_lexical && for_info.bound_names.length() > 0) {
+    inner_scope = NewScopeWithParent(inner_scope, BLOCK_SCOPE);
+    inner_scope->set_start_position(scanner()->location().beg_pos);
+  }
+  {
+    BlockState block_state(&scope_state_, inner_scope);
+
+    if (peek() != Token::SEMICOLON) {
+      cond = ParseExpression(true, CHECK_OK);
+    }
+    Expect(Token::SEMICOLON, CHECK_OK);
+
+    if (peek() != Token::RPAREN) {
+      ExpressionT exp = ParseExpression(true, CHECK_OK);
+      next = factory()->NewExpressionStatement(exp, exp->position());
+    }
+    Expect(Token::RPAREN, CHECK_OK);
+
+    body = ParseScopedStatement(nullptr, true, CHECK_OK);
+  }
+
+  if (bound_names_are_lexical && for_info.bound_names.length() > 0) {
+    auto result = impl()->DesugarLexicalBindingsInForStatement(
+        loop, init, cond, next, body, inner_scope, for_info, CHECK_OK);
+    for_state.set_end_position(scanner()->location().end_pos);
+    return result;
+  } else {
+    for_state.set_end_position(scanner()->location().end_pos);
+    Scope* for_scope = for_state.FinalizedBlockScope();
+    if (for_scope != nullptr) {
+      // Rewrite a for statement of the form
+      //   for (const x = i; c; n) b
+      //
+      // into
+      //
+      //   {
+      //     const x = i;
+      //     for (; c; n) b
+      //   }
+      //
+      // or, desugar
+      //   for (; c; n) b
+      // into
+      //   {
+      //     for (; c; n) b
+      //   }
+      // just in case b introduces a lexical binding some other way, e.g., if b
+      // is a FunctionDeclaration.
+      BlockT block = factory()->NewBlock(nullptr, 2, false, kNoSourcePosition);
+      if (!impl()->IsNullStatement(init)) {
+        block->statements()->Add(init, zone());
+      }
+      block->statements()->Add(loop, zone());
+      block->set_scope(for_scope);
+      loop->Initialize(init, cond, next, body);
+      return block;
+    } else {
+      loop->Initialize(init, cond, next, body);
+      return loop;
+    }
+  }
 }
 
 #undef CHECK_OK
