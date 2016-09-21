@@ -1568,9 +1568,9 @@ TEST_F(AstDecoderTest, AsmJsBinOpsCheckOrigin) {
 
 TEST_F(AstDecoderTest, AsmJsUnOpsCheckOrigin) {
   LocalType float32int32[] = {kAstF32, kAstI32};
-  FunctionSig sig_f_i(1, 2, float32int32);
+  FunctionSig sig_f_i(1, 1, float32int32);
   LocalType float64int32[] = {kAstF64, kAstI32};
-  FunctionSig sig_d_i(1, 2, float64int32);
+  FunctionSig sig_d_i(1, 1, float64int32);
   struct {
     WasmOpcode op;
     FunctionSig* sig;
