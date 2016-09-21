@@ -827,6 +827,8 @@ v8_source_set("v8_base") {
 
   sources = [
     "//base/trace_event/common/trace_event_common.h",
+
+    ### gcmole(all) ###
     "include/v8-debug.h",
     "include/v8-experimental.h",
     "include/v8-platform.h",
@@ -1707,7 +1709,7 @@ v8_source_set("v8_base") {
   ]
 
   if (v8_current_cpu == "x86") {
-    sources += [
+    sources += [  ### gcmole(arch:ia32) ###
       "src/builtins/ia32/builtins-ia32.cc",
       "src/compiler/ia32/code-generator-ia32.cc",
       "src/compiler/ia32/instruction-codes-ia32.h",
@@ -1747,7 +1749,7 @@ v8_source_set("v8_base") {
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
     ]
   } else if (v8_current_cpu == "x64") {
-    sources += [
+    sources += [  ### gcmole(arch:x64) ###
       "src/builtins/x64/builtins-x64.cc",
       "src/compiler/x64/code-generator-x64.cc",
       "src/compiler/x64/instruction-codes-x64.h",
@@ -1792,7 +1794,7 @@ v8_source_set("v8_base") {
       "src/x64/sse-instr.h",
     ]
   } else if (v8_current_cpu == "arm") {
-    sources += [
+    sources += [  ### gcmole(arch:arm) ###
       "src/arm/assembler-arm-inl.h",
       "src/arm/assembler-arm.cc",
       "src/arm/assembler-arm.h",
@@ -1838,7 +1840,7 @@ v8_source_set("v8_base") {
       "src/regexp/arm/regexp-macro-assembler-arm.h",
     ]
   } else if (v8_current_cpu == "arm64") {
-    sources += [
+    sources += [  ### gcmole(arch:arm64) ###
       "src/arm64/assembler-arm64-inl.h",
       "src/arm64/assembler-arm64.cc",
       "src/arm64/assembler-arm64.h",
@@ -1896,8 +1898,8 @@ v8_source_set("v8_base") {
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
     ]
-  } else if (v8_current_cpu == "mipsel") {
-    sources += [
+  } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
+    sources += [  ### gcmole(arch:mipsel) ###
       "src/builtins/mips/builtins-mips.cc",
       "src/compiler/mips/code-generator-mips.cc",
       "src/compiler/mips/instruction-codes-mips.h",
@@ -1938,8 +1940,8 @@ v8_source_set("v8_base") {
       "src/regexp/mips/regexp-macro-assembler-mips.cc",
       "src/regexp/mips/regexp-macro-assembler-mips.h",
     ]
-  } else if (v8_current_cpu == "mips64el") {
-    sources += [
+  } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
+    sources += [  ### gcmole(arch:mips64el) ###
       "src/builtins/mips64/builtins-mips64.cc",
       "src/compiler/mips64/code-generator-mips64.cc",
       "src/compiler/mips64/instruction-codes-mips64.h",
@@ -1980,8 +1982,50 @@ v8_source_set("v8_base") {
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
     ]
+  } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
+    sources += [  ### gcmole(arch:ppc) ###
+      "src/builtins/ppc/builtins-ppc.cc",
+      "src/compiler/ppc/code-generator-ppc.cc",
+      "src/compiler/ppc/instruction-codes-ppc.h",
+      "src/compiler/ppc/instruction-scheduler-ppc.cc",
+      "src/compiler/ppc/instruction-selector-ppc.cc",
+      "src/crankshaft/ppc/lithium-codegen-ppc.cc",
+      "src/crankshaft/ppc/lithium-codegen-ppc.h",
+      "src/crankshaft/ppc/lithium-gap-resolver-ppc.cc",
+      "src/crankshaft/ppc/lithium-gap-resolver-ppc.h",
+      "src/crankshaft/ppc/lithium-ppc.cc",
+      "src/crankshaft/ppc/lithium-ppc.h",
+      "src/debug/ppc/debug-ppc.cc",
+      "src/full-codegen/ppc/full-codegen-ppc.cc",
+      "src/ic/ppc/access-compiler-ppc.cc",
+      "src/ic/ppc/handler-compiler-ppc.cc",
+      "src/ic/ppc/ic-compiler-ppc.cc",
+      "src/ic/ppc/ic-ppc.cc",
+      "src/ic/ppc/stub-cache-ppc.cc",
+      "src/ppc/assembler-ppc-inl.h",
+      "src/ppc/assembler-ppc.cc",
+      "src/ppc/assembler-ppc.h",
+      "src/ppc/code-stubs-ppc.cc",
+      "src/ppc/code-stubs-ppc.h",
+      "src/ppc/codegen-ppc.cc",
+      "src/ppc/codegen-ppc.h",
+      "src/ppc/constants-ppc.cc",
+      "src/ppc/constants-ppc.h",
+      "src/ppc/cpu-ppc.cc",
+      "src/ppc/deoptimizer-ppc.cc",
+      "src/ppc/disasm-ppc.cc",
+      "src/ppc/frames-ppc.cc",
+      "src/ppc/frames-ppc.h",
+      "src/ppc/interface-descriptors-ppc.cc",
+      "src/ppc/macro-assembler-ppc.cc",
+      "src/ppc/macro-assembler-ppc.h",
+      "src/ppc/simulator-ppc.cc",
+      "src/ppc/simulator-ppc.h",
+      "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
+      "src/regexp/ppc/regexp-macro-assembler-ppc.h",
+    ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [
+    sources += [  ### gcmole(arch:s390) ###
       "src/builtins/s390/builtins-s390.cc",
       "src/compiler/s390/code-generator-s390.cc",
       "src/compiler/s390/instruction-codes-s390.h",
@@ -2021,6 +2065,46 @@ v8_source_set("v8_base") {
       "src/s390/macro-assembler-s390.h",
       "src/s390/simulator-s390.cc",
       "src/s390/simulator-s390.h",
+    ]
+  } else if (v8_current_cpu == "x87") {
+    sources += [  ### gcmole(arch:x87) ###
+      "src/builtins/x87/builtins-x87.cc",
+      "src/compiler/x87/code-generator-x87.cc",
+      "src/compiler/x87/instruction-codes-x87.h",
+      "src/compiler/x87/instruction-scheduler-x87.cc",
+      "src/compiler/x87/instruction-selector-x87.cc",
+      "src/crankshaft/x87/lithium-codegen-x87.cc",
+      "src/crankshaft/x87/lithium-codegen-x87.h",
+      "src/crankshaft/x87/lithium-gap-resolver-x87.cc",
+      "src/crankshaft/x87/lithium-gap-resolver-x87.h",
+      "src/crankshaft/x87/lithium-x87.cc",
+      "src/crankshaft/x87/lithium-x87.h",
+      "src/debug/x87/debug-x87.cc",
+      "src/full-codegen/x87/full-codegen-x87.cc",
+      "src/ic/x87/access-compiler-x87.cc",
+      "src/ic/x87/handler-compiler-x87.cc",
+      "src/ic/x87/ic-compiler-x87.cc",
+      "src/ic/x87/ic-x87.cc",
+      "src/ic/x87/stub-cache-x87.cc",
+      "src/regexp/x87/regexp-macro-assembler-x87.cc",
+      "src/regexp/x87/regexp-macro-assembler-x87.h",
+      "src/x87/assembler-x87-inl.h",
+      "src/x87/assembler-x87.cc",
+      "src/x87/assembler-x87.h",
+      "src/x87/code-stubs-x87.cc",
+      "src/x87/code-stubs-x87.h",
+      "src/x87/codegen-x87.cc",
+      "src/x87/codegen-x87.h",
+      "src/x87/cpu-x87.cc",
+      "src/x87/deoptimizer-x87.cc",
+      "src/x87/disasm-x87.cc",
+      "src/x87/frames-x87.cc",
+      "src/x87/frames-x87.h",
+      "src/x87/interface-descriptors-x87.cc",
+      "src/x87/macro-assembler-x87.cc",
+      "src/x87/macro-assembler-x87.h",
+      "src/x87/simulator-x87.cc",
+      "src/x87/simulator-x87.h",
     ]
   }
 

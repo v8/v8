@@ -9,6 +9,8 @@ v8_executable("cctest") {
 
   sources = [
     "$target_gen_dir/resources.cc",
+
+    ### gcmole(all) ###
     "asmjs/test-asm-typer.cc",
     "ast-types-fuzz.h",
     "cctest.cc",
@@ -195,7 +197,7 @@ v8_executable("cctest") {
   ]
 
   if (v8_current_cpu == "arm") {
-    sources += [
+    sources += [  ### gcmole(arch:arm) ###
       "test-assembler-arm.cc",
       "test-code-stubs-arm.cc",
       "test-code-stubs.cc",
@@ -205,7 +207,7 @@ v8_executable("cctest") {
       "test-run-wasm-relocation-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
-    sources += [
+    sources += [  ### gcmole(arch:arm64) ###
       "test-assembler-arm64.cc",
       "test-code-stubs-arm64.cc",
       "test-code-stubs.cc",
@@ -219,7 +221,7 @@ v8_executable("cctest") {
       "test-utils-arm64.h",
     ]
   } else if (v8_current_cpu == "x86") {
-    sources += [
+    sources += [  ### gcmole(arch:ia32) ###
       "test-assembler-ia32.cc",
       "test-code-stubs-ia32.cc",
       "test-code-stubs.cc",
@@ -230,7 +232,7 @@ v8_executable("cctest") {
       "test-run-wasm-relocation-ia32.cc",
     ]
   } else if (v8_current_cpu == "mips") {
-    sources += [
+    sources += [  ### gcmole(arch:mips) ###
       "test-assembler-mips.cc",
       "test-code-stubs-mips.cc",
       "test-code-stubs.cc",
@@ -239,7 +241,7 @@ v8_executable("cctest") {
       "test-macro-assembler-mips.cc",
     ]
   } else if (v8_current_cpu == "mipsel") {
-    sources += [
+    sources += [  ### gcmole(arch:mipsel) ###
       "test-assembler-mips.cc",
       "test-code-stubs-mips.cc",
       "test-code-stubs.cc",
@@ -248,7 +250,7 @@ v8_executable("cctest") {
       "test-macro-assembler-mips.cc",
     ]
   } else if (v8_current_cpu == "mips64") {
-    sources += [
+    sources += [  ### gcmole(arch:mips64) ###
       "test-assembler-mips64.cc",
       "test-code-stubs-mips64.cc",
       "test-code-stubs.cc",
@@ -257,7 +259,7 @@ v8_executable("cctest") {
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "mips64el") {
-    sources += [
+    sources += [  ### gcmole(arch:mips64el) ###
       "test-assembler-mips64.cc",
       "test-code-stubs-mips64.cc",
       "test-code-stubs.cc",
@@ -266,7 +268,7 @@ v8_executable("cctest") {
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "x64") {
-    sources += [
+    sources += [  ### gcmole(arch:x64) ###
       "test-assembler-x64.cc",
       "test-code-stubs-x64.cc",
       "test-code-stubs.cc",
@@ -278,7 +280,7 @@ v8_executable("cctest") {
       "wasm/test-run-wasm-simd.cc",
     ]
   } else if (v8_current_cpu == "x87") {
-    sources += [
+    sources += [  ### gcmole(arch:x87) ###
       "test-assembler-x87.cc",
       "test-code-stubs-x87.cc",
       "test-code-stubs.cc",
@@ -289,14 +291,14 @@ v8_executable("cctest") {
       "test-run-wasm-relocation-x87.cc",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
-    sources += [
+    sources += [  ### gcmole(arch:ppc) ###
       "test-assembler-ppc.cc",
       "test-code-stubs.cc",
       "test-code-stubs.h",
       "test-disasm-ppc.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [
+    sources += [  ### gcmole(arch:s390) ###
       "test-assembler-s390.cc",
       "test-code-stubs.cc",
       "test-code-stubs.h",
