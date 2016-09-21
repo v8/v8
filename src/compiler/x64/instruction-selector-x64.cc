@@ -60,8 +60,7 @@ class X64OperandGenerator final : public OperandGenerator {
     switch (opcode) {
       case kX64Cmp:
       case kX64Test:
-        return rep == MachineRepresentation::kWord64 ||
-               rep == MachineRepresentation::kTagged;
+        return rep == MachineRepresentation::kWord64 || IsAnyTagged(rep);
       case kX64Cmp32:
       case kX64Test32:
         return rep == MachineRepresentation::kWord32;
