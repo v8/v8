@@ -5,6 +5,8 @@
 #ifndef V8_SLOT_SET_H
 #define V8_SLOT_SET_H
 
+#include <stack>
+
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bits.h"
@@ -259,6 +261,8 @@ enum SlotType {
 // typed slots contain V8 internal pointers that are not directly exposed to JS.
 class TypedSlotSet {
  public:
+  enum IterationMode { PREFREE_EMPTY_CHUNKS, KEEP_EMPTY_CHUNKS };
+
   typedef std::pair<SlotType, uint32_t> TypeAndOffset;
 
   struct TypedSlot {
@@ -326,6 +330,10 @@ class TypedSlotSet {
   void Insert(SlotType type, uint32_t host_offset, uint32_t offset) {
     TypedSlot slot(type, host_offset, offset);
     Chunk* top_chunk = chunk_.Value();
+    if (!top_chunk) {
+      top_chunk = new Chunk(nullptr, kInitialBufferSize);
+      chunk_.SetValue(top_chunk);
+    }
     if (!top_chunk->AddSlot(slot)) {
       Chunk* new_top_chunk =
           new Chunk(top_chunk, NextCapacity(top_chunk->capacity.Value()));
@@ -346,13 +354,15 @@ class TypedSlotSet {
   //    else return REMOVE_SLOT;
   // });
   template <typename Callback>
-  int Iterate(Callback callback) {
+  int Iterate(Callback callback, IterationMode mode) {
     STATIC_ASSERT(CLEARED_SLOT < 8);
     Chunk* chunk = chunk_.Value();
+    Chunk* previous = nullptr;
     int new_count = 0;
     while (chunk != nullptr) {
       TypedSlot* buffer = chunk->buffer.Value();
       int count = chunk->count.Value();
+      bool empty = true;
       for (int i = 0; i < count; i++) {
         // Order is important here. We have to read out the slot type last to
         // observe the concurrent removal case consistently.
@@ -363,14 +373,38 @@ class TypedSlotSet {
           Address addr = page_start_ + type_and_offset.second;
           if (callback(type, host_addr, addr) == KEEP_SLOT) {
             new_count++;
+            empty = false;
           } else {
             buffer[i].Clear();
           }
         }
       }
+
+      if (mode == PREFREE_EMPTY_CHUNKS && empty) {
+        // We remove the chunk from the list but let it still point its next
+        // chunk to allow concurrent iteration.
+        if (previous) {
+          previous->next.SetValue(chunk->next.Value());
+        } else {
+          chunk_.SetValue(chunk->next.Value());
+        }
+        base::LockGuard<base::Mutex> guard(&to_be_freed_chunks_mutex_);
+        to_be_freed_chunks_.push(chunk);
+      } else {
+        previous = chunk;
+      }
       chunk = chunk->next.Value();
     }
     return new_count;
+  }
+
+  void FreeToBeFreedChunks() {
+    base::LockGuard<base::Mutex> guard(&to_be_freed_chunks_mutex_);
+    while (!to_be_freed_chunks_.empty()) {
+      Chunk* top = to_be_freed_chunks_.top();
+      to_be_freed_chunks_.pop();
+      delete top;
+    }
   }
 
  private:
@@ -411,6 +445,8 @@ class TypedSlotSet {
 
   Address page_start_;
   base::AtomicValue<Chunk*> chunk_;
+  base::Mutex to_be_freed_chunks_mutex_;
+  std::stack<Chunk*> to_be_freed_chunks_;
 };
 
 }  // namespace internal
