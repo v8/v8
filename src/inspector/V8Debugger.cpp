@@ -647,9 +647,10 @@ void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Context> context,
                ->ToInteger(context)
                .ToLocalChecked()
                ->Value();
-  // The scopes for the ids are defined by the eventData.name namespaces. There
-  // are currently two namespaces: "Object." and "Promise.".
-  void* ptr = reinterpret_cast<void*>(id * 4 + (name[0] == 'P' ? 2 : 0) + 1);
+  // Async task events from Promises are given misaligned pointers to prevent
+  // from overlapping with other Blink task identifiers. There is a single
+  // namespace of such ids, managed by src/js/promise.js.
+  void* ptr = reinterpret_cast<void*>(id * 2 + 1);
   if (type == v8AsyncTaskEventEnqueue)
     asyncTaskScheduled(name, ptr, false);
   else if (type == v8AsyncTaskEventWillHandle)
