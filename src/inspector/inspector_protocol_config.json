@@ -19,7 +19,7 @@
     "lib": {
         "package": "src/inspector/protocol",
         "output": "protocol",
-        "string_header": "src/inspector/StringUtil.h",
-        "platform_header": "src/inspector/ProtocolPlatform.h"
+        "string_header": "src/inspector/string-util.h",
+        "platform_header": "src/inspector/protocol-platform.h"
     }
 }
