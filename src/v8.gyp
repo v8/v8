@@ -983,6 +983,8 @@
         'interpreter/bytecode-generator.h',
         'interpreter/bytecode-label.cc',
         'interpreter/bytecode-label.h',
+        'interpreter/bytecode-operands.cc',
+        'interpreter/bytecode-operands.h',
         'interpreter/bytecode-peephole-optimizer.cc',
         'interpreter/bytecode-peephole-optimizer.h',
         'interpreter/bytecode-peephole-table.h',
@@ -2434,7 +2436,10 @@
         '..',
        ],
       'sources': [
+        'interpreter/bytecode-operands.h',
+        'interpreter/bytecode-operands.cc',
         'interpreter/bytecode-peephole-table.h',
+        'interpreter/bytecode-traits.h',
         'interpreter/bytecodes.h',
         'interpreter/bytecodes.cc',
         'interpreter/mkpeephole.cc'
