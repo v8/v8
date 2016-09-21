@@ -17,8 +17,6 @@ namespace {
 
 const char src_simple[] = "function foo() { var x = 2 * a() + b; }";
 
-static UnicodeCache* unicode_cache = new UnicodeCache();
-
 std::unique_ptr<Scanner> make_scanner(const char* src) {
   std::unique_ptr<Scanner> scanner(new Scanner(new UnicodeCache()));
   scanner->Initialize(ScannerStream::ForTesting(src).release());
