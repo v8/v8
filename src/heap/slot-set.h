@@ -48,7 +48,9 @@ class SlotSet : public Malloced {
       current_bucket = AllocateBucket();
       bucket[bucket_index].SetValue(current_bucket);
     }
-    current_bucket[cell_index].SetBit(bit_index);
+    if (!(current_bucket[cell_index].Value() & (1u << bit_index))) {
+      current_bucket[cell_index].SetBit(bit_index);
+    }
   }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
