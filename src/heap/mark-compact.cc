@@ -3865,12 +3865,6 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     } else {
       max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     }
-
-    // After finishing sweeping of a page we clean up its remembered set.
-    if (page->typed_old_to_new_slots()) {
-      page->typed_old_to_new_slots()->FreeToBeFreedChunks();
-    }
-
     {
       base::LockGuard<base::Mutex> guard(&mutex_);
       swept_list_[identity].Add(page);

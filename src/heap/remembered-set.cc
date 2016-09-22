@@ -36,8 +36,7 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
             } else {
               return REMOVE_SLOT;
             }
-          },
-          TypedSlotSet::PREFREE_EMPTY_CHUNKS);
+          });
     }
   }
   for (MemoryChunk* chunk : *heap->map_space()) {
