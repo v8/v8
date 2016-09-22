@@ -456,7 +456,7 @@ class MemoryChunk {
   inline SlotSet* old_to_new_slots() { return old_to_new_slots_; }
   inline SlotSet* old_to_old_slots() { return old_to_old_slots_; }
   inline TypedSlotSet* typed_old_to_new_slots() {
-    return typed_old_to_new_slots_;
+    return typed_old_to_new_slots_.Value();
   }
   inline TypedSlotSet* typed_old_to_old_slots() {
     return typed_old_to_old_slots_;
@@ -656,7 +656,7 @@ class MemoryChunk {
   // is ceil(size() / kPageSize).
   SlotSet* old_to_new_slots_;
   SlotSet* old_to_old_slots_;
-  TypedSlotSet* typed_old_to_new_slots_;
+  base::AtomicValue<TypedSlotSet*> typed_old_to_new_slots_;
   TypedSlotSet* typed_old_to_old_slots_;
 
   SkipList* skip_list_;
