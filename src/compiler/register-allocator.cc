@@ -2385,15 +2385,15 @@ LifetimePosition RegisterAllocator::GetSplitPositionForInstruction(
   return ret;
 }
 
-
-void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand(
-    bool operands_only) {
+void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
   size_t initial_range_count = data()->live_ranges().size();
   for (size_t i = 0; i < initial_range_count; ++i) {
     TopLevelLiveRange* range = data()->live_ranges()[i];
     if (!CanProcessRange(range)) continue;
-    if (!range->HasSpillOperand()) continue;
-
+    if (range->HasNoSpillType() ||
+        (range->HasSpillRange() && !range->has_slot_use())) {
+      continue;
+    }
     LifetimePosition start = range->Start();
     TRACE("Live range %d:%d is defined by a spill operand.\n",
           range->TopLevel()->vreg(), range->relative_id());
@@ -2571,8 +2571,7 @@ void LinearScanAllocator::AllocateRegisters() {
   DCHECK(active_live_ranges().empty());
   DCHECK(inactive_live_ranges().empty());
 
-  SplitAndSpillRangesDefinedByMemoryOperand(code()->VirtualRegisterCount() <=
-                                            num_allocatable_registers());
+  SplitAndSpillRangesDefinedByMemoryOperand();
 
   for (TopLevelLiveRange* range : data()->live_ranges()) {
     if (!CanProcessRange(range)) continue;
