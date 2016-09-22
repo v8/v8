@@ -125,8 +125,8 @@ void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
         bytecodes()->push_back(static_cast<uint8_t>(operands[i]));
         break;
       case OperandSize::kShort: {
-        const uint8_t* raw_operand =
-            reinterpret_cast<const uint8_t*>(&operands[i]);
+        uint16_t operand = static_cast<uint16_t>(operands[i]);
+        const uint8_t* raw_operand = reinterpret_cast<const uint8_t*>(&operand);
         bytecodes()->push_back(raw_operand[0]);
         bytecodes()->push_back(raw_operand[1]);
         break;
