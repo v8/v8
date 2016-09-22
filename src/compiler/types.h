@@ -47,34 +47,6 @@ namespace compiler {
 //   Constant(x) < T  iff instance_type(map(x)) < T
 //
 //
-// REPRESENTATIONAL DIMENSION
-//
-// For the representation axis, the following holds:
-//
-//   None <= R
-//   R <= Any
-//
-//   UntaggedInt = UntaggedInt1 \/ UntaggedInt8 \/
-//                 UntaggedInt16 \/ UntaggedInt32
-//   UntaggedFloat = UntaggedFloat32 \/ UntaggedFloat64
-//   UntaggedNumber = UntaggedInt \/ UntaggedFloat
-//   Untagged = UntaggedNumber \/ UntaggedPtr
-//   Tagged = TaggedInt \/ TaggedPtr
-//
-// Subtyping relates the two dimensions, for example:
-//
-//   Number <= Tagged \/ UntaggedNumber
-//   Object <= TaggedPtr \/ UntaggedPtr
-//
-// That holds because the semantic type constructors defined by the API create
-// types that allow for all possible representations, and dually, the ones for
-// representation types initially include all semantic ranges. Representations
-// can then e.g. be narrowed for a given semantic type using intersection:
-//
-//   SignedSmall /\ TaggedInt       (a 'smi')
-//   Number /\ TaggedPtr            (a heap number)
-//
-//
 // RANGE TYPES
 //
 // A range type represents a continuous integer interval by its minimum and
@@ -125,7 +97,6 @@ namespace compiler {
 // Internally, all 'primitive' types, and their unions, are represented as
 // bitsets. Bit 0 is reserved for tagging. Only structured types require
 // allocation.
-// Note that the bitset representation is closed under both Union and Intersect.
 
 // -----------------------------------------------------------------------------
 // Values for bitset types
@@ -133,56 +104,35 @@ namespace compiler {
 // clang-format off
 
 #define MASK_BITSET_TYPE_LIST(V) \
-  V(Representation, 0xffc00000u) \
-  V(Semantic,       0x003ffffeu)
+  V(Semantic,       0xfffffffeu)
 
-#define REPRESENTATION(k) ((k) & BitsetType::kRepresentation)
 #define SEMANTIC(k)       ((k) & BitsetType::kSemantic)
 
-#define REPRESENTATION_BITSET_TYPE_LIST(V)    \
-  V(None,               0)                    \
-  V(UntaggedBit,        1u << 22 | kSemantic) \
-  V(UntaggedIntegral8,  1u << 23 | kSemantic) \
-  V(UntaggedIntegral16, 1u << 24 | kSemantic) \
-  V(UntaggedIntegral32, 1u << 25 | kSemantic) \
-  V(UntaggedFloat32,    1u << 26 | kSemantic) \
-  V(UntaggedFloat64,    1u << 27 | kSemantic) \
-  V(UntaggedSimd128,    1u << 28 | kSemantic) \
-  V(UntaggedPointer,    1u << 29 | kSemantic) \
-  V(TaggedSigned,       1u << 30 | kSemantic) \
-  V(TaggedPointer,      1u << 31 | kSemantic) \
-  \
-  V(UntaggedIntegral,   kUntaggedBit | kUntaggedIntegral8 |        \
-                        kUntaggedIntegral16 | kUntaggedIntegral32) \
-  V(UntaggedFloat,      kUntaggedFloat32 | kUntaggedFloat64)       \
-  V(UntaggedNumber,     kUntaggedIntegral | kUntaggedFloat)        \
-  V(Untagged,           kUntaggedNumber | kUntaggedPointer)        \
-  V(Tagged,             kTaggedSigned | kTaggedPointer)
-
 #define INTERNAL_BITSET_TYPE_LIST(V)                                      \
-  V(OtherUnsigned31, 1u << 1 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherUnsigned32, 1u << 2 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherSigned32,   1u << 3 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherNumber,     1u << 4 | REPRESENTATION(kTagged | kUntaggedNumber))
+  V(OtherUnsigned31, 1u << 1)  \
+  V(OtherUnsigned32, 1u << 2)  \
+  V(OtherSigned32,   1u << 3)  \
+  V(OtherNumber,     1u << 4)  \
 
 #define SEMANTIC_BITSET_TYPE_LIST(V) \
-  V(Negative31,          1u << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(Null,                1u << 6  | REPRESENTATION(kTaggedPointer)) \
-  V(Undefined,           1u << 7  | REPRESENTATION(kTaggedPointer)) \
-  V(Boolean,             1u << 8  | REPRESENTATION(kTaggedPointer)) \
-  V(Unsigned30,          1u << 9  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(MinusZero,           1u << 10 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(NaN,                 1u << 11 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(Symbol,              1u << 12 | REPRESENTATION(kTaggedPointer)) \
-  V(InternalizedString,  1u << 13 | REPRESENTATION(kTaggedPointer)) \
-  V(OtherString,         1u << 14 | REPRESENTATION(kTaggedPointer)) \
-  V(Simd,                1u << 15 | REPRESENTATION(kTaggedPointer)) \
-  V(OtherObject,         1u << 17 | REPRESENTATION(kTaggedPointer)) \
-  V(OtherUndetectable,   1u << 16 | REPRESENTATION(kTaggedPointer)) \
-  V(Proxy,               1u << 18 | REPRESENTATION(kTaggedPointer)) \
-  V(Function,            1u << 19 | REPRESENTATION(kTaggedPointer)) \
-  V(Hole,                1u << 20 | REPRESENTATION(kTaggedPointer)) \
-  V(OtherInternal,       1u << 21 | REPRESENTATION(kTagged | kUntagged)) \
+  V(None,                0u)        \
+  V(Negative31,          1u << 5)   \
+  V(Null,                1u << 6)   \
+  V(Undefined,           1u << 7)   \
+  V(Boolean,             1u << 8)   \
+  V(Unsigned30,          1u << 9)   \
+  V(MinusZero,           1u << 10)  \
+  V(NaN,                 1u << 11)  \
+  V(Symbol,              1u << 12)  \
+  V(InternalizedString,  1u << 13)  \
+  V(OtherString,         1u << 14)  \
+  V(Simd,                1u << 15)  \
+  V(OtherObject,         1u << 17)  \
+  V(OtherUndetectable,   1u << 16)  \
+  V(Proxy,               1u << 18)  \
+  V(Function,            1u << 19)  \
+  V(Hole,                1u << 20)  \
+  V(OtherInternal,       1u << 21)  \
   \
   V(Signed31,                   kUnsigned30 | kNegative31) \
   V(Signed32,                   kSigned31 | kOtherUnsigned31 | kOtherSigned32) \
@@ -244,12 +194,10 @@ namespace compiler {
  */
 
 #define PROPER_BITSET_TYPE_LIST(V)   \
-  REPRESENTATION_BITSET_TYPE_LIST(V) \
   SEMANTIC_BITSET_TYPE_LIST(V)
 
 #define BITSET_TYPE_LIST(V)          \
   MASK_BITSET_TYPE_LIST(V)           \
-  REPRESENTATION_BITSET_TYPE_LIST(V) \
   INTERNAL_BITSET_TYPE_LIST(V)       \
   SEMANTIC_BITSET_TYPE_LIST(V)
 
@@ -276,9 +224,7 @@ class BitsetType {
     return static_cast<bitset>(reinterpret_cast<uintptr_t>(this) ^ 1u);
   }
 
-  static bool IsInhabited(bitset bits) {
-    return SEMANTIC(bits) != kNone && REPRESENTATION(bits) != kNone;
-  }
+  static bool IsInhabited(bitset bits) { return SemanticIsInhabited(bits); }
 
   static bool SemanticIsInhabited(bitset bits) {
     return SEMANTIC(bits) != kNone;
@@ -389,7 +335,6 @@ class ConstantType : public TypeBase {
   Handle<i::Object> object_;
 };
 // TODO(neis): Also cache value if numerical.
-// TODO(neis): Allow restricting the representation.
 
 // -----------------------------------------------------------------------------
 // Range types.
@@ -415,21 +360,18 @@ class RangeType : public TypeBase {
   friend class BitsetType;
   friend class UnionType;
 
-  static Type* New(double min, double max, BitsetType::bitset representation,
-                   Zone* zone) {
-    return New(Limits(min, max), representation, zone);
+  static Type* New(double min, double max, Zone* zone) {
+    return New(Limits(min, max), zone);
   }
 
   static bool IsInteger(double x) {
     return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
   }
 
-  static Type* New(Limits lim, BitsetType::bitset representation, Zone* zone) {
+  static Type* New(Limits lim, Zone* zone) {
     DCHECK(IsInteger(lim.min) && IsInteger(lim.max));
     DCHECK(lim.min <= lim.max);
-    DCHECK(REPRESENTATION(representation) == representation);
-    BitsetType::bitset bits =
-        SEMANTIC(BitsetType::Lub(lim.min, lim.max)) | representation;
+    BitsetType::bitset bits = SEMANTIC(BitsetType::Lub(lim.min, lim.max));
 
     return AsType(new (zone->New(sizeof(RangeType))) RangeType(bits, lim));
   }
@@ -556,9 +498,7 @@ class Type {
     return ConstantType::New(value, zone);
   }
   static Type* Range(double min, double max, Zone* zone) {
-    return RangeType::New(min, max, REPRESENTATION(BitsetType::kTagged |
-                                                   BitsetType::kUntaggedNumber),
-                          zone);
+    return RangeType::New(min, max, zone);
   }
   static Type* Tuple(Type* first, Type* second, Type* third, Zone* zone) {
     Type* tuple = TupleType::New(3, zone);
@@ -587,7 +527,6 @@ class Type {
   static Type* For(i::Handle<i::Map> map) { return For(*map); }
 
   // Extraction of components.
-  static Type* Representation(Type* t, Zone* zone);
   static Type* Semantic(Type* t, Zone* zone);
 
   // Predicates.
@@ -655,9 +594,7 @@ class Type {
 
   // Printing.
 
-  enum PrintDimension { BOTH_DIMS, SEMANTIC_DIM, REPRESENTATION_DIM };
-
-  void PrintTo(std::ostream& os, PrintDimension dim = BOTH_DIMS);  // NOLINT
+  void PrintTo(std::ostream& os);
 
 #ifdef DEBUG
   void Print();
@@ -689,8 +626,6 @@ class Type {
     return reinterpret_cast<BitsetType*>(this)->Bitset();
   }
   UnionType* AsUnion() { return UnionType::cast(this); }
-
-  bitset Representation();
 
   // Auxiliary functions.
   bool SemanticMaybe(Type* that);
