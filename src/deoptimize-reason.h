@@ -23,6 +23,7 @@ namespace internal {
   V(ForcedDeoptToRuntime, "Forced deopt to runtime")                          \
   V(Hole, "hole")                                                             \
   V(InstanceMigrationFailed, "instance migration failed")                     \
+  V(InsufficientTypeFeedbackForCall, "Insufficient type feedback for call")   \
   V(InsufficientTypeFeedbackForCallWithArguments,                             \
     "Insufficient type feedback for call with arguments")                     \
   V(FastPathFailed, "Falling off the fast path")                              \
