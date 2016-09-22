@@ -151,8 +151,7 @@ class ModuleDecoder : public Decoder {
           uint32_t signatures_count = consume_u32v("signatures count");
           module->signatures.reserve(SafeReserve(signatures_count));
           // Decode signatures.
-          for (uint32_t i = 0; i < signatures_count; ++i) {
-            if (failed()) break;
+          for (uint32_t i = 0; ok() && i < signatures_count; ++i) {
             TRACE("DecodeSignature[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
             FunctionSig* s = consume_sig();
@@ -163,8 +162,7 @@ class ModuleDecoder : public Decoder {
         case WasmSection::Code::FunctionSignatures: {
           uint32_t functions_count = consume_u32v("functions count");
           module->functions.reserve(SafeReserve(functions_count));
-          for (uint32_t i = 0; i < functions_count; ++i) {
-            if (failed()) break;
+          for (uint32_t i = 0; ok() && i < functions_count; ++i) {
             module->functions.push_back({nullptr,  // sig
                                          i,        // func_index
                                          0,        // sig_index
@@ -186,7 +184,7 @@ class ModuleDecoder : public Decoder {
                   static_cast<uint32_t>(module->functions.size()));
             break;
           }
-          for (uint32_t i = 0; i < functions_count; ++i) {
+          for (uint32_t i = 0; ok() && i < functions_count; ++i) {
             WasmFunction* function = &module->functions[i];
             uint32_t size = consume_u32v("body size");
             function->code_start_offset = pc_offset();
@@ -211,13 +209,13 @@ class ModuleDecoder : public Decoder {
             break;
           }
 
-          for (uint32_t i = 0; i < functions_count; ++i) {
+          for (uint32_t i = 0; ok() && i < functions_count; ++i) {
             WasmFunction* function = &module->functions[i];
             function->name_offset =
                 consume_string(&function->name_length, false);
 
             uint32_t local_names_count = consume_u32v("local names count");
-            for (uint32_t j = 0; j < local_names_count; j++) {
+            for (uint32_t j = 0; ok() && j < local_names_count; j++) {
               uint32_t unused = 0;
               uint32_t offset = consume_string(&unused, false);
               USE(unused);
@@ -230,8 +228,7 @@ class ModuleDecoder : public Decoder {
           uint32_t globals_count = consume_u32v("globals count");
           module->globals.reserve(SafeReserve(globals_count));
           // Decode globals.
-          for (uint32_t i = 0; i < globals_count; ++i) {
-            if (failed()) break;
+          for (uint32_t i = 0; ok() && i < globals_count; ++i) {
             TRACE("DecodeGlobal[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
             // Add an uninitialized global and pass a pointer to it.
@@ -245,8 +242,7 @@ class ModuleDecoder : public Decoder {
           uint32_t data_segments_count = consume_u32v("data segments count");
           module->data_segments.reserve(SafeReserve(data_segments_count));
           // Decode data segments.
-          for (uint32_t i = 0; i < data_segments_count; ++i) {
-            if (failed()) break;
+          for (uint32_t i = 0; ok() && i < data_segments_count; ++i) {
             TRACE("DecodeDataSegment[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
             module->data_segments.push_back({0,        // dest_addr
@@ -265,8 +261,7 @@ class ModuleDecoder : public Decoder {
           static const uint32_t kSupportedTableCount = 1;
           module->function_tables.reserve(SafeReserve(kSupportedTableCount));
           // Decode function table.
-          for (uint32_t i = 0; i < kSupportedTableCount; ++i) {
-            if (failed()) break;
+          for (uint32_t i = 0; ok() && i < kSupportedTableCount; ++i) {
             TRACE("DecodeFunctionTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
             module->function_tables.push_back({0, 0, std::vector<uint16_t>()});
@@ -294,8 +289,7 @@ class ModuleDecoder : public Decoder {
           uint32_t import_table_count = consume_u32v("import table count");
           module->import_table.reserve(SafeReserve(import_table_count));
           // Decode import table.
-          for (uint32_t i = 0; i < import_table_count; ++i) {
-            if (failed()) break;
+          for (uint32_t i = 0; ok() && i < import_table_count; ++i) {
             TRACE("DecodeImportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
@@ -325,8 +319,7 @@ class ModuleDecoder : public Decoder {
           uint32_t export_table_count = consume_u32v("export table count");
           module->export_table.reserve(SafeReserve(export_table_count));
           // Decode export table.
-          for (uint32_t i = 0; i < export_table_count; ++i) {
-            if (failed()) break;
+          for (uint32_t i = 0; ok() && i < export_table_count; ++i) {
             TRACE("DecodeExportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
@@ -518,7 +511,7 @@ class ModuleDecoder : public Decoder {
       error("invalid table maximum size");
     }
 
-    for (uint32_t i = 0; i < table->size; ++i) {
+    for (uint32_t i = 0; ok() && i < table->size; ++i) {
       uint16_t index = consume_u32v();
       if (index >= module->functions.size()) {
         error(pc_ - sizeof(index), "invalid function index");
