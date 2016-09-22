@@ -854,6 +854,7 @@ EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
       status_analysis_(new (zone) EscapeStatusAnalysis(this, graph, zone)),
       virtual_states_(zone),
       replacements_(zone),
+      cycle_detection_(zone),
       cache_(nullptr) {}
 
 EscapeAnalysis::~EscapeAnalysis() {}
@@ -1556,6 +1557,27 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
     }
   }
   return nullptr;
+}
+
+bool EscapeAnalysis::IsCyclicObjectState(Node* effect, Node* node) {
+  if ((node->opcode() == IrOpcode::kFinishRegion ||
+       node->opcode() == IrOpcode::kAllocate) &&
+      IsVirtual(node)) {
+    if (VirtualObject* vobj = GetVirtualObject(virtual_states_[effect->id()],
+                                               ResolveReplacement(node))) {
+      if (cycle_detection_.find(vobj) != cycle_detection_.end()) return true;
+      cycle_detection_.insert(vobj);
+      bool cycle_detected = false;
+      for (size_t i = 0; i < vobj->field_count(); ++i) {
+        if (Node* field = vobj->GetField(i)) {
+          if (IsCyclicObjectState(effect, field)) cycle_detected = true;
+        }
+      }
+      cycle_detection_.erase(vobj);
+      return cycle_detected;
+    }
+  }
+  return false;
 }
 
 void EscapeAnalysis::DebugPrintState(VirtualState* state) {

@@ -468,8 +468,7 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
   ASSERT_EQ(object1, NodeProperties::GetValueInput(object_state, 0));
 }
 
-
-TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
+TEST_F(EscapeAnalysisTest, DISABLED_DeoptReplacementIdentity) {
   Node* object1 = Constant(1);
   BeginRegion();
   Node* allocation = Allocate(Constant(kPointerSize * 2));
