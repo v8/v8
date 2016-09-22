@@ -41,7 +41,7 @@ deps = {
   "v8/test/test262/harness":
     Var("git_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "c1f39cb405e8af68a20e08e9485275a42260a88f",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "204eee93d4ffbc01d6182e4c199960db763c7dbc",
 }
 
 deps_os = {
