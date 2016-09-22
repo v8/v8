@@ -134,15 +134,9 @@ void StoreDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
                           SlotRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
 
-bool StoreTransitionDescriptor::PassVectorAndSlotOnStack() {
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
-  return true;
-#else
-  return false;
-#endif
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
 }
 
 void StoreTransitionDescriptor::InitializePlatformSpecific(
@@ -151,11 +145,7 @@ void StoreTransitionDescriptor::InitializePlatformSpecific(
       ReceiverRegister(), NameRegister(), MapRegister(),
       ValueRegister(),    SlotRegister(), VectorRegister(),
   };
-  int len = arraysize(registers);
-  if (PassVectorAndSlotOnStack()) {
-    // Pass slot and vector on the stack.
-    len -= 2;
-  }
+  int len = arraysize(registers) - kStackArgumentsCount;
   data->InitializePlatformSpecific(len, registers);
 }
 
@@ -243,7 +233,8 @@ void StoreWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
                           SlotRegister(), VectorRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
 }
 
 void BinaryOpWithVectorDescriptor::InitializePlatformIndependent(

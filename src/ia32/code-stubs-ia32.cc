@@ -3671,6 +3671,28 @@ void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register slot = StoreWithVectorDescriptor::SlotRegister();          // edi
   Label miss;
 
+  if (StoreWithVectorDescriptor::kPassLastArgsOnStack) {
+    // Current stack layout:
+    // - esp[8]    -- value
+    // - esp[4]    -- slot
+    // - esp[0]    -- return address
+    STATIC_ASSERT(StoreDescriptor::kStackArgumentsCount == 2);
+    STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 3);
+    if (in_frame) {
+      __ RecordComment("[ StoreDescriptor -> StoreWithVectorDescriptor");
+      // If the vector is not on the stack, then insert the vector beneath
+      // return address in order to prepare for calling handler with
+      // StoreWithVector calling convention.
+      __ push(Operand(esp, 0));
+      __ mov(Operand(esp, 4), StoreWithVectorDescriptor::VectorRegister());
+      __ RecordComment("]");
+    } else {
+      __ mov(vector, Operand(esp, 1 * kPointerSize));
+    }
+    __ mov(slot, Operand(esp, 2 * kPointerSize));
+    __ mov(value, Operand(esp, 3 * kPointerSize));
+  }
+
   __ push(value);
 
   Register scratch = value;
@@ -3812,12 +3834,23 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ pop(vector);
   __ pop(receiver);
   __ pop(value);
-  {
-    // Put vector and slot beneath return address.
-    __ push(vector);
-    __ push(Operand(esp, 1 * kPointerSize));  // push return address
-    __ mov(Operand(esp, 2 * kPointerSize), slot);
-  }
+  // Ensure that the transition handler we are going to call has the same
+  // number of stack arguments which means that we don't have to adapt them
+  // before the call.
+  STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 3);
+  STATIC_ASSERT(StoreTransitionDescriptor::kStackArgumentsCount == 3);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kParameterCount -
+                    StoreWithVectorDescriptor::kValue ==
+                StoreTransitionDescriptor::kParameterCount -
+                    StoreTransitionDescriptor::kValue);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kParameterCount -
+                    StoreWithVectorDescriptor::kSlot ==
+                StoreTransitionDescriptor::kParameterCount -
+                    StoreTransitionDescriptor::kSlot);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kParameterCount -
+                    StoreWithVectorDescriptor::kVector ==
+                StoreTransitionDescriptor::kParameterCount -
+                    StoreTransitionDescriptor::kVector);
   __ jmp(Operand::StaticVariable(virtual_register));
 
   __ bind(&prepare_next);
@@ -3844,6 +3877,28 @@ void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register vector = StoreWithVectorDescriptor::VectorRegister();      // ebx
   Register slot = StoreWithVectorDescriptor::SlotRegister();          // edi
   Label miss;
+
+  if (StoreWithVectorDescriptor::kPassLastArgsOnStack) {
+    // Current stack layout:
+    // - esp[8]    -- value
+    // - esp[4]    -- slot
+    // - esp[0]    -- return address
+    STATIC_ASSERT(StoreDescriptor::kStackArgumentsCount == 2);
+    STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 3);
+    if (in_frame) {
+      __ RecordComment("[ StoreDescriptor -> StoreWithVectorDescriptor");
+      // If the vector is not on the stack, then insert the vector beneath
+      // return address in order to prepare for calling handler with
+      // StoreWithVector calling convention.
+      __ push(Operand(esp, 0));
+      __ mov(Operand(esp, 4), StoreWithVectorDescriptor::VectorRegister());
+      __ RecordComment("]");
+    } else {
+      __ mov(vector, Operand(esp, 1 * kPointerSize));
+    }
+    __ mov(slot, Operand(esp, 2 * kPointerSize));
+    __ mov(value, Operand(esp, 3 * kPointerSize));
+  }
 
   __ push(value);
 

@@ -409,7 +409,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   }
   // It's irrelevant whether array is smi-only or not when writing a smi.
   __ mov(FixedArrayElementOperand(ebx, key), value);
-  __ ret(0);
+  __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
 
   __ bind(&non_smi_value);
   // Escape to elements kind transition case.
@@ -428,7 +428,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ mov(edx, value);  // Preserve the value which is returned.
   __ RecordWriteArray(ebx, edx, key, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-  __ ret(0);
+  __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
 
   __ bind(fast_double);
   if (check_map == kCheckMap) {
@@ -457,7 +457,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
     __ add(FieldOperand(receiver, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
   }
-  __ ret(0);
+  __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
 
   __ bind(&transition_smi_elements);
   __ mov(ebx, FieldOperand(receiver, HeapObject::kMapOffset));
@@ -705,18 +705,21 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-  Register slot = StoreWithVectorDescriptor::SlotRegister();
-  Register vector = StoreWithVectorDescriptor::VectorRegister();
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();
+  Register name = StoreWithVectorDescriptor::NameRegister();
 
-  __ xchg(value, Operand(esp, 0));
-  __ push(slot);
-  __ push(vector);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 3);
+  // Current stack layout:
+  // - esp[12]   -- value
+  // - esp[8]    -- slot
+  // - esp[4]    -- vector
+  // - esp[0]    -- return address
+
+  Register return_address = StoreWithVectorDescriptor::SlotRegister();
+  __ pop(return_address);
   __ push(receiver);
   __ push(name);
-  __ push(value);  // Contains the return address.
+  __ push(return_address);
 }
 
 
@@ -751,7 +754,7 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   __ Drop(3);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->ic_store_normal_hit(), 1);
-  __ ret(0);
+  __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
 
   __ bind(&restore_miss);
   __ pop(slot);

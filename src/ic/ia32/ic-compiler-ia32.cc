@@ -15,14 +15,17 @@ namespace internal {
 
 void PropertyICCompiler::GenerateRuntimeSetProperty(
     MacroAssembler* masm, LanguageMode language_mode) {
-  // Return address is on the stack.
-  DCHECK(!ebx.is(StoreDescriptor::ReceiverRegister()) &&
-         !ebx.is(StoreDescriptor::NameRegister()) &&
-         !ebx.is(StoreDescriptor::ValueRegister()));
+  STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 3);
+  // Current stack layout:
+  // - esp[12]   -- value
+  // - esp[8]    -- slot
+  // - esp[4]    -- vector
+  // - esp[0]    -- return address
+
+  __ mov(Operand(esp, 12), StoreDescriptor::ReceiverRegister());
+  __ mov(Operand(esp, 8), StoreDescriptor::NameRegister());
+  __ mov(Operand(esp, 4), StoreDescriptor::ValueRegister());
   __ pop(ebx);
-  __ push(StoreDescriptor::ReceiverRegister());
-  __ push(StoreDescriptor::NameRegister());
-  __ push(StoreDescriptor::ValueRegister());
   __ push(Immediate(Smi::FromInt(language_mode)));
   __ push(ebx);  // return address
 

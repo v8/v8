@@ -324,6 +324,15 @@ class StoreDescriptor : public CallInterfaceDescriptor {
   static const Register NameRegister();
   static const Register ValueRegister();
   static const Register SlotRegister();
+
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+  static const bool kPassLastArgsOnStack = true;
+#else
+  static const bool kPassLastArgsOnStack = false;
+#endif
+
+  // Pass value and slot through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 2 : 0;
 };
 
 class StoreTransitionDescriptor : public StoreDescriptor {
@@ -336,7 +345,8 @@ class StoreTransitionDescriptor : public StoreDescriptor {
   static const Register SlotRegister();
   static const Register VectorRegister();
 
-  static bool PassVectorAndSlotOnStack();
+  // Pass value, slot and vector through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;
 };
 
 class StoreWithVectorDescriptor : public StoreDescriptor {
@@ -346,6 +356,9 @@ class StoreWithVectorDescriptor : public StoreDescriptor {
                                                StoreDescriptor)
 
   static const Register VectorRegister();
+
+  // Pass value, slot and vector through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;
 };
 
 class LoadWithVectorDescriptor : public LoadDescriptor {

@@ -183,6 +183,19 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   extra_ic_state_ = target->extra_ic_state();
 }
 
+// The ICs that don't pass slot and vector through the stack have to
+// save/restore them in the dispatcher.
+bool IC::ShouldPushPopSlotAndVector(Code::Kind kind) {
+  if (kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
+      kind == Code::KEYED_LOAD_IC || kind == Code::CALL_IC) {
+    return true;
+  }
+  if (kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC) {
+    return !StoreWithVectorDescriptor::kPassLastArgsOnStack;
+  }
+  return false;
+}
+
 InlineCacheState IC::StateFromCode(Code* code) {
   Isolate* isolate = code->GetIsolate();
   switch (code->kind()) {

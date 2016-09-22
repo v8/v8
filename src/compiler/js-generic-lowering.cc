@@ -88,8 +88,10 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
                                             CallDescriptor::Flags flags,
                                             Operator::Properties properties) {
+  const CallInterfaceDescriptor& descriptor = callable.descriptor();
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 0, flags, properties);
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(), flags,
+      properties);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   node->InsertInput(zone(), 0, stub_code);
   NodeProperties::ChangeOp(node, common()->Call(desc));

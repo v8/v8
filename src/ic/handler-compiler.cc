@@ -129,13 +129,13 @@ Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
 
 Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
   Label miss;
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     PushVectorAndSlot();
   }
   Register reg = FrontendHeader(receiver(), name, &miss, RETURN_HOLDER);
   FrontendFooter(name, &miss);
   // The footer consumes the vector and slot from the stack if miss occurs.
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     DiscardVectorAndSlot();
   }
   return reg;
@@ -209,12 +209,12 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(Handle<Name> name,
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
     Handle<Name> name) {
   Label miss;
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     DCHECK(kind() == Code::LOAD_IC);
     PushVectorAndSlot();
   }
   NonexistentFrontendHeader(name, &miss, scratch2(), scratch3());
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     DiscardVectorAndSlot();
   }
   GenerateLoadConstant(isolate()->factory()->undefined_value());
@@ -247,7 +247,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 
 
 void NamedLoadHandlerCompiler::InterceptorVectorSlotPush(Register holder_reg) {
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     if (holder_reg.is(receiver())) {
       PushVectorAndSlot();
     } else {
@@ -260,7 +260,7 @@ void NamedLoadHandlerCompiler::InterceptorVectorSlotPush(Register holder_reg) {
 
 void NamedLoadHandlerCompiler::InterceptorVectorSlotPop(Register holder_reg,
                                                         PopMode mode) {
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     if (mode == DISCARD) {
       DiscardVectorAndSlot();
     } else {
@@ -438,16 +438,28 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     Handle<Map> transition, Handle<Name> name) {
   Label miss;
 
-  bool vector_and_slot_on_stack =
-      StoreTransitionDescriptor::PassVectorAndSlotOnStack();
-  if (vector_and_slot_on_stack) {
-    // Speculatively prepare for calling StoreTransitionStub by converting
-    // StoreWithVectorDescriptor arguments to StoreTransitionDescriptor
-    // arguments.
-    PopReturnAddress(this->name());
-    PushVectorAndSlot();
-    PushReturnAddress(this->name());
-  } else {
+  // Ensure that the StoreTransitionStub we are going to call has the same
+  // number of stack arguments. This means that we don't have to adapt them
+  // if we decide to call the transition or miss stub.
+  STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount ==
+                StoreTransitionDescriptor::kStackArgumentsCount);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 0 ||
+                StoreWithVectorDescriptor::kStackArgumentsCount == 3);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kParameterCount -
+                    StoreWithVectorDescriptor::kValue ==
+                StoreTransitionDescriptor::kParameterCount -
+                    StoreTransitionDescriptor::kValue);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kParameterCount -
+                    StoreWithVectorDescriptor::kSlot ==
+                StoreTransitionDescriptor::kParameterCount -
+                    StoreTransitionDescriptor::kSlot);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kParameterCount -
+                    StoreWithVectorDescriptor::kVector ==
+                StoreTransitionDescriptor::kParameterCount -
+                    StoreTransitionDescriptor::kVector);
+
+  bool need_save_restore = IC::ShouldPushPopSlotAndVector(kind());
+  if (need_save_restore) {
     PushVectorAndSlot();
   }
 
@@ -487,7 +499,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
     GenerateRestoreMap(transition, map_reg, scratch1(), &miss);
     GenerateConstantCheck(map_reg, descriptor, value(), scratch1(), &miss);
-    if (!vector_and_slot_on_stack) {
+    if (need_save_restore) {
       PopVectorAndSlot();
     }
     GenerateRestoreName(name);
@@ -504,7 +516,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
             ? StoreTransitionStub::ExtendStorageAndStoreMapAndValue
             : StoreTransitionStub::StoreMapAndValue;
     GenerateRestoreMap(transition, map_reg, scratch1(), &miss);
-    if (!vector_and_slot_on_stack) {
+    if (need_save_restore) {
       PopVectorAndSlot();
     }
     GenerateRestoreName(name);
@@ -515,12 +527,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   }
 
   __ bind(&miss);
-  if (vector_and_slot_on_stack) {
-    // Prepare for calling miss builtin with StoreWithVectorDescriptor.
-    PopReturnAddress(this->name());
-    PopVectorAndSlot();
-    PushReturnAddress(this->name());
-  } else {
+  if (need_save_restore) {
     PopVectorAndSlot();
   }
   GenerateRestoreName(name);
@@ -542,7 +549,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
   FieldType* field_type = *it->GetFieldType();
   bool need_save_restore = false;
   if (RequiresFieldTypeChecks(field_type)) {
-    need_save_restore = IC::ICUseVector(kind());
+    need_save_restore = IC::ShouldPushPopSlotAndVector(kind());
     if (need_save_restore) PushVectorAndSlot();
     GenerateFieldTypeChecks(field_type, value(), &miss);
     if (need_save_restore) PopVectorAndSlot();

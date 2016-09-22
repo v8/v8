@@ -165,6 +165,13 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   DCHECK(!accessor_holder.is(scratch));
   // Copy return value.
   __ pop(scratch);
+
+  if (is_store) {
+    // Discard stack arguments.
+    __ add(esp, Immediate(StoreWithVectorDescriptor::kStackArgumentsCount *
+                          kPointerSize));
+  }
+
   // receiver
   __ push(receiver);
   // Write the arguments to stack frame.
@@ -305,7 +312,14 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     // Restore context register.
     __ pop(esi);
   }
-  __ ret(0);
+  if (accessor_index >= 0) {
+    __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
+  } else {
+    // If we generate a global code snippet for deoptimization only, don't try
+    // to drop stack arguments for the StoreIC because they are not a part of
+    // expression stack and deoptimizer does not reconstruct them.
+    __ ret(0);
+  }
 }
 
 
@@ -508,7 +522,7 @@ void NamedLoadHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ jmp(&success);
     __ bind(miss);
-    if (IC::ICUseVector(kind())) {
+    if (IC::ShouldPushPopSlotAndVector(kind())) {
       DCHECK(kind() == Code::LOAD_IC);
       PopVectorAndSlot();
     }
@@ -523,7 +537,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ jmp(&success);
     GenerateRestoreName(miss, name);
-    if (IC::ICUseVector(kind())) PopVectorAndSlot();
+    DCHECK(!IC::ShouldPushPopSlotAndVector(kind()));
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
@@ -624,6 +638,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   Register holder_reg = Frontend(name);
 
   __ pop(scratch1());  // remove the return address
+  // Discard stack arguments.
+  __ add(esp, Immediate(StoreWithVectorDescriptor::kStackArgumentsCount *
+                        kPointerSize));
   __ push(receiver());
   __ push(holder_reg);
   // If the callback cannot leak, then push the callback directly,
@@ -655,7 +672,7 @@ Register NamedStoreHandlerCompiler::value() {
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
     Handle<PropertyCell> cell, Handle<Name> name, bool is_configurable) {
   Label miss;
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     PushVectorAndSlot();
   }
   FrontendHeader(receiver(), name, &miss, DONT_RETURN_ANYTHING);
@@ -677,7 +694,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->ic_named_load_global_stub(), 1);
   // The code above already loads the result into the return register.
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     DiscardVectorAndSlot();
   }
   __ ret(0);

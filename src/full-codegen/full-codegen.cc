@@ -237,6 +237,14 @@ void FullCodeGenerator::CallLoadGlobalIC(TypeofMode typeof_mode,
 
 void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
+
+  STATIC_ASSERT(!StoreDescriptor::kPassLastArgsOnStack ||
+                StoreDescriptor::kStackArgumentsCount == 2);
+  if (StoreDescriptor::kPassLastArgsOnStack) {
+    __ Push(StoreDescriptor::ValueRegister());
+    __ Push(StoreDescriptor::SlotRegister());
+  }
+
   CallIC(ic, id);
   RestoreContext();
 }
@@ -244,6 +252,14 @@ void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
 void FullCodeGenerator::CallKeyedStoreIC() {
   Handle<Code> ic =
       CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
+
+  STATIC_ASSERT(!StoreDescriptor::kPassLastArgsOnStack ||
+                StoreDescriptor::kStackArgumentsCount == 2);
+  if (StoreDescriptor::kPassLastArgsOnStack) {
+    __ Push(StoreDescriptor::ValueRegister());
+    __ Push(StoreDescriptor::SlotRegister());
+  }
+
   CallIC(ic);
   RestoreContext();
 }
