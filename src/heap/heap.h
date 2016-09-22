@@ -87,6 +87,7 @@ using v8::MemoryPressureLevel;
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
+  V(Map, unseeded_number_dictionary_map, UnseededNumberDictionaryMap)          \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, neander_map, NeanderMap)                                              \
