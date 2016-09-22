@@ -31,7 +31,7 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
   void BindLabel(BytecodeLabel* label) override;
   void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override;
   Handle<BytecodeArray> ToBytecodeArray(
-      Isolate* isolate, int register_count, int parameter_count,
+      Isolate* isolate, int fixed_register_count, int parameter_count,
       Handle<FixedArray> handler_table) override;
 
  private:
@@ -44,25 +44,29 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
 
   // Helpers for BytecodePipelineStage interface.
   void FlushState();
+  void WriteToNextStage(BytecodeNode* node) const;
+  void WriteToNextStage(BytecodeNode* node,
+                        const BytecodeSourceInfo& output_info) const;
 
   // Update internal state for register transfer from |input| to
   // |output| using |source_info| as source position information if
   // any bytecodes are emitted due to transfer.
   void RegisterTransfer(RegisterInfo* input, RegisterInfo* output,
-                        BytecodeSourceInfo* source_info);
+                        const BytecodeSourceInfo& source_info);
 
   // Emit a register transfer bytecode from |input| to |output|.
-  void OutputRegisterTransfer(RegisterInfo* input, RegisterInfo* output,
-                              BytecodeSourceInfo* source_info = nullptr);
+  void OutputRegisterTransfer(
+      RegisterInfo* input, RegisterInfo* output,
+      const BytecodeSourceInfo& source_info = BytecodeSourceInfo());
 
   // Emits a Nop to preserve source position information in the
   // bytecode pipeline.
-  void EmitNopForSourceInfo(BytecodeSourceInfo* source_info) const;
+  void EmitNopForSourceInfo(const BytecodeSourceInfo& source_info) const;
 
   // Handlers for bytecode nodes for register to register transfers.
-  void DoLdar(BytecodeNode* node);
-  void DoMov(BytecodeNode* node);
-  void DoStar(BytecodeNode* node);
+  void DoLdar(const BytecodeNode* const node);
+  void DoMov(const BytecodeNode* const node);
+  void DoStar(const BytecodeNode* const node);
 
   // Operand processing methods for bytecodes other than those
   // performing register to register transfers.
@@ -129,7 +133,6 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
   const Register accumulator_;
   RegisterInfo* accumulator_info_;
   const Register temporary_base_;
-  int max_register_index_;
 
   // Direct mapping to register info.
   ZoneVector<RegisterInfo*> register_info_table_;

@@ -309,24 +309,9 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   void InitializeReturnPosition(FunctionLiteral* literal);
 
-  void SetStatementPosition(Statement* stmt) {
-    if (stmt->position() == kNoSourcePosition) return;
-    latest_source_info_.MakeStatementPosition(stmt->position());
-  }
-
-  void SetExpressionPosition(Expression* expr) {
-    if (expr->position() == kNoSourcePosition) return;
-    if (!latest_source_info_.is_statement()) {
-      // Ensure the current expression position is overwritten with the
-      // latest value.
-      latest_source_info_.MakeExpressionPosition(expr->position());
-    }
-  }
-
-  void SetExpressionAsStatementPosition(Expression* expr) {
-    if (expr->position() == kNoSourcePosition) return;
-    latest_source_info_.MakeStatementPosition(expr->position());
-  }
+  void SetStatementPosition(Statement* stmt);
+  void SetExpressionPosition(Expression* expr);
+  void SetExpressionAsStatementPosition(Expression* expr);
 
   // Accessors
   TemporaryRegisterAllocator* temporary_register_allocator() {
@@ -360,22 +345,35 @@ class BytecodeArrayBuilder final : public ZoneObject {
  private:
   friend class BytecodeRegisterAllocator;
 
-  INLINE(void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-                     uint32_t operand2, uint32_t operand3));
-  INLINE(void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-                     uint32_t operand2));
-  INLINE(void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1));
-  INLINE(void Output(Bytecode bytecode, uint32_t operand0));
-  INLINE(void Output(Bytecode bytecode));
+  static Bytecode BytecodeForBinaryOperation(Token::Value op);
+  static Bytecode BytecodeForCountOperation(Token::Value op);
+  static Bytecode BytecodeForCompareOperation(Token::Value op);
+  static Bytecode BytecodeForStoreNamedProperty(LanguageMode language_mode);
+  static Bytecode BytecodeForStoreKeyedProperty(LanguageMode language_mode);
+  static Bytecode BytecodeForLoadGlobal(TypeofMode typeof_mode);
+  static Bytecode BytecodeForStoreGlobal(LanguageMode language_mode);
+  static Bytecode BytecodeForStoreLookupSlot(LanguageMode language_mode);
+  static Bytecode BytecodeForCreateArguments(CreateArgumentsType type);
+  static Bytecode BytecodeForDelete(LanguageMode language_mode);
+  static Bytecode BytecodeForCall(TailCallMode tail_call_mode);
 
-  INLINE(void OutputJump(Bytecode bytecode, BytecodeLabel* label));
-  INLINE(void OutputJump(Bytecode bytecode, uint32_t operand0,
-                         BytecodeLabel* label));
+  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+              uint32_t operand2, uint32_t operand3);
+  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+              uint32_t operand2);
+  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1);
+  void Output(Bytecode bytecode, uint32_t operand0);
+  void Output(Bytecode bytecode);
+
+  BytecodeArrayBuilder& OutputJump(BytecodeNode* node, BytecodeLabel* label);
 
   bool RegisterIsValid(Register reg) const;
   bool OperandsAreValid(Bytecode bytecode, int operand_count,
                         uint32_t operand0 = 0, uint32_t operand1 = 0,
                         uint32_t operand2 = 0, uint32_t operand3 = 0) const;
+
+  // Attach latest source position to |node|.
+  void AttachSourceInfo(BytecodeNode* node);
 
   // Set position for return.
   void SetReturnPosition();
