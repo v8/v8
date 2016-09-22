@@ -963,6 +963,9 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 LInstruction* LChunkBuilder::DoCallWithDescriptor(
     HCallWithDescriptor* instr) {
   CallInterfaceDescriptor descriptor = instr->descriptor();
+  DCHECK_EQ(descriptor.GetParameterCount() +
+                LCallWithDescriptor::kImplicitRegisterParameterCount,
+            instr->OperandCount());
 
   LOperand* target = UseRegisterOrConstantAtStart(instr->target());
   ZoneList<LOperand*> ops(instr->OperandCount(), zone());
@@ -971,14 +974,29 @@ LInstruction* LChunkBuilder::DoCallWithDescriptor(
   // Context
   LOperand* op = UseFixed(instr->OperandAt(1), cp);
   ops.Add(op, zone());
-  // Other register parameters
-  for (int i = LCallWithDescriptor::kImplicitRegisterParameterCount;
-       i < instr->OperandCount(); i++) {
-    op =
-        UseFixed(instr->OperandAt(i),
-                 descriptor.GetRegisterParameter(
-                     i - LCallWithDescriptor::kImplicitRegisterParameterCount));
+  // Load register parameters.
+  int i = 0;
+  for (; i < descriptor.GetRegisterParameterCount(); i++) {
+    op = UseFixed(instr->OperandAt(
+                      i + LCallWithDescriptor::kImplicitRegisterParameterCount),
+                  descriptor.GetRegisterParameter(i));
     ops.Add(op, zone());
+  }
+  // Push stack parameters.
+  if (i < descriptor.GetParameterCount()) {
+    int argc = descriptor.GetParameterCount() - i;
+    AddInstruction(new (zone()) LPreparePushArguments(argc), instr);
+    LPushArguments* push_args = new (zone()) LPushArguments(zone());
+    for (; i < descriptor.GetParameterCount(); i++) {
+      if (push_args->ShouldSplitPush()) {
+        AddInstruction(push_args, instr);
+        push_args = new (zone()) LPushArguments(zone());
+      }
+      op = UseRegisterAtStart(instr->OperandAt(
+          i + LCallWithDescriptor::kImplicitRegisterParameterCount));
+      push_args->AddArgument(op);
+    }
+    AddInstruction(push_args, instr);
   }
 
   LCallWithDescriptor* result = new(zone()) LCallWithDescriptor(descriptor,

@@ -2215,7 +2215,7 @@ class HCallWithDescriptor final : public HInstruction {
                       TailCallMode syntactic_tail_call_mode,
                       TailCallMode tail_call_mode, Zone* zone)
       : descriptor_(descriptor),
-        values_(GetParameterCount() + 1, zone),
+        values_(GetParameterCount() + 1, zone),  // +1 here is for target.
         argument_count_(argument_count),
         bit_field_(
             TailCallModeField::encode(tail_call_mode) |
@@ -2237,7 +2237,7 @@ class HCallWithDescriptor final : public HInstruction {
   }
 
   int GetParameterCount() const {
-    return descriptor_.GetRegisterParameterCount() + 1;
+    return descriptor_.GetParameterCount() + 1;  // +1 here is for context.
   }
 
   void InternalSetOperandAt(int index, HValue* value) final {

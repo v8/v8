@@ -3492,8 +3492,8 @@ HGraph::HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor)
       inlined_function_infos_(info->zone()) {
   if (info->IsStub()) {
     // For stubs, explicitly add the context to the environment.
-    start_environment_ = new (zone_)
-        HEnvironment(zone_, descriptor.GetRegisterParameterCount() + 1);
+    start_environment_ =
+        new (zone_) HEnvironment(zone_, descriptor.GetParameterCount() + 1);
   } else {
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
@@ -9230,7 +9230,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
   HValue* api_function_address = Add<HConstant>(ExternalReference(ref));
 
   HValue* op_vals[] = {context(), Add<HConstant>(function), call_data, holder,
-                       api_function_address, nullptr};
+                       api_function_address};
 
   HInstruction* call = nullptr;
   CHECK(argc <= CallApiCallbackStub::kArgMax);
@@ -9241,16 +9241,14 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
     HConstant* code_value = Add<HConstant>(code);
     call = New<HCallWithDescriptor>(
         code_value, argc + 1, stub.GetCallInterfaceDescriptor(),
-        Vector<HValue*>(op_vals, arraysize(op_vals) - 1),
-        syntactic_tail_call_mode);
+        Vector<HValue*>(op_vals, arraysize(op_vals)), syntactic_tail_call_mode);
   } else {
     CallApiCallbackStub stub(isolate(), argc, call_data_undefined, false);
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
     call = New<HCallWithDescriptor>(
         code_value, argc + 1, stub.GetCallInterfaceDescriptor(),
-        Vector<HValue*>(op_vals, arraysize(op_vals) - 1),
-        syntactic_tail_call_mode);
+        Vector<HValue*>(op_vals, arraysize(op_vals)), syntactic_tail_call_mode);
     Drop(1);  // Drop function.
   }
 
@@ -12318,13 +12316,14 @@ void HOptimizedGraphBuilder::GenerateStringCharFromCode(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   DCHECK_EQ(3, call->arguments()->length());
   CHECK_ALIVE(VisitExpressions(call->arguments()));
-  PushArgumentsFromEnvironment(call->arguments()->length());
   Callable callable = CodeFactory::SubString(isolate());
   HValue* stub = Add<HConstant>(callable.code());
-  HValue* values[] = {context()};
-  HInstruction* result =
-      New<HCallWithDescriptor>(stub, call->arguments()->length(),
-                               callable.descriptor(), ArrayVector(values));
+  HValue* to = Pop();
+  HValue* from = Pop();
+  HValue* string = Pop();
+  HValue* values[] = {context(), string, from, to};
+  HInstruction* result = New<HCallWithDescriptor>(
+      stub, 0, callable.descriptor(), ArrayVector(values));
   result->set_type(HType::String());
   return ast_context()->ReturnInstruction(result, call->id());
 }
@@ -12346,13 +12345,16 @@ void HOptimizedGraphBuilder::GenerateNewObject(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
   DCHECK_EQ(4, call->arguments()->length());
   CHECK_ALIVE(VisitExpressions(call->arguments()));
-  PushArgumentsFromEnvironment(call->arguments()->length());
   Callable callable = CodeFactory::RegExpExec(isolate());
+  HValue* last_match_info = Pop();
+  HValue* index = Pop();
+  HValue* subject = Pop();
+  HValue* regexp_object = Pop();
   HValue* stub = Add<HConstant>(callable.code());
-  HValue* values[] = {context()};
-  HInstruction* result =
-      New<HCallWithDescriptor>(stub, call->arguments()->length(),
-                               callable.descriptor(), ArrayVector(values));
+  HValue* values[] = {context(), regexp_object, subject, index,
+                      last_match_info};
+  HInstruction* result = New<HCallWithDescriptor>(
+      stub, 0, callable.descriptor(), ArrayVector(values));
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

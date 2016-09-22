@@ -1968,7 +1968,16 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     generator.AfterCall();
   }
 
-  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
+  HCallWithDescriptor* hinstr = instr->hydrogen();
+  RecordPushedArgumentsDelta(hinstr->argument_delta());
+
+  // HCallWithDescriptor instruction is translated to zero or more
+  // LPushArguments (they handle parameters passed on the stack) followed by
+  // a LCallWithDescriptor. Each LPushArguments instruction generated records
+  // the number of arguments pushed thus we need to offset them here.
+  // The |argument_delta()| used above "knows" only about JS parameters while
+  // we are dealing here with particular calling convention details.
+  RecordPushedArgumentsDelta(-hinstr->descriptor().GetStackParameterCount());
 }
 
 
