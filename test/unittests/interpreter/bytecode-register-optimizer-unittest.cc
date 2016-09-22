@@ -74,8 +74,8 @@ TEST_F(BytecodeRegisterOptimizerTest, WriteNop) {
 
 TEST_F(BytecodeRegisterOptimizerTest, WriteNopExpression) {
   Initialize(1, 1);
-  BytecodeSourceInfo source_info(3, false);
-  BytecodeNode node(Bytecode::kNop, &source_info);
+  BytecodeNode node(Bytecode::kNop);
+  node.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(node, last_written());
@@ -83,8 +83,8 @@ TEST_F(BytecodeRegisterOptimizerTest, WriteNopExpression) {
 
 TEST_F(BytecodeRegisterOptimizerTest, WriteNopStatement) {
   Initialize(1, 1);
-  BytecodeSourceInfo source_info(3, true);
   BytecodeNode node(Bytecode::kNop);
+  node.source_info().MakeStatementPosition(3);
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(node, last_written());
@@ -97,7 +97,7 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 0);
   BytecodeLabel label;
-  BytecodeNode jump(Bytecode::kJump, 0, nullptr);
+  BytecodeNode jump(Bytecode::kJump, 0);
   optimizer()->WriteJump(&jump, &label);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);

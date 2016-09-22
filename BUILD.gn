@@ -1413,8 +1413,6 @@ v8_source_set("v8_base") {
     "src/interpreter/bytecode-generator.h",
     "src/interpreter/bytecode-label.cc",
     "src/interpreter/bytecode-label.h",
-    "src/interpreter/bytecode-operands.cc",
-    "src/interpreter/bytecode-operands.h",
     "src/interpreter/bytecode-peephole-optimizer.cc",
     "src/interpreter/bytecode-peephole-optimizer.h",
     "src/interpreter/bytecode-peephole-table.h",
@@ -2382,10 +2380,7 @@ v8_executable("mkpeephole") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
-    "src/interpreter/bytecode-operands.cc",
-    "src/interpreter/bytecode-operands.h",
     "src/interpreter/bytecode-peephole-optimizer.h",
-    "src/interpreter/bytecode-traits.h",
     "src/interpreter/bytecodes.cc",
     "src/interpreter/bytecodes.h",
     "src/interpreter/mkpeephole.cc",
