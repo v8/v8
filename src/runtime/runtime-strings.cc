@@ -181,14 +181,14 @@ RUNTIME_FUNCTION(Runtime_StringMatch) {
 
   int capture_count = regexp->CaptureCount();
 
-  ZoneScope zone_scope(isolate->runtime_zone());
-  ZoneList<int> offsets(8, zone_scope.zone());
+  Zone zone(isolate->allocator());
+  ZoneList<int> offsets(8, &zone);
 
   while (true) {
     int32_t* match = global_cache.FetchNext();
     if (match == NULL) break;
-    offsets.Add(match[0], zone_scope.zone());  // start
-    offsets.Add(match[1], zone_scope.zone());  // end
+    offsets.Add(match[0], &zone);  // start
+    offsets.Add(match[1], &zone);  // end
   }
 
   if (global_cache.HasException()) return isolate->heap()->exception();

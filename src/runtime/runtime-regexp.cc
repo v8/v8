@@ -393,8 +393,8 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   DCHECK(subject->IsFlat());
   DCHECK(replacement->IsFlat());
 
-  ZoneScope zone_scope(isolate->runtime_zone());
-  ZoneList<int> indices(8, zone_scope.zone());
+  Zone zone(isolate->allocator());
+  ZoneList<int> indices(8, &zone);
   DCHECK_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
   String* pattern =
       String::cast(pattern_regexp->DataAt(JSRegExp::kAtomPatternIndex));
@@ -403,7 +403,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   int replacement_len = replacement->length();
 
   FindStringIndicesDispatch(isolate, *subject, pattern, &indices, 0xffffffff,
-                            zone_scope.zone());
+                            &zone);
 
   int matches = indices.length();
   if (matches == 0) return *subject;
@@ -474,8 +474,8 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   int subject_length = subject->length();
 
   // CompiledReplacement uses zone allocation.
-  ZoneScope zone_scope(isolate->runtime_zone());
-  CompiledReplacement compiled_replacement(zone_scope.zone());
+  Zone zone(isolate->allocator());
+  CompiledReplacement compiled_replacement(&zone);
   bool simple_replace =
       compiled_replacement.Compile(replacement, capture_count, subject_length);
 
@@ -711,17 +711,17 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
   static const int kMaxInitialListCapacity = 16;
 
-  ZoneScope zone_scope(isolate->runtime_zone());
+  Zone zone(isolate->allocator());
 
   // Find (up to limit) indices of separator and end-of-string in subject
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
-  ZoneList<int> indices(initial_capacity, zone_scope.zone());
+  ZoneList<int> indices(initial_capacity, &zone);
 
   FindStringIndicesDispatch(isolate, *subject, *pattern, &indices, limit,
-                            zone_scope.zone());
+                            &zone);
 
   if (static_cast<uint32_t>(indices.length()) < limit) {
-    indices.Add(subject_length, zone_scope.zone());
+    indices.Add(subject_length, &zone);
   }
 
   // The list indices now contains the end of each part to create.

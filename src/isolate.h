@@ -885,7 +885,6 @@ class Isolate {
     DCHECK(handle_scope_implementer_);
     return handle_scope_implementer_;
   }
-  Zone* runtime_zone() { return runtime_zone_; }
 
   UnicodeCache* unicode_cache() {
     return unicode_cache_;
@@ -1331,7 +1330,6 @@ class Isolate {
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
   AccountingAllocator* allocator_;
-  Zone* runtime_zone_;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;
   GlobalHandles* global_handles_;
   EternalHandles* eternal_handles_;
