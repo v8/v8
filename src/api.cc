@@ -135,6 +135,10 @@ namespace v8 {
   PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name,       \
                                      Nothing<T>(), i::HandleScope, false)
 
+#define PREPARE_FOR_EXECUTION_BOOL(context, class_name, function_name)   \
+  PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
+                                     false, i::HandleScope, false)
+
 #define EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, value) \
   do {                                                 \
     if (has_pending_exception) {                       \
@@ -151,6 +155,8 @@ namespace v8 {
 #define RETURN_ON_FAILED_EXECUTION_PRIMITIVE(T) \
   EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, Nothing<T>())
 
+#define RETURN_ON_FAILED_EXECUTION_BOOL() \
+  EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, false)
 
 #define RETURN_TO_LOCAL_UNCHECKED(maybe_local, T) \
   return maybe_local.FromMaybe(Local<T>());
@@ -1925,38 +1931,43 @@ Local<Value> Module::GetEmbedderData() const {
       i::handle(self->embedder_data(), self->GetIsolate()));
 }
 
-bool Module::Instantiate(Local<Context> v8_context,
-                         Module::ResolveCallback callback,
-                         Local<Value> callback_data) {
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
+MUST_USE_RESULT
+static bool InstantiateModule(Local<Module> v8_module,
+                              Local<Context> v8_context,
+                              Module::ResolveCallback callback,
+                              Local<Value> callback_data) {
+  i::Handle<i::Module> module = Utils::OpenHandle(*v8_module);
+  i::Isolate* isolate = module->GetIsolate();
 
   // Already instantiated.
-  if (self->code()->IsJSFunction()) return true;
+  if (module->code()->IsJSFunction()) return true;
 
   i::Handle<i::SharedFunctionInfo> shared(
-      i::SharedFunctionInfo::cast(self->code()), isolate);
+      i::SharedFunctionInfo::cast(module->code()), isolate);
   i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
   i::Handle<i::JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared, handle(context->native_context(), isolate));
-  self->set_code(*function);
+  module->set_code(*function);
 
-  for (int i = 0, length = GetModuleRequestsLength(); i < length; ++i) {
+  for (int i = 0, length = v8_module->GetModuleRequestsLength(); i < length;
+       ++i) {
     Local<Module> import;
     // TODO(adamk): Revisit these failure cases once d8 knows how to
     // persist a module_map across multiple top-level module loads, as
     // the current module is left in a "half-instantiated" state.
-    if (!callback(v8_context, GetModuleRequest(i), Utils::ToLocal(self),
+    if (!callback(v8_context, v8_module->GetModuleRequest(i), v8_module,
                   callback_data)
              .ToLocal(&import)) {
-      // TODO(adamk): Throw an exception.
+      // TODO(adamk): Give this a better error message. But this is a
+      // misuse of the API anyway.
+      isolate->ThrowIllegalOperation();
       return false;
     }
-    if (!import->Instantiate(v8_context, callback, callback_data)) {
+    if (!InstantiateModule(import, v8_context, callback, callback_data)) {
       return false;
     }
-    self->requested_modules()->set(i, *Utils::OpenHandle(*import));
+    module->requested_modules()->set(i, *Utils::OpenHandle(*import));
   }
 
   // Set up local exports.
@@ -1965,15 +1976,26 @@ bool Module::Instantiate(Local<Context> v8_context,
   for (int i = 0, n = regular_exports->length(); i < n; i += 2) {
     i::Handle<i::FixedArray> export_names(
         i::FixedArray::cast(regular_exports->get(i + 1)), isolate);
-    i::Module::CreateExport(self, export_names);
+    i::Module::CreateExport(module, export_names);
   }
 
   return true;
 }
 
+bool Module::Instantiate(Local<Context> context,
+                         Module::ResolveCallback callback,
+                         Local<Value> callback_data) {
+  PREPARE_FOR_EXECUTION_BOOL(context, Module, Instantiate);
+  has_pending_exception =
+      !InstantiateModule(Utils::ToLocal(Utils::OpenHandle(this)), context,
+                         callback, callback_data);
+  RETURN_ON_FAILED_EXECUTION_BOOL();
+  return true;
+}
+
 MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   PREPARE_FOR_EXECUTION_WITH_CONTEXT_IN_RUNTIME_CALL_STATS_SCOPE(
-      "v8", "V8.Execute", context, Script, Run, MaybeLocal<Value>(),
+      "v8", "V8.Execute", context, Module, Evaluate, MaybeLocal<Value>(),
       InternalEscapableScope, true);
   i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
   i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());

@@ -641,11 +641,11 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
     Context::Scope context_scope(realm);
 
-    // This can't fail until we support linking.
-    CHECK(root_module->Instantiate(realm, ResolveModuleCallback,
-                                   External::New(isolate, &module_map)));
-    maybe_result = root_module->Evaluate(realm);
-    EmptyMessageQueues(isolate);
+    if (root_module->Instantiate(realm, ResolveModuleCallback,
+                                 External::New(isolate, &module_map))) {
+      maybe_result = root_module->Evaluate(realm);
+      EmptyMessageQueues(isolate);
+    }
   }
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {

@@ -568,6 +568,8 @@ class RuntimeCallTimer {
   V(Message_GetLineNumber)                                 \
   V(Message_GetSourceLine)                                 \
   V(Message_GetStartColumn)                                \
+  V(Module_Evaluate)                                       \
+  V(Module_Instantiate)                                    \
   V(NumberObject_New)                                      \
   V(NumberObject_NumberValue)                              \
   V(Object_CallAsConstructor)                              \
