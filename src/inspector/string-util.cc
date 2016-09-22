@@ -10,18 +10,21 @@ namespace v8_inspector {
 
 v8::Local<v8::String> toV8String(v8::Isolate* isolate, const String16& string) {
   if (string.isEmpty()) return v8::String::Empty(isolate);
+  DCHECK(string.length() < v8::String::kMaxLength);
   return v8::String::NewFromTwoByte(
              isolate, reinterpret_cast<const uint16_t*>(string.characters16()),
-             v8::NewStringType::kNormal, string.length())
+             v8::NewStringType::kNormal, static_cast<int>(string.length()))
       .ToLocalChecked();
 }
 
 v8::Local<v8::String> toV8StringInternalized(v8::Isolate* isolate,
                                              const String16& string) {
   if (string.isEmpty()) return v8::String::Empty(isolate);
+  DCHECK(string.length() < v8::String::kMaxLength);
   return v8::String::NewFromTwoByte(
              isolate, reinterpret_cast<const uint16_t*>(string.characters16()),
-             v8::NewStringType::kInternalized, string.length())
+             v8::NewStringType::kInternalized,
+             static_cast<int>(string.length()))
       .ToLocalChecked();
 }
 
@@ -34,14 +37,15 @@ v8::Local<v8::String> toV8StringInternalized(v8::Isolate* isolate,
 v8::Local<v8::String> toV8String(v8::Isolate* isolate,
                                  const StringView& string) {
   if (!string.length()) return v8::String::Empty(isolate);
+  DCHECK(string.length() < v8::String::kMaxLength);
   if (string.is8Bit())
     return v8::String::NewFromOneByte(
                isolate, reinterpret_cast<const uint8_t*>(string.characters8()),
-               v8::NewStringType::kNormal, string.length())
+               v8::NewStringType::kNormal, static_cast<int>(string.length()))
         .ToLocalChecked();
   return v8::String::NewFromTwoByte(
              isolate, reinterpret_cast<const uint16_t*>(string.characters16()),
-             v8::NewStringType::kNormal, string.length())
+             v8::NewStringType::kNormal, static_cast<int>(string.length()))
       .ToLocalChecked();
 }
 
@@ -91,14 +95,18 @@ namespace protocol {
 
 std::unique_ptr<protocol::Value> parseJSON(const StringView& string) {
   if (!string.length()) return nullptr;
-  if (string.is8Bit())
-    return protocol::parseJSON(string.characters8(), string.length());
-  return protocol::parseJSON(string.characters16(), string.length());
+  if (string.is8Bit()) {
+    return protocol::parseJSON(string.characters8(),
+                               static_cast<int>(string.length()));
+  }
+  return protocol::parseJSON(string.characters16(),
+                             static_cast<int>(string.length()));
 }
 
 std::unique_ptr<protocol::Value> parseJSON(const String16& string) {
   if (!string.length()) return nullptr;
-  return protocol::parseJSON(string.characters16(), string.length());
+  return protocol::parseJSON(string.characters16(),
+                             static_cast<int>(string.length()));
 }
 
 }  // namespace protocol

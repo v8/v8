@@ -426,17 +426,17 @@ bool V8Debugger::setScriptSource(
               .setExceptionId(m_inspector->nextExceptionId())
               .setText(toProtocolStringWithTypeCheck(
                   resultTuple->Get(context, 2).ToLocalChecked()))
-              .setLineNumber(resultTuple->Get(context, 3)
-                                 .ToLocalChecked()
-                                 ->ToInteger(context)
-                                 .ToLocalChecked()
-                                 ->Value() -
+              .setLineNumber(static_cast<int>(resultTuple->Get(context, 3)
+                                                  .ToLocalChecked()
+                                                  ->ToInteger(context)
+                                                  .ToLocalChecked()
+                                                  ->Value()) -
                              1)
-              .setColumnNumber(resultTuple->Get(context, 4)
-                                   .ToLocalChecked()
-                                   ->ToInteger(context)
-                                   .ToLocalChecked()
-                                   ->Value() -
+              .setColumnNumber(static_cast<int>(resultTuple->Get(context, 4)
+                                                    .ToLocalChecked()
+                                                    ->ToInteger(context)
+                                                    .ToLocalChecked()
+                                                    ->Value()) -
                                1)
               .build();
       return false;
@@ -471,7 +471,7 @@ JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
   if (!currentCallFramesV8->IsArray()) return JavaScriptCallFrames();
   v8::Local<v8::Array> callFramesArray = currentCallFramesV8.As<v8::Array>();
   JavaScriptCallFrames callFrames;
-  for (size_t i = 0; i < callFramesArray->Length(); ++i) {
+  for (uint32_t i = 0; i < callFramesArray->Length(); ++i) {
     v8::Local<v8::Value> callFrameValue;
     if (!callFramesArray->Get(debuggerContext(), i).ToLocal(&callFrameValue))
       return JavaScriptCallFrames();
@@ -517,7 +517,7 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   std::vector<String16> breakpointIds;
   if (!hitBreakpointNumbers.IsEmpty()) {
     breakpointIds.reserve(hitBreakpointNumbers->Length());
-    for (size_t i = 0; i < hitBreakpointNumbers->Length(); i++) {
+    for (uint32_t i = 0; i < hitBreakpointNumbers->Length(); i++) {
       v8::Local<v8::Value> hitBreakpointNumber =
           hitBreakpointNumbers->Get(debuggerContext(), i).ToLocalChecked();
       DCHECK(hitBreakpointNumber->IsInt32());
@@ -643,10 +643,10 @@ void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Context> context,
       callInternalGetterFunction(eventData, "type"));
   String16 name = toProtocolStringWithTypeCheck(
       callInternalGetterFunction(eventData, "name"));
-  int id = callInternalGetterFunction(eventData, "id")
-               ->ToInteger(context)
-               .ToLocalChecked()
-               ->Value();
+  int id = static_cast<int>(callInternalGetterFunction(eventData, "id")
+                                ->ToInteger(context)
+                                .ToLocalChecked()
+                                ->Value());
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers. There is a single
   // namespace of such ids, managed by src/js/promise.js.

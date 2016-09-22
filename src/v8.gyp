@@ -1750,14 +1750,12 @@
           ],
           # TODO(dgozman): fix these warnings and enable them.
           'msvs_disabled_warnings': [
-            4267,  # Truncation from size_t to int.
             4305,  # Truncation from 'type1' to 'type2'.
             4324,  # Struct padded due to declspec(align).
             4714,  # Function marked forceinline not inlined.
             4800,  # Value forced to bool.
           ],
           'cflags': [
-            '-Wno-shorten-64-to-32',
           ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {

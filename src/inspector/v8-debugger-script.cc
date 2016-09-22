@@ -11,7 +11,7 @@ namespace v8_inspector {
 
 static const char hexDigits[17] = "0123456789ABCDEF";
 
-static void appendUnsignedAsHex(unsigned number, String16Builder* destination) {
+static void appendUnsignedAsHex(uint64_t number, String16Builder* destination) {
   for (size_t i = 0; i < 8; ++i) {
     UChar c = hexDigits[number & 0xF];
     destination->append(c);
@@ -75,12 +75,12 @@ static v8::Local<v8::Value> GetChecked(v8::Local<v8::Context> context,
       .ToLocalChecked();
 }
 
-static int64_t GetCheckedInt(v8::Local<v8::Context> context,
-                             v8::Local<v8::Object> object, const char* name) {
-  return GetChecked(context, object, name)
-      ->ToInteger(context)
-      .ToLocalChecked()
-      ->Value();
+static int GetCheckedInt(v8::Local<v8::Context> context,
+                         v8::Local<v8::Object> object, const char* name) {
+  return static_cast<int>(GetChecked(context, object, name)
+                              ->ToInteger(context)
+                              .ToLocalChecked()
+                              ->Value());
 }
 
 V8DebuggerScript::V8DebuggerScript(v8::Local<v8::Context> context,

@@ -10,6 +10,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <locale>
 #include <string>
 
@@ -37,9 +38,12 @@ int charactersToInteger(const UChar* characters, size_t length,
   buffer.push_back('\0');
 
   char* endptr;
-  int result = std::strtol(buffer.data(), &endptr, 10);
-  if (ok) *ok = !(*endptr);
-  return result;
+  long result = std::strtol(buffer.data(), &endptr, 10);
+  if (ok) {
+    *ok = !(*endptr) && result <= std::numeric_limits<int>::max() &&
+          result >= std::numeric_limits<int>::min();
+  }
+  return static_cast<int>(result);
 }
 
 const UChar replacementCharacter = 0xFFFD;
@@ -248,7 +252,7 @@ static const UChar32 offsetsFromUTF8[6] = {0x00000000UL,
                                            static_cast<UChar32>(0xFA082080UL),
                                            static_cast<UChar32>(0x82082080UL)};
 
-static inline UChar32 readUTF8Sequence(const char*& sequence, unsigned length) {
+static inline UChar32 readUTF8Sequence(const char*& sequence, size_t length) {
   UChar32 character = 0;
 
   // The cases all fall through.
@@ -366,6 +370,14 @@ String16 String16::fromInteger(int number) {
 }
 
 // static
+String16 String16::fromInteger(size_t number) {
+  const size_t kBufferSize = 50;
+  char buffer[kBufferSize];
+  std::snprintf(buffer, kBufferSize, "%zu", number);
+  return String16(buffer);
+}
+
+// static
 String16 String16::fromDouble(double number) {
   const size_t kBufferSize = 100;
   char buffer[kBufferSize];
@@ -396,8 +408,8 @@ int String16::toInteger(bool* ok) const {
 String16 String16::stripWhiteSpace() const {
   if (!length()) return String16();
 
-  unsigned start = 0;
-  unsigned end = length() - 1;
+  size_t start = 0;
+  size_t end = length() - 1;
 
   // skip white space from start
   while (start <= end && isSpaceOrNewLine(characters16()[start])) ++start;
@@ -455,12 +467,12 @@ String16 String16::fromUTF8(const char* stringStart, size_t length) {
                          true) != conversionOK)
     return String16();
 
-  unsigned utf16Length = bufferCurrent - bufferStart;
+  size_t utf16Length = bufferCurrent - bufferStart;
   return String16(bufferStart, utf16Length);
 }
 
 std::string String16::utf8() const {
-  unsigned length = this->length();
+  size_t length = this->length();
 
   if (!length) return std::string("");
 

@@ -160,16 +160,16 @@ class ConsoleHelper {
                              : v8::MaybeLocal<v8::Map>();
   }
 
-  int64_t getIntFromMap(v8::Local<v8::Map> map, const String16& key,
-                        int64_t defaultValue) {
+  int32_t getIntFromMap(v8::Local<v8::Map> map, const String16& key,
+                        int32_t defaultValue) {
     v8::Local<v8::String> v8Key = toV8String(m_isolate, key);
     if (!map->Has(m_context, v8Key).FromMaybe(false)) return defaultValue;
     v8::Local<v8::Value> intValue;
     if (!map->Get(m_context, v8Key).ToLocal(&intValue)) return defaultValue;
-    return intValue.As<v8::Integer>()->Value();
+    return static_cast<int32_t>(intValue.As<v8::Integer>()->Value());
   }
 
-  void setIntOnMap(v8::Local<v8::Map> map, const String16& key, int64_t value) {
+  void setIntOnMap(v8::Local<v8::Map> map, const String16& key, int32_t value) {
     v8::Local<v8::String> v8Key = toV8String(m_isolate, key);
     if (!map->Set(m_context, v8Key, v8::Integer::New(m_isolate, value))
              .ToLocal(&map))
@@ -353,7 +353,7 @@ void V8Console::countCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   v8::Local<v8::Map> countMap;
   if (!helper.privateMap("V8Console#countMap").ToLocal(&countMap)) return;
-  int64_t count = helper.getIntFromMap(countMap, identifier, 0) + 1;
+  int32_t count = helper.getIntFromMap(countMap, identifier, 0) + 1;
   helper.setIntOnMap(countMap, identifier, count);
   helper.reportCallWithArgument(ConsoleAPIType::kCount,
                                 title + ": " + String16::fromInteger(count));
@@ -511,7 +511,7 @@ void V8Console::valuesCallback(
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   if (!obj->GetOwnPropertyNames(context).ToLocal(&names)) return;
   v8::Local<v8::Array> values = v8::Array::New(isolate, names->Length());
-  for (size_t i = 0; i < names->Length(); ++i) {
+  for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> key;
     if (!names->Get(context, i).ToLocal(&key)) continue;
     v8::Local<v8::Value> value;
@@ -876,7 +876,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
   if (!m_commandLineAPI->GetOwnPropertyNames(context).ToLocal(&names)) return;
   v8::Local<v8::External> externalThis =
       v8::External::New(context->GetIsolate(), this);
-  for (size_t i = 0; i < names->Length(); ++i) {
+  for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> name;
     if (!names->Get(context, i).ToLocal(&name) || !name->IsName()) continue;
     if (m_global->Has(context, name).FromMaybe(true)) continue;
@@ -899,7 +899,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
 V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
   m_cleanup = true;
   v8::Local<v8::Array> names = m_installedMethods->AsArray();
-  for (size_t i = 0; i < names->Length(); ++i) {
+  for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> name;
     if (!names->Get(m_context, i).ToLocal(&name) || !name->IsName()) continue;
     if (name->IsString()) {

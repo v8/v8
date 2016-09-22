@@ -364,7 +364,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
   if (optionalArguments.isJust()) {
     protocol::Array<protocol::Runtime::CallArgument>* arguments =
         optionalArguments.fromJust();
-    argc = arguments->length();
+    argc = static_cast<int>(arguments->length());
     argv.reset(new v8::Local<v8::Value>[argc]);
     for (int i = 0; i < argc; ++i) {
       v8::Local<v8::Value> argumentValue;

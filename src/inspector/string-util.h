@@ -21,13 +21,16 @@ using StringBuilder = v8_inspector::String16Builder;
 
 class StringUtil {
  public:
-  static String substring(const String& s, unsigned pos, unsigned len) {
+  static String substring(const String& s, size_t pos, size_t len) {
     return s.substring(pos, len);
   }
   static String fromInteger(int number) { return String::fromInteger(number); }
+  static String fromInteger(size_t number) {
+    return String::fromInteger(number);
+  }
   static String fromDouble(double number) { return String::fromDouble(number); }
   static const size_t kNotFound = String::kNotFound;
-  static void builderReserve(StringBuilder& builder, unsigned capacity) {
+  static void builderReserve(StringBuilder& builder, size_t capacity) {
     builder.reserveCapacity(capacity);
   }
 };
