@@ -249,8 +249,8 @@ void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
   a->Return(value_integer);
 
   a->Bind(&u16);
-  a->SmiTag(a->AtomicStore(MachineRepresentation::kWord16, backing_store,
-                           a->WordShl(index_word, 1), value_word32));
+  a->AtomicStore(MachineRepresentation::kWord16, backing_store,
+                 a->WordShl(index_word, 1), value_word32);
   a->Return(value_integer);
 
   a->Bind(&u32);
