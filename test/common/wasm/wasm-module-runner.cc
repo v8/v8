@@ -66,10 +66,14 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
       isolate, module->module_start, module->module_end, thrower,
       ModuleOrigin::kWasmOrigin);
   if (module_object.is_null()) return Handle<JSObject>::null();
-  return WasmModule::Instantiate(isolate, module_object.ToHandleChecked(),
-                                 Handle<JSReceiver>::null(),
-                                 Handle<JSArrayBuffer>::null())
-      .ToHandleChecked();
+  MaybeHandle<JSObject> maybe_instance = WasmModule::Instantiate(
+      isolate, module_object.ToHandleChecked(), Handle<JSReceiver>::null(),
+      Handle<JSArrayBuffer>::null());
+  Handle<JSObject> instance;
+  if (!maybe_instance.ToHandle(&instance)) {
+    return Handle<JSObject>::null();
+  }
+  return instance;
 }
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
