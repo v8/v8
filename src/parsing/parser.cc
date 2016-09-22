@@ -2842,10 +2842,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
     // Parsing the body may change the language mode in our scope.
     language_mode = scope->language_mode();
-    scope->DeclareArguments(ast_value_factory());
-    if (main_scope != scope) {
-      main_scope->DeclareArguments(ast_value_factory());
-    }
 
     // Validate name and parameter names. We can do this only after parsing the
     // function, since the function can declare itself strict.
@@ -3432,6 +3428,13 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     if (is_sloppy(function_scope->language_mode())) {
       InsertSloppyBlockFunctionVarBindings(function_scope);
     }
+  }
+
+  if (!IsArrowFunction(kind)) {
+    // Declare arguments after parsing the function since lexical 'arguments'
+    // masks the arguments object. Declare arguments before declaring the
+    // function var since the arguments object masks 'function arguments'.
+    function_scope->DeclareArguments(ast_value_factory());
   }
 
   if (function_type == FunctionLiteral::kNamedExpression) {

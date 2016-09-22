@@ -1218,7 +1218,6 @@ void DeclarationScope::AnalyzePartially(DeclarationScope* migrate_to,
   DCHECK_EQ(outer_scope_->zone(), migrate_to->zone());
   DCHECK_EQ(NeedsHomeObject(), migrate_to->NeedsHomeObject());
   DCHECK_EQ(asm_function_, migrate_to->asm_function_);
-  DCHECK_EQ(arguments() != nullptr, migrate_to->arguments() != nullptr);
 }
 
 #ifdef DEBUG
