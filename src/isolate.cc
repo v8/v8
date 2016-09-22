@@ -1903,8 +1903,8 @@ class VerboseAccountingAllocator : public AccountingAllocator {
   VerboseAccountingAllocator(Heap* heap, size_t sample_bytes)
       : heap_(heap), last_memory_usage_(0), sample_bytes_(sample_bytes) {}
 
-  v8::internal::Segment* AllocateSegment(size_t size) override {
-    v8::internal::Segment* memory = AccountingAllocator::AllocateSegment(size);
+  v8::internal::Segment* GetSegment(size_t size) override {
+    v8::internal::Segment* memory = AccountingAllocator::GetSegment(size);
     if (memory) {
       size_t current = GetCurrentMemoryUsage();
       if (last_memory_usage_.Value() + sample_bytes_ < current) {
@@ -1915,8 +1915,8 @@ class VerboseAccountingAllocator : public AccountingAllocator {
     return memory;
   }
 
-  void FreeSegment(v8::internal::Segment* memory) override {
-    AccountingAllocator::FreeSegment(memory);
+  void ReturnSegment(v8::internal::Segment* memory) override {
+    AccountingAllocator::ReturnSegment(memory);
     size_t current = GetCurrentMemoryUsage();
     if (current + sample_bytes_ < last_memory_usage_.Value()) {
       PrintJSON(current);
@@ -2168,9 +2168,6 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
-
-  // Has to be called while counters_ are still alive
-  runtime_zone_->DeleteKeptSegment();
 
   // The entry stack must be empty when we get here.
   DCHECK(entry_stack_ == NULL || entry_stack_->previous_item == NULL);

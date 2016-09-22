@@ -1272,6 +1272,8 @@
         'zone/zone-segment.h',
         'zone/zone.cc',
         'zone/zone.h',
+        'zone/zone-segment.cc',
+        'zone/zone-segment.h',
         'zone/zone-allocator.h',
         'zone/zone-containers.h',
       ],
