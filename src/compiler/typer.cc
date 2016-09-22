@@ -558,7 +558,7 @@ Type* Typer::Visitor::TypeRetain(Node* node) {
 Type* Typer::Visitor::TypeInt32Constant(Node* node) {
   double number = OpParameter<int32_t>(node);
   return Type::Intersect(Type::Range(number, number, zone()),
-                         Type::UntaggedIntegral32(), zone());
+                         Type::Integral32(), zone());
 }
 
 

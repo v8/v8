@@ -471,7 +471,8 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     if (output_type->Is(Type::Undefined())) {
       return jsgraph()->Float64Constant(
           std::numeric_limits<double>::quiet_NaN());
-    } else if (output_type->Is(Type::TaggedSigned())) {
+
+    } else if (output_rep == MachineRepresentation::kTaggedSigned) {
       node = InsertChangeTaggedSignedToInt32(node);
       op = machine()->ChangeInt32ToFloat64();
     } else if (output_type->Is(Type::Number())) {

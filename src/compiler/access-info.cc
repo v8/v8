@@ -437,7 +437,7 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
   int offset;
   if (Accessors::IsJSObjectFieldAccessor(map, name, &offset)) {
     FieldIndex field_index = FieldIndex::ForInObjectOffset(offset);
-    Type* field_type = Type::Tagged();
+    Type* field_type = Type::NonInternal();
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (map->IsStringMap()) {
       DCHECK(Name::Equals(factory()->length_string(), name));

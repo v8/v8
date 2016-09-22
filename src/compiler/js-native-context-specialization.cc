@@ -949,7 +949,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
               value = effect =
                   graph()->NewNode(common()->FinishRegion(), box, effect);
 
-              field_access.type = Type::TaggedPointer();
+              field_access.type = Type::Any();
               field_access.machine_type = MachineType::TaggedPointer();
               field_access.write_barrier_kind = kPointerWriteBarrier;
             } else {

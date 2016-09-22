@@ -627,7 +627,7 @@ FieldAccess AccessBuilder::ForContextExtensionExtension() {
 
 // static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
-  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Tagged(),
+  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
                           MachineType::AnyTagged(), kFullWriteBarrier};
   return access;
 }
