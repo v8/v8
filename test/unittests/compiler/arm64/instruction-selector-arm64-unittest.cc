@@ -1092,7 +1092,8 @@ TEST_F(InstructionSelectorTest, SubBranchWithImmediateOnRight) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ((imm == 0) ? kArm64CompareAndBranch32 : kArm64Cmp32,
+              s[0]->arch_opcode());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
   }
@@ -3217,19 +3218,16 @@ TEST_F(InstructionSelectorTest, CmpWithImmediateOnLeft) {
       // kEqual and kNotEqual trigger the cbz/cbnz optimization, which
       // is tested elsewhere.
       if (cmp.cond == kEqual || cmp.cond == kNotEqual) continue;
+      // For signed less than or equal to zero, we generate TBNZ.
+      if (cmp.cond == kSignedLessThanOrEqual && imm == 0) continue;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       Node* const p0 = m.Parameter(0);
-      RawMachineLabel a, b;
-      m.Branch((m.*cmp.mi.constructor)(m.Int32Constant(imm), p0), &a, &b);
-      m.Bind(&a);
-      m.Return(m.Int32Constant(1));
-      m.Bind(&b);
-      m.Return(m.Int32Constant(0));
+      m.Return((m.*cmp.mi.constructor)(m.Int32Constant(imm), p0));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
       ASSERT_LE(2U, s[0]->InputCount());
-      EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+      EXPECT_EQ(kFlags_set, s[0]->flags_mode());
       EXPECT_EQ(cmp.commuted_cond, s[0]->flags_condition());
       EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
     }
@@ -3244,17 +3242,12 @@ TEST_F(InstructionSelectorTest, CmnWithImmediateOnLeft) {
       if (cmp.cond == kEqual || cmp.cond == kNotEqual) continue;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       Node* sub = m.Int32Sub(m.Int32Constant(0), m.Parameter(0));
-      RawMachineLabel a, b;
-      m.Branch((m.*cmp.mi.constructor)(m.Int32Constant(imm), sub), &a, &b);
-      m.Bind(&a);
-      m.Return(m.Int32Constant(1));
-      m.Bind(&b);
-      m.Return(m.Int32Constant(0));
+      m.Return((m.*cmp.mi.constructor)(m.Int32Constant(imm), sub));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Cmn32, s[0]->arch_opcode());
       ASSERT_LE(2U, s[0]->InputCount());
-      EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+      EXPECT_EQ(kFlags_set, s[0]->flags_mode());
       EXPECT_EQ(cmp.cond, s[0]->flags_condition());
       EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
     }
@@ -3442,21 +3435,15 @@ TEST_P(InstructionSelectorFlagSettingTest, CmpZeroRight) {
   TRACED_FOREACH(IntegerCmp, cmp, kBinopCmpZeroRightInstructions) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
-    RawMachineLabel a, b;
     Node* binop = (m.*inst.mi.constructor)(m.Parameter(0), m.Parameter(1));
-    Node* comp = (m.*cmp.mi.constructor)(binop, m.Int32Constant(0));
-    m.Branch(comp, &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
+    m.Return((m.*cmp.mi.constructor)(binop, m.Int32Constant(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(4U, s[0]->InputCount());  // The labels are also inputs.
+    ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(inst.no_output_opcode, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(cmp.cond, s[0]->flags_condition());
   }
 }
@@ -3467,21 +3454,15 @@ TEST_P(InstructionSelectorFlagSettingTest, CmpZeroLeft) {
   TRACED_FOREACH(IntegerCmp, cmp, kBinopCmpZeroLeftInstructions) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
-    RawMachineLabel a, b;
     Node* binop = (m.*inst.mi.constructor)(m.Parameter(0), m.Parameter(1));
-    Node* comp = (m.*cmp.mi.constructor)(m.Int32Constant(0), binop);
-    m.Branch(comp, &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
+    m.Return((m.*cmp.mi.constructor)(m.Int32Constant(0), binop));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(4U, s[0]->InputCount());  // The labels are also inputs.
+    ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(inst.no_output_opcode, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(cmp.cond, s[0]->flags_condition());
   }
 }
@@ -3490,25 +3471,23 @@ TEST_P(InstructionSelectorFlagSettingTest, CmpZeroOnlyUserInBasicBlock) {
   const FlagSettingInst inst = GetParam();
   // Binop with additional users, but in a different basic block.
   TRACED_FOREACH(IntegerCmp, cmp, kBinopCmpZeroRightInstructions) {
-    // For kEqual and kNotEqual, we generate a cbz or cbnz.
-    if (cmp.cond == kEqual || cmp.cond == kNotEqual) continue;
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
     RawMachineLabel a, b;
     Node* binop = (m.*inst.mi.constructor)(m.Parameter(0), m.Parameter(1));
     Node* comp = (m.*cmp.mi.constructor)(binop, m.Int32Constant(0));
-    m.Branch(comp, &a, &b);
+    m.Branch(m.Parameter(0), &a, &b);
     m.Bind(&a);
     m.Return(binop);
     m.Bind(&b);
-    m.Return(m.Int32Constant(0));
+    m.Return(comp);
     Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(4U, s[0]->InputCount());  // The labels are also inputs.
+    ASSERT_EQ(2U, s.size());  // Flag-setting instruction and branch.
+    ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(inst.mi.arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(cmp.cond, s[0]->flags_condition());
   }
 }
@@ -3517,8 +3496,6 @@ TEST_P(InstructionSelectorFlagSettingTest, ShiftedOperand) {
   const FlagSettingInst inst = GetParam();
   // Like the test above, but with a shifted input to the binary operator.
   TRACED_FOREACH(IntegerCmp, cmp, kBinopCmpZeroRightInstructions) {
-    // For kEqual and kNotEqual, we generate a cbz or cbnz.
-    if (cmp.cond == kEqual || cmp.cond == kNotEqual) continue;
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
     RawMachineLabel a, b;
@@ -3526,20 +3503,20 @@ TEST_P(InstructionSelectorFlagSettingTest, ShiftedOperand) {
     Node* shift = m.Word32Shl(m.Parameter(1), imm);
     Node* binop = (m.*inst.mi.constructor)(m.Parameter(0), shift);
     Node* comp = (m.*cmp.mi.constructor)(binop, m.Int32Constant(0));
-    m.Branch(comp, &a, &b);
+    m.Branch(m.Parameter(0), &a, &b);
     m.Bind(&a);
     m.Return(binop);
     m.Bind(&b);
-    m.Return(m.Int32Constant(0));
+    m.Return(comp);
     Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(5U, s[0]->InputCount());  // The labels are also inputs.
+    ASSERT_EQ(2U, s.size());  // Flag-setting instruction and branch.
+    ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(inst.mi.arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(5, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(cmp.cond, s[0]->flags_condition());
   }
 }
@@ -3555,19 +3532,18 @@ TEST_P(InstructionSelectorFlagSettingTest, UsersInSameBasicBlock) {
     Node* binop = (m.*inst.mi.constructor)(m.Parameter(0), m.Parameter(1));
     Node* mul = m.Int32Mul(m.Parameter(0), binop);
     Node* comp = (m.*cmp.mi.constructor)(binop, m.Int32Constant(0));
-    m.Branch(comp, &a, &b);
+    m.Branch(m.Parameter(0), &a, &b);
     m.Bind(&a);
     m.Return(mul);
     m.Bind(&b);
-    m.Return(m.Int32Constant(0));
+    m.Return(comp);
     Stream s = m.Build();
-    ASSERT_EQ(3U, s.size());
+    ASSERT_EQ(4U, s.size());  // Includes the compare and branch instruction.
     EXPECT_EQ(inst.mi.arch_opcode, s[0]->arch_opcode());
-    EXPECT_NE(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
     EXPECT_EQ(kArm64Mul32, s[1]->arch_opcode());
-    EXPECT_EQ(cmp.cond == kEqual ? kArm64CompareAndBranch32 : kArm64Cmp32,
-              s[2]->arch_opcode());
-    EXPECT_EQ(kFlags_branch, s[2]->flags_mode());
+    EXPECT_EQ(kArm64Cmp32, s[2]->arch_opcode());
+    EXPECT_EQ(kFlags_set, s[2]->flags_mode());
     EXPECT_EQ(cmp.cond, s[2]->flags_condition());
   }
 }
@@ -3577,23 +3553,18 @@ TEST_P(InstructionSelectorFlagSettingTest, CommuteImmediate) {
   // Immediate on left hand side of the binary operator.
   TRACED_FOREACH(IntegerCmp, cmp, kBinopCmpZeroRightInstructions) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    RawMachineLabel a, b;
     // 3 can be an immediate on both arithmetic and logical instructions.
     Node* imm = m.Int32Constant(3);
     Node* binop = (m.*inst.mi.constructor)(imm, m.Parameter(0));
     Node* comp = (m.*cmp.mi.constructor)(binop, m.Int32Constant(0));
-    m.Branch(comp, &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
+    m.Return(comp);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(4U, s[0]->InputCount());  // The labels are also inputs.
+    ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(inst.no_output_opcode, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(3, s.ToInt32(s[0]->InputAt(1)));
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(cmp.cond, s[0]->flags_condition());
   }
 }
@@ -3640,23 +3611,18 @@ TEST_F(InstructionSelectorTest, TstInvalidImmediate) {
   // Make sure we do not generate an invalid immediate for TST.
   TRACED_FOREACH(IntegerCmp, cmp, kBinopCmpZeroRightInstructions) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    RawMachineLabel a, b;
     // 5 is not a valid constant for TST.
     Node* imm = m.Int32Constant(5);
     Node* binop = m.Word32And(imm, m.Parameter(0));
     Node* comp = (m.*cmp.mi.constructor)(binop, m.Int32Constant(0));
-    m.Branch(comp, &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
+    m.Return(comp);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(4U, s[0]->InputCount());  // The labels are also inputs.
+    ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
     EXPECT_NE(InstructionOperand::IMMEDIATE, s[0]->InputAt(0)->kind());
     EXPECT_NE(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(cmp.cond, s[0]->flags_condition());
   }
 }
@@ -4343,6 +4309,74 @@ TEST_F(InstructionSelectorTest, LoadAndShiftRight) {
       ASSERT_EQ(1U, s[0]->OutputCount());
     }
   }
+}
+
+TEST_F(InstructionSelectorTest, CompareAgainstZero32) {
+  TRACED_FOREACH(IntegerCmp, cmp, kBinopCmpZeroRightInstructions) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    Node* const param = m.Parameter(0);
+    RawMachineLabel a, b;
+    m.Branch((m.*cmp.mi.constructor)(param, m.Int32Constant(0)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(0)));
+    if (cmp.cond == kNegative || cmp.cond == kPositiveOrZero) {
+      EXPECT_EQ(kArm64TestAndBranch32, s[0]->arch_opcode());
+      EXPECT_EQ(4U, s[0]->InputCount());  // The labels are also inputs.
+      EXPECT_EQ((cmp.cond == kNegative) ? kNotEqual : kEqual,
+                s[0]->flags_condition());
+      EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(31, s.ToInt32(s[0]->InputAt(1)));
+    } else {
+      EXPECT_EQ(kArm64CompareAndBranch32, s[0]->arch_opcode());
+      EXPECT_EQ(3U, s[0]->InputCount());  // The labels are also inputs.
+      EXPECT_EQ(cmp.cond, s[0]->flags_condition());
+    }
+  }
+}
+
+TEST_F(InstructionSelectorTest, CompareFloat64HighLessThanZero64) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Float64());
+  Node* const param = m.Parameter(0);
+  Node* const high = m.Float64ExtractHighWord32(param);
+  RawMachineLabel a, b;
+  m.Branch(m.Int32LessThan(high, m.Int32Constant(0)), &a, &b);
+  m.Bind(&a);
+  m.Return(m.Int32Constant(1));
+  m.Bind(&b);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArm64U64MoveFloat64, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64TestAndBranch, s[1]->arch_opcode());
+  EXPECT_EQ(kNotEqual, s[1]->flags_condition());
+  EXPECT_EQ(4U, s[1]->InputCount());
+  EXPECT_EQ(InstructionOperand::IMMEDIATE, s[1]->InputAt(1)->kind());
+  EXPECT_EQ(63, s.ToInt32(s[1]->InputAt(1)));
+}
+
+TEST_F(InstructionSelectorTest, CompareFloat64HighGreaterThanOrEqualZero64) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Float64());
+  Node* const param = m.Parameter(0);
+  Node* const high = m.Float64ExtractHighWord32(param);
+  RawMachineLabel a, b;
+  m.Branch(m.Int32GreaterThanOrEqual(high, m.Int32Constant(0)), &a, &b);
+  m.Bind(&a);
+  m.Return(m.Int32Constant(1));
+  m.Bind(&b);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArm64U64MoveFloat64, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64TestAndBranch, s[1]->arch_opcode());
+  EXPECT_EQ(kEqual, s[1]->flags_condition());
+  EXPECT_EQ(4U, s[1]->InputCount());
+  EXPECT_EQ(InstructionOperand::IMMEDIATE, s[1]->InputAt(1)->kind());
+  EXPECT_EQ(63, s.ToInt32(s[1]->InputAt(1)));
 }
 
 }  // namespace compiler
