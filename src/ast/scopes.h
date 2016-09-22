@@ -35,7 +35,7 @@ class VariableMap: public ZoneHashMap {
 
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
-  void Add(Variable* var);
+  void Add(Zone* zone, Variable* var);
 };
 
 
@@ -43,7 +43,7 @@ class VariableMap: public ZoneHashMap {
 class SloppyBlockFunctionMap : public ZoneHashMap {
  public:
   explicit SloppyBlockFunctionMap(Zone* zone);
-  void Declare(const AstRawString* name,
+  void Declare(Zone* zone, const AstRawString* name,
                SloppyBlockFunctionStatement* statement);
 };
 
@@ -756,7 +756,7 @@ class DeclarationScope : public Scope {
 
   void DeclareSloppyBlockFunction(const AstRawString* name,
                                   SloppyBlockFunctionStatement* statement) {
-    sloppy_block_function_map_.Declare(name, statement);
+    sloppy_block_function_map_.Declare(zone(), name, statement);
   }
 
   // Go through sloppy_block_function_map_ and hoist those (into this scope)

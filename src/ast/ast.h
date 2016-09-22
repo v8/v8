@@ -129,13 +129,14 @@ AST_NODE_LIST(DEF_FORWARD_DECLARATION)
 class FeedbackVectorSlotCache {
  public:
   explicit FeedbackVectorSlotCache(Zone* zone)
-      : hash_map_(base::HashMap::PointersMatch,
+      : zone_(zone),
+        hash_map_(base::HashMap::PointersMatch,
                   ZoneHashMap::kDefaultHashMapCapacity,
                   ZoneAllocationPolicy(zone)) {}
 
   void Put(Variable* variable, FeedbackVectorSlot slot) {
-    ZoneHashMap::Entry* entry =
-        hash_map_.LookupOrInsert(variable, ComputePointerHash(variable));
+    ZoneHashMap::Entry* entry = hash_map_.LookupOrInsert(
+        variable, ComputePointerHash(variable), ZoneAllocationPolicy(zone_));
     entry->value = reinterpret_cast<void*>(slot.ToInt());
   }
 
@@ -144,6 +145,7 @@ class FeedbackVectorSlotCache {
   }
 
  private:
+  Zone* zone_;
   ZoneHashMap hash_map_;
 };
 
@@ -1523,7 +1525,7 @@ class AccessorTable
         zone_(zone) {}
 
   Iterator lookup(Literal* literal) {
-    Iterator it = find(literal, true);
+    Iterator it = find(literal, true, ZoneAllocationPolicy(zone_));
     if (it->second == NULL) it->second = new (zone_) ObjectLiteral::Accessors();
     return it;
   }

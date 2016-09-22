@@ -55,9 +55,11 @@ class TemplateHashMapImpl {
   // If an entry with matching key is found, returns that entry.
   // If no matching entry is found, a new entry is inserted with
   // corresponding key, key hash, and default initialized value.
-  Entry* LookupOrInsert(const Key& key, uint32_t hash);
+  Entry* LookupOrInsert(const Key& key, uint32_t hash,
+                        AllocationPolicy allocator = AllocationPolicy());
 
-  Entry* InsertNew(const Key& key, uint32_t hash);
+  Entry* InsertNew(const Key& key, uint32_t hash,
+                   AllocationPolicy allocator = AllocationPolicy());
 
   // Removes the entry with matching key.
   // It returns the value of the deleted entry
@@ -100,14 +102,14 @@ class TemplateHashMapImpl {
   Entry* map_;
   uint32_t capacity_;
   uint32_t occupancy_;
-  AllocationPolicy allocator_;
 
   Entry* map_end() const { return map_ + capacity_; }
   Entry* Probe(const Key& key, uint32_t hash) const;
   Entry* FillEmptyEntry(Entry* entry, const Key& key, const Value& value,
-                        uint32_t hash);
-  void Initialize(uint32_t capacity);
-  void Resize();
+                        uint32_t hash,
+                        AllocationPolicy allocator = AllocationPolicy());
+  void Initialize(uint32_t capacity, AllocationPolicy allocator);
+  void Resize(AllocationPolicy allocator);
 };
 
 template <typename Key>
@@ -126,15 +128,14 @@ typedef TemplateHashMapImpl<void*, void*, DefaultAllocationPolicy> HashMap;
 
 template <typename Key, typename Value, class AllocationPolicy>
 TemplateHashMapImpl<Key, Value, AllocationPolicy>::TemplateHashMapImpl(
-    MatchFun match, uint32_t initial_capacity, AllocationPolicy allocator)
-    : allocator_(allocator) {
+    MatchFun match, uint32_t initial_capacity, AllocationPolicy allocator) {
   match_ = match;
-  Initialize(initial_capacity);
+  Initialize(initial_capacity, allocator);
 }
 
 template <typename Key, typename Value, class AllocationPolicy>
 TemplateHashMapImpl<Key, Value, AllocationPolicy>::~TemplateHashMapImpl() {
-  allocator_.Delete(map_);
+  AllocationPolicy::Delete(map_);
 }
 
 template <typename Key, typename Value, class AllocationPolicy>
@@ -148,22 +149,22 @@ TemplateHashMapImpl<Key, Value, AllocationPolicy>::Lookup(const Key& key,
 template <typename Key, typename Value, class AllocationPolicy>
 typename TemplateHashMapImpl<Key, Value, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, AllocationPolicy>::LookupOrInsert(
-    const Key& key, uint32_t hash) {
+    const Key& key, uint32_t hash, AllocationPolicy allocator) {
   // Find a matching entry.
   Entry* entry = Probe(key, hash);
   if (entry->exists()) {
     return entry;
   }
 
-  return FillEmptyEntry(entry, key, Value(), hash);
+  return FillEmptyEntry(entry, key, Value(), hash, allocator);
 }
 
 template <typename Key, typename Value, class AllocationPolicy>
 typename TemplateHashMapImpl<Key, Value, AllocationPolicy>::Entry*
-TemplateHashMapImpl<Key, Value, AllocationPolicy>::InsertNew(const Key& key,
-                                                             uint32_t hash) {
+TemplateHashMapImpl<Key, Value, AllocationPolicy>::InsertNew(
+    const Key& key, uint32_t hash, AllocationPolicy allocator) {
   Entry* entry = Probe(key, hash);
-  return FillEmptyEntry(entry, key, Value(), hash);
+  return FillEmptyEntry(entry, key, Value(), hash, allocator);
 }
 
 template <typename Key, typename Value, class AllocationPolicy>
@@ -279,7 +280,8 @@ TemplateHashMapImpl<Key, Value, AllocationPolicy>::Probe(const Key& key,
 template <typename Key, typename Value, class AllocationPolicy>
 typename TemplateHashMapImpl<Key, Value, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, AllocationPolicy>::FillEmptyEntry(
-    Entry* entry, const Key& key, const Value& value, uint32_t hash) {
+    Entry* entry, const Key& key, const Value& value, uint32_t hash,
+    AllocationPolicy allocator) {
   DCHECK(!entry->exists());
 
   new (entry) Entry(key, value, hash);
@@ -287,7 +289,7 @@ TemplateHashMapImpl<Key, Value, AllocationPolicy>::FillEmptyEntry(
 
   // Grow the map if we reached >= 80% occupancy.
   if (occupancy_ + occupancy_ / 4 >= capacity_) {
-    Resize();
+    Resize(allocator);
     entry = Probe(key, hash);
   }
 
@@ -296,9 +298,9 @@ TemplateHashMapImpl<Key, Value, AllocationPolicy>::FillEmptyEntry(
 
 template <typename Key, typename Value, class AllocationPolicy>
 void TemplateHashMapImpl<Key, Value, AllocationPolicy>::Initialize(
-    uint32_t capacity) {
+    uint32_t capacity, AllocationPolicy allocator) {
   DCHECK(base::bits::IsPowerOfTwo32(capacity));
-  map_ = reinterpret_cast<Entry*>(allocator_.New(capacity * sizeof(Entry)));
+  map_ = reinterpret_cast<Entry*>(allocator.New(capacity * sizeof(Entry)));
   if (map_ == nullptr) {
     FATAL("Out of memory: HashMap::Initialize");
     return;
@@ -308,25 +310,26 @@ void TemplateHashMapImpl<Key, Value, AllocationPolicy>::Initialize(
 }
 
 template <typename Key, typename Value, class AllocationPolicy>
-void TemplateHashMapImpl<Key, Value, AllocationPolicy>::Resize() {
+void TemplateHashMapImpl<Key, Value, AllocationPolicy>::Resize(
+    AllocationPolicy allocator) {
   Entry* map = map_;
   uint32_t n = occupancy_;
 
   // Allocate larger map.
-  Initialize(capacity_ * 2);
+  Initialize(capacity_ * 2, allocator);
 
   // Rehash all current entries.
   for (Entry* entry = map; n > 0; entry++) {
     if (entry->exists()) {
       Entry* new_entry = Probe(entry->key, entry->hash);
-      new_entry =
-          FillEmptyEntry(new_entry, entry->key, entry->value, entry->hash);
+      new_entry = FillEmptyEntry(new_entry, entry->key, entry->value,
+                                 entry->hash, allocator);
       n--;
     }
   }
 
   // Delete old map.
-  allocator_.Delete(map);
+  AllocationPolicy::Delete(map);
 }
 
 // A hash map for pointer keys and values with an STL-like interface.
@@ -374,9 +377,10 @@ class TemplateHashMap
 
   Iterator begin() const { return Iterator(this, this->Start()); }
   Iterator end() const { return Iterator(this, nullptr); }
-  Iterator find(Key* key, bool insert = false) {
+  Iterator find(Key* key, bool insert = false,
+                AllocationPolicy allocator = AllocationPolicy()) {
     if (insert) {
-      return Iterator(this, this->LookupOrInsert(key, key->Hash()));
+      return Iterator(this, this->LookupOrInsert(key, key->Hash(), allocator));
     }
     return Iterator(this, this->Lookup(key, key->Hash()));
   }

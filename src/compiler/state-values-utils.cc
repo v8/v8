@@ -104,7 +104,8 @@ int StateValuesHashKey(Node** nodes, size_t count) {
 Node* StateValuesCache::GetValuesNodeFromCache(Node** nodes, size_t count) {
   StateValuesKey key(count, nodes);
   int hash = StateValuesHashKey(nodes, count);
-  ZoneHashMap::Entry* lookup = hash_map_.LookupOrInsert(&key, hash);
+  ZoneHashMap::Entry* lookup =
+      hash_map_.LookupOrInsert(&key, hash, ZoneAllocationPolicy(zone()));
   DCHECK_NOT_NULL(lookup);
   Node* node;
   if (lookup->value == nullptr) {

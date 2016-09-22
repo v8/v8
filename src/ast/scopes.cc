@@ -36,8 +36,9 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
-  Entry* p = ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name),
-                                         name->hash());
+  Entry* p =
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+                                  ZoneAllocationPolicy(zone));
   if (added) *added = p->value == nullptr;
   if (p->value == nullptr) {
     // The variable has not been declared yet -> insert it.
@@ -53,10 +54,11 @@ void VariableMap::Remove(Variable* var) {
   ZoneHashMap::Remove(const_cast<AstRawString*>(name), name->hash());
 }
 
-void VariableMap::Add(Variable* var) {
+void VariableMap::Add(Zone* zone, Variable* var) {
   const AstRawString* name = var->raw_name();
-  Entry* p = ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name),
-                                         name->hash());
+  Entry* p =
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+                                  ZoneAllocationPolicy(zone));
   DCHECK_NULL(p->value);
   DCHECK_EQ(name, p->key);
   p->value = var;
@@ -75,12 +77,13 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 SloppyBlockFunctionMap::SloppyBlockFunctionMap(Zone* zone)
     : ZoneHashMap(ZoneHashMap::PointersMatch, 8, ZoneAllocationPolicy(zone)) {}
 
-void SloppyBlockFunctionMap::Declare(const AstRawString* name,
+void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
                                      SloppyBlockFunctionStatement* stmt) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
-  Entry* p = ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name),
-                                         name->hash());
+  Entry* p =
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+                                  ZoneAllocationPolicy(zone));
   stmt->set_next(static_cast<SloppyBlockFunctionStatement*>(p->value));
   p->value = stmt;
 }
@@ -628,7 +631,7 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
   if (calls_sloppy_eval()) {
     NonLocal(name, DYNAMIC);
   } else {
-    variables_.Add(function_);
+    variables_.Add(zone(), function_);
   }
   return function_;
 }
@@ -723,7 +726,7 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
     new_parent->AddLocal(local);
     if (local->mode() == VAR) {
       outer_closure->variables_.Remove(local);
-      new_parent->variables_.Add(local);
+      new_parent->variables_.Add(new_parent->zone(), local);
     }
   }
   outer_closure->locals_.Rewind(top_local_);
