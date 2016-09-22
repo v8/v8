@@ -7946,9 +7946,12 @@ class Module : public Struct {
   DECL_INT_ACCESSORS(flags)
 
   static void CreateExport(Handle<Module> module, Handle<FixedArray> names);
+  static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
   static void StoreExport(Handle<Module> module, Handle<String> name,
                           Handle<Object> value);
-  static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
+
+  static Handle<Object> LoadImport(Handle<Module> module, Handle<String> name,
+                                   int module_request);
 
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;

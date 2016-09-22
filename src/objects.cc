@@ -19608,5 +19608,16 @@ Handle<Object> Module::LoadExport(Handle<Module> module, Handle<String> name) {
   return handle(cell->value(), isolate);
 }
 
+Handle<Object> Module::LoadImport(Handle<Module> module, Handle<String> name,
+                                  int module_request) {
+  Isolate* isolate = module->GetIsolate();
+  Handle<Module> requested_module(
+      Module::cast(module->requested_modules()->get(module_request)), isolate);
+  Handle<ObjectHashTable> exports(requested_module->exports(), isolate);
+  Object* object = exports->Lookup(name);
+  if (!object->IsCell()) UNIMPLEMENTED();
+  return handle(Cell::cast(object)->value(), isolate);
+}
+
 }  // namespace internal
 }  // namespace v8

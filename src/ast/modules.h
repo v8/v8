@@ -122,6 +122,7 @@ class ModuleDescriptor : public ZoneObject {
   }
 
   // All the remaining exports, indexed by local name.
+  // After canonicalization (see Validate), these are exactly the local exports.
   const ZoneMultimap<const AstRawString*, Entry*>& regular_exports() const {
     return regular_exports_;
   }

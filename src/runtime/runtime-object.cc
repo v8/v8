@@ -968,6 +968,15 @@ RUNTIME_FUNCTION(Runtime_LoadModuleExport) {
   return *Module::LoadExport(module, name);
 }
 
+RUNTIME_FUNCTION(Runtime_LoadModuleImport) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, module_request, 1);
+  Handle<Module> module(isolate->context()->module());
+  return *Module::LoadImport(module, name, module_request->value());
+}
+
 RUNTIME_FUNCTION(Runtime_StoreModuleExport) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

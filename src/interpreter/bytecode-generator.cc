@@ -2005,7 +2005,18 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
             .StoreAccumulatorInRegister(export_name)
             .CallRuntime(Runtime::kLoadModuleExport, export_name, 1);
       } else {
-        UNIMPLEMENTED();
+        auto it = descriptor->regular_imports().find(variable->raw_name());
+        DCHECK(it != descriptor->regular_imports().end());
+        register_allocator()->PrepareForConsecutiveAllocations(2);
+        Register import_name = register_allocator()->NextConsecutiveRegister();
+        Register module_request =
+            register_allocator()->NextConsecutiveRegister();
+        builder()
+            ->LoadLiteral(it->second->import_name->string())
+            .StoreAccumulatorInRegister(import_name)
+            .LoadLiteral(Smi::FromInt(it->second->module_request))
+            .StoreAccumulatorInRegister(module_request)
+            .CallRuntime(Runtime::kLoadModuleImport, import_name, 2);
       }
       break;
     }
@@ -2205,6 +2216,8 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
       DCHECK(variable->IsExport());
 
       ModuleDescriptor* mod = scope()->GetModuleScope()->module();
+      // There may be several export names for this local name, but it doesn't
+      // matter which one we pick, as they all map to the same cell.
       auto it = mod->regular_exports().find(variable->raw_name());
       DCHECK(it != mod->regular_exports().end());
 
