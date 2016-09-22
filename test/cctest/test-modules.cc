@@ -6,6 +6,8 @@
 
 #include "test/cctest/cctest.h"
 
+namespace {
+
 using v8::Context;
 using v8::HandleScope;
 using v8::Isolate;
@@ -17,17 +19,18 @@ using v8::ScriptOrigin;
 using v8::String;
 using v8::Value;
 
-static MaybeLocal<Module> AlwaysEmptyResolveCallback(Local<Context> context,
-                                                     Local<String> specifier,
-                                                     Local<Module> referrer,
-                                                     Local<Value> data) {
+MaybeLocal<Module> AlwaysEmptyResolveCallback(Local<Context> context,
+                                              Local<String> specifier,
+                                              Local<Module> referrer,
+                                              Local<Value> data) {
   return MaybeLocal<Module>();
 }
 
 static int g_count = 0;
-static MaybeLocal<Module> FailOnSecondCallResolveCallback(
-    Local<Context> context, Local<String> specifier, Local<Module> referrer,
-    Local<Value> data) {
+MaybeLocal<Module> FailOnSecondCallResolveCallback(Local<Context> context,
+                                                   Local<String> specifier,
+                                                   Local<Module> referrer,
+                                                   Local<Value> data) {
   if (g_count++ > 0) return MaybeLocal<Module>();
   Local<String> source_text = v8_str("");
   ScriptOrigin origin(v8_str("module.js"));
@@ -89,3 +92,20 @@ TEST(ModuleEvaluation) {
   CHECK(!module->Evaluate(env.local()).IsEmpty());
   ExpectInt32("Object.expando", 10);
 }
+
+TEST(EmbedderData) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+
+  Local<String> source_text = v8_str("");
+  ScriptOrigin origin(v8_str("file.js"));
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK(module->GetEmbedderData()->IsUndefined());
+  module->SetEmbedderData(v8_num(42));
+  CHECK_EQ(42, Local<v8::Int32>::Cast(module->GetEmbedderData())->Value());
+}
+
+}  // anonymous namespace

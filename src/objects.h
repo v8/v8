@@ -7945,6 +7945,9 @@ class Module : public Struct {
   // Storage for [[Evaluated]]
   DECL_INT_ACCESSORS(flags)
 
+  // Embedder-specified data
+  DECL_ACCESSORS(embedder_data, Object)
+
   static void CreateExport(Handle<Module> module, Handle<FixedArray> names);
   static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
   static void StoreExport(Handle<Module> module, Handle<String> name,
@@ -7957,7 +7960,8 @@ class Module : public Struct {
   static const int kExportsOffset = kCodeOffset + kPointerSize;
   static const int kRequestedModulesOffset = kExportsOffset + kPointerSize;
   static const int kFlagsOffset = kRequestedModulesOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+  static const int kEmbedderDataOffset = kFlagsOffset + kPointerSize;
+  static const int kSize = kEmbedderDataOffset + kPointerSize;
 
  private:
   enum { kEvaluatedBit };

@@ -1915,6 +1915,16 @@ Local<String> Module::GetModuleRequest(int i) const {
   return ToApiHandle<String>(i::handle(module_requests->get(i), isolate));
 }
 
+void Module::SetEmbedderData(Local<Value> data) {
+  Utils::OpenHandle(this)->set_embedder_data(*Utils::OpenHandle(*data));
+}
+
+Local<Value> Module::GetEmbedderData() const {
+  auto self = Utils::OpenHandle(this);
+  return ToApiHandle<Value>(
+      i::handle(self->embedder_data(), self->GetIsolate()));
+}
+
 bool Module::Instantiate(Local<Context> v8_context,
                          Module::ResolveCallback callback,
                          Local<Value> callback_data) {

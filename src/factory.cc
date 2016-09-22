@@ -1764,6 +1764,7 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   module->set_exports(*exports);
   module->set_requested_modules(*requested_modules);
   module->set_flags(0);
+  module->set_embedder_data(isolate()->heap()->undefined_value());
   return module;
 }
 
