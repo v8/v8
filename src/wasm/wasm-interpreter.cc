@@ -941,7 +941,7 @@ class CodeMap {
     if (function->func_index < interpreter_code_.size()) {
       InterpreterCode* code = &interpreter_code_[function->func_index];
       DCHECK_EQ(function, code->function);
-      return code;
+      return Preprocess(code);
     }
     return nullptr;
   }
