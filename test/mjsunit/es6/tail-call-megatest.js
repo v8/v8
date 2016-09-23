@@ -25,11 +25,10 @@ function checkStackTrace(expected) {
 
 var CAN_INLINE_COMMENT  = "// Let it be inlined.";
 var DONT_INLINE_COMMENT = (function() {
-  var line = "1";
-  for (var i = 0; i < 200; ++i) {
-    line += "," + i;
+  var line = "// Don't inline. Don't inline. Don't inline. Don't inline.";
+  for (var i = 0; i < 4; i++) {
+    line += "\n  " + line;
   }
-  line += ";\n";
   return line;
 })();
 

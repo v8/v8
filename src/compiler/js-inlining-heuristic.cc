@@ -49,6 +49,11 @@ bool CanInlineFunction(Handle<JSFunction> function) {
   // Don't inline builtins.
   if (function->shared()->IsBuiltin()) return false;
 
+  // Quick check on source code length to avoid parsing large candidate.
+  if (function->shared()->SourceSize() > FLAG_max_inlined_source_size) {
+    return false;
+  }
+
   // Quick check on the size of the AST to avoid parsing large candidate.
   if (function->shared()->ast_node_count() > FLAG_max_inlined_nodes) {
     return false;
@@ -282,7 +287,9 @@ void JSInliningHeuristic::PrintCandidates() {
            candidate.node->op()->mnemonic(), candidate.frequency);
     for (int i = 0; i < candidate.num_functions; ++i) {
       Handle<JSFunction> function = candidate.functions[i];
-      PrintF("  - size:%d, name: %s\n", function->shared()->ast_node_count(),
+      PrintF("  - size[source]:%d, size[ast]:%d, name: %s\n",
+             function->shared()->SourceSize(),
+             function->shared()->ast_node_count(),
              function->shared()->DebugName()->ToCString().get());
     }
   }
