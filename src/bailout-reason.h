@@ -20,7 +20,6 @@ namespace internal {
   V(kArgumentsObjectValueInATestContext,                                       \
     "Arguments object value in a test context")                                \
   V(kArrayIndexConstantValueTooBig, "Array index constant value too big")      \
-  V(kAssignmentToArguments, "Assignment to arguments")                         \
   V(kAssignmentToLetVariableBeforeInitialization,                              \
     "Assignment to let variable before initialization")                        \
   V(kAssignmentToLOOKUPVariable, "Assignment to LOOKUP variable")              \

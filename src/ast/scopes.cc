@@ -586,21 +586,17 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
   DCHECK(is_function_scope());
   DCHECK(!is_arrow_scope());
 
-  // Check if there's lexically declared variable named arguments to avoid
-  // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
-  Variable* arg_variable = LookupLocal(ast_value_factory->arguments_string());
-  if (arg_variable != nullptr && IsLexicalVariableMode(arg_variable->mode())) {
-    return;
-  }
-
-  // Declare 'arguments' variable which exists in all non arrow functions.
-  // Note that it might never be accessed, in which case it won't be
-  // allocated during variable allocation.
-  if (arg_variable == nullptr) {
+  arguments_ = LookupLocal(ast_value_factory->arguments_string());
+  if (arguments_ == nullptr) {
+    // Declare 'arguments' variable which exists in all non arrow functions.
+    // Note that it might never be accessed, in which case it won't be
+    // allocated during variable allocation.
     arguments_ = Declare(zone(), this, ast_value_factory->arguments_string(),
-                         VAR, ARGUMENTS_VARIABLE, kCreatedInitialized);
-  } else {
-    arguments_ = arg_variable;
+                         VAR, NORMAL_VARIABLE, kCreatedInitialized);
+  } else if (IsLexicalVariableMode(arguments_->mode())) {
+    // Check if there's lexically declared variable named arguments to avoid
+    // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
+    arguments_ = nullptr;
   }
 }
 

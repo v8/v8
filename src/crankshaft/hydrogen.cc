@@ -6934,8 +6934,6 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
       }
     }
 
-    if (var->is_arguments()) return Bailout(kAssignmentToArguments);
-
     // Handle the assignment.
     switch (var->location()) {
       case VariableLocation::UNALLOCATED:
@@ -9314,8 +9312,6 @@ bool HOptimizedGraphBuilder::TryIndirectCall(Call* expr) {
     case kFunctionApply: {
       // For .apply, only the pattern f.apply(receiver, arguments)
       // is supported.
-      if (current_info()->scope()->arguments() == NULL) return false;
-
       if (!CanBeFunctionApplyArguments(expr)) return false;
 
       BuildFunctionApply(expr);
@@ -9334,6 +9330,10 @@ void HOptimizedGraphBuilder::BuildFunctionApply(Call* expr) {
   HValue* receiver = Pop();  // receiver
   HValue* function = Pop();  // f
   Drop(1);  // apply
+
+  // Make sure the arguments object is live.
+  VariableProxy* arg_two = args->at(1)->AsVariableProxy();
+  LookupAndMakeLive(arg_two->var());
 
   Handle<Map> function_map = expr->GetReceiverTypes()->first();
   HValue* checked_function = AddCheckMap(function, function_map);
@@ -9580,8 +9580,9 @@ bool HOptimizedGraphBuilder::CanBeFunctionApplyArguments(Call* expr) {
   if (args->length() != 2) return false;
   VariableProxy* arg_two = args->at(1)->AsVariableProxy();
   if (arg_two == NULL || !arg_two->var()->IsStackAllocated()) return false;
-  HValue* arg_two_value = LookupAndMakeLive(arg_two->var());
+  HValue* arg_two_value = environment()->Lookup(arg_two->var());
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
+  DCHECK_NOT_NULL(current_info()->scope()->arguments());
   return true;
 }
 

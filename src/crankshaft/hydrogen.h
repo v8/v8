@@ -2300,11 +2300,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
                                                 int index,
                                                 HEnvironment* env) {
     if (!FLAG_analyze_environment_liveness) return false;
-    // |this| and |arguments| are always live; zapping parameters isn't
-    // safe because function.arguments can inspect them at any time.
-    return !var->is_this() &&
-           !var->is_arguments() &&
-           env->is_local_index(index);
+    // Zapping parameters isn't safe because function.arguments can inspect them
+    // at any time.
+    return env->is_local_index(index);
   }
   void BindIfLive(Variable* var, HValue* value) {
     HEnvironment* env = environment();
