@@ -340,14 +340,14 @@ static inline bool IsLittleEndianByteOrderMark(uc32 c) {
   return c == 0xFFFE;
 }
 
-
 bool Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
   while (true) {
     while (true) {
-      // The unicode cache accepts unsigned inputs.
+      // Don't skip behind the end of input.
       if (c0_ == kEndOfInput) break;
+
       // Advance as long as character is a WhiteSpace or LineTerminator.
       // Remember if the latter is the case.
       if (unicode_cache_->IsLineTerminator(c0_)) {
@@ -363,25 +363,27 @@ bool Scanner::SkipWhiteSpace() {
     // line (with only whitespace in front of it), we treat the rest
     // of the line as a comment. This is in line with the way
     // SpiderMonkey handles it.
-    if (c0_ == '-' && has_line_terminator_before_next_) {
-      Advance();
-      if (c0_ == '-') {
-        Advance();
-        if (c0_ == '>') {
-          // Treat the rest of the line as a comment.
-          SkipSingleLineComment();
-          // Continue skipping white space after the comment.
-          continue;
-        }
-        PushBack('-');  // undo Advance()
-      }
-      PushBack('-');  // undo Advance()
-    }
-    // Return whether or not we skipped any characters.
-    return source_pos() != start_position;
-  }
-}
+    if (c0_ != '-' || !has_line_terminator_before_next_) break;
 
+    Advance();
+    if (c0_ != '-') {
+      PushBack('-');  // undo Advance()
+      break;
+    }
+
+    Advance();
+    if (c0_ != '>') {
+      PushBack2('-', '-');  // undo 2x Advance();
+      break;
+    }
+
+    // Treat the rest of the line as a comment.
+    SkipSingleLineComment();
+  }
+
+  // Return whether or not we skipped any characters.
+  return source_pos() != start_position;
+}
 
 Token::Value Scanner::SkipSingleLineComment() {
   Advance();
@@ -485,24 +487,24 @@ Token::Value Scanner::SkipMultiLineComment() {
   return Token::ILLEGAL;
 }
 
-
 Token::Value Scanner::ScanHtmlComment() {
   // Check for <!-- comments.
   DCHECK(c0_ == '!');
   Advance();
-  if (c0_ == '-') {
-    Advance();
-    if (c0_ == '-') {
-      found_html_comment_ = true;
-      return SkipSingleLineComment();
-    }
-    PushBack('-');  // undo Advance()
+  if (c0_ != '-') {
+    PushBack('!');  // undo Advance()
+    return Token::LT;
   }
-  PushBack('!');  // undo Advance()
-  DCHECK(c0_ == '!');
-  return Token::LT;
-}
 
+  Advance();
+  if (c0_ != '-') {
+    PushBack2('-', '!');  // undo 2x Advance()
+    return Token::LT;
+  }
+
+  found_html_comment_ = true;
+  return SkipSingleLineComment();
+}
 
 void Scanner::Scan() {
   next_.literal_chars = NULL;

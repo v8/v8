@@ -25,6 +25,10 @@ std::unique_ptr<Scanner> make_scanner(const char* src) {
 
 }  // anonymous namespace
 
+// DCHECK_TOK checks token equality, but by checking for equality of the token
+// names. That should have the same result, but has much nicer error messaages.
+#define DCHECK_TOK(a, b) DCHECK_EQ(Token::Name(a), Token::Name(b))
+
 TEST(Bookmarks) {
   // Scan through the given source and record the tokens for use as reference
   // below.
@@ -51,12 +55,33 @@ TEST(Bookmarks) {
       if (i == bookmark_pos) {
         bookmark.Set();
       }
-      DCHECK_EQ(tokens[i], scanner->Next());
+      DCHECK_TOK(tokens[i], scanner->Next());
     }
 
     bookmark.Apply();
     for (size_t i = bookmark_pos; i < tokens.size(); i++) {
-      DCHECK_EQ(tokens[i], scanner->Next());
+      DCHECK_TOK(tokens[i], scanner->Next());
     }
+  }
+}
+
+TEST(AllThePushbacks) {
+  const struct {
+    const char* src;
+    const Token::Value tokens[5];  // Large enough for any of the test cases.
+  } test_cases[] = {
+      {"<-x", {Token::LT, Token::SUB, Token::IDENTIFIER, Token::EOS}},
+      {"<!x", {Token::LT, Token::NOT, Token::IDENTIFIER, Token::EOS}},
+      {"<!-x",
+       {Token::LT, Token::NOT, Token::SUB, Token::IDENTIFIER, Token::EOS}},
+      {"<!-- xx -->\nx", {Token::IDENTIFIER, Token::EOS}},
+  };
+
+  for (const auto& test_case : test_cases) {
+    auto scanner = make_scanner(test_case.src);
+    for (size_t i = 0; test_case.tokens[i] != Token::EOS; i++) {
+      DCHECK_TOK(test_case.tokens[i], scanner->Next());
+    }
+    DCHECK_TOK(Token::EOS, scanner->Next());
   }
 }
