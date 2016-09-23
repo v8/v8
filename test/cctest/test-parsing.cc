@@ -3370,7 +3370,7 @@ TEST(InnerAssignment) {
     { "(function(x) { eval(''); })", true, false },
   };
 
-  // Used to trigger lazy compilation of function
+  // Used to trigger lazy parsing of the outer function.
   int comment_len = 2048;
   i::ScopedVector<char> comment(comment_len + 1);
   i::SNPrintF(comment, "/*%0*d*/", comment_len - 4, 0);
@@ -3381,47 +3381,42 @@ TEST(InnerAssignment) {
     const char* outer = outers[i].source;
     int outer_len = Utf8LengthHelper(outer);
     for (unsigned j = 0; j < arraysize(inners); ++j) {
-      for (unsigned outer_lazy = 0; outer_lazy < 2; ++outer_lazy) {
-        for (unsigned inner_lazy = 0; inner_lazy < 2; ++inner_lazy) {
-          if (outers[i].strict && inners[j].with) continue;
-          const char* inner = inners[j].source;
-          int inner_len = Utf8LengthHelper(inner);
+      for (unsigned lazy = 0; lazy < 2; ++lazy) {
+        if (outers[i].strict && inners[j].with) continue;
+        const char* inner = inners[j].source;
+        int inner_len = Utf8LengthHelper(inner);
 
-          int outer_comment_len = outer_lazy ? comment_len : 0;
-          int inner_comment_len = inner_lazy ? comment_len : 0;
-          const char* outer_comment = outer_lazy ? comment.start() : "";
-          const char* inner_comment = inner_lazy ? comment.start() : "";
-          int len = prefix_len + outer_comment_len + outer_len + midfix_len +
-                    inner_comment_len + inner_len + suffix_len;
-          i::ScopedVector<char> program(len + 1);
+        const char* comment_chars = lazy ? comment.start() : "";
+        int len = prefix_len + (lazy ? comment_len : 0) + outer_len +
+                  midfix_len + inner_len + suffix_len;
+        i::ScopedVector<char> program(len + 1);
 
-          i::SNPrintF(program, "%s%s%s%s%s%s%s", prefix, outer_comment, outer,
-                      midfix, inner_comment, inner, suffix);
-          i::Handle<i::String> source =
-              factory->InternalizeUtf8String(program.start());
-          source->PrintOn(stdout);
-          printf("\n");
+        i::SNPrintF(program, "%s%s%s%s%s%s", comment_chars, prefix, outer,
+                    midfix, inner, suffix);
+        i::Handle<i::String> source =
+            factory->InternalizeUtf8String(program.start());
+        source->PrintOn(stdout);
+        printf("\n");
 
-          i::Handle<i::Script> script = factory->NewScript(source);
-          i::Zone zone(CcTest::i_isolate()->allocator());
-          i::ParseInfo info(&zone, script);
-          i::Parser parser(&info);
-          CHECK(parser.Parse(&info));
-          CHECK(i::Compiler::Analyze(&info));
-          CHECK(info.literal() != NULL);
+        i::Handle<i::Script> script = factory->NewScript(source);
+        i::Zone zone(CcTest::i_isolate()->allocator());
+        i::ParseInfo info(&zone, script);
+        i::Parser parser(&info);
+        CHECK(parser.Parse(&info));
+        CHECK(i::Compiler::Analyze(&info));
+        CHECK(info.literal() != NULL);
 
-          i::Scope* scope = info.literal()->scope();
-          i::Scope* inner_scope = scope->inner_scope();
-          DCHECK_NOT_NULL(inner_scope);
-          DCHECK_NULL(inner_scope->sibling());
-          const i::AstRawString* var_name =
-              info.ast_value_factory()->GetOneByteString("x");
-          i::Variable* var = inner_scope->Lookup(var_name);
-          bool expected = outers[i].assigned || inners[j].assigned;
-          CHECK(var != NULL);
-          CHECK(var->is_used() || !expected);
-          CHECK((var->maybe_assigned() == i::kMaybeAssigned) == expected);
-        }
+        i::Scope* scope = info.literal()->scope();
+        i::Scope* inner_scope = scope->inner_scope();
+        DCHECK_NOT_NULL(inner_scope);
+        DCHECK_NULL(inner_scope->sibling());
+        const i::AstRawString* var_name =
+            info.ast_value_factory()->GetOneByteString("x");
+        i::Variable* var = inner_scope->Lookup(var_name);
+        bool expected = outers[i].assigned || inners[j].assigned;
+        CHECK(var != NULL);
+        CHECK(var->is_used() || !expected);
+        CHECK((var->maybe_assigned() == i::kMaybeAssigned) == expected);
       }
     }
   }
