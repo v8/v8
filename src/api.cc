@@ -8322,7 +8322,6 @@ void Isolate::IsolateInBackgroundNotification() {
 void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->MemoryPressureNotification(level, Locker::IsLocked(this));
-  isolate->allocator()->MemoryPressureNotification(level);
 }
 
 void Isolate::SetRAILMode(RAILMode rail_mode) {

@@ -25,7 +25,7 @@ namespace internal {
 //
 // Note: There is no need to initialize the Zone; the first time an
 // allocation is attempted, a segment of memory will be requested
-// through the allocator.
+// through a call to malloc().
 //
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
@@ -44,8 +44,13 @@ class Zone final {
     return static_cast<T*>(New(length * sizeof(T)));
   }
 
-  // Deletes all objects and free all memory allocated in the Zone.
+  // Deletes all objects and free all memory allocated in the Zone. Keeps one
+  // small (size <= kMaximumKeptSegmentSize) segment around if it finds one.
   void DeleteAll();
+
+  // Deletes the last small segment kept around by DeleteAll(). You
+  // may no longer allocate in the Zone after a call to this method.
+  void DeleteKeptSegment();
 
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
@@ -73,6 +78,9 @@ class Zone final {
 
   // Never allocate segments larger than this size in bytes.
   static const size_t kMaximumSegmentSize = 1 * MB;
+
+  // Never keep segments larger than this size in bytes around.
+  static const size_t kMaximumKeptSegmentSize = 64 * KB;
 
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
