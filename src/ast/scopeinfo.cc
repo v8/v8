@@ -871,13 +871,13 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
     }
   }
 
-  // Serialize special imports.
-  Handle<FixedArray> special_imports =
-      isolate->factory()->NewFixedArray(descr->special_imports().length());
+  // Serialize namespace imports.
+  Handle<FixedArray> namespace_imports =
+      isolate->factory()->NewFixedArray(descr->namespace_imports().length());
   {
     int i = 0;
-    for (auto entry : descr->special_imports()) {
-      special_imports->set(i++, *entry->Serialize(isolate));
+    for (auto entry : descr->namespace_imports()) {
+      namespace_imports->set(i++, *entry->Serialize(isolate));
     }
   }
 
@@ -899,7 +899,7 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   result->set(kModuleRequestsIndex, *module_requests);
   result->set(kSpecialExportsIndex, *special_exports);
   result->set(kRegularExportsIndex, *regular_exports);
-  result->set(kSpecialImportsIndex, *special_imports);
+  result->set(kNamespaceImportsIndex, *namespace_imports);
   result->set(kRegularImportsIndex, *regular_imports);
   return result;
 }

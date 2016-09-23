@@ -23,19 +23,14 @@ void ModuleDescriptor::AddImport(
 void ModuleDescriptor::AddStarImport(
     const AstRawString* local_name, const AstRawString* module_request,
     Scanner::Location loc, Zone* zone) {
-  DCHECK_NOT_NULL(local_name);
   Entry* entry = new (zone) Entry(loc);
   entry->local_name = local_name;
   entry->module_request = AddModuleRequest(module_request);
-  AddSpecialImport(entry, zone);
+  AddNamespaceImport(entry, zone);
 }
 
-
-void ModuleDescriptor::AddEmptyImport(
-    const AstRawString* module_request, Scanner::Location loc, Zone* zone) {
-  Entry* entry = new (zone) Entry(loc);
-  entry->module_request = AddModuleRequest(module_request);
-  AddSpecialImport(entry, zone);
+void ModuleDescriptor::AddEmptyImport(const AstRawString* module_request) {
+  AddModuleRequest(module_request);
 }
 
 

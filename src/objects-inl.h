@@ -7985,8 +7985,8 @@ FixedArray* ModuleInfo::regular_imports() const {
   return FixedArray::cast(get(kRegularImportsIndex));
 }
 
-FixedArray* ModuleInfo::special_imports() const {
-  return FixedArray::cast(get(kSpecialImportsIndex));
+FixedArray* ModuleInfo::namespace_imports() const {
+  return FixedArray::cast(get(kNamespaceImportsIndex));
 }
 
 #ifdef DEBUG
@@ -7994,7 +7994,7 @@ bool ModuleInfo::Equals(ModuleInfo* other) const {
   return regular_exports() == other->regular_exports() &&
          regular_imports() == other->regular_imports() &&
          special_exports() == other->special_exports() &&
-         special_imports() == other->special_imports();
+         namespace_imports() == other->namespace_imports();
 }
 #endif
 

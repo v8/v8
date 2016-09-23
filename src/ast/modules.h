@@ -21,7 +21,7 @@ class ModuleDescriptor : public ZoneObject {
   explicit ModuleDescriptor(Zone* zone)
       : module_requests_(zone),
         special_exports_(1, zone),
-        special_imports_(1, zone),
+        namespace_imports_(1, zone),
         regular_exports_(zone),
         regular_imports_(zone) {}
 
@@ -44,9 +44,7 @@ class ModuleDescriptor : public ZoneObject {
   // import "foo.js";
   // import {} from "foo.js";
   // export {} from "foo.js";  (sic!)
-  void AddEmptyImport(
-      const AstRawString* module_request, const Scanner::Location loc,
-      Zone* zone);
+  void AddEmptyImport(const AstRawString* module_request);
 
   // export {x};
   // export {x as y};
@@ -106,9 +104,9 @@ class ModuleDescriptor : public ZoneObject {
     return module_requests_;
   }
 
-  // Empty imports and namespace imports.
-  const ZoneList<const Entry*>& special_imports() const {
-    return special_imports_;
+  // Namespace imports.
+  const ZoneList<const Entry*>& namespace_imports() const {
+    return namespace_imports_;
   }
 
   // All the remaining imports, indexed by local name.
@@ -151,10 +149,12 @@ class ModuleDescriptor : public ZoneObject {
     // case we will report an error when declaring the variable.
   }
 
-  void AddSpecialImport(const Entry* entry, Zone* zone) {
+  void AddNamespaceImport(const Entry* entry, Zone* zone) {
+    DCHECK_NULL(entry->import_name);
     DCHECK_NULL(entry->export_name);
+    DCHECK_NOT_NULL(entry->local_name);
     DCHECK_LE(0, entry->module_request);
-    special_imports_.Add(entry, zone);
+    namespace_imports_.Add(entry, zone);
   }
 
   Handle<FixedArray> SerializeRegularExports(Isolate* isolate,
@@ -166,7 +166,7 @@ class ModuleDescriptor : public ZoneObject {
   // TODO(neis): Use STL datastructure instead of ZoneList?
   ZoneMap<const AstRawString*, int> module_requests_;
   ZoneList<const Entry*> special_exports_;
-  ZoneList<const Entry*> special_imports_;
+  ZoneList<const Entry*> namespace_imports_;
   ZoneMultimap<const AstRawString*, Entry*> regular_exports_;
   ZoneMap<const AstRawString*, const Entry*> regular_imports_;
 

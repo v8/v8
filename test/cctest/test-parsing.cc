@@ -6169,10 +6169,10 @@ TEST(ModuleParsingInternals) {
     CheckEntry(entry, "y", "x", nullptr, -1);
   }
 
-  CHECK_EQ(3, descriptor->special_imports().length());
-  CheckEntry(descriptor->special_imports().at(0), nullptr, nullptr, nullptr, 3);
-  CheckEntry(descriptor->special_imports().at(1), nullptr, "loo", nullptr, 4);
-  CheckEntry(descriptor->special_imports().at(2), nullptr, "foob", nullptr, 4);
+  CHECK_EQ(2, descriptor->namespace_imports().length());
+  CheckEntry(descriptor->namespace_imports().at(0), nullptr, "loo", nullptr, 4);
+  CheckEntry(descriptor->namespace_imports().at(1), nullptr, "foob", nullptr,
+             4);
 
   CHECK_EQ(4, descriptor->regular_imports().size());
   entry = descriptor->regular_imports().find(

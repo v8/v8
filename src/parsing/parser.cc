@@ -1208,7 +1208,7 @@ void Parser::ParseImportDeclaration(bool* ok) {
   if (tok == Token::STRING) {
     const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK_VOID);
     ExpectSemicolon(CHECK_OK_VOID);
-    module()->AddEmptyImport(module_specifier, scanner()->location(), zone());
+    module()->AddEmptyImport(module_specifier);
     return;
   }
 
@@ -1276,7 +1276,7 @@ void Parser::ParseImportDeclaration(bool* ok) {
 
   if (named_imports != nullptr) {
     if (named_imports->length() == 0) {
-      module()->AddEmptyImport(module_specifier, scanner()->location(), zone());
+      module()->AddEmptyImport(module_specifier);
     } else {
       for (int i = 0; i < named_imports->length(); ++i) {
         const NamedImport* import = named_imports->at(i);
@@ -1415,8 +1415,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
                               export_locations[i], zone());
         }
       } else if (length == 0) {
-        module()->AddEmptyImport(module_specifier, scanner()->location(),
-                                 zone());
+        module()->AddEmptyImport(module_specifier);
       } else {
         for (int i = 0; i < length; ++i) {
           module()->AddExport(original_names[i], export_names[i],

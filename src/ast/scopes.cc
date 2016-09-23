@@ -185,12 +185,13 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   module_descriptor_->DeserializeRegularExports(isolate, avfactory,
                                                 regular_exports);
 
-  // Deserialize special imports.
-  Handle<FixedArray> special_imports(module_info->special_imports(), isolate);
-  for (int i = 0, n = special_imports->length(); i < n; ++i) {
+  // Deserialize namespace imports.
+  Handle<FixedArray> namespace_imports(module_info->namespace_imports(),
+                                       isolate);
+  for (int i = 0, n = namespace_imports->length(); i < n; ++i) {
     Handle<ModuleInfoEntry> serialized_entry(
-        ModuleInfoEntry::cast(special_imports->get(i)), isolate);
-    module_descriptor_->AddSpecialImport(
+        ModuleInfoEntry::cast(namespace_imports->get(i)), isolate);
+    module_descriptor_->AddNamespaceImport(
         ModuleDescriptor::Entry::Deserialize(isolate, avfactory,
                                              serialized_entry),
         avfactory->zone());

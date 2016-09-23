@@ -4587,7 +4587,7 @@ class ModuleInfo : public FixedArray {
   inline FixedArray* module_requests() const;
   inline FixedArray* special_exports() const;
   inline FixedArray* regular_exports() const;
-  inline FixedArray* special_imports() const;
+  inline FixedArray* namespace_imports() const;
   inline FixedArray* regular_imports() const;
 
 #ifdef DEBUG
@@ -4600,7 +4600,7 @@ class ModuleInfo : public FixedArray {
     kModuleRequestsIndex,
     kSpecialExportsIndex,
     kRegularExportsIndex,
-    kSpecialImportsIndex,
+    kNamespaceImportsIndex,
     kRegularImportsIndex,
     kLength
   };
