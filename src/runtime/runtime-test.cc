@@ -420,8 +420,8 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2 || args.length() == 3);
 #ifdef DEBUG
-  CONVERT_INT32_ARG_CHECKED(interval, 0);
-  CONVERT_INT32_ARG_CHECKED(timeout, 1);
+  CONVERT_SMI_ARG_CHECKED(interval, 0);
+  CONVERT_SMI_ARG_CHECKED(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
   FLAG_gc_interval = interval;
   if (args.length() == 3) {
