@@ -513,11 +513,18 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
 namespace {
 
-bool IsAbsolutePath(const char* path) {
+std::string ToSTLString(Local<String> v8_str) {
+  String::Utf8Value utf8(v8_str);
+  // Should not be able to fail since the input is a String.
+  CHECK(*utf8);
+  return *utf8;
+}
+
+bool IsAbsolutePath(const std::string& path) {
 #if defined(_WIN32) || defined(_WIN64)
   // TODO(adamk): This is an incorrect approximation, but should
   // work for all our test-running cases.
-  return strchr(path, ':') != nullptr;
+  return path.find(':') != std::string::npos;
 #else
   return path[0] == '/';
 #endif
@@ -537,11 +544,17 @@ std::string GetWorkingDirectory() {
 #endif
 }
 
+// Returns the directory part of path, without the trailing '/'.
 std::string DirName(const std::string& path) {
-  DCHECK(IsAbsolutePath(path.c_str()));
-  size_t last_slash = path.find_last_of("/\\");
+  DCHECK(IsAbsolutePath(path));
+  size_t last_slash = path.find_last_of('/');
   DCHECK(last_slash != std::string::npos);
-  return path.substr(0, last_slash + 1);
+  return path.substr(0, last_slash);
+}
+
+std::string EnsureAbsolutePath(const std::string& path,
+                               const std::string& dir_name) {
+  return IsAbsolutePath(path) ? path : dir_name + '/' + path;
 }
 
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
@@ -551,11 +564,9 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
   Isolate* isolate = context->GetIsolate();
   auto module_map = static_cast<std::map<std::string, Global<Module>>*>(
       External::Cast(*data)->Value());
-  String::Utf8Value specifier_utf8(specifier);
-  CHECK(!IsAbsolutePath(*specifier_utf8));
   Local<String> dir_name = Local<String>::Cast(referrer->GetEmbedderData());
-  std::string absolute_path = *String::Utf8Value(dir_name);
-  absolute_path.append(*specifier_utf8);
+  std::string absolute_path =
+      EnsureAbsolutePath(ToSTLString(specifier), ToSTLString(dir_name));
   auto it = module_map->find(absolute_path);
   if (it != module_map->end()) {
     return it->second.Get(isolate);
@@ -568,7 +579,7 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
 MaybeLocal<Module> Shell::FetchModuleTree(
     Isolate* isolate, const std::string& file_name,
     std::map<std::string, Global<Module>>* module_map) {
-  DCHECK(IsAbsolutePath(file_name.c_str()));
+  DCHECK(IsAbsolutePath(file_name));
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
   Local<String> source_text = ReadFile(isolate, file_name.c_str());
@@ -595,14 +606,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(
 
   for (int i = 0, length = module->GetModuleRequestsLength(); i < length; ++i) {
     Local<String> name = module->GetModuleRequest(i);
-    String::Utf8Value utf8_value(name);
-    std::string absolute_path;
-    if (IsAbsolutePath(*utf8_value)) {
-      absolute_path = *utf8_value;
-    } else {
-      absolute_path = dir_name;
-      absolute_path.append(*utf8_value);
-    }
+    std::string absolute_path = EnsureAbsolutePath(ToSTLString(name), dir_name);
     if (!module_map->count(absolute_path)) {
       if (FetchModuleTree(isolate, absolute_path, module_map).IsEmpty()) {
         return MaybeLocal<Module>();
@@ -616,14 +620,9 @@ MaybeLocal<Module> Shell::FetchModuleTree(
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   HandleScope handle_scope(isolate);
 
-  std::string absolute_path;
-  if (IsAbsolutePath(file_name)) {
-    absolute_path = file_name;
-  } else {
-    absolute_path = GetWorkingDirectory();
-    absolute_path.push_back('/');
-    absolute_path.append(file_name);
-  }
+  std::string absolute_path =
+      EnsureAbsolutePath(file_name, GetWorkingDirectory());
+  std::replace(absolute_path.begin(), absolute_path.end(), '\\', '/');
 
   Local<Module> root_module;
   std::map<std::string, Global<Module>> module_map;
