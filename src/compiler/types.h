@@ -22,13 +22,7 @@ namespace compiler {
 // can express class types (a.k.a. specific maps) and singleton types (i.e.,
 // concrete constants).
 //
-// Types consist of two dimensions: semantic (value range) and representation.
-// Both are related through subtyping.
-//
-//
-// SEMANTIC DIMENSION
-//
-// The following equations and inequations hold for the semantic axis:
+// The following equations and inequations hold:
 //
 //   None <= T
 //   T <= Any
@@ -40,7 +34,6 @@ namespace compiler {
 //   InternalizedString < String
 //
 //   Receiver = Object \/ Proxy
-//   RegExp < Object
 //   OtherUndetectable < Object
 //   DetectableReceiver = Receiver - OtherUndetectable
 //
@@ -103,18 +96,13 @@ namespace compiler {
 
 // clang-format off
 
-#define MASK_BITSET_TYPE_LIST(V) \
-  V(Semantic,       0xfffffffeu)
-
-#define SEMANTIC(k)       ((k) & BitsetType::kSemantic)
-
 #define INTERNAL_BITSET_TYPE_LIST(V)                                      \
   V(OtherUnsigned31, 1u << 1)  \
   V(OtherUnsigned32, 1u << 2)  \
   V(OtherSigned32,   1u << 3)  \
   V(OtherNumber,     1u << 4)  \
 
-#define SEMANTIC_BITSET_TYPE_LIST(V) \
+#define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                0u)        \
   V(Negative31,          1u << 5)   \
   V(Null,                1u << 6)   \
@@ -193,13 +181,9 @@ namespace compiler {
  * occur as part of PlainNumber.
  */
 
-#define PROPER_BITSET_TYPE_LIST(V)   \
-  SEMANTIC_BITSET_TYPE_LIST(V)
-
-#define BITSET_TYPE_LIST(V)          \
-  MASK_BITSET_TYPE_LIST(V)           \
-  INTERNAL_BITSET_TYPE_LIST(V)       \
-  SEMANTIC_BITSET_TYPE_LIST(V)
+#define BITSET_TYPE_LIST(V)    \
+  INTERNAL_BITSET_TYPE_LIST(V) \
+  PROPER_BITSET_TYPE_LIST(V)
 
 class Type;
 
@@ -224,11 +208,7 @@ class BitsetType {
     return static_cast<bitset>(reinterpret_cast<uintptr_t>(this) ^ 1u);
   }
 
-  static bool IsInhabited(bitset bits) { return SemanticIsInhabited(bits); }
-
-  static bool SemanticIsInhabited(bitset bits) {
-    return SEMANTIC(bits) != kNone;
-  }
+  static bool IsInhabited(bitset bits) { return bits != kNone; }
 
   static bool Is(bitset bits1, bitset bits2) {
     return (bits1 | bits2) == bits2;
@@ -371,7 +351,7 @@ class RangeType : public TypeBase {
   static Type* New(Limits lim, Zone* zone) {
     DCHECK(IsInteger(lim.min) && IsInteger(lim.max));
     DCHECK(lim.min <= lim.max);
-    BitsetType::bitset bits = SEMANTIC(BitsetType::Lub(lim.min, lim.max));
+    BitsetType::bitset bits = BitsetType::Lub(lim.min, lim.max);
 
     return AsType(new (zone->New(sizeof(RangeType))) RangeType(bits, lim));
   }
@@ -526,9 +506,6 @@ class Type {
   }
   static Type* For(i::Handle<i::Map> map) { return For(*map); }
 
-  // Extraction of components.
-  static Type* Semantic(Type* t, Zone* zone);
-
   // Predicates.
   bool IsInhabited() { return BitsetType::IsInhabited(this->BitsetLub()); }
 
@@ -627,14 +604,10 @@ class Type {
   }
   UnionType* AsUnion() { return UnionType::cast(this); }
 
-  // Auxiliary functions.
-  bool SemanticMaybe(Type* that);
-
   bitset BitsetGlb() { return BitsetType::Glb(this); }
   bitset BitsetLub() { return BitsetType::Lub(this); }
 
   bool SlowIs(Type* that);
-  bool SemanticIs(Type* that);
 
   static bool Overlap(RangeType* lhs, RangeType* rhs);
   static bool Contains(RangeType* lhs, RangeType* rhs);
