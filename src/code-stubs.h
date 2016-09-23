@@ -69,8 +69,6 @@ class ObjectLiteral;
   /* --- HydrogenCodeStubs --- */             \
   V(NumberToString)                           \
   V(StringAdd)                                \
-  V(ToObject)                                 \
-  V(Typeof)                                   \
   /* These builtins w/ JS linkage are */      \
   /* just fast-cases of C++ builtins. They */ \
   /* require varg support from TF */          \
@@ -171,6 +169,8 @@ class ObjectLiteral;
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
   V(GrowArrayElements)                        \
+  V(ToObject)                                 \
+  V(Typeof)                                   \
   /* These are only called from FGC and */    \
   /* can be removed when we use ignition */   \
   /* only */                                  \
