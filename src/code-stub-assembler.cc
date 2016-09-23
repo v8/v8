@@ -3994,17 +3994,16 @@ compiler::Node* CodeStubAssembler::LoadTypeFeedbackVectorForStub() {
 void CodeStubAssembler::UpdateFeedback(compiler::Node* feedback,
                                        compiler::Node* type_feedback_vector,
                                        compiler::Node* slot_id) {
-  Label combine_feedback(this), record_feedback(this), end(this);
-
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
+  // TODO(interpreter): Consider passing the feedback as Smi already to avoid
+  // the tagging completely.
   Node* previous_feedback =
       LoadFixedArrayElement(type_feedback_vector, slot_id);
-  Node* untagged_previous_feedback = SmiUntag(previous_feedback);
-  Node* combined_feedback = Word32Or(untagged_previous_feedback, feedback);
-  StoreFixedArrayElement(type_feedback_vector, slot_id,
-                         SmiTag(combined_feedback), SKIP_WRITE_BARRIER);
+  Node* combined_feedback = SmiOr(previous_feedback, SmiFromWord32(feedback));
+  StoreFixedArrayElement(type_feedback_vector, slot_id, combined_feedback,
+                         SKIP_WRITE_BARRIER);
 }
 
 compiler::Node* CodeStubAssembler::LoadReceiverMap(compiler::Node* receiver) {

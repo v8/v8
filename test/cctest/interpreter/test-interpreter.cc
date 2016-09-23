@@ -413,7 +413,7 @@ TEST(InterpreterStringAdd) {
   for (size_t i = 0; i < arraysize(test_cases); i++) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
     FeedbackVectorSpec feedback_spec(&zone);
-    FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+    FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
     Handle<i::TypeFeedbackVector> vector =
         NewTypeFeedbackVector(isolate, &feedback_spec);
 
