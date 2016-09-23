@@ -1997,8 +1997,6 @@ Isolate::Isolate(bool enable_serializer)
       deferred_handles_head_(NULL),
       optimizing_compile_dispatcher_(NULL),
       stress_deopt_count_(0),
-      virtual_handler_register_(NULL),
-      virtual_slot_register_(NULL),
       next_optimization_id_(0),
       js_calls_from_api_counter_(0),
 #if TRACE_MAPS

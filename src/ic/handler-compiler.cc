@@ -441,22 +441,23 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   // Ensure that the StoreTransitionStub we are going to call has the same
   // number of stack arguments. This means that we don't have to adapt them
   // if we decide to call the transition or miss stub.
-  STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount ==
+  STATIC_ASSERT(Descriptor::kStackArgumentsCount ==
                 StoreTransitionDescriptor::kStackArgumentsCount);
-  STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 0 ||
-                StoreWithVectorDescriptor::kStackArgumentsCount == 3);
-  STATIC_ASSERT(StoreWithVectorDescriptor::kParameterCount -
-                    StoreWithVectorDescriptor::kValue ==
+  STATIC_ASSERT(Descriptor::kStackArgumentsCount == 0 ||
+                Descriptor::kStackArgumentsCount == 3);
+  STATIC_ASSERT(Descriptor::kParameterCount - Descriptor::kValue ==
                 StoreTransitionDescriptor::kParameterCount -
                     StoreTransitionDescriptor::kValue);
-  STATIC_ASSERT(StoreWithVectorDescriptor::kParameterCount -
-                    StoreWithVectorDescriptor::kSlot ==
+  STATIC_ASSERT(Descriptor::kParameterCount - Descriptor::kSlot ==
                 StoreTransitionDescriptor::kParameterCount -
                     StoreTransitionDescriptor::kSlot);
-  STATIC_ASSERT(StoreWithVectorDescriptor::kParameterCount -
-                    StoreWithVectorDescriptor::kVector ==
+  STATIC_ASSERT(Descriptor::kParameterCount - Descriptor::kVector ==
                 StoreTransitionDescriptor::kParameterCount -
                     StoreTransitionDescriptor::kVector);
+
+  if (Descriptor::kPassLastArgsOnStack) {
+    __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
+  }
 
   bool need_save_restore = IC::ShouldPushPopSlotAndVector(kind());
   if (need_save_restore) {
@@ -550,6 +551,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
   bool need_save_restore = false;
   if (RequiresFieldTypeChecks(field_type)) {
     need_save_restore = IC::ShouldPushPopSlotAndVector(kind());
+    if (Descriptor::kPassLastArgsOnStack) {
+      __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
+    }
     if (need_save_restore) PushVectorAndSlot();
     GenerateFieldTypeChecks(field_type, value(), &miss);
     if (need_save_restore) PopVectorAndSlot();
@@ -583,6 +587,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     GenerateTailCall(masm(), slow_stub);
   }
   Register holder = Frontend(name);
+  if (Descriptor::kPassLastArgsOnStack) {
+    __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
+  }
   GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
                           receiver(), scratch2(), true, value(), holder,
                           accessor_index);

@@ -1601,17 +1601,6 @@ ExternalReference ExternalReference::debug_after_break_target_address(
 }
 
 
-ExternalReference ExternalReference::virtual_handler_register(
-    Isolate* isolate) {
-  return ExternalReference(isolate->virtual_handler_register_address());
-}
-
-
-ExternalReference ExternalReference::virtual_slot_register(Isolate* isolate) {
-  return ExternalReference(isolate->virtual_slot_register_address());
-}
-
-
 ExternalReference ExternalReference::runtime_function_table_address(
     Isolate* isolate) {
   return ExternalReference(

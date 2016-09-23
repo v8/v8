@@ -3133,11 +3133,10 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
   Label load_smi_map, compare_map;
   Label start_polymorphic;
   Label pop_and_miss;
-  ExternalReference virtual_register =
-      ExternalReference::virtual_handler_register(masm->isolate());
 
   __ push(receiver);
-  __ push(vector);
+  // Value, vector and slot are passed on the stack, so no need to save/restore
+  // them.
 
   Register receiver_map = receiver;
   Register cached_map = vector;
@@ -3158,12 +3157,9 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
   Register handler = feedback;
   DCHECK(handler.is(StoreWithVectorDescriptor::ValueRegister()));
   __ mov(handler, FieldOperand(feedback, FixedArray::OffsetOfElementAt(1)));
-  __ pop(vector);
   __ pop(receiver);
   __ lea(handler, FieldOperand(handler, Code::kHeaderSize));
-  __ mov(Operand::StaticVariable(virtual_register), handler);
-  __ pop(handler);  // Pop "value".
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ jmp(handler);
 
   // Polymorphic, we have to loop from 2 to N
   __ bind(&start_polymorphic);
@@ -3187,11 +3183,8 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
                                FixedArray::kHeaderSize + kPointerSize));
   __ lea(handler, FieldOperand(handler, Code::kHeaderSize));
   __ pop(key);
-  __ pop(vector);
   __ pop(receiver);
-  __ mov(Operand::StaticVariable(virtual_register), handler);
-  __ pop(handler);  // Pop "value".
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ jmp(handler);
 
   __ bind(&prepare_next);
   __ add(counter, Immediate(Smi::FromInt(2)));
@@ -3201,7 +3194,6 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
   // We exhausted our array of map handler pairs.
   __ bind(&pop_and_miss);
   __ pop(key);
-  __ pop(vector);
   __ pop(receiver);
   __ jmp(miss);
 
@@ -3217,8 +3209,6 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
                                        Label* miss) {
   // The store ic value is on the stack.
   DCHECK(weak_cell.is(StoreWithVectorDescriptor::ValueRegister()));
-  ExternalReference virtual_register =
-      ExternalReference::virtual_handler_register(masm->isolate());
 
   // feedback initially contains the feedback array
   Label compare_smi_map;
@@ -3234,11 +3224,8 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
   __ mov(weak_cell, FieldOperand(vector, slot, times_half_pointer_size,
                                  FixedArray::kHeaderSize + kPointerSize));
   __ lea(weak_cell, FieldOperand(weak_cell, Code::kHeaderSize));
-  // Put the store ic value back in it's register.
-  __ mov(Operand::StaticVariable(virtual_register), weak_cell);
-  __ pop(weak_cell);  // Pop "value".
   // jump to the handler.
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ jmp(weak_cell);
 
   // In microbenchmarks, it made sense to unroll this code so that the call to
   // the handler is duplicated for a HeapObject receiver and a Smi receiver.
@@ -3248,10 +3235,8 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
   __ mov(weak_cell, FieldOperand(vector, slot, times_half_pointer_size,
                                  FixedArray::kHeaderSize + kPointerSize));
   __ lea(weak_cell, FieldOperand(weak_cell, Code::kHeaderSize));
-  __ mov(Operand::StaticVariable(virtual_register), weak_cell);
-  __ pop(weak_cell);  // Pop "value".
   // jump to the handler.
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ jmp(weak_cell);
 }
 
 void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
@@ -3281,10 +3266,7 @@ void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
       __ mov(vector, Operand(esp, 1 * kPointerSize));
     }
     __ mov(slot, Operand(esp, 2 * kPointerSize));
-    __ mov(value, Operand(esp, 3 * kPointerSize));
   }
-
-  __ push(value);
 
   Register scratch = value;
   __ mov(scratch, FieldOperand(vector, slot, times_half_pointer_size,
@@ -3308,19 +3290,9 @@ void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ CompareRoot(scratch, Heap::kmegamorphic_symbolRootIndex);
   __ j(not_equal, &miss);
 
-  __ pop(value);
-  __ push(slot);
-  __ push(vector);
   masm->isolate()->store_stub_cache()->GenerateProbe(masm, receiver, key, slot,
                                                      no_reg);
-  __ pop(vector);
-  __ pop(slot);
-  Label no_pop_miss;
-  __ jmp(&no_pop_miss);
-
   __ bind(&miss);
-  __ pop(value);
-  __ bind(&no_pop_miss);
   StoreIC::GenerateMiss(masm);
 }
 
@@ -3342,17 +3314,13 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   Label load_smi_map, compare_map;
   Label transition_call;
   Label pop_and_miss;
-  ExternalReference virtual_register =
-      ExternalReference::virtual_handler_register(masm->isolate());
-  ExternalReference virtual_slot =
-      ExternalReference::virtual_slot_register(masm->isolate());
 
   __ push(receiver);
-  __ push(vector);
+  // Value, vector and slot are passed on the stack, so no need to save/restore
+  // them.
 
   Register receiver_map = receiver;
   Register cached_map = vector;
-  Register value = StoreDescriptor::ValueRegister();
 
   // Receiver might not be a heap object.
   __ JumpIfSmi(receiver, &load_smi_map);
@@ -3363,15 +3331,18 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ push(key);
   // Current stack layout:
   // - esp[0]    -- key
-  // - esp[4]    -- vector
-  // - esp[8]    -- receiver
-  // - esp[12]   -- value
-  // - esp[16]   -- return address
+  // - esp[4]    -- receiver
+  // - esp[8]    -- return address
+  // - esp[12]   -- vector
+  // - esp[16]   -- slot
+  // - esp[20]   -- value
   //
-  // Required stack layout for handler call:
+  // Required stack layout for handler call (see StoreWithVectorDescriptor):
   // - esp[0]    -- return address
-  // - receiver, key, value, vector, slot in registers.
-  // - handler in virtual register.
+  // - esp[4]    -- vector
+  // - esp[8]    -- slot
+  // - esp[12]   -- value
+  // - receiver, key, handler in registers.
   Register counter = key;
   __ mov(counter, Immediate(Smi::FromInt(0)));
   __ bind(&next_loop);
@@ -3386,32 +3357,28 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ mov(feedback, FieldOperand(feedback, counter, times_half_pointer_size,
                                 FixedArray::kHeaderSize + 2 * kPointerSize));
   __ pop(key);
-  __ pop(vector);
   __ pop(receiver);
   __ lea(feedback, FieldOperand(feedback, Code::kHeaderSize));
-  __ mov(Operand::StaticVariable(virtual_register), feedback);
-  __ pop(value);
-
-  // Call store handler using StoreWithVectorDescriptor calling convention.
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ jmp(feedback);
 
   __ bind(&transition_call);
   // Current stack layout:
   // - esp[0]    -- key
-  // - esp[4]    -- vector
-  // - esp[8]    -- receiver
-  // - esp[12]   -- value
-  // - esp[16]   -- return address
+  // - esp[4]    -- receiver
+  // - esp[8]    -- return address
+  // - esp[12]   -- vector
+  // - esp[16]   -- slot
+  // - esp[20]   -- value
   //
-  // Required stack layout for handler call:
+  // Required stack layout for handler call (see StoreTransitionDescriptor):
   // - esp[0]    -- return address
-  // - receiver, key, value, map, vector in registers.
-  // - handler and slot in virtual registers.
-  __ mov(Operand::StaticVariable(virtual_slot), slot);
+  // - esp[4]    -- vector
+  // - esp[8]    -- slot
+  // - esp[12]   -- value
+  // - receiver, key, map, handler in registers.
   __ mov(feedback, FieldOperand(feedback, counter, times_half_pointer_size,
                                 FixedArray::kHeaderSize + 2 * kPointerSize));
   __ lea(feedback, FieldOperand(feedback, Code::kHeaderSize));
-  __ mov(Operand::StaticVariable(virtual_register), feedback);
 
   __ mov(cached_map, FieldOperand(cached_map, WeakCell::kValueOffset));
   // The weak cell may have been cleared.
@@ -3422,9 +3389,7 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   // Call store transition handler using StoreTransitionDescriptor calling
   // convention.
   __ pop(key);
-  __ pop(vector);
   __ pop(receiver);
-  __ pop(value);
   // Ensure that the transition handler we are going to call has the same
   // number of stack arguments which means that we don't have to adapt them
   // before the call.
@@ -3442,7 +3407,7 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
                     StoreWithVectorDescriptor::kVector ==
                 StoreTransitionDescriptor::kParameterCount -
                     StoreTransitionDescriptor::kVector);
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ jmp(feedback);
 
   __ bind(&prepare_next);
   __ add(counter, Immediate(Smi::FromInt(3)));
@@ -3452,7 +3417,6 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   // We exhausted our array of map handler pairs.
   __ bind(&pop_and_miss);
   __ pop(key);
-  __ pop(vector);
   __ pop(receiver);
   __ jmp(miss);
 
@@ -3488,10 +3452,7 @@ void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
       __ mov(vector, Operand(esp, 1 * kPointerSize));
     }
     __ mov(slot, Operand(esp, 2 * kPointerSize));
-    __ mov(value, Operand(esp, 3 * kPointerSize));
   }
-
-  __ push(value);
 
   Register scratch = value;
   __ mov(scratch, FieldOperand(vector, slot, times_half_pointer_size,
@@ -3516,8 +3477,6 @@ void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ CompareRoot(scratch, Heap::kmegamorphic_symbolRootIndex);
   __ j(not_equal, &try_poly_name);
 
-  __ pop(value);
-
   Handle<Code> megamorphic_stub =
       KeyedStoreIC::ChooseMegamorphicStub(masm->isolate(), GetExtraICState());
   __ jmp(megamorphic_stub, RelocInfo::CODE_TARGET);
@@ -3534,7 +3493,6 @@ void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
                              &miss);
 
   __ bind(&miss);
-  __ pop(value);
   KeyedStoreIC::GenerateMiss(masm);
 }
 

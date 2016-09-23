@@ -1035,9 +1035,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference invoke_function_callback(Isolate* isolate);
   static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
 
-  static ExternalReference virtual_handler_register(Isolate* isolate);
-  static ExternalReference virtual_slot_register(Isolate* isolate);
-
   static ExternalReference runtime_function_table_address(Isolate* isolate);
 
   Address address() const { return reinterpret_cast<Address>(address_); }

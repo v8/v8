@@ -171,13 +171,10 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     __ add(esp, Immediate(StoreWithVectorDescriptor::kStackArgumentsCount *
                           kPointerSize));
   }
-
-  // receiver
+  // Write the receiver and arguments to stack frame.
   __ push(receiver);
-  // Write the arguments to stack frame.
   if (is_store) {
-    DCHECK(!receiver.is(store_parameter));
-    DCHECK(!scratch.is(store_parameter));
+    DCHECK(!AreAliased(receiver, scratch, store_parameter));
     __ push(store_parameter);
   }
   __ push(scratch);
@@ -274,8 +271,13 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
     int accessor_index, int expected_arguments, Register scratch) {
   // ----------- S t a t e -------------
-  //  -- esp[0] : return address
+  //  -- esp[12] : value
+  //  -- esp[8]  : slot
+  //  -- esp[4]  : vector
+  //  -- esp[0]  : return address
   // -----------------------------------
+  __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
+
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -631,11 +633,21 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
   __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor);
 }
 
+void NamedStoreHandlerCompiler::ZapStackArgumentsRegisterAliases() {
+  // Zap register aliases of the arguments passed on the stack to ensure they
+  // are properly loaded by the handler (debug-only).
+  STATIC_ASSERT(Descriptor::kPassLastArgsOnStack);
+  STATIC_ASSERT(Descriptor::kStackArgumentsCount == 3);
+  __ mov(Descriptor::ValueRegister(), Immediate(kDebugZapValue));
+  __ mov(Descriptor::SlotRegister(), Immediate(kDebugZapValue));
+  __ mov(Descriptor::VectorRegister(), Immediate(kDebugZapValue));
+}
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback,
     LanguageMode language_mode) {
   Register holder_reg = Frontend(name);
+  __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
 
   __ pop(scratch1());  // remove the return address
   // Discard stack arguments.

@@ -215,12 +215,23 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
 class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
  public:
+  // All store handlers use StoreWithVectorDescriptor calling convention.
+  typedef StoreWithVectorDescriptor Descriptor;
+
   explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<Map> map,
                                      Handle<JSObject> holder)
       : PropertyHandlerCompiler(isolate, Code::STORE_IC, map, holder,
-                                kCacheOnReceiver) {}
+                                kCacheOnReceiver) {
+#ifdef DEBUG
+    if (Descriptor::kPassLastArgsOnStack) {
+      ZapStackArgumentsRegisterAliases();
+    }
+#endif
+  }
 
   virtual ~NamedStoreHandlerCompiler() {}
+
+  void ZapStackArgumentsRegisterAliases();
 
   Handle<Code> CompileStoreTransition(Handle<Map> transition,
                                       Handle<Name> name);

@@ -1062,12 +1062,6 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
-  void* virtual_handler_register_address() {
-    return &virtual_handler_register_;
-  }
-
-  void* virtual_slot_register_address() { return &virtual_slot_register_; }
-
   base::RandomNumberGenerator* random_number_generator();
 
   // Given an address occupied by a live code object, return that object.
@@ -1411,9 +1405,6 @@ class Isolate {
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
-
-  Address virtual_handler_register_;
-  Address virtual_slot_register_;
 
   int next_optimization_id_;
 
