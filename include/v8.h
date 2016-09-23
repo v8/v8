@@ -2014,6 +2014,11 @@ class V8_EXPORT Value : public Data {
   bool IsRegExp() const;
 
   /**
+   * Returns true if this value is an async function.
+   */
+  bool IsAsyncFunction() const;
+
+  /**
    * Returns true if this value is a Generator function.
    * This is an experimental feature.
    */

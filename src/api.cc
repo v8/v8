@@ -3384,6 +3384,12 @@ bool Value::IsRegExp() const {
   return obj->IsJSRegExp();
 }
 
+bool Value::IsAsyncFunction() const {
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsJSFunction()) return false;
+  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(obj);
+  return func->shared()->is_async();
+}
 
 bool Value::IsGeneratorFunction() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);

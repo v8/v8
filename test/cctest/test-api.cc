@@ -1581,6 +1581,26 @@ THREADED_TEST(IsGeneratorFunctionOrObject) {
   CHECK(!func->IsGeneratorObject());
 }
 
+THREADED_TEST(IsAsyncFunction) {
+  i::FLAG_harmony_async_await = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  CompileRun("async function foo() {}");
+  v8::Local<Value> foo = CompileRun("foo");
+
+  CHECK(foo->IsAsyncFunction());
+  CHECK(foo->IsFunction());
+  CHECK(!foo->IsGeneratorFunction());
+  CHECK(!foo->IsGeneratorObject());
+
+  CompileRun("function bar() {}");
+  v8::Local<Value> bar = CompileRun("bar");
+
+  CHECK(!bar->IsAsyncFunction());
+  CHECK(bar->IsFunction());
+}
 
 THREADED_TEST(ArgumentsObject) {
   LocalContext env;
