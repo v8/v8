@@ -457,7 +457,6 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   }
   args[0]->Print(os);
   if (args[0]->IsHeapObject()) {
-    os << "\n";
     HeapObject::cast(args[0])->map()->Print(os);
   }
 #else

@@ -28,7 +28,8 @@ void Object::Print() {
 
 void Object::Print(std::ostream& os) {  // NOLINT
   if (IsSmi()) {
-    Smi::cast(this)->SmiPrint(os);
+    os << "Smi: " << std::hex << "0x" << Smi::cast(this)->value();
+    os << std::dec << " (" << Smi::cast(this)->value() << ")\n";
   } else {
     HeapObject::cast(this)->HeapObjectPrint(os);
   }
@@ -52,6 +53,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
   HandleScope scope(GetIsolate());
   if (instance_type < FIRST_NONSTRING_TYPE) {
     String::cast(this)->StringPrint(os);
+    os << "\n";
     return;
   }
 
@@ -408,22 +410,12 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
       break;
     }
 
-#define PRINT_ELEMENTS(Kind, Type)                \
-  case Kind: {                                    \
-    DoPrintElements<Type, false>(os, elements()); \
-    break;                                        \
+#define PRINT_ELEMENTS(Type, type, TYPE, elementType, size)     \
+  case TYPE##_ELEMENTS: {                                       \
+    DoPrintElements<Fixed##Type##Array, false>(os, elements()); \
+    break;                                                      \
   }
-
-      PRINT_ELEMENTS(UINT8_ELEMENTS, FixedUint8Array)
-      PRINT_ELEMENTS(UINT8_CLAMPED_ELEMENTS, FixedUint8ClampedArray)
-      PRINT_ELEMENTS(INT8_ELEMENTS, FixedInt8Array)
-      PRINT_ELEMENTS(UINT16_ELEMENTS, FixedUint16Array)
-      PRINT_ELEMENTS(INT16_ELEMENTS, FixedInt16Array)
-      PRINT_ELEMENTS(UINT32_ELEMENTS, FixedUint32Array)
-      PRINT_ELEMENTS(INT32_ELEMENTS, FixedInt32Array)
-      PRINT_ELEMENTS(FLOAT32_ELEMENTS, FixedFloat32Array)
-      PRINT_ELEMENTS(FLOAT64_ELEMENTS, FixedFloat64Array)
-
+      TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS
 
     case DICTIONARY_ELEMENTS:
@@ -939,7 +931,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSArrayBuffer");
   os << "\n - backing_store = " << backing_store();
   os << "\n - byte_length = " << Brief(byte_length());
-  if (was_neutered()) os << " - neutered\n";
+  if (was_neutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !was_neutered());
 }
 
@@ -950,7 +942,7 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - byte_offset = " << Brief(byte_offset());
   os << "\n - byte_length = " << Brief(byte_length());
   os << "\n - length = " << Brief(length());
-  if (WasNeutered()) os << " - neutered\n";
+  if (WasNeutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !WasNeutered());
 }
 
@@ -960,7 +952,7 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset = " << Brief(byte_offset());
   os << "\n - byte_length = " << Brief(byte_length());
-  if (WasNeutered()) os << " - neutered\n";
+  if (WasNeutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !WasNeutered());
 }
 
