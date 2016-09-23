@@ -136,6 +136,7 @@ class ModuleDescriptor : public ZoneObject {
   }
 
   void AddSpecialExport(const Entry* entry, Zone* zone) {
+    DCHECK_NULL(entry->local_name);
     DCHECK_LE(0, entry->module_request);
     special_exports_.Add(entry, zone);
   }

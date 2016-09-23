@@ -190,7 +190,7 @@ void ModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
       entry->import_name = import->second->import_name;
       entry->module_request = import->second->module_request;
       entry->local_name = nullptr;
-      special_exports_.Add(entry, zone);
+      AddSpecialExport(entry, zone);
       it = regular_exports_.erase(it);
     } else {
       it++;

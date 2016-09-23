@@ -1892,31 +1892,15 @@ Local<UnboundScript> Script::GetUnboundScript() {
 
 int Module::GetModuleRequestsLength() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
-  i::Handle<i::SharedFunctionInfo> shared;
-  if (self->code()->IsSharedFunctionInfo()) {
-    shared = i::handle(i::SharedFunctionInfo::cast(self->code()), isolate);
-  } else {
-    shared = i::handle(i::JSFunction::cast(self->code())->shared(), isolate);
-  }
-  return shared->scope_info()
-      ->ModuleDescriptorInfo()
-      ->module_requests()
-      ->length();
+  return self->info()->module_requests()->length();
 }
 
 Local<String> Module::GetModuleRequest(int i) const {
   CHECK_GE(i, 0);
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
-  i::Handle<i::SharedFunctionInfo> shared;
-  if (self->code()->IsSharedFunctionInfo()) {
-    shared = i::handle(i::SharedFunctionInfo::cast(self->code()), isolate);
-  } else {
-    shared = i::handle(i::JSFunction::cast(self->code())->shared(), isolate);
-  }
-  i::Handle<i::FixedArray> module_requests(
-      shared->scope_info()->ModuleDescriptorInfo()->module_requests(), isolate);
+  i::Handle<i::FixedArray> module_requests(self->info()->module_requests(),
+                                           isolate);
   CHECK_LT(i, module_requests->length());
   return ToApiHandle<String>(i::handle(module_requests->get(i), isolate));
 }
@@ -1950,33 +1934,73 @@ static bool InstantiateModule(Local<Module> v8_module,
           shared, handle(context->native_context(), isolate));
   module->set_code(*function);
 
+  i::Handle<i::FixedArray> regular_exports = i::handle(
+      shared->scope_info()->ModuleDescriptorInfo()->regular_exports(), isolate);
+  i::Handle<i::FixedArray> regular_imports = i::handle(
+      shared->scope_info()->ModuleDescriptorInfo()->regular_imports(), isolate);
+  i::Handle<i::FixedArray> special_exports = i::handle(
+      shared->scope_info()->ModuleDescriptorInfo()->special_exports(), isolate);
+
+  // Set up local exports.
+  for (int i = 0, n = regular_exports->length(); i < n; i += 2) {
+    i::Handle<i::FixedArray> export_names(
+        i::FixedArray::cast(regular_exports->get(i + 1)), isolate);
+    i::Module::CreateExport(module, export_names);
+  }
+
+  // Partially set up indirect exports.
+  // For each indirect export, we create the appropriate slot in the export
+  // table and store its ModuleInfoEntry there.  When we later find the correct
+  // Cell in the module that actually provides the value, we replace the
+  // ModuleInfoEntry by that Cell (see ResolveExport).
+  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+    i::Handle<i::ModuleInfoEntry> entry(
+        i::ModuleInfoEntry::cast(special_exports->get(i)), isolate);
+    i::Handle<i::Object> export_name(entry->export_name(), isolate);
+    if (export_name->IsUndefined(isolate)) continue;  // Star export.
+    i::Module::CreateIndirectExport(
+        module, i::Handle<i::String>::cast(export_name), entry);
+  }
+
   for (int i = 0, length = v8_module->GetModuleRequestsLength(); i < length;
        ++i) {
-    Local<Module> import;
+    Local<Module> requested_module;
     // TODO(adamk): Revisit these failure cases once d8 knows how to
     // persist a module_map across multiple top-level module loads, as
     // the current module is left in a "half-instantiated" state.
     if (!callback(v8_context, v8_module->GetModuleRequest(i), v8_module,
                   callback_data)
-             .ToLocal(&import)) {
+             .ToLocal(&requested_module)) {
       // TODO(adamk): Give this a better error message. But this is a
       // misuse of the API anyway.
       isolate->ThrowIllegalOperation();
       return false;
     }
-    if (!InstantiateModule(import, v8_context, callback, callback_data)) {
+    if (!requested_module->Instantiate(v8_context, callback, callback_data)) {
       return false;
     }
-    module->requested_modules()->set(i, *Utils::OpenHandle(*import));
+    module->requested_modules()->set(i, *Utils::OpenHandle(*requested_module));
   }
 
-  // Set up local exports.
-  i::Handle<i::FixedArray> regular_exports = i::handle(
-      shared->scope_info()->ModuleDescriptorInfo()->regular_exports(), isolate);
-  for (int i = 0, n = regular_exports->length(); i < n; i += 2) {
-    i::Handle<i::FixedArray> export_names(
-        i::FixedArray::cast(regular_exports->get(i + 1)), isolate);
-    i::Module::CreateExport(module, export_names);
+  // Resolve imports.
+  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
+    i::Handle<i::ModuleInfoEntry> entry(
+        i::ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
+    i::Handle<i::String> name(i::String::cast(entry->import_name()), isolate);
+    int module_request = i::Smi::cast(entry->module_request())->value();
+    if (i::Module::ResolveImport(module, name, module_request).is_null()) {
+      return false;
+    }
+  }
+
+  // Resolve indirect exports.
+  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+    i::Handle<i::ModuleInfoEntry> entry(
+        i::ModuleInfoEntry::cast(special_exports->get(i)), isolate);
+    i::Handle<i::String> name(i::String::cast(entry->export_name()), isolate);
+    if (i::Module::ResolveExport(module, name).is_null()) {
+      return false;
+    }
   }
 
   return true;

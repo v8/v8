@@ -688,6 +688,15 @@
   'smi-mul-const': [FAIL],
   'smi-mul': [FAIL],
   'unary-minus-deopt': [FAIL],
+
+  # Modules for which execution must fail (e.g. because of unresolved imports).
+  # Eventually we should test for the precise error message, but for now we only
+  # ensure that there is an error.
+  'modules-fail*': [FAIL],
+
+  # Modules which are only meant to be imported from by other tests, not to be
+  # tested standalone.
+  'modules-skip*': [SKIP],
 }],  # variant == ignition
 
 ['variant == ignition and arch == arm64', {

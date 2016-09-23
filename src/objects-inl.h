@@ -7961,6 +7961,14 @@ Object* ModuleInfoEntry::module_request() const {
   return get(kModuleRequestIndex);
 }
 
+ModuleInfo* Module::info() const {
+  DisallowHeapAllocation no_gc;
+  SharedFunctionInfo* shared = code()->IsSharedFunctionInfo()
+                                   ? SharedFunctionInfo::cast(code())
+                                   : JSFunction::cast(code())->shared();
+  return shared->scope_info()->ModuleDescriptorInfo();
+}
+
 FixedArray* ModuleInfo::module_requests() const {
   return FixedArray::cast(get(kModuleRequestsIndex));
 }

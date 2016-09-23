@@ -7948,13 +7948,25 @@ class Module : public Struct {
   // Embedder-specified data
   DECL_ACCESSORS(embedder_data, Object)
 
+  // Get the ModuleInfo associated with the code.
+  inline ModuleInfo* info() const;
+
   static void CreateExport(Handle<Module> module, Handle<FixedArray> names);
   static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
   static void StoreExport(Handle<Module> module, Handle<String> name,
                           Handle<Object> value);
 
+  static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
+                                   Handle<ModuleInfoEntry> entry);
+
   static Handle<Object> LoadImport(Handle<Module> module, Handle<String> name,
                                    int module_request);
+
+  static MUST_USE_RESULT MaybeHandle<Cell> ResolveImport(Handle<Module> module,
+                                                         Handle<String> name,
+                                                         int module_request);
+  static MUST_USE_RESULT MaybeHandle<Cell> ResolveExport(Handle<Module> module,
+                                                         Handle<String> name);
 
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
