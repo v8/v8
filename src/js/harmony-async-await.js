@@ -18,21 +18,25 @@ var IsPromise;
 var NewPromiseCapability;
 var PerformPromiseThen;
 var PromiseCreate;
+var PromiseNextMicrotaskID;
 var RejectPromise;
 var ResolvePromise;
 
 utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
   AsyncFunctionThrow = from.AsyncFunctionThrow;
-  IsPromise = from.IsPromise;
   GlobalPromise = from.GlobalPromise;
+  IsPromise = from.IsPromise;
   NewPromiseCapability = from.NewPromiseCapability;
-  PromiseCreate = from.PromiseCreate;
   PerformPromiseThen = from.PerformPromiseThen;
+  PromiseCreate = from.PromiseCreate;
+  PromiseNextMicrotaskID = from.PromiseNextMicrotaskID;
   RejectPromise = from.RejectPromise;
   ResolvePromise = from.ResolvePromise;
 });
 
+var promiseAsyncStackIDSymbol =
+    utils.ImportNow("promise_async_stack_id_symbol");
 var promiseHandledBySymbol =
     utils.ImportNow("promise_handled_by_symbol");
 var promiseForwardingHandlerSymbol =
@@ -94,9 +98,7 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
   // unhandled reject events as its work is done
   SET_PRIVATE(throwawayCapability.promise, promiseHasHandlerSymbol, true);
 
-  PerformPromiseThen(promise, onFulfilled, onRejected, throwawayCapability);
-
-  if (DEBUG_IS_ACTIVE && !IS_UNDEFINED(outerPromise)) {
+  if (DEBUG_IS_ACTIVE) {
     if (IsPromise(awaited)) {
       // Mark the reject handler callback to be a forwarding edge, rather
       // than a meaningful catch handler
@@ -108,6 +110,8 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
     SET_PRIVATE(throwawayCapability.promise, promiseHandledBySymbol,
                 outerPromise);
   }
+
+  PerformPromiseThen(promise, onFulfilled, onRejected, throwawayCapability);
 }
 
 // Called by the parser from the desugaring of 'await' when catch
@@ -122,10 +126,7 @@ function AsyncFunctionAwaitCaught(generator, awaited, outerPromise) {
   if (DEBUG_IS_ACTIVE && IsPromise(awaited)) {
     SET_PRIVATE(awaited, promiseHandledHintSymbol, true);
   }
-  // Pass undefined for the outer Promise to not waste time setting up
-  // or following the dependency chain when this Promise is already marked
-  // as handled
-  AsyncFunctionAwait(generator, awaited, UNDEFINED);
+  AsyncFunctionAwait(generator, awaited, outerPromise);
 }
 
 // How the parser rejects promises from async/await desugaring
@@ -133,10 +134,47 @@ function RejectPromiseNoDebugEvent(promise, reason) {
   return RejectPromise(promise, reason, false);
 }
 
+function AsyncFunctionPromiseCreate() {
+  var promise = PromiseCreate();
+  if (DEBUG_IS_ACTIVE) {
+    // Push the Promise under construction in an async function on
+    // the catch prediction stack to handle exceptions thrown before
+    // the first await.
+    %DebugPushPromise(promise);
+    // Assign ID and create a recurring task to save stack for future
+    // resumptions from await.
+    var id = PromiseNextMicrotaskID();
+    SET_PRIVATE(promise, promiseAsyncStackIDSymbol, id);
+    %DebugAsyncTaskEvent({
+      type: "enqueueRecurring",
+      id: id,
+      name: "async function",
+    });
+  }
+  return promise;
+}
+
+function AsyncFunctionPromiseRelease(promise) {
+  if (DEBUG_IS_ACTIVE) {
+    // Cancel
+    var id = GET_PRIVATE(promise, promiseAsyncStackIDSymbol);
+    %DebugAsyncTaskEvent({
+      type: "cancel",
+      id: id,
+      name: "async function",
+    });
+    // Pop the Promise under construction in an async function on
+    // from catch prediction stack.
+    %DebugPopPromise();
+  }
+}
+
 %InstallToContext([
   "async_function_await_caught", AsyncFunctionAwaitCaught,
   "async_function_await_uncaught", AsyncFunctionAwaitUncaught,
   "reject_promise_no_debug_event", RejectPromiseNoDebugEvent,
+  "async_function_promise_create", AsyncFunctionPromiseCreate,
+  "async_function_promise_release", AsyncFunctionPromiseRelease,
 ]);
 
 })

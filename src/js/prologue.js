@@ -198,6 +198,7 @@ function PostNatives(utils) {
     "PerformPromiseThen",
     "PromiseThen",
     "PromiseCreate",
+    "PromiseNextMicrotaskID",
     "RegExpSubclassExecJS",
     "RegExpSubclassMatch",
     "RegExpSubclassReplace",
@@ -217,6 +218,7 @@ function PostNatives(utils) {
     // From runtime:
     "is_concat_spreadable_symbol",
     "iterator_symbol",
+    "promise_async_stack_id_symbol",
     "promise_result_symbol",
     "promise_state_symbol",
     "promise_forwarding_handler_symbol",

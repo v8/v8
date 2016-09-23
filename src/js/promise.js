@@ -12,6 +12,8 @@
 // Imports
 
 var InternalArray = utils.InternalArray;
+var promiseAsyncStackIDSymbol =
+    utils.ImportNow("promise_async_stack_id_symbol");
 var promiseHandledBySymbol =
     utils.ImportNow("promise_handled_by_symbol");
 var promiseForwardingHandlerSymbol =
@@ -32,8 +34,10 @@ var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
 var SpeciesConstructor;
 var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+var ObjectHasOwnProperty;
 
 utils.Import(function(from) {
+  ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   SpeciesConstructor = from.SpeciesConstructor;
 });
 
@@ -45,6 +49,10 @@ const kFulfilled = +1;
 const kRejected = -1;
 
 var lastMicrotaskId = 0;
+
+function PromiseNextMicrotaskID() {
+  return ++lastMicrotaskId;
+}
 
 // ES#sec-createresolvingfunctions
 // CreateResolvingFunctions ( promise )
@@ -187,9 +195,24 @@ function PromiseEnqueue(value, tasks, deferreds, status) {
     }
   });
   if (instrumenting) {
-    id = ++lastMicrotaskId;
-    name = status === kFulfilled ? "Promise.resolve" : "Promise.reject";
-    %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
+    // In an async function, reuse the existing stack related to the outer
+    // Promise. Otherwise, e.g. in a direct call to then, save a new stack.
+    // Promises with multiple reactions with one or more of them being async
+    // functions will not get a good stack trace, as async functions require
+    // different stacks from direct Promise use, but we save and restore a
+    // stack once for all reactions. TODO(littledan): Improve this case.
+    if (!IS_UNDEFINED(deferreds) &&
+        HAS_PRIVATE(deferreds.promise, promiseHandledBySymbol) &&
+        HAS_PRIVATE(GET_PRIVATE(deferreds.promise, promiseHandledBySymbol),
+                    promiseAsyncStackIDSymbol)) {
+      id = GET_PRIVATE(GET_PRIVATE(deferreds.promise, promiseHandledBySymbol),
+                       promiseAsyncStackIDSymbol);
+      name = "async function";
+    } else {
+      id = PromiseNextMicrotaskID();
+      name = status === kFulfilled ? "Promise.resolve" : "Promise.reject";
+      %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
+    }
   }
 }
 
@@ -214,6 +237,7 @@ function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
 
     SET_PRIVATE(promise, promiseFulfillReactionsSymbol, resolveCallbacks);
     SET_PRIVATE(promise, promiseRejectReactionsSymbol, rejectCallbacks);
+    SET_PRIVATE(promise, promiseDeferredReactionsSymbol, UNDEFINED);
   } else {
     maybeResolveCallbacks.push(onResolve, deferred);
     GET_PRIVATE(promise, promiseRejectReactionsSymbol).push(onReject, deferred);
@@ -292,7 +316,7 @@ function ResolvePromise(promise, resolution) {
           // Mark the dependency of the new promise on the resolution
           SET_PRIVATE(resolution, promiseHandledBySymbol, promise);
         }
-        id = ++lastMicrotaskId;
+        id = PromiseNextMicrotaskID();
         before_debug_event = {
           type: "willHandle",
           id: id,
@@ -671,6 +695,7 @@ utils.Export(function(to) {
   to.IsPromise = IsPromise;
   to.PromiseCreate = PromiseCreate;
   to.PromiseThen = PromiseThen;
+  to.PromiseNextMicrotaskID = PromiseNextMicrotaskID;
 
   to.GlobalPromise = GlobalPromise;
   to.NewPromiseCapability = NewPromiseCapability;

@@ -153,6 +153,7 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(
   return result;
 }
 
+// static
 std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
     V8Debugger* debugger, int contextGroupId, size_t maxStackSize,
     const String16& description) {

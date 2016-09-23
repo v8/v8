@@ -20,8 +20,10 @@ namespace {
 const char stepIntoV8MethodName[] = "stepIntoStatement";
 const char stepOutV8MethodName[] = "stepOutOfFunction";
 static const char v8AsyncTaskEventEnqueue[] = "enqueue";
+static const char v8AsyncTaskEventEnqueueRecurring[] = "enqueueRecurring";
 static const char v8AsyncTaskEventWillHandle[] = "willHandle";
 static const char v8AsyncTaskEventDidHandle[] = "didHandle";
+static const char v8AsyncTaskEventCancel[] = "cancel";
 
 inline v8::Local<v8::Boolean> v8Boolean(bool value, v8::Isolate* isolate) {
   return value ? v8::True(isolate) : v8::False(isolate);
@@ -653,10 +655,14 @@ void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Context> context,
   void* ptr = reinterpret_cast<void*>(id * 2 + 1);
   if (type == v8AsyncTaskEventEnqueue)
     asyncTaskScheduled(name, ptr, false);
+  else if (type == v8AsyncTaskEventEnqueueRecurring)
+    asyncTaskScheduled(name, ptr, true);
   else if (type == v8AsyncTaskEventWillHandle)
     asyncTaskStarted(ptr);
   else if (type == v8AsyncTaskEventDidHandle)
     asyncTaskFinished(ptr);
+  else if (type == v8AsyncTaskEventCancel)
+    asyncTaskCanceled(ptr);
   else
     UNREACHABLE();
 }

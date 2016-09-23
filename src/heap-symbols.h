@@ -199,6 +199,7 @@
   V(normal_ic_symbol)                       \
   V(not_mapped_symbol)                      \
   V(premonomorphic_symbol)                  \
+  V(promise_async_stack_id_symbol)          \
   V(promise_debug_marker_symbol)            \
   V(promise_deferred_reactions_symbol)      \
   V(promise_forwarding_handler_symbol)      \

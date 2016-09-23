@@ -3130,24 +3130,22 @@ Block* Parser::BuildParameterInitializationBlock(
 }
 
 Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
-  // .promise = %CreatePromise();
-  // .debug_is_active = %_DebugIsActive();
-  // if (.debug_is_active) %DebugPushPromise(.promise);
+  // .promise = %AsyncFunctionPromiseCreate();
   // try {
   //   <inner_block>
   // } catch (.catch) {
   //   %RejectPromise(.promise, .catch);
   //   return .promise;
   // } finally {
-  //   if (.debug_is_active) %DebugPopPromise();
+  //   %AsyncFunctionPromiseRelease(.promise);
   // }
-  Block* result = factory()->NewBlock(nullptr, 4, true, kNoSourcePosition);
+  Block* result = factory()->NewBlock(nullptr, 2, true, kNoSourcePosition);
 
-  // .promise = %CreatePromise();
+  // .promise = %AsyncFunctionPromiseCreate();
   Statement* set_promise;
   {
     Expression* create_promise = factory()->NewCallRuntime(
-        Context::PROMISE_CREATE_INDEX,
+        Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX,
         new (zone()) ZoneList<Expression*>(0, zone()), kNoSourcePosition);
     Assignment* assign_promise = factory()->NewAssignment(
         Token::INIT, factory()->NewVariableProxy(PromiseVariable()),
@@ -3156,37 +3154,6 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
         factory()->NewExpressionStatement(assign_promise, kNoSourcePosition);
   }
   result->statements()->Add(set_promise, zone());
-
-  Variable* debug_is_active =
-      scope()->NewTemporary(ast_value_factory()->empty_string());
-  // .debug_is_active = %_DebugIsActive();
-  Statement* set_debug_is_active;
-  {
-    Expression* call_debug_is_active = factory()->NewCallRuntime(
-        Runtime::kInlineDebugIsActive,
-        new (zone()) ZoneList<Expression*>(0, zone()), kNoSourcePosition);
-    Assignment* assign_debug_is_active = factory()->NewAssignment(
-        Token::INIT, factory()->NewVariableProxy(debug_is_active),
-        call_debug_is_active, kNoSourcePosition);
-    set_debug_is_active = factory()->NewExpressionStatement(
-        assign_debug_is_active, kNoSourcePosition);
-  }
-  result->statements()->Add(set_debug_is_active, zone());
-
-  //   if (.debug_is_active) %DebugPushPromise(.promise);
-  Statement* conditionally_debug_push_promise;
-  {
-    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
-    args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
-    Expression* call_push_promise = factory()->NewCallRuntime(
-        Runtime::kDebugPushPromise, args, kNoSourcePosition);
-    Statement* debug_push_promise =
-        factory()->NewExpressionStatement(call_push_promise, kNoSourcePosition);
-    conditionally_debug_push_promise = factory()->NewIfStatement(
-        factory()->NewVariableProxy(debug_is_active), debug_push_promise,
-        factory()->NewEmptyStatement(kNoSourcePosition), kNoSourcePosition);
-  }
-  result->statements()->Add(conditionally_debug_push_promise, zone());
 
   // catch (.catch) { return %RejectPromise(.promise, .catch), .promise }
   Scope* catch_scope = NewScope(CATCH_SCOPE);
@@ -3212,19 +3179,17 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
       factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
   outer_try_block->statements()->Add(try_catch_statement, zone());
 
-  // finally { if (.debug_is_active) %DebugPopPromise(); }
+  // finally { %AsyncFunctionPromiseRelease(.promise) }
   Block* finally_block =
       factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
   {
-    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(0, zone());
-    Expression* call_pop_promise = factory()->NewCallRuntime(
-        Runtime::kDebugPopPromise, args, kNoSourcePosition);
-    Statement* debug_pop_promise =
-        factory()->NewExpressionStatement(call_pop_promise, kNoSourcePosition);
-    Statement* conditionally_debug_pop_promise = factory()->NewIfStatement(
-        factory()->NewVariableProxy(debug_is_active), debug_pop_promise,
-        factory()->NewEmptyStatement(kNoSourcePosition), kNoSourcePosition);
-    finally_block->statements()->Add(conditionally_debug_pop_promise, zone());
+    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+    args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
+    Expression* call_promise_release = factory()->NewCallRuntime(
+        Context::ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, args, kNoSourcePosition);
+    Statement* promise_release = factory()->NewExpressionStatement(
+        call_promise_release, kNoSourcePosition);
+    finally_block->statements()->Add(promise_release, zone());
   }
 
   Statement* try_finally_statement = factory()->NewTryFinallyStatement(

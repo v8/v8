@@ -72,6 +72,10 @@ enum ContextLookupFlags {
     async_function_await_caught)                                          \
   V(ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX, JSFunction,                      \
     async_function_await_uncaught)                                        \
+  V(ASYNC_FUNCTION_PROMISE_CREATE_INDEX, JSFunction,                      \
+    async_function_promise_create)                                        \
+  V(ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, JSFunction,                     \
+    async_function_promise_release)                                       \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                 \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                     \
   V(ERROR_TO_STRING, JSFunction, error_to_string)                         \
