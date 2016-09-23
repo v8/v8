@@ -1133,9 +1133,12 @@ void FullCodeGenerator::EmitSetHomeObject(Expression* initializer, int offset,
                                           FeedbackVectorSlot slot) {
   DCHECK(NeedsHomeObject(initializer));
   __ LoadP(StoreDescriptor::ReceiverRegister(), MemOperand(sp));
+  __ mov(StoreDescriptor::NameRegister(),
+         Operand(isolate()->factory()->home_object_symbol()));
   __ LoadP(StoreDescriptor::ValueRegister(),
            MemOperand(sp, offset * kPointerSize));
-  CallStoreIC(slot, isolate()->factory()->home_object_symbol());
+  EmitLoadStoreICSlot(slot);
+  CallStoreIC();
 }
 
 
@@ -1144,9 +1147,12 @@ void FullCodeGenerator::EmitSetHomeObjectAccumulator(Expression* initializer,
                                                      FeedbackVectorSlot slot) {
   DCHECK(NeedsHomeObject(initializer));
   __ Move(StoreDescriptor::ReceiverRegister(), r3);
+  __ mov(StoreDescriptor::NameRegister(),
+         Operand(isolate()->factory()->home_object_symbol()));
   __ LoadP(StoreDescriptor::ValueRegister(),
            MemOperand(sp, offset * kPointerSize));
-  CallStoreIC(slot, isolate()->factory()->home_object_symbol());
+  EmitLoadStoreICSlot(slot);
+  CallStoreIC();
 }
 
 
@@ -1381,8 +1387,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           if (property->emit_store()) {
             VisitForAccumulatorValue(value);
             DCHECK(StoreDescriptor::ValueRegister().is(r3));
+            __ mov(StoreDescriptor::NameRegister(), Operand(key->value()));
             __ LoadP(StoreDescriptor::ReceiverRegister(), MemOperand(sp));
-            CallStoreIC(property->GetSlot(0), key->value());
+            EmitLoadStoreICSlot(property->GetSlot(0));
+            CallStoreIC();
             PrepareForBailoutForId(key->id(), BailoutState::NO_REGISTERS);
 
             if (NeedsHomeObject(value)) {
@@ -1578,7 +1586,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ LoadSmiLiteral(StoreDescriptor::NameRegister(),
                       Smi::FromInt(array_index));
     __ LoadP(StoreDescriptor::ReceiverRegister(), MemOperand(sp, 0));
-    CallKeyedStoreIC(expr->LiteralFeedbackSlot());
+    EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
+    CallKeyedStoreIC();
 
     PrepareForBailoutForId(expr->GetIdForElement(array_index),
                            BailoutState::NO_REGISTERS);
@@ -2054,7 +2063,10 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       VisitForAccumulatorValue(prop->obj());
       __ Move(StoreDescriptor::ReceiverRegister(), r3);
       PopOperand(StoreDescriptor::ValueRegister());  // Restore value.
-      CallStoreIC(slot, prop->key()->AsLiteral()->value());
+      __ mov(StoreDescriptor::NameRegister(),
+             Operand(prop->key()->AsLiteral()->value()));
+      EmitLoadStoreICSlot(slot);
+      CallStoreIC();
       break;
     }
     case NAMED_SUPER_PROPERTY: {
@@ -2101,7 +2113,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       __ Move(StoreDescriptor::NameRegister(), r3);
       PopOperands(StoreDescriptor::ValueRegister(),
                   StoreDescriptor::ReceiverRegister());
-      CallKeyedStoreIC(slot);
+      EmitLoadStoreICSlot(slot);
+      CallKeyedStoreIC();
       break;
     }
   }
@@ -2126,8 +2139,10 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
                                                FeedbackVectorSlot slot) {
   if (var->IsUnallocated()) {
     // Global var, const, or let.
+    __ mov(StoreDescriptor::NameRegister(), Operand(var->name()));
     __ LoadGlobalObject(StoreDescriptor::ReceiverRegister());
-    CallStoreIC(slot, var->name());
+    EmitLoadStoreICSlot(slot);
+    CallStoreIC();
 
   } else if (IsLexicalVariableMode(var->mode()) && op != Token::INIT) {
     DCHECK(!var->IsLookupSlot());
@@ -2195,8 +2210,11 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   DCHECK(prop != NULL);
   DCHECK(prop->key()->IsLiteral());
 
+  __ mov(StoreDescriptor::NameRegister(),
+         Operand(prop->key()->AsLiteral()->value()));
   PopOperand(StoreDescriptor::ReceiverRegister());
-  CallStoreIC(expr->AssignmentSlot(), prop->key()->AsLiteral()->value());
+  EmitLoadStoreICSlot(expr->AssignmentSlot());
+  CallStoreIC();
 
   PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
   context()->Plug(r3);
@@ -2238,7 +2256,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
               StoreDescriptor::NameRegister());
   DCHECK(StoreDescriptor::ValueRegister().is(r3));
 
-  CallKeyedStoreIC(expr->AssignmentSlot());
+  EmitLoadStoreICSlot(expr->AssignmentSlot());
+  CallKeyedStoreIC();
 
   PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
   context()->Plug(r3);
@@ -3282,8 +3301,11 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
       break;
     case NAMED_PROPERTY: {
+      __ mov(StoreDescriptor::NameRegister(),
+             Operand(prop->key()->AsLiteral()->value()));
       PopOperand(StoreDescriptor::ReceiverRegister());
-      CallStoreIC(expr->CountSlot(), prop->key()->AsLiteral()->value());
+      EmitLoadStoreICSlot(expr->CountSlot());
+      CallStoreIC();
       PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
@@ -3321,7 +3343,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       PopOperands(StoreDescriptor::ReceiverRegister(),
                   StoreDescriptor::NameRegister());
-      CallKeyedStoreIC(expr->CountSlot());
+      EmitLoadStoreICSlot(expr->CountSlot());
+      CallKeyedStoreIC();
       PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {

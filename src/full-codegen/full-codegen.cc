@@ -235,37 +235,31 @@ void FullCodeGenerator::CallLoadGlobalIC(TypeofMode typeof_mode,
   CallIC(ic, id);
 }
 
-void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
-                                    Handle<Object> name, TypeFeedbackId id) {
-  DCHECK(name->IsName());
-  __ Move(StoreDescriptor::NameRegister(), name);
+void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
+  Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
 
   STATIC_ASSERT(!StoreDescriptor::kPassLastArgsOnStack ||
                 StoreDescriptor::kStackArgumentsCount == 2);
   if (StoreDescriptor::kPassLastArgsOnStack) {
     __ Push(StoreDescriptor::ValueRegister());
-    EmitPushSlot(slot);
-  } else {
-    EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
+    __ Push(StoreDescriptor::SlotRegister());
   }
 
-  Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
   CallIC(ic, id);
   RestoreContext();
 }
 
-void FullCodeGenerator::CallKeyedStoreIC(FeedbackVectorSlot slot) {
+void FullCodeGenerator::CallKeyedStoreIC() {
+  Handle<Code> ic =
+      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
+
   STATIC_ASSERT(!StoreDescriptor::kPassLastArgsOnStack ||
                 StoreDescriptor::kStackArgumentsCount == 2);
   if (StoreDescriptor::kPassLastArgsOnStack) {
     __ Push(StoreDescriptor::ValueRegister());
-    EmitPushSlot(slot);
-  } else {
-    EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
+    __ Push(StoreDescriptor::SlotRegister());
   }
 
-  Handle<Code> ic =
-      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
   CallIC(ic);
   RestoreContext();
 }
@@ -493,6 +487,7 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   EmitVariableLoad(expr);
 }
+
 
 void FullCodeGenerator::VisitSloppyBlockFunctionStatement(
     SloppyBlockFunctionStatement* declaration) {
@@ -1134,14 +1129,9 @@ void FullCodeGenerator::EmitPropertyKey(LiteralProperty* property,
   PushOperand(result_register());
 }
 
-void FullCodeGenerator::EmitLoadSlot(Register destination,
-                                     FeedbackVectorSlot slot) {
+void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
   DCHECK(!slot.IsInvalid());
-  __ Move(destination, SmiFromSlot(slot));
-}
-
-void FullCodeGenerator::EmitPushSlot(FeedbackVectorSlot slot) {
-  __ Push(SmiFromSlot(slot));
+  __ Move(StoreDescriptor::SlotRegister(), SmiFromSlot(slot));
 }
 
 void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {

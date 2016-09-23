@@ -613,10 +613,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
                                     FeedbackVectorSlot slot);
 
-  // Platform-specific code for loading a slot to a register.
-  void EmitLoadSlot(Register destination, FeedbackVectorSlot slot);
-  // Platform-specific code for pushing a slot to the stack.
-  void EmitPushSlot(FeedbackVectorSlot slot);
+  void EmitLoadStoreICSlot(FeedbackVectorSlot slot);
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
@@ -625,9 +622,8 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // Inside typeof reference errors are never thrown.
   void CallLoadGlobalIC(TypeofMode typeof_mode,
                         TypeFeedbackId id = TypeFeedbackId::None());
-  void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name,
-                   TypeFeedbackId id = TypeFeedbackId::None());
-  void CallKeyedStoreIC(FeedbackVectorSlot slot);
+  void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
+  void CallKeyedStoreIC();
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
