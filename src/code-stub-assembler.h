@@ -111,7 +111,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* SmiSub(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiSubWithOverflow(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiEqual(compiler::Node* a, compiler::Node* b);
+  compiler::Node* SmiAbove(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiAboveOrEqual(compiler::Node* a, compiler::Node* b);
+  compiler::Node* SmiBelow(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThan(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThanOrEqual(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiMin(compiler::Node* a, compiler::Node* b);
@@ -131,8 +133,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Check a value for smi-ness
   compiler::Node* WordIsSmi(compiler::Node* a);
-  // Check that the value is a positive smi.
+  // Check that the value is a non-negative smi.
   compiler::Node* WordIsPositiveSmi(compiler::Node* a);
+  // Check that the value is a negative smi.
+  compiler::Node* WordIsNotPositiveSmi(compiler::Node* a);
 
   void BranchIfSmiEqual(compiler::Node* a, compiler::Node* b, Label* if_true,
                         Label* if_false) {
@@ -322,6 +326,18 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateSeqTwoByteString(int length);
   compiler::Node* AllocateSeqTwoByteString(compiler::Node* context,
                                            compiler::Node* length);
+
+  // Allocate a SlicedOneByteString with the given length, parent and offset.
+  // |length| and |offset| are expected to be tagged.
+  compiler::Node* AllocateSlicedOneByteString(compiler::Node* length,
+                                              compiler::Node* parent,
+                                              compiler::Node* offset);
+  // Allocate a SlicedTwoByteString with the given length, parent and offset.
+  // |length| and |offset| are expected to be tagged.
+  compiler::Node* AllocateSlicedTwoByteString(compiler::Node* length,
+                                              compiler::Node* parent,
+                                              compiler::Node* offset);
+
   // Allocate a JSArray without elements and initialize the header fields.
   compiler::Node* AllocateUninitializedJSArrayWithoutElements(
       ElementsKind kind, compiler::Node* array_map, compiler::Node* length,
@@ -371,6 +387,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       compiler::Node* capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTEGER_PARAMETERS);
+
+  // Copies |character_count| elements from |from_string| to |to_string|
+  // starting at the |from_index|'th character. |from_index| and
+  // |character_count| must be Smis s.t.
+  // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
+  void CopyStringCharacters(compiler::Node* from_string,
+                            compiler::Node* to_string,
+                            compiler::Node* from_index,
+                            compiler::Node* character_count,
+                            String::Encoding encoding);
 
   // Loads an element from |array| of |from_kind| elements by given |offset|
   // (NOTE: not index!), does a hole check if |if_hole| is provided and
@@ -443,6 +469,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                    compiler::Node* smi_index);
   // Return the single character string with only {code}.
   compiler::Node* StringFromCharCode(compiler::Node* code);
+  // Return a new string object which holds a substring containing the range
+  // [from,to[ of string.  |from| and |to| are expected to be tagged.
+  compiler::Node* SubString(compiler::Node* context, compiler::Node* string,
+                            compiler::Node* from, compiler::Node* to);
 
   // Type conversion helpers.
   // Convert a String to a Number.
