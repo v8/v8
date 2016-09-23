@@ -32,15 +32,11 @@ ByteArray *GetOrCreateFunctionOffsetTable(Handle<WasmDebugInfo> debug_info) {
   FunctionOffsetsResult function_offsets;
   {
     DisallowHeapAllocation no_gc;
-    Handle<JSObject> wasm_object(debug_info->wasm_object(), isolate);
-    uint32_t num_imported_functions =
-        wasm::GetNumImportedFunctions(wasm_object);
     SeqOneByteString *wasm_bytes =
         wasm::GetWasmBytes(debug_info->wasm_object());
     const byte *bytes_start = wasm_bytes->GetChars();
     const byte *bytes_end = bytes_start + wasm_bytes->length();
-    function_offsets = wasm::DecodeWasmFunctionOffsets(bytes_start, bytes_end,
-                                                       num_imported_functions);
+    function_offsets = wasm::DecodeWasmFunctionOffsets(bytes_start, bytes_end);
   }
   DCHECK(function_offsets.ok());
   size_t array_size = 2 * kIntSize * function_offsets.val.size();

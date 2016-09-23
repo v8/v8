@@ -18,22 +18,19 @@ function genGrowMemoryBuilder() {
       .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();
   builder.addFunction("store", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0,
-                kExprGetLocal, 1])
+      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0])
       .exportFunc();
   builder.addFunction("load16", kSig_i_i)
       .addBody([kExprGetLocal, 0, kExprI32LoadMem16U, 0, 0])
       .exportFunc();
   builder.addFunction("store16", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem16, 0, 0,
-                kExprGetLocal, 1])
+      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem16, 0, 0])
       .exportFunc();
   builder.addFunction("load8", kSig_i_i)
       .addBody([kExprGetLocal, 0, kExprI32LoadMem8U, 0, 0])
       .exportFunc();
   builder.addFunction("store8", kSig_i_ii)
-      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem8, 0, 0,
-                kExprGetLocal, 1])
+      .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem8, 0, 0])
       .exportFunc();
   return builder;
 }
@@ -247,9 +244,9 @@ function testGrowMemoryCurrentMemory() {
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   function MemSize() { return module.exports.memory_size(); }
-  assertEquals(1, MemSize());
+  assertEquals(65536, MemSize());
   assertEquals(1, growMem(1));
-  assertEquals(2, MemSize());
+  assertEquals(131072, MemSize());
 }
 
 testGrowMemoryCurrentMemory();

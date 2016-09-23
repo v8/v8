@@ -722,38 +722,54 @@ class ControlTransfers : public ZoneObject {
  public:
   ControlTransferMap map_;
 
-  ControlTransfers(Zone* zone, ModuleEnv* env, AstLocalDecls* locals,
-                   const byte* start, const byte* end)
+  ControlTransfers(Zone* zone, size_t locals_encoded_size, const byte* start,
+                   const byte* end)
       : map_(zone) {
+    // A control reference including from PC, from value depth, and whether
+    // a value is explicitly passed (e.g. br/br_if/br_table with value).
+    struct CRef {
+      const byte* pc;
+      sp_t value_depth;
+      bool explicit_value;
+    };
+
     // Represents a control flow label.
     struct CLabel : public ZoneObject {
       const byte* target;
-      ZoneVector<const byte*> refs;
+      size_t value_depth;
+      ZoneVector<CRef> refs;
 
-      explicit CLabel(Zone* zone) : target(nullptr), refs(zone) {}
+      CLabel(Zone* zone, size_t v)
+          : target(nullptr), value_depth(v), refs(zone) {}
 
       // Bind this label to the given PC.
-      void Bind(ControlTransferMap* map, const byte* start, const byte* pc) {
+      void Bind(ControlTransferMap* map, const byte* start, const byte* pc,
+                bool expect_value) {
         DCHECK_NULL(target);
         target = pc;
-        for (auto from_pc : refs) {
-          auto pcdiff = static_cast<pcdiff_t>(target - from_pc);
-          size_t offset = static_cast<size_t>(from_pc - start);
-          (*map)[offset] = pcdiff;
+        for (auto from : refs) {
+          auto pcdiff = static_cast<pcdiff_t>(target - from.pc);
+          auto spdiff = static_cast<spdiff_t>(from.value_depth - value_depth);
+          ControlTransfer::StackAction action = ControlTransfer::kNoAction;
+          if (expect_value && !from.explicit_value) {
+            action = spdiff == 0 ? ControlTransfer::kPushVoid
+                                 : ControlTransfer::kPopAndRepush;
+          }
+          pc_t offset = static_cast<size_t>(from.pc - start);
+          (*map)[offset] = {pcdiff, spdiff, action};
         }
       }
 
       // Reference this label from the given location.
-      void Ref(ControlTransferMap* map, const byte* start,
-               const byte* from_pc) {
+      void Ref(ControlTransferMap* map, const byte* start, CRef from) {
+        DCHECK_GE(from.value_depth, value_depth);
         if (target) {
-          // Target being bound before a reference means this is a loop.
-          DCHECK_EQ(kExprLoop, *target);
-          auto pcdiff = static_cast<pcdiff_t>(target - from_pc);
-          size_t offset = static_cast<size_t>(from_pc - start);
-          (*map)[offset] = pcdiff;
+          auto pcdiff = static_cast<pcdiff_t>(target - from.pc);
+          auto spdiff = static_cast<spdiff_t>(from.value_depth - value_depth);
+          pc_t offset = static_cast<size_t>(from.pc - start);
+          (*map)[offset] = {pcdiff, spdiff, ControlTransfer::kNoAction};
         } else {
-          refs.push_back(from_pc);
+          refs.push_back(from);
         }
       }
     };
@@ -764,104 +780,122 @@ class ControlTransfers : public ZoneObject {
       CLabel* end_label;
       CLabel* else_label;
 
-      void Ref(ControlTransferMap* map, const byte* start,
-               const byte* from_pc) {
-        end_label->Ref(map, start, from_pc);
+      void Ref(ControlTransferMap* map, const byte* start, const byte* from_pc,
+               size_t from_value_depth, bool explicit_value) {
+        end_label->Ref(map, start, {from_pc, from_value_depth, explicit_value});
       }
     };
 
     // Compute the ControlTransfer map.
-    // This algorithm maintains a stack of control constructs similar to the
+    // This works by maintaining a stack of control constructs similar to the
     // AST decoder. The {control_stack} allows matching {br,br_if,br_table}
     // bytecodes with their target, as well as determining whether the current
     // bytecodes are within the true or false block of an else.
+    // The value stack depth is tracked as {value_depth} and is needed to
+    // determine how many values to pop off the stack for explicit and
+    // implicit control flow.
+
     std::vector<Control> control_stack;
-    CLabel* func_label = new (zone) CLabel(zone);
-    control_stack.push_back({start, func_label, nullptr});
-    for (BytecodeIterator i(start, end, locals); i.has_next(); i.next()) {
+    size_t value_depth = 0;
+    for (BytecodeIterator i(start + locals_encoded_size, end); i.has_next();
+         i.next()) {
       WasmOpcode opcode = i.current();
-      TRACE("@%u: control %s\n", i.pc_offset(),
-            WasmOpcodes::OpcodeName(opcode));
+      TRACE("@%u: control %s (depth = %zu)\n", i.pc_offset(),
+            WasmOpcodes::OpcodeName(opcode), value_depth);
       switch (opcode) {
         case kExprBlock: {
-          TRACE("control @%u: Block\n", i.pc_offset());
-          CLabel* label = new (zone) CLabel(zone);
+          TRACE("control @%u $%zu: Block\n", i.pc_offset(), value_depth);
+          CLabel* label = new (zone) CLabel(zone, value_depth);
           control_stack.push_back({i.pc(), label, nullptr});
           break;
         }
         case kExprLoop: {
-          TRACE("control @%u: Loop\n", i.pc_offset());
-          CLabel* label = new (zone) CLabel(zone);
-          control_stack.push_back({i.pc(), label, nullptr});
-          label->Bind(&map_, start, i.pc());
+          TRACE("control @%u $%zu: Loop\n", i.pc_offset(), value_depth);
+          CLabel* label1 = new (zone) CLabel(zone, value_depth);
+          CLabel* label2 = new (zone) CLabel(zone, value_depth);
+          control_stack.push_back({i.pc(), label1, nullptr});
+          control_stack.push_back({i.pc(), label2, nullptr});
+          label2->Bind(&map_, start, i.pc(), false);
           break;
         }
         case kExprIf: {
-          TRACE("control @%u: If\n", i.pc_offset());
-          CLabel* end_label = new (zone) CLabel(zone);
-          CLabel* else_label = new (zone) CLabel(zone);
+          TRACE("control @%u $%zu: If\n", i.pc_offset(), value_depth);
+          value_depth--;
+          CLabel* end_label = new (zone) CLabel(zone, value_depth);
+          CLabel* else_label = new (zone) CLabel(zone, value_depth);
           control_stack.push_back({i.pc(), end_label, else_label});
-          else_label->Ref(&map_, start, i.pc());
+          else_label->Ref(&map_, start, {i.pc(), value_depth, false});
           break;
         }
         case kExprElse: {
           Control* c = &control_stack.back();
-          TRACE("control @%u: Else\n", i.pc_offset());
-          c->end_label->Ref(&map_, start, i.pc());
+          TRACE("control @%u $%zu: Else\n", i.pc_offset(), value_depth);
+          c->end_label->Ref(&map_, start, {i.pc(), value_depth, false});
+          value_depth = c->end_label->value_depth;
           DCHECK_NOT_NULL(c->else_label);
-          c->else_label->Bind(&map_, start, i.pc() + 1);
+          c->else_label->Bind(&map_, start, i.pc() + 1, false);
           c->else_label = nullptr;
           break;
         }
         case kExprEnd: {
           Control* c = &control_stack.back();
-          TRACE("control @%u: End\n", i.pc_offset());
+          TRACE("control @%u $%zu: End\n", i.pc_offset(), value_depth);
           if (c->end_label->target) {
             // only loops have bound labels.
             DCHECK_EQ(kExprLoop, *c->pc);
-          } else {
-            if (c->else_label) c->else_label->Bind(&map_, start, i.pc());
-            c->end_label->Bind(&map_, start, i.pc() + 1);
+            control_stack.pop_back();
+            c = &control_stack.back();
           }
+          if (c->else_label)
+            c->else_label->Bind(&map_, start, i.pc() + 1, true);
+          c->end_label->Ref(&map_, start, {i.pc(), value_depth, false});
+          c->end_label->Bind(&map_, start, i.pc() + 1, true);
+          value_depth = c->end_label->value_depth + 1;
           control_stack.pop_back();
           break;
         }
         case kExprBr: {
           BreakDepthOperand operand(&i, i.pc());
-          TRACE("control @%u: Br[depth=%u]\n", i.pc_offset(), operand.depth);
-          Control* c = &control_stack[control_stack.size() - operand.depth - 1];
-          c->Ref(&map_, start, i.pc());
+          TRACE("control @%u $%zu: Br[arity=%u, depth=%u]\n", i.pc_offset(),
+                value_depth, operand.arity, operand.depth);
+          value_depth -= operand.arity;
+          control_stack[control_stack.size() - operand.depth - 1].Ref(
+              &map_, start, i.pc(), value_depth, operand.arity > 0);
+          value_depth++;
           break;
         }
         case kExprBrIf: {
           BreakDepthOperand operand(&i, i.pc());
-          TRACE("control @%u: BrIf[depth=%u]\n", i.pc_offset(), operand.depth);
-          Control* c = &control_stack[control_stack.size() - operand.depth - 1];
-          c->Ref(&map_, start, i.pc());
+          TRACE("control @%u $%zu: BrIf[arity=%u, depth=%u]\n", i.pc_offset(),
+                value_depth, operand.arity, operand.depth);
+          value_depth -= (operand.arity + 1);
+          control_stack[control_stack.size() - operand.depth - 1].Ref(
+              &map_, start, i.pc(), value_depth, operand.arity > 0);
+          value_depth++;
           break;
         }
         case kExprBrTable: {
           BranchTableOperand operand(&i, i.pc());
-          BranchTableIterator iterator(&i, operand);
-          TRACE("control @%u: BrTable[count=%u]\n", i.pc_offset(),
-                operand.table_count);
-          while (iterator.has_next()) {
-            uint32_t j = iterator.cur_index();
-            uint32_t target = iterator.next();
-            Control* c = &control_stack[control_stack.size() - target - 1];
-            c->Ref(&map_, start, i.pc() + j);
+          TRACE("control @%u $%zu: BrTable[arity=%u count=%u]\n", i.pc_offset(),
+                value_depth, operand.arity, operand.table_count);
+          value_depth -= (operand.arity + 1);
+          for (uint32_t j = 0; j < operand.table_count + 1; ++j) {
+            uint32_t target = operand.read_entry(&i, j);
+            control_stack[control_stack.size() - target - 1].Ref(
+                &map_, start, i.pc() + j, value_depth, operand.arity > 0);
           }
+          value_depth++;
           break;
         }
         default: {
+          value_depth = value_depth - OpcodeArity(i.pc(), end) + 1;
           break;
         }
       }
     }
-    if (!func_label->target) func_label->Bind(&map_, start, end);
   }
 
-  pcdiff_t Lookup(pc_t from) {
+  ControlTransfer Lookup(pc_t from) {
     auto result = map_.find(from);
     if (result == map_.end()) {
       V8_Fatal(__FILE__, __LINE__, "no control target for pc %zu", from);
@@ -931,9 +965,9 @@ class CodeMap {
     if (code->targets == nullptr && code->start) {
       // Compute the control targets map and the local declarations.
       CHECK(DecodeLocalDecls(code->locals, code->start, code->end));
-      ModuleEnv env = {module_, nullptr, kWasmOrigin};
-      code->targets = new (zone_) ControlTransfers(
-          zone_, &env, &code->locals, code->orig_start, code->orig_end);
+      code->targets =
+          new (zone_) ControlTransfers(zone_, code->locals.decls_encoded_size,
+                                       code->orig_start, code->orig_end);
     }
     return code;
   }
@@ -972,7 +1006,6 @@ class ThreadImpl : public WasmInterpreter::Thread {
         instance_(instance),
         stack_(zone),
         frames_(zone),
-        blocks_(zone),
         state_(WasmInterpreter::STOPPED),
         break_pc_(kInvalidPc),
         trap_reason_(kTrapCount) {}
@@ -993,9 +1026,6 @@ class ThreadImpl : public WasmInterpreter::Thread {
       stack_.push_back(args[i]);
     }
     frames_.back().ret_pc = InitLocals(code);
-    blocks_.push_back(
-        {0, stack_.size(), frames_.size(),
-         static_cast<uint32_t>(code->function->sig->return_count())});
     TRACE("  => PushFrame(#%u @%zu)\n", code->function->func_index,
           frames_.back().ret_pc);
   }
@@ -1044,11 +1074,11 @@ class ThreadImpl : public WasmInterpreter::Thread {
     return nullptr;
   }
 
-  virtual WasmVal GetReturnValue(int index) {
+  virtual WasmVal GetReturnValue() {
     if (state_ == WasmInterpreter::TRAPPED) return WasmVal(0xdeadbeef);
     CHECK_EQ(WasmInterpreter::FINISHED, state_);
-    CHECK_LT(static_cast<size_t>(index), stack_.size());
-    return stack_[index];
+    CHECK_EQ(1, stack_.size());
+    return stack_[0];
   }
 
   virtual pc_t GetBreakpointPc() { return break_pc_; }
@@ -1072,18 +1102,10 @@ class ThreadImpl : public WasmInterpreter::Thread {
     sp_t llimit() { return plimit() + code->locals.total_local_count; }
   };
 
-  struct Block {
-    pc_t pc;
-    sp_t sp;
-    size_t fp;
-    unsigned arity;
-  };
-
   CodeMap* codemap_;
   WasmModuleInstance* instance_;
   ZoneVector<WasmVal> stack_;
   ZoneVector<Frame> frames_;
-  ZoneVector<Block> blocks_;
   WasmInterpreter::State state_;
   pc_t break_pc_;
   TrapReason trap_reason_;
@@ -1108,9 +1130,6 @@ class ThreadImpl : public WasmInterpreter::Thread {
     DCHECK_GE(stack_.size(), arity);
     // The parameters will overlap the arguments already on the stack.
     frames_.push_back({code, 0, 0, stack_.size() - arity});
-    blocks_.push_back(
-        {0, stack_.size(), frames_.size(),
-         static_cast<uint32_t>(code->function->sig->return_count())});
     frames_.back().ret_pc = InitLocals(code);
     TRACE("  => push func#%u @%zu\n", code->function->func_index,
           frames_.back().ret_pc);
@@ -1149,38 +1168,21 @@ class ThreadImpl : public WasmInterpreter::Thread {
 
   bool SkipBreakpoint(InterpreterCode* code, pc_t pc) {
     if (pc == break_pc_) {
-      // Skip the previously hit breakpoint when resuming.
       break_pc_ = kInvalidPc;
       return true;
     }
     return false;
   }
 
-  int LookupTarget(InterpreterCode* code, pc_t pc) {
-    return static_cast<int>(code->targets->Lookup(pc));
-  }
-
-  int DoBreak(InterpreterCode* code, pc_t pc, size_t depth) {
-    size_t bp = blocks_.size() - depth - 1;
-    Block* target = &blocks_[bp];
-    DoStackTransfer(target->sp, target->arity);
-    blocks_.resize(bp);
-    return LookupTarget(code, pc);
-  }
-
-  bool DoReturn(InterpreterCode** code, pc_t* pc, pc_t* limit, size_t arity) {
+  bool DoReturn(InterpreterCode** code, pc_t* pc, pc_t* limit, WasmVal val) {
     DCHECK_GT(frames_.size(), 0u);
-    // Pop all blocks for this frame.
-    while (!blocks_.empty() && blocks_.back().fp == frames_.size()) {
-      blocks_.pop_back();
-    }
-
-    sp_t dest = frames_.back().sp;
+    stack_.resize(frames_.back().sp);
     frames_.pop_back();
     if (frames_.size() == 0) {
-      // A return from the last frame terminates the execution.
+      // A return from the top frame terminates the execution.
       state_ = WasmInterpreter::FINISHED;
-      DoStackTransfer(0, arity);
+      stack_.clear();
+      stack_.push_back(val);
       TRACE("  => finish\n");
       return false;
     } else {
@@ -1189,8 +1191,16 @@ class ThreadImpl : public WasmInterpreter::Thread {
       *code = top->code;
       *pc = top->ret_pc;
       *limit = top->code->end - top->code->start;
+      if (top->code->start[top->call_pc] == kExprCallIndirect ||
+          (top->code->orig_start &&
+           top->code->orig_start[top->call_pc] == kExprCallIndirect)) {
+        // UGLY: An indirect call has the additional function index on the
+        // stack.
+        stack_.pop_back();
+      }
       TRACE("  => pop func#%u @%zu\n", (*code)->function->func_index, *pc);
-      DoStackTransfer(dest, arity);
+
+      stack_.push_back(val);
       return true;
     }
   }
@@ -1201,21 +1211,31 @@ class ThreadImpl : public WasmInterpreter::Thread {
     *limit = target->end - target->start;
   }
 
-  // Copies {arity} values on the top of the stack down the stack to {dest},
-  // dropping the values in-between.
-  void DoStackTransfer(sp_t dest, size_t arity) {
-    // before: |---------------| pop_count | arity |
-    //         ^ 0             ^ dest              ^ stack_.size()
-    //
-    // after:  |---------------| arity |
-    //         ^ 0                     ^ stack_.size()
-    DCHECK_LE(dest, stack_.size());
-    DCHECK_LE(dest + arity, stack_.size());
-    size_t pop_count = stack_.size() - dest - arity;
-    for (size_t i = 0; i < arity; i++) {
-      stack_[dest + i] = stack_[dest + pop_count + i];
+  // Adjust the program counter {pc} and the stack contents according to the
+  // code's precomputed control transfer map. Returns the different between
+  // the new pc and the old pc.
+  int DoControlTransfer(InterpreterCode* code, pc_t pc) {
+    auto target = code->targets->Lookup(pc);
+    switch (target.action) {
+      case ControlTransfer::kNoAction:
+        TRACE("  action [sp-%u]\n", target.spdiff);
+        PopN(target.spdiff);
+        break;
+      case ControlTransfer::kPopAndRepush: {
+        WasmVal val = Pop();
+        TRACE("  action [pop x, sp-%u, push x]\n", target.spdiff - 1);
+        DCHECK_GE(target.spdiff, 1u);
+        PopN(target.spdiff - 1);
+        Push(pc, val);
+        break;
+      }
+      case ControlTransfer::kPushVoid:
+        TRACE("  action [sp-%u, push void]\n", target.spdiff);
+        PopN(target.spdiff);
+        Push(pc, WasmVal());
+        break;
     }
-    stack_.resize(stack_.size() - pop_count);
+    return target.pcdiff;
   }
 
   void Execute(InterpreterCode* code, pc_t pc, int max) {
@@ -1231,8 +1251,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
       if (pc >= limit) {
         // Fell off end of code; do an implicit return.
         TRACE("@%-3zu: ImplicitReturn\n", pc);
-        if (!DoReturn(&code, &pc, &limit, code->function->sig->return_count()))
-          return;
+        WasmVal val = PopArity(code->function->sig->return_count());
+        if (!DoReturn(&code, &pc, &limit, val)) return;
         decoder.Reset(code->start, code->end);
         continue;
       }
@@ -1265,37 +1285,27 @@ class ThreadImpl : public WasmInterpreter::Thread {
 
       switch (orig) {
         case kExprNop:
+          Push(pc, WasmVal());
           break;
-        case kExprBlock: {
-          BlockTypeOperand operand(&decoder, code->at(pc));
-          blocks_.push_back({pc, stack_.size(), frames_.size(), operand.arity});
-          len = 1 + operand.length;
-          break;
-        }
+        case kExprBlock:
         case kExprLoop: {
-          BlockTypeOperand operand(&decoder, code->at(pc));
-          blocks_.push_back({pc, stack_.size(), frames_.size(), 0});
-          len = 1 + operand.length;
+          // Do nothing.
           break;
         }
         case kExprIf: {
-          BlockTypeOperand operand(&decoder, code->at(pc));
           WasmVal cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
-          blocks_.push_back({pc, stack_.size(), frames_.size(), operand.arity});
           if (is_true) {
             // fall through to the true block.
-            len = 1 + operand.length;
             TRACE("  true => fallthrough\n");
           } else {
-            len = LookupTarget(code, pc);
+            len = DoControlTransfer(code, pc);
             TRACE("  false => @%zu\n", pc + len);
           }
           break;
         }
         case kExprElse: {
-          blocks_.pop_back();
-          len = LookupTarget(code, pc);
+          len = DoControlTransfer(code, pc);
           TRACE("  end => @%zu\n", pc + len);
           break;
         }
@@ -1308,34 +1318,42 @@ class ThreadImpl : public WasmInterpreter::Thread {
         }
         case kExprBr: {
           BreakDepthOperand operand(&decoder, code->at(pc));
-          len = DoBreak(code, pc, operand.depth);
+          WasmVal val = PopArity(operand.arity);
+          len = DoControlTransfer(code, pc);
           TRACE("  br => @%zu\n", pc + len);
+          if (operand.arity > 0) Push(pc, val);
           break;
         }
         case kExprBrIf: {
           BreakDepthOperand operand(&decoder, code->at(pc));
           WasmVal cond = Pop();
+          WasmVal val = PopArity(operand.arity);
           bool is_true = cond.to<uint32_t>() != 0;
           if (is_true) {
-            len = DoBreak(code, pc, operand.depth);
+            len = DoControlTransfer(code, pc);
             TRACE("  br_if => @%zu\n", pc + len);
+            if (operand.arity > 0) Push(pc, val);
           } else {
             TRACE("  false => fallthrough\n");
             len = 1 + operand.length;
+            Push(pc, WasmVal());
           }
           break;
         }
         case kExprBrTable: {
           BranchTableOperand operand(&decoder, code->at(pc));
           uint32_t key = Pop().to<uint32_t>();
+          WasmVal val = PopArity(operand.arity);
           if (key >= operand.table_count) key = operand.table_count;
-          len = key + DoBreak(code, pc + key, operand.table[key]);
-          TRACE("  br[%u] => @%zu\n", key, pc + key + len);
+          len = DoControlTransfer(code, pc + key) + key;
+          TRACE("  br[%u] => @%zu\n", key, pc + len);
+          if (operand.arity > 0) Push(pc, val);
           break;
         }
         case kExprReturn: {
-          size_t arity = code->function->sig->return_count();
-          if (!DoReturn(&code, &pc, &limit, arity)) return;
+          ReturnArityOperand operand(&decoder, code->at(pc));
+          WasmVal val = PopArity(operand.arity);
+          if (!DoReturn(&code, &pc, &limit, val)) return;
           decoder.Reset(code->start, code->end);
           continue;
         }
@@ -1344,7 +1362,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
           return CommitPc(pc);
         }
         case kExprEnd: {
-          blocks_.pop_back();
+          len = DoControlTransfer(code, pc);
+          DCHECK_EQ(1, len);
           break;
         }
         case kExprI8Const: {
@@ -1387,19 +1406,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
           LocalIndexOperand operand(&decoder, code->at(pc));
           WasmVal val = Pop();
           stack_[frames_.back().sp + operand.index] = val;
-          len = 1 + operand.length;
-          break;
-        }
-        case kExprTeeLocal: {
-          LocalIndexOperand operand(&decoder, code->at(pc));
-          WasmVal val = Pop();
-          stack_[frames_.back().sp + operand.index] = val;
           Push(pc, val);
           len = 1 + operand.length;
-          break;
-        }
-        case kExprDrop: {
-          Pop();
           break;
         }
         case kExprCallFunction: {
@@ -1412,7 +1420,9 @@ class ThreadImpl : public WasmInterpreter::Thread {
         }
         case kExprCallIndirect: {
           CallIndirectOperand operand(&decoder, code->at(pc));
-          uint32_t entry_index = Pop().to<uint32_t>();
+          size_t index = stack_.size() - operand.arity - 1;
+          DCHECK_LT(index, stack_.size());
+          uint32_t entry_index = stack_[index].to<uint32_t>();
           // Assume only one table for now.
           DCHECK_LE(module()->function_tables.size(), 1u);
           InterpreterCode* target = codemap()->GetIndirectCode(0, entry_index);
@@ -1426,6 +1436,10 @@ class ThreadImpl : public WasmInterpreter::Thread {
           code = target;
           decoder.Reset(code->start, code->end);
           continue;
+        }
+        case kExprCallImport: {
+          UNIMPLEMENTED();
+          break;
         }
         case kExprGetGlobal: {
           GlobalIndexOperand operand(&decoder, code->at(pc));
@@ -1465,6 +1479,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
           } else {
             UNREACHABLE();
           }
+          Push(pc, val);
           len = 1 + operand.length;
           break;
         }
@@ -1513,6 +1528,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
     }                                                                         \
     byte* addr = instance()->mem_start + operand.offset + index;              \
     WriteLittleEndianValue<mtype>(addr, static_cast<mtype>(val.to<ctype>())); \
+    Push(pc, val);                                                            \
     len = 1 + operand.length;                                                 \
     break;                                                                    \
   }
@@ -1578,8 +1594,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
           break;
         }
         case kExprMemorySize: {
-          Push(pc, WasmVal(static_cast<uint32_t>(instance()->mem_size /
-                                                 WasmModule::kPageSize)));
+          Push(pc, WasmVal(static_cast<uint32_t>(instance()->mem_size)));
           break;
         }
 #define EXECUTE_SIMPLE_BINOP(name, ctype, op)             \
@@ -1654,7 +1669,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
 
   void Push(pc_t pc, WasmVal val) {
     // TODO(titzer): store PC as well?
-    if (val.type != kAstStmt) stack_.push_back(val);
+    stack_.push_back(val);
   }
 
   void TraceStack(const char* phase, pc_t pc) {
@@ -1835,7 +1850,7 @@ bool WasmInterpreter::SetFunctionCodeForTesting(const WasmFunction* function,
 
 ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
     Zone* zone, const byte* start, const byte* end) {
-  ControlTransfers targets(zone, nullptr, nullptr, start, end);
+  ControlTransfers targets(zone, 0, start, end);
   return targets.map_;
 }
 

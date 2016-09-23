@@ -53,7 +53,9 @@ TEST(Run_WasmModule_Return114) {
   Zone zone(&allocator);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f_index);
+  f->SetSignature(sigs.i_v());
   ExportAsMain(f);
   byte code[] = {WASM_I8(kReturnValue)};
   f->EmitCode(code, sizeof(code));
@@ -67,18 +69,21 @@ TEST(Run_WasmModule_CallAdd) {
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
 
-  WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_ii());
+  uint16_t f1_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f1_index);
+  f->SetSignature(sigs.i_ii());
   uint16_t param1 = 0;
   uint16_t param2 = 1;
   byte code1[] = {WASM_I32_ADD(WASM_GET_LOCAL(param1), WASM_GET_LOCAL(param2))};
-  f1->EmitCode(code1, sizeof(code1));
+  f->EmitCode(code1, sizeof(code1));
 
-  WasmFunctionBuilder* f2 = builder->AddFunction(sigs.i_v());
+  uint16_t f2_index = builder->AddFunction();
+  f = builder->FunctionAt(f2_index);
+  f->SetSignature(sigs.i_v());
 
-  ExportAsMain(f2);
-  byte code2[] = {
-      WASM_CALL_FUNCTION(f1->func_index(), WASM_I8(77), WASM_I8(22))};
-  f2->EmitCode(code2, sizeof(code2));
+  ExportAsMain(f);
+  byte code2[] = {WASM_CALL_FUNCTION2(f1_index, WASM_I8(77), WASM_I8(22))};
+  f->EmitCode(code2, sizeof(code2));
   TestModule(&zone, builder, 99);
 }
 
@@ -89,7 +94,9 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f_index);
+  f->SetSignature(sigs.i_v());
 
   ExportAsMain(f);
   byte code[] = {
@@ -108,16 +115,18 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f_index);
+  f->SetSignature(sigs.i_v());
 
   uint16_t localIndex = f->AddLocal(kAstI32);
   ExportAsMain(f);
-  byte code[] = {WASM_BLOCK_I(
+  byte code[] = {WASM_BLOCK(
       WASM_WHILE(
           WASM_I32_LTS(WASM_GET_LOCAL(localIndex), WASM_I32V_3(kCheckSize)),
           WASM_IF_ELSE(
               WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(localIndex)),
-              WASM_BRV(3, WASM_I8(-1)), WASM_INC_LOCAL_BY(localIndex, 4))),
+              WASM_BRV(2, WASM_I8(-1)), WASM_INC_LOCAL_BY(localIndex, 4))),
       WASM_I8(11))};
   f->EmitCode(code, sizeof(code));
   TestModule(&zone, builder, 11);
@@ -129,18 +138,20 @@ TEST(Run_WasmModule_CallMain_recursive) {
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f_index);
+  f->SetSignature(sigs.i_v());
 
   uint16_t localIndex = f->AddLocal(kAstI32);
   ExportAsMain(f);
-  byte code[] = {
+  byte code[] = {WASM_BLOCK(
       WASM_SET_LOCAL(localIndex,
                      WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
-      WASM_IF_ELSE_I(WASM_I32_LTS(WASM_GET_LOCAL(localIndex), WASM_I8(5)),
-                     WASM_SEQ(WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO,
+      WASM_IF_ELSE(WASM_I32_LTS(WASM_GET_LOCAL(localIndex), WASM_I8(5)),
+                   WASM_BLOCK(WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO,
                                              WASM_INC_LOCAL(localIndex)),
-                              WASM_CALL_FUNCTION0(0)),
-                     WASM_I8(55))};
+                              WASM_BRV(1, WASM_CALL_FUNCTION0(0))),
+                   WASM_BRV(0, WASM_I8(55))))};
   f->EmitCode(code, sizeof(code));
   TestModule(&zone, builder, 55);
 }
@@ -153,16 +164,20 @@ TEST(Run_WasmModule_Global) {
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint32_t global1 = builder->AddGlobal(kAstI32, 0);
   uint32_t global2 = builder->AddGlobal(kAstI32, 0);
-  WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
+  uint16_t f1_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f1_index);
+  f->SetSignature(sigs.i_v());
   byte code1[] = {
       WASM_I32_ADD(WASM_GET_GLOBAL(global1), WASM_GET_GLOBAL(global2))};
-  f1->EmitCode(code1, sizeof(code1));
-  WasmFunctionBuilder* f2 = builder->AddFunction(sigs.i_v());
-  ExportAsMain(f2);
+  f->EmitCode(code1, sizeof(code1));
+  uint16_t f2_index = builder->AddFunction();
+  f = builder->FunctionAt(f2_index);
+  f->SetSignature(sigs.i_v());
+  ExportAsMain(f);
   byte code2[] = {WASM_SET_GLOBAL(global1, WASM_I32V_1(56)),
                   WASM_SET_GLOBAL(global2, WASM_I32V_1(41)),
-                  WASM_RETURN1(WASM_CALL_FUNCTION0(f1->func_index()))};
-  f2->EmitCode(code2, sizeof(code2));
+                  WASM_RETURN1(WASM_CALL_FUNCTION0(f1_index))};
+  f->EmitCode(code2, sizeof(code2));
   TestModule(&zone, builder, 97);
 }
 
@@ -172,9 +187,11 @@ TEST(Run_WasmModule_Serialization) {
   Zone zone(&allocator);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  uint16_t f_index = builder->AddFunction();
   TestSignatures sigs;
 
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+  WasmFunctionBuilder* f = builder->FunctionAt(f_index);
+  f->SetSignature(sigs.i_i());
   byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
   f->EmitCode(code, sizeof(code));
   ExportAs(f, kFunctionName);
@@ -227,7 +244,7 @@ TEST(Run_WasmModule_Serialization) {
     Handle<JSObject> module_object =
         Handle<JSObject>::cast(v8::Utils::OpenHandle(*compiled_module));
     Handle<JSObject> instance =
-        WasmModule::Instantiate(isolate, &thrower, module_object,
+        WasmModule::Instantiate(isolate, module_object,
                                 Handle<JSReceiver>::null(),
                                 Handle<JSArrayBuffer>::null())
             .ToHandleChecked();
@@ -241,16 +258,19 @@ TEST(Run_WasmModule_Serialization) {
 }
 
 TEST(Run_WasmModule_MemSize_GrowMem) {
+  static const int kPageSize = 0x10000;
   // Initial memory size = 16 + GrowMemory(10)
-  static const int kExpectedValue = 26;
+  static const int kExpectedValue = kPageSize * 26;
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f_index);
+  f->SetSignature(sigs.i_v());
   ExportAsMain(f);
-  byte code[] = {WASM_GROW_MEMORY(WASM_I8(10)), WASM_DROP, WASM_MEMORY_SIZE};
+  byte code[] = {WASM_GROW_MEMORY(WASM_I8(10)), WASM_MEMORY_SIZE};
   f->EmitCode(code, sizeof(code));
   TestModule(&zone, builder, kExpectedValue);
 }
@@ -260,10 +280,12 @@ TEST(Run_WasmModule_GrowMemoryInIf) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+  uint16_t f_index = builder->AddFunction();
+  WasmFunctionBuilder* f = builder->FunctionAt(f_index);
+  f->SetSignature(sigs.i_v());
   ExportAsMain(f);
-  byte code[] = {WASM_IF_ELSE_I(WASM_I32V(0), WASM_GROW_MEMORY(WASM_I32V(1)),
-                                WASM_I32V(12))};
+  byte code[] = {WASM_IF_ELSE(WASM_I32V(0), WASM_GROW_MEMORY(WASM_I32V(1)),
+                              WASM_I32V(12))};
   f->EmitCode(code, sizeof(code));
   TestModule(&zone, builder, 12);
 }

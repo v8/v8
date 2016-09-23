@@ -988,7 +988,6 @@ function TestFunctionTable(stdlib, foreign, buffer) {
   return {caller:caller};
 }
 
-print("TestFunctionTable...");
 var module = TestFunctionTable(stdlib);
 assertEquals(55, module.caller(0, 0, 33, 22));
 assertEquals(11, module.caller(0, 1, 33, 22));
@@ -1041,7 +1040,6 @@ function TestForeignFunctions() {
   assertEquals(103, module.caller(23, 103));
 }
 
-print("TestForeignFunctions...");
 TestForeignFunctions();
 
 

@@ -15,9 +15,9 @@ var module = (function () {
       kExprGetLocal, 0,
       kExprI32Const, 0,
       kExprI32Ne,
-      kExprIf, kAstStmt,
+      kExprIf,
       kExprGetLocal, 0,
-      kExprThrow, kAstStmt,
+      kExprThrow,
       kExprEnd,
       kExprI32Const, 1
     ])
@@ -26,7 +26,7 @@ var module = (function () {
   builder.addFunction("throw_20", kSig_v_v)
     .addBody([
       kExprI32Const, 20,
-      kExprThrow, kAstStmt
+      kExprThrow
     ])
     .exportFunc()
 
@@ -43,7 +43,7 @@ var module = (function () {
       kExprI32Mul,
       kExprI32Const, 20,
       kExprI32Sub,
-      kExprThrow, kAstStmt
+      kExprThrow
     ])
     .exportFunc()
 

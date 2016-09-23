@@ -22,7 +22,6 @@ class WasmGraphBuilder;
 namespace wasm {
 
 const uint32_t kMaxNumWasmLocals = 8000000;
-struct WasmGlobal;
 
 // Helpers for decoding different kinds of operands which follow bytecodes.
 struct LocalIndexOperand {
@@ -82,111 +81,39 @@ struct ImmF64Operand {
 struct GlobalIndexOperand {
   uint32_t index;
   LocalType type;
-  const WasmGlobal* global;
   unsigned length;
 
   inline GlobalIndexOperand(Decoder* decoder, const byte* pc) {
     index = decoder->checked_read_u32v(pc, 1, &length, "global index");
-    global = nullptr;
     type = kAstStmt;
-  }
-};
-
-struct BlockTypeOperand {
-  uint32_t arity;
-  const byte* types;  // pointer to encoded types for the block.
-  unsigned length;
-
-  inline BlockTypeOperand(Decoder* decoder, const byte* pc) {
-    uint8_t val = decoder->checked_read_u8(pc, 1, "block type");
-    LocalType type = kAstStmt;
-    length = 1;
-    arity = 0;
-    types = nullptr;
-    if (decode_local_type(val, &type)) {
-      arity = type == kAstStmt ? 0 : 1;
-      types = pc + 1;
-    } else {
-      // Handle multi-value blocks.
-      if (!FLAG_wasm_mv_prototype) {
-        decoder->error(pc, pc + 1, "invalid block arity > 1");
-        return;
-      }
-      if (val != kMultivalBlock) {
-        decoder->error(pc, pc + 1, "invalid block type");
-        return;
-      }
-      // Decode and check the types vector of the block.
-      unsigned len = 0;
-      uint32_t count = decoder->checked_read_u32v(pc, 2, &len, "block arity");
-      // {count} is encoded as {arity-2}, so that a {0} count here corresponds
-      // to a block with 2 values. This makes invalid/redundant encodings
-      // impossible.
-      arity = count + 2;
-      length = 1 + len + arity;
-      types = pc + 1 + 1 + len;
-
-      for (uint32_t i = 0; i < arity; i++) {
-        uint32_t offset = 1 + 1 + len + i;
-        val = decoder->checked_read_u8(pc, offset, "block type");
-        decode_local_type(val, &type);
-        if (type == kAstStmt) {
-          decoder->error(pc, pc + offset, "invalid block type");
-          return;
-        }
-      }
-    }
-  }
-  // Decode a byte representing a local type. Return {false} if the encoded
-  // byte was invalid or {kMultivalBlock}.
-  bool decode_local_type(uint8_t val, LocalType* result) {
-    switch (static_cast<LocalTypeCode>(val)) {
-      case kLocalVoid:
-        *result = kAstStmt;
-        return true;
-      case kLocalI32:
-        *result = kAstI32;
-        return true;
-      case kLocalI64:
-        *result = kAstI64;
-        return true;
-      case kLocalF32:
-        *result = kAstF32;
-        return true;
-      case kLocalF64:
-        *result = kAstF64;
-        return true;
-      default:
-        *result = kAstStmt;
-        return false;
-    }
-  }
-  LocalType read_entry(unsigned index) {
-    DCHECK_LT(index, arity);
-    LocalType result;
-    CHECK(decode_local_type(types[index], &result));
-    return result;
   }
 };
 
 struct Control;
 struct BreakDepthOperand {
+  uint32_t arity;
   uint32_t depth;
   Control* target;
   unsigned length;
   inline BreakDepthOperand(Decoder* decoder, const byte* pc) {
-    depth = decoder->checked_read_u32v(pc, 1, &length, "break depth");
+    unsigned len1 = 0;
+    unsigned len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
+    depth = decoder->checked_read_u32v(pc, 1 + len1, &len2, "break depth");
+    length = len1 + len2;
     target = nullptr;
   }
 };
 
 struct CallIndirectOperand {
+  uint32_t arity;
   uint32_t index;
   FunctionSig* sig;
   unsigned length;
   inline CallIndirectOperand(Decoder* decoder, const byte* pc) {
     unsigned len1 = 0;
     unsigned len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
     index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "signature index");
     length = len1 + len2;
     sig = nullptr;
@@ -194,74 +121,64 @@ struct CallIndirectOperand {
 };
 
 struct CallFunctionOperand {
+  uint32_t arity;
   uint32_t index;
   FunctionSig* sig;
   unsigned length;
   inline CallFunctionOperand(Decoder* decoder, const byte* pc) {
     unsigned len1 = 0;
     unsigned len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
     index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "function index");
     length = len1 + len2;
     sig = nullptr;
   }
 };
 
-struct BranchTableOperand {
-  uint32_t table_count;
-  const byte* start;
-  const byte* table;
-  inline BranchTableOperand(Decoder* decoder, const byte* pc) {
-    DCHECK_EQ(kExprBrTable, decoder->checked_read_u8(pc, 0, "opcode"));
-    start = pc + 1;
+struct CallImportOperand {
+  uint32_t arity;
+  uint32_t index;
+  FunctionSig* sig;
+  unsigned length;
+  inline CallImportOperand(Decoder* decoder, const byte* pc) {
     unsigned len1 = 0;
-    table_count = decoder->checked_read_u32v(pc, 1, &len1, "table count");
+    unsigned len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
+    index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "import index");
+    length = len1 + len2;
+    sig = nullptr;
+  }
+};
+
+struct BranchTableOperand {
+  uint32_t arity;
+  uint32_t table_count;
+  const byte* table;
+  unsigned length;
+  inline BranchTableOperand(Decoder* decoder, const byte* pc) {
+    unsigned len1 = 0;
+    unsigned len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
+    table_count =
+        decoder->checked_read_u32v(pc, 1 + len1, &len2, "table count");
     if (table_count > (UINT_MAX / sizeof(uint32_t)) - 1 ||
-        len1 > UINT_MAX - (table_count + 1) * sizeof(uint32_t)) {
+        len1 + len2 > UINT_MAX - (table_count + 1) * sizeof(uint32_t)) {
       decoder->error(pc, "branch table size overflow");
     }
-    table = pc + 1 + len1;
+    length = len1 + len2 + (table_count + 1) * sizeof(uint32_t);
+
+    uint32_t table_start = 1 + len1 + len2;
+    if (decoder->check(pc, table_start, (table_count + 1) * sizeof(uint32_t),
+                       "expected <table entries>")) {
+      table = pc + table_start;
+    } else {
+      table = nullptr;
+    }
   }
   inline uint32_t read_entry(Decoder* decoder, unsigned i) {
     DCHECK(i <= table_count);
     return table ? decoder->read_u32(table + i * sizeof(uint32_t)) : 0;
   }
-};
-
-// A helper to iterate over a branch table.
-class BranchTableIterator {
- public:
-  unsigned cur_index() { return index_; }
-  bool has_next() { return index_ <= table_count_; }
-  uint32_t next() {
-    DCHECK(has_next());
-    index_++;
-    unsigned length = 0;
-    uint32_t result =
-        decoder_->checked_read_u32v(pc_, 0, &length, "branch table entry");
-    pc_ += length;
-    return result;
-  }
-  // length, including the length of the {BranchTableOperand}, but not the
-  // opcode.
-  unsigned length() {
-    while (has_next()) next();
-    return static_cast<unsigned>(pc_ - start_);
-  }
-  const byte* pc() { return pc_; }
-
-  BranchTableIterator(Decoder* decoder, BranchTableOperand& operand)
-      : decoder_(decoder),
-        start_(operand.start),
-        pc_(operand.table),
-        index_(0),
-        table_count_(operand.table_count) {}
-
- private:
-  Decoder* decoder_;
-  const byte* start_;
-  const byte* pc_;
-  uint32_t index_;        // the current index.
-  uint32_t table_count_;  // the count of entries, not including default.
 };
 
 struct MemoryAccessOperand {
@@ -283,6 +200,15 @@ struct MemoryAccessOperand {
     offset = decoder->checked_read_u32v(pc, 1 + alignment_length,
                                         &offset_length, "offset");
     length = alignment_length + offset_length;
+  }
+};
+
+struct ReturnArityOperand {
+  uint32_t arity;
+  unsigned length;
+
+  inline ReturnArityOperand(Decoder* decoder, const byte* pc) {
+    arity = decoder->checked_read_u32v(pc, 1, &length, "return count");
   }
 };
 
@@ -357,6 +283,9 @@ BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
 
 // Computes the length of the opcode at the given address.
 unsigned OpcodeLength(const byte* pc, const byte* end);
+
+// Computes the arity (number of sub-nodes) of the opcode at the given address.
+unsigned OpcodeArity(const byte* pc, const byte* end);
 
 // A simple forward iterator for bytecodes.
 class BytecodeIterator : public Decoder {

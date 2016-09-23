@@ -52,11 +52,11 @@ var builder = new WasmModuleBuilder();
 builder.addImport("func", kSig_v_v);
 
 builder.addFunction("wasm_1", kSig_v_v)
-  .addBody([kExprNop, kExprCallFunction, 2])
+  .addBody([kExprNop, kExprCallFunction, kArity0, 1])
   .exportAs("main");
 
 builder.addFunction("wasm_2", kSig_v_v)
-  .addBody([kExprCallFunction, 0]);
+  .addBody([kExprCallImport, kArity0, 0]);
 
 function call_debugger() {
   debugger;

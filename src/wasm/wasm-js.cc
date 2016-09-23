@@ -160,7 +160,7 @@ i::MaybeHandle<i::JSObject> InstantiateModule(
     }
 
     object = i::wasm::WasmModule::Instantiate(
-        isolate, thrower, module_object.ToHandleChecked(), ffi, memory);
+        isolate, module_object.ToHandleChecked(), ffi, memory);
     if (!object.is_null()) {
       args.GetReturnValue().Set(v8::Utils::ToLocal(object.ToHandleChecked()));
     }
@@ -296,10 +296,10 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
     memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
   }
-  i::MaybeHandle<i::JSObject> instance = i::wasm::WasmModule::Instantiate(
-      i_isolate, &thrower, module_obj, ffi, memory);
+  i::MaybeHandle<i::JSObject> instance =
+      i::wasm::WasmModule::Instantiate(i_isolate, module_obj, ffi, memory);
   if (instance.is_null()) {
-    if (!thrower.error()) thrower.Error("Could not instantiate module");
+    thrower.Error("Could not instantiate module");
     return;
   }
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
@@ -388,10 +388,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::JSFunction> table_ctor(
+  i::Handle<i::JSFunction> table_cons(
       i_isolate->native_context()->wasm_table_constructor());
   i::Handle<i::JSObject> table_obj =
-      i_isolate->factory()->NewJSObject(table_ctor);
+      i_isolate->factory()->NewJSObject(table_cons);
   i::Handle<i::FixedArray> fixed_array =
       i_isolate->factory()->NewFixedArray(initial);
   i::Object* null = i_isolate->heap()->null_value();
@@ -406,7 +406,6 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(table_obj));
 }
-
 void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
@@ -437,14 +436,23 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSFunction> memory_cons(
+      i_isolate->native_context()->wasm_memory_constructor());
+  i::Handle<i::JSObject> memory_obj =
+      i_isolate->factory()->NewJSObject(memory_cons);
   i::Handle<i::JSArrayBuffer> buffer =
       i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
   size_t size = static_cast<size_t>(i::wasm::WasmModule::kPageSize) *
                 static_cast<size_t>(initial);
   i::JSArrayBuffer::SetupAllocatingData(buffer, i_isolate, size);
-
-  i::Handle<i::JSObject> memory_obj = i::WasmJs::CreateWasmMemoryObject(
-      i_isolate, buffer, has_maximum, maximum);
+  memory_obj->SetInternalField(0, *buffer);
+  memory_obj->SetInternalField(
+      1, has_maximum
+             ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
+             : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
+  i::Handle<i::Symbol> memory_sym(
+      i_isolate->native_context()->wasm_memory_sym());
+  i::Object::SetProperty(memory_obj, memory_sym, memory_obj, i::STRICT).Check();
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(memory_obj));
 }
@@ -483,24 +491,6 @@ void WebAssemblyMemoryGetBuffer(
   return_value.Set(Utils::ToLocal(buffer));
 }
 }  // namespace
-
-i::Handle<i::JSObject> i::WasmJs::CreateWasmMemoryObject(
-    i::Isolate* i_isolate, i::Handle<i::JSArrayBuffer> buffer, bool has_maximum,
-    int maximum) {
-  i::Handle<i::JSFunction> memory_ctor(
-      i_isolate->native_context()->wasm_memory_constructor());
-  i::Handle<i::JSObject> memory_obj =
-      i_isolate->factory()->NewJSObject(memory_ctor);
-  memory_obj->SetInternalField(0, *buffer);
-  memory_obj->SetInternalField(
-      1, has_maximum
-             ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
-             : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
-  i::Handle<i::Symbol> memory_sym(
-      i_isolate->native_context()->wasm_memory_sym());
-  i::Object::SetProperty(memory_obj, memory_sym, memory_obj, i::STRICT).Check();
-  return memory_obj;
-}
 
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.

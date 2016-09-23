@@ -21,7 +21,7 @@ var kWasmH1 = 0x61;
 var kWasmH2 = 0x73;
 var kWasmH3 = 0x6d;
 
-var kWasmV0 = 0xC;
+var kWasmV0 = 11;
 var kWasmV1 = 0;
 var kWasmV2 = 0;
 var kWasmV3 = 0;
@@ -51,24 +51,30 @@ function bytesWithHeader() {
 var kDeclNoLocals = 0;
 
 // Section declaration constants
-var kUnknownSectionCode = 0;
-var kTypeSectionCode = 1;      // Function signature declarations
-var kImportSectionCode = 2;    // Import declarations
-var kFunctionSectionCode = 3;  // Function declarations
-var kTableSectionCode = 4;     // Indirect function table and other tables
-var kMemorySectionCode = 5;    // Memory attributes
-var kGlobalSectionCode = 6;    // Global declarations
-var kExportSectionCode = 7;    // Exports
-var kStartSectionCode = 8;     // Start function declaration
-var kElementSectionCode = 9;  // Elements section
-var kCodeSectionCode = 10;      // Function code
-var kDataSectionCode = 11;     // Data segments
-var kNameSectionCode = 12;     // Name section (encoded as string)
+var kDeclMemory = 0x00;
+var kDeclTypes = 0x01;
+var kDeclFunctions = 0x02;
+var kDeclGlobals = 0x03;
+var kDeclData = 0x04;
+var kDeclTable = 0x05;
+var kDeclEnd = 0x06;
+var kDeclStart = 0x07;
+var kDeclImports = 0x08;
+var kDeclExports = 0x09;
+var kDeclFunctions = 0x0a;
+var kDeclCode = 0x0b;
+var kDeclNames = 0x0c;
 
+var kArity0 = 0;
+var kArity1 = 1;
+var kArity2 = 2;
+var kArity3 = 3;
 var kWasmFunctionTypeForm = 0x40;
-var kWasmAnyFunctionTypeForm = 0x20;
 
-var kResizableMaximumFlag = 1;
+var section_names = [
+  "memory", "type", "old_function", "global", "data",
+  "table", "end", "start", "import", "export",
+  "function", "code", "name"];
 
 // Function declaration flags
 var kDeclFunctionName   = 0x01;
@@ -82,11 +88,6 @@ var kAstI32 = 1;
 var kAstI64 = 2;
 var kAstF32 = 3;
 var kAstF64 = 4;
-
-var kExternalFunction = 0;
-var kExternalTable = 1;
-var kExternalMemory = 2;
-var kExternalGlobal = 3;
 
 // Useful signatures
 var kSig_i = makeSig([], [kAstI32]);
@@ -132,8 +133,7 @@ function makeSig_r_xx(r, x) {
 }
 
 // Opcodes
-var kExprUnreachable = 0x00;
-var kExprNop = 0x0a;
+var kExprNop = 0x00;
 var kExprBlock = 0x01;
 var kExprLoop = 0x02;
 var kExprIf = 0x03;
@@ -143,10 +143,9 @@ var kExprBr = 0x06;
 var kExprBrIf = 0x07;
 var kExprBrTable = 0x08;
 var kExprReturn = 0x09;
+var kExprUnreachable = 0x0a;
 var kExprThrow = 0xfa;
 var kExprEnd = 0x0f;
-var kExprTeeLocal = 0x19;
-var kExprDrop = 0x0b;
 
 var kExprI32Const = 0x10;
 var kExprI64Const = 0x11;
@@ -156,6 +155,7 @@ var kExprGetLocal = 0x14;
 var kExprSetLocal = 0x15;
 var kExprCallFunction = 0x16;
 var kExprCallIndirect = 0x17;
+var kExprCallImport = 0x18;
 var kExprI8Const = 0xcb;
 var kExprGetGlobal = 0xbb;
 var kExprSetGlobal = 0xbc;

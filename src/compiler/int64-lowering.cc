@@ -778,18 +778,6 @@ void Int64Lowering::LowerNode(Node* node) {
       }
       break;
     }
-    case IrOpcode::kProjection: {
-      Node* call = node->InputAt(0);
-      DCHECK_EQ(IrOpcode::kCall, call->opcode());
-      CallDescriptor* descriptor =
-          const_cast<CallDescriptor*>(CallDescriptorOf(call->op()));
-      for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
-        if (descriptor->GetReturnType(i) == MachineType::Int64()) {
-          UNREACHABLE();  // TODO(titzer): implement multiple i64 returns.
-        }
-      }
-      break;
-    }
     case IrOpcode::kWord64ReverseBytes: {
       Node* input = node->InputAt(0);
       ReplaceNode(node, graph()->NewNode(machine()->Word32ReverseBytes().op(),

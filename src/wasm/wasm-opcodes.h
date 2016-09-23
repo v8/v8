@@ -22,9 +22,6 @@ enum LocalTypeCode {
   kLocalS128 = 5
 };
 
-// Type code for multi-value block types.
-static const uint8_t kMultivalBlock = 0x41;
-
 // We reuse the internal machine type to represent WebAssembly AST types.
 // A typedef improves readability without adding a whole new type system.
 typedef MachineRepresentation LocalType;
@@ -47,7 +44,7 @@ const WasmCodePosition kNoCodePosition = -1;
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V) \
-  V(Unreachable, 0x00, _)         \
+  V(Nop, 0x00, _)                 \
   V(Block, 0x01, _)               \
   V(Loop, 0x02, _)                \
   V(If, 0x03, _)                  \
@@ -57,7 +54,7 @@ const WasmCodePosition kNoCodePosition = -1;
   V(BrIf, 0x07, _)                \
   V(BrTable, 0x08, _)             \
   V(Return, 0x09, _)              \
-  V(Nop, 0x0a, _)                 \
+  V(Unreachable, 0x0a, _)         \
   V(Throw, 0xfa, _)               \
   V(Try, 0xfb, _)                 \
   V(Catch, 0xfe, _)               \
@@ -71,10 +68,9 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F32Const, 0x13, _)         \
   V(GetLocal, 0x14, _)         \
   V(SetLocal, 0x15, _)         \
-  V(TeeLocal, 0x19, _)         \
-  V(Drop, 0x0b, _)             \
   V(CallFunction, 0x16, _)     \
   V(CallIndirect, 0x17, _)     \
+  V(CallImport, 0x18, _)       \
   V(I8Const, 0xcb, _)          \
   V(GetGlobal, 0xbb, _)        \
   V(SetGlobal, 0xbc, _)
@@ -500,8 +496,6 @@ class WasmOpcodes {
   static byte MemSize(MachineType type) {
     return 1 << ElementSizeLog2Of(type.representation());
   }
-
-  static byte MemSize(LocalType type) { return 1 << ElementSizeLog2Of(type); }
 
   static LocalTypeCode LocalTypeCodeFor(LocalType type) {
     switch (type) {

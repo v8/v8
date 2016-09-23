@@ -10,7 +10,7 @@
 
 #include "src/wasm/wasm-module.h"
 
-int fuzz_wasm_section(v8::internal::wasm::WasmSectionCode section,
+int fuzz_wasm_section(v8::internal::wasm::WasmSection::Code section,
                       const uint8_t* data, size_t size);
 
 #endif  // WASM_SECTION_FUZZERS_H_

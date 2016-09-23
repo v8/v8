@@ -67,8 +67,8 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
       ModuleOrigin::kWasmOrigin);
   if (module_object.is_null()) return Handle<JSObject>::null();
   MaybeHandle<JSObject> maybe_instance = WasmModule::Instantiate(
-      isolate, thrower, module_object.ToHandleChecked(),
-      Handle<JSReceiver>::null(), Handle<JSArrayBuffer>::null());
+      isolate, module_object.ToHandleChecked(), Handle<JSReceiver>::null(),
+      Handle<JSArrayBuffer>::null());
   Handle<JSObject> instance;
   if (!maybe_instance.ToHandle(&instance)) {
     return Handle<JSObject>::null();

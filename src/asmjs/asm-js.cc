@@ -207,8 +207,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
 
   i::MaybeHandle<i::JSObject> maybe_module_object =
-      i::wasm::WasmModule::Instantiate(isolate, &thrower, module, foreign,
-                                       memory);
+      i::wasm::WasmModule::Instantiate(isolate, module, foreign, memory);
   if (maybe_module_object.is_null()) {
     return MaybeHandle<Object>();
   }

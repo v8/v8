@@ -17,7 +17,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addImport("getValue", kSig_i);
   builder.addFunction("f", kSig_i)
     .addBody([
-      kExprCallFunction, 0
+      kExprCallImport, kArity0, 0
     ]).exportFunc();
 
   var module = new WebAssembly.Module(builder.toBuffer());

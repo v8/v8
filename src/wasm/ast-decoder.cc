@@ -36,8 +36,6 @@ namespace wasm {
     error("Invalid opcode (enable with --" #flag ")"); \
     break;                                             \
   }
-// TODO(titzer): this is only for intermediate migration.
-#define IMPLICIT_FUNCTION_END 1
 
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
@@ -72,68 +70,41 @@ struct Value {
 
 struct Control;
 
-struct MergeValues {
-  uint32_t arity;
-  union {
-    Value* array;
-    Value first;
-  } vals;  // Either multiple values or a single value.
-
-  Value& first() {
-    DCHECK_GT(arity, 0u);
-    return arity == 1 ? vals.first : vals.array[0];
-  }
-};
-
-// IncomingBranch is used by exception handling code for managing finally's.
-struct IncomingBranch {
-  int32_t token_value;
-  Control* target;
-  MergeValues merge;
-};
-
-static Value* NO_VALUE = nullptr;
-
-enum ControlKind { kControlIf, kControlBlock, kControlLoop, kControlTry };
-
-// An entry on the control stack (i.e. if, block, loop).
+// An entry on the control stack (i.e. if, block, loop, try).
 struct Control {
   const byte* pc;
-  ControlKind kind;
   int stack_depth;    // stack height at the beginning of the construct.
   SsaEnv* end_env;    // end environment for the construct.
   SsaEnv* false_env;  // false environment (only for if).
   SsaEnv* catch_env;  // catch environment (only for try).
+  TFNode* node;       // result node for the construct.
+  LocalType type;     // result type for the construct.
+  bool is_loop;       // true if this is the inner label of a loop.
 
-  // Values merged into the end of this control construct.
-  MergeValues merge;
+  bool is_if() const { return *pc == kExprIf; }
 
-  inline bool is_if() const { return kind == kControlIf; }
-  inline bool is_block() const { return kind == kControlBlock; }
-  inline bool is_loop() const { return kind == kControlLoop; }
-  inline bool is_try() const { return kind == kControlTry; }
+  bool is_try() const { return *pc == kExprTry; }
 
   // Named constructors.
   static Control Block(const byte* pc, int stack_depth, SsaEnv* end_env) {
-    return {pc,      kControlBlock, stack_depth,    end_env,
-            nullptr, nullptr,       {0, {NO_VALUE}}};
+    return {pc,      stack_depth, end_env, nullptr,
+            nullptr, nullptr,     kAstEnd, false};
   }
 
   static Control If(const byte* pc, int stack_depth, SsaEnv* end_env,
                     SsaEnv* false_env) {
-    return {pc,        kControlIf, stack_depth,    end_env,
-            false_env, nullptr,    {0, {NO_VALUE}}};
+    return {pc,      stack_depth, end_env,  false_env,
+            nullptr, nullptr,     kAstStmt, false};
   }
 
   static Control Loop(const byte* pc, int stack_depth, SsaEnv* end_env) {
-    return {pc,      kControlLoop, stack_depth,    end_env,
-            nullptr, nullptr,      {0, {NO_VALUE}}};
+    return {pc, stack_depth, end_env, nullptr, nullptr, nullptr, kAstEnd, true};
   }
 
   static Control Try(const byte* pc, int stack_depth, SsaEnv* end_env,
                      SsaEnv* catch_env) {
-    return {pc,      kControlTry, stack_depth,    end_env,
-            nullptr, catch_env,   {0, {NO_VALUE}}};
+    return {pc,        stack_depth, end_env, nullptr,
+            catch_env, nullptr,     kAstEnd, false};
   }
 };
 
@@ -168,18 +139,17 @@ class WasmDecoder : public Decoder {
       }
       return true;
     }
-    error(pc, pc + 1, "invalid local index: %u", operand.index);
+    error(pc, pc + 1, "invalid local index");
     return false;
   }
 
   inline bool Validate(const byte* pc, GlobalIndexOperand& operand) {
     ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->globals.size()) {
-      operand.global = &m->module->globals[operand.index];
-      operand.type = operand.global->type;
+      operand.type = m->module->globals[operand.index].type;
       return true;
     }
-    error(pc, pc + 1, "invalid global index: %u", operand.index);
+    error(pc, pc + 1, "invalid global index");
     return false;
   }
 
@@ -194,9 +164,16 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(const byte* pc, CallFunctionOperand& operand) {
     if (Complete(pc, operand)) {
+      uint32_t expected = static_cast<uint32_t>(operand.sig->parameter_count());
+      if (operand.arity != expected) {
+        error(pc, pc + 1,
+              "arity mismatch in direct function call (expected %u, got %u)",
+              expected, operand.arity);
+        return false;
+      }
       return true;
     }
-    error(pc, pc + 1, "invalid function index: %u", operand.index);
+    error(pc, pc + 1, "invalid function index");
     return false;
   }
 
@@ -211,26 +188,160 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(const byte* pc, CallIndirectOperand& operand) {
     if (Complete(pc, operand)) {
+      uint32_t expected = static_cast<uint32_t>(operand.sig->parameter_count());
+      if (operand.arity != expected) {
+        error(pc, pc + 1,
+              "arity mismatch in indirect function call (expected %u, got %u)",
+              expected, operand.arity);
+        return false;
+      }
       return true;
     }
-    error(pc, pc + 1, "invalid signature index: #%u", operand.index);
+    error(pc, pc + 1, "invalid signature index");
+    return false;
+  }
+
+  inline bool Complete(const byte* pc, CallImportOperand& operand) {
+    ModuleEnv* m = module_;
+    if (m && m->module && operand.index < m->module->import_table.size()) {
+      operand.sig = m->module->import_table[operand.index].sig;
+      return true;
+    }
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, CallImportOperand& operand) {
+    if (Complete(pc, operand)) {
+      uint32_t expected = static_cast<uint32_t>(operand.sig->parameter_count());
+      if (operand.arity != expected) {
+        error(pc, pc + 1, "arity mismatch in import call (expected %u, got %u)",
+              expected, operand.arity);
+        return false;
+      }
+      return true;
+    }
+    error(pc, pc + 1, "invalid signature index");
     return false;
   }
 
   inline bool Validate(const byte* pc, BreakDepthOperand& operand,
                        ZoneVector<Control>& control) {
+    if (operand.arity > 1) {
+      error(pc, pc + 1, "invalid arity for br or br_if");
+      return false;
+    }
     if (operand.depth < control.size()) {
       operand.target = &control[control.size() - operand.depth - 1];
       return true;
     }
-    error(pc, pc + 1, "invalid break depth: %u", operand.depth);
+    error(pc, pc + 1, "invalid break depth");
     return false;
   }
 
   bool Validate(const byte* pc, BranchTableOperand& operand,
                 size_t block_depth) {
-    // TODO(titzer): add extra redundant validation for br_table here?
+    if (operand.arity > 1) {
+      error(pc, pc + 1, "invalid arity for break");
+      return false;
+    }
+    // Verify table.
+    for (uint32_t i = 0; i < operand.table_count + 1; ++i) {
+      uint32_t target = operand.read_entry(this, i);
+      if (target >= block_depth) {
+        error(operand.table + i * 2, "improper branch in br_table");
+        return false;
+      }
+    }
     return true;
+  }
+
+  unsigned OpcodeArity(const byte* pc) {
+#define DECLARE_ARITY(name, ...)                          \
+  static const LocalType kTypes_##name[] = {__VA_ARGS__}; \
+  static const int kArity_##name =                        \
+      static_cast<int>(arraysize(kTypes_##name) - 1);
+
+    FOREACH_SIGNATURE(DECLARE_ARITY);
+#undef DECLARE_ARITY
+
+    switch (static_cast<WasmOpcode>(*pc)) {
+      case kExprI8Const:
+      case kExprI32Const:
+      case kExprI64Const:
+      case kExprF64Const:
+      case kExprF32Const:
+      case kExprGetLocal:
+      case kExprGetGlobal:
+      case kExprNop:
+      case kExprUnreachable:
+      case kExprEnd:
+      case kExprBlock:
+      case kExprThrow:
+      case kExprTry:
+      case kExprLoop:
+        return 0;
+
+      case kExprSetGlobal:
+      case kExprSetLocal:
+      case kExprElse:
+      case kExprCatch:
+        return 1;
+
+      case kExprBr: {
+        BreakDepthOperand operand(this, pc);
+        return operand.arity;
+      }
+      case kExprBrIf: {
+        BreakDepthOperand operand(this, pc);
+        return 1 + operand.arity;
+      }
+      case kExprBrTable: {
+        BranchTableOperand operand(this, pc);
+        return 1 + operand.arity;
+      }
+
+      case kExprIf:
+        return 1;
+      case kExprSelect:
+        return 3;
+
+      case kExprCallFunction: {
+        CallFunctionOperand operand(this, pc);
+        return operand.arity;
+      }
+      case kExprCallIndirect: {
+        CallIndirectOperand operand(this, pc);
+        return 1 + operand.arity;
+      }
+      case kExprCallImport: {
+        CallImportOperand operand(this, pc);
+        return operand.arity;
+      }
+      case kExprReturn: {
+        ReturnArityOperand operand(this, pc);
+        return operand.arity;
+      }
+
+#define DECLARE_OPCODE_CASE(name, opcode, sig) \
+  case kExpr##name:                            \
+    return kArity_##sig;
+
+        FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
+        FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
+        FOREACH_MISC_MEM_OPCODE(DECLARE_OPCODE_CASE)
+        FOREACH_SIMPLE_OPCODE(DECLARE_OPCODE_CASE)
+        FOREACH_SIMPLE_MEM_OPCODE(DECLARE_OPCODE_CASE)
+        FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
+        FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+#undef DECLARE_OPCODE_CASE
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+        FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+#undef DECLARE_OPCODE_CASE
+        return 1;
+      default:
+        UNREACHABLE();
+        return 0;
+    }
   }
 
   unsigned OpcodeLength(const byte* pc) {
@@ -262,17 +373,12 @@ class WasmDecoder : public Decoder {
         CallIndirectOperand operand(this, pc);
         return 1 + operand.length;
       }
-
-      case kExprTry:
-      case kExprIf:  // fall thru
-      case kExprLoop:
-      case kExprBlock: {
-        BlockTypeOperand operand(this, pc);
+      case kExprCallImport: {
+        CallImportOperand operand(this, pc);
         return 1 + operand.length;
       }
 
       case kExprSetLocal:
-      case kExprTeeLocal:
       case kExprGetLocal:
       case kExprCatch: {
         LocalIndexOperand operand(this, pc);
@@ -280,8 +386,7 @@ class WasmDecoder : public Decoder {
       }
       case kExprBrTable: {
         BranchTableOperand operand(this, pc);
-        BranchTableIterator iterator(this, operand);
-        return 1 + iterator.length();
+        return 1 + operand.length;
       }
       case kExprI32Const: {
         ImmI32Operand operand(this, pc);
@@ -297,6 +402,14 @@ class WasmDecoder : public Decoder {
         return 5;
       case kExprF64Const:
         return 9;
+      case kExprReturn: {
+        ReturnArityOperand operand(this, pc);
+        return 1 + operand.length;
+      }
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+        FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE) { return 2; }
+        FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE) { return 3; }
+#undef DECLARE_OPCODE_CASE
       default:
         return 1;
     }
@@ -314,8 +427,7 @@ class WasmFullDecoder : public WasmDecoder {
         base_(body.base),
         local_type_vec_(zone),
         stack_(zone),
-        control_(zone),
-        last_end_found_(false) {
+        control_(zone) {
     local_types_ = &local_type_vec_;
   }
 
@@ -328,7 +440,7 @@ class WasmFullDecoder : public WasmDecoder {
     control_.clear();
 
     if (end_ < pc_) {
-      error("function body end < start");
+      error(pc_, "function body end < start");
       return false;
     }
 
@@ -338,55 +450,23 @@ class WasmFullDecoder : public WasmDecoder {
 
     if (failed()) return TraceFailed();
 
-#if IMPLICIT_FUNCTION_END
-    // With implicit end support (old style), the function block
-    // remains on the stack. Other control blocks are an error.
-    if (control_.size() > 1) {
-      error(pc_, control_.back().pc, "unterminated control structure");
-      return TraceFailed();
-    }
-
-    // Assume an implicit end to the function body block.
-    if (control_.size() == 1) {
-      Control* c = &control_.back();
-      if (ssa_env_->go()) {
-        FallThruTo(c);
-      }
-
-      if (c->end_env->go()) {
-        // Push the end values onto the stack.
-        stack_.resize(c->stack_depth);
-        if (c->merge.arity == 1) {
-          stack_.push_back(c->merge.vals.first);
-        } else {
-          for (unsigned i = 0; i < c->merge.arity; i++) {
-            stack_.push_back(c->merge.vals.array[i]);
-          }
-        }
-
-        TRACE("  @%-8d #xx:%-20s|", startrel(pc_), "ImplicitReturn");
-        SetEnv("function:end", c->end_env);
-        DoReturn();
-        TRACE("\n");
-      }
-    }
-#else
     if (!control_.empty()) {
       error(pc_, control_.back().pc, "unterminated control structure");
       return TraceFailed();
     }
 
-    if (!last_end_found_) {
-      error("function body must end with \"end\" opcode.");
-      return false;
+    if (ssa_env_->go()) {
+      TRACE("  @%-8d #xx:%-20s|", startrel(pc_), "ImplicitReturn");
+      DoReturn();
+      if (failed()) return TraceFailed();
+      TRACE("\n");
     }
-#endif
 
     if (FLAG_trace_wasm_decode_time) {
       double ms = decode_timer.Elapsed().InMillisecondsF();
-      PrintF("wasm-decode %s (%0.3f ms)\n\n", ok() ? "ok" : "failed", ms);
+      PrintF("wasm-decode ok (%0.3f ms)\n\n", ms);
     } else {
-      TRACE("wasm-decode %s\n\n", ok() ? "ok" : "failed");
+      TRACE("wasm-decode ok\n\n");
     }
 
     return true;
@@ -439,7 +519,6 @@ class WasmFullDecoder : public WasmDecoder {
   ZoneVector<LocalType> local_type_vec_;  // types of local variables.
   ZoneVector<Value> stack_;               // stack of values.
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
-  bool last_end_found_;
 
   inline bool build() { return builder_ && ssa_env_->go(); }
 
@@ -560,24 +639,6 @@ class WasmFullDecoder : public WasmDecoder {
           reinterpret_cast<const void*>(limit_), baserel(pc_),
           static_cast<int>(limit_ - start_), builder_ ? "graph building" : "");
 
-    {
-      // Set up initial function block.
-      SsaEnv* break_env = ssa_env_;
-      SetEnv("initial env", Steal(break_env));
-      PushBlock(break_env);
-      Control* c = &control_.back();
-      c->merge.arity = static_cast<uint32_t>(sig_->return_count());
-
-      if (c->merge.arity == 1) {
-        c->merge.vals.first = {pc_, nullptr, sig_->GetReturn(0)};
-      } else if (c->merge.arity > 1) {
-        c->merge.vals.array = zone_->NewArray<Value>(c->merge.arity);
-        for (unsigned i = 0; i < c->merge.arity; i++) {
-          c->merge.vals.array[i] = {pc_, nullptr, sig_->GetReturn(i)};
-        }
-      }
-    }
-
     if (pc_ >= limit_) return;  // Nothing to do.
 
     while (true) {  // decoding loop.
@@ -595,15 +656,13 @@ class WasmFullDecoder : public WasmDecoder {
         // Complex bytecode.
         switch (opcode) {
           case kExprNop:
+            Push(kAstStmt, nullptr);
             break;
           case kExprBlock: {
             // The break environment is the outer environment.
-            BlockTypeOperand operand(this, pc_);
             SsaEnv* break_env = ssa_env_;
             PushBlock(break_env);
             SetEnv("block:start", Steal(break_env));
-            SetBlockType(&control_.back(), operand);
-            len = 1 + operand.length;
             break;
           }
           case kExprThrow: {
@@ -614,14 +673,11 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprTry: {
             CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
-            BlockTypeOperand operand(this, pc_);
             SsaEnv* outer_env = ssa_env_;
             SsaEnv* try_env = Steal(outer_env);
             SsaEnv* catch_env = Split(try_env);
             PushTry(outer_env, catch_env);
-            SetEnv("try_catch:start", try_env);
-            SetBlockType(&control_.back(), operand);
-            len = 1 + operand.length;
+            SetEnv("try:start", try_env);
             break;
           }
           case kExprCatch: {
@@ -630,18 +686,18 @@ class WasmFullDecoder : public WasmDecoder {
             len = 1 + operand.length;
 
             if (control_.empty()) {
-              error("catch does not match any try");
+              error(pc_, "catch does not match a any try");
               break;
             }
 
             Control* c = &control_.back();
             if (!c->is_try()) {
-              error("catch does not match any try");
+              error(pc_, "catch does not match a try");
               break;
             }
 
             if (c->catch_env == nullptr) {
-              error("catch already present for try with catch");
+              error(pc_, "catch already present for try with catch");
               break;
             }
 
@@ -660,23 +716,23 @@ class WasmFullDecoder : public WasmDecoder {
             }
 
             PopUpTo(c->stack_depth);
+
             break;
           }
           case kExprLoop: {
-            BlockTypeOperand operand(this, pc_);
-            SsaEnv* finish_try_env = Steal(ssa_env_);
+            // The break environment is the outer environment.
+            SsaEnv* break_env = ssa_env_;
+            PushBlock(break_env);
+            SsaEnv* finish_try_env = Steal(break_env);
             // The continue environment is the inner environment.
             PrepareForLoop(pc_, finish_try_env);
             SetEnv("loop:start", Split(finish_try_env));
             ssa_env_->SetNotMerged();
             PushLoop(finish_try_env);
-            SetBlockType(&control_.back(), operand);
-            len = 1 + operand.length;
             break;
           }
           case kExprIf: {
             // Condition on top of stack. Split environments for branches.
-            BlockTypeOperand operand(this, pc_);
             Value cond = Pop(0, kAstI32);
             TFNode* if_true = nullptr;
             TFNode* if_false = nullptr;
@@ -688,13 +744,11 @@ class WasmFullDecoder : public WasmDecoder {
             true_env->control = if_true;
             PushIf(end_env, false_env);
             SetEnv("if:true", true_env);
-            SetBlockType(&control_.back(), operand);
-            len = 1 + operand.length;
             break;
           }
           case kExprElse: {
             if (control_.empty()) {
-              error("else does not match any if");
+              error(pc_, "else does not match any if");
               break;
             }
             Control* c = &control_.back();
@@ -706,38 +760,31 @@ class WasmFullDecoder : public WasmDecoder {
               error(pc_, c->pc, "else already present for if");
               break;
             }
-            FallThruTo(c);
+            Value val = PopUpTo(c->stack_depth);
+            MergeInto(c->end_env, &c->node, &c->type, val);
             // Switch to environment for false branch.
-            stack_.resize(c->stack_depth);
             SetEnv("if_else:false", c->false_env);
             c->false_env = nullptr;  // record that an else is already seen
             break;
           }
           case kExprEnd: {
             if (control_.empty()) {
-              error("end does not match any if, try, or block");
-              return;
+              error(pc_, "end does not match any if, try, or block");
+              break;
             }
             const char* name = "block:end";
             Control* c = &control_.back();
-            if (c->is_loop()) {
-              // A loop just leaves the values on the stack.
-              TypeCheckLoopFallThru(c);
+            Value val = PopUpTo(c->stack_depth);
+            if (c->is_loop) {
+              // Loops always push control in pairs.
               PopControl();
-              SetEnv("loop:end", ssa_env_);
-              break;
-            }
-            if (c->is_if()) {
+              c = &control_.back();
+              name = "loop:end";
+            } else if (c->is_if()) {
               if (c->false_env != nullptr) {
                 // End the true branch of a one-armed if.
                 Goto(c->false_env, c->end_env);
-                if (ssa_env_->go() && stack_.size() != c->stack_depth) {
-                  error("end of if expected empty stack");
-                  stack_.resize(c->stack_depth);
-                }
-                if (c->merge.arity > 0) {
-                  error("non-void one-armed if");
-                }
+                val = {val.pc, nullptr, kAstStmt};
                 name = "if:merge";
               } else {
                 // End the false branch of a two-armed if.
@@ -748,39 +795,19 @@ class WasmFullDecoder : public WasmDecoder {
 
               // validate that catch was seen.
               if (c->catch_env != nullptr) {
-                error("missing catch in try");
+                error(pc_, "missing catch in try");
                 break;
               }
             }
-            FallThruTo(c);
+
+            if (ssa_env_->go()) {
+              // Adds a fallthrough edge to the next control block.
+              MergeInto(c->end_env, &c->node, &c->type, val);
+            }
             SetEnv(name, c->end_env);
-
-            // Push the end values onto the stack.
             stack_.resize(c->stack_depth);
-            if (c->merge.arity == 1) {
-              stack_.push_back(c->merge.vals.first);
-            } else {
-              for (unsigned i = 0; i < c->merge.arity; i++) {
-                stack_.push_back(c->merge.vals.array[i]);
-              }
-            }
-
+            Push(c->type, c->node);
             PopControl();
-
-            if (control_.empty()) {
-              // If the last (implicit) control was popped, check we are at end.
-              if (pc_ + 1 != end_) {
-                error(pc_, pc_ + 1, "trailing code after function end");
-              }
-              last_end_found_ = true;
-              if (ssa_env_->go()) {
-                // The result of the block is the return value.
-                TRACE("  @%-8d #xx:%-20s|", startrel(pc_), "ImplicitReturn");
-                DoReturn();
-                TRACE("\n");
-              }
-              return;
-            }
             break;
           }
           case kExprSelect: {
@@ -789,7 +816,7 @@ class WasmFullDecoder : public WasmDecoder {
             Value tval = Pop();
             if (tval.type == kAstStmt || tval.type != fval.type) {
               if (tval.type != kAstEnd && fval.type != kAstEnd) {
-                error("type mismatch in select");
+                error(pc_, "type mismatch in select");
                 break;
               }
             }
@@ -811,33 +838,39 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprBr: {
             BreakDepthOperand operand(this, pc_);
+            Value val = {pc_, nullptr, kAstStmt};
+            if (operand.arity) val = Pop();
             if (Validate(pc_, operand, control_)) {
-              BreakTo(operand.depth);
+              BreakTo(operand.target, val);
             }
             len = 1 + operand.length;
-            EndControl();
+            Push(kAstEnd, nullptr);
             break;
           }
           case kExprBrIf: {
             BreakDepthOperand operand(this, pc_);
-            Value cond = Pop(0, kAstI32);
+            Value cond = Pop(operand.arity, kAstI32);
+            Value val = {pc_, nullptr, kAstStmt};
+            if (operand.arity == 1) val = Pop();
             if (ok() && Validate(pc_, operand, control_)) {
               SsaEnv* fenv = ssa_env_;
               SsaEnv* tenv = Split(fenv);
               fenv->SetNotMerged();
               BUILD(Branch, cond.node, &tenv->control, &fenv->control);
               ssa_env_ = tenv;
-              BreakTo(operand.depth);
+              BreakTo(operand.target, val);
               ssa_env_ = fenv;
             }
             len = 1 + operand.length;
+            Push(kAstStmt, nullptr);
             break;
           }
           case kExprBrTable: {
             BranchTableOperand operand(this, pc_);
-            BranchTableIterator iterator(this, operand);
             if (Validate(pc_, operand, control_.size())) {
-              Value key = Pop(0, kAstI32);
+              Value key = Pop(operand.arity, kAstI32);
+              Value val = {pc_, nullptr, kAstStmt};
+              if (operand.arity == 1) val = Pop();
               if (failed()) break;
 
               SsaEnv* break_env = ssa_env_;
@@ -847,43 +880,42 @@ class WasmFullDecoder : public WasmDecoder {
 
                 SsaEnv* copy = Steal(break_env);
                 ssa_env_ = copy;
-                while (iterator.has_next()) {
-                  uint32_t i = iterator.cur_index();
-                  const byte* pos = iterator.pc();
-                  uint32_t target = iterator.next();
-                  if (target >= control_.size()) {
-                    error(pos, "improper branch in br_table");
-                    break;
-                  }
+                for (uint32_t i = 0; i < operand.table_count + 1; ++i) {
+                  uint16_t target = operand.read_entry(this, i);
                   ssa_env_ = Split(copy);
                   ssa_env_->control = (i == operand.table_count)
                                           ? BUILD(IfDefault, sw)
                                           : BUILD(IfValue, i, sw);
-                  BreakTo(target);
+                  int depth = target;
+                  Control* c = &control_[control_.size() - depth - 1];
+                  MergeInto(c->end_env, &c->node, &c->type, val);
                 }
               } else {
                 // Only a default target. Do the equivalent of br.
-                const byte* pos = iterator.pc();
-                uint32_t target = iterator.next();
-                if (target >= control_.size()) {
-                  error(pos, "improper branch in br_table");
-                  break;
-                }
-                BreakTo(target);
+                uint16_t target = operand.read_entry(this, 0);
+                int depth = target;
+                Control* c = &control_[control_.size() - depth - 1];
+                MergeInto(c->end_env, &c->node, &c->type, val);
               }
               // br_table ends the control flow like br.
               ssa_env_ = break_env;
+              Push(kAstStmt, nullptr);
             }
-            len = 1 + iterator.length();
+            len = 1 + operand.length;
             break;
           }
           case kExprReturn: {
+            ReturnArityOperand operand(this, pc_);
+            if (operand.arity != sig_->return_count()) {
+              error(pc_, pc_ + 1, "arity mismatch in return");
+            }
             DoReturn();
+            len = 1 + operand.length;
             break;
           }
           case kExprUnreachable: {
-            BUILD(Unreachable, position());
-            EndControl();
+            Push(kAstEnd, BUILD(Unreachable, position()));
+            ssa_env_->Kill(SsaEnv::kControlEnd);
             break;
           }
           case kExprI8Const: {
@@ -933,22 +965,9 @@ class WasmFullDecoder : public WasmDecoder {
             if (Validate(pc_, operand)) {
               Value val = Pop(0, local_type_vec_[operand.index]);
               if (ssa_env_->locals) ssa_env_->locals[operand.index] = val.node;
-            }
-            len = 1 + operand.length;
-            break;
-          }
-          case kExprTeeLocal: {
-            LocalIndexOperand operand(this, pc_);
-            if (Validate(pc_, operand)) {
-              Value val = Pop(0, local_type_vec_[operand.index]);
-              if (ssa_env_->locals) ssa_env_->locals[operand.index] = val.node;
               Push(val.type, val.node);
             }
             len = 1 + operand.length;
-            break;
-          }
-          case kExprDrop: {
-            Pop();
             break;
           }
           case kExprGetGlobal: {
@@ -962,13 +981,9 @@ class WasmFullDecoder : public WasmDecoder {
           case kExprSetGlobal: {
             GlobalIndexOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
-              if (operand.global->mutability) {
-                Value val = Pop(0, operand.type);
-                BUILD(SetGlobal, operand.index, val.node);
-              } else {
-                error(pc_, pc_ + 1, "immutable global #%u cannot be assigned",
-                      operand.index);
-              }
+              Value val = Pop(0, operand.type);
+              BUILD(SetGlobal, operand.index, val.node);
+              Push(val.type, val.node);
             }
             len = 1 + operand.length;
             break;
@@ -988,6 +1003,7 @@ class WasmFullDecoder : public WasmDecoder {
           case kExprI32LoadMem:
             len = DecodeLoadMem(kAstI32, MachineType::Int32());
             break;
+
           case kExprI64LoadMem8S:
             len = DecodeLoadMem(kAstI64, MachineType::Int8());
             break;
@@ -1051,15 +1067,15 @@ class WasmFullDecoder : public WasmDecoder {
             }
             break;
           case kExprMemorySize:
-            Push(kAstI32, BUILD(CurrentMemoryPages));
+            Push(kAstI32, BUILD(MemSize, 0));
             break;
           case kExprCallFunction: {
             CallFunctionOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
               TFNode** buffer = PopArgs(operand.sig);
-              TFNode** rets =
+              TFNode* call =
                   BUILD(CallDirect, operand.index, buffer, position());
-              PushReturns(operand.sig, rets);
+              Push(GetReturnType(operand.sig), call);
             }
             len = 1 + operand.length;
             break;
@@ -1067,12 +1083,23 @@ class WasmFullDecoder : public WasmDecoder {
           case kExprCallIndirect: {
             CallIndirectOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
-              Value index = Pop(0, kAstI32);
               TFNode** buffer = PopArgs(operand.sig);
+              Value index = Pop(0, kAstI32);
               if (buffer) buffer[0] = index.node;
-              TFNode** rets =
+              TFNode* call =
                   BUILD(CallIndirect, operand.index, buffer, position());
-              PushReturns(operand.sig, rets);
+              Push(GetReturnType(operand.sig), call);
+            }
+            len = 1 + operand.length;
+            break;
+          }
+          case kExprCallImport: {
+            CallImportOperand operand(this, pc_);
+            if (Validate(pc_, operand)) {
+              TFNode** buffer = PopArgs(operand.sig);
+              TFNode* call =
+                  BUILD(CallImport, operand.index, buffer, position());
+              Push(GetReturnType(operand.sig), call);
             }
             len = 1 + operand.length;
             break;
@@ -1087,9 +1114,9 @@ class WasmFullDecoder : public WasmDecoder {
             len += DecodeSimdOpcode(opcode);
             break;
           }
-          default: {
+          default:
             // Deal with special asmjs opcodes.
-            if (module_ && module_->origin == kAsmJsOrigin) {
+            if (module_->origin == kAsmJsOrigin) {
               sig = WasmOpcodes::AsmjsSignature(opcode);
               if (sig) {
                 BuildSimpleOperator(opcode, sig);
@@ -1098,9 +1125,8 @@ class WasmFullDecoder : public WasmDecoder {
               error("Invalid opcode");
               return;
             }
-          }
         }
-      }
+      }  // end complex bytecode
 
 #if DEBUG
       if (FLAG_trace_wasm_decoder) {
@@ -1124,8 +1150,7 @@ class WasmFullDecoder : public WasmDecoder {
               PrintF("[%u]", operand.index);
               break;
             }
-            case kExprSetLocal:  // fallthru
-            case kExprTeeLocal: {
+            case kExprSetLocal: {
               LocalIndexOperand operand(this, val.pc);
               PrintF("[%u]", operand.index);
               break;
@@ -1144,21 +1169,7 @@ class WasmFullDecoder : public WasmDecoder {
         return;
       }
     }  // end decode loop
-  }
-
-  void EndControl() { ssa_env_->Kill(SsaEnv::kControlEnd); }
-
-  void SetBlockType(Control* c, BlockTypeOperand& operand) {
-    c->merge.arity = operand.arity;
-    if (c->merge.arity == 1) {
-      c->merge.vals.first = {pc_, nullptr, operand.read_entry(0)};
-    } else if (c->merge.arity > 1) {
-      c->merge.vals.array = zone_->NewArray<Value>(c->merge.arity);
-      for (unsigned i = 0; i < c->merge.arity; i++) {
-        c->merge.vals.array[i] = {pc_, nullptr, operand.read_entry(i)};
-      }
-    }
-  }
+  }    // end DecodeFunctionBody()
 
   TFNode** PopArgs(FunctionSig* sig) {
     if (build()) {
@@ -1222,6 +1233,7 @@ class WasmFullDecoder : public WasmDecoder {
     Value index = Pop(0, kAstI32);
     BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
           val.node, position());
+    Push(type, val.node);
     return 1 + operand.length;
   }
 
@@ -1250,7 +1262,7 @@ class WasmFullDecoder : public WasmDecoder {
           TFNode* node = BUILD(SimdOp, opcode, inputs);
           Push(GetReturnType(sig), node);
         } else {
-          error("invalid simd opcode");
+          error(pc_, pc_, "invalid simd opcode");
         }
       }
     }
@@ -1268,21 +1280,12 @@ class WasmFullDecoder : public WasmDecoder {
       if (buffer) buffer[i] = val.node;
     }
 
-    BUILD(Return, count, buffer);
-    EndControl();
+    Push(kAstEnd, BUILD(Return, count, buffer));
+    ssa_env_->Kill(SsaEnv::kControlEnd);
   }
 
   void Push(LocalType type, TFNode* node) {
-    if (type != kAstStmt && type != kAstEnd) {
-      stack_.push_back({pc_, node, type});
-    }
-  }
-
-  void PushReturns(FunctionSig* sig, TFNode** rets) {
-    for (size_t i = 0; i < sig->return_count(); i++) {
-      // When verifying only, then {rets} will be null, so push null.
-      Push(sig->GetReturn(i), rets ? rets[i] : nullptr);
-    }
+    stack_.push_back({pc_, node, type});
   }
 
   const char* SafeOpcodeNameAt(const byte* pc) {
@@ -1291,10 +1294,6 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   Value Pop(int index, LocalType expected) {
-    if (!ssa_env_->go()) {
-      // Unreachable code is essentially not typechecked.
-      return {pc_, nullptr, expected};
-    }
     Value val = Pop();
     if (val.type != expected) {
       if (val.type != kAstEnd) {
@@ -1307,10 +1306,6 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   Value Pop() {
-    if (!ssa_env_->go()) {
-      // Unreachable code is essentially not typechecked.
-      return {pc_, nullptr, kAstEnd};
-    }
     size_t limit = control_.empty() ? 0 : control_.back().stack_depth;
     if (stack_.size() <= limit) {
       Value val = {pc_, nullptr, kAstStmt};
@@ -1323,10 +1318,6 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   Value PopUpTo(int stack_depth) {
-    if (!ssa_env_->go()) {
-      // Unreachable code is essentially not typechecked.
-      return {pc_, nullptr, kAstEnd};
-    }
     if (stack_depth == stack_.size()) {
       Value val = {pc_, nullptr, kAstStmt};
       return val;
@@ -1344,82 +1335,35 @@ class WasmFullDecoder : public WasmDecoder {
 
   int startrel(const byte* ptr) { return static_cast<int>(ptr - start_); }
 
-  void BreakTo(unsigned depth) {
-    if (!ssa_env_->go()) return;
-    Control* c = &control_[control_.size() - depth - 1];
-    if (c->is_loop()) {
+  void BreakTo(Control* block, const Value& val) {
+    if (block->is_loop) {
       // This is the inner loop block, which does not have a value.
-      Goto(ssa_env_, c->end_env);
+      Goto(ssa_env_, block->end_env);
     } else {
-      // Merge the value(s) into the end of the block.
-      if (static_cast<size_t>(c->stack_depth + c->merge.arity) >
-          stack_.size()) {
-        error(
-            pc_, pc_,
-            "expected at least %d values on the stack for br to @%d, found %d",
-            c->merge.arity, startrel(c->pc),
-            static_cast<int>(stack_.size() - c->stack_depth));
-        return;
-      }
-      MergeValuesInto(c);
+      // Merge the value into the production for the block.
+      MergeInto(block->end_env, &block->node, &block->type, val);
     }
   }
 
-  void FallThruTo(Control* c) {
+  void MergeInto(SsaEnv* target, TFNode** node, LocalType* type,
+                 const Value& val) {
     if (!ssa_env_->go()) return;
-    // Merge the value(s) into the end of the block.
-    int arity = static_cast<int>(c->merge.arity);
-    if (c->stack_depth + arity != stack_.size()) {
-      error(pc_, pc_, "expected %d elements on the stack for fallthru to @%d",
-            arity, startrel(c->pc));
-      return;
-    }
-    MergeValuesInto(c);
-  }
+    DCHECK_NE(kAstEnd, val.type);
 
-  inline Value& GetMergeValueFromStack(Control* c, int i) {
-    return stack_[stack_.size() - c->merge.arity + i];
-  }
-
-  void TypeCheckLoopFallThru(Control* c) {
-    if (!ssa_env_->go()) return;
-    // Fallthru must match arity exactly.
-    int arity = static_cast<int>(c->merge.arity);
-    if (c->stack_depth + arity != stack_.size()) {
-      error(pc_, pc_, "expected %d elements on the stack for fallthru to @%d",
-            arity, startrel(c->pc));
-      return;
-    }
-    // Typecheck the values left on the stack.
-    for (unsigned i = 0; i < c->merge.arity; i++) {
-      Value& val = GetMergeValueFromStack(c, i);
-      Value& old =
-          c->merge.arity == 1 ? c->merge.vals.first : c->merge.vals.array[i];
-      if (val.type != old.type) {
-        error(pc_, pc_, "type error in merge[%d] (expected %s, got %s)", i,
-              WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
-        return;
-      }
-    }
-  }
-
-  void MergeValuesInto(Control* c) {
-    SsaEnv* target = c->end_env;
     bool first = target->state == SsaEnv::kUnreachable;
     Goto(ssa_env_, target);
 
-    for (unsigned i = 0; i < c->merge.arity; i++) {
-      Value& val = GetMergeValueFromStack(c, i);
-      Value& old =
-          c->merge.arity == 1 ? c->merge.vals.first : c->merge.vals.array[i];
-      if (val.type != old.type) {
-        error(pc_, pc_, "type error in merge[%d] (expected %s, got %s)", i,
-              WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
-        return;
-      }
-      old.node =
-          first ? val.node : CreateOrMergeIntoPhi(old.type, target->control,
-                                                  old.node, val.node);
+    if (first) {
+      // first merge to this environment; set the type and the node.
+      *type = val.type;
+      *node = val.node;
+    } else if (val.type == *type && val.type != kAstStmt) {
+      // merge with the existing value for this block.
+      *node = CreateOrMergeIntoPhi(*type, target->control, *node, val.node);
+    } else {
+      // types don't match, or block is already a stmt.
+      *type = kAstStmt;
+      *node = nullptr;
     }
   }
 
@@ -1648,11 +1592,10 @@ class WasmFullDecoder : public WasmDecoder {
         case kExprIf:
         case kExprBlock:
         case kExprTry:
-          length = OpcodeLength(pc);
           depth++;
+          DCHECK_EQ(1, OpcodeLength(pc));
           break;
-        case kExprSetLocal:  // fallthru
-        case kExprTeeLocal: {
+        case kExprSetLocal: {
           LocalIndexOperand operand(this, pc);
           if (assigned->length() > 0 &&
               operand.index < static_cast<uint32_t>(assigned->length())) {
@@ -1745,6 +1688,11 @@ unsigned OpcodeLength(const byte* pc, const byte* end) {
   return decoder.OpcodeLength(pc);
 }
 
+unsigned OpcodeArity(const byte* pc, const byte* end) {
+  WasmDecoder decoder(nullptr, nullptr, pc, end);
+  return decoder.OpcodeArity(pc);
+}
+
 void PrintAstForDebugging(const byte* start, const byte* end) {
   AccountingAllocator allocator;
   OFStream os(stdout);
@@ -1810,55 +1758,64 @@ bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
     }
 
     switch (opcode) {
-      case kExprElse:
-        os << "   // @" << i.pc_offset();
-        control_depth++;
-        break;
-      case kExprLoop:
       case kExprIf:
+      case kExprElse:
+      case kExprLoop:
       case kExprBlock:
-      case kExprTry: {
-        BlockTypeOperand operand(&i, i.pc());
+      case kExprTry:
         os << "   // @" << i.pc_offset();
-        for (unsigned i = 0; i < operand.arity; i++) {
-          os << " " << WasmOpcodes::TypeName(operand.read_entry(i));
-        }
         control_depth++;
         break;
-      }
       case kExprEnd:
         os << "   // @" << i.pc_offset();
         control_depth--;
         break;
       case kExprBr: {
         BreakDepthOperand operand(&i, i.pc());
-        os << "   // depth=" << operand.depth;
+        os << "   // arity=" << operand.arity << " depth=" << operand.depth;
         break;
       }
       case kExprBrIf: {
         BreakDepthOperand operand(&i, i.pc());
-        os << "   // depth=" << operand.depth;
+        os << "   // arity=" << operand.arity << " depth" << operand.depth;
         break;
       }
       case kExprBrTable: {
         BranchTableOperand operand(&i, i.pc());
-        os << " // entries=" << operand.table_count;
+        os << "   // arity=" << operand.arity
+           << " entries=" << operand.table_count;
         break;
       }
       case kExprCallIndirect: {
         CallIndirectOperand operand(&i, i.pc());
-        os << "   // sig #" << operand.index;
         if (decoder.Complete(i.pc(), operand)) {
-          os << ": " << *operand.sig;
+          os << "   // sig #" << operand.index << ": " << *operand.sig;
+        } else {
+          os << " // arity=" << operand.arity << " sig #" << operand.index;
+        }
+        break;
+      }
+      case kExprCallImport: {
+        CallImportOperand operand(&i, i.pc());
+        if (decoder.Complete(i.pc(), operand)) {
+          os << "   // import #" << operand.index << ": " << *operand.sig;
+        } else {
+          os << " // arity=" << operand.arity << " import #" << operand.index;
         }
         break;
       }
       case kExprCallFunction: {
         CallFunctionOperand operand(&i, i.pc());
-        os << " // function #" << operand.index;
         if (decoder.Complete(i.pc(), operand)) {
-          os << ": " << *operand.sig;
+          os << "   // function #" << operand.index << ": " << *operand.sig;
+        } else {
+          os << " // arity=" << operand.arity << " function #" << operand.index;
         }
+        break;
+      }
+      case kExprReturn: {
+        ReturnArityOperand operand(&i, i.pc());
+        os << "   // arity=" << operand.arity;
         break;
       }
       default:

@@ -22,7 +22,19 @@ namespace wasm {
 // Error codes for programmatic checking of the decoder's verification.
 enum ErrorCode {
   kSuccess,
-  kError,  // TODO(titzer): introduce real error codes
+  kError,                 // TODO(titzer): remove me
+  kOutOfMemory,           // decoder ran out of memory
+  kEndOfCode,             // end of code reached prematurely
+  kInvalidOpcode,         // found invalid opcode
+  kUnreachableCode,       // found unreachable code
+  kImproperContinue,      // improperly nested continue
+  kImproperBreak,         // improperly nested break
+  kReturnCount,           // return count mismatch
+  kTypeError,             // type mismatch
+  kInvalidLocalIndex,     // invalid local
+  kInvalidGlobalIndex,    // invalid global
+  kInvalidFunctionIndex,  // invalid function
+  kInvalidMemType         // invalid memory type
 };
 
 // The overall result of decoding a function or a module.

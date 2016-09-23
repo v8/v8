@@ -20,16 +20,13 @@ function assertModule(module, memsize) {
   assertFalse(mem === null);
   assertFalse(mem === 0);
   assertEquals("object", typeof mem);
-  assertTrue(mem instanceof WebAssembly.Memory);
-  var buf = mem.buffer;
-  assertTrue(buf instanceof ArrayBuffer);
-  assertEquals(memsize, buf.byteLength);
+  assertTrue(mem instanceof ArrayBuffer);
   for (var i = 0; i < 4; i++) {
     module.exports.memory = 0;  // should be ignored
-    mem.buffer = 0; // should be ignored
-    assertSame(mem, module.exports.memory);
-    assertSame(buf, mem.buffer);
+    assertEquals(mem, module.exports.memory);
   }
+
+  assertEquals(memsize, module.exports.memory.byteLength);
 }
 
 function assertFunction(module, func) {
@@ -87,7 +84,7 @@ function assertFunction(module, func) {
       .addBody([                                            // --
         kExprGetLocal, 0,                                   // --
         kExprGetLocal, 1,                                   // --
-        kExprCallFunction, f[i >>> 1].index])      // --
+        kExprCallFunction, kArity2, f[i >>> 1].index])      // --
       .exportFunc()
   }
   var module = builder.instantiate();
