@@ -649,7 +649,7 @@ class ErrorUtils : public AllStatic {
 
 class MessageTemplate {
  public:
-  enum Template {
+  enum Template : unsigned {
 #define TEMPLATE(NAME, STRING) k##NAME,
     MESSAGE_TEMPLATES(TEMPLATE)
 #undef TEMPLATE

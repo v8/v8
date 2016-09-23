@@ -1058,8 +1058,7 @@ enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
 // Serialized in PreparseData, so numeric values should not be changed.
-enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
-
+enum ParseErrorType : uint8_t { kSyntaxError = 0, kReferenceError = 1 };
 
 enum MinusZeroMode {
   TREAT_MINUS_ZERO_AS_ZERO,
