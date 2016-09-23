@@ -553,17 +553,14 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // 3) Fall through to both_loaded_as_doubles.
   // 4) Jump to lhs_not_nan.
   // In cases 3 and 4 we have found out we were dealing with a number-number
-  // comparison.  If VFP3 is supported the double values of the numbers have
-  // been loaded into d7 and d6.  Otherwise, the double values have been loaded
-  // into r0, r1, r2, and r3.
+  // comparison. The double values of the numbers have been loaded into d7 (lhs)
+  // and d6 (rhs).
   EmitSmiNonsmiComparison(masm, lhs, rhs, &lhs_not_nan, &slow, strict());
 
   __ bind(&both_loaded_as_doubles);
-  // The arguments have been converted to doubles and stored in d6 and d7, if
-  // VFP3 is supported, or in r0, r1, r2, and r3.
+  // The arguments have been converted to doubles and stored in d6 and d7.
   __ bind(&lhs_not_nan);
   Label no_nan;
-  // ARMv7 VFP3 instructions to implement double precision comparison.
   __ VFPCompareAndSetFlags(d7, d6);
   Label nan;
   __ b(vs, &nan);

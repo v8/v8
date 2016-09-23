@@ -793,7 +793,7 @@ enum CpuFeature {
   NUMBER_OF_CPU_FEATURES,
 
   // ARM feature aliases (based on the standard configurations above).
-  VFP3 = ARMv7,
+  VFPv3 = ARMv7,
   NEON = ARMv7,
   VFP32DREGS = ARMv7,
   SUDIV = ARMv7_SUDIV

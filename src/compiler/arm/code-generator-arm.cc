@@ -1227,33 +1227,51 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmVnegF64:
       __ vneg(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintmF32:
+    case kArmVrintmF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintm(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintmF64:
+    }
+    case kArmVrintmF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintm(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintpF32:
+    }
+    case kArmVrintpF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintp(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintpF64:
+    }
+    case kArmVrintpF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintp(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintzF32:
+    }
+    case kArmVrintzF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintz(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintzF64:
+    }
+    case kArmVrintzF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintz(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintaF64:
+    }
+    case kArmVrintaF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrinta(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintnF32:
+    }
+    case kArmVrintnF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintn(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintnF64:
+    }
+    case kArmVrintnF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintn(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
+    }
     case kArmVcvtF32F64: {
       __ vcvt_f32_f64(i.OutputFloat32Register(), i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());

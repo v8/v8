@@ -1513,46 +1513,55 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundDown(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintmF32, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundDown(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintmF64, node);
 }
 
 
 void InstructionSelector::VisitFloat32RoundUp(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintpF32, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundUp(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintpF64, node);
 }
 
 
 void InstructionSelector::VisitFloat32RoundTruncate(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintzF32, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintzF64, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintaF64, node);
 }
 
 
 void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintnF32, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintnF64, node);
 }
 
