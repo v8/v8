@@ -1972,6 +1972,7 @@ Isolate::Isolate(bool enable_serializer)
       allocator_(FLAG_trace_gc_object_stats
                      ? new VerboseAccountingAllocator(&heap_, 256 * KB)
                      : new AccountingAllocator()),
+      runtime_zone_(new Zone(allocator_)),
       inner_pointer_to_code_cache_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
@@ -2243,6 +2244,9 @@ Isolate::~Isolate() {
 
   delete cancelable_task_manager_;
   cancelable_task_manager_ = nullptr;
+
+  delete runtime_zone_;
+  runtime_zone_ = nullptr;
 
   delete allocator_;
   allocator_ = nullptr;

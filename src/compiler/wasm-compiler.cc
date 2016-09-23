@@ -25,7 +25,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/source-position.h"
-#include "src/compiler/zone-stats.h"
+#include "src/compiler/zone-pool.h"
 
 #include "src/code-factory.h"
 #include "src/code-stubs.h"

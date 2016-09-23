@@ -9,7 +9,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/zone-stats.h"
+#include "src/compiler/zone-pool.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
