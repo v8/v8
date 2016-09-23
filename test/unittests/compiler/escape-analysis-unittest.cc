@@ -17,7 +17,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class EscapeAnalysisTest : public GraphTest {
+class EscapeAnalysisTest : public TypedGraphTest {
  public:
   EscapeAnalysisTest()
       : simplified_(zone()),
