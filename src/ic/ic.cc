@@ -2439,34 +2439,6 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
-  TimerEventScope<TimerEventIcMiss> timer(isolate);
-  HandleScope scope(isolate);
-  typedef StoreWithVectorDescriptor Descriptor;
-  DCHECK_EQ(Descriptor::kParameterCount, args.length());
-  Handle<Object> receiver = args.at<Object>(Descriptor::kReceiver);
-  Handle<Name> key = args.at<Name>(Descriptor::kName);
-  Handle<Object> value = args.at<Object>(Descriptor::kValue);
-  Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
-  Handle<TypeFeedbackVector> vector =
-      args.at<TypeFeedbackVector>(Descriptor::kVector);
-
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
-  if (vector->GetKind(vector_slot) == FeedbackVectorSlotKind::STORE_IC) {
-    StoreICNexus nexus(vector, vector_slot);
-    StoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
-    ic.UpdateState(receiver, key);
-    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
-  } else {
-    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC,
-              vector->GetKind(vector_slot));
-    KeyedStoreICNexus nexus(vector, vector_slot);
-    KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
-    ic.UpdateState(receiver, key);
-    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
-  }
-}
-
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
@@ -2481,25 +2453,6 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedStoreICNexus nexus(vector, vector_slot);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
-  ic.UpdateState(receiver, key);
-  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
-}
-
-
-RUNTIME_FUNCTION(Runtime_KeyedStoreIC_MissFromStubFailure) {
-  TimerEventScope<TimerEventIcMiss> timer(isolate);
-  HandleScope scope(isolate);
-  typedef StoreWithVectorDescriptor Descriptor;
-  DCHECK_EQ(Descriptor::kParameterCount, args.length());
-  Handle<Object> receiver = args.at<Object>(Descriptor::kReceiver);
-  Handle<Object> key = args.at<Object>(Descriptor::kName);
-  Handle<Object> value = args.at<Object>(Descriptor::kValue);
-  Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
-  Handle<TypeFeedbackVector> vector =
-      args.at<TypeFeedbackVector>(Descriptor::kVector);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
-  KeyedStoreICNexus nexus(vector, vector_slot);
-  KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
@@ -2971,36 +2924,6 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   }
 
   return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_LoadIC_MissFromStubFailure) {
-  TimerEventScope<TimerEventIcMiss> timer(isolate);
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  typedef LoadWithVectorDescriptor Descriptor;
-  Handle<Object> receiver = args.at<Object>(Descriptor::kReceiver);
-  Handle<Name> key = args.at<Name>(Descriptor::kName);
-  Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
-  Handle<TypeFeedbackVector> vector =
-      args.at<TypeFeedbackVector>(Descriptor::kVector);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
-  // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
-  // LoadIC miss handler if the handler misses. Since the vector Nexus is
-  // set up outside the IC, handle that here.
-  if (vector->GetKind(vector_slot) == FeedbackVectorSlotKind::LOAD_IC) {
-    LoadICNexus nexus(vector, vector_slot);
-    LoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
-    ic.UpdateState(receiver, key);
-    RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
-  } else {
-    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC,
-              vector->GetKind(vector_slot));
-    KeyedLoadICNexus nexus(vector, vector_slot);
-    KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
-    ic.UpdateState(receiver, key);
-    RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
-  }
 }
 }  // namespace internal
 }  // namespace v8

@@ -5158,14 +5158,10 @@ void KeyedLoadGenericStub::InitializeDescriptor(
 
 
 void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  if (kind() == Code::STORE_IC) {
-    descriptor->Initialize(FUNCTION_ADDR(Runtime_StoreIC_MissFromStubFailure));
-  } else if (kind() == Code::KEYED_LOAD_IC) {
+  DCHECK(kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
+  if (kind() == Code::KEYED_LOAD_IC) {
     descriptor->Initialize(
         FUNCTION_ADDR(Runtime_KeyedLoadIC_MissFromStubFailure));
-  } else if (kind() == Code::KEYED_STORE_IC) {
-    descriptor->Initialize(
-        FUNCTION_ADDR(Runtime_KeyedStoreIC_MissFromStubFailure));
   }
 }
 
