@@ -24,6 +24,10 @@ class WasmJs {
   static void InstallWasmConstructors(Isolate* isolate,
                                       Handle<JSGlobalObject> global,
                                       Handle<Context> context);
+
+  static Handle<JSObject> CreateWasmMemoryObject(Isolate* isolate,
+                                                 Handle<JSArrayBuffer> buffer,
+                                                 bool has_maximum, int maximum);
 };
 
 }  // namespace internal

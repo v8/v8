@@ -15,7 +15,7 @@
 
 using namespace v8::internal::wasm;
 
-int fuzz_wasm_section(WasmSection::Code section, const uint8_t* data,
+int fuzz_wasm_section(WasmSectionCode section, const uint8_t* data,
                       size_t size) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
@@ -38,12 +38,18 @@ int fuzz_wasm_section(WasmSection::Code section, const uint8_t* data,
   ZoneBuffer buffer(&zone);
   buffer.write_u32(kWasmMagic);
   buffer.write_u32(kWasmVersion);
-  const char* name = WasmSection::getName(section);
-  size_t length = WasmSection::getNameLength(section);
-  buffer.write_size(length);  // Section name string size.
-  buffer.write(reinterpret_cast<const uint8_t*>(name), length);
-  buffer.write_u32v(static_cast<uint32_t>(size));
-  buffer.write(data, size);
+  if (section == kNameSectionCode) {
+    buffer.write_u8(kUnknownSectionCode);
+    buffer.write_size(size + kNameStringLength + 1);
+    buffer.write_u8(kNameStringLength);
+    buffer.write(reinterpret_cast<const uint8_t*>(kNameString),
+                 kNameStringLength);
+    buffer.write(data, size);
+  } else {
+    buffer.write_u8(section);
+    buffer.write_size(size);
+    buffer.write(data, size);
+  }
 
   ErrorThrower thrower(i_isolate, "decoder");
 

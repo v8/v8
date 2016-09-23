@@ -17,13 +17,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_i)
     .addBody([
-      kExprI32Const, 1,
       kExprGetLocal, 0,
       kExprI32LoadMem, 0, 0,
-      kExprCallIndirect, kArity1, signature,
+      kExprI32Const, 1,
+      kExprCallIndirect, signature,
       kExprGetLocal,0,
       kExprI32LoadMem,0, 0,
-      kExprCallImport, kArity0, 0,
+      kExprCallFunction, 0,
       kExprI32Add
     ]).exportFunc();
 
@@ -32,8 +32,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("_wrap_writer", signature)
     .addBody([
       kExprGetLocal, 0,
-      kExprCallImport, kArity1, 1]);
-  builder.appendToTable([0, 1]);
+      kExprCallFunction, 1]);
+  builder.appendToTable([2, 3]);
 
 
   var module = new WebAssembly.Module(builder.toBuffer());

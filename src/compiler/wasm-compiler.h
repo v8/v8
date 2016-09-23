@@ -153,12 +153,11 @@ class WasmGraphBuilder {
   Node* ReturnVoid();
   Node* Unreachable(wasm::WasmCodePosition position);
 
-  Node* CallDirect(uint32_t index, Node** args,
-                   wasm::WasmCodePosition position);
-  Node* CallImport(uint32_t index, Node** args,
-                   wasm::WasmCodePosition position);
-  Node* CallIndirect(uint32_t index, Node** args,
-                     wasm::WasmCodePosition position);
+  Node** CallDirect(uint32_t index, Node** args,
+                    wasm::WasmCodePosition position);
+  Node** CallIndirect(uint32_t index, Node** args,
+                      wasm::WasmCodePosition position);
+
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSReceiver> target, wasm::FunctionSig* sig);
 
@@ -170,7 +169,7 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
   //-----------------------------------------------------------------------
-  Node* MemSize(uint32_t offset);
+  Node* CurrentMemoryPages();
   Node* GetGlobal(uint32_t index);
   Node* SetGlobal(uint32_t index, Node* val);
   Node* LoadMem(wasm::LocalType type, MachineType memtype, Node* index,
@@ -229,6 +228,7 @@ class WasmGraphBuilder {
   Graph* graph();
 
   Node* String(const char* string);
+  Node* MemSize(uint32_t offset);
   Node* MemBuffer(uint32_t offset);
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
                       wasm::WasmCodePosition position);
@@ -240,8 +240,8 @@ class WasmGraphBuilder {
   Node* MaskShiftCount64(Node* node);
 
   Node* BuildCCall(MachineSignature* sig, Node** args);
-  Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args,
-                      wasm::WasmCodePosition position);
+  Node** BuildWasmCall(wasm::FunctionSig* sig, Node** args,
+                       wasm::WasmCodePosition position);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);

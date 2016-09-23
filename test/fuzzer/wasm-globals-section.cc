@@ -5,6 +5,5 @@
 #include "test/fuzzer/wasm-section-fuzzers.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  return fuzz_wasm_section(v8::internal::wasm::WasmSection::Code::Globals, data,
-                           size);
+  return fuzz_wasm_section(v8::internal::wasm::kGlobalSectionCode, data, size);
 }
