@@ -489,6 +489,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Convert any object to a Number.
   compiler::Node* ToNumber(compiler::Node* context, compiler::Node* input);
 
+  // Convert any object to an Integer.
+  compiler::Node* ToInteger(compiler::Node* context, compiler::Node* input);
+
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |T| in |word32|. Returns result as an uint32 node.
   template <typename T>

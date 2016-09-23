@@ -318,8 +318,7 @@ void Builtins::Generate_StringPrototypeCharAt(CodeStubAssembler* assembler) {
     assembler->Bind(&if_positionisnotsmi);
     {
       // Convert the {position} to an Integer via the ToIntegerStub.
-      Callable callable = CodeFactory::ToInteger(assembler->isolate());
-      Node* index = assembler->CallStub(callable, context, position);
+      Node* index = assembler->ToInteger(context, position);
 
       // Check if the resulting {index} is now a Smi.
       Label if_indexissmi(assembler, Label::kDeferred),
@@ -413,8 +412,7 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
     assembler->Bind(&if_positionisnotsmi);
     {
       // Convert the {position} to an Integer via the ToIntegerStub.
-      Callable callable = CodeFactory::ToInteger(assembler->isolate());
-      Node* index = assembler->CallStub(callable, context, position);
+      Node* index = assembler->ToInteger(context, position);
 
       // Check if the resulting {index} is now a Smi.
       Label if_indexissmi(assembler, Label::kDeferred),

@@ -2985,6 +2985,60 @@ Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::ToInteger(Node* context, Node* input) {
+  // We might need to loop once for ToNumber conversion.
+  Variable var_arg(this, MachineRepresentation::kTagged);
+  Label loop(this, &var_arg), out(this);
+  var_arg.Bind(input);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    // Shared entry points.
+    Label return_zero(this, Label::kDeferred);
+
+    // Load the current {arg} value.
+    Node* arg = var_arg.value();
+
+    // Check if {arg} is a Smi.
+    GotoIf(WordIsSmi(arg), &out);
+
+    // Check if {arg} is a HeapNumber.
+    Label if_argisheapnumber(this),
+        if_argisnotheapnumber(this, Label::kDeferred);
+    Branch(WordEqual(LoadMap(arg), HeapNumberMapConstant()),
+           &if_argisheapnumber, &if_argisnotheapnumber);
+
+    Bind(&if_argisheapnumber);
+    {
+      // Load the floating-point value of {arg}.
+      Node* arg_value = LoadHeapNumberValue(arg);
+
+      // Check if {arg} is NaN.
+      GotoUnless(Float64Equal(arg_value, arg_value), &return_zero);
+
+      // Truncate {arg} towards zero.
+      Node* value = Float64Trunc(arg_value);
+      var_arg.Bind(ChangeFloat64ToTagged(value));
+      Goto(&out);
+    }
+
+    Bind(&if_argisnotheapnumber);
+    {
+      // Need to convert {arg} to a Number first.
+      Callable callable = CodeFactory::NonNumberToNumber(isolate());
+      var_arg.Bind(CallStub(callable, context, arg));
+      Goto(&loop);
+    }
+
+    Bind(&return_zero);
+    var_arg.Bind(SmiConstant(Smi::FromInt(0)));
+    Goto(&out);
+  }
+
+  Bind(&out);
+  return var_arg.value();
+}
+
 Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
                                         uint32_t mask) {
   return Word32Shr(Word32And(word32, Int32Constant(mask)),

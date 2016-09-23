@@ -1307,8 +1307,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
   {
     Label done(assembler), init_k_smi(assembler), init_k_heap_num(assembler),
         init_k_zero(assembler), init_k_n(assembler);
-    Callable call_to_integer = CodeFactory::ToInteger(assembler->isolate());
-    Node* tagged_n = assembler->CallStub(call_to_integer, context, start_from);
+    Node* tagged_n = assembler->ToInteger(context, start_from);
 
     assembler->Branch(assembler->WordIsSmi(tagged_n), &init_k_smi,
                       &init_k_heap_num);
@@ -1755,8 +1754,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
   {
     Label done(assembler), init_k_smi(assembler), init_k_heap_num(assembler),
         init_k_zero(assembler), init_k_n(assembler);
-    Callable call_to_integer = CodeFactory::ToInteger(assembler->isolate());
-    Node* tagged_n = assembler->CallStub(call_to_integer, context, start_from);
+    Node* tagged_n = assembler->ToInteger(context, start_from);
 
     assembler->Branch(assembler->WordIsSmi(tagged_n), &init_k_smi,
                       &init_k_heap_num);

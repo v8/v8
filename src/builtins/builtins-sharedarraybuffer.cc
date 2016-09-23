@@ -228,8 +228,7 @@ void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
   ValidateAtomicIndex(a, index_word32, array_length_word32, context);
   Node* index_word = a->ChangeUint32ToWord(index_word32);
 
-  Callable to_integer = CodeFactory::ToInteger(a->isolate());
-  Node* value_integer = a->CallStub(to_integer, context, value);
+  Node* value_integer = a->ToInteger(context, value);
   Node* value_word32 = a->TruncateTaggedToWord32(context, value_integer);
 
   CodeStubAssembler::Label u8(a), u16(a), u32(a), other(a);

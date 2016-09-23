@@ -4927,64 +4927,12 @@ void ToLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
 }
 
 void ToIntegerStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
 
-  Node* context = assembler->Parameter(1);
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
-  // We might need to loop once for ToNumber conversion.
-  Variable var_arg(assembler, MachineRepresentation::kTagged);
-  Label loop(assembler, &var_arg);
-  var_arg.Bind(assembler->Parameter(0));
-  assembler->Goto(&loop);
-  assembler->Bind(&loop);
-  {
-    // Shared entry points.
-    Label return_arg(assembler), return_zero(assembler, Label::kDeferred);
-
-    // Load the current {arg} value.
-    Node* arg = var_arg.value();
-
-    // Check if {arg} is a Smi.
-    assembler->GotoIf(assembler->WordIsSmi(arg), &return_arg);
-
-    // Check if {arg} is a HeapNumber.
-    Label if_argisheapnumber(assembler),
-        if_argisnotheapnumber(assembler, Label::kDeferred);
-    assembler->Branch(assembler->WordEqual(assembler->LoadMap(arg),
-                                           assembler->HeapNumberMapConstant()),
-                      &if_argisheapnumber, &if_argisnotheapnumber);
-
-    assembler->Bind(&if_argisheapnumber);
-    {
-      // Load the floating-point value of {arg}.
-      Node* arg_value = assembler->LoadHeapNumberValue(arg);
-
-      // Check if {arg} is NaN.
-      assembler->GotoUnless(assembler->Float64Equal(arg_value, arg_value),
-                            &return_zero);
-
-      // Truncate {arg} towards zero.
-      Node* value = assembler->Float64Trunc(arg_value);
-      var_arg.Bind(assembler->ChangeFloat64ToTagged(value));
-      assembler->Goto(&return_arg);
-    }
-
-    assembler->Bind(&if_argisnotheapnumber);
-    {
-      // Need to convert {arg} to a Number first.
-      Callable callable = CodeFactory::NonNumberToNumber(assembler->isolate());
-      var_arg.Bind(assembler->CallStub(callable, context, arg));
-      assembler->Goto(&loop);
-    }
-
-    assembler->Bind(&return_arg);
-    assembler->Return(var_arg.value());
-
-    assembler->Bind(&return_zero);
-    assembler->Return(assembler->SmiConstant(Smi::FromInt(0)));
-  }
+  assembler->Return(assembler->ToInteger(context, input));
 }
 
 void StoreInterceptorStub::GenerateAssembly(
