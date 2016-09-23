@@ -301,7 +301,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ChangeInt31ToTaggedSigned();
   const Operator* ChangeInt32ToTagged();
   const Operator* ChangeUint32ToTagged();
-  const Operator* ChangeFloat64ToTagged();
+  const Operator* ChangeFloat64ToTagged(CheckForMinusZeroMode);
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
   const Operator* TruncateTaggedToWord32();
