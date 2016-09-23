@@ -1976,10 +1976,11 @@ static bool InstantiateModule(Local<Module> v8_module,
       isolate->ThrowIllegalOperation();
       return false;
     }
-    if (!requested_module->Instantiate(v8_context, callback, callback_data)) {
+    module->requested_modules()->set(i, *Utils::OpenHandle(*requested_module));
+    if (!InstantiateModule(requested_module, v8_context, callback,
+                           callback_data)) {
       return false;
     }
-    module->requested_modules()->set(i, *Utils::OpenHandle(*requested_module));
   }
 
   // Resolve imports.
