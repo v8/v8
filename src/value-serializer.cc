@@ -349,7 +349,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 
   // Eliminate callable and exotic objects, which should not be serialized.
   InstanceType instance_type = receiver->map()->instance_type();
-  if (receiver->IsCallable() || instance_type <= LAST_SPECIAL_RECEIVER_TYPE) {
+  if (receiver->IsCallable() || (instance_type <= LAST_SPECIAL_RECEIVER_TYPE &&
+                                 instance_type != JS_SPECIAL_API_OBJECT_TYPE)) {
     ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
     return Nothing<bool>();
   }
@@ -367,6 +368,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return js_object->GetInternalFieldCount() ? WriteHostObject(js_object)
                                                 : WriteJSObject(js_object);
     }
+    case JS_SPECIAL_API_OBJECT_TYPE:
+      return WriteHostObject(Handle<JSObject>::cast(receiver));
     case JS_DATE_TYPE:
       WriteJSDate(JSDate::cast(*receiver));
       return Just(true);
