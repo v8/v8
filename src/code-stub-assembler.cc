@@ -3286,6 +3286,32 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
   }
 }
 
+void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
+                                               Node* descriptors, Node* nof,
+                                               Label* if_found,
+                                               Variable* var_name_index,
+                                               Label* if_not_found) {
+  Variable var_descriptor(this, MachineType::PointerRepresentation());
+  Label loop(this, &var_descriptor);
+  var_descriptor.Bind(IntPtrConstant(0));
+  Goto(&loop);
+
+  Bind(&loop);
+  {
+    Node* index = var_descriptor.value();
+    Node* name_offset = IntPtrConstant(DescriptorArray::ToKeyIndex(0));
+    Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
+    GotoIf(WordEqual(index, nof), if_not_found);
+    Node* name_index = IntPtrAdd(name_offset, IntPtrMul(index, factor));
+    Node* candidate_name =
+        LoadFixedArrayElement(descriptors, name_index, 0, INTPTR_PARAMETERS);
+    var_name_index->Bind(name_index);
+    GotoIf(WordEqual(candidate_name, unique_name), if_found);
+    var_descriptor.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+    Goto(&loop);
+  }
+}
+
 void CodeStubAssembler::TryLookupProperty(
     Node* object, Node* map, Node* instance_type, Node* unique_name,
     Label* if_found_fast, Label* if_found_dict, Label* if_found_global,
@@ -3322,27 +3348,8 @@ void CodeStubAssembler::TryLookupProperty(
     Node* descriptors = LoadMapDescriptors(map);
     var_meta_storage->Bind(descriptors);
 
-    Variable var_descriptor(this, MachineType::PointerRepresentation());
-    Label loop(this, &var_descriptor);
-    var_descriptor.Bind(IntPtrConstant(0));
-    Goto(&loop);
-    Bind(&loop);
-    {
-      Node* index = var_descriptor.value();
-      Node* name_offset = IntPtrConstant(DescriptorArray::ToKeyIndex(0));
-      Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
-      GotoIf(WordEqual(index, nof), if_not_found);
-
-      Node* name_index = IntPtrAdd(name_offset, IntPtrMul(index, factor));
-      Node* name =
-          LoadFixedArrayElement(descriptors, name_index, 0, INTPTR_PARAMETERS);
-
-      var_name_index->Bind(name_index);
-      GotoIf(WordEqual(name, unique_name), if_found_fast);
-
-      var_descriptor.Bind(IntPtrAdd(index, IntPtrConstant(1)));
-      Goto(&loop);
-    }
+    DescriptorLookupLinear(unique_name, descriptors, nof, if_found_fast,
+                           var_name_index, if_not_found);
   }
   Bind(&if_isslowmap);
   {
@@ -4739,9 +4746,11 @@ void CodeStubAssembler::KeyedLoadIC(const LoadICParameters* p) {
 
 void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   Variable var_index(this, MachineType::PointerRepresentation());
+  Variable var_details(this, MachineRepresentation::kWord32);
+  Variable var_value(this, MachineRepresentation::kTagged);
   Label if_index(this), if_unique_name(this), if_element_hole(this),
       if_oob(this), slow(this), stub_cache_miss(this),
-      if_property_dictionary(this);
+      if_property_dictionary(this), if_found_on_receiver(this);
 
   Node* receiver = p->receiver;
   GotoIf(WordIsSmi(receiver), &slow);
@@ -4810,19 +4819,48 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     GotoIf(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
            &if_property_dictionary);
 
-    Comment("stub cache probe for fast property load");
-    Variable var_handler(this, MachineRepresentation::kTagged);
-    Label found_handler(this, &var_handler), stub_cache_miss(this);
-    TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
-                      &found_handler, &var_handler, &stub_cache_miss);
-    Bind(&found_handler);
-    { HandleLoadICHandlerCase(p, var_handler.value(), &slow); }
+    // Try looking up the property on the receiver; if unsuccessful, look
+    // for a handler in the stub cache.
+    Comment("DescriptorArray lookup");
 
-    Bind(&stub_cache_miss);
+    // Skip linear search if there are too many descriptors.
+    // TODO(jkummerow): Consider implementing binary search.
+    // See also TryLookupProperty() which has the same limitation.
+    const int32_t kMaxLinear = 210;
+    Label stub_cache(this);
+    Node* bitfield3 = LoadMapBitField3(receiver_map);
+    Node* nof = BitFieldDecodeWord<Map::NumberOfOwnDescriptorsBits>(bitfield3);
+    GotoIf(UintPtrGreaterThan(nof, IntPtrConstant(kMaxLinear)), &stub_cache);
+    Node* descriptors = LoadMapDescriptors(receiver_map);
+    Variable var_name_index(this, MachineType::PointerRepresentation());
+    Label if_descriptor_found(this);
+    DescriptorLookupLinear(key, descriptors, nof, &if_descriptor_found,
+                           &var_name_index, &slow);
+
+    Bind(&if_descriptor_found);
     {
-      Comment("KeyedLoadGeneric_miss");
-      TailCallRuntime(Runtime::kKeyedLoadIC_Miss, p->context, p->receiver,
-                      p->name, p->slot, p->vector);
+      LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
+                                 var_name_index.value(), &var_details,
+                                 &var_value);
+      Goto(&if_found_on_receiver);
+    }
+
+    Bind(&stub_cache);
+    {
+      Comment("stub cache probe for fast property load");
+      Variable var_handler(this, MachineRepresentation::kTagged);
+      Label found_handler(this, &var_handler), stub_cache_miss(this);
+      TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
+                        &found_handler, &var_handler, &stub_cache_miss);
+      Bind(&found_handler);
+      { HandleLoadICHandlerCase(p, var_handler.value(), &slow); }
+
+      Bind(&stub_cache_miss);
+      {
+        Comment("KeyedLoadGeneric_miss");
+        TailCallRuntime(Runtime::kKeyedLoadIC_Miss, p->context, p->receiver,
+                        p->name, p->slot, p->vector);
+      }
     }
   }
 
@@ -4838,18 +4876,20 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
                                          &var_name_index, &slow);
     Bind(&dictionary_found);
     {
-      Variable var_details(this, MachineRepresentation::kWord32);
-      Variable var_value(this, MachineRepresentation::kTagged);
       LoadPropertyFromNameDictionary(properties, var_name_index.value(),
                                      &var_details, &var_value);
-      Node* kind =
-          BitFieldDecode<PropertyDetails::KindField>(var_details.value());
-      // TODO(jkummerow): Support accessors without missing?
-      GotoUnless(Word32Equal(kind, Int32Constant(kData)), &slow);
-      IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(),
-                       1);
-      Return(var_value.value());
+      Goto(&if_found_on_receiver);
     }
+  }
+
+  Bind(&if_found_on_receiver);
+  {
+    Node* kind =
+        BitFieldDecode<PropertyDetails::KindField>(var_details.value());
+    // TODO(jkummerow): Support accessors without missing?
+    GotoUnless(Word32Equal(kind, Int32Constant(kData)), &slow);
+    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
+    Return(var_value.value());
   }
 
   Bind(&slow);

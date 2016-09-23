@@ -784,6 +784,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
  private:
   enum ElementSupport { kOnlyProperties, kSupportElements };
 
+  void DescriptorLookupLinear(compiler::Node* unique_name,
+                              compiler::Node* descriptors, compiler::Node* nof,
+                              Label* if_found, Variable* var_name_index,
+                              Label* if_not_found);
+
   void HandleLoadICHandlerCase(
       const LoadICParameters* p, compiler::Node* handler, Label* miss,
       ElementSupport support_elements = kOnlyProperties);

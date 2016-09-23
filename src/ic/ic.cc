@@ -1426,9 +1426,10 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                Object);
   } else if (FLAG_use_ic && !object->IsAccessCheckNeeded() &&
              !object->IsJSValue()) {
-    if (object->IsJSObject() || (object->IsString() && key->IsNumber())) {
-      Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
-      if (object->IsString() || key->IsSmi()) UpdateLoadElement(receiver);
+    if ((object->IsJSObject() && key->IsSmi()) ||
+        (object->IsString() && key->IsNumber())) {
+      UpdateLoadElement(Handle<HeapObject>::cast(object));
+      TRACE_IC("LoadIC", key);
     }
   }
 
@@ -1436,7 +1437,6 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     ConfigureVectorState(MEGAMORPHIC, key);
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
   }
-  TRACE_IC("LoadIC", key);
 
   if (!load_handle.is_null()) return load_handle;
 
