@@ -148,6 +148,7 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
 }
 
 void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
+                                       int* vector_ic_count,
                                        bool code_is_interpreted) {
   Object* uninitialized_sentinel =
       TypeFeedbackVector::RawUninitializedSentinel(GetIsolate());
@@ -155,14 +156,19 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       *TypeFeedbackVector::MegamorphicSentinel(GetIsolate());
   int with = 0;
   int gen = 0;
+  int total = 0;
   TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
 
     Object* obj = Get(slot);
-    if (obj != uninitialized_sentinel &&
-        kind != FeedbackVectorSlotKind::GENERAL) {
+    if (kind == FeedbackVectorSlotKind::GENERAL) {
+      continue;
+    }
+    total++;
+
+    if (obj != uninitialized_sentinel) {
       if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
           kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
         // If we are not running interpreted code, we need to ignore
@@ -202,6 +208,7 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
 
   *with_type_info = with;
   *generic = gen;
+  *vector_ic_count = total;
 }
 
 Handle<Symbol> TypeFeedbackVector::UninitializedSentinel(Isolate* isolate) {

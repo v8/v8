@@ -248,7 +248,7 @@ class TypeFeedbackVector : public FixedArray {
   static const int kReservedIndexCount = 2;
 
   inline void ComputeCounts(int* with_type_info, int* generic,
-                            bool code_is_interpreted);
+                            int* vector_ic_count, bool code_is_interpreted);
 
   inline bool is_empty() const;
 
