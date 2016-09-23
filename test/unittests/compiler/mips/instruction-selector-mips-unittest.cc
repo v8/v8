@@ -1180,6 +1180,9 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
 }
 
 TEST_F(InstructionSelectorTest, Float32AddWithFloat32Mul) {
+  if (!IsMipsArchVariant(kMips32r2) && !IsMipsArchVariant(kMips32r6)) {
+    return;
+  }
   {
     StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
                     MachineType::Float32(), MachineType::Float32());
@@ -1243,6 +1246,9 @@ TEST_F(InstructionSelectorTest, Float32AddWithFloat32Mul) {
 }
 
 TEST_F(InstructionSelectorTest, Float64AddWithFloat64Mul) {
+  if (!IsMipsArchVariant(kMips32r2) && !IsMipsArchVariant(kMips32r6)) {
+    return;
+  }
   {
     StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
                     MachineType::Float64(), MachineType::Float64());
@@ -1311,7 +1317,12 @@ TEST_F(InstructionSelectorTest, Float32SubWithFloat32Mul) {
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const p2 = m.Parameter(2);
-  Node* n;
+  Node* n = nullptr;
+
+  if (!IsMipsArchVariant(kMips32r2) && !IsMipsArchVariant(kMips32r6)) {
+    return;
+  }
+
   if (IsMipsArchVariant(kMips32r2)) {
     n = m.Float32Sub(m.Float32Mul(p1, p2), p0);
   } else if (IsMipsArchVariant(kMips32r6)) {
@@ -1347,7 +1358,12 @@ TEST_F(InstructionSelectorTest, Float64SubWithFloat64Mul) {
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const p2 = m.Parameter(2);
-  Node* n;
+  Node* n = nullptr;
+
+  if (!IsMipsArchVariant(kMips32r2) && !IsMipsArchVariant(kMips32r6)) {
+    return;
+  }
+
   if (IsMipsArchVariant(kMips32r2)) {
     n = m.Float64Sub(m.Float64Mul(p1, p2), p0);
   } else if (IsMipsArchVariant(kMips32r6)) {

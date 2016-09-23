@@ -5458,11 +5458,13 @@ void helper_madd_msub_maddf_msubf(F func) {
     (CALL_GENERATED_CODE(isolate, f, &tc, 0, 0, 0, 0));
 
     T res_add = tc.fr + (tc.fs * tc.ft);
-    T res_sub;
+    T res_sub = 0;
     if (IsMipsArchVariant(kMips32r2)) {
       res_sub = (tc.fs * tc.ft) - tc.fr;
     } else if (IsMipsArchVariant(kMips32r6)) {
       res_sub = tc.fr - (tc.fs * tc.ft);
+    } else {
+      UNREACHABLE();
     }
 
     CHECK_EQ(tc.fd_add, res_add);
