@@ -118,7 +118,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                        std::vector<Handle<Map>> const& maps);
 
   // Construct an appropriate heap object check.
-  Node* BuildCheckTaggedPointer(Node* receiver, Node* effect, Node* control);
+  Node* BuildCheckHeapObject(Node* receiver, Node* effect, Node* control);
 
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.

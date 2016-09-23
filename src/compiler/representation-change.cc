@@ -142,8 +142,10 @@ Node* RepresentationChanger::GetRepresentationFor(
 
   switch (use_info.representation()) {
     case MachineRepresentation::kTaggedSigned:
-      DCHECK(use_info.type_check() == TypeCheckKind::kNone);
-      return GetTaggedSignedRepresentationFor(node, output_rep, output_type);
+      DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
+             use_info.type_check() == TypeCheckKind::kSignedSmall);
+      return GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                              use_node, use_info);
     case MachineRepresentation::kTaggedPointer:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone);
       return GetTaggedPointerRepresentationFor(node, output_rep, output_type);
@@ -180,32 +182,15 @@ Node* RepresentationChanger::GetRepresentationFor(
 }
 
 Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
-    Node* node, MachineRepresentation output_rep, Type* output_type) {
+    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Node* use_node, UseInfo use_info) {
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
-    case IrOpcode::kNumberConstant: {
-      int32_t value = OpParameter<int32_t>(node);
-      if (Smi::IsValid(value)) {
-        return jsgraph()->Constant(value);
-      }
-      return TypeError(node, output_rep, output_type,
-                       MachineRepresentation::kTaggedSigned);
-    }
-    case IrOpcode::kHeapConstant:
-      return TypeError(node, output_rep, output_type,
-                       MachineRepresentation::kTaggedSigned);
-    case IrOpcode::kInt32Constant:
+    case IrOpcode::kNumberConstant:
       if (output_type->Is(Type::SignedSmall())) {
-        int32_t value = OpParameter<int32_t>(node);
-        return jsgraph()->Constant(value);
-      } else {
-        return TypeError(node, output_rep, output_type,
-                         MachineRepresentation::kTaggedSigned);
+        return node;
       }
-    case IrOpcode::kFloat64Constant:
-    case IrOpcode::kFloat32Constant:
-      return TypeError(node, output_rep, output_type,
-                       MachineRepresentation::kTaggedSigned);
+      break;
     default:
       break;
   }
@@ -218,17 +203,72 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed31())) {
       op = simplified()->ChangeInt31ToTaggedSigned();
-    } else if (machine()->Is64() && output_type->Is(Type::Signed32())) {
-      op = simplified()->ChangeInt32ToTagged();
+    } else if (output_type->Is(Type::Signed32())) {
+      if (SmiValuesAre32Bits()) {
+        op = simplified()->ChangeInt32ToTagged();
+      } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+        op = simplified()->CheckedInt32ToTaggedSigned();
+      } else {
+        return TypeError(node, output_rep, output_type,
+                         MachineRepresentation::kTaggedSigned);
+      }
+    } else if (output_type->Is(Type::Unsigned32()) &&
+               use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      op = simplified()->CheckedUint32ToTaggedSigned();
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
     }
+  } else if (output_rep == MachineRepresentation::kFloat64) {
+    if (output_type->Is(Type::Signed31())) {
+      // float64 -> int32 -> tagged signed
+      node = InsertChangeFloat64ToInt32(node);
+      op = simplified()->ChangeInt31ToTaggedSigned();
+    } else if (output_type->Is(Type::Signed32())) {
+      // float64 -> int32 -> tagged signed
+      node = InsertChangeFloat64ToInt32(node);
+      if (SmiValuesAre32Bits()) {
+        op = simplified()->ChangeInt32ToTagged();
+      } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+        op = simplified()->CheckedInt32ToTaggedSigned();
+      } else {
+        return TypeError(node, output_rep, output_type,
+                         MachineRepresentation::kTaggedSigned);
+      }
+    } else if (output_type->Is(Type::Unsigned32()) &&
+               use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      // float64 -> uint32 -> tagged signed
+      node = InsertChangeFloat64ToUint32(node);
+      op = simplified()->CheckedUint32ToTaggedSigned();
+    } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      op = simplified()->CheckedFloat64ToInt32(
+          output_type->Maybe(Type::MinusZero())
+              ? CheckForMinusZeroMode::kCheckForMinusZero
+              : CheckForMinusZeroMode::kDontCheckForMinusZero);
+      node = InsertConversion(node, op, use_node);
+      if (SmiValuesAre32Bits()) {
+        op = simplified()->ChangeInt32ToTagged();
+      } else {
+        op = simplified()->CheckedInt32ToTaggedSigned();
+      }
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTaggedSigned);
+    }
+  } else if (CanBeTaggedPointer(output_rep) &&
+             use_info.type_check() == TypeCheckKind::kSignedSmall) {
+    op = simplified()->CheckedTaggedToTaggedSigned();
+  } else if (output_rep == MachineRepresentation::kBit &&
+             use_info.type_check() == TypeCheckKind::kSignedSmall) {
+    // TODO(turbofan): Consider adding a Bailout operator that just deopts.
+    // Also use that for MachineRepresentation::kPointer case above.
+    node = InsertChangeBitToTagged(node);
+    op = simplified()->CheckedTaggedToTaggedSigned();
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kTaggedSigned);
   }
-  return jsgraph()->graph()->NewNode(op, node);
+  return InsertConversion(node, op, use_node);
 }
 
 Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
@@ -933,6 +973,9 @@ Node* RepresentationChanger::TypeError(Node* node,
   return node;
 }
 
+Node* RepresentationChanger::InsertChangeBitToTagged(Node* node) {
+  return jsgraph()->graph()->NewNode(simplified()->ChangeBitToTagged(), node);
+}
 
 Node* RepresentationChanger::InsertChangeFloat32ToFloat64(Node* node) {
   return jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(), node);

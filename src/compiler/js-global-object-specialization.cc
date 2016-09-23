@@ -207,7 +207,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       MachineRepresentation representation = MachineRepresentation::kTagged;
       if (property_cell_value->IsHeapObject()) {
         // Check that the {value} is a HeapObject.
-        value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+        value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
                                           value, effect, control);
 
         // Check {value} map agains the {property_cell} map.
@@ -220,8 +220,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
         representation = MachineRepresentation::kTaggedPointer;
       } else {
         // Check that the {value} is a Smi.
-        value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
-                                          value, effect, control);
+        value = effect =
+            graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
         property_cell_value_type = Type::SignedSmall();
         representation = MachineRepresentation::kTaggedSigned;
       }

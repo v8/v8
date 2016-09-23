@@ -168,7 +168,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                            receiver, effect, control);
     } else {
       // Monomorphic property access.
-      effect = BuildCheckTaggedPointer(receiver, effect, control);
+      effect = BuildCheckHeapObject(receiver, effect, control);
       effect = BuildCheckMaps(receiver, effect, control,
                               access_info.receiver_maps());
     }
@@ -206,7 +206,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
       receiverissmi_effect = effect;
     } else {
-      effect = BuildCheckTaggedPointer(receiver, effect, control);
+      effect = BuildCheckHeapObject(receiver, effect, control);
     }
 
     // Load the {receiver} map. The resulting effect is the dominating effect
@@ -510,7 +510,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
 
     // Ensure that {receiver} is a heap object.
-    effect = BuildCheckTaggedPointer(receiver, effect, control);
+    effect = BuildCheckHeapObject(receiver, effect, control);
 
     // Check for the monomorphic case.
     if (access_infos.size() == 1) {
@@ -971,14 +971,14 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           break;
         }
         case MachineRepresentation::kTaggedSigned: {
-          value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
-                                            value, effect, control);
+          value = effect = graph()->NewNode(simplified()->CheckSmi(), value,
+                                            effect, control);
           field_access.write_barrier_kind = kNoWriteBarrier;
           break;
         }
         case MachineRepresentation::kTaggedPointer: {
           // Ensure that {value} is a HeapObject.
-          value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+          value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
                                             value, effect, control);
           Handle<Map> field_map;
           if (access_info.field_map().ToHandle(&field_map)) {
@@ -1243,8 +1243,8 @@ JSNativeContextSpecialization::BuildElementAccess(
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);
       if (IsFastSmiElementsKind(elements_kind)) {
-        value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
-                                          value, effect, control);
+        value = effect =
+            graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
       } else if (IsFastDoubleElementsKind(elements_kind)) {
         value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
                                           effect, control);
@@ -1315,9 +1315,9 @@ Node* JSNativeContextSpecialization::BuildCheckMaps(
                           inputs);
 }
 
-Node* JSNativeContextSpecialization::BuildCheckTaggedPointer(Node* receiver,
-                                                             Node* effect,
-                                                             Node* control) {
+Node* JSNativeContextSpecialization::BuildCheckHeapObject(Node* receiver,
+                                                          Node* effect,
+                                                          Node* control) {
   switch (receiver->opcode()) {
     case IrOpcode::kHeapConstant:
     case IrOpcode::kJSCreate:
@@ -1336,8 +1336,8 @@ Node* JSNativeContextSpecialization::BuildCheckTaggedPointer(Node* receiver,
       return effect;
     }
     default: {
-      return graph()->NewNode(simplified()->CheckTaggedPointer(), receiver,
-                              effect, control);
+      return graph()->NewNode(simplified()->CheckHeapObject(), receiver, effect,
+                              control);
     }
   }
 }

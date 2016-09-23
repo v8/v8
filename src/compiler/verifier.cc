@@ -1001,6 +1001,13 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::Unsigned31());
       CheckTypeIs(node, Type::Unsigned31());
       break;
+    case IrOpcode::kCheckHeapObject:
+      CheckValueInputIs(node, 0, Type::Any());
+      break;
+    case IrOpcode::kCheckIf:
+      CheckValueInputIs(node, 0, Type::Boolean());
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kCheckMaps:
       // (Any, Internal, ..., Internal) -> Any
       CheckValueInputIs(node, 0, Type::Any());
@@ -1013,19 +1020,12 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kCheckSmi:
+      CheckValueInputIs(node, 0, Type::Any());
+      break;
     case IrOpcode::kCheckString:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::String());
-      break;
-    case IrOpcode::kCheckIf:
-      CheckValueInputIs(node, 0, Type::Boolean());
-      CheckNotTyped(node);
-      break;
-    case IrOpcode::kCheckTaggedSigned:
-      CheckValueInputIs(node, 0, Type::Any());
-      break;
-    case IrOpcode::kCheckTaggedPointer:
-      CheckValueInputIs(node, 0, Type::Any());
       break;
 
     case IrOpcode::kCheckedInt32Add:
@@ -1035,11 +1035,14 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckedUint32Div:
     case IrOpcode::kCheckedUint32Mod:
     case IrOpcode::kCheckedInt32Mul:
+    case IrOpcode::kCheckedInt32ToTaggedSigned:
     case IrOpcode::kCheckedUint32ToInt32:
+    case IrOpcode::kCheckedUint32ToTaggedSigned:
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedTaggedSignedToInt32:
     case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedTaggedToFloat64:
+    case IrOpcode::kCheckedTaggedToTaggedSigned:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
       break;
 

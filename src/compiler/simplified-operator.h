@@ -311,10 +311,11 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckIf();
   const Operator* CheckBounds();
   const Operator* CheckMaps(int map_input_count);
+
+  const Operator* CheckHeapObject();
   const Operator* CheckNumber();
+  const Operator* CheckSmi();
   const Operator* CheckString();
-  const Operator* CheckTaggedPointer();
-  const Operator* CheckTaggedSigned();
 
   const Operator* CheckedInt32Add();
   const Operator* CheckedInt32Sub();
@@ -323,11 +324,14 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckedUint32Div();
   const Operator* CheckedUint32Mod();
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
+  const Operator* CheckedInt32ToTaggedSigned();
   const Operator* CheckedUint32ToInt32();
+  const Operator* CheckedUint32ToTaggedSigned();
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode);
   const Operator* CheckedTaggedSignedToInt32();
   const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode);
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode);
+  const Operator* CheckedTaggedToTaggedSigned();
   const Operator* CheckedTruncateTaggedToWord32();
 
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);

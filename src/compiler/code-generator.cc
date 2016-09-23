@@ -880,13 +880,21 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         DCHECK(constant_object->IsSmi());
         break;
       case Constant::kFloat32:
-        DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
-               CanBeTaggedPointer(type.representation()));
+        if (type.representation() == MachineRepresentation::kTaggedSigned) {
+          DCHECK(IsSmiDouble(constant.ToFloat32()));
+        } else {
+          DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
+                 CanBeTaggedPointer(type.representation()));
+        }
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat32());
         break;
       case Constant::kFloat64:
-        DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
-               CanBeTaggedPointer(type.representation()));
+        if (type.representation() == MachineRepresentation::kTaggedSigned) {
+          DCHECK(IsSmiDouble(constant.ToFloat64()));
+        } else {
+          DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
+                 CanBeTaggedPointer(type.representation()));
+        }
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());
         break;
       case Constant::kHeapObject:

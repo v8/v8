@@ -350,20 +350,20 @@ TEST_F(SimplifiedOperatorReducerTest, TruncateTaggedToWord32WithConstant) {
 }
 
 // -----------------------------------------------------------------------------
-// CheckTaggedPointer
+// CheckHeapObject
 
-TEST_F(SimplifiedOperatorReducerTest, CheckTaggedPointerWithChangeBitToTagged) {
+TEST_F(SimplifiedOperatorReducerTest, CheckHeapObjectWithChangeBitToTagged) {
   Node* param0 = Parameter(0);
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* value = graph()->NewNode(simplified()->ChangeBitToTagged(), param0);
-  Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->CheckTaggedPointer(), value, effect, control));
+  Reduction reduction = Reduce(graph()->NewNode(simplified()->CheckHeapObject(),
+                                                value, effect, control));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(value, reduction.replacement());
 }
 
-TEST_F(SimplifiedOperatorReducerTest, CheckTaggedPointerWithHeapConstant) {
+TEST_F(SimplifiedOperatorReducerTest, CheckHeapObjectWithHeapConstant) {
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Handle<HeapObject> kHeapObjects[] = {
@@ -372,59 +372,57 @@ TEST_F(SimplifiedOperatorReducerTest, CheckTaggedPointerWithHeapConstant) {
   TRACED_FOREACH(Handle<HeapObject>, object, kHeapObjects) {
     Node* value = HeapConstant(object);
     Reduction reduction = Reduce(graph()->NewNode(
-        simplified()->CheckTaggedPointer(), value, effect, control));
+        simplified()->CheckHeapObject(), value, effect, control));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_EQ(value, reduction.replacement());
   }
 }
 
-TEST_F(SimplifiedOperatorReducerTest,
-       CheckTaggedPointerWithCheckTaggedPointer) {
+TEST_F(SimplifiedOperatorReducerTest, CheckHeapObjectWithCheckHeapObject) {
   Node* param0 = Parameter(0);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  Node* value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+  Node* value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
                                           param0, effect, control);
-  Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->CheckTaggedPointer(), value, effect, control));
+  Reduction reduction = Reduce(graph()->NewNode(simplified()->CheckHeapObject(),
+                                                value, effect, control));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(value, reduction.replacement());
 }
 
 // -----------------------------------------------------------------------------
-// CheckTaggedSigned
+// CheckSmi
 
-TEST_F(SimplifiedOperatorReducerTest,
-       CheckTaggedSignedWithChangeInt31ToTaggedSigned) {
+TEST_F(SimplifiedOperatorReducerTest, CheckSmiWithChangeInt31ToTaggedSigned) {
   Node* param0 = Parameter(0);
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* value =
       graph()->NewNode(simplified()->ChangeInt31ToTaggedSigned(), param0);
-  Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->CheckTaggedSigned(), value, effect, control));
+  Reduction reduction = Reduce(
+      graph()->NewNode(simplified()->CheckSmi(), value, effect, control));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(value, reduction.replacement());
 }
 
-TEST_F(SimplifiedOperatorReducerTest, CheckTaggedSignedWithNumberConstant) {
+TEST_F(SimplifiedOperatorReducerTest, CheckSmiWithNumberConstant) {
   Node* effect = graph()->start();
   Node* control = graph()->start();
   Node* value = NumberConstant(1.0);
-  Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->CheckTaggedSigned(), value, effect, control));
+  Reduction reduction = Reduce(
+      graph()->NewNode(simplified()->CheckSmi(), value, effect, control));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(value, reduction.replacement());
 }
 
-TEST_F(SimplifiedOperatorReducerTest, CheckTaggedSignedWithCheckTaggedSigned) {
+TEST_F(SimplifiedOperatorReducerTest, CheckSmiWithCheckSmi) {
   Node* param0 = Parameter(0);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  Node* value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
-                                          param0, effect, control);
-  Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->CheckTaggedSigned(), value, effect, control));
+  Node* value = effect =
+      graph()->NewNode(simplified()->CheckSmi(), param0, effect, control);
+  Reduction reduction = Reduce(
+      graph()->NewNode(simplified()->CheckSmi(), value, effect, control));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(value, reduction.replacement());
 }

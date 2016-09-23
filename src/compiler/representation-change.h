@@ -150,6 +150,10 @@ class UseInfo {
   }
 
   // Possibly deoptimizing conversions.
+  static UseInfo CheckedSignedSmallAsTaggedSigned() {
+    return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any(),
+                   TypeCheckKind::kSignedSmall);
+  }
   static UseInfo CheckedSignedSmallAsWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
                    TypeCheckKind::kSignedSmall);
@@ -243,7 +247,8 @@ class RepresentationChanger final {
 
   Node* GetTaggedSignedRepresentationFor(Node* node,
                                          MachineRepresentation output_rep,
-                                         Type* output_type);
+                                         Type* output_type, Node* use_node,
+                                         UseInfo use_info);
   Node* GetTaggedPointerRepresentationFor(Node* node,
                                           MachineRepresentation output_rep,
                                           Type* output_type);
@@ -266,6 +271,7 @@ class RepresentationChanger final {
   Node* TypeError(Node* node, MachineRepresentation output_rep,
                   Type* output_type, MachineRepresentation use);
   Node* MakeTruncatedInt32Constant(double value);
+  Node* InsertChangeBitToTagged(Node* node);
   Node* InsertChangeFloat32ToFloat64(Node* node);
   Node* InsertChangeFloat64ToInt32(Node* node);
   Node* InsertChangeFloat64ToUint32(Node* node);

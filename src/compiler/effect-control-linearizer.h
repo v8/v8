@@ -71,10 +71,8 @@ class EffectControlLinearizer {
                                       Node* effect, Node* control);
   ValueEffectControl LowerCheckIf(Node* node, Node* frame_state, Node* effect,
                                   Node* control);
-  ValueEffectControl LowerCheckTaggedPointer(Node* node, Node* frame_state,
-                                             Node* effect, Node* control);
-  ValueEffectControl LowerCheckTaggedSigned(Node* node, Node* frame_state,
-                                            Node* effect, Node* control);
+  ValueEffectControl LowerCheckHeapObject(Node* node, Node* frame_state,
+                                          Node* effect, Node* control);
   ValueEffectControl LowerCheckedInt32Add(Node* node, Node* frame_state,
                                           Node* effect, Node* control);
   ValueEffectControl LowerCheckedInt32Sub(Node* node, Node* frame_state,
@@ -89,8 +87,16 @@ class EffectControlLinearizer {
                                            Node* effect, Node* control);
   ValueEffectControl LowerCheckedInt32Mul(Node* node, Node* frame_state,
                                           Node* effect, Node* control);
+  ValueEffectControl LowerCheckedInt32ToTaggedSigned(Node* node,
+                                                     Node* frame_state,
+                                                     Node* effect,
+                                                     Node* control);
   ValueEffectControl LowerCheckedUint32ToInt32(Node* node, Node* frame_state,
                                                Node* effect, Node* control);
+  ValueEffectControl LowerCheckedUint32ToTaggedSigned(Node* node,
+                                                      Node* frame_state,
+                                                      Node* effect,
+                                                      Node* control);
   ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* frame_state,
                                                 Node* effect, Node* control);
   ValueEffectControl LowerCheckedTaggedSignedToInt32(Node* node,
@@ -101,6 +107,10 @@ class EffectControlLinearizer {
                                                Node* effect, Node* control);
   ValueEffectControl LowerCheckedTaggedToFloat64(Node* node, Node* frame_state,
                                                  Node* effect, Node* control);
+  ValueEffectControl LowerCheckedTaggedToTaggedSigned(Node* node,
+                                                      Node* frame_state,
+                                                      Node* effect,
+                                                      Node* control);
   ValueEffectControl LowerChangeTaggedToFloat64(Node* node, Node* effect,
                                                 Node* control);
   ValueEffectControl LowerTruncateTaggedToBit(Node* node, Node* effect,

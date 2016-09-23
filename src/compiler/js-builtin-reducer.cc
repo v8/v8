@@ -275,8 +275,8 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
     // here is to learn on deopt, i.e. disable Array.prototype.push inlining
     // for this function.
     if (IsFastSmiElementsKind(receiver_map->elements_kind())) {
-      value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
-                                        value, effect, control);
+      value = effect =
+          graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
     } else if (IsFastDoubleElementsKind(receiver_map->elements_kind())) {
       value = effect =
           graph()->NewNode(simplified()->CheckNumber(), value, effect, control);
