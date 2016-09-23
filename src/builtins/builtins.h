@@ -49,29 +49,6 @@ namespace internal {
 //      Args: name
 #define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG)                       \
   ASM(Abort)                                                                  \
-  /* Handlers */                                                              \
-  ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \
-  TFS(KeyedLoadIC_Megamorphic_TF, KEYED_LOAD_IC, kNoExtraICState,             \
-      LoadWithVector)                                                         \
-  ASM(KeyedLoadIC_Miss)                                                       \
-  ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                         \
-  ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)              \
-  ASH(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                        \
-      StoreICState::kStrictModeState)                                         \
-  ASM(KeyedStoreIC_Miss)                                                      \
-  ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                       \
-  TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)      \
-  TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector) \
-  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                       \
-  TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                  \
-  ASH(LoadIC_Normal, HANDLER, Code::LOAD_IC)                                  \
-  TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                    \
-  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                \
-  ASH(StoreIC_Normal, HANDLER, Code::STORE_IC)                                \
-  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)      \
-  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)           \
-  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)           \
-                                                                              \
   /* Code aging */                                                            \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                       \
                                                                               \
@@ -186,6 +163,29 @@ namespace internal {
   TFS(ToName, BUILTIN, kNoExtraICState, TypeConversion)                       \
   TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
   TFS(ToNumber, BUILTIN, kNoExtraICState, TypeConversion)                     \
+                                                                              \
+  /* Handlers */                                                              \
+  ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \
+  TFS(KeyedLoadIC_Megamorphic_TF, KEYED_LOAD_IC, kNoExtraICState,             \
+      LoadWithVector)                                                         \
+  ASM(KeyedLoadIC_Miss)                                                       \
+  ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                         \
+  ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)              \
+  ASH(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                        \
+      StoreICState::kStrictModeState)                                         \
+  ASM(KeyedStoreIC_Miss)                                                      \
+  ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                       \
+  TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)      \
+  TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector) \
+  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                       \
+  TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                  \
+  ASH(LoadIC_Normal, HANDLER, Code::LOAD_IC)                                  \
+  TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                    \
+  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                \
+  ASH(StoreIC_Normal, HANDLER, Code::STORE_IC)                                \
+  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)      \
+  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)           \
+  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)           \
                                                                               \
   /* Built-in functions for Javascript */                                     \
   /* Special internal builtins */                                             \

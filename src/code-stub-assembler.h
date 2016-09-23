@@ -788,6 +788,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                               compiler::Node* descriptors, compiler::Node* nof,
                               Label* if_found, Variable* var_name_index,
                               Label* if_not_found);
+  compiler::Node* CallGetterIfAccessor(compiler::Node* value,
+                                       compiler::Node* details,
+                                       compiler::Node* context,
+                                       compiler::Node* receiver,
+                                       Label* if_bailout);
 
   void HandleLoadICHandlerCase(
       const LoadICParameters* p, compiler::Node* handler, Label* miss,

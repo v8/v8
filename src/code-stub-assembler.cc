@@ -3565,6 +3565,52 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
   Comment("] LoadPropertyFromGlobalDictionary");
 }
 
+// |value| is the property backing store's contents, which is either a value
+// or an accessor pair, as specified by |details|.
+// Returns either the original value, or the result of the getter call.
+Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
+                                              Node* context, Node* receiver,
+                                              Label* if_bailout) {
+  Variable var_value(this, MachineRepresentation::kTagged);
+  var_value.Bind(value);
+  Label done(this);
+
+  Node* kind = BitFieldDecode<PropertyDetails::KindField>(details);
+  GotoIf(Word32Equal(kind, Int32Constant(kData)), &done);
+
+  // Accessor case.
+  {
+    Node* accessor_pair = value;
+    GotoIf(Word32Equal(LoadInstanceType(accessor_pair),
+                       Int32Constant(ACCESSOR_INFO_TYPE)),
+           if_bailout);
+    AssertInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE);
+    Node* getter = LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
+    Node* getter_map = LoadMap(getter);
+    Node* instance_type = LoadMapInstanceType(getter_map);
+    // FunctionTemplateInfo getters are not supported yet.
+    GotoIf(
+        Word32Equal(instance_type, Int32Constant(FUNCTION_TEMPLATE_INFO_TYPE)),
+        if_bailout);
+
+    // Return undefined if the {getter} is not callable.
+    var_value.Bind(UndefinedConstant());
+    GotoIf(Word32Equal(Word32And(LoadMapBitField(getter_map),
+                                 Int32Constant(1 << Map::kIsCallable)),
+                       Int32Constant(0)),
+           &done);
+
+    // Call the accessor.
+    Callable callable = CodeFactory::Call(isolate());
+    Node* result = CallJS(callable, context, getter, receiver);
+    var_value.Bind(result);
+    Goto(&done);
+  }
+
+  Bind(&done);
+  return var_value.value();
+}
+
 void CodeStubAssembler::TryGetOwnProperty(
     Node* context, Node* receiver, Node* object, Node* map, Node* instance_type,
     Node* unique_name, Label* if_found_value, Variable* var_value,
@@ -3612,41 +3658,10 @@ void CodeStubAssembler::TryGetOwnProperty(
   // Here we have details and value which could be an accessor.
   Bind(&if_found);
   {
-    Node* details = var_details.value();
-    Node* kind = BitFieldDecode<PropertyDetails::KindField>(details);
-
-    Label if_accessor(this);
-    Branch(Word32Equal(kind, Int32Constant(kData)), if_found_value,
-           &if_accessor);
-    Bind(&if_accessor);
-    {
-      Node* accessor_pair = var_value->value();
-      GotoIf(Word32Equal(LoadInstanceType(accessor_pair),
-                         Int32Constant(ACCESSOR_INFO_TYPE)),
-             if_bailout);
-      AssertInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE);
-      Node* getter =
-          LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
-      Node* getter_map = LoadMap(getter);
-      Node* instance_type = LoadMapInstanceType(getter_map);
-      // FunctionTemplateInfo getters are not supported yet.
-      GotoIf(Word32Equal(instance_type,
-                         Int32Constant(FUNCTION_TEMPLATE_INFO_TYPE)),
-             if_bailout);
-
-      // Return undefined if the {getter} is not callable.
-      var_value->Bind(UndefinedConstant());
-      GotoIf(Word32Equal(Word32And(LoadMapBitField(getter_map),
-                                   Int32Constant(1 << Map::kIsCallable)),
-                         Int32Constant(0)),
-             if_found_value);
-
-      // Call the accessor.
-      Callable callable = CodeFactory::Call(isolate());
-      Node* result = CallJS(callable, context, getter, receiver);
-      var_value->Bind(result);
-      Goto(if_found_value);
-    }
+    Node* value = CallGetterIfAccessor(var_value->value(), var_details.value(),
+                                       context, receiver, if_bailout);
+    var_value->Bind(value);
+    Goto(if_found_value);
   }
 }
 
@@ -4884,12 +4899,10 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
 
   Bind(&if_found_on_receiver);
   {
-    Node* kind =
-        BitFieldDecode<PropertyDetails::KindField>(var_details.value());
-    // TODO(jkummerow): Support accessors without missing?
-    GotoUnless(Word32Equal(kind, Int32Constant(kData)), &slow);
+    Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
+                                       p->context, receiver, &slow);
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
-    Return(var_value.value());
+    Return(value);
   }
 
   Bind(&slow);
