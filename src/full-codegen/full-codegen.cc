@@ -223,16 +223,16 @@ void FullCodeGenerator::PrepareForBailout(Expression* node,
   PrepareForBailoutForId(node->id(), state);
 }
 
-void FullCodeGenerator::CallLoadIC(TypeFeedbackId id) {
+void FullCodeGenerator::CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name,
+                                   TypeFeedbackId id) {
+  DCHECK(name->IsName());
+  __ Move(LoadDescriptor::NameRegister(), name);
+
+  EmitLoadSlot(LoadDescriptor::SlotRegister(), slot);
+
   Handle<Code> ic = CodeFactory::LoadIC(isolate()).code();
   CallIC(ic, id);
   if (FLAG_tf_load_ic_stub) RestoreContext();
-}
-
-void FullCodeGenerator::CallLoadGlobalIC(TypeofMode typeof_mode,
-                                         TypeFeedbackId id) {
-  Handle<Code> ic = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
-  CallIC(ic, id);
 }
 
 void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
@@ -492,6 +492,19 @@ void FullCodeGenerator::VisitDeclarations(
 void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   EmitVariableLoad(expr);
+}
+
+void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
+                                               TypeofMode typeof_mode) {
+#ifdef DEBUG
+  Variable* var = proxy->var();
+  DCHECK(var->IsUnallocated() ||
+         (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
+#endif
+  EmitLoadSlot(LoadGlobalDescriptor::SlotRegister(),
+               proxy->VariableFeedbackSlot());
+  Handle<Code> ic = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
+  CallIC(ic);
 }
 
 void FullCodeGenerator::VisitSloppyBlockFunctionStatement(
@@ -1094,10 +1107,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   DCHECK(!key->value()->IsSmi());
   DCHECK(!prop->IsSuperAccess());
 
-  __ Move(LoadDescriptor::NameRegister(), key->value());
-  __ Move(LoadDescriptor::SlotRegister(),
-          SmiFromSlot(prop->PropertyFeedbackSlot()));
-  CallLoadIC();
+  CallLoadIC(prop->PropertyFeedbackSlot(), key->value());
 }
 
 void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
@@ -1113,9 +1123,10 @@ void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetExpressionPosition(prop);
+
+  EmitLoadSlot(LoadDescriptor::SlotRegister(), prop->PropertyFeedbackSlot());
+
   Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
-  __ Move(LoadDescriptor::SlotRegister(),
-          SmiFromSlot(prop->PropertyFeedbackSlot()));
   CallIC(ic);
   RestoreContext();
 }
@@ -1559,9 +1570,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
   // Load the "prototype" from the constructor.
   __ Move(LoadDescriptor::ReceiverRegister(), result_register());
-  __ LoadRoot(LoadDescriptor::NameRegister(), Heap::kprototype_stringRootIndex);
-  __ Move(LoadDescriptor::SlotRegister(), SmiFromSlot(lit->PrototypeSlot()));
-  CallLoadIC();
+  CallLoadIC(lit->PrototypeSlot(), isolate()->factory()->prototype_string());
   PrepareForBailoutForId(lit->PrototypeId(), BailoutState::TOS_REGISTER);
   PushOperand(result_register());
 

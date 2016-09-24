@@ -621,10 +621,8 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
-  void CallLoadIC(TypeFeedbackId id = TypeFeedbackId::None());
-  // Inside typeof reference errors are never thrown.
-  void CallLoadGlobalIC(TypeofMode typeof_mode,
-                        TypeFeedbackId id = TypeFeedbackId::None());
+  void CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name,
+                  TypeFeedbackId id = TypeFeedbackId::None());
   void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name,
                    TypeFeedbackId id = TypeFeedbackId::None());
   void CallKeyedStoreIC(FeedbackVectorSlot slot);

@@ -1189,20 +1189,6 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
   }
 }
 
-
-void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
-                                               TypeofMode typeof_mode) {
-#ifdef DEBUG
-  Variable* var = proxy->var();
-  DCHECK(var->IsUnallocated() ||
-         (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
-#endif
-  __ mov(LoadGlobalDescriptor::SlotRegister(),
-         Immediate(SmiFromSlot(proxy->VariableFeedbackSlot())));
-  CallLoadGlobalIC(typeof_mode);
-}
-
-
 void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
                                          TypeofMode typeof_mode) {
   SetExpressionPosition(proxy);
