@@ -410,6 +410,9 @@ class ExpressionClassifier {
     // We should only be looking for an error when we know that one has
     // been reported.  But we're not...  So this is to make sure we have
     // the same behaviour.
+    UNREACHABLE();
+
+    // Make MSVC happy by returning an error from this inaccessible path.
     static Error none;
     return none;
   }

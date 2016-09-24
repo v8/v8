@@ -2609,7 +2609,9 @@ void Parser::ParseArrowFunctionFormalParameterList(
   for (int i = 0; i < parameters->Arity(); ++i) {
     auto parameter = parameters->at(i);
     DeclareFormalParameter(parameters->scope, parameter);
-    if (!duplicate_loc->IsValid()) {
+    if (!this->classifier()
+             ->is_valid_formal_parameter_list_without_duplicates() &&
+        !duplicate_loc->IsValid()) {
       *duplicate_loc =
           this->classifier()->duplicate_formal_parameter_error().location;
     }
