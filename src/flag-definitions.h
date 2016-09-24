@@ -213,7 +213,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 #define HARMONY_STAGED_BASE(V)                                               \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")                  \
   V(harmony_tailcalls, "harmony tail calls")                                 \
-  V(harmony_async_await, "harmony async-await")                              \
   V(harmony_string_padding, "harmony String-padding methods")
 
 #ifdef V8_I18N_SUPPORT
@@ -227,6 +226,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                                  \
+  V(harmony_async_await, "harmony async-await")                              \
   V(harmony_restrictive_declarations,                                        \
     "harmony limitations on sloppy mode function declarations")              \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
