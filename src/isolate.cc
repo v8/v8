@@ -1751,13 +1751,16 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         }
         return retval;
       case HandlerTable::PROMISE:
-        return promise_on_stack->promise();
+        return promise_on_stack
+                   ? Handle<Object>::cast(promise_on_stack->promise())
+                   : undefined;
       case HandlerTable::ASYNC_AWAIT: {
         // If in the initial portion of async/await, continue the loop to pop up
         // successive async/await stack frames until an asynchronous one with
         // dependents is found, or a non-async stack frame is encountered, in
         // order to handle the synchronous async/await catch prediction case:
         // assume that async function calls are awaited.
+        if (!promise_on_stack) return retval;
         retval = promise_on_stack->promise();
         if (PromiseHasUserDefinedRejectHandler(retval)) {
           return retval;
