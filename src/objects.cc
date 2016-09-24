@@ -19613,8 +19613,8 @@ Handle<Object> Module::LoadExport(Handle<Module> module, Handle<String> name) {
   Isolate* isolate = module->GetIsolate();
   Handle<Object> object(module->exports()->Lookup(name), isolate);
 
-  // TODO(neis): Star exports and namespace imports are not yet implemented.
-  // Trying to use these features may crash here.
+  // TODO(neis): Namespace imports are not yet implemented.  Trying to use this
+  // feature may crash here.
   if (!object->IsCell()) UNIMPLEMENTED();
 
   return handle(Handle<Cell>::cast(object)->value(), isolate);
@@ -19629,16 +19629,17 @@ Handle<Object> Module::LoadImport(Handle<Module> module, Handle<String> name,
 }
 
 MaybeHandle<Cell> Module::ResolveImport(Handle<Module> module,
-                                        Handle<String> name,
-                                        int module_request) {
+                                        Handle<String> name, int module_request,
+                                        bool must_resolve) {
   Isolate* isolate = module->GetIsolate();
   Handle<Module> requested_module(
       Module::cast(module->requested_modules()->get(module_request)), isolate);
-  return Module::ResolveExport(requested_module, name);
+  return Module::ResolveExport(requested_module, name, must_resolve);
 }
 
 MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
-                                        Handle<String> name) {
+                                        Handle<String> name,
+                                        bool must_resolve) {
   // TODO(neis): Detect cycles.
 
   Isolate* isolate = module->GetIsolate();
@@ -19656,7 +19657,9 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
     Handle<String> import_name(String::cast(entry->import_name()), isolate);
 
     Handle<Cell> cell;
-    if (!ResolveImport(module, import_name, module_request).ToHandle(&cell)) {
+    if (!ResolveImport(module, import_name, module_request, true)
+             .ToHandle(&cell)) {
+      DCHECK(isolate->has_pending_exception());
       return MaybeHandle<Cell>();
     }
 
@@ -19671,12 +19674,57 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
   }
 
   DCHECK(object->IsTheHole(isolate));
-  // TODO(neis): Implement star exports.
+  return Module::ResolveExportUsingStarExports(module, name, must_resolve);
+}
+
+MaybeHandle<Cell> Module::ResolveExportUsingStarExports(Handle<Module> module,
+                                                        Handle<String> name,
+                                                        bool must_resolve) {
+  Isolate* isolate = module->GetIsolate();
+  if (!name->Equals(isolate->heap()->default_string())) {
+    // Go through all star exports looking for the given name.  If multiple star
+    // exports provide the name, make sure they all map it to the same cell.
+    Handle<Cell> unique_cell;
+    Handle<FixedArray> special_exports(module->info()->special_exports(),
+                                       isolate);
+    for (int i = 0, n = special_exports->length(); i < n; ++i) {
+      i::Handle<i::ModuleInfoEntry> entry(
+          i::ModuleInfoEntry::cast(special_exports->get(i)), isolate);
+      if (!entry->export_name()->IsUndefined(isolate)) {
+        continue;  // Indirect export.
+      }
+      int module_request = Smi::cast(entry->module_request())->value();
+
+      Handle<Cell> cell;
+      if (ResolveImport(module, name, module_request, false).ToHandle(&cell)) {
+        if (unique_cell.is_null()) unique_cell = cell;
+        if (*unique_cell != *cell) {
+          THROW_NEW_ERROR(
+              isolate, NewSyntaxError(MessageTemplate::kAmbiguousExport, name),
+              Cell);
+        }
+      } else if (isolate->has_pending_exception()) {
+        return MaybeHandle<Cell>();
+      }
+    }
+
+    if (!unique_cell.is_null()) {
+      // Found a unique star export for this name.
+      Handle<ObjectHashTable> exports(module->exports(), isolate);
+      DCHECK(exports->Lookup(name)->IsTheHole(isolate));
+      exports = ObjectHashTable::Put(exports, name, unique_cell);
+      module->set_exports(*exports);
+      return unique_cell;
+    }
+  }
 
   // Unresolvable.
-  THROW_NEW_ERROR(isolate,
-                  NewSyntaxError(MessageTemplate::kUnresolvableExport, name),
-                  Cell);
+  if (must_resolve) {
+    THROW_NEW_ERROR(isolate,
+                    NewSyntaxError(MessageTemplate::kUnresolvableExport, name),
+                    Cell);
+  }
+  return MaybeHandle<Cell>();
 }
 
 }  // namespace internal

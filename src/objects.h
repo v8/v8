@@ -7962,11 +7962,22 @@ class Module : public Struct {
   static Handle<Object> LoadImport(Handle<Module> module, Handle<String> name,
                                    int module_request);
 
+  // The [must_resolve] argument indicates whether or not an exception should be
+  // thrown if the module does not provide an export named [name].
+  //
+  // If [must_resolve] is true, a null result indicates an exception. If
+  // [must_resolve] is false, a null result does not necessarily indicate an
+  // exception, but there may be one pending.
+  //
+  // Currently, an exception is always thrown in the case of a cycle and in the
+  // case of conflicting star exports.  TODO(neis): Make that spec-compliant.
+  static MUST_USE_RESULT MaybeHandle<Cell> ResolveExport(Handle<Module> module,
+                                                         Handle<String> name,
+                                                         bool must_resolve);
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveImport(Handle<Module> module,
                                                          Handle<String> name,
-                                                         int module_request);
-  static MUST_USE_RESULT MaybeHandle<Cell> ResolveExport(Handle<Module> module,
-                                                         Handle<String> name);
+                                                         int module_request,
+                                                         bool must_resolve);
 
   static const int kCodeOffset = HeapObject::kHeaderSize;
   static const int kExportsOffset = kCodeOffset + kPointerSize;
@@ -7977,6 +7988,10 @@ class Module : public Struct {
 
  private:
   enum { kEvaluatedBit };
+
+  // Helper for ResolveExport.
+  static MUST_USE_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
+      Handle<Module> module, Handle<String> name, bool must_resolve);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
 };

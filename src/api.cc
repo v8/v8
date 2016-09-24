@@ -1989,7 +1989,8 @@ static bool InstantiateModule(Local<Module> v8_module,
         i::ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
     i::Handle<i::String> name(i::String::cast(entry->import_name()), isolate);
     int module_request = i::Smi::cast(entry->module_request())->value();
-    if (i::Module::ResolveImport(module, name, module_request).is_null()) {
+    if (i::Module::ResolveImport(module, name, module_request, true)
+            .is_null()) {
       return false;
     }
   }
@@ -1998,8 +1999,10 @@ static bool InstantiateModule(Local<Module> v8_module,
   for (int i = 0, n = special_exports->length(); i < n; ++i) {
     i::Handle<i::ModuleInfoEntry> entry(
         i::ModuleInfoEntry::cast(special_exports->get(i)), isolate);
-    i::Handle<i::String> name(i::String::cast(entry->export_name()), isolate);
-    if (i::Module::ResolveExport(module, name).is_null()) {
+    i::Handle<i::Object> name(entry->export_name(), isolate);
+    if (name->IsUndefined(isolate)) continue;  // Star export.
+    if (i::Module::ResolveExport(module, i::Handle<i::String>::cast(name), true)
+            .is_null()) {
       return false;
     }
   }

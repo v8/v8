@@ -498,6 +498,7 @@ class ErrorUtils : public AllStatic {
   T(UnsupportedTimeZone, "Unsupported time zone specified %")                  \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   /* SyntaxError */                                                            \
+  T(AmbiguousExport, "Multiple star exports provide name '%'")                 \
   T(BadGetterArity, "Getter must not have any formal parameters.")             \
   T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
