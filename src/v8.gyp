@@ -2214,6 +2214,7 @@
           'js/templates.js',
           'js/spread.js',
           'js/proxy.js',
+          'js/async-await.js',
           'debug/mirrors.js',
           'debug/debug.js',
           'debug/liveedit.js',
@@ -2224,7 +2225,6 @@
           'js/harmony-atomics.js',
           'js/harmony-simd.js',
           'js/harmony-string-padding.js',
-          'js/harmony-async-await.js'
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',

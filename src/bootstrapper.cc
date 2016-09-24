@@ -3452,8 +3452,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* datetime_format_to_parts_natives[] = {
       "native datetime-format-to-parts.js", nullptr};
 #endif
-  static const char* harmony_async_await_natives[] = {
-      "native harmony-async-await.js", nullptr};
+  static const char* harmony_async_await_natives[] = {nullptr};
   static const char* harmony_restrictive_generators_natives[] = {nullptr};
   static const char* harmony_trailing_commas_natives[] = {nullptr};
   static const char* harmony_class_fields_natives[] = {nullptr};
