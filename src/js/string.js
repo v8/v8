@@ -237,6 +237,40 @@ function StringSplitJS(separator, limit) {
   return %StringSplit(subject, separator_string, limit);
 }
 
+
+// ECMA-262 section 15.5.4.15
+function StringSubstring(start, end) {
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.subString");
+
+  var s = TO_STRING(this);
+  var s_len = s.length;
+
+  var start_i = TO_INTEGER(start);
+  if (start_i < 0) {
+    start_i = 0;
+  } else if (start_i > s_len) {
+    start_i = s_len;
+  }
+
+  var end_i = s_len;
+  if (!IS_UNDEFINED(end)) {
+    end_i = TO_INTEGER(end);
+    if (end_i > s_len) {
+      end_i = s_len;
+    } else {
+      if (end_i < 0) end_i = 0;
+      if (start_i > end_i) {
+        var tmp = end_i;
+        end_i = start_i;
+        start_i = tmp;
+      }
+    }
+  }
+
+  return %_SubString(s, start_i, end_i);
+}
+
+
 // ecma262/#sec-string.prototype.substr
 function StringSubstr(start, length) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.substr");
@@ -557,6 +591,7 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "search", StringSearch,
   "slice", StringSlice,
   "split", StringSplitJS,
+  "substring", StringSubstring,
   "substr", StringSubstr,
   "startsWith", StringStartsWith,
   "toLowerCase", StringToLowerCaseJS,
@@ -589,6 +624,7 @@ utils.Export(function(to) {
   to.StringSlice = StringSlice;
   to.StringSplit = StringSplitJS;
   to.StringSubstr = StringSubstr;
+  to.StringSubstring = StringSubstring;
 });
 
 })

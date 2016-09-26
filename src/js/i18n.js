@@ -35,7 +35,7 @@ var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var SetFunctionName = utils.SetFunctionName;
 var StringIndexOf;
 var StringSubstr;
-var StringSubstring = GlobalString.prototype.substring;
+var StringSubstring;
 
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
@@ -44,6 +44,7 @@ utils.Import(function(from) {
   InternalRegExpReplace = from.InternalRegExpReplace;
   StringIndexOf = from.StringIndexOf;
   StringSubstr = from.StringSubstr;
+  StringSubstring = from.StringSubstring;
 });
 
 // Utilities for definitions
