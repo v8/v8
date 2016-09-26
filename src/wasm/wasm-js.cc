@@ -312,7 +312,7 @@ bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
                         int upper_bound) {
   v8::MaybeLocal<v8::Value> maybe = object->Get(context, property);
   v8::Local<v8::Value> value;
-  if (maybe.ToLocal(&value) && !value->IsUndefined()) {
+  if (maybe.ToLocal(&value)) {
     int64_t number;
     if (!value->IntegerValue(context).To(&number)) return false;
     if (number < static_cast<int64_t>(lower_bound)) {
@@ -321,19 +321,13 @@ bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
                           number, lower_bound);
       return false;
     }
-    if (number > static_cast<int64_t>(std::numeric_limits<int>::max())) {
-      thrower->RangeError("Property value %" PRId64 " is out of integer range",
-                          number);
-      return false;
-    }
-    int num = static_cast<int>(number);
-    if (num > upper_bound) {
+    if (number > static_cast<int64_t>(upper_bound)) {
       thrower->RangeError("Property value %" PRId64
                           " is above the upper bound %d",
                           number, upper_bound);
       return false;
     }
-    *result = num;
+    *result = static_cast<int>(number);
     return true;
   }
   return false;
@@ -375,16 +369,17 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   // The descriptor's 'maximum'.
   int maximum;
-  bool has_maximum = true;
-  if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
-                          v8_str(isolate, "maximum"), &maximum, initial,
-                          max_table_size)) {
-    if (reinterpret_cast<i::Isolate*>(isolate)->has_pending_exception() ||
-        thrower.error()) {
+  Local<String> maximum_key = v8_str(isolate, "maximum");
+  Maybe<bool> has_maximum = descriptor->Has(context, maximum_key);
+
+  if (has_maximum.IsNothing()) {
+    // There has been an exception, just return.
+    return;
+  }
+  if (has_maximum.FromJust()) {
+    if (!GetIntegerProperty(isolate, &thrower, context, descriptor, maximum_key,
+                            &maximum, initial, max_table_size)) {
       return;
-    } else {
-      // There was no error, the property just does not exist.
-      has_maximum = false;
     }
   }
 
@@ -399,7 +394,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < initial; ++i) fixed_array->set(i, null);
   table_obj->SetInternalField(0, *fixed_array);
   table_obj->SetInternalField(
-      1, has_maximum
+      1, has_maximum.FromJust()
              ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
              : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
   i::Handle<i::Symbol> table_sym(i_isolate->native_context()->wasm_table_sym());
@@ -420,20 +415,23 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<v8::Object> descriptor = args[0]->ToObject(context).ToLocalChecked();
   // The descriptor's 'initial'.
   int initial;
-  GetIntegerProperty(isolate, &thrower, context, descriptor,
-                     v8_str(isolate, "initial"), &initial, 0, 65536);
+  if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
+                          v8_str(isolate, "initial"), &initial, 0, 65536)) {
+    return;
+  }
   // The descriptor's 'maximum'.
   int maximum;
-  bool has_maximum = true;
-  if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
-                          v8_str(isolate, "maximum"), &maximum, initial,
-                          65536)) {
-    if (reinterpret_cast<i::Isolate*>(isolate)->has_pending_exception() ||
-        thrower.error()) {
+  Local<String> maximum_key = v8_str(isolate, "maximum");
+  Maybe<bool> has_maximum = descriptor->Has(context, maximum_key);
+
+  if (has_maximum.IsNothing()) {
+    // There has been an exception, just return.
+    return;
+  }
+  if (has_maximum.FromJust()) {
+    if (!GetIntegerProperty(isolate, &thrower, context, descriptor, maximum_key,
+                            &maximum, initial, 65536)) {
       return;
-    } else {
-      // There was no error, the property just does not exist.
-      has_maximum = false;
     }
   }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -448,7 +446,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::JSArrayBuffer::SetupAllocatingData(buffer, i_isolate, size);
   memory_obj->SetInternalField(0, *buffer);
   memory_obj->SetInternalField(
-      1, has_maximum
+      1, has_maximum.FromJust()
              ? static_cast<i::Object*>(i::Smi::FromInt(maximum))
              : static_cast<i::Object*>(i_isolate->heap()->undefined_value()));
   i::Handle<i::Symbol> memory_sym(
