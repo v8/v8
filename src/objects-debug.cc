@@ -928,6 +928,7 @@ void Module::ModuleVerify() {
   requested_modules()->ObjectVerify();
   VerifySmiField(kFlagsOffset);
   embedder_data()->ObjectVerify();
+  CHECK(shared()->name()->IsSymbol());
   // TODO(neis): Check more.
 }
 

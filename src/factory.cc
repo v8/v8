@@ -1759,6 +1759,11 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
 
+  // To make it easy to hash Modules, we set a new symbol as the name of
+  // SharedFunctionInfo representing this Module.
+  Handle<Symbol> name_symbol = NewSymbol();
+  code->set_name(*name_symbol);
+
   Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
   module->set_code(*code);
   module->set_exports(*exports);

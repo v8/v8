@@ -7950,8 +7950,14 @@ class Module : public Struct {
   // Embedder-specified data
   DECL_ACCESSORS(embedder_data, Object)
 
+  // Get the SharedFunctionInfo associated with the code.
+  inline SharedFunctionInfo* shared() const;
+
   // Get the ModuleInfo associated with the code.
   inline ModuleInfo* info() const;
+
+  // Compute a hash for this object.
+  inline uint32_t Hash() const;
 
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
@@ -7991,17 +7997,18 @@ class Module : public Struct {
   //
   // Currently, an exception is always thrown in the case of a cycle and in the
   // case of conflicting star exports.  TODO(neis): Make that spec-compliant.
-  static MUST_USE_RESULT MaybeHandle<Cell> ResolveExport(Handle<Module> module,
-                                                         Handle<String> name,
-                                                         bool must_resolve);
-  static MUST_USE_RESULT MaybeHandle<Cell> ResolveImport(Handle<Module> module,
-                                                         Handle<String> name,
-                                                         int module_request,
-                                                         bool must_resolve);
+  class ResolveSet;
+  static MUST_USE_RESULT MaybeHandle<Cell> ResolveExport(
+      Handle<Module> module, Handle<String> name, bool must_resolve,
+      ResolveSet* resolve_set);
+  static MUST_USE_RESULT MaybeHandle<Cell> ResolveImport(
+      Handle<Module> module, Handle<String> name, int module_request,
+      bool must_resolve, ResolveSet* resolve_set);
 
   // Helper for ResolveExport.
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
-      Handle<Module> module, Handle<String> name, bool must_resolve);
+      Handle<Module> module, Handle<String> name, bool must_resolve,
+      ResolveSet* resolve_set);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Module);
 };
