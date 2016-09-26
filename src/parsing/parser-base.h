@@ -381,8 +381,13 @@ class ParserBase {
   class FunctionState final : public ScopeState {
    public:
     FunctionState(FunctionState** function_state_stack,
-                  ScopeState** scope_stack, Scope* scope, FunctionKind kind);
+                  ScopeState** scope_stack, DeclarationScope* scope,
+                  FunctionKind kind);
     ~FunctionState();
+
+    DeclarationScope* scope() const {
+      return ScopeState::scope()->AsDeclarationScope();
+    }
 
     int NextMaterializedLiteralIndex() {
       return next_materialized_literal_index_++;
@@ -1449,7 +1454,7 @@ class ParserBase {
 template <typename Impl>
 ParserBase<Impl>::FunctionState::FunctionState(
     FunctionState** function_state_stack, ScopeState** scope_stack,
-    Scope* scope, FunctionKind kind)
+    DeclarationScope* scope, FunctionKind kind)
     : ScopeState(scope_stack, scope),
       next_materialized_literal_index_(0),
       expected_property_count_(0),
