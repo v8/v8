@@ -958,7 +958,7 @@ Node* RepresentationChanger::TypeError(Node* node,
   if (!testing_type_errors_) {
     std::ostringstream out_str;
     out_str << output_rep << " (";
-    output_type->PrintTo(out_str);
+    output_type->PrintTo(out_str, Type::SEMANTIC_DIM);
     out_str << ")";
 
     std::ostringstream use_str;
