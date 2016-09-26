@@ -499,8 +499,6 @@ class Deoptimizer : public Malloced {
     int count_;
   };
 
-  int ConvertJSFrameIndexToFrameIndex(int jsframe_index);
-
   static size_t GetMaxDeoptTableSize();
 
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
@@ -553,8 +551,6 @@ class Deoptimizer : public Malloced {
 
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo* shared);
   static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
-
-  Object* ComputeLiteral(int index) const;
 
   static void GenerateDeoptimizationEntries(
       MacroAssembler* masm, int count, BailoutType type);
@@ -705,8 +701,6 @@ class FrameDescription {
     return static_cast<uint32_t>(frame_size_);
   }
 
-  unsigned GetOffsetFromSlotIndex(int slot_index);
-
   intptr_t GetFrameSlot(unsigned offset) {
     return *GetFrameSlotPointer(offset);
   }
@@ -827,8 +821,6 @@ class FrameDescription {
     return reinterpret_cast<intptr_t*>(
         reinterpret_cast<Address>(this) + frame_content_offset() + offset);
   }
-
-  int ComputeFixedSize();
 };
 
 

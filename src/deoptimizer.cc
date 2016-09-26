@@ -103,23 +103,6 @@ Deoptimizer* Deoptimizer::Grab(Isolate* isolate) {
   return result;
 }
 
-
-int Deoptimizer::ConvertJSFrameIndexToFrameIndex(int jsframe_index) {
-  if (jsframe_index == 0) return 0;
-
-  int frame_index = 0;
-  while (jsframe_index >= 0) {
-    FrameDescription* frame = output_[frame_index];
-    if (frame->GetFrameType() == StackFrame::JAVA_SCRIPT) {
-      jsframe_index--;
-    }
-    frame_index++;
-  }
-
-  return frame_index - 1;
-}
-
-
 DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
     JavaScriptFrame* frame,
     int jsframe_index,
@@ -2246,15 +2229,6 @@ unsigned Deoptimizer::ComputeOutgoingArgumentSize(Code* code,
   return height * kPointerSize;
 }
 
-
-Object* Deoptimizer::ComputeLiteral(int index) const {
-  DeoptimizationInputData* data =
-      DeoptimizationInputData::cast(compiled_code_->deoptimization_data());
-  FixedArray* literals = data->LiteralArray();
-  return literals->get(index);
-}
-
-
 void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
                                                    BailoutType type,
                                                    int max_entry_id) {
@@ -2312,33 +2286,6 @@ FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)
     SetFrameSlot(o, kZapUint32);
   }
 }
-
-
-int FrameDescription::ComputeFixedSize() {
-  if (type_ == StackFrame::INTERPRETED) {
-    return InterpreterFrameConstants::kFixedFrameSize +
-           parameter_count() * kPointerSize;
-  } else {
-    return StandardFrameConstants::kFixedFrameSize +
-           parameter_count() * kPointerSize;
-  }
-}
-
-
-unsigned FrameDescription::GetOffsetFromSlotIndex(int slot_index) {
-  if (slot_index >= 0) {
-    // Local or spill slots. Skip the fixed part of the frame
-    // including all arguments.
-    unsigned base = GetFrameSize() - ComputeFixedSize();
-    return base - ((slot_index + 1) * kPointerSize);
-  } else {
-    // Incoming parameter.
-    int arg_size = parameter_count() * kPointerSize;
-    unsigned base = GetFrameSize() - arg_size;
-    return base - ((slot_index + 1) * kPointerSize);
-  }
-}
-
 
 void TranslationBuffer::Add(int32_t value, Zone* zone) {
   // This wouldn't handle kMinInt correctly if it ever encountered it.
