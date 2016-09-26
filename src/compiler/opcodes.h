@@ -293,7 +293,6 @@
   V(CheckHeapObject)                \
   V(CheckFloat64Hole)               \
   V(CheckTaggedHole)                \
-  V(CheckHasInPrototypeChain)       \
   V(ConvertTaggedHoleToUndefined)   \
   V(Allocate)                       \
   V(LoadField)                      \

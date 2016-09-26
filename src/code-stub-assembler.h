@@ -26,24 +26,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 // from a compiler directory OWNER).
 class CodeStubAssembler : public compiler::CodeAssembler {
  public:
-  class VectorSlotPair final {
-   public:
-    VectorSlotPair() : vector_(nullptr), index_(nullptr) {}
-    VectorSlotPair(compiler::Node* vector, compiler::Node* index)
-        : vector_(vector), index_(index) {
-      DCHECK_NOT_NULL(vector);
-      DCHECK_NOT_NULL(index);
-    }
-
-    bool IsValid() const { return vector_ != nullptr; }
-    compiler::Node* vector() const { return vector_; }
-    compiler::Node* index() const { return index_; }
-
-   private:
-    compiler::Node* const vector_;
-    compiler::Node* const index_;
-  };
-
   // Create with CallStub linkage.
   // |result_size| specifies the number of results returned by the stub.
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
@@ -651,9 +633,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Instanceof helpers.
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O)
-  compiler::Node* OrdinaryHasInstance(
-      compiler::Node* context, compiler::Node* callable, compiler::Node* object,
-      VectorSlotPair feedback = VectorSlotPair());
+  compiler::Node* OrdinaryHasInstance(compiler::Node* context,
+                                      compiler::Node* callable,
+                                      compiler::Node* object);
 
   // LoadIC helpers.
   struct LoadICParameters {

@@ -1758,7 +1758,7 @@ void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
 // Test if the object referenced by the <src> register is an an instance of type
 // referenced by the accumulator.
 void Interpreter::DoTestInstanceOf(InterpreterAssembler* assembler) {
-  DoBinaryOpWithFeedback<InstanceOfWithFeedbackStub>(assembler);
+  DoBinaryOp<InstanceOfStub>(assembler);
 }
 
 // Jump <imm>

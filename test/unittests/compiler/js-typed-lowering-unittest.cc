@@ -845,6 +845,43 @@ TEST_F(JSTypedLoweringTest, JSSubtractSmis) {
 }
 
 // -----------------------------------------------------------------------------
+// JSInstanceOf
+// Test that instanceOf is reduced if and only if the right-hand side is a
+// function constant. Functional correctness is ensured elsewhere.
+
+TEST_F(JSTypedLoweringTest, JSInstanceOfSpecialization) {
+  Node* const context = Parameter(Type::Any());
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+
+  Node* instanceOf =
+      graph()->NewNode(javascript()->InstanceOf(), Parameter(Type::Any(), 0),
+                       HeapConstant(isolate()->object_function()), context,
+                       frame_state, effect, control);
+  Reduction r = Reduce(instanceOf);
+  ASSERT_TRUE(r.Changed());
+}
+
+
+TEST_F(JSTypedLoweringTest, JSInstanceOfNoSpecialization) {
+  Node* const context = Parameter(Type::Any());
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+
+  // Do not reduce if right-hand side is not a function constant.
+  Node* instanceOf = graph()->NewNode(
+      javascript()->InstanceOf(), Parameter(Type::Any(), 0),
+      Parameter(Type::Any()), context, frame_state, effect, control);
+  Node* dummy = graph()->NewNode(javascript()->ToObject(), instanceOf, context,
+                                 frame_state, effect, control);
+  Reduction r = Reduce(instanceOf);
+  ASSERT_FALSE(r.Changed());
+  ASSERT_EQ(instanceOf, dummy->InputAt(0));
+}
+
+// -----------------------------------------------------------------------------
 // JSBitwiseAnd
 
 TEST_F(JSTypedLoweringTest, JSBitwiseAndWithSignedSmallHint) {

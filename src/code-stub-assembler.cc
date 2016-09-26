@@ -3893,8 +3893,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 }
 
 Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
-                                             Node* object,
-                                             VectorSlotPair feedback) {
+                                             Node* object) {
   Variable var_result(this, MachineRepresentation::kTagged);
   Label return_false(this), return_true(this),
       return_runtime(this, Label::kDeferred), return_result(this);
@@ -4019,17 +4018,6 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   {
     // Invalidate the global instanceof cache.
     StoreRoot(Heap::kInstanceofCacheFunctionRootIndex, SmiConstant(0));
-
-    // Record megamorphic {feedback} if requested; we use this feedback to
-    // guard a bunch of speculative optimizations in TurboFand (and Crankshaft)
-    // that just deoptimize in case of funny inputs to instanceof.
-    if (feedback.IsValid()) {
-      Node* megamorphic_sentinel =
-          HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate()));
-      StoreFixedArrayElement(feedback.vector(), feedback.index(),
-                             megamorphic_sentinel, SKIP_WRITE_BARRIER);
-    }
-
     // Fallback to the runtime implementation.
     var_result.Bind(
         CallRuntime(Runtime::kOrdinaryHasInstance, context, callable, object));

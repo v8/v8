@@ -1612,10 +1612,6 @@ Type* Typer::Visitor::TypeCheckTaggedHole(Node* node) {
   return type;
 }
 
-Type* Typer::Visitor::TypeCheckHasInPrototypeChain(Node* node) {
-  return Type::Boolean();
-}
-
 Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {
   Type* type = Operand(node, 0);
   if (type->Maybe(Type::Hole())) {

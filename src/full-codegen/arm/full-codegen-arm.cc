@@ -3438,9 +3438,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForAccumulatorValue(expr->right());
       SetExpressionPosition(expr);
       PopOperand(r1);
-      __ EmitLoadTypeFeedbackVector(r3);
-      __ mov(r4, Operand(SlotToIndex(expr->CompareOperationFeedbackSlot())));
-      InstanceOfWithFeedbackStub stub(isolate());
+      InstanceOfStub stub(isolate());
       __ CallStub(&stub);
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ CompareRoot(r0, Heap::kTrueValueRootIndex);

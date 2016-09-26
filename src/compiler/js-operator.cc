@@ -39,14 +39,6 @@ size_t hash_value(VectorSlotPair const& p) {
   return base::hash_combine(p.slot(), p.vector().location());
 }
 
-std::ostream& operator<<(std::ostream& os, VectorSlotPair const& p) {
-  if (p.IsValid()) {
-    os << p.index();
-  } else {
-    os << "N/A";
-  }
-  return os;
-}
 
 ConvertReceiverMode ConvertReceiverModeOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kJSConvertReceiver, op->opcode());
@@ -444,11 +436,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   return OpParameter<CompareOperationHint>(op);
 }
 
-VectorSlotPair const& VectorSlotPairOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kJSInstanceOf, op->opcode());
-  return OpParameter<VectorSlotPair>(op);
-}
-
 #define CACHED_OP_LIST(V)                                   \
   V(ToInteger, Operator::kNoProperties, 1, 1)               \
   V(ToLength, Operator::kNoProperties, 1, 1)                \
@@ -460,6 +447,7 @@ VectorSlotPair const& VectorSlotPairOf(const Operator* op) {
   V(CreateIterResultObject, Operator::kEliminatable, 2, 1)  \
   V(HasProperty, Operator::kNoProperties, 2, 1)             \
   V(TypeOf, Operator::kPure, 1, 1)                          \
+  V(InstanceOf, Operator::kNoProperties, 2, 1)              \
   V(ForInNext, Operator::kNoProperties, 4, 1)               \
   V(ForInPrepare, Operator::kNoProperties, 1, 3)            \
   V(LoadMessage, Operator::kNoThrow, 0, 1)                  \
@@ -777,13 +765,6 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
       access);                                   // parameter
 }
 
-const Operator* JSOperatorBuilder::InstanceOf(VectorSlotPair const& feedback) {
-  return new (zone()) Operator1<VectorSlotPair>(         // --
-      IrOpcode::kJSInstanceOf, Operator::kNoProperties,  // opcode
-      "JSInstanceOf",                                    // name
-      2, 1, 1, 1, 1, 2,                                  // counts
-      feedback);                                         // parameter
-}
 
 const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
   return new (zone()) Operator1<CreateArgumentsType>(         // --
