@@ -929,12 +929,9 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
   {
     // Parse the function literal.
     Scope* outer = original_scope_;
-    DeclarationScope* outer_function = outer->GetClosureScope();
     DCHECK(outer);
-    FunctionState function_state(&function_state_, &scope_state_,
-                                 outer_function,
-                                 outer_function->function_kind());
-    BlockState block_state(&scope_state_, outer);
+    FunctionState function_state(&function_state_, &scope_state_, outer,
+                                 info->function_kind());
     DCHECK(is_sloppy(outer->language_mode()) ||
            is_strict(info->language_mode()));
     FunctionLiteral::FunctionType function_type = ComputeFunctionType(info);
@@ -2943,7 +2940,7 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
   if (produce_cached_parse_data()) CHECK(log_);
 
   int function_block_pos = position();
-  DeclarationScope* scope = function_state_->scope();
+  DeclarationScope* scope = this->scope()->AsDeclarationScope();
   DCHECK(scope->is_function_scope());
   scope->set_is_lazily_parsed(true);
   // Inner functions are not part of the cached data.
@@ -2976,7 +2973,6 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
   SingletonLogger logger;
   PreParser::PreParseResult result =
       ParseLazyFunctionBodyWithPreParser(&logger, is_inner_function, may_abort);
-
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) {
     scope->set_is_lazily_parsed(false);
@@ -3478,13 +3474,32 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   // state; we don't parse inner functions in the abortable mode anyway.
   DCHECK(!is_inner_function || !may_abort);
 
-  DeclarationScope* function_scope = function_state_->scope();
-  PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
-      function_scope, parsing_module_, logger, is_inner_function, may_abort,
-      use_counts_);
-  // Detaching the scopes created by PreParser from the Scope chain must be done
-  // above (see ParseFunctionLiteral & AnalyzePartially).
-  if (!is_inner_function) function_scope->ResetAfterPreparsing();
+  FunctionKind kind = function_state_->kind();
+  PreParser::PreParseResult result;
+  if (!is_inner_function) {
+    // If we don't need to look at the scope, construct a dummy scope chain
+    // which is not connected to the real scope chain.
+    LanguageMode mode = language_mode();
+    bool has_simple_parameters =
+        scope()->AsDeclarationScope()->has_simple_parameters();
+    DeclarationScope* top_scope = NewScriptScope();
+    top_scope->SetLanguageMode(mode);
+    FunctionState top_state(&function_state_, &scope_state_, top_scope,
+                            kNormalFunction);
+    DeclarationScope* function_scope = NewFunctionScope(kind);
+    if (!has_simple_parameters) {
+      function_scope->SetHasNonSimpleParameters();
+    }
+    result = reusable_preparser_->PreParseLazyFunction(
+        kind, function_scope, parsing_module_, logger, is_inner_function,
+        may_abort, use_counts_);
+  } else {
+    // Detaching the scopes created by PreParser from the Scope chain must be
+    // done above (see ParseFunctionLiteral & AnalyzePartially).
+    result = reusable_preparser_->PreParseLazyFunction(
+        kind, scope()->AsDeclarationScope(), parsing_module_, logger,
+        is_inner_function, may_abort, use_counts_);
+  }
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }

@@ -84,9 +84,9 @@ PreParserIdentifier PreParser::GetSymbol() const {
 }
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
-    DeclarationScope* function_scope, bool parsing_module, ParserRecorder* log,
-    bool is_inner_function, bool may_abort, int* use_counts) {
-  DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
+    FunctionKind kind, DeclarationScope* function_scope, bool parsing_module,
+    ParserRecorder* log, bool is_inner_function, bool may_abort,
+    int* use_counts) {
   parsing_module_ = parsing_module;
   log_ = log;
   use_counts_ = use_counts;
@@ -98,7 +98,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   // PreParser.
   DCHECK_NULL(scope_state_);
   FunctionState function_state(&function_state_, &scope_state_, function_scope,
-                               function_scope->function_kind());
+                               kind);
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
   int start_position = peek_position();
@@ -113,7 +113,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     ReportUnexpectedToken(scanner()->current_token());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
-    if (is_strict(function_scope->language_mode())) {
+    if (is_strict(scope()->language_mode())) {
       int end_pos = scanner()->location().end_pos;
       CheckStrictOctalLiteral(start_position, end_pos, &ok);
       CheckDecimalLiteralWithLeadingZero(start_position, end_pos);
