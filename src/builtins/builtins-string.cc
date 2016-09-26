@@ -294,7 +294,6 @@ BUILTIN(StringFromCodePoint) {
 void Builtins::Generate_StringPrototypeCharAt(CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
 
   Node* receiver = assembler->Parameter(0);
   Node* position = assembler->Parameter(1);
@@ -306,72 +305,24 @@ void Builtins::Generate_StringPrototypeCharAt(CodeStubAssembler* assembler) {
 
   // Convert the {position} to a Smi and check that it's in bounds of the
   // {receiver}.
-  // TODO(bmeurer): Find an abstraction for this!
   {
-    // Check if the {position} is already a Smi.
-    Variable var_position(assembler, MachineRepresentation::kTagged);
-    var_position.Bind(position);
-    Label if_positionissmi(assembler),
-        if_positionisnotsmi(assembler, Label::kDeferred);
-    assembler->Branch(assembler->WordIsSmi(position), &if_positionissmi,
-                      &if_positionisnotsmi);
-    assembler->Bind(&if_positionisnotsmi);
-    {
-      // Convert the {position} to an Integer via the ToIntegerStub.
-      Node* index = assembler->ToInteger(context, position);
-
-      // Check if the resulting {index} is now a Smi.
-      Label if_indexissmi(assembler, Label::kDeferred),
-          if_indexisnotsmi(assembler, Label::kDeferred);
-      assembler->Branch(assembler->WordIsSmi(index), &if_indexissmi,
-                        &if_indexisnotsmi);
-
-      assembler->Bind(&if_indexissmi);
-      {
-        var_position.Bind(index);
-        assembler->Goto(&if_positionissmi);
-      }
-
-      assembler->Bind(&if_indexisnotsmi);
-      {
-        // The ToIntegerStub canonicalizes everything in Smi range to Smi
-        // representation, so any HeapNumber returned is not in Smi range.
-        // The only exception here is -0.0, which we treat as 0.
-        Node* index_value = assembler->LoadHeapNumberValue(index);
-        Label if_indexiszero(assembler, Label::kDeferred),
-            if_indexisnotzero(assembler, Label::kDeferred);
-        assembler->Branch(assembler->Float64Equal(
-                              index_value, assembler->Float64Constant(0.0)),
-                          &if_indexiszero, &if_indexisnotzero);
-
-        assembler->Bind(&if_indexiszero);
-        {
-          var_position.Bind(assembler->SmiConstant(Smi::FromInt(0)));
-          assembler->Goto(&if_positionissmi);
-        }
-
-        assembler->Bind(&if_indexisnotzero);
-        {
-          // The {index} is some other integral Number, that is definitely
-          // neither -0.0 nor in Smi range.
-          assembler->Return(assembler->EmptyStringConstant());
-        }
-      }
-    }
-    assembler->Bind(&if_positionissmi);
-    position = var_position.value();
+    Label return_emptystring(assembler, Label::kDeferred);
+    position = assembler->ToInteger(context, position,
+                                    CodeStubAssembler::kTruncateMinusZero);
+    assembler->GotoUnless(assembler->WordIsSmi(position), &return_emptystring);
 
     // Determine the actual length of the {receiver} String.
     Node* receiver_length =
         assembler->LoadObjectField(receiver, String::kLengthOffset);
 
     // Return "" if the Smi {position} is outside the bounds of the {receiver}.
-    Label if_positioninbounds(assembler),
-        if_positionnotinbounds(assembler, Label::kDeferred);
+    Label if_positioninbounds(assembler);
     assembler->Branch(assembler->SmiAboveOrEqual(position, receiver_length),
-                      &if_positionnotinbounds, &if_positioninbounds);
-    assembler->Bind(&if_positionnotinbounds);
+                      &return_emptystring, &if_positioninbounds);
+
+    assembler->Bind(&return_emptystring);
     assembler->Return(assembler->EmptyStringConstant());
+
     assembler->Bind(&if_positioninbounds);
   }
 
@@ -388,7 +339,6 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
     CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
 
   Node* receiver = assembler->Parameter(0);
   Node* position = assembler->Parameter(1);
@@ -400,72 +350,24 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
 
   // Convert the {position} to a Smi and check that it's in bounds of the
   // {receiver}.
-  // TODO(bmeurer): Find an abstraction for this!
   {
-    // Check if the {position} is already a Smi.
-    Variable var_position(assembler, MachineRepresentation::kTagged);
-    var_position.Bind(position);
-    Label if_positionissmi(assembler),
-        if_positionisnotsmi(assembler, Label::kDeferred);
-    assembler->Branch(assembler->WordIsSmi(position), &if_positionissmi,
-                      &if_positionisnotsmi);
-    assembler->Bind(&if_positionisnotsmi);
-    {
-      // Convert the {position} to an Integer via the ToIntegerStub.
-      Node* index = assembler->ToInteger(context, position);
-
-      // Check if the resulting {index} is now a Smi.
-      Label if_indexissmi(assembler, Label::kDeferred),
-          if_indexisnotsmi(assembler, Label::kDeferred);
-      assembler->Branch(assembler->WordIsSmi(index), &if_indexissmi,
-                        &if_indexisnotsmi);
-
-      assembler->Bind(&if_indexissmi);
-      {
-        var_position.Bind(index);
-        assembler->Goto(&if_positionissmi);
-      }
-
-      assembler->Bind(&if_indexisnotsmi);
-      {
-        // The ToIntegerStub canonicalizes everything in Smi range to Smi
-        // representation, so any HeapNumber returned is not in Smi range.
-        // The only exception here is -0.0, which we treat as 0.
-        Node* index_value = assembler->LoadHeapNumberValue(index);
-        Label if_indexiszero(assembler, Label::kDeferred),
-            if_indexisnotzero(assembler, Label::kDeferred);
-        assembler->Branch(assembler->Float64Equal(
-                              index_value, assembler->Float64Constant(0.0)),
-                          &if_indexiszero, &if_indexisnotzero);
-
-        assembler->Bind(&if_indexiszero);
-        {
-          var_position.Bind(assembler->SmiConstant(Smi::FromInt(0)));
-          assembler->Goto(&if_positionissmi);
-        }
-
-        assembler->Bind(&if_indexisnotzero);
-        {
-          // The {index} is some other integral Number, that is definitely
-          // neither -0.0 nor in Smi range.
-          assembler->Return(assembler->NaNConstant());
-        }
-      }
-    }
-    assembler->Bind(&if_positionissmi);
-    position = var_position.value();
+    Label return_nan(assembler, Label::kDeferred);
+    position = assembler->ToInteger(context, position,
+                                    CodeStubAssembler::kTruncateMinusZero);
+    assembler->GotoUnless(assembler->WordIsSmi(position), &return_nan);
 
     // Determine the actual length of the {receiver} String.
     Node* receiver_length =
         assembler->LoadObjectField(receiver, String::kLengthOffset);
 
     // Return NaN if the Smi {position} is outside the bounds of the {receiver}.
-    Label if_positioninbounds(assembler),
-        if_positionnotinbounds(assembler, Label::kDeferred);
+    Label if_positioninbounds(assembler);
     assembler->Branch(assembler->SmiAboveOrEqual(position, receiver_length),
-                      &if_positionnotinbounds, &if_positioninbounds);
-    assembler->Bind(&if_positionnotinbounds);
+                      &return_nan, &if_positioninbounds);
+
+    assembler->Bind(&return_nan);
     assembler->Return(assembler->NaNConstant());
+
     assembler->Bind(&if_positioninbounds);
   }
 

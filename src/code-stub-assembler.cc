@@ -2985,7 +2985,8 @@ Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::ToInteger(Node* context, Node* input) {
+Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
+                                   ToIntegerTruncationMode mode) {
   // We might need to loop once for ToNumber conversion.
   Variable var_arg(this, MachineRepresentation::kTagged);
   Label loop(this, &var_arg), out(this);
@@ -3018,6 +3019,12 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input) {
 
       // Truncate {arg} towards zero.
       Node* value = Float64Trunc(arg_value);
+
+      if (mode == kTruncateMinusZero) {
+        // Truncate -0.0 to 0.
+        GotoIf(Float64Equal(value, Float64Constant(0.0)), &return_zero);
+      }
+
       var_arg.Bind(ChangeFloat64ToTagged(value));
       Goto(&out);
     }
