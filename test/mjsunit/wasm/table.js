@@ -7,6 +7,7 @@
 // Basic tests.
 
 var outOfUint32RangeValue = 1e12;
+var int32ButOob = 1073741824;
 
 (function TestConstructor() {
   assertTrue(WebAssembly.Table instanceof Function);
@@ -34,6 +35,8 @@ var outOfUint32RangeValue = 1e12;
   assertThrows(() => new WebAssembly.Table({element: "anyfunc", initial: 10, maximum: -1}), RangeError);
   assertThrows(() => new WebAssembly.Table({element: "anyfunc", initial: 10, maximum: outOfUint32RangeValue}), RangeError);
   assertThrows(() => new WebAssembly.Table({element: "anyfunc", initial: 10, maximum: 9}), RangeError);
+
+  assertThrows(() => new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: int32ButOob}));
 
   let table = new WebAssembly.Table({element: "anyfunc", initial: 1});
   assertSame(WebAssembly.Table.prototype, table.__proto__);

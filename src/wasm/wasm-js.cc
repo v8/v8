@@ -365,11 +365,12 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
       return;
     }
   }
+  const int max_table_size = 1 << 26;
   // The descriptor's 'initial'.
   int initial;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
                           v8_str(isolate, "initial"), &initial, 0,
-                          std::numeric_limits<int>::max())) {
+                          max_table_size)) {
     return;
   }
   // The descriptor's 'maximum'.
@@ -377,7 +378,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   bool has_maximum = true;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
                           v8_str(isolate, "maximum"), &maximum, initial,
-                          std::numeric_limits<int>::max())) {
+                          max_table_size)) {
     if (reinterpret_cast<i::Isolate*>(isolate)->has_pending_exception() ||
         thrower.error()) {
       return;
