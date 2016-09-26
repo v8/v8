@@ -112,12 +112,10 @@ class PreParserIdentifier {
     kAsyncIdentifier
   };
 
-  explicit PreParserIdentifier(Type type) : type_(type), string_(nullptr) {}
+  explicit PreParserIdentifier(Type type) : type_(type) {}
   Type type_;
-  // Only non-nullptr when PreParser.track_unresolved_variables_ is true.
-  const AstRawString* string_;
+
   friend class PreParserExpression;
-  friend class PreParser;
 };
 
 
@@ -776,8 +774,7 @@ class PreParser : public ParserBase<PreParser> {
             ParserRecorder* log, uintptr_t stack_limit)
       : ParserBase<PreParser>(zone, scanner, stack_limit, NULL,
                               ast_value_factory, log),
-        use_counts_(nullptr),
-        track_unresolved_variables_(false) {}
+        use_counts_(nullptr) {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -823,10 +820,10 @@ class PreParser : public ParserBase<PreParser> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseLazyFunction(FunctionKind kind,
-                                      DeclarationScope* function_scope,
+  PreParseResult PreParseLazyFunction(LanguageMode language_mode,
+                                      FunctionKind kind,
+                                      bool has_simple_parameters,
                                       bool parsing_module, ParserRecorder* log,
-                                      bool track_unresolved_variables,
                                       bool may_abort, int* use_counts);
 
  private:
@@ -853,9 +850,9 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
-  V8_INLINE LazyParsingResult SkipLazyFunctionBody(
-      int* materialized_literal_count, int* expected_property_count,
-      bool track_unresolved_variables, bool may_abort, bool* ok) {
+  V8_INLINE LazyParsingResult
+  SkipLazyFunctionBody(int* materialized_literal_count,
+                       int* expected_property_count, bool may_abort, bool* ok) {
     UNREACHABLE();
     return kLazyParsingComplete;
   }
@@ -1307,9 +1304,11 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
-  PreParserExpression ExpressionFromIdentifier(
+  V8_INLINE PreParserExpression ExpressionFromIdentifier(
       PreParserIdentifier name, int start_position, int end_position,
-      InferName infer = InferName::kYes);
+      InferName infer = InferName::kYes) {
+    return PreParserExpression::FromIdentifier(name);
+  }
 
   V8_INLINE PreParserExpression ExpressionFromString(int pos) {
     if (scanner()->UnescapedLiteralMatches("use strict", 10)) {
@@ -1418,7 +1417,6 @@ class PreParser : public ParserBase<PreParser> {
   // Preparser's private field members.
 
   int* use_counts_;
-  bool track_unresolved_variables_;
 };
 
 PreParserExpression PreParser::SpreadCall(PreParserExpression function,

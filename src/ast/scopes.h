@@ -342,9 +342,8 @@ class Scope: public ZoneObject {
   int StackLocalCount() const;
   int ContextLocalCount() const;
 
-  // Determine if we can parse a function literal in this scope lazily without
-  // caring about the unresolved variables within.
-  bool AllowsLazyParsingWithoutUnresolvedVariables() const;
+  // Determine if we can parse a function literal in this scope lazily.
+  bool AllowsLazyParsing() const;
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope) const;
@@ -539,7 +538,6 @@ class Scope: public ZoneObject {
   // list along the way, so full resolution cannot be done afterwards.
   // If a ParseInfo* is passed, non-free variables will be resolved.
   VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
-                                    bool try_to_resolve = true,
                                     ParseInfo* info = nullptr,
                                     VariableProxy* stack = nullptr);
 
