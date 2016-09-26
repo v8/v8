@@ -885,6 +885,10 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
                                  output_offset);
   }
 
+  if (trace_scope_ != nullptr) {
+    PrintF(trace_scope_->file(), "    -------------------------\n");
+  }
+
   // There are no translation commands for the caller's pc and fp, the
   // context, and the function.  Synthesize their values and set them up
   // explicitly.
@@ -979,6 +983,10 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(function);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
+
+  if (trace_scope_ != nullptr) {
+    PrintF(trace_scope_->file(), "    -------------------------\n");
+  }
 
   // Translate the rest of the frame.
   for (unsigned i = 0; i < height; ++i) {
@@ -1122,6 +1130,10 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
                                  output_offset);
   }
 
+  if (trace_scope_ != nullptr) {
+    PrintF(trace_scope_->file(), "    -------------------------\n");
+  }
+
   // There are no translation commands for the caller's pc and fp, the
   // context, the function, new.target and the bytecode offset.  Synthesize
   // their values and set them up
@@ -1234,6 +1246,10 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   Smi* smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
   WriteValueToOutput(smi_bytecode_offset, 0, frame_index, output_offset,
                      "bytecode offset ");
+
+  if (trace_scope_ != nullptr) {
+    PrintF(trace_scope_->file(), "    -------------------------\n");
+  }
 
   // Translate the rest of the interpreter registers in the frame.
   for (unsigned i = 0; i < height - 1; ++i) {
