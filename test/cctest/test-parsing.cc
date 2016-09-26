@@ -38,6 +38,7 @@
 #include "src/ast/ast.h"
 #include "src/compiler.h"
 #include "src/execution.h"
+#include "src/flags.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
@@ -3416,7 +3417,14 @@ TEST(InnerAssignment) {
         bool expected = outers[i].assigned || inners[j].assigned;
         CHECK(var != NULL);
         CHECK(var->is_used() || !expected);
-        CHECK((var->maybe_assigned() == i::kMaybeAssigned) == expected);
+        bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
+        if (i::FLAG_lazy_inner_functions) {
+          // If we parse inner functions lazily, allow being pessimistic about
+          // maybe_assigned.
+          CHECK(is_maybe_assigned || (is_maybe_assigned == expected));
+        } else {
+          CHECK(is_maybe_assigned == expected);
+        }
       }
     }
   }

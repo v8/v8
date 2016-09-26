@@ -157,20 +157,20 @@ function CheckScopeChainNames(names, exec_state) {
 }
 
 
-// Check that the content of the scope is as expected. For functions just check
-// that there is a function.
-function CheckScopeContent(content, number, exec_state) {
+// Check that the scope contains at least minimum_content. For functions just
+// check that there is a function.
+function CheckScopeContent(minimum_content, number, exec_state) {
   var scope = exec_state.frame().scope(number);
-  var count = 0;
-  for (var p in content) {
+  var minimum_count = 0;
+  for (var p in minimum_content) {
     var property_mirror = scope.scopeObject().property(p);
     assertFalse(property_mirror.isUndefined(), 'property ' + p + ' not found in scope');
-    if (typeof(content[p]) === 'function') {
+    if (typeof(minimum_content[p]) === 'function') {
       assertTrue(property_mirror.value().isFunction());
     } else {
-      assertEquals(content[p], property_mirror.value().value(), 'property ' + p + ' has unexpected value');
+      assertEquals(minimum_content[p], property_mirror.value().value(), 'property ' + p + ' has unexpected value');
     }
-    count++;
+    minimum_count++;
   }
 
   // 'arguments' and might be exposed in the local and closure scope. Just
@@ -186,14 +186,14 @@ function CheckScopeContent(content, number, exec_state) {
   // Temporary variables introduced by the parser have not been materialized.
   assertTrue(scope.scopeObject().property('').isUndefined());
 
-  if (count != scope_size) {
+  if (scope_size < minimum_count) {
     print('Names found in scope:');
     var names = scope.scopeObject().propertyNames();
     for (var i = 0; i < names.length; i++) {
       print(names[i]);
     }
   }
-  assertEquals(count, scope_size);
+  assertTrue(scope_size >= minimum_count);
 
   // Get the debug command processor.
   var dcp = exec_state.debugCommandProcessor("unspecified_running_state");
