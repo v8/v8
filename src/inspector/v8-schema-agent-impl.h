@@ -16,8 +16,6 @@ class V8InspectorSessionImpl;
 using protocol::ErrorString;
 
 class V8SchemaAgentImpl : public protocol::Schema::Backend {
-  DISALLOW_COPY_AND_ASSIGN(V8SchemaAgentImpl);
-
  public:
   V8SchemaAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                     protocol::DictionaryValue* state);
@@ -30,6 +28,8 @@ class V8SchemaAgentImpl : public protocol::Schema::Backend {
  private:
   V8InspectorSessionImpl* m_session;
   protocol::Schema::Frontend m_frontend;
+
+  DISALLOW_COPY_AND_ASSIGN(V8SchemaAgentImpl);
 };
 
 }  // namespace v8_inspector

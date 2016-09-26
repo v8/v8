@@ -57,8 +57,6 @@ StringView toStringView(const String16&);
 bool stringViewStartsWith(const StringView&, const char*);
 
 class StringBufferImpl : public StringBuffer {
-  DISALLOW_COPY_AND_ASSIGN(StringBufferImpl);
-
  public:
   // Destroys string's content.
   static std::unique_ptr<StringBufferImpl> adopt(String16&);
@@ -68,6 +66,8 @@ class StringBufferImpl : public StringBuffer {
   explicit StringBufferImpl(String16&);
   String16 m_owner;
   StringView m_string;
+
+  DISALLOW_COPY_AND_ASSIGN(StringBufferImpl);
 };
 
 }  //  namespace v8_inspector

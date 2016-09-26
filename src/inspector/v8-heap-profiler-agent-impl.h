@@ -19,8 +19,6 @@ using protocol::ErrorString;
 using protocol::Maybe;
 
 class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
-  DISALLOW_COPY_AND_ASSIGN(V8HeapProfilerAgentImpl);
-
  public:
   V8HeapProfilerAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                           protocol::DictionaryValue* state);
@@ -66,6 +64,8 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
   protocol::HeapProfiler::Frontend m_frontend;
   protocol::DictionaryValue* m_state;
   bool m_hasTimer;
+
+  DISALLOW_COPY_AND_ASSIGN(V8HeapProfilerAgentImpl);
 };
 
 }  // namespace v8_inspector

@@ -76,7 +76,7 @@ class V8ValueStringBuilder {
     IgnoreUndefined = 1 << 1,
   };
 
-  V8ValueStringBuilder(v8::Local<v8::Context> context)
+  explicit V8ValueStringBuilder(v8::Local<v8::Context> context)
       : m_arrayLimit(maxArrayItemsLimit),
         m_isolate(context->GetIsolate()),
         m_tryCatch(context->GetIsolate()),

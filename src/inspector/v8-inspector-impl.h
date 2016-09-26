@@ -31,13 +31,13 @@
 #ifndef V8_INSPECTOR_V8INSPECTORIMPL_H_
 #define V8_INSPECTOR_V8INSPECTORIMPL_H_
 
+#include <vector>
+
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Protocol.h"
 
 #include "include/v8-debug.h"
 #include "include/v8-inspector.h"
-
-#include <vector>
 
 namespace v8_inspector {
 
@@ -51,8 +51,6 @@ class V8RuntimeAgentImpl;
 class V8StackTraceImpl;
 
 class V8InspectorImpl : public V8Inspector {
-  DISALLOW_COPY_AND_ASSIGN(V8InspectorImpl);
-
  public:
   V8InspectorImpl(v8::Isolate*, V8InspectorClient*);
   ~V8InspectorImpl() override;
@@ -143,6 +141,8 @@ class V8InspectorImpl : public V8Inspector {
   using ConsoleStorageMap =
       protocol::HashMap<int, std::unique_ptr<V8ConsoleMessageStorage>>;
   ConsoleStorageMap m_consoleStorageMap;
+
+  DISALLOW_COPY_AND_ASSIGN(V8InspectorImpl);
 };
 
 }  // namespace v8_inspector

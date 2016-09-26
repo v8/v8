@@ -4,6 +4,8 @@
 
 #include "src/inspector/v8-profiler-agent-impl.h"
 
+#include <vector>
+
 #include "src/base/atomicops.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
@@ -13,8 +15,6 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 
 #include "include/v8-profiler.h"
-
-#include <vector>
 
 namespace v8_inspector {
 

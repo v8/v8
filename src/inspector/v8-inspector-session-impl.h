@@ -5,14 +5,14 @@
 #ifndef V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
 #define V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
 
+#include <vector>
+
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/protocol/Schema.h"
 
 #include "include/v8-inspector.h"
-
-#include <vector>
 
 namespace v8_inspector {
 
@@ -30,8 +30,6 @@ using protocol::ErrorString;
 
 class V8InspectorSessionImpl : public V8InspectorSession,
                                public protocol::FrontendChannel {
-  DISALLOW_COPY_AND_ASSIGN(V8InspectorSessionImpl);
-
  public:
   static std::unique_ptr<V8InspectorSessionImpl> create(
       V8InspectorImpl*, int contextGroupId, V8Inspector::Channel*,
@@ -119,6 +117,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   std::unique_ptr<V8SchemaAgentImpl> m_schemaAgent;
   std::vector<std::unique_ptr<V8InspectorSession::Inspectable>>
       m_inspectedObjects;
+
+  DISALLOW_COPY_AND_ASSIGN(V8InspectorSessionImpl);
 };
 
 }  // namespace v8_inspector

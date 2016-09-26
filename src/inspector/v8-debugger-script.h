@@ -38,8 +38,6 @@
 namespace v8_inspector {
 
 class V8DebuggerScript {
-  DISALLOW_COPY_AND_ASSIGN(V8DebuggerScript);
-
  public:
   V8DebuggerScript(v8::Local<v8::Context>, v8::Local<v8::Object>,
                    bool isLiveEdit);
@@ -80,6 +78,8 @@ class V8DebuggerScript {
   int m_executionContextId;
   String16 m_executionContextAuxData;
   bool m_isLiveEdit;
+
+  DISALLOW_COPY_AND_ASSIGN(V8DebuggerScript);
 };
 
 }  // namespace v8_inspector

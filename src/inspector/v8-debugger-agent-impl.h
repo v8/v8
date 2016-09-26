@@ -5,12 +5,12 @@
 #ifndef V8_INSPECTOR_V8DEBUGGERAGENTIMPL_H_
 #define V8_INSPECTOR_V8DEBUGGERAGENTIMPL_H_
 
+#include <vector>
+
 #include "src/base/macros.h"
 #include "src/inspector/java-script-call-frame.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
-
-#include <vector>
 
 namespace v8_inspector {
 
@@ -28,8 +28,6 @@ using protocol::ErrorString;
 using protocol::Maybe;
 
 class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
-  DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
-
  public:
   enum SkipPauseRequest {
     RequestNoSkip,
@@ -217,6 +215,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unique_ptr<V8Regex> m_blackboxPattern;
   protocol::HashMap<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
+
+  DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };
 
 }  // namespace v8_inspector

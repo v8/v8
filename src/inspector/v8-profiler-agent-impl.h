@@ -5,11 +5,11 @@
 #ifndef V8_INSPECTOR_V8PROFILERAGENTIMPL_H_
 #define V8_INSPECTOR_V8PROFILERAGENTIMPL_H_
 
+#include <vector>
+
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Profiler.h"
-
-#include <vector>
 
 namespace v8 {
 class CpuProfiler;
@@ -23,8 +23,6 @@ class V8InspectorSessionImpl;
 using protocol::ErrorString;
 
 class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
-  DISALLOW_COPY_AND_ASSIGN(V8ProfilerAgentImpl);
-
  public:
   V8ProfilerAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                       protocol::DictionaryValue* state);
@@ -67,6 +65,8 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
   class ProfileDescriptor;
   std::vector<ProfileDescriptor> m_startedProfiles;
   String16 m_frontendInitiatedProfileId;
+
+  DISALLOW_COPY_AND_ASSIGN(V8ProfilerAgentImpl);
 };
 
 }  // namespace v8_inspector

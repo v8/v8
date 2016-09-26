@@ -5,11 +5,11 @@
 #ifndef V8_INSPECTOR_INJECTEDSCRIPTNATIVE_H_
 #define V8_INSPECTOR_INJECTEDSCRIPTNATIVE_H_
 
+#include <vector>
+
 #include "src/inspector/protocol/Protocol.h"
 
 #include "include/v8.h"
-
-#include <vector>
 
 namespace v8_inspector {
 

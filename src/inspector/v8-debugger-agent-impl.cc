@@ -4,6 +4,8 @@
 
 #include "src/inspector/v8-debugger-agent-impl.h"
 
+#include <algorithm>
+
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/java-script-call-frame.h"
@@ -21,8 +23,6 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 
 #include "include/v8-inspector.h"
-
-#include <algorithm>
 
 namespace v8_inspector {
 
@@ -50,7 +50,7 @@ static const char columnNumber[] = "columnNumber";
 static const char condition[] = "condition";
 static const char skipAllPauses[] = "skipAllPauses";
 
-}  // namespace DebuggerAgentState;
+}  // namespace DebuggerAgentState
 
 static const int maxSkipStepFrameCount = 128;
 static const char backtraceObjectGroup[] = "backtrace";

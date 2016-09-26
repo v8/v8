@@ -50,8 +50,6 @@ using protocol::ErrorString;
 using protocol::Maybe;
 
 class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
-  DISALLOW_COPY_AND_ASSIGN(V8RuntimeAgentImpl);
-
  public:
   V8RuntimeAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                      protocol::DictionaryValue* state);
@@ -124,6 +122,8 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   bool m_enabled;
   protocol::HashMap<String16, std::unique_ptr<v8::Global<v8::Script>>>
       m_compiledScripts;
+
+  DISALLOW_COPY_AND_ASSIGN(V8RuntimeAgentImpl);
 };
 
 }  // namespace v8_inspector

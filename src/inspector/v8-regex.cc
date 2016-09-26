@@ -4,12 +4,12 @@
 
 #include "src/inspector/v8-regex.h"
 
+#include <limits.h>
+
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-inspector-impl.h"
 
 #include "include/v8-inspector.h"
-
-#include <limits.h>
 
 namespace v8_inspector {
 

@@ -29,10 +29,8 @@ v8::Local<v8::Private> inspectedContextPrivateKey(v8::Isolate* isolate) {
 }
 
 class ConsoleHelper {
-  DISALLOW_COPY_AND_ASSIGN(ConsoleHelper);
-
  public:
-  ConsoleHelper(const v8::FunctionCallbackInfo<v8::Value>& info)
+  explicit ConsoleHelper(const v8::FunctionCallbackInfo<v8::Value>& info)
       : m_info(info),
         m_isolate(info.GetIsolate()),
         m_context(info.GetIsolate()->GetCurrentContext()),
@@ -241,6 +239,8 @@ class ConsoleHelper {
       return defaultValue;
     return false;
   }
+
+  DISALLOW_COPY_AND_ASSIGN(ConsoleHelper);
 };
 
 void returnDataCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {

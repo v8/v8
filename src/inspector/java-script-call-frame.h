@@ -31,18 +31,16 @@
 #ifndef V8_INSPECTOR_JAVASCRIPTCALLFRAME_H_
 #define V8_INSPECTOR_JAVASCRIPTCALLFRAME_H_
 
+#include <vector>
+
 #include "src/base/macros.h"
 #include "src/inspector/protocol-platform.h"
 
 #include "include/v8.h"
 
-#include <vector>
-
 namespace v8_inspector {
 
 class JavaScriptCallFrame {
-  DISALLOW_COPY_AND_ASSIGN(JavaScriptCallFrame);
-
  public:
   static std::unique_ptr<JavaScriptCallFrame> create(
       v8::Local<v8::Context> debuggerContext, v8::Local<v8::Object> callFrame) {
@@ -73,6 +71,8 @@ class JavaScriptCallFrame {
   v8::Isolate* m_isolate;
   v8::Global<v8::Context> m_debuggerContext;
   v8::Global<v8::Object> m_callFrame;
+
+  DISALLOW_COPY_AND_ASSIGN(JavaScriptCallFrame);
 };
 
 using JavaScriptCallFrames = std::vector<std::unique_ptr<JavaScriptCallFrame>>;

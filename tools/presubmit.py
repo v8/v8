@@ -192,9 +192,8 @@ class CppLintProcessor(SourceFileProcessor):
     return name.endswith('.cc') or name.endswith('.h')
 
   def IgnoreDir(self, name):
-    # TODO(dgozman): remove inspector after fixing the issues.
     return (super(CppLintProcessor, self).IgnoreDir(name)
-              or (name == 'third_party') or (name == 'inspector'))
+              or (name == 'third_party'))
 
   IGNORE_LINT = ['flag-definitions.h']
 

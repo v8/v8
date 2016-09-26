@@ -23,8 +23,9 @@ class String16 {
   String16() {}
   String16(const String16& other) : m_impl(other.m_impl) {}
   String16(const UChar* characters, size_t size) : m_impl(characters, size) {}
-  String16(const UChar* characters) : m_impl(characters) {}
-  String16(const char* characters)
+  String16(const UChar* characters)  // NOLINT(runtime/explicit)
+      : m_impl(characters) {}
+  String16(const char* characters)  // NOLINT(runtime/explicit)
       : String16(characters, std::strlen(characters)) {}
   String16(const char* characters, size_t size) {
     m_impl.resize(size);

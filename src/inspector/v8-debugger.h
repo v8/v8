@@ -5,6 +5,8 @@
 #ifndef V8_INSPECTOR_V8DEBUGGER_H_
 #define V8_INSPECTOR_V8DEBUGGER_H_
 
+#include <vector>
+
 #include "src/base/macros.h"
 #include "src/inspector/java-script-call-frame.h"
 #include "src/inspector/protocol/Forward.h"
@@ -13,8 +15,6 @@
 
 #include "include/v8-debug.h"
 #include "include/v8-inspector.h"
-
-#include <vector>
 
 namespace v8_inspector {
 
@@ -26,8 +26,6 @@ class V8StackTraceImpl;
 using protocol::ErrorString;
 
 class V8Debugger {
-  DISALLOW_COPY_AND_ASSIGN(V8Debugger);
-
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger();
@@ -153,6 +151,8 @@ class V8Debugger {
   std::vector<void*> m_currentTasks;
   std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
+
+  DISALLOW_COPY_AND_ASSIGN(V8Debugger);
 };
 
 }  // namespace v8_inspector

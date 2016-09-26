@@ -30,7 +30,7 @@ static const char samplingHeapProfilerInterval[] =
 
 class HeapSnapshotProgress final : public v8::ActivityControl {
  public:
-  HeapSnapshotProgress(protocol::HeapProfiler::Frontend* frontend)
+  explicit HeapSnapshotProgress(protocol::HeapProfiler::Frontend* frontend)
       : m_frontend(frontend) {}
   ControlOption ReportProgressValue(int done, int total) override {
     m_frontend->reportHeapSnapshotProgress(done, total,
@@ -78,7 +78,7 @@ class GlobalObjectNameResolver final
 
 class HeapSnapshotOutputStream final : public v8::OutputStream {
  public:
-  HeapSnapshotOutputStream(protocol::HeapProfiler::Frontend* frontend)
+  explicit HeapSnapshotOutputStream(protocol::HeapProfiler::Frontend* frontend)
       : m_frontend(frontend) {}
   void EndOfStream() override {}
   int GetChunkSize() override { return 102400; }
@@ -113,7 +113,7 @@ class InspectableHeapObject final : public V8InspectorSession::Inspectable {
 
 class HeapStatsStream final : public v8::OutputStream {
  public:
-  HeapStatsStream(protocol::HeapProfiler::Frontend* frontend)
+  explicit HeapStatsStream(protocol::HeapProfiler::Frontend* frontend)
       : m_frontend(frontend) {}
 
   void EndOfStream() override {}

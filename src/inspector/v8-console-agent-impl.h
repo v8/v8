@@ -17,8 +17,6 @@ class V8InspectorSessionImpl;
 using protocol::ErrorString;
 
 class V8ConsoleAgentImpl : public protocol::Console::Backend {
-  DISALLOW_COPY_AND_ASSIGN(V8ConsoleAgentImpl);
-
  public:
   V8ConsoleAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                      protocol::DictionaryValue* state);
@@ -41,6 +39,8 @@ class V8ConsoleAgentImpl : public protocol::Console::Backend {
   protocol::DictionaryValue* m_state;
   protocol::Console::Frontend m_frontend;
   bool m_enabled;
+
+  DISALLOW_COPY_AND_ASSIGN(V8ConsoleAgentImpl);
 };
 
 }  // namespace v8_inspector

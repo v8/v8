@@ -24,8 +24,6 @@ class V8Console {
   static v8::Local<v8::Object> createCommandLineAPI(InspectedContext*);
 
   class CommandLineAPIScope {
-    DISALLOW_COPY_AND_ASSIGN(CommandLineAPIScope);
-
    public:
     CommandLineAPIScope(v8::Local<v8::Context>,
                         v8::Local<v8::Object> commandLineAPI,
@@ -44,6 +42,8 @@ class V8Console {
     v8::Local<v8::Object> m_global;
     v8::Local<v8::Set> m_installedMethods;
     bool m_cleanup;
+
+    DISALLOW_COPY_AND_ASSIGN(CommandLineAPIScope);
   };
 
  private:

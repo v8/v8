@@ -52,8 +52,6 @@ using protocol::ErrorString;
 using protocol::Maybe;
 
 class InjectedScript final {
-  DISALLOW_COPY_AND_ASSIGN(InjectedScript);
-
  public:
   static std::unique_ptr<InjectedScript> create(InspectedContext*);
   ~InjectedScript();
@@ -141,8 +139,6 @@ class InjectedScript final {
   };
 
   class ContextScope : public Scope {
-    DISALLOW_COPY_AND_ASSIGN(ContextScope);
-
    public:
     ContextScope(ErrorString*, V8InspectorImpl*, int contextGroupId,
                  int executionContextId);
@@ -151,11 +147,11 @@ class InjectedScript final {
    private:
     void findInjectedScript(V8InspectorSessionImpl*) override;
     int m_executionContextId;
+
+    DISALLOW_COPY_AND_ASSIGN(ContextScope);
   };
 
   class ObjectScope : public Scope {
-    DISALLOW_COPY_AND_ASSIGN(ObjectScope);
-
    public:
     ObjectScope(ErrorString*, V8InspectorImpl*, int contextGroupId,
                 const String16& remoteObjectId);
@@ -168,11 +164,11 @@ class InjectedScript final {
     String16 m_remoteObjectId;
     String16 m_objectGroupName;
     v8::Local<v8::Value> m_object;
+
+    DISALLOW_COPY_AND_ASSIGN(ObjectScope);
   };
 
   class CallFrameScope : public Scope {
-    DISALLOW_COPY_AND_ASSIGN(CallFrameScope);
-
    public:
     CallFrameScope(ErrorString*, V8InspectorImpl*, int contextGroupId,
                    const String16& remoteCallFrameId);
@@ -183,6 +179,8 @@ class InjectedScript final {
     void findInjectedScript(V8InspectorSessionImpl*) override;
     String16 m_remoteCallFrameId;
     size_t m_frameOrdinal;
+
+    DISALLOW_COPY_AND_ASSIGN(CallFrameScope);
   };
 
  private:
@@ -200,6 +198,8 @@ class InjectedScript final {
   v8::Global<v8::Value> m_lastEvaluationResult;
   std::unique_ptr<InjectedScriptNative> m_native;
   v8::Global<v8::Object> m_commandLineAPI;
+
+  DISALLOW_COPY_AND_ASSIGN(InjectedScript);
 };
 
 }  // namespace v8_inspector

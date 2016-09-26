@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/inspector/string-16.h"
-#include "src/base/platform/platform.h"
-#include "src/inspector/protocol-platform.h"
 
 #include <algorithm>
 #include <cctype>
@@ -13,6 +11,9 @@
 #include <limits>
 #include <locale>
 #include <string>
+
+#include "src/base/platform/platform.h"
+#include "src/inspector/protocol-platform.h"
 
 namespace v8_inspector {
 
@@ -38,7 +39,8 @@ int charactersToInteger(const UChar* characters, size_t length,
   buffer.push_back('\0');
 
   char* endptr;
-  long result = std::strtol(buffer.data(), &endptr, 10);
+  int64_t result =
+      static_cast<int64_t>(std::strtol(buffer.data(), &endptr, 10));
   if (ok) {
     *ok = !(*endptr) && result <= std::numeric_limits<int>::max() &&
           result >= std::numeric_limits<int>::min();
@@ -84,17 +86,17 @@ ConversionResult convertUTF16ToUTF8(const UChar** sourceStart,
   char* target = *targetStart;
   while (source < sourceEnd) {
     UChar32 ch;
-    unsigned short bytesToWrite = 0;
+    uint32_t bytesToWrite = 0;
     const UChar32 byteMask = 0xBF;
     const UChar32 byteMark = 0x80;
     const UChar* oldSource =
         source;  // In case we have to back up because of target overflow.
-    ch = static_cast<unsigned short>(*source++);
+    ch = static_cast<uint16_t>(*source++);
     // If we have a surrogate pair, convert to UChar32 first.
     if (ch >= 0xD800 && ch <= 0xDBFF) {
       // If the 16 bits following the high surrogate are in the source buffer...
       if (source < sourceEnd) {
-        UChar32 ch2 = static_cast<unsigned short>(*source);
+        UChar32 ch2 = static_cast<uint16_t>(*source);
         // If it's a low surrogate, convert to UChar32.
         if (ch2 >= 0xDC00 && ch2 <= 0xDFFF) {
           ch = ((ch - 0xD800) << 10) + (ch2 - 0xDC00) + 0x0010000;
@@ -140,16 +142,16 @@ ConversionResult convertUTF16ToUTF8(const UChar** sourceStart,
     }
     switch (bytesToWrite) {  // note: everything falls through.
       case 4:
-        *--target = (char)((ch | byteMark) & byteMask);
+        *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
       case 3:
-        *--target = (char)((ch | byteMark) & byteMask);
+        *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
       case 2:
-        *--target = (char)((ch | byteMark) & byteMask);
+        *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
       case 1:
-        *--target = (char)(ch | firstByteMark[bytesToWrite]);
+        *--target = static_cast<char>(ch | firstByteMark[bytesToWrite]);
     }
     target += bytesToWrite;
   }
