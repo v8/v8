@@ -2124,6 +2124,231 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
   __ bind(&done);
 }
 
+
+void SubStringStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  // Stack frame on entry.
+  //  lr: return address
+  //  sp[0]: to
+  //  sp[4]: from
+  //  sp[8]: string
+
+  // This stub is called from the native-call %_SubString(...), so
+  // nothing can be assumed about the arguments. It is tested that:
+  //  "string" is a sequential string,
+  //  both "from" and "to" are smis, and
+  //  0 <= from <= to <= string.length.
+  // If any of these assumptions fail, we call the runtime system.
+
+  const int kToOffset = 0 * kPointerSize;
+  const int kFromOffset = 1 * kPointerSize;
+  const int kStringOffset = 2 * kPointerSize;
+
+  __ Ldrd(r2, r3, MemOperand(sp, kToOffset));
+  STATIC_ASSERT(kFromOffset == kToOffset + 4);
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
+
+  // Arithmetic shift right by one un-smi-tags. In this case we rotate right
+  // instead because we bail out on non-smi values: ROR and ASR are equivalent
+  // for smis but they set the flags in a way that's easier to optimize.
+  __ mov(r2, Operand(r2, ROR, 1), SetCC);
+  __ mov(r3, Operand(r3, ROR, 1), SetCC, cc);
+  // If either to or from had the smi tag bit set, then C is set now, and N
+  // has the same value: we rotated by 1, so the bottom bit is now the top bit.
+  // We want to bailout to runtime here if From is negative.  In that case, the
+  // next instruction is not executed and we fall through to bailing out to
+  // runtime.
+  // Executed if both r2 and r3 are untagged integers.
+  __ sub(r2, r2, Operand(r3), SetCC, cc);
+  // One of the above un-smis or the above SUB could have set N==1.
+  __ b(mi, &runtime);  // Either "from" or "to" is not an smi, or from > to.
+
+  // Make sure first argument is a string.
+  __ ldr(r0, MemOperand(sp, kStringOffset));
+  __ JumpIfSmi(r0, &runtime);
+  Condition is_string = masm->IsObjectStringType(r0, r1);
+  __ b(NegateCondition(is_string), &runtime);
+
+  Label single_char;
+  __ cmp(r2, Operand(1));
+  __ b(eq, &single_char);
+
+  // Short-cut for the case of trivial substring.
+  Label return_r0;
+  // r0: original string
+  // r2: result string length
+  __ ldr(r4, FieldMemOperand(r0, String::kLengthOffset));
+  __ cmp(r2, Operand(r4, ASR, 1));
+  // Return original string.
+  __ b(eq, &return_r0);
+  // Longer than original string's length or negative: unsafe arguments.
+  __ b(hi, &runtime);
+  // Shorter than original string's length: an actual substring.
+
+  // Deal with different string types: update the index if necessary
+  // and put the underlying string into r5.
+  // r0: original string
+  // r1: instance type
+  // r2: length
+  // r3: from index (untagged)
+  Label underlying_unpacked, sliced_string, seq_or_external_string;
+  // If the string is not indirect, it can only be sequential or external.
+  STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
+  STATIC_ASSERT(kIsIndirectStringMask != 0);
+  __ tst(r1, Operand(kIsIndirectStringMask));
+  __ b(eq, &seq_or_external_string);
+
+  __ tst(r1, Operand(kSlicedNotConsMask));
+  __ b(ne, &sliced_string);
+  // Cons string.  Check whether it is flat, then fetch first part.
+  __ ldr(r5, FieldMemOperand(r0, ConsString::kSecondOffset));
+  __ CompareRoot(r5, Heap::kempty_stringRootIndex);
+  __ b(ne, &runtime);
+  __ ldr(r5, FieldMemOperand(r0, ConsString::kFirstOffset));
+  // Update instance type.
+  __ ldr(r1, FieldMemOperand(r5, HeapObject::kMapOffset));
+  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
+  __ jmp(&underlying_unpacked);
+
+  __ bind(&sliced_string);
+  // Sliced string.  Fetch parent and correct start index by offset.
+  __ ldr(r5, FieldMemOperand(r0, SlicedString::kParentOffset));
+  __ ldr(r4, FieldMemOperand(r0, SlicedString::kOffsetOffset));
+  __ add(r3, r3, Operand(r4, ASR, 1));  // Add offset to index.
+  // Update instance type.
+  __ ldr(r1, FieldMemOperand(r5, HeapObject::kMapOffset));
+  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
+  __ jmp(&underlying_unpacked);
+
+  __ bind(&seq_or_external_string);
+  // Sequential or external string.  Just move string to the expected register.
+  __ mov(r5, r0);
+
+  __ bind(&underlying_unpacked);
+
+  if (FLAG_string_slices) {
+    Label copy_routine;
+    // r5: underlying subject string
+    // r1: instance type of underlying subject string
+    // r2: length
+    // r3: adjusted start index (untagged)
+    __ cmp(r2, Operand(SlicedString::kMinLength));
+    // Short slice.  Copy instead of slicing.
+    __ b(lt, &copy_routine);
+    // Allocate new sliced string.  At this point we do not reload the instance
+    // type including the string encoding because we simply rely on the info
+    // provided by the original string.  It does not matter if the original
+    // string's encoding is wrong because we always have to recheck encoding of
+    // the newly created string's parent anyways due to externalized strings.
+    Label two_byte_slice, set_slice_header;
+    STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
+    STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
+    __ tst(r1, Operand(kStringEncodingMask));
+    __ b(eq, &two_byte_slice);
+    __ AllocateOneByteSlicedString(r0, r2, r6, r4, &runtime);
+    __ jmp(&set_slice_header);
+    __ bind(&two_byte_slice);
+    __ AllocateTwoByteSlicedString(r0, r2, r6, r4, &runtime);
+    __ bind(&set_slice_header);
+    __ mov(r3, Operand(r3, LSL, 1));
+    __ str(r5, FieldMemOperand(r0, SlicedString::kParentOffset));
+    __ str(r3, FieldMemOperand(r0, SlicedString::kOffsetOffset));
+    __ jmp(&return_r0);
+
+    __ bind(&copy_routine);
+  }
+
+  // r5: underlying subject string
+  // r1: instance type of underlying subject string
+  // r2: length
+  // r3: adjusted start index (untagged)
+  Label two_byte_sequential, sequential_string, allocate_result;
+  STATIC_ASSERT(kExternalStringTag != 0);
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ tst(r1, Operand(kExternalStringTag));
+  __ b(eq, &sequential_string);
+
+  // Handle external string.
+  // Rule out short external strings.
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  __ tst(r1, Operand(kShortExternalStringTag));
+  __ b(ne, &runtime);
+  __ ldr(r5, FieldMemOperand(r5, ExternalString::kResourceDataOffset));
+  // r5 already points to the first character of underlying string.
+  __ jmp(&allocate_result);
+
+  __ bind(&sequential_string);
+  // Locate first character of underlying subject string.
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
+  __ add(r5, r5, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+
+  __ bind(&allocate_result);
+  // Sequential acii string.  Allocate the result.
+  STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
+  __ tst(r1, Operand(kStringEncodingMask));
+  __ b(eq, &two_byte_sequential);
+
+  // Allocate and copy the resulting one-byte string.
+  __ AllocateOneByteString(r0, r2, r4, r6, r1, &runtime);
+
+  // Locate first character of substring to copy.
+  __ add(r5, r5, r3);
+  // Locate first character of result.
+  __ add(r1, r0, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+
+  // r0: result string
+  // r1: first character of result string
+  // r2: result string length
+  // r5: first character of substring to copy
+  STATIC_ASSERT((SeqOneByteString::kHeaderSize & kObjectAlignmentMask) == 0);
+  StringHelper::GenerateCopyCharacters(
+      masm, r1, r5, r2, r3, String::ONE_BYTE_ENCODING);
+  __ jmp(&return_r0);
+
+  // Allocate and copy the resulting two-byte string.
+  __ bind(&two_byte_sequential);
+  __ AllocateTwoByteString(r0, r2, r4, r6, r1, &runtime);
+
+  // Locate first character of substring to copy.
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  __ add(r5, r5, Operand(r3, LSL, 1));
+  // Locate first character of result.
+  __ add(r1, r0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+
+  // r0: result string.
+  // r1: first character of result.
+  // r2: result length.
+  // r5: first character of substring to copy.
+  STATIC_ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
+  StringHelper::GenerateCopyCharacters(
+      masm, r1, r5, r2, r3, String::TWO_BYTE_ENCODING);
+
+  __ bind(&return_r0);
+  Counters* counters = isolate()->counters();
+  __ IncrementCounter(counters->sub_string_native(), 1, r3, r4);
+  __ Drop(3);
+  __ Ret();
+
+  // Just jump to runtime to create the sub string.
+  __ bind(&runtime);
+  __ TailCallRuntime(Runtime::kSubString);
+
+  __ bind(&single_char);
+  // r0: original string
+  // r1: instance type
+  // r2: length
+  // r3: from index (untagged)
+  __ SmiTag(r3, r3);
+  StringCharAtGenerator generator(r0, r3, r2, r0, &runtime, &runtime, &runtime,
+                                  RECEIVER_IS_STRING);
+  generator.GenerateFast(masm);
+  __ Drop(3);
+  __ Ret();
+  generator.SkipSlow(masm, &runtime);
+}
+
 void ToStringStub::Generate(MacroAssembler* masm) {
   // The ToString stub takes one argument in r0.
   Label is_number;
