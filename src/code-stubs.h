@@ -3112,24 +3112,13 @@ class StoreBufferOverflowStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(StoreBufferOverflow, PlatformCodeStub);
 };
 
-class SubStringStub : public TurboFanCodeStub {
+
+class SubStringStub : public PlatformCodeStub {
  public:
-  explicit SubStringStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  static compiler::Node* Generate(CodeStubAssembler* assembler,
-                                  compiler::Node* string, compiler::Node* from,
-                                  compiler::Node* to, compiler::Node* context);
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override {
-    assembler->Return(Generate(assembler,
-                               assembler->Parameter(Descriptor::kString),
-                               assembler->Parameter(Descriptor::kFrom),
-                               assembler->Parameter(Descriptor::kTo),
-                               assembler->Parameter(Descriptor::kContext)));
-  }
+  explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(SubString);
-  DEFINE_CODE_STUB(SubString, TurboFanCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(SubString, PlatformCodeStub);
 };
 
 class ToStringStub final : public PlatformCodeStub {
