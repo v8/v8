@@ -4702,6 +4702,17 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   Expect(Token::RETURN, CHECK_OK);
   Scanner::Location loc = scanner()->location();
 
+  switch (GetDeclarationScope()->scope_type()) {
+    case SCRIPT_SCOPE:
+    case EVAL_SCOPE:
+    case MODULE_SCOPE:
+      impl()->ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
+      *ok = false;
+      return impl()->NullStatement();
+    default:
+      break;
+  }
+
   Token::Value tok = peek();
   ExpressionT return_value = impl()->EmptyExpression();
   if (scanner()->HasAnyLineTerminatorBeforeNext() || tok == Token::SEMICOLON ||
@@ -4730,13 +4741,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   }
   ExpectSemicolon(CHECK_OK);
   return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
-
-  DeclarationScope* decl_scope = GetDeclarationScope();
-  if (decl_scope->is_script_scope() || decl_scope->is_eval_scope()) {
-    impl()->ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
-    *ok = false;
-    return impl()->NullStatement();
-  }
   return factory()->NewReturnStatement(return_value, loc.beg_pos);
 }
 

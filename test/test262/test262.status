@@ -637,7 +637,6 @@
   'language/module-code/eval-*': [SKIP],
   'language/module-code/instn-*': [SKIP],
   'language/module-code/namespace/*': [SKIP],
-  'language/module-code/parse-err-*': [SKIP],
 }],  # 'variant == ignition'
 
 ]
