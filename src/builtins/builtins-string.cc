@@ -471,6 +471,116 @@ BUILTIN(StringPrototypeNormalize) {
   return *string;
 }
 
+namespace {
+
+compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
+                                    compiler::Node* context,
+                                    compiler::Node* value,
+                                    compiler::Node* limit) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label out(a);
+  Variable var_result(a, MachineRepresentation::kTagged);
+
+  Node* const value_int =
+      a->ToInteger(context, value, CodeStubAssembler::kTruncateMinusZero);
+
+  Label if_issmi(a), if_isnotsmi(a, Label::kDeferred);
+  a->Branch(a->WordIsSmi(value_int), &if_issmi, &if_isnotsmi);
+
+  a->Bind(&if_issmi);
+  {
+    Label if_isinbounds(a), if_isoutofbounds(a, Label::kDeferred);
+    a->Branch(a->SmiAbove(value_int, limit), &if_isoutofbounds, &if_isinbounds);
+
+    a->Bind(&if_isinbounds);
+    {
+      var_result.Bind(value_int);
+      a->Goto(&out);
+    }
+
+    a->Bind(&if_isoutofbounds);
+    {
+      Node* const zero = a->SmiConstant(Smi::FromInt(0));
+      var_result.Bind(a->Select(a->SmiLessThan(value_int, zero), zero, limit));
+      a->Goto(&out);
+    }
+  }
+
+  a->Bind(&if_isnotsmi);
+  {
+    // {value} is a heap number - in this case, it is definitely out of bounds.
+    a->Assert(a->WordEqual(a->LoadMap(value_int), a->HeapNumberMapConstant()));
+
+    Node* const float_zero = a->Float64Constant(0.);
+    Node* const smi_zero = a->SmiConstant(Smi::FromInt(0));
+    Node* const value_float = a->LoadHeapNumberValue(value_int);
+    var_result.Bind(a->Select(a->Float64LessThan(value_float, float_zero),
+                              smi_zero, limit));
+    a->Goto(&out);
+  }
+
+  a->Bind(&out);
+  return var_result.value();
+}
+
+}  // namespace
+
+// ES6 section 21.1.3.19 String.prototype.substring ( start, end )
+void Builtins::Generate_StringPrototypeSubstring(CodeStubAssembler* a) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label out(a);
+
+  Variable var_start(a, MachineRepresentation::kTagged);
+  Variable var_end(a, MachineRepresentation::kTagged);
+
+  Node* const receiver = a->Parameter(0);
+  Node* const start = a->Parameter(1);
+  Node* const end = a->Parameter(2);
+  Node* const context = a->Parameter(5);
+
+  // Check that {receiver} is coercible to Object and convert it to a String.
+  Node* const string =
+      a->ToThisString(context, receiver, "String.prototype.substring");
+
+  Node* const length = a->LoadStringLength(string);
+
+  // Conversion and bounds-checks for {start}.
+  var_start.Bind(ToSmiBetweenZeroAnd(a, context, start, length));
+
+  // Conversion and bounds-checks for {end}.
+  {
+    var_end.Bind(length);
+    a->GotoIf(a->WordEqual(end, a->UndefinedConstant()), &out);
+
+    var_end.Bind(ToSmiBetweenZeroAnd(a, context, end, length));
+
+    Label if_endislessthanstart(a);
+    a->Branch(a->SmiLessThan(var_end.value(), var_start.value()),
+              &if_endislessthanstart, &out);
+
+    a->Bind(&if_endislessthanstart);
+    {
+      Node* const tmp = var_end.value();
+      var_end.Bind(var_start.value());
+      var_start.Bind(tmp);
+      a->Goto(&out);
+    }
+  }
+
+  a->Bind(&out);
+  {
+    Node* result =
+        a->SubString(context, string, var_start.value(), var_end.value());
+    a->Return(result);
+  }
+}
+
 // ES6 section 21.1.3.25 String.prototype.toString ()
 void Builtins::Generate_StringPrototypeToString(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
