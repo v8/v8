@@ -196,7 +196,7 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
   }
   // Select the correct X -> Tagged operator.
   const Operator* op;
-  if (output_type->Is(Type::None())) {
+  if (Type::Semantic(output_type, jsgraph()->zone())->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     // We just provide a dummy value here.
     return jsgraph()->Constant(0);
@@ -293,7 +293,7 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
       break;
   }
   // Select the correct X -> Tagged operator.
-  if (output_type->Is(Type::None())) {
+  if (Type::Semantic(output_type, jsgraph()->zone())->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     // We just provide a dummy value here.
     return jsgraph()->TheHoleConstant();
@@ -338,7 +338,7 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   }
   // Select the correct X -> Tagged operator.
   const Operator* op;
-  if (output_type->Is(Type::None())) {
+  if (Type::Semantic(output_type, jsgraph()->zone())->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     // We just provide a dummy value here.
     return jsgraph()->TheHoleConstant();
@@ -420,7 +420,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
   }
   // Select the correct X -> Float32 operator.
   const Operator* op = nullptr;
-  if (output_type->Is(Type::None())) {
+  if (Type::Semantic(output_type, jsgraph()->zone())->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     // We just provide a dummy value here.
     return jsgraph()->Float32Constant(0.0f);
@@ -490,7 +490,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
   }
   // Select the correct X -> Float64 operator.
   const Operator* op = nullptr;
-  if (output_type->Is(Type::None())) {
+  if (Type::Semantic(output_type, jsgraph()->zone())->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     // We just provide a dummy value here.
     return jsgraph()->Float64Constant(0.0);
@@ -576,7 +576,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
 
   // Select the correct X -> Word32 operator.
   const Operator* op = nullptr;
-  if (output_type->Is(Type::None())) {
+  if (Type::Semantic(output_type, jsgraph()->zone())->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     // We just provide a dummy value here.
     return jsgraph()->Int32Constant(0);
@@ -698,7 +698,7 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   }
   // Select the correct X -> Bit operator.
   const Operator* op;
-  if (output_type->Is(Type::None())) {
+  if (Type::Semantic(output_type, jsgraph()->zone())->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     // We just provide a dummy value here.
     return jsgraph()->Int32Constant(0);
@@ -737,7 +737,7 @@ Node* RepresentationChanger::GetBitRepresentationFor(
 
 Node* RepresentationChanger::GetWord64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type) {
-  if (output_type->Is(Type::None())) {
+  if (Type::Semantic(output_type, jsgraph()->zone())->Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     // We just provide a dummy value here.
     return jsgraph()->Int64Constant(0);

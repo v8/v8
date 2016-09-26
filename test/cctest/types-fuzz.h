@@ -108,6 +108,9 @@ class Types {
   PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
   #undef DECLARE_TYPE
 
+#define DECLARE_TYPE(name, value) Type* Mask##name##ForTesting;
+  MASK_BITSET_TYPE_LIST(DECLARE_TYPE)
+#undef DECLARE_TYPE
   Type* SignedSmall;
   Type* UnsignedSmall;
 
@@ -138,6 +141,8 @@ class Types {
   Type* Union(Type* t1, Type* t2) { return Type::Union(t1, t2, zone_); }
 
   Type* Intersect(Type* t1, Type* t2) { return Type::Intersect(t1, t2, zone_); }
+
+  Type* Semantic(Type* t) { return Type::Semantic(t, zone_); }
 
   Type* Random() {
     return types[rng_->NextInt(static_cast<int>(types.size()))];
