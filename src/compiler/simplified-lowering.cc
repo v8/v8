@@ -1243,7 +1243,7 @@ class RepresentationSelector {
       // based on the feedback types of the inputs.
       VisitBinop(node,
                  UseInfo(MachineRepresentation::kWord32, Truncation::Float64()),
-                 MachineRepresentation::kWord32);
+                 MachineRepresentation::kWord32, Type::Number());
       if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
       return;
     }
@@ -1255,7 +1255,7 @@ class RepresentationSelector {
       // based on the feedback types of the inputs.
       VisitBinop(node,
                  UseInfo(MachineRepresentation::kWord32, Truncation::Float64()),
-                 MachineRepresentation::kWord32);
+                 MachineRepresentation::kWord32, Type::Number());
       if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
       return;
     }
