@@ -1748,15 +1748,6 @@
             'inspector/inspector.gyp:inspector_injected_script',
             'inspector/inspector.gyp:inspector_debugger_script',
           ],
-          # TODO(dgozman): fix these warnings and enable them.
-          'msvs_disabled_warnings': [
-            4305,  # Truncation from 'type1' to 'type2'.
-            4324,  # Struct padded due to declspec(align).
-            4714,  # Function marked forceinline not inlined.
-            4800,  # Value forced to bool.
-          ],
-          'cflags': [
-          ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
