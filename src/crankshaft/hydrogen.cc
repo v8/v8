@@ -10273,6 +10273,8 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
 
     HInstruction* length = AddUncasted<HDiv>(byte_length,
         Add<HConstant>(static_cast<int32_t>(element_size)));
+    // Callers (in typedarray.js) ensure that length <= %_MaxSmi().
+    length = AddUncasted<HForceRepresentation>(length, Representation::Smi());
 
     Add<HStoreNamedField>(obj,
         HObjectAccess::ForJSTypedArrayLength(),
