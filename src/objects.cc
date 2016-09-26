@@ -19727,5 +19727,93 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(Handle<Module> module,
   return MaybeHandle<Cell>();
 }
 
+bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
+                         v8::Module::ResolveCallback callback,
+                         v8::Local<v8::Value> callback_data) {
+  // Already instantiated.
+  if (module->code()->IsJSFunction()) return true;
+
+  Isolate* isolate = module->GetIsolate();
+  Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(module->code()),
+                                    isolate);
+  Handle<JSFunction> function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared,
+          handle(Utils::OpenHandle(*context)->native_context(), isolate));
+  module->set_code(*function);
+
+  Handle<ModuleInfo> module_info(shared->scope_info()->ModuleDescriptorInfo(),
+                                 isolate);
+
+  // Set up local exports.
+  Handle<FixedArray> regular_exports(module_info->regular_exports(), isolate);
+  for (int i = 0, n = regular_exports->length(); i < n; i += 2) {
+    Handle<FixedArray> export_names(
+        FixedArray::cast(regular_exports->get(i + 1)), isolate);
+    CreateExport(module, export_names);
+  }
+
+  // Partially set up indirect exports.
+  // For each indirect export, we create the appropriate slot in the export
+  // table and store its ModuleInfoEntry there.  When we later find the correct
+  // Cell in the module that actually provides the value, we replace the
+  // ModuleInfoEntry by that Cell (see ResolveExport).
+  Handle<FixedArray> special_exports(module_info->special_exports(), isolate);
+  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+    Handle<ModuleInfoEntry> entry(
+        ModuleInfoEntry::cast(special_exports->get(i)), isolate);
+    Handle<Object> export_name(entry->export_name(), isolate);
+    if (export_name->IsUndefined(isolate)) continue;  // Star export.
+    CreateIndirectExport(module, Handle<String>::cast(export_name), entry);
+  }
+
+  Handle<FixedArray> module_requests(module_info->module_requests(), isolate);
+  for (int i = 0, length = module_requests->length(); i < length; ++i) {
+    Handle<String> specifier(String::cast(module_requests->get(i)), isolate);
+    v8::Local<v8::Module> api_requested_module;
+    // TODO(adamk): Revisit these failure cases once d8 knows how to
+    // persist a module_map across multiple top-level module loads, as
+    // the current module is left in a "half-instantiated" state.
+    if (!callback(context, v8::Utils::ToLocal(specifier),
+                  v8::Utils::ToLocal(module), callback_data)
+             .ToLocal(&api_requested_module)) {
+      // TODO(adamk): Give this a better error message. But this is a
+      // misuse of the API anyway.
+      isolate->ThrowIllegalOperation();
+      return false;
+    }
+    Handle<Module> requested_module = Utils::OpenHandle(*api_requested_module);
+    module->requested_modules()->set(i, *requested_module);
+    if (!Instantiate(requested_module, context, callback, callback_data)) {
+      return false;
+    }
+  }
+
+  // Resolve imports.
+  Handle<FixedArray> regular_imports(module_info->regular_imports(), isolate);
+  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
+    Handle<ModuleInfoEntry> entry(
+        ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
+    Handle<String> name(String::cast(entry->import_name()), isolate);
+    int module_request = Smi::cast(entry->module_request())->value();
+    if (ResolveImport(module, name, module_request, true).is_null()) {
+      return false;
+    }
+  }
+
+  // Resolve indirect exports.
+  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+    Handle<ModuleInfoEntry> entry(
+        ModuleInfoEntry::cast(special_exports->get(i)), isolate);
+    Handle<Object> name(entry->export_name(), isolate);
+    if (name->IsUndefined(isolate)) continue;  // Star export.
+    if (ResolveExport(module, Handle<String>::cast(name), true).is_null()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 }  // namespace internal
 }  // namespace v8

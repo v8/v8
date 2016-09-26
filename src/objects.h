@@ -7953,16 +7953,34 @@ class Module : public Struct {
   // Get the ModuleInfo associated with the code.
   inline ModuleInfo* info() const;
 
-  static void CreateExport(Handle<Module> module, Handle<FixedArray> names);
+  // Implementation of spec operation ModuleDeclarationInstantiation.
+  // Returns false if an exception occurred during instantiation, true
+  // otherwise.
+  static MUST_USE_RESULT bool Instantiate(Handle<Module> module,
+                                          v8::Local<v8::Context> context,
+                                          v8::Module::ResolveCallback callback,
+                                          v8::Local<v8::Value> callback_data);
+
   static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
   static void StoreExport(Handle<Module> module, Handle<String> name,
                           Handle<Object> value);
 
-  static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
-                                   Handle<ModuleInfoEntry> entry);
-
   static Handle<Object> LoadImport(Handle<Module> module, Handle<String> name,
                                    int module_request);
+
+  static const int kCodeOffset = HeapObject::kHeaderSize;
+  static const int kExportsOffset = kCodeOffset + kPointerSize;
+  static const int kRequestedModulesOffset = kExportsOffset + kPointerSize;
+  static const int kFlagsOffset = kRequestedModulesOffset + kPointerSize;
+  static const int kEmbedderDataOffset = kFlagsOffset + kPointerSize;
+  static const int kSize = kEmbedderDataOffset + kPointerSize;
+
+ private:
+  enum { kEvaluatedBit };
+
+  static void CreateExport(Handle<Module> module, Handle<FixedArray> names);
+  static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
+                                   Handle<ModuleInfoEntry> entry);
 
   // The [must_resolve] argument indicates whether or not an exception should be
   // thrown if the module does not provide an export named [name].
@@ -7980,16 +7998,6 @@ class Module : public Struct {
                                                          Handle<String> name,
                                                          int module_request,
                                                          bool must_resolve);
-
-  static const int kCodeOffset = HeapObject::kHeaderSize;
-  static const int kExportsOffset = kCodeOffset + kPointerSize;
-  static const int kRequestedModulesOffset = kExportsOffset + kPointerSize;
-  static const int kFlagsOffset = kRequestedModulesOffset + kPointerSize;
-  static const int kEmbedderDataOffset = kFlagsOffset + kPointerSize;
-  static const int kSize = kEmbedderDataOffset + kPointerSize;
-
- private:
-  enum { kEvaluatedBit };
 
   // Helper for ResolveExport.
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
