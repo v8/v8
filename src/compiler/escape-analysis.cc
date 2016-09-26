@@ -795,6 +795,12 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kSelect:
       // TODO(mstarzinger): The following list of operators will eventually be
       // handled by the EscapeAnalysisReducer (similar to ObjectIsSmi).
+      case IrOpcode::kStringEqual:
+      case IrOpcode::kStringLessThan:
+      case IrOpcode::kStringLessThanOrEqual:
+      case IrOpcode::kPlainPrimitiveToNumber:
+      case IrOpcode::kPlainPrimitiveToWord32:
+      case IrOpcode::kPlainPrimitiveToFloat64:
       case IrOpcode::kStringCharCodeAt:
       case IrOpcode::kObjectIsCallable:
       case IrOpcode::kObjectIsNumber:
