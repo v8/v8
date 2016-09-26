@@ -368,7 +368,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   // The descriptor's 'maximum'.
-  int maximum;
+  int maximum = 0;
   Local<String> maximum_key = v8_str(isolate, "maximum");
   Maybe<bool> has_maximum = descriptor->Has(context, maximum_key);
 
@@ -420,7 +420,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   // The descriptor's 'maximum'.
-  int maximum;
+  int maximum = 0;
   Local<String> maximum_key = v8_str(isolate, "maximum");
   Maybe<bool> has_maximum = descriptor->Has(context, maximum_key);
 
