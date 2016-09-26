@@ -152,24 +152,29 @@ TEST(TypedSlotSet, Iterate) {
     ++added;
   }
   int iterated = 0;
-  set.Iterate([&iterated, kDelta, kHostDelta](SlotType type, Address host_addr,
-                                              Address addr) {
-    uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
-    uint32_t j = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(host_addr));
-    EXPECT_EQ(i % CLEARED_SLOT, static_cast<uint32_t>(type));
-    EXPECT_EQ(0, i % kDelta);
-    EXPECT_EQ(0, j % kHostDelta);
-    ++iterated;
-    return i % 2 == 0 ? KEEP_SLOT : REMOVE_SLOT;
-  });
+  set.Iterate(
+      [&iterated, kDelta, kHostDelta](SlotType type, Address host_addr,
+                                      Address addr) {
+        uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
+        uint32_t j =
+            static_cast<uint32_t>(reinterpret_cast<uintptr_t>(host_addr));
+        EXPECT_EQ(i % CLEARED_SLOT, static_cast<uint32_t>(type));
+        EXPECT_EQ(0, i % kDelta);
+        EXPECT_EQ(0, j % kHostDelta);
+        ++iterated;
+        return i % 2 == 0 ? KEEP_SLOT : REMOVE_SLOT;
+      },
+      TypedSlotSet::KEEP_EMPTY_CHUNKS);
   EXPECT_EQ(added, iterated);
   iterated = 0;
-  set.Iterate([&iterated](SlotType type, Address host_addr, Address addr) {
-    uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
-    EXPECT_EQ(0, i % 2);
-    ++iterated;
-    return KEEP_SLOT;
-  });
+  set.Iterate(
+      [&iterated](SlotType type, Address host_addr, Address addr) {
+        uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
+        EXPECT_EQ(0, i % 2);
+        ++iterated;
+        return KEEP_SLOT;
+      },
+      TypedSlotSet::KEEP_EMPTY_CHUNKS);
   EXPECT_EQ(added / 2, iterated);
 }
 

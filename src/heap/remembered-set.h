@@ -149,10 +149,13 @@ class RememberedSet {
   static void RemoveRangeTyped(MemoryChunk* page, Address start, Address end) {
     TypedSlotSet* slots = GetTypedSlotSet(page);
     if (slots != nullptr) {
-      slots->Iterate([start, end](SlotType slot_type, Address host_addr,
-                                  Address slot_addr) {
-        return start <= slot_addr && slot_addr < end ? REMOVE_SLOT : KEEP_SLOT;
-      });
+      slots->Iterate(
+          [start, end](SlotType slot_type, Address host_addr,
+                       Address slot_addr) {
+            return start <= slot_addr && slot_addr < end ? REMOVE_SLOT
+                                                         : KEEP_SLOT;
+          },
+          TypedSlotSet::PREFREE_EMPTY_CHUNKS);
     }
   }
 
@@ -173,7 +176,7 @@ class RememberedSet {
   static void IterateTyped(MemoryChunk* chunk, Callback callback) {
     TypedSlotSet* slots = GetTypedSlotSet(chunk);
     if (slots != nullptr) {
-      int new_count = slots->Iterate(callback);
+      int new_count = slots->Iterate(callback, TypedSlotSet::KEEP_EMPTY_CHUNKS);
       if (new_count == 0) {
         ReleaseTypedSlotSet(chunk);
       }
@@ -227,8 +230,6 @@ class RememberedSet {
   static void ReleaseTypedSlotSet(MemoryChunk* chunk) {
     if (direction == OLD_TO_OLD) {
       chunk->ReleaseTypedOldToOldSlots();
-    } else {
-      chunk->ReleaseTypedOldToNewSlots();
     }
   }
 
