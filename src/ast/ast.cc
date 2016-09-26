@@ -186,11 +186,8 @@ VariableProxy::VariableProxy(const VariableProxy* copy_from)
       end_position_(copy_from->end_position_),
       next_unresolved_(nullptr) {
   bit_field_ = copy_from->bit_field_;
-  if (copy_from->is_resolved()) {
-    var_ = copy_from->var_;
-  } else {
-    raw_name_ = copy_from->raw_name_;
-  }
+  DCHECK(!copy_from->is_resolved());
+  raw_name_ = copy_from->raw_name_;
 }
 
 void VariableProxy::BindTo(Variable* var) {
