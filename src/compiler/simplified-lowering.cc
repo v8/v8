@@ -2441,6 +2441,10 @@ class RepresentationSelector {
         SetOutput(node, MachineRepresentation::kTagged);
         return;
       }
+      case IrOpcode::kCheckHasInPrototypeChain: {
+        return VisitBinop(node, UseInfo::AnyTagged(),
+                          MachineRepresentation::kBit);
+      }
 
       case IrOpcode::kNumberSilenceNaN:
         VisitUnop(node, UseInfo::TruncatingFloat64(),

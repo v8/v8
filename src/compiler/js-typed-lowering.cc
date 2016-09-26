@@ -1275,21 +1275,23 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
-  Node* const context = NodeProperties::GetContextInput(node);
-  Node* const frame_state = NodeProperties::GetFrameStateInput(node);
+  VectorSlotPair const& feedback = VectorSlotPairOf(node->op());
 
   // If deoptimization is disabled, we cannot optimize.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
-  // If we are in a try block, don't optimize since the runtime call
-  // in the proxy case can throw.
-  if (NodeProperties::IsExceptionalCall(node)) return NoChange();
+  // Make sure we do have feedback for the {node}, and check that the
+  // {feedback} suggests that we haven't seen any funny inputs in this
+  // place so far.
+  // TODO(turbofan): We might want to collect the right-hand side map
+  // for instanceof and turn this into some vector based InstanceOfIC.
+  if (!feedback.IsValid()) return NoChange();
+  if (feedback.vector()->Get(feedback.slot()) !=
+      *TypeFeedbackVector::UninitializedSentinel(isolate())) {
+    return NoChange();
+  }
 
   JSBinopReduction r(this, node);
-  Node* object = r.left();
-  Node* effect = r.effect();
-  Node* control = r.control();
-
   if (!r.right_type()->IsConstant() ||
       !r.right_type()->AsConstant()->Value()->IsJSFunction()) {
     return NoChange();
@@ -1317,120 +1319,13 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   Node* prototype =
       jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
 
-  Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), object);
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
-
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* etrue0 = effect;
-  Node* vtrue0 = jsgraph()->FalseConstant();
-
-  control = graph()->NewNode(common()->IfFalse(), branch0);
-
-  // Loop through the {object}s prototype chain looking for the {prototype}.
-  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-  Node* eloop = effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
-  Node* vloop = object = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), object, object, loop);
-  // TODO(jarin): This is a very ugly hack to work-around the super-smart
-  // implicit typing of the Phi, which goes completely nuts if the {object}
-  // is for example a HeapConstant.
-  NodeProperties::SetType(vloop, Type::NonInternal());
-
-  // Load the {object} map and instance type.
-  Node* object_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()), object,
-                       effect, control);
-  Node* object_instance_type = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), object_map,
-      effect, control);
-
-  // Check if the {object} is a special receiver, because for special
-  // receivers, i.e. proxies or API objects that need access checks,
-  // we have to use the %HasInPrototypeChain runtime function instead.
-  Node* check1 = graph()->NewNode(
-      simplified()->NumberLessThanOrEqual(), object_instance_type,
-      jsgraph()->Constant(LAST_SPECIAL_RECEIVER_TYPE));
-  Node* branch1 =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, control);
-
-  control = graph()->NewNode(common()->IfFalse(), branch1);
-
-  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-  Node* etrue1 = effect;
-  Node* vtrue1;
-
-  // Check if the {object} is not a receiver at all.
-  Node* check10 =
-      graph()->NewNode(simplified()->NumberLessThan(), object_instance_type,
-                       jsgraph()->Constant(FIRST_JS_RECEIVER_TYPE));
-  Node* branch10 =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check10, if_true1);
-
-  // A primitive value cannot match the {prototype} we're looking for.
-  if_true1 = graph()->NewNode(common()->IfTrue(), branch10);
-  vtrue1 = jsgraph()->FalseConstant();
-
-  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch10);
-  Node* efalse1 = etrue1;
-  Node* vfalse1;
-  {
-    // Slow path, need to call the %HasInPrototypeChain runtime function.
-    vfalse1 = efalse1 = graph()->NewNode(
-        javascript()->CallRuntime(Runtime::kHasInPrototypeChain), object,
-        prototype, context, frame_state, efalse1, if_false1);
-    if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
-  }
-
-  // Load the {object} prototype.
-  Node* object_prototype = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapPrototype()), object_map,
-      effect, control);
-
-  // Check if we reached the end of {object}s prototype chain.
-  Node* check2 = graph()->NewNode(simplified()->ReferenceEqual(),
-                                  object_prototype, jsgraph()->NullConstant());
-  Node* branch2 = graph()->NewNode(common()->Branch(), check2, control);
-
-  Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-  Node* etrue2 = effect;
-  Node* vtrue2 = jsgraph()->FalseConstant();
-
-  control = graph()->NewNode(common()->IfFalse(), branch2);
-
-  // Check if we reached the {prototype}.
-  Node* check3 = graph()->NewNode(simplified()->ReferenceEqual(),
-                                  object_prototype, prototype);
-  Node* branch3 = graph()->NewNode(common()->Branch(), check3, control);
-
-  Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
-  Node* etrue3 = effect;
-  Node* vtrue3 = jsgraph()->TrueConstant();
-
-  control = graph()->NewNode(common()->IfFalse(), branch3);
-
-  // Close the loop.
-  vloop->ReplaceInput(1, object_prototype);
-  eloop->ReplaceInput(1, effect);
-  loop->ReplaceInput(1, control);
-
-  control = graph()->NewNode(common()->Merge(5), if_true0, if_true1, if_true2,
-                             if_true3, if_false1);
-  effect = graph()->NewNode(common()->EffectPhi(5), etrue0, etrue1, etrue2,
-                            etrue3, efalse1, control);
-
-  // Morph the {node} into an appropriate Phi.
-  ReplaceWithValue(node, node, effect, control);
-  node->ReplaceInput(0, vtrue0);
-  node->ReplaceInput(1, vtrue1);
-  node->ReplaceInput(2, vtrue2);
-  node->ReplaceInput(3, vtrue3);
-  node->ReplaceInput(4, vfalse1);
-  node->ReplaceInput(5, control);
-  node->TrimInputCount(6);
-  NodeProperties::ChangeOp(node,
-                           common()->Phi(MachineRepresentation::kTagged, 5));
+  // Morph the {node} into an optimistic prototype chain walk (which  just
+  // deopts if it sees anything funny in the prototype chain, i.e. a proxy).
+  RelaxControls(node);
+  node->ReplaceInput(1, prototype);  // prototype
+  node->RemoveInput(3);              // frame state
+  node->RemoveInput(2);              // context
+  NodeProperties::ChangeOp(node, simplified()->CheckHasInPrototypeChain());
   return Changed(node);
 }
 

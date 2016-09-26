@@ -2826,9 +2826,12 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     case Token::GTE:
       op = javascript()->GreaterThanOrEqual(hint);
       break;
-    case Token::INSTANCEOF:
-      op = javascript()->InstanceOf();
+    case Token::INSTANCEOF: {
+      VectorSlotPair feedback =
+          CreateVectorSlotPair(expr->CompareOperationFeedbackSlot());
+      op = javascript()->InstanceOf(feedback);
       break;
+    }
     case Token::IN:
       op = javascript()->HasProperty();
       break;

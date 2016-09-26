@@ -1604,7 +1604,9 @@ void BytecodeGraphBuilder::VisitTestIn() {
 }
 
 void BytecodeGraphBuilder::VisitTestInstanceOf() {
-  BuildCompareOp(javascript()->InstanceOf());
+  VectorSlotPair feedback =
+      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
+  BuildCompareOp(javascript()->InstanceOf(feedback));
 }
 
 void BytecodeGraphBuilder::BuildCastOperator(const Operator* js_op) {

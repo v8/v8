@@ -317,6 +317,8 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckSmi();
   const Operator* CheckString();
 
+  const Operator* CheckHasInPrototypeChain();
+
   const Operator* CheckedInt32Add();
   const Operator* CheckedInt32Sub();
   const Operator* CheckedInt32Div();

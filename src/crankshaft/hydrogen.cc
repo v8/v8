@@ -11416,15 +11416,23 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
               function->native_context()->closure() &&
           !function->map()->has_non_instance_prototype() &&
           isolate()->IsHasInstanceLookupChainIntact()) {
-        Handle<Map> initial_map(function->initial_map(), isolate());
-        top_info()->dependencies()->AssumeInitialMapCantChange(initial_map);
-        top_info()->dependencies()->AssumePropertyCell(
-            isolate()->factory()->has_instance_protector());
-        HInstruction* prototype =
-            Add<HConstant>(handle(initial_map->prototype(), isolate()));
-        HHasInPrototypeChainAndBranch* result =
-            New<HHasInPrototypeChainAndBranch>(left, prototype);
-        return ast_context()->ReturnControl(result, expr->id());
+        // Make sure the feedback for the instanceof is still fast (i.e. the
+        // vector slot is still unintialized).
+        Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+        Handle<Object> feedback(
+            vector->Get(expr->CompareOperationFeedbackSlot()), isolate());
+        if (feedback.is_identical_to(
+                TypeFeedbackVector::UninitializedSentinel(isolate()))) {
+          Handle<Map> initial_map(function->initial_map(), isolate());
+          top_info()->dependencies()->AssumeInitialMapCantChange(initial_map);
+          top_info()->dependencies()->AssumePropertyCell(
+              isolate()->factory()->has_instance_protector());
+          HInstruction* prototype =
+              Add<HConstant>(handle(initial_map->prototype(), isolate()));
+          HHasInPrototypeChainAndBranch* result =
+              New<HHasInPrototypeChainAndBranch>(left, prototype);
+          return ast_context()->ReturnControl(result, expr->id());
+        }
       }
     }
 

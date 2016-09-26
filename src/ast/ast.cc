@@ -735,12 +735,16 @@ void CompareOperation::AssignFeedbackVectorSlots(
   // Feedback vector slot is only used by interpreter for binary operations.
   // Full-codegen uses AstId to record type feedback.
   switch (op()) {
-    // instanceof and in do not collect type feedback.
     case Token::INSTANCEOF:
+      // instanceof collects feedback in a general slot (for now).
+      type_feedback_slot_ = spec->AddGeneralSlot();
+      return;
     case Token::IN:
+      // in does not collect type feedback.
       return;
     default:
       type_feedback_slot_ = spec->AddInterpreterCompareICSlot();
+      return;
   }
 }
 

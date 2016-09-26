@@ -3446,7 +3446,9 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       SetExpressionPosition(expr);
       __ mov(a0, result_register());
       PopOperand(a1);
-      InstanceOfStub stub(isolate());
+      __ EmitLoadTypeFeedbackVector(a3);
+      __ li(a4, Operand(SlotToIndex(expr->CompareOperationFeedbackSlot())));
+      InstanceOfWithFeedbackStub stub(isolate());
       __ CallStub(&stub);
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ LoadRoot(a4, Heap::kTrueValueRootIndex);

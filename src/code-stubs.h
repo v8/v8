@@ -136,6 +136,7 @@ class ObjectLiteral;
   V(FastNewClosure)                           \
   V(FastNewFunctionContext)                   \
   V(InstanceOf)                               \
+  V(InstanceOfWithFeedback)                   \
   V(LessThan)                                 \
   V(LessThanOrEqual)                          \
   V(GreaterThan)                              \
@@ -921,6 +922,17 @@ class InstanceOfStub final : public TurboFanCodeStub {
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(InstanceOf, TurboFanCodeStub);
+};
+
+class InstanceOfWithFeedbackStub final : public TurboFanCodeStub {
+ public:
+  explicit InstanceOfWithFeedbackStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(InstanceOfWithFeedback,
+                                                    TurboFanCodeStub);
 };
 
 class LessThanStub final : public TurboFanCodeStub {

@@ -427,6 +427,7 @@ PretenureFlag PretenureFlagOf(const Operator* op) {
 
 #define CHECKED_OP_LIST(V)             \
   V(CheckBounds, 2, 1)                 \
+  V(CheckHasInPrototypeChain, 2, 1)    \
   V(CheckHeapObject, 1, 1)             \
   V(CheckIf, 1, 0)                     \
   V(CheckNumber, 1, 1)                 \

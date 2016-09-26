@@ -639,6 +639,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckHeapObject:
       state = LowerCheckHeapObject(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckHasInPrototypeChain:
+      state =
+          LowerCheckHasInPrototypeChain(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckedInt32Add:
       state = LowerCheckedInt32Add(node, frame_state, *effect, *control);
       break;
@@ -1317,13 +1321,99 @@ EffectControlLinearizer::LowerCheckString(Node* node, Node* frame_state,
 }
 
 EffectControlLinearizer::ValueEffectControl
-EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
-                                      Node* effect, Node* control) {
-  Node* value = node->InputAt(0);
+EffectControlLinearizer::LowerCheckHasInPrototypeChain(Node* node,
+                                                       Node* frame_state,
+                                                       Node* effect,
+                                                       Node* control) {
+  Node* object = node->InputAt(0);
+  Node* prototype = node->InputAt(1);
 
-  control = effect =
-      graph()->NewNode(common()->DeoptimizeUnless(DeoptimizeReason::kNoReason),
-                       value, frame_state, effect, control);
+  Node* check0 = ObjectIsSmi(object);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0 = jsgraph()->Int32Constant(0);
+
+  control = graph()->NewNode(common()->IfFalse(), branch0);
+
+  // Loop through the {object}s prototype chain looking for the {prototype}.
+  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
+  Node* eloop = effect =
+      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
+  Node* vloop = object = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), object, object, loop);
+
+  // Load the {object} map and instance type.
+  Node* object_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()), object,
+                       effect, control);
+  Node* object_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), object_map,
+      effect, control);
+
+  // Check if the {object} is a special receiver, because for special
+  // receivers, i.e. proxies or API objects that need access checks,
+  // we have to use the %HasInPrototypeChain runtime function instead.
+  Node* check1 =
+      graph()->NewNode(machine()->Uint32LessThanOrEqual(), object_instance_type,
+                       jsgraph()->Uint32Constant(LAST_SPECIAL_RECEIVER_TYPE));
+  Node* branch1 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, control);
+
+  control = graph()->NewNode(common()->IfFalse(), branch1);
+
+  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+  Node* etrue1 = effect;
+  Node* vtrue1 = jsgraph()->Int32Constant(0);
+
+  // Check if the {object} is not a receiver at all.
+  Node* check10 =
+      graph()->NewNode(machine()->Uint32LessThan(), object_instance_type,
+                       jsgraph()->Uint32Constant(FIRST_JS_RECEIVER_TYPE));
+  if_true1 = etrue1 = graph()->NewNode(
+      common()->DeoptimizeUnless(DeoptimizeReason::kUnexpectedObject), check10,
+      frame_state, etrue1, if_true1);
+
+  // Load the {object} prototype.
+  Node* object_prototype = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapPrototype()), object_map,
+      effect, control);
+
+  // Check if we reached the end of {object}s prototype chain.
+  Node* check2 = graph()->NewNode(machine()->WordEqual(), object_prototype,
+                                  jsgraph()->NullConstant());
+  Node* branch2 = graph()->NewNode(common()->Branch(), check2, control);
+
+  Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+  Node* etrue2 = effect;
+  Node* vtrue2 = jsgraph()->Int32Constant(0);
+
+  control = graph()->NewNode(common()->IfFalse(), branch2);
+
+  // Check if we reached the {prototype}.
+  Node* check3 =
+      graph()->NewNode(machine()->WordEqual(), object_prototype, prototype);
+  Node* branch3 = graph()->NewNode(common()->Branch(), check3, control);
+
+  Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
+  Node* etrue3 = effect;
+  Node* vtrue3 = jsgraph()->Int32Constant(1);
+
+  control = graph()->NewNode(common()->IfFalse(), branch3);
+
+  // Close the loop.
+  vloop->ReplaceInput(1, object_prototype);
+  eloop->ReplaceInput(1, effect);
+  loop->ReplaceInput(1, control);
+
+  control = graph()->NewNode(common()->Merge(4), if_true0, if_true1, if_true2,
+                             if_true3);
+  effect = graph()->NewNode(common()->EffectPhi(4), etrue0, etrue1, etrue2,
+                            etrue3, control);
+  Node* value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 4),
+                                 vtrue0, vtrue1, vtrue2, vtrue3, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1337,6 +1427,18 @@ EffectControlLinearizer::LowerCheckHeapObject(Node* node, Node* frame_state,
   control = effect =
       graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kSmi), check,
                        frame_state, effect, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
+                                      Node* effect, Node* control) {
+  Node* value = node->InputAt(0);
+
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeUnless(DeoptimizeReason::kNoReason),
+                       value, frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }

@@ -42,6 +42,7 @@ bool operator!=(VectorSlotPair const&, VectorSlotPair const&);
 
 size_t hash_value(VectorSlotPair const&);
 
+std::ostream& operator<<(std::ostream&, VectorSlotPair const&);
 
 // The ConvertReceiverMode is used as parameter by JSConvertReceiver operators.
 ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
@@ -413,6 +414,8 @@ BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
 CompareOperationHint CompareOperationHintOf(const Operator* op);
 
+VectorSlotPair const& VectorSlotPairOf(const Operator* op) WARN_UNUSED_RESULT;
+
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
@@ -500,7 +503,7 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* StoreContext(size_t depth, size_t index);
 
   const Operator* TypeOf();
-  const Operator* InstanceOf();
+  const Operator* InstanceOf(VectorSlotPair const& feedback);
 
   const Operator* ForInNext();
   const Operator* ForInPrepare();

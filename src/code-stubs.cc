@@ -2938,6 +2938,67 @@ compiler::Node* InstanceOfStub::Generate(CodeStubAssembler* assembler,
   return result.value();
 }
 
+// static
+compiler::Node* InstanceOfWithFeedbackStub::Generate(
+    CodeStubAssembler* assembler, compiler::Node* object,
+    compiler::Node* callable, compiler::Node* slot_id,
+    compiler::Node* type_feedback_vector, compiler::Node* context) {
+  // TODO(bmeurer): Unify this with the InstanceOfStub above. This
+  // stub itself can be removed once we get rid of fullcodegen.
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label return_runtime(assembler, Label::kDeferred), end(assembler);
+  Variable result(assembler, MachineRepresentation::kTagged);
+
+  // Check if no one installed @@hasInstance somewhere.
+  assembler->GotoUnless(
+      assembler->WordEqual(
+          assembler->LoadObjectField(
+              assembler->LoadRoot(Heap::kHasInstanceProtectorRootIndex),
+              PropertyCell::kValueOffset),
+          assembler->SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
+      &return_runtime);
+
+  // Check if {callable} is a valid receiver.
+  assembler->GotoIf(assembler->WordIsSmi(callable), &return_runtime);
+  assembler->GotoIf(
+      assembler->Word32Equal(
+          assembler->Word32And(
+              assembler->LoadMapBitField(assembler->LoadMap(callable)),
+              assembler->Int32Constant(1 << Map::kIsCallable)),
+          assembler->Int32Constant(0)),
+      &return_runtime);
+
+  // Use the inline OrdinaryHasInstance directly.
+  CodeStubAssembler::VectorSlotPair feedback(type_feedback_vector, slot_id);
+  result.Bind(
+      assembler->OrdinaryHasInstance(context, callable, object, feedback));
+  assembler->Goto(&end);
+
+  assembler->Bind(&return_runtime);
+  {
+    // Record megamorphic here; we use this feedback to guard a bunch of
+    // speculative optimizations in TurboFand (and Crankshaft) that just
+    // deoptimize in case of funny inputs to instanceof.
+    Node* megamorphic_sentinel = assembler->HeapConstant(
+        TypeFeedbackVector::MegamorphicSentinel(assembler->isolate()));
+    assembler->StoreFixedArrayElement(type_feedback_vector, slot_id,
+                                      megamorphic_sentinel, SKIP_WRITE_BARRIER);
+
+    // Fallback to the %InstanceOf runtime implementation for now, which
+    // can deal with @@hasInstance and friends.
+    // TODO(bmeurer): Use GetPropertyStub here once available.
+    result.Bind(assembler->CallRuntime(Runtime::kInstanceOf, context, object,
+                                       callable));
+    assembler->Goto(&end);
+  }
+
+  assembler->Bind(&end);
+  return result.value();
+}
+
 namespace {
 
 enum RelationalComparisonMode {

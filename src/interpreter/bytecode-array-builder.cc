@@ -241,7 +241,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
              UnsignedOperand(feedback_slot));
       break;
     case Token::Value::INSTANCEOF:
-      Output(Bytecode::kTestInstanceOf, RegisterOperand(reg));
+      Output(Bytecode::kTestInstanceOf, RegisterOperand(reg),
+             UnsignedOperand(feedback_slot));
       break;
     case Token::Value::IN:
       Output(Bytecode::kTestIn, RegisterOperand(reg));
