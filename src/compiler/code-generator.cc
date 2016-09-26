@@ -188,7 +188,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
   // Assemble all eager deoptimization exits.
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     masm()->bind(exit->label());
-    AssembleDeoptimizerCall(exit->deoptimization_id(), Deoptimizer::EAGER);
+    AssembleDeoptimizerCall(exit->deoptimization_id(), Deoptimizer::EAGER,
+                            exit->pos());
   }
 
   // Ensure there is space for lazy deoptimization in the code.
@@ -924,8 +925,8 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
     Instruction* instr, size_t frame_state_offset) {
   int const deoptimization_id = BuildTranslation(
       instr, -1, frame_state_offset, OutputFrameStateCombine::Ignore());
-  DeoptimizationExit* const exit =
-      new (zone()) DeoptimizationExit(deoptimization_id);
+  DeoptimizationExit* const exit = new (zone())
+      DeoptimizationExit(deoptimization_id, current_source_position_);
   deoptimization_exits_.push_back(exit);
   return exit;
 }

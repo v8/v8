@@ -120,7 +120,8 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchTableSwitch(Instruction* instr);
 
   CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
-                                        Deoptimizer::BailoutType bailout_type);
+                                        Deoptimizer::BailoutType bailout_type,
+                                        SourcePosition pos);
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
