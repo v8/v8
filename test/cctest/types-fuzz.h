@@ -142,6 +142,8 @@ class Types {
 
   Type* Intersect(Type* t1, Type* t2) { return Type::Intersect(t1, t2, zone_); }
 
+  Type* Representation(Type* t) { return Type::Representation(t, zone_); }
+
   Type* Semantic(Type* t) { return Type::Semantic(t, zone_); }
 
   Type* Random() {

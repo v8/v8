@@ -187,6 +187,72 @@ struct Tests {
     }
   }
 
+  void PointwiseRepresentation() {
+    // Check we can decompose type into semantics and representation and
+    // then compose it back to get an equivalent type.
+    int counter = 0;
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      counter++;
+      Type* type1 = *it1;
+      Type* representation = T.Representation(type1);
+      Type* semantic = T.Semantic(type1);
+      Type* composed = T.Union(representation, semantic);
+      CHECK(type1->Equals(composed));
+    }
+
+    // Pointwiseness of Union.
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        Type* type1 = *it1;
+        Type* type2 = *it2;
+        Type* representation1 = T.Representation(type1);
+        Type* semantic1 = T.Semantic(type1);
+        Type* representation2 = T.Representation(type2);
+        Type* semantic2 = T.Semantic(type2);
+        Type* direct_union = T.Union(type1, type2);
+        Type* representation_union = T.Union(representation1, representation2);
+        Type* semantic_union = T.Union(semantic1, semantic2);
+        Type* composed_union = T.Union(representation_union, semantic_union);
+        CHECK(direct_union->Equals(composed_union));
+      }
+    }
+
+    // Pointwiseness of Intersect.
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        Type* type1 = *it1;
+        Type* type2 = *it2;
+        Type* representation1 = T.Representation(type1);
+        Type* semantic1 = T.Semantic(type1);
+        Type* representation2 = T.Representation(type2);
+        Type* semantic2 = T.Semantic(type2);
+        Type* direct_intersection = T.Intersect(type1, type2);
+        Type* representation_intersection =
+            T.Intersect(representation1, representation2);
+        Type* semantic_intersection = T.Intersect(semantic1, semantic2);
+        Type* composed_intersection =
+            T.Union(representation_intersection, semantic_intersection);
+        CHECK(direct_intersection->Equals(composed_intersection));
+      }
+    }
+
+    // Pointwiseness of Is.
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        Type* type1 = *it1;
+        Type* type2 = *it2;
+        Type* representation1 = T.Representation(type1);
+        Type* semantic1 = T.Semantic(type1);
+        Type* representation2 = T.Representation(type2);
+        Type* semantic2 = T.Semantic(type2);
+        bool representation_is = representation1->Is(representation2);
+        bool semantic_is = semantic1->Is(semantic2);
+        bool direct_is = type1->Is(type2);
+        CHECK(direct_is == (semantic_is && representation_is));
+      }
+    }
+  }
+
   void Constant() {
     // Constructor
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
@@ -1086,6 +1152,8 @@ struct Tests {
 }  // namespace
 
 TEST(IsSomeType) { Tests().IsSomeType(); }
+
+TEST(PointwiseRepresentation) { Tests().PointwiseRepresentation(); }
 
 TEST(BitsetType) { Tests().Bitset(); }
 
