@@ -79,7 +79,7 @@ const uint8_t kWasmFunctionTypeForm = 0x40;
 
 class WasmDebugInfo;
 
-struct WasmSection {
+struct V8_EXPORT_PRIVATE WasmSection {
   enum class Code : uint32_t {
 #define F(enumerator, order, string) enumerator,
     FOR_EACH_WASM_SECTION_TYPE(F)
@@ -233,10 +233,9 @@ struct WasmModule {
   }
 
   // Creates a new instantiation of the module in the given isolate.
-  static MaybeHandle<JSObject> Instantiate(Isolate* isolate,
-                                           Handle<JSObject> module_object,
-                                           Handle<JSReceiver> ffi,
-                                           Handle<JSArrayBuffer> memory);
+  V8_EXPORT_PRIVATE static MaybeHandle<JSObject> Instantiate(
+      Isolate* isolate, Handle<JSObject> module_object, Handle<JSReceiver> ffi,
+      Handle<JSArrayBuffer> memory);
 
   MaybeHandle<FixedArray> CompileFunctions(Isolate* isolate,
                                            ErrorThrower* thrower) const;
@@ -402,11 +401,9 @@ Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
                                             Handle<FixedArray> compiled_module,
                                             ModuleOrigin origin);
 
-MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
-                                                  const byte* start,
-                                                  const byte* end,
-                                                  ErrorThrower* thrower,
-                                                  ModuleOrigin origin);
+V8_EXPORT_PRIVATE MaybeHandle<JSObject> CreateModuleObjectFromBytes(
+    Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
+    ModuleOrigin origin);
 
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.

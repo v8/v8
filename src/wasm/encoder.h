@@ -111,7 +111,7 @@ class ZoneBuffer : public ZoneObject {
 
 class WasmModuleBuilder;
 
-class WasmFunctionBuilder : public ZoneObject {
+class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
  public:
   // Building methods.
   void SetSignature(FunctionSig* sig);
@@ -207,7 +207,7 @@ struct WasmFunctionImport {
   int name_length;
 };
 
-class WasmModuleBuilder : public ZoneObject {
+class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
  public:
   explicit WasmModuleBuilder(Zone* zone);
 

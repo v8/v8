@@ -266,7 +266,7 @@ class HandleScope {
   inline ~HandleScope();
 
   // Counts the number of allocated handles.
-  static int NumberOfHandles(Isolate* isolate);
+  V8_EXPORT_PRIVATE static int NumberOfHandles(Isolate* isolate);
 
   // Create a new handle or lookup a canonical handle.
   V8_INLINE static Object** GetHandle(Isolate* isolate, Object* value);
@@ -275,7 +275,7 @@ class HandleScope {
   V8_INLINE static Object** CreateHandle(Isolate* isolate, Object* value);
 
   // Deallocates any extensions used by the current scope.
-  static void DeleteExtensions(Isolate* isolate);
+  V8_EXPORT_PRIVATE static void DeleteExtensions(Isolate* isolate);
 
   static Address current_next_address(Isolate* isolate);
   static Address current_limit_address(Isolate* isolate);
@@ -310,11 +310,11 @@ class HandleScope {
                                 Object** prev_limit);
 
   // Extend the handle scope making room for more handles.
-  static Object** Extend(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Object** Extend(Isolate* isolate);
 
 #ifdef ENABLE_HANDLE_ZAPPING
   // Zaps the handles in the half-open interval [start, end).
-  static void ZapRange(Object** start, Object** end);
+  V8_EXPORT_PRIVATE static void ZapRange(Object** start, Object** end);
 #endif
 
   friend class v8::HandleScope;
@@ -344,7 +344,7 @@ class CanonicalHandleScope final {
   ~CanonicalHandleScope();
 
  private:
-  Object** Lookup(Object* object);
+  V8_EXPORT_PRIVATE Object** Lookup(Object* object);
 
   Isolate* isolate_;
   Zone zone_;

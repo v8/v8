@@ -218,7 +218,8 @@ V8_INLINE size_t hash_value(MachineType type) {
          static_cast<size_t>(type.semantic()) * 16;
 }
 
-std::ostream& operator<<(std::ostream& os, MachineRepresentation rep);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           MachineRepresentation rep);
 std::ostream& operator<<(std::ostream& os, MachineSemantic type);
 std::ostream& operator<<(std::ostream& os, MachineType type);
 

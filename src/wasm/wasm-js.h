@@ -15,12 +15,11 @@ class WasmJs {
  public:
   static void Install(Isolate* isolate, Handle<JSGlobalObject> global_object);
 
-  static void InstallWasmModuleSymbolIfNeeded(Isolate* isolate,
-                                              Handle<JSGlobalObject> global,
-                                              Handle<Context> context);
+  V8_EXPORT_PRIVATE static void InstallWasmModuleSymbolIfNeeded(
+      Isolate* isolate, Handle<JSGlobalObject> global, Handle<Context> context);
 
-  static void InstallWasmMapsIfNeeded(Isolate* isolate,
-                                      Handle<Context> context);
+  V8_EXPORT_PRIVATE static void InstallWasmMapsIfNeeded(
+      Isolate* isolate, Handle<Context> context);
   static void InstallWasmConstructors(Isolate* isolate,
                                       Handle<JSGlobalObject> global,
                                       Handle<Context> context);

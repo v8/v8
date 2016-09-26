@@ -102,7 +102,7 @@ class WasmFrame {
 };
 
 // An interpreter capable of executing WASM.
-class WasmInterpreter {
+class V8_EXPORT_PRIVATE WasmInterpreter {
  public:
   // State machine for a Thread:
   //                       +---------------Run()-----------+

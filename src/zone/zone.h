@@ -29,7 +29,7 @@ namespace internal {
 //
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
-class Zone final {
+class V8_EXPORT_PRIVATE Zone final {
  public:
   explicit Zone(AccountingAllocator* allocator);
   ~Zone();

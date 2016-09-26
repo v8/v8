@@ -1302,7 +1302,8 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<Object> InstanceOf(
       Isolate* isolate, Handle<Object> object, Handle<Object> callable);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
+  V8_EXPORT_PRIVATE MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
+      LookupIterator* it);
 
   // ES6 [[Set]] (when passed DONT_THROW)
   // Invariants for this and related functions (unless stated otherwise):
@@ -1965,7 +1966,7 @@ class JSReceiver: public HeapObject {
       PropertyDescriptor* desc, PropertyDescriptor* current,
       ShouldThrow should_throw, Handle<Name> property_name = Handle<Name>());
 
-  MUST_USE_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
+  V8_EXPORT_PRIVATE MUST_USE_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
       PropertyDescriptor* desc);
   MUST_USE_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
@@ -3504,7 +3505,8 @@ class StringTable: public HashTable<StringTable,
  public:
   // Find string in the string table. If it is not there yet, it is
   // added. The return value is the string found.
-  static Handle<String> LookupString(Isolate* isolate, Handle<String> key);
+  V8_EXPORT_PRIVATE static Handle<String> LookupString(Isolate* isolate,
+                                                       Handle<String> key);
   static Handle<String> LookupKey(Isolate* isolate, HashTableKey* key);
   static String* LookupKeyIfExists(Isolate* isolate, HashTableKey* key);
 
@@ -8527,7 +8529,8 @@ class JSRegExp: public JSObject {
   DECL_ACCESSORS(flags, Object)
   DECL_ACCESSORS(source, Object)
 
-  static MaybeHandle<JSRegExp> New(Handle<String> source, Flags flags);
+  V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(Handle<String> source,
+                                                     Flags flags);
   static Handle<JSRegExp> Copy(Handle<JSRegExp> regexp);
 
   static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
@@ -8984,8 +8987,7 @@ class AliasedArgumentsEntry: public Struct {
 enum AllowNullsFlag {ALLOW_NULLS, DISALLOW_NULLS};
 enum RobustnessFlag {ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL};
 
-
-class StringHasher {
+class V8_EXPORT_PRIVATE StringHasher {
  public:
   explicit inline StringHasher(int length, uint32_t seed);
 
@@ -9608,7 +9610,7 @@ class String: public Name {
   static bool SlowEquals(Handle<String> one, Handle<String> two);
 
   // Slow case of AsArrayIndex.
-  bool SlowAsArrayIndex(uint32_t* index);
+  V8_EXPORT_PRIVATE bool SlowAsArrayIndex(uint32_t* index);
 
   // Compute and set the hash code.
   uint32_t ComputeAndSetHash();

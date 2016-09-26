@@ -81,7 +81,8 @@ class Factory final {
 
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
-  Handle<String> InternalizeUtf8String(Vector<const char> str);
+  V8_EXPORT_PRIVATE Handle<String> InternalizeUtf8String(
+      Vector<const char> str);
   Handle<String> InternalizeUtf8String(const char* str) {
     return InternalizeUtf8String(CStrVector(str));
   }
@@ -126,9 +127,8 @@ class Factory final {
   //     will be converted to Latin1, otherwise it will be left as two-byte.
   //
   // One-byte strings are pretenured when used as keys in the SourceCodeCache.
-  MUST_USE_RESULT MaybeHandle<String> NewStringFromOneByte(
-      Vector<const uint8_t> str,
-      PretenureFlag pretenure = NOT_TENURED);
+  V8_EXPORT_PRIVATE MUST_USE_RESULT MaybeHandle<String> NewStringFromOneByte(
+      Vector<const uint8_t> str, PretenureFlag pretenure = NOT_TENURED);
 
   template <size_t N>
   inline Handle<String> NewStringFromStaticChars(
@@ -173,9 +173,8 @@ class Factory final {
   MUST_USE_RESULT V8_EXPORT_PRIVATE MaybeHandle<String> NewStringFromUtf8(
       Vector<const char> str, PretenureFlag pretenure = NOT_TENURED);
 
-  MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
-      Vector<const uc16> str,
-      PretenureFlag pretenure = NOT_TENURED);
+  V8_EXPORT_PRIVATE MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
+      Vector<const uc16> str, PretenureFlag pretenure = NOT_TENURED);
 
   MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
       const ZoneVector<uc16>* str, PretenureFlag pretenure = NOT_TENURED);
@@ -307,7 +306,7 @@ class Factory final {
 
   Handle<AccessorInfo> NewAccessorInfo();
 
-  Handle<Script> NewScript(Handle<String> source);
+  V8_EXPORT_PRIVATE Handle<Script> NewScript(Handle<String> source);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
@@ -451,7 +450,7 @@ class Factory final {
 
   // Create a JSArray with a specified length and elements initialized
   // according to the specified mode.
-  Handle<JSArray> NewJSArray(
+  V8_EXPORT_PRIVATE Handle<JSArray> NewJSArray(
       ElementsKind elements_kind, int length, int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);

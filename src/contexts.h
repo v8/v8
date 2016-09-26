@@ -428,7 +428,7 @@ class Context: public FixedArray {
   void set_global_proxy(JSObject* global);
 
   // Get the JSGlobalObject object.
-  JSGlobalObject* global_object();
+  V8_EXPORT_PRIVATE JSGlobalObject* global_object();
 
   // Get the script context by traversing the context chain.
   Context* script_context();
@@ -551,7 +551,8 @@ class Context: public FixedArray {
  private:
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
-  static bool IsBootstrappingOrNativeContext(Isolate* isolate, Object* object);
+  V8_EXPORT_PRIVATE static bool IsBootstrappingOrNativeContext(Isolate* isolate,
+                                                               Object* object);
   static bool IsBootstrappingOrValidParentContext(Object* object, Context* kid);
 #endif
 

@@ -97,7 +97,7 @@ std::ostream& operator<<(std::ostream& os, const Result<T>& result) {
 std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code);
 
 // A helper for generating error messages that bubble up to JS exceptions.
-class ErrorThrower {
+class V8_EXPORT_PRIVATE ErrorThrower {
  public:
   ErrorThrower(i::Isolate* isolate, const char* context)
       : isolate_(isolate), context_(context) {}

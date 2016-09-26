@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-class AccountingAllocator {
+class V8_EXPORT_PRIVATE AccountingAllocator {
  public:
   AccountingAllocator() = default;
   virtual ~AccountingAllocator() = default;

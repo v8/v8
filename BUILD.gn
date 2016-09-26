@@ -2335,6 +2335,27 @@ v8_source_set("fuzzer_support") {
   configs = [ ":internal_config_base" ]
 
   deps = [
+    ":v8",
+  ]
+
+  public_deps = [
+    ":v8_libplatform",
+  ]
+}
+
+# Used by fuzzers that would require exposing too many symbols for a proper
+# component build.
+v8_source_set("fuzzer_support_nocomponent") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  sources = [
+    "test/fuzzer/fuzzer-support.cc",
+    "test/fuzzer/fuzzer-support.h",
+  ]
+
+  configs = [ ":internal_config_base" ]
+
+  deps = [
     ":v8_maybe_snapshot",
   ]
 
@@ -2652,7 +2673,10 @@ v8_source_set("json_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("json_fuzzer") {
@@ -2664,10 +2688,13 @@ v8_source_set("parser_fuzzer") {
   ]
 
   deps = [
-    ":fuzzer_support",
+    ":fuzzer_support_nocomponent",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("parser_fuzzer") {
@@ -2682,7 +2709,10 @@ v8_source_set("regexp_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("regexp_fuzzer") {
@@ -2694,7 +2724,10 @@ v8_source_set("wasm_module_runner") {
     "test/common/wasm/wasm-module-runner.h",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_source_set("wasm_fuzzer") {
@@ -2707,7 +2740,10 @@ v8_source_set("wasm_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_fuzzer") {
@@ -2723,7 +2759,10 @@ v8_source_set("wasm_asmjs_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_asmjs_fuzzer") {
@@ -2739,7 +2778,10 @@ v8_source_set("wasm_code_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_code_fuzzer") {
@@ -2751,7 +2793,10 @@ v8_source_set("lib_wasm_section_fuzzer") {
     "test/fuzzer/wasm-section-fuzzers.h",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_source_set("wasm_types_section_fuzzer") {
@@ -2765,7 +2810,10 @@ v8_source_set("wasm_types_section_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_types_section_fuzzer") {
@@ -2782,7 +2830,10 @@ v8_source_set("wasm_names_section_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_names_section_fuzzer") {
@@ -2799,7 +2850,10 @@ v8_source_set("wasm_globals_section_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_globals_section_fuzzer") {
@@ -2816,7 +2870,10 @@ v8_source_set("wasm_imports_section_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_imports_section_fuzzer") {
@@ -2833,7 +2890,10 @@ v8_source_set("wasm_function_sigs_section_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_function_sigs_section_fuzzer") {
@@ -2850,7 +2910,10 @@ v8_source_set("wasm_memory_section_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_memory_section_fuzzer") {
@@ -2867,7 +2930,10 @@ v8_source_set("wasm_data_section_fuzzer") {
     ":wasm_module_runner",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
 }
 
 v8_fuzzer("wasm_data_section_fuzzer") {

@@ -237,7 +237,8 @@ inline std::ostream& operator<<(std::ostream& os, const DecodeStruct& tree) {
   return os;
 }
 
-DecodeResult VerifyWasmCode(AccountingAllocator* allocator, FunctionBody& body);
+V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
+                                              FunctionBody& body);
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body);
 bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
