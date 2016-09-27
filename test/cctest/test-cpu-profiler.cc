@@ -1040,7 +1040,7 @@ static void TickLines(bool optimize) {
     i::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
                 func_name);
   } else {
-    i::SNPrintF(optimize_call, "");
+    optimize_call[0] = '\0';
   }
   i::SNPrintF(script,
               "function %s() {\n"
