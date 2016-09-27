@@ -417,9 +417,9 @@ void ApiCallbackDescriptor::InitializePlatformIndependent(
 void InterpreterDispatchDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kAccumulator, kBytecodeOffset, kBytecodeArray, kDispatchTable
-  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
-                                 MachineType::AnyTagged(),
-                                 MachineType::AnyTagged()};
+  MachineType machine_types[] = {
+      MachineType::AnyTagged(), MachineType::IntPtr(), MachineType::AnyTagged(),
+      MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
