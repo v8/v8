@@ -1000,13 +1000,10 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
   error_fun->shared()->set_construct_stub(
       *isolate->builtins()->ErrorConstructor());
   error_fun->shared()->set_length(1);
-  error_fun->shared()->set_native(true);
 
   if (context_index == Context::ERROR_FUNCTION_INDEX) {
-    Handle<JSFunction> capture_stack_trace_fun =
-        SimpleInstallFunction(error_fun, "captureStackTrace",
-                              Builtins::kErrorCaptureStackTrace, 2, false);
-    capture_stack_trace_fun->shared()->set_native(true);
+    SimpleInstallFunction(error_fun, "captureStackTrace",
+                          Builtins::kErrorCaptureStackTrace, 2, false);
   }
 
   InstallWithIntrinsicDefaultProto(isolate, error_fun, context_index);
@@ -1025,7 +1022,6 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
       Handle<JSFunction> to_string_fun =
           SimpleInstallFunction(prototype, factory->toString_string(),
                                 Builtins::kErrorPrototypeToString, 0, true);
-      to_string_fun->shared()->set_native(true);
       isolate->native_context()->set_error_to_string(*to_string_fun);
     } else {
       DCHECK(context_index != Context::ERROR_FUNCTION_INDEX);
@@ -2776,8 +2772,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         container, "CallSite", JS_OBJECT_TYPE, JSObject::kHeaderSize,
         isolate->initial_object_prototype(), Builtins::kUnsupportedThrower);
     callsite_fun->shared()->DontAdaptArguments();
-    callsite_fun->shared()->set_native(true);
-
     isolate->native_context()->set_callsite_function(*callsite_fun);
 
     {
@@ -2815,8 +2809,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
       Handle<JSFunction> fun;
       for (const FunctionInfo& info : infos) {
-        fun = SimpleInstallFunction(proto, info.name, info.id, 0, true, attrs);
-        fun->shared()->set_native(true);
+        SimpleInstallFunction(proto, info.name, info.id, 0, true, attrs);
       }
 
       Accessors::FunctionSetPrototype(callsite_fun, proto).Assert();
