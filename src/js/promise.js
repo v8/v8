@@ -248,8 +248,6 @@ function PromiseIdResolveHandler(x) { return x; }
 function PromiseIdRejectHandler(r) { %_ReThrow(r); }
 SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
 
-function PromiseNopResolver() {}
-
 // -------------------------------------------------------------------
 // Define exported functions.
 
@@ -261,7 +259,7 @@ function IsPromise(x) {
 }
 
 function PromiseCreate() {
-  return new GlobalPromise(PromiseNopResolver);
+  return PromiseInit(new GlobalPromise(promiseRawSymbol));
 }
 
 // ES#sec-promise-resolve-functions
