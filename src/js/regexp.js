@@ -344,9 +344,8 @@ function RegExpSubclassSplit(string, limit) {
 
   // TODO(adamk): this fast path is wrong as we doesn't ensure that 'exec'
   // is actually a data property on RegExp.prototype.
-  var exec;
   if (IS_REGEXP(this) && constructor === GlobalRegExp) {
-    exec = this.exec;
+    var exec = this.exec;
     if (exec === RegExpExecJS) {
       return %_Call(RegExpSplit, this, string, limit);
     }
@@ -371,9 +370,7 @@ function RegExpSubclassSplit(string, limit) {
   var stringIndex = prevStringIndex;
   while (stringIndex < size) {
     splitter.lastIndex = stringIndex;
-    result = RegExpSubclassExec(splitter, string, exec);
-    // Ensure exec will be read again on the next loop through.
-    exec = UNDEFINED;
+    result = RegExpSubclassExec(splitter, string);
     if (IS_NULL(result)) {
       stringIndex += AdvanceStringIndex(string, stringIndex, unicode);
     } else {
