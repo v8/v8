@@ -3752,23 +3752,23 @@ compiler::Node* CodeStubAssembler::LoadReceiverMap(compiler::Node* receiver) {
 }
 
 compiler::Node* CodeStubAssembler::TryMonomorphicCase(
-    const LoadICParameters* p, compiler::Node* receiver_map, Label* if_handler,
-    Variable* var_handler, Label* if_miss) {
+    compiler::Node* slot, compiler::Node* vector, compiler::Node* receiver_map,
+    Label* if_handler, Variable* var_handler, Label* if_miss) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
 
   // TODO(ishell): add helper class that hides offset computations for a series
   // of loads.
   int32_t header_size = FixedArray::kHeaderSize - kHeapObjectTag;
-  Node* offset = ElementOffsetFromIndex(p->slot, FAST_HOLEY_ELEMENTS,
+  Node* offset = ElementOffsetFromIndex(slot, FAST_HOLEY_ELEMENTS,
                                         SMI_PARAMETERS, header_size);
-  Node* feedback = Load(MachineType::AnyTagged(), p->vector, offset);
+  Node* feedback = Load(MachineType::AnyTagged(), vector, offset);
 
   // Try to quickly handle the monomorphic case without knowing for sure
   // if we have a weak cell in feedback. We do know it's safe to look
   // at WeakCell::kValueOffset.
   GotoUnless(WordEqual(receiver_map, LoadWeakCellValue(feedback)), if_miss);
 
-  Node* handler = Load(MachineType::AnyTagged(), p->vector,
+  Node* handler = Load(MachineType::AnyTagged(), vector,
                        IntPtrAdd(offset, IntPtrConstant(kPointerSize)));
 
   var_handler->Bind(handler);
@@ -3777,9 +3777,8 @@ compiler::Node* CodeStubAssembler::TryMonomorphicCase(
 }
 
 void CodeStubAssembler::HandlePolymorphicCase(
-    const LoadICParameters* p, compiler::Node* receiver_map,
-    compiler::Node* feedback, Label* if_handler, Variable* var_handler,
-    Label* if_miss, int unroll_count) {
+    compiler::Node* receiver_map, compiler::Node* feedback, Label* if_handler,
+    Variable* var_handler, Label* if_miss, int unroll_count) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
 
   // Iterate {feedback} array.
@@ -4312,8 +4311,9 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
   Node* receiver_map = LoadReceiverMap(p->receiver);
 
   // Check monomorphic case.
-  Node* feedback = TryMonomorphicCase(p, receiver_map, &if_handler,
-                                      &var_handler, &try_polymorphic);
+  Node* feedback =
+      TryMonomorphicCase(p->slot, p->vector, receiver_map, &if_handler,
+                         &var_handler, &try_polymorphic);
   Bind(&if_handler);
   {
     HandleLoadICHandlerCase(p, var_handler.value(), &miss);
@@ -4325,7 +4325,7 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
     Comment("LoadIC_try_polymorphic");
     GotoUnless(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
                &try_megamorphic);
-    HandlePolymorphicCase(p, receiver_map, feedback, &if_handler, &var_handler,
+    HandlePolymorphicCase(receiver_map, feedback, &if_handler, &var_handler,
                           &miss, 2);
   }
 
@@ -4357,8 +4357,9 @@ void CodeStubAssembler::KeyedLoadIC(const LoadICParameters* p) {
   Node* receiver_map = LoadReceiverMap(p->receiver);
 
   // Check monomorphic case.
-  Node* feedback = TryMonomorphicCase(p, receiver_map, &if_handler,
-                                      &var_handler, &try_polymorphic);
+  Node* feedback =
+      TryMonomorphicCase(p->slot, p->vector, receiver_map, &if_handler,
+                         &var_handler, &try_polymorphic);
   Bind(&if_handler);
   {
     HandleLoadICHandlerCase(p, var_handler.value(), &miss, kSupportElements);
@@ -4370,7 +4371,7 @@ void CodeStubAssembler::KeyedLoadIC(const LoadICParameters* p) {
     Comment("KeyedLoadIC_try_polymorphic");
     GotoUnless(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
                &try_megamorphic);
-    HandlePolymorphicCase(p, receiver_map, feedback, &if_handler, &var_handler,
+    HandlePolymorphicCase(receiver_map, feedback, &if_handler, &var_handler,
                           &miss, 2);
   }
 
@@ -4396,8 +4397,8 @@ void CodeStubAssembler::KeyedLoadIC(const LoadICParameters* p) {
         p->slot, FAST_HOLEY_ELEMENTS, SMI_PARAMETERS,
         FixedArray::kHeaderSize + kPointerSize - kHeapObjectTag);
     Node* array = Load(MachineType::AnyTagged(), p->vector, offset);
-    HandlePolymorphicCase(p, receiver_map, array, &if_handler, &var_handler,
-                          &miss, 1);
+    HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
+                          1);
   }
   Bind(&miss);
   {
@@ -4560,6 +4561,55 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     // TODO(jkummerow): Should we use the GetProperty TF stub instead?
     TailCallRuntime(Runtime::kKeyedGetProperty, p->context, p->receiver,
                     p->name);
+  }
+}
+
+void CodeStubAssembler::StoreIC(const StoreICParameters* p) {
+  Variable var_handler(this, MachineRepresentation::kTagged);
+  // TODO(ishell): defer blocks when it works.
+  Label if_handler(this, &var_handler), try_polymorphic(this),
+      try_megamorphic(this /*, Label::kDeferred*/),
+      miss(this /*, Label::kDeferred*/);
+
+  Node* receiver_map = LoadReceiverMap(p->receiver);
+
+  // Check monomorphic case.
+  Node* feedback =
+      TryMonomorphicCase(p->slot, p->vector, receiver_map, &if_handler,
+                         &var_handler, &try_polymorphic);
+  Bind(&if_handler);
+  {
+    Comment("StoreIC_if_handler");
+    StoreWithVectorDescriptor descriptor(isolate());
+    TailCallStub(descriptor, var_handler.value(), p->context, p->receiver,
+                 p->name, p->value, p->slot, p->vector);
+  }
+
+  Bind(&try_polymorphic);
+  {
+    // Check polymorphic case.
+    Comment("StoreIC_try_polymorphic");
+    GotoUnless(
+        WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
+        &try_megamorphic);
+    HandlePolymorphicCase(receiver_map, feedback, &if_handler, &var_handler,
+                          &miss, 2);
+  }
+
+  Bind(&try_megamorphic);
+  {
+    // Check megamorphic case.
+    GotoUnless(
+        WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+        &miss);
+
+    TryProbeStubCache(isolate()->store_stub_cache(), p->receiver, p->name,
+                      &if_handler, &var_handler, &miss);
+  }
+  Bind(&miss);
+  {
+    TailCallRuntime(Runtime::kStoreIC_Miss, p->context, p->value, p->slot,
+                    p->vector, p->receiver, p->name);
   }
 }
 

@@ -498,6 +498,37 @@ void KeyedLoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->KeyedLoadIC(&p);
 }
 
+void StoreICTrampolineTFStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+
+  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
+                                         vector);
+  assembler->StoreIC(&p);
+}
+
+void StoreICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
+                                         vector);
+  assembler->StoreIC(&p);
+}
+
 void StoreTransitionStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;

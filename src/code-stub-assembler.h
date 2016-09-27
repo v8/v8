@@ -607,7 +607,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                       compiler::Node* callable,
                                       compiler::Node* object);
 
-  // LoadIC helpers.
+  // Load/StoreIC helpers.
   struct LoadICParameters {
     LoadICParameters(compiler::Node* context, compiler::Node* receiver,
                      compiler::Node* name, compiler::Node* slot,
@@ -625,6 +625,15 @@ class CodeStubAssembler : public compiler::CodeAssembler {
     compiler::Node* vector;
   };
 
+  struct StoreICParameters : public LoadICParameters {
+    StoreICParameters(compiler::Node* context, compiler::Node* receiver,
+                      compiler::Node* name, compiler::Node* value,
+                      compiler::Node* slot, compiler::Node* vector)
+        : LoadICParameters(context, receiver, name, slot, vector),
+          value(value) {}
+    compiler::Node* value;
+  };
+
   // Load type feedback vector from the stub caller's frame.
   compiler::Node* LoadTypeFeedbackVectorForStub();
 
@@ -636,12 +645,12 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadReceiverMap(compiler::Node* receiver);
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  compiler::Node* TryMonomorphicCase(const LoadICParameters* p,
+  compiler::Node* TryMonomorphicCase(compiler::Node* slot,
+                                     compiler::Node* vector,
                                      compiler::Node* receiver_map,
                                      Label* if_handler, Variable* var_handler,
                                      Label* if_miss);
-  void HandlePolymorphicCase(const LoadICParameters* p,
-                             compiler::Node* receiver_map,
+  void HandlePolymorphicCase(compiler::Node* receiver_map,
                              compiler::Node* feedback, Label* if_handler,
                              Variable* var_handler, Label* if_miss,
                              int unroll_count);
@@ -722,6 +731,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void LoadGlobalIC(const LoadICParameters* p);
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
+  void StoreIC(const StoreICParameters* p);
 
   void TransitionElementsKind(compiler::Node* object, compiler::Node* map,
                               ElementsKind from_kind, ElementsKind to_kind,

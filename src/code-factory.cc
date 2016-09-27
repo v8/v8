@@ -108,6 +108,10 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
 
 // static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
+  if (FLAG_tf_store_ic_stub) {
+    StoreICTrampolineTFStub stub(isolate, StoreICState(language_mode));
+    return make_callable(stub);
+  }
   StoreICTrampolineStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
 }
@@ -115,6 +119,10 @@ Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
 // static
 Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
                                              LanguageMode language_mode) {
+  if (FLAG_tf_store_ic_stub) {
+    StoreICTFStub stub(isolate, StoreICState(language_mode));
+    return make_callable(stub);
+  }
   StoreICStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
 }

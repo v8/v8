@@ -21782,12 +21782,15 @@ int* LookupCounter(const char* name) {
 const char* kMegamorphicTestProgram =
     "function CreateClass(name) {\n"
     "  var src = \n"
-    "    `  function ${name}() {};` +\n"
+    "    `  function ${name}() { this.a = 0; };` +\n"
     "    `  ${name}.prototype.foo = function() {};` +\n"
     "    `  ${name};\\n`;\n"
     "  return (0, eval)(src);\n"
     "}\n"
-    "function fooify(obj) { obj.foo(); };\n"
+    "function trigger_ics(obj, v) {\n"
+    "  obj.foo();\n"
+    "  obj.a = v;\n"
+    "};\n"
     "var objs = [];\n"
     "for (var i = 0; i < 50; i++) {\n"
     "  var Class = CreateClass('Class' + i);\n"
@@ -21796,7 +21799,7 @@ const char* kMegamorphicTestProgram =
     "}\n"
     "for (var i = 0; i < 1000; i++) {\n"
     "  for (var obj of objs) {\n"
-    "    fooify(obj);\n"
+    "    trigger_ics(obj, i);\n"
     "  }\n"
     "}\n";
 
@@ -21832,6 +21835,7 @@ void TestStubCache(bool primary) {
           i::CodeStub::LoadICTF,     i::CodeStub::LoadICTrampolineTF,
           i::CodeStub::KeyedLoadIC,  i::CodeStub::KeyedLoadICTrampoline,
           i::CodeStub::StoreIC,      i::CodeStub::StoreICTrampoline,
+          i::CodeStub::StoreICTF,    i::CodeStub::StoreICTrampolineTF,
           i::CodeStub::KeyedStoreIC, i::CodeStub::KeyedStoreICTrampoline,
       };
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -21852,17 +21856,18 @@ void TestStubCache(bool primary) {
     int updates = updates_counter - initial_updates;
     const int kClassesCount = 50;
     const int kIterationsCount = 1000;
-    CHECK_LE(kClassesCount, updates);
+    const int kICKinds = 2;  // LoadIC and StoreIC
+    CHECK_LE(kClassesCount * kICKinds, updates);
     // Check that updates and misses counts are bounded.
     // If there are too many updates then most likely the stub cache does not
     // work properly.
-    CHECK_LE(updates, kClassesCount * 2);
-    CHECK_LE(1, misses);
-    CHECK_LE(misses, kClassesCount * 2);
+    CHECK_LE(updates, kClassesCount * 2 * kICKinds);
+    CHECK_LE(kICKinds, misses);
+    CHECK_LE(misses, kClassesCount * 2 * kICKinds);
     // 2 is for PREMONOMORPHIC and MONOMORPHIC states,
     // 4 is for POLYMORPHIC states,
     // and all the others probes are for MEGAMORPHIC state.
-    CHECK_EQ(kIterationsCount * kClassesCount - 2 - 4, probes);
+    CHECK_EQ((kIterationsCount * kClassesCount - 2 - 4) * kICKinds, probes);
   }
   isolate->Dispose();
 }
