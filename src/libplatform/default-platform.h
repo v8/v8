@@ -7,6 +7,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <queue>
 #include <vector>
 
@@ -62,6 +63,9 @@ class DefaultPlatform : public Platform {
                                 const char* name, uint64_t handle) override;
   void SetTracingController(tracing::TracingController* tracing_controller);
 
+  void AddTraceStateObserver(TraceStateObserver* observer) override;
+  void RemoveTraceStateObserver(TraceStateObserver* observer) override;
+
  private:
   static const int kMaxThreadPoolSize;
 
@@ -80,7 +84,7 @@ class DefaultPlatform : public Platform {
            std::priority_queue<DelayedEntry, std::vector<DelayedEntry>,
                                std::greater<DelayedEntry> > >
       main_thread_delayed_queue_;
-  tracing::TracingController* tracing_controller_;
+  std::unique_ptr<tracing::TracingController> tracing_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
 };

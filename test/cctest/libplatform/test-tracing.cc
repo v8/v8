@@ -332,6 +332,66 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   i::V8::SetPlatformForTesting(old_platform);
 }
 
+namespace {
+
+class TraceStateObserverImpl : public Platform::TraceStateObserver {
+ public:
+  void OnTraceEnabled() override { ++enabled_count; }
+  void OnTraceDisabled() override { ++disabled_count; }
+
+  int enabled_count = 0;
+  int disabled_count = 0;
+};
+
+}  // namespace
+
+TEST(TracingObservers) {
+  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
+  v8::Platform* default_platform = v8::platform::CreateDefaultPlatform();
+  i::V8::SetPlatformForTesting(default_platform);
+
+  v8::platform::tracing::TracingController tracing_controller;
+  v8::platform::SetTracingController(default_platform, &tracing_controller);
+  MockTraceWriter* writer = new MockTraceWriter();
+  v8::platform::tracing::TraceBuffer* ring_buffer =
+      v8::platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(1,
+                                                                      writer);
+  tracing_controller.Initialize(ring_buffer);
+  v8::platform::tracing::TraceConfig* trace_config =
+      new v8::platform::tracing::TraceConfig();
+  trace_config->AddIncludedCategory("v8");
+
+  TraceStateObserverImpl observer;
+  default_platform->AddTraceStateObserver(&observer);
+
+  CHECK_EQ(0, observer.enabled_count);
+  CHECK_EQ(0, observer.disabled_count);
+
+  tracing_controller.StartTracing(trace_config);
+
+  CHECK_EQ(1, observer.enabled_count);
+  CHECK_EQ(0, observer.disabled_count);
+
+  tracing_controller.StopTracing();
+
+  CHECK_EQ(1, observer.enabled_count);
+  CHECK_EQ(1, observer.disabled_count);
+
+  default_platform->RemoveTraceStateObserver(&observer);
+
+  CHECK_EQ(1, observer.enabled_count);
+  CHECK_EQ(1, observer.disabled_count);
+
+  trace_config = new v8::platform::tracing::TraceConfig();
+  tracing_controller.StartTracing(trace_config);
+  tracing_controller.StopTracing();
+
+  CHECK_EQ(1, observer.enabled_count);
+  CHECK_EQ(1, observer.disabled_count);
+
+  i::V8::SetPlatformForTesting(old_platform);
+}
+
 }  // namespace tracing
 }  // namespace platform
 }  // namespace v8

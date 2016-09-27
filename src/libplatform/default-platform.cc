@@ -39,9 +39,14 @@ void SetTracingController(
 const int DefaultPlatform::kMaxThreadPoolSize = 8;
 
 DefaultPlatform::DefaultPlatform()
-    : initialized_(false), thread_pool_size_(0), tracing_controller_(NULL) {}
+    : initialized_(false), thread_pool_size_(0) {}
 
 DefaultPlatform::~DefaultPlatform() {
+  if (tracing_controller_) {
+    tracing_controller_->StopTracing();
+    tracing_controller_.reset();
+  }
+
   base::LockGuard<base::Mutex> guard(&lock_);
   queue_.Terminate();
   if (initialized_) {
@@ -62,11 +67,6 @@ DefaultPlatform::~DefaultPlatform() {
       delete i->second.top().second;
       i->second.pop();
     }
-  }
-
-  if (tracing_controller_) {
-    tracing_controller_->StopTracing();
-    delete tracing_controller_;
   }
 }
 
@@ -219,11 +219,21 @@ const char* DefaultPlatform::GetCategoryGroupName(
 
 void DefaultPlatform::SetTracingController(
     tracing::TracingController* tracing_controller) {
-  tracing_controller_ = tracing_controller;
+  tracing_controller_.reset(tracing_controller);
 }
 
 size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {
   return static_cast<size_t>(thread_pool_size_);
+}
+
+void DefaultPlatform::AddTraceStateObserver(TraceStateObserver* observer) {
+  if (!tracing_controller_) return;
+  tracing_controller_->AddTraceStateObserver(observer);
+}
+
+void DefaultPlatform::RemoveTraceStateObserver(TraceStateObserver* observer) {
+  if (!tracing_controller_) return;
+  tracing_controller_->RemoveTraceStateObserver(observer);
 }
 
 }  // namespace platform
