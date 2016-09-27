@@ -259,9 +259,7 @@
 
     # GN debug configs for arm.
     'gn_debug_arm': [
-      'gn', 'debug', 'arm',
-      'shared', 'goma', 'v8_enable_slow_dchecks', 'v8_optimized_debug',
-      'crosscompile', 'hard_float', 'swarming'],
+      'gn', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
 
     # GN release configs for arm.
     'gn_release_arm': [
@@ -457,7 +455,7 @@
 
     'debug_bot': {
       'mixins': [
-        'debug', 'static', 'goma', 'v8_enable_slow_dchecks',
+        'debug', 'shared', 'goma', 'v8_enable_slow_dchecks',
         'v8_optimized_debug'],
     },
 

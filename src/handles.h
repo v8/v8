@@ -63,10 +63,12 @@ class HandleBase {
 
   enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };
 #ifdef DEBUG
-  bool IsDereferenceAllowed(DereferenceCheckMode mode) const;
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed(DereferenceCheckMode mode) const;
 #else
   V8_INLINE
-  bool IsDereferenceAllowed(DereferenceCheckMode mode) const { return true; }
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed(DereferenceCheckMode mode) const {
+    return true;
+  }
 #endif  // DEBUG
 
   Object** location_;
