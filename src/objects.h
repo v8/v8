@@ -7989,14 +7989,13 @@ class Module : public Struct {
                                    Handle<ModuleInfoEntry> entry);
 
   // The [must_resolve] argument indicates whether or not an exception should be
-  // thrown if the module does not provide an export named [name].
+  // thrown in case the module does not provide an export named [name]
+  // (including when a cycle is detected).  An exception is always thrown in the
+  // case of conflicting star exports.
   //
   // If [must_resolve] is true, a null result indicates an exception. If
-  // [must_resolve] is false, a null result does not necessarily indicate an
-  // exception, but there may be one pending.
-  //
-  // Currently, an exception is always thrown in the case of a cycle and in the
-  // case of conflicting star exports.  TODO(neis): Make that spec-compliant.
+  // [must_resolve] is false, a null result may or may not indicate an
+  // exception (so check manually!).
   class ResolveSet;
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveExport(
       Handle<Module> module, Handle<String> name, bool must_resolve,
