@@ -28,15 +28,7 @@ typedef uint32_t spdiff_t;
 
 const pc_t kInvalidPc = 0x80000000;
 
-// Visible for testing. A {ControlTransfer} helps the interpreter figure out
-// the target program counter and stack manipulations for a branch.
-struct ControlTransfer {
-  enum StackAction { kNoAction, kPopAndRepush, kPushVoid };
-  pcdiff_t pcdiff;  // adjustment to the program counter (positive or negative).
-  spdiff_t spdiff;  // number of elements to pop off the stack.
-  StackAction action;  // action to perform on the stack.
-};
-typedef ZoneMap<pc_t, ControlTransfer> ControlTransferMap;
+typedef ZoneMap<pc_t, pcdiff_t> ControlTransferMap;
 
 // Macro for defining union members.
 #define FOREACH_UNION_MEMBER(V) \
@@ -132,7 +124,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     virtual int GetFrameCount() = 0;
     virtual const WasmFrame* GetFrame(int index) = 0;
     virtual WasmFrame* GetMutableFrame(int index) = 0;
-    virtual WasmVal GetReturnValue() = 0;
+    virtual WasmVal GetReturnValue(int index = 0) = 0;
 
     // Thread-specific breakpoints.
     bool SetBreakpoint(const WasmFunction* function, int pc, bool enabled);
@@ -189,9 +181,8 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   bool SetFunctionCodeForTesting(const WasmFunction* function,
                                  const byte* start, const byte* end);
 
-  // Computes the control targets for the given bytecode as {pc offset, sp
-  // offset}
-  // pairs. Used internally in the interpreter, but exposed for testing.
+  // Computes the control transfers for the given bytecode. Used internally in
+  // the interpreter, but exposed for testing.
   static ControlTransferMap ComputeControlTransfersForTesting(Zone* zone,
                                                               const byte* start,
                                                               const byte* end);

@@ -104,8 +104,9 @@ TEST(IllegalLoad) {
   WasmFunctionCompiler comp1(sigs.v_v(), &module, ArrayVector("mem_oob"));
   // Set the execution context, such that a runtime error can be thrown.
   comp1.SetModuleContext();
-  BUILD(comp1, WASM_IF(WASM_ONE,
-                       WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(-3))));
+  BUILD(comp1, WASM_IF(WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(),
+                                                        WASM_I32V_1(-3)),
+                                          WASM_DROP)));
   uint32_t wasm_index = comp1.CompileAndAdd();
 
   WasmFunctionCompiler comp2(sigs.v_v(), &module, ArrayVector("call_mem_oob"));
@@ -131,7 +132,7 @@ TEST(IllegalLoad) {
 
   // The column is 1-based, so add 1 to the actual byte offset.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 7},    // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 8},    // --
       {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 3},  // --
       {"callFn", 1, 24}                                       // --
   };

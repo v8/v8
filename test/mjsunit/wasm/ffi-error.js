@@ -16,7 +16,7 @@ function testCallFFI(ffi) {
     .addBody([
       kExprGetLocal, 0,              // --
       kExprGetLocal, 1,              // --
-      kExprCallFunction, kArity2, 0, // --
+      kExprCallFunction, 0, // --
     ])    // --
     .exportFunc();
 
@@ -106,7 +106,7 @@ assertThrows(function() {
     .addBody([
       kExprGetLocal, 0,
       kExprI64SConvertI32,
-      kExprCallImport, kArity1, index  // --
+      kExprCallFunction, index  // --
     ])        // --
     .exportFunc();
   var func = function() {return {};};
