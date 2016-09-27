@@ -78,6 +78,8 @@ class ProtocolPromiseHandler {
       callback->sendFailure(notPromiseError);
       return;
     }
+    v8::MicrotasksScope microtasks_scope(inspector->isolate(),
+                                         v8::MicrotasksScope::kRunMicrotasks);
     v8::Local<v8::Promise> promise =
         v8::Local<v8::Promise>::Cast(value.ToLocalChecked());
     Callback* rawCallback = callback.get();
