@@ -561,10 +561,10 @@ namespace internal {
   /* ES6 section 21.1.3.28 String.prototype.valueOf () */                     \
   TFJ(StringPrototypeValueOf, 1)                                              \
   /* ES6 #sec-string.prototype-@@iterator */                                  \
-  CPP(StringPrototypeIterator)                                                \
+  TFJ(StringPrototypeIterator, 1)                                             \
                                                                               \
   /* StringIterator */                                                        \
-  CPP(StringIteratorPrototypeNext)                                            \
+  TFJ(StringIteratorPrototypeNext, 1)                                         \
                                                                               \
   /* Symbol */                                                                \
   CPP(SymbolConstructor)                                                      \

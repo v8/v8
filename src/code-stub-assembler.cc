@@ -2429,6 +2429,58 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::StringFromCodePoint(compiler::Node* codepoint,
+                                             UnicodeEncoding encoding) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+  var_result.Bind(EmptyStringConstant());
+
+  Label if_isword16(this), if_isword32(this), return_result(this);
+
+  Branch(Uint32LessThan(codepoint, Int32Constant(0x10000)), &if_isword16,
+         &if_isword32);
+
+  Bind(&if_isword16);
+  {
+    var_result.Bind(StringFromCharCode(codepoint));
+    Goto(&return_result);
+  }
+
+  Bind(&if_isword32);
+  {
+    switch (encoding) {
+      case UnicodeEncoding::UTF16:
+        break;
+      case UnicodeEncoding::UTF32: {
+        // Convert UTF32 to UTF16 code units, and store as a 32 bit word.
+        Node* lead_offset = Int32Constant(0xD800 - (0x10000 >> 10));
+
+        // lead = (codepoint >> 10) + LEAD_OFFSET
+        Node* lead =
+            Int32Add(WordShr(codepoint, Int32Constant(10)), lead_offset);
+
+        // trail = (codepoint & 0x3FF) + 0xDC00;
+        Node* trail = Int32Add(Word32And(codepoint, Int32Constant(0x3FF)),
+                               Int32Constant(0xDC00));
+
+        // codpoint = (trail << 16) | lead;
+        codepoint = Word32Or(WordShl(trail, Int32Constant(16)), lead);
+        break;
+      }
+    }
+
+    Node* value = AllocateSeqTwoByteString(2);
+    StoreNoWriteBarrier(
+        MachineRepresentation::kWord32, value,
+        IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+        codepoint);
+    var_result.Bind(value);
+    Goto(&return_result);
+  }
+
+  Bind(&return_result);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
   Label runtime(this, Label::kDeferred);
   Label end(this);
