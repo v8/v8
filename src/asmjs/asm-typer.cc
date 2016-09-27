@@ -1664,6 +1664,12 @@ AsmType* AsmTyper::ValidateNumericLiteral(Literal* literal) {
     return AsmType::Double();
   }
 
+  // The parser collapses expressions like !0 and !123 to true/false.
+  // We therefore need to permit these as alternate versions of 0 / 1.
+  if (literal->raw_value()->IsTrue() || literal->raw_value()->IsFalse()) {
+    return AsmType::Int();
+  }
+
   uint32_t value;
   if (!literal->value()->ToUint32(&value)) {
     int32_t value;

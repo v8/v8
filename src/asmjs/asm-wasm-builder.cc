@@ -589,7 +589,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitLiteral(Literal* expr) {
     Handle<Object> value = expr->value();
-    if (!value->IsNumber() || (scope_ != kFuncScope && scope_ != kInitScope)) {
+    if (!(value->IsNumber() || expr->raw_value()->IsTrue() ||
+          expr->raw_value()->IsFalse()) ||
+        (scope_ != kFuncScope && scope_ != kInitScope)) {
       return;
     }
     AsmType* type = typer_->TypeOf(expr);
@@ -610,6 +612,18 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       int32_t i = static_cast<int32_t>(u);
       byte code[] = {WASM_I32V(i)};
       current_function_builder_->EmitCode(code, sizeof(code));
+    } else if (type->IsA(AsmType::Int())) {
+      // The parser can collapse !0, !1 etc to true / false.
+      // Allow these as int literals.
+      if (expr->raw_value()->IsTrue()) {
+        byte code[] = {WASM_I32V(1)};
+        current_function_builder_->EmitCode(code, sizeof(code));
+      } else if (expr->raw_value()->IsFalse()) {
+        byte code[] = {WASM_I32V(0)};
+        current_function_builder_->EmitCode(code, sizeof(code));
+      } else {
+        UNREACHABLE();
+      }
     } else if (type->IsA(AsmType::Double())) {
       double val = expr->raw_value()->AsNumber();
       byte code[] = {WASM_F64(val)};
