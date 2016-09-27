@@ -888,9 +888,7 @@ void JSTypedArray::JSTypedArrayVerify() {
   CHECK(IsJSTypedArray());
   JSArrayBufferViewVerify();
   VerifyPointer(raw_length());
-  CHECK(raw_length()->IsSmi() || raw_length()->IsHeapNumber() ||
-        raw_length()->IsUndefined(GetIsolate()));
-
+  CHECK(raw_length()->IsSmi() || raw_length()->IsUndefined(GetIsolate()));
   VerifyPointer(elements());
 }
 
