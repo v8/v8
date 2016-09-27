@@ -566,6 +566,10 @@ class KeyedLoadICNexus : public FeedbackNexus {
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector->GetKind(slot));
   }
+  explicit KeyedLoadICNexus(Isolate* isolate)
+      : FeedbackNexus(
+            TypeFeedbackVector::DummyVector(isolate),
+            FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot)) {}
   KeyedLoadICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector->GetKind(slot));

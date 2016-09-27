@@ -2779,18 +2779,18 @@ void Heap::CreateInitialObjects() {
 
   {
     StaticFeedbackVectorSpec spec;
-    FeedbackVectorSlot load_ic_slot = spec.AddLoadICSlot();
-    FeedbackVectorSlot keyed_load_ic_slot = spec.AddKeyedLoadICSlot();
-    FeedbackVectorSlot store_ic_slot = spec.AddStoreICSlot();
-    FeedbackVectorSlot keyed_store_ic_slot = spec.AddKeyedStoreICSlot();
+    FeedbackVectorSlot slot = spec.AddLoadICSlot();
+    DCHECK_EQ(slot, FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot));
 
-    DCHECK_EQ(load_ic_slot,
-              FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot));
-    DCHECK_EQ(keyed_load_ic_slot,
+    slot = spec.AddKeyedLoadICSlot();
+    DCHECK_EQ(slot,
               FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
-    DCHECK_EQ(store_ic_slot,
-              FeedbackVectorSlot(TypeFeedbackVector::kDummyStoreICSlot));
-    DCHECK_EQ(keyed_store_ic_slot,
+
+    slot = spec.AddStoreICSlot();
+    DCHECK_EQ(slot, FeedbackVectorSlot(TypeFeedbackVector::kDummyStoreICSlot));
+
+    slot = spec.AddKeyedStoreICSlot();
+    DCHECK_EQ(slot,
               FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
 
     Handle<TypeFeedbackMetadata> dummy_metadata =
@@ -2798,13 +2798,13 @@ void Heap::CreateInitialObjects() {
     Handle<TypeFeedbackVector> dummy_vector =
         TypeFeedbackVector::New(isolate(), dummy_metadata);
 
-    Object* megamorphic = *TypeFeedbackVector::MegamorphicSentinel(isolate());
-    dummy_vector->Set(load_ic_slot, megamorphic, SKIP_WRITE_BARRIER);
-    dummy_vector->Set(keyed_load_ic_slot, megamorphic, SKIP_WRITE_BARRIER);
-    dummy_vector->Set(store_ic_slot, megamorphic, SKIP_WRITE_BARRIER);
-    dummy_vector->Set(keyed_store_ic_slot, megamorphic, SKIP_WRITE_BARRIER);
-
     set_dummy_vector(*dummy_vector);
+
+    // Now initialize dummy vector's entries.
+    LoadICNexus(isolate()).ConfigureMegamorphic();
+    StoreICNexus(isolate()).ConfigureMegamorphic();
+    KeyedLoadICNexus(isolate()).ConfigureMegamorphicKeyed(PROPERTY);
+    KeyedStoreICNexus(isolate()).ConfigureMegamorphicKeyed(PROPERTY);
   }
 
   {
