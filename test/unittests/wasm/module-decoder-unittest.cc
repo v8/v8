@@ -201,7 +201,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
 
     EXPECT_EQ(kAstI32, global->type);
     EXPECT_EQ(0, global->offset);
-    EXPECT_EQ(false, global->mutability);
+    EXPECT_FALSE(global->mutability);
     EXPECT_EQ(WasmInitExpr::kI32Const, global->init.kind);
     EXPECT_EQ(13, global->init.val.i32_const);
 
@@ -321,14 +321,14 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
 
     EXPECT_EQ(kAstF32, g0->type);
     EXPECT_EQ(0, g0->offset);
-    EXPECT_EQ(false, g0->mutability);
+    EXPECT_FALSE(g0->mutability);
     EXPECT_EQ(WasmInitExpr::kF32Const, g0->init.kind);
 
     const WasmGlobal* g1 = &result.val->globals[1];
 
     EXPECT_EQ(kAstF64, g1->type);
     EXPECT_EQ(8, g1->offset);
-    EXPECT_EQ(true, g1->mutability);
+    EXPECT_TRUE(g1->mutability);
     EXPECT_EQ(WasmInitExpr::kF64Const, g1->init.kind);
 
     if (result.val) delete result.val;
