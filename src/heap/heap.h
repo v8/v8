@@ -1807,18 +1807,7 @@ class Heap {
     return old_generation_allocation_limit_ - PromotedTotalSize();
   }
 
-  // Returns maximum GC pause.
-  double get_max_gc_pause() { return max_gc_pause_; }
-
-  // Returns maximum size of objects alive after GC.
-  intptr_t get_max_alive_after_gc() { return max_alive_after_gc_; }
-
-  // Returns minimal interval between two subsequent collections.
-  double get_min_in_mutator() { return min_in_mutator_; }
-
-  // Update GC statistics that are tracked on the Heap.
-  void UpdateCumulativeGCStatistics(double duration, double spent_in_mutator,
-                                    double marking_time);
+  void UpdateTotalGCTime(double duration);
 
   bool MaximumSizeScavenge() { return maximum_size_scavenges_ > 0; }
 
@@ -2212,23 +2201,8 @@ class Heap {
   // of the allocation site.
   unsigned int maximum_size_scavenges_;
 
-  // Maximum GC pause.
-  double max_gc_pause_;
-
   // Total time spent in GC.
   double total_gc_time_ms_;
-
-  // Maximum size of objects alive after GC.
-  intptr_t max_alive_after_gc_;
-
-  // Minimal interval between two subsequent collections.
-  double min_in_mutator_;
-
-  // Cumulative GC time spent in marking.
-  double marking_time_;
-
-  // Cumulative GC time spent in sweeping.
-  double sweeping_time_;
 
   // Last time an idle notification happened.
   double last_idle_notification_time_;

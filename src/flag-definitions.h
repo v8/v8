@@ -713,8 +713,6 @@ DEFINE_BOOL(trace_idle_notification, false,
             "print one trace line following each idle notification")
 DEFINE_BOOL(trace_idle_notification_verbose, false,
             "prints the heap state used by the idle notification")
-DEFINE_BOOL(print_cumulative_gc_stat, false,
-            "print cumulative GC statistics in name=value format on exit")
 DEFINE_BOOL(print_max_heap_committed, false,
             "print statistics of the maximum memory committed for the heap "
             "in name=value format on exit")

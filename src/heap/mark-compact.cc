@@ -2289,10 +2289,6 @@ void MarkCompactCollector::RecordObjectStats() {
 
 void MarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK);
-  double start_time = 0.0;
-  if (FLAG_print_cumulative_gc_stat) {
-    start_time = heap_->MonotonicallyIncreasingTimeInMs();
-  }
   // The recursive GC marker detects when it is nearing stack overflow,
   // and switches to a different marking system.  JS interrupts interfere
   // with the C stack limit check.
@@ -2381,11 +2377,6 @@ void MarkCompactCollector::MarkLiveObjects() {
         embedder_heap_tracer()->TraceEpilogue();
       }
     }
-  }
-
-  if (FLAG_print_cumulative_gc_stat) {
-    heap_->tracer()->AddMarkingTime(heap_->MonotonicallyIncreasingTimeInMs() -
-                                    start_time);
   }
 }
 
@@ -3973,11 +3964,6 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
 void MarkCompactCollector::SweepSpaces() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
-  double start_time = 0.0;
-  if (FLAG_print_cumulative_gc_stat) {
-    start_time = heap_->MonotonicallyIncreasingTimeInMs();
-  }
-
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
@@ -4003,11 +3989,6 @@ void MarkCompactCollector::SweepSpaces() {
 
   // Deallocate unmarked large objects.
   heap_->lo_space()->FreeUnmarkedObjects();
-
-  if (FLAG_print_cumulative_gc_stat) {
-    heap_->tracer()->AddSweepingTime(heap_->MonotonicallyIncreasingTimeInMs() -
-                                     start_time);
-  }
 }
 
 Isolate* MarkCompactCollector::isolate() const { return heap_->isolate(); }
