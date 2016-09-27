@@ -232,7 +232,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 
   {
     FunctionState function_state(&function_state_, &scope_state_,
-                                 function_scope, kind);
+                                 function_scope);
 
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     if (call_super) {
@@ -786,8 +786,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     // Enter 'scope' with the given parsing mode.
     ParsingModeScope parsing_mode_scope(this, parsing_mode);
-    FunctionState function_state(&function_state_, &scope_state_, scope,
-                                 kNormalFunction);
+    FunctionState function_state(&function_state_, &scope_state_, scope);
 
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
@@ -936,8 +935,7 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
     DeclarationScope* outer_function = outer->GetClosureScope();
     DCHECK(outer);
     FunctionState function_state(&function_state_, &scope_state_,
-                                 outer_function,
-                                 outer_function->function_kind());
+                                 outer_function);
     BlockState block_state(&scope_state_, outer);
     DCHECK(is_sloppy(outer->language_mode()) ||
            is_strict(info->language_mode()));
@@ -959,7 +957,8 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
       }
 
       // TODO(adamk): We should construct this scope from the ScopeInfo.
-      DeclarationScope* scope = NewFunctionScope(FunctionKind::kArrowFunction);
+      FunctionKind arrow_kind = is_async ? kAsyncArrowFunction : kArrowFunction;
+      DeclarationScope* scope = NewFunctionScope(arrow_kind);
 
       // These two bits only need to be explicitly set because we're
       // not passing the ScopeInfo to the Scope constructor.
@@ -994,8 +993,7 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
         checkpoint.Restore(&formals.materialized_literals_count);
         // Pass `accept_IN=true` to ParseArrowFunctionLiteral --- This should
         // not be observable, or else the preparser would have failed.
-        Expression* expression =
-            ParseArrowFunctionLiteral(true, formals, is_async, &ok);
+        Expression* expression = ParseArrowFunctionLiteral(true, formals, &ok);
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack
@@ -2783,7 +2781,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       DCHECK(main_scope->zone() != scope->zone());
     }
 
-    FunctionState function_state(&function_state_, &scope_state_, scope, kind);
+    FunctionState function_state(&function_state_, &scope_state_, scope);
 #ifdef DEBUG
     scope->SetScopeName(function_name);
 #endif
@@ -3552,7 +3550,7 @@ FunctionLiteral* Parser::SynthesizeClassFieldInitializer(int count) {
   initializer_scope->set_start_position(scanner()->location().end_pos);
   initializer_scope->set_end_position(scanner()->location().end_pos);
   FunctionState initializer_state(&function_state_, &scope_state_,
-                                  initializer_scope, kind);
+                                  initializer_scope);
   ZoneList<Statement*>* body = new (zone()) ZoneList<Statement*>(count, zone());
   for (int i = 0; i < count; ++i) {
     const AstRawString* name =

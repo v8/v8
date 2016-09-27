@@ -97,8 +97,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   // scope_state_. All scopes above the function_scope are ignored by the
   // PreParser.
   DCHECK_NULL(scope_state_);
-  FunctionState function_state(&function_state_, &scope_state_, function_scope,
-                               function_scope->function_kind());
+  FunctionState function_state(&function_state_, &scope_state_, function_scope);
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
   int start_position = peek_position();
@@ -196,8 +195,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   bool outer_is_script_scope = scope()->is_script_scope();
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
-  FunctionState function_state(&function_state_, &scope_state_, function_scope,
-                               kind);
+  FunctionState function_state(&function_state_, &scope_state_, function_scope);
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
 

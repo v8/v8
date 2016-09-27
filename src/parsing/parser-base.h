@@ -381,8 +381,7 @@ class ParserBase {
   class FunctionState final : public ScopeState {
    public:
     FunctionState(FunctionState** function_state_stack,
-                  ScopeState** scope_stack, DeclarationScope* scope,
-                  FunctionKind kind);
+                  ScopeState** scope_stack, DeclarationScope* scope);
     ~FunctionState();
 
     DeclarationScope* scope() const {
@@ -403,11 +402,11 @@ class ParserBase {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
-    bool is_generator() const { return IsGeneratorFunction(kind_); }
-    bool is_async_function() const { return IsAsyncFunction(kind_); }
+    bool is_generator() const { return IsGeneratorFunction(kind()); }
+    bool is_async_function() const { return IsAsyncFunction(kind()); }
     bool is_resumable() const { return is_generator() || is_async_function(); }
 
-    FunctionKind kind() const { return kind_; }
+    FunctionKind kind() const { return scope()->function_kind(); }
     FunctionState* outer() const { return outer_function_state_; }
 
     void set_generator_object_variable(typename Types::Variable* variable) {
@@ -498,7 +497,6 @@ class ParserBase {
     // Properties count estimation.
     int expected_property_count_;
 
-    FunctionKind kind_;
     // For generators, this variable may hold the generator object. It variable
     // is used by yield expressions and return statements. It is not necessary
     // for generator functions to have this variable set.
@@ -1192,7 +1190,6 @@ class ParserBase {
                                                 bool* is_async, bool* ok);
   ExpressionT ParseArrowFunctionLiteral(bool accept_IN,
                                         const FormalParametersT& parameters,
-                                        bool is_async,
                                         bool* ok);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
@@ -1454,11 +1451,10 @@ class ParserBase {
 template <typename Impl>
 ParserBase<Impl>::FunctionState::FunctionState(
     FunctionState** function_state_stack, ScopeState** scope_stack,
-    DeclarationScope* scope, FunctionKind kind)
+    DeclarationScope* scope)
     : ScopeState(scope_stack, scope),
       next_materialized_literal_index_(0),
       expected_property_count_(0),
-      kind_(kind),
       generator_object_variable_(nullptr),
       promise_variable_(nullptr),
       function_state_stack_(function_state_stack),
@@ -2265,7 +2261,7 @@ ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
   DeclarationScope* initializer_scope = NewFunctionScope(kind);
   initializer_scope->set_start_position(scanner()->location().end_pos);
   FunctionState initializer_state(&function_state_, &scope_state_,
-                                  initializer_scope, kind);
+                                  initializer_scope);
   DCHECK(scope() == initializer_scope);
   scope()->SetLanguageMode(STRICT);
   ExpressionClassifier expression_classifier(this);
@@ -2686,8 +2682,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     if (duplicate_loc.IsValid()) {
       classifier()->RecordDuplicateFormalParameterError(duplicate_loc);
     }
-    expression =
-        ParseArrowFunctionLiteral(accept_IN, parameters, is_async, CHECK_OK);
+    expression = ParseArrowFunctionLiteral(accept_IN, parameters, CHECK_OK);
     impl()->Discard();
     classifier()->RecordPatternError(arrow_loc,
                                      MessageTemplate::kUnexpectedToken,
@@ -3885,8 +3880,7 @@ bool ParserBase<Impl>::IsTrivialExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowFunctionLiteral(
-    bool accept_IN, const FormalParametersT& formal_parameters, bool is_async,
-    bool* ok) {
+    bool accept_IN, const FormalParametersT& formal_parameters, bool* ok) {
   if (peek() == Token::ARROW && scanner_->HasAnyLineTerminatorBeforeNext()) {
     // ASI inserts `;` after arrow parameters if a line terminator is found.
     // `=> ...` is never a valid expression, so report as syntax error.
@@ -3901,13 +3895,13 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   int materialized_literal_count = -1;
   int expected_property_count = -1;
 
-  FunctionKind arrow_kind = is_async ? kAsyncArrowFunction : kArrowFunction;
+  FunctionKind kind = formal_parameters.scope->function_kind();
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       FunctionLiteral::kShouldLazyCompile;
   bool should_be_used_once_hint = false;
   {
     FunctionState function_state(&function_state_, &scope_state_,
-                                 formal_parameters.scope, arrow_kind);
+                                 formal_parameters.scope);
 
     function_state.SkipMaterializedLiterals(
         formal_parameters.materialized_literals_count);
@@ -3953,7 +3947,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       if (!is_lazily_parsed) {
         body = impl()->ParseEagerFunctionBody(
             impl()->EmptyIdentifier(), kNoSourcePosition, formal_parameters,
-            arrow_kind, FunctionLiteral::kAnonymousExpression, CHECK_OK);
+            kind, FunctionLiteral::kAnonymousExpression, CHECK_OK);
         materialized_literal_count =
             function_state.materialized_literal_count();
         expected_property_count = function_state.expected_property_count();
@@ -3966,10 +3960,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       ReturnExprScope allow_tail_calls(
           function_state_, ReturnExprContext::kInsideValidReturnStatement);
       body = impl()->NewStatementList(1);
-      impl()->AddParameterInitializationBlock(formal_parameters, body, is_async,
-                                              CHECK_OK);
+      impl()->AddParameterInitializationBlock(
+          formal_parameters, body, kind == kAsyncArrowFunction, CHECK_OK);
       ExpressionClassifier classifier(this);
-      if (is_async) {
+      if (kind == kAsyncArrowFunction) {
         impl()->ParseAsyncArrowSingleExpressionBody(body, accept_IN, pos,
                                                     CHECK_OK);
         impl()->RewriteNonPattern(CHECK_OK);
@@ -4011,7 +4005,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       impl()->EmptyIdentifierString(), formal_parameters.scope, body,
       materialized_literal_count, expected_property_count, num_parameters,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression, eager_compile_hint, arrow_kind,
+      FunctionLiteral::kAnonymousExpression, eager_compile_hint, kind,
       formal_parameters.scope->start_position());
 
   function_literal->set_function_token_position(

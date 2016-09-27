@@ -793,8 +793,7 @@ class PreParser : public ParserBase<PreParser> {
     // the global scope.
     if (is_module) scope = NewModuleScope(scope);
 
-    FunctionState top_scope(&function_state_, &scope_state_, scope,
-                            kNormalFunction);
+    FunctionState top_scope(&function_state_, &scope_state_, scope);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     parsing_module_ = is_module;
