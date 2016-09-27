@@ -97,6 +97,14 @@ namespace internal {
   ASM(InterruptCheck)                                                         \
   ASM(StackCheck)                                                             \
                                                                               \
+  /* String helpers */                                                        \
+  TFS(StringEqual, BUILTIN, kNoExtraICState, Compare)                         \
+  TFS(StringNotEqual, BUILTIN, kNoExtraICState, Compare)                      \
+  TFS(StringLessThan, BUILTIN, kNoExtraICState, Compare)                      \
+  TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare)               \
+  TFS(StringGreaterThan, BUILTIN, kNoExtraICState, Compare)                   \
+  TFS(StringGreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)            \
+                                                                              \
   /* Interpreter */                                                           \
   ASM(InterpreterEntryTrampoline)                                             \
   ASM(InterpreterMarkBaselineOnReturn)                                        \

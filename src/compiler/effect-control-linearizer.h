@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class Callable;
 class Zone;
 
 namespace compiler {
@@ -140,6 +142,11 @@ class EffectControlLinearizer {
                                            Node* control);
   ValueEffectControl LowerStringFromCharCode(Node* node, Node* effect,
                                              Node* control);
+  ValueEffectControl LowerStringEqual(Node* node, Node* effect, Node* control);
+  ValueEffectControl LowerStringLessThan(Node* node, Node* effect,
+                                         Node* control);
+  ValueEffectControl LowerStringLessThanOrEqual(Node* node, Node* effect,
+                                                Node* control);
   ValueEffectControl LowerCheckFloat64Hole(Node* node, Node* frame_state,
                                            Node* effect, Node* control);
   ValueEffectControl LowerCheckTaggedHole(Node* node, Node* frame_state,
@@ -179,6 +186,8 @@ class EffectControlLinearizer {
   ValueEffectControl BuildCheckedHeapNumberOrOddballToFloat64(
       CheckTaggedInputMode mode, Node* value, Node* frame_state, Node* effect,
       Node* control);
+  ValueEffectControl LowerStringComparison(Callable const& callable, Node* node,
+                                           Node* effect, Node* control);
 
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeUint32ToSmi(Node* value);

@@ -410,38 +410,38 @@ Callable CodeFactory::StringCompare(Isolate* isolate, Token::Value token) {
 
 // static
 Callable CodeFactory::StringEqual(Isolate* isolate) {
-  StringEqualStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringEqual(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringNotEqual(Isolate* isolate) {
-  StringNotEqualStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringNotEqual(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringLessThan(Isolate* isolate) {
-  StringLessThanStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringLessThan(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringLessThanOrEqual(Isolate* isolate) {
-  StringLessThanOrEqualStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringLessThanOrEqual(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringGreaterThan(Isolate* isolate) {
-  StringGreaterThanStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringGreaterThan(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringGreaterThanOrEqual(Isolate* isolate) {
-  StringGreaterThanOrEqualStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringGreaterThanOrEqual(),
+                  CompareDescriptor(isolate));
 }
 
 // static

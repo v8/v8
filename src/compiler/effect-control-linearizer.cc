@@ -722,6 +722,15 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringCharCodeAt:
       state = LowerStringCharCodeAt(node, *effect, *control);
       break;
+    case IrOpcode::kStringEqual:
+      state = LowerStringEqual(node, *effect, *control);
+      break;
+    case IrOpcode::kStringLessThan:
+      state = LowerStringLessThan(node, *effect, *control);
+      break;
+    case IrOpcode::kStringLessThanOrEqual:
+      state = LowerStringLessThanOrEqual(node, *effect, *control);
+      break;
     case IrOpcode::kCheckFloat64Hole:
       state = LowerCheckFloat64Hole(node, frame_state, *effect, *control);
       break;
@@ -2602,6 +2611,43 @@ EffectControlLinearizer::LowerStringFromCharCode(Node* node, Node* effect,
                            vtrue0, vfalse0, control);
 
   return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerStringComparison(Callable const& callable,
+                                               Node* node, Node* effect,
+                                               Node* control) {
+  Operator::Properties properties = Operator::kEliminatable;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  node->InsertInput(graph()->zone(), 0,
+                    jsgraph()->HeapConstant(callable.code()));
+  node->AppendInput(graph()->zone(), jsgraph()->NoContextConstant());
+  node->AppendInput(graph()->zone(), effect);
+  NodeProperties::ChangeOp(node, common()->Call(desc));
+  return ValueEffectControl(node, node, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerStringEqual(Node* node, Node* effect,
+                                          Node* control) {
+  return LowerStringComparison(CodeFactory::StringEqual(isolate()), node,
+                               effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerStringLessThan(Node* node, Node* effect,
+                                             Node* control) {
+  return LowerStringComparison(CodeFactory::StringLessThan(isolate()), node,
+                               effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerStringLessThanOrEqual(Node* node, Node* effect,
+                                                    Node* control) {
+  return LowerStringComparison(CodeFactory::StringLessThanOrEqual(isolate()),
+                               node, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

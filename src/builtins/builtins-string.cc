@@ -10,6 +10,408 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+enum ResultMode { kDontNegateResult, kNegateResult };
+
+void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
+  // Here's pseudo-code for the algorithm below in case of kDontNegateResult
+  // mode; for kNegateResult mode we properly negate the result.
+  //
+  // if (lhs == rhs) return true;
+  // if (lhs->length() != rhs->length()) return false;
+  // if (lhs->IsInternalizedString() && rhs->IsInternalizedString()) {
+  //   return false;
+  // }
+  // if (lhs->IsSeqOneByteString() && rhs->IsSeqOneByteString()) {
+  //   for (i = 0; i != lhs->length(); ++i) {
+  //     if (lhs[i] != rhs[i]) return false;
+  //   }
+  //   return true;
+  // }
+  // return %StringEqual(lhs, rhs);
+
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+
+  Label if_equal(assembler), if_notequal(assembler);
+
+  // Fast check to see if {lhs} and {rhs} refer to the same String object.
+  Label if_same(assembler), if_notsame(assembler);
+  assembler->Branch(assembler->WordEqual(lhs, rhs), &if_same, &if_notsame);
+
+  assembler->Bind(&if_same);
+  assembler->Goto(&if_equal);
+
+  assembler->Bind(&if_notsame);
+  {
+    // The {lhs} and {rhs} don't refer to the exact same String object.
+
+    // Load the length of {lhs} and {rhs}.
+    Node* lhs_length = assembler->LoadStringLength(lhs);
+    Node* rhs_length = assembler->LoadStringLength(rhs);
+
+    // Check if the lengths of {lhs} and {rhs} are equal.
+    Label if_lengthisequal(assembler), if_lengthisnotequal(assembler);
+    assembler->Branch(assembler->WordEqual(lhs_length, rhs_length),
+                      &if_lengthisequal, &if_lengthisnotequal);
+
+    assembler->Bind(&if_lengthisequal);
+    {
+      // Load instance types of {lhs} and {rhs}.
+      Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
+      Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+
+      // Combine the instance types into a single 16-bit value, so we can check
+      // both of them at once.
+      Node* both_instance_types = assembler->Word32Or(
+          lhs_instance_type,
+          assembler->Word32Shl(rhs_instance_type, assembler->Int32Constant(8)));
+
+      // Check if both {lhs} and {rhs} are internalized.
+      int const kBothInternalizedMask =
+          kIsNotInternalizedMask | (kIsNotInternalizedMask << 8);
+      int const kBothInternalizedTag =
+          kInternalizedTag | (kInternalizedTag << 8);
+      Label if_bothinternalized(assembler), if_notbothinternalized(assembler);
+      assembler->Branch(assembler->Word32Equal(
+                            assembler->Word32And(both_instance_types,
+                                                 assembler->Int32Constant(
+                                                     kBothInternalizedMask)),
+                            assembler->Int32Constant(kBothInternalizedTag)),
+                        &if_bothinternalized, &if_notbothinternalized);
+
+      assembler->Bind(&if_bothinternalized);
+      {
+        // Fast negative check for internalized-to-internalized equality.
+        assembler->Goto(&if_notequal);
+      }
+
+      assembler->Bind(&if_notbothinternalized);
+      {
+        // Check that both {lhs} and {rhs} are flat one-byte strings.
+        int const kBothSeqOneByteStringMask =
+            kStringEncodingMask | kStringRepresentationMask |
+            ((kStringEncodingMask | kStringRepresentationMask) << 8);
+        int const kBothSeqOneByteStringTag =
+            kOneByteStringTag | kSeqStringTag |
+            ((kOneByteStringTag | kSeqStringTag) << 8);
+        Label if_bothonebyteseqstrings(assembler),
+            if_notbothonebyteseqstrings(assembler);
+        assembler->Branch(
+            assembler->Word32Equal(
+                assembler->Word32And(
+                    both_instance_types,
+                    assembler->Int32Constant(kBothSeqOneByteStringMask)),
+                assembler->Int32Constant(kBothSeqOneByteStringTag)),
+            &if_bothonebyteseqstrings, &if_notbothonebyteseqstrings);
+
+        assembler->Bind(&if_bothonebyteseqstrings);
+        {
+          // Compute the effective offset of the first character.
+          Node* begin = assembler->IntPtrConstant(
+              SeqOneByteString::kHeaderSize - kHeapObjectTag);
+
+          // Compute the first offset after the string from the length.
+          Node* end =
+              assembler->IntPtrAdd(begin, assembler->SmiUntag(lhs_length));
+
+          // Loop over the {lhs} and {rhs} strings to see if they are equal.
+          Variable var_offset(assembler, MachineType::PointerRepresentation());
+          Label loop(assembler, &var_offset);
+          var_offset.Bind(begin);
+          assembler->Goto(&loop);
+          assembler->Bind(&loop);
+          {
+            // Check if {offset} equals {end}.
+            Node* offset = var_offset.value();
+            Label if_done(assembler), if_notdone(assembler);
+            assembler->Branch(assembler->WordEqual(offset, end), &if_done,
+                              &if_notdone);
+
+            assembler->Bind(&if_notdone);
+            {
+              // Load the next characters from {lhs} and {rhs}.
+              Node* lhs_value =
+                  assembler->Load(MachineType::Uint8(), lhs, offset);
+              Node* rhs_value =
+                  assembler->Load(MachineType::Uint8(), rhs, offset);
+
+              // Check if the characters match.
+              Label if_valueissame(assembler), if_valueisnotsame(assembler);
+              assembler->Branch(assembler->Word32Equal(lhs_value, rhs_value),
+                                &if_valueissame, &if_valueisnotsame);
+
+              assembler->Bind(&if_valueissame);
+              {
+                // Advance to next character.
+                var_offset.Bind(
+                    assembler->IntPtrAdd(offset, assembler->IntPtrConstant(1)));
+              }
+              assembler->Goto(&loop);
+
+              assembler->Bind(&if_valueisnotsame);
+              assembler->Goto(&if_notequal);
+            }
+
+            assembler->Bind(&if_done);
+            assembler->Goto(&if_equal);
+          }
+        }
+
+        assembler->Bind(&if_notbothonebyteseqstrings);
+        {
+          // TODO(bmeurer): Add fast case support for flattened cons strings;
+          // also add support for two byte string equality checks.
+          Runtime::FunctionId function_id = (mode == kDontNegateResult)
+                                                ? Runtime::kStringEqual
+                                                : Runtime::kStringNotEqual;
+          assembler->TailCallRuntime(function_id, context, lhs, rhs);
+        }
+      }
+    }
+
+    assembler->Bind(&if_lengthisnotequal);
+    {
+      // Mismatch in length of {lhs} and {rhs}, cannot be equal.
+      assembler->Goto(&if_notequal);
+    }
+  }
+
+  assembler->Bind(&if_equal);
+  assembler->Return(assembler->BooleanConstant(mode == kDontNegateResult));
+
+  assembler->Bind(&if_notequal);
+  assembler->Return(assembler->BooleanConstant(mode == kNegateResult));
+}
+
+enum RelationalComparisonMode {
+  kLessThan,
+  kLessThanOrEqual,
+  kGreaterThan,
+  kGreaterThanOrEqual
+};
+
+void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
+                                        RelationalComparisonMode mode) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+
+  Label if_less(assembler), if_equal(assembler), if_greater(assembler);
+
+  // Fast check to see if {lhs} and {rhs} refer to the same String object.
+  Label if_same(assembler), if_notsame(assembler);
+  assembler->Branch(assembler->WordEqual(lhs, rhs), &if_same, &if_notsame);
+
+  assembler->Bind(&if_same);
+  assembler->Goto(&if_equal);
+
+  assembler->Bind(&if_notsame);
+  {
+    // Load instance types of {lhs} and {rhs}.
+    Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
+    Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+
+    // Combine the instance types into a single 16-bit value, so we can check
+    // both of them at once.
+    Node* both_instance_types = assembler->Word32Or(
+        lhs_instance_type,
+        assembler->Word32Shl(rhs_instance_type, assembler->Int32Constant(8)));
+
+    // Check that both {lhs} and {rhs} are flat one-byte strings.
+    int const kBothSeqOneByteStringMask =
+        kStringEncodingMask | kStringRepresentationMask |
+        ((kStringEncodingMask | kStringRepresentationMask) << 8);
+    int const kBothSeqOneByteStringTag =
+        kOneByteStringTag | kSeqStringTag |
+        ((kOneByteStringTag | kSeqStringTag) << 8);
+    Label if_bothonebyteseqstrings(assembler),
+        if_notbothonebyteseqstrings(assembler);
+    assembler->Branch(assembler->Word32Equal(
+                          assembler->Word32And(both_instance_types,
+                                               assembler->Int32Constant(
+                                                   kBothSeqOneByteStringMask)),
+                          assembler->Int32Constant(kBothSeqOneByteStringTag)),
+                      &if_bothonebyteseqstrings, &if_notbothonebyteseqstrings);
+
+    assembler->Bind(&if_bothonebyteseqstrings);
+    {
+      // Load the length of {lhs} and {rhs}.
+      Node* lhs_length = assembler->LoadStringLength(lhs);
+      Node* rhs_length = assembler->LoadStringLength(rhs);
+
+      // Determine the minimum length.
+      Node* length = assembler->SmiMin(lhs_length, rhs_length);
+
+      // Compute the effective offset of the first character.
+      Node* begin = assembler->IntPtrConstant(SeqOneByteString::kHeaderSize -
+                                              kHeapObjectTag);
+
+      // Compute the first offset after the string from the length.
+      Node* end = assembler->IntPtrAdd(begin, assembler->SmiUntag(length));
+
+      // Loop over the {lhs} and {rhs} strings to see if they are equal.
+      Variable var_offset(assembler, MachineType::PointerRepresentation());
+      Label loop(assembler, &var_offset);
+      var_offset.Bind(begin);
+      assembler->Goto(&loop);
+      assembler->Bind(&loop);
+      {
+        // Check if {offset} equals {end}.
+        Node* offset = var_offset.value();
+        Label if_done(assembler), if_notdone(assembler);
+        assembler->Branch(assembler->WordEqual(offset, end), &if_done,
+                          &if_notdone);
+
+        assembler->Bind(&if_notdone);
+        {
+          // Load the next characters from {lhs} and {rhs}.
+          Node* lhs_value = assembler->Load(MachineType::Uint8(), lhs, offset);
+          Node* rhs_value = assembler->Load(MachineType::Uint8(), rhs, offset);
+
+          // Check if the characters match.
+          Label if_valueissame(assembler), if_valueisnotsame(assembler);
+          assembler->Branch(assembler->Word32Equal(lhs_value, rhs_value),
+                            &if_valueissame, &if_valueisnotsame);
+
+          assembler->Bind(&if_valueissame);
+          {
+            // Advance to next character.
+            var_offset.Bind(
+                assembler->IntPtrAdd(offset, assembler->IntPtrConstant(1)));
+          }
+          assembler->Goto(&loop);
+
+          assembler->Bind(&if_valueisnotsame);
+          assembler->BranchIf(assembler->Uint32LessThan(lhs_value, rhs_value),
+                              &if_less, &if_greater);
+        }
+
+        assembler->Bind(&if_done);
+        {
+          // All characters up to the min length are equal, decide based on
+          // string length.
+          Label if_lengthisequal(assembler), if_lengthisnotequal(assembler);
+          assembler->Branch(assembler->SmiEqual(lhs_length, rhs_length),
+                            &if_lengthisequal, &if_lengthisnotequal);
+
+          assembler->Bind(&if_lengthisequal);
+          assembler->Goto(&if_equal);
+
+          assembler->Bind(&if_lengthisnotequal);
+          assembler->BranchIfSmiLessThan(lhs_length, rhs_length, &if_less,
+                                         &if_greater);
+        }
+      }
+    }
+
+    assembler->Bind(&if_notbothonebyteseqstrings);
+    {
+      // TODO(bmeurer): Add fast case support for flattened cons strings;
+      // also add support for two byte string relational comparisons.
+      switch (mode) {
+        case kLessThan:
+          assembler->TailCallRuntime(Runtime::kStringLessThan, context, lhs,
+                                     rhs);
+          break;
+        case kLessThanOrEqual:
+          assembler->TailCallRuntime(Runtime::kStringLessThanOrEqual, context,
+                                     lhs, rhs);
+          break;
+        case kGreaterThan:
+          assembler->TailCallRuntime(Runtime::kStringGreaterThan, context, lhs,
+                                     rhs);
+          break;
+        case kGreaterThanOrEqual:
+          assembler->TailCallRuntime(Runtime::kStringGreaterThanOrEqual,
+                                     context, lhs, rhs);
+          break;
+      }
+    }
+  }
+
+  assembler->Bind(&if_less);
+  switch (mode) {
+    case kLessThan:
+    case kLessThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(true));
+      break;
+
+    case kGreaterThan:
+    case kGreaterThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(false));
+      break;
+  }
+
+  assembler->Bind(&if_equal);
+  switch (mode) {
+    case kLessThan:
+    case kGreaterThan:
+      assembler->Return(assembler->BooleanConstant(false));
+      break;
+
+    case kLessThanOrEqual:
+    case kGreaterThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(true));
+      break;
+  }
+
+  assembler->Bind(&if_greater);
+  switch (mode) {
+    case kLessThan:
+    case kLessThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(false));
+      break;
+
+    case kGreaterThan:
+    case kGreaterThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(true));
+      break;
+  }
+}
+
+}  // namespace
+
+// static
+void Builtins::Generate_StringEqual(CodeStubAssembler* assembler) {
+  GenerateStringEqual(assembler, kDontNegateResult);
+}
+
+// static
+void Builtins::Generate_StringNotEqual(CodeStubAssembler* assembler) {
+  GenerateStringEqual(assembler, kNegateResult);
+}
+
+// static
+void Builtins::Generate_StringLessThan(CodeStubAssembler* assembler) {
+  GenerateStringRelationalComparison(assembler, kLessThan);
+}
+
+// static
+void Builtins::Generate_StringLessThanOrEqual(CodeStubAssembler* assembler) {
+  GenerateStringRelationalComparison(assembler, kLessThanOrEqual);
+}
+
+// static
+void Builtins::Generate_StringGreaterThan(CodeStubAssembler* assembler) {
+  GenerateStringRelationalComparison(assembler, kGreaterThan);
+}
+
+// static
+void Builtins::Generate_StringGreaterThanOrEqual(CodeStubAssembler* assembler) {
+  GenerateStringRelationalComparison(assembler, kGreaterThanOrEqual);
+}
+
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 String Objects
 

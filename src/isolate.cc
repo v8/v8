@@ -27,6 +27,7 @@
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/interface-descriptors.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/libsampler/sampler.h"
@@ -2389,6 +2390,12 @@ bool Isolate::Init(Deserializer* des) {
     V8::FatalProcessOutOfMemory("heap setup");
     return false;
   }
+
+// Initialize the interface descriptors ahead of time.
+#define INTERFACE_DESCRIPTOR(V) \
+  { V##Descriptor(this); }
+  INTERFACE_DESCRIPTOR_LIST(INTERFACE_DESCRIPTOR)
+#undef INTERFACE_DESCRIPTOR
 
   deoptimizer_data_ = new DeoptimizerData(heap()->memory_allocator());
 

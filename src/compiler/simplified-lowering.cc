@@ -2040,62 +2040,11 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kStringEqual: {
-        VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-        if (lower()) {
-          // StringEqual(x, y) => Call(StringEqualStub, x, y, no-context)
-          Operator::Properties properties =
-              Operator::kCommutative | Operator::kEliminatable;
-          Callable callable = CodeFactory::StringEqual(jsgraph_->isolate());
-          CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
-              flags, properties);
-          node->InsertInput(jsgraph_->zone(), 0,
-                            jsgraph_->HeapConstant(callable.code()));
-          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-          node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
-          NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
-        }
-        return;
-      }
-      case IrOpcode::kStringLessThan: {
-        VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-        if (lower()) {
-          // StringLessThan(x, y) => Call(StringLessThanStub, x, y, no-context)
-          Operator::Properties properties = Operator::kEliminatable;
-          Callable callable = CodeFactory::StringLessThan(jsgraph_->isolate());
-          CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
-              flags, properties);
-          node->InsertInput(jsgraph_->zone(), 0,
-                            jsgraph_->HeapConstant(callable.code()));
-          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-          node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
-          NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
-        }
-        return;
-      }
+      case IrOpcode::kStringEqual:
+      case IrOpcode::kStringLessThan:
       case IrOpcode::kStringLessThanOrEqual: {
-        VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-        if (lower()) {
-          // StringLessThanOrEqual(x, y)
-          //   => Call(StringLessThanOrEqualStub, x, y, no-context)
-          Operator::Properties properties = Operator::kEliminatable;
-          Callable callable =
-              CodeFactory::StringLessThanOrEqual(jsgraph_->isolate());
-          CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
-              flags, properties);
-          node->InsertInput(jsgraph_->zone(), 0,
-                            jsgraph_->HeapConstant(callable.code()));
-          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-          node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
-          NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
-        }
-        return;
+        return VisitBinop(node, UseInfo::AnyTagged(),
+                          MachineRepresentation::kTagged);
       }
       case IrOpcode::kStringCharCodeAt: {
         VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
