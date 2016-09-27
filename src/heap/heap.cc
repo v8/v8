@@ -5436,36 +5436,25 @@ bool Heap::SetUp() {
   }
 
   space_[NEW_SPACE] = new_space_ = new NewSpace(this);
-  if (new_space_ == nullptr) return false;
-
-  // Set up new space.
   if (!new_space_->SetUp(initial_semispace_size_, max_semi_space_size_)) {
     return false;
   }
   new_space_top_after_last_gc_ = new_space()->top();
 
-  // Initialize old space.
   space_[OLD_SPACE] = old_space_ =
       new OldSpace(this, OLD_SPACE, NOT_EXECUTABLE);
-  if (old_space_ == NULL) return false;
   if (!old_space_->SetUp()) return false;
 
-  // Initialize the code space, set its maximum capacity to the old
-  // generation size. It needs executable memory.
   space_[CODE_SPACE] = code_space_ = new OldSpace(this, CODE_SPACE, EXECUTABLE);
-  if (code_space_ == NULL) return false;
   if (!code_space_->SetUp()) return false;
 
-  // Initialize map space.
   space_[MAP_SPACE] = map_space_ = new MapSpace(this, MAP_SPACE);
-  if (map_space_ == NULL) return false;
   if (!map_space_->SetUp()) return false;
 
   // The large object code space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it
   // explicitly when allocating large code objects.
   space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this, LO_SPACE);
-  if (lo_space_ == NULL) return false;
   if (!lo_space_->SetUp()) return false;
 
   // Set up the seed that is used to randomize the string hash function.
@@ -5485,20 +5474,14 @@ bool Heap::SetUp() {
   }
 
   tracer_ = new GCTracer(this);
-
   scavenge_collector_ = new Scavenger(this);
-
   mark_compact_collector_ = new MarkCompactCollector(this);
-
   gc_idle_time_handler_ = new GCIdleTimeHandler();
-
   memory_reducer_ = new MemoryReducer(this);
-
   if (FLAG_track_gc_object_stats) {
     live_object_stats_ = new ObjectStats(this);
     dead_object_stats_ = new ObjectStats(this);
   }
-
   scavenge_job_ = new ScavengeJob();
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
