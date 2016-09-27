@@ -991,18 +991,16 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
-  if (FLAG_turbo_cache_shared_code) {
-    Handle<Code> cached_code;
-    if (GetCodeFromOptimizedCodeMap(function, BailoutId::None())
-            .ToHandle(&cached_code)) {
-      if (FLAG_trace_opt) {
-        PrintF("[found optimized code for ");
-        function->ShortPrint();
-        PrintF(" during unoptimized compile]\n");
-      }
-      DCHECK(function->shared()->is_compiled());
-      return cached_code;
+  Handle<Code> cached_code;
+  if (GetCodeFromOptimizedCodeMap(function, BailoutId::None())
+          .ToHandle(&cached_code)) {
+    if (FLAG_trace_opt) {
+      PrintF("[found optimized code for ");
+      function->ShortPrint();
+      PrintF(" during unoptimized compile]\n");
     }
+    DCHECK(function->shared()->is_compiled());
+    return cached_code;
   }
 
   if (function->shared()->is_compiled()) {
