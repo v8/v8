@@ -325,6 +325,7 @@ class TypedSlotSet {
       delete chunk;
       chunk = next;
     }
+    FreeToBeFreedChunks();
   }
 
   // The slot offset specifies a slot at address page_start_ + offset.
