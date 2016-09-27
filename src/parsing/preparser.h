@@ -823,8 +823,7 @@ class PreParser : public ParserBase<PreParser> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseLazyFunction(FunctionKind kind,
-                                      DeclarationScope* function_scope,
+  PreParseResult PreParseLazyFunction(DeclarationScope* function_scope,
                                       bool parsing_module, ParserRecorder* log,
                                       bool track_unresolved_variables,
                                       bool may_abort, int* use_counts);
