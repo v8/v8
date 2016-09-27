@@ -7967,6 +7967,9 @@ class Module : public Struct {
                                           v8::Module::ResolveCallback callback,
                                           v8::Local<v8::Value> callback_data);
 
+  // Implementation of spec operation ModuleEvaluation.
+  static MUST_USE_RESULT MaybeHandle<Object> Evaluate(Handle<Module> module);
+
   static Handle<Object> LoadExport(Handle<Module> module, Handle<String> name);
   static void StoreExport(Handle<Module> module, Handle<String> name,
                           Handle<Object> value);

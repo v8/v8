@@ -19903,5 +19903,27 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
   return true;
 }
 
+MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
+  DCHECK(module->code()->IsJSFunction());
+
+  Isolate* isolate = module->GetIsolate();
+
+  // Each module can only be evaluated once.
+  if (module->evaluated()) return isolate->factory()->undefined_value();
+  module->set_evaluated(true);
+
+  Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
+  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+    Handle<Module> import(Module::cast(requested_modules->get(i)), isolate);
+    RETURN_ON_EXCEPTION(isolate, Evaluate(import), Object);
+  }
+
+  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
+  DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
+  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<Object> argv[] = {module};
+  return Execution::Call(isolate, function, receiver, arraysize(argv), argv);
+}
+
 }  // namespace internal
 }  // namespace v8

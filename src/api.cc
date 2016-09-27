@@ -1937,29 +1937,8 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   // It's an API error to call Evaluate before Instantiate.
   CHECK(self->code()->IsJSFunction());
 
-  // Each module can only be evaluated once.
-  if (self->evaluated()) return Undefined(reinterpret_cast<Isolate*>(isolate));
-  self->set_evaluated(true);
-
-  i::Handle<i::FixedArray> requested_modules(self->requested_modules(),
-                                             isolate);
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
-    i::Handle<i::Module> import(i::Module::cast(requested_modules->get(i)),
-                                isolate);
-    MaybeLocal<Value> maybe_result = Utils::ToLocal(import)->Evaluate(context);
-    if (maybe_result.IsEmpty()) return maybe_result;
-  }
-
-  i::Handle<i::JSFunction> function(i::JSFunction::cast(self->code()), isolate);
-  DCHECK_EQ(i::MODULE_SCOPE, function->shared()->scope_info()->scope_type());
-  i::Handle<i::Object> receiver = isolate->factory()->undefined_value();
-
   Local<Value> result;
-  i::Handle<i::Object> argv[] = {self};
-  has_pending_exception = !ToLocal<Value>(
-      i::Execution::Call(isolate, function, receiver, arraysize(argv), argv),
-      &result);
-
+  has_pending_exception = !ToLocal(i::Module::Evaluate(self), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
