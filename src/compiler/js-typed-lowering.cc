@@ -927,16 +927,6 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     node->TrimInputCount(1);
     NodeProperties::ChangeOp(node, simplified()->NumberToBoolean());
     return Changed(node);
-  } else if (input_type->Is(Type::String())) {
-    // JSToBoolean(x:string) => NumberLessThan(#0,x.length)
-    FieldAccess const access = AccessBuilder::ForStringLength();
-    Node* length = graph()->NewNode(simplified()->LoadField(access), input,
-                                    graph()->start(), graph()->start());
-    ReplaceWithValue(node, node, length);
-    node->ReplaceInput(0, jsgraph()->ZeroConstant());
-    node->ReplaceInput(1, length);
-    NodeProperties::ChangeOp(node, simplified()->NumberLessThan());
-    return Changed(node);
   }
   return NoChange();
 }

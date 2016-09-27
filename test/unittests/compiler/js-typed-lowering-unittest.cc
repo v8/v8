@@ -116,20 +116,6 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithNumber) {
   EXPECT_THAT(r.replacement(), IsNumberToBoolean(input));
 }
 
-TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
-  Node* input = Parameter(Type::String(), 0);
-  Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsNumberLessThan(IsNumberConstant(0.0),
-                       IsLoadField(AccessBuilder::ForStringLength(), input,
-                                   graph()->start(), graph()->start())));
-}
-
-
 TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);
