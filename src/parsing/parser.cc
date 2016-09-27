@@ -3486,7 +3486,9 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
       use_counts_);
   // Detaching the scopes created by PreParser from the Scope chain must be done
   // above (see ParseFunctionLiteral & AnalyzePartially).
-  if (!is_inner_function) function_scope->ResetAfterPreparsing();
+  if (!is_inner_function) {
+    function_scope->ResetAfterPreparsing(result == PreParser::kPreParseAbort);
+  }
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }

@@ -808,19 +808,7 @@ class DeclarationScope : public Scope {
   void AllocateParameterLocals();
   void AllocateReceiver();
 
-  void ResetAfterPreparsing() {
-    // Reset all non-trivial members.
-    decls_.Clear();
-    locals_.Clear();
-    params_.Clear();
-    sloppy_block_function_map_.Clear();
-    variables_.Clear();
-    // Make sure we won't walk the scope tree from here on.
-    inner_scope_ = nullptr;
-    // Make sure we won't try to allocate the rest parameter. {params_} was
-    // cleared above.
-    has_rest_ = false;
-  }
+  void ResetAfterPreparsing(bool aborted);
 
  private:
   void AllocateParameter(Variable* var, int index);

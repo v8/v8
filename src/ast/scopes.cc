@@ -1188,6 +1188,36 @@ Handle<StringSet> DeclarationScope::CollectNonLocals(
   return non_locals;
 }
 
+void DeclarationScope::ResetAfterPreparsing(bool aborted) {
+  // Reset all non-trivial members.
+  decls_.Clear();
+  locals_.Clear();
+  sloppy_block_function_map_.Clear();
+  variables_.Clear();
+  // Make sure we won't walk the scope tree from here on.
+  inner_scope_ = nullptr;
+
+  // TODO(verwaest): We should properly preparse the parameters (no declarations
+  // should be created), and reparse on abort.
+  if (aborted) {
+    // Recreate declarations for parameters.
+    for (int i = 0; i < params_.length(); i++) {
+      Variable* var = params_[i];
+      if (var->mode() == TEMPORARY) {
+        locals_.Add(var, zone());
+      } else if (variables_.Lookup(var->raw_name()) == nullptr) {
+        variables_.Add(zone(), var);
+        locals_.Add(var, zone());
+      }
+    }
+  } else {
+    params_.Clear();
+    // Make sure we won't try to allocate the rest parameter. {params_} was
+    // cleared above.
+    has_rest_ = false;
+  }
+}
+
 void DeclarationScope::AnalyzePartially(DeclarationScope* migrate_to,
                                         AstNodeFactory* ast_node_factory) {
   // Try to resolve unresolved variables for this Scope and migrate those which
