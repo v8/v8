@@ -135,18 +135,6 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
 
-PreParser::Statement PreParser::ParseAsyncFunctionDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
-  // AsyncFunctionDeclaration ::
-  //   async [no LineTerminator here] function BindingIdentifier[Await]
-  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
-  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
-  int pos = position();
-  Expect(Token::FUNCTION, CHECK_OK);
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
-  return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
-}
-
 PreParser::Statement PreParser::ParseClassDeclaration(
     ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
   int pos = position();
@@ -243,33 +231,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   return Expression::Default();
 }
 
-PreParser::Expression PreParser::ParseAsyncFunctionExpression(bool* ok) {
-  // AsyncFunctionDeclaration ::
-  //   async [no LineTerminator here] function ( FormalParameters[Await] )
-  //       { AsyncFunctionBody }
-  //
-  //   async [no LineTerminator here] function BindingIdentifier[Await]
-  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
-  int pos = position();
-  Expect(Token::FUNCTION, CHECK_OK);
-  bool is_strict_reserved = false;
-  Identifier name;
-  FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
-
-  if (peek_any_identifier()) {
-    type = FunctionLiteral::kNamedExpression;
-    name = ParseIdentifierOrStrictReservedWord(FunctionKind::kAsyncFunction,
-                                               &is_strict_reserved, CHECK_OK);
-  }
-
-  ParseFunctionLiteral(name, scanner()->location(),
-                       is_strict_reserved ? kFunctionNameIsStrictReserved
-                                          : kFunctionNameValidityUnknown,
-                       FunctionKind::kAsyncFunction, pos, type, language_mode(),
-                       CHECK_OK);
-  return Expression::Default();
-}
-
 PreParser::LazyParsingResult PreParser::ParseLazyFunctionLiteralBody(
     bool may_abort, bool* ok) {
   int body_start = position();
@@ -340,17 +301,6 @@ PreParserExpression PreParser::ParseClassLiteral(
   Expect(Token::RBRACE, CHECK_OK);
 
   return Expression::Default();
-}
-
-void PreParser::ParseAsyncArrowSingleExpressionBody(PreParserStatementList body,
-                                                    bool accept_IN, int pos,
-                                                    bool* ok) {
-  scope()->ForceContextAllocation();
-
-  PreParserExpression return_value =
-      ParseAssignmentExpression(accept_IN, CHECK_OK_VOID);
-
-  body->Add(PreParserStatement::ExpressionStatement(return_value), zone());
 }
 
 PreParserExpression PreParser::ExpressionFromIdentifier(

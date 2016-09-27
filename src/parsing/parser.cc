@@ -1572,20 +1572,6 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
       pos);
 }
 
-Statement* Parser::ParseAsyncFunctionDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
-  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
-  int pos = position();
-  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
-    *ok = false;
-    ReportUnexpectedToken(scanner()->current_token());
-    return nullptr;
-  }
-  Expect(Token::FUNCTION, CHECK_OK);
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
-  return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
-}
-
 Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                          bool default_export, bool* ok) {
   // ClassDeclaration ::
@@ -2500,7 +2486,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   return outer_block;
 }
 
-void Parser::ParseArrowFunctionFormalParameters(
+void Parser::AddArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr, int end_pos,
     bool* ok) {
   // ArrowFunctionFormals ::
@@ -2524,8 +2510,8 @@ void Parser::ParseArrowFunctionFormalParameters(
     Expression* left = binop->left();
     Expression* right = binop->right();
     int comma_pos = binop->position();
-    ParseArrowFunctionFormalParameters(parameters, left, comma_pos,
-                                       CHECK_OK_VOID);
+    AddArrowFunctionFormalParameters(parameters, left, comma_pos,
+                                     CHECK_OK_VOID);
     // LHS of comma expression should be unparenthesized.
     expr = right;
   }
@@ -2553,59 +2539,14 @@ void Parser::ParseArrowFunctionFormalParameters(
   AddFormalParameter(parameters, expr, initializer, end_pos, is_rest);
 }
 
-void Parser::DesugarAsyncFunctionBody(Scope* scope, ZoneList<Statement*>* body,
-                                      FunctionKind kind,
-                                      FunctionBodyType body_type,
-                                      bool accept_IN, int pos, bool* ok) {
-  // function async_function() {
-  //   .generator_object = %CreateGeneratorObject();
-  //   BuildRejectPromiseOnException({
-  //     ... function body ...
-  //     return %ResolvePromise(.promise, expr), .promise;
-  //   })
-  // }
-  scope->ForceContextAllocation();
-  Variable* temp =
-      NewTemporary(ast_value_factory()->dot_generator_object_string());
-  function_state_->set_generator_object_variable(temp);
-
-  Expression* init_generator_variable = factory()->NewAssignment(
-      Token::INIT, factory()->NewVariableProxy(temp),
-      BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition);
-  body->Add(factory()->NewExpressionStatement(init_generator_variable,
-                                              kNoSourcePosition),
-            zone());
-
-  Block* block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
-
-  Expression* return_value = nullptr;
-  if (body_type == FunctionBodyType::kNormal) {
-    ParseStatementList(block->statements(), Token::RBRACE, CHECK_OK_VOID);
-    return_value = factory()->NewUndefinedLiteral(kNoSourcePosition);
-  } else {
-    return_value = ParseAssignmentExpression(accept_IN, CHECK_OK_VOID);
-    RewriteNonPattern(CHECK_OK_VOID);
-  }
-
-  return_value = BuildResolvePromise(return_value, return_value->position());
-  block->statements()->Add(
-      factory()->NewReturnStatement(return_value, return_value->position()),
-      zone());
-  block = BuildRejectPromiseOnException(block, CHECK_OK_VOID);
-  body->Add(block, zone());
-  scope->set_end_position(scanner()->location().end_pos);
-}
-
-void Parser::ParseArrowFunctionFormalParameterList(
+void Parser::DeclareArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr,
     const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-    const Scope::Snapshot& scope_snapshot, bool* ok) {
+    bool* ok) {
   if (expr->IsEmptyParentheses()) return;
 
-  ParseArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
-                                     CHECK_OK_VOID);
-
-  scope_snapshot.Reparent(parameters->scope);
+  AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
+                                   CHECK_OK_VOID);
 
   if (parameters->Arity() > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
@@ -2911,32 +2852,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     fni_->AddFunction(function_literal);
   }
   return function_literal;
-}
-
-Expression* Parser::ParseAsyncFunctionExpression(bool* ok) {
-  // AsyncFunctionDeclaration ::
-  //   async [no LineTerminator here] function ( FormalParameters[Await] )
-  //       { AsyncFunctionBody }
-  //
-  //   async [no LineTerminator here] function BindingIdentifier[Await]
-  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
-  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
-  int pos = position();
-  Expect(Token::FUNCTION, CHECK_OK);
-  bool is_strict_reserved = false;
-  const AstRawString* name = nullptr;
-  FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
-
-  if (peek_any_identifier()) {
-    type = FunctionLiteral::kNamedExpression;
-    name = ParseIdentifierOrStrictReservedWord(FunctionKind::kAsyncFunction,
-                                               &is_strict_reserved, CHECK_OK);
-  }
-  return ParseFunctionLiteral(name, scanner()->location(),
-                              is_strict_reserved ? kFunctionNameIsStrictReserved
-                                                 : kFunctionNameValidityUnknown,
-                              FunctionKind::kAsyncFunction, pos, type,
-                              language_mode(), CHECK_OK);
 }
 
 Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
@@ -3368,9 +3283,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
                 zone());
     } else if (IsAsyncFunction(kind)) {
       const bool accept_IN = true;
-      DesugarAsyncFunctionBody(inner_scope, body, kind,
-                               FunctionBodyType::kNormal, accept_IN, pos,
-                               CHECK_OK);
+      ParseAsyncFunctionBody(inner_scope, body, kind, FunctionBodyType::kNormal,
+                             accept_IN, pos, CHECK_OK);
     } else {
       ParseStatementList(body, Token::RBRACE, CHECK_OK);
     }
@@ -4343,6 +4257,49 @@ Expression* Parser::ExpressionListToExpression(ZoneList<Expression*>* args) {
                                          expr->position());
   }
   return expr;
+}
+
+// This method intoduces the line initializing the generator object
+// when desugaring the body of async_function.
+void Parser::PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
+                                      FunctionKind kind, int pos) {
+  // function async_function() {
+  //   .generator_object = %CreateGeneratorObject();
+  //   BuildRejectPromiseOnException({
+  //     ... block ...
+  //     return %ResolvePromise(.promise, expr), .promise;
+  //   })
+  // }
+
+  Variable* temp =
+      NewTemporary(ast_value_factory()->dot_generator_object_string());
+  function_state_->set_generator_object_variable(temp);
+
+  Expression* init_generator_variable = factory()->NewAssignment(
+      Token::INIT, factory()->NewVariableProxy(temp),
+      BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition);
+  body->Add(factory()->NewExpressionStatement(init_generator_variable,
+                                              kNoSourcePosition),
+            zone());
+}
+
+// This method completes the desugaring of the body of async_function.
+void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
+                                      Expression* return_value, bool* ok) {
+  // function async_function() {
+  //   .generator_object = %CreateGeneratorObject();
+  //   BuildRejectPromiseOnException({
+  //     ... block ...
+  //     return %ResolvePromise(.promise, expr), .promise;
+  //   })
+  // }
+
+  return_value = BuildResolvePromise(return_value, return_value->position());
+  block->statements()->Add(
+      factory()->NewReturnStatement(return_value, return_value->position()),
+      zone());
+  block = BuildRejectPromiseOnException(block, CHECK_OK_VOID);
+  body->Add(block, zone());
 }
 
 Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {

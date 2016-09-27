@@ -838,9 +838,6 @@ class PreParser : public ParserBase<PreParser> {
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
   Statement ParseFunctionDeclaration(bool* ok);
-  Statement ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
-                                          bool default_export, bool* ok);
-  Expression ParseAsyncFunctionExpression(bool* ok);
   Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                   bool default_export, bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
@@ -889,10 +886,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void MarkCollectedTailCallExpressions() {}
   V8_INLINE void MarkTailPosition(PreParserExpression expression) {}
 
-  void ParseAsyncArrowSingleExpressionBody(PreParserStatementList body,
-                                           bool accept_IN,
-                                           int pos, bool* ok);
-
   V8_INLINE PreParserExpressionList
   PrepareSpreadArguments(PreParserExpressionList list) {
     return list;
@@ -926,6 +919,12 @@ class PreParser : public ParserBase<PreParser> {
   RewriteAwaitExpression(PreParserExpression value, int pos) {
     return value;
   }
+  V8_INLINE void PrepareAsyncFunctionBody(PreParserStatementList body,
+                                          FunctionKind kind, int pos) {}
+  V8_INLINE void RewriteAsyncFunctionBody(PreParserStatementList body,
+                                          PreParserStatement block,
+                                          PreParserExpression return_value,
+                                          bool* ok) {}
   V8_INLINE PreParserExpression RewriteYieldStar(PreParserExpression generator,
                                                  PreParserExpression expression,
                                                  int pos) {
@@ -1362,13 +1361,12 @@ class PreParser : public ParserBase<PreParser> {
     }
   }
 
-  V8_INLINE void ParseArrowFunctionFormalParameterList(
+  V8_INLINE void DeclareArrowFunctionFormalParameters(
       PreParserFormalParameters* parameters, PreParserExpression params,
       const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-      const Scope::Snapshot& scope_snapshot, bool* ok) {
+      bool* ok) {
     // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect
-    // parameter
-    // lists that are too long.
+    // parameter lists that are too long.
   }
 
   V8_INLINE void ReindexLiterals(const PreParserFormalParameters& parameters) {}

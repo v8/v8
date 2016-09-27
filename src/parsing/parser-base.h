@@ -250,6 +250,11 @@ class ParserBase {
     kStatement,
     kForStatement
   };
+
+  enum class FunctionBodyType {
+    kNormal,
+    kSingleExpression
+  };
   // clang-format on
 
   class Checkpoint;
@@ -1191,6 +1196,10 @@ class ParserBase {
   ExpressionT ParseArrowFunctionLiteral(bool accept_IN,
                                         const FormalParametersT& parameters,
                                         bool* ok);
+  void ParseAsyncFunctionBody(Scope* scope, StatementListT body,
+                              FunctionKind kind, FunctionBodyType type,
+                              bool accept_IN, int pos, bool* ok);
+  ExpressionT ParseAsyncFunctionLiteral(bool* ok);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
   ExpressionT ParseNewTargetExpression(bool* ok);
@@ -1205,6 +1214,8 @@ class ParserBase {
                                    DeclarationParsingResult* parsing_result,
                                    ZoneList<const AstRawString*>* names,
                                    bool* ok);
+  StatementT ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
+                                           bool default_export, bool* ok);
   StatementT ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
                                        bool default_export, bool* ok);
   StatementT ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
@@ -1707,7 +1718,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
   //   '(' Expression ')'
   //   TemplateLiteral
   //   do Block
-  //   AsyncFunctionExpression
+  //   AsyncFunctionLiteral
 
   int beg_pos = peek_position();
   switch (peek()) {
@@ -1730,7 +1741,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
           !scanner()->HasAnyLineTerminatorAfterNext() &&
           PeekAhead() == Token::FUNCTION) {
         Consume(Token::ASYNC);
-        return impl()->ParseAsyncFunctionExpression(CHECK_OK);
+        return ParseAsyncFunctionLiteral(CHECK_OK);
       }
       // CoverCallExpressionAndAsyncArrowHead
       *is_async = true;
@@ -2667,6 +2678,9 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     // usage flags that might have been triggered there need to be copied
     // to the arrow scope.
     this->scope()->PropagateUsageFlagsToScope(scope);
+
+    scope_snapshot.Reparent(scope);
+
     FormalParametersT parameters(scope);
     if (!classifier()->is_simple_parameter_list()) {
       scope->SetHasNonSimpleParameters();
@@ -2677,8 +2691,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
     scope->set_start_position(lhs_beg_pos);
     Scanner::Location duplicate_loc = Scanner::Location::invalid();
-    impl()->ParseArrowFunctionFormalParameterList(
-        &parameters, expression, loc, &duplicate_loc, scope_snapshot, CHECK_OK);
+    impl()->DeclareArrowFunctionFormalParameters(&parameters, expression, loc,
+                                                 &duplicate_loc, CHECK_OK);
     if (duplicate_loc.IsValid()) {
       classifier()->RecordDuplicateFormalParameterError(duplicate_loc);
     }
@@ -3806,6 +3820,25 @@ ParserBase<Impl>::ParseHoistableDeclaration(
 }
 
 template <typename Impl>
+typename ParserBase<Impl>::StatementT
+ParserBase<Impl>::ParseAsyncFunctionDeclaration(
+    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
+  // AsyncFunctionDeclaration ::
+  //   async [no LineTerminator here] function BindingIdentifier[Await]
+  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
+  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
+  int pos = position();
+  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
+    *ok = false;
+    impl()->ReportUnexpectedToken(scanner()->current_token());
+    return impl()->NullStatement();
+  }
+  Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
+  return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
+}
+
+template <typename Impl>
 void ParserBase<Impl>::CheckArityRestrictions(int param_count,
                                               FunctionKind function_kind,
                                               bool has_rest,
@@ -3964,8 +3997,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           formal_parameters, body, kind == kAsyncArrowFunction, CHECK_OK);
       ExpressionClassifier classifier(this);
       if (kind == kAsyncArrowFunction) {
-        impl()->ParseAsyncArrowSingleExpressionBody(body, accept_IN, pos,
-                                                    CHECK_OK);
+        ParseAsyncFunctionBody(scope(), body, kAsyncArrowFunction,
+                               FunctionBodyType::kSingleExpression, accept_IN,
+                               pos, CHECK_OK);
         impl()->RewriteNonPattern(CHECK_OK);
       } else {
         ExpressionT expression = ParseAssignmentExpression(accept_IN, CHECK_OK);
@@ -4017,6 +4051,61 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   impl()->InferFunctionName(function_literal);
 
   return function_literal;
+}
+
+template <typename Impl>
+void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope, StatementListT body,
+                                              FunctionKind kind,
+                                              FunctionBodyType body_type,
+                                              bool accept_IN, int pos,
+                                              bool* ok) {
+  scope->ForceContextAllocation();
+
+  impl()->PrepareAsyncFunctionBody(body, kind, pos);
+
+  BlockT block = factory()->NewBlock(nullptr, 8, true, kNoSourcePosition);
+
+  ExpressionT return_value = impl()->EmptyExpression();
+  if (body_type == FunctionBodyType::kNormal) {
+    ParseStatementList(block->statements(), Token::RBRACE,
+                       CHECK_OK_CUSTOM(Void));
+    return_value = factory()->NewUndefinedLiteral(kNoSourcePosition);
+  } else {
+    return_value = ParseAssignmentExpression(accept_IN, CHECK_OK_CUSTOM(Void));
+    impl()->RewriteNonPattern(CHECK_OK_CUSTOM(Void));
+  }
+
+  impl()->RewriteAsyncFunctionBody(body, block, return_value,
+                                   CHECK_OK_CUSTOM(Void));
+  scope->set_end_position(scanner()->location().end_pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
+  // AsyncFunctionLiteral ::
+  //   async [no LineTerminator here] function ( FormalParameters[Await] )
+  //       { AsyncFunctionBody }
+  //
+  //   async [no LineTerminator here] function BindingIdentifier[Await]
+  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
+  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
+  int pos = position();
+  Expect(Token::FUNCTION, CHECK_OK);
+  bool is_strict_reserved = false;
+  IdentifierT name = impl()->EmptyIdentifier();
+  FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
+
+  if (peek_any_identifier()) {
+    type = FunctionLiteral::kNamedExpression;
+    name = ParseIdentifierOrStrictReservedWord(FunctionKind::kAsyncFunction,
+                                               &is_strict_reserved, CHECK_OK);
+  }
+  return impl()->ParseFunctionLiteral(
+      name, scanner()->location(),
+      is_strict_reserved ? kFunctionNameIsStrictReserved
+                         : kFunctionNameValidityUnknown,
+      FunctionKind::kAsyncFunction, pos, type, language_mode(), CHECK_OK);
 }
 
 template <typename Impl>
@@ -4329,7 +4418,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
       if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
           !scanner()->HasAnyLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
-        return impl()->ParseAsyncFunctionDeclaration(nullptr, false, ok);
+        return ParseAsyncFunctionDeclaration(nullptr, false, ok);
       }
     /* falls through */
     default:

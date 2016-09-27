@@ -211,8 +211,6 @@ class Parser : public ParserBase<Parser> {
     kAbruptCompletion
   };
 
-  enum class FunctionBodyType { kNormal, kSingleExpression };
-
   Variable* NewTemporary(const AstRawString* name) {
     return scope()->NewTemporary(name);
   }
@@ -271,9 +269,6 @@ class Parser : public ParserBase<Parser> {
   };
   ZoneList<const NamedImport*>* ParseNamedImports(int pos, bool* ok);
   Statement* ParseFunctionDeclaration(bool* ok);
-  Statement* ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
-                                           bool default_export, bool* ok);
-  Expression* ParseAsyncFunctionExpression(bool* ok);
   Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                    bool default_export, bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
@@ -411,10 +406,6 @@ class Parser : public ParserBase<Parser> {
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
       Statement* body, Scope* inner_scope, const ForInfo& for_info, bool* ok);
 
-  void DesugarAsyncFunctionBody(Scope* scope, ZoneList<Statement*>* body,
-                                FunctionKind kind, FunctionBodyType type,
-                                bool accept_IN, int pos, bool* ok);
-
   Expression* RewriteDoExpression(Block* body, int pos, bool* ok);
 
   FunctionLiteral* ParseFunctionLiteral(
@@ -541,14 +532,6 @@ class Parser : public ParserBase<Parser> {
                                    Expression* tag);
   uint32_t ComputeTemplateLiteralHash(const TemplateLiteral* lit);
 
-  void ParseAsyncArrowSingleExpressionBody(ZoneList<Statement*>* body,
-                                           bool accept_IN,
-                                           int pos, bool* ok) {
-    DesugarAsyncFunctionBody(scope(), body, kAsyncArrowFunction,
-                             FunctionBodyType::kSingleExpression, accept_IN,
-                             pos, ok);
-  }
-
   ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);
   Expression* SpreadCall(Expression* function, ZoneList<Expression*>* args,
                          int pos);
@@ -607,13 +590,18 @@ class Parser : public ParserBase<Parser> {
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
   V8_INLINE Expression* RewriteAwaitExpression(Expression* value, int pos);
+  V8_INLINE void PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
+                                          FunctionKind kind, int pos);
+  V8_INLINE void RewriteAsyncFunctionBody(ZoneList<Statement*>* body,
+                                          Block* block,
+                                          Expression* return_value, bool* ok);
 
   Expression* RewriteYieldStar(Expression* generator, Expression* expression,
                                int pos);
 
-  void ParseArrowFunctionFormalParameters(ParserFormalParameters* parameters,
-                                          Expression* params, int end_pos,
-                                          bool* ok);
+  void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,
+                                        Expression* params, int end_pos,
+                                        bool* ok);
   void SetFunctionName(Expression* value, const AstRawString* name);
 
   // Helper functions for recursive descent.
@@ -1025,10 +1013,11 @@ class Parser : public ParserBase<Parser> {
     }
   }
 
-  void ParseArrowFunctionFormalParameterList(
-      ParserFormalParameters* parameters, Expression* params,
-      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-      const Scope::Snapshot& scope_snapshot, bool* ok);
+  void DeclareArrowFunctionFormalParameters(ParserFormalParameters* parameters,
+                                            Expression* params,
+                                            const Scanner::Location& params_loc,
+                                            Scanner::Location* duplicate_loc,
+                                            bool* ok);
 
   void ReindexLiterals(const ParserFormalParameters& parameters);
 
