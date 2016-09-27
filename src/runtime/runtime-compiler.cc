@@ -361,12 +361,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       // match. Fix heuristics for reenabling optimizations!
       function->shared()->increment_deopt_count();
 
-      if (result->is_turbofanned()) {
-        // TurboFanned OSR code cannot be installed into the function.
-        // But the function is obviously hot, so optimize it next time.
-        function->ReplaceCode(
-            isolate->builtins()->builtin(Builtins::kCompileOptimized));
-      } else {
+      if (!result->is_turbofanned()) {
         // Crankshafted OSR code can be installed into the function.
         function->ReplaceCode(*result);
       }

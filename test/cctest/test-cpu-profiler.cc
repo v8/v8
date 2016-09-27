@@ -1023,6 +1023,7 @@ TEST(BoundFunctionCall) {
 
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
+  if (!optimize) i::FLAG_crankshaft = false;
   CcTest::InitializeVM();
   LocalContext env;
   i::FLAG_allow_natives_syntax = true;
@@ -1032,10 +1033,15 @@ static void TickLines(bool optimize) {
   i::HandleScope scope(isolate);
 
   i::EmbeddedVector<char, 512> script;
+  i::EmbeddedVector<char, 64> optimize_call;
 
   const char* func_name = "func";
-  const char* opt_func =
-      optimize ? "%OptimizeFunctionOnNextCall" : "%NeverOptimizeFunction";
+  if (optimize) {
+    i::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
+                func_name);
+  } else {
+    i::SNPrintF(optimize_call, "");
+  }
   i::SNPrintF(script,
               "function %s() {\n"
               "  var n = 0;\n"
@@ -1045,10 +1051,10 @@ static void TickLines(bool optimize) {
               "    n += m * m * m;\n"
               "  }\n"
               "}\n"
-              "%s();"
-              "%s(%s);\n"
+              "%s();\n"
+              "%s"
               "%s();\n",
-              func_name, func_name, opt_func, func_name, func_name);
+              func_name, func_name, optimize_call.start(), func_name);
 
   CompileRun(script.start());
 
