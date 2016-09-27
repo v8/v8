@@ -177,10 +177,6 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                          if_notequal);
   }
 
-  void BranchIfSameValueZero(compiler::Node* a, compiler::Node* b,
-                             compiler::Node* context, Label* if_true,
-                             Label* if_false);
-
   void BranchIfFastJSArray(compiler::Node* object, compiler::Node* context,
                            Label* if_true, Label* if_false);
 
