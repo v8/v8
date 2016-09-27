@@ -75,6 +75,10 @@ class IC {
            kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC;
   }
 
+  // The ICs that don't pass slot and vector through the stack have to
+  // save/restore them in the dispatcher.
+  static bool ShouldPushPopSlotAndVector(Code::Kind kind);
+
   static InlineCacheState StateFromCode(Code* code);
 
  protected:

@@ -1581,6 +1581,26 @@ THREADED_TEST(IsGeneratorFunctionOrObject) {
   CHECK(!func->IsGeneratorObject());
 }
 
+THREADED_TEST(IsAsyncFunction) {
+  i::FLAG_harmony_async_await = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  CompileRun("async function foo() {}");
+  v8::Local<Value> foo = CompileRun("foo");
+
+  CHECK(foo->IsAsyncFunction());
+  CHECK(foo->IsFunction());
+  CHECK(!foo->IsGeneratorFunction());
+  CHECK(!foo->IsGeneratorObject());
+
+  CompileRun("function bar() {}");
+  v8::Local<Value> bar = CompileRun("bar");
+
+  CHECK(!bar->IsAsyncFunction());
+  CHECK(bar->IsFunction());
+}
 
 THREADED_TEST(ArgumentsObject) {
   LocalContext env;
@@ -7451,12 +7471,10 @@ TEST(ExceptionExtensions) {
   CHECK(context.IsEmpty());
 }
 
-
 static const char* kNativeCallInExtensionSource =
     "function call_runtime_last_index_of(x) {"
-    "  return %StringLastIndexOf(x, 'bob', 10);"
+    "  return %StringLastIndexOf(x, 'bob');"
     "}";
-
 
 static const char* kNativeCallTest =
     "call_runtime_last_index_of('bobbobboellebobboellebobbob');";
@@ -7471,7 +7489,7 @@ TEST(NativeCallInExtensions) {
   v8::Local<Context> context = Context::New(CcTest::isolate(), &extensions);
   Context::Scope lock(context);
   v8::Local<Value> result = CompileRun(kNativeCallTest);
-  CHECK(result->Equals(context, v8::Integer::New(CcTest::isolate(), 3))
+  CHECK(result->Equals(context, v8::Integer::New(CcTest::isolate(), 24))
             .FromJust());
 }
 
@@ -14880,8 +14898,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   isolate->Dispose();
 }
 
-
-THREADED_TEST(ExternalAllocatedMemory) {
+TEST(ExternalAllocatedMemory) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope outer(isolate);
   v8::Local<Context> env(Context::New(isolate));
@@ -21765,12 +21782,15 @@ int* LookupCounter(const char* name) {
 const char* kMegamorphicTestProgram =
     "function CreateClass(name) {\n"
     "  var src = \n"
-    "    `  function ${name}() {};` +\n"
+    "    `  function ${name}() { this.a = 0; };` +\n"
     "    `  ${name}.prototype.foo = function() {};` +\n"
     "    `  ${name};\\n`;\n"
     "  return (0, eval)(src);\n"
     "}\n"
-    "function fooify(obj) { obj.foo(); };\n"
+    "function trigger_ics(obj, v) {\n"
+    "  obj.foo();\n"
+    "  obj.a = v;\n"
+    "};\n"
     "var objs = [];\n"
     "for (var i = 0; i < 50; i++) {\n"
     "  var Class = CreateClass('Class' + i);\n"
@@ -21779,7 +21799,7 @@ const char* kMegamorphicTestProgram =
     "}\n"
     "for (var i = 0; i < 1000; i++) {\n"
     "  for (var obj of objs) {\n"
-    "    fooify(obj);\n"
+    "    trigger_ics(obj, i);\n"
     "  }\n"
     "}\n";
 
@@ -21815,6 +21835,7 @@ void TestStubCache(bool primary) {
           i::CodeStub::LoadICTF,     i::CodeStub::LoadICTrampolineTF,
           i::CodeStub::KeyedLoadIC,  i::CodeStub::KeyedLoadICTrampoline,
           i::CodeStub::StoreIC,      i::CodeStub::StoreICTrampoline,
+          i::CodeStub::StoreICTF,    i::CodeStub::StoreICTrampolineTF,
           i::CodeStub::KeyedStoreIC, i::CodeStub::KeyedStoreICTrampoline,
       };
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -21835,17 +21856,18 @@ void TestStubCache(bool primary) {
     int updates = updates_counter - initial_updates;
     const int kClassesCount = 50;
     const int kIterationsCount = 1000;
-    CHECK_LE(kClassesCount, updates);
+    const int kICKinds = 2;  // LoadIC and StoreIC
+    CHECK_LE(kClassesCount * kICKinds, updates);
     // Check that updates and misses counts are bounded.
     // If there are too many updates then most likely the stub cache does not
     // work properly.
-    CHECK_LE(updates, kClassesCount * 2);
-    CHECK_LE(1, misses);
-    CHECK_LE(misses, kClassesCount * 2);
+    CHECK_LE(updates, kClassesCount * 2 * kICKinds);
+    CHECK_LE(kICKinds, misses);
+    CHECK_LE(misses, kClassesCount * 2 * kICKinds);
     // 2 is for PREMONOMORPHIC and MONOMORPHIC states,
     // 4 is for POLYMORPHIC states,
     // and all the others probes are for MEGAMORPHIC state.
-    CHECK_EQ(kIterationsCount * kClassesCount - 2 - 4, probes);
+    CHECK_EQ((kIterationsCount * kClassesCount - 2 - 4) * kICKinds, probes);
   }
   isolate->Dispose();
 }
@@ -24552,7 +24574,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
 TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
   // Test cases where a UTF-8 character is split over several chunks. Those
   // cases are not supported (the embedder should give the data in big enough
-  // chunks), but we shouldn't crash, just produce a parse error.
+  // chunks), but we shouldn't crash and parse this just fine.
   const char* reference = "\xec\x92\x81";
   char chunk1[] =
       "function foo() {\n"
@@ -24569,7 +24591,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
   chunk3[0] = reference[2];
   const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", NULL};
 
-  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, false);
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
 }
 
 

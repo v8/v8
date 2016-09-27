@@ -112,10 +112,12 @@ class PreParserIdentifier {
     kAsyncIdentifier
   };
 
-  explicit PreParserIdentifier(Type type) : type_(type) {}
+  explicit PreParserIdentifier(Type type) : type_(type), string_(nullptr) {}
   Type type_;
-
+  // Only non-nullptr when PreParser.track_unresolved_variables_ is true.
+  const AstRawString* string_;
   friend class PreParserExpression;
+  friend class PreParser;
 };
 
 
@@ -326,6 +328,8 @@ class PreParserExpression {
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
 
+  void set_is_class_field_initializer(bool is_class_field_initializer) {}
+
  private:
   enum Type {
     kEmpty,
@@ -466,6 +470,8 @@ class PreParserStatement {
   PreParserStatementList statements() { return PreParserStatementList(); }
   void set_scope(Scope* scope) {}
   void Initialize(PreParserExpression cond, PreParserStatement body) {}
+  void Initialize(PreParserStatement init, PreParserExpression cond,
+                  PreParserStatement next, PreParserStatement body) {}
 
  private:
   enum Type {
@@ -663,6 +669,9 @@ class PreParserFactory {
                                        int pos) {
     return PreParserExpression::Default();
   }
+  PreParserExpression NewUndefinedLiteral(int pos) {
+    return PreParserExpression::Default();
+  }
   PreParserExpression NewRegExpLiteral(PreParserIdentifier js_pattern,
                                        int js_flags, int literal_index,
                                        int pos) {
@@ -847,6 +856,17 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
 
+  PreParserStatement NewForStatement(ZoneList<const AstRawString*>* labels,
+                                     int pos) {
+    return PreParserStatement::Default();
+  }
+
+  PreParserStatement NewForEachStatement(ForEachStatement::VisitMode visit_mode,
+                                         ZoneList<const AstRawString*>* labels,
+                                         int pos) {
+    return PreParserStatement::Default();
+  }
+
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }
@@ -989,7 +1009,7 @@ struct ParserTypes<PreParser> {
   typedef PreParser Impl;
 
   // PreParser doesn't need to store generator variables.
-  typedef void GeneratorVariable;
+  typedef void Variable;
 
   // Return types for traversing functions.
   typedef PreParserIdentifier Identifier;
@@ -1058,7 +1078,8 @@ class PreParser : public ParserBase<PreParser> {
             ParserRecorder* log, uintptr_t stack_limit)
       : ParserBase<PreParser>(zone, scanner, stack_limit, NULL,
                               ast_value_factory, log),
-        use_counts_(nullptr) {}
+        use_counts_(nullptr),
+        track_unresolved_variables_(false) {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -1074,8 +1095,7 @@ class PreParser : public ParserBase<PreParser> {
     // the global scope.
     if (is_module) scope = NewModuleScope(scope);
 
-    FunctionState top_scope(&function_state_, &scope_state_, scope,
-                            kNormalFunction);
+    FunctionState top_scope(&function_state_, &scope_state_, scope);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     parsing_module_ = is_module;
@@ -1104,10 +1124,9 @@ class PreParser : public ParserBase<PreParser> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseLazyFunction(LanguageMode language_mode, bool is_typed,
-                                      FunctionKind kind,
-                                      bool has_simple_parameters,
+  PreParseResult PreParseLazyFunction(DeclarationScope* function_scope,
                                       bool parsing_module, ParserRecorder* log,
+                                      bool track_unresolved_variables,
                                       bool may_abort, int* use_counts);
 
  private:
@@ -1127,8 +1146,6 @@ class PreParser : public ParserBase<PreParser> {
   Expression ParseAsyncFunctionExpression(bool* ok);
   Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                   bool default_export, bool ambient, bool* ok);
-  Statement ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
-  Statement ParseTryStatement(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseObjectLiteral(bool* ok);
 
@@ -1137,9 +1154,9 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
-  V8_INLINE LazyParsingResult
-  SkipLazyFunctionBody(int* materialized_literal_count,
-                       int* expected_property_count, bool may_abort, bool* ok) {
+  V8_INLINE LazyParsingResult SkipLazyFunctionBody(
+      int* materialized_literal_count, int* expected_property_count,
+      bool track_unresolved_variables, bool may_abort, bool* ok) {
     UNREACHABLE();
     return kLazyParsingComplete;
   }
@@ -1192,6 +1209,11 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression SpreadCallNew(PreParserExpression function,
                                               PreParserExpressionList args,
                                               int pos);
+
+  V8_INLINE PreParserExpression
+  RewriteSuperCall(PreParserExpression call_expression) {
+    return call_expression;
+  }
 
   V8_INLINE void RewriteDestructuringAssignments() {}
 
@@ -1249,6 +1271,13 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserStatement RewriteSwitchStatement(
       PreParserExpression tag, PreParserStatement switch_statement,
       PreParserStatementList cases, Scope* scope) {
+    return PreParserStatement::Default();
+  }
+  V8_INLINE void RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {}
+  V8_INLINE void ValidateCatchBlock(const CatchInfo& catch_info, bool* ok) {}
+  V8_INLINE PreParserStatement RewriteTryStatement(
+      PreParserStatement try_block, PreParserStatement catch_block,
+      PreParserStatement finally_block, const CatchInfo& catch_info, int pos) {
     return PreParserStatement::Default();
   }
 
@@ -1414,6 +1443,38 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
+  V8_INLINE PreParserStatement
+  BuildInitializationBlock(DeclarationParsingResult* parsing_result,
+                           ZoneList<const AstRawString*>* names, bool* ok) {
+    return PreParserStatement::Default();
+  }
+
+  V8_INLINE PreParserStatement
+  InitializeForEachStatement(PreParserStatement stmt, PreParserExpression each,
+                             PreParserExpression subject,
+                             PreParserStatement body, int each_keyword_pos) {
+    return stmt;
+  }
+
+  V8_INLINE PreParserStatement RewriteForVarInLegacy(const ForInfo& for_info) {
+    return PreParserStatement::Null();
+  }
+  V8_INLINE void DesugarBindingInForEachStatement(
+      ForInfo* for_info, PreParserStatement* body_block,
+      PreParserExpression* each_variable, bool* ok) {}
+  V8_INLINE PreParserStatement CreateForEachStatementTDZ(
+      PreParserStatement init_block, const ForInfo& for_info, bool* ok) {
+    return init_block;
+  }
+
+  V8_INLINE StatementT DesugarLexicalBindingsInForStatement(
+      PreParserStatement loop, PreParserStatement init,
+      PreParserExpression cond, PreParserStatement next,
+      PreParserStatement body, Scope* inner_scope, const ForInfo& for_info,
+      bool* ok) {
+    return loop;
+  }
+
   V8_INLINE PreParserExpression
   NewThrowReferenceError(MessageTemplate::Template message, int pos) {
     return PreParserExpression::Default();
@@ -1529,7 +1590,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE static PreParserStatement NullStatement() {
-    return PreParserStatement::Default();
+    return PreParserStatement::Null();
   }
 
   V8_INLINE bool IsNullStatement(PreParserStatement stmt) {
@@ -1541,7 +1602,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE static PreParserStatement NullBlock() {
-    return PreParserStatement::Default();
+    return PreParserStatement::Null();
   }
 
   V8_INLINE PreParserIdentifier EmptyIdentifierString() const {
@@ -1593,11 +1654,9 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
-  V8_INLINE PreParserExpression ExpressionFromIdentifier(
+  PreParserExpression ExpressionFromIdentifier(
       PreParserIdentifier name, int start_position, int end_position,
-      InferName infer = InferName::kYes) {
-    return PreParserExpression::FromIdentifier(name);
-  }
+      InferName infer = InferName::kYes);
 
   V8_INLINE PreParserExpression ExpressionFromString(int pos) {
     if (scanner()->UnescapedLiteralMatches("use strict", 10)) {
@@ -1622,12 +1681,6 @@ class PreParser : public ParserBase<PreParser> {
 
   PreParserStatementList NewCaseClauseList(int size) {
     return PreParserStatementList();
-  }
-
-  V8_INLINE static PreParserStatement NewBlock(
-      ZoneList<const AstRawString*>* labels, int capacity,
-      bool ignore_completion_value, int pos) {
-    return PreParserStatement::Default();
   }
 
   V8_INLINE PreParserExpression
@@ -1714,6 +1767,7 @@ class PreParser : public ParserBase<PreParser> {
   // Preparser's private field members.
 
   int* use_counts_;
+  bool track_unresolved_variables_;
 };
 
 PreParserExpression PreParser::SpreadCall(PreParserExpression function,

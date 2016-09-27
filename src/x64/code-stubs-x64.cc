@@ -1175,6 +1175,7 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
   __ Pop(rdx);
   __ Pop(rdi);
   __ Pop(rax);
+  __ SmiToInteger32(rdx, rdx);
   __ SmiToInteger32(rax, rax);
 }
 
@@ -1189,7 +1190,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // rdi : the function to call
   Isolate* isolate = masm->isolate();
   Label initialize, done, miss, megamorphic, not_array_function;
-  Label done_initialize_count, done_increment_count;
 
   // Load the cache state into r11.
   __ SmiToInteger32(rdx, rdx);
@@ -1203,7 +1203,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // type-feedback-vector.h).
   Label check_allocation_site;
   __ cmpp(rdi, FieldOperand(r11, WeakCell::kValueOffset));
-  __ j(equal, &done_increment_count, Label::kFar);
+  __ j(equal, &done, Label::kFar);
   __ CompareRoot(r11, Heap::kmegamorphic_symbolRootIndex);
   __ j(equal, &done, Label::kFar);
   __ CompareRoot(FieldOperand(r11, HeapObject::kMapOffset),
@@ -1227,7 +1227,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r11);
   __ cmpp(rdi, r11);
   __ j(not_equal, &megamorphic);
-  __ jmp(&done_increment_count);
+  __ jmp(&done);
 
   __ bind(&miss);
 
@@ -1253,29 +1253,17 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   CreateAllocationSiteStub create_stub(isolate);
   CallStubInRecordCallTarget(masm, &create_stub);
-  __ jmp(&done_initialize_count);
+  __ jmp(&done);
 
   __ bind(&not_array_function);
   CreateWeakCellStub weak_cell_stub(isolate);
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
 
-  __ bind(&done_initialize_count);
-  // Initialize the call counter.
-  __ SmiToInteger32(rdx, rdx);
-  __ Move(FieldOperand(rbx, rdx, times_pointer_size,
-                       FixedArray::kHeaderSize + kPointerSize),
-          Smi::FromInt(1));
-  __ jmp(&done);
-
-  __ bind(&done_increment_count);
-
-  // Increment the call count for monomorphic function calls.
+  __ bind(&done);
+  // Increment the call count for all function calls.
   __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
                                  FixedArray::kHeaderSize + kPointerSize),
                     Smi::FromInt(1));
-
-  __ bind(&done);
-  __ Integer32ToSmi(rdx, rdx);
 }
 
 
@@ -1294,7 +1282,6 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   GenerateRecordCallTarget(masm);
 
-  __ SmiToInteger32(rdx, rdx);
   Label feedback_register_initialized;
   // Put the AllocationSite from the feedback vector into rbx, or undefined.
   __ movp(rbx,
@@ -1321,6 +1308,12 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
+static void IncrementCallCount(MacroAssembler* masm, Register feedback_vector,
+                               Register slot) {
+  __ SmiAddConstant(FieldOperand(feedback_vector, slot, times_pointer_size,
+                                 FixedArray::kHeaderSize + kPointerSize),
+                    Smi::FromInt(1));
+}
 
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // rdi - function
@@ -1334,9 +1327,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ movp(rax, Immediate(arg_count()));
 
   // Increment the call count for monomorphic function calls.
-  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
-                                 FixedArray::kHeaderSize + kPointerSize),
-                    Smi::FromInt(1));
+  IncrementCallCount(masm, rbx, rdx);
 
   __ movp(rbx, rcx);
   __ movp(rdx, rdi);
@@ -1352,7 +1343,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // -- rbx - vector
   // -----------------------------------
   Isolate* isolate = masm->isolate();
-  Label extra_checks_or_miss, call, call_function;
+  Label extra_checks_or_miss, call, call_function, call_count_incremented;
   int argc = arg_count();
   StackArgumentsAccessor args(rsp, argc);
   ParameterCount actual(argc);
@@ -1383,12 +1374,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // convincing us that we have a monomorphic JSFunction.
   __ JumpIfSmi(rdi, &extra_checks_or_miss);
 
-  // Increment the call count for monomorphic function calls.
-  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
-                                 FixedArray::kHeaderSize + kPointerSize),
-                    Smi::FromInt(1));
-
   __ bind(&call_function);
+  // Increment the call count for monomorphic function calls.
+  IncrementCallCount(masm, rbx, rdx);
+
   __ Set(rax, argc);
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
@@ -1428,6 +1417,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
           TypeFeedbackVector::MegamorphicSentinel(isolate));
 
   __ bind(&call);
+
+  // Increment the call count for megamorphic function calls.
+  IncrementCallCount(masm, rbx, rdx);
+
+  __ bind(&call_count_incremented);
   __ Set(rax, argc);
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -1453,11 +1447,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ cmpp(rcx, NativeContextOperand());
   __ j(not_equal, &miss);
 
-  // Initialize the call counter.
-  __ Move(FieldOperand(rbx, rdx, times_pointer_size,
-                       FixedArray::kHeaderSize + kPointerSize),
-          Smi::FromInt(1));
-
   // Store the function. Use a stub since we need a frame for allocation.
   // rbx - vector
   // rdx - slot (needs to be in smi form)
@@ -1467,11 +1456,16 @@ void CallICStub::Generate(MacroAssembler* masm) {
     CreateWeakCellStub create_stub(isolate);
 
     __ Integer32ToSmi(rdx, rdx);
+    __ Push(rbx);
+    __ Push(rdx);
     __ Push(rdi);
     __ Push(rsi);
     __ CallStub(&create_stub);
     __ Pop(rsi);
     __ Pop(rdi);
+    __ Pop(rdx);
+    __ Pop(rbx);
+    __ SmiToInteger32(rdx, rdx);
   }
 
   __ jmp(&call_function);
@@ -1481,20 +1475,19 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&miss);
   GenerateMiss(masm);
 
-  __ jmp(&call);
+  __ jmp(&call_count_incremented);
 
   // Unreachable
   __ int3();
 }
 
-
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::INTERNAL);
 
   // Push the receiver and the function and feedback info.
+  __ Integer32ToSmi(rdx, rdx);
   __ Push(rdi);
   __ Push(rbx);
-  __ Integer32ToSmi(rdx, rdx);
   __ Push(rdx);
 
   // Call the entry.
@@ -1503,7 +1496,6 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
   // Move result to edi and exit the internal frame.
   __ movp(rdi, rax);
 }
-
 
 bool CEntryStub::NeedsImmovableCode() {
   return false;
@@ -3540,7 +3532,7 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ jmp(feedback);
 
   __ bind(&transition_call);
-  DCHECK(receiver_map.is(VectorStoreTransitionDescriptor::MapRegister()));
+  DCHECK(receiver_map.is(StoreTransitionDescriptor::MapRegister()));
   __ movp(receiver_map, FieldOperand(cached_map, WeakCell::kValueOffset));
   // The weak cell may have been cleared.
   __ JumpIfSmi(receiver_map, miss);

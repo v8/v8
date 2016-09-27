@@ -28,7 +28,7 @@ bytecodes: [
                 B(CreateObjectLiteral), U8(2), U8(0), U8(1), R(4),
                 B(Star), R(2),
                 B(CreateClosure), U8(3), U8(0),
-                B(StaNamedPropertySloppy), R(4), U8(4), U8(3),
+                B(StaNamedPropertySloppy), R(4), U8(4), U8(4),
                 B(Mov), R(4), R(3),
                 B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),
                 B(LdaUndefined),

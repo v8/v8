@@ -122,7 +122,9 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Uint64Mod, Operator::kNoProperties, 2, 1, 1)                             \
   V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                        \
   V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                 \
+  V(BitcastTaggedToWord, Operator::kNoProperties, 1, 0, 1)                   \
   V(BitcastWordToTagged, Operator::kNoProperties, 1, 0, 1)                   \
+  V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)             \
   V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                  \

@@ -6,7 +6,7 @@
 
 #include "src/handles.h"
 #include "src/v8.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/encoder.h"

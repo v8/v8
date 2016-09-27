@@ -142,22 +142,30 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kCheckTaggedPointer: {
+    case IrOpcode::kCheckHeapObject: {
       Node* const input = node->InputAt(0);
       if (DecideObjectIsSmi(input) == Decision::kFalse) {
         ReplaceWithValue(node, input);
         return Replace(input);
       }
+      NodeMatcher m(input);
+      if (m.IsCheckHeapObject()) {
+        ReplaceWithValue(node, input);
+        return Replace(input);
+      }
       break;
     }
-    case IrOpcode::kCheckTaggedSigned: {
+    case IrOpcode::kCheckSmi: {
       Node* const input = node->InputAt(0);
       if (DecideObjectIsSmi(input) == Decision::kTrue) {
         ReplaceWithValue(node, input);
         return Replace(input);
       }
       NodeMatcher m(input);
-      if (m.IsConvertTaggedHoleToUndefined()) {
+      if (m.IsCheckSmi()) {
+        ReplaceWithValue(node, input);
+        return Replace(input);
+      } else if (m.IsConvertTaggedHoleToUndefined()) {
         node->ReplaceInput(0, m.InputAt(0));
         return Changed(node);
       }

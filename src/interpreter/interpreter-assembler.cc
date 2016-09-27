@@ -14,7 +14,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -82,6 +82,71 @@ Node* InterpreterAssembler::GetContext() {
 
 void InterpreterAssembler::SetContext(Node* value) {
   StoreRegister(value, Register::current_context());
+}
+
+Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
+  Variable cur_context(this, MachineRepresentation::kTaggedPointer);
+  cur_context.Bind(context);
+
+  Variable cur_depth(this, MachineRepresentation::kWord32);
+  cur_depth.Bind(depth);
+
+  Label context_found(this);
+
+  Variable* context_search_loop_variables[2] = {&cur_depth, &cur_context};
+  Label context_search(this, 2, context_search_loop_variables);
+
+  // Fast path if the depth is 0.
+  BranchIfWord32Equal(depth, Int32Constant(0), &context_found, &context_search);
+
+  // Loop until the depth is 0.
+  Bind(&context_search);
+  {
+    cur_depth.Bind(Int32Sub(cur_depth.value(), Int32Constant(1)));
+    cur_context.Bind(
+        LoadContextSlot(cur_context.value(), Context::PREVIOUS_INDEX));
+
+    BranchIfWord32Equal(cur_depth.value(), Int32Constant(0), &context_found,
+                        &context_search);
+  }
+
+  Bind(&context_found);
+  return cur_context.value();
+}
+
+void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
+                                                              Node* depth,
+                                                              Label* target) {
+  Variable cur_context(this, MachineRepresentation::kTaggedPointer);
+  cur_context.Bind(context);
+
+  Variable cur_depth(this, MachineRepresentation::kWord32);
+  cur_depth.Bind(depth);
+
+  Variable* context_search_loop_variables[2] = {&cur_depth, &cur_context};
+  Label context_search(this, 2, context_search_loop_variables);
+
+  // Loop until the depth is 0.
+  Goto(&context_search);
+  Bind(&context_search);
+  {
+    // TODO(leszeks): We only need to do this check if the context had a sloppy
+    // eval, we could pass in a context chain bitmask to figure out which
+    // contexts actually need to be checked.
+
+    Node* extension_slot =
+        LoadContextSlot(cur_context.value(), Context::EXTENSION_INDEX);
+
+    // Jump to the target if the extension slot is not a hole.
+    GotoIf(WordNotEqual(extension_slot, TheHoleConstant()), target);
+
+    cur_depth.Bind(Int32Sub(cur_depth.value(), Int32Constant(1)));
+    cur_context.Bind(
+        LoadContextSlot(cur_context.value(), Context::PREVIOUS_INDEX));
+
+    GotoIf(Word32NotEqual(cur_depth.value(), Int32Constant(0)),
+           &context_search);
+  }
 }
 
 Node* InterpreterAssembler::BytecodeOffset() {
@@ -341,6 +406,14 @@ Node* InterpreterAssembler::BytecodeOperandFlag(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
+Node* InterpreterAssembler::BytecodeOperandUImm(int operand_index) {
+  DCHECK_EQ(OperandType::kUImm,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  return BytecodeUnsignedOperand(operand_index, operand_size);
+}
+
 Node* InterpreterAssembler::BytecodeOperandImm(int operand_index) {
   DCHECK_EQ(OperandType::kImm,
             Bytecodes::GetOperandType(bytecode_, operand_index));
@@ -460,6 +533,18 @@ void InterpreterAssembler::CallEpilogue() {
   }
 }
 
+Node* InterpreterAssembler::IncrementCallCount(Node* type_feedback_vector,
+                                               Node* slot_id) {
+  Comment("increment call count");
+  Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
+  Node* call_count =
+      LoadFixedArrayElement(type_feedback_vector, call_count_slot);
+  Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
+  // Count is Smi, so we don't need a write barrier.
+  return StoreFixedArrayElement(type_feedback_vector, call_count_slot,
+                                new_count, SKIP_WRITE_BARRIER);
+}
+
 Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
                                                Node* first_arg, Node* arg_count,
                                                Node* slot_id,
@@ -482,13 +567,13 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
   Variable return_value(this, MachineRepresentation::kTagged);
   Label handle_monomorphic(this), extra_checks(this), end(this), call(this),
-      call_function(this);
+      call_function(this), call_without_feedback(this);
 
   // Slot id of 0 is used to indicate no typefeedback is available. Call using
   // call builtin.
   STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
   Node* is_feedback_unavailable = Word32Equal(slot_id, Int32Constant(0));
-  GotoIf(is_feedback_unavailable, &call);
+  GotoIf(is_feedback_unavailable, &call_without_feedback);
 
   // The checks. First, does function match the recorded monomorphic target?
   Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
@@ -504,13 +589,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
     GotoIf(is_smi, &extra_checks);
 
     // Increment the call count.
-    Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-    Node* call_count =
-        LoadFixedArrayElement(type_feedback_vector, call_count_slot);
-    Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
-    // Count is Smi, so we don't need a write barrier.
-    StoreFixedArrayElement(type_feedback_vector, call_count_slot, new_count,
-                           SKIP_WRITE_BARRIER);
+    IncrementCallCount(type_feedback_vector, slot_id);
 
     // Call using call function builtin.
     Callable callable = CodeFactory::InterpreterPushArgsAndCall(
@@ -548,13 +627,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       GotoUnless(is_array_function, &mark_megamorphic);
 
       // It is a monomorphic Array function. Increment the call count.
-      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-      Node* call_count =
-          LoadFixedArrayElement(type_feedback_vector, call_count_slot);
-      Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
-      // Count is Smi, so we don't need a write barrier.
-      StoreFixedArrayElement(type_feedback_vector, call_count_slot, new_count,
-                             SKIP_WRITE_BARRIER);
+      IncrementCallCount(type_feedback_vector, slot_id);
 
       // Call ArrayConstructorStub.
       Callable callable_call =
@@ -599,12 +672,6 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
           WordEqual(native_context, LoadNativeContext(context));
       GotoUnless(is_same_native_context, &mark_megamorphic);
 
-      // Initialize it to a monomorphic target.
-      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-      // Count is Smi, so we don't need a write barrier.
-      StoreFixedArrayElement(type_feedback_vector, call_count_slot,
-                             SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
-
       CreateWeakCellInFeedbackVector(type_feedback_vector, SmiTag(slot_id),
                                      function);
 
@@ -614,17 +681,8 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
     Bind(&create_allocation_site);
     {
-      // TODO(mythria): Inline the creation of the allocation site.
-      CreateAllocationSiteStub create_stub(isolate());
-      CallStub(create_stub.GetCallInterfaceDescriptor(),
-               HeapConstant(create_stub.GetCode()), context,
-               type_feedback_vector, SmiTag(slot_id));
-
-      // Initialize the count to 1.
-      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-      // Count is Smi, so we don't need a write barrier.
-      StoreFixedArrayElement(type_feedback_vector, call_count_slot,
-                             SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
+      CreateAllocationSiteInFeedbackVector(type_feedback_vector,
+                                           SmiTag(slot_id));
 
       // Call using CallFunction builtin. CallICs have a PREMONOMORPHIC state.
       // They start collecting feedback only when a call is executed the second
@@ -648,6 +706,9 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
   Bind(&call_function);
   {
+    // Increment the call count.
+    IncrementCallCount(type_feedback_vector, slot_id);
+
     Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
         isolate(), tail_call_mode, CallableType::kJSFunction);
     Node* code_target_call = HeapConstant(callable_call.code());
@@ -658,6 +719,21 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
   }
 
   Bind(&call);
+  {
+    // Increment the call count.
+    IncrementCallCount(type_feedback_vector, slot_id);
+
+    // Call using call builtin.
+    Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
+        isolate(), tail_call_mode, CallableType::kAny);
+    Node* code_target_call = HeapConstant(callable_call.code());
+    Node* ret_value = CallStub(callable_call.descriptor(), code_target_call,
+                               context, arg_count, first_arg, function);
+    return_value.Bind(ret_value);
+    Goto(&end);
+  }
+
+  Bind(&call_without_feedback);
   {
     // Call using call builtin.
     Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
@@ -713,24 +789,20 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
     // are uninitialized, monomorphic (indicated by a JSFunction), and
     // megamorphic.
     // TODO(mythria/v8:5210): Check if it is better to mark extra_checks as a
-    // deferred block so that call_construct_function will be scheduled just
-    // after increment_count and in the fast path we can reduce one branch in
-    // the
-    // fast path.
-    Label increment_count(this), extra_checks(this),
-        call_construct_function(this);
+    // deferred block so that call_construct_function will be scheduled.
+    Label extra_checks(this), call_construct_function(this);
 
     Node* feedback_element =
         LoadFixedArrayElement(type_feedback_vector, slot_id);
     Node* feedback_value = LoadWeakCellValue(feedback_element);
     Node* is_monomorphic = WordEqual(constructor, feedback_value);
-    BranchIf(is_monomorphic, &increment_count, &extra_checks);
+    BranchIf(is_monomorphic, &call_construct_function, &extra_checks);
 
     Bind(&extra_checks);
     {
       Label mark_megamorphic(this), initialize(this),
           check_allocation_site(this), check_initialized(this),
-          set_alloc_feedback_and_inc_count(this);
+          set_alloc_feedback_and_call(this);
       {
         // Check if it is a megamorphic target
         Comment("check if megamorphic");
@@ -763,14 +835,14 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
             LoadFixedArrayElement(LoadNativeContext(context),
                                   Int32Constant(Context::ARRAY_FUNCTION_INDEX));
         Node* is_array_function = WordEqual(context_slot, constructor);
-        BranchIf(is_array_function, &set_alloc_feedback_and_inc_count,
+        BranchIf(is_array_function, &set_alloc_feedback_and_call,
                  &mark_megamorphic);
       }
 
-      Bind(&set_alloc_feedback_and_inc_count);
+      Bind(&set_alloc_feedback_and_call);
       {
         allocation_feedback.Bind(feedback_element);
-        Goto(&increment_count);
+        Goto(&call_construct_function);
       }
 
       Bind(&check_initialized);
@@ -784,8 +856,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
       Bind(&initialize);
       {
-        Label initialize_count(this), create_weak_cell(this),
-            create_allocation_site(this);
+        Label create_weak_cell(this), create_allocation_site(this);
         Comment("initialize the feedback element");
         // Check that it is the Array() function.
         Node* context_slot =
@@ -796,30 +867,16 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
         Bind(&create_allocation_site);
         {
-          // TODO(mythria): Inline the creation of allocation site.
-          CreateAllocationSiteStub create_stub(isolate());
-          CallStub(create_stub.GetCallInterfaceDescriptor(),
-                   HeapConstant(create_stub.GetCode()), context,
-                   type_feedback_vector, SmiTag(slot_id));
-          Node* feedback_element =
-              LoadFixedArrayElement(type_feedback_vector, slot_id);
-          allocation_feedback.Bind(feedback_element);
-          Goto(&initialize_count);
+          Node* site = CreateAllocationSiteInFeedbackVector(
+              type_feedback_vector, SmiTag(slot_id));
+          allocation_feedback.Bind(site);
+          Goto(&call_construct_function);
         }
 
         Bind(&create_weak_cell);
         {
           CreateWeakCellInFeedbackVector(type_feedback_vector, SmiTag(slot_id),
                                          constructor);
-          Goto(&initialize_count);
-        }
-
-        Bind(&initialize_count);
-        {
-          Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-          // Count is Smi, so we don't need a write barrier.
-          StoreFixedArrayElement(type_feedback_vector, call_count_slot,
-                                 SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
           Goto(&call_construct_function);
         }
       }
@@ -839,23 +896,10 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
       }
     }
 
-    Bind(&increment_count);
-    {
-      // Increment the call count.
-      Comment("increment call count");
-      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-      Node* call_count =
-          LoadFixedArrayElement(type_feedback_vector, call_count_slot);
-      Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
-      // Count is Smi, so we don't need a write barrier.
-      StoreFixedArrayElement(type_feedback_vector, call_count_slot, new_count,
-                             SKIP_WRITE_BARRIER);
-      Goto(&call_construct_function);
-    }
-
     Bind(&call_construct_function);
     {
       Comment("call using callConstructFunction");
+      IncrementCallCount(type_feedback_vector, slot_id);
       Callable callable_function = CodeFactory::InterpreterPushArgsAndConstruct(
           isolate(), CallableType::kJSFunction);
       return_value.Bind(CallStub(callable_function.descriptor(),
@@ -903,6 +947,9 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
 }
 
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
+  // TODO(rmcilroy): It might be worthwhile to only update the budget for
+  // backwards branches. Those are distinguishable by the {JumpLoop} bytecode.
+
   Label ok(this), interrupt_check(this, Label::kDeferred), end(this);
   Node* budget_offset =
       IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);

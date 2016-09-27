@@ -135,6 +135,7 @@ class RawMachineAssembler {
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
   }
+  Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
 
   // Unaligned memory operations
   Node* UnalignedLoad(MachineType rep, Node* base) {
@@ -531,8 +532,14 @@ class RawMachineAssembler {
   }
 
   // Conversions.
+  Node* BitcastTaggedToWord(Node* a) {
+    return AddNode(machine()->BitcastTaggedToWord(), a);
+  }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
+  }
+  Node* BitcastWordToTaggedSigned(Node* a) {
+    return AddNode(machine()->BitcastWordToTaggedSigned(), a);
   }
   Node* TruncateFloat64ToWord32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToWord32(), a);
@@ -658,6 +665,9 @@ class RawMachineAssembler {
   }
   Node* Float64InsertHighWord32(Node* a, Node* b) {
     return AddNode(machine()->Float64InsertHighWord32(), a, b);
+  }
+  Node* Float64SilenceNaN(Node* a) {
+    return AddNode(machine()->Float64SilenceNaN(), a);
   }
 
   // Stack operations.

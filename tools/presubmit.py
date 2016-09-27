@@ -192,9 +192,8 @@ class CppLintProcessor(SourceFileProcessor):
     return name.endswith('.cc') or name.endswith('.h')
 
   def IgnoreDir(self, name):
-    # TODO(dgozman): remove inspector after fixing the issues.
     return (super(CppLintProcessor, self).IgnoreDir(name)
-              or (name == 'third_party') or (name == 'inspector'))
+              or (name == 'third_party'))
 
   IGNORE_LINT = ['flag-definitions.h']
 
@@ -300,15 +299,15 @@ class SourceProcessor(SourceFileProcessor):
                        'corrections.js',
                        'crypto.js',
                        'daemon.py',
-                       'DebuggerScript.js',
+                       'debugger-script.js',
                        'earley-boyer.js',
                        'fannkuch.js',
                        'fasta.js',
-                       'InjectedScript.cpp',
-                       'InjectedScript.h',
-                       'InjectedScriptSource.js',
-                       'JavaScriptCallFrame.cpp',
-                       'JavaScriptCallFrame.h',
+                       'injected-script.cc',
+                       'injected-script.h',
+                       'injected-script-source.js',
+                       'java-script-call-frame.cc',
+                       'java-script-call-frame.h',
                        'jsmin.py',
                        'libraries.cc',
                        'libraries-empty.cc',
@@ -319,18 +318,18 @@ class SourceProcessor(SourceFileProcessor):
                        'raytrace.js',
                        'regexp-pcre.js',
                        'rjsmin.py',
-                       'ScriptBreakpoint.h',
+                       'script-breakpoint.h',
                        'sqlite.js',
                        'sqlite-change-heap.js',
                        'sqlite-pointer-masking.js',
                        'sqlite-safe-heap.js',
-                       'V8DebuggerScript.h',
-                       'V8FunctionCall.cpp',
-                       'V8FunctionCall.h',
-                       'V8InspectorImpl.cpp',
-                       'V8InspectorImpl.h',
-                       'V8RuntimeAgentImpl.cpp',
-                       'V8RuntimeAgentImpl.h',
+                       'v8-debugger-script.h',
+                       'v8-function-call.cc',
+                       'v8-function-call.h',
+                       'v8-inspector-impl.cc',
+                       'v8-inspector-impl.h',
+                       'v8-runtime-agent-impl.cc',
+                       'v8-runtime-agent-impl.h',
                        'gnuplot-4.6.3-emscripten.js',
                        'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']

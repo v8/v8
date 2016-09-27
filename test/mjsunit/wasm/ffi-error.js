@@ -79,6 +79,23 @@ assertThrows(function() {
     }, TypeError);
 })();
 
+(function I64ParamsInSignatureThrows() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, 1, true);
+  builder.addFunction("function_with_invalid_signature", kSig_i_l)
+    .addBody([
+       kExprGetLocal, 0,
+       kExprI32ConvertI64
+     ])
+    .exportFunc()
+
+  var module = builder.instantiate();
+
+  assertThrows(function() {
+      module.exports.function_with_invalid_signature(33);
+    }, TypeError);
+})();
 
 (function I64JSImportThrows() {
   var builder = new WasmModuleBuilder();

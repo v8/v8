@@ -257,6 +257,16 @@ bool IsEvalToplevel(Handle<SharedFunctionInfo> shared) {
              Script::COMPILATION_TYPE_EVAL;
 }
 
+bool Parse(ParseInfo* info) {
+  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // required by the constant array builder to de-duplicate objects without
+  // dereferencing handles.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
+
+  return Parser::ParseStatic(info);
+}
+
 void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                CompilationInfo* info) {
   // Log the code generation. If source information is available include
@@ -386,6 +396,10 @@ void InstallSharedScopeInfo(CompilationInfo* info,
                             Handle<SharedFunctionInfo> shared) {
   Handle<ScopeInfo> scope_info = info->scope()->scope_info();
   shared->set_scope_info(*scope_info);
+  Scope* outer_scope = info->scope()->GetOuterScopeWithContext();
+  if (outer_scope) {
+    shared->set_outer_scope_info(*outer_scope->scope_info());
+  }
 }
 
 void InstallSharedCompilationResult(CompilationInfo* info,
@@ -421,13 +435,8 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
-  // Create a canonical handle scope before internalizing parsed values if
-  // compiling bytecode. This is required for off-thread bytecode generation.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info->isolate()));
-
   // Parse and update CompilationInfo with the results.
-  if (!Parser::ParseStatic(info->parse_info())) return MaybeHandle<Code>();
+  if (!Parse(info->parse_info())) return MaybeHandle<Code>();
   DCHECK_EQ(info->shared_info()->language_mode(),
             info->literal()->language_mode());
 
@@ -501,6 +510,14 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 }
 
 bool Renumber(ParseInfo* parse_info) {
+  // Create a canonical handle scope if compiling ignition bytecode. This is
+  // required by the constant array builder to de-duplicate objects without
+  // dereferencing handles.
+  std::unique_ptr<CanonicalHandleScope> canonical;
+  if (FLAG_ignition) {
+    canonical.reset(new CanonicalHandleScope(parse_info->isolate()));
+  }
+
   if (!AstNumbering::Renumber(parse_info->isolate(), parse_info->zone(),
                               parse_info->literal())) {
     return false;
@@ -692,6 +709,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   // TurboFan can optimize directly from existing bytecode.
   if (FLAG_turbo_from_bytecode && use_turbofan && ShouldUseIgnition(info)) {
+    if (info->is_osr() && !ignition_osr) return MaybeHandle<Code>();
     if (!Compiler::EnsureBytecode(info)) {
       if (isolate->has_pending_exception()) isolate->clear_pending_exception();
       return MaybeHandle<Code>();
@@ -706,6 +724,16 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     parse_info->set_allow_lazy_parsing(false);
     parse_info->set_lazy(false);
   }
+
+  // Verify that OSR compilations are delegated to the correct graph builder.
+  // Depending on the underlying frame the semantics of the {BailoutId} differ
+  // and the various graph builders hard-code a certain semantic:
+  //  - Interpreter : The BailoutId represents a bytecode offset.
+  //  - FullCodegen : The BailoutId represents the id of an AST node.
+  DCHECK_IMPLIES(info->is_osr() && ignition_osr,
+                 info->is_optimizing_from_bytecode());
+  DCHECK_IMPLIES(info->is_osr() && !ignition_osr,
+                 !info->is_optimizing_from_bytecode());
 
   // In case of concurrent recompilation, all handles below this point will be
   // allocated in a deferred handle scope that is detached and handed off to
@@ -924,7 +952,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   }
 
   // Parse and update CompilationInfo with the results.
-  if (!Parser::ParseStatic(info.parse_info())) return MaybeHandle<Code>();
+  if (!Parse(info.parse_info())) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info.shared_info();
   DCHECK_EQ(shared->language_mode(), info.literal()->language_mode());
 
@@ -1027,11 +1055,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   ParseInfo* parse_info = info->parse_info();
   Handle<Script> script = parse_info->script();
 
-  // Create a canonical handle scope before internalizing parsed values if
-  // compiling bytecode. This is required for off-thread bytecode generation.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(isolate));
-
   // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
   FixedArray* array = isolate->native_context()->embedder_data();
   script->set_context_data(array->get(v8::Context::kDebugIdIndex));
@@ -1075,7 +1098,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         parse_info->set_compile_options(ScriptCompiler::kNoCompileOptions);
       }
 
-      if (!Parser::ParseStatic(parse_info)) {
+      if (!Parse(parse_info)) {
         return Handle<SharedFunctionInfo>::null();
       }
     }
@@ -1152,7 +1175,7 @@ bool Compiler::Analyze(ParseInfo* info) {
 }
 
 bool Compiler::ParseAndAnalyze(ParseInfo* info) {
-  if (!Parser::ParseStatic(info)) return false;
+  if (!Parse(info)) return false;
   if (!Compiler::Analyze(info)) return false;
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
@@ -1332,7 +1355,7 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 }
 
 bool Compiler::EnsureBytecode(CompilationInfo* info) {
-  DCHECK(ShouldUseIgnition(info));
+  if (!ShouldUseIgnition(info)) return false;
   if (!info->shared_info()->HasBytecodeArray()) {
     Handle<Code> original_code(info->shared_info()->code());
     if (GetUnoptimizedCode(info).is_null()) return false;
@@ -1464,7 +1487,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     parse_info.set_language_mode(language_mode);
     parse_info.set_typed(FLAG_use_types);
     parse_info.set_parse_restriction(restriction);
-    parse_info.set_context(context);
+    if (!context->IsNativeContext()) {
+      parse_info.set_outer_scope_info(handle(context->scope_info()));
+    }
 
     shared_info = CompileToplevel(&info);
 
@@ -1637,7 +1662,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
     parse_info.set_compile_options(compile_options);
     parse_info.set_extension(extension);
-    parse_info.set_context(context);
+    if (!context->IsNativeContext()) {
+      parse_info.set_outer_scope_info(handle(context->scope_info()));
+    }
     if (FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kProduceCodeCache) {
       info.PrepareForSerializing();
@@ -1778,14 +1805,12 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
 
-  // Create a canonical handle scope if compiling ignition bytecode. This is
-  // required by the constant array builder to de-duplicate common objects
-  // without dereferencing handles.
-  std::unique_ptr<CanonicalHandleScope> canonical;
-  if (FLAG_ignition) canonical.reset(new CanonicalHandleScope(info.isolate()));
-
   if (lazy) {
     info.SetCode(isolate->builtins()->CompileLazy());
+    Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
+    if (outer_scope) {
+      result->set_outer_scope_info(*outer_scope->scope_info());
+    }
   } else if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
     // Code generation will ensure that the feedback vector is present and
     // appropriately sized.
@@ -1829,6 +1854,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
       name, fun->shared()->num_literals(), FunctionKind::kNormalFunction, code,
       Handle<ScopeInfo>(fun->shared()->scope_info()));
+  shared->set_outer_scope_info(fun->shared()->outer_scope_info());
   shared->SetConstructStub(*construct_stub);
   shared->set_feedback_metadata(fun->shared()->feedback_metadata());
 

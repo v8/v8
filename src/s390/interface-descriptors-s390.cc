@@ -38,11 +38,9 @@ const Register StoreDescriptor::SlotRegister() { return r6; }
 
 const Register StoreWithVectorDescriptor::VectorRegister() { return r5; }
 
-const Register VectorStoreTransitionDescriptor::SlotRegister() { return r6; }
-const Register VectorStoreTransitionDescriptor::VectorRegister() { return r5; }
-const Register VectorStoreTransitionDescriptor::MapRegister() { return r7; }
-
-const Register StoreTransitionDescriptor::MapRegister() { return r5; }
+const Register StoreTransitionDescriptor::SlotRegister() { return r6; }
+const Register StoreTransitionDescriptor::VectorRegister() { return r5; }
+const Register StoreTransitionDescriptor::MapRegister() { return r7; }
 
 const Register StoreGlobalViaContextDescriptor::SlotRegister() { return r4; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return r2; }
@@ -324,7 +322,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void ApiCallbackDescriptorBase::InitializePlatformSpecific(
+void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r2,  // callee

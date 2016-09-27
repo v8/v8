@@ -9,7 +9,7 @@
 #include "src/compiler/frame-states.h"
 #include "src/deoptimize-reason.h"
 #include "src/machine-type.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

@@ -164,6 +164,19 @@ class Platform {
    **/
   virtual void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                         const char* name, uint64_t handle) {}
+
+  class TraceStateObserver {
+   public:
+    virtual ~TraceStateObserver() = default;
+    virtual void OnTraceEnabled() = 0;
+    virtual void OnTraceDisabled() = 0;
+  };
+
+  /** Adds tracing state change observer. */
+  virtual void AddTraceStateObserver(TraceStateObserver*) {}
+
+  /** Removes tracing state change observer. */
+  virtual void RemoveTraceStateObserver(TraceStateObserver*) {}
 };
 
 }  // namespace v8

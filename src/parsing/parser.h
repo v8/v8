@@ -143,7 +143,7 @@ struct ParserTypes<Parser> {
   typedef ParserBase<Parser> Base;
   typedef Parser Impl;
 
-  typedef Variable GeneratorVariable;
+  typedef v8::internal::Variable Variable;
 
   // Return types for traversing functions.
   typedef const AstRawString* Identifier;
@@ -198,8 +198,16 @@ class Parser : public ParserBase<Parser> {
   bool Parse(ParseInfo* info);
   void ParseOnBackground(ParseInfo* info);
 
-  void DeserializeScopeChain(ParseInfo* info, Handle<Context> context,
-                             Scope::DeserializationMode deserialization_mode);
+  // Deserialize the scope chain prior to parsing in which the script is going
+  // to be executed. If the script is a top-level script, or the scope chain
+  // consists of only a native context, maybe_outer_scope_info should be an
+  // empty handle.
+  //
+  // This only deserializes the scope chain, but doesn't connect the scopes to
+  // their corresponding scope infos. Therefore, looking up variables in the
+  // deserialized scopes is not possible.
+  void DeserializeScopeChain(ParseInfo* info,
+                             MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
   // Handle errors detected during parsing, move statistics to Isolate,
   // internalize strings (move them to the heap).
@@ -299,6 +307,11 @@ class Parser : public ParserBase<Parser> {
   Statement* RewriteSwitchStatement(Expression* tag,
                                     SwitchStatement* switch_statement,
                                     ZoneList<CaseClause*>* cases, Scope* scope);
+  void RewriteCatchPattern(CatchInfo* catch_info, bool* ok);
+  void ValidateCatchBlock(const CatchInfo& catch_info, bool* ok);
+  Statement* RewriteTryStatement(Block* try_block, Block* catch_block,
+                                 Block* finally_block,
+                                 const CatchInfo& catch_info, int pos);
 
   Statement* DeclareFunction(const AstRawString* variable_name,
                              FunctionLiteral* function, int pos,
@@ -388,10 +401,6 @@ class Parser : public ParserBase<Parser> {
     DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
   };
 
-  Statement* ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
-  Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
-  TryStatement* ParseTryStatement(bool* ok);
-
   // !%_IsJSReceiver(result = iterator.next()) &&
   //     %ThrowIteratorResultNotAnObject(result)
   Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
@@ -407,10 +416,15 @@ class Parser : public ParserBase<Parser> {
                                       Expression* iterable, Statement* body,
                                       bool finalize,
                                       int next_result_pos = kNoSourcePosition);
+  Block* RewriteForVarInLegacy(const ForInfo& for_info);
+  void DesugarBindingInForEachStatement(ForInfo* for_info, Block** body_block,
+                                        Expression** each_variable, bool* ok);
+  Block* CreateForEachStatementTDZ(Block* init_block, const ForInfo& for_info,
+                                   bool* ok);
+
   Statement* DesugarLexicalBindingsInForStatement(
-      Scope* inner_scope, VariableMode mode,
-      ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,
-      Expression* cond, Statement* next, Statement* body, bool* ok);
+      ForStatement* loop, Statement* init, Expression* cond, Statement* next,
+      Statement* body, Scope* inner_scope, const ForInfo& for_info, bool* ok);
 
   void DesugarAsyncFunctionBody(Scope* scope, ZoneList<Statement*>* body,
                                 FunctionKind kind, FunctionBodyType type,
@@ -424,6 +438,11 @@ class Parser : public ParserBase<Parser> {
       int function_token_position, FunctionLiteral::FunctionType type,
       LanguageMode language_mode, bool is_typed,
       typesystem::TypeFlags type_flags, bool* ok);
+
+  Expression* InstallHomeObject(Expression* function_literal,
+                                Expression* home_object);
+  FunctionLiteral* SynthesizeClassFieldInitializer(int count);
+  FunctionLiteral* InsertClassFieldInitializer(FunctionLiteral* constructor);
 
   Expression* ParseClassLiteral(const AstRawString* name,
                                 Scanner::Location class_name_location,
@@ -449,8 +468,7 @@ class Parser : public ParserBase<Parser> {
   void InsertShadowingVarBindingInitializers(Block* block);
 
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
-  void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope,
-                                            bool* ok);
+  void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope);
 
   VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
                                int end_pos = kNoSourcePosition,
@@ -473,8 +491,8 @@ class Parser : public ParserBase<Parser> {
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
-                                      int pos, int end_pos,
-                                      LanguageMode language_mode);
+                                      bool requires_class_field_init, int pos,
+                                      int end_pos, LanguageMode language_mode);
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.
@@ -482,10 +500,11 @@ class Parser : public ParserBase<Parser> {
   // in order to force the function to be eagerly parsed, after all.
   LazyParsingResult SkipLazyFunctionBody(int* materialized_literal_count,
                                          int* expected_property_count,
-                                         bool may_abort, bool* ok);
+                                         bool is_inner_function, bool may_abort,
+                                         bool* ok);
 
   PreParser::PreParseResult ParseLazyFunctionBodyWithPreParser(
-      SingletonLogger* logger, bool may_abort);
+      SingletonLogger* logger, bool is_inner_function, bool may_abort);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
@@ -551,6 +570,8 @@ class Parser : public ParserBase<Parser> {
                          int pos);
   Expression* SpreadCallNew(Expression* function, ZoneList<Expression*>* args,
                             int pos);
+  Expression* CallClassFieldInitializer(Scope* scope, Expression* this_expr);
+  Expression* RewriteSuperCall(Expression* call_expression);
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
   void SetAsmModule();
@@ -582,8 +603,7 @@ class Parser : public ParserBase<Parser> {
   Expression* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
   Expression* BuildResolvePromise(Expression* value, int pos);
   Expression* BuildRejectPromise(Expression* value, int pos);
-  VariableProxy* BuildDotPromise();
-  VariableProxy* BuildDotDebugIsActive();
+  Variable* PromiseVariable();
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(Runtime::FunctionId function_id,
@@ -999,11 +1019,6 @@ class Parser : public ParserBase<Parser> {
     return new (zone()) ZoneList<CaseClause*>(size, zone());
   }
 
-  V8_INLINE Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,
-                            bool ignore_completion_value, int pos) {
-    return factory()->NewBlock(labels, capacity, ignore_completion_value, pos);
-  }
-
   V8_INLINE Expression* NewV8Intrinsic(const AstRawString* name,
                                        ZoneList<Expression*>* args, int pos,
                                        bool* ok);
@@ -1105,6 +1120,9 @@ class Parser : public ParserBase<Parser> {
   }
 
   // Parser's private field members.
+  friend class DiscardableZoneScope;  // Uses reusable_preparser_.
+  // FIXME(marja): Make reusable_preparser_ always use its own temp Zone (call
+  // DeleteAll after each function), so this won't be needed.
 
   Scanner scanner_;
   PreParser* reusable_preparser_;
@@ -1126,10 +1144,6 @@ class Parser : public ParserBase<Parser> {
   HistogramTimer* pre_parse_timer_;
 
   bool parsing_on_main_thread_;
-
-#ifdef DEBUG
-  void Print(AstNode* node);
-#endif  // DEBUG
 };
 
 }  // namespace internal

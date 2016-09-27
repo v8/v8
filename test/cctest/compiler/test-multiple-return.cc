@@ -64,7 +64,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
 
 
 TEST(ReturnThreeValues) {
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   CallDescriptor* desc = GetCallDescriptor(&zone, 3, 2);
   HandleAndZoneScope handles;

@@ -79,6 +79,7 @@ function checkImportsAndExports(imported_module_name, imported_function_name,
   } catch (err) {
     if (!shouldThrow) print(err);
     assertTrue(shouldThrow, "Should not throw error on valid names");
+    assertTrue(err instanceof Error, "exception should be an Error");
     assertContains("UTF-8", err.toString());
   }
   assertEquals(shouldThrow, hasThrown,

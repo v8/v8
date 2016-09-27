@@ -265,6 +265,13 @@ class GenerateGnArgs(object):
       f.write('\n# Additional %s args:\n' % type)
       f.write(more_gn_args)
       f.write('\n')
+
+    # Artificially increment modification time as our modifications happen too
+    # fast. This makes sure that gn is properly rebuilding the ninja files.
+    mtime = os.path.getmtime(gn_args_path) + 1
+    with open(gn_args_path, 'aw'):
+      os.utime(gn_args_path, (mtime, mtime))
+
     return True
 
   def main(self):

@@ -315,9 +315,9 @@ BoundsCheckTable::BoundsCheckTable(Zone* zone)
 
 BoundsCheckBbData** BoundsCheckTable::LookupOrInsert(BoundsCheckKey* key,
                                                      Zone* zone) {
-  return reinterpret_cast<BoundsCheckBbData**>(
-      &(ZoneHashMap::LookupOrInsert(key, key->Hash(),
-                                    ZoneAllocationPolicy(zone))->value));
+  return reinterpret_cast<BoundsCheckBbData**>(&(
+      ZoneHashMap::LookupOrInsert(key, key->Hash(), ZoneAllocationPolicy(zone))
+          ->value));
 }
 
 

@@ -283,12 +283,10 @@ class AstValue : public ZoneObject {
   F(default, "default")                         \
   F(done, "done")                               \
   F(dot, ".")                                   \
-  F(dot_debug_is_active, ".debug_is_active")    \
+  F(dot_class_field_init, ".class-field-init")  \
   F(dot_for, ".for")                            \
-  F(dot_generator, ".generator")                \
   F(dot_generator_object, ".generator_object")  \
   F(dot_iterator, ".iterator")                  \
-  F(dot_promise, ".promise")                    \
   F(dot_result, ".result")                      \
   F(dot_switch_tag, ".switch_tag")              \
   F(dot_catch, ".catch")                        \
@@ -329,7 +327,6 @@ class AstValueFactory {
         values_(nullptr),
         strings_end_(&strings_),
         zone_(zone),
-        isolate_(NULL),
         hash_seed_(hash_seed) {
     ResetStrings();
 #define F(name, str) name##_string_ = NULL;
@@ -355,11 +352,10 @@ class AstValueFactory {
   const AstRawString* GetString(Handle<String> literal);
   const AstConsString* NewConsString(const AstString* left,
                                      const AstString* right);
+  const AstRawString* ConcatStrings(const AstRawString* left,
+                                    const AstRawString* right);
 
   void Internalize(Isolate* isolate);
-  bool IsInternalized() {
-    return isolate_ != NULL;
-  }
 
 #define F(name, str)                                                    \
   const AstRawString* name##_string() {                                 \
@@ -387,21 +383,13 @@ class AstValueFactory {
 
  private:
   AstValue* AddValue(AstValue* value) {
-    if (isolate_) {
-      value->Internalize(isolate_);
-    } else {
-      value->set_next(values_);
-      values_ = value;
-    }
+    value->set_next(values_);
+    values_ = value;
     return value;
   }
   AstString* AddString(AstString* string) {
-    if (isolate_) {
-      string->Internalize(isolate_);
-    } else {
-      *strings_end_ = string;
-      strings_end_ = string->next_location();
-    }
+    *strings_end_ = string;
+    strings_end_ = string->next_location();
     return string;
   }
   void ResetStrings() {
@@ -425,7 +413,6 @@ class AstValueFactory {
   AstString* strings_;
   AstString** strings_end_;
   Zone* zone_;
-  Isolate* isolate_;
 
   uint32_t hash_seed_;
 

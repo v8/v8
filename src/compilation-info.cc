@@ -79,7 +79,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
                        isolate->is_profiling()),
       parameter_count_(0),
       optimization_id_(-1),
-      osr_expr_stack_height_(0),
+      osr_expr_stack_height_(-1),
       debug_name_(debug_name) {}
 
 CompilationInfo::~CompilationInfo() {

@@ -61,12 +61,10 @@
             '..',
           ],
           'defines': [
-            'V8_SHARED',
             'BUILDING_V8_SHARED',
           ],
           'direct_dependent_settings': {
             'defines': [
-              'V8_SHARED',
               'USING_V8_SHARED',
             ],
           },
@@ -164,12 +162,10 @@
         }],
         ['component=="shared_library"', {
           'defines': [
-            'V8_SHARED',
             'BUILDING_V8_SHARED',
           ],
           'direct_dependent_settings': {
             'defines': [
-              'V8_SHARED',
               'USING_V8_SHARED',
             ],
           },
@@ -259,7 +255,6 @@
         ['component=="shared_library"', {
           'defines': [
             'BUILDING_V8_SHARED',
-            'V8_SHARED',
           ],
         }],
       ]
@@ -286,12 +281,10 @@
             }],
             ['component=="shared_library"', {
               'defines': [
-                'V8_SHARED',
                 'BUILDING_V8_SHARED',
               ],
               'direct_dependent_settings': {
                 'defines': [
-                  'V8_SHARED',
                   'USING_V8_SHARED',
                 ],
               },
@@ -502,6 +495,7 @@
         'builtins/builtins-handler.cc',
         'builtins/builtins-internal.cc',
         'builtins/builtins-interpreter.cc',
+        'builtins/builtins-iterator.cc',
         'builtins/builtins-json.cc',
         'builtins/builtins-math.cc',
         'builtins/builtins-number.cc',
@@ -589,14 +583,14 @@
         'compiler/effect-control-linearizer.h',
         'compiler/escape-analysis.cc',
         'compiler/escape-analysis.h',
-        "compiler/escape-analysis-reducer.cc",
-        "compiler/escape-analysis-reducer.h",
+        'compiler/escape-analysis-reducer.cc',
+        'compiler/escape-analysis-reducer.h',
         'compiler/frame.cc',
         'compiler/frame.h',
         'compiler/frame-elider.cc',
         'compiler/frame-elider.h',
-        "compiler/frame-states.cc",
-        "compiler/frame-states.h",
+        'compiler/frame-states.cc',
+        'compiler/frame-states.h',
         'compiler/gap-resolver.cc',
         'compiler/gap-resolver.h',
         'compiler/graph-reducer.cc',
@@ -732,8 +726,6 @@
         'compiler/type-cache.h',
         'compiler/type-hint-analyzer.cc',
         'compiler/type-hint-analyzer.h',
-        'compiler/type-hints.cc',
-        'compiler/type-hints.h',
         'compiler/typed-optimization.cc',
         'compiler/typed-optimization.h',
         'compiler/typer.cc',
@@ -961,6 +953,7 @@
         'ic/call-optimization.h',
         'ic/handler-compiler.cc',
         'ic/handler-compiler.h',
+        'ic/handler-configuration.h',
         'ic/ic-inl.h',
         'ic/ic-state.cc',
         'ic/ic-state.h',
@@ -990,6 +983,8 @@
         'interpreter/bytecode-generator.h',
         'interpreter/bytecode-label.cc',
         'interpreter/bytecode-label.h',
+        'interpreter/bytecode-operands.cc',
+        'interpreter/bytecode-operands.h',
         'interpreter/bytecode-peephole-optimizer.cc',
         'interpreter/bytecode-peephole-optimizer.h',
         'interpreter/bytecode-peephole-table.h',
@@ -1219,6 +1214,8 @@
         'type-feedback-vector-inl.h',
         'type-feedback-vector.cc',
         'type-feedback-vector.h',
+        'type-hints.cc',
+        'type-hints.h',
         'type-info.cc',
         'type-info.h',
         'unicode-inl.h',
@@ -1272,10 +1269,13 @@
         'wasm/wasm-opcodes.h',
         'wasm/wasm-result.cc',
         'wasm/wasm-result.h',
-        'zone.cc',
-        'zone.h',
-        'zone-allocator.h',
-        'zone-containers.h',
+        'zone/accounting-allocator.cc',
+        'zone/accounting-allocator.h',
+        'zone/zone-segment.h',
+        'zone/zone.cc',
+        'zone/zone.h',
+        'zone/zone-allocator.h',
+        'zone/zone-containers.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -1412,6 +1412,8 @@
             'ia32/interface-descriptors-ia32.cc',
             'ia32/macro-assembler-ia32.cc',
             'ia32/macro-assembler-ia32.h',
+            'ia32/simulator-ia32.cc',
+            'ia32/simulator-ia32.h',
             'builtins/ia32/builtins-ia32.cc',
             'compiler/ia32/code-generator-ia32.cc',
             'compiler/ia32/instruction-codes-ia32.h',
@@ -1451,6 +1453,8 @@
             'x87/interface-descriptors-x87.cc',
             'x87/macro-assembler-x87.cc',
             'x87/macro-assembler-x87.h',
+            'x87/simulator-x87.cc',
+            'x87/simulator-x87.h',
             'builtins/x87/builtins-x87.cc',
             'compiler/x87/code-generator-x87.cc',
             'compiler/x87/instruction-codes-x87.h',
@@ -1559,9 +1563,15 @@
             'regexp/mips64/regexp-macro-assembler-mips64.h',
           ],
         }],
-        ['v8_target_arch=="x64" or v8_target_arch=="x32"', {
+        ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
             'builtins/x64/builtins-x64.cc',
+            'compiler/x64/code-generator-x64.cc',
+            'compiler/x64/instruction-codes-x64.h',
+            'compiler/x64/instruction-scheduler-x64.cc',
+            'compiler/x64/instruction-selector-x64.cc',
+            'compiler/x64/unwinding-info-writer-x64.h',
+            'compiler/x64/unwinding-info-writer-x64.cc',
             'crankshaft/x64/lithium-codegen-x64.cc',
             'crankshaft/x64/lithium-codegen-x64.h',
             'crankshaft/x64/lithium-gap-resolver-x64.cc',
@@ -1578,11 +1588,14 @@
             'x64/cpu-x64.cc',
             'x64/deoptimizer-x64.cc',
             'x64/disasm-x64.cc',
+            'x64/eh-frame-x64.cc',
             'x64/frames-x64.cc',
             'x64/frames-x64.h',
             'x64/interface-descriptors-x64.cc',
             'x64/macro-assembler-x64.cc',
             'x64/macro-assembler-x64.h',
+            'x64/simulator-x64.cc',
+            'x64/simulator-x64.h',
             'x64/sse-instr.h',
             'debug/x64/debug-x64.cc',
             'full-codegen/x64/full-codegen-x64.cc',
@@ -1593,17 +1606,7 @@
             'ic/x64/stub-cache-x64.cc',
             'regexp/x64/regexp-macro-assembler-x64.cc',
             'regexp/x64/regexp-macro-assembler-x64.h',
-          ],
-        }],
-        ['v8_target_arch=="x64"', {
-          'sources': [
-            'compiler/x64/code-generator-x64.cc',
-            'compiler/x64/instruction-codes-x64.h',
-            'compiler/x64/instruction-scheduler-x64.cc',
-            'compiler/x64/instruction-selector-x64.cc',
-            'compiler/x64/unwinding-info-writer-x64.h',
-            'compiler/x64/unwinding-info-writer-x64.cc',
-            'x64/eh-frame-x64.cc',
+            'third_party/valgrind/valgrind.h',
           ],
         }],
         ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
@@ -1705,7 +1708,6 @@
         ['component=="shared_library"', {
           'defines': [
             'BUILDING_V8_SHARED',
-            'V8_SHARED',
           ],
         }],
         ['v8_postmortem_support=="true"', {
@@ -1746,20 +1748,6 @@
             'inspector/inspector.gyp:inspector_injected_script',
             'inspector/inspector.gyp:inspector_debugger_script',
           ],
-          # TODO(dgozman): fix these warnings and enable them.
-          'msvs_disabled_warnings': [
-            4267,  # Truncation from size_t to int.
-            4305,  # Truncation from 'type1' to 'type2'.
-            4324,  # Struct padded due to declspec(align).
-            4714,  # Function marked forceinline not inlined.
-            4800,  # Value forced to bool.
-            4996,  # Deprecated function call.
-          ],
-          'cflags': [
-            '-Wno-zero-length-array',
-            '-Wno-shorten-64-to-32',
-            '-Wno-deprecated-declarations',
-          ],
         }],
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
@@ -1778,8 +1766,6 @@
         '..',
       ],
       'sources': [
-        'base/accounting-allocator.cc',
-        'base/accounting-allocator.h',
         'base/adapters.h',
         'base/atomic-utils.h',
         'base/atomicops.h',
@@ -1813,6 +1799,7 @@
         'base/functional.cc',
         'base/functional.h',
         'base/hashmap.h',
+        'base/hashmap-entry.h',
         'base/ieee754.cc',
         'base/ieee754.h',
         'base/iterator.h',
@@ -1979,6 +1966,7 @@
         ],
         ['OS=="aix"', {
           'sources': [
+            'base/debug/stack_trace_posix.cc',
             'base/platform/platform-aix.cc',
             'base/platform/platform-posix.cc'
           ]},
@@ -2208,17 +2196,16 @@
           'js/regexp.js',
           'js/arraybuffer.js',
           'js/typedarray.js',
-          'js/iterator-prototype.js',
           'js/collection.js',
           'js/weak-collection.js',
           'js/collection-iterator.js',
           'js/promise.js',
           'js/messages.js',
           'js/array-iterator.js',
-          'js/string-iterator.js',
           'js/templates.js',
           'js/spread.js',
           'js/proxy.js',
+          'js/async-await.js',
           'debug/mirrors.js',
           'debug/debug.js',
           'debug/liveedit.js',
@@ -2229,7 +2216,6 @@
           'js/harmony-atomics.js',
           'js/harmony-simd.js',
           'js/harmony-string-padding.js',
-          'js/harmony-async-await.js'
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
@@ -2241,7 +2227,6 @@
             'experimental_library_files': [
               'js/datetime-format-to-parts.js',
               'js/icu-case-mapping.js',
-              'js/intl-extra.js',
              ],
           }],
         ],
@@ -2440,7 +2425,10 @@
         '..',
        ],
       'sources': [
+        'interpreter/bytecode-operands.h',
+        'interpreter/bytecode-operands.cc',
         'interpreter/bytecode-peephole-table.h',
+        'interpreter/bytecode-traits.h',
         'interpreter/bytecodes.h',
         'interpreter/bytecodes.cc',
         'interpreter/mkpeephole.cc'

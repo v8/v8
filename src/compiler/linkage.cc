@@ -124,10 +124,11 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
 
 // static
 bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
-  // Most runtime functions need a FrameState. A few chosen ones that we know
-  // not to call into arbitrary JavaScript, not to throw, and not to deoptimize
-  // are blacklisted here and can be called without a FrameState.
   switch (function) {
+    // Most runtime functions need a FrameState. A few chosen ones that we know
+    // not to call into arbitrary JavaScript, not to throw, and not to
+    // deoptimize
+    // are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
     case Runtime::kCreateIterResultObject:
@@ -153,29 +154,29 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
       return false;
-    case Runtime::kInlineCall:
-    case Runtime::kInlineDeoptimizeNow:
-    case Runtime::kInlineGetPrototype:
-    case Runtime::kInlineNewObject:
-    case Runtime::kInlineRegExpConstructResult:
-    case Runtime::kInlineRegExpExec:
-    case Runtime::kInlineSubString:
-    case Runtime::kInlineThrowNotDateError:
-    case Runtime::kInlineToInteger:
-    case Runtime::kInlineToLength:
-    case Runtime::kInlineToNumber:
-    case Runtime::kInlineToObject:
-    case Runtime::kInlineToString:
-      return true;
+
+    // Some inline intrinsics are also safe to call without a FrameState.
+    case Runtime::kInlineCreateIterResultObject:
+    case Runtime::kInlineFixedArrayGet:
+    case Runtime::kInlineFixedArraySet:
+    case Runtime::kInlineGeneratorClose:
+    case Runtime::kInlineGeneratorGetInputOrDebugPos:
+    case Runtime::kInlineGeneratorGetResumeMode:
+    case Runtime::kInlineGetSuperConstructor:
+    case Runtime::kInlineIsArray:
+    case Runtime::kInlineIsJSReceiver:
+    case Runtime::kInlineIsRegExp:
+    case Runtime::kInlineIsSmi:
+    case Runtime::kInlineIsTypedArray:
+    case Runtime::kInlineRegExpFlags:
+    case Runtime::kInlineRegExpSource:
+      return false;
+
     default:
       break;
   }
 
-  // Most inlined runtime functions (except the ones listed above) can be called
-  // without a FrameState or will be lowered by JSIntrinsicLowering internally.
-  const Runtime::Function* const f = Runtime::FunctionForId(function);
-  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return false;
-
+  // For safety, default to needing a FrameState unless whitelisted.
   return true;
 }
 

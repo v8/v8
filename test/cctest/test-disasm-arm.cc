@@ -505,8 +505,8 @@ TEST(msr_mrs_disasm) {
 TEST(Vfp) {
   SET_UP();
 
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatureScope scope(&assm, VFP3);
+  if (CpuFeatures::IsSupported(VFPv3)) {
+    CpuFeatureScope scope(&assm, VFPv3);
     COMPARE(vmov(d0, r2, r3),
             "ec432b10       vmov d0, r2, r3");
     COMPARE(vmov(r2, r3, d0),
@@ -737,6 +737,7 @@ TEST(Vfp) {
             "eeba9bcf       vcvt.f64.s32 d9, d9, #2");
 
     if (CpuFeatures::IsSupported(VFP32DREGS)) {
+      CpuFeatureScope scope(&assm, VFP32DREGS);
       COMPARE(vmov(d3, d27),
               "eeb03b6b       vmov.f64 d3, d27");
       COMPARE(vmov(d18, d7),
@@ -840,6 +841,7 @@ TEST(ARMv8_vrintX_disasm) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
     COMPARE(vrinta(d0, d0), "feb80b40       vrinta.f64.f64 d0, d0");
     COMPARE(vrinta(d2, d3), "feb82b43       vrinta.f64.f64 d2, d3");
 
@@ -864,6 +866,7 @@ TEST(ARMv8_vminmax_disasm) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
     COMPARE(vmaxnm(d0, d1, d2), "fe810b02       vmaxnm.f64 d0, d1, d2");
     COMPARE(vminnm(d3, d4, d5), "fe843b45       vminnm.f64 d3, d4, d5");
     COMPARE(vmaxnm(s6, s7, s8), "fe833a84       vmaxnm.f32 s6, s7, s8");
@@ -878,6 +881,7 @@ TEST(ARMv8_vselX_disasm) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
     // Native instructions.
     COMPARE(vsel(eq, d0, d1, d2),
             "fe010b02       vseleq.f64 d0, d1, d2");

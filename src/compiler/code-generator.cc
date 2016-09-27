@@ -188,7 +188,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
   // Assemble all eager deoptimization exits.
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     masm()->bind(exit->label());
-    AssembleDeoptimizerCall(exit->deoptimization_id(), Deoptimizer::EAGER);
+    AssembleDeoptimizerCall(exit->deoptimization_id(), Deoptimizer::EAGER,
+                            exit->pos());
   }
 
   // Ensure there is space for lazy deoptimization in the code.
@@ -280,21 +281,6 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
     }
   }
 }
-
-bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
-                                              int* slot_return) {
-  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    if (*object == info()->context() && !info()->is_osr()) {
-      *slot_return = Frame::kContextSlot;
-      return true;
-    } else if (object.is_identical_to(info()->closure())) {
-      *slot_return = Frame::kJSFunctionSlot;
-      return true;
-    }
-  }
-  return false;
-}
-
 
 bool CodeGenerator::IsMaterializableFromRoot(
     Handle<HeapObject> object, Heap::RootListIndex* index_return) {
@@ -895,13 +881,21 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         DCHECK(constant_object->IsSmi());
         break;
       case Constant::kFloat32:
-        DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
-               CanBeTaggedPointer(type.representation()));
+        if (type.representation() == MachineRepresentation::kTaggedSigned) {
+          DCHECK(IsSmiDouble(constant.ToFloat32()));
+        } else {
+          DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
+                 CanBeTaggedPointer(type.representation()));
+        }
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat32());
         break;
       case Constant::kFloat64:
-        DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
-               CanBeTaggedPointer(type.representation()));
+        if (type.representation() == MachineRepresentation::kTaggedSigned) {
+          DCHECK(IsSmiDouble(constant.ToFloat64()));
+        } else {
+          DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
+                 CanBeTaggedPointer(type.representation()));
+        }
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());
         break;
       case Constant::kHeapObject:
@@ -931,8 +925,8 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
     Instruction* instr, size_t frame_state_offset) {
   int const deoptimization_id = BuildTranslation(
       instr, -1, frame_state_offset, OutputFrameStateCombine::Ignore());
-  DeoptimizationExit* const exit =
-      new (zone()) DeoptimizationExit(deoptimization_id);
+  DeoptimizationExit* const exit = new (zone())
+      DeoptimizationExit(deoptimization_id, current_source_position_);
   deoptimization_exits_.push_back(exit);
   return exit;
 }

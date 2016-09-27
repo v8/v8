@@ -7,7 +7,7 @@
 
 #include "src/wasm/wasm-opcodes.h"
 
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 #define U32_LE(v)                                    \
   static_cast<byte>(v), static_cast<byte>((v) >> 8), \

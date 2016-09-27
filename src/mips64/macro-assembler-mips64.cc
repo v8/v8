@@ -2379,7 +2379,8 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
   DCHECK(nan || target);
   // Check for unordered (NaN) cases.
   if (nan) {
-    bool long_branch = nan->is_bound() ? is_near(nan) : is_trampoline_emitted();
+    bool long_branch =
+        nan->is_bound() ? !is_near(nan) : is_trampoline_emitted();
     if (kArchVariant != kMips64r6) {
       if (long_branch) {
         Label skip;
@@ -2419,7 +2420,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
 
   if (target) {
     bool long_branch =
-        target->is_bound() ? is_near(target) : is_trampoline_emitted();
+        target->is_bound() ? !is_near(target) : is_trampoline_emitted();
     if (long_branch) {
       Label skip;
       Condition neg_cond = NegateFpuCondition(cond);

@@ -108,6 +108,10 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
 
 // static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
+  if (FLAG_tf_store_ic_stub) {
+    StoreICTrampolineTFStub stub(isolate, StoreICState(language_mode));
+    return make_callable(stub);
+  }
   StoreICTrampolineStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
 }
@@ -115,6 +119,10 @@ Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
 // static
 Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
                                              LanguageMode language_mode) {
+  if (FLAG_tf_store_ic_stub) {
+    StoreICTFStub stub(isolate, StoreICState(language_mode));
+    return make_callable(stub);
+  }
   StoreICStub stub(isolate, StoreICState(language_mode));
   return make_callable(stub);
 }
@@ -402,38 +410,38 @@ Callable CodeFactory::StringCompare(Isolate* isolate, Token::Value token) {
 
 // static
 Callable CodeFactory::StringEqual(Isolate* isolate) {
-  StringEqualStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringEqual(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringNotEqual(Isolate* isolate) {
-  StringNotEqualStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringNotEqual(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringLessThan(Isolate* isolate) {
-  StringLessThanStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringLessThan(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringLessThanOrEqual(Isolate* isolate) {
-  StringLessThanOrEqualStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringLessThanOrEqual(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringGreaterThan(Isolate* isolate) {
-  StringGreaterThanStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringGreaterThan(),
+                  CompareDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StringGreaterThanOrEqual(Isolate* isolate) {
-  StringGreaterThanOrEqualStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->StringGreaterThanOrEqual(),
+                  CompareDescriptor(isolate));
 }
 
 // static

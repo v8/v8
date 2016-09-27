@@ -32,9 +32,9 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-debug.h"
-#include "src/base/accounting-allocator.h"
 #include "src/utils.h"
 #include "src/v8.h"
+#include "src/zone/accounting-allocator.h"
 
 namespace v8 {
 namespace base {
@@ -587,7 +587,7 @@ class HandleAndZoneScope : public InitializedHandleScope {
   i::Zone* main_zone() { return main_zone_.get(); }
 
  private:
-  v8::base::AccountingAllocator allocator_;
+  v8::internal::AccountingAllocator allocator_;
   std::unique_ptr<i::Zone> main_zone_;
 };
 

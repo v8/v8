@@ -179,7 +179,8 @@
   V(ChangeTaggedToBit)               \
   V(ChangeBitToTagged)               \
   V(TruncateTaggedToWord32)          \
-  V(TruncateTaggedToFloat64)
+  V(TruncateTaggedToFloat64)         \
+  V(TruncateTaggedToBit)
 
 #define SIMPLIFIED_CHECKED_OP_LIST(V) \
   V(CheckedInt32Add)                  \
@@ -189,12 +190,15 @@
   V(CheckedUint32Div)                 \
   V(CheckedUint32Mod)                 \
   V(CheckedInt32Mul)                  \
+  V(CheckedInt32ToTaggedSigned)       \
   V(CheckedUint32ToInt32)             \
+  V(CheckedUint32ToTaggedSigned)      \
   V(CheckedFloat64ToInt32)            \
   V(CheckedTaggedSignedToInt32)       \
   V(CheckedTaggedToInt32)             \
   V(CheckedTruncateTaggedToWord32)    \
-  V(CheckedTaggedToFloat64)
+  V(CheckedTaggedToFloat64)           \
+  V(CheckedTaggedToTaggedSigned)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
@@ -285,8 +289,8 @@
   V(CheckMaps)                      \
   V(CheckNumber)                    \
   V(CheckString)                    \
-  V(CheckTaggedPointer)             \
-  V(CheckTaggedSigned)              \
+  V(CheckSmi)                       \
+  V(CheckHeapObject)                \
   V(CheckFloat64Hole)               \
   V(CheckTaggedHole)                \
   V(ConvertTaggedHoleToUndefined)   \
@@ -390,7 +394,9 @@
   V(Int64Mod)                   \
   V(Uint64Div)                  \
   V(Uint64Mod)                  \
+  V(BitcastTaggedToWord)        \
   V(BitcastWordToTagged)        \
+  V(BitcastWordToTaggedSigned)  \
   V(TruncateFloat64ToWord32)    \
   V(ChangeFloat32ToFloat64)     \
   V(ChangeFloat64ToInt32)       \

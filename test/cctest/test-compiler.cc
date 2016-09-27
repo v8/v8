@@ -842,3 +842,26 @@ TEST(IgnitionEntryTrampolineSelfHealing) {
   CHECK_NE(*isolate->builtins()->InterpreterEntryTrampoline(), f2->code());
   CHECK_EQ(23.0, GetGlobalProperty("result2")->Number());
 }
+
+TEST(InvocationCount) {
+  FLAG_allow_natives_syntax = true;
+  FLAG_always_opt = false;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  CompileRun(
+      "function bar() {};"
+      "function foo() { return bar(); };"
+      "foo();");
+  Handle<JSFunction> foo = Handle<JSFunction>::cast(GetGlobalProperty("foo"));
+  CHECK_EQ(1, foo->feedback_vector()->invocation_count());
+  CompileRun("foo()");
+  CHECK_EQ(2, foo->feedback_vector()->invocation_count());
+  CompileRun("bar()");
+  CHECK_EQ(2, foo->feedback_vector()->invocation_count());
+  CompileRun("foo(); foo()");
+  CHECK_EQ(4, foo->feedback_vector()->invocation_count());
+  CompileRun("%BaselineFunctionOnNextCall(foo);");
+  CompileRun("foo();");
+  CHECK_EQ(5, foo->feedback_vector()->invocation_count());
+}

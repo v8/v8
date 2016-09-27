@@ -753,8 +753,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
       Deoptimizer::BailoutType bailout_type =
           Deoptimizer::BailoutType(MiscField::decode(instr->opcode()));
-      CodeGenResult result =
-          AssembleDeoptimizerCall(deopt_state_id, bailout_type);
+      CodeGenResult result = AssembleDeoptimizerCall(
+          deopt_state_id, bailout_type, current_source_position_);
       if (result != kSuccess) return result;
       break;
     }
@@ -1227,33 +1227,51 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmVnegF64:
       __ vneg(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintmF32:
+    case kArmVrintmF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintm(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintmF64:
+    }
+    case kArmVrintmF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintm(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintpF32:
+    }
+    case kArmVrintpF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintp(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintpF64:
+    }
+    case kArmVrintpF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintp(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintzF32:
+    }
+    case kArmVrintzF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintz(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintzF64:
+    }
+    case kArmVrintzF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintz(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintaF64:
+    }
+    case kArmVrintaF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrinta(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintnF32:
+    }
+    case kArmVrintnF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintn(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintnF64:
+    }
+    case kArmVrintnF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintn(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
+    }
     case kArmVcvtF32F64: {
       __ vcvt_f32_f64(i.OutputFloat32Register(), i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1621,7 +1639,8 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
+    int deoptimization_id, Deoptimizer::BailoutType bailout_type,
+    SourcePosition pos) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   // TODO(turbofan): We should be able to generate better code by sharing the
@@ -1630,7 +1649,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
   DeoptimizeReason deoptimization_reason =
       GetDeoptimizationReason(deoptimization_id);
-  __ RecordDeoptReason(deoptimization_reason, 0, deoptimization_id);
+  __ RecordDeoptReason(deoptimization_reason, pos.raw(), deoptimization_id);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   __ CheckConstPool(false, false);
   return kSuccess;
@@ -1820,10 +1839,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
           Heap::RootListIndex index;
-          int slot;
-          if (IsMaterializableFromFrame(src_object, &slot)) {
-            __ ldr(dst, g.SlotToMemOperand(slot));
-          } else if (IsMaterializableFromRoot(src_object, &index)) {
+          if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {
             __ Move(dst, src_object);

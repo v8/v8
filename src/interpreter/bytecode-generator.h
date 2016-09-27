@@ -125,6 +125,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildIndexedJump(Register value, size_t start_index, size_t size,
                         ZoneVector<BytecodeLabel>& targets);
 
+  void BuildNewLocalActivationContext();
+  void BuildLocalActivationContextInitialization();
+  void BuildNewLocalBlockContext(Scope* scope);
+  void BuildNewLocalCatchContext(Variable* variable, Scope* scope);
+  void BuildNewLocalWithContext(Scope* scope);
+
   void VisitGeneratorPrologue();
 
   void VisitArgumentsObject(Variable* variable);
@@ -136,12 +142,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitClassLiteralStaticPrototypeWithComputedName(Register name);
   void VisitThisFunctionVariable(Variable* variable);
   void VisitNewTargetVariable(Variable* variable);
-  void VisitNewLocalFunctionContext();
-  void VisitBuildLocalActivationContext();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
-  void VisitNewLocalBlockContext(Scope* scope);
-  void VisitNewLocalCatchContext(Variable* variable, Scope* scope);
-  void VisitNewLocalWithContext(Scope* scope);
   void VisitFunctionClosureForContext();
   void VisitSetHomeObject(Register value, Register home_object,
                           LiteralProperty* property, int slot_number = 0);

@@ -11,16 +11,48 @@
 #include "src/api.h"
 #include "src/base/build_config.h"
 #include "test/unittests/test-utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace {
 
+using ::testing::_;
+using ::testing::Invoke;
+
 class ValueSerializerTest : public TestWithIsolate {
  protected:
   ValueSerializerTest()
       : serialization_context_(Context::New(isolate())),
-        deserialization_context_(Context::New(isolate())) {}
+        deserialization_context_(Context::New(isolate())) {
+    // Create a host object type that can be tested through
+    // serialization/deserialization delegates below.
+    Local<FunctionTemplate> function_template = v8::FunctionTemplate::New(
+        isolate(), [](const FunctionCallbackInfo<Value>& args) {
+          args.Holder()->SetInternalField(0, args[0]);
+          args.Holder()->SetInternalField(1, args[1]);
+        });
+    function_template->InstanceTemplate()->SetInternalFieldCount(2);
+    function_template->InstanceTemplate()->SetAccessor(
+        StringFromUtf8("value"),
+        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
+          args.GetReturnValue().Set(args.Holder()->GetInternalField(0));
+        });
+    function_template->InstanceTemplate()->SetAccessor(
+        StringFromUtf8("value2"),
+        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
+          args.GetReturnValue().Set(args.Holder()->GetInternalField(1));
+        });
+    for (Local<Context> context :
+         {serialization_context_, deserialization_context_}) {
+      context->Global()
+          ->CreateDataProperty(
+              context, StringFromUtf8("ExampleHostObject"),
+              function_template->GetFunction(context).ToLocalChecked())
+          .ToChecked();
+    }
+    host_object_constructor_template_ = function_template;
+  }
 
   const Local<Context>& serialization_context() {
     return serialization_context_;
@@ -30,7 +62,11 @@ class ValueSerializerTest : public TestWithIsolate {
   }
 
   // Overridden in more specific fixtures.
+  virtual ValueSerializer::Delegate* GetSerializerDelegate() { return nullptr; }
   virtual void BeforeEncode(ValueSerializer*) {}
+  virtual ValueDeserializer::Delegate* GetDeserializerDelegate() {
+    return nullptr;
+  }
   virtual void BeforeDecode(ValueDeserializer*) {}
 
   template <typename InputFunctor, typename OutputFunctor>
@@ -50,9 +86,24 @@ class ValueSerializerTest : public TestWithIsolate {
                   output_functor);
   }
 
+  // Variant which uses JSON.parse/stringify to check the result.
+  void RoundTripJSON(const char* source) {
+    RoundTripTest(
+        [this, source]() {
+          return JSON::Parse(serialization_context_, StringFromUtf8(source))
+              .ToLocalChecked();
+        },
+        [this, source](Local<Value> value) {
+          ASSERT_TRUE(value->IsObject());
+          EXPECT_EQ(source, Utf8Value(JSON::Stringify(deserialization_context_,
+                                                      value.As<Object>())
+                                          .ToLocalChecked()));
+        });
+  }
+
   Maybe<std::vector<uint8_t>> DoEncode(Local<Value> value) {
     Local<Context> context = serialization_context();
-    ValueSerializer serializer(isolate());
+    ValueSerializer serializer(isolate(), GetSerializerDelegate());
     BeforeEncode(&serializer);
     serializer.WriteHeader();
     if (!serializer.WriteValue(context, value).FromMaybe(false)) {
@@ -93,7 +144,8 @@ class ValueSerializerTest : public TestWithIsolate {
     Context::Scope scope(context);
     TryCatch try_catch(isolate());
     ValueDeserializer deserializer(isolate(), &data[0],
-                                   static_cast<int>(data.size()));
+                                   static_cast<int>(data.size()),
+                                   GetDeserializerDelegate());
     deserializer.SetSupportsLegacyWireFormat(true);
     BeforeDecode(&deserializer);
     ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
@@ -116,7 +168,8 @@ class ValueSerializerTest : public TestWithIsolate {
     Context::Scope scope(context);
     TryCatch try_catch(isolate());
     ValueDeserializer deserializer(isolate(), &data[0],
-                                   static_cast<int>(data.size()));
+                                   static_cast<int>(data.size()),
+                                   GetDeserializerDelegate());
     deserializer.SetSupportsLegacyWireFormat(true);
     BeforeDecode(&deserializer);
     ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
@@ -138,7 +191,8 @@ class ValueSerializerTest : public TestWithIsolate {
     Context::Scope scope(context);
     TryCatch try_catch(isolate());
     ValueDeserializer deserializer(isolate(), &data[0],
-                                   static_cast<int>(data.size()));
+                                   static_cast<int>(data.size()),
+                                   GetDeserializerDelegate());
     deserializer.SetSupportsLegacyWireFormat(true);
     BeforeDecode(&deserializer);
     Maybe<bool> header_result = deserializer.ReadHeader(context);
@@ -176,9 +230,18 @@ class ValueSerializerTest : public TestWithIsolate {
     return std::string(*utf8, utf8.length());
   }
 
+  Local<Object> NewHostObject(Local<Context> context, int argc,
+                              Local<Value> argv[]) {
+    return host_object_constructor_template_->GetFunction(context)
+        .ToLocalChecked()
+        ->NewInstance(context, argc, argv)
+        .ToLocalChecked();
+  }
+
  private:
   Local<Context> serialization_context_;
   Local<Context> deserialization_context_;
+  Local<FunctionTemplate> host_object_constructor_template_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueSerializerTest);
 };
@@ -654,6 +717,31 @@ TEST_F(ValueSerializerTest, RoundTripTrickyGetters) {
                       EXPECT_NE(std::string::npos,
                                 Utf8Value(message->Get()).find("sentinel"));
                     });
+}
+
+TEST_F(ValueSerializerTest, RoundTripDictionaryObjectForTransitions) {
+  // A case which should run on the fast path, and should reach all of the
+  // different cases:
+  // 1. no known transition (first time creating this kind of object)
+  // 2. expected transitions match to end
+  // 3. transition partially matches, but falls back due to new property 'w'
+  // 4. transition to 'z' is now a full transition (needs to be looked up)
+  // 5. same for 'w'
+  // 6. new property after complex transition succeeded
+  // 7. new property after complex transition failed (due to new property)
+  RoundTripJSON(
+      "[{\"x\":1,\"y\":2,\"z\":3}"
+      ",{\"x\":4,\"y\":5,\"z\":6}"
+      ",{\"x\":5,\"y\":6,\"w\":7}"
+      ",{\"x\":6,\"y\":7,\"z\":8}"
+      ",{\"x\":0,\"y\":0,\"w\":0}"
+      ",{\"x\":3,\"y\":1,\"w\":4,\"z\":1}"
+      ",{\"x\":5,\"y\":9,\"k\":2,\"z\":6}]");
+  // A simpler case that uses two-byte strings.
+  RoundTripJSON(
+      "[{\"\xF0\x9F\x91\x8A\":1,\"\xF0\x9F\x91\x8B\":2}"
+      ",{\"\xF0\x9F\x91\x8A\":3,\"\xF0\x9F\x91\x8C\":4}"
+      ",{\"\xF0\x9F\x91\x8A\":5,\"\xF0\x9F\x91\x9B\":6}]");
 }
 
 TEST_F(ValueSerializerTest, DecodeDictionaryObjectVersion0) {
@@ -2022,6 +2110,214 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
        SharedArrayBufferMustBeTransferred) {
   // A SharedArrayBuffer which was not marked for transfer should fail encoding.
   InvalidEncodeTest("new SharedArrayBuffer(32)");
+}
+
+TEST_F(ValueSerializerTest, UnsupportedHostObject) {
+  InvalidEncodeTest("new ExampleHostObject()");
+  InvalidEncodeTest("({ a: new ExampleHostObject() })");
+}
+
+class ValueSerializerTestWithHostObject : public ValueSerializerTest {
+ protected:
+  ValueSerializerTestWithHostObject() : serializer_delegate_(this) {}
+
+  static const uint8_t kExampleHostObjectTag;
+
+  void WriteExampleHostObjectTag() {
+    serializer_->WriteRawBytes(&kExampleHostObjectTag, 1);
+  }
+
+  bool ReadExampleHostObjectTag() {
+    const void* tag;
+    return deserializer_->ReadRawBytes(1, &tag) &&
+           *reinterpret_cast<const uint8_t*>(tag) == kExampleHostObjectTag;
+  }
+
+// GMock doesn't use the "override" keyword.
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winconsistent-missing-override"
+#endif
+
+  class SerializerDelegate : public ValueSerializer::Delegate {
+   public:
+    explicit SerializerDelegate(ValueSerializerTestWithHostObject* test)
+        : test_(test) {}
+    MOCK_METHOD2(WriteHostObject,
+                 Maybe<bool>(Isolate* isolate, Local<Object> object));
+    void ThrowDataCloneError(Local<String> message) override {
+      test_->isolate()->ThrowException(Exception::Error(message));
+    }
+
+   private:
+    ValueSerializerTestWithHostObject* test_;
+  };
+
+  class DeserializerDelegate : public ValueDeserializer::Delegate {
+   public:
+    MOCK_METHOD1(ReadHostObject, MaybeLocal<Object>(Isolate* isolate));
+  };
+
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+
+  ValueSerializer::Delegate* GetSerializerDelegate() override {
+    return &serializer_delegate_;
+  }
+  void BeforeEncode(ValueSerializer* serializer) override {
+    serializer_ = serializer;
+  }
+  ValueDeserializer::Delegate* GetDeserializerDelegate() override {
+    return &deserializer_delegate_;
+  }
+  void BeforeDecode(ValueDeserializer* deserializer) override {
+    deserializer_ = deserializer;
+  }
+
+  SerializerDelegate serializer_delegate_;
+  DeserializerDelegate deserializer_delegate_;
+  ValueSerializer* serializer_;
+  ValueDeserializer* deserializer_;
+
+  friend class SerializerDelegate;
+  friend class DeserializerDelegate;
+};
+
+// This is a tag that's not used in V8.
+const uint8_t ValueSerializerTestWithHostObject::kExampleHostObjectTag = '+';
+
+TEST_F(ValueSerializerTestWithHostObject, RoundTripUint32) {
+  // The host can serialize data as uint32_t.
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillRepeatedly(Invoke([this](Isolate*, Local<Object> object) {
+        uint32_t value = 0;
+        EXPECT_TRUE(object->GetInternalField(0)
+                        ->Uint32Value(serialization_context())
+                        .To(&value));
+        WriteExampleHostObjectTag();
+        serializer_->WriteUint32(value);
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillRepeatedly(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        uint32_t value = 0;
+        EXPECT_TRUE(deserializer_->ReadUint32(&value));
+        Local<Value> argv[] = {Integer::NewFromUnsigned(isolate(), value)};
+        return NewHostObject(deserialization_context(), arraysize(argv), argv);
+      }));
+  RoundTripTest("new ExampleHostObject(42)", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsObject());
+    ASSERT_TRUE(Object::Cast(*value)->InternalFieldCount());
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === ExampleHostObject.prototype"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.value === 42"));
+  });
+  RoundTripTest(
+      "new ExampleHostObject(0xCAFECAFE)", [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.value === 0xCAFECAFE"));
+      });
+}
+
+TEST_F(ValueSerializerTestWithHostObject, RoundTripUint64) {
+  // The host can serialize data as uint64_t.
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillRepeatedly(Invoke([this](Isolate*, Local<Object> object) {
+        uint32_t value = 0, value2 = 0;
+        EXPECT_TRUE(object->GetInternalField(0)
+                        ->Uint32Value(serialization_context())
+                        .To(&value));
+        EXPECT_TRUE(object->GetInternalField(1)
+                        ->Uint32Value(serialization_context())
+                        .To(&value2));
+        WriteExampleHostObjectTag();
+        serializer_->WriteUint64((static_cast<uint64_t>(value) << 32) | value2);
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillRepeatedly(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        uint64_t value_packed;
+        EXPECT_TRUE(deserializer_->ReadUint64(&value_packed));
+        Local<Value> argv[] = {
+            Integer::NewFromUnsigned(isolate(),
+                                     static_cast<uint32_t>(value_packed >> 32)),
+            Integer::NewFromUnsigned(isolate(),
+                                     static_cast<uint32_t>(value_packed))};
+        return NewHostObject(deserialization_context(), arraysize(argv), argv);
+      }));
+  RoundTripTest("new ExampleHostObject(42, 0)", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsObject());
+    ASSERT_TRUE(Object::Cast(*value)->InternalFieldCount());
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === ExampleHostObject.prototype"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.value === 42"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.value2 === 0"));
+  });
+  RoundTripTest(
+      "new ExampleHostObject(0xFFFFFFFF, 0x12345678)",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.value === 0xFFFFFFFF"));
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.value2 === 0x12345678"));
+      });
+}
+
+TEST_F(ValueSerializerTestWithHostObject, RoundTripRawBytes) {
+  // The host can serialize arbitrary raw bytes.
+  const struct {
+    uint64_t u64;
+    uint32_t u32;
+    char str[12];
+  } sample_data = {0x1234567812345678, 0x87654321, "Hello world"};
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillRepeatedly(
+          Invoke([this, &sample_data](Isolate*, Local<Object> object) {
+            WriteExampleHostObjectTag();
+            serializer_->WriteRawBytes(&sample_data, sizeof(sample_data));
+            return Just(true);
+          }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillRepeatedly(Invoke([this, &sample_data](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        const void* copied_data = nullptr;
+        EXPECT_TRUE(
+            deserializer_->ReadRawBytes(sizeof(sample_data), &copied_data));
+        if (copied_data) {
+          EXPECT_EQ(0, memcmp(&sample_data, copied_data, sizeof(sample_data)));
+        }
+        return NewHostObject(deserialization_context(), 0, nullptr);
+      }));
+  RoundTripTest("new ExampleHostObject()", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsObject());
+    ASSERT_TRUE(Object::Cast(*value)->InternalFieldCount());
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === ExampleHostObject.prototype"));
+  });
+}
+
+TEST_F(ValueSerializerTestWithHostObject, RoundTripSameObject) {
+  // If the same object exists in two places, the delegate should be invoked
+  // only once, and the objects should be the same (by reference equality) on
+  // the other side.
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillOnce(Invoke([this](Isolate*, Local<Object> object) {
+        WriteExampleHostObjectTag();
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillOnce(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        return NewHostObject(deserialization_context(), 0, nullptr);
+      }));
+  RoundTripTest(
+      "({ a: new ExampleHostObject(), get b() { return this.a; }})",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "result.a instanceof ExampleHostObject"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
 }
 
 }  // namespace

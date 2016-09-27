@@ -1719,7 +1719,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // r5 : feedback vector
   // r6 : slot in feedback vector (Smi)
   Label initialize, done, miss, megamorphic, not_array_function;
-  Label done_initialize_count, done_increment_count;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->megamorphic_symbol());
@@ -1742,7 +1741,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Register weak_value = r10;
   __ LoadP(weak_value, FieldMemOperand(r8, WeakCell::kValueOffset));
   __ cmp(r4, weak_value);
-  __ beq(&done_increment_count);
+  __ beq(&done);
   __ CompareRoot(r8, Heap::kmegamorphic_symbolRootIndex);
   __ beq(&done);
   __ LoadP(feedback_map, FieldMemOperand(r8, HeapObject::kMapOffset));
@@ -1765,7 +1764,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r8);
   __ cmp(r4, r8);
   __ bne(&megamorphic);
-  __ b(&done_increment_count);
+  __ b(&done);
 
   __ bind(&miss);
 
@@ -1795,32 +1794,22 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // slot.
   CreateAllocationSiteStub create_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &create_stub);
-  __ b(&done_initialize_count);
+  __ b(&done);
 
   __ bind(&not_array_function);
 
   CreateWeakCellStub weak_cell_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
 
-  __ bind(&done_initialize_count);
-  // Initialize the call counter.
-  __ LoadSmiLiteral(r8, Smi::FromInt(1));
-  __ SmiToPtrArrayOffset(r7, r6);
-  __ add(r7, r5, r7);
-  __ StoreP(r8, FieldMemOperand(r7, count_offset), r0);
-  __ b(&done);
+  __ bind(&done);
 
-  __ bind(&done_increment_count);
-
-  // Increment the call count for monomorphic function calls.
+  // Increment the call count for all function calls.
   __ SmiToPtrArrayOffset(r8, r6);
   __ add(r8, r5, r8);
 
   __ LoadP(r7, FieldMemOperand(r8, count_offset));
   __ AddSmiLiteral(r7, r7, Smi::FromInt(1), r0);
   __ StoreP(r7, FieldMemOperand(r8, count_offset), r0);
-
-  __ bind(&done);
 }
 
 
@@ -1872,6 +1861,16 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
+// Note: feedback_vector and slot are clobbered after the call.
+static void IncrementCallCount(MacroAssembler* masm, Register feedback_vector,
+                               Register slot, Register temp) {
+  const int count_offset = FixedArray::kHeaderSize + kPointerSize;
+  __ SmiToPtrArrayOffset(temp, slot);
+  __ add(feedback_vector, feedback_vector, temp);
+  __ LoadP(slot, FieldMemOperand(feedback_vector, count_offset));
+  __ AddSmiLiteral(slot, slot, Smi::FromInt(1), temp);
+  __ StoreP(slot, FieldMemOperand(feedback_vector, count_offset), temp);
+}
 
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // r4 - function
@@ -1885,12 +1884,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ mov(r3, Operand(arg_count()));
 
   // Increment the call count for monomorphic function calls.
-  const int count_offset = FixedArray::kHeaderSize + kPointerSize;
-  __ SmiToPtrArrayOffset(r8, r6);
-  __ add(r5, r5, r8);
-  __ LoadP(r6, FieldMemOperand(r5, count_offset));
-  __ AddSmiLiteral(r6, r6, Smi::FromInt(1), r0);
-  __ StoreP(r6, FieldMemOperand(r5, count_offset), r0);
+  IncrementCallCount(masm, r5, r6, r0);
 
   __ mr(r5, r7);
   __ mr(r6, r4);
@@ -1903,7 +1897,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // r4 - function
   // r6 - slot id (Smi)
   // r5 - vector
-  Label extra_checks_or_miss, call, call_function;
+  Label extra_checks_or_miss, call, call_function, call_count_incremented;
   int argc = arg_count();
   ParameterCount actual(argc);
 
@@ -1934,13 +1928,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // convincing us that we have a monomorphic JSFunction.
   __ JumpIfSmi(r4, &extra_checks_or_miss);
 
-  // Increment the call count for monomorphic function calls.
-  const int count_offset = FixedArray::kHeaderSize + kPointerSize;
-  __ LoadP(r6, FieldMemOperand(r9, count_offset));
-  __ AddSmiLiteral(r6, r6, Smi::FromInt(1), r0);
-  __ StoreP(r6, FieldMemOperand(r9, count_offset), r0);
-
   __ bind(&call_function);
+
+  // Increment the call count for monomorphic function calls.
+  IncrementCallCount(masm, r5, r6, r0);
+
   __ mov(r3, Operand(argc));
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
@@ -1980,6 +1972,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ StoreP(ip, FieldMemOperand(r9, FixedArray::kHeaderSize), r0);
 
   __ bind(&call);
+
+  // Increment the call count for megamorphic function calls.
+  IncrementCallCount(masm, r5, r6, r0);
+
+  __ bind(&call_count_incremented);
   __ mov(r3, Operand(argc));
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -2006,10 +2003,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ cmp(r7, ip);
   __ bne(&miss);
 
-  // Initialize the call counter.
-  __ LoadSmiLiteral(r8, Smi::FromInt(1));
-  __ StoreP(r8, FieldMemOperand(r9, count_offset), r0);
-
   // Store the function. Use a stub since we need a frame for allocation.
   // r5 - vector
   // r6 - slot
@@ -2017,9 +2010,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
+    __ Push(r5);
+    __ Push(r6);
     __ Push(cp, r4);
     __ CallStub(&create_stub);
     __ Pop(cp, r4);
+    __ Pop(r6);
+    __ Pop(r5);
   }
 
   __ b(&call_function);
@@ -2029,7 +2026,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&miss);
   GenerateMiss(masm);
 
-  __ b(&call);
+  __ b(&call_count_incremented);
 }
 
 
@@ -3823,7 +3820,7 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register feedback,
   __ LoadP(receiver_map, MemOperand(pointer_reg, kPointerSize * 2));
 
   // Load the map into the correct register.
-  DCHECK(feedback.is(VectorStoreTransitionDescriptor::MapRegister()));
+  DCHECK(feedback.is(StoreTransitionDescriptor::MapRegister()));
   __ mr(feedback, too_far);
 
   __ addi(ip, receiver_map, Operand(Code::kHeaderSize - kHeapObjectTag));

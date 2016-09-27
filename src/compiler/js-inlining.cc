@@ -11,6 +11,7 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
+#include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
@@ -67,6 +68,12 @@ class JSCallAccessor {
     //  - JSCallConstruct: Includes target function and new target.
     //  - JSCallFunction: Includes target function and receiver.
     return call_->op()->ValueInputCount() - 2;
+  }
+
+  float frequency() const {
+    return (call_->opcode() == IrOpcode::kJSCallFunction)
+               ? CallFunctionParametersOf(call_->op()).frequency()
+               : CallConstructParametersOf(call_->op()).frequency();
   }
 
  private:
@@ -275,6 +282,56 @@ Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
 
 namespace {
 
+// TODO(bmeurer): Unify this with the witness helper functions in the
+// js-builtin-reducer.cc once we have a better understanding of the
+// map tracking we want to do, and eventually changed the CheckMaps
+// operator to carry map constants on the operator instead of inputs.
+// I.e. if the CheckMaps has some kind of SmallMapSet as operator
+// parameter, then this could be changed to call a generic
+//
+//   SmallMapSet NodeProperties::CollectMapWitness(receiver, effect)
+//
+// function, which either returns the map set from the CheckMaps or
+// a singleton set from a StoreField.
+bool NeedsConvertReceiver(Node* receiver, Node* effect) {
+  for (Node* dominator = effect;;) {
+    if (dominator->opcode() == IrOpcode::kCheckMaps &&
+        dominator->InputAt(0) == receiver) {
+      // Check if all maps have the given {instance_type}.
+      for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
+        HeapObjectMatcher m(NodeProperties::GetValueInput(dominator, i));
+        if (!m.HasValue()) return true;
+        Handle<Map> const map = Handle<Map>::cast(m.Value());
+        if (!map->IsJSReceiverMap()) return true;
+      }
+      return false;
+    }
+    switch (dominator->opcode()) {
+      case IrOpcode::kStoreField: {
+        FieldAccess const& access = FieldAccessOf(dominator->op());
+        if (access.base_is_tagged == kTaggedBase &&
+            access.offset == HeapObject::kMapOffset) {
+          return true;
+        }
+        break;
+      }
+      case IrOpcode::kStoreElement:
+      case IrOpcode::kStoreTypedElement:
+        break;
+      default: {
+        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+        if (dominator->op()->EffectInputCount() != 1 ||
+            !dominator->op()->HasProperty(Operator::kNoWrite)) {
+          // Didn't find any appropriate CheckMaps node.
+          return true;
+        }
+        break;
+      }
+    }
+    dominator = NodeProperties::GetEffectInput(dominator);
+  }
+}
+
 // TODO(mstarzinger,verwaest): Move this predicate onto SharedFunctionInfo?
 bool NeedsImplicitReceiver(Handle<SharedFunctionInfo> shared_info) {
   DisallowHeapAllocation no_gc;
@@ -419,8 +476,20 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   if (info_->is_type_feedback_enabled()) info.MarkAsTypeFeedbackEnabled();
+  if (info_->is_optimizing_from_bytecode()) info.MarkAsOptimizeFromBytecode();
 
-  if (!Compiler::ParseAndAnalyze(info.parse_info())) {
+  if (info.is_optimizing_from_bytecode() && !Compiler::EnsureBytecode(&info)) {
+    TRACE("Not inlining %s into %s because bytecode generation failed\n",
+          shared_info->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    if (info_->isolate()->has_pending_exception()) {
+      info_->isolate()->clear_pending_exception();
+    }
+    return NoChange();
+  }
+
+  if (!info.is_optimizing_from_bytecode() &&
+      !Compiler::ParseAndAnalyze(info.parse_info())) {
     TRACE("Not inlining %s into %s because parsing failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -430,7 +499,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     return NoChange();
   }
 
-  if (!Compiler::EnsureDeoptimizationSupport(&info)) {
+  if (!info.is_optimizing_from_bytecode() &&
+      !Compiler::EnsureDeoptimizationSupport(&info)) {
     TRACE("Not inlining %s into %s because deoptimization support failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -456,7 +526,17 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // Create the subgraph for the inlinee.
   Node* start;
   Node* end;
-  {
+  if (info.is_optimizing_from_bytecode()) {
+    // Run the BytecodeGraphBuilder to create the subgraph.
+    Graph::SubgraphScope scope(graph());
+    BytecodeGraphBuilder graph_builder(&zone, &info, jsgraph(),
+                                       call.frequency());
+    graph_builder.CreateGraph();
+
+    // Extract the inlinee start/end nodes.
+    start = graph()->start();
+    end = graph()->end();
+  } else {
     // Run the loop assignment analyzer on the inlinee.
     AstLoopAssignmentAnalyzer loop_assignment_analyzer(&zone, &info);
     LoopAssignmentAnalysis* loop_assignment =
@@ -469,8 +549,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
     // Run the AstGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
-    AstGraphBuilder graph_builder(&zone, &info, jsgraph(), loop_assignment,
-                                  type_hint_analysis);
+    AstGraphBuilder graph_builder(&zone, &info, jsgraph(), call.frequency(),
+                                  loop_assignment, type_hint_analysis);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
@@ -560,15 +640,17 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // in that frame state tho, as the conversion of the receiver can be repeated
   // any number of times, it's not observable.
   if (node->opcode() == IrOpcode::kJSCallFunction &&
-      is_sloppy(parse_info.language_mode()) && !shared_info->native()) {
-    const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
-    Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
+      is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
-    Node* convert = graph()->NewNode(
-        javascript()->ConvertReceiver(p.convert_mode()), call.receiver(),
-        context, frame_state_before, effect, start);
-    NodeProperties::ReplaceValueInput(node, convert, 1);
-    NodeProperties::ReplaceEffectInput(node, convert);
+    if (NeedsConvertReceiver(call.receiver(), effect)) {
+      const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+      Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
+      Node* convert = effect = graph()->NewNode(
+          javascript()->ConvertReceiver(p.convert_mode()), call.receiver(),
+          context, frame_state_before, effect, start);
+      NodeProperties::ReplaceValueInput(node, convert, 1);
+      NodeProperties::ReplaceEffectInput(node, effect);
+    }
   }
 
   // If we are inlining a JS call at tail position then we have to pop current
@@ -589,7 +671,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // count (i.e. value outputs of start node minus target, receiver, new target,
   // arguments count and context) have to match the number of arguments passed
   // to the call.
-  int parameter_count = info.literal()->parameter_count();
+  int parameter_count = shared_info->internal_formal_parameter_count();
   DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 5);
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArtificialFrameState(

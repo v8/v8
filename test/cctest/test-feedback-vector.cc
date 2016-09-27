@@ -41,8 +41,8 @@ TEST(VectorStructure) {
   // Empty vectors are the empty fixed array.
   StaticFeedbackVectorSpec empty;
   Handle<TypeFeedbackVector> vector = NewTypeFeedbackVector(isolate, &empty);
-  CHECK(Handle<FixedArray>::cast(vector)
-            .is_identical_to(factory->empty_fixed_array()));
+  CHECK(Handle<FixedArray>::cast(vector).is_identical_to(
+      factory->empty_type_feedback_vector()));
   // Which can nonetheless be queried.
   CHECK(vector->is_empty());
 
@@ -269,6 +269,11 @@ TEST(VectorCallCounts) {
   CompileRun("f(foo); f(foo);");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   CHECK_EQ(3, nexus.ExtractCallCount());
+
+  // Send the IC megamorphic, but we should still have incrementing counts.
+  CompileRun("f(function() { return 12; });");
+  CHECK_EQ(GENERIC, nexus.StateFromFeedback());
+  CHECK_EQ(4, nexus.ExtractCallCount());
 }
 
 TEST(VectorConstructCounts) {
@@ -285,13 +290,21 @@ TEST(VectorConstructCounts) {
   Handle<JSFunction> f = GetFunction("f");
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+
   FeedbackVectorSlot slot(0);
+  CallICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+
   CHECK(feedback_vector->Get(slot)->IsWeakCell());
 
   CompileRun("f(Foo); f(Foo);");
-  FeedbackVectorSlot cslot(1);
-  CHECK(feedback_vector->Get(cslot)->IsSmi());
-  CHECK_EQ(3, Smi::cast(feedback_vector->Get(cslot))->value());
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(3, nexus.ExtractCallCount());
+
+  // Send the IC megamorphic, but we should still have incrementing counts.
+  CompileRun("f(function() {});");
+  CHECK_EQ(GENERIC, nexus.StateFromFeedback());
+  CHECK_EQ(4, nexus.ExtractCallCount());
 }
 
 TEST(VectorLoadICStates) {
@@ -546,8 +559,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
     CHECK_SLOT_KIND(helper, 5, FeedbackVectorSlotKind::LOAD_IC);
-    // Binary operation feedback is a general slot.
-    CHECK_SLOT_KIND(helper, 6, FeedbackVectorSlotKind::GENERAL);
+    CHECK_SLOT_KIND(helper, 6, FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC);
   }
 }
 

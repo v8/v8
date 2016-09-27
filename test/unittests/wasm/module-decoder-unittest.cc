@@ -213,7 +213,22 @@ TEST_F(WasmModuleVerifyTest, Global_invalid_type) {
       0,    // exported
   };
 
-  ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_FALSE(result.ok());
+  if (result.val) delete result.val;
+}
+
+TEST_F(WasmModuleVerifyTest, Global_invalid_type2) {
+  static const byte data[] = {
+      SECTION(GLOBALS, 5),  // --
+      1,
+      NAME_LENGTH(1),
+      'g',         // name
+      kLocalVoid,  // invalid memory type
+      0,           // exported
+  };
+
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_FALSE(result.ok());
   if (result.val) delete result.val;
 }
@@ -589,7 +604,7 @@ class WasmSignatureDecodeTest : public TestWithZone {};
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   static const byte data[] = {SIG_ENTRY_v_v};
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   FunctionSig* sig =
       DecodeWasmSignatureForTesting(&zone, data, data + arraysize(data));
@@ -1143,6 +1158,15 @@ TEST_F(WasmModuleVerifyTest, FunctionSignatures_one) {
       FUNCTION_SIGNATURES_SECTION(1, 0)      // --
   };
   EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, Regression_648070) {
+  static const byte data[] = {
+      SECTION(SIGNATURES, 1), 0,        // --
+      SECTION(FUNCTION_SIGNATURES, 5),  // --
+      U32V_5(3500228624)                // function count = 3500228624
+  };                                    // --
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, FunctionBodies_empty) {

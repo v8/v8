@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 [
+
 [ALWAYS, {
   ###################### NEEDS INVESTIGATION #######################
 
@@ -105,25 +106,19 @@
   'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5360
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-y-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-success-g-set-lastindex-err': [SKIP],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-success-y-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/g-init-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/g-match-empty-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/g-init-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-init-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/exec/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/test/y-fail-lastindex-no-write': [PASS, FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-err': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5123
   'built-ins/RegExp/prototype/Symbol.replace/coerce-global': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/coerce-unicode': [FAIL],
 
   ###### END REGEXP SUBCLASSING SECTION ######
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5360
+  'built-ins/RegExp/prototype/Symbol.match/builtin-coerce-lastindex-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],
@@ -311,13 +306,6 @@
   'built-ins/Function/prototype/toString/setter-class-static': [FAIL],
   'built-ins/Function/prototype/toString/setter-object': [FAIL],
   'built-ins/Function/prototype/toString/unicode': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  'language/eval-code/direct/export': [SKIP],
-  'language/eval-code/direct/import': [SKIP],
-  'language/eval-code/indirect/export': [SKIP],
-  'language/eval-code/indirect/import': [SKIP],
-  'language/module-code/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012
   # http://bugs.icu-project.org/trac/ticket/12671
@@ -630,5 +618,25 @@
   'built-ins/ArrayBuffer/allocation-limit': [SKIP],
   'built-ins/ArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
+
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
+# Module-related tests
+# https://bugs.chromium.org/p/v8/issues/detail?id=1569
+['variant != ignition', {
+  'language/eval-code/direct/export': [SKIP],
+  'language/eval-code/direct/import': [SKIP],
+  'language/eval-code/indirect/export': [SKIP],
+  'language/eval-code/indirect/import': [SKIP],
+  'language/module-code/*': [SKIP],
+}],  # 'variant != ignition'
+['variant == ignition', {
+  'language/module-code/comment-*': [SKIP],
+  'language/module-code/eval-*': [SKIP],
+  'language/module-code/instn-*': [SKIP],
+  'language/module-code/namespace/*': [SKIP],
+}],  # 'variant == ignition'
 
 ]

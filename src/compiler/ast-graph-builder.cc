@@ -411,14 +411,15 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
   TryFinallyBuilder* control_;
 };
 
-
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                                 JSGraph* jsgraph, LoopAssignmentAnalysis* loop,
+                                 JSGraph* jsgraph, float invocation_frequency,
+                                 LoopAssignmentAnalysis* loop,
                                  TypeHintAnalysis* type_hint_analysis)
     : isolate_(info->isolate()),
       local_zone_(local_zone),
       info_(info),
       jsgraph_(jsgraph),
+      invocation_frequency_(invocation_frequency),
       environment_(nullptr),
       ast_context_(nullptr),
       globals_(0, local_zone),
@@ -1651,6 +1652,10 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
         NewNode(op, receiver, key, value, attr);
         break;
       }
+      case ClassLiteral::Property::FIELD: {
+        UNREACHABLE();
+        break;
+      }
     }
   }
 
@@ -2430,9 +2435,11 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   }
 
   // Create node to perform the function call.
+  float const frequency = ComputeCallFrequency(expr->CallFeedbackICSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
-  const Operator* call = javascript()->CallFunction(
-      args->length() + 2, feedback, receiver_hint, expr->tail_call_mode());
+  const Operator* call =
+      javascript()->CallFunction(args->length() + 2, frequency, feedback,
+                                 receiver_hint, expr->tail_call_mode());
   PrepareEagerCheckpoint(possibly_eval ? expr->EvalId() : expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
   // The callee passed to the call, we just need to push something here to
@@ -2466,7 +2473,7 @@ void AstGraphBuilder::VisitCallSuper(Call* expr) {
 
   // Create node to perform the super call.
   const Operator* call =
-      javascript()->CallConstruct(args->length() + 2, VectorSlotPair());
+      javascript()->CallConstruct(args->length() + 2, 0.0f, VectorSlotPair());
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   ast_context()->ProduceValue(expr, value);
@@ -2484,9 +2491,10 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   environment()->Push(environment()->Peek(args->length()));
 
   // Create node to perform the construct call.
+  float const frequency = ComputeCallFrequency(expr->CallNewFeedbackSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallNewFeedbackSlot());
   const Operator* call =
-      javascript()->CallConstruct(args->length() + 2, feedback);
+      javascript()->CallConstruct(args->length() + 2, frequency, feedback);
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   ast_context()->ProduceValue(expr, value);
@@ -3096,6 +3104,13 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicContext(Variable* variable) {
   return check_depths;
 }
 
+float AstGraphBuilder::ComputeCallFrequency(FeedbackVectorSlot slot) const {
+  if (slot.IsInvalid()) return 0.0f;
+  Handle<TypeFeedbackVector> feedback_vector(
+      info()->closure()->feedback_vector(), isolate());
+  CallICNexus nexus(feedback_vector, slot);
+  return nexus.ComputeCallFrequency() * invocation_frequency_;
+}
 
 Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {
   DCHECK(environment()->stack_height() >= arity);
@@ -3973,8 +3988,8 @@ Node* AstGraphBuilder::TryFastToName(Node* input) {
 
 bool AstGraphBuilder::CheckOsrEntry(IterationStatement* stmt) {
   if (info()->osr_ast_id() == stmt->OsrEntryId()) {
-    info()->set_osr_expr_stack_height(std::max(
-        environment()->stack_height(), info()->osr_expr_stack_height()));
+    DCHECK_EQ(-1, info()->osr_expr_stack_height());
+    info()->set_osr_expr_stack_height(environment()->stack_height());
     return true;
   }
   return false;

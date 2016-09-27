@@ -97,6 +97,13 @@ uint32_t BytecodeArrayIterator::GetFlagOperand(int operand_index) const {
   return GetUnsignedOperand(operand_index, OperandType::kFlag8);
 }
 
+uint32_t BytecodeArrayIterator::GetUnsignedImmediateOperand(
+    int operand_index) const {
+  DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
+            OperandType::kUImm);
+  return GetUnsignedOperand(operand_index, OperandType::kUImm);
+}
+
 int32_t BytecodeArrayIterator::GetImmediateOperand(int operand_index) const {
   DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
             OperandType::kImm);

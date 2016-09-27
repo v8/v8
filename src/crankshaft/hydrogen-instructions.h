@@ -20,7 +20,7 @@
 #include "src/globals.h"
 #include "src/small-pointer-list.h"
 #include "src/utils.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -133,9 +133,7 @@ class SmallMapList;
   V(StoreCodeEntry)                           \
   V(StoreContextSlot)                         \
   V(StoreKeyed)                               \
-  V(StoreKeyedGeneric)                        \
   V(StoreNamedField)                          \
-  V(StoreNamedGeneric)                        \
   V(StringAdd)                                \
   V(StringCharCodeAt)                         \
   V(StringCharFromCode)                       \
@@ -2217,7 +2215,7 @@ class HCallWithDescriptor final : public HInstruction {
                       TailCallMode syntactic_tail_call_mode,
                       TailCallMode tail_call_mode, Zone* zone)
       : descriptor_(descriptor),
-        values_(GetParameterCount() + 1, zone),
+        values_(GetParameterCount() + 1, zone),  // +1 here is for target.
         argument_count_(argument_count),
         bit_field_(
             TailCallModeField::encode(tail_call_mode) |
@@ -2239,7 +2237,7 @@ class HCallWithDescriptor final : public HInstruction {
   }
 
   int GetParameterCount() const {
-    return descriptor_.GetRegisterParameterCount() + 1;
+    return descriptor_.GetParameterCount() + 1;  // +1 here is for context.
   }
 
   void InternalSetOperandAt(int index, HValue* value) final {
@@ -6328,52 +6326,6 @@ class HStoreNamedField final : public HTemplateInstruction<3> {
   uint32_t bit_field_;
 };
 
-class HStoreNamedGeneric final : public HTemplateInstruction<3> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P6(HStoreNamedGeneric, HValue*,
-                                              Handle<Name>, HValue*,
-                                              LanguageMode,
-                                              Handle<TypeFeedbackVector>,
-                                              FeedbackVectorSlot);
-  HValue* object() const { return OperandAt(0); }
-  HValue* value() const { return OperandAt(1); }
-  HValue* context() const { return OperandAt(2); }
-  Handle<Name> name() const { return name_; }
-  LanguageMode language_mode() const { return language_mode_; }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  FeedbackVectorSlot slot() const { return slot_; }
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric)
-
- private:
-  HStoreNamedGeneric(HValue* context, HValue* object, Handle<Name> name,
-                     HValue* value, LanguageMode language_mode,
-                     Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
-      : name_(name),
-        feedback_vector_(vector),
-        slot_(slot),
-        language_mode_(language_mode) {
-    SetOperandAt(0, object);
-    SetOperandAt(1, value);
-    SetOperandAt(2, context);
-    SetAllSideEffects();
-  }
-
-  Handle<Name> name_;
-  Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorSlot slot_;
-  LanguageMode language_mode_;
-};
-
 class HStoreKeyed final : public HTemplateInstruction<4>,
                           public ArrayInstructionInterface {
  public:
@@ -6554,50 +6506,6 @@ class HStoreKeyed final : public HTemplateInstruction<4>,
   uint32_t base_offset_;
   uint32_t bit_field_;
   HValue* dominator_;
-};
-
-class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P6(HStoreKeyedGeneric, HValue*,
-                                              HValue*, HValue*, LanguageMode,
-                                              Handle<TypeFeedbackVector>,
-                                              FeedbackVectorSlot);
-
-  HValue* object() const { return OperandAt(0); }
-  HValue* key() const { return OperandAt(1); }
-  HValue* value() const { return OperandAt(2); }
-  HValue* context() const { return OperandAt(3); }
-  LanguageMode language_mode() const { return language_mode_; }
-
-  Representation RequiredInputRepresentation(int index) override {
-    // tagged[tagged] = tagged
-    return Representation::Tagged();
-  }
-
-  FeedbackVectorSlot slot() const { return slot_; }
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric)
-
- private:
-  HStoreKeyedGeneric(HValue* context, HValue* object, HValue* key,
-                     HValue* value, LanguageMode language_mode,
-                     Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
-      : feedback_vector_(vector), slot_(slot), language_mode_(language_mode) {
-    SetOperandAt(0, object);
-    SetOperandAt(1, key);
-    SetOperandAt(2, value);
-    SetOperandAt(3, context);
-    SetAllSideEffects();
-  }
-
-  Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorSlot slot_;
-  LanguageMode language_mode_;
 };
 
 class HTransitionElementsKind final : public HTemplateInstruction<2> {

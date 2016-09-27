@@ -124,6 +124,24 @@
       ]
     },
     {
+      "name": "StringIterators",
+      "path": ["StringIterators"],
+      "main": "run.js",
+      "resources": ["string-iterator.js"],
+      "results_regexp": "^%s\\-StringIterators\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread_OneByteShort"},
+        {"name": "Spread_TwoByteShort"},
+        {"name": "Spread_WithSurrogatePairsShort"},
+        {"name": "ForOf_OneByteShort"},
+        {"name": "ForOf_TwoByteShort"},
+        {"name": "ForOf_WithSurrogatePairsShort"},
+        {"name": "ForOf_OneByteLong"},
+        {"name": "ForOf_TwoByteLong"},
+        {"name": "ForOf_WithSurrogatePairsLong"}
+      ]
+    },
+    {
       "name": "Templates",
       "path": ["Templates"],
       "main": "run.js",

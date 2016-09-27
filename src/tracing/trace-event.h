@@ -280,7 +280,7 @@ extern TRACE_EVENT_API_ATOMIC_WORD g_trace_state[3];
     uint64_t cid_;                                                         \
   };                                                                       \
   INTERNAL_TRACE_EVENT_UID(ScopedContext)                                  \
-  INTERNAL_TRACE_EVENT_UID(scoped_context)(context.raw_id());
+  INTERNAL_TRACE_EVENT_UID(scoped_context)(context);
 
 #define TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() \
   base::NoBarrier_Load(&v8::internal::tracing::kRuntimeCallStatsTracingEnabled)

@@ -30,7 +30,9 @@ class TestSignatures {
         sig_l_l(1, 1, kLongTypes4),
         sig_l_ll(1, 2, kLongTypes4),
         sig_i_ll(1, 2, kIntLongTypes4),
+        sig_f_f(1, 1, kFloatTypes4),
         sig_f_ff(1, 2, kFloatTypes4),
+        sig_d_d(1, 1, kDoubleTypes4),
         sig_d_dd(1, 2, kDoubleTypes4),
         sig_v_v(0, 0, kIntTypes4),
         sig_v_i(0, 1, kIntTypes4),
@@ -67,7 +69,9 @@ class TestSignatures {
   FunctionSig* l_ll() { return &sig_l_ll; }
   FunctionSig* i_ll() { return &sig_i_ll; }
 
+  FunctionSig* f_f() { return &sig_f_f; }
   FunctionSig* f_ff() { return &sig_f_ff; }
+  FunctionSig* d_d() { return &sig_d_d; }
   FunctionSig* d_dd() { return &sig_d_dd; }
 
   FunctionSig* v_v() { return &sig_v_v; }
@@ -110,7 +114,9 @@ class TestSignatures {
   FunctionSig sig_l_ll;
   FunctionSig sig_i_ll;
 
+  FunctionSig sig_f_f;
   FunctionSig sig_f_ff;
+  FunctionSig sig_d_d;
   FunctionSig sig_d_dd;
 
   FunctionSig sig_v_v;

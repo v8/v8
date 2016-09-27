@@ -104,3 +104,5 @@ turbo*.json
 v8.ignition_dispatches_table.json
 /test/fuzzer/wasm.tar.gz
 /test/fuzzer/wasm_asmjs.tar.gz
+/src/inspector/build/closure-compiler.tar.gz
+/src/inspector/build/closure-compiler

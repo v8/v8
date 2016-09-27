@@ -72,7 +72,6 @@ class InitializedIgnitionHandleScope : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
     i::FLAG_ignition = true;
-    i::FLAG_ignition_osr = false;  // TODO(4764): Disabled for now.
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
     CcTest::i_isolate()->interpreter()->Initialize();
@@ -1800,14 +1799,31 @@ TEST(Eval) {
 TEST(LookupSlot) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_test_function_name("f");
 
+  // clang-format off
   const char* snippets[] = {
       "eval('var x = 10;'); return x;\n",
 
       "eval('var x = 10;'); return typeof x;\n",
 
       "x = 20; return eval('');\n",
+
+      "var x = 20;\n"
+      "f = function(){\n"
+      "  eval('var x = 10');\n"
+      "  return x;\n"
+      "}\n"
+      "f();\n",
+
+      "x = 20;\n"
+      "f = function(){\n"
+      "  eval('var x = 10');\n"
+      "  return x;\n"
+      "}\n"
+      "f();\n"
   };
+  // clang-format on
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("LookupSlot.golden")));

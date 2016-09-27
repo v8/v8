@@ -18,13 +18,6 @@ class PlatformInterfaceDescriptor;
 #define INTERFACE_DESCRIPTOR_LIST(V)      \
   V(Void)                                 \
   V(ContextOnly)                          \
-  V(OnStackWith1Args)                     \
-  V(OnStackWith2Args)                     \
-  V(OnStackWith3Args)                     \
-  V(OnStackWith4Args)                     \
-  V(OnStackWith5Args)                     \
-  V(OnStackWith6Args)                     \
-  V(OnStackWith7Args)                     \
   V(Load)                                 \
   V(LoadWithVector)                       \
   V(LoadGlobal)                           \
@@ -32,7 +25,6 @@ class PlatformInterfaceDescriptor;
   V(Store)                                \
   V(StoreWithVector)                      \
   V(StoreTransition)                      \
-  V(VectorStoreTransition)                \
   V(VarArgFunction)                       \
   V(FastNewClosure)                       \
   V(FastNewFunctionContext)               \
@@ -54,6 +46,7 @@ class PlatformInterfaceDescriptor;
   V(CallTrampoline)                       \
   V(ConstructStub)                        \
   V(ConstructTrampoline)                  \
+  V(RegExpExec)                           \
   V(RegExpConstructResult)                \
   V(CopyFastSmiOrObjectElements)          \
   V(TransitionElementsKind)               \
@@ -78,6 +71,7 @@ class PlatformInterfaceDescriptor;
   V(CountOp)                              \
   V(StringAdd)                            \
   V(StringCompare)                        \
+  V(SubString)                            \
   V(Keyed)                                \
   V(Named)                                \
   V(HasProperty)                          \
@@ -85,14 +79,7 @@ class PlatformInterfaceDescriptor;
   V(GetProperty)                          \
   V(CallHandler)                          \
   V(ArgumentAdaptor)                      \
-  V(ApiCallbackWith0Args)                 \
-  V(ApiCallbackWith1Args)                 \
-  V(ApiCallbackWith2Args)                 \
-  V(ApiCallbackWith3Args)                 \
-  V(ApiCallbackWith4Args)                 \
-  V(ApiCallbackWith5Args)                 \
-  V(ApiCallbackWith6Args)                 \
-  V(ApiCallbackWith7Args)                 \
+  V(ApiCallback)                          \
   V(ApiGetter)                            \
   V(StoreGlobalViaContext)                \
   V(MathPowTagged)                        \
@@ -272,11 +259,18 @@ class CallInterfaceDescriptor {
                                                                         \
  public:
 
-#define DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(name, base, arg) \
-  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                  \
- protected:                                                                 \
-  int extra_args() const override { return arg; }                           \
-                                                                            \
+#define DECLARE_DESCRIPTOR_WITH_STACK_ARGS(name, base)                  \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                              \
+ protected:                                                             \
+  void InitializePlatformIndependent(CallInterfaceDescriptorData* data) \
+      override {                                                        \
+    data->InitializePlatformIndependent(0, kParameterCount, NULL);      \
+  }                                                                     \
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)    \
+      override {                                                        \
+    data->InitializePlatformSpecific(0, nullptr);                       \
+  }                                                                     \
+                                                                        \
  public:
 
 #define DEFINE_PARAMETERS(...)                          \
@@ -295,74 +289,6 @@ class VoidDescriptor : public CallInterfaceDescriptor {
 class ContextOnlyDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
-};
-
-// The OnStackWith*ArgsDescriptors have a lot of boilerplate. The superclass
-// OnStackArgsDescriptorBase is not meant to be instantiated directly and has no
-// public constructors to ensure this is so.contains all the logic, and the
-//
-// Use OnStackArgsDescriptorBase::ForArgs(isolate, parameter_count) to
-// instantiate a descriptor with the number of args.
-class OnStackArgsDescriptorBase : public CallInterfaceDescriptor {
- public:
-  static CallInterfaceDescriptor ForArgs(Isolate* isolate, int parameter_count);
-
- protected:
-  virtual int extra_args() const { return 0; }
-  OnStackArgsDescriptorBase(Isolate* isolate, CallDescriptors::Key key)
-      : CallInterfaceDescriptor(isolate, key) {}
-  void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override;
-  void InitializePlatformIndependent(
-      CallInterfaceDescriptorData* data) override;
-};
-
-class OnStackWith1ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith1ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     1)
-};
-
-class OnStackWith2ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith2ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     2)
-};
-
-class OnStackWith3ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith3ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     3)
-};
-
-class OnStackWith4ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith4ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     4)
-};
-
-class OnStackWith5ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith5ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     5)
-};
-
-class OnStackWith6ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith6ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     6)
-};
-
-class OnStackWith7ArgsDescriptor : public OnStackArgsDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith7ArgsDescriptor,
-                                                     OnStackArgsDescriptorBase,
-                                                     7)
 };
 
 // LoadDescriptor is used by all stubs that implement Load/KeyedLoad ICs.
@@ -398,42 +324,29 @@ class StoreDescriptor : public CallInterfaceDescriptor {
   static const Register NameRegister();
   static const Register ValueRegister();
   static const Register SlotRegister();
-};
 
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+  static const bool kPassLastArgsOnStack = true;
+#else
+  static const bool kPassLastArgsOnStack = false;
+#endif
+
+  // Pass value and slot through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 2 : 0;
+};
 
 class StoreTransitionDescriptor : public StoreDescriptor {
  public:
-  DEFINE_PARAMETERS(kReceiver, kName, kValue, kMap)
+  DEFINE_PARAMETERS(kReceiver, kName, kMap, kValue, kSlot, kVector)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreTransitionDescriptor,
                                                StoreDescriptor)
 
   static const Register MapRegister();
-};
-
-
-class VectorStoreTransitionDescriptor : public StoreDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(VectorStoreTransitionDescriptor,
-                                               StoreDescriptor)
-
-  // TODO(ishell): use DEFINE_PARAMETERS macro here
-  // Extends StoreDescriptor with Map parameter.
-  enum ParameterIndices {
-    kReceiver = 0,
-    kName = 1,
-    kValue = 2,
-
-    kMap = 3,
-
-    kSlot = 4,  // not present on ia32.
-    kVirtualSlotVector = 4,
-
-    kVector = 5
-  };
-
-  static const Register MapRegister();
   static const Register SlotRegister();
   static const Register VectorRegister();
+
+  // Pass value, slot and vector through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;
 };
 
 class StoreWithVectorDescriptor : public StoreDescriptor {
@@ -443,6 +356,9 @@ class StoreWithVectorDescriptor : public StoreDescriptor {
                                                StoreDescriptor)
 
   static const Register VectorRegister();
+
+  // Pass value, slot and vector through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;
 };
 
 class LoadWithVectorDescriptor : public LoadDescriptor {
@@ -629,6 +545,12 @@ class CallConstructDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallConstructDescriptor, CallInterfaceDescriptor)
 };
 
+class RegExpExecDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kRegExpObject, kString, kPreviousIndex, kLastMatchInfo)
+  DECLARE_DESCRIPTOR_WITH_STACK_ARGS(RegExpExecDescriptor,
+                                     CallInterfaceDescriptor)
+};
 
 class RegExpConstructResultDescriptor : public CallInterfaceDescriptor {
  public:
@@ -748,6 +670,13 @@ class StringCompareDescriptor : public CallInterfaceDescriptor {
   static const Register RightRegister();
 };
 
+class SubStringDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kString, kFrom, kTo)
+  DECLARE_DESCRIPTOR_WITH_STACK_ARGS(SubStringDescriptor,
+                                     CallInterfaceDescriptor)
+};
+
 // TODO(ishell): not used, remove.
 class KeyedDescriptor : public CallInterfaceDescriptor {
  public:
@@ -775,79 +704,12 @@ class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
-// The ApiCallback*Descriptors have a lot of boilerplate. The superclass
-// ApiCallbackDescriptorBase contains all the logic, and the
-// ApiCallbackWith*ArgsDescriptor merely instantiate these with a
-// parameter for the number of args.
-//
-// The base class is not meant to be instantiated directly and has no
-// public constructors to ensure this is so.
-//
-// The simplest usage for all the ApiCallback*Descriptors is probably
-//   ApiCallbackDescriptorBase::ForArgs(isolate, argc)
-//
-class ApiCallbackDescriptorBase : public CallInterfaceDescriptor {
+class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kFunction, kCallData, kHolder, kApiFunctionAddress)
-  static CallInterfaceDescriptor ForArgs(Isolate* isolate, int argc);
-
- protected:
-  virtual int extra_args() const { return 0; }
-  ApiCallbackDescriptorBase(Isolate* isolate, CallDescriptors::Key key)
-      : CallInterfaceDescriptor(isolate, key) {}
-  void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override;
-  void InitializePlatformIndependent(
-      CallInterfaceDescriptorData* data) override;
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiCallbackDescriptor,
+                                               CallInterfaceDescriptor)
 };
-
-class ApiCallbackWith0ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith0ArgsDescriptor, ApiCallbackDescriptorBase, 0)
-};
-
-class ApiCallbackWith1ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith1ArgsDescriptor, ApiCallbackDescriptorBase, 1)
-};
-
-class ApiCallbackWith2ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith2ArgsDescriptor, ApiCallbackDescriptorBase, 2)
-};
-
-class ApiCallbackWith3ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith3ArgsDescriptor, ApiCallbackDescriptorBase, 3)
-};
-
-class ApiCallbackWith4ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith4ArgsDescriptor, ApiCallbackDescriptorBase, 4)
-};
-
-class ApiCallbackWith5ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith5ArgsDescriptor, ApiCallbackDescriptorBase, 5)
-};
-
-class ApiCallbackWith6ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith6ArgsDescriptor, ApiCallbackDescriptorBase, 6)
-};
-
-class ApiCallbackWith7ArgsDescriptor : public ApiCallbackDescriptorBase {
- public:
-  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
-      ApiCallbackWith7ArgsDescriptor, ApiCallbackDescriptorBase, 7)
-};
-
 
 class ApiGetterDescriptor : public CallInterfaceDescriptor {
  public:

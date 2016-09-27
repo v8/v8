@@ -7,11 +7,17 @@
 
 #include "include/v8.h"
 #include "src/isolate.h"
+#include "src/objects.h"
 #include "src/wasm/encoder.h"
-#include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module.h"
 #include "test/cctest/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
+
+#define WASM_CODE_FUZZER_HASH_SEED 83
+
+using namespace v8::internal::wasm;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
@@ -29,26 +35,75 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Context::Scope context_scope(support->GetContext());
   v8::TryCatch try_catch(isolate);
 
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   v8::internal::Zone zone(&allocator);
 
-  v8::internal::wasm::TestSignatures sigs;
+  TestSignatures sigs;
 
-  v8::internal::wasm::WasmModuleBuilder builder(&zone);
+  WasmModuleBuilder builder(&zone);
 
   uint16_t f1_index = builder.AddFunction();
-  v8::internal::wasm::WasmFunctionBuilder* f = builder.FunctionAt(f1_index);
+  WasmFunctionBuilder* f = builder.FunctionAt(f1_index);
   f->SetSignature(sigs.i_iii());
   f->EmitCode(data, static_cast<uint32_t>(size));
   f->SetExported();
   f->SetName("main", 4);
 
-  v8::internal::wasm::ZoneBuffer buffer(&zone);
+  ZoneBuffer buffer(&zone);
   builder.WriteTo(buffer);
 
-  v8::internal::WasmJs::InstallWasmFunctionMap(i_isolate,
-                                               i_isolate->native_context());
-  v8::internal::wasm::testing::CompileAndRunWasmModule(
-      i_isolate, buffer.begin(), buffer.end(), false);
+  v8::internal::wasm::testing::SetupIsolateForWasmModule(i_isolate);
+
+  v8::internal::HandleScope scope(i_isolate);
+
+  ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
+  std::unique_ptr<const WasmModule> module(testing::DecodeWasmModuleForTesting(
+      i_isolate, &zone, &interpreter_thrower, buffer.begin(), buffer.end(),
+      v8::internal::wasm::ModuleOrigin::kWasmOrigin));
+
+  if (module == nullptr) {
+    return 0;
+  }
+  int32_t result_interpreted;
+  {
+    WasmVal args[] = {WasmVal(1), WasmVal(2), WasmVal(3)};
+    result_interpreted = testing::InterpretWasmModule(
+        i_isolate, &interpreter_thrower, module.get(), 0, args);
+  }
+
+  ErrorThrower compiler_thrower(i_isolate, "Compiler");
+  v8::internal::Handle<v8::internal::JSObject> instance =
+      testing::InstantiateModuleForTesting(i_isolate, &compiler_thrower,
+                                           module.get());
+
+  if (!interpreter_thrower.error()) {
+    CHECK(!instance.is_null());
+  } else {
+    return 0;
+  }
+  int32_t result_compiled;
+  {
+    v8::internal::Handle<v8::internal::Object> arguments[] = {
+        v8::internal::handle(v8::internal::Smi::FromInt(1), i_isolate),
+        v8::internal::handle(v8::internal::Smi::FromInt(2), i_isolate),
+        v8::internal::handle(v8::internal::Smi::FromInt(3), i_isolate)};
+    result_compiled = testing::CallWasmFunctionForTesting(
+        i_isolate, instance, &compiler_thrower, "main", arraysize(arguments),
+        arguments, v8::internal::wasm::ModuleOrigin::kWasmOrigin);
+  }
+  if (result_interpreted == 0xdeadbeef) {
+    CHECK(i_isolate->has_pending_exception());
+    i_isolate->clear_pending_exception();
+  } else {
+    if (result_interpreted != result_compiled) {
+      V8_Fatal(
+          __FILE__, __LINE__,
+          "Interpreter result (%d) != compiled module result (%d). Hash: %u",
+          result_interpreted, result_compiled,
+          v8::internal::StringHasher::HashSequentialString(
+              data, static_cast<int>(size), WASM_CODE_FUZZER_HASH_SEED));
+    }
+    CHECK_EQ(result_interpreted, result_compiled);
+  }
   return 0;
 }

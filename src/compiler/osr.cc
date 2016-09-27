@@ -271,11 +271,8 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
     }
   }
 
-  if (osr_loop_entry == nullptr) {
-    // No OSR entry found, do nothing.
-    CHECK(osr_normal_entry);
-    return;
-  }
+  CHECK_NOT_NULL(osr_normal_entry);  // Should have found the OSR normal entry.
+  CHECK_NOT_NULL(osr_loop_entry);    // Should have found the OSR loop entry.
 
   for (Node* use : osr_loop_entry->uses()) {
     if (use->opcode() == IrOpcode::kLoop) {

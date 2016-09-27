@@ -234,8 +234,7 @@ RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
 
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
   HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewRangeError(MessageTemplate::kInvalidStringLength));
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
@@ -274,7 +273,7 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
 namespace {
 
 void PromiseRejectEvent(Isolate* isolate, Handle<JSObject> promise,
-                        Handle<JSObject> rejected_promise, Handle<Object> value,
+                        Handle<Object> rejected_promise, Handle<Object> value,
                         bool debug_event) {
   if (isolate->debug()->is_active() && debug_event) {
     isolate->debug()->OnPromiseReject(rejected_promise, value);
@@ -306,12 +305,12 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
 
-  Handle<JSObject> rejected_promise = promise;
+  Handle<Object> rejected_promise = promise;
   if (isolate->debug()->is_active()) {
-    Handle<Object> promise_on_stack = isolate->GetPromiseOnStackOnThrow();
-    if (promise_on_stack->IsJSObject()) {
-      rejected_promise = Handle<JSObject>::cast(promise_on_stack);
-    }
+    // If the Promise.reject call is caught, then this will return
+    // undefined, which will be interpreted by PromiseRejectEvent
+    // as being a caught exception event.
+    rejected_promise = isolate->GetPromiseOnStackOnThrow();
   }
   PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
   return isolate->heap()->undefined_value();
@@ -553,6 +552,21 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
       std::fflush(f);
     return isolate->heap()->undefined_value();
   }
+}
+
+RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 6);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, resolution, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, then, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, resolve, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, before_debug_event, 4);
+  CONVERT_ARG_HANDLE_CHECKED(Object, after_debug_event, 5);
+  Handle<PromiseContainer> container = isolate->factory()->NewPromiseContainer(
+      resolution, then, resolve, reject, before_debug_event, after_debug_event);
+  isolate->EnqueueMicrotask(container);
+  return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {

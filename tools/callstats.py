@@ -153,6 +153,7 @@ def run_site(site, domain, args, timeout=None):
             "--no-default-browser-check",
             "--no-sandbox",
             "--disable-translate",
+            "--enable-benchmarking",
             "--js-flags={}".format(js_flags),
             "--no-first-run",
             "--user-data-dir={}".format(user_data_dir),
@@ -355,8 +356,15 @@ def read_stats(path, domain, args):
           entries[group_name]['time'] += time
           entries[group_name]['count'] += count
           break
+    # Calculate the V8-Total (all groups except Callback)
+    total_v8 = { 'time': 0, 'count': 0 }
+    for group_name, regexp in groups:
+      if group_name == 'Group-Callback': continue
+      total_v8['time'] += entries[group_name]['time']
+      total_v8['count'] += entries[group_name]['count']
+    entries['Group-Total-V8'] = total_v8
     # Append the sums as single entries to domain.
-    for key in entries :
+    for key in entries:
       if key not in domain: domain[key] = { 'time_list': [], 'count_list': [] }
       domain[key]['time_list'].append(entries[key]['time'])
       domain[key]['count_list'].append(entries[key]['count'])

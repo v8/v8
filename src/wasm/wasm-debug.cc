@@ -179,7 +179,7 @@ Handle<String> WasmDebugInfo::DisassembleFunction(
     Vector<const uint8_t> bytes_vec = GetFunctionBytes(debug_info, func_index);
     DisallowHeapAllocation no_gc;
 
-    base::AccountingAllocator allocator;
+    AccountingAllocator allocator;
     bool ok = PrintAst(
         &allocator, FunctionBodyForTesting(bytes_vec.start(), bytes_vec.end()),
         disassembly_os, nullptr);
@@ -208,7 +208,7 @@ Handle<FixedArray> WasmDebugInfo::GetFunctionOffsetTable(
     Vector<const uint8_t> bytes_vec = GetFunctionBytes(debug_info, func_index);
     DisallowHeapAllocation no_gc;
 
-    v8::base::AccountingAllocator allocator;
+    AccountingAllocator allocator;
     bool ok = PrintAst(
         &allocator, FunctionBodyForTesting(bytes_vec.start(), bytes_vec.end()),
         null_stream, &offset_table_vec);

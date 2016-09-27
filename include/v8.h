@@ -51,7 +51,7 @@
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY && defined(V8_SHARED)
+#if V8_HAS_ATTRIBUTE_VISIBILITY
 # ifdef BUILDING_V8_SHARED
 #  define V8_EXPORT __attribute__ ((visibility("default")))
 # else
@@ -1070,6 +1070,47 @@ class V8_EXPORT UnboundScript {
   static const int kNoScriptId = 0;
 };
 
+/**
+ * This is an unfinished experimental feature, and is only exposed
+ * here for internal testing purposes. DO NOT USE.
+ *
+ * A compiled JavaScript module.
+ */
+class V8_EXPORT Module {
+ public:
+  /**
+   * Returns the number of modules requested by this module.
+   */
+  int GetModuleRequestsLength() const;
+
+  /**
+   * Returns the ith module specifier in this module.
+   * i must be < GetModuleRequestsLength() and >= 0.
+   */
+  Local<String> GetModuleRequest(int i) const;
+
+  void SetEmbedderData(Local<Value> data);
+  Local<Value> GetEmbedderData() const;
+
+  typedef MaybeLocal<Module> (*ResolveCallback)(Local<Context> context,
+                                                Local<String> specifier,
+                                                Local<Module> referrer,
+                                                Local<Value> data);
+
+  /**
+   * ModuleDeclarationInstantiation
+   *
+   * Returns false if an exception occurred during instantiation.
+   */
+  V8_WARN_UNUSED_RESULT bool Instantiate(
+      Local<Context> context, ResolveCallback callback,
+      Local<Value> callback_data = Local<Value>());
+
+  /**
+   * ModuleEvaluation
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
+};
 
 /**
  * A compiled JavaScript script, tied to a Context which was active when the
@@ -1373,18 +1414,17 @@ class V8_EXPORT ScriptCompiler {
   static uint32_t CachedDataVersionTag();
 
   /**
-   * Compile an ES6 module.
-   *
    * This is an unfinished experimental feature, and is only exposed
-   * here for internal testing purposes.
-   * Only parsing works at the moment. Do not use.
+   * here for internal testing purposes. DO NOT USE.
    *
-   * TODO(adamk): Script is likely the wrong return value for this;
-   * should return some new Module type.
+   * Compile an ES module, returning a Module that encapsulates
+   * the compiled code.
+   *
+   * Corresponds to the ParseModule abstract operation in the
+   * ECMAScript specification.
    */
-  static V8_WARN_UNUSED_RESULT MaybeLocal<Script> CompileModule(
-      Local<Context> context, Source* source,
-      CompileOptions options = kNoCompileOptions);
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Module> CompileModule(
+      Isolate* isolate, Source* source);
 
   /**
    * Compile a function for a given context. This is equivalent to running
@@ -1681,6 +1721,13 @@ class V8_EXPORT ValueSerializer {
      * type.
      */
     virtual void ThrowDataCloneError(Local<String> message) = 0;
+
+    /*
+     * The embedder overrides this method to write some kind of host object, if
+     * possible. If not, a suitable exception should be thrown and
+     * Nothing<bool>() returned.
+     */
+    virtual Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object);
   };
 
   explicit ValueSerializer(Isolate* isolate);
@@ -1718,6 +1765,15 @@ class V8_EXPORT ValueSerializer {
   void TransferSharedArrayBuffer(uint32_t transfer_id,
                                  Local<SharedArrayBuffer> shared_array_buffer);
 
+  /*
+   * Write raw data in various common formats to the buffer.
+   * Note that integer types are written in base-128 varint format, not with a
+   * binary copy. For use during an override of Delegate::WriteHostObject.
+   */
+  void WriteUint32(uint32_t value);
+  void WriteUint64(uint64_t value);
+  void WriteRawBytes(const void* source, size_t length);
+
  private:
   ValueSerializer(const ValueSerializer&) = delete;
   void operator=(const ValueSerializer&) = delete;
@@ -1736,7 +1792,21 @@ class V8_EXPORT ValueSerializer {
  */
 class V8_EXPORT ValueDeserializer {
  public:
+  class V8_EXPORT Delegate {
+   public:
+    virtual ~Delegate() {}
+
+    /*
+     * The embedder overrides this method to read some kind of host object, if
+     * possible. If not, a suitable exception should be thrown and
+     * MaybeLocal<Object>() returned.
+     */
+    virtual MaybeLocal<Object> ReadHostObject(Isolate* isolate);
+  };
+
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
+  ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size,
+                    Delegate* delegate);
   ~ValueDeserializer();
 
   /*
@@ -1780,6 +1850,15 @@ class V8_EXPORT ValueDeserializer {
    * ReadHeader.
    */
   uint32_t GetWireFormatVersion() const;
+
+  /*
+   * Reads raw data in various common formats to the buffer.
+   * Note that integer types are read in base-128 varint format, not with a
+   * binary copy. For use during an override of Delegate::ReadHostObject.
+   */
+  V8_WARN_UNUSED_RESULT bool ReadUint32(uint32_t* value);
+  V8_WARN_UNUSED_RESULT bool ReadUint64(uint64_t* value);
+  V8_WARN_UNUSED_RESULT bool ReadRawBytes(size_t length, const void** data);
 
  private:
   ValueDeserializer(const ValueDeserializer&) = delete;
@@ -1933,6 +2012,11 @@ class V8_EXPORT Value : public Data {
    * Returns true if this value is a RegExp.
    */
   bool IsRegExp() const;
+
+  /**
+   * Returns true if this value is an async function.
+   */
+  bool IsAsyncFunction() const;
 
   /**
    * Returns true if this value is a Generator function.
@@ -8126,8 +8210,8 @@ class Internals {
   static const int kNodeIsPartiallyDependentShift = 4;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSObjectType = 0xb7;
-  static const int kJSApiObjectType = 0xb6;
+  static const int kJSObjectType = 0xb9;
+  static const int kJSApiObjectType = 0xb8;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;

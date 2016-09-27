@@ -155,24 +155,50 @@ promise.then(module => CheckInstance(new WebAssembly.Instance(module)));
 })();
 
 (function GlobalsArePrivateToTheInstance() {
-  var builder = new WasmModuleBuilder();
-  builder.addGlobal(kAstI32);
-  builder.addFunction("read", kSig_i_v)
-    .addBody([
-      kExprGetGlobal, 0])
-    .exportFunc();
+    var builder = new WasmModuleBuilder();
+    builder.addGlobal(kAstI32);
+    builder.addFunction("read", kSig_i_v)
+        .addBody([
+            kExprGetGlobal, 0])
+        .exportFunc();
 
-  builder.addFunction("write", kSig_v_i)
+    builder.addFunction("write", kSig_v_i)
+        .addBody([
+            kExprGetLocal, 0,
+            kExprSetGlobal, 0])
+        .exportFunc();
+
+    var module = new WebAssembly.Module(builder.toBuffer());
+    var i1 = new WebAssembly.Instance(module);
+    var i2 = new WebAssembly.Instance(module);
+    i1.exports.write(1);
+    i2.exports.write(2);
+    assertEquals(1, i1.exports.read());
+    assertEquals(2, i2.exports.read());
+})();
+
+
+(function InstanceMemoryIsIsolated() {
+  var builder = new WasmModuleBuilder();
+  builder.addMemory(1,1, true);
+
+  builder.addFunction("f", kSig_i)
     .addBody([
-      kExprGetLocal, 0,
-      kExprSetGlobal, 0])
-    .exportFunc();
+      kExprI32Const, 0,
+      kExprI32LoadMem, 0, 0
+    ]).exportFunc();
+
+  var mem_1 = new ArrayBuffer(65536);
+  var mem_2 = new ArrayBuffer(65536);
+  var view_1 = new Int32Array(mem_1);
+  var view_2 = new Int32Array(mem_2);
+  view_1[0] = 1;
+  view_2[0] = 1000;
 
   var module = new WebAssembly.Module(builder.toBuffer());
-  var i1 = new WebAssembly.Instance(module);
-  var i2 = new WebAssembly.Instance(module);
-  i1.exports.write(1);
-  i2.exports.write(2);
-  assertEquals(1, i1.exports.read());
-  assertEquals(2, i2.exports.read());
+  var i1 = new WebAssembly.Instance(module, null, mem_1);
+  var i2 = new WebAssembly.Instance(module, null, mem_2);
+
+  assertEquals(1, i1.exports.f());
+  assertEquals(1000, i2.exports.f());
 })();

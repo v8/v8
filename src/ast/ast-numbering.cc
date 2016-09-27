@@ -249,6 +249,27 @@ void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(CallRuntime::num_ids()));
   VisitArguments(node->arguments());
+  // To support catch prediction within async/await:
+  //
+  // The AstNumberingVisitor is when catch prediction currently occurs, and it
+  // is the only common point that has access to this information. The parser
+  // just doesn't know yet. Take the following two cases of catch prediction:
+  //
+  // try { await fn(); } catch (e) { }
+  // try { await fn(); } finally { }
+  //
+  // When parsing the await that we want to mark as caught or uncaught, it's
+  // not yet known whether it will be followed by a 'finally' or a 'catch.
+  // The AstNumberingVisitor is what learns whether it is caught. To make
+  // the information available later to the runtime, the AstNumberingVisitor
+  // has to stash it somewhere. Changing the runtime function into another
+  // one in ast-numbering seemed like a simple and straightforward solution to
+  // that problem.
+  if (node->is_jsruntime() &&
+      node->context_index() == Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX &&
+      catch_prediction_ == HandlerTable::ASYNC_AWAIT) {
+    node->set_context_index(Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX);
+  }
 }
 
 
@@ -571,10 +592,12 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   }
 
   if (IsGeneratorFunction(node->kind()) || IsAsyncFunction(node->kind())) {
-    // TODO(neis): We may want to allow Turbofan optimization here if
-    // --turbo-from-bytecode is set and we know that Ignition is used.
-    // Unfortunately we can't express that here.
-    DisableOptimization(kGenerator);
+    // Generators can be optimized if --turbo-from-bytecode is set.
+    if (FLAG_turbo_from_bytecode) {
+      DisableCrankshaft(kGenerator);
+    } else {
+      DisableOptimization(kGenerator);
+    }
   }
 
   VisitDeclarations(scope->declarations());

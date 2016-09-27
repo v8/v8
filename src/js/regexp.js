@@ -4,12 +4,13 @@
 
 (function(global, utils) {
 
+'use strict';
+
 %CheckIsBootstrapping();
 
 // -------------------------------------------------------------------
 // Imports
 
-var ExpandReplacement;
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
@@ -26,7 +27,6 @@ var splitSymbol = utils.ImportNow("split_symbol");
 var SpeciesConstructor;
 
 utils.Import(function(from) {
-  ExpandReplacement = from.ExpandReplacement;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   SpeciesConstructor = from.SpeciesConstructor;
@@ -163,64 +163,8 @@ macro RETURN_NEW_RESULT_FROM_MATCH_INFO(MATCHINFO, STRING)
 endmacro
 
 
-function RegExpExecNoTests(regexp, string, start) {
-  // Must be called with RegExp, string and positive integer as arguments.
-  var matchInfo = %_RegExpExec(regexp, string, start, RegExpLastMatchInfo);
-  if (matchInfo !== null) {
-    // ES6 21.2.5.2.2 step 18.
-    if (REGEXP_STICKY(regexp)) regexp.lastIndex = matchInfo[CAPTURE1];
-    RETURN_NEW_RESULT_FROM_MATCH_INFO(matchInfo, string);
-  }
-  regexp.lastIndex = 0;
-  return null;
-}
-
-
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
-function RegExpSubclassExecJS(string) {
-  if (!IS_REGEXP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.exec', this);
-  }
-
-  string = TO_STRING(string);
-  var lastIndex = this.lastIndex;
-
-  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
-  // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH(lastIndex);
-
-  var global = TO_BOOLEAN(REGEXP_GLOBAL(this));
-  var sticky = TO_BOOLEAN(REGEXP_STICKY(this));
-  var updateLastIndex = global || sticky;
-  if (updateLastIndex) {
-    if (i > string.length) {
-      this.lastIndex = 0;
-      return null;
-    }
-  } else {
-    i = 0;
-  }
-
-  // matchIndices is either null or the RegExpLastMatchInfo array.
-  var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
-
-  if (IS_NULL(matchIndices)) {
-    this.lastIndex = 0;
-    return null;
-  }
-
-  // Successful match.
-  if (updateLastIndex) {
-    this.lastIndex = RegExpLastMatchInfo[CAPTURE1];
-  }
-  RETURN_NEW_RESULT_FROM_MATCH_INFO(matchIndices, string);
-}
-%FunctionRemovePrototype(RegExpSubclassExecJS);
-
-
-// Legacy implementation of RegExp.prototype.exec
 function RegExpExecJS(string) {
   if (!IS_REGEXP(this)) {
     throw %make_type_error(kIncompatibleMethodReceiver,
@@ -228,27 +172,26 @@ function RegExpExecJS(string) {
   }
 
   string = TO_STRING(string);
-  var lastIndex = this.lastIndex;
 
-  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
-  // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH(lastIndex);
-
-  var updateLastIndex = REGEXP_GLOBAL(this) || REGEXP_STICKY(this);
+  var lastIndex;
+  var global = TO_BOOLEAN(REGEXP_GLOBAL(this));
+  var sticky = TO_BOOLEAN(REGEXP_STICKY(this));
+  var updateLastIndex = global || sticky;
   if (updateLastIndex) {
-    if (i < 0 || i > string.length) {
+    lastIndex = TO_LENGTH(this.lastIndex);
+    if (lastIndex > string.length) {
       this.lastIndex = 0;
       return null;
     }
   } else {
-    i = 0;
+    lastIndex = 0;
   }
 
   // matchIndices is either null or the RegExpLastMatchInfo array.
-  var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
+  var matchIndices = %_RegExpExec(this, string, lastIndex, RegExpLastMatchInfo);
 
   if (IS_NULL(matchIndices)) {
-    this.lastIndex = 0;
+    if (updateLastIndex) this.lastIndex = 0;
     return null;
   }
 
@@ -258,6 +201,7 @@ function RegExpExecJS(string) {
   }
   RETURN_NEW_RESULT_FROM_MATCH_INFO(matchIndices, string);
 }
+%FunctionRemovePrototype(RegExpExecJS);
 
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
@@ -279,65 +223,6 @@ function RegExpSubclassExec(regexp, string, exec) {
 %SetForceInlineFlag(RegExpSubclassExec);
 
 
-// One-element cache for the simplified test regexp.
-var regexp_key;
-var regexp_val;
-
-// Legacy implementation of RegExp.prototype.test
-// Section 15.10.6.3 doesn't actually make sense, but the intention seems to be
-// that test is defined in terms of String.prototype.exec. However, it probably
-// means the original value of String.prototype.exec, which is what everybody
-// else implements.
-function RegExpTest(string) {
-  if (!IS_REGEXP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.test', this);
-  }
-  string = TO_STRING(string);
-
-  var lastIndex = this.lastIndex;
-
-  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
-  // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH(lastIndex);
-
-  if (REGEXP_GLOBAL(this) || REGEXP_STICKY(this)) {
-    if (i < 0 || i > string.length) {
-      this.lastIndex = 0;
-      return false;
-    }
-    // matchIndices is either null or the RegExpLastMatchInfo array.
-    var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
-    if (IS_NULL(matchIndices)) {
-      this.lastIndex = 0;
-      return false;
-    }
-    this.lastIndex = RegExpLastMatchInfo[CAPTURE1];
-    return true;
-  } else {
-    // Non-global, non-sticky regexp.
-    // Remove irrelevant preceeding '.*' in a test regexp.  The expression
-    // checks whether this.source starts with '.*' and that the third char is
-    // not a '?'.  But see https://code.google.com/p/v8/issues/detail?id=3560
-    var regexp = this;
-    var source = REGEXP_SOURCE(regexp);
-    if (source.length >= 3 &&
-        %_StringCharCodeAt(source, 0) == 46 &&  // '.'
-        %_StringCharCodeAt(source, 1) == 42 &&  // '*'
-        %_StringCharCodeAt(source, 2) != 63) {  // '?'
-      regexp = TrimRegExp(regexp);
-    }
-    // matchIndices is either null or the RegExpLastMatchInfo array.
-    var matchIndices = %_RegExpExec(regexp, string, 0, RegExpLastMatchInfo);
-    if (IS_NULL(matchIndices)) {
-      this.lastIndex = 0;
-      return false;
-    }
-    return true;
-  }
-}
-
-
 // ES#sec-regexp.prototype.test RegExp.prototype.test ( S )
 function RegExpSubclassTest(string) {
   if (!IS_RECEIVER(this)) {
@@ -349,18 +234,6 @@ function RegExpSubclassTest(string) {
   return !IS_NULL(match);
 }
 %FunctionRemovePrototype(RegExpSubclassTest);
-
-function TrimRegExp(regexp) {
-  if (regexp_key !== regexp) {
-    regexp_key = regexp;
-    regexp_val =
-      new GlobalRegExp(
-          %_SubString(REGEXP_SOURCE(regexp), 2, REGEXP_SOURCE(regexp).length),
-          (REGEXP_IGNORE_CASE(regexp) ? REGEXP_MULTILINE(regexp) ? "im" : "i"
-                                      : REGEXP_MULTILINE(regexp) ? "m" : ""));
-  }
-  return regexp_val;
-}
 
 
 function RegExpToString() {
@@ -380,7 +253,7 @@ function AtSurrogatePair(subject, index) {
   var first = %_StringCharCodeAt(subject, index);
   if (first < 0xD800 || first > 0xDBFF) return false;
   var second = %_StringCharCodeAt(subject, index + 1);
-  return second >= 0xDC00 || second <= 0xDFFF;
+  return second >= 0xDC00 && second <= 0xDFFF;
 }
 
 
@@ -474,7 +347,7 @@ function RegExpSubclassSplit(string, limit) {
   var exec;
   if (IS_REGEXP(this) && constructor === GlobalRegExp) {
     exec = this.exec;
-    if (exec === RegExpSubclassExecJS) {
+    if (exec === RegExpExecJS) {
       return %_Call(RegExpSplit, this, string, limit);
     }
   }
@@ -690,6 +563,31 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
   return result + %_SubString(subject, endOfMatch, subject.length);
 }
 
+// Wraps access to matchInfo's captures into a format understood by
+// GetSubstitution.
+function MatchInfoCaptureWrapper(matches, subject) {
+  this.length = NUMBER_OF_CAPTURES(matches) >> 1;
+  this.match = matches;
+  this.subject = subject;
+}
+
+MatchInfoCaptureWrapper.prototype.at = function(ix) {
+  const match = this.match;
+  const start = match[CAPTURE(ix << 1)];
+  if (start < 0) return UNDEFINED;
+  return %_SubString(this.subject, start, match[CAPTURE((ix << 1) + 1)]);
+};
+%SetForceInlineFlag(MatchInfoCaptureWrapper.prototype.at);
+
+function ArrayCaptureWrapper(array) {
+  this.length = array.length;
+  this.array = array;
+}
+
+ArrayCaptureWrapper.prototype.at = function(ix) {
+  return this.array[ix];
+};
+%SetForceInlineFlag(ArrayCaptureWrapper.prototype.at);
 
 function RegExpReplace(string, replace) {
   if (!IS_REGEXP(this)) {
@@ -713,9 +611,17 @@ function RegExpReplace(string, replace) {
         return %_SubString(subject, 0, match[CAPTURE0]) +
                %_SubString(subject, match[CAPTURE1], subject.length)
       }
-      return ExpandReplacement(replace, subject, RegExpLastMatchInfo,
-                                 %_SubString(subject, 0, match[CAPTURE0])) +
-             %_SubString(subject, match[CAPTURE1], subject.length);
+      const captures = new MatchInfoCaptureWrapper(match, subject);
+      const start = match[CAPTURE0];
+      const end = match[CAPTURE1];
+
+      const prefix = %_SubString(subject, 0, start);
+      const matched = %_SubString(subject, start, end);
+      const suffix = %_SubString(subject, end, subject.length);
+
+      return prefix +
+             GetSubstitution(matched, subject, start, captures, replace) +
+             suffix;
     }
 
     // Global regexp search, string replace.
@@ -737,8 +643,6 @@ function RegExpReplace(string, replace) {
 // GetSubstitution(matched, str, position, captures, replacement)
 // Expand the $-expressions in the string and return a new string with
 // the result.
-// TODO(littledan): Call this function from String.prototype.replace instead
-// of the very similar ExpandReplacement in src/js/string.js
 function GetSubstitution(matched, string, position, captures, replacement) {
   var matchLength = matched.length;
   var stringLength = string.length;
@@ -787,7 +691,7 @@ function GetSubstitution(matched, string, position, captures, replacement) {
           }
         }
         if (scaledIndex != 0 && scaledIndex < capturesLength) {
-          var capture = captures[scaledIndex];
+          var capture = captures.at(scaledIndex);
           if (!IS_UNDEFINED(capture)) result += capture;
           pos += advance;
         } else {
@@ -867,7 +771,7 @@ function RegExpSubclassReplace(string, replace) {
   var exec;
   if (IS_REGEXP(this)) {
     exec = this.exec;
-    if (exec === RegExpSubclassExecJS) {
+    if (exec === RegExpExecJS) {
       return %_Call(RegExpReplace, this, string, replace);
     }
   }
@@ -911,7 +815,8 @@ function RegExpSubclassReplace(string, replace) {
       replacement = %reflect_apply(replace, UNDEFINED, parameters, 0,
                                    parameters.length);
     } else {
-      replacement = GetSubstitution(matched, string, position, captures,
+      const capturesWrapper = new ArrayCaptureWrapper(captures);
+      replacement = GetSubstitution(matched, string, position, capturesWrapper,
                                     replace);
     }
     if (position >= nextSourcePosition) {
@@ -935,9 +840,10 @@ function RegExpSubclassSearch(string) {
   }
   string = TO_STRING(string);
   var previousLastIndex = this.lastIndex;
-  this.lastIndex = 0;
+  if (previousLastIndex != 0) this.lastIndex = 0;
   var result = RegExpSubclassExec(this, string);
-  this.lastIndex = previousLastIndex;
+  var currentLastIndex = this.lastIndex;
+  if (currentLastIndex != previousLastIndex) this.lastIndex = previousLastIndex;
   if (IS_NULL(result)) return -1;
   return result.index;
 }
@@ -1119,7 +1025,7 @@ GlobalRegExpPrototype = new GlobalObject();
 utils.InstallGetter(GlobalRegExp, speciesSymbol, RegExpSpecies);
 
 utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
-  "exec", RegExpSubclassExecJS,
+  "exec", RegExpExecJS,
   "test", RegExpSubclassTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS,
@@ -1219,13 +1125,13 @@ function InternalRegExpReplace(regexp, subject, replacement) {
 // Exports
 
 utils.Export(function(to) {
+  to.GetSubstitution = GetSubstitution;
   to.InternalRegExpMatch = InternalRegExpMatch;
   to.InternalRegExpReplace = InternalRegExpReplace;
   to.IsRegExp = IsRegExp;
   to.RegExpExec = DoRegExpExec;
   to.RegExpInitialize = RegExpInitialize;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;
-  to.RegExpTest = RegExpTest;
 });
 
 })

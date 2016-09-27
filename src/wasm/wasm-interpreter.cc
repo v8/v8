@@ -10,8 +10,8 @@
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-module.h"
 
-#include "src/base/accounting-allocator.h"
-#include "src/zone-containers.h"
+#include "src/zone/accounting-allocator.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -654,6 +654,48 @@ static inline int64_t ExecuteI64ReinterpretF64(double a, TrapReason* trap) {
   return bit_cast<int64_t>(a);
 }
 
+static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
+                                        WasmModuleInstance* instance) {
+  // TODO(ahaas): Move memory allocation to wasm-module.cc for better
+  // encapsulation.
+  if (delta_pages > wasm::WasmModule::kMaxMemPages) {
+    return -1;
+  }
+  uint32_t old_size = instance->mem_size;
+  uint32_t new_size;
+  byte* new_mem_start;
+  if (instance->mem_size == 0) {
+    if (delta_pages > wasm::WasmModule::kMaxMemPages) {
+      return -1;
+    }
+    // TODO(gdeepti): Fix bounds check to take into account size of memtype.
+    new_size = delta_pages * wasm::WasmModule::kPageSize;
+    new_mem_start = static_cast<byte*>(calloc(new_size, sizeof(byte)));
+    if (!new_mem_start) {
+      return -1;
+    }
+  } else {
+    DCHECK_NOT_NULL(instance->mem_start);
+    new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
+    if (new_size >
+        wasm::WasmModule::kMaxMemPages * wasm::WasmModule::kPageSize) {
+      return -1;
+    }
+    new_mem_start = static_cast<byte*>(realloc(instance->mem_start, new_size));
+    if (!new_mem_start) {
+      return -1;
+    }
+    // Zero initializing uninitialized memory from realloc
+    memset(new_mem_start + old_size, 0, new_size - old_size);
+  }
+  instance->mem_start = new_mem_start;
+  instance->mem_size = new_size;
+  // realloc
+  // update mem_start
+  // update mem_size
+  return static_cast<int32_t>(old_size / WasmModule::kPageSize);
+}
+
 enum InternalOpcode {
 #define DECL_INTERNAL_ENUM(name, value) kInternal##name = value,
   FOREACH_INTERNAL_OPCODE(DECL_INTERNAL_ENUM)
@@ -899,7 +941,7 @@ class CodeMap {
     if (function->func_index < interpreter_code_.size()) {
       InterpreterCode* code = &interpreter_code_[function->func_index];
       DCHECK_EQ(function, code->function);
-      return code;
+      return Preprocess(code);
     }
     return nullptr;
   }
@@ -1546,7 +1588,11 @@ class ThreadImpl : public WasmInterpreter::Thread {
           ASMJS_STORE_CASE(F32AsmjsStoreMem, float, float);
           ASMJS_STORE_CASE(F64AsmjsStoreMem, double, double);
 #undef ASMJS_STORE_CASE
-
+        case kExprGrowMemory: {
+          uint32_t delta_pages = Pop().to<uint32_t>();
+          Push(pc, WasmVal(ExecuteGrowMemory(delta_pages, instance())));
+          break;
+        }
         case kExprMemorySize: {
           Push(pc, WasmVal(static_cast<uint32_t>(instance()->mem_size)));
           break;
@@ -1700,7 +1746,7 @@ class WasmInterpreterInternals : public ZoneObject {
 // Implementation of the public interface of the interpreter.
 //============================================================================
 WasmInterpreter::WasmInterpreter(WasmModuleInstance* instance,
-                                 base::AccountingAllocator* allocator)
+                                 AccountingAllocator* allocator)
     : zone_(allocator),
       internals_(new (&zone_) WasmInterpreterInternals(&zone_, instance)) {}
 

@@ -7,13 +7,13 @@
 
 #include "src/wasm/encoder.h"
 #include "src/wasm/module-decoder.h"
-#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-module-runner.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -28,9 +28,9 @@ void TestModule(Zone* zone, WasmModuleBuilder* builder,
 
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-  WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
-  int32_t result =
-      testing::CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end());
+  testing::SetupIsolateForWasmModule(isolate);
+  int32_t result = testing::CompileAndRunWasmModule(
+      isolate, buffer.begin(), buffer.end(), ModuleOrigin::kWasmOrigin);
   CHECK_EQ(expected_result, result);
 }
 
@@ -49,7 +49,7 @@ void ExportAsMain(WasmFunctionBuilder* f) {
 TEST(Run_WasmModule_Return114) {
   static const int32_t kReturnValue = 114;
   TestSignatures sigs;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -63,7 +63,7 @@ TEST(Run_WasmModule_Return114) {
 }
 
 TEST(Run_WasmModule_CallAdd) {
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -89,7 +89,7 @@ TEST(Run_WasmModule_CallAdd) {
 
 TEST(Run_WasmModule_ReadLoadedDataSegment) {
   static const byte kDataSegmentDest0 = 12;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -110,7 +110,7 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
 
 TEST(Run_WasmModule_CheckMemoryIsZero) {
   static const int kCheckSize = 16 * 1024;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -133,7 +133,7 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
 }
 
 TEST(Run_WasmModule_CallMain_recursive) {
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -157,7 +157,7 @@ TEST(Run_WasmModule_CallMain_recursive) {
 }
 
 TEST(Run_WasmModule_Global) {
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   TestSignatures sigs;
 
@@ -182,9 +182,8 @@ TEST(Run_WasmModule_Global) {
 }
 
 TEST(Run_WasmModule_Serialization) {
-  FLAG_expose_wasm = true;
   static const char* kFunctionName = "increment";
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -200,20 +199,12 @@ TEST(Run_WasmModule_Serialization) {
   ZoneBuffer buffer(&zone);
   builder->WriteTo(buffer);
 
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      CcTest::InitIsolateOnce()->array_buffer_allocator();
-
-  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-  v8::HandleScope new_scope(v8_isolate);
-  v8::Local<v8::Context> new_ctx = v8::Context::New(v8_isolate);
-  new_ctx->Enter();
-
+  Isolate* isolate = CcTest::InitIsolateOnce();
   ErrorThrower thrower(isolate, "");
   v8::WasmCompiledModule::SerializedModule data;
   {
     HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
 
     ModuleResult decoding_result = DecodeWasmModule(
         isolate, &zone, buffer.begin(), buffer.end(), false, kWasmOrigin);
@@ -233,14 +224,18 @@ TEST(Run_WasmModule_Serialization) {
     data = v8_compiled_module->Serialize();
   }
 
-  create_params.array_buffer_allocator = isolate->array_buffer_allocator();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      CcTest::InitIsolateOnce()->array_buffer_allocator();
 
-  isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);
     v8::HandleScope new_scope(v8_isolate);
     v8::Local<v8::Context> new_ctx = v8::Context::New(v8_isolate);
     new_ctx->Enter();
+    isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    testing::SetupIsolateForWasmModule(isolate);
 
     v8::MaybeLocal<v8::WasmCompiledModule> deserialized =
         v8::WasmCompiledModule::Deserialize(v8_isolate, data);
@@ -248,16 +243,15 @@ TEST(Run_WasmModule_Serialization) {
     CHECK(deserialized.ToLocal(&compiled_module));
     Handle<JSObject> module_object =
         Handle<JSObject>::cast(v8::Utils::OpenHandle(*compiled_module));
-    Handle<FixedArray> compiled_part =
-        handle(FixedArray::cast(module_object->GetInternalField(0)));
     Handle<JSObject> instance =
-        WasmModule::Instantiate(isolate, compiled_part,
+        WasmModule::Instantiate(isolate, module_object,
                                 Handle<JSReceiver>::null(),
                                 Handle<JSArrayBuffer>::null())
             .ToHandleChecked();
     Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(41), isolate)};
-    int32_t result = testing::CallFunction(isolate, instance, &thrower,
-                                           kFunctionName, 1, params);
+    int32_t result = testing::CallWasmFunctionForTesting(
+        isolate, instance, &thrower, kFunctionName, 1, params,
+        ModuleOrigin::kWasmOrigin);
     CHECK(result == 42);
     new_ctx->Exit();
   }
@@ -268,7 +262,7 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
   // Initial memory size = 16 + GrowMemory(10)
   static const int kExpectedValue = kPageSize * 26;
   TestSignatures sigs;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -283,7 +277,7 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
 
 TEST(Run_WasmModule_GrowMemoryInIf) {
   TestSignatures sigs;
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();

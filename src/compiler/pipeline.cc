@@ -443,14 +443,14 @@ class AstGraphBuilderWithPositions final : public AstGraphBuilder {
                                LoopAssignmentAnalysis* loop_assignment,
                                TypeHintAnalysis* type_hint_analysis,
                                SourcePositionTable* source_positions)
-      : AstGraphBuilder(local_zone, info, jsgraph, loop_assignment,
+      : AstGraphBuilder(local_zone, info, jsgraph, 1.0f, loop_assignment,
                         type_hint_analysis),
         source_positions_(source_positions),
         start_position_(info->shared_info()->start_position()) {}
 
-  bool CreateGraph(bool stack_check) {
+  bool CreateGraph() {
     SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
-    return AstGraphBuilder::CreateGraph(stack_check);
+    return AstGraphBuilder::CreateGraph();
   }
 
 #define DEF_VISIT(type)                                               \
@@ -622,14 +622,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
 
-  // TODO(mstarzinger): Hack to ensure that certain call descriptors are
-  // initialized on the main thread, since it is needed off-thread by the
-  // effect control linearizer.
-  CodeFactory::CopyFastSmiOrObjectElements(info()->isolate());
-  CodeFactory::GrowFastDoubleElements(info()->isolate());
-  CodeFactory::GrowFastSmiOrObjectElements(info()->isolate());
-  CodeFactory::ToNumber(info()->isolate());
-
   linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
 
   if (!pipeline_.CreateGraph()) {
@@ -764,18 +756,17 @@ struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    bool stack_check = !data->info()->IsStub();
     bool succeeded = false;
 
     if (data->info()->is_optimizing_from_bytecode()) {
       BytecodeGraphBuilder graph_builder(temp_zone, data->info(),
-                                         data->jsgraph());
+                                         data->jsgraph(), 1.0f);
       succeeded = graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(
           temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
           data->type_hint_analysis(), data->source_positions());
-      succeeded = graph_builder.CreateGraph(stack_check);
+      succeeded = graph_builder.CreateGraph();
     }
 
     if (!succeeded) {
@@ -794,11 +785,15 @@ struct InliningPhase {
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    JSCallReducer call_reducer(data->jsgraph(),
-                               data->info()->is_deoptimization_enabled()
-                                   ? JSCallReducer::kDeoptimizationEnabled
-                                   : JSCallReducer::kNoFlags,
-                               data->native_context());
+    JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
+    if (data->info()->is_bailout_on_uninitialized()) {
+      call_reducer_flags |= JSCallReducer::kBailoutOnUninitialized;
+    }
+    if (data->info()->is_deoptimization_enabled()) {
+      call_reducer_flags |= JSCallReducer::kDeoptimizationEnabled;
+    }
+    JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
+                               call_reducer_flags, data->native_context());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_function_context_specializing()
@@ -845,9 +840,7 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &call_reducer);
-    if (!data->info()->is_optimizing_from_bytecode()) {
-      AddReducer(data, &graph_reducer, &inlining);
-    }
+    AddReducer(data, &graph_reducer, &inlining);
     graph_reducer.ReduceGraph();
   }
 };

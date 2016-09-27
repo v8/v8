@@ -190,8 +190,7 @@ static int LookupMapping(const int32_t* table,
   }
 }
 
-
-static inline size_t NonASCIISequenceLength(byte first) {
+static inline uint8_t NonASCIISequenceLength(byte first) {
   // clang-format off
   static const uint8_t lengths[256] = {
       // The first 128 entries correspond to ASCII characters.
@@ -303,6 +302,57 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   *cursor += 4;
   return ((str[0] << 18) + (str[1] << 12) + (str[2] << 6) + str[3]) -
          0x03C82080;
+}
+
+uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
+  DCHECK_NOT_NULL(buffer);
+
+  // The common case: 1-byte Utf8 (and no incomplete char in the buffer)
+  if (V8_LIKELY(next <= kMaxOneByteChar && *buffer == 0)) {
+    return static_cast<uchar>(next);
+  }
+
+  if (*buffer == 0) {
+    // We're at the start of a new character.
+    uint32_t kind = NonASCIISequenceLength(next);
+    if (kind >= 2 && kind <= 4) {
+      // Start of 2..4 byte character, and no buffer.
+
+      // The mask for the lower bits depends on the kind, and is
+      // 0x1F, 0x0F, 0x07 for kinds 2, 3, 4 respectively. We can get that
+      // with one shift.
+      uint8_t mask = 0x7f >> kind;
+
+      // Store the kind - 1 (i.e., remaining bytes) in the top byte, value
+      // in the bottom three.
+      *buffer = (kind - 1) << 24 | (next & mask);
+      return kIncomplete;
+    } else {
+      // No buffer, and not the start of a 1-byte char (handled at the
+      // beginning), and not the start of a 2..4 byte char? Bad char.
+      *buffer = 0;
+      return kBadChar;
+    }
+  } else {
+    // We're inside of a character, as described by buffer.
+    if (IsContinuationCharacter(next)) {
+      // How many bytes (excluding this one) do we still expect?
+      uint8_t count = (*buffer >> 24) - 1;
+      // Update the value.
+      uint32_t value = ((*buffer & 0xffffff) << 6) | (next & 0x3F);
+      if (count) {
+        *buffer = count << 24 | value;
+        return kIncomplete;
+      } else {
+        *buffer = 0;
+        return value;
+      }
+    } else {
+      // Within a character, but not a continuation character? Bad char.
+      *buffer = 0;
+      return kBadChar;
+    }
+  }
 }
 
 bool Utf8::Validate(const byte* bytes, size_t length) {

@@ -10,7 +10,7 @@
 #include "src/field-index.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

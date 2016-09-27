@@ -275,7 +275,7 @@ class LookupIterator final BASE_EMBEDDED {
   MUST_USE_RESULT inline JSReceiver* NextHolder(Map* map);
 
   template <bool is_element>
-  void Start();
+  V8_EXPORT_PRIVATE void Start();
   template <bool is_element>
   void NextInternal(Map* map, JSReceiver* holder);
   template <bool is_element>

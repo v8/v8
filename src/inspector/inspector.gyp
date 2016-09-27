@@ -27,7 +27,7 @@
             'python',
             'build/xxd.py',
             'InjectedScriptSource_js',
-            'InjectedScriptSource.js',
+            'injected-script-source.js',
             '<@(_outputs)'
           ],
         },
@@ -51,7 +51,7 @@
             'python',
             'build/xxd.py',
             'DebuggerScript_js',
-            'DebuggerScript.js',
+            'debugger-script.js',
             '<@(_outputs)'
           ],
         },

@@ -201,25 +201,23 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                                               Handle<JSArrayBuffer> memory,
                                               Handle<JSReceiver> foreign) {
   i::Handle<i::JSObject> module(i::JSObject::cast(wasm_data->get(0)));
-  i::Handle<i::FixedArray> compiled(
-      i::FixedArray::cast(module->GetInternalField(0)));
   i::Handle<i::FixedArray> foreign_globals(
       i::FixedArray::cast(wasm_data->get(1)));
 
   ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
 
   i::MaybeHandle<i::JSObject> maybe_module_object =
-      i::wasm::WasmModule::Instantiate(isolate, compiled, foreign, memory);
+      i::wasm::WasmModule::Instantiate(isolate, module, foreign, memory);
   if (maybe_module_object.is_null()) {
     return MaybeHandle<Object>();
   }
 
-  i::Handle<i::Name> name(isolate->factory()->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("__foreign_init__")));
+  i::Handle<i::Name> init_name(isolate->factory()->InternalizeUtf8String(
+      wasm::AsmWasmBuilder::foreign_init_name));
 
   i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
   i::MaybeHandle<i::Object> maybe_init =
-      i::Object::GetProperty(module_object, name);
+      i::Object::GetProperty(module_object, init_name);
   DCHECK(!maybe_init.is_null());
 
   i::Handle<i::Object> init = maybe_init.ToHandleChecked();
@@ -244,10 +242,18 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   i::MaybeHandle<i::Object> retval = i::Execution::Call(
       isolate, init, undefined, foreign_globals->length(), foreign_args_array);
   delete[] foreign_args_array;
-
   DCHECK(!retval.is_null());
 
-  return maybe_module_object;
+  i::Handle<i::Name> single_function_name(
+      isolate->factory()->InternalizeUtf8String(
+          wasm::AsmWasmBuilder::single_function_name));
+  i::MaybeHandle<i::Object> single_function =
+      i::Object::GetProperty(module_object, single_function_name);
+  if (!single_function.is_null() &&
+      !single_function.ToHandleChecked()->IsUndefined(isolate)) {
+    return single_function;
+  }
+  return module_object;
 }
 
 }  // namespace internal

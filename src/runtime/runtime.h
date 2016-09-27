@@ -11,7 +11,7 @@
 #include "src/base/platform/time.h"
 #include "src/objects.h"
 #include "src/unicode.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -290,6 +290,7 @@ namespace internal {
   F(CheckIsBootstrapping, 0, 1)                     \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(EnqueueMicrotask, 1, 1)                         \
+  F(EnqueuePromiseResolveThenableJob, 6, 1)         \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
   F(ExportExperimentalFromRuntime, 1, 1)            \
   F(ExportFromRuntime, 1, 1)                        \
@@ -394,6 +395,7 @@ namespace internal {
   F(IsJSGlobalProxy, 1, 1)                           \
   F(DefineAccessorPropertyUnchecked, 5, 1)           \
   F(DefineDataPropertyInLiteral, 5, 1)               \
+  F(DefineDataProperty, 5, 1)                        \
   F(GetDataProperty, 2, 1)                           \
   F(GetConstructorName, 1, 1)                        \
   F(HasFastPackedElements, 1, 1)                     \
@@ -416,7 +418,10 @@ namespace internal {
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \
-  F(CreateDataProperty, 3, 1)
+  F(CreateDataProperty, 3, 1)                        \
+  F(LoadModuleExport, 1, 1)                          \
+  F(LoadModuleImport, 2, 1)                          \
+  F(StoreModuleExport, 2, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F) \
   F(Multiply, 2, 1)                     \
@@ -475,6 +480,7 @@ namespace internal {
   F(NewClosure_Tenured, 1, 1)           \
   F(NewScriptContext, 2, 1)             \
   F(NewFunctionContext, 1, 1)           \
+  F(PushModuleContext, 3, 1)            \
   F(PushWithContext, 3, 1)              \
   F(PushCatchContext, 4, 1)             \
   F(PushBlockContext, 2, 1)             \
@@ -797,8 +803,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_STRINGS(F)     \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringIndexOf, 3, 1)                  \
-  F(StringLastIndexOf, 3, 1)              \
-  F(StringLocaleCompare, 2, 1)            \
+  F(StringLastIndexOf, 2, 1)              \
   F(SubString, 3, 1)                      \
   F(StringAdd, 2, 1)                      \
   F(InternalizeString, 1, 1)              \
@@ -888,7 +893,10 @@ namespace internal {
   F(SerializeWasmModule, 1, 1)                \
   F(DeserializeWasmModule, 1, 1)              \
   F(IsAsmWasmCode, 1, 1)                      \
-  F(IsNotAsmWasmCode, 1, 1)
+  F(IsNotAsmWasmCode, 1, 1)                   \
+  F(ValidateWasmInstancesChain, 2, 1)         \
+  F(ValidateWasmModuleState, 1, 1)            \
+  F(ValidateWasmOrphanedInstance, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \
@@ -909,7 +917,8 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_WASM(F) \
   F(WasmGrowMemory, 1, 1)          \
-  F(WasmThrowTypeError, 0, 1)
+  F(WasmThrowTypeError, 0, 1)      \
+  F(WasmThrow, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
@@ -919,30 +928,26 @@ namespace internal {
 
 // Most intrinsics are implemented in the runtime/ directory, but ICs are
 // implemented in ic.cc for now.
-#define FOR_EACH_INTRINSIC_IC(F)                 \
-  F(BinaryOpIC_Miss, 2, 1)                       \
-  F(BinaryOpIC_MissWithAllocationSite, 3, 1)     \
-  F(CallIC_Miss, 3, 1)                           \
-  F(CompareIC_Miss, 3, 1)                        \
-  F(ElementsTransitionAndStoreIC_Miss, 5, 1)     \
-  F(KeyedLoadIC_Miss, 4, 1)                      \
-  F(KeyedLoadIC_MissFromStubFailure, 4, 1)       \
-  F(KeyedStoreIC_Miss, 5, 1)                     \
-  F(KeyedStoreIC_MissFromStubFailure, 5, 1)      \
-  F(KeyedStoreIC_Slow, 5, 1)                     \
-  F(LoadElementWithInterceptor, 2, 1)            \
-  F(LoadGlobalIC_Miss, 2, 1)                     \
-  F(LoadGlobalIC_Slow, 2, 1)                     \
-  F(LoadIC_Miss, 4, 1)                           \
-  F(LoadIC_MissFromStubFailure, 4, 1)            \
-  F(LoadPropertyWithInterceptor, 3, 1)           \
-  F(LoadPropertyWithInterceptorOnly, 3, 1)       \
-  F(StoreCallbackProperty, 6, 1)                 \
-  F(StoreIC_Miss, 5, 1)                          \
-  F(StoreIC_MissFromStubFailure, 5, 1)           \
-  F(TransitionStoreIC_MissFromStubFailure, 6, 1) \
-  F(StorePropertyWithInterceptor, 3, 1)          \
-  F(ToBooleanIC_Miss, 1, 1)                      \
+#define FOR_EACH_INTRINSIC_IC(F)             \
+  F(BinaryOpIC_Miss, 2, 1)                   \
+  F(BinaryOpIC_MissWithAllocationSite, 3, 1) \
+  F(CallIC_Miss, 3, 1)                       \
+  F(CompareIC_Miss, 3, 1)                    \
+  F(ElementsTransitionAndStoreIC_Miss, 6, 1) \
+  F(KeyedLoadIC_Miss, 4, 1)                  \
+  F(KeyedLoadIC_MissFromStubFailure, 4, 1)   \
+  F(KeyedStoreIC_Miss, 5, 1)                 \
+  F(KeyedStoreIC_Slow, 5, 1)                 \
+  F(LoadElementWithInterceptor, 2, 1)        \
+  F(LoadGlobalIC_Miss, 2, 1)                 \
+  F(LoadGlobalIC_Slow, 2, 1)                 \
+  F(LoadIC_Miss, 4, 1)                       \
+  F(LoadPropertyWithInterceptor, 3, 1)       \
+  F(LoadPropertyWithInterceptorOnly, 3, 1)   \
+  F(StoreCallbackProperty, 6, 1)             \
+  F(StoreIC_Miss, 5, 1)                      \
+  F(StorePropertyWithInterceptor, 3, 1)      \
+  F(ToBooleanIC_Miss, 1, 1)                  \
   F(Unreachable, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
@@ -1028,13 +1033,8 @@ class Runtime : public AllStatic {
 
   static const int kNotFound = -1;
 
-  // Add internalized strings for all the intrinsic function names to a
-  // StringDictionary.
-  static void InitializeIntrinsicFunctionNames(Isolate* isolate,
-                                               Handle<NameDictionary> dict);
-
-  // Get the intrinsic function with the given name, which must be internalized.
-  static const Function* FunctionForName(Handle<String> name);
+  // Get the intrinsic function with the given name.
+  static const Function* FunctionForName(const unsigned char* name, int length);
 
   // Get the intrinsic function with the given FunctionId.
   static const Function* FunctionForId(FunctionId id);

@@ -107,6 +107,7 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale);
         break;
       case interpreter::OperandType::kIdx:
+      case interpreter::OperandType::kUImm:
       case interpreter::OperandType::kRuntimeId:
       case interpreter::OperandType::kIntrinsicId:
         os << "["

@@ -77,4 +77,24 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertFalse(clone == undefined);
   assertFalse(clone == compiled_module);
   assertEquals(clone.constructor, compiled_module.constructor);
-})()
+})();
+
+(function SerializeAfterInstantiation() {
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("main", kSig_i)
+    .addBody([kExprI8Const, 42])
+    .exportFunc();
+
+  var compiled_module = new WebAssembly.Module(builder.toBuffer());
+  var instance1 = new WebAssembly.Instance(compiled_module);
+  var instance2 = new WebAssembly.Instance(compiled_module);
+  var serialized = %SerializeWasmModule(compiled_module);
+  var clone = %DeserializeWasmModule(serialized);
+
+  assertNotNull(clone);
+  assertFalse(clone == undefined);
+  assertFalse(clone == compiled_module);
+  assertEquals(clone.constructor, compiled_module.constructor);
+  var instance3 = new WebAssembly.Instance(clone);
+  assertFalse(instance3 == undefined);
+})();

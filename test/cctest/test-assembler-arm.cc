@@ -244,9 +244,8 @@ TEST(4) {
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
-
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatureScope scope(&assm, VFP3);
+  if (CpuFeatures::IsSupported(VFPv3)) {
+    CpuFeatureScope scope(&assm, VFPv3);
 
     __ mov(ip, Operand(sp));
     __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -450,62 +449,57 @@ static void TestRoundingMode(VCVTTypes types,
 
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatureScope scope(&assm, VFP3);
+  Label wrong_exception;
 
-    Label wrong_exception;
+  __ vmrs(r1);
+  // Set custom FPSCR.
+  __ bic(r2, r1, Operand(kVFPRoundingModeMask | kVFPExceptionMask));
+  __ orr(r2, r2, Operand(mode));
+  __ vmsr(r2);
 
-    __ vmrs(r1);
-    // Set custom FPSCR.
-    __ bic(r2, r1, Operand(kVFPRoundingModeMask | kVFPExceptionMask));
-    __ orr(r2, r2, Operand(mode));
-    __ vmsr(r2);
+  // Load value, convert, and move back result to r0 if everything went well.
+  __ vmov(d1, value);
+  switch (types) {
+    case s32_f64:
+      __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
+      break;
 
-    // Load value, convert, and move back result to r0 if everything went well.
-    __ vmov(d1, value);
-    switch (types) {
-      case s32_f64:
-        __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
-        break;
+    case u32_f64:
+      __ vcvt_u32_f64(s0, d1, kFPSCRRounding);
+      break;
 
-      case u32_f64:
-        __ vcvt_u32_f64(s0, d1, kFPSCRRounding);
-        break;
-
-      default:
-        UNREACHABLE();
-        break;
-    }
-    // Check for vfp exceptions
-    __ vmrs(r2);
-    __ tst(r2, Operand(kVFPExceptionMask));
-    // Check that we behaved as expected.
-    __ b(&wrong_exception,
-         expected_exception ? eq : ne);
-    // There was no exception. Retrieve the result and return.
-    __ vmov(r0, s0);
-    __ mov(pc, Operand(lr));
-
-    // The exception behaviour is not what we expected.
-    // Load a special value and return.
-    __ bind(&wrong_exception);
-    __ mov(r0, Operand(11223344));
-    __ mov(pc, Operand(lr));
-
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-#ifdef DEBUG
-    OFStream os(stdout);
-    code->Print(os);
-#endif
-    F1 f = FUNCTION_CAST<F1>(code->entry());
-    int res =
-        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
-    ::printf("res = %d\n", res);
-    CHECK_EQ(expected, res);
+    default:
+      UNREACHABLE();
+      break;
   }
+  // Check for vfp exceptions
+  __ vmrs(r2);
+  __ tst(r2, Operand(kVFPExceptionMask));
+  // Check that we behaved as expected.
+  __ b(&wrong_exception, expected_exception ? eq : ne);
+  // There was no exception. Retrieve the result and return.
+  __ vmov(r0, s0);
+  __ mov(pc, Operand(lr));
+
+  // The exception behaviour is not what we expected.
+  // Load a special value and return.
+  __ bind(&wrong_exception);
+  __ mov(r0, Operand(11223344));
+  __ mov(pc, Operand(lr));
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  int res =
+      reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+  ::printf("res = %d\n", res);
+  CHECK_EQ(expected, res);
 }
 
 
@@ -1051,9 +1045,8 @@ TEST(13) {
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
-
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatureScope scope(&assm, VFP3);
+  if (CpuFeatures::IsSupported(VFPv3)) {
+    CpuFeatureScope scope(&assm, VFPv3);
 
     __ stm(db_w, sp, r4.bit() | lr.bit());
 

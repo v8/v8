@@ -457,7 +457,6 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   }
   args[0]->Print(os);
   if (args[0]->IsHeapObject()) {
-    os << "\n";
     HeapObject::cast(args[0])->map()->Print(os);
   }
 #else
@@ -771,6 +770,32 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   }
   return *wasm::CreateCompiledModuleObject(isolate, compiled_module,
                                            wasm::ModuleOrigin::kWasmOrigin);
+}
+
+RUNTIME_FUNCTION(Runtime_ValidateWasmInstancesChain) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, module_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, instance_count, 1);
+  wasm::testing::ValidateInstancesChain(isolate, module_obj,
+                                        instance_count->value());
+  return isolate->heap()->ToBoolean(true);
+}
+
+RUNTIME_FUNCTION(Runtime_ValidateWasmModuleState) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, module_obj, 0);
+  wasm::testing::ValidateModuleState(isolate, module_obj);
+  return isolate->heap()->ToBoolean(true);
+}
+
+RUNTIME_FUNCTION(Runtime_ValidateWasmOrphanedInstance) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, instance_obj, 0);
+  wasm::testing::ValidateOrphanedInstance(isolate, instance_obj);
+  return isolate->heap()->ToBoolean(true);
 }
 
 }  // namespace internal

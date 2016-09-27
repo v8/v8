@@ -56,7 +56,7 @@ class Interpreter {
   void TraceCodegen(Handle<Code> code);
   const char* LookupNameOfBytecodeHandler(Code* code);
 
-  Local<v8::Object> GetDispatchCountersObject();
+  V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
 
   Address dispatch_table_address() {
     return reinterpret_cast<Address>(&dispatch_table_[0]);
@@ -132,7 +132,18 @@ class Interpreter {
   void DoLdaLookupSlot(Runtime::FunctionId function_id,
                        InterpreterAssembler* assembler);
 
-  // Generates code to perform a lookup slot store depending on |language_mode|.
+  // Generates code to perform a lookup slot load via |function_id| that can
+  // fast path to a context slot load.
+  void DoLdaLookupContextSlot(Runtime::FunctionId function_id,
+                              InterpreterAssembler* assembler);
+
+  // Generates code to perform a lookup slot load via |function_id| that can
+  // fast path to a global load.
+  void DoLdaLookupGlobalSlot(Runtime::FunctionId function_id,
+                             InterpreterAssembler* assembler);
+
+  // Generates code to perform a lookup slot store depending on
+  // |language_mode|.
   void DoStaLookupSlot(LanguageMode language_mode,
                        InterpreterAssembler* assembler);
 
@@ -140,7 +151,9 @@ class Interpreter {
   compiler::Node* BuildLoadContextSlot(InterpreterAssembler* assembler);
 
   // Generates code to load a global.
-  compiler::Node* BuildLoadGlobal(Callable ic, InterpreterAssembler* assembler);
+  compiler::Node* BuildLoadGlobal(Callable ic, compiler::Node* context,
+                                  compiler::Node* feedback_slot,
+                                  InterpreterAssembler* assembler);
 
   // Generates code to load a named property.
   compiler::Node* BuildLoadNamedProperty(Callable ic,

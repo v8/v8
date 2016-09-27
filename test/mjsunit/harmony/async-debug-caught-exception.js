@@ -121,3 +121,24 @@ assertNull(exception);
 
 Debug.clearBreakOnUncaughtException();
 Debug.setListener(null);
+
+// If devtools is turned on in the middle, then catch prediction
+// could be wrong (here, it mispredicts the exception as caught),
+// but shouldn't crash.
+
+log = [];
+
+var resolve;
+var turnOnListenerPromise = new Promise(r => resolve = r);
+async function confused() {
+  await turnOnListenerPromise;
+  throw foo
+}
+confused();
+Promise.resolve().then(() => {
+  Debug.setListener(listener);
+  Debug.setBreakOnUncaughtException();
+  resolve();
+});
+
+assertEquals([], log);

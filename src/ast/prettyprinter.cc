@@ -871,6 +871,9 @@ void AstPrinter::PrintTryStatement(TryStatement* node) {
     case HandlerTable::DESUGARING:
       prediction = "DESUGARING";
       break;
+    case HandlerTable::ASYNC_AWAIT:
+      prediction = "ASYNC_AWAIT";
+      break;
   }
   Print(" %s\n", prediction);
 }
@@ -915,6 +918,9 @@ void AstPrinter::PrintClassProperties(
         break;
       case ClassLiteral::Property::SETTER:
         prop_kind = "SETTER";
+        break;
+      case ClassLiteral::Property::FIELD:
+        prop_kind = "FIELD";
         break;
     }
     EmbeddedVector<char, 128> buf;

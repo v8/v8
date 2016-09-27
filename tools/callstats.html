@@ -536,7 +536,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       table = $('detailView').querySelector('.versionDetailTable');
       tbody = document.createElement('tbody');
       if (entry !== undefined) {
-        $('detailView').querySelector('.versionDetail h3 span').innerHTML =
+        $('detailView').querySelector('.versionDetail h3 span').textContent =
           entry.name + ' in ' + entry.page.name;
         entries = versions.getPageVersions(entry.page).map(
           (page) => {
@@ -571,7 +571,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       var version = entry.page.version;
       var showDiff = version !== baselineVersion;
-      $('detailView').querySelector('.pageDetail h3 span').innerHTML =
+      $('detailView').querySelector('.pageDetail h3 span').textContent =
         version.name;
       entries = version.pages.map((page) => {
           if (!page.enabled) return;
@@ -597,24 +597,24 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       });
       // show the total for all pages
       var tds = table.querySelectorAll('tfoot td');
-      tds[1].innerHTML = ms(entry.getTimeImpact(), showDiff);
+      tds[1].textContent = ms(entry.getTimeImpact(), showDiff);
       // Only show the percentage total if we are in diff mode:
-      tds[2].innerHTML = percent(entry.getTimePercentImpact(), showDiff);
-      tds[3].innerHTML = '';
-      tds[4].innerHTML = count(entry.getCountImpact(), showDiff);
+      tds[2].textContent = percent(entry.getTimePercentImpact(), showDiff);
+      tds[3].textContent = '';
+      tds[4].textContent = count(entry.getCountImpact(), showDiff);
       table.replaceChild(tbody, table.querySelector('tbody'));
     }
 
     function showImpactList(page) {
       var impactView = $('detailView').querySelector('.impactView');
-      impactView.querySelector('h3 span').innerHTML = page.version.name;
+      impactView.querySelector('h3 span').textContent = page.version.name;
 
       var table = impactView.querySelector('table');
       var tbody = document.createElement('tbody');
       var version = page.version;
       var entries = version.allEntries();
       if (selectedEntry !== undefined && selectedEntry.isGroup) {
-        impactView.querySelector('h3 span').innerHTML += " " + selectedEntry.name;
+        impactView.querySelector('h3 span').textContent += " " + selectedEntry.name;
         entries = entries.filter((entry) => {
           return entry.name == selectedEntry.name ||
             (entry.parent && entry.parent.name == selectedEntry.name)
@@ -806,7 +806,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         colors: groups.map(each => each.color)
       };
       var parentNode = $(id);
-      parentNode.querySelector('h2>span, h3>span').innerHTML = title;
+      parentNode.querySelector('h2>span, h3>span').textContent = title;
       var graphNode = parentNode.querySelector('.content');
 
       var chart = graphNode.chart;
@@ -856,8 +856,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function showPopover(entry) {
       var popover = $('popover');
-      popover.querySelector('td.name').innerHTML = entry.name;
-      popover.querySelector('td.page').innerHTML = entry.page.name;
+      popover.querySelector('td.name').textContent = entry.name;
+      popover.querySelector('td.page').textContent = entry.page.name;
       setPopoverDetail(popover, entry, '');
       popover.querySelector('table').className = "";
       if (baselineVersion !== undefined) {
@@ -870,32 +870,32 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     function setPopoverDetail(popover, entry, prefix) {
       var node = (name) => popover.querySelector(prefix + name);
       if (entry == undefined) {
-        node('.version').innerHTML = baselineVersion.name;
-        node('.time').innerHTML = '-';
-        node('.timeVariance').innerHTML = '-';
-        node('.percent').innerHTML = '-';
-        node('.percentPerEntry').innerHTML = '-';
-        node('.percentVariance').innerHTML  = '-';
-        node('.count').innerHTML =  '-';
-        node('.countVariance').innerHTML = '-';
-        node('.timeImpact').innerHTML = '-';
-        node('.timePercentImpact').innerHTML = '-';
+        node('.version').textContent = baselineVersion.name;
+        node('.time').textContent = '-';
+        node('.timeVariance').textContent = '-';
+        node('.percent').textContent = '-';
+        node('.percentPerEntry').textContent = '-';
+        node('.percentVariance').textContent  = '-';
+        node('.count').textContent =  '-';
+        node('.countVariance').textContent = '-';
+        node('.timeImpact').textContent = '-';
+        node('.timePercentImpact').textContent = '-';
       } else {
-        node('.version').innerHTML = entry.page.version.name;
-        node('.time').innerHTML = ms(entry._time, false);
-        node('.timeVariance').innerHTML
+        node('.version').textContent = entry.page.version.name;
+        node('.time').textContent = ms(entry._time, false);
+        node('.timeVariance').textContent
             = percent(entry.timeVariancePercent, false);
-        node('.percent').innerHTML = percent(entry.timePercent, false);
-        node('.percentPerEntry').innerHTML
+        node('.percent').textContent = percent(entry.timePercent, false);
+        node('.percentPerEntry').textContent
             = percent(entry.timePercentPerEntry, false);
-        node('.percentVariance').innerHTML 
+        node('.percentVariance').textContent 
             = percent(entry.timePercentVariancePercent, false);
-        node('.count').innerHTML = count(entry._count, false);
-        node('.countVariance').innerHTML
+        node('.count').textContent = count(entry._count, false);
+        node('.countVariance').textContent
             = percent(entry.timeVariancePercent, false);
-        node('.timeImpact').innerHTML
+        node('.timeImpact').textContent
             = ms(entry.getTimeImpact(false), false);
-        node('.timePercentImpact').innerHTML
+        node('.timePercentImpact').textContent
             = percent(entry.getTimeImpactVariancePercent(false), false);
       }
     }
@@ -927,7 +927,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     function addCodeSearchButton(entry, node) {
       if (entry.isGroup) return;
       var button = document.createElement("div");
-      button.innerHTML = '?'
+      button.textContent = '?'
       button.className = "codeSearch"
       button.addEventListener('click', handleCodeSearch);
       node.appendChild(button);
@@ -936,7 +936,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function td(tr, content, className) {
       var td = document.createElement("td");
-      td.innerHTML = content;
+      if (content[0] == '<') {
+        td.innerHTML = content;
+      } else {
+        td.textContent = content;
+      }
       td.className = className
       tr.appendChild(td);
       return td
@@ -1002,7 +1006,19 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     // =========================================================================
     // EventHandlers
     function handleBodyLoad() {
-      $('uploadInput').focus(); 
+      $('uploadInput').focus();
+      if (window.location.protocol !== 'file:') tryLoadDefaultResults();
+    }
+
+    function tryLoadDefaultResults() {
+      // Try to load a results.json file adjacent to this day.
+     var xhr = new XMLHttpRequest();
+     xhr.open('GET', 'results.json', true);
+     xhr.onreadystatechange = function(e) {
+       if (this.readyState != 4 || this.status != 200) return;
+       handleLoadText(this.responseText);
+     };
+     xhr.send();
     }
 
     function handleLoadFile() {
@@ -1011,12 +1027,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var reader = new FileReader();
 
       reader.onload = function(evt) {
-        pages = new Pages();
-        versions = Versions.fromJSON(JSON.parse(this.result));
-        initialize()
-        showPage(versions.versions[0].pages[0]);
+        handleLoadText(this.result);
       }
       reader.readAsText(file);
+    }
+
+    function handleLoadText(text) {
+      pages = new Pages();
+      versions = Versions.fromJSON(JSON.parse(text));
+      initialize()
+      showPage(versions.versions[0].pages[0]);
     }
 
     function handleToggleGroup(event) {
@@ -1505,7 +1525,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.entries = [];
       }
       add(entry) {
-        if (!entry.name.match(this.regexp)) return false;
+        if (!this.regexp.test(entry.name)) return false;
         this._time += entry.time;
         this._count += entry.count;
         // TODO: sum up variance

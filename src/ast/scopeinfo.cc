@@ -155,19 +155,21 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   }
 
   // Encode the flags.
-  int flags = ScopeTypeField::encode(scope->scope_type()) |
-              CallsEvalField::encode(scope->calls_eval()) |
-              LanguageModeField::encode(scope->language_mode()) |
-              DeclarationScopeField::encode(scope->is_declaration_scope()) |
-              ReceiverVariableField::encode(receiver_info) |
-              HasNewTargetField::encode(has_new_target) |
-              FunctionVariableField::encode(function_name_info) |
-              AsmModuleField::encode(asm_module) |
-              AsmFunctionField::encode(asm_function) |
-              HasSimpleParametersField::encode(has_simple_parameters) |
-              FunctionKindField::encode(function_kind) |
-              HasOuterScopeInfoField::encode(has_outer_scope_info) |
-              TypedField::encode(scope->typed());
+  int flags =
+      ScopeTypeField::encode(scope->scope_type()) |
+      CallsEvalField::encode(scope->calls_eval()) |
+      LanguageModeField::encode(scope->language_mode()) |
+      DeclarationScopeField::encode(scope->is_declaration_scope()) |
+      ReceiverVariableField::encode(receiver_info) |
+      HasNewTargetField::encode(has_new_target) |
+      FunctionVariableField::encode(function_name_info) |
+      AsmModuleField::encode(asm_module) |
+      AsmFunctionField::encode(asm_function) |
+      HasSimpleParametersField::encode(has_simple_parameters) |
+      FunctionKindField::encode(function_kind) |
+      HasOuterScopeInfoField::encode(has_outer_scope_info) |
+      IsDebugEvaluateScopeField::encode(scope->is_debug_evaluate_scope()) |
+      TypedField::encode(scope->typed());
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(parameter_count);
@@ -271,7 +273,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   // Module-specific information (only for module scopes).
   if (scope->is_module_scope()) {
     Handle<ModuleInfo> module_info =
-        ModuleInfo::New(isolate, scope->AsModuleScope()->module());
+        ModuleInfo::New(isolate, zone, scope->AsModuleScope()->module());
     DCHECK_EQ(index, scope_info->ModuleInfoIndex());
     scope_info->set(index++, *module_info);
     DCHECK_EQ(index, scope_info->ModuleVariableCountIndex());
@@ -303,7 +305,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       FunctionVariableField::encode(NONE) | AsmModuleField::encode(false) |
       AsmFunctionField::encode(false) | HasSimpleParametersField::encode(true) |
       FunctionKindField::encode(kNormalFunction) |
-      HasOuterScopeInfoField::encode(has_outer_scope_info);
+      HasOuterScopeInfoField::encode(has_outer_scope_info) |
+      IsDebugEvaluateScopeField::encode(false);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -357,6 +360,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
       HasSimpleParametersField::encode(has_simple_parameters) |
       FunctionKindField::encode(FunctionKind::kNormalFunction) |
       HasOuterScopeInfoField::encode(has_outer_scope_info) |
+      IsDebugEvaluateScopeField::encode(false) |
       TypedField::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
@@ -394,7 +398,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
 
 
 ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
-  return reinterpret_cast<ScopeInfo*>(isolate->heap()->empty_fixed_array());
+  return isolate->heap()->empty_scope_info();
 }
 
 
@@ -493,6 +497,23 @@ bool ScopeInfo::HasOuterScopeInfo() {
   }
 }
 
+bool ScopeInfo::IsDebugEvaluateScope() {
+  if (length() > 0) {
+    return IsDebugEvaluateScopeField::decode(Flags());
+  } else {
+    return false;
+  }
+}
+
+void ScopeInfo::SetIsDebugEvaluateScope() {
+  if (length() > 0) {
+    DCHECK_EQ(scope_type(), WITH_SCOPE);
+    SetFlags(Flags() | IsDebugEvaluateScopeField::encode(true));
+  } else {
+    UNREACHABLE();
+  }
+}
+
 bool ScopeInfo::HasHeapAllocatedLocals() {
   if (length() > 0) {
     return ContextLocalCount() > 0;
@@ -519,7 +540,7 @@ ScopeInfo* ScopeInfo::OuterScopeInfo() {
 
 ModuleInfo* ScopeInfo::ModuleDescriptorInfo() {
   DCHECK(scope_type() == MODULE_SCOPE);
-  return static_cast<ModuleInfo*>(get(ModuleInfoIndex()));
+  return ModuleInfo::cast(get(ModuleInfoIndex()));
 }
 
 String* ScopeInfo::ParameterName(int var) {
@@ -813,13 +834,35 @@ void ScopeInfo::Print() {
     PrintList("context slots", Context::MIN_CONTEXT_SLOTS,
               ContextLocalNamesIndex(),
               ContextLocalNamesIndex() + ContextLocalCount(), this);
+    // TODO(neis): Print module stuff if present.
   }
 
   PrintF("}\n");
 }
 #endif  // DEBUG
 
-Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
+Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
+                                             Handle<Object> export_name,
+                                             Handle<Object> local_name,
+                                             Handle<Object> import_name,
+                                             Handle<Object> module_request) {
+  Handle<ModuleInfoEntry> result = isolate->factory()->NewModuleInfoEntry();
+  result->set(kExportNameIndex, *export_name);
+  result->set(kLocalNameIndex, *local_name);
+  result->set(kImportNameIndex, *import_name);
+  result->set(kModuleRequestIndex, *module_request);
+  return result;
+}
+
+Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
+                                   ModuleDescriptor* descr) {
+  // Serialize module requests.
+  Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(
+      static_cast<int>(descr->module_requests().size()));
+  for (const auto& elem : descr->module_requests()) {
+    module_requests->set(elem.second, *elem.first->string());
+  }
+
   // Serialize special exports.
   Handle<FixedArray> special_exports =
       isolate->factory()->NewFixedArray(descr->special_exports().length());
@@ -830,19 +873,36 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, ModuleDescriptor* descr) {
     }
   }
 
-  // Serialize regular exports.
-  Handle<FixedArray> regular_exports = isolate->factory()->NewFixedArray(
-      static_cast<int>(descr->regular_exports().size()));
+  // Serialize namespace imports.
+  Handle<FixedArray> namespace_imports =
+      isolate->factory()->NewFixedArray(descr->namespace_imports().length());
   {
     int i = 0;
-    for (const auto& it : descr->regular_exports()) {
-      regular_exports->set(i++, *it.second->Serialize(isolate));
+    for (auto entry : descr->namespace_imports()) {
+      namespace_imports->set(i++, *entry->Serialize(isolate));
+    }
+  }
+
+  // Serialize regular exports.
+  Handle<FixedArray> regular_exports =
+      descr->SerializeRegularExports(isolate, zone);
+
+  // Serialize regular imports.
+  Handle<FixedArray> regular_imports = isolate->factory()->NewFixedArray(
+      static_cast<int>(descr->regular_imports().size()));
+  {
+    int i = 0;
+    for (const auto& elem : descr->regular_imports()) {
+      regular_imports->set(i++, *elem.second->Serialize(isolate));
     }
   }
 
   Handle<ModuleInfo> result = isolate->factory()->NewModuleInfo();
+  result->set(kModuleRequestsIndex, *module_requests);
   result->set(kSpecialExportsIndex, *special_exports);
   result->set(kRegularExportsIndex, *regular_exports);
+  result->set(kNamespaceImportsIndex, *namespace_imports);
+  result->set(kRegularImportsIndex, *regular_imports);
   return result;
 }
 

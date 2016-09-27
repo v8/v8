@@ -364,7 +364,6 @@
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
   # BUG(4680): Missing type feedback makes optimistic optimizations fail.
-  'test-cpu-profiler/CollectDeoptEvents': [FAIL],
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
 
   # BUG(4751). Flaky with ignition.
@@ -374,10 +373,6 @@
   # with crankshaft.
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
 
-  # TurboFan cpu profiler result is different.
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
-
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition
@@ -386,38 +381,12 @@
 ['variant == ignition_staging', {
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
-  'test-cpu-profiler/CollectDeoptEvents': [FAIL],
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
   'test-heap/Regress169209': [FAIL],
   'test-heap/TestCodeFlushing': [FAIL],
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
   'test-heap/TestCodeFlushingPreAged': [FAIL],
-  'test-run-inlining/InlineBuiltin': [FAIL],
-  'test-run-inlining/InlineLoopGuardedEmpty': [FAIL],
-  'test-run-inlining/InlineLoopGuardedOnce': [FAIL],
-  'test-run-inlining/InlineLoopGuardedTwice': [FAIL],
-  'test-run-inlining/InlineLoopUnguardedEmpty': [FAIL],
-  'test-run-inlining/InlineLoopUnguardedOnce': [FAIL],
-  'test-run-inlining/InlineLoopUnguardedTwice': [FAIL],
-  'test-run-inlining/InlineMutuallyRecursive': [FAIL],
-  'test-run-inlining/InlineNestedBuiltin': [FAIL],
-  'test-run-inlining/InlineOmitArgumentsDeopt': [FAIL],
-  'test-run-inlining/InlineOmitArguments': [FAIL],
-  'test-run-inlining/InlineOmitArgumentsObject': [FAIL],
-  'test-run-inlining/InlineSurplusArgumentsDeopt': [FAIL],
-  'test-run-inlining/InlineSurplusArguments': [FAIL],
-  'test-run-inlining/InlineSurplusArgumentsObject': [FAIL],
-  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [FAIL],
-  'test-run-inlining/InlineTwiceDependentDiamond': [FAIL],
-  'test-run-inlining/InlineTwiceDependent': [FAIL],
-  'test-run-inlining/InlineTwice': [FAIL],
-  'test-run-inlining/InlineWithArguments': [FAIL],
-  'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
-  'test-run-inlining/SimpleInliningContext': [FAIL],
-  'test-run-inlining/SimpleInlining': [FAIL],
 
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
@@ -425,31 +394,6 @@
 
 ##############################################################################
 ['variant == ignition_turbofan', {
-  # TODO(5251): Inlining is currently disabled for the BytecodeGraphBuilder.
-  'test-run-inlining/InlineLoopGuardedTwice': [FAIL],
-  'test-run-inlining/InlineSurplusArgumentsDeopt': [FAIL],
-  'test-run-inlining/InlineTwice': [FAIL],
-  'test-run-inlining/InlineSurplusArgumentsObject': [FAIL],
-  'test-run-inlining/InlineTwiceDependentDiamond': [FAIL],
-  'test-run-inlining/InlineWithArguments': [FAIL],
-  'test-run-inlining/InlineLoopUnguardedTwice': [FAIL],
-  'test-run-inlining/InlineOmitArgumentsObject': [FAIL],
-  'test-run-inlining/InlineLoopUnguardedOnce': [FAIL],
-  'test-run-inlining/InlineOmitArgumentsDeopt': [FAIL],
-  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [FAIL],
-  'test-run-inlining/SimpleInliningContext': [FAIL],
-  'test-run-inlining/InlineMutuallyRecursive': [FAIL],
-  'test-run-inlining/InlineLoopGuardedEmpty': [FAIL],
-  'test-run-inlining/InlineLoopGuardedOnce': [FAIL],
-  'test-run-inlining/InlineOmitArguments': [FAIL],
-  'test-run-inlining/SimpleInlining': [FAIL],
-  'test-run-inlining/InlineLoopUnguardedEmpty': [FAIL],
-  'test-run-inlining/InlineNestedBuiltin': [FAIL],
-  'test-run-inlining/InlineSurplusArguments': [FAIL],
-  'test-run-inlining/InlineBuiltin': [FAIL],
-  'test-run-inlining/InlineTwiceDependent': [FAIL],
-  'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
-
   # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
   # on nodes (behind --turbo_source_positions flag).
   'test-cpu-profiler/TickLinesOptimized': [FAIL],
@@ -482,5 +426,15 @@
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition_turbofan
+
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
+['variant != ignition and variant != ignition_staging', {
+  # Ongoing implementation of modules.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
+  'test-modules/*': [SKIP],
+}],  # variants != ignition and variant != ignition_staging
 
 ]

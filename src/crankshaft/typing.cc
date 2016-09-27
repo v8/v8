@@ -211,7 +211,8 @@ void AstTyper::VisitSwitchStatement(SwitchStatement* stmt) {
       AstType* label_type;
       AstType* combined_type;
       oracle()->CompareType(clause->CompareId(),
-                            &tag_type, &label_type, &combined_type);
+                            clause->CompareOperationFeedbackSlot(), &tag_type,
+                            &label_type, &combined_type);
       NarrowLowerType(stmt->tag(), tag_type);
       NarrowLowerType(label, label_type);
       clause->set_compare_type(combined_type);
@@ -614,7 +615,8 @@ void AstTyper::VisitCountOperation(CountOperation* expr) {
   oracle()->CountReceiverTypes(slot, expr->GetReceiverTypes());
   expr->set_store_mode(store_mode);
   expr->set_key_type(key_type);
-  expr->set_type(oracle()->CountType(expr->CountBinOpFeedbackId()));
+  expr->set_type(oracle()->CountType(expr->CountBinOpFeedbackId(),
+                                     expr->CountBinaryOpFeedbackSlot()));
   // TODO(rossberg): merge the count type with the generic expression type.
 
   RECURSE(Visit(expr->expression()));
@@ -627,7 +629,6 @@ void AstTyper::VisitCountOperation(CountOperation* expr) {
   }
 }
 
-
 void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   // Collect type feedback.
   AstType* type;
@@ -636,8 +637,10 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
   Maybe<int> fixed_right_arg = Nothing<int>();
   Handle<AllocationSite> allocation_site;
   oracle()->BinaryType(expr->BinaryOperationFeedbackId(),
-      &left_type, &right_type, &type, &fixed_right_arg,
-      &allocation_site, expr->op());
+                       expr->BinaryOperationFeedbackSlot(), &left_type,
+                       &right_type, &type, &fixed_right_arg, &allocation_site,
+                       expr->op());
+
   NarrowLowerType(expr, type);
   NarrowLowerType(expr->left(), left_type);
   NarrowLowerType(expr->right(), right_type);
@@ -739,7 +742,8 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
   AstType* right_type;
   AstType* combined_type;
   oracle()->CompareType(expr->CompareOperationFeedbackId(),
-      &left_type, &right_type, &combined_type);
+                        expr->CompareOperationFeedbackSlot(), &left_type,
+                        &right_type, &combined_type);
   NarrowLowerType(expr->left(), left_type);
   NarrowLowerType(expr->right(), right_type);
   expr->set_combined_type(combined_type);

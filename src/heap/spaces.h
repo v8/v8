@@ -456,14 +456,14 @@ class MemoryChunk {
   inline SlotSet* old_to_new_slots() { return old_to_new_slots_; }
   inline SlotSet* old_to_old_slots() { return old_to_old_slots_; }
   inline TypedSlotSet* typed_old_to_new_slots() {
-    return typed_old_to_new_slots_;
+    return typed_old_to_new_slots_.Value();
   }
   inline TypedSlotSet* typed_old_to_old_slots() {
     return typed_old_to_old_slots_;
   }
   inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
 
-  void AllocateOldToNewSlots();
+  V8_EXPORT_PRIVATE void AllocateOldToNewSlots();
   void ReleaseOldToNewSlots();
   void AllocateOldToOldSlots();
   void ReleaseOldToOldSlots();
@@ -656,7 +656,7 @@ class MemoryChunk {
   // is ceil(size() / kPageSize).
   SlotSet* old_to_new_slots_;
   SlotSet* old_to_old_slots_;
-  TypedSlotSet* typed_old_to_new_slots_;
+  base::AtomicValue<TypedSlotSet*> typed_old_to_new_slots_;
   TypedSlotSet* typed_old_to_old_slots_;
 
   SkipList* skip_list_;
@@ -1430,7 +1430,7 @@ class MemoryAllocator {
 //       method which is used to avoid using virtual functions
 //       iterating a specific space.
 
-class ObjectIterator : public Malloced {
+class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
  public:
   virtual ~ObjectIterator() {}
   virtual HeapObject* Next() = 0;
@@ -1481,7 +1481,7 @@ class PageRange {
 // If objects are allocated in the page during iteration the iterator may
 // or may not iterate over those objects.  The caller must create a new
 // iterator in order to be sure to visit these new objects.
-class HeapObjectIterator : public ObjectIterator {
+class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
  public:
   // Creates a new object iterator in a given space.
   explicit HeapObjectIterator(PagedSpace* space);

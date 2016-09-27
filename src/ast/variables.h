@@ -7,7 +7,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/globals.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -78,7 +78,6 @@ class Variable final : public ZoneObject {
 
   bool is_function() const { return kind() == FUNCTION_VARIABLE; }
   bool is_this() const { return kind() == THIS_VARIABLE; }
-  bool is_arguments() const { return kind() == ARGUMENTS_VARIABLE; }
   bool is_sloppy_function_name() const {
     return kind() == SLOPPY_FUNCTION_NAME_VARIABLE;
   }
@@ -101,6 +100,11 @@ class Variable final : public ZoneObject {
   }
 
   int index() const { return index_; }
+
+  bool IsExport() const {
+    DCHECK(location() == VariableLocation::MODULE);
+    return index() == 0;
+  }
 
   void AllocateTo(VariableLocation location, int index) {
     DCHECK(IsUnallocated() ||

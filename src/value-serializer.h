@@ -14,7 +14,7 @@
 #include "src/identity-map.h"
 #include "src/messages.h"
 #include "src/vector.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -69,6 +69,14 @@ class ValueSerializer {
   void TransferArrayBuffer(uint32_t transfer_id,
                            Handle<JSArrayBuffer> array_buffer);
 
+  /*
+   * Publicly exposed wire format writing methods.
+   * These are intended for use within the delegate's WriteHostObject method.
+   */
+  void WriteUint32(uint32_t value);
+  void WriteUint64(uint64_t value);
+  void WriteRawBytes(const void* source, size_t length);
+
  private:
   // Writing the wire format.
   void WriteTag(SerializationTag tag);
@@ -79,7 +87,6 @@ class ValueSerializer {
   void WriteDouble(double value);
   void WriteOneByteString(Vector<const uint8_t> chars);
   void WriteTwoByteString(Vector<const uc16> chars);
-  void WriteRawBytes(const void* source, size_t length);
   uint8_t* ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
@@ -98,6 +105,7 @@ class ValueSerializer {
   Maybe<bool> WriteJSSet(Handle<JSSet> map) WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(JSArrayBuffer* array_buffer);
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView* array_buffer);
+  Maybe<bool> WriteHostObject(Handle<JSObject> object) WARN_UNUSED_RESULT;
 
   /*
    * Reads the specified keys from the object and writes key-value pairs to the
@@ -138,7 +146,8 @@ class ValueSerializer {
  */
 class ValueDeserializer {
  public:
-  ValueDeserializer(Isolate* isolate, Vector<const uint8_t> data);
+  ValueDeserializer(Isolate* isolate, Vector<const uint8_t> data,
+                    v8::ValueDeserializer::Delegate* delegate);
   ~ValueDeserializer();
 
   /*
@@ -175,6 +184,14 @@ class ValueDeserializer {
   void TransferArrayBuffer(uint32_t transfer_id,
                            Handle<JSArrayBuffer> array_buffer);
 
+  /*
+   * Publicly exposed wire format writing methods.
+   * These are intended for use within the delegate's WriteHostObject method.
+   */
+  bool ReadUint32(uint32_t* value) WARN_UNUSED_RESULT;
+  bool ReadUint64(uint64_t* value) WARN_UNUSED_RESULT;
+  bool ReadRawBytes(size_t length, const void** data) WARN_UNUSED_RESULT;
+
  private:
   // Reading the wire format.
   Maybe<SerializationTag> PeekTag() const WARN_UNUSED_RESULT;
@@ -186,6 +203,10 @@ class ValueDeserializer {
   Maybe<T> ReadZigZag() WARN_UNUSED_RESULT;
   Maybe<double> ReadDouble() WARN_UNUSED_RESULT;
   Maybe<Vector<const uint8_t>> ReadRawBytes(int size) WARN_UNUSED_RESULT;
+
+  // Reads a string if it matches the one provided.
+  // Returns true if this was the case. Otherwise, nothing is consumed.
+  bool ReadExpectedString(Handle<String> expected) WARN_UNUSED_RESULT;
 
   // Like ReadObject, but skips logic for special cases in simulating the
   // "stack machine".
@@ -208,13 +229,15 @@ class ValueDeserializer {
       WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) WARN_UNUSED_RESULT;
+  MaybeHandle<JSObject> ReadHostObject() WARN_UNUSED_RESULT;
 
   /*
    * Reads key-value pairs into the object until the specified end tag is
    * encountered. If successful, returns the number of properties read.
    */
   Maybe<uint32_t> ReadJSObjectProperties(Handle<JSObject> object,
-                                         SerializationTag end_tag);
+                                         SerializationTag end_tag,
+                                         bool can_use_transitions);
 
   // Manipulating the map from IDs to reified objects.
   bool HasObjectWithID(uint32_t id);
@@ -222,13 +245,15 @@ class ValueDeserializer {
   void AddObjectWithID(uint32_t id, Handle<JSReceiver> object);
 
   Isolate* const isolate_;
+  v8::ValueDeserializer::Delegate* const delegate_;
   const uint8_t* position_;
   const uint8_t* const end_;
+  PretenureFlag pretenure_;
   uint32_t version_ = 0;
   uint32_t next_id_ = 0;
 
   // Always global handles.
-  Handle<SeededNumberDictionary> id_map_;
+  Handle<FixedArray> id_map_;
   MaybeHandle<SeededNumberDictionary> array_buffer_transfer_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueDeserializer);

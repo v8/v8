@@ -190,6 +190,7 @@ void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
   if (size == 0) return;
 
 #if defined(USE_SIMULATOR)
+  base::LockGuard<base::Mutex> lock_guard(isolate->simulator_i_cache_mutex());
   Simulator::FlushICache(isolate->simulator_i_cache(), start, size);
 #else
   CpuFeatures::FlushICache(start, size);
@@ -233,21 +234,13 @@ PredictableCodeSizeScope::~PredictableCodeSizeScope() {
 // Implementation of CpuFeatureScope
 
 #ifdef DEBUG
-CpuFeatureScope::CpuFeatureScope(AssemblerBase* assembler, CpuFeature f)
+CpuFeatureScope::CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
+                                 CheckPolicy check)
     : assembler_(assembler) {
-  DCHECK(CpuFeatures::IsSupported(f));
+  DCHECK_IMPLIES(check == kCheckSupported, CpuFeatures::IsSupported(f));
   old_enabled_ = assembler_->enabled_cpu_features();
-  uint64_t mask = static_cast<uint64_t>(1) << f;
-  // TODO(svenpanne) This special case below doesn't belong here!
-#if V8_TARGET_ARCH_ARM
-  // ARMv7 is implied by VFP3.
-  if (f == VFP3) {
-    mask |= static_cast<uint64_t>(1) << ARMv7;
-  }
-#endif
-  assembler_->set_enabled_cpu_features(old_enabled_ | mask);
+  assembler_->EnableCpuFeature(f);
 }
-
 
 CpuFeatureScope::~CpuFeatureScope() {
   assembler_->set_enabled_cpu_features(old_enabled_);
@@ -350,17 +343,18 @@ void RelocInfo::update_wasm_memory_reference(
   DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
   if (IsWasmMemoryReference(rmode_)) {
     Address updated_reference;
+    DCHECK_GE(wasm_memory_reference(), old_base);
     updated_reference = new_base + (wasm_memory_reference() - old_base);
     // The reference is not checked here but at runtime. Validity of references
     // may change over time.
     unchecked_update_wasm_memory_reference(updated_reference,
                                            icache_flush_mode);
   } else if (IsWasmMemorySizeReference(rmode_)) {
-    uint32_t updated_size_reference;
-    DCHECK(old_size == 0 || wasm_memory_size_reference() <= old_size);
-    updated_size_reference =
-        new_size + (wasm_memory_size_reference() - old_size);
-    DCHECK(updated_size_reference <= new_size);
+    uint32_t current_size_reference = wasm_memory_size_reference();
+    DCHECK(old_size == 0 || current_size_reference <= old_size);
+    uint32_t offset = old_size - current_size_reference;
+    DCHECK_GE(new_size, offset);
+    uint32_t updated_size_reference = new_size - offset;
     unchecked_update_wasm_memory_size(updated_size_reference,
                                       icache_flush_mode);
   } else {
@@ -1596,17 +1590,6 @@ ExternalReference ExternalReference::debug_is_active_address(
 ExternalReference ExternalReference::debug_after_break_target_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->after_break_target_address());
-}
-
-
-ExternalReference ExternalReference::virtual_handler_register(
-    Isolate* isolate) {
-  return ExternalReference(isolate->virtual_handler_register_address());
-}
-
-
-ExternalReference ExternalReference::virtual_slot_register(Isolate* isolate) {
-  return ExternalReference(isolate->virtual_slot_register_address());
 }
 
 

@@ -27,7 +27,7 @@ namespace compiler {
 class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                       JSGraph* jsgraph);
+                       JSGraph* jsgraph, float invocation_frequency);
 
   // Creates a graph by visiting bytecodes.
   bool CreateGraph();
@@ -131,6 +131,8 @@ class BytecodeGraphBuilder {
   Node* BuildKeyedLoad();
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
+  void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
+  void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
   void BuildCall(TailCallMode tail_call_mode);
   void BuildThrow();
@@ -151,6 +153,10 @@ class BytecodeGraphBuilder {
   // type feedback.
   CompareOperationHint GetCompareOperationHint();
 
+  // Helper function to compute call frequency from the recorded type
+  // feedback.
+  float ComputeCallFrequency(int slot_id) const;
+
   // Control flow plumbing.
   void BuildJump();
   void BuildJumpIf(Node* condition);
@@ -169,6 +175,10 @@ class BytecodeGraphBuilder {
 
   // Simulates control flow that exits the function body.
   void MergeControlToLeaveFunction(Node* exit);
+
+  // Builds entry points that are used by OSR deconstruction.
+  void BuildOSRLoopEntryPoint(int current_offset);
+  void BuildOSRNormalEntryPoint();
 
   // Builds loop exit nodes for every exited loop between the current bytecode
   // offset and {target_offset}.
@@ -249,6 +259,7 @@ class BytecodeGraphBuilder {
 
   Zone* local_zone_;
   JSGraph* jsgraph_;
+  float const invocation_frequency_;
   Handle<BytecodeArray> bytecode_array_;
   Handle<HandlerTable> exception_handler_table_;
   Handle<TypeFeedbackVector> feedback_vector_;

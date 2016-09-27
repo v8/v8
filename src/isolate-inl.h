@@ -100,20 +100,6 @@ Isolate::ExceptionScope::~ExceptionScope() {
   isolate_->set_pending_exception(*pending_exception_);
 }
 
-SaveContext::SaveContext(Isolate* isolate)
-    : isolate_(isolate), prev_(isolate->save_context()) {
-  if (isolate->context() != NULL) {
-    context_ = Handle<Context>(isolate->context());
-  }
-  isolate->set_save_context(this);
-  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
-}
-
-SaveContext::~SaveContext() {
-  isolate_->set_context(context_.is_null() ? NULL : *context_);
-  isolate_->set_save_context(prev_);
-}
-
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)     \
   Handle<type> Isolate::name() {                             \
     return Handle<type>(raw_native_context()->name(), this); \
@@ -144,6 +130,11 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
 
 bool Isolate::IsHasInstanceLookupChainIntact() {
   PropertyCell* has_instance_cell = heap()->has_instance_protector();
+  return has_instance_cell->value() == Smi::FromInt(kArrayProtectorValid);
+}
+
+bool Isolate::IsStringLengthOverflowIntact() {
+  PropertyCell* has_instance_cell = heap()->string_length_protector();
   return has_instance_cell->value() == Smi::FromInt(kArrayProtectorValid);
 }
 

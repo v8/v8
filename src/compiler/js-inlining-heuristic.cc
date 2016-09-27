@@ -49,11 +49,6 @@ bool CanInlineFunction(Handle<JSFunction> function) {
   // Don't inline builtins.
   if (function->shared()->IsBuiltin()) return false;
 
-  // Quick check on source code length to avoid parsing large candidate.
-  if (function->shared()->SourceSize() > FLAG_max_inlined_source_size) {
-    return false;
-  }
-
   // Quick check on the size of the AST to avoid parsing large candidate.
   if (function->shared()->ast_node_count() > FLAG_max_inlined_nodes) {
     return false;
@@ -123,22 +118,11 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Gather feedback on how often this call site has been hit before.
   if (node->opcode() == IrOpcode::kJSCallFunction) {
-    CallFunctionParameters p = CallFunctionParametersOf(node->op());
-    if (p.feedback().IsValid()) {
-      CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-      candidate.calls = nexus.ExtractCallCount();
-    }
+    CallFunctionParameters const p = CallFunctionParametersOf(node->op());
+    candidate.frequency = p.frequency();
   } else {
-    DCHECK_EQ(IrOpcode::kJSCallConstruct, node->opcode());
-    CallConstructParameters p = CallConstructParametersOf(node->op());
-    if (p.feedback().IsValid()) {
-      int const extra_index =
-          p.feedback().vector()->GetIndex(p.feedback().slot()) + 1;
-      Object* feedback_extra = p.feedback().vector()->get(extra_index);
-      if (feedback_extra->IsSmi()) {
-        candidate.calls = Smi::cast(feedback_extra)->value();
-      }
-    }
+    CallConstructParameters const p = CallConstructParametersOf(node->op());
+    candidate.frequency = p.frequency();
   }
 
   // Handling of special inlining modes right away:
@@ -197,7 +181,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
   Node* calls[kMaxCallPolymorphism + 1];
   Node* if_successes[kMaxCallPolymorphism];
   Node* callee = NodeProperties::GetValueInput(node, 0);
-  Node* control = NodeProperties::GetControlInput(node);
+  Node* fallthrough_control = NodeProperties::GetControlInput(node);
 
   // Setup the inputs for the cloned call nodes.
   int const input_count = node->InputCount();
@@ -212,11 +196,12 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
     if (i != (num_calls - 1)) {
       Node* check =
           graph()->NewNode(simplified()->ReferenceEqual(), callee, target);
-      Node* branch = graph()->NewNode(common()->Branch(), check, control);
-      control = graph()->NewNode(common()->IfFalse(), branch);
+      Node* branch =
+          graph()->NewNode(common()->Branch(), check, fallthrough_control);
+      fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
       if_successes[i] = graph()->NewNode(common()->IfTrue(), branch);
     } else {
-      if_successes[i] = control;
+      if_successes[i] = fallthrough_control;
     }
 
     // The first input to the call is the actual target (which we specialize
@@ -243,19 +228,20 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
       if_exceptions[i] =
           graph()->NewNode(common()->IfException(), calls[i], calls[i]);
     }
-    Node* control =
+    Node* exception_control =
         graph()->NewNode(common()->Merge(num_calls), num_calls, if_exceptions);
-    if_exceptions[num_calls] = control;
-    Node* effect = graph()->NewNode(common()->EffectPhi(num_calls),
-                                    num_calls + 1, if_exceptions);
-    Node* value = graph()->NewNode(
+    if_exceptions[num_calls] = exception_control;
+    Node* exception_effect = graph()->NewNode(common()->EffectPhi(num_calls),
+                                              num_calls + 1, if_exceptions);
+    Node* exception_value = graph()->NewNode(
         common()->Phi(MachineRepresentation::kTagged, num_calls), num_calls + 1,
         if_exceptions);
-    ReplaceWithValue(if_exception, value, effect, control);
+    ReplaceWithValue(if_exception, exception_value, exception_effect,
+                     exception_control);
   }
 
   // Morph the call site into the dispatched call sites.
-  control =
+  Node* control =
       graph()->NewNode(common()->Merge(num_calls), num_calls, if_successes);
   calls[num_calls] = control;
   Node* effect =
@@ -280,22 +266,23 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
 
 bool JSInliningHeuristic::CandidateCompare::operator()(
     const Candidate& left, const Candidate& right) const {
-  if (left.calls != right.calls) {
-    return left.calls > right.calls;
+  if (left.frequency > right.frequency) {
+    return true;
+  } else if (left.frequency < right.frequency) {
+    return false;
+  } else {
+    return left.node->id() > right.node->id();
   }
-  return left.node < right.node;
 }
 
 void JSInliningHeuristic::PrintCandidates() {
   PrintF("Candidates for inlining (size=%zu):\n", candidates_.size());
   for (const Candidate& candidate : candidates_) {
-    PrintF("  #%d:%s, calls:%d\n", candidate.node->id(),
-           candidate.node->op()->mnemonic(), candidate.calls);
+    PrintF("  #%d:%s, frequency:%g\n", candidate.node->id(),
+           candidate.node->op()->mnemonic(), candidate.frequency);
     for (int i = 0; i < candidate.num_functions; ++i) {
       Handle<JSFunction> function = candidate.functions[i];
-      PrintF("  - size[source]:%d, size[ast]:%d, name: %s\n",
-             function->shared()->SourceSize(),
-             function->shared()->ast_node_count(),
+      PrintF("  - size:%d, name: %s\n", function->shared()->ast_node_count(),
              function->shared()->DebugName()->ToCString().get());
     }
   }

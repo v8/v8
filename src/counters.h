@@ -568,6 +568,8 @@ class RuntimeCallTimer {
   V(Message_GetLineNumber)                                 \
   V(Message_GetSourceLine)                                 \
   V(Message_GetStartColumn)                                \
+  V(Module_Evaluate)                                       \
+  V(Module_Instantiate)                                    \
   V(NumberObject_New)                                      \
   V(NumberObject_NumberValue)                              \
   V(Object_CallAsConstructor)                              \
@@ -691,6 +693,7 @@ class RuntimeCallTimer {
   V(IndexedPropertyGetterCallback)                  \
   V(IndexedPropertyQueryCallback)                   \
   V(IndexedPropertySetterCallback)                  \
+  V(InvokeApiInterruptCallbacks)                    \
   V(InvokeFunctionCallback)                         \
   V(JS_Execution)                                   \
   V(Map_SetPrototype)                               \
@@ -790,7 +793,7 @@ class RuntimeCallStats {
 
   void Reset();
   V8_NOINLINE void Print(std::ostream& os);
-  V8_NOINLINE const char* Dump();
+  V8_NOINLINE std::string Dump();
 
   RuntimeCallStats() {
     Reset();
@@ -802,8 +805,6 @@ class RuntimeCallStats {
 
  private:
   std::stringstream buffer_;
-  std::unique_ptr<char[]> buffer_c_str_;
-  size_t len_ = 0;
   // Counter to track recursive time events.
   RuntimeCallTimer* current_timer_ = NULL;
   // Used to track nested tracing scopes.

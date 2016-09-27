@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <tuple>
+
 #include "src/v8.h"
 
 #include "src/execution.h"
@@ -267,7 +269,7 @@ TEST(InterpreterShiftOpsSmi) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -306,7 +308,7 @@ TEST(InterpreterBinaryOpsSmi) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -347,7 +349,7 @@ TEST(InterpreterBinaryOpsHeapNumber) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -411,7 +413,7 @@ TEST(InterpreterStringAdd) {
   for (size_t i = 0; i < arraysize(test_cases); i++) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
     FeedbackVectorSpec feedback_spec(&zone);
-    FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+    FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
     Handle<i::TypeFeedbackVector> vector =
         NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -423,7 +425,7 @@ TEST(InterpreterStringAdd) {
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-    InterpreterTester tester(isolate, bytecode_array);
+    InterpreterTester tester(isolate, bytecode_array, vector);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*test_cases[i].expected_value));
@@ -461,13 +463,13 @@ TEST(InterpreterParameter8) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 8, 0, 0);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot5 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot6 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot5 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot6 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -630,7 +632,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
     i::FeedbackVectorSpec feedback_spec(&zone);
-    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
     Handle<i::TypeFeedbackVector> vector =
         i::NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -734,7 +736,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
     i::FeedbackVectorSpec feedback_spec(&zone);
-    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
     Handle<i::TypeFeedbackVector> vector =
         i::NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -784,10 +786,10 @@ TEST(InterpreterUnaryOpFeedback) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 4, 0, 0);
 
     i::FeedbackVectorSpec feedback_spec(&zone);
-    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
     Handle<i::TypeFeedbackVector> vector =
         i::NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -848,9 +850,9 @@ TEST(InterpreterBitwiseTypeFeedback) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 4, 0, 0);
 
     i::FeedbackVectorSpec feedback_spec(&zone);
-    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-    i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+    i::FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
     Handle<i::TypeFeedbackVector> vector =
         i::NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -1390,9 +1392,9 @@ TEST(InterpreterJumps) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -1408,7 +1410,7 @@ TEST(InterpreterJumps) {
       .Jump(&label[2]);
   SetRegister(builder, reg, 2048, scratch).Bind(&label[1]);
   IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot1))
-      .Jump(&label[0]);
+      .JumpLoop(&label[0], 0);
   SetRegister(builder, reg, 4096, scratch).Bind(&label[2]);
   IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot2))
       .LoadAccumulatorWithRegister(reg)
@@ -1429,11 +1431,11 @@ TEST(InterpreterConditionalJumps) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -1479,11 +1481,11 @@ TEST(InterpreterConditionalJumps2) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
-  FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
@@ -1529,7 +1531,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   Zone zone(isolate->allocator());
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
   Handle<i::TypeFeedbackVector> vector =
       NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -1675,7 +1677,7 @@ TEST(InterpreterSmiComparisons) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -1722,7 +1724,7 @@ TEST(InterpreterHeapNumberComparisons) {
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -1767,7 +1769,7 @@ TEST(InterpreterStringComparisons) {
         const char* rhs = inputs[j].c_str();
 
         FeedbackVectorSpec feedback_spec(&zone);
-        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
         Handle<i::TypeFeedbackVector> vector =
             NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -1823,7 +1825,7 @@ TEST(InterpreterMixedComparisons) {
           Zone zone(isolate->allocator());
 
           FeedbackVectorSpec feedback_spec(&zone);
-          FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+          FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
           Handle<i::TypeFeedbackVector> vector =
               NewTypeFeedbackVector(isolate, &feedback_spec);
 
@@ -3862,6 +3864,88 @@ TEST(InterpreterLookupSlot) {
   }
 }
 
+TEST(InterpreterLookupContextSlot) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* inner_function_prologue = "function inner() {";
+  const char* inner_function_epilogue = "};";
+  const char* outer_function_epilogue = "return inner();";
+
+  std::tuple<const char*, const char*, Handle<Object>> lookup_slot[] = {
+      // Eval in inner context.
+      std::make_tuple("var x = 0;", "eval(''); return x;",
+                      handle(Smi::FromInt(0), isolate)),
+      std::make_tuple("var x = 0;", "eval('var x = 1'); return x;",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_tuple("var x = 0;",
+                      "'use strict'; eval('var x = 1'); return x;",
+                      handle(Smi::FromInt(0), isolate)),
+      // Eval in outer context.
+      std::make_tuple("var x = 0; eval('');", "return x;",
+                      handle(Smi::FromInt(0), isolate)),
+      std::make_tuple("var x = 0; eval('var x = 1');", "return x;",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_tuple("'use strict'; var x = 0; eval('var x = 1');",
+                      "return x;", handle(Smi::FromInt(0), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(lookup_slot); i++) {
+    std::string body = std::string(std::get<0>(lookup_slot[i])) +
+                       std::string(inner_function_prologue) +
+                       std::string(std::get<1>(lookup_slot[i])) +
+                       std::string(inner_function_epilogue) +
+                       std::string(outer_function_epilogue);
+    std::string script = InterpreterTester::SourceForBody(body.c_str());
+
+    InterpreterTester tester(isolate, script.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*std::get<2>(lookup_slot[i])));
+  }
+}
+
+TEST(InterpreterLookupGlobalSlot) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* inner_function_prologue = "function inner() {";
+  const char* inner_function_epilogue = "};";
+  const char* outer_function_epilogue = "return inner();";
+
+  std::tuple<const char*, const char*, Handle<Object>> lookup_slot[] = {
+      // Eval in inner context.
+      std::make_tuple("x = 0;", "eval(''); return x;",
+                      handle(Smi::FromInt(0), isolate)),
+      std::make_tuple("x = 0;", "eval('var x = 1'); return x;",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_tuple("x = 0;", "'use strict'; eval('var x = 1'); return x;",
+                      handle(Smi::FromInt(0), isolate)),
+      // Eval in outer context.
+      std::make_tuple("x = 0; eval('');", "return x;",
+                      handle(Smi::FromInt(0), isolate)),
+      std::make_tuple("x = 0; eval('var x = 1');", "return x;",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_tuple("'use strict'; x = 0; eval('var x = 1');", "return x;",
+                      handle(Smi::FromInt(0), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(lookup_slot); i++) {
+    std::string body = std::string(std::get<0>(lookup_slot[i])) +
+                       std::string(inner_function_prologue) +
+                       std::string(std::get<1>(lookup_slot[i])) +
+                       std::string(inner_function_epilogue) +
+                       std::string(outer_function_epilogue);
+    std::string script = InterpreterTester::SourceForBody(body.c_str());
+
+    InterpreterTester tester(isolate, script.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*std::get<2>(lookup_slot[i])));
+  }
+}
 
 TEST(InterpreterCallLookupSlot) {
   HandleAndZoneScope handles;

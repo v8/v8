@@ -568,6 +568,10 @@ void PhiInstruction::SetInput(size_t offset, int virtual_register) {
   operands_[offset] = virtual_register;
 }
 
+void PhiInstruction::RenameInput(size_t offset, int virtual_register) {
+  DCHECK_NE(InstructionOperand::kInvalidVirtualRegister, operands_[offset]);
+  operands_[offset] = virtual_register;
+}
 
 InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
                                    RpoNumber loop_header, RpoNumber loop_end,

@@ -555,6 +555,8 @@ enum SecondaryField : uint32_t {
   FLOOR_W_S = ((1U << 3) + 7),
   RECIP_S = ((2U << 3) + 5),
   RSQRT_S = ((2U << 3) + 6),
+  MADDF_S = ((3U << 3) + 0),
+  MSUBF_S = ((3U << 3) + 1),
   CLASS_S = ((3U << 3) + 3),
   CVT_D_S = ((4U << 3) + 1),
   CVT_W_S = ((4U << 3) + 4),
@@ -579,6 +581,8 @@ enum SecondaryField : uint32_t {
   FLOOR_W_D = ((1U << 3) + 7),
   RECIP_D = ((2U << 3) + 5),
   RSQRT_D = ((2U << 3) + 6),
+  MADDF_D = ((3U << 3) + 0),
+  MSUBF_D = ((3U << 3) + 1),
   CLASS_D = ((3U << 3) + 3),
   MIN = ((3U << 3) + 4),
   MINA = ((3U << 3) + 5),
@@ -646,8 +650,12 @@ enum SecondaryField : uint32_t {
   SELNEZ_C = ((2U << 3) + 7),  // COP1 on FPR registers.
 
   // COP1 Encoding of Function Field When rs=PS.
+
   // COP1X Encoding of Function Field.
+  MADD_S = ((4U << 3) + 0),
   MADD_D = ((4U << 3) + 1),
+  MSUB_S = ((5U << 3) + 0),
+  MSUB_D = ((5U << 3) + 1),
 
   // PCREL Encoding of rt Field.
   ADDIUPC = ((0U << 2) + 0),

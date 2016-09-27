@@ -482,6 +482,8 @@ THREADED_TEST(QueryInterceptor) {
 bool get_was_called = false;
 bool set_was_called = false;
 
+int set_was_called_counter = 0;
+
 namespace {
 void GetterCallback(Local<Name> property,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -491,6 +493,7 @@ void GetterCallback(Local<Name> property,
 void SetterCallback(Local<Name> property, Local<Value> value,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   set_was_called = true;
+  set_was_called_counter++;
 }
 
 }  // namespace
@@ -510,13 +513,100 @@ THREADED_TEST(DefinerCallbackAccessorInterceptor) {
                                             .ToLocalChecked())
       .FromJust();
 
-  CHECK_EQ(get_was_called, false);
-  CHECK_EQ(set_was_called, false);
+  get_was_called = false;
+  set_was_called = false;
 
   v8_compile("Object.defineProperty(obj, 'x', {set: function() {return 17;}});")
       ->Run(env.local())
       .ToLocalChecked();
   CHECK_EQ(get_was_called, true);
+  CHECK_EQ(set_was_called, false);
+}
+
+// Check that set callback is called for function declarations.
+THREADED_TEST(SetterCallbackFunctionDeclarationInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+
+  v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
+  object_template->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(nullptr, SetterCallback));
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+  set_was_called_counter = 0;
+
+  // Declare function.
+  v8::Local<v8::String> code = v8_str("function x() {return 42;}; x();");
+  CHECK_EQ(42, v8::Script::Compile(ctx, code)
+                   .ToLocalChecked()
+                   ->Run(ctx)
+                   .ToLocalChecked()
+                   ->Int32Value(ctx)
+                   .FromJust());
+  CHECK_EQ(set_was_called_counter, 1);
+
+  // Redeclare function.
+  code = v8_str("function x() {return 43;}; x();");
+  CHECK_EQ(43, v8::Script::Compile(ctx, code)
+                   .ToLocalChecked()
+                   ->Run(ctx)
+                   .ToLocalChecked()
+                   ->Int32Value(ctx)
+                   .FromJust());
+  CHECK_EQ(set_was_called_counter, 2);
+
+  // Redefine function.
+  code = v8_str("x = function() {return 44;}; x();");
+  CHECK_EQ(44, v8::Script::Compile(ctx, code)
+                   .ToLocalChecked()
+                   ->Run(ctx)
+                   .ToLocalChecked()
+                   ->Int32Value(ctx)
+                   .FromJust());
+  CHECK_EQ(set_was_called_counter, 3);
+}
+
+// Check that function re-declarations throw if they are read-only.
+THREADED_TEST(SetterCallbackFunctionDeclarationInterceptorThrow) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+
+  v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
+  object_template->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(nullptr, SetterCallback));
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+  set_was_called = false;
+
+  v8::Local<v8::String> code = v8_str(
+      "function x() {return 42;};"
+      "Object.defineProperty(this, 'x', {"
+      "configurable: false, "
+      "writable: false});"
+      "x();");
+  CHECK_EQ(42, v8::Script::Compile(ctx, code)
+                   .ToLocalChecked()
+                   ->Run(ctx)
+                   .ToLocalChecked()
+                   ->Int32Value(ctx)
+                   .FromJust());
+
+  CHECK_EQ(set_was_called, true);
+
+  v8::TryCatch try_catch(CcTest::isolate());
+  set_was_called = false;
+
+  // Redeclare function that is read-only.
+  code = v8_str("function x() {return 43;};");
+  CHECK(v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).IsEmpty());
+  CHECK(try_catch.HasCaught());
+
   CHECK_EQ(set_was_called, false);
 }
 

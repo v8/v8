@@ -79,7 +79,7 @@ const uint8_t kWasmFunctionTypeForm = 0x40;
 
 class WasmDebugInfo;
 
-struct WasmSection {
+struct V8_EXPORT_PRIVATE WasmSection {
   enum class Code : uint32_t {
 #define F(enumerator, order, string) enumerator,
     FOR_EACH_WASM_SECTION_TYPE(F)
@@ -233,10 +233,9 @@ struct WasmModule {
   }
 
   // Creates a new instantiation of the module in the given isolate.
-  static MaybeHandle<JSObject> Instantiate(Isolate* isolate,
-                                           Handle<FixedArray> compiled_module,
-                                           Handle<JSReceiver> ffi,
-                                           Handle<JSArrayBuffer> memory);
+  V8_EXPORT_PRIVATE static MaybeHandle<JSObject> Instantiate(
+      Isolate* isolate, Handle<JSObject> module_object, Handle<JSReceiver> ffi,
+      Handle<JSArrayBuffer> memory);
 
   MaybeHandle<FixedArray> CompileFunctions(Isolate* isolate,
                                            ErrorThrower* thrower) const;
@@ -402,11 +401,9 @@ Handle<JSObject> CreateCompiledModuleObject(Isolate* isolate,
                                             Handle<FixedArray> compiled_module,
                                             ModuleOrigin origin);
 
-MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
-                                                  const byte* start,
-                                                  const byte* end,
-                                                  ErrorThrower* thrower,
-                                                  ModuleOrigin origin);
+V8_EXPORT_PRIVATE MaybeHandle<JSObject> CreateModuleObjectFromBytes(
+    Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
+    ModuleOrigin origin);
 
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.
@@ -415,16 +412,17 @@ MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
 // was collected, or the instance object owning the Code object
 Object* GetOwningWasmInstance(Object* undefined, Code* code);
 
+MaybeHandle<JSArrayBuffer> GetInstanceMemory(Isolate* isolate,
+                                             Handle<JSObject> instance);
+void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer);
+
 namespace testing {
 
-// Decode, verify, and run the function labeled "main" in the
-// given encoded module. The module should have no imports.
-int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end, bool asm_js = false);
+void ValidateInstancesChain(Isolate* isolate, Handle<JSObject> module_obj,
+                            int instance_count);
+void ValidateModuleState(Isolate* isolate, Handle<JSObject> module_obj);
+void ValidateOrphanedInstance(Isolate* isolate, Handle<JSObject> instance);
 
-int32_t CallFunction(Isolate* isolate, Handle<JSObject> instance,
-                     ErrorThrower* thrower, const char* name, int argc,
-                     Handle<Object> argv[], bool asm_js = false);
 }  // namespace testing
 }  // namespace wasm
 }  // namespace internal

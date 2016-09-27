@@ -6,7 +6,7 @@
 #define V8_INTERPRETER_BYTECODE_REGISTER_ALLOCATOR_H_
 
 #include "src/interpreter/bytecodes.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
