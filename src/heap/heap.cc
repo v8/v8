@@ -972,6 +972,22 @@ bool Heap::CollectGarbage(GarbageCollector collector,
     }
   }
 
+  if (collector == MARK_COMPACTOR && !ShouldFinalizeIncrementalMarking() &&
+      !ShouldAbortIncrementalMarking() && !incremental_marking()->IsStopped() &&
+      !incremental_marking()->should_hurry() && FLAG_incremental_marking &&
+      OldGenerationAllocationLimitReached()) {
+    if (!incremental_marking()->IsComplete() &&
+        !mark_compact_collector()->marking_deque_.IsEmpty() &&
+        !FLAG_gc_global) {
+      if (FLAG_trace_incremental_marking) {
+        isolate()->PrintWithTimestamp(
+            "[IncrementalMarking] Delaying MarkSweep.\n");
+      }
+      collector = SCAVENGER;
+      collector_reason = "incremental marking delaying mark-sweep";
+    }
+  }
+
   bool next_gc_likely_to_collect_more = false;
   intptr_t committed_memory_before = 0;
 
