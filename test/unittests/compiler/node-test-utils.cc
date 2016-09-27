@@ -2320,6 +2320,9 @@ IS_BINOP_MATCHER(Float64InsertHighWord32)
     return MakeMatcher(new IsUnopMatcher(IrOpcode::k##Name, input_matcher)); \
   }
 IS_UNOP_MATCHER(BooleanNot)
+IS_UNOP_MATCHER(BitcastTaggedToWord)
+IS_UNOP_MATCHER(BitcastWordToTagged)
+IS_UNOP_MATCHER(BitcastWordToTaggedSigned)
 IS_UNOP_MATCHER(TruncateFloat64ToWord32)
 IS_UNOP_MATCHER(ChangeFloat64ToInt32)
 IS_UNOP_MATCHER(ChangeFloat64ToUint32)

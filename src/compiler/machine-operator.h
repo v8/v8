@@ -277,8 +277,14 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Uint64LessThanOrEqual();
   const Operator* Uint64Mod();
 
+  // This operator reinterprets the bits of a tagged pointer as word.
+  const Operator* BitcastTaggedToWord();
+
   // This operator reinterprets the bits of a word as tagged pointer.
   const Operator* BitcastWordToTagged();
+
+  // This operator reinterprets the bits of a word as a Smi.
+  const Operator* BitcastWordToTaggedSigned();
 
   // JavaScript float64 to int32/uint32 truncation.
   const Operator* TruncateFloat64ToWord32();

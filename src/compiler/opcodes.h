@@ -394,7 +394,9 @@
   V(Int64Mod)                   \
   V(Uint64Div)                  \
   V(Uint64Mod)                  \
+  V(BitcastTaggedToWord)        \
   V(BitcastWordToTagged)        \
+  V(BitcastWordToTaggedSigned)  \
   V(TruncateFloat64ToWord32)    \
   V(ChangeFloat32ToFloat64)     \
   V(ChangeFloat64ToInt32)       \

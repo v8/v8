@@ -296,7 +296,7 @@ Node* CodeStubAssembler::SmiShiftBitsConstant() {
 
 Node* CodeStubAssembler::SmiFromWord32(Node* value) {
   value = ChangeInt32ToIntPtr(value);
-  return WordShl(value, SmiShiftBitsConstant());
+  return BitcastWordToTaggedSigned(WordShl(value, SmiShiftBitsConstant()));
 }
 
 Node* CodeStubAssembler::SmiTag(Node* value) {
@@ -304,15 +304,15 @@ Node* CodeStubAssembler::SmiTag(Node* value) {
   if (ToInt32Constant(value, constant_value) && Smi::IsValid(constant_value)) {
     return SmiConstant(Smi::FromInt(constant_value));
   }
-  return WordShl(value, SmiShiftBitsConstant());
+  return BitcastWordToTaggedSigned(WordShl(value, SmiShiftBitsConstant()));
 }
 
 Node* CodeStubAssembler::SmiUntag(Node* value) {
-  return WordSar(value, SmiShiftBitsConstant());
+  return WordSar(BitcastTaggedToWord(value), SmiShiftBitsConstant());
 }
 
 Node* CodeStubAssembler::SmiToWord32(Node* value) {
-  Node* result = WordSar(value, SmiShiftBitsConstant());
+  Node* result = SmiUntag(value);
   if (Is64()) {
     result = TruncateInt64ToInt32(result);
   }

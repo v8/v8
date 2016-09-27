@@ -135,7 +135,9 @@ class RawMachineLabel;
   V(Float64Tanh)                        \
   V(Float64ExtractLowWord32)            \
   V(Float64ExtractHighWord32)           \
+  V(BitcastTaggedToWord)                \
   V(BitcastWordToTagged)                \
+  V(BitcastWordToTaggedSigned)          \
   V(TruncateFloat64ToFloat32)           \
   V(TruncateFloat64ToWord32)            \
   V(TruncateInt64ToInt32)               \

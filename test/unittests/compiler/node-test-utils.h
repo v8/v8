@@ -386,6 +386,9 @@ Matcher<Node*> IsInt64Sub(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsJSAdd(const Matcher<Node*>& lhs_matcher,
                        const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsBitcastTaggedToWord(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsBitcastWordToTagged(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsBitcastWordToTaggedSigned(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToWord32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeFloat64ToUint32(const Matcher<Node*>& input_matcher);

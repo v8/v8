@@ -532,8 +532,14 @@ class RawMachineAssembler {
   }
 
   // Conversions.
+  Node* BitcastTaggedToWord(Node* a) {
+    return AddNode(machine()->BitcastTaggedToWord(), a);
+  }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
+  }
+  Node* BitcastWordToTaggedSigned(Node* a) {
+    return AddNode(machine()->BitcastWordToTaggedSigned(), a);
   }
   Node* TruncateFloat64ToWord32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToWord32(), a);

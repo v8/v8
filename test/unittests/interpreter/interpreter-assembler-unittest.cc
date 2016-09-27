@@ -541,9 +541,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
     EXPECT_THAT(m.SmiTag(value),
                 IsIntPtrConstant(static_cast<intptr_t>(44)
                                  << (kSmiShiftSize + kSmiTagSize)));
-    EXPECT_THAT(
-        m.SmiUntag(value),
-        IsWordSar(value, IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
+    EXPECT_THAT(m.SmiUntag(value),
+                IsWordSar(IsBitcastTaggedToWord(value),
+                          IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
   }
 }
 

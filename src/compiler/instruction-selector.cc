@@ -1104,8 +1104,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitUint64LessThanOrEqual(node);
     case IrOpcode::kUint64Mod:
       return MarkAsWord64(node), VisitUint64Mod(node);
+    case IrOpcode::kBitcastTaggedToWord:
+      return MarkAsRepresentation(MachineType::PointerRepresentation(), node),
+             VisitBitcastTaggedToWord(node);
     case IrOpcode::kBitcastWordToTagged:
       return MarkAsReference(node), VisitBitcastWordToTagged(node);
+    case IrOpcode::kBitcastWordToTaggedSigned:
+      return MarkAsRepresentation(MachineRepresentation::kTaggedSigned, node),
+             EmitIdentity(node);
     case IrOpcode::kChangeFloat32ToFloat64:
       return MarkAsFloat64(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
@@ -1499,6 +1505,11 @@ void InstructionSelector::VisitStackSlot(Node* node) {
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+}
+
+void InstructionSelector::VisitBitcastTaggedToWord(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitBitcastWordToTagged(Node* node) {
