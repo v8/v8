@@ -5431,7 +5431,11 @@ bool Heap::SetUp() {
   // Initialize incremental marking.
   incremental_marking_ = new IncrementalMarking(this);
 
-  new_space_ = new NewSpace(this);
+  for (int i = 0; i <= LAST_SPACE; i++) {
+    space_[i] = nullptr;
+  }
+
+  space_[NEW_SPACE] = new_space_ = new NewSpace(this);
   if (new_space_ == nullptr) return false;
 
   // Set up new space.
@@ -5441,25 +5445,26 @@ bool Heap::SetUp() {
   new_space_top_after_last_gc_ = new_space()->top();
 
   // Initialize old space.
-  old_space_ = new OldSpace(this, OLD_SPACE, NOT_EXECUTABLE);
+  space_[OLD_SPACE] = old_space_ =
+      new OldSpace(this, OLD_SPACE, NOT_EXECUTABLE);
   if (old_space_ == NULL) return false;
   if (!old_space_->SetUp()) return false;
 
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
-  code_space_ = new OldSpace(this, CODE_SPACE, EXECUTABLE);
+  space_[CODE_SPACE] = code_space_ = new OldSpace(this, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
   if (!code_space_->SetUp()) return false;
 
   // Initialize map space.
-  map_space_ = new MapSpace(this, MAP_SPACE);
+  space_[MAP_SPACE] = map_space_ = new MapSpace(this, MAP_SPACE);
   if (map_space_ == NULL) return false;
   if (!map_space_->SetUp()) return false;
 
   // The large object code space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it
   // explicitly when allocating large code objects.
-  lo_space_ = new LargeObjectSpace(this, LO_SPACE);
+  space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this, LO_SPACE);
   if (lo_space_ == NULL) return false;
   if (!lo_space_->SetUp()) return false;
 
@@ -5988,14 +5993,10 @@ OldSpace* OldSpaces::next() {
   }
 }
 
-
 SpaceIterator::SpaceIterator(Heap* heap)
-    : heap_(heap), current_space_(FIRST_SPACE), iterator_(NULL) {}
-
+    : heap_(heap), current_space_(FIRST_SPACE - 1) {}
 
 SpaceIterator::~SpaceIterator() {
-  // Delete active iterator if any.
-  delete iterator_;
 }
 
 
@@ -6004,48 +6005,9 @@ bool SpaceIterator::has_next() {
   return current_space_ != LAST_SPACE;
 }
 
-
-ObjectIterator* SpaceIterator::next() {
-  if (iterator_ != NULL) {
-    delete iterator_;
-    iterator_ = NULL;
-    // Move to the next space
-    current_space_++;
-    if (current_space_ > LAST_SPACE) {
-      return NULL;
-    }
-  }
-
-  // Return iterator for the new current space.
-  return CreateIterator();
-}
-
-
-// Create an iterator for the space to iterate.
-ObjectIterator* SpaceIterator::CreateIterator() {
-  DCHECK(iterator_ == NULL);
-
-  switch (current_space_) {
-    case NEW_SPACE:
-      iterator_ = new SemiSpaceIterator(heap_->new_space());
-      break;
-    case OLD_SPACE:
-      iterator_ = new HeapObjectIterator(heap_->old_space());
-      break;
-    case CODE_SPACE:
-      iterator_ = new HeapObjectIterator(heap_->code_space());
-      break;
-    case MAP_SPACE:
-      iterator_ = new HeapObjectIterator(heap_->map_space());
-      break;
-    case LO_SPACE:
-      iterator_ = new LargeObjectIterator(heap_->lo_space());
-      break;
-  }
-
-  // Return the newly allocated iterator;
-  DCHECK(iterator_ != NULL);
-  return iterator_;
+Space* SpaceIterator::next() {
+  DCHECK(has_next());
+  return heap_->space(++current_space_);
 }
 
 
@@ -6130,7 +6092,7 @@ HeapIterator::HeapIterator(Heap* heap,
     default:
       break;
   }
-  object_iterator_ = space_iterator_->next();
+  object_iterator_ = space_iterator_->next()->GetObjectIterator();
 }
 
 
@@ -6143,8 +6105,6 @@ HeapIterator::~HeapIterator() {
     DCHECK(object_iterator_ == nullptr);
   }
 #endif
-  // Make sure the last iterator is deallocated.
-  delete object_iterator_;
   delete space_iterator_;
   delete filter_;
 }
@@ -6161,22 +6121,22 @@ HeapObject* HeapIterator::next() {
 
 HeapObject* HeapIterator::NextObject() {
   // No iterator means we are done.
-  if (object_iterator_ == nullptr) return nullptr;
+  if (object_iterator_.get() == nullptr) return nullptr;
 
-  if (HeapObject* obj = object_iterator_->Next()) {
+  if (HeapObject* obj = object_iterator_.get()->Next()) {
     // If the current iterator has more objects we are fine.
     return obj;
   } else {
     // Go though the spaces looking for one that has objects.
     while (space_iterator_->has_next()) {
-      object_iterator_ = space_iterator_->next();
-      if (HeapObject* obj = object_iterator_->Next()) {
+      object_iterator_ = space_iterator_->next()->GetObjectIterator();
+      if (HeapObject* obj = object_iterator_.get()->Next()) {
         return obj;
       }
     }
   }
   // Done with the last space.
-  object_iterator_ = nullptr;
+  object_iterator_.reset(nullptr);
   return nullptr;
 }
 

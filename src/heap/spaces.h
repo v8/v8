@@ -943,6 +943,8 @@ class Space : public Malloced {
     }
   }
 
+  virtual std::unique_ptr<ObjectIterator> GetObjectIterator() = 0;
+
   void AccountCommitted(intptr_t bytes) {
     DCHECK_GE(bytes, 0);
     committed_ += bytes;
@@ -2154,6 +2156,8 @@ class PagedSpace : public Space {
   // using the high water mark.
   void ShrinkImmortalImmovablePages();
 
+  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -2329,6 +2333,11 @@ class SemiSpace : public Space {
     return 0;
   }
 
+  iterator begin() { return iterator(anchor_.next_page()); }
+  iterator end() { return iterator(anchor()); }
+
+  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+
 #ifdef DEBUG
   void Print() override;
   // Validate a range of of addresses in a SemiSpace.
@@ -2343,9 +2352,6 @@ class SemiSpace : public Space {
 #ifdef VERIFY_HEAP
   virtual void Verify();
 #endif
-
-  iterator begin() { return iterator(anchor_.next_page()); }
-  iterator end() { return iterator(anchor()); }
 
  private:
   void RewindPages(Page* start, int num_pages);
@@ -2648,6 +2654,8 @@ class NewSpace : public Space {
   iterator begin() { return to_space_.begin(); }
   iterator end() { return to_space_.end(); }
 
+  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+
  private:
   // Update allocation info to match the current to-space page.
   void UpdateAllocationInfo();
@@ -2862,6 +2870,8 @@ class LargeObjectSpace : public Space {
 
   iterator begin() { return iterator(first_page_); }
   iterator end() { return iterator(nullptr); }
+
+  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
 #ifdef VERIFY_HEAP
   virtual void Verify();

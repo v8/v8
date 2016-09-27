@@ -2120,6 +2120,8 @@ class Heap {
   OldSpace* code_space_;
   MapSpace* map_space_;
   LargeObjectSpace* lo_space_;
+  // Map from the space id to the space.
+  Space* space_[LAST_SPACE + 1];
   HeapState gc_state_;
   int gc_post_processing_depth_;
   Address new_space_top_after_last_gc_;
@@ -2428,23 +2430,17 @@ class PagedSpaces BASE_EMBEDDED {
 };
 
 
-// Space iterator for iterating over all spaces of the heap.
-// For each space an object iterator is provided. The deallocation of the
-// returned object iterators is handled by the space iterator.
 class SpaceIterator : public Malloced {
  public:
   explicit SpaceIterator(Heap* heap);
   virtual ~SpaceIterator();
 
   bool has_next();
-  ObjectIterator* next();
+  Space* next();
 
  private:
-  ObjectIterator* CreateIterator();
-
   Heap* heap_;
   int current_space_;         // from enum AllocationSpace.
-  ObjectIterator* iterator_;  // object iterator for the current space.
 };
 
 
@@ -2490,7 +2486,7 @@ class HeapIterator BASE_EMBEDDED {
   // Space iterator for iterating all the spaces.
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.
-  ObjectIterator* object_iterator_;
+  std::unique_ptr<ObjectIterator> object_iterator_;
 };
 
 // Abstract base class for checking whether a weak object should be retained.

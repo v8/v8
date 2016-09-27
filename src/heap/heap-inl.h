@@ -146,30 +146,12 @@ ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 PagedSpace* Heap::paged_space(int idx) {
-  switch (idx) {
-    case OLD_SPACE:
-      return old_space();
-    case MAP_SPACE:
-      return map_space();
-    case CODE_SPACE:
-      return code_space();
-    case NEW_SPACE:
-    case LO_SPACE:
-      UNREACHABLE();
-  }
-  return NULL;
+  DCHECK_NE(idx, LO_SPACE);
+  DCHECK_NE(idx, NEW_SPACE);
+  return static_cast<PagedSpace*>(space_[idx]);
 }
 
-Space* Heap::space(int idx) {
-  switch (idx) {
-    case NEW_SPACE:
-      return new_space();
-    case LO_SPACE:
-      return lo_space();
-    default:
-      return paged_space(idx);
-  }
-}
+Space* Heap::space(int idx) { return space_[idx]; }
 
 Address* Heap::NewSpaceAllocationTopAddress() {
   return new_space_->allocation_top_address();

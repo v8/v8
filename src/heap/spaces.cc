@@ -1431,6 +1431,10 @@ void PagedSpace::ReleasePage(Page* page) {
   heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
 }
 
+std::unique_ptr<ObjectIterator> PagedSpace::GetObjectIterator() {
+  return std::unique_ptr<ObjectIterator>(new HeapObjectIterator(this));
+}
+
 #ifdef DEBUG
 void PagedSpace::Print() {}
 #endif
@@ -1826,6 +1830,10 @@ void NewSpace::InlineAllocationStep(Address top, Address new_top,
   }
 }
 
+std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator() {
+  return std::unique_ptr<ObjectIterator>(new SemiSpaceIterator(this));
+}
+
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).
@@ -2117,6 +2125,12 @@ void NewSpace::SealIntermediateGeneration() {
                  "Sealing intermediate generation: bytes_lost=%zu\n",
                  fragmentation_in_intermediate_generation_);
   }
+}
+
+std::unique_ptr<ObjectIterator> SemiSpace::GetObjectIterator() {
+  // Use the NewSpace::NewObjectIterator to iterate the ToSpace.
+  UNREACHABLE();
+  return std::unique_ptr<ObjectIterator>();
 }
 
 #ifdef DEBUG
@@ -3170,6 +3184,9 @@ bool LargeObjectSpace::Contains(HeapObject* object) {
   return owned;
 }
 
+std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator() {
+  return std::unique_ptr<ObjectIterator>(new LargeObjectIterator(this));
+}
 
 #ifdef VERIFY_HEAP
 // We do not assume that the large object iterator works, because it depends

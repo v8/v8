@@ -2266,8 +2266,9 @@ void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
   SpaceIterator space_it(heap());
   HeapObject* obj = nullptr;
   while (space_it.has_next()) {
-    ObjectIterator* it = space_it.next();
-    while ((obj = it->Next()) != nullptr) {
+    std::unique_ptr<ObjectIterator> it(space_it.next()->GetObjectIterator());
+    ObjectIterator* obj_it = it.get();
+    while ((obj = obj_it->Next()) != nullptr) {
       visitor->Visit(obj);
     }
   }
