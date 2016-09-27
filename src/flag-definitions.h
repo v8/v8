@@ -720,8 +720,6 @@ DEFINE_BOOL(trace_idle_notification, false,
             "print one trace line following each idle notification")
 DEFINE_BOOL(trace_idle_notification_verbose, false,
             "prints the heap state used by the idle notification")
-DEFINE_BOOL(print_cumulative_gc_stat, false,
-            "print cumulative GC statistics in name=value format on exit")
 DEFINE_BOOL(print_max_heap_committed, false,
             "print statistics of the maximum memory committed for the heap "
             "in name=value format on exit")
@@ -845,7 +843,7 @@ DEFINE_BOOL(trace_maps, false, "trace map creation")
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_BOOL(trace_parse, false, "trace parsing and preparsing")
-DEFINE_BOOL(lazy_inner_functions, true, "enable lazy parsing inner functions")
+DEFINE_BOOL(lazy_inner_functions, false, "enable lazy parsing inner functions")
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
 DEFINE_BOOL(trace_sim, false, "Trace simulator execution")

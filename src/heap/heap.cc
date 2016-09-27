@@ -125,12 +125,6 @@ Heap::Heap()
       nodes_copied_in_new_space_(0),
       nodes_promoted_(0),
       maximum_size_scavenges_(0),
-      max_gc_pause_(0.0),
-      total_gc_time_ms_(0.0),
-      max_alive_after_gc_(0),
-      min_in_mutator_(kMaxInt),
-      marking_time_(0.0),
-      sweeping_time_(0.0),
       last_idle_notification_time_(0.0),
       last_gc_time_(0.0),
       scavenge_collector_(nullptr),
@@ -972,6 +966,22 @@ bool Heap::CollectGarbage(GarbageCollector collector,
     }
   }
 
+  if (collector == MARK_COMPACTOR && !ShouldFinalizeIncrementalMarking() &&
+      !ShouldAbortIncrementalMarking() && !incremental_marking()->IsStopped() &&
+      !incremental_marking()->should_hurry() && FLAG_incremental_marking &&
+      OldGenerationAllocationLimitReached()) {
+    if (!incremental_marking()->IsComplete() &&
+        !mark_compact_collector()->marking_deque_.IsEmpty() &&
+        !FLAG_gc_global) {
+      if (FLAG_trace_incremental_marking) {
+        isolate()->PrintWithTimestamp(
+            "[IncrementalMarking] Delaying MarkSweep.\n");
+      }
+      collector = SCAVENGER;
+      collector_reason = "incremental marking delaying mark-sweep";
+    }
+  }
+
   bool next_gc_likely_to_collect_more = false;
   intptr_t committed_memory_before = 0;
 
@@ -1739,8 +1749,7 @@ void Heap::Scavenge() {
 
   DCHECK(new_space_front == new_space_->top());
 
-  // Set age mark.
-  new_space_->set_age_mark(new_space_->top());
+  new_space_->SealIntermediateGeneration();
 
   ArrayBufferTracker::FreeDeadInNewSpace(this);
 
@@ -5091,7 +5100,6 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
   }
 
   initial_semispace_size_ = Min(initial_semispace_size_, max_semi_space_size_);
-
   if (FLAG_semi_space_growth_factor < 2) {
     FLAG_semi_space_growth_factor = 2;
   }
@@ -5592,20 +5600,6 @@ void Heap::TearDown() {
 #endif
 
   UpdateMaximumCommitted();
-
-  if (FLAG_print_cumulative_gc_stat) {
-    PrintF("\n");
-    PrintF("gc_count=%d ", gc_count_);
-    PrintF("mark_sweep_count=%d ", ms_count_);
-    PrintF("max_gc_pause=%.1f ", get_max_gc_pause());
-    PrintF("total_gc_time=%.1f ", total_gc_time_ms_);
-    PrintF("min_in_mutator=%.1f ", get_min_in_mutator());
-    PrintF("max_alive_after_gc=%" V8PRIdPTR " ", get_max_alive_after_gc());
-    PrintF("total_marking_time=%.1f ", tracer()->cumulative_marking_duration());
-    PrintF("total_sweeping_time=%.1f ",
-           tracer()->cumulative_sweeping_duration());
-    PrintF("\n\n");
-  }
 
   if (FLAG_print_max_heap_committed) {
     PrintF("\n");
@@ -6375,20 +6369,10 @@ void Heap::TracePathToGlobal() {
 }
 #endif
 
-
-void Heap::UpdateCumulativeGCStatistics(double duration,
-                                        double spent_in_mutator,
-                                        double marking_time) {
-  if (FLAG_print_cumulative_gc_stat) {
-    total_gc_time_ms_ += duration;
-    max_gc_pause_ = Max(max_gc_pause_, duration);
-    max_alive_after_gc_ = Max(max_alive_after_gc_, SizeOfObjects());
-    min_in_mutator_ = Min(min_in_mutator_, spent_in_mutator);
-  } else if (FLAG_trace_gc_verbose) {
+void Heap::UpdateTotalGCTime(double duration) {
+  if (FLAG_trace_gc_verbose) {
     total_gc_time_ms_ += duration;
   }
-
-  marking_time_ += marking_time;
 }
 
 void Heap::ExternalStringTable::CleanUp() {

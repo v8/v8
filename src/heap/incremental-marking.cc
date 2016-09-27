@@ -801,7 +801,6 @@ void IncrementalMarking::FinalizeIncrementally() {
 
   double end = heap_->MonotonicallyIncreasingTimeInMs();
   double delta = end - start;
-  heap_->tracer()->AddMarkingTime(delta);
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Finalize incrementally round %d, "
@@ -950,7 +949,7 @@ void IncrementalMarking::Hurry() {
   // because should_hurry_ will force a full GC.
   if (!heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
     double start = 0.0;
-    if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
+    if (FLAG_trace_incremental_marking) {
       start = heap_->MonotonicallyIncreasingTimeInMs();
       if (FLAG_trace_incremental_marking) {
         heap()->isolate()->PrintWithTimestamp("[IncrementalMarking] Hurry\n");
@@ -960,10 +959,9 @@ void IncrementalMarking::Hurry() {
     // was stopped.
     ProcessMarkingDeque(0, FORCE_COMPLETION);
     state_ = COMPLETE;
-    if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
+    if (FLAG_trace_incremental_marking) {
       double end = heap_->MonotonicallyIncreasingTimeInMs();
       double delta = end - start;
-      heap_->tracer()->AddMarkingTime(delta);
       if (FLAG_trace_incremental_marking) {
         heap()->isolate()->PrintWithTimestamp(
             "[IncrementalMarking] Complete (hurry), spent %d ms.\n",

@@ -497,80 +497,6 @@ Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
                    IntPtrConstant(0));
 }
 
-void CodeStubAssembler::BranchIfSameValueZero(Node* a, Node* b, Node* context,
-                                              Label* if_true, Label* if_false) {
-  Node* number_map = HeapNumberMapConstant();
-  Label a_isnumber(this), a_isnotnumber(this), b_isnumber(this), a_isnan(this),
-      float_not_equal(this);
-  // If register A and register B are identical, goto `if_true`
-  GotoIf(WordEqual(a, b), if_true);
-  // If either register A or B are Smis, goto `if_false`
-  GotoIf(Word32Or(WordIsSmi(a), WordIsSmi(b)), if_false);
-  // GotoIf(WordIsSmi(b), if_false);
-
-  Node* a_map = LoadMap(a);
-  Node* b_map = LoadMap(b);
-  Branch(WordEqual(a_map, number_map), &a_isnumber, &a_isnotnumber);
-
-  // If both register A and B are HeapNumbers, return true if they are equal,
-  // or if both are NaN
-  Bind(&a_isnumber);
-  {
-    Branch(WordEqual(b_map, number_map), &b_isnumber, if_false);
-
-    Bind(&b_isnumber);
-    Node* a_value = LoadHeapNumberValue(a);
-    Node* b_value = LoadHeapNumberValue(b);
-    BranchIfFloat64Equal(a_value, b_value, if_true, &float_not_equal);
-
-    Bind(&float_not_equal);
-    BranchIfFloat64IsNaN(a_value, &a_isnan, if_false);
-
-    Bind(&a_isnan);
-    BranchIfFloat64IsNaN(a_value, if_true, if_false);
-  }
-
-  Bind(&a_isnotnumber);
-  {
-    Label a_isstring(this), a_isnotstring(this);
-    Node* a_instance_type = LoadMapInstanceType(a_map);
-
-    Branch(Int32LessThan(a_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-           &a_isstring, &a_isnotstring);
-
-    Bind(&a_isstring);
-    {
-      Label b_isstring(this), b_isnotstring(this);
-      Node* b_instance_type = LoadInstanceType(b_map);
-
-      Branch(
-          Int32LessThan(b_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-          &b_isstring, if_false);
-
-      Bind(&b_isstring);
-      {
-        Callable callable = CodeFactory::StringEqual(isolate());
-        Node* result = CallStub(callable, context, a, b);
-        Branch(WordEqual(BooleanConstant(true), result), if_true, if_false);
-      }
-    }
-
-    Bind(&a_isnotstring);
-    {
-      // Check if {lhs} is a Simd128Value.
-      Label a_issimd128value(this);
-      Branch(Word32Equal(a_instance_type, Int32Constant(SIMD128_VALUE_TYPE)),
-             &a_issimd128value, if_false);
-
-      Bind(&a_issimd128value);
-      {
-        // Load the map of {rhs}.
-        BranchIfSimd128Equal(a, a_map, b, b_map, if_true, if_false);
-      }
-    }
-  }
-}
-
 void CodeStubAssembler::BranchIfSimd128Equal(Node* lhs, Node* lhs_map,
                                              Node* rhs, Node* rhs_map,
                                              Label* if_equal,
@@ -2426,6 +2352,58 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
   }
 
   Bind(&if_done);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::StringFromCodePoint(compiler::Node* codepoint,
+                                             UnicodeEncoding encoding) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+  var_result.Bind(EmptyStringConstant());
+
+  Label if_isword16(this), if_isword32(this), return_result(this);
+
+  Branch(Uint32LessThan(codepoint, Int32Constant(0x10000)), &if_isword16,
+         &if_isword32);
+
+  Bind(&if_isword16);
+  {
+    var_result.Bind(StringFromCharCode(codepoint));
+    Goto(&return_result);
+  }
+
+  Bind(&if_isword32);
+  {
+    switch (encoding) {
+      case UnicodeEncoding::UTF16:
+        break;
+      case UnicodeEncoding::UTF32: {
+        // Convert UTF32 to UTF16 code units, and store as a 32 bit word.
+        Node* lead_offset = Int32Constant(0xD800 - (0x10000 >> 10));
+
+        // lead = (codepoint >> 10) + LEAD_OFFSET
+        Node* lead =
+            Int32Add(WordShr(codepoint, Int32Constant(10)), lead_offset);
+
+        // trail = (codepoint & 0x3FF) + 0xDC00;
+        Node* trail = Int32Add(Word32And(codepoint, Int32Constant(0x3FF)),
+                               Int32Constant(0xDC00));
+
+        // codpoint = (trail << 16) | lead;
+        codepoint = Word32Or(WordShl(trail, Int32Constant(16)), lead);
+        break;
+      }
+    }
+
+    Node* value = AllocateSeqTwoByteString(2);
+    StoreNoWriteBarrier(
+        MachineRepresentation::kWord32, value,
+        IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+        codepoint);
+    var_result.Bind(value);
+    Goto(&return_result);
+  }
+
+  Bind(&return_result);
   return var_result.value();
 }
 

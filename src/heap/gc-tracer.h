@@ -294,26 +294,6 @@ class GCTracer {
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
 
-  // Log time spent in marking.
-  void AddMarkingTime(double duration) {
-    cumulative_marking_duration_ += duration;
-  }
-
-  // Time spent in marking.
-  double cumulative_marking_duration() const {
-    return cumulative_marking_duration_;
-  }
-
-  // Log time spent in sweeping on main thread.
-  void AddSweepingTime(double duration) {
-    cumulative_sweeping_duration_ += duration;
-  }
-
-  // Time spent in sweeping on main thread.
-  double cumulative_sweeping_duration() const {
-    return cumulative_sweeping_duration_;
-  }
-
   // Compute the average incremental marking speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
   double IncrementalMarkingSpeedInBytesPerMillisecond() const;
@@ -462,23 +442,10 @@ class GCTracer {
   // tracer.
   double cumulative_pure_incremental_marking_duration_;
 
-  // Total marking time.
-  // This timer is precise when run with --print-cumulative-gc-stat
-  double cumulative_marking_duration_;
-
   // Incremental scopes carry more information than just the duration. The infos
   // here are merged back upon starting/stopping the GC tracer.
   IncrementalMarkingInfos
       incremental_marking_scopes_[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
-
-  // Total sweeping time on the main thread.
-  // This timer is precise when run with --print-cumulative-gc-stat
-  // TODO(hpayer): Account for sweeping time on sweeper threads. Add a
-  // different field for that.
-  // TODO(hpayer): This timer right now just holds the sweeping time
-  // of the initial atomic sweeping pause. Make sure that it accumulates
-  // all sweeping operations performed on the main thread.
-  double cumulative_sweeping_duration_;
 
   double incremental_marking_start_time_;
 

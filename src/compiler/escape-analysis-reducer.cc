@@ -120,13 +120,15 @@ Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
   if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
     fully_reduced_.Add(node->id());
   }
-  if (Node* rep = escape_analysis()->GetReplacement(node)) {
-    isolate()->counters()->turbo_escape_loads_replaced()->Increment();
-    TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
-          node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
-    rep = MaybeGuard(jsgraph(), node, rep);
-    ReplaceWithValue(node, rep);
-    return Replace(rep);
+  if (escape_analysis()->IsVirtual(NodeProperties::GetValueInput(node, 0))) {
+    if (Node* rep = escape_analysis()->GetReplacement(node)) {
+      isolate()->counters()->turbo_escape_loads_replaced()->Increment();
+      TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
+            node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
+      rep = MaybeGuard(jsgraph(), node, rep);
+      ReplaceWithValue(node, rep);
+      return Replace(rep);
+    }
   }
   return NoChange();
 }

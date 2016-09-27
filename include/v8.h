@@ -3220,6 +3220,12 @@ class V8_EXPORT Object : public Value {
    */
   Local<Context> CreationContext();
 
+  /** Same as above, but works for Persistents */
+  V8_INLINE static Local<Context> CreationContext(
+      const PersistentBase<Object>& object) {
+    return object.val_->CreationContext();
+  }
+
   /**
    * Checks whether a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.

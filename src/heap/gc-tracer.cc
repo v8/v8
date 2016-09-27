@@ -116,8 +116,6 @@ GCTracer::GCTracer(Heap* heap)
       cumulative_incremental_marking_bytes_(0),
       cumulative_incremental_marking_duration_(0.0),
       cumulative_pure_incremental_marking_duration_(0.0),
-      cumulative_marking_duration_(0.0),
-      cumulative_sweeping_duration_(0.0),
       allocation_time_ms_(0.0),
       new_space_allocation_counter_bytes_(0),
       old_generation_allocation_counter_bytes_(0),
@@ -136,13 +134,11 @@ void GCTracer::ResetForTesting() {
   cumulative_incremental_marking_bytes_ = 0.0;
   cumulative_incremental_marking_duration_ = 0.0;
   cumulative_pure_incremental_marking_duration_ = 0.0;
-  cumulative_marking_duration_ = 0.0;
   for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
     incremental_marking_scopes_[i].cumulative_duration = 0.0;
     incremental_marking_scopes_[i].steps = 0;
     incremental_marking_scopes_[i].longest_step = 0.0;
   }
-  cumulative_sweeping_duration_ = 0.0;
   allocation_time_ms_ = 0.0;
   new_space_allocation_counter_bytes_ = 0.0;
   old_generation_allocation_counter_bytes_ = 0.0;
@@ -305,9 +301,7 @@ void GCTracer::Stop(GarbageCollector collector) {
     }
   }
 
-  double spent_in_mutator = Max(current_.start_time - previous_.end_time, 0.0);
-  heap_->UpdateCumulativeGCStatistics(duration, spent_in_mutator,
-                                      current_.scopes[Scope::MC_MARK]);
+  heap_->UpdateTotalGCTime(duration);
 
   if (current_.type == Event::SCAVENGER && FLAG_trace_gc_ignore_scavenger)
     return;
@@ -394,7 +388,6 @@ void GCTracer::AddSurvivalRatio(double promotion_ratio) {
 void GCTracer::AddIncrementalMarkingStep(double duration, intptr_t bytes) {
   cumulative_incremental_marking_bytes_ += bytes;
   cumulative_incremental_marking_duration_ += duration;
-  cumulative_marking_duration_ += duration;
   if (bytes > 0) {
     cumulative_pure_incremental_marking_duration_ += duration;
   }

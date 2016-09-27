@@ -204,6 +204,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
     length = JSTypedArray::cast(*source)->length_value();
   } else {
     CHECK(TryNumberToSize(*length_obj, &length));
+    CHECK(length_obj->IsSmi());
   }
 
   if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
