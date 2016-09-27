@@ -77,15 +77,16 @@ class TypeFeedbackOracle: public ZoneObject {
   uint16_t ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
-  void BinaryType(TypeFeedbackId id, AstType** left, AstType** right,
-                  AstType** result, Maybe<int>* fixed_right_arg,
+  void BinaryType(TypeFeedbackId id, FeedbackVectorSlot slot, AstType** left,
+                  AstType** right, AstType** result,
+                  Maybe<int>* fixed_right_arg,
                   Handle<AllocationSite>* allocation_site,
                   Token::Value operation);
 
-  void CompareType(TypeFeedbackId id, AstType** left, AstType** right,
-                   AstType** combined);
+  void CompareType(TypeFeedbackId id, FeedbackVectorSlot slot, AstType** left,
+                   AstType** right, AstType** combined);
 
-  AstType* CountType(TypeFeedbackId id);
+  AstType* CountType(TypeFeedbackId id, FeedbackVectorSlot slot);
 
   Zone* zone() const { return zone_; }
   Isolate* isolate() const { return isolate_; }

@@ -656,38 +656,11 @@
   # TODO(4680): Test doesn't know about three tier compiler pipeline.
   'assert-opt-and-deopt': [SKIP],
 
-  # BUG(rmcilroy,4989): Function is optimized without type feedback and so
-  # immediately deopts again, causing check failure in the test.
-  'compiler/deopt-inlined-from-call': [FAIL],
-  'compiler/increment-typefeedback': [FAIL],
+  # Fails because concurrent compilation is not triggered on bytecode.
+  # Check in Runtime_OptimizeFunctionOnNextCall.
   'compiler/manual-concurrent-recompile': [FAIL],
-  'constant-folding-2': [FAIL],
-  'debug-is-active': [FAIL],
-  'deopt-with-fp-regs': [FAIL],
-  'deserialize-optimize-inner': [FAIL],
-  'div-mul-minus-one': [FAIL],
-  'double-intrinsics': [FAIL],
-  'elements-transition-hoisting': [FAIL],
-  'es6/block-let-crankshaft': [FAIL],
-  'es6/block-let-crankshaft-sloppy': [FAIL],
-  'getters-on-elements': [FAIL],
-  'harmony/do-expressions': [FAIL],
-  'math-floor-of-div-minus-zero': [FAIL],
-  'regress/regress-2132': [FAIL],
-  'regress/regress-2339': [FAIL],
-  'regress/regress-3176': [FAIL],
-  'regress/regress-3709': [FAIL],
-  'regress/regress-385565': [FAIL],
-  'regress/regress-crbug-594183': [FAIL],
   'regress/regress-embedded-cons-string': [FAIL],
-  'regress/regress-map-invalidation-2': [FAIL],
-  'regress/regress-param-local-type': [FAIL],
   'regress/regress-prepare-break-while-recompile': [FAIL],
-  'shift-for-integer-div': [FAIL],
-  'sin-cos': [FAIL],
-  'smi-mul-const': [FAIL],
-  'smi-mul': [FAIL],
-  'unary-minus-deopt': [FAIL],
 
   # Modules for which execution must fail (e.g. because of unresolved imports).
   # Eventually we should test for the precise error message, but for now we only
@@ -731,37 +704,14 @@
 ##############################################################################
 ['variant == ignition_staging', {
   'assert-opt-and-deopt': [SKIP],
-  'compiler/deopt-inlined-from-call': [FAIL],
-  'compiler/increment-typefeedback': [FAIL],
-  'compiler/manual-concurrent-recompile': [FAIL],
-  'constant-folding-2': [FAIL],
-  'debug-is-active': [FAIL],
   'debug-liveedit-double-call': [FAIL],
-  'deopt-with-fp-regs': [FAIL],
-  'deserialize-optimize-inner': [FAIL],
-  'div-mul-minus-one': [FAIL],
-  'elements-transition-hoisting': [FAIL],
-  'es6/block-let-crankshaft': [FAIL],
-  'es6/block-let-crankshaft-sloppy': [FAIL],
-  'getters-on-elements': [FAIL],
-  'harmony/do-expressions': [FAIL],
-  'math-floor-of-div-minus-zero': [FAIL],
-  'regress/regress-2132': [FAIL],
-  'regress/regress-2339': [FAIL],
-  'regress/regress-3176': [FAIL],
-  'regress/regress-3709': [FAIL],
-  'regress/regress-385565': [FAIL],
-  'regress/regress-crbug-594183': [FAIL],
-  'regress/regress-embedded-cons-string': [FAIL],
-  'regress/regress-map-invalidation-2': [FAIL],
-  'regress/regress-param-local-type': [FAIL],
-  'regress/regress-prepare-break-while-recompile': [FAIL],
   'regress-sync-optimized-lists': [FAIL],
-  'shift-for-integer-div': [FAIL],
-  'sin-cos': [FAIL],
-  'smi-mul-const': [FAIL],
-  'smi-mul': [FAIL],
-  'unary-minus-deopt': [FAIL],
+
+  # Fails because concurrent compilation is not triggered on bytecode.
+  # Check in Runtime_OptimizeFunctionOnNextCall.
+  'compiler/manual-concurrent-recompile': [FAIL],
+  'regress/regress-embedded-cons-string': [FAIL],
+  'regress/regress-prepare-break-while-recompile': [FAIL],
 
   # Flaky.
   'asm/int32div': [SKIP],

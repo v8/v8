@@ -364,7 +364,6 @@
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
   # BUG(4680): Missing type feedback makes optimistic optimizations fail.
-  'test-cpu-profiler/CollectDeoptEvents': [FAIL],
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
 
   # BUG(4751). Flaky with ignition.
@@ -374,10 +373,6 @@
   # with crankshaft.
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
 
-  # TurboFan cpu profiler result is different.
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
-
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition
@@ -386,9 +381,6 @@
 ['variant == ignition_staging', {
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
-  'test-cpu-profiler/CollectDeoptEvents': [FAIL],
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
   'test-heap/Regress169209': [FAIL],
   'test-heap/TestCodeFlushing': [FAIL],
