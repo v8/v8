@@ -72,7 +72,7 @@ bool Type::Contains(RangeType* range, i::Object* val) {
 // Min and Max computation.
 
 double Type::Min() {
-  DCHECK(this->SemanticIs(Number()));
+  DCHECK(this->Is(Number()));
   if (this->IsBitset()) return BitsetType::Min(this->AsBitset());
   if (this->IsUnion()) {
     double min = +V8_INFINITY;
@@ -88,7 +88,7 @@ double Type::Min() {
 }
 
 double Type::Max() {
-  DCHECK(this->SemanticIs(Number()));
+  DCHECK(this->Is(Number()));
   if (this->IsBitset()) return BitsetType::Max(this->AsBitset());
   if (this->IsUnion()) {
     double max = -V8_INFINITY;
@@ -115,13 +115,13 @@ Type::bitset BitsetType::Glb(Type* type) {
   } else if (type->IsUnion()) {
     SLOW_DCHECK(type->AsUnion()->Wellformed());
     return type->AsUnion()->Get(0)->BitsetGlb() |
-           SEMANTIC(type->AsUnion()->Get(1)->BitsetGlb());  // Shortcut.
+           type->AsUnion()->Get(1)->BitsetGlb();  // Shortcut.
   } else if (type->IsRange()) {
-    bitset glb = SEMANTIC(
-        BitsetType::Glb(type->AsRange()->Min(), type->AsRange()->Max()));
-    return glb | REPRESENTATION(type->BitsetLub());
+    bitset glb =
+        BitsetType::Glb(type->AsRange()->Min(), type->AsRange()->Max());
+    return glb;
   } else {
-    return type->Representation();
+    return kNone;
   }
 }
 
@@ -135,7 +135,7 @@ Type::bitset BitsetType::Lub(Type* type) {
     int bitset = type->AsUnion()->Get(0)->BitsetLub();
     for (int i = 0, n = type->AsUnion()->Length(); i < n; ++i) {
       // Other elements only contribute their semantic part.
-      bitset |= SEMANTIC(type->AsUnion()->Get(i)->BitsetLub());
+      bitset |= type->AsUnion()->Get(i)->BitsetLub();
     }
     return bitset;
   }
@@ -185,10 +185,10 @@ Type::bitset BitsetType::Lub(i::Map* map) {
              map == heap->arguments_marker_map() ||
              map == heap->optimized_out_map() ||
              map == heap->stale_register_map());
-      return kOtherInternal & kTaggedPointer;
+      return kOtherInternal;
     }
     case HEAP_NUMBER_TYPE:
-      return kNumber & kTaggedPointer;
+      return kNumber;
     case SIMD128_VALUE_TYPE:
       return kSimd;
     case JS_OBJECT_TYPE:
@@ -242,10 +242,10 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
-      return kOtherInternal & kTaggedPointer;
+      return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do
-    // require bit set types, they should get kOtherInternal & kTaggedPointer.
+    // require bit set types, they should get kOtherInternal.
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FREE_SPACE_TYPE:
 #define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
@@ -282,8 +282,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
 Type::bitset BitsetType::Lub(i::Object* value) {
   DisallowHeapAllocation no_allocation;
   if (value->IsNumber()) {
-    return Lub(value->Number()) &
-           (value->IsSmi() ? kTaggedSigned : kTaggedPointer);
+    return Lub(value->Number());
   }
   return Lub(i::HeapObject::cast(value)->map());
 }
@@ -316,12 +315,11 @@ size_t BitsetType::BoundariesSize() {
 
 Type::bitset BitsetType::ExpandInternals(Type::bitset bits) {
   DisallowHeapAllocation no_allocation;
-  if (!(bits & SEMANTIC(kPlainNumber))) return bits;  // Shortcut.
+  if (!(bits & kPlainNumber)) return bits;  // Shortcut.
   const Boundary* boundaries = Boundaries();
   for (size_t i = 0; i < BoundariesSize(); ++i) {
     DCHECK(BitsetType::Is(boundaries[i].internal, boundaries[i].external));
-    if (bits & SEMANTIC(boundaries[i].internal))
-      bits |= SEMANTIC(boundaries[i].external);
+    if (bits & boundaries[i].internal) bits |= boundaries[i].external;
   }
   return bits;
 }
@@ -340,9 +338,7 @@ Type::bitset BitsetType::Lub(double min, double max) {
   return lub | mins[BoundariesSize() - 1].internal;
 }
 
-Type::bitset BitsetType::NumberBits(bitset bits) {
-  return SEMANTIC(bits & kPlainNumber);
-}
+Type::bitset BitsetType::NumberBits(bitset bits) { return bits & kPlainNumber; }
 
 Type::bitset BitsetType::Glb(double min, double max) {
   DisallowHeapAllocation no_allocation;
@@ -360,16 +356,16 @@ Type::bitset BitsetType::Glb(double min, double max) {
   }
   // OtherNumber also contains float numbers, so it can never be
   // in the greatest lower bound.
-  return glb & ~(SEMANTIC(kOtherNumber));
+  return glb & ~(kOtherNumber);
 }
 
 double BitsetType::Min(bitset bits) {
   DisallowHeapAllocation no_allocation;
-  DCHECK(Is(SEMANTIC(bits), kNumber));
+  DCHECK(Is(bits, kNumber));
   const Boundary* mins = Boundaries();
-  bool mz = SEMANTIC(bits & kMinusZero);
+  bool mz = bits & kMinusZero;
   for (size_t i = 0; i < BoundariesSize(); ++i) {
-    if (Is(SEMANTIC(mins[i].internal), bits)) {
+    if (Is(mins[i].internal, bits)) {
       return mz ? std::min(0.0, mins[i].min) : mins[i].min;
     }
   }
@@ -379,14 +375,14 @@ double BitsetType::Min(bitset bits) {
 
 double BitsetType::Max(bitset bits) {
   DisallowHeapAllocation no_allocation;
-  DCHECK(Is(SEMANTIC(bits), kNumber));
+  DCHECK(Is(bits, kNumber));
   const Boundary* mins = Boundaries();
-  bool mz = SEMANTIC(bits & kMinusZero);
-  if (BitsetType::Is(SEMANTIC(mins[BoundariesSize() - 1].internal), bits)) {
+  bool mz = bits & kMinusZero;
+  if (BitsetType::Is(mins[BoundariesSize() - 1].internal, bits)) {
     return +V8_INFINITY;
   }
   for (size_t i = BoundariesSize() - 1; i-- > 0;) {
-    if (Is(SEMANTIC(mins[i].internal), bits)) {
+    if (Is(mins[i].internal, bits)) {
       return mz ? std::max(0.0, mins[i + 1].min - 1) : mins[i + 1].min - 1;
     }
   }
@@ -419,10 +415,6 @@ bool Type::SimplyEquals(Type* that) {
   return false;
 }
 
-Type::bitset Type::Representation() {
-  return REPRESENTATION(this->BitsetLub());
-}
-
 // Check if [this] <= [that].
 bool Type::SlowIs(Type* that) {
   DisallowHeapAllocation no_allocation;
@@ -436,33 +428,10 @@ bool Type::SlowIs(Type* that) {
     return BitsetType::Is(this->AsBitset(), that->BitsetGlb());
   }
 
-  // Check the representations.
-  if (!BitsetType::Is(Representation(), that->Representation())) {
-    return false;
-  }
-
-  // Check the semantic part.
-  return SemanticIs(that);
-}
-
-// Check if SEMANTIC([this]) <= SEMANTIC([that]). The result of the method
-// should be independent of the representation axis of the types.
-bool Type::SemanticIs(Type* that) {
-  DisallowHeapAllocation no_allocation;
-
-  if (this == that) return true;
-
-  if (that->IsBitset()) {
-    return BitsetType::Is(SEMANTIC(this->BitsetLub()), that->AsBitset());
-  }
-  if (this->IsBitset()) {
-    return BitsetType::Is(SEMANTIC(this->AsBitset()), that->BitsetGlb());
-  }
-
   // (T1 \/ ... \/ Tn) <= T  if  (T1 <= T) /\ ... /\ (Tn <= T)
   if (this->IsUnion()) {
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
-      if (!this->AsUnion()->Get(i)->SemanticIs(that)) return false;
+      if (!this->AsUnion()->Get(i)->Is(that)) return false;
     }
     return true;
   }
@@ -470,7 +439,7 @@ bool Type::SemanticIs(Type* that) {
   // T <= (T1 \/ ... \/ Tn)  if  (T <= T1) \/ ... \/ (T <= Tn)
   if (that->IsUnion()) {
     for (int i = 0, n = that->AsUnion()->Length(); i < n; ++i) {
-      if (this->SemanticIs(that->AsUnion()->Get(i))) return true;
+      if (this->Is(that->AsUnion()->Get(i))) return true;
       if (i > 1 && this->IsRange()) return false;  // Shortcut.
     }
     return false;
@@ -490,21 +459,13 @@ bool Type::SemanticIs(Type* that) {
 bool Type::Maybe(Type* that) {
   DisallowHeapAllocation no_allocation;
 
-  // Take care of the representation part (and also approximate
-  // the semantic part).
   if (!BitsetType::IsInhabited(this->BitsetLub() & that->BitsetLub()))
     return false;
-
-  return SemanticMaybe(that);
-}
-
-bool Type::SemanticMaybe(Type* that) {
-  DisallowHeapAllocation no_allocation;
 
   // (T1 \/ ... \/ Tn) overlaps T  if  (T1 overlaps T) \/ ... \/ (Tn overlaps T)
   if (this->IsUnion()) {
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
-      if (this->AsUnion()->Get(i)->SemanticMaybe(that)) return true;
+      if (this->AsUnion()->Get(i)->Maybe(that)) return true;
     }
     return false;
   }
@@ -512,13 +473,10 @@ bool Type::SemanticMaybe(Type* that) {
   // T overlaps (T1 \/ ... \/ Tn)  if  (T overlaps T1) \/ ... \/ (T overlaps Tn)
   if (that->IsUnion()) {
     for (int i = 0, n = that->AsUnion()->Length(); i < n; ++i) {
-      if (this->SemanticMaybe(that->AsUnion()->Get(i))) return true;
+      if (this->Maybe(that->AsUnion()->Get(i))) return true;
     }
     return false;
   }
-
-  if (!BitsetType::SemanticIsInhabited(this->BitsetLub() & that->BitsetLub()))
-    return false;
 
   if (this->IsBitset() && that->IsBitset()) return true;
 
@@ -540,7 +498,7 @@ bool Type::SemanticMaybe(Type* that) {
     }
   }
   if (that->IsRange()) {
-    return that->SemanticMaybe(this);  // This case is handled above.
+    return that->Maybe(this);  // This case is handled above.
   }
 
   if (this->IsBitset() || that->IsBitset()) return true;
@@ -588,8 +546,7 @@ bool UnionType::Wellformed() {
     if (i != 1) DCHECK(!this->Get(i)->IsRange());   // (3)
     DCHECK(!this->Get(i)->IsUnion());               // (4)
     for (int j = 0; j < this->Length(); ++j) {
-      if (i != j && i != 0)
-        DCHECK(!this->Get(i)->SemanticIs(this->Get(j)));  // (5)
+      if (i != j && i != 0) DCHECK(!this->Get(i)->Is(this->Get(j)));  // (5)
     }
   }
   DCHECK(!this->Get(1)->IsRange() ||
@@ -622,25 +579,15 @@ Type* Type::Intersect(Type* type1, Type* type2, Zone* zone) {
 
   // Slow case: create union.
 
-  // Figure out the representation of the result first.
-  // The rest of the method should not change this representation and
-  // it should not make any decisions based on representations (i.e.,
-  // it should only use the semantic part of types).
-  const bitset representation =
-      type1->Representation() & type2->Representation();
-
   // Semantic subtyping check - this is needed for consistency with the
-  // semi-fast case above - we should behave the same way regardless of
-  // representations. Intersection with a universal bitset should only update
-  // the representations.
-  if (type1->SemanticIs(type2)) {
+  // semi-fast case above.
+  if (type1->Is(type2)) {
     type2 = Any();
-  } else if (type2->SemanticIs(type1)) {
+  } else if (type2->Is(type1)) {
     type1 = Any();
   }
 
-  bitset bits =
-      SEMANTIC(type1->BitsetGlb() & type2->BitsetGlb()) | representation;
+  bitset bits = type1->BitsetGlb() & type2->BitsetGlb();
   int size1 = type1->IsUnion() ? type1->AsUnion()->Length() : 1;
   int size2 = type2->IsUnion() ? type2->AsUnion()->Length() : 1;
   if (!AddIsSafe(size1, size2)) return Any();
@@ -660,8 +607,7 @@ Type* Type::Intersect(Type* type1, Type* type2, Zone* zone) {
   // If the range is not empty, then insert it into the union and
   // remove the number bits from the bitset.
   if (!lims.IsEmpty()) {
-    size = UpdateRange(RangeType::New(lims, representation, zone), result, size,
-                       zone);
+    size = UpdateRange(RangeType::New(lims, zone), result, size, zone);
 
     // Remove the number bits.
     bitset number_bits = BitsetType::NumberBits(bits);
@@ -682,7 +628,7 @@ int Type::UpdateRange(Type* range, UnionType* result, int size, Zone* zone) {
 
   // Remove any components that just got subsumed.
   for (int i = 2; i < size;) {
-    if (result->Get(i)->SemanticIs(range)) {
+    if (result->Get(i)->Is(range)) {
       result->Set(i, result->Get(--size));
     } else {
       ++i;
@@ -726,7 +672,7 @@ int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
     return size;
   }
 
-  if (!BitsetType::SemanticIsInhabited(lhs->BitsetLub() & rhs->BitsetLub())) {
+  if (!BitsetType::IsInhabited(lhs->BitsetLub() & rhs->BitsetLub())) {
     return size;
   }
 
@@ -778,7 +724,7 @@ Type* Type::NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone) {
 
   // If the range is semantically contained within the bitset, return None and
   // leave the bitset untouched.
-  bitset range_lub = SEMANTIC(range->BitsetLub());
+  bitset range_lub = range->BitsetLub();
   if (BitsetType::Is(range_lub, *bits)) {
     return None();
   }
@@ -806,7 +752,7 @@ Type* Type::NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone) {
   if (bitset_max > range_max) {
     range_max = bitset_max;
   }
-  return RangeType::New(range_min, range_max, BitsetType::kNone, zone);
+  return RangeType::New(range_min, range_max, zone);
 }
 
 Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
@@ -823,13 +769,6 @@ Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
   if (type1->Is(type2)) return type2;
   if (type2->Is(type1)) return type1;
 
-  // Figure out the representation of the result.
-  // The rest of the method should not change this representation and
-  // it should not make any decisions based on representations (i.e.,
-  // it should only use the semantic part of types).
-  const bitset representation =
-      type1->Representation() | type2->Representation();
-
   // Slow case: create union.
   int size1 = type1->IsUnion() ? type1->AsUnion()->Length() : 1;
   int size2 = type2->IsUnion() ? type2->AsUnion()->Length() : 1;
@@ -842,7 +781,7 @@ Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
   size = 0;
 
   // Compute the new bitset.
-  bitset new_bitset = SEMANTIC(type1->BitsetGlb() | type2->BitsetGlb());
+  bitset new_bitset = type1->BitsetGlb() | type2->BitsetGlb();
 
   // Deal with ranges.
   Type* range = None();
@@ -852,14 +791,13 @@ Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
     RangeType::Limits lims =
         RangeType::Limits::Union(RangeType::Limits(range1->AsRange()),
                                  RangeType::Limits(range2->AsRange()));
-    Type* union_range = RangeType::New(lims, representation, zone);
+    Type* union_range = RangeType::New(lims, zone);
     range = NormalizeRangeAndBitset(union_range, &new_bitset, zone);
   } else if (range1 != NULL) {
     range = NormalizeRangeAndBitset(range1, &new_bitset, zone);
   } else if (range2 != NULL) {
     range = NormalizeRangeAndBitset(range2, &new_bitset, zone);
   }
-  new_bitset = SEMANTIC(new_bitset) | representation;
   Type* bits = BitsetType::New(new_bitset);
   result->Set(size++, bits);
   if (!range->IsNone()) result->Set(size++, range);
@@ -880,7 +818,7 @@ int Type::AddToUnion(Type* type, UnionType* result, int size, Zone* zone) {
     return size;
   }
   for (int i = 0; i < size; ++i) {
-    if (type->SemanticIs(result->Get(i))) return size;
+    if (type->Is(result->Get(i))) return size;
   }
   result->Set(size++, type);
   return size;
@@ -896,33 +834,15 @@ Type* Type::NormalizeUnion(Type* union_type, int size, Zone* zone) {
   }
   bitset bits = unioned->Get(0)->AsBitset();
   // If the union only consists of a range, we can get rid of the union.
-  if (size == 2 && SEMANTIC(bits) == BitsetType::kNone) {
-    bitset representation = REPRESENTATION(bits);
-    if (representation == unioned->Get(1)->Representation()) {
-      return unioned->Get(1);
-    }
+  if (size == 2 && bits == BitsetType::kNone) {
     if (unioned->Get(1)->IsRange()) {
       return RangeType::New(unioned->Get(1)->AsRange()->Min(),
-                            unioned->Get(1)->AsRange()->Max(),
-                            unioned->Get(0)->AsBitset(), zone);
+                            unioned->Get(1)->AsRange()->Max(), zone);
     }
   }
   unioned->Shrink(size);
   SLOW_DCHECK(unioned->Wellformed());
   return union_type;
-}
-
-// -----------------------------------------------------------------------------
-// Component extraction
-
-// static
-Type* Type::Representation(Type* t, Zone* zone) {
-  return BitsetType::New(t->Representation());
-}
-
-// static
-Type* Type::Semantic(Type* t, Zone* zone) {
-  return Intersect(t, BitsetType::New(BitsetType::kSemantic), zone);
 }
 
 // -----------------------------------------------------------------------------
@@ -994,20 +914,12 @@ void Type::Iterator<T>::Advance() {
 
 const char* BitsetType::Name(bitset bits) {
   switch (bits) {
-    case REPRESENTATION(kAny):
-      return "Any";
-#define RETURN_NAMED_REPRESENTATION_TYPE(type, value) \
-  case REPRESENTATION(k##type):                       \
+#define RETURN_NAMED_TYPE(type, value) \
+  case k##type:                        \
     return #type;
-      REPRESENTATION_BITSET_TYPE_LIST(RETURN_NAMED_REPRESENTATION_TYPE)
-#undef RETURN_NAMED_REPRESENTATION_TYPE
-
-#define RETURN_NAMED_SEMANTIC_TYPE(type, value) \
-  case SEMANTIC(k##type):                       \
-    return #type;
-    SEMANTIC_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
-    INTERNAL_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
-#undef RETURN_NAMED_SEMANTIC_TYPE
+    PROPER_BITSET_TYPE_LIST(RETURN_NAMED_TYPE)
+    INTERNAL_BITSET_TYPE_LIST(RETURN_NAMED_TYPE)
+#undef RETURN_NAMED_TYPE
 
     default:
       return NULL;
@@ -1025,13 +937,9 @@ void BitsetType::Print(std::ostream& os,  // NOLINT
 
   // clang-format off
   static const bitset named_bitsets[] = {
-#define BITSET_CONSTANT(type, value) REPRESENTATION(k##type),
-    REPRESENTATION_BITSET_TYPE_LIST(BITSET_CONSTANT)
-#undef BITSET_CONSTANT
-
-#define BITSET_CONSTANT(type, value) SEMANTIC(k##type),
+#define BITSET_CONSTANT(type, value) k##type,
     INTERNAL_BITSET_TYPE_LIST(BITSET_CONSTANT)
-    SEMANTIC_BITSET_TYPE_LIST(BITSET_CONSTANT)
+    PROPER_BITSET_TYPE_LIST(BITSET_CONSTANT)
 #undef BITSET_CONSTANT
   };
   // clang-format on
@@ -1051,43 +959,37 @@ void BitsetType::Print(std::ostream& os,  // NOLINT
   os << ")";
 }
 
-void Type::PrintTo(std::ostream& os, PrintDimension dim) {
+void Type::PrintTo(std::ostream& os) {
   DisallowHeapAllocation no_allocation;
-  if (dim != REPRESENTATION_DIM) {
-    if (this->IsBitset()) {
-      BitsetType::Print(os, SEMANTIC(this->AsBitset()));
-    } else if (this->IsConstant()) {
-      os << "Constant(" << Brief(*this->AsConstant()->Value()) << ")";
-    } else if (this->IsRange()) {
-      std::ostream::fmtflags saved_flags = os.setf(std::ios::fixed);
-      std::streamsize saved_precision = os.precision(0);
-      os << "Range(" << this->AsRange()->Min() << ", " << this->AsRange()->Max()
-         << ")";
-      os.flags(saved_flags);
-      os.precision(saved_precision);
-    } else if (this->IsUnion()) {
-      os << "(";
-      for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
-        Type* type_i = this->AsUnion()->Get(i);
-        if (i > 0) os << " | ";
-        type_i->PrintTo(os, dim);
-      }
-      os << ")";
-    } else if (this->IsTuple()) {
-      os << "<";
-      for (int i = 0, n = this->AsTuple()->Arity(); i < n; ++i) {
-        Type* type_i = this->AsTuple()->Element(i);
-        if (i > 0) os << ", ";
-        type_i->PrintTo(os, dim);
-      }
-      os << ">";
-    } else {
-      UNREACHABLE();
+  if (this->IsBitset()) {
+    BitsetType::Print(os, this->AsBitset());
+  } else if (this->IsConstant()) {
+    os << "Constant(" << Brief(*this->AsConstant()->Value()) << ")";
+  } else if (this->IsRange()) {
+    std::ostream::fmtflags saved_flags = os.setf(std::ios::fixed);
+    std::streamsize saved_precision = os.precision(0);
+    os << "Range(" << this->AsRange()->Min() << ", " << this->AsRange()->Max()
+       << ")";
+    os.flags(saved_flags);
+    os.precision(saved_precision);
+  } else if (this->IsUnion()) {
+    os << "(";
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      Type* type_i = this->AsUnion()->Get(i);
+      if (i > 0) os << " | ";
+      type_i->PrintTo(os);
     }
-  }
-  if (dim == BOTH_DIMS) os << "/";
-  if (dim != SEMANTIC_DIM) {
-    BitsetType::Print(os, REPRESENTATION(this->BitsetLub()));
+    os << ")";
+  } else if (this->IsTuple()) {
+    os << "<";
+    for (int i = 0, n = this->AsTuple()->Arity(); i < n; ++i) {
+      Type* type_i = this->AsTuple()->Element(i);
+      if (i > 0) os << ", ";
+      type_i->PrintTo(os);
+    }
+    os << ">";
+  } else {
+    UNREACHABLE();
   }
 }
 
