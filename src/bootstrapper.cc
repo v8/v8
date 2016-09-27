@@ -663,7 +663,7 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
 
   Handle<JSFunction> iterator_prototype_iterator = SimpleCreateFunction(
       isolate(), factory()->NewStringFromAsciiChecked("[Symbol.iterator]"),
-      Builtins::kIteratorPrototypeIterator, 0, false);
+      Builtins::kIteratorPrototypeIterator, 0, true);
   iterator_prototype_iterator->shared()->set_native(true);
 
   JSObject::AddProperty(iterator_prototype, factory()->iterator_symbol(),
