@@ -569,7 +569,8 @@ void IncrementalMarking::StartMarking() {
   if (heap_->UsingEmbedderHeapTracer()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
-    heap_->mark_compact_collector()->embedder_heap_tracer()->TracePrologue();
+    heap_->embedder_heap_tracer()->TracePrologue(
+        heap_->embedder_reachable_reference_reporter());
   }
 
   RecordWriteStub::Mode mode = is_compacting_
@@ -796,8 +797,7 @@ void IncrementalMarking::FinalizeIncrementally() {
       abs(old_marking_deque_top -
           heap_->mark_compact_collector()->marking_deque()->top());
 
-  marking_progress +=
-      static_cast<int>(heap_->mark_compact_collector()->wrappers_to_trace());
+  marking_progress += static_cast<int>(heap_->wrappers_to_trace());
 
   double end = heap_->MonotonicallyIncreasingTimeInMs();
   double delta = end - start;
@@ -1224,8 +1224,7 @@ void IncrementalMarking::Step(intptr_t bytes_to_process,
         FLAG_incremental_marking_wrappers && heap_->UsingEmbedderHeapTracer();
     const bool process_wrappers =
         incremental_wrapper_tracing &&
-        (heap_->mark_compact_collector()
-             ->RequiresImmediateWrapperProcessing() ||
+        (heap_->RequiresImmediateWrapperProcessing() ||
          heap_->mark_compact_collector()->marking_deque()->IsEmpty());
     bool wrapper_work_left = incremental_wrapper_tracing;
     if (!process_wrappers) {
@@ -1246,14 +1245,11 @@ void IncrementalMarking::Step(intptr_t bytes_to_process,
           heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
-      heap_->mark_compact_collector()->RegisterWrappersWithEmbedderHeapTracer();
-      wrapper_work_left =
-          heap_->mark_compact_collector()
-              ->embedder_heap_tracer()
-              ->AdvanceTracing(wrapper_deadline,
-                               EmbedderHeapTracer::AdvanceTracingActions(
-                                   EmbedderHeapTracer::ForceCompletionAction::
-                                       DO_NOT_FORCE_COMPLETION));
+      heap_->RegisterWrappersWithEmbedderHeapTracer();
+      wrapper_work_left = heap_->embedder_heap_tracer()->AdvanceTracing(
+          wrapper_deadline, EmbedderHeapTracer::AdvanceTracingActions(
+                                EmbedderHeapTracer::ForceCompletionAction::
+                                    DO_NOT_FORCE_COMPLETION));
     }
 
     if (heap_->mark_compact_collector()->marking_deque()->IsEmpty() &&

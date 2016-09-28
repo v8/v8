@@ -61,7 +61,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       marking_deque_memory_(NULL),
       marking_deque_memory_committed_(0),
       code_flusher_(nullptr),
-      embedder_heap_tracer_(nullptr),
       sweeper_(heap) {
 }
 
@@ -809,7 +808,7 @@ void MarkCompactCollector::Prepare() {
     AbortTransitionArrays();
     AbortCompaction();
     if (heap_->UsingEmbedderHeapTracer()) {
-      heap_->mark_compact_collector()->embedder_heap_tracer()->AbortTracing();
+      heap_->embedder_heap_tracer()->AbortTracing();
     }
     was_marked_incrementally_ = false;
   }
@@ -817,12 +816,13 @@ void MarkCompactCollector::Prepare() {
   if (!was_marked_incrementally_) {
     if (heap_->UsingEmbedderHeapTracer()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_PROLOGUE);
-      heap_->mark_compact_collector()->embedder_heap_tracer()->TracePrologue();
+      heap_->embedder_heap_tracer()->TracePrologue(
+          heap_->embedder_reachable_reference_reporter());
     }
   }
 
-  if (UsingEmbedderHeapTracer()) {
-    embedder_heap_tracer()->EnterFinalPause();
+  if (heap_->UsingEmbedderHeapTracer()) {
+    heap_->embedder_heap_tracer()->EnterFinalPause();
   }
 
   // Don't start compaction if we are in the middle of incremental
@@ -2085,10 +2085,10 @@ void MarkCompactCollector::ProcessEphemeralMarking(
   DCHECK(marking_deque_.IsEmpty() && !marking_deque_.overflowed());
   bool work_to_do = true;
   while (work_to_do) {
-    if (UsingEmbedderHeapTracer()) {
+    if (heap_->UsingEmbedderHeapTracer()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
-      RegisterWrappersWithEmbedderHeapTracer();
-      embedder_heap_tracer()->AdvanceTracing(
+      heap_->RegisterWrappersWithEmbedderHeapTracer();
+      heap_->embedder_heap_tracer()->AdvanceTracing(
           0, EmbedderHeapTracer::AdvanceTracingActions(
                  EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
     }
@@ -2200,39 +2200,6 @@ void MarkingDeque::Uninitialize(bool aborting) {
   DCHECK(in_use_);
   top_ = bottom_ = 0xdecbad;
   in_use_ = false;
-}
-
-void MarkCompactCollector::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
-  DCHECK_NOT_NULL(tracer);
-  CHECK_NULL(embedder_heap_tracer_);
-  embedder_heap_tracer_ = tracer;
-}
-
-bool MarkCompactCollector::RequiresImmediateWrapperProcessing() {
-  const size_t kTooManyWrappers = 16000;
-  return wrappers_to_trace_.size() > kTooManyWrappers;
-}
-
-void MarkCompactCollector::RegisterWrappersWithEmbedderHeapTracer() {
-  DCHECK(UsingEmbedderHeapTracer());
-  if (wrappers_to_trace_.empty()) {
-    return;
-  }
-  embedder_heap_tracer()->RegisterV8References(wrappers_to_trace_);
-  wrappers_to_trace_.clear();
-}
-
-void MarkCompactCollector::TracePossibleWrapper(JSObject* js_object) {
-  DCHECK(js_object->WasConstructedFromApiFunction());
-  if (js_object->GetInternalFieldCount() >= 2 &&
-      js_object->GetInternalField(0) &&
-      js_object->GetInternalField(0) != heap_->undefined_value() &&
-      js_object->GetInternalField(1) != heap_->undefined_value()) {
-    DCHECK(reinterpret_cast<intptr_t>(js_object->GetInternalField(0)) % 2 == 0);
-    wrappers_to_trace_.push_back(std::pair<void*, void*>(
-        reinterpret_cast<void*>(js_object->GetInternalField(0)),
-        reinterpret_cast<void*>(js_object->GetInternalField(1))));
-  }
 }
 
 class MarkCompactCollector::ObjectStatsVisitor
@@ -2373,9 +2340,9 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeralMarking(&root_visitor, true);
-      if (UsingEmbedderHeapTracer()) {
+      if (heap_->UsingEmbedderHeapTracer()) {
         TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
-        embedder_heap_tracer()->TraceEpilogue();
+        heap()->embedder_heap_tracer()->TraceEpilogue();
       }
     }
   }

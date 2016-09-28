@@ -337,6 +337,7 @@ class Scavenger;
 class ScavengeJob;
 class Space;
 class StoreBuffer;
+class TracePossibleWrapperReporter;
 class WeakObjectRetainer;
 
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
@@ -1204,11 +1205,25 @@ class Heap {
 
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
 
-  bool UsingEmbedderHeapTracer();
+  bool UsingEmbedderHeapTracer() { return embedder_heap_tracer(); }
 
   void TracePossibleWrapper(JSObject* js_object);
 
   void RegisterExternallyReferencedObject(Object** object);
+
+  void RegisterWrappersWithEmbedderHeapTracer();
+
+  // In order to avoid running out of memory we force tracing wrappers if there
+  // are too many of them.
+  bool RequiresImmediateWrapperProcessing();
+
+  EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
+
+  EmbedderReachableReferenceReporter* embedder_reachable_reference_reporter() {
+    return embedder_reference_reporter_;
+  }
+
+  size_t wrappers_to_trace() { return wrappers_to_trace_.size(); }
 
   // ===========================================================================
   // External string table API. ================================================
@@ -2296,6 +2311,10 @@ class Heap {
   // The depth of HeapIterator nestings.
   int heap_iterator_depth_;
 
+  EmbedderHeapTracer* embedder_heap_tracer_;
+  EmbedderReachableReferenceReporter* embedder_reference_reporter_;
+  std::vector<std::pair<void*, void*>> wrappers_to_trace_;
+
   // Used for testing purposes.
   bool force_oom_;
 
@@ -2611,6 +2630,18 @@ class AllocationObserver {
   friend class NewSpace;
   friend class PagedSpace;
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
+};
+
+class TracePossibleWrapperReporter : public EmbedderReachableReferenceReporter {
+ public:
+  explicit TracePossibleWrapperReporter(Heap* heap) : heap_(heap) {}
+  void ReportExternalReference(Value* object) override {
+    heap_->RegisterExternallyReferencedObject(
+        reinterpret_cast<Object**>(object));
+  }
+
+ private:
+  Heap* heap_;
 };
 
 }  // namespace internal
