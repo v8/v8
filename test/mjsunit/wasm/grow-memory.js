@@ -326,3 +326,35 @@ function testGrowMemoryPreservesDataMemOp8() {
 }
 
 testGrowMemoryPreservesDataMemOp8();
+
+function testGrowMemoryOutOfBoundsOffset() {
+  var builder = genGrowMemoryBuilder();
+  builder.addMemory(1, 1, false);
+  var module = builder.instantiate();
+  var offset, val;
+  function peek() { return module.exports.load(offset); }
+  function poke(value) { return module.exports.store(offset, value); }
+  function growMem(pages) { return module.exports.grow_memory(pages); }
+
+  offset = 3*kPageSize + 4;
+  assertTraps(kTrapMemOutOfBounds, poke);
+
+  assertEquals(1, growMem(1));
+  assertTraps(kTrapMemOutOfBounds, poke);
+
+  assertEquals(2, growMem(1));
+  assertTraps(kTrapMemOutOfBounds, poke);
+
+  assertEquals(3, growMem(1));
+
+  for (offset = 3*kPageSize; offset <= 4*kPageSize - 4; offset++) {
+    poke(0xaced);
+    assertEquals(0xaced, peek());
+  }
+
+  for (offset = 4*kPageSize - 3; offset <= 4*kPageSize + 4; offset++) {
+    assertTraps(kTrapMemOutOfBounds, poke);
+  }
+}
+
+testGrowMemoryOutOfBoundsOffset();

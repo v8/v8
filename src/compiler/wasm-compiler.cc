@@ -2770,19 +2770,34 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
 
   // Check against the effective size.
   size_t effective_size;
-  if (offset >= size || (static_cast<uint64_t>(offset) + memsize) > size) {
+  if (size == 0) {
     effective_size = 0;
+  } else if (offset >= size ||
+             (static_cast<uint64_t>(offset) + memsize) > size) {
+    // Two checks are needed in the case where the offset is statically
+    // out of bounds; one check for the offset being in bounds, and the next for
+    // the offset + index being out of bounds for code to be patched correctly
+    // on relocation.
+    effective_size = size - memsize + 1;
+    Node* cond = graph()->NewNode(jsgraph()->machine()->Uint32LessThan(),
+                                  jsgraph()->IntPtrConstant(offset),
+                                  jsgraph()->RelocatableInt32Constant(
+                                      static_cast<uint32_t>(effective_size),
+                                      RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+    trap_->AddTrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
+    DCHECK(offset >= effective_size);
+    effective_size = offset - effective_size;
   } else {
     effective_size = size - offset - memsize + 1;
-  }
-  CHECK(effective_size <= kMaxUInt32);
+    CHECK(effective_size <= kMaxUInt32);
 
-  Uint32Matcher m(index);
-  if (m.HasValue()) {
-    uint32_t value = m.Value();
-    if (value < effective_size) {
-      // The bounds check will always succeed.
-      return;
+    Uint32Matcher m(index);
+    if (m.HasValue()) {
+      uint32_t value = m.Value();
+      if (value < effective_size) {
+        // The bounds check will always succeed.
+        return;
+      }
     }
   }
 

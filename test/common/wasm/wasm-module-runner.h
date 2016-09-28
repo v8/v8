@@ -47,6 +47,15 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
                             const WasmModule* module, int function_index,
                             WasmVal* args);
 
+// Compiles WasmModule bytes and return an instance of the compiled module.
+const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
+    Isolate* isolate, Zone* zone, const byte* module_start,
+    const byte* module_end, ModuleOrigin origin);
+
+// Runs the module instance with arguments.
+int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
+                                int argc, Handle<Object> argv[],
+                                ModuleOrigin origin);
 // Install function map, module symbol for testing
 void SetupIsolateForWasmModule(Isolate* isolate);
 }  // namespace testing
