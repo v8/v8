@@ -1190,7 +1190,7 @@ class Heap {
 
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
 
-  bool UsingEmbedderHeapTracer() { return embedder_heap_tracer(); }
+  bool UsingEmbedderHeapTracer() { return embedder_heap_tracer() != nullptr; }
 
   void TracePossibleWrapper(JSObject* js_object);
 
