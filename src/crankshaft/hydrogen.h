@@ -2209,7 +2209,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(IsJSProxy)                         \
   F(Call)                              \
   F(NewObject)                         \
-  F(StringCharFromCode)                \
   F(ToInteger)                         \
   F(ToObject)                          \
   F(ToString)                          \

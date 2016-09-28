@@ -2710,23 +2710,6 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   context()->Plug(r2);
 }
 
-void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 1);
-  VisitForAccumulatorValue(args->at(0));
-
-  Label done;
-  StringCharFromCodeGenerator generator(r2, r3);
-  generator.GenerateFast(masm_);
-  __ b(&done);
-
-  NopRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm_, call_helper);
-
-  __ bind(&done);
-  context()->Plug(r3);
-}
-
 void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
