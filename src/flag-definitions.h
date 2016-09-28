@@ -1124,6 +1124,7 @@ DEFINE_BOOL(test_primary_stub_cache, false,
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(print_code, false, "print generated code")
 DEFINE_BOOL(print_opt_code, false, "print optimized code")
+DEFINE_STRING(print_opt_code_filter, "*", "filter for printing optimized code")
 DEFINE_BOOL(print_unopt_code, false,
             "print unoptimized code before "
             "printing optimized code based on it")
