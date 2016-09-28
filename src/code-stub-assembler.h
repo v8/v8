@@ -17,7 +17,6 @@ class CallInterfaceDescriptor;
 class StatsCounter;
 class StubCache;
 
-enum class CanonicalizationMode { kDontCanonicalize, kCanonicalize };
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 enum class UnicodeEncoding {
@@ -428,11 +427,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* TruncateHeapNumberValueToWord32(compiler::Node* object);
 
   // Conversions.
-  // Returns a tagged representation of the float64 {value}. Might optionally
-  // try to canonicalize to Smi representation if the {value} is in Smi range.
-  compiler::Node* ChangeFloat64ToTagged(
-      compiler::Node* value,
-      CanonicalizationMode mode = CanonicalizationMode::kDontCanonicalize);
+  compiler::Node* ChangeFloat64ToTagged(compiler::Node* value);
   compiler::Node* ChangeInt32ToTagged(compiler::Node* value);
   compiler::Node* ChangeUint32ToTagged(compiler::Node* value);
 

@@ -1870,64 +1870,53 @@ Node* CodeStubAssembler::TruncateHeapNumberValueToWord32(Node* object) {
   return TruncateFloat64ToWord32(value);
 }
 
-Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value,
-                                               CanonicalizationMode mode) {
-  switch (mode) {
-    case CanonicalizationMode::kDontCanonicalize: {
-      return AllocateHeapNumberWithValue(value);
-    }
-    case CanonicalizationMode::kCanonicalize: {
-      Node* value32 = RoundFloat64ToInt32(value);
-      Node* value64 = ChangeInt32ToFloat64(value32);
+Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
+  Node* value32 = RoundFloat64ToInt32(value);
+  Node* value64 = ChangeInt32ToFloat64(value32);
 
-      Label if_valueisint32(this), if_valueisheapnumber(this), if_join(this);
+  Label if_valueisint32(this), if_valueisheapnumber(this), if_join(this);
 
-      Label if_valueisequal(this), if_valueisnotequal(this);
-      Branch(Float64Equal(value, value64), &if_valueisequal,
-             &if_valueisnotequal);
-      Bind(&if_valueisequal);
-      {
-        GotoUnless(Word32Equal(value32, Int32Constant(0)), &if_valueisint32);
-        BranchIfInt32LessThan(Float64ExtractHighWord32(value), Int32Constant(0),
-                              &if_valueisheapnumber, &if_valueisint32);
-      }
-      Bind(&if_valueisnotequal);
+  Label if_valueisequal(this), if_valueisnotequal(this);
+  Branch(Float64Equal(value, value64), &if_valueisequal, &if_valueisnotequal);
+  Bind(&if_valueisequal);
+  {
+    GotoUnless(Word32Equal(value32, Int32Constant(0)), &if_valueisint32);
+    BranchIfInt32LessThan(Float64ExtractHighWord32(value), Int32Constant(0),
+                          &if_valueisheapnumber, &if_valueisint32);
+  }
+  Bind(&if_valueisnotequal);
+  Goto(&if_valueisheapnumber);
+
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Bind(&if_valueisint32);
+  {
+    if (Is64()) {
+      Node* result = SmiTag(ChangeInt32ToInt64(value32));
+      var_result.Bind(result);
+      Goto(&if_join);
+    } else {
+      Node* pair = Int32AddWithOverflow(value32, value32);
+      Node* overflow = Projection(1, pair);
+      Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
+      Branch(overflow, &if_overflow, &if_notoverflow);
+      Bind(&if_overflow);
       Goto(&if_valueisheapnumber);
-
-      Variable var_result(this, MachineRepresentation::kTagged);
-      Bind(&if_valueisint32);
+      Bind(&if_notoverflow);
       {
-        if (Is64()) {
-          Node* result = SmiTag(ChangeInt32ToInt64(value32));
-          var_result.Bind(result);
-          Goto(&if_join);
-        } else {
-          Node* pair = Int32AddWithOverflow(value32, value32);
-          Node* overflow = Projection(1, pair);
-          Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
-          Branch(overflow, &if_overflow, &if_notoverflow);
-          Bind(&if_overflow);
-          Goto(&if_valueisheapnumber);
-          Bind(&if_notoverflow);
-          {
-            Node* result = Projection(0, pair);
-            var_result.Bind(result);
-            Goto(&if_join);
-          }
-        }
-      }
-      Bind(&if_valueisheapnumber);
-      {
-        Node* result = AllocateHeapNumberWithValue(value);
+        Node* result = Projection(0, pair);
         var_result.Bind(result);
         Goto(&if_join);
       }
-      Bind(&if_join);
-      return var_result.value();
     }
   }
-  UNREACHABLE();
-  return nullptr;
+  Bind(&if_valueisheapnumber);
+  {
+    Node* result = AllocateHeapNumberWithValue(value);
+    var_result.Bind(result);
+    Goto(&if_join);
+  }
+  Bind(&if_join);
+  return var_result.value();
 }
 
 Node* CodeStubAssembler::ChangeInt32ToTagged(Node* value) {
@@ -2643,21 +2632,12 @@ Node* CodeStubAssembler::ToInteger(Node* context, Node* input,
       // Truncate {arg} towards zero.
       Node* value = Float64Trunc(arg_value);
 
-      // Perform optional minus zero truncation.
-      switch (mode) {
-        case kNoTruncation:
-          break;
-        case kTruncateMinusZero: {
-          // Truncate -0.0 to 0.
-          GotoIf(Float64Equal(value, Float64Constant(0.0)), &return_zero);
-          break;
-        }
+      if (mode == kTruncateMinusZero) {
+        // Truncate -0.0 to 0.
+        GotoIf(Float64Equal(value, Float64Constant(0.0)), &return_zero);
       }
 
-      // Tag the {value} using Smi canonicalization, i.e. if {value} can be
-      // represented as a Smi, then this will produce a Smi.
-      var_arg.Bind(
-          ChangeFloat64ToTagged(value, CanonicalizationMode::kCanonicalize));
+      var_arg.Bind(ChangeFloat64ToTagged(value));
       Goto(&out);
     }
 
