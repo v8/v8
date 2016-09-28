@@ -1319,7 +1319,7 @@ bool PagedSpace::Expand() {
   Page* p = heap()->memory_allocator()->AllocatePage(size, this, executable());
   if (p == nullptr) return false;
 
-  AccountCommitted(static_cast<intptr_t>(p->size()));
+  AccountCommitted(p->size());
 
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!heap()->deserialization_complete()) p->MarkNeverEvacuate();
@@ -1426,7 +1426,7 @@ void PagedSpace::ReleasePage(Page* page) {
     page->Unlink();
   }
 
-  AccountUncommitted(static_cast<intptr_t>(page->size()));
+  AccountUncommitted(page->size());
   accounting_stats_.ShrinkSpace(page->area_size());
   heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
 }
@@ -1556,7 +1556,7 @@ void NewSpace::Grow() {
 
 
 void NewSpace::Shrink() {
-  int new_capacity = Max(InitialTotalCapacity(), 2 * SizeAsInt());
+  int new_capacity = Max(InitialTotalCapacity(), 2 * static_cast<int>(Size()));
   int rounded_new_capacity = RoundUp(new_capacity, Page::kPageSize);
   if (rounded_new_capacity < TotalCapacity() &&
       to_space_.ShrinkTo(rounded_new_capacity)) {
@@ -1987,7 +1987,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
     new_page->SetFlags(last_page->GetFlags(), Page::kCopyOnFlipFlagsMask);
     last_page = new_page;
   }
-  AccountCommitted(static_cast<intptr_t>(delta));
+  AccountCommitted(delta);
   current_capacity_ = new_capacity;
   return true;
 }
@@ -2024,7 +2024,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
           last_page);
       delta_pages--;
     }
-    AccountUncommitted(static_cast<intptr_t>(delta));
+    AccountUncommitted(delta);
     heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   }
   current_capacity_ = new_capacity;
@@ -3025,7 +3025,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   DCHECK(page->area_size() >= object_size);
 
   size_ += static_cast<int>(page->size());
-  AccountCommitted(static_cast<intptr_t>(page->size()));
+  AccountCommitted(page->size());
   objects_size_ += object_size;
   page_count_++;
   page->set_next_page(first_page_);
@@ -3162,7 +3162,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
 
       // Free the chunk.
       size_ -= static_cast<int>(page->size());
-      AccountUncommitted(static_cast<intptr_t>(page->size()));
+      AccountUncommitted(page->size());
       objects_size_ -= object->Size();
       page_count_--;
 

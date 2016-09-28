@@ -192,16 +192,14 @@ intptr_t Heap::OldGenerationCapacity() {
          map_space_->Capacity() + lo_space_->SizeOfObjects();
 }
 
-
-intptr_t Heap::CommittedOldGenerationMemory() {
+size_t Heap::CommittedOldGenerationMemory() {
   if (!HasBeenSetUp()) return 0;
 
   return old_space_->CommittedMemory() + code_space_->CommittedMemory() +
          map_space_->CommittedMemory() + lo_space_->Size();
 }
 
-
-intptr_t Heap::CommittedMemory() {
+size_t Heap::CommittedMemory() {
   if (!HasBeenSetUp()) return 0;
 
   return new_space_->CommittedMemory() + CommittedOldGenerationMemory();
@@ -218,18 +216,17 @@ size_t Heap::CommittedPhysicalMemory() {
          lo_space_->CommittedPhysicalMemory();
 }
 
-
-intptr_t Heap::CommittedMemoryExecutable() {
+size_t Heap::CommittedMemoryExecutable() {
   if (!HasBeenSetUp()) return 0;
 
-  return memory_allocator()->SizeExecutable();
+  return static_cast<size_t>(memory_allocator()->SizeExecutable());
 }
 
 
 void Heap::UpdateMaximumCommitted() {
   if (!HasBeenSetUp()) return;
 
-  intptr_t current_committed_memory = CommittedMemory();
+  const size_t current_committed_memory = CommittedMemory();
   if (current_committed_memory > maximum_committed_) {
     maximum_committed_ = current_committed_memory;
   }
@@ -332,42 +329,42 @@ void Heap::PrintShortHeapStatistics() {
                          " KB"
                          ", available: %6" V8PRIdPTR
                          " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+                         ", committed: %6zu KB\n",
                new_space_->Size() / KB, new_space_->Available() / KB,
                new_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_, "Old space,          used: %6" V8PRIdPTR
                          " KB"
                          ", available: %6" V8PRIdPTR
                          " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+                         ", committed: %6zu KB\n",
                old_space_->SizeOfObjects() / KB, old_space_->Available() / KB,
                old_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_, "Code space,         used: %6" V8PRIdPTR
                          " KB"
                          ", available: %6" V8PRIdPTR
                          " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+                         ", committed: %6zu KB\n",
                code_space_->SizeOfObjects() / KB, code_space_->Available() / KB,
                code_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_, "Map space,          used: %6" V8PRIdPTR
                          " KB"
                          ", available: %6" V8PRIdPTR
                          " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+                         ", committed: %6zu KB\n",
                map_space_->SizeOfObjects() / KB, map_space_->Available() / KB,
                map_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_, "Large object space, used: %6" V8PRIdPTR
                          " KB"
                          ", available: %6" V8PRIdPTR
                          " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+                         ", committed: %6zu KB\n",
                lo_space_->SizeOfObjects() / KB, lo_space_->Available() / KB,
                lo_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_, "All spaces,         used: %6" V8PRIdPTR
                          " KB"
                          ", available: %6" V8PRIdPTR
                          " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+                         ", committed: %6zu KB\n",
                this->SizeOfObjects() / KB, this->Available() / KB,
                this->CommittedMemory() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" V8PRIdPTR " KB\n",
@@ -1309,7 +1306,7 @@ bool Heap::PerformGarbageCollection(
 
   EnsureFromSpaceIsCommitted();
 
-  int start_new_space_size = Heap::new_space()->SizeAsInt();
+  int start_new_space_size = static_cast<int>(Heap::new_space()->Size());
 
   if (IsHighSurvivalRate()) {
     // We speed up the incremental marker if it is running so that it
@@ -5167,7 +5164,7 @@ bool Heap::ConfigureHeapDefault() { return ConfigureHeap(0, 0, 0, 0); }
 void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->start_marker = HeapStats::kStartMarker;
   *stats->end_marker = HeapStats::kEndMarker;
-  *stats->new_space_size = new_space_->SizeAsInt();
+  *stats->new_space_size = new_space_->Size();
   *stats->new_space_capacity = new_space_->Capacity();
   *stats->old_space_size = old_space_->SizeOfObjects();
   *stats->old_space_capacity = old_space_->Capacity();

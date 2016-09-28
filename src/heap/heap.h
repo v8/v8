@@ -1295,19 +1295,19 @@ class Heap {
   intptr_t OldGenerationCapacity();
 
   // Returns the amount of memory currently committed for the heap.
-  intptr_t CommittedMemory();
+  size_t CommittedMemory();
 
   // Returns the amount of memory currently committed for the old space.
-  intptr_t CommittedOldGenerationMemory();
+  size_t CommittedOldGenerationMemory();
 
   // Returns the amount of executable memory currently committed for the heap.
-  intptr_t CommittedMemoryExecutable();
+  size_t CommittedMemoryExecutable();
 
   // Returns the amount of phyical memory currently committed for the heap.
   size_t CommittedPhysicalMemory();
 
   // Returns the maximum amount of memory ever committed for the heap.
-  intptr_t MaximumCommittedMemory() { return maximum_committed_; }
+  size_t MaximumCommittedMemory() { return maximum_committed_; }
 
   // Updates the maximum committed memory for the heap. Should be called
   // whenever a space grows.
@@ -2088,7 +2088,7 @@ class Heap {
   intptr_t initial_old_generation_size_;
   bool old_generation_size_configured_;
   intptr_t max_executable_size_;
-  intptr_t maximum_committed_;
+  size_t maximum_committed_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
