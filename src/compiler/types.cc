@@ -516,18 +516,6 @@ Type* Type::GetRange() {
   return NULL;
 }
 
-bool Type::Contains(i::Object* value) {
-  DisallowHeapAllocation no_allocation;
-  for (Iterator<i::Object> it = this->Constants(); !it.Done(); it.Advance()) {
-    if (*it.Current() == value) return true;
-  }
-  if (IsInteger(value)) {
-    Type* range = this->GetRange();
-    if (range != NULL && Contains(range->AsRange(), value)) return true;
-  }
-  return BitsetType::New(BitsetType::Lub(value))->Is(this);
-}
-
 bool UnionType::Wellformed() {
   DisallowHeapAllocation no_allocation;
   // This checks the invariants of the union representation:
@@ -863,52 +851,6 @@ int Type::NumConstants() {
   }
 }
 
-template <class T>
-Type* Type::Iterator<T>::get_type() {
-  DCHECK(!Done());
-  return type_->IsUnion() ? type_->AsUnion()->Get(index_) : type_;
-}
-
-// C++ cannot specialise nested templates, so we have to go through this
-// contortion with an auxiliary template to simulate it.
-template <class T>
-struct TypeImplIteratorAux {
-  static bool matches(Type* type);
-  static i::Handle<T> current(Type* type);
-};
-
-template <>
-struct TypeImplIteratorAux<i::Object> {
-  static bool matches(Type* type) { return type->IsConstant(); }
-  static i::Handle<i::Object> current(Type* type) {
-    return type->AsConstant()->Value();
-  }
-};
-
-template <class T>
-bool Type::Iterator<T>::matches(Type* type) {
-  return TypeImplIteratorAux<T>::matches(type);
-}
-
-template <class T>
-i::Handle<T> Type::Iterator<T>::Current() {
-  return TypeImplIteratorAux<T>::current(get_type());
-}
-
-template <class T>
-void Type::Iterator<T>::Advance() {
-  DisallowHeapAllocation no_allocation;
-  ++index_;
-  if (type_->IsUnion()) {
-    for (int n = type_->AsUnion()->Length(); index_ < n; ++index_) {
-      if (matches(type_->AsUnion()->Get(index_))) return;
-    }
-  } else if (index_ == 0 && matches(type_)) {
-    return;
-  }
-  index_ = -1;
-}
-
 // -----------------------------------------------------------------------------
 // Printing.
 
@@ -1013,11 +955,6 @@ BitsetType::bitset BitsetType::SignedSmall() {
 BitsetType::bitset BitsetType::UnsignedSmall() {
   return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
 }
-
-// -----------------------------------------------------------------------------
-// Instantiations.
-
-template class Type::Iterator<i::Object>;
 
 }  // namespace compiler
 }  // namespace internal
