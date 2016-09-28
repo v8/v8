@@ -889,9 +889,59 @@ void BytecodeGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
 }
 
 void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
-  // TODO(leszeks): Build the fast path here.
+  uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(2);
+
+  // Check if any context in the depth has an extension.
+  Environment* slow_environment = nullptr;
+
+  // We only need to check up to the last-but-one depth, because the an eval in
+  // the same scope as the variable itself has no way of shadowing it.
+  for (uint32_t d = 0; d < depth; d++) {
+    Node* extension_slot =
+        NewNode(javascript()->LoadContext(d, Context::EXTENSION_INDEX, false),
+                environment()->Context());
+
+    Node* check_no_extension =
+        NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
+                extension_slot, jsgraph()->TheHoleConstant());
+
+    NewBranch(check_no_extension);
+    Environment* false_environment = environment();
+    Environment* true_environment = environment()->CopyForConditional();
+
+    {
+      set_environment(false_environment);
+      NewIfFalse();
+      // If there is an extension, merge into the slow path.
+      if (slow_environment == nullptr) {
+        slow_environment = false_environment;
+        NewMerge();
+      } else {
+        slow_environment->Merge(false_environment);
+      }
+    }
+
+    {
+      set_environment(true_environment);
+      NewIfTrue();
+      // Do nothing on if there is no extension, eventually falling through to
+      // the fast path.
+    }
+  }
+
+  // Fast path, do a context load.
+  {
+    uint32_t slot_index = bytecode_iterator().GetIndexOperand(1);
+
+    const Operator* op = javascript()->LoadContext(depth, slot_index, false);
+    Node* context = environment()->Context();
+    environment()->BindAccumulator(NewNode(op, context));
+    NewMerge();
+  }
+  Environment* fast_environment = environment();
 
   // Slow path, do a runtime load lookup.
+  set_environment(slow_environment);
   {
     FrameStateBeforeAndAfter states(this);
 
@@ -905,6 +955,9 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
     Node* value = NewNode(op, name);
     environment()->BindAccumulator(value, &states);
   }
+
+  fast_environment->Merge(slow_environment);
+  set_environment(fast_environment);
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupContextSlot() {
