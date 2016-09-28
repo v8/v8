@@ -115,7 +115,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
   force_context_allocation_ =
       !is_function_scope() && outer_scope->has_forced_context_allocation();
   outer_scope_->AddInnerScope(this);
-  if (outer_scope_->is_lazily_parsed_) is_lazily_parsed_ = true;
 }
 
 Scope::Snapshot::Snapshot(Scope* scope)
@@ -278,6 +277,7 @@ void Scope::SetDefaults() {
 #ifdef DEBUG
   scope_name_ = nullptr;
   already_resolved_ = false;
+  needs_migration_ = false;
 #endif
   inner_scope_ = nullptr;
   sibling_ = nullptr;
@@ -953,7 +953,7 @@ VariableProxy* Scope::NewUnresolved(AstNodeFactory* factory,
   // the same name because they may be removed selectively via
   // RemoveUnresolved().
   DCHECK(!already_resolved_);
-  DCHECK_EQ(factory->zone(), zone());
+  DCHECK_EQ(!needs_migration_, factory->zone() == zone());
   VariableProxy* proxy =
       factory->NewVariableProxy(name, kind, start_position, end_position);
   proxy->set_next_unresolved(unresolved_);
@@ -1212,42 +1212,36 @@ void DeclarationScope::ResetAfterPreparsing(bool aborted) {
     }
   } else {
     params_.Clear();
-    // Make sure we won't try to allocate the rest parameter. {params_} was
-    // cleared above.
-    has_rest_ = false;
   }
+
+#ifdef DEBUG
+  needs_migration_ = false;
+#endif
+
+  is_lazily_parsed_ = !aborted;
 }
 
-void DeclarationScope::AnalyzePartially(DeclarationScope* migrate_to,
-                                        AstNodeFactory* ast_node_factory) {
-  // Try to resolve unresolved variables for this Scope and migrate those which
-  // cannot be resolved inside. It doesn't make sense to try to resolve them in
-  // the outer Scopes here, because they are incomplete.
-  for (VariableProxy* proxy =
-           FetchFreeVariables(this, !FLAG_lazy_inner_functions);
-       proxy != nullptr; proxy = proxy->next_unresolved()) {
-    DCHECK(!proxy->is_resolved());
-    VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
-    migrate_to->AddUnresolved(copy);
+void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
+  DCHECK(!force_eager_compilation_);
+  VariableProxy* unresolved = nullptr;
+
+  if (!outer_scope_->is_script_scope()) {
+    // Try to resolve unresolved variables for this Scope and migrate those
+    // which cannot be resolved inside. It doesn't make sense to try to resolve
+    // them in the outer Scopes here, because they are incomplete.
+    for (VariableProxy* proxy =
+             FetchFreeVariables(this, !FLAG_lazy_inner_functions);
+         proxy != nullptr; proxy = proxy->next_unresolved()) {
+      DCHECK(!proxy->is_resolved());
+      VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
+      copy->set_next_unresolved(unresolved);
+      unresolved = copy;
+    }
   }
 
-  // Push scope data up to migrate_to. Note that migrate_to and this Scope
-  // describe the same Scope, just in different Zones.
-  PropagateUsageFlagsToScope(migrate_to);
-  if (scope_uses_super_property_) migrate_to->scope_uses_super_property_ = true;
-  if (inner_scope_calls_eval_) migrate_to->inner_scope_calls_eval_ = true;
-  if (is_lazily_parsed_) migrate_to->is_lazily_parsed_ = true;
-  DCHECK(!force_eager_compilation_);
-  migrate_to->set_start_position(start_position_);
-  migrate_to->set_end_position(end_position_);
-  migrate_to->set_language_mode(language_mode());
-  migrate_to->arity_ = arity_;
-  migrate_to->force_context_allocation_ = force_context_allocation_;
-  outer_scope_->RemoveInnerScope(this);
-  DCHECK_EQ(outer_scope_, migrate_to->outer_scope_);
-  DCHECK_EQ(outer_scope_->zone(), migrate_to->zone());
-  DCHECK_EQ(NeedsHomeObject(), migrate_to->NeedsHomeObject());
-  DCHECK_EQ(asm_function_, migrate_to->asm_function_);
+  ResetAfterPreparsing(false);
+
+  unresolved_ = unresolved;
 }
 
 #ifdef DEBUG
@@ -1446,6 +1440,7 @@ void Scope::CheckScopePositions() {
 }
 
 void Scope::CheckZones() {
+  DCHECK(!needs_migration_);
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     CHECK_EQ(scope->zone(), zone());
   }
@@ -1817,6 +1812,8 @@ void ModuleScope::AllocateModuleVariables() {
 void Scope::AllocateVariablesRecursively() {
   DCHECK(!already_resolved_);
   DCHECK_EQ(0, num_stack_slots_);
+  // Don't allocate variables of preparsed scopes.
+  if (is_lazily_parsed_) return;
 
   // Allocate variables for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
