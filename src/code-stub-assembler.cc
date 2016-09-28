@@ -349,19 +349,12 @@ Node* CodeStubAssembler::SmiLessThanOrEqual(Node* a, Node* b) {
   return IntPtrLessThanOrEqual(a, b);
 }
 
+Node* CodeStubAssembler::SmiMax(Node* a, Node* b) {
+  return Select(SmiLessThan(a, b), b, a);
+}
+
 Node* CodeStubAssembler::SmiMin(Node* a, Node* b) {
-  // TODO(bmeurer): Consider using Select once available.
-  Variable min(this, MachineRepresentation::kTagged);
-  Label if_a(this), if_b(this), join(this);
-  BranchIfSmiLessThan(a, b, &if_a, &if_b);
-  Bind(&if_a);
-  min.Bind(a);
-  Goto(&join);
-  Bind(&if_b);
-  min.Bind(b);
-  Goto(&join);
-  Bind(&join);
-  return min.value();
+  return Select(SmiLessThan(a, b), a, b);
 }
 
 Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
@@ -4477,7 +4470,7 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     Variable var_name_index(this, MachineType::PointerRepresentation());
     Label if_descriptor_found(this);
     DescriptorLookupLinear(key, descriptors, nof, &if_descriptor_found,
-                           &var_name_index, &slow);
+                           &var_name_index, &stub_cache);
 
     Bind(&if_descriptor_found);
     {

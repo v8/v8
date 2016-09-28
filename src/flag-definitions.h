@@ -205,7 +205,6 @@ DEFINE_IMPLICATION(use_types, use_strict)
   V(harmony_function_sent, "harmony function.sent")                     \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
   V(harmony_simd, "harmony simd")                                       \
-  V(harmony_explicit_tailcalls, "harmony explicit tail calls")          \
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_restrictive_generators,                                     \
     "harmony restrictions on generator declarations")                   \
@@ -539,6 +538,8 @@ DEFINE_BOOL(wasm_simd_prototype, false,
             "enable prototype simd opcodes for wasm")
 DEFINE_BOOL(wasm_eh_prototype, false,
             "enable prototype exception handling opcodes for wasm")
+DEFINE_BOOL(wasm_mv_prototype, false,
+            "enable prototype multi-value support for wasm")
 
 DEFINE_BOOL(wasm_trap_handler, false,
             "use signal handlers to catch out of bounds memory access in wasm"

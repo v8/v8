@@ -181,7 +181,7 @@ class TestingModule : public ModuleEnv {
       module_.functions.reserve(kMaxFunctions);
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
-    module_.functions.push_back({sig, index, 0, 0, 0, 0, 0});
+    module_.functions.push_back({sig, index, 0, 0, 0, 0, 0, false, false});
     instance->function_code.push_back(code);
     if (interpreter_) {
       const WasmFunction* function = &module->functions.back();
@@ -230,7 +230,7 @@ class TestingModule : public ModuleEnv {
 
   void AddIndirectFunctionTable(uint16_t* functions, uint32_t table_size) {
     module_.function_tables.push_back(
-        {table_size, table_size, std::vector<uint16_t>()});
+        {table_size, table_size, std::vector<int32_t>(), false, false});
     for (uint32_t i = 0; i < table_size; ++i) {
       module_.function_tables.back().values.push_back(functions[i]);
     }
@@ -267,7 +267,8 @@ class TestingModule : public ModuleEnv {
   const WasmGlobal* AddGlobal(LocalType type) {
     byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
-    module_.globals.push_back({0, 0, type, global_offset, false});
+    module_.globals.push_back(
+        {type, true, NO_INIT, global_offset, false, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
@@ -283,6 +284,13 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
   DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
   if (result.failed()) {
+    if (!FLAG_trace_wasm_decoder) {
+      // Retry the compilation with the tracing flag on, to help in debugging.
+      FLAG_trace_wasm_decoder = true;
+      result =
+          BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
+    }
+
     ptrdiff_t pc = result.error_pc - result.start;
     ptrdiff_t pt = result.error_pt - result.start;
     std::ostringstream str;

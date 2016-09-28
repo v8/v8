@@ -283,7 +283,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       expected_property_count, parameter_count,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldLazyCompile, kind, pos);
+      FunctionLiteral::kShouldLazyCompile, pos);
 
   function_literal->set_requires_class_field_init(requires_class_field_init);
 
@@ -1605,113 +1605,6 @@ Variable* Parser::Declare(Declaration* declaration,
   return variable;
 }
 
-// Language extension which is only enabled for source files loaded
-// through the API's extension mechanism.  A native function
-// declaration is resolved by looking up the function through a
-// callback provided by the extension.
-Statement* Parser::ParseNativeDeclaration(bool* ok) {
-  int pos = peek_position();
-  Expect(Token::FUNCTION, CHECK_OK);
-  // Allow "eval" or "arguments" for backward compatibility.
-  const AstRawString* name =
-      ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
-  Expect(Token::LPAREN, CHECK_OK);
-  bool done = (peek() == Token::RPAREN);
-  while (!done) {
-    ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
-    done = (peek() == Token::RPAREN);
-    if (!done) {
-      Expect(Token::COMMA, CHECK_OK);
-    }
-  }
-  Expect(Token::RPAREN, CHECK_OK);
-  Expect(Token::SEMICOLON, CHECK_OK);
-
-  // Make sure that the function containing the native declaration
-  // isn't lazily compiled. The extension structures are only
-  // accessible while parsing the first time not when reparsing
-  // because of lazy compilation.
-  GetClosureScope()->ForceEagerCompilation();
-
-  // TODO(1240846): It's weird that native function declarations are
-  // introduced dynamically when we meet their declarations, whereas
-  // other functions are set up when entering the surrounding scope.
-  Declaration* decl = DeclareVariable(name, VAR, pos, CHECK_OK);
-  NativeFunctionLiteral* lit =
-      factory()->NewNativeFunctionLiteral(name, extension_, kNoSourcePosition);
-  return factory()->NewExpressionStatement(
-      factory()->NewAssignment(Token::INIT, decl->proxy(), lit,
-                               kNoSourcePosition),
-      pos);
-}
-
-Statement* Parser::ParseAsyncFunctionDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool ambient,
-    bool* ok) {
-  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
-  int pos = position();
-  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
-    *ok = false;
-    ReportUnexpectedToken(scanner()->current_token());
-    return nullptr;
-  }
-  Expect(Token::FUNCTION, CHECK_OK);
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
-  return ParseHoistableDeclaration(pos, flags, names, default_export, ambient,
-                                   ok);
-}
-
-Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
-                                         bool default_export, bool ambient,
-                                         bool* ok) {
-  // ClassDeclaration ::
-  //   'class' Identifier ('extends' LeftHandExpression)? '{' ClassBody '}'
-  //   'class' ('extends' LeftHandExpression)? '{' ClassBody '}'
-  //
-  // The anonymous form is allowed iff [default_export] is true.
-  //
-  // 'class' is expected to be consumed by the caller.
-  //
-  // A ClassDeclaration
-  //
-  //   class C { ... }
-  //
-  // has the same semantics as:
-  //
-  //   let C = class C { ... };
-  //
-  // so rewrite it as such.
-
-  int pos = position();
-
-  const AstRawString* name;
-  bool is_strict_reserved;
-  const AstRawString* variable_name;
-  if (default_export && (peek() == Token::EXTENDS || peek() == Token::LBRACE)) {
-    name = ast_value_factory()->default_string();
-    is_strict_reserved = false;
-    variable_name = ast_value_factory()->star_default_star_string();
-  } else {
-    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-    variable_name = name;
-  }
-
-  ExpressionClassifier no_classifier(this);
-  Expression* value = ParseClassLiteral(
-      name, scanner()->location(), is_strict_reserved, pos, ambient, CHECK_OK);
-  // Return no class declaration in case of an ambient.
-  if (ambient) return factory()->NewEmptyStatement(kNoSourcePosition);
-
-  Declaration* decl = DeclareVariable(variable_name, LET, pos, CHECK_OK);
-  decl->proxy()->var()->set_initializer_position(position());
-  Assignment* assignment =
-      factory()->NewAssignment(Token::INIT, decl->proxy(), value, pos);
-  Statement* assignment_statement =
-      factory()->NewExpressionStatement(assignment, kNoSourcePosition);
-  if (names) names->Add(variable_name, zone());
-  return assignment_statement;
-}
-
 Block* Parser::BuildInitializationBlock(
     DeclarationParsingResult* parsing_result,
     ZoneList<const AstRawString*>* names, bool* ok) {
@@ -1765,6 +1658,40 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
     return delegate;
   }
   return factory()->NewEmptyStatement(kNoSourcePosition);
+}
+
+Statement* Parser::DeclareClass(const AstRawString* variable_name,
+                                Expression* value,
+                                ZoneList<const AstRawString*>* names,
+                                int class_token_pos, int end_pos, bool* ok) {
+  Declaration* decl =
+      DeclareVariable(variable_name, LET, class_token_pos, CHECK_OK);
+  decl->proxy()->var()->set_initializer_position(end_pos);
+  Assignment* assignment = factory()->NewAssignment(Token::INIT, decl->proxy(),
+                                                    value, class_token_pos);
+  Statement* assignment_statement =
+      factory()->NewExpressionStatement(assignment, kNoSourcePosition);
+  if (names) names->Add(variable_name, zone());
+  return assignment_statement;
+}
+
+Statement* Parser::DeclareNative(const AstRawString* name, int pos, bool* ok) {
+  // Make sure that the function containing the native declaration
+  // isn't lazily compiled. The extension structures are only
+  // accessible while parsing the first time not when reparsing
+  // because of lazy compilation.
+  GetClosureScope()->ForceEagerCompilation();
+
+  // TODO(1240846): It's weird that native function declarations are
+  // introduced dynamically when we meet their declarations, whereas
+  // other functions are set up when entering the surrounding scope.
+  Declaration* decl = DeclareVariable(name, VAR, pos, CHECK_OK);
+  NativeFunctionLiteral* lit =
+      factory()->NewNativeFunctionLiteral(name, extension_, kNoSourcePosition);
+  return factory()->NewExpressionStatement(
+      factory()->NewAssignment(Token::INIT, decl->proxy(), lit,
+                               kNoSourcePosition),
+      pos);
 }
 
 ZoneList<const AstRawString*>* Parser::DeclareLabel(
@@ -2579,7 +2506,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   return outer_block;
 }
 
-void Parser::ParseArrowFunctionFormalParameters(
+void Parser::AddArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr, int end_pos,
     bool* ok) {
   // ArrowFunctionFormals ::
@@ -2603,8 +2530,8 @@ void Parser::ParseArrowFunctionFormalParameters(
     Expression* left = binop->left();
     Expression* right = binop->right();
     int comma_pos = binop->position();
-    ParseArrowFunctionFormalParameters(parameters, left, comma_pos,
-                                       CHECK_OK_VOID);
+    AddArrowFunctionFormalParameters(parameters, left, comma_pos,
+                                     CHECK_OK_VOID);
     // LHS of comma expression should be unparenthesized.
     expr = right;
   }
@@ -2632,60 +2559,14 @@ void Parser::ParseArrowFunctionFormalParameters(
   AddFormalParameter(parameters, expr, initializer, end_pos, is_rest);
 }
 
-void Parser::DesugarAsyncFunctionBody(Scope* scope, ZoneList<Statement*>* body,
-                                      FunctionKind kind,
-                                      FunctionBodyType body_type,
-                                      bool accept_IN, int pos, bool* ok) {
-  // function async_function() {
-  //   .generator_object = %CreateGeneratorObject();
-  //   BuildRejectPromiseOnException({
-  //     ... function body ...
-  //     return %ResolvePromise(.promise, expr), .promise;
-  //   })
-  // }
-  scope->ForceContextAllocation();
-  Variable* temp =
-      NewTemporary(ast_value_factory()->dot_generator_object_string());
-  function_state_->set_generator_object_variable(temp);
-
-  Expression* init_generator_variable = factory()->NewAssignment(
-      Token::INIT, factory()->NewVariableProxy(temp),
-      BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition);
-  body->Add(factory()->NewExpressionStatement(init_generator_variable,
-                                              kNoSourcePosition),
-            zone());
-
-  Block* block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
-
-  Expression* return_value = nullptr;
-  if (body_type == FunctionBodyType::kNormal) {
-    ParseStatementList(block->statements(), Token::RBRACE, CHECK_OK_VOID);
-    return_value = factory()->NewUndefinedLiteral(kNoSourcePosition);
-  } else {
-    return_value = ParseAssignmentExpression(accept_IN, typesystem::kNoCover,
-                                             CHECK_OK_VOID);
-    RewriteNonPattern(CHECK_OK_VOID);
-  }
-
-  return_value = BuildResolvePromise(return_value, return_value->position());
-  block->statements()->Add(
-      factory()->NewReturnStatement(return_value, return_value->position()),
-      zone());
-  block = BuildRejectPromiseOnException(block, CHECK_OK_VOID);
-  body->Add(block, zone());
-  scope->set_end_position(scanner()->location().end_pos);
-}
-
-void Parser::ParseArrowFunctionFormalParameterList(
+void Parser::DeclareArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr,
     const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-    const Scope::Snapshot& scope_snapshot, bool* ok) {
+    bool* ok) {
   if (expr->IsEmptyParentheses()) return;
 
-  ParseArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
-                                     CHECK_OK_VOID);
-
-  scope_snapshot.Reparent(parameters->scope);
+  AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
+                                   CHECK_OK_VOID);
 
   if (parameters->Arity() > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
@@ -2828,11 +2709,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       !(FLAG_validate_asm && scope()->IsAsmModule());
   bool is_lazy_inner_function = use_temp_zone && FLAG_lazy_inner_functions;
 
-  DeclarationScope* main_scope = nullptr;
-  if (use_temp_zone) {
-    // This Scope lives in the main Zone; we'll migrate data into it later.
-    main_scope = NewFunctionScope(kind);
-  }
+  // This Scope lives in the main zone. We'll migrate data into that zone later.
+  DeclarationScope* scope = NewFunctionScope(kind);
+  SetLanguageMode(scope, language_mode);
+  if (is_typed) scope->SetTyped();
 
   ZoneList<Statement*>* body = nullptr;
   int arity = -1;
@@ -2852,22 +2732,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // new temporary zone if the preconditions are satisfied, and ensures that
     // the previous zone is always restored after parsing the body. To be able
     // to do scope analysis correctly after full parsing, we migrate needed
-    // information from scope into main_scope when the function has been parsed.
+    // information when the function is parsed.
     Zone temp_zone(zone()->allocator());
     DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
-
-    DeclarationScope* scope = NewFunctionScope(kind);
-    SetLanguageMode(scope, language_mode);
-    if (is_typed) scope->SetTyped();
-    if (!use_temp_zone) {
-      main_scope = scope;
-    } else {
-      DCHECK(main_scope->zone() != scope->zone());
-    }
 
     FunctionState function_state(&function_state_, &scope_state_, scope);
 #ifdef DEBUG
     scope->SetScopeName(function_name);
+    if (use_temp_zone) scope->set_needs_migration();
 #endif
     ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
@@ -2958,24 +2830,23 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         // used once.
         eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
         should_be_used_once_hint = true;
-      } else if (is_lazy_inner_function) {
-        DCHECK(main_scope != scope);
-        scope->AnalyzePartially(main_scope, &previous_zone_ast_node_factory);
+        scope->ResetAfterPreparsing(true);
       }
     }
+
     if (!is_lazy_top_level_function && !is_lazy_inner_function) {
       body = ParseEagerFunctionBody(function_name, pos, formals, kind,
                                     function_type, CHECK_OK);
 
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
-      if (use_temp_zone) {
-        // If the preconditions are correct the function body should never be
-        // accessed, but do this anyway for better behaviour if they're wrong.
-        body = nullptr;
-        DCHECK(main_scope != scope);
-        scope->AnalyzePartially(main_scope, &previous_zone_ast_node_factory);
-      }
+    }
+
+    if (use_temp_zone || is_lazy_top_level_function) {
+      // If the preconditions are correct the function body should never be
+      // accessed, but do this anyway for better behaviour if they're wrong.
+      body = nullptr;
+      scope->AnalyzePartially(&previous_zone_ast_node_factory);
     }
 
     // Parsing the body may change the language mode in our scope.
@@ -3012,9 +2883,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // Note that the FunctionLiteral needs to be created in the main Zone again.
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
-      function_name, main_scope, body, materialized_literal_count,
+      function_name, scope, body, materialized_literal_count,
       expected_property_count, arity, duplicate_parameters, function_type,
-      eager_compile_hint, kind, pos);
+      eager_compile_hint, pos);
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
@@ -3026,33 +2897,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   return function_literal;
 }
 
-Expression* Parser::ParseAsyncFunctionExpression(bool* ok) {
-  // AsyncFunctionDeclaration ::
-  //   async [no LineTerminator here] function ( FormalParameters[Await] )
-  //       { AsyncFunctionBody }
-  //
-  //   async [no LineTerminator here] function BindingIdentifier[Await]
-  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
-  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
-  int pos = position();
-  Expect(Token::FUNCTION, CHECK_OK);
-  bool is_strict_reserved = false;
-  const AstRawString* name = nullptr;
-  FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
-
-  if (peek_any_identifier()) {
-    type = FunctionLiteral::kNamedExpression;
-    name = ParseIdentifierOrStrictReservedWord(FunctionKind::kAsyncFunction,
-                                               &is_strict_reserved, CHECK_OK);
-  }
-  return ParseFunctionLiteral(name, scanner()->location(),
-                              is_strict_reserved ? kFunctionNameIsStrictReserved
-                                                 : kFunctionNameValidityUnknown,
-                              FunctionKind::kAsyncFunction, pos, type,
-                              language_mode(), typed(),
-                              typesystem::kNormalTypes, CHECK_OK);
-}
-
 Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
     int* materialized_literal_count, int* expected_property_count,
     bool is_inner_function, bool may_abort, bool* ok) {
@@ -3061,7 +2905,6 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
   int function_block_pos = position();
   DeclarationScope* scope = function_state_->scope();
   DCHECK(scope->is_function_scope());
-  scope->set_is_lazily_parsed(true);
   // Inner functions are not part of the cached data.
   if (!is_inner_function && consume_cached_parse_data() &&
       !cached_parse_data_->rejected()) {
@@ -3094,10 +2937,7 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
       ParseLazyFunctionBodyWithPreParser(&logger, is_inner_function, may_abort);
 
   // Return immediately if pre-parser decided to abort parsing.
-  if (result == PreParser::kPreParseAbort) {
-    scope->set_is_lazily_parsed(false);
-    return kLazyParsingAborted;
-  }
+  if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
     set_stack_overflow();
@@ -3482,9 +3322,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
                 zone());
     } else if (IsAsyncFunction(kind)) {
       const bool accept_IN = true;
-      DesugarAsyncFunctionBody(inner_scope, body, kind,
-                               FunctionBodyType::kNormal, accept_IN, pos,
-                               CHECK_OK);
+      ParseAsyncFunctionBody(inner_scope, body, kind, FunctionBodyType::kNormal,
+                             accept_IN, pos, CHECK_OK);
     } else {
       ParseStatementList(body, Token::RBRACE, CHECK_OK);
     }
@@ -3600,11 +3439,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
       function_scope, parsing_module_, logger, is_inner_function, may_abort,
       use_counts_);
-  // Detaching the scopes created by PreParser from the Scope chain must be done
-  // above (see ParseFunctionLiteral & AnalyzePartially).
-  if (!is_inner_function) {
-    function_scope->ResetAfterPreparsing(result == PreParser::kPreParseAbort);
-  }
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }
@@ -3714,8 +3548,7 @@ FunctionLiteral* Parser::SynthesizeClassFieldInitializer(int count) {
       initializer_state.expected_property_count(), 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldLazyCompile, kind,
-      initializer_scope->start_position());
+      FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position());
   function_literal->set_is_class_field_initializer(true);
   function_literal->scope()->set_arity(count);
   return function_literal;
@@ -3734,198 +3567,136 @@ FunctionLiteral* Parser::InsertClassFieldInitializer(
   return constructor;
 }
 
-Expression* Parser::ParseClassLiteral(const AstRawString* name,
-                                      Scanner::Location class_name_location,
-                                      bool name_is_strict_reserved, int pos,
-                                      bool ambient, bool* ok) {
-  // All parts of a ClassDeclaration and ClassExpression are strict code.
-  if (name_is_strict_reserved) {
-    ReportMessageAt(class_name_location,
-                    MessageTemplate::kUnexpectedStrictReserved);
-    *ok = false;
-    return nullptr;
-  }
-  if (IsEvalOrArguments(name)) {
-    ReportMessageAt(class_name_location, MessageTemplate::kStrictEvalArguments);
-    *ok = false;
-    return nullptr;
-  }
-
-  BlockState block_state(&scope_state_);
-  RaiseLanguageMode(STRICT);
+// If a class name is specified, this method declares the class variable
+// and sets class_info->proxy to point to that name.
+void Parser::DeclareClassVariable(const AstRawString* name, Scope* block_scope,
+                                  ClassInfo* class_info, int class_token_pos,
+                                  bool* ok) {
 #ifdef DEBUG
   scope()->SetScopeName(name);
 #endif
 
-  VariableProxy* proxy = nullptr;
   if (name != nullptr) {
-    proxy = factory()->NewVariableProxy(name, NORMAL_VARIABLE);
-    // TODO(verwaest): declare via block_state.
-    Declaration* declaration =
-        factory()->NewVariableDeclaration(proxy, block_state.scope(), pos);
+    class_info->proxy = factory()->NewVariableProxy(name, NORMAL_VARIABLE);
+    Declaration* declaration = factory()->NewVariableDeclaration(
+        class_info->proxy, block_scope, class_token_pos);
     Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
-            Variable::DefaultInitializationFlag(CONST), CHECK_OK);
+            Variable::DefaultInitializationFlag(CONST), ok);
+  }
+}
+
+// This method declares a property of the given class.  It updates the
+// following fields of class_info, as appropriate:
+//   - constructor
+//   - static_initializer_var
+//   - instance_field_initializers
+//   - properties
+void Parser::DeclareClassProperty(const AstRawString* class_name,
+                                  ClassLiteralProperty* property,
+                                  ClassInfo* class_info, bool* ok) {
+  if (class_info->has_seen_constructor && class_info->constructor == nullptr) {
+    class_info->constructor = GetPropertyValue(property)->AsFunctionLiteral();
+    DCHECK_NOT_NULL(class_info->constructor);
+    class_info->constructor->set_raw_name(
+        class_name != nullptr ? class_name
+                              : ast_value_factory()->empty_string());
+    return;
   }
 
-  // Parse optional type parameters.
-  typename TypeSystem::TypeParameters type_parameters = NullTypeParameters();
-  if (typed() && peek() == Token::LT) {  // Braces required here.
-    type_parameters = ParseTypeParameters(CHECK_OK);
-  }
-  USE(type_parameters);  // TODO(nikolaos): really use them!
-
-  bool started_scope = false;
-
-  // Parse optional extends clause.
-  Expression* extends = NULL;
-  if (Check(Token::EXTENDS)) {
-    block_state.set_start_position(scanner()->location().end_pos);
-    started_scope = true;
-    // TODO(nikolaos): If this remains an expression, we have to explicitly
-    // allow type arguments.
-    ExpressionClassifier extends_classifier(this);
-    extends = ParseLeftHandSideExpression(CHECK_OK);
-    CheckNoTailCallExpressions(CHECK_OK);
-    RewriteNonPattern(CHECK_OK);
-    impl()->AccumulateFormalParameterContainmentErrors();
-  } else {
-    block_state.set_start_position(scanner()->location().end_pos);
-  }
-
-  // Parse optional implements clause.
-  ZoneList<typesystem::Type*>* implements = nullptr;
-  if (typed() && CheckContextualKeyword(CStrVector("implements"))) {
-    implements = new (zone()) ZoneList<typesystem::Type*>(1, zone());
-    if (!started_scope) {
-      block_state.set_start_position(scanner()->location().end_pos);
-      started_scope = true;
+  if (property->kind() == ClassLiteralProperty::FIELD) {
+    DCHECK(allow_harmony_class_fields());
+    if (property->is_static()) {
+      if (class_info->static_initializer_var == nullptr) {
+        class_info->static_initializer_var =
+            NewTemporary(ast_value_factory()->empty_string());
+      }
+      // TODO(bakkot) only do this conditionally
+      Expression* function = InstallHomeObject(
+          property->value(),
+          factory()->NewVariableProxy(class_info->static_initializer_var));
+      ZoneList<Expression*>* args =
+          new (zone()) ZoneList<Expression*>(2, zone());
+      args->Add(function, zone());
+      args->Add(factory()->NewVariableProxy(class_info->static_initializer_var),
+                zone());
+      Expression* call = factory()->NewCallRuntime(Runtime::kInlineCall, args,
+                                                   kNoSourcePosition);
+      property->set_value(call);
+    } else {
+      // if (is_computed_name) { // TODO(bakkot) figure out why this is
+      // necessary for non-computed names in full-codegen
+      ZoneList<Expression*>* to_name_args =
+          new (zone()) ZoneList<Expression*>(1, zone());
+      to_name_args->Add(property->key(), zone());
+      property->set_key(factory()->NewCallRuntime(
+          Runtime::kToName, to_name_args, kNoSourcePosition));
+      //}
+      const AstRawString* name = ClassFieldVariableName(
+          true, ast_value_factory(),
+          class_info->instance_field_initializers->length());
+      VariableProxy* name_proxy =
+          factory()->NewVariableProxy(name, NORMAL_VARIABLE);
+      Declaration* name_declaration = factory()->NewVariableDeclaration(
+          name_proxy, scope(), kNoSourcePosition);
+      Variable* name_var =
+          Declare(name_declaration, DeclarationDescriptor::NORMAL, CONST,
+                  kNeedsInitialization, ok, scope());
+      DCHECK(*ok);
+      if (!*ok) return;
+      class_info->instance_field_initializers->Add(property->value(), zone());
+      property->set_value(factory()->NewVariableProxy(name_var));
     }
-    do {
-      typesystem::Type* class_or_interface = ParseTypeReference(CHECK_OK);
-      implements->Add(class_or_interface, zone());
-    } while (Check(Token::COMMA));
   }
-  USE(implements);  // TODO(nikolaos): really use it!
+  class_info->properties->Add(property, zone());
+}
 
-  if (!started_scope) {
-    block_state.set_start_position(scanner()->location().end_pos);
-  }
-
-  ClassLiteralChecker checker(this);
-  ZoneList<ClassLiteral::Property*>* properties = NewClassPropertyList(4);
-  ZoneList<Expression*>* instance_field_initializers =
-      new (zone()) ZoneList<Expression*>(0, zone());
-  FunctionLiteral* constructor = nullptr;
-  bool has_seen_constructor = false;
-  Variable* static_initializer_var = nullptr;
-
+// This method rewrites a class literal into a do-expression.
+// It uses the following fields of class_info:
+//   - constructor (if missing, it updates it with a default constructor)
+//   - proxy
+//   - extends
+//   - static_initializer_var
+//   - instance_field_initializers
+//   - properties
+Expression* Parser::RewriteClassLiteral(const AstRawString* name,
+                                        ClassInfo* class_info, int pos,
+                                        bool* ok) {
+  int end_pos = scanner()->location().end_pos;
   Block* do_block = factory()->NewBlock(nullptr, 1, false, pos);
   Variable* result_var = NewTemporary(ast_value_factory()->empty_string());
   DoExpression* do_expr = factory()->NewDoExpression(do_block, result_var, pos);
 
-  Expect(Token::LBRACE, CHECK_OK);
-
-  const bool has_extends = extends != nullptr;
-  while (peek() != Token::RBRACE) {
-    if (Check(Token::SEMICOLON)) continue;
-    FuncNameInferrer::State fni_state(fni_);
-    bool is_computed_name = false;  // Classes do not care about computed
-                                    // property names here.
-    ExpressionClassifier property_classifier(this);
-    ClassLiteral::Property* property =
-        ParseClassPropertyDefinition(&checker, has_extends, &is_computed_name,
-                                     &has_seen_constructor, ambient, CHECK_OK);
-    // Ignore member variable declarations, method signatures and members of
-    // ambients in typed mode.
-    if (property == nullptr) continue;
-    RewriteNonPattern(CHECK_OK);
-    impl()->AccumulateFormalParameterContainmentErrors();
-
-    if (has_seen_constructor && constructor == nullptr) {
-      constructor = GetPropertyValue(property)->AsFunctionLiteral();
-      DCHECK_NOT_NULL(constructor);
-      constructor->set_raw_name(
-          name != nullptr ? name : ast_value_factory()->empty_string());
-    } else {
-      if (property->kind() == ClassLiteralProperty::FIELD) {
-        DCHECK(allow_harmony_class_fields());
-        if (property->is_static()) {
-          if (static_initializer_var == nullptr) {
-            static_initializer_var =
-                NewTemporary(ast_value_factory()->empty_string());
-          }
-          // TODO(bakkot) only do this conditionally
-          Expression* function = InstallHomeObject(
-              property->value(),
-              factory()->NewVariableProxy(static_initializer_var));
-          ZoneList<Expression*>* args =
-              new (zone()) ZoneList<Expression*>(2, zone());
-          args->Add(function, zone());
-          args->Add(factory()->NewVariableProxy(static_initializer_var),
-                    zone());
-          Expression* call = factory()->NewCallRuntime(Runtime::kInlineCall,
-                                                       args, kNoSourcePosition);
-          property->set_value(call);
-        } else {
-          // if (is_computed_name) { // TODO(bakkot) figure out why this is
-          // necessary for non-computed names in full-codegen
-          ZoneList<Expression*>* to_name_args =
-              new (zone()) ZoneList<Expression*>(1, zone());
-          to_name_args->Add(property->key(), zone());
-          property->set_key(factory()->NewCallRuntime(
-              Runtime::kToName, to_name_args, kNoSourcePosition));
-          //}
-          const AstRawString* name = ClassFieldVariableName(
-              true, ast_value_factory(), instance_field_initializers->length());
-          VariableProxy* name_proxy =
-              factory()->NewVariableProxy(name, NORMAL_VARIABLE);
-          Declaration* name_declaration = factory()->NewVariableDeclaration(
-              name_proxy, scope(), kNoSourcePosition);
-          Variable* name_var =
-              Declare(name_declaration, DeclarationDescriptor::NORMAL, CONST,
-                      kNeedsInitialization, ok, scope());
-          DCHECK(ok);
-          if (!ok) return nullptr;
-          instance_field_initializers->Add(property->value(), zone());
-          property->set_value(factory()->NewVariableProxy(name_var));
-        }
-      }
-      properties->Add(property, zone());
-    }
-
-    DCHECK_NOT_NULL(fni_);
-    fni_->Infer();
-  }
-
-  Expect(Token::RBRACE, CHECK_OK);
-  int end_pos = scanner()->location().end_pos;
-
-  bool has_instance_fields = instance_field_initializers->length() > 0;
+  bool has_extends = class_info->extends != nullptr;
+  bool has_instance_fields =
+      class_info->instance_field_initializers->length() > 0;
   DCHECK(!has_instance_fields || allow_harmony_class_fields());
-  bool has_default_constructor = constructor == nullptr;
+  bool has_default_constructor = class_info->constructor == nullptr;
   if (has_default_constructor) {
-    constructor = DefaultConstructor(name, has_extends, has_instance_fields,
-                                     pos, end_pos, block_state.language_mode());
+    class_info->constructor =
+        DefaultConstructor(name, has_extends, has_instance_fields, pos, end_pos,
+                           scope()->language_mode());
   }
 
-  if (has_instance_fields && extends == nullptr) {
-    constructor = InsertClassFieldInitializer(constructor);
-    constructor->set_requires_class_field_init(true);
+  if (has_instance_fields && !has_extends) {
+    class_info->constructor =
+        InsertClassFieldInitializer(class_info->constructor);
+    class_info->constructor->set_requires_class_field_init(true);
   }  // The derived case is handled by rewriting super calls.
 
-  block_state.set_end_position(end_pos);
+  scope()->set_end_position(end_pos);
 
   if (name != nullptr) {
-    DCHECK_NOT_NULL(proxy);
-    proxy->var()->set_initializer_position(end_pos);
+    DCHECK_NOT_NULL(class_info->proxy);
+    class_info->proxy->var()->set_initializer_position(end_pos);
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
-      proxy, extends, constructor, properties, pos, end_pos);
+      class_info->proxy, class_info->extends, class_info->constructor,
+      class_info->properties, pos, end_pos);
 
-  if (static_initializer_var != nullptr) {
+  if (class_info->static_initializer_var != nullptr) {
     class_literal->set_static_initializer_proxy(
-        factory()->NewVariableProxy(static_initializer_var));
+        factory()->NewVariableProxy(class_info->static_initializer_var));
   }
 
   do_block->statements()->Add(
@@ -3936,8 +3707,7 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
           pos),
       zone());
   if (allow_harmony_class_fields() &&
-      (has_instance_fields ||
-       (extends != nullptr && !has_default_constructor))) {
+      (has_instance_fields || (has_extends && !has_default_constructor))) {
     // Default constructors for derived classes without fields will not try to
     // read this variable, so there's no need to create it.
     const AstRawString* init_fn_name =
@@ -3947,7 +3717,7 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
     Expression* initializer =
         has_instance_fields
             ? static_cast<Expression*>(SynthesizeClassFieldInitializer(
-                  instance_field_initializers->length()))
+                  class_info->instance_field_initializers->length()))
             : factory()->NewBooleanLiteral(false, kNoSourcePosition);
     Assignment* assignment = factory()->NewAssignment(
         Token::INIT, factory()->NewVariableProxy(init_fn_var), initializer,
@@ -3956,7 +3726,7 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
         factory()->NewExpressionStatement(assignment, kNoSourcePosition),
         zone());
   }
-  for (int i = 0; i < instance_field_initializers->length(); ++i) {
+  for (int i = 0; i < class_info->instance_field_initializers->length(); ++i) {
     const AstRawString* function_name =
         ClassFieldVariableName(false, ast_value_factory(), i);
     VariableProxy* function_proxy =
@@ -3966,15 +3736,14 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
     Variable* function_var =
         Declare(function_declaration, DeclarationDescriptor::NORMAL, CONST,
                 kNeedsInitialization, ok, scope());
-    DCHECK(ok);
-    if (!ok) return nullptr;
+    if (!*ok) return nullptr;
     Property* prototype_property = factory()->NewProperty(
         factory()->NewVariableProxy(result_var),
         factory()->NewStringLiteral(ast_value_factory()->prototype_string(),
                                     kNoSourcePosition),
         kNoSourcePosition);
     Expression* function_value = InstallHomeObject(
-        instance_field_initializers->at(i),
+        class_info->instance_field_initializers->at(i),
         prototype_property);  // TODO(bakkot) ideally this would be conditional,
                               // especially in trivial cases
     Assignment* function_assignment = factory()->NewAssignment(
@@ -3984,12 +3753,11 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
                                     function_assignment, kNoSourcePosition),
                                 zone());
   }
-  do_block->set_scope(block_state.FinalizedBlockScope());
-  do_expr->set_represented_function(constructor);
+  do_block->set_scope(scope()->FinalizeBlockScope());
+  do_expr->set_represented_function(class_info->constructor);
 
   return do_expr;
 }
-
 
 Literal* Parser::GetLiteralUndefined(int position) {
   return factory()->NewUndefinedLiteral(position);
@@ -4478,12 +4246,7 @@ void Parser::MarkCollectedTailCallExpressions() {
   const ZoneList<Expression*>& tail_call_expressions =
       function_state_->tail_call_expressions().expressions();
   for (int i = 0; i < tail_call_expressions.length(); ++i) {
-    Expression* expression = tail_call_expressions[i];
-    // If only FLAG_harmony_explicit_tailcalls is enabled then expression
-    // must be a Call expression.
-    DCHECK(FLAG_harmony_tailcalls || !FLAG_harmony_explicit_tailcalls ||
-           expression->IsCall());
-    MarkTailPosition(expression);
+    MarkTailPosition(tail_call_expressions[i]);
   }
 }
 
@@ -4494,6 +4257,49 @@ Expression* Parser::ExpressionListToExpression(ZoneList<Expression*>* args) {
                                          expr->position());
   }
   return expr;
+}
+
+// This method intoduces the line initializing the generator object
+// when desugaring the body of async_function.
+void Parser::PrepareAsyncFunctionBody(ZoneList<Statement*>* body,
+                                      FunctionKind kind, int pos) {
+  // function async_function() {
+  //   .generator_object = %CreateGeneratorObject();
+  //   BuildRejectPromiseOnException({
+  //     ... block ...
+  //     return %ResolvePromise(.promise, expr), .promise;
+  //   })
+  // }
+
+  Variable* temp =
+      NewTemporary(ast_value_factory()->dot_generator_object_string());
+  function_state_->set_generator_object_variable(temp);
+
+  Expression* init_generator_variable = factory()->NewAssignment(
+      Token::INIT, factory()->NewVariableProxy(temp),
+      BuildCreateJSGeneratorObject(pos, kind), kNoSourcePosition);
+  body->Add(factory()->NewExpressionStatement(init_generator_variable,
+                                              kNoSourcePosition),
+            zone());
+}
+
+// This method completes the desugaring of the body of async_function.
+void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
+                                      Expression* return_value, bool* ok) {
+  // function async_function() {
+  //   .generator_object = %CreateGeneratorObject();
+  //   BuildRejectPromiseOnException({
+  //     ... block ...
+  //     return %ResolvePromise(.promise, expr), .promise;
+  //   })
+  // }
+
+  return_value = BuildResolvePromise(return_value, return_value->position());
+  block->statements()->Add(
+      factory()->NewReturnStatement(return_value, return_value->position()),
+      zone());
+  block = BuildRejectPromiseOnException(block, CHECK_OK_VOID);
+  body->Add(block, zone());
 }
 
 Expression* Parser::RewriteAwaitExpression(Expression* value, int await_pos) {

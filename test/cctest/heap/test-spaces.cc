@@ -515,8 +515,7 @@ TEST(SizeOfInitialHeap) {
 
     page_count[i] = heap->paged_space(i)->CountTotalPages();
     // Check that the initial heap is also below the limit.
-    CHECK_LT(static_cast<size_t>(heap->paged_space(i)->CommittedMemory()),
-             kMaxInitialSizePerSpace);
+    CHECK_LT(heap->paged_space(i)->CommittedMemory(), kMaxInitialSizePerSpace);
   }
 
   // Executing the empty script gets by with the same number of pages, i.e.,

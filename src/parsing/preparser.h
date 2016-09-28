@@ -782,8 +782,7 @@ class PreParserFactory {
       int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
-      FunctionLiteral::EagerCompileHint eager_compile_hint, FunctionKind kind,
-      int position) {
+      FunctionLiteral::EagerCompileHint eager_compile_hint, int position) {
     return PreParserExpression::Default();
   }
 
@@ -1019,8 +1018,8 @@ struct ParserTypes<PreParser> {
   typedef PreParserExpression ObjectLiteralProperty;
   typedef PreParserExpression ClassLiteralProperty;
   typedef PreParserExpressionList ExpressionList;
-  typedef PreParserExpressionList PropertyList;
-  typedef PreParserIdentifier FormalParameter;
+  typedef PreParserExpressionList ObjectPropertyList;
+  typedef PreParserExpressionList ClassPropertyList;
   typedef PreParserFormalParameters FormalParameters;
   typedef PreParserStatement Statement;
   typedef PreParserStatementList StatementList;
@@ -1140,12 +1139,6 @@ class PreParser : public ParserBase<PreParser> {
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
   Statement ParseFunctionDeclaration(bool ambient, bool* ok);
-  Statement ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
-                                          bool default_export, bool ambient,
-                                          bool* ok);
-  Expression ParseAsyncFunctionExpression(bool* ok);
-  Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
-                                  bool default_export, bool ambient, bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseObjectLiteral(bool* ok);
 
@@ -1169,11 +1162,6 @@ class PreParser : public ParserBase<PreParser> {
                                   typesystem::TypeFlags type_flags, bool* ok);
   LazyParsingResult ParseLazyFunctionLiteralBody(bool may_abort, bool* ok);
 
-  PreParserExpression ParseClassLiteral(PreParserIdentifier name,
-                                        Scanner::Location class_name_location,
-                                        bool name_is_strict_reserved, int pos,
-                                        bool ambient, bool* ok);
-
   struct TemplateLiteralState {};
 
   V8_INLINE TemplateLiteralState OpenTemplateLiteral(int pos) {
@@ -1193,10 +1181,6 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void MarkCollectedTailCallExpressions() {}
   V8_INLINE void MarkTailPosition(PreParserExpression expression) {}
-
-  void ParseAsyncArrowSingleExpressionBody(PreParserStatementList body,
-                                           bool accept_IN,
-                                           int pos, bool* ok);
 
   V8_INLINE PreParserExpressionList
   PrepareSpreadArguments(PreParserExpressionList list) {
@@ -1231,6 +1215,12 @@ class PreParser : public ParserBase<PreParser> {
   RewriteAwaitExpression(PreParserExpression value, int pos) {
     return value;
   }
+  V8_INLINE void PrepareAsyncFunctionBody(PreParserStatementList body,
+                                          FunctionKind kind, int pos) {}
+  V8_INLINE void RewriteAsyncFunctionBody(PreParserStatementList body,
+                                          PreParserStatement block,
+                                          PreParserExpression return_value,
+                                          bool* ok) {}
   V8_INLINE PreParserExpression RewriteYieldStar(PreParserExpression generator,
                                                  PreParserExpression expression,
                                                  int pos) {
@@ -1251,11 +1241,6 @@ class PreParser : public ParserBase<PreParser> {
     DCHECK(is_sloppy(language_mode()) ||
            !IsFutureStrictReserved(expr.AsIdentifier()));
     return labels;
-  }
-
-  V8_INLINE PreParserStatement ParseNativeDeclaration(bool* ok) {
-    UNREACHABLE();
-    return PreParserStatement::Default();
   }
 
   // TODO(nikolaos): The preparser currently does not keep track of labels.
@@ -1302,6 +1287,29 @@ class PreParser : public ParserBase<PreParser> {
       bool is_generator, bool is_async, ZoneList<const AstRawString*>* names,
       bool* ok) {
     return Statement::Default();
+  }
+
+  V8_INLINE PreParserStatement
+  DeclareClass(PreParserIdentifier variable_name, PreParserExpression value,
+               ZoneList<const AstRawString*>* names, int class_token_pos,
+               int end_pos, bool* ok) {
+    return PreParserStatement::Default();
+  }
+  V8_INLINE void DeclareClassVariable(PreParserIdentifier name,
+                                      Scope* block_scope, ClassInfo* class_info,
+                                      int class_token_pos, bool* ok) {}
+  V8_INLINE void DeclareClassProperty(PreParserIdentifier class_name,
+                                      PreParserExpression property,
+                                      ClassInfo* class_info, bool* ok) {}
+  V8_INLINE PreParserExpression RewriteClassLiteral(PreParserIdentifier name,
+                                                    ClassInfo* class_info,
+                                                    int pos, bool* ok) {
+    return PreParserExpression::Default();
+  }
+
+  V8_INLINE PreParserStatement DeclareNative(PreParserIdentifier name, int pos,
+                                             bool* ok) {
+    return PreParserStatement::Default();
   }
 
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
@@ -1414,7 +1422,9 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static void PushVariableName(PreParserIdentifier id) {}
   V8_INLINE void PushPropertyName(PreParserExpression expression) {}
   V8_INLINE void PushEnclosingName(PreParserIdentifier name) {}
-  V8_INLINE static void InferFunctionName(PreParserExpression expression) {}
+  V8_INLINE static void AddFunctionForNameInference(
+      PreParserExpression expression) {}
+  V8_INLINE static void InferFunctionName() {}
 
   V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
@@ -1524,6 +1534,10 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE static PreParserExpression EmptyClassLiteralProperty() {
     return PreParserExpression::Default();
+  }
+  V8_INLINE static bool IsEmptyClassLiteralProperty(
+      PreParserExpression property) {
+    return property.IsEmpty();
   }
   V8_INLINE static PreParserExpression EmptyFunctionLiteral() {
     return PreParserExpression::Default();
@@ -1671,7 +1685,11 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpressionList();
   }
 
-  V8_INLINE PreParserExpressionList NewPropertyList(int size) const {
+  V8_INLINE PreParserExpressionList NewObjectPropertyList(int size) const {
+    return PreParserExpressionList();
+  }
+
+  V8_INLINE PreParserExpressionList NewClassPropertyList(int size) const {
     return PreParserExpressionList();
   }
 
@@ -1713,13 +1731,12 @@ class PreParser : public ParserBase<PreParser> {
     }
   }
 
-  V8_INLINE void ParseArrowFunctionFormalParameterList(
+  V8_INLINE void DeclareArrowFunctionFormalParameters(
       PreParserFormalParameters* parameters, PreParserExpression params,
       const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
-      const Scope::Snapshot& scope_snapshot, bool* ok) {
+      bool* ok) {
     // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect
-    // parameter
-    // lists that are too long.
+    // parameter lists that are too long.
   }
 
   V8_INLINE void ReindexLiterals(const PreParserFormalParameters& parameters) {}

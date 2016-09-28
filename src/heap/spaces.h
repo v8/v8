@@ -918,9 +918,9 @@ class Space : public Malloced {
 
   // Return the total amount committed memory for this space, i.e., allocatable
   // memory and page headers.
-  virtual intptr_t CommittedMemory() { return committed_; }
+  virtual size_t CommittedMemory() { return committed_; }
 
-  virtual intptr_t MaximumCommittedMemory() { return max_committed_; }
+  virtual size_t MaximumCommittedMemory() { return max_committed_; }
 
   // Returns allocated size.
   virtual intptr_t Size() = 0;
@@ -943,18 +943,19 @@ class Space : public Malloced {
     }
   }
 
-  void AccountCommitted(intptr_t bytes) {
-    DCHECK_GE(bytes, 0);
+  virtual std::unique_ptr<ObjectIterator> GetObjectIterator() = 0;
+
+  void AccountCommitted(size_t bytes) {
+    DCHECK_GE(committed_ + bytes, committed_);
     committed_ += bytes;
     if (committed_ > max_committed_) {
       max_committed_ = committed_;
     }
   }
 
-  void AccountUncommitted(intptr_t bytes) {
-    DCHECK_GE(bytes, 0);
+  void AccountUncommitted(size_t bytes) {
+    DCHECK_GE(committed_, committed_ - bytes);
     committed_ -= bytes;
-    DCHECK_GE(committed_, 0);
   }
 
 #ifdef DEBUG
@@ -971,8 +972,8 @@ class Space : public Malloced {
   Executability executable_;
 
   // Keeps track of committed memory in a space.
-  intptr_t committed_;
-  intptr_t max_committed_;
+  size_t committed_;
+  size_t max_committed_;
 
   DISALLOW_COPY_AND_ASSIGN(Space);
 };
@@ -2154,6 +2155,8 @@ class PagedSpace : public Space {
   // using the high water mark.
   void ShrinkImmortalImmovablePages();
 
+  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -2329,6 +2332,11 @@ class SemiSpace : public Space {
     return 0;
   }
 
+  iterator begin() { return iterator(anchor_.next_page()); }
+  iterator end() { return iterator(anchor()); }
+
+  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+
 #ifdef DEBUG
   void Print() override;
   // Validate a range of of addresses in a SemiSpace.
@@ -2343,9 +2351,6 @@ class SemiSpace : public Space {
 #ifdef VERIFY_HEAP
   virtual void Verify();
 #endif
-
-  iterator begin() { return iterator(anchor_.next_page()); }
-  iterator end() { return iterator(anchor()); }
 
  private:
   void RewindPages(Page* start, int num_pages);
@@ -2455,11 +2460,6 @@ class NewSpace : public Space {
            static_cast<intptr_t>(fragmentation_in_intermediate_generation_);
   }
 
-  // The same, but returning an int.  We have to have the one that returns
-  // intptr_t because it is inherited, but if we know we are dealing with the
-  // new space, which can't get as big as the other spaces then this is useful:
-  int SizeAsInt() { return static_cast<int>(Size()); }
-
   // Return the allocatable capacity of a semispace.
   intptr_t Capacity() {
     SLOW_DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
@@ -2476,11 +2476,11 @@ class NewSpace : public Space {
 
   // Committed memory for NewSpace is the committed memory of both semi-spaces
   // combined.
-  intptr_t CommittedMemory() override {
+  size_t CommittedMemory() override {
     return from_space_.CommittedMemory() + to_space_.CommittedMemory();
   }
 
-  intptr_t MaximumCommittedMemory() override {
+  size_t MaximumCommittedMemory() override {
     return from_space_.MaximumCommittedMemory() +
            to_space_.MaximumCommittedMemory();
   }
@@ -2647,6 +2647,8 @@ class NewSpace : public Space {
 
   iterator begin() { return to_space_.begin(); }
   iterator end() { return to_space_.end(); }
+
+  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
  private:
   // Update allocation info to match the current to-space page.
@@ -2862,6 +2864,8 @@ class LargeObjectSpace : public Space {
 
   iterator begin() { return iterator(first_page_); }
   iterator end() { return iterator(nullptr); }
+
+  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
 #ifdef VERIFY_HEAP
   virtual void Verify();

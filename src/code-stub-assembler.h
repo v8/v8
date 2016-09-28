@@ -120,6 +120,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* SmiAboveOrEqual(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThan(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThanOrEqual(compiler::Node* a, compiler::Node* b);
+  compiler::Node* SmiMax(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiMin(compiler::Node* a, compiler::Node* b);
   // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.
   compiler::Node* SmiMod(compiler::Node* a, compiler::Node* b);

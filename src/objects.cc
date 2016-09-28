@@ -11092,7 +11092,7 @@ String* ConsStringIterator::NextLeaf(bool* blew_stack) {
       if ((type & kStringRepresentationMask) != kConsStringTag) {
         AdjustMaximumDepth();
         int length = string->length();
-        DCHECK(length != 0);
+        if (length == 0) break;  // Skip empty left-hand sides of ConsStrings.
         consumed_ += length;
         return string;
       }
@@ -19708,22 +19708,25 @@ MaybeHandle<Cell> Module::ResolveExport(Handle<Module> module,
     return Handle<Cell>::cast(object);
   }
 
-  // Must be an indirect export of some sort, so we need to detect cycles.
+  // Check for cycle before recursing.
   {
     // Attempt insertion with a null string set.
     auto result = resolve_set->insert({module, nullptr});
     UnorderedStringSet*& name_set = result.first->second;
-    bool did_insert = result.second;
-    if (did_insert) {
+    if (result.second) {
       // |module| wasn't in the map previously, so allocate a new name set.
       Zone* zone = resolve_set->zone();
       name_set =
           new (zone->New(sizeof(UnorderedStringSet))) UnorderedStringSet(zone);
     } else if (name_set->count(name)) {
-      // TODO(adamk): Throwing here is incorrect in the case of star exports.
-      THROW_NEW_ERROR(
-          isolate,
-          NewSyntaxError(MessageTemplate::kCyclicModuleDependency, name), Cell);
+      // Cycle detected.
+      if (must_resolve) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewSyntaxError(MessageTemplate::kCyclicModuleDependency, name),
+            Cell);
+      }
+      return MaybeHandle<Cell>();
     }
     name_set->insert(name);
   }
@@ -19899,6 +19902,28 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
   }
 
   return true;
+}
+
+MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
+  DCHECK(module->code()->IsJSFunction());
+
+  Isolate* isolate = module->GetIsolate();
+
+  // Each module can only be evaluated once.
+  if (module->evaluated()) return isolate->factory()->undefined_value();
+  module->set_evaluated(true);
+
+  Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
+  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+    Handle<Module> import(Module::cast(requested_modules->get(i)), isolate);
+    RETURN_ON_EXCEPTION(isolate, Evaluate(import), Object);
+  }
+
+  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
+  DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
+  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<Object> argv[] = {module};
+  return Execution::Call(isolate, function, receiver, arraysize(argv), argv);
 }
 
 }  // namespace internal

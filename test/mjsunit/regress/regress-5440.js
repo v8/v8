@@ -2,13 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-explicit-tailcalls
-"use strict";
+// Flags: --turbo --always-opt
 
-function f() {
-  return 1;
-}
-
-function g() {
-  var x =  continue  f()  ;
-}
+// The rightmost cons string is created first, resulting in an empty left part.
+eval(" " + ("" + "try {;} catch (_) {}"));

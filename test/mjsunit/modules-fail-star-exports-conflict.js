@@ -1,14 +1,10 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// MODULE
 
-// Flags: --harmony-explicit-tailcalls
-"use strict";
+export * from "modules-skip-star-exports-conflict.js";
+export * from "modules-skip-6.js";
 
-function f() {
-  return 1;
-}
-
-function g() {
-  return 1, 2, 3,   continue f() , 4  ;
-}
+import {a} from "modules-fail-star-exports-conflict.js";

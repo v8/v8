@@ -988,6 +988,7 @@ function TestFunctionTable(stdlib, foreign, buffer) {
   return {caller:caller};
 }
 
+print("TestFunctionTable...");
 var module = TestFunctionTable(stdlib);
 assertEquals(55, module.caller(0, 0, 33, 22));
 assertEquals(11, module.caller(0, 1, 33, 22));
@@ -1040,6 +1041,7 @@ function TestForeignFunctions() {
   assertEquals(103, module.caller(23, 103));
 }
 
+print("TestForeignFunctions...");
 TestForeignFunctions();
 
 
@@ -1594,3 +1596,35 @@ function TestSingleFunctionModule() {
 }
 
 assertEquals(7, TestSingleFunctionModule()(3, 4));
+
+
+function TestNotZero() {
+  "use asm";
+  function caller() {
+    if (!0) {
+      return 44;
+    } else {
+      return 55;
+    }
+    return 0;
+  }
+  return {caller: caller};
+}
+
+assertWasm(44, TestNotZero);
+
+
+function TestNotOne() {
+  "use asm";
+  function caller() {
+    if (!1) {
+      return 44;
+    } else {
+      return 55;
+    }
+    return 0;
+  }
+  return {caller: caller};
+}
+
+assertWasm(55, TestNotOne);

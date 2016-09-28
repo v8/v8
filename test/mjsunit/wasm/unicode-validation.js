@@ -49,7 +49,7 @@ function checkImportsAndExports(imported_module_name, imported_function_name,
       kSig_v_v);
 
   builder.addFunction(internal_function_name, kSig_v_v)
-    .addBody([kExprCallImport, kArity0, 0])
+    .addBody([kExprCallFunction, 0])
     .exportAs(exported_function_name);
 
   // sanity check: does javascript agree with out shouldThrow annotation?

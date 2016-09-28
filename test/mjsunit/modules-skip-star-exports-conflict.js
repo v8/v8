@@ -2,13 +2,5 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-explicit-tailcalls
-"use strict";
-
-function f() {
-  return 1;
-}
-
-function g() {
-  return   continue f()   && a ;
-}
+export * from "modules-skip-1.js";
+export * from "modules-skip-5.js";
