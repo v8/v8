@@ -152,7 +152,8 @@ struct ParserTypes<Parser> {
   typedef ObjectLiteral::Property* ObjectLiteralProperty;
   typedef ClassLiteral::Property* ClassLiteralProperty;
   typedef ZoneList<v8::internal::Expression*>* ExpressionList;
-  typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
+  typedef ZoneList<ObjectLiteral::Property*>* ObjectPropertyList;
+  typedef ZoneList<ClassLiteral::Property*>* ClassPropertyList;
   typedef ParserFormalParameters FormalParameters;
   typedef v8::internal::Statement* Statement;
   typedef ZoneList<v8::internal::Statement*>* StatementList;
@@ -269,9 +270,6 @@ class Parser : public ParserBase<Parser> {
   };
   ZoneList<const NamedImport*>* ParseNamedImports(int pos, bool* ok);
   Statement* ParseFunctionDeclaration(bool* ok);
-  Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
-                                   bool default_export, bool* ok);
-  Statement* ParseNativeDeclaration(bool* ok);
   Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                                   ZoneList<const AstRawString*>* names,
                                   bool* ok);
@@ -297,6 +295,21 @@ class Parser : public ParserBase<Parser> {
                              FunctionLiteral* function, int pos,
                              bool is_generator, bool is_async,
                              ZoneList<const AstRawString*>* names, bool* ok);
+  V8_INLINE Statement* DeclareClass(const AstRawString* variable_name,
+                                    Expression* value,
+                                    ZoneList<const AstRawString*>* names,
+                                    int class_token_pos, int end_pos, bool* ok);
+  V8_INLINE void DeclareClassVariable(const AstRawString* name,
+                                      Scope* block_scope, ClassInfo* class_info,
+                                      int class_token_pos, bool* ok);
+  V8_INLINE void DeclareClassProperty(const AstRawString* class_name,
+                                      ClassLiteralProperty* property,
+                                      ClassInfo* class_info, bool* ok);
+  V8_INLINE Expression* RewriteClassLiteral(const AstRawString* name,
+                                            ClassInfo* class_info, int pos,
+                                            bool* ok);
+  V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
+                                     bool* ok);
 
   Expression* ParseYieldStarExpression(bool* ok);
 
@@ -418,11 +431,6 @@ class Parser : public ParserBase<Parser> {
                                 Expression* home_object);
   FunctionLiteral* SynthesizeClassFieldInitializer(int count);
   FunctionLiteral* InsertClassFieldInitializer(FunctionLiteral* constructor);
-
-  Expression* ParseClassLiteral(const AstRawString* name,
-                                Scanner::Location class_name_location,
-                                bool name_is_strict_reserved, int pos,
-                                bool* ok);
 
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
@@ -739,8 +747,14 @@ class Parser : public ParserBase<Parser> {
     fni_->PushEnclosingName(name);
   }
 
-  V8_INLINE void InferFunctionName(FunctionLiteral* func_to_infer) {
+  V8_INLINE void AddFunctionForNameInference(FunctionLiteral* func_to_infer) {
+    DCHECK_NOT_NULL(fni_);
     fni_->AddFunction(func_to_infer);
+  }
+
+  V8_INLINE void InferFunctionName() {
+    DCHECK_NOT_NULL(fni_);
+    fni_->Infer();
   }
 
   // If we assign a function literal to a property we pretenure the
@@ -936,7 +950,7 @@ class Parser : public ParserBase<Parser> {
   V8_INLINE ZoneList<Expression*>* NewExpressionList(int size) const {
     return new (zone()) ZoneList<Expression*>(size, zone());
   }
-  V8_INLINE ZoneList<ObjectLiteral::Property*>* NewPropertyList(
+  V8_INLINE ZoneList<ObjectLiteral::Property*>* NewObjectPropertyList(
       int size) const {
     return new (zone()) ZoneList<ObjectLiteral::Property*>(size, zone());
   }
