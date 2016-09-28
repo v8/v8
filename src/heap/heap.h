@@ -709,21 +709,10 @@ class Heap {
   // should not happen during deserialization.
   void NotifyDeserializationComplete();
 
-  intptr_t old_generation_allocation_limit() const {
-    return old_generation_allocation_limit_;
-  }
-
-  bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
-
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();
   inline Address* OldSpaceAllocationTopAddress();
   inline Address* OldSpaceAllocationLimitAddress();
-
-  bool CanExpandOldGeneration(int size) {
-    if (force_oom_) return false;
-    return (OldGenerationCapacity() + size) < MaxOldGenerationSize();
-  }
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
@@ -847,8 +836,6 @@ class Heap {
   // Check new space expansion criteria and expand semispaces if it was hit.
   void CheckNewSpaceExpansionCriteria();
 
-  inline bool HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit);
-
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
 
   // An object should be promoted if the object has survived a
@@ -861,8 +848,6 @@ class Heap {
   void ClearNormalizedMapCaches();
 
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
-
-  inline bool OldGenerationAllocationLimitReached();
 
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).
@@ -1846,6 +1831,22 @@ class Heap {
 
   intptr_t MinimumAllocationLimitGrowingStep();
 
+  intptr_t old_generation_allocation_limit() const {
+    return old_generation_allocation_limit_;
+  }
+
+  bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
+
+  bool CanExpandOldGeneration(int size) {
+    if (force_oom_) return false;
+    return (OldGenerationCapacity() + size) < MaxOldGenerationSize();
+  }
+
+  bool ShouldExpandOldGenerationOnAllocationFailure();
+
+  enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };
+  IncrementalMarkingLimit IncrementalMarkingLimitReached();
+
   // ===========================================================================
   // Idle notification. ========================================================
   // ===========================================================================
@@ -2322,12 +2323,15 @@ class Heap {
   friend class HeapIterator;
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
+  friend class IncrementalMarkingJob;
   friend class IteratePromotedObjectsVisitor;
+  friend class LargeObjectSpace;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class NewSpace;
   friend class ObjectStatsCollector;
   friend class Page;
+  friend class PagedSpace;
   friend class Scavenger;
   friend class StoreBuffer;
   friend class TestMemoryAllocatorScope;

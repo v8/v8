@@ -169,18 +169,6 @@ Address* Heap::OldSpaceAllocationLimitAddress() {
   return old_space_->allocation_limit_address();
 }
 
-bool Heap::HeapIsFullEnoughToStartIncrementalMarking(intptr_t limit) {
-  if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
-
-  intptr_t adjusted_allocation_limit = limit - new_space_->Capacity();
-
-  if (PromotedTotalSize() >= adjusted_allocation_limit) return true;
-
-  if (HighMemoryPressure()) return true;
-
-  return false;
-}
-
 void Heap::UpdateNewSpaceAllocationCounter() {
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
 }
@@ -490,13 +478,6 @@ bool Heap::InNewSpaceSlow(Address address) {
 
 bool Heap::InOldSpaceSlow(Address address) {
   return old_space_->ContainsSlow(address);
-}
-
-bool Heap::OldGenerationAllocationLimitReached() {
-  if (!incremental_marking()->IsStopped() && !ShouldOptimizeForMemoryUsage()) {
-    return false;
-  }
-  return OldGenerationSpaceAvailable() < 0;
 }
 
 template <PromotionMode promotion_mode>

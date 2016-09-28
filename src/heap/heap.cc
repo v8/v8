@@ -266,13 +266,6 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return MARK_COMPACTOR;
   }
 
-  // Is enough data promoted to justify a global GC?
-  if (OldGenerationAllocationLimitReached()) {
-    isolate_->counters()->gc_compactor_caused_by_promoted_data()->Increment();
-    *reason = "promotion limit reached";
-    return MARK_COMPACTOR;
-  }
-
   // Is there enough space left in OLD to guarantee that a scavenge can
   // succeed?
   //
@@ -967,7 +960,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
   if (collector == MARK_COMPACTOR && !ShouldFinalizeIncrementalMarking() &&
       !ShouldAbortIncrementalMarking() && !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() && FLAG_incremental_marking &&
-      OldGenerationAllocationLimitReached()) {
+      OldGenerationSpaceAvailable() <= 0) {
     if (!incremental_marking()->IsComplete() &&
         !mark_compact_collector()->marking_deque_.IsEmpty() &&
         !FLAG_gc_global) {
@@ -1079,10 +1072,15 @@ void Heap::StartIncrementalMarking(int gc_flags,
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     int gc_flags, const GCCallbackFlags gc_callback_flags) {
-  if (incremental_marking()->IsStopped() &&
-      incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
-    StartIncrementalMarking(gc_flags, GarbageCollectionReason::kAllocationLimit,
-                            gc_callback_flags);
+  if (incremental_marking()->IsStopped()) {
+    IncrementalMarkingLimit reached_limit = IncrementalMarkingLimitReached();
+    if (reached_limit == IncrementalMarkingLimit::kSoftLimit) {
+      incremental_marking()->incremental_marking_job()->ScheduleTask(this);
+    } else if (reached_limit == IncrementalMarkingLimit::kHardLimit) {
+      StartIncrementalMarking(gc_flags,
+                              GarbageCollectionReason::kAllocationLimit,
+                              gc_callback_flags);
+    }
   }
 }
 
@@ -5329,7 +5327,6 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
   }
 }
 
-
 void Heap::DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
                                               double gc_speed,
                                               double mutator_speed) {
@@ -5348,6 +5345,53 @@ void Heap::DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
   }
 }
 
+// This predicate is called when an old generation space cannot allocated from
+// the free list and is about to add a new page. Returning false will cause a
+// major GC. It happens when the old generation allocation limit is reached and
+// - either we need to optimize for memory usage,
+// - or the incremental marking is not in progress and we cannot start it.
+bool Heap::ShouldExpandOldGenerationOnAllocationFailure() {
+  if (always_allocate() || OldGenerationSpaceAvailable() > 0) return true;
+  // We reached the old generation allocation limit.
+
+  if (ShouldOptimizeForMemoryUsage()) return false;
+
+  if (incremental_marking()->IsStopped() &&
+      IncrementalMarkingLimitReached() == IncrementalMarkingLimit::kNoLimit) {
+    // We cannot start incremental marking.
+    return false;
+  }
+  return true;
+}
+
+// This function returns either kNoLimit, kSoftLimit, or kHardLimit.
+// The kNoLimit means that either incremental marking is disabled or it is too
+// early to start incremental marking.
+// The kSoftLimit means that incremental marking should be started soon.
+// The kHardLimit means that incremental marking should be started immediately.
+Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
+  if (!incremental_marking()->CanBeActivated() ||
+      PromotedSpaceSizeOfObjects() < IncrementalMarking::kActivationThreshold) {
+    // Incremental marking is disabled or it is too early to start.
+    return IncrementalMarkingLimit::kNoLimit;
+  }
+  if ((FLAG_stress_compaction && (gc_count_ & 1) != 0) ||
+      HighMemoryPressure()) {
+    // If there is high memory pressure or stress testing is enabled, then
+    // start marking immediately.
+    return IncrementalMarkingLimit::kHardLimit;
+  }
+  intptr_t old_generation_space_available = OldGenerationSpaceAvailable();
+  if (old_generation_space_available > new_space_->Capacity()) {
+    return IncrementalMarkingLimit::kNoLimit;
+  }
+  // We are close to the allocation limit.
+  // Choose between the hard and the soft limits.
+  if (old_generation_space_available <= 0 || ShouldOptimizeForMemoryUsage()) {
+    return IncrementalMarkingLimit::kHardLimit;
+  }
+  return IncrementalMarkingLimit::kSoftLimit;
+}
 
 void Heap::EnableInlineAllocation() {
   if (!inline_allocation_disabled_) return;

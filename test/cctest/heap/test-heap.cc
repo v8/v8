@@ -5583,8 +5583,7 @@ static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CcTest::isolate()->RequestInterrupt(&InterruptCallback357137, NULL);
 }
 
-
-UNINITIALIZED_TEST(Regress538257) {
+HEAP_TEST(Regress538257) {
   i::FLAG_manual_evacuation_candidates_selection = true;
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
@@ -5609,7 +5608,8 @@ UNINITIALIZED_TEST(Regress538257) {
           ->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
     }
     heap::SimulateFullSpace(old_space);
-    heap->CollectGarbage(OLD_SPACE, i::GarbageCollectionReason::kTesting);
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
     // If we get this far, we've successfully aborted compaction. Any further
     // allocations might trigger OOM.
   }
