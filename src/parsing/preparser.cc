@@ -268,7 +268,7 @@ PreParserExpression PreParser::ParseClassLiteral(
   }
 
   LanguageMode class_language_mode = language_mode();
-  BlockState block_state(&scope_state_);
+  BlockState block_state(zone(), &scope_state_);
   scope()->SetLanguageMode(
       static_cast<LanguageMode>(class_language_mode | STRICT));
   // TODO(marja): Make PreParser use scope names too.
