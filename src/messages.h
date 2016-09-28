@@ -593,19 +593,10 @@ class ErrorUtils : public AllStatic {
   T(UnexpectedEOS, "Unexpected end of input")                                  \
   T(UnexpectedFunctionSent,                                                    \
     "function.sent expression is not allowed outside a generator")             \
-  T(UnexpectedInsideTailCall, "Unexpected expression inside tail call")        \
   T(UnexpectedReserved, "Unexpected reserved word")                            \
   T(UnexpectedStrictReserved, "Unexpected strict mode reserved word")          \
   T(UnexpectedSuper, "'super' keyword unexpected here")                        \
-  T(UnexpectedSloppyTailCall,                                                  \
-    "Tail call expressions are not allowed in non-strict mode")                \
   T(UnexpectedNewTarget, "new.target expression is not allowed here")          \
-  T(UnexpectedTailCall, "Tail call expression is not allowed here")            \
-  T(UnexpectedTailCallInCatchBlock,                                            \
-    "Tail call expression in catch block when finally block is also present")  \
-  T(UnexpectedTailCallInForInOf, "Tail call expression in for-in/of body")     \
-  T(UnexpectedTailCallInTryBlock, "Tail call expression in try block")         \
-  T(UnexpectedTailCallOfEval, "Tail call of a direct eval is not allowed")     \
   T(UnexpectedTemplateString, "Unexpected template string")                    \
   T(UnexpectedToken, "Unexpected token %")                                     \
   T(UnexpectedTokenIdentifier, "Unexpected identifier")                        \

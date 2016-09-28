@@ -3550,7 +3550,6 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
     block_state.set_start_position(scanner()->location().end_pos);
     ExpressionClassifier extends_classifier(this);
     extends = ParseLeftHandSideExpression(CHECK_OK);
-    CheckNoTailCallExpressions(CHECK_OK);
     RewriteNonPattern(CHECK_OK);
     impl()->AccumulateFormalParameterContainmentErrors();
   } else {
@@ -4221,12 +4220,7 @@ void Parser::MarkCollectedTailCallExpressions() {
   const ZoneList<Expression*>& tail_call_expressions =
       function_state_->tail_call_expressions().expressions();
   for (int i = 0; i < tail_call_expressions.length(); ++i) {
-    Expression* expression = tail_call_expressions[i];
-    // If only FLAG_harmony_explicit_tailcalls is enabled then expression
-    // must be a Call expression.
-    DCHECK(FLAG_harmony_tailcalls || !FLAG_harmony_explicit_tailcalls ||
-           expression->IsCall());
-    MarkTailPosition(expression);
+    MarkTailPosition(tail_call_expressions[i]);
   }
 }
 

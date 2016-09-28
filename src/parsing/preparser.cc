@@ -278,7 +278,6 @@ PreParserExpression PreParser::ParseClassLiteral(
   if (has_extends) {
     ExpressionClassifier extends_classifier(this);
     ParseLeftHandSideExpression(CHECK_OK);
-    CheckNoTailCallExpressions(CHECK_OK);
     ValidateExpression(CHECK_OK);
     impl()->AccumulateFormalParameterContainmentErrors();
   }

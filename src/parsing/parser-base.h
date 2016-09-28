@@ -344,14 +344,6 @@ class ParserBase {
       expressions_.Add(expr, zone_);
     }
 
-    void AddExplicitTailCall(ExpressionT expr, const Scanner::Location& loc) {
-      if (!has_explicit_tail_calls()) {
-        loc_ = loc;
-        has_explicit_tail_calls_ = true;
-      }
-      expressions_.Add(expr, zone_);
-    }
-
     void Append(const TailCallExpressionList& other) {
       if (!has_explicit_tail_calls()) {
         loc_ = other.loc_;
@@ -443,14 +435,6 @@ class ParserBase {
       if (return_expr_context() ==
           ReturnExprContext::kInsideValidReturnStatement) {
         tail_call_expressions_.AddImplicitTailCall(expression);
-      }
-    }
-    void AddExplicitTailCallExpression(ExpressionT expression,
-                                       const Scanner::Location& loc) {
-      DCHECK(expression->IsCall());
-      if (return_expr_context() ==
-          ReturnExprContext::kInsideValidReturnStatement) {
-        tail_call_expressions_.AddExplicitTailCall(expression, loc);
       }
     }
 
@@ -1064,14 +1048,6 @@ class ParserBase {
     }
   }
 
-  void CheckNoTailCallExpressions(bool* ok) {
-    if (FLAG_harmony_explicit_tailcalls &&
-        classifier()->has_tail_call_expression()) {
-      ReportClassifierError(classifier()->tail_call_expression_error());
-      *ok = false;
-    }
-  }
-
   void ExpressionUnexpectedToken() {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
     const char* arg;
@@ -1182,7 +1158,6 @@ class ParserBase {
 
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
   ExpressionT ParseYieldExpression(bool accept_IN, bool* ok);
-  ExpressionT ParseTailCallExpression(bool* ok);
   ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
   ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   ExpressionT ParseUnaryExpression(bool* ok);
@@ -1868,7 +1843,6 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
 
   ExpressionT result = impl()->EmptyExpression();
   while (true) {
-    CheckNoTailCallExpressions(CHECK_OK);
     int comma_pos = position();
     ExpressionClassifier binding_classifier(this);
     ExpressionT right;
@@ -1937,7 +1911,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
       Consume(Token::ELLIPSIS);
       int expr_pos = peek_position();
       ExpressionT argument = ParseAssignmentExpression(true, CHECK_OK);
-      CheckNoTailCallExpressions(CHECK_OK);
       elem = factory()->NewSpread(argument, start_pos, expr_pos);
 
       if (first_spread_index < 0) {
@@ -1961,7 +1934,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
     } else {
       int beg_pos = peek_position();
       elem = ParseAssignmentExpression(true, CHECK_OK);
-      CheckNoTailCallExpressions(CHECK_OK);
       CheckDestructuringElement(elem, beg_pos, scanner()->location().end_pos);
     }
     values->Add(elem, zone_);
@@ -2545,7 +2517,6 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
 
     ExpressionT argument =
         ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpressionList));
-    CheckNoTailCallExpressions(CHECK_OK_CUSTOM(NullExpressionList));
     if (!maybe_arrow) {
       impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpressionList));
     }
@@ -2739,8 +2710,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     impl()->Accumulate(productions, false);
   }
 
-  CheckNoTailCallExpressions(CHECK_OK);
-
   if (is_destructuring_assignment) {
     ValidateAssignmentPattern(CHECK_OK);
   } else {
@@ -2762,7 +2731,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   ExpressionClassifier rhs_classifier(this);
 
   ExpressionT right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-  CheckNoTailCallExpressions(CHECK_OK);
   impl()->RewriteNonPattern(CHECK_OK);
   impl()->AccumulateFormalParameterContainmentErrors();
 
@@ -2859,75 +2827,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   return yield;
 }
 
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseTailCallExpression(bool* ok) {
-  // TailCallExpression::
-  //   'continue' MemberExpression  Arguments
-  //   'continue' CallExpression  Arguments
-  //   'continue' MemberExpression  TemplateLiteral
-  //   'continue' CallExpression  TemplateLiteral
-  Expect(Token::CONTINUE, CHECK_OK);
-  int pos = position();
-  int sub_expression_pos = peek_position();
-  ExpressionT expression = ParseLeftHandSideExpression(CHECK_OK);
-  CheckNoTailCallExpressions(CHECK_OK);
-
-  Scanner::Location loc(pos, scanner()->location().end_pos);
-
-  if (!expression->IsCall()) {
-    Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
-    impl()->ReportMessageAt(sub_loc,
-                            MessageTemplate::kUnexpectedInsideTailCall);
-    *ok = false;
-    return impl()->EmptyExpression();
-  }
-  if (impl()->IsDirectEvalCall(expression)) {
-    Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
-    impl()->ReportMessageAt(sub_loc,
-                            MessageTemplate::kUnexpectedTailCallOfEval);
-    *ok = false;
-    return impl()->EmptyExpression();
-  }
-  if (!is_strict(language_mode())) {
-    impl()->ReportMessageAt(loc, MessageTemplate::kUnexpectedSloppyTailCall);
-    *ok = false;
-    return impl()->EmptyExpression();
-  }
-  if (is_resumable()) {
-    Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
-    impl()->ReportMessageAt(sub_loc, MessageTemplate::kUnexpectedTailCall);
-    *ok = false;
-    return impl()->EmptyExpression();
-  }
-  ReturnExprContext return_expr_context =
-      function_state_->return_expr_context();
-  if (return_expr_context != ReturnExprContext::kInsideValidReturnStatement) {
-    MessageTemplate::Template msg = MessageTemplate::kNone;
-    switch (return_expr_context) {
-      case ReturnExprContext::kInsideValidReturnStatement:
-        UNREACHABLE();
-        return impl()->EmptyExpression();
-      case ReturnExprContext::kInsideValidBlock:
-        msg = MessageTemplate::kUnexpectedTailCall;
-        break;
-      case ReturnExprContext::kInsideTryBlock:
-        msg = MessageTemplate::kUnexpectedTailCallInTryBlock;
-        break;
-      case ReturnExprContext::kInsideForInOfBody:
-        msg = MessageTemplate::kUnexpectedTailCallInForInOf;
-        break;
-    }
-    impl()->ReportMessageAt(loc, msg);
-    *ok = false;
-    return impl()->EmptyExpression();
-  }
-  classifier()->RecordTailCallExpressionError(
-      loc, MessageTemplate::kUnexpectedTailCall);
-  function_state_->AddExplicitTailCallExpression(expression, loc);
-  return expression;
-}
-
 // Precedence = 3
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
@@ -2941,7 +2840,6 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
   // We start using the binary expression parser for prec >= 4 only!
   ExpressionT expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
   if (peek() != Token::CONDITIONAL) return expression;
-  CheckNoTailCallExpressions(CHECK_OK);
   impl()->RewriteNonPattern(CHECK_OK);
   BindingPatternUnexpectedToken();
   ArrowFormalParametersUnexpectedToken();
@@ -2967,7 +2865,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
-      CheckNoTailCallExpressions(CHECK_OK);
       impl()->RewriteNonPattern(CHECK_OK);
       BindingPatternUnexpectedToken();
       ArrowFormalParametersUnexpectedToken();
@@ -2977,9 +2874,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
       const bool is_right_associative = op == Token::EXP;
       const int next_prec = is_right_associative ? prec1 : prec1 + 1;
       ExpressionT y = ParseBinaryExpression(next_prec, accept_IN, CHECK_OK);
-      if (op != Token::OR && op != Token::AND) {
-        CheckNoTailCallExpressions(CHECK_OK);
-      }
       impl()->RewriteNonPattern(CHECK_OK);
 
       if (impl()->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos)) {
@@ -3037,7 +2931,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
     op = Next();
     int pos = position();
     ExpressionT expression = ParseUnaryExpression(CHECK_OK);
-    CheckNoTailCallExpressions(CHECK_OK);
     impl()->RewriteNonPattern(CHECK_OK);
 
     if (op == Token::DELETE && is_strict(language_mode())) {
@@ -3063,7 +2956,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
     op = Next();
     int beg_pos = peek_position();
     ExpressionT expression = ParseUnaryExpression(CHECK_OK);
-    CheckNoTailCallExpressions(CHECK_OK);
     expression = CheckAndRewriteReferenceExpression(
         expression, beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInPrefixOp, CHECK_OK);
@@ -3101,7 +2993,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePostfixExpression(
   ExpressionT expression = ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
-    CheckNoTailCallExpressions(CHECK_OK);
     BindingPatternUnexpectedToken();
     ArrowFormalParametersUnexpectedToken();
 
@@ -3127,10 +3018,6 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
   // LeftHandSideExpression ::
   //   (NewExpression | MemberExpression) ...
 
-  if (FLAG_harmony_explicit_tailcalls && peek() == Token::CONTINUE) {
-    return ParseTailCallExpression(ok);
-  }
-
   bool is_async = false;
   ExpressionT result =
       ParseMemberWithNewPrefixesExpression(&is_async, CHECK_OK);
@@ -3138,7 +3025,6 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
-        CheckNoTailCallExpressions(CHECK_OK);
         impl()->RewriteNonPattern(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
@@ -3152,7 +3038,6 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
       }
 
       case Token::LPAREN: {
-        CheckNoTailCallExpressions(CHECK_OK);
         int pos;
         impl()->RewriteNonPattern(CHECK_OK);
         BindingPatternUnexpectedToken();
@@ -3240,7 +3125,6 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
       }
 
       case Token::PERIOD: {
-        CheckNoTailCallExpressions(CHECK_OK);
         impl()->RewriteNonPattern(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
@@ -3255,7 +3139,6 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
-        CheckNoTailCallExpressions(CHECK_OK);
         impl()->RewriteNonPattern(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
@@ -4163,7 +4046,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
 
     int expr_pos = peek_position();
     ExpressionT expression = ParseExpressionCoverGrammar(true, CHECK_OK);
-    CheckNoTailCallExpressions(CHECK_OK);
     impl()->RewriteNonPattern(CHECK_OK);
     impl()->AddTemplateExpression(&ts, expression);
 
@@ -5082,16 +4964,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
   DCHECK(peek() == Token::FINALLY || !impl()->IsNullStatement(catch_block));
   if (Check(Token::FINALLY)) {
     finally_block = ParseBlock(nullptr, CHECK_OK);
-
-    if (FLAG_harmony_explicit_tailcalls &&
-        catch_info.tail_call_expressions.has_explicit_tail_calls()) {
-      // TODO(ishell): update chapter number.
-      // ES8 XX.YY.ZZ
-      impl()->ReportMessageAt(catch_info.tail_call_expressions.location(),
-                              MessageTemplate::kUnexpectedTailCallInCatchBlock);
-      *ok = false;
-      return impl()->NullStatement();
-    }
   }
 
   return impl()->RewriteTryStatement(try_block, catch_block, finally_block,
