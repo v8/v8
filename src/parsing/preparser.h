@@ -728,8 +728,7 @@ struct ParserTypes<PreParser> {
   typedef PreParserExpression ObjectLiteralProperty;
   typedef PreParserExpression ClassLiteralProperty;
   typedef PreParserExpressionList ExpressionList;
-  typedef PreParserExpressionList ObjectPropertyList;
-  typedef PreParserExpressionList ClassPropertyList;
+  typedef PreParserExpressionList PropertyList;
   typedef PreParserFormalParameters FormalParameters;
   typedef PreParserStatement Statement;
   typedef PreParserStatementList StatementList;
@@ -838,6 +837,8 @@ class PreParser : public ParserBase<PreParser> {
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
   Statement ParseFunctionDeclaration(bool* ok);
+  Statement ParseClassDeclaration(ZoneList<const AstRawString*>* names,
+                                  bool default_export, bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseObjectLiteral(bool* ok);
 
@@ -858,6 +859,11 @@ class PreParser : public ParserBase<PreParser> {
       int function_token_pos, FunctionLiteral::FunctionType function_type,
       LanguageMode language_mode, bool* ok);
   LazyParsingResult ParseLazyFunctionLiteralBody(bool may_abort, bool* ok);
+
+  PreParserExpression ParseClassLiteral(PreParserIdentifier name,
+                                        Scanner::Location class_name_location,
+                                        bool name_is_strict_reserved, int pos,
+                                        bool* ok);
 
   struct TemplateLiteralState {};
 
@@ -940,6 +946,11 @@ class PreParser : public ParserBase<PreParser> {
     return labels;
   }
 
+  V8_INLINE PreParserStatement ParseNativeDeclaration(bool* ok) {
+    UNREACHABLE();
+    return PreParserStatement::Default();
+  }
+
   // TODO(nikolaos): The preparser currently does not keep track of labels.
   V8_INLINE bool ContainsLabel(ZoneList<const AstRawString*>* labels,
                                PreParserIdentifier label) {
@@ -984,29 +995,6 @@ class PreParser : public ParserBase<PreParser> {
       bool is_generator, bool is_async, ZoneList<const AstRawString*>* names,
       bool* ok) {
     return Statement::Default();
-  }
-
-  V8_INLINE PreParserStatement
-  DeclareClass(PreParserIdentifier variable_name, PreParserExpression value,
-               ZoneList<const AstRawString*>* names, int class_token_pos,
-               int end_pos, bool* ok) {
-    return PreParserStatement::Default();
-  }
-  V8_INLINE void DeclareClassVariable(PreParserIdentifier name,
-                                      Scope* block_scope, ClassInfo* class_info,
-                                      int class_token_pos, bool* ok) {}
-  V8_INLINE void DeclareClassProperty(PreParserIdentifier class_name,
-                                      PreParserExpression property,
-                                      ClassInfo* class_info, bool* ok) {}
-  V8_INLINE PreParserExpression RewriteClassLiteral(PreParserIdentifier name,
-                                                    ClassInfo* class_info,
-                                                    int pos, bool* ok) {
-    return PreParserExpression::Default();
-  }
-
-  V8_INLINE PreParserStatement DeclareNative(PreParserIdentifier name, int pos,
-                                             bool* ok) {
-    return PreParserStatement::Default();
   }
 
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
@@ -1115,9 +1103,7 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static void PushVariableName(PreParserIdentifier id) {}
   V8_INLINE void PushPropertyName(PreParserExpression expression) {}
   V8_INLINE void PushEnclosingName(PreParserIdentifier name) {}
-  V8_INLINE static void AddFunctionForNameInference(
-      PreParserExpression expression) {}
-  V8_INLINE static void InferFunctionName() {}
+  V8_INLINE static void InferFunctionName(PreParserExpression expression) {}
 
   V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
@@ -1332,11 +1318,7 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpressionList();
   }
 
-  V8_INLINE PreParserExpressionList NewObjectPropertyList(int size) const {
-    return PreParserExpressionList();
-  }
-
-  V8_INLINE PreParserExpressionList NewClassPropertyList(int size) const {
+  V8_INLINE PreParserExpressionList NewPropertyList(int size) const {
     return PreParserExpressionList();
   }
 

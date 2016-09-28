@@ -133,8 +133,7 @@ struct FormalParametersBase {
 //   typedef ObjectLiteralProperty;
 //   typedef ClassLiteralProperty;
 //   typedef ExpressionList;
-//   typedef ObjectPropertyList;
-//   typedef ClassPropertyList;
+//   typedef PropertyList;
 //   typedef FormalParameters;
 //   typedef Statement;
 //   typedef StatementList;
@@ -162,6 +161,7 @@ class ParserBase {
   typedef typename Types::ObjectLiteralProperty ObjectLiteralPropertyT;
   typedef typename Types::ClassLiteralProperty ClassLiteralPropertyT;
   typedef typename Types::ExpressionList ExpressionListT;
+  typedef typename Types::PropertyList PropertyListT;
   typedef typename Types::FormalParameters FormalParametersT;
   typedef typename Types::Statement StatementT;
   typedef typename Types::StatementList StatementListT;
@@ -671,25 +671,6 @@ class ParserBase {
     DeclarationParsingResult parsing_result;
   };
 
-  struct ClassInfo {
-   public:
-    explicit ClassInfo(ParserBase* parser)
-        : proxy(nullptr),
-          extends(parser->impl()->EmptyExpression()),
-          properties(parser->impl()->NewClassPropertyList(4)),
-          instance_field_initializers(parser->impl()->NewExpressionList(0)),
-          constructor(parser->impl()->EmptyFunctionLiteral()),
-          has_seen_constructor(false),
-          static_initializer_var(nullptr) {}
-    VariableProxy* proxy;
-    ExpressionT extends;
-    typename Types::ClassPropertyList properties;
-    ExpressionListT instance_field_initializers;
-    FunctionLiteralT constructor;
-    bool has_seen_constructor;
-    Variable* static_initializer_var;
-  };
-
   DeclarationScope* NewScriptScope() const {
     return new (zone()) DeclarationScope(zone(), ast_value_factory());
   }
@@ -1193,10 +1174,6 @@ class ParserBase {
                               FunctionKind kind, FunctionBodyType type,
                               bool accept_IN, int pos, bool* ok);
   ExpressionT ParseAsyncFunctionLiteral(bool* ok);
-  ExpressionT ParseClassLiteral(IdentifierT name,
-                                Scanner::Location class_name_location,
-                                bool name_is_strict_reserved,
-                                int class_token_pos, bool* ok);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
   ExpressionT ParseNewTargetExpression(bool* ok);
@@ -1218,9 +1195,6 @@ class ParserBase {
   StatementT ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
                                        ZoneList<const AstRawString*>* names,
                                        bool default_export, bool* ok);
-  StatementT ParseClassDeclaration(ZoneList<const AstRawString*>* names,
-                                   bool default_export, bool* ok);
-  StatementT ParseNativeDeclaration(bool* ok);
 
   // Under some circumstances, we allow preparsing to abort if the preparsed
   // function is "long and trivial", and fully parse instead. Our current
@@ -1809,7 +1783,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::CLASS: {
       BindingPatternUnexpectedToken();
       Consume(Token::CLASS);
-      int class_token_pos = position();
+      int class_token_position = position();
       IdentifierT name = impl()->EmptyIdentifier();
       bool is_strict_reserved_name = false;
       Scanner::Location class_name_location = Scanner::Location::invalid();
@@ -1818,8 +1792,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
                                                    CHECK_OK);
         class_name_location = scanner()->location();
       }
-      return ParseClassLiteral(name, class_name_location,
-                               is_strict_reserved_name, class_token_pos, ok);
+      return impl()->ParseClassLiteral(name, class_name_location,
+                                       is_strict_reserved_name,
+                                       class_token_position, ok);
     }
 
     case Token::TEMPLATE_SPAN:
@@ -2481,8 +2456,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   // '{' (PropertyDefinition (',' PropertyDefinition)* ','? )? '}'
 
   int pos = peek_position();
-  typename Types::ObjectPropertyList properties =
-      impl()->NewObjectPropertyList(4);
+  PropertyListT properties = impl()->NewPropertyList(4);
   int number_of_boilerplate_properties = 0;
   bool has_computed_names = false;
   ObjectLiteralChecker checker(this);
@@ -3727,72 +3701,6 @@ ParserBase<Impl>::ParseHoistableDeclaration(
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseClassDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
-  // ClassDeclaration ::
-  //   'class' Identifier ('extends' LeftHandExpression)? '{' ClassBody '}'
-  //   'class' ('extends' LeftHandExpression)? '{' ClassBody '}'
-  //
-  // The anonymous form is allowed iff [default_export] is true.
-  //
-  // 'class' is expected to be consumed by the caller.
-  //
-  // A ClassDeclaration
-  //
-  //   class C { ... }
-  //
-  // has the same semantics as:
-  //
-  //   let C = class C { ... };
-  //
-  // so rewrite it as such.
-
-  int class_token_pos = position();
-  IdentifierT name = impl()->EmptyIdentifier();
-  bool is_strict_reserved = false;
-  IdentifierT variable_name = impl()->EmptyIdentifier();
-  if (default_export && (peek() == Token::EXTENDS || peek() == Token::LBRACE)) {
-    impl()->GetDefaultStrings(&name, &variable_name);
-  } else {
-    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved,
-                                               CHECK_OK_CUSTOM(NullStatement));
-    variable_name = name;
-  }
-
-  ExpressionClassifier no_classifier(this);
-  ExpressionT value =
-      ParseClassLiteral(name, scanner()->location(), is_strict_reserved,
-                        class_token_pos, CHECK_OK_CUSTOM(NullStatement));
-  int end_pos = position();
-  return impl()->DeclareClass(variable_name, value, names, class_token_pos,
-                              end_pos, ok);
-}
-
-// Language extension which is only enabled for source files loaded
-// through the API's extension mechanism.  A native function
-// declaration is resolved by looking up the function through a
-// callback provided by the extension.
-template <typename Impl>
-typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseNativeDeclaration(
-    bool* ok) {
-  int pos = peek_position();
-  Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
-  // Allow "eval" or "arguments" for backward compatibility.
-  IdentifierT name = ParseIdentifier(kAllowRestrictedIdentifiers,
-                                     CHECK_OK_CUSTOM(NullStatement));
-  Expect(Token::LPAREN, CHECK_OK_CUSTOM(NullStatement));
-  if (peek() != Token::RPAREN) {
-    do {
-      ParseIdentifier(kAllowRestrictedIdentifiers,
-                      CHECK_OK_CUSTOM(NullStatement));
-    } while (Check(Token::COMMA));
-  }
-  Expect(Token::RPAREN, CHECK_OK_CUSTOM(NullStatement));
-  Expect(Token::SEMICOLON, CHECK_OK_CUSTOM(NullStatement));
-  return impl()->DeclareNative(name, pos, ok);
-}
-
-template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseAsyncFunctionDeclaration(
     ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
@@ -4023,69 +3931,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     function_literal->set_should_be_used_once_hint();
   }
 
-  impl()->AddFunctionForNameInference(function_literal);
+  impl()->InferFunctionName(function_literal);
 
   return function_literal;
-}
-
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
-    IdentifierT name, Scanner::Location class_name_location,
-    bool name_is_strict_reserved, int class_token_pos, bool* ok) {
-  // All parts of a ClassDeclaration and ClassExpression are strict code.
-  if (name_is_strict_reserved) {
-    impl()->ReportMessageAt(class_name_location,
-                            MessageTemplate::kUnexpectedStrictReserved);
-    *ok = false;
-    return impl()->EmptyExpression();
-  }
-  if (impl()->IsEvalOrArguments(name)) {
-    impl()->ReportMessageAt(class_name_location,
-                            MessageTemplate::kStrictEvalArguments);
-    *ok = false;
-    return impl()->EmptyExpression();
-  }
-
-  BlockState block_state(zone(), &scope_state_);
-  RaiseLanguageMode(STRICT);
-
-  ClassInfo class_info(this);
-  impl()->DeclareClassVariable(name, block_state.scope(), &class_info,
-                               class_token_pos, CHECK_OK);
-
-  if (Check(Token::EXTENDS)) {
-    block_state.set_start_position(scanner()->location().end_pos);
-    ExpressionClassifier extends_classifier(this);
-    class_info.extends = ParseLeftHandSideExpression(CHECK_OK);
-    impl()->RewriteNonPattern(CHECK_OK);
-    impl()->AccumulateFormalParameterContainmentErrors();
-  } else {
-    block_state.set_start_position(scanner()->location().end_pos);
-  }
-
-  ClassLiteralChecker checker(this);
-
-  Expect(Token::LBRACE, CHECK_OK);
-
-  const bool has_extends = !impl()->IsEmptyExpression(class_info.extends);
-  while (peek() != Token::RBRACE) {
-    if (Check(Token::SEMICOLON)) continue;
-    FuncNameInferrer::State fni_state(fni_);
-    bool is_computed_name = false;  // Classes do not care about computed
-                                    // property names here.
-    ExpressionClassifier property_classifier(this);
-    ClassLiteralPropertyT property = ParseClassPropertyDefinition(
-        &checker, has_extends, &is_computed_name,
-        &class_info.has_seen_constructor, CHECK_OK);
-    impl()->RewriteNonPattern(CHECK_OK);
-    impl()->AccumulateFormalParameterContainmentErrors();
-
-    impl()->DeclareClassProperty(name, property, &class_info, CHECK_OK);
-    impl()->InferFunctionName();
-  }
-
-  Expect(Token::RBRACE, CHECK_OK);
-  return impl()->RewriteClassLiteral(name, &class_info, class_token_pos, ok);
 }
 
 template <typename Impl>
@@ -4439,7 +4287,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
       return ParseHoistableDeclaration(nullptr, false, ok);
     case Token::CLASS:
       Consume(Token::CLASS);
-      return ParseClassDeclaration(nullptr, false, ok);
+      return impl()->ParseClassDeclaration(nullptr, false, ok);
     case Token::VAR:
     case Token::CONST:
       return ParseVariableStatement(kStatementListItem, nullptr, ok);
@@ -4717,7 +4565,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
   if (extension_ != nullptr && peek() == Token::FUNCTION &&
       !scanner()->HasAnyLineTerminatorBeforeNext() && impl()->IsNative(expr) &&
       !scanner()->literal_contains_escapes()) {
-    return ParseNativeDeclaration(ok);
+    return impl()->ParseNativeDeclaration(ok);
   }
 
   // Parsed expression statement, followed by semicolon.
