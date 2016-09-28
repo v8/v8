@@ -3546,8 +3546,7 @@ class AstNodeFactory final BASE_EMBEDDED {
       }
     }
 
-    void Reset() { factory_->zone_ = prev_zone_; }
-    ~BodyScope() { Reset(); }
+    ~BodyScope() { factory_->zone_ = prev_zone_; }
 
    private:
     AstNodeFactory* factory_;

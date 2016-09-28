@@ -127,15 +127,13 @@ class DiscardableZoneScope {
       }
     }
   }
-  void Reset() {
+  ~DiscardableZoneScope() {
     parser_->fni_ = prev_fni_;
     parser_->zone_ = prev_zone_;
     if (parser_->reusable_preparser_ != nullptr) {
       parser_->reusable_preparser_->zone_ = prev_zone_;
     }
-    ast_node_factory_scope_.Reset();
   }
-  ~DiscardableZoneScope() { Reset(); }
 
  private:
   AstNodeFactory::BodyScope ast_node_factory_scope_;
@@ -2628,11 +2626,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // will migrate unresolved variable into a Scope in the main Zone.
   // TODO(marja): Refactor parsing modes: simplify this.
   bool use_temp_zone =
-      allow_lazy() && function_type == FunctionLiteral::kDeclaration &&
+      !is_lazy_top_level_function && allow_lazy() &&
+      function_type == FunctionLiteral::kDeclaration &&
       eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
       !(FLAG_validate_asm && scope()->IsAsmModule());
-  bool is_lazy_inner_function =
-      use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
+  bool is_lazy_inner_function = use_temp_zone && FLAG_lazy_inner_functions;
 
   // This Scope lives in the main zone. We'll migrate data into that zone later.
   DeclarationScope* scope = NewFunctionScope(kind);
@@ -2645,45 +2643,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   bool should_be_used_once_hint = false;
   bool has_duplicate_parameters;
-
-  FunctionState function_state(&function_state_, &scope_state_, scope);
-#ifdef DEBUG
-  scope->SetScopeName(function_name);
-#endif
-
-  ExpressionClassifier formals_classifier(this, &duplicate_finder);
-
-  if (is_generator) {
-    // For generators, allocating variables in contexts is currently a win
-    // because it minimizes the work needed to suspend and resume an
-    // activation.  The machine code produced for generators (by full-codegen)
-    // relies on this forced context allocation, but not in an essential way.
-    this->scope()->ForceContextAllocation();
-
-    // Calling a generator returns a generator object.  That object is stored
-    // in a temporary variable, a definition that is used by "yield"
-    // expressions. This also marks the FunctionState as a generator.
-    Variable* temp =
-        NewTemporary(ast_value_factory()->dot_generator_object_string());
-    function_state.set_generator_object_variable(temp);
-  }
-
-  Expect(Token::LPAREN, CHECK_OK);
-  int start_position = scanner()->location().beg_pos;
-  this->scope()->set_start_position(start_position);
-  ParserFormalParameters formals(scope);
-  ParseFormalParameterList(&formals, CHECK_OK);
-  arity = formals.Arity();
-  Expect(Token::RPAREN, CHECK_OK);
-  int formals_end_position = scanner()->location().end_pos;
-
-  CheckArityRestrictions(arity, kind, formals.has_rest, start_position,
-                         formals_end_position, CHECK_OK);
-  Expect(Token::LBRACE, CHECK_OK);
-  // Don't include the rest parameter into the function's formal parameter
-  // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
-  // which says whether we need to create an arguments adaptor frame).
-  if (formals.has_rest) arity--;
 
   {
     // Temporary zones can nest. When we migrate free variables (see below), we
@@ -2698,9 +2657,45 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // information when the function is parsed.
     Zone temp_zone(zone()->allocator());
     DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
+
+    FunctionState function_state(&function_state_, &scope_state_, scope);
 #ifdef DEBUG
+    scope->SetScopeName(function_name);
     if (use_temp_zone) scope->set_needs_migration();
 #endif
+    ExpressionClassifier formals_classifier(this, &duplicate_finder);
+
+    if (is_generator) {
+      // For generators, allocating variables in contexts is currently a win
+      // because it minimizes the work needed to suspend and resume an
+      // activation.  The machine code produced for generators (by full-codegen)
+      // relies on this forced context allocation, but not in an essential way.
+      this->scope()->ForceContextAllocation();
+
+      // Calling a generator returns a generator object.  That object is stored
+      // in a temporary variable, a definition that is used by "yield"
+      // expressions. This also marks the FunctionState as a generator.
+      Variable* temp =
+          NewTemporary(ast_value_factory()->dot_generator_object_string());
+      function_state.set_generator_object_variable(temp);
+    }
+
+    Expect(Token::LPAREN, CHECK_OK);
+    int start_position = scanner()->location().beg_pos;
+    this->scope()->set_start_position(start_position);
+    ParserFormalParameters formals(scope);
+    ParseFormalParameterList(&formals, CHECK_OK);
+    arity = formals.Arity();
+    Expect(Token::RPAREN, CHECK_OK);
+    int formals_end_position = scanner()->location().end_pos;
+
+    CheckArityRestrictions(arity, kind, formals.has_rest, start_position,
+                           formals_end_position, CHECK_OK);
+    Expect(Token::LBRACE, CHECK_OK);
+    // Don't include the rest parameter into the function's formal parameter
+    // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
+    // which says whether we need to create an arguments adaptor frame).
+    if (formals.has_rest) arity--;
 
     // Eager or lazy parse? If is_lazy_top_level_function, we'll parse
     // lazily. We'll call SkipLazyFunctionBody, which may decide to abort lazy
@@ -2729,8 +2724,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
         should_be_used_once_hint = true;
         scope->ResetAfterPreparsing(true);
-        zone_scope.Reset();
-        use_temp_zone = false;
       }
     }
 
