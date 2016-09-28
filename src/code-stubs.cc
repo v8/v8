@@ -1845,7 +1845,7 @@ compiler::Node* DivideStub::Generate(CodeStubAssembler* assembler,
         Node* untagged_result =
             assembler->Int32Div(untagged_dividend, untagged_divisor);
         Node* truncated =
-            assembler->IntPtrMul(untagged_result, untagged_divisor);
+            assembler->Int32Mul(untagged_result, untagged_divisor);
         // Do floating point division if the remainder is not 0.
         assembler->GotoIf(
             assembler->Word32NotEqual(untagged_dividend, truncated), &bailout);
@@ -2048,7 +2048,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
       Node* untagged_result =
           assembler->Int32Div(untagged_dividend, untagged_divisor);
-      Node* truncated = assembler->IntPtrMul(untagged_result, untagged_divisor);
+      Node* truncated = assembler->Int32Mul(untagged_result, untagged_divisor);
       // Do floating point division if the remainder is not 0.
       assembler->GotoIf(assembler->Word32NotEqual(untagged_dividend, truncated),
                         &bailout);
