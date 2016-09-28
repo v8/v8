@@ -3263,9 +3263,10 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     job.AddPage(page, &abandoned_pages);
   }
 
+  const bool reduce_memory = heap()->ShouldReduceMemory();
   for (Page* page : newspace_evacuation_candidates_) {
     live_bytes += page->LiveBytes();
-    if (!page->NeverEvacuate() &&
+    if (!reduce_memory && !page->NeverEvacuate() &&
         (page->LiveBytes() > Evacuator::PageEvacuationThreshold())) {
       if (page->InIntermediateGeneration()) {
         EvacuateNewSpacePageVisitor::MoveToOldSpace(page, heap()->old_space());
