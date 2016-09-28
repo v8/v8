@@ -108,31 +108,19 @@ class IncrementalMarking {
   // incremental marker until it completes.
   // Do some marking every time this much memory has been allocated or that many
   // heavy (color-checking) write barriers have been invoked.
-  static const intptr_t kAllocatedThreshold = 65536;
-  static const intptr_t kWriteBarriersInvokedThreshold = 32768;
-  // Start off by marking this many times more memory than has been allocated.
-  static const intptr_t kInitialMarkingSpeed = 1;
-  // But if we are promoting a lot of data we need to mark faster to keep up
-  // with the data that is entering the old space through promotion.
-  static const intptr_t kFastMarking = 3;
-  // After this many steps we increase the marking/allocating factor.
-  static const intptr_t kMarkingSpeedAccellerationInterval = 1024;
-  // This is how much we increase the marking/allocating factor by.
-  static const intptr_t kMarkingSpeedAccelleration = 2;
-  static const intptr_t kMaxMarkingSpeed = 1000;
+  static const size_t kAllocatedThreshold = 64 * KB;
 
-  static const intptr_t kStepSizeInMs = 1;
+  static const int kStepSizeInMs = 1;
+  static const int kMaxStepSizeInMs = 5;
 
   // This is the upper bound for how many times we allow finalization of
   // incremental marking to be postponed.
-  static const size_t kMaxIdleMarkingDelayCounter = 3;
+  static const int kMaxIdleMarkingDelayCounter = 3;
 
   void FinalizeSweeping();
 
-  void NotifyAllocatedBytes(intptr_t allocated_bytes);
-
-  void Step(intptr_t bytes_to_process, CompletionAction action,
-            ForceCompletionAction completion, StepOrigin origin);
+  size_t Step(size_t bytes_to_process, CompletionAction action,
+              ForceCompletionAction completion, StepOrigin step_origin);
 
   inline void RestartIfNotMarking();
 
@@ -174,8 +162,6 @@ class IncrementalMarking {
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
   void ActivateGeneratedStub(Code* stub);
-
-  void NotifyOfHighPromotionRate();
 
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
@@ -235,7 +221,7 @@ class IncrementalMarking {
           incremental_marking_(incremental_marking) {}
 
     void Step(int bytes_allocated, Address, size_t) override {
-      incremental_marking_.NotifyAllocatedBytes(bytes_allocated);
+      incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
     }
 
    private:
@@ -243,10 +229,6 @@ class IncrementalMarking {
   };
 
   int64_t SpaceLeftInOldSpace();
-
-  void SpeedUp();
-
-  void ResetStepCounters();
 
   void StartMarking();
 
@@ -283,38 +265,36 @@ class IncrementalMarking {
 
   void IncrementIdleMarkingDelayCounter();
 
+  void AdvanceIncrementalMarkingOnAllocation();
+
+  size_t StepSizeToKeepUpWithAllocations();
+  size_t StepSizeToMakeProgress();
+
   Heap* heap_;
 
-  Observer observer_;
-
   State state_;
-  bool is_compacting_;
 
-  int steps_count_;
-  int64_t old_generation_space_available_at_start_of_incremental_;
-  int64_t old_generation_space_used_at_start_of_incremental_;
-  int64_t bytes_rescanned_;
-  bool should_hurry_;
-  int marking_speed_;
-  intptr_t bytes_scanned_;
-  intptr_t allocated_;
-  intptr_t write_barriers_invoked_since_last_step_;
-  intptr_t bytes_marked_ahead_of_schedule_;
-  size_t idle_marking_delay_counter_;
+  double start_time_ms_;
+  size_t initial_old_generation_size_;
+  size_t old_generation_allocation_counter_;
+  size_t bytes_allocated_;
+  size_t bytes_marked_ahead_of_schedule_;
+  size_t unscanned_bytes_of_large_object_;
 
-  int unscanned_bytes_of_large_object_;
-
-  bool was_activated_;
-
-  bool black_allocation_;
-
-  bool finalize_marking_completed_;
-
+  int idle_marking_delay_counter_;
   int incremental_marking_finalization_rounds_;
+
+  bool is_compacting_;
+  bool should_hurry_;
+  bool was_activated_;
+  bool black_allocation_;
+  bool finalize_marking_completed_;
 
   GCRequestType request_type_;
 
   IncrementalMarkingJob incremental_marking_job_;
+  Observer new_generation_observer_;
+  Observer old_generation_observer_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

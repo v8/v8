@@ -1387,16 +1387,18 @@ class Heap {
   }
 
   void UpdateOldGenerationAllocationCounter() {
-    old_generation_allocation_counter_ = OldGenerationAllocationCounter();
+    old_generation_allocation_counter_at_last_gc_ =
+        OldGenerationAllocationCounter();
   }
 
   size_t OldGenerationAllocationCounter() {
-    return old_generation_allocation_counter_ + PromotedSinceLastGC();
+    return old_generation_allocation_counter_at_last_gc_ +
+           PromotedSinceLastGC();
   }
 
   // This should be used only for testing.
-  void set_old_generation_allocation_counter(size_t new_value) {
-    old_generation_allocation_counter_ = new_value;
+  void set_old_generation_allocation_counter_at_last_gc(size_t new_value) {
+    old_generation_allocation_counter_at_last_gc_ = new_value;
   }
 
   size_t PromotedSinceLastGC() {
@@ -1722,10 +1724,6 @@ class Heap {
   int FullSizeNumberStringCacheLength();
   // Flush the number to string cache.
   void FlushNumberStringCache();
-
-  // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
-  // Re-visit incremental marking heuristics.
-  bool IsHighSurvivalRate() { return high_survival_rate_period_length_ > 0; }
 
   void ConfigureInitialOldGenerationSize();
 
@@ -2201,7 +2199,6 @@ class Heap {
 
   GCTracer* tracer_;
 
-  int high_survival_rate_period_length_;
   intptr_t promoted_objects_size_;
   double promotion_ratio_;
   double promotion_rate_;
@@ -2260,7 +2257,7 @@ class Heap {
   // This counter is increased before each GC and never reset. To
   // account for the bytes allocated since the last GC, use the
   // OldGenerationAllocationCounter() function.
-  size_t old_generation_allocation_counter_;
+  size_t old_generation_allocation_counter_at_last_gc_;
 
   // The size of objects in old generation after the last MarkCompact GC.
   size_t old_generation_size_at_last_gc_;

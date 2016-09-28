@@ -3155,16 +3155,6 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   Label need_incremental;
   Label need_incremental_pop_scratch;
 
-  Register mem_chunk = regs_.scratch0();
-  Register counter = regs_.scratch1();
-  __ Bic(mem_chunk, regs_.object(), Page::kPageAlignmentMask);
-  __ Ldr(counter,
-         MemOperand(mem_chunk, MemoryChunk::kWriteBarrierCounterOffset));
-  __ Subs(counter, counter, 1);
-  __ Str(counter,
-         MemOperand(mem_chunk, MemoryChunk::kWriteBarrierCounterOffset));
-  __ B(mi, &need_incremental);
-
   // If the object is not black we don't have to inform the incremental marker.
   __ JumpIfBlack(regs_.object(), regs_.scratch0(), regs_.scratch1(), &on_black);
 

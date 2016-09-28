@@ -115,7 +115,6 @@ Heap::Heap()
       inline_allocation_disabled_(false),
       total_regexp_code_generated_(0),
       tracer_(nullptr),
-      high_survival_rate_period_length_(0),
       promoted_objects_size_(0),
       promotion_ratio_(0),
       semi_space_copied_object_size_(0),
@@ -141,7 +140,7 @@ Heap::Heap()
       full_codegen_bytes_generated_(0),
       crankshaft_codegen_bytes_generated_(0),
       new_space_allocation_counter_(0),
-      old_generation_allocation_counter_(0),
+      old_generation_allocation_counter_at_last_gc_(0),
       old_generation_size_at_last_gc_(0),
       gcs_since_last_deopt_(0),
       global_pretenuring_feedback_(nullptr),
@@ -1269,11 +1268,6 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
 
   double survival_rate = promotion_ratio_ + semi_space_copied_rate_;
   tracer()->AddSurvivalRatio(survival_rate);
-  if (survival_rate > kYoungSurvivalRateHighThreshold) {
-    high_survival_rate_period_length_++;
-  } else {
-    high_survival_rate_period_length_ = 0;
-  }
 }
 
 bool Heap::PerformGarbageCollection(
@@ -1310,13 +1304,6 @@ bool Heap::PerformGarbageCollection(
 
   int start_new_space_size = static_cast<int>(Heap::new_space()->Size());
 
-  if (IsHighSurvivalRate()) {
-    // We speed up the incremental marker if it is running so that it
-    // does not fall behind the rate of promotion, which would cause a
-    // constantly growing old space.
-    incremental_marking()->NotifyOfHighPromotionRate();
-  }
-
   {
     Heap::PretenuringScope pretenuring_scope(this);
 
@@ -1327,7 +1314,7 @@ bool Heap::PerformGarbageCollection(
       old_generation_size_configured_ = true;
       // This should be updated before PostGarbageCollectionProcessing, which
       // can cause another GC. Take into account the objects promoted during GC.
-      old_generation_allocation_counter_ +=
+      old_generation_allocation_counter_at_last_gc_ +=
           static_cast<size_t>(promoted_objects_size_);
       old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
     } else {

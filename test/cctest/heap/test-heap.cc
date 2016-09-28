@@ -6209,7 +6209,8 @@ TEST(OldSpaceAllocationCounter) {
   CHECK_LE(kSize, counter4 - counter3);
   // Test counter overflow.
   size_t max_counter = -1;
-  heap->set_old_generation_allocation_counter(max_counter - 10 * kSize);
+  heap->set_old_generation_allocation_counter_at_last_gc(max_counter -
+                                                         10 * kSize);
   size_t start = heap->OldGenerationAllocationCounter();
   for (int i = 0; i < 20; i++) {
     AllocateInSpace(isolate, kSize, OLD_SPACE);
