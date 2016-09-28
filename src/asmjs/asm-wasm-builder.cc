@@ -621,12 +621,30 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       } else if (expr->raw_value()->IsFalse()) {
         byte code[] = {WASM_I32V(0)};
         current_function_builder_->EmitCode(code, sizeof(code));
+      } else if (expr->raw_value()->IsNumber()) {
+        // This can happen when -x becomes x * -1 (due to the parser).
+        int32_t i = 0;
+        if (!value->ToInt32(&i) || i != -1) {
+          UNREACHABLE();
+        }
+        byte code[] = {WASM_I32V(i)};
+        current_function_builder_->EmitCode(code, sizeof(code));
       } else {
         UNREACHABLE();
       }
     } else if (type->IsA(AsmType::Double())) {
+      // TODO(bradnelson): Pattern match the case where negation occurs and
+      // emit f64.neg instead.
       double val = expr->raw_value()->AsNumber();
       byte code[] = {WASM_F64(val)};
+      current_function_builder_->EmitCode(code, sizeof(code));
+    } else if (type->IsA(AsmType::Float())) {
+      // This can happen when -fround(x) becomes fround(x) * 1.0[float]
+      // (due to the parser).
+      // TODO(bradnelson): Pattern match this and emit f32.neg instead.
+      double val = expr->raw_value()->AsNumber();
+      DCHECK_EQ(-1.0, val);
+      byte code[] = {WASM_F32(val)};
       current_function_builder_->EmitCode(code, sizeof(code));
     } else {
       UNREACHABLE();
