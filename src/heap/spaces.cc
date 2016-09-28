@@ -2889,7 +2889,19 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
     }
   }
 
-  if (heap()->ShouldExpandOldGenerationOnAllocationFailure() && Expand()) {
+  // Free list allocation failed and there is no next page.  Fail if we have
+  // hit the old generation size limit that should cause a garbage
+  // collection.
+  if (!heap()->always_allocate() &&
+      heap()->OldGenerationAllocationLimitReached()) {
+    // If sweeper threads are active, wait for them at that point and steal
+    // elements form their free-lists.
+    HeapObject* object = SweepAndRetryAllocation(size_in_bytes);
+    return object;
+  }
+
+  // Try to expand the space and allocate in the new next page.
+  if (Expand()) {
     DCHECK((CountTotalPages() > 1) ||
            (size_in_bytes <= free_list_.Available()));
     return free_list_.Allocate(size_in_bytes);

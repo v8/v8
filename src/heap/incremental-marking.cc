@@ -400,6 +400,22 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
 }
 
 
+bool IncrementalMarking::ShouldActivateEvenWithoutIdleNotification() {
+#ifndef DEBUG
+  static const intptr_t kActivationThreshold = 8 * MB;
+#else
+  // TODO(gc) consider setting this to some low level so that some
+  // debug tests run with incremental marking and some without.
+  static const intptr_t kActivationThreshold = 0;
+#endif
+  // Don't switch on for very small heaps.
+  return CanBeActivated() &&
+         heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold &&
+         heap_->HeapIsFullEnoughToStartIncrementalMarking(
+             heap_->old_generation_allocation_limit());
+}
+
+
 bool IncrementalMarking::WasActivated() { return was_activated_; }
 
 

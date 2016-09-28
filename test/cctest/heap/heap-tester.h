@@ -30,7 +30,6 @@
   V(TestMemoryReducerSampleJsCalls)                       \
   V(TestSizeOfObjects)                                    \
   V(Regress587004)                                        \
-  V(Regress538257)                                        \
   V(Regress589413)                                        \
   V(WriteBarriersInCopyJSObject)
 

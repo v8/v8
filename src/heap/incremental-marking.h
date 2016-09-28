@@ -72,6 +72,8 @@ class IncrementalMarking {
 
   bool CanBeActivated();
 
+  bool ShouldActivateEvenWithoutIdleNotification();
+
   bool WasActivated();
 
   void Start(GarbageCollectionReason gc_reason);
@@ -114,12 +116,6 @@ class IncrementalMarking {
   // This is the upper bound for how many times we allow finalization of
   // incremental marking to be postponed.
   static const int kMaxIdleMarkingDelayCounter = 3;
-
-#ifndef DEBUG
-  static const intptr_t kActivationThreshold = 8 * MB;
-#else
-  static const intptr_t kActivationThreshold = 0;
-#endif
 
   void FinalizeSweeping();
 
