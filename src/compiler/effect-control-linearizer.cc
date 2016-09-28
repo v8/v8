@@ -785,75 +785,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
                                                     Node* control) {
-  CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
   Node* value = node->InputAt(0);
-
-  Node* value32 = graph()->NewNode(machine()->RoundFloat64ToInt32(), value);
-  Node* check_same = graph()->NewNode(
-      machine()->Float64Equal(), value,
-      graph()->NewNode(machine()->ChangeInt32ToFloat64(), value32));
-  Node* branch_same = graph()->NewNode(common()->Branch(), check_same, control);
-
-  Node* if_smi = graph()->NewNode(common()->IfTrue(), branch_same);
-  Node* vsmi;
-  Node* if_box = graph()->NewNode(common()->IfFalse(), branch_same);
-
-  if (mode == CheckForMinusZeroMode::kCheckForMinusZero) {
-    // Check if {value} is -0.
-    Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
-                                        jsgraph()->Int32Constant(0));
-    Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                         check_zero, if_smi);
-
-    Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
-    Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
-
-    // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-    Node* check_negative = graph()->NewNode(
-        machine()->Int32LessThan(),
-        graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
-        jsgraph()->Int32Constant(0));
-    Node* branch_negative = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), check_negative, if_zero);
-
-    Node* if_negative = graph()->NewNode(common()->IfTrue(), branch_negative);
-    Node* if_notnegative =
-        graph()->NewNode(common()->IfFalse(), branch_negative);
-
-    // We need to create a box for negative 0.
-    if_smi = graph()->NewNode(common()->Merge(2), if_notzero, if_notnegative);
-    if_box = graph()->NewNode(common()->Merge(2), if_box, if_negative);
-  }
-
-  // On 64-bit machines we can just wrap the 32-bit integer in a smi, for 32-bit
-  // machines we need to deal with potential overflow and fallback to boxing.
-  if (machine()->Is64()) {
-    vsmi = ChangeInt32ToSmi(value32);
-  } else {
-    Node* smi_tag = graph()->NewNode(machine()->Int32AddWithOverflow(), value32,
-                                     value32, if_smi);
-
-    Node* check_ovf =
-        graph()->NewNode(common()->Projection(1), smi_tag, if_smi);
-    Node* branch_ovf = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                        check_ovf, if_smi);
-
-    Node* if_ovf = graph()->NewNode(common()->IfTrue(), branch_ovf);
-    if_box = graph()->NewNode(common()->Merge(2), if_ovf, if_box);
-
-    if_smi = graph()->NewNode(common()->IfFalse(), branch_ovf);
-    vsmi = graph()->NewNode(common()->Projection(0), smi_tag, if_smi);
-  }
-
-  // Allocate the box for the {value}.
-  ValueEffectControl box = AllocateHeapNumberWithValue(value, effect, if_box);
-
-  control = graph()->NewNode(common()->Merge(2), if_smi, box.control);
-  value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           vsmi, box.value, control);
-  effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, box.effect, control);
-  return ValueEffectControl(value, effect, control);
+  return AllocateHeapNumberWithValue(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

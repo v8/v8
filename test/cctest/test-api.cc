@@ -21799,7 +21799,7 @@ const char* kMegamorphicTestProgram =
     "}\n"
     "for (var i = 0; i < 1000; i++) {\n"
     "  for (var obj of objs) {\n"
-    "    trigger_ics(obj, i);\n"
+    "    trigger_ics(obj, 1);\n"
     "  }\n"
     "}\n";
 
