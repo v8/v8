@@ -16,7 +16,7 @@ deps = {
   "v8/third_party/instrumented_libraries":
     Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "45f5814b1543e41ea0be54c771e3840ea52cca4a",
   "v8/buildtools":
-    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "86f7e41d9424b9d8faf66c601b129855217f9a08",
+    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "5fd66957f08bb752dca714a591c84587c9d70762",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "6232c13e4edb36c84c61653fdae5a4afb5af9745",
   "v8/third_party/WebKit/Source/platform/inspector_protocol":
@@ -55,7 +55,10 @@ deps_os = {
   }
 }
 
-recursedeps = [ 'v8/third_party/android_tools' ]
+recursedeps = [
+  "v8/buildtools",
+  "v8/third_party/android_tools",
+]
 
 include_rules = [
   # Everybody can use some things.
