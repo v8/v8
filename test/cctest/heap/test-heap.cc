@@ -5583,8 +5583,7 @@ static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CcTest::isolate()->RequestInterrupt(&InterruptCallback357137, NULL);
 }
 
-
-UNINITIALIZED_TEST(Regress538257) {
+HEAP_TEST(Regress538257) {
   i::FLAG_manual_evacuation_candidates_selection = true;
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
