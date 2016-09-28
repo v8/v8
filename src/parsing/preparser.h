@@ -596,8 +596,7 @@ class PreParserFactory {
       int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
-      FunctionLiteral::EagerCompileHint eager_compile_hint, FunctionKind kind,
-      int position) {
+      FunctionLiteral::EagerCompileHint eager_compile_hint, int position) {
     return PreParserExpression::Default();
   }
 

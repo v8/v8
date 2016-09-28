@@ -2293,8 +2293,7 @@ ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
       initializer_state.expected_property_count(), 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldLazyCompile, kind,
-      initializer_scope->start_position());
+      FunctionLiteral::kShouldLazyCompile, initializer_scope->start_position());
   function_literal->set_is_class_field_initializer(true);
   return function_literal;
 }
@@ -4039,7 +4038,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       impl()->EmptyIdentifierString(), formal_parameters.scope, body,
       materialized_literal_count, expected_property_count, num_parameters,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression, eager_compile_hint, kind,
+      FunctionLiteral::kAnonymousExpression, eager_compile_hint,
       formal_parameters.scope->start_position());
 
   function_literal->set_function_token_position(

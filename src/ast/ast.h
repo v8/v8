@@ -2668,7 +2668,7 @@ class FunctionLiteral final : public Expression {
   FunctionType function_type() const {
     return FunctionTypeBits::decode(bit_field_);
   }
-  FunctionKind kind() const { return FunctionKindBits::decode(bit_field_); }
+  FunctionKind kind() const;
 
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags flags() const { return ast_properties_.flags(); }
@@ -2680,10 +2680,10 @@ class FunctionLiteral final : public Expression {
   }
   bool dont_optimize() { return dont_optimize_reason() != kNoReason; }
   BailoutReason dont_optimize_reason() {
-    return DontOptimizeReasonField::decode(bit_field_2_);
+    return DontOptimizeReasonField::decode(bit_field_);
   }
   void set_dont_optimize_reason(BailoutReason reason) {
-    bit_field_2_ = DontOptimizeReasonField::update(bit_field_2_, reason);
+    bit_field_ = DontOptimizeReasonField::update(bit_field_, reason);
   }
 
   bool IsAnonymousFunctionDefinition() const {
@@ -2701,11 +2701,11 @@ class FunctionLiteral final : public Expression {
         RequiresClassFieldInit::update(bit_field_, requires_class_field_init);
   }
   bool is_class_field_initializer() {
-    return IsClassFieldInitializer::decode(bit_field_2_);
+    return IsClassFieldInitializer::decode(bit_field_);
   }
   void set_is_class_field_initializer(bool is_class_field_initializer) {
-    bit_field_ = IsClassFieldInitializer::update(bit_field_2_,
-                                                 is_class_field_initializer);
+    bit_field_ =
+        IsClassFieldInitializer::update(bit_field_, is_class_field_initializer);
   }
 
  private:
@@ -2717,8 +2717,8 @@ class FunctionLiteral final : public Expression {
                   int expected_property_count, int parameter_count,
                   FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
-                  EagerCompileHint eager_compile_hint, FunctionKind kind,
-                  int position, bool is_function)
+                  EagerCompileHint eager_compile_hint, int position,
+                  bool is_function)
       : Expression(position, kFunctionLiteral),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
@@ -2736,13 +2736,10 @@ class FunctionLiteral final : public Expression {
                                        kHasDuplicateParameters) |
         IsFunction::encode(is_function) |
         ShouldEagerCompile::encode(eager_compile_hint == kShouldEagerCompile) |
-        FunctionKindBits::encode(kind) | RequiresClassFieldInit::encode(false) |
-        ShouldNotBeUsedOnceHintField::encode(false);
-
-    bit_field_2_ = DontOptimizeReasonField::encode(kNoReason) |
-                   IsClassFieldInitializer::encode(false);
-
-    DCHECK(IsValidFunctionKind(kind));
+        RequiresClassFieldInit::encode(false) |
+        ShouldNotBeUsedOnceHintField::encode(false) |
+        DontOptimizeReasonField::encode(kNoReason) |
+        IsClassFieldInitializer::encode(false);
   }
 
   class FunctionTypeBits
@@ -2751,16 +2748,12 @@ class FunctionLiteral final : public Expression {
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
   class IsFunction : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
   class ShouldEagerCompile : public BitField<bool, IsFunction::kNext, 1> {};
-  class FunctionKindBits
-      : public BitField<FunctionKind, ShouldEagerCompile::kNext, 9> {};
   class ShouldNotBeUsedOnceHintField
-      : public BitField<bool, FunctionKindBits::kNext, 1> {};
+      : public BitField<bool, ShouldEagerCompile::kNext, 1> {};
   class RequiresClassFieldInit
       : public BitField<bool, ShouldNotBeUsedOnceHintField::kNext, 1> {};
-
-  uint32_t bit_field_2_;
-
-  class IsClassFieldInitializer : public BitField<bool, 0, 1> {};
+  class IsClassFieldInitializer
+      : public BitField<bool, RequiresClassFieldInit::kNext, 1> {};
   class DontOptimizeReasonField
       : public BitField<BailoutReason, IsClassFieldInitializer::kNext, 8> {};
 
@@ -3469,13 +3462,12 @@ class AstNodeFactory final BASE_EMBEDDED {
       int expected_property_count, int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
-      FunctionLiteral::EagerCompileHint eager_compile_hint, FunctionKind kind,
-      int position) {
-    return new (zone_) FunctionLiteral(
-        zone_, name, ast_value_factory_, scope, body,
-        materialized_literal_count, expected_property_count, parameter_count,
-        function_type, has_duplicate_parameters, eager_compile_hint, kind,
-        position, true);
+      FunctionLiteral::EagerCompileHint eager_compile_hint, int position) {
+    return new (zone_) FunctionLiteral(zone_, name, ast_value_factory_, scope,
+                                       body, materialized_literal_count,
+                                       expected_property_count, parameter_count,
+                                       function_type, has_duplicate_parameters,
+                                       eager_compile_hint, position, true);
   }
 
   // Creates a FunctionLiteral representing a top-level script, the
@@ -3490,8 +3482,7 @@ class AstNodeFactory final BASE_EMBEDDED {
         body, materialized_literal_count, expected_property_count,
         parameter_count, FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
-        FunctionLiteral::kShouldLazyCompile, FunctionKind::kNormalFunction, 0,
-        false);
+        FunctionLiteral::kShouldLazyCompile, 0, false);
   }
 
   ClassLiteral::Property* NewClassLiteralProperty(

@@ -313,6 +313,7 @@ LanguageMode FunctionLiteral::language_mode() const {
   return scope()->language_mode();
 }
 
+FunctionKind FunctionLiteral::kind() const { return scope()->function_kind(); }
 
 bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
   if (expr == nullptr || !expr->IsFunctionLiteral()) return false;
