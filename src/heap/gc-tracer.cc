@@ -23,6 +23,9 @@ static intptr_t CountTotalHolesSize(Heap* heap) {
 
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
     : tracer_(tracer), scope_(scope) {
+  // All accesses to incremental_marking_scope assume that incremental marking
+  // scopes come first.
+  STATIC_ASSERT(FIRST_INCREMENTAL_SCOPE == 0);
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
@@ -73,10 +76,8 @@ GCTracer::Event::Event(Type type, GarbageCollectionReason gc_reason,
       end_holes_size(0),
       new_space_object_size(0),
       survived_new_space_object_size(0),
-      cumulative_incremental_marking_bytes(0),
       incremental_marking_bytes(0),
-      cumulative_pure_incremental_marking_duration(0.0),
-      pure_incremental_marking_duration(0.0) {
+      incremental_marking_duration(0.0) {
   for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     scopes[i] = 0;
   }
@@ -112,10 +113,9 @@ GCTracer::GCTracer(Heap* heap)
     : heap_(heap),
       current_(Event::START, GarbageCollectionReason::kUnknown, nullptr),
       previous_(current_),
-      previous_incremental_mark_compactor_event_(current_),
-      cumulative_incremental_marking_bytes_(0),
-      cumulative_incremental_marking_duration_(0.0),
-      cumulative_pure_incremental_marking_duration_(0.0),
+      incremental_marking_bytes_(0),
+      incremental_marking_duration_(0.0),
+      recorded_incremental_marking_speed_(0.0),
       allocation_time_ms_(0.0),
       new_space_allocation_counter_bytes_(0),
       old_generation_allocation_counter_bytes_(0),
@@ -130,15 +130,8 @@ GCTracer::GCTracer(Heap* heap)
 void GCTracer::ResetForTesting() {
   current_ = Event(Event::START, GarbageCollectionReason::kTesting, nullptr);
   current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
-  previous_ = previous_incremental_mark_compactor_event_ = current_;
-  cumulative_incremental_marking_bytes_ = 0.0;
-  cumulative_incremental_marking_duration_ = 0.0;
-  cumulative_pure_incremental_marking_duration_ = 0.0;
-  for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
-    incremental_marking_scopes_[i].cumulative_duration = 0.0;
-    incremental_marking_scopes_[i].steps = 0;
-    incremental_marking_scopes_[i].longest_step = 0.0;
-  }
+  previous_ = current_;
+  ResetIncrementalMarkingCounters();
   allocation_time_ms_ = 0.0;
   new_space_allocation_counter_bytes_ = 0.0;
   old_generation_allocation_counter_bytes_ = 0.0;
@@ -168,8 +161,6 @@ void GCTracer::Start(GarbageCollector collector,
   double start_time = heap_->MonotonicallyIncreasingTimeInMs();
   SampleAllocation(start_time, heap_->NewSpaceAllocationCounter(),
                    heap_->OldGenerationAllocationCounter());
-  if (current_.type == Event::INCREMENTAL_MARK_COMPACTOR)
-    previous_incremental_mark_compactor_event_ = current_;
 
   if (collector == SCAVENGER) {
     current_ = Event(Event::SCAVENGER, gc_reason, collector_reason);
@@ -190,10 +181,8 @@ void GCTracer::Start(GarbageCollector collector,
   current_.new_space_object_size =
       heap_->new_space()->top() - heap_->new_space()->bottom();
 
-  current_.cumulative_incremental_marking_bytes =
-      cumulative_incremental_marking_bytes_;
-  current_.cumulative_pure_incremental_marking_duration =
-      cumulative_pure_incremental_marking_duration_;
+  current_.incremental_marking_bytes = 0;
+  current_.incremental_marking_duration = 0;
 
   for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     current_.scopes[i] = 0;
@@ -220,18 +209,11 @@ void GCTracer::Start(GarbageCollector collector,
   }
 }
 
-void GCTracer::MergeBaseline(const Event& baseline) {
-  current_.incremental_marking_bytes =
-      current_.cumulative_incremental_marking_bytes -
-      baseline.cumulative_incremental_marking_bytes;
-  current_.pure_incremental_marking_duration =
-      current_.cumulative_pure_incremental_marking_duration -
-      baseline.cumulative_pure_incremental_marking_duration;
-  for (int i = Scope::FIRST_INCREMENTAL_SCOPE;
-       i <= Scope::LAST_INCREMENTAL_SCOPE; i++) {
-    current_.scopes[i] =
-        current_.incremental_marking_scopes[i].cumulative_duration -
-        baseline.incremental_marking_scopes[i].cumulative_duration;
+void GCTracer::ResetIncrementalMarkingCounters() {
+  incremental_marking_bytes_ = 0;
+  incremental_marking_duration_ = 0;
+  for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
+    incremental_marking_scopes_[i].ResetCurrentCycle();
   }
 }
 
@@ -251,11 +233,6 @@ void GCTracer::Stop(GarbageCollector collector) {
           (current_.type == Event::MARK_COMPACTOR ||
            current_.type == Event::INCREMENTAL_MARK_COMPACTOR)));
 
-  for (int i = Scope::FIRST_INCREMENTAL_SCOPE;
-       i <= Scope::LAST_INCREMENTAL_SCOPE; i++) {
-    current_.incremental_marking_scopes[i] = incremental_marking_scopes_[i];
-  }
-
   current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
   current_.end_object_size = heap_->SizeOfObjects();
   current_.end_memory_size = heap_->memory_allocator()->Size();
@@ -274,31 +251,30 @@ void GCTracer::Stop(GarbageCollector collector) {
   double duration = current_.end_time - current_.start_time;
 
   if (current_.type == Event::SCAVENGER) {
-    MergeBaseline(previous_);
     recorded_scavenges_total_.Push(
         MakeBytesAndDuration(current_.new_space_object_size, duration));
     recorded_scavenges_survived_.Push(MakeBytesAndDuration(
         current_.survived_new_space_object_size, duration));
   } else if (current_.type == Event::INCREMENTAL_MARK_COMPACTOR) {
-    MergeBaseline(previous_incremental_mark_compactor_event_);
-    recorded_incremental_marking_steps_.Push(
-        MakeBytesAndDuration(current_.incremental_marking_bytes,
-                             current_.pure_incremental_marking_duration));
+    current_.incremental_marking_bytes = incremental_marking_bytes_;
+    current_.incremental_marking_duration = incremental_marking_duration_;
+    for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
+      current_.incremental_marking_scopes[i] = incremental_marking_scopes_[i];
+      current_.scopes[i] = incremental_marking_scopes_[i].duration;
+    }
+    RecordIncrementalMarkingSpeed(current_.incremental_marking_bytes,
+                                  current_.incremental_marking_duration);
     recorded_incremental_mark_compacts_.Push(
         MakeBytesAndDuration(current_.start_object_size, duration));
+    ResetIncrementalMarkingCounters();
     combined_mark_compact_speed_cache_ = 0.0;
-    for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
-      incremental_marking_scopes_[i].ResetCurrentCycle();
-    }
   } else {
-    DCHECK(current_.incremental_marking_bytes == 0);
-    DCHECK(current_.pure_incremental_marking_duration == 0);
+    DCHECK_EQ(0, current_.incremental_marking_bytes);
+    DCHECK_EQ(0, current_.incremental_marking_duration);
     recorded_mark_compacts_.Push(
         MakeBytesAndDuration(current_.start_object_size, duration));
+    ResetIncrementalMarkingCounters();
     combined_mark_compact_speed_cache_ = 0.0;
-    for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
-      incremental_marking_scopes_[i].ResetCurrentCycle();
-    }
   }
 
   heap_->UpdateTotalGCTime(duration);
@@ -386,10 +362,9 @@ void GCTracer::AddSurvivalRatio(double promotion_ratio) {
 
 
 void GCTracer::AddIncrementalMarkingStep(double duration, intptr_t bytes) {
-  cumulative_incremental_marking_bytes_ += bytes;
-  cumulative_incremental_marking_duration_ += duration;
   if (bytes > 0) {
-    cumulative_pure_incremental_marking_duration_ += duration;
+    incremental_marking_bytes_ += bytes;
+    incremental_marking_duration_ += duration;
   }
 }
 
@@ -722,15 +697,26 @@ double GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer) {
   return AverageSpeed(buffer, MakeBytesAndDuration(0, 0), 0);
 }
 
-double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
-  if (cumulative_incremental_marking_duration_ == 0.0) return 0;
-  // We haven't completed an entire round of incremental marking, yet.
-  // Use data from GCTracer instead of data from event buffers.
-  if (recorded_incremental_marking_steps_.Count() == 0) {
-    return cumulative_incremental_marking_bytes_ /
-           cumulative_pure_incremental_marking_duration_;
+void GCTracer::RecordIncrementalMarkingSpeed(intptr_t bytes, double duration) {
+  if (duration == 0 || bytes == 0) return;
+  double current_speed = bytes / duration;
+  if (recorded_incremental_marking_speed_ == 0) {
+    recorded_incremental_marking_speed_ = current_speed;
+  } else {
+    recorded_incremental_marking_speed_ =
+        (recorded_incremental_marking_speed_ + current_speed) / 2;
   }
-  return AverageSpeed(recorded_incremental_marking_steps_);
+}
+
+double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
+  const int kConservativeSpeedInBytesPerMillisecond = 128 * KB;
+  if (recorded_incremental_marking_speed_ != 0) {
+    return recorded_incremental_marking_speed_;
+  }
+  if (incremental_marking_duration_ != 0.0) {
+    return incremental_marking_bytes_ / incremental_marking_duration_;
+  }
+  return kConservativeSpeedInBytesPerMillisecond;
 }
 
 double GCTracer::ScavengeSpeedInBytesPerMillisecond(
