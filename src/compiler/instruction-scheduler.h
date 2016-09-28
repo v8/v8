@@ -21,8 +21,11 @@ enum ArchOpcodeFlags {
   kHasSideEffect = 2,      // The instruction has some side effects (memory
                            // store, function call...)
   kIsLoadOperation = 4,    // The instruction is a memory load.
+  kMayNeedDeoptCheck = 8,  // The instruction might be associated with a deopt
+                           // check. This is the case of instruction which can
+                           // blow up with particular inputs (e.g.: division by
+                           // zero on Intel platforms).
 };
-
 
 class InstructionScheduler final : public ZoneObject {
  public:
@@ -155,12 +158,25 @@ class InstructionScheduler final : public ZoneObject {
   // Check whether the given instruction has side effects (e.g. function call,
   // memory store).
   bool HasSideEffect(const Instruction* instr) const {
-    return GetInstructionFlags(instr) & kHasSideEffect;
+    return (GetInstructionFlags(instr) & kHasSideEffect) != 0;
   }
 
   // Return true if the instruction is a memory load.
   bool IsLoadOperation(const Instruction* instr) const {
-    return GetInstructionFlags(instr) & kIsLoadOperation;
+    return (GetInstructionFlags(instr) & kIsLoadOperation) != 0;
+  }
+
+  // Return true if this instruction is usually associated with a deopt check
+  // to validate its input.
+  bool MayNeedDeoptCheck(const Instruction* instr) const {
+    return (GetInstructionFlags(instr) & kMayNeedDeoptCheck) != 0;
+  }
+
+  // Return true if the instruction cannot be moved before the last deopt
+  // point we encountered.
+  bool DependsOnDeoptimization(const Instruction* instr) const {
+    return MayNeedDeoptCheck(instr) || instr->IsDeoptimizeCall() ||
+           HasSideEffect(instr) || IsLoadOperation(instr);
   }
 
   // Identify nops used as a definition point for live-in registers at

@@ -136,9 +136,9 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
       last_live_in_reg_marker_->AddSuccessor(new_node);
     }
 
-    // Make sure that new instructions are not scheduled before the last
-    // deoptimization point.
-    if (last_deopt_ != nullptr) {
+    // Make sure that instructions are not scheduled before the last
+    // deoptimization point when they depend on it.
+    if ((last_deopt_ != nullptr) && DependsOnDeoptimization(instr)) {
       last_deopt_->AddSuccessor(new_node);
     }
 

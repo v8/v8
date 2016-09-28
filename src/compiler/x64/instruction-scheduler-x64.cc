@@ -36,10 +36,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Imul32:
     case kX64ImulHigh32:
     case kX64UmulHigh32:
-    case kX64Idiv:
-    case kX64Idiv32:
-    case kX64Udiv:
-    case kX64Udiv32:
     case kX64Not:
     case kX64Not32:
     case kX64Neg:
@@ -132,6 +128,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;
+
+    case kX64Idiv:
+    case kX64Idiv32:
+    case kX64Udiv:
+    case kX64Udiv32:
+      return (instr->addressing_mode() == kMode_None)
+                 ? kMayNeedDeoptCheck
+                 : kMayNeedDeoptCheck | kIsLoadOperation | kHasSideEffect;
 
     case kX64Movsxbl:
     case kX64Movzxbl:
