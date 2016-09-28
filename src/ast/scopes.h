@@ -74,7 +74,6 @@ class Scope: public ZoneObject {
   void SetScopeName(const AstRawString* scope_name) {
     scope_name_ = scope_name;
   }
-  void set_needs_migration() { needs_migration_ = true; }
 #endif
 
   // TODO(verwaest): Is this needed on Scope?
@@ -416,7 +415,9 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
 
-  bool is_lazily_parsed() const { return is_lazily_parsed_; }
+  void set_is_lazily_parsed(bool is_lazily_parsed) {
+    is_lazily_parsed_ = is_lazily_parsed;
+  }
 
  protected:
   explicit Scope(Zone* zone);
@@ -484,10 +485,7 @@ class Scope: public ZoneObject {
 
   // True if it doesn't need scope resolution (e.g., if the scope was
   // constructed based on a serialized scope info or a catch context).
-  bool already_resolved_;
-  // True if this scope may contain objects from a temp zone that needs to be
-  // fixed up.
-  bool needs_migration_;
+  bool already_resolved_ : 1;
 #endif
 
   // Source positions.
@@ -568,7 +566,6 @@ class Scope: public ZoneObject {
         Handle<ScopeInfo> scope_info);
 
   void AddInnerScope(Scope* inner_scope) {
-    DCHECK_EQ(!needs_migration_, inner_scope->zone() == zone());
     inner_scope->sibling_ = inner_scope_;
     inner_scope_ = inner_scope;
     inner_scope->outer_scope_ = this;
@@ -782,7 +779,8 @@ class DeclarationScope : public Scope {
   // records variables which cannot be resolved inside the Scope (we don't yet
   // know what they will resolve to since the outer Scopes are incomplete) and
   // migrates them into migrate_to.
-  void AnalyzePartially(AstNodeFactory* ast_node_factory);
+  void AnalyzePartially(DeclarationScope* migrate_to,
+                        AstNodeFactory* ast_node_factory);
 
   Handle<StringSet> CollectNonLocals(ParseInfo* info,
                                      Handle<StringSet> non_locals);

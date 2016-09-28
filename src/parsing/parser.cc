@@ -2686,9 +2686,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       !(FLAG_validate_asm && scope()->IsAsmModule());
   bool is_lazy_inner_function = use_temp_zone && FLAG_lazy_inner_functions;
 
-  // This Scope lives in the main zone. We'll migrate data into that zone later.
-  DeclarationScope* scope = NewFunctionScope(kind);
-  SetLanguageMode(scope, language_mode);
+  DeclarationScope* main_scope = nullptr;
+  if (use_temp_zone) {
+    // This Scope lives in the main Zone; we'll migrate data into it later.
+    main_scope = NewFunctionScope(kind);
+  }
 
   ZoneList<Statement*>* body = nullptr;
   int arity = -1;
@@ -2708,14 +2710,21 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // new temporary zone if the preconditions are satisfied, and ensures that
     // the previous zone is always restored after parsing the body. To be able
     // to do scope analysis correctly after full parsing, we migrate needed
-    // information when the function is parsed.
+    // information from scope into main_scope when the function has been parsed.
     Zone temp_zone(zone()->allocator());
     DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
+
+    DeclarationScope* scope = NewFunctionScope(kind);
+    SetLanguageMode(scope, language_mode);
+    if (!use_temp_zone) {
+      main_scope = scope;
+    } else {
+      DCHECK(main_scope->zone() != scope->zone());
+    }
 
     FunctionState function_state(&function_state_, &scope_state_, scope);
 #ifdef DEBUG
     scope->SetScopeName(function_name);
-    if (use_temp_zone) scope->set_needs_migration();
 #endif
     ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
@@ -2777,23 +2786,24 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         // used once.
         eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
         should_be_used_once_hint = true;
-        scope->ResetAfterPreparsing(true);
+      } else if (is_lazy_inner_function) {
+        DCHECK(main_scope != scope);
+        scope->AnalyzePartially(main_scope, &previous_zone_ast_node_factory);
       }
     }
-
     if (!is_lazy_top_level_function && !is_lazy_inner_function) {
       body = ParseEagerFunctionBody(function_name, pos, formals, kind,
                                     function_type, CHECK_OK);
 
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
-    }
-
-    if (use_temp_zone || is_lazy_top_level_function) {
-      // If the preconditions are correct the function body should never be
-      // accessed, but do this anyway for better behaviour if they're wrong.
-      body = nullptr;
-      scope->AnalyzePartially(&previous_zone_ast_node_factory);
+      if (use_temp_zone) {
+        // If the preconditions are correct the function body should never be
+        // accessed, but do this anyway for better behaviour if they're wrong.
+        body = nullptr;
+        DCHECK(main_scope != scope);
+        scope->AnalyzePartially(main_scope, &previous_zone_ast_node_factory);
+      }
     }
 
     // Parsing the body may change the language mode in our scope.
@@ -2830,7 +2840,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // Note that the FunctionLiteral needs to be created in the main Zone again.
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
-      function_name, scope, body, materialized_literal_count,
+      function_name, main_scope, body, materialized_literal_count,
       expected_property_count, arity, duplicate_parameters, function_type,
       eager_compile_hint, pos);
   function_literal->set_function_token_position(function_token_pos);
@@ -2852,6 +2862,7 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
   int function_block_pos = position();
   DeclarationScope* scope = function_state_->scope();
   DCHECK(scope->is_function_scope());
+  scope->set_is_lazily_parsed(true);
   // Inner functions are not part of the cached data.
   if (!is_inner_function && consume_cached_parse_data() &&
       !cached_parse_data_->rejected()) {
@@ -2884,7 +2895,10 @@ Parser::LazyParsingResult Parser::SkipLazyFunctionBody(
       ParseLazyFunctionBodyWithPreParser(&logger, is_inner_function, may_abort);
 
   // Return immediately if pre-parser decided to abort parsing.
-  if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;
+  if (result == PreParser::kPreParseAbort) {
+    scope->set_is_lazily_parsed(false);
+    return kLazyParsingAborted;
+  }
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
     set_stack_overflow();
@@ -3384,6 +3398,11 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
       function_scope, parsing_module_, logger, is_inner_function, may_abort,
       use_counts_);
+  // Detaching the scopes created by PreParser from the Scope chain must be done
+  // above (see ParseFunctionLiteral & AnalyzePartially).
+  if (!is_inner_function) {
+    function_scope->ResetAfterPreparsing(result == PreParser::kPreParseAbort);
+  }
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }
@@ -3529,7 +3548,7 @@ Expression* Parser::ParseClassLiteral(const AstRawString* name,
     return nullptr;
   }
 
-  BlockState block_state(zone(), &scope_state_);
+  BlockState block_state(&scope_state_);
   RaiseLanguageMode(STRICT);
 #ifdef DEBUG
   scope()->SetScopeName(name);

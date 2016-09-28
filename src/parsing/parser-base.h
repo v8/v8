@@ -294,8 +294,8 @@ class ParserBase {
     // allocation.
     // TODO(verwaest): Move to LazyBlockState class that only allocates the
     // scope when needed.
-    explicit BlockState(Zone* zone, ScopeState** scope_stack)
-        : ScopeState(scope_stack, NewScope(zone, *scope_stack)) {}
+    explicit BlockState(ScopeState** scope_stack)
+        : ScopeState(scope_stack, NewScope(*scope_stack)) {}
 
     void SetNonlinear() { this->scope()->SetNonlinear(); }
     void set_start_position(int pos) { this->scope()->set_start_position(pos); }
@@ -309,8 +309,9 @@ class ParserBase {
     }
 
    private:
-    Scope* NewScope(Zone* zone, ScopeState* outer_state) {
+    Scope* NewScope(ScopeState* outer_state) {
       Scope* parent = outer_state->scope();
+      Zone* zone = outer_state->zone();
       return new (zone) Scope(zone, parent, BLOCK_SCOPE);
     }
   };
@@ -3840,8 +3841,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         LazyParsingResult result = impl()->SkipLazyFunctionBody(
             &materialized_literal_count, &expected_property_count, false, true,
             CHECK_OK);
-        formal_parameters.scope->ResetAfterPreparsing(result ==
-                                                      kLazyParsingAborted);
 
         if (formal_parameters.materialized_literals_count > 0) {
           materialized_literal_count +=
@@ -4431,7 +4430,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE, CHECK_OK_CUSTOM(NullBlock));
   {
-    BlockState block_state(zone(), &scope_state_);
+    BlockState block_state(&scope_state_);
     block_state.set_start_position(scanner()->location().beg_pos);
     typename Types::Target target(this, body);
 
@@ -4461,7 +4460,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
     }
     // Make a block around the statement for a lexical binding
     // is introduced by a FunctionDeclaration.
-    BlockState block_state(zone(), &scope_state_);
+    BlockState block_state(&scope_state_);
     block_state.set_start_position(scanner()->location().beg_pos);
     BlockT block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
     StatementT body = impl()->ParseFunctionDeclaration(CHECK_OK);
@@ -4832,7 +4831,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
   auto switch_statement = factory()->NewSwitchStatement(labels, switch_pos);
 
   {
-    BlockState cases_block_state(zone(), &scope_state_);
+    BlockState cases_block_state(&scope_state_);
     cases_block_state.set_start_position(scanner()->location().beg_pos);
     cases_block_state.SetNonlinear();
     typename Types::Target target(this, switch_statement);
@@ -4923,7 +4922,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
       // Create a block scope to hold any lexical declarations created
       // as part of destructuring the catch parameter.
       {
-        BlockState catch_variable_block_state(zone(), &scope_state_);
+        BlockState catch_variable_block_state(&scope_state_);
         catch_variable_block_state.set_start_position(
             scanner()->location().beg_pos);
         typename Types::Target target(this, catch_block);
@@ -4978,7 +4977,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   bool bound_names_are_lexical = false;
 
   // Create an in-between scope for let-bound iteration variables.
-  BlockState for_state(zone(), &scope_state_);
+  BlockState for_state(&scope_state_);
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   for_state.set_start_position(scanner()->location().beg_pos);
@@ -5049,7 +5048,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
         {
           ReturnExprScope no_tail_calls(function_state_,
                                         ReturnExprContext::kInsideForInOfBody);
-          BlockState block_state(zone(), &scope_state_);
+          BlockState block_state(&scope_state_);
           block_state.set_start_position(scanner()->location().beg_pos);
 
           StatementT body = ParseScopedStatement(nullptr, true, CHECK_OK);
@@ -5132,7 +5131,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
         {
           ReturnExprScope no_tail_calls(function_state_,
                                         ReturnExprContext::kInsideForInOfBody);
-          BlockState block_state(zone(), &scope_state_);
+          BlockState block_state(&scope_state_);
           block_state.set_start_position(scanner()->location().beg_pos);
 
           // For legacy compat reasons, give for loops similar treatment to
