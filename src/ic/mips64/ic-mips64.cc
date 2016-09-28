@@ -496,7 +496,8 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ SmiScale(scratch, key, kPointerSizeLog2);
   __ Daddu(address, address, scratch);
   __ sd(value, MemOperand(address));
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ Move(v0, value);  // Ensure the stub returns correct value.
 
   __ bind(&non_smi_value);
   // Escape to elements kind transition case.
@@ -518,7 +519,8 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ mov(scratch, value);  // Preserve the value which is returned.
   __ RecordWrite(elements, address, scratch, kRAHasNotBeenSaved,
                  kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ Move(v0, value);  // Ensure the stub returns correct value.
 
   __ bind(fast_double);
   if (check_map == kCheckMap) {
@@ -549,7 +551,8 @@ static void KeyedStoreGenerateMegamorphicHelper(
     __ Daddu(scratch, key, Operand(Smi::FromInt(1)));
     __ sd(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ Move(v0, value);  // Ensure the stub returns correct value.
 
   __ bind(&transition_smi_elements);
   // Transition the array appropriately depending on the value type.
@@ -759,7 +762,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   GenerateDictionaryStore(masm, &miss, dictionary, name, value, a6, a7);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->ic_store_normal_hit(), 1, a6, a7);
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ Move(v0, value);  // Ensure the stub returns correct value.
 
   __ bind(&miss);
   __ IncrementCounter(counters->ic_store_normal_miss(), 1, a6, a7);
