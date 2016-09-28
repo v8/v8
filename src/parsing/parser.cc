@@ -942,11 +942,11 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
     DCHECK(is_sloppy(outer->language_mode()) ||
            is_strict(info->language_mode()));
     FunctionLiteral::FunctionType function_type = ComputeFunctionType(info);
+    FunctionKind kind = info->function_kind();
     bool ok = true;
 
-    if (info->is_arrow()) {
-      bool is_async = allow_harmony_async_await() && info->is_async();
-      if (is_async) {
+    if (IsArrowFunction(kind)) {
+      if (allow_harmony_async_await() && IsAsyncFunction(kind)) {
         DCHECK(!scanner()->HasAnyLineTerminatorAfterNext());
         if (!Check(Token::ASYNC)) {
           CHECK(stack_overflow());
@@ -959,8 +959,7 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
       }
 
       // TODO(adamk): We should construct this scope from the ScopeInfo.
-      FunctionKind arrow_kind = is_async ? kAsyncArrowFunction : kArrowFunction;
-      DeclarationScope* scope = NewFunctionScope(arrow_kind);
+      DeclarationScope* scope = NewFunctionScope(kind);
 
       // These two bits only need to be explicitly set because we're
       // not passing the ScopeInfo to the Scope constructor.
@@ -1013,10 +1012,9 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
           }
         }
       }
-    } else if (info->is_default_constructor()) {
+    } else if (IsDefaultConstructor(kind)) {
       DCHECK_EQ(scope(), outer);
-      bool is_subclass_constructor =
-          IsSubclassConstructor(info->function_kind());
+      bool is_subclass_constructor = IsSubclassConstructor(kind);
       result = DefaultConstructor(
           raw_name, is_subclass_constructor, info->requires_class_field_init(),
           info->start_position(), info->end_position(), info->language_mode());
@@ -1033,10 +1031,9 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
         result = SynthesizeClassFieldInitializer(shared_info->length());
       }
     } else {
-      result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
-                                    kSkipFunctionNameCheck,
-                                    info->function_kind(), kNoSourcePosition,
-                                    function_type, info->language_mode(), &ok);
+      result = ParseFunctionLiteral(
+          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
+          kNoSourcePosition, function_type, info->language_mode(), &ok);
       if (info->requires_class_field_init()) {
         result = InsertClassFieldInitializer(result);
       }

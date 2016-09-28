@@ -3294,14 +3294,14 @@ bool Value::IsAsyncFunction() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (!obj->IsJSFunction()) return false;
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(obj);
-  return func->shared()->is_async();
+  return i::IsAsyncFunction(func->shared()->kind());
 }
 
 bool Value::IsGeneratorFunction() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (!obj->IsJSFunction()) return false;
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(obj);
-  return func->shared()->is_generator();
+  return i::IsGeneratorFunction(func->shared()->kind());
 }
 
 

@@ -95,7 +95,8 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
       prototype_parent = isolate->factory()->null_value();
     } else if (super_class->IsConstructor()) {
       DCHECK(!super_class->IsJSFunction() ||
-             !Handle<JSFunction>::cast(super_class)->shared()->is_resumable());
+             !IsResumableFunction(
+                 Handle<JSFunction>::cast(super_class)->shared()->kind()));
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,

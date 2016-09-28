@@ -148,9 +148,6 @@ class ParseInfo {
 
   // Getters for individual compiler hints.
   bool is_declaration() const;
-  bool is_arrow() const;
-  bool is_async() const;
-  bool is_default_constructor() const;
   bool requires_class_field_init() const;
   bool is_class_field_initializer() const;
   FunctionKind function_kind() const;

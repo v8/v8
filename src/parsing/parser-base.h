@@ -398,16 +398,12 @@ class ParserBase {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
-    bool is_generator() const { return IsGeneratorFunction(kind()); }
-    bool is_async_function() const { return IsAsyncFunction(kind()); }
-    bool is_resumable() const { return is_generator() || is_async_function(); }
-
     FunctionKind kind() const { return scope()->function_kind(); }
     FunctionState* outer() const { return outer_function_state_; }
 
     void set_generator_object_variable(typename Types::Variable* variable) {
       DCHECK(variable != NULL);
-      DCHECK(is_resumable());
+      DCHECK(IsResumableFunction(kind()));
       generator_object_variable_ = variable;
     }
     typename Types::Variable* generator_object_variable() const {
@@ -416,7 +412,7 @@ class ParserBase {
 
     void set_promise_variable(typename Types::Variable* variable) {
       DCHECK(variable != NULL);
-      DCHECK(is_async_function());
+      DCHECK(IsAsyncFunction(kind()));
       promise_variable_ = variable;
     }
     typename Types::Variable* promise_variable() const {
@@ -942,11 +938,15 @@ class ParserBase {
     LanguageMode old = scope()->language_mode();
     impl()->SetLanguageMode(scope(), old > mode ? old : mode);
   }
-  bool is_generator() const { return function_state_->is_generator(); }
-  bool is_async_function() const {
-    return function_state_->is_async_function();
+  bool is_generator() const {
+    return IsGeneratorFunction(function_state_->kind());
   }
-  bool is_resumable() const { return function_state_->is_resumable(); }
+  bool is_async_function() const {
+    return IsAsyncFunction(function_state_->kind());
+  }
+  bool is_resumable() const {
+    return IsResumableFunction(function_state_->kind());
+  }
 
   // Report syntax errors.
   void ReportMessage(MessageTemplate::Template message) {

@@ -1294,7 +1294,8 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
     HeapIterator iterator(isolate_->heap());
     HeapObject* obj;
     // Continuation from old-style generators need to be recomputed.
-    bool find_resumables = baseline_exists && shared->is_resumable();
+    bool find_resumables =
+        baseline_exists && IsResumableFunction(shared->kind());
 
     while ((obj = iterator.next())) {
       if (obj->IsJSFunction()) {
@@ -1353,7 +1354,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
 
 void Debug::RecordAsyncFunction(Handle<JSGeneratorObject> generator_object) {
   if (last_step_action() <= StepOut) return;
-  if (!generator_object->function()->shared()->is_async()) return;
+  if (!IsAsyncFunction(generator_object->function()->shared()->kind())) return;
   DCHECK(!has_suspended_generator());
   thread_local_.suspended_generator_ = *generator_object;
   ClearStepping();

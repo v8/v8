@@ -12902,7 +12902,8 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
 
 
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
-  DCHECK(function->IsConstructor() || function->shared()->is_resumable());
+  DCHECK(function->IsConstructor() ||
+         IsResumableFunction(function->shared()->kind()));
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
 
@@ -12913,7 +12914,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   // First create a new map with the size and number of in-object properties
   // suggested by the function.
   InstanceType instance_type;
-  if (function->shared()->is_resumable()) {
+  if (IsResumableFunction(function->shared()->kind())) {
     instance_type = JS_GENERATOR_OBJECT_TYPE;
   } else {
     instance_type = JS_OBJECT_TYPE;
@@ -13144,17 +13145,18 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   }
 
   IncrementalStringBuilder builder(isolate);
-  if (!shared_info->is_arrow()) {
-    if (shared_info->is_concise_method()) {
-      if (shared_info->is_generator()) {
+  FunctionKind kind = shared_info->kind();
+  if (!IsArrowFunction(kind)) {
+    if (IsConciseMethod(kind)) {
+      if (IsGeneratorFunction(kind)) {
         builder.AppendCharacter('*');
-      } else if (shared_info->is_async()) {
+      } else if (IsAsyncFunction(kind)) {
         builder.AppendCString("async ");
       }
     } else {
-      if (shared_info->is_generator()) {
+      if (IsGeneratorFunction(kind)) {
         builder.AppendCString("function* ");
-      } else if (shared_info->is_async()) {
+      } else if (IsAsyncFunction(kind)) {
         builder.AppendCString("async function ");
       } else {
         builder.AppendCString("function ");

@@ -6096,8 +6096,7 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   set_compiler_hints(hints);
 }
 
-
-FunctionKind SharedFunctionInfo::kind() {
+FunctionKind SharedFunctionInfo::kind() const {
   return FunctionKindBits::decode(compiler_hints());
 }
 
@@ -6122,27 +6121,12 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_crankshaft,
                kDontCrankshaft)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_async, kIsAsyncFunction)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_concise_method,
-               kIsConciseMethod)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_getter_function,
-               kIsGetterFunction)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_setter_function,
-               kIsSetterFunction)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_default_constructor,
-               kIsDefaultConstructor)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
                kIsAsmWasmBroken)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, requires_class_field_init,
                kRequiresClassFieldInit)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_class_field_initializer,
                kIsClassFieldInitializer)
-
-inline bool SharedFunctionInfo::is_resumable() const {
-  return is_generator() || is_async();
-}
 
 bool Script::HasValidSource() {
   Object* src = this->source();

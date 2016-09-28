@@ -88,19 +88,6 @@ bool ParseInfo::is_declaration() const {
   return (compiler_hints_ & (1 << SharedFunctionInfo::kIsDeclaration)) != 0;
 }
 
-bool ParseInfo::is_arrow() const {
-  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsArrow)) != 0;
-}
-
-bool ParseInfo::is_async() const {
-  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsAsyncFunction)) != 0;
-}
-
-bool ParseInfo::is_default_constructor() const {
-  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsDefaultConstructor)) !=
-         0;
-}
-
 bool ParseInfo::requires_class_field_init() const {
   return (compiler_hints_ &
           (1 << SharedFunctionInfo::kRequiresClassFieldInit)) != 0;
