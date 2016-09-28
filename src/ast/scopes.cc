@@ -1196,6 +1196,7 @@ void DeclarationScope::ResetAfterPreparsing(bool aborted) {
   variables_.Clear();
   // Make sure we won't walk the scope tree from here on.
   inner_scope_ = nullptr;
+  unresolved_ = nullptr;
 
   // TODO(verwaest): We should properly preparse the parameters (no declarations
   // should be created), and reparse on abort.
