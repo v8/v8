@@ -4470,7 +4470,7 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     Variable var_name_index(this, MachineType::PointerRepresentation());
     Label if_descriptor_found(this);
     DescriptorLookupLinear(key, descriptors, nof, &if_descriptor_found,
-                           &var_name_index, &slow);
+                           &var_name_index, &stub_cache);
 
     Bind(&if_descriptor_found);
     {

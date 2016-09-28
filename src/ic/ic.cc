@@ -1436,6 +1436,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   if (!is_vector_set()) {
     ConfigureVectorState(MEGAMORPHIC, key);
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
+    TRACE_IC("LoadIC", key);
   }
 
   if (!load_handle.is_null()) return load_handle;
