@@ -71,6 +71,7 @@ class MockTracingPlatform : public v8::Platform {
 
   void PerformDelayedTask() {}
 
+  using Platform::AddTraceEvent;
   uint64_t AddTraceEvent(
       char phase, const uint8_t* category_enabled_flag, const char* name,
       const char* scope, uint64_t id, uint64_t bind_id, int num_args,
