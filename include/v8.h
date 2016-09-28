@@ -468,6 +468,16 @@ class WeakCallbackInfo {
 enum class WeakCallbackType { kParameter, kInternalFields, kFinalizer };
 
 /**
+ * A reporter class that embedder will use to report reachable references found
+ * by EmbedderHeapTracer.
+ */
+class V8_EXPORT EmbedderReachableReferenceReporter {
+ public:
+  virtual void ReportExternalReference(Value* object) = 0;
+  virtual ~EmbedderReachableReferenceReporter() = default;
+};
+
+/**
  * An object reference that is independent of any handle scope.  Where
  * a Local handle only lives as long as the HandleScope in which it was
  * allocated, a PersistentBase handle remains valid until it is explicitly
@@ -564,11 +574,18 @@ template <class T> class PersistentBase {
   V8_INLINE void ClearWeak() { ClearWeak<void>(); }
 
   /**
+   * Deprecated.
+   * TODO(hlopko): remove once migration to reporter is finished.
+   */
+  V8_INLINE void RegisterExternalReference(Isolate* isolate) const {}
+
+  /**
    * Allows the embedder to tell the v8 garbage collector that a certain object
    * is alive. Only allowed when the embedder is asked to trace its heap by
    * EmbedderHeapTracer.
    */
-  V8_INLINE void RegisterExternalReference(Isolate* isolate) const;
+  V8_INLINE void RegisterExternalReference(
+      EmbedderReachableReferenceReporter* reporter) const;
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -6129,8 +6146,8 @@ enum class MemoryPressureLevel { kNone, kModerate, kCritical };
  * Interface for tracing through the embedder heap. During the v8 garbage
  * collection, v8 collects hidden fields of all potential wrappers, and at the
  * end of its marking phase iterates the collection and asks the embedder to
- * trace through its heap and call PersistentBase::RegisterExternalReference on
- * each js object reachable from any of the given wrappers.
+ * trace through its heap and use reporter to report each js object reachable
+ * from any of the given wrappers.
  *
  * Before the first call to the TraceWrappersFrom function TracePrologue will be
  * called. When the garbage collection cycle is finished, TraceEpilogue will be
@@ -6156,14 +6173,21 @@ class V8_EXPORT EmbedderHeapTracer {
       const std::vector<std::pair<void*, void*> >& internal_fields) = 0;
 
   /**
-   * V8 will call this method at the beginning of a GC cycle.
+   * Deprecated.
+   * TODO(hlopko) Remove once the migration to reporter is finished.
    */
-  virtual void TracePrologue() = 0;
+  virtual void TracePrologue() {}
+
+  /**
+   * V8 will call this method at the beginning of a GC cycle. Embedder is
+   * expected to use EmbedderReachableReferenceReporter for reporting all
+   * reachable v8 objects.
+   */
+  virtual void TracePrologue(EmbedderReachableReferenceReporter* reporter) {}
 
   /**
    * Embedder is expected to trace its heap starting from wrappers reported by
-   * RegisterV8References method, and call
-   * PersistentBase::RegisterExternalReference() on all reachable wrappers.
+   * RegisterV8References method, and use reporter for all reachable wrappers.
    * Embedder is expected to stop tracing by the given deadline.
    *
    * Returns true if there is still work to do.
@@ -7480,8 +7504,6 @@ class V8_EXPORT V8 {
                          int* index);
   static Local<Value> GetEternal(Isolate* isolate, int index);
 
-  static void RegisterExternallyReferencedObject(internal::Object** object,
-                                                 internal::Isolate* isolate);
   template <class K, class V, class T>
   friend class PersistentValueMapBase;
 
@@ -8542,11 +8564,10 @@ P* PersistentBase<T>::ClearWeak() {
 }
 
 template <class T>
-void PersistentBase<T>::RegisterExternalReference(Isolate* isolate) const {
+void PersistentBase<T>::RegisterExternalReference(
+    EmbedderReachableReferenceReporter* reporter) const {
   if (IsEmpty()) return;
-  V8::RegisterExternallyReferencedObject(
-      reinterpret_cast<internal::Object**>(this->val_),
-      reinterpret_cast<internal::Isolate*>(isolate));
+  reporter->ReportExternalReference(this->val_);
 }
 
 template <class T>

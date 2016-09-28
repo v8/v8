@@ -663,7 +663,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
     DiscardVectorAndSlot();
   }
   __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, result);
+  __ Move(v0, result);  // Ensure the stub returns correct value.
 
   FrontendFooter(name, &miss);
 

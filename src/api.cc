@@ -786,11 +786,6 @@ i::Object** V8::CopyPersistent(i::Object** obj) {
   return result.location();
 }
 
-void V8::RegisterExternallyReferencedObject(i::Object** object,
-                                            i::Isolate* isolate) {
-  isolate->heap()->RegisterExternallyReferencedObject(object);
-}
-
 void V8::MakeWeak(i::Object** location, void* parameter,
                   int internal_field_index1, int internal_field_index2,
                   WeakCallbackInfo<void>::Callback weak_callback) {

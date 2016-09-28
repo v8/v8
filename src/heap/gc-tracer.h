@@ -135,23 +135,23 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 class GCTracer {
  public:
   struct IncrementalMarkingInfos {
-    IncrementalMarkingInfos()
-        : cumulative_duration(0), longest_step(0), steps(0) {}
+    IncrementalMarkingInfos() : duration(0), longest_step(0), steps(0) {}
 
     void Update(double duration) {
       steps++;
-      cumulative_duration += duration;
+      this->duration += duration;
       if (duration > longest_step) {
         longest_step = duration;
       }
     }
 
     void ResetCurrentCycle() {
+      duration = 0;
       longest_step = 0;
       steps = 0;
     }
 
-    double cumulative_duration;
+    double duration;
     double longest_step;
     int steps;
   };
@@ -243,21 +243,11 @@ class GCTracer {
     // Bytes marked since creation of tracer (value at start of event).
     intptr_t cumulative_incremental_marking_bytes;
 
-    // Bytes marked since
-    // - last event for SCAVENGER events
-    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
-    // events
+    // Bytes marked incrementally for INCREMENTAL_MARK_COMPACTOR
     intptr_t incremental_marking_bytes;
 
-    // Cumulative pure duration of incremental marking steps since creation of
-    // tracer. (value at start of event)
-    double cumulative_pure_incremental_marking_duration;
-
-    // Duration of pure incremental marking steps since
-    // - last event for SCAVENGER events
-    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
-    // events
-    double pure_incremental_marking_duration;
+    // Duration of incremental marking steps for INCREMENTAL_MARK_COMPACTOR.
+    double incremental_marking_duration;
 
     // Amounts of time spent in different scopes during GC.
     double scopes[Scope::NUMBER_OF_SCOPES];
@@ -369,7 +359,8 @@ class GCTracer {
     DCHECK(scope < Scope::NUMBER_OF_SCOPES);
     if (scope >= Scope::FIRST_INCREMENTAL_SCOPE &&
         scope <= Scope::LAST_INCREMENTAL_SCOPE) {
-      incremental_marking_scopes_[scope].Update(duration);
+      incremental_marking_scopes_[scope - Scope::FIRST_INCREMENTAL_SCOPE]
+          .Update(duration);
     } else {
       current_.scopes[scope] += duration;
     }
@@ -384,6 +375,7 @@ class GCTracer {
   FRIEND_TEST(GCTracerTest, RegularScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingDetails);
   FRIEND_TEST(GCTracerTest, IncrementalScope);
+  FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
 
   // Returns the average speed of the events in the buffer.
   // If the buffer is empty, the result is 0.
@@ -392,9 +384,9 @@ class GCTracer {
   static double AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
                              const BytesAndDuration& initial, double time_ms);
 
-  void MergeBaseline(const Event& baseline);
-
   void ResetForTesting();
+  void ResetIncrementalMarkingCounters();
+  void RecordIncrementalMarkingSpeed(intptr_t bytes, double duration);
 
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -428,26 +420,23 @@ class GCTracer {
   // Previous tracer event.
   Event previous_;
 
-  // Previous INCREMENTAL_MARK_COMPACTOR event.
-  Event previous_incremental_mark_compactor_event_;
+  // Size of incremental marking steps (in bytes) accumulated since the end of
+  // the last mark compact GC.
+  intptr_t incremental_marking_bytes_;
 
-  // Cumulative size of incremental marking steps (in bytes) since creation of
-  // tracer.
-  intptr_t cumulative_incremental_marking_bytes_;
+  // Duration of incremental marking steps since the end of the last mark-
+  // compact event.
+  double incremental_marking_duration_;
 
-  // Cumulative duration of incremental marking steps since creation of tracer.
-  double cumulative_incremental_marking_duration_;
+  double incremental_marking_start_time_;
 
-  // Cumulative duration of pure incremental marking steps since creation of
-  // tracer.
-  double cumulative_pure_incremental_marking_duration_;
+  double recorded_incremental_marking_speed_;
 
   // Incremental scopes carry more information than just the duration. The infos
   // here are merged back upon starting/stopping the GC tracer.
   IncrementalMarkingInfos
       incremental_marking_scopes_[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
 
-  double incremental_marking_start_time_;
 
   // Timestamp and allocation counter at the last sampled allocation event.
   double allocation_time_ms_;
@@ -467,12 +456,11 @@ class GCTracer {
   // Separate timer used for --runtime_call_stats
   RuntimeCallTimer timer_;
 
-  RingBuffer<BytesAndDuration> recorded_incremental_marking_steps_;
   RingBuffer<BytesAndDuration> recorded_scavenges_total_;
   RingBuffer<BytesAndDuration> recorded_scavenges_survived_;
   RingBuffer<BytesAndDuration> recorded_compactions_;
-  RingBuffer<BytesAndDuration> recorded_mark_compacts_;
   RingBuffer<BytesAndDuration> recorded_incremental_mark_compacts_;
+  RingBuffer<BytesAndDuration> recorded_mark_compacts_;
   RingBuffer<BytesAndDuration> recorded_new_generation_allocations_;
   RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
   RingBuffer<double> recorded_context_disposal_times_;

@@ -131,15 +131,6 @@ TEST(StringCharCodeAt) {
 }
 
 
-TEST(StringCharFromCode) {
-  FunctionTester T("(function(a) { return %_StringCharFromCode(a); })", flags);
-
-  T.CheckCall(T.Val("a"), T.Val(97));
-  T.CheckCall(T.Val("\xE2\x9D\x8A"), T.Val(0x274A));
-  T.CheckCall(T.Val(""), T.undefined());
-}
-
-
 TEST(StringCompare) {
   FunctionTester T("(function(a,b) { return %_StringCompare(a,b); })", flags);
 

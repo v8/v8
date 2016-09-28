@@ -1249,6 +1249,12 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
       copy->set_next_unresolved(unresolved);
       unresolved = copy;
     }
+
+    // Clear arguments_ if unused. This is used as a signal for optimization.
+    if (arguments_ != nullptr &&
+        !(MustAllocate(arguments_) && !has_arguments_parameter_)) {
+      arguments_ = nullptr;
+    }
   }
 
   ResetAfterPreparsing(false);
@@ -1641,6 +1647,8 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
       stack = proxy;
     } else if (info != nullptr) {
       ResolveTo(info, proxy, var);
+    } else {
+      var->set_is_used();
     }
   }
 

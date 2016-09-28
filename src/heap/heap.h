@@ -337,6 +337,7 @@ class Scavenger;
 class ScavengeJob;
 class Space;
 class StoreBuffer;
+class TracePossibleWrapperReporter;
 class WeakObjectRetainer;
 
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
@@ -1204,11 +1205,25 @@ class Heap {
 
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
 
-  bool UsingEmbedderHeapTracer();
+  bool UsingEmbedderHeapTracer() { return embedder_heap_tracer(); }
 
   void TracePossibleWrapper(JSObject* js_object);
 
   void RegisterExternallyReferencedObject(Object** object);
+
+  void RegisterWrappersWithEmbedderHeapTracer();
+
+  // In order to avoid running out of memory we force tracing wrappers if there
+  // are too many of them.
+  bool RequiresImmediateWrapperProcessing();
+
+  EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
+
+  EmbedderReachableReferenceReporter* embedder_reachable_reference_reporter() {
+    return embedder_reference_reporter_;
+  }
+
+  size_t wrappers_to_trace() { return wrappers_to_trace_.size(); }
 
   // ===========================================================================
   // External string table API. ================================================
@@ -1372,16 +1387,18 @@ class Heap {
   }
 
   void UpdateOldGenerationAllocationCounter() {
-    old_generation_allocation_counter_ = OldGenerationAllocationCounter();
+    old_generation_allocation_counter_at_last_gc_ =
+        OldGenerationAllocationCounter();
   }
 
   size_t OldGenerationAllocationCounter() {
-    return old_generation_allocation_counter_ + PromotedSinceLastGC();
+    return old_generation_allocation_counter_at_last_gc_ +
+           PromotedSinceLastGC();
   }
 
   // This should be used only for testing.
-  void set_old_generation_allocation_counter(size_t new_value) {
-    old_generation_allocation_counter_ = new_value;
+  void set_old_generation_allocation_counter_at_last_gc(size_t new_value) {
+    old_generation_allocation_counter_at_last_gc_ = new_value;
   }
 
   size_t PromotedSinceLastGC() {
@@ -1707,10 +1724,6 @@ class Heap {
   int FullSizeNumberStringCacheLength();
   // Flush the number to string cache.
   void FlushNumberStringCache();
-
-  // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
-  // Re-visit incremental marking heuristics.
-  bool IsHighSurvivalRate() { return high_survival_rate_period_length_ > 0; }
 
   void ConfigureInitialOldGenerationSize();
 
@@ -2186,7 +2199,6 @@ class Heap {
 
   GCTracer* tracer_;
 
-  int high_survival_rate_period_length_;
   intptr_t promoted_objects_size_;
   double promotion_ratio_;
   double promotion_rate_;
@@ -2245,7 +2257,7 @@ class Heap {
   // This counter is increased before each GC and never reset. To
   // account for the bytes allocated since the last GC, use the
   // OldGenerationAllocationCounter() function.
-  size_t old_generation_allocation_counter_;
+  size_t old_generation_allocation_counter_at_last_gc_;
 
   // The size of objects in old generation after the last MarkCompact GC.
   size_t old_generation_size_at_last_gc_;
@@ -2295,6 +2307,10 @@ class Heap {
 
   // The depth of HeapIterator nestings.
   int heap_iterator_depth_;
+
+  EmbedderHeapTracer* embedder_heap_tracer_;
+  EmbedderReachableReferenceReporter* embedder_reference_reporter_;
+  std::vector<std::pair<void*, void*>> wrappers_to_trace_;
 
   // Used for testing purposes.
   bool force_oom_;
@@ -2611,6 +2627,18 @@ class AllocationObserver {
   friend class NewSpace;
   friend class PagedSpace;
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
+};
+
+class TracePossibleWrapperReporter : public EmbedderReachableReferenceReporter {
+ public:
+  explicit TracePossibleWrapperReporter(Heap* heap) : heap_(heap) {}
+  void ReportExternalReference(Value* object) override {
+    heap_->RegisterExternallyReferencedObject(
+        reinterpret_cast<Object**>(object));
+  }
+
+ private:
+  Heap* heap_;
 };
 
 }  // namespace internal

@@ -191,6 +191,10 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
 
   // Round 1.
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 50);
+  // Scavenger has no impact on incremental marking details.
+  tracer->Start(SCAVENGER, GarbageCollectionReason::kTesting,
+                "collector unittest");
+  tracer->Stop(SCAVENGER);
   tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
                 "collector unittest");
   // Switch to incremental MC to enable writing back incremental scopes.
@@ -211,9 +215,9 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
       150,
       tracer->current_
           .incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
-          .cumulative_duration);
+          .duration);
 
-  // Round 2. Cumulative numbers should add up, others should be reset.
+  // Round 2. Numbers should be reset.
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 13);
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 15);
   tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
@@ -233,10 +237,61 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
           .incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
           .steps);
   EXPECT_DOUBLE_EQ(
-      300,
+      150,
       tracer->current_
           .incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
-          .cumulative_duration);
+          .duration);
+}
+
+TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+
+  // Round 1.
+  // 1000000 bytes in 100ms.
+  tracer->AddIncrementalMarkingStep(100, 1000000);
+  EXPECT_EQ(1000000 / 100,
+            tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
+  // 1000000 bytes in 100ms.
+  tracer->AddIncrementalMarkingStep(100, 1000000);
+  EXPECT_EQ(1000000 / 100,
+            tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
+  // Scavenger has no impact on incremental marking details.
+  tracer->Start(SCAVENGER, GarbageCollectionReason::kTesting,
+                "collector unittest");
+  tracer->Stop(SCAVENGER);
+  // 1000000 bytes in 100ms.
+  tracer->AddIncrementalMarkingStep(100, 1000000);
+  EXPECT_EQ(300, tracer->incremental_marking_duration_);
+  EXPECT_EQ(3000000, tracer->incremental_marking_bytes_);
+  EXPECT_EQ(1000000 / 100,
+            tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
+  tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+                "collector unittest");
+  // Switch to incremental MC.
+  tracer->current_.type = GCTracer::Event::INCREMENTAL_MARK_COMPACTOR;
+  // 1000000 bytes in 100ms.
+  tracer->AddIncrementalMarkingStep(100, 1000000);
+  EXPECT_EQ(400, tracer->incremental_marking_duration_);
+  EXPECT_EQ(4000000, tracer->incremental_marking_bytes_);
+  tracer->Stop(MARK_COMPACTOR);
+  EXPECT_EQ(400, tracer->current_.incremental_marking_duration);
+  EXPECT_EQ(4000000, tracer->current_.incremental_marking_bytes);
+  EXPECT_EQ(0, tracer->incremental_marking_duration_);
+  EXPECT_EQ(0, tracer->incremental_marking_bytes_);
+  EXPECT_EQ(1000000 / 100,
+            tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
+
+  // Round 2.
+  tracer->AddIncrementalMarkingStep(2000, 1000);
+  tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+                "collector unittest");
+  // Switch to incremental MC.
+  tracer->current_.type = GCTracer::Event::INCREMENTAL_MARK_COMPACTOR;
+  tracer->Stop(MARK_COMPACTOR);
+  EXPECT_DOUBLE_EQ((4000000.0 / 400 + 1000.0 / 2000) / 2,
+                   static_cast<double>(
+                       tracer->IncrementalMarkingSpeedInBytesPerMillisecond()));
 }
 
 }  // namespace internal
