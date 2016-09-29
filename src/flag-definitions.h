@@ -868,6 +868,10 @@ DEFINE_BOOL(stack_trace_on_illegal, false,
             "print stack trace when an illegal exception is thrown")
 DEFINE_BOOL(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
+DEFINE_BOOL(abort_on_stack_overflow, false,
+            "Abort program when stack overflow (as opposed to throwing "
+            "RangeError). This is useful for fuzzing where the spec behaviour "
+            "would introduce nondeterminism.")
 DEFINE_BOOL(randomize_hashes, true,
             "randomize hashes to avoid predictable hash collisions "
             "(with snapshots this option cannot override the baked-in seed)")

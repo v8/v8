@@ -925,6 +925,10 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 
 
 Object* Isolate::StackOverflow() {
+  if (FLAG_abort_on_stack_overflow) {
+    FATAL("Aborting on stack overflow");
+  }
+
   DisallowJavascriptExecution no_js(this);
   HandleScope scope(this);
 
