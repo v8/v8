@@ -785,7 +785,8 @@ void JSWeakMap::JSWeakMapVerify() {
 void JSStringIterator::JSStringIteratorVerify() {
   CHECK(IsJSStringIterator());
   JSObjectVerify();
-  CHECK(string()->IsString());
+  CHECK(string()->IsSeqString() || string()->IsExternalString());
+
   CHECK_GE(index(), 0);
   CHECK_LE(index(), String::kMaxLength);
 }

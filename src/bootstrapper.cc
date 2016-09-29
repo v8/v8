@@ -1438,9 +1438,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewStringFromAsciiChecked("String Iterator"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-    InstallFunction(string_iterator_prototype, "next", JS_OBJECT_TYPE,
-                    JSObject::kHeaderSize, MaybeHandle<JSObject>(),
-                    Builtins::kStringIteratorPrototypeNext);
+    Handle<JSFunction> next =
+        InstallFunction(string_iterator_prototype, "next", JS_OBJECT_TYPE,
+                        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
+                        Builtins::kStringIteratorPrototypeNext);
+
+    // Set the expected parameters for %StringIteratorPrototype%.next to 0 (not
+    // including the receiver), as required by the builtin.
+    next->shared()->set_internal_formal_parameter_count(0);
+
+    // Set the length for the function to satisfy ECMA-262.
+    next->shared()->set_length(0);
 
     Handle<JSFunction> string_iterator_function = CreateFunction(
         isolate, factory->NewStringFromAsciiChecked("StringIterator"),
