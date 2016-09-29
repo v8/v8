@@ -1535,6 +1535,8 @@ v8_source_set("v8_base") {
     "src/profiler/strings-storage.h",
     "src/profiler/tick-sample.cc",
     "src/profiler/tick-sample.h",
+    "src/profiler/tracing-cpu-profiler.cc",
+    "src/profiler/tracing-cpu-profiler.h",
     "src/profiler/unbound-queue-inl.h",
     "src/profiler/unbound-queue.h",
     "src/property-descriptor.cc",

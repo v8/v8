@@ -1103,6 +1103,8 @@
         'profiler/strings-storage.h',
         'profiler/tick-sample.cc',
         'profiler/tick-sample.h',
+        'profiler/tracing-cpu-profiler.cc',
+        'profiler/tracing-cpu-profiler.h',
         'profiler/unbound-queue-inl.h',
         'profiler/unbound-queue.h',
         'property-descriptor.cc',
