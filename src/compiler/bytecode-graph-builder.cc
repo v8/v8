@@ -786,9 +786,9 @@ void BytecodeGraphBuilder::VisitMov() {
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(1), value);
 }
 
-Node* BytecodeGraphBuilder::BuildLoadGlobal(TypeofMode typeof_mode) {
-  VectorSlotPair feedback =
-      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(0));
+Node* BytecodeGraphBuilder::BuildLoadGlobal(uint32_t feedback_slot_index,
+                                            TypeofMode typeof_mode) {
+  VectorSlotPair feedback = CreateVectorSlotPair(feedback_slot_index);
   DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
             feedback_vector()->GetKind(feedback.slot()));
   Handle<Name> name(feedback_vector()->GetName(feedback.slot()));
@@ -798,20 +798,23 @@ Node* BytecodeGraphBuilder::BuildLoadGlobal(TypeofMode typeof_mode) {
 
 void BytecodeGraphBuilder::VisitLdaGlobal() {
   FrameStateBeforeAndAfter states(this);
-  Node* node = BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
+  Node* node = BuildLoadGlobal(bytecode_iterator().GetIndexOperand(0),
+                               TypeofMode::NOT_INSIDE_TYPEOF);
   environment()->BindAccumulator(node, &states);
 }
 
 void BytecodeGraphBuilder::VisitLdrGlobal() {
   FrameStateBeforeAndAfter states(this);
-  Node* node = BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
+  Node* node = BuildLoadGlobal(bytecode_iterator().GetIndexOperand(0),
+                               TypeofMode::NOT_INSIDE_TYPEOF);
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(1), node,
                               &states);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeof() {
   FrameStateBeforeAndAfter states(this);
-  Node* node = BuildLoadGlobal(TypeofMode::INSIDE_TYPEOF);
+  Node* node = BuildLoadGlobal(bytecode_iterator().GetIndexOperand(0),
+                               TypeofMode::INSIDE_TYPEOF);
   environment()->BindAccumulator(node, &states);
 }
 
@@ -888,11 +891,12 @@ void BytecodeGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
   BuildLdaLookupSlot(TypeofMode::INSIDE_TYPEOF);
 }
 
-void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
-  uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(2);
-
-  // Check if any context in the depth has an extension.
+BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
+    uint32_t depth) {
+  // Output environment where the context has an extension
   Environment* slow_environment = nullptr;
+
+  DCHECK_GT(depth, 0u);
 
   // We only need to check up to the last-but-one depth, because the an eval in
   // the same scope as the variable itself has no way of shadowing it.
@@ -926,6 +930,17 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
       // the fast path.
     }
   }
+
+  DCHECK_NOT_NULL(slow_environment);
+
+  return slow_environment;
+}
+
+void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
+  uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(2);
+
+  // Check if any context in the depth has an extension.
+  Environment* slow_environment = CheckContextExtensions(depth);
 
   // Fast path, do a context load.
   {
@@ -967,9 +982,24 @@ void BytecodeGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
 }
 
 void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
-  // TODO(leszeks): Build the fast path here.
+  uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(2);
+
+  // Check if any context in the depth has an extension.
+  Environment* slow_environment = CheckContextExtensions(depth);
+
+  // Fast path, do a global load.
+  {
+    FrameStateBeforeAndAfter states(this);
+    Node* node =
+        BuildLoadGlobal(bytecode_iterator().GetIndexOperand(1), typeof_mode);
+    environment()->BindAccumulator(node, &states);
+
+    NewMerge();
+  }
+  Environment* fast_environment = environment();
 
   // Slow path, do a runtime load lookup.
+  set_environment(slow_environment);
   {
     FrameStateBeforeAndAfter states(this);
 
@@ -983,6 +1013,9 @@ void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
     Node* value = NewNode(op, name);
     environment()->BindAccumulator(value, &states);
   }
+
+  fast_environment->Merge(environment());
+  set_environment(fast_environment);
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupGlobalSlot() {

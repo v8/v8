@@ -124,7 +124,7 @@ class BytecodeGraphBuilder {
   void BuildCreateLiteral(const Operator* op);
   void BuildCreateArguments(CreateArgumentsType type);
   Node* BuildLoadContextSlot();
-  Node* BuildLoadGlobal(TypeofMode typeof_mode);
+  Node* BuildLoadGlobal(uint32_t feedback_slot_index, TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
   Node* BuildNamedLoad();
   void BuildNamedStore(LanguageMode language_mode);
@@ -144,6 +144,9 @@ class BytecodeGraphBuilder {
   void BuildForInPrepare();
   void BuildForInNext();
   void BuildInvokeIntrinsic();
+
+  // Check the context chain for extensions, for lookup fast paths.
+  Environment* CheckContextExtensions(uint32_t depth);
 
   // Helper function to create binary operation hint from the recorded
   // type feedback.
