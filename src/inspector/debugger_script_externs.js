@@ -56,27 +56,28 @@ var JavaScriptCallFrameDetails;
     }} */
 var JavaScriptCallFrame;
 
-/** @interface */
-function DebugClass()
-{
-    /** @type {!LiveEditClass} */
-    this.LiveEdit;
-}
+/**
+ * @const
+ */
+var Debug = {};
 
-DebugClass.prototype.setBreakOnException = function() {}
+Debug.setBreakOnException = function() {}
 
-DebugClass.prototype.clearBreakOnException = function() {}
+Debug.clearBreakOnException = function() {}
 
-DebugClass.prototype.setBreakOnUncaughtException = function() {}
+Debug.setBreakOnUncaughtException = function() {}
 
-DebugClass.prototype.clearBreakOnUncaughtException = function() {}
+/**
+ * @return {undefined}
+ */
+Debug.clearBreakOnUncaughtException = function() {}
 
-DebugClass.prototype.clearStepping = function() {}
+Debug.clearStepping = function() {}
 
-DebugClass.prototype.clearAllBreakPoints = function() {}
+Debug.clearAllBreakPoints = function() {}
 
 /** @return {!Array<!Script>} */
-DebugClass.prototype.scripts = function() {}
+Debug.scripts = function() {}
 
 /**
  * @param {number} scriptId
@@ -86,33 +87,31 @@ DebugClass.prototype.scripts = function() {}
  * @param {string=} groupId
  * @param {Debug.BreakPositionAlignment=} positionAlignment
  */
-DebugClass.prototype.setScriptBreakPointById = function(scriptId, line, column, condition, groupId, positionAlignment) {}
+Debug.setScriptBreakPointById = function(scriptId, line, column, condition, groupId, positionAlignment) {}
 
 /**
  * @param {number} breakId
  * @return {!Array<!SourceLocation>}
  */
-DebugClass.prototype.findBreakPointActualLocations = function(breakId) {}
+Debug.findBreakPointActualLocations = function(breakId) {}
 
 /**
  * @param {number} breakId
  * @param {boolean} remove
  * @return {!BreakPoint|undefined}
  */
-DebugClass.prototype.findBreakPoint = function(breakId, remove) {}
+Debug.findBreakPoint = function(breakId, remove) {}
 
 /** @return {!DebuggerFlags} */
-DebugClass.prototype.debuggerFlags = function() {}
-
-/** @type {!DebugClass} */
-var Debug;
+Debug.debuggerFlags = function() {}
 
 
 /** @enum */
-Debug.BreakPositionAlignment = {
+const BreakPositionAlignment = {
     Statement: 0,
     BreakPosition: 1
 };
+Debug.BreakPositionAlignment = BreakPositionAlignment;
 
 /** @enum */
 Debug.StepAction = { StepOut: 0,
@@ -121,9 +120,10 @@ Debug.StepAction = { StepOut: 0,
                      StepFrame: 3 };
 
 /** @enum */
-Debug.ScriptCompilationType = { Host: 0,
-                                Eval: 1,
-                                JSON: 2 };
+const ScriptCompilationType = { Host: 0,
+                              Eval: 1,
+                              JSON: 2 };
+Debug.ScriptCompilationType = ScriptCompilationType;
 
 
 /** @interface */
@@ -133,16 +133,14 @@ function DebuggerFlag() {}
 DebuggerFlag.prototype.setValue = function(value) {}
 
 
-/** @interface */
-function DebuggerFlags()
-{
-    /** @type {!DebuggerFlag} */
-    this.breakPointsActive;
-}
+/** @typedef {{
+ *    breakPointsActive: !DebuggerFlag
+ *  }}
+ */
+var DebuggerFlags;
 
-
-/** @interface */
-function LiveEditClass() {}
+/** @const */
+var LiveEdit = {}
 
 /**
  * @param {!Script} script
@@ -150,35 +148,32 @@ function LiveEditClass() {}
  * @param {boolean} previewOnly
  * @return {!{stack_modified: (boolean|undefined)}}
  */
-LiveEditClass.prototype.SetScriptSource = function(script, newSource, previewOnly, change_log) {}
+LiveEdit.SetScriptSource = function(script, newSource, previewOnly, change_log) {}
 
+/** @constructor */
+function Failure() {}
+LiveEdit.Failure = Failure;
 
-/** @interface */
-function LiveEditErrorDetails()
-{
-  /** @type {string} */
-  this.syntaxErrorMessage;
-  /** @type {!{start: !{line: number, column: number}}} */
-  this.position;
-}
+Debug.LiveEdit = LiveEdit;
 
+/** @typedef {{
+ *    type: string,
+ *    syntaxErrorMessage: string,
+ *    position: !{start: !{line: number, column: number}},
+ *  }}
+ */
+var LiveEditErrorDetails;
 
-/** @interface */
-function BreakpointInfo()
-{
-    /** @type {number} */
-    this.breakpointId;
-    /** @type {number} */
-    this.sourceID;
-    /** @type {number|undefined} */
-    this.lineNumber;
-    /** @type {number|undefined} */
-    this.columnNumber;
-    /** @type {string|undefined} */
-    this.condition;
-    /** @type {boolean|undefined} */
-    this.interstatementLocation;
-}
+/** @typedef {{
+ *    breakpointId: number,
+ *    sourceID: number,
+ *    lineNumber: (number|undefined),
+ *    columnNumber: (number|undefined),
+ *    condition: (string|undefined),
+ *    interstatementLocation: (boolean|undefined),
+ *    }}
+ */
+var BreakpointInfo;
 
 
 /** @interface */
@@ -244,53 +239,32 @@ var ScopeType = { Global: 0,
                   Script: 6 };
 
 
-/** @interface */
-function SourceLocation()
-{
-    /** @type {number} */
-    this.script;
-    /** @type {number} */
-    this.position;
-    /** @type {number} */
-    this.line;
-    /** @type {number} */
-    this.column;
-    /** @type {number} */
-    this.start;
-    /** @type {number} */
-    this.end;
-}
+/** @typedef {{
+ *    script: number,
+ *    position: number,
+ *    line: number,
+ *    column:number,
+ *    start: number,
+ *    end: number,
+ *    }}
+ */
+var SourceLocation;
 
-
-/** @interface */
-function Script()
-{
-    /** @type {number} */
-    this.id;
-    /** @type {string|undefined} */
-    this.context_data;
-    /** @type {string|undefined} */
-    this.source_url;
-    /** @type {string|undefined} */
-    this.source_mapping_url;
-    /** @type {boolean} */
-    this.is_debugger_script;
-    /** @type {string} */
-    this.source;
-    /** @type {!Array<number>} */
-    this.line_ends;
-    /** @type {number} */
-    this.line_offset;
-    /** @type {number} */
-    this.column_offset;
-}
-
-/** @return {string} */
-Script.prototype.nameOrSourceURL = function() {}
-
-/** @return {!Debug.ScriptCompilationType} */
-Script.prototype.compilationType = function() {}
-
+/** @typedef{{
+ *    id: number,
+ *    context_data: (string|undefined),
+ *    source_url: (string|undefined),
+ *    source_mapping_url: (string|undefined),
+ *    is_debugger_script: boolean,
+ *    source: string,
+ *    line_ends: !Array<number>,
+ *    line_offset: number,
+ *    column_offset: number,
+ *    nameOrSourceURL: function():string,
+ *    compilationType: function():!ScriptCompilationType,
+ *    }}
+ */
+var Script;
 
 /** @interface */
 function ScopeDetails() {}
@@ -300,6 +274,9 @@ ScopeDetails.prototype.object = function() {}
 
 /** @return {string|undefined} */
 ScopeDetails.prototype.name = function() {}
+
+/** @return {number} */
+ScopeDetails.prototype.type = function() {}
 
 
 /** @interface */
@@ -463,11 +440,7 @@ GeneratorMirror.prototype.func = function() {}
  * @interface
  * @extends {Mirror}
  */
-function PropertyMirror()
-{
-    /** @type {*} */
-    this.value_;
-}
+function PropertyMirror() {}
 
 /** @return {!Mirror} */
 PropertyMirror.prototype.value = function() {}
@@ -475,6 +448,8 @@ PropertyMirror.prototype.value = function() {}
 /** @return {string} */
 PropertyMirror.prototype.name = function() {}
 
+/** @type {*} */
+PropertyMirror.prototype.value_;
 
 /**
  * @interface
