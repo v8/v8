@@ -2719,6 +2719,15 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
   return result_var.value();
 }
 
+// ES6 section 21.1.3.19 String.prototype.substring ( start, end )
+compiler::Node* SubStringStub::Generate(CodeStubAssembler* assembler,
+                                        compiler::Node* string,
+                                        compiler::Node* from,
+                                        compiler::Node* to,
+                                        compiler::Node* context) {
+  return assembler->SubString(context, string, from, to);
+}
+
 // ES6 section 7.1.13 ToObject (argument)
 void ToObjectStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;

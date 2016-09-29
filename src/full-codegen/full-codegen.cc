@@ -568,6 +568,7 @@ void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
   __ CallStub(&stub);
+  RestoreContext();
   OperandStackDepthDecrement(3);
   context()->Plug(result_register());
 }
