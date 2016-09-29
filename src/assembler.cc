@@ -351,7 +351,9 @@ void RelocInfo::update_wasm_memory_reference(
                                            icache_flush_mode);
   } else if (IsWasmMemorySizeReference(rmode_)) {
     uint32_t current_size_reference = wasm_memory_size_reference();
+    DCHECK(old_size == 0 || current_size_reference <= old_size);
     uint32_t offset = old_size - current_size_reference;
+    DCHECK_GE(new_size, offset);
     uint32_t updated_size_reference = new_size - offset;
     unchecked_update_wasm_memory_size(updated_size_reference,
                                       icache_flush_mode);
