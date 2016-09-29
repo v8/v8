@@ -62,6 +62,10 @@ CheckInstance(new WebAssembly.Instance(module));
 let promise = WebAssembly.compile(buffer);
 promise.then(module => CheckInstance(new WebAssembly.Instance(module)));
 
+// Check that validate works correctly for a module.
+assertTrue(WebAssembly.validate(buffer));
+assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
+
 // Negative tests.
 (function InvalidModules() {
   print("InvalidModules...");
@@ -69,7 +73,7 @@ promise.then(module => CheckInstance(new WebAssembly.Instance(module)));
   let len = invalid_cases.length;
   for (var i = 0; i < len; ++i) {
     try {
-      let instance = new WebAssembly.Instance(1);
+      let instance = new WebAssembly.Instance(invalid_cases[i]);
       assertUnreachable("should not be able to instantiate invalid modules.");
     } catch (e) {
       assertContains("Argument 0", e.toString());

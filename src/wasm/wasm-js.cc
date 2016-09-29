@@ -197,6 +197,21 @@ static i::MaybeHandle<i::JSObject> CreateModuleObject(
       i::wasm::ModuleOrigin::kWasmOrigin);
 }
 
+static bool ValidateModule(v8::Isolate* isolate,
+                           const v8::Local<v8::Value> source,
+                           ErrorThrower* thrower) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::MaybeHandle<i::JSObject> nothing;
+
+  RawBuffer buffer = GetRawBufferSource(source, thrower);
+  if (buffer.start == nullptr) return false;
+
+  DCHECK(source->IsArrayBuffer() || source->IsTypedArray());
+  return i::wasm::ValidateModuleBytes(i_isolate, buffer.start, buffer.end,
+                                      thrower,
+                                      i::wasm::ModuleOrigin::kWasmOrigin);
+}
+
 bool BrandCheck(Isolate* isolate, i::Handle<i::Object> value,
                 i::Handle<i::Symbol> sym, const char* msg) {
   if (value->IsJSObject()) {
@@ -233,6 +248,25 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(resolver->GetPromise());
+}
+
+void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  ErrorThrower thrower(reinterpret_cast<i::Isolate*>(isolate),
+                       "WebAssembly.validate()");
+
+  if (args.Length() < 1) {
+    thrower.TypeError("Argument 0 must be a buffer source");
+    return;
+  }
+
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  if (ValidateModule(isolate, args[0], &thrower)) {
+    return_value.Set(v8::True(isolate));
+  } else {
+    return_value.Set(v8::False(isolate));
+  }
 }
 
 void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -577,6 +611,9 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
 
   // Setup compile
   InstallFunc(isolate, wasm_object, "compile", WebAssemblyCompile);
+
+  // Setup compile
+  InstallFunc(isolate, wasm_object, "validate", WebAssemblyValidate);
 
   // Setup Module
   Handle<JSFunction> module_constructor =

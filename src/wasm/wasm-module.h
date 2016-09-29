@@ -398,6 +398,11 @@ V8_EXPORT_PRIVATE MaybeHandle<JSObject> CreateModuleObjectFromBytes(
     Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
     ModuleOrigin origin);
 
+V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
+                                           const byte* end,
+                                           ErrorThrower* thrower,
+                                           ModuleOrigin origin);
+
 // Get the number of imported functions for a WASM instance.
 uint32_t GetNumImportedFunctions(Handle<JSObject> wasm_object);
 

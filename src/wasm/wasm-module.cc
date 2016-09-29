@@ -1813,6 +1813,19 @@ MaybeHandle<JSObject> CreateModuleObjectFromBytes(Isolate* isolate,
                                     origin);
 }
 
+bool ValidateModuleBytes(Isolate* isolate, const byte* start, const byte* end,
+                         ErrorThrower* thrower, ModuleOrigin origin) {
+  Zone zone(isolate->allocator());
+  ModuleResult result =
+      DecodeWasmModule(isolate, &zone, start, end, false, origin);
+  if (result.ok()) {
+    DCHECK_NOT_NULL(result.val);
+    delete result.val;
+    return true;
+  }
+  return false;
+}
+
 MaybeHandle<JSArrayBuffer> GetInstanceMemory(Isolate* isolate,
                                              Handle<JSObject> instance) {
   Object* mem = instance->GetInternalField(kWasmMemArrayBuffer);
