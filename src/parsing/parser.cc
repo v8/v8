@@ -768,12 +768,13 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   {
     Scope* outer = original_scope_;
     DCHECK_NOT_NULL(outer);
+    parsing_module_ = info->is_module();
     if (info->is_eval()) {
       if (!outer->is_script_scope() || is_strict(info->language_mode())) {
         parsing_mode = PARSE_EAGERLY;
       }
       outer = NewEvalScope(outer);
-    } else if (info->is_module()) {
+    } else if (parsing_module_) {
       DCHECK_EQ(outer, info->script_scope());
       outer = NewModuleScope(info->script_scope());
       // Never do lazy parsing in modules.  If we want to support this in the
@@ -793,7 +794,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
-    parsing_module_ = info->is_module();
     if (parsing_module_) {
       // Declare the special module parameter.
       auto name = ast_value_factory()->empty_string();
@@ -804,6 +804,13 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
                                          &is_duplicate, ast_value_factory());
       DCHECK(!is_duplicate);
       var->AllocateTo(VariableLocation::PARAMETER, 0);
+
+      PrepareGeneratorVariables(&function_state);
+      Expression* initial_yield =
+          BuildInitialYield(kNoSourcePosition, kGeneratorFunction);
+      body->Add(
+          factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
+          zone());
 
       ParseModuleItemList(body, &ok);
       ok = ok &&
@@ -2529,6 +2536,20 @@ void Parser::ReindexLiterals(const ParserFormalParameters& parameters) {
   }
 }
 
+void Parser::PrepareGeneratorVariables(FunctionState* function_state) {
+  // For generators, allocating variables in contexts is currently a win
+  // because it minimizes the work needed to suspend and resume an
+  // activation.  The machine code produced for generators (by full-codegen)
+  // relies on this forced context allocation, but not in an essential way.
+  scope()->ForceContextAllocation();
+
+  // Calling a generator returns a generator object.  That object is stored
+  // in a temporary variable, a definition that is used by "yield"
+  // expressions.
+  Variable* temp =
+      NewTemporary(ast_value_factory()->dot_generator_object_string());
+  function_state->set_generator_object_variable(temp);
+}
 
 FunctionLiteral* Parser::ParseFunctionLiteral(
     const AstRawString* function_name, Scanner::Location function_name_location,
@@ -2650,20 +2671,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
-  if (is_generator) {
-    // For generators, allocating variables in contexts is currently a win
-    // because it minimizes the work needed to suspend and resume an
-    // activation.  The machine code produced for generators (by full-codegen)
-    // relies on this forced context allocation, but not in an essential way.
-    this->scope()->ForceContextAllocation();
-
-    // Calling a generator returns a generator object.  That object is stored
-    // in a temporary variable, a definition that is used by "yield"
-    // expressions. This also marks the FunctionState as a generator.
-    Variable* temp =
-        NewTemporary(ast_value_factory()->dot_generator_object_string());
-    function_state.set_generator_object_variable(temp);
-  }
+  if (is_generator) PrepareGeneratorVariables(&function_state);
 
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = scanner()->location().beg_pos;
@@ -3124,6 +3132,21 @@ Variable* Parser::PromiseVariable() {
   return promise;
 }
 
+Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
+  Expression* allocation = BuildCreateJSGeneratorObject(pos, kind);
+  VariableProxy* init_proxy =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  Assignment* assignment = factory()->NewAssignment(
+      Token::INIT, init_proxy, allocation, kNoSourcePosition);
+  VariableProxy* get_proxy =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  // The position of the yield is important for reporting the exception
+  // caused by calling the .throw method on a generator suspended at the
+  // initial yield (i.e. right after generator instantiation).
+  return factory()->NewYield(get_proxy, assignment, scope()->start_position(),
+                             Yield::kOnExceptionThrow);
+}
+
 ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
     const ParserFormalParameters& parameters, FunctionKind kind,
@@ -3176,26 +3199,10 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
       Block* try_block =
           factory()->NewBlock(nullptr, 3, false, kNoSourcePosition);
-
-      {
-        Expression* allocation = BuildCreateJSGeneratorObject(pos, kind);
-        VariableProxy* init_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        Assignment* assignment = factory()->NewAssignment(
-            Token::INIT, init_proxy, allocation, kNoSourcePosition);
-        VariableProxy* get_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        // The position of the yield is important for reporting the exception
-        // caused by calling the .throw method on a generator suspended at the
-        // initial yield (i.e. right after generator instantiation).
-        Yield* yield = factory()->NewYield(get_proxy, assignment,
-                                           scope()->start_position(),
-                                           Yield::kOnExceptionThrow);
-        try_block->statements()->Add(
-            factory()->NewExpressionStatement(yield, kNoSourcePosition),
-            zone());
-      }
-
+      Expression* initial_yield = BuildInitialYield(pos, kind);
+      try_block->statements()->Add(
+          factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
+          zone());
       ParseStatementList(try_block->statements(), Token::RBRACE, CHECK_OK);
 
       Statement* final_return = factory()->NewReturnStatement(
