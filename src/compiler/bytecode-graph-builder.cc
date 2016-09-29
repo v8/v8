@@ -906,18 +906,16 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
                 extension_slot, jsgraph()->TheHoleConstant());
 
     NewBranch(check_no_extension);
-    Environment* false_environment = environment();
     Environment* true_environment = environment()->CopyForConditional();
 
     {
-      set_environment(false_environment);
       NewIfFalse();
       // If there is an extension, merge into the slow path.
       if (slow_environment == nullptr) {
-        slow_environment = false_environment;
+        slow_environment = environment();
         NewMerge();
       } else {
-        slow_environment->Merge(false_environment);
+        slow_environment->Merge(environment());
       }
     }
 
@@ -956,7 +954,7 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
     environment()->BindAccumulator(value, &states);
   }
 
-  fast_environment->Merge(slow_environment);
+  fast_environment->Merge(environment());
   set_environment(fast_environment);
 }
 
