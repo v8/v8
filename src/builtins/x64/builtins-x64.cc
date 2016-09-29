@@ -2004,9 +2004,8 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   __ bind(&to_string);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    ToStringStub stub(masm->isolate());
     __ EnterBuiltinFrame(rsi, rdi, r8);
-    __ CallStub(&stub);
+    __ Call(masm->isolate()->builtins()->ToString(), RelocInfo::CODE_TARGET);
     __ LeaveBuiltinFrame(rsi, rdi, r8);
   }
   __ jmp(&drop_frame_and_ret, Label::kNear);
@@ -2073,11 +2072,10 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&convert);
     {
       FrameScope scope(masm, StackFrame::MANUAL);
-      ToStringStub stub(masm->isolate());
       __ EnterBuiltinFrame(rsi, rdi, r8);
       __ Push(rdx);
       __ Move(rax, rbx);
-      __ CallStub(&stub);
+      __ Call(masm->isolate()->builtins()->ToString(), RelocInfo::CODE_TARGET);
       __ Move(rbx, rax);
       __ Pop(rdx);
       __ LeaveBuiltinFrame(rsi, rdi, r8);

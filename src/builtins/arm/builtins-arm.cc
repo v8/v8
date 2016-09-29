@@ -387,10 +387,9 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   __ bind(&to_string);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    ToStringStub stub(masm->isolate());
     __ SmiTag(r2);
     __ EnterBuiltinFrame(cp, r1, r2);
-    __ CallStub(&stub);
+    __ Call(masm->isolate()->builtins()->ToString(), RelocInfo::CODE_TARGET);
     __ LeaveBuiltinFrame(cp, r1, r2);
     __ SmiUntag(r2);
   }
@@ -449,12 +448,11 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&convert);
     {
       FrameScope scope(masm, StackFrame::MANUAL);
-      ToStringStub stub(masm->isolate());
       __ SmiTag(r6);
       __ EnterBuiltinFrame(cp, r1, r6);
       __ Push(r3);
       __ Move(r0, r2);
-      __ CallStub(&stub);
+      __ Call(masm->isolate()->builtins()->ToString(), RelocInfo::CODE_TARGET);
       __ Move(r2, r0);
       __ Pop(r3);
       __ LeaveBuiltinFrame(cp, r1, r6);

@@ -171,6 +171,7 @@ namespace internal {
   TFS(ToName, BUILTIN, kNoExtraICState, TypeConversion)                       \
   TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
   TFS(ToNumber, BUILTIN, kNoExtraICState, TypeConversion)                     \
+  TFS(ToString, BUILTIN, kNoExtraICState, TypeConversion)                     \
                                                                               \
   /* Handlers */                                                              \
   ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \

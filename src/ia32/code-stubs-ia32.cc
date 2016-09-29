@@ -2065,40 +2065,6 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
   __ bind(&done);
 }
 
-void ToStringStub::Generate(MacroAssembler* masm) {
-  // The ToString stub takes one argument in eax.
-  Label is_number;
-  __ JumpIfSmi(eax, &is_number, Label::kNear);
-
-  Label not_string;
-  __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, edi);
-  // eax: receiver
-  // edi: receiver map
-  __ j(above_equal, &not_string, Label::kNear);
-  __ Ret();
-  __ bind(&not_string);
-
-  Label not_heap_number;
-  __ CompareMap(eax, masm->isolate()->factory()->heap_number_map());
-  __ j(not_equal, &not_heap_number, Label::kNear);
-  __ bind(&is_number);
-  NumberToStringStub stub(isolate());
-  __ TailCallStub(&stub);
-  __ bind(&not_heap_number);
-
-  Label not_oddball;
-  __ CmpInstanceType(edi, ODDBALL_TYPE);
-  __ j(not_equal, &not_oddball, Label::kNear);
-  __ mov(eax, FieldOperand(eax, Oddball::kToStringOffset));
-  __ Ret();
-  __ bind(&not_oddball);
-
-  __ pop(ecx);   // Pop return address.
-  __ push(eax);  // Push argument.
-  __ push(ecx);  // Push return address.
-  __ TailCallRuntime(Runtime::kToString);
-}
-
 
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,

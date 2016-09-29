@@ -2271,37 +2271,6 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
   __ bind(&done);
 }
 
-void ToStringStub::Generate(MacroAssembler* masm) {
-  // The ToString stub takes on argument in a0.
-  Label is_number;
-  __ JumpIfSmi(a0, &is_number);
-
-  Label not_string;
-  __ GetObjectType(a0, a1, a1);
-  // a0: receiver
-  // a1: receiver instance type
-  __ Branch(&not_string, ge, a1, Operand(FIRST_NONSTRING_TYPE));
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a0);
-  __ bind(&not_string);
-
-  Label not_heap_number;
-  __ Branch(&not_heap_number, ne, a1, Operand(HEAP_NUMBER_TYPE));
-  __ bind(&is_number);
-  NumberToStringStub stub(isolate());
-  __ TailCallStub(&stub);
-  __ bind(&not_heap_number);
-
-  Label not_oddball;
-  __ Branch(&not_oddball, ne, a1, Operand(ODDBALL_TYPE));
-  __ Ret(USE_DELAY_SLOT);
-  __ ld(v0, FieldMemOperand(a0, Oddball::kToStringOffset));
-  __ bind(&not_oddball);
-
-  __ push(a0);  // Push argument.
-  __ TailCallRuntime(Runtime::kToString);
-}
-
 
 void StringHelper::GenerateFlatOneByteStringEquals(
     MacroAssembler* masm, Register left, Register right, Register scratch1,

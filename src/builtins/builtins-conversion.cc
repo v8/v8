@@ -151,6 +151,63 @@ void Builtins::Generate_ToNumber(CodeStubAssembler* assembler) {
   assembler->Return(assembler->ToNumber(context, input));
 }
 
+void Builtins::Generate_ToString(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef TypeConversionDescriptor Descriptor;
+
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label is_number(assembler);
+  Label runtime(assembler);
+
+  assembler->GotoIf(assembler->WordIsSmi(input), &is_number);
+
+  Node* input_map = assembler->LoadMap(input);
+  Node* input_instance_type = assembler->LoadMapInstanceType(input_map);
+
+  Label not_string(assembler);
+  assembler->GotoIf(
+      assembler->Int32GreaterThanOrEqual(
+          input_instance_type, assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+      &not_string);
+  assembler->Return(input);
+
+  Label not_heap_number(assembler);
+
+  assembler->Bind(&not_string);
+  {
+    assembler->GotoUnless(
+        assembler->WordEqual(input_map, assembler->HeapNumberMapConstant()),
+        &not_heap_number);
+    assembler->Goto(&is_number);
+  }
+
+  assembler->Bind(&is_number);
+  {
+    // TODO(tebbi): inline as soon as NumberToString is in the CodeStubAssembler
+    Callable callable = CodeFactory::NumberToString(assembler->isolate());
+    assembler->Return(assembler->CallStub(callable, context, input));
+  }
+
+  assembler->Bind(&not_heap_number);
+  {
+    assembler->GotoIf(
+        assembler->Word32NotEqual(input_instance_type,
+                                  assembler->Int32Constant(ODDBALL_TYPE)),
+        &runtime);
+    assembler->Return(
+        assembler->LoadObjectField(input, Oddball::kToStringOffset));
+  }
+
+  assembler->Bind(&runtime);
+  {
+    assembler->Return(
+        assembler->CallRuntime(Runtime::kToString, context, input));
+  }
+}
+
 Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   switch (hint) {
     case OrdinaryToPrimitiveHint::kNumber:
