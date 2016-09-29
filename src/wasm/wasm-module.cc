@@ -1255,6 +1255,11 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   Handle<FixedArray> code_table;
   Handle<FixedArray> old_code_table;
   Handle<JSObject> owner;
+  // If we don't clone, this will be null(). Otherwise, this will
+  // be a weak link to the original. If we lose the original to GC,
+  // this will be a cleared. We'll link the instances chain last.
+  MaybeHandle<WeakCell> link_to_original;
+
   {
     Handle<FixedArray> original(
         FixedArray::cast(module_object->GetInternalField(0)), isolate);
@@ -1265,20 +1270,24 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
 
     WeakCell* tmp = GetOwningInstance(*original);
     if (tmp != nullptr) {
+      DCHECK(!tmp->cleared());
       // There is already an owner, clone everything.
       owner = Handle<JSObject>(JSObject::cast(tmp->value()), isolate);
       // Insert the latest clone in front.
       compiled_module = factory->CopyFixedArray(original);
+      // Replace the strong reference to point to the new instance here.
+      // This allows any of the other instances, including the original,
+      // to be collected.
+      module_object->SetInternalField(0, *compiled_module);
       Handle<WeakCell> weak_link_to_wasm_obj =
           original->GetValueChecked<WeakCell>(isolate, kModuleObject);
 
       compiled_module->set(kModuleObject, *weak_link_to_wasm_obj);
-      Handle<WeakCell> link_to_original = factory->NewWeakCell(original);
-      compiled_module->set(kNextInstance, *link_to_original);
-      Handle<WeakCell> link_to_clone = factory->NewWeakCell(compiled_module);
-      original->set(kPrevInstance, *link_to_clone);
-      JSObject::cast(weak_link_to_wasm_obj->value())
-          ->SetInternalField(0, *compiled_module);
+      link_to_original = factory->NewWeakCell(original);
+      // Don't link to original here. We remember the original
+      // as a weak link. If that link isn't clear by the time we finish
+      // instantiating this instance, then we link it at that time.
+      compiled_module->set(kNextInstance, *factory->undefined_value());
 
       // Clone the code for WASM functions and exports.
       for (int i = 0; i < code_table->length(); ++i) {
@@ -1583,12 +1592,24 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   if (!compiled_module->GetValue<WeakCell>(isolate, kModuleObject).is_null()) {
     instance->SetInternalField(kWasmCompiledModule, *compiled_module);
     Handle<WeakCell> link_to_owner = factory->NewWeakCell(instance);
-    compiled_module->set(kOwningInstance, *link_to_owner);
 
     Handle<Object> global_handle = isolate->global_handles()->Create(*instance);
-    GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
-                            &InstanceFinalizer,
-                            v8::WeakCallbackType::kFinalizer);
+    Handle<WeakCell> link_to_clone = factory->NewWeakCell(compiled_module);
+    {
+      DisallowHeapAllocation no_gc;
+      compiled_module->set(kOwningInstance, *link_to_owner);
+      Handle<WeakCell> next;
+      if (link_to_original.ToHandle(&next) && !next->cleared()) {
+        FixedArray* original = FixedArray::cast(next->value());
+        DCHECK_NOT_NULL(GetOwningInstance(original));
+        DCHECK(!GetOwningInstance(original)->cleared());
+        compiled_module->set(kNextInstance, *next);
+        original->set(kPrevInstance, *link_to_clone);
+      }
+      GlobalHandles::MakeWeak(global_handle.location(),
+                              global_handle.location(), &InstanceFinalizer,
+                              v8::WeakCallbackType::kFinalizer);
+    }
   }
 
   return instance;
