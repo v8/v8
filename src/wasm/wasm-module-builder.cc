@@ -168,23 +168,6 @@ void WasmFunctionBuilder::WriteBody(ZoneBuffer& buffer) const {
   }
 }
 
-WasmDataSegmentEncoder::WasmDataSegmentEncoder(Zone* zone, const byte* data,
-                                               uint32_t size, uint32_t dest)
-    : data_(zone), dest_(dest) {
-  for (size_t i = 0; i < size; ++i) {
-    data_.push_back(data[i]);
-  }
-}
-
-void WasmDataSegmentEncoder::Write(ZoneBuffer& buffer) const {
-  buffer.write_u8(0);  // linear memory zero
-  buffer.write_u8(kExprI32Const);
-  buffer.write_u32v(dest_);
-  buffer.write_u8(kExprEnd);
-  buffer.write_u32v(static_cast<uint32_t>(data_.size()));
-  buffer.write(&data_[0], data_.size());
-}
-
 WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
     : zone_(zone),
       signatures_(zone),
@@ -203,8 +186,13 @@ WasmFunctionBuilder* WasmModuleBuilder::AddFunction(FunctionSig* sig) {
   return functions_.back();
 }
 
-void WasmModuleBuilder::AddDataSegment(WasmDataSegmentEncoder* data) {
-  data_segments_.push_back(data);
+void WasmModuleBuilder::AddDataSegment(const byte* data, uint32_t size,
+                                       uint32_t dest) {
+  data_segments_.push_back({ZoneVector<byte>(zone()), dest});
+  ZoneVector<byte>& vec = data_segments_.back().data;
+  for (uint32_t i = 0; i < size; i++) {
+    vec.push_back(data[i]);
+  }
 }
 
 bool WasmModuleBuilder::CompareFunctionSigs::operator()(FunctionSig* a,
@@ -253,7 +241,7 @@ void WasmModuleBuilder::MarkStartFunction(WasmFunctionBuilder* function) {
 
 uint32_t WasmModuleBuilder::AddGlobal(LocalType type, bool exported,
                                       bool mutability) {
-  globals_.push_back(std::make_tuple(type, exported, mutability));
+  globals_.push_back({type, exported, mutability});
   return static_cast<uint32_t>(globals_.size() - 1);
 }
 
@@ -339,12 +327,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(globals_.size());
 
     for (auto global : globals_) {
-      static const int kLocalTypeIndex = 0;
-      static const int kMutabilityIndex = 2;
-      buffer.write_u8(
-          WasmOpcodes::LocalTypeCodeFor(std::get<kLocalTypeIndex>(global)));
-      buffer.write_u8(std::get<kMutabilityIndex>(global));
-      switch (std::get<kLocalTypeIndex>(global)) {
+      buffer.write_u8(WasmOpcodes::LocalTypeCodeFor(global.type));
+      buffer.write_u8(global.mutability ? 1 : 0);
+      switch (global.type) {
         case kAstI32: {
           static const byte code[] = {WASM_I32V_1(0)};
           buffer.write(code, sizeof(code));
@@ -421,7 +406,12 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(data_segments_.size());
 
     for (auto segment : data_segments_) {
-      segment->Write(buffer);
+      buffer.write_u8(0);              // linear memory segment
+      buffer.write_u8(kExprI32Const);  // initializer expression for dest
+      buffer.write_u32v(segment.dest);
+      buffer.write_u8(kExprEnd);
+      buffer.write_u32v(static_cast<uint32_t>(segment.data.size()));
+      buffer.write(&segment.data[0], segment.data.size());
     }
     FixupSection(buffer, start);
   }

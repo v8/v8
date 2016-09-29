@@ -110,8 +110,7 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
       WASM_LOAD_MEM(MachineType::Int32(), WASM_I8(kDataSegmentDest0))};
   f->EmitCode(code, sizeof(code));
   byte data[] = {0xaa, 0xbb, 0xcc, 0xdd};
-  builder->AddDataSegment(new (&zone) WasmDataSegmentEncoder(
-      &zone, data, sizeof(data), kDataSegmentDest0));
+  builder->AddDataSegment(data, sizeof(data), kDataSegmentDest0);
   TestModule(&zone, builder, 0xddccbbaa);
 }
 

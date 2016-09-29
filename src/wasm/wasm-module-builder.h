@@ -193,24 +193,6 @@ class WasmTemporary {
   uint32_t index_;
 };
 
-// TODO(titzer): kill!
-class WasmDataSegmentEncoder : public ZoneObject {
- public:
-  WasmDataSegmentEncoder(Zone* zone, const byte* data, uint32_t size,
-                         uint32_t dest);
-  void Write(ZoneBuffer& buffer) const;
-
- private:
-  ZoneVector<byte> data_;
-  uint32_t dest_;
-};
-
-struct WasmFunctionImport {
-  uint32_t sig_index;
-  const char* name;
-  int name_length;
-};
-
 class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
  public:
   explicit WasmModuleBuilder(Zone* zone);
@@ -223,7 +205,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   }
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
   uint32_t AddGlobal(LocalType type, bool exported, bool mutability = true);
-  void AddDataSegment(WasmDataSegmentEncoder* data);
+  void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
   void AddIndirectFunction(uint32_t index);
   void MarkStartFunction(WasmFunctionBuilder* builder);
@@ -241,14 +223,31 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   FunctionSig* GetSignature(uint32_t index) { return signatures_[index]; }
 
  private:
+  struct WasmFunctionImport {
+    uint32_t sig_index;
+    const char* name;
+    int name_length;
+  };
+
+  struct WasmGlobal {
+    LocalType type;
+    bool exported;
+    bool mutability;
+  };
+
+  struct WasmDataSegment {
+    ZoneVector<byte> data;
+    uint32_t dest;
+  };
+
   friend class WasmFunctionBuilder;
   Zone* zone_;
   ZoneVector<FunctionSig*> signatures_;
   ZoneVector<WasmFunctionImport> imports_;
   ZoneVector<WasmFunctionBuilder*> functions_;
-  ZoneVector<WasmDataSegmentEncoder*> data_segments_;
+  ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;
-  ZoneVector<std::tuple<LocalType, bool, bool>> globals_;
+  ZoneVector<WasmGlobal> globals_;
   SignatureMap signature_map_;
   int start_function_index_;
 };
