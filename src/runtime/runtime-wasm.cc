@@ -129,16 +129,5 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
   return isolate->Throw(*isolate->factory()->NewNumberFromInt(thrown_value));
 }
 
-RUNTIME_FUNCTION(Runtime_WasmGetCaughtExceptionValue) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Object* exception = args[0];
-  // The unwinder will only deliver exceptions to wasm if the exception is a
-  // Number or a Smi (which we have just converted to a Number.) This logic
-  // lives in Isolate::is_catchable_by_wasm(Object*).
-  CHECK(exception->IsNumber());
-  return exception;
-}
-
 }  // namespace internal
 }  // namespace v8
