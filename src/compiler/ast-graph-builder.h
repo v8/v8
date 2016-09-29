@@ -579,6 +579,11 @@ class AstGraphBuilder::Environment : public ZoneObject {
   // Copies this environment at a loop header control-flow point.
   Environment* CopyForLoop(BitVector* assigned, bool is_osr = false);
 
+  // Copies this environment for Osr entry. This only produces environment
+  // of the right shape, the caller is responsible for filling in the right
+  // values and dependencies.
+  Environment* CopyForOsrEntry();
+
  private:
   AstGraphBuilder* builder_;
   int parameters_count_;
@@ -608,7 +613,8 @@ class AstGraphBuilder::Environment : public ZoneObject {
   bool IsLivenessBlockConsistent();
 
   // Prepare environment to be used as loop header.
-  void PrepareForLoop(BitVector* assigned, bool is_osr = false);
+  void PrepareForLoop(BitVector* assigned);
+  void PrepareForOsrEntry();
 };
 
 }  // namespace compiler
