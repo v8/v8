@@ -116,9 +116,11 @@ class ProtocolPromiseHandler {
         info.Length() > 0
             ? info[0]
             : v8::Local<v8::Value>::Cast(v8::Undefined(info.GetIsolate()));
+    std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue(
+        handler->wrapObject(value));
+    if (!wrappedValue) return;
     handler->m_callback->sendSuccess(
-        handler->wrapObject(value),
-        Maybe<protocol::Runtime::ExceptionDetails>());
+        std::move(wrappedValue), Maybe<protocol::Runtime::ExceptionDetails>());
   }
 
   static void catchCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -131,6 +133,10 @@ class ProtocolPromiseHandler {
             ? info[0]
             : v8::Local<v8::Value>::Cast(v8::Undefined(info.GetIsolate()));
 
+    std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue(
+        handler->wrapObject(value));
+    if (!wrappedValue) return;
+
     std::unique_ptr<V8StackTraceImpl> stack =
         handler->m_inspector->debugger()->captureStackTrace(true);
     std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails =
@@ -141,13 +147,13 @@ class ProtocolPromiseHandler {
                                                       : 0)
             .setColumnNumber(
                 stack && !stack->isEmpty() ? stack->topColumnNumber() : 0)
-            .setException(handler->wrapObject(value))
+            .setException(wrappedValue->clone())
             .build();
     if (stack)
       exceptionDetails->setStackTrace(stack->buildInspectorObjectImpl());
     if (stack && !stack->isEmpty())
       exceptionDetails->setScriptId(toString16(stack->topScriptId()));
-    handler->m_callback->sendSuccess(handler->wrapObject(value),
+    handler->m_callback->sendSuccess(std::move(wrappedValue),
                                      std::move(exceptionDetails));
   }
 
