@@ -159,6 +159,8 @@ struct WasmExport {
 
 enum ModuleOrigin { kWasmOrigin, kAsmJsOrigin };
 
+class WasmCompiledModule;
+
 // Static representation of a module.
 struct WasmModule {
   static const uint32_t kPageSize = 0x10000;    // Page size, 64kb.
@@ -240,8 +242,8 @@ struct WasmModule {
       Isolate* isolate, ErrorThrower* thrower, Handle<JSObject> module_object,
       Handle<JSReceiver> ffi, Handle<JSArrayBuffer> memory);
 
-  MaybeHandle<FixedArray> CompileFunctions(Isolate* isolate,
-                                           ErrorThrower* thrower) const;
+  MaybeHandle<WasmCompiledModule> CompileFunctions(Isolate* isolate,
+                                                   ErrorThrower* thrower) const;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(WasmModule);
@@ -338,6 +340,115 @@ typedef Result<const WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
+
+class WasmCompiledModule : public FixedArray {
+ public:
+  static WasmCompiledModule* cast(Object* fixed_array) {
+    return reinterpret_cast<WasmCompiledModule*>(fixed_array);
+  }
+
+#define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID)                           \
+  Handle<TYPE> NAME() const { return handle(ptr_to_##NAME()); }      \
+                                                                     \
+  MaybeHandle<TYPE> maybe_##NAME() const {                           \
+    if (has_##NAME()) return NAME();                                 \
+    return MaybeHandle<TYPE>();                                      \
+  }                                                                  \
+                                                                     \
+  TYPE* ptr_to_##NAME() const {                                      \
+    Object* obj = get(ID);                                           \
+    if (!obj->Is##TYPE()) return nullptr;                            \
+    return TYPE::cast(obj);                                          \
+  }                                                                  \
+                                                                     \
+  void set_##NAME(Handle<TYPE> value) { set_ptr_to_##NAME(*value); } \
+                                                                     \
+  void set_ptr_to_##NAME(TYPE* value) { set(ID, value); }            \
+                                                                     \
+  bool has_##NAME() const { return get(ID)->Is##TYPE(); }            \
+                                                                     \
+  void reset_##NAME() { set_undefined(ID); }
+
+#define WCM_OBJECT(TYPE, NAME) WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME)
+
+#define WCM_SMALL_NUMBER(TYPE, NAME)                               \
+  TYPE NAME() const {                                              \
+    return static_cast<TYPE>(Smi::cast(get(kID_##NAME))->value()); \
+  }                                                                \
+                                                                   \
+  void set_##NAME(TYPE value) {                                    \
+    set(kID_##NAME, Smi::FromInt(static_cast<int>(value)));        \
+  }
+
+#define WCM_LARGE_NUMBER(TYPE, NAME)                                          \
+  TYPE NAME() const {                                                         \
+    return static_cast<TYPE>(HeapNumber::cast(get(kID_##NAME))->value());     \
+  }                                                                           \
+                                                                              \
+  void set_##NAME(TYPE value) {                                               \
+    HeapNumber::cast(get(kID_##NAME))->set_value(static_cast<double>(value)); \
+  }
+
+#define WCM_WEAK_LINK(TYPE, NAME)                        \
+  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME); \
+                                                         \
+  Handle<TYPE> NAME() const {                            \
+    return handle(TYPE::cast(weak_##NAME()->value()));   \
+  }
+
+#define WCM_PROPERTY_TABLE(MACRO)                     \
+  MACRO(OBJECT, FixedArray, code_table)               \
+  MACRO(OBJECT, FixedArray, import_data)              \
+  MACRO(OBJECT, FixedArray, exports)                  \
+  MACRO(OBJECT, FixedArray, startup_function)         \
+  MACRO(OBJECT, FixedArray, indirect_function_tables) \
+  MACRO(OBJECT, String, module_bytes)                 \
+  MACRO(OBJECT, ByteArray, function_names)            \
+  MACRO(LARGE_NUMBER, uint32_t, min_required_memory)  \
+  MACRO(OBJECT, FixedArray, data_segments_info)       \
+  MACRO(OBJECT, ByteArray, data_segments)             \
+  MACRO(LARGE_NUMBER, uint32_t, globals_size)         \
+  MACRO(LARGE_NUMBER, uint32_t, mem_size)             \
+  MACRO(OBJECT, JSArrayBuffer, mem_start)             \
+  MACRO(SMALL_NUMBER, bool, export_memory)            \
+  MACRO(SMALL_NUMBER, ModuleOrigin, origin)           \
+  MACRO(WEAK_LINK, WasmCompiledModule, next_instance) \
+  MACRO(WEAK_LINK, WasmCompiledModule, prev_instance) \
+  MACRO(WEAK_LINK, JSObject, owning_instance)         \
+  MACRO(WEAK_LINK, JSObject, module_object)
+
+ private:
+  enum PropertyIndices {
+#define INDICES(IGNORE1, IGNORE2, NAME) kID_##NAME,
+    WCM_PROPERTY_TABLE(INDICES) Count
+#undef INDICES
+  };
+
+ public:
+  static Handle<WasmCompiledModule> New(Isolate* isolate) {
+    Handle<FixedArray> ret =
+        isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
+    Handle<HeapNumber> number;
+#define WCM_INIT_OBJECT(IGNORE1, IGNORE2)
+#define WCM_INIT_WEAK_LINK(IGNORE1, IGNORE2)
+#define WCM_INIT_SMALL_NUMBER(IGNORE1, IGNORE2)
+#define WCM_INIT_LARGE_NUMBER(IGNORE, NAME)                          \
+  number = isolate->factory()->NewHeapNumber(0.0, MUTABLE, TENURED); \
+  ret->set(kID_##NAME, *number);
+
+#define INITIALIZER(KIND, TYPE, NAME) WCM_INIT_##KIND(TYPE, NAME)
+    WCM_PROPERTY_TABLE(INITIALIZER)
+#undef INITIALIZER
+    return handle(WasmCompiledModule::cast(*ret));
+  }
+
+#define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
+  WCM_PROPERTY_TABLE(DECLARATION)
+#undef DECLARATION
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
+};
 
 // Extract a function name from the given wasm object.
 // Returns "<WASM UNNAMED>" if the function is unnamed or the name is not a
