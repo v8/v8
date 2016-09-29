@@ -152,7 +152,8 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
 
 ModuleScope::ModuleScope(DeclarationScope* script_scope,
                          AstValueFactory* ast_value_factory)
-    : DeclarationScope(ast_value_factory->zone(), script_scope, MODULE_SCOPE) {
+    : DeclarationScope(ast_value_factory->zone(), script_scope, MODULE_SCOPE,
+                       kModule) {
   Zone* zone = ast_value_factory->zone();
   module_descriptor_ = new (zone) ModuleDescriptor(zone);
   set_language_mode(STRICT);

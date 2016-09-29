@@ -703,6 +703,12 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
   SimpleInstallFunction(generator_object_prototype, "throw",
                         Builtins::kGeneratorPrototypeThrow, 1, true);
 
+  // Internal version of generator_prototype_next, flagged as non-native.
+  Handle<JSFunction> generator_next_internal =
+      SimpleCreateFunction(isolate(), factory()->next_string(),
+                           Builtins::kGeneratorPrototypeNext, 1, true);
+  native_context()->set_generator_next_internal(*generator_next_internal);
+
   // Create maps for generator functions and their prototypes.  Store those
   // maps in the native context. The "prototype" property descriptor is
   // writable, non-enumerable, and non-configurable (as per ES6 draft

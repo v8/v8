@@ -19906,7 +19906,7 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
 }
 
 MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
-  DCHECK(module->code()->IsJSFunction());
+  DCHECK(module->code()->IsJSFunction());  // Instantiated.
 
   Isolate* isolate = module->GetIsolate();
 
@@ -19914,17 +19914,28 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
   if (module->evaluated()) return isolate->factory()->undefined_value();
   module->set_evaluated(true);
 
+  // Initialization.
+  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
+  DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
+  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<Object> argv[] = {module};
+  Handle<Object> generator;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, generator,
+      Execution::Call(isolate, function, receiver, arraysize(argv), argv),
+      Object);
+
+  // Recursion.
   Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
     Handle<Module> import(Module::cast(requested_modules->get(i)), isolate);
     RETURN_ON_EXCEPTION(isolate, Evaluate(import), Object);
   }
 
-  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
-  DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
-  Handle<Object> receiver = isolate->factory()->undefined_value();
-  Handle<Object> argv[] = {module};
-  return Execution::Call(isolate, function, receiver, arraysize(argv), argv);
+  // Evaluation of module body.
+  Handle<JSFunction> resume(
+      isolate->native_context()->generator_next_internal(), isolate);
+  return Execution::Call(isolate, resume, generator, 0, nullptr);
 }
 
 }  // namespace internal
