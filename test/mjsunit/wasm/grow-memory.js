@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-gc --stress-compaction
+// Flags: --expose-wasm --stress-compaction
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
@@ -358,3 +358,27 @@ function testGrowMemoryOutOfBoundsOffset() {
 }
 
 testGrowMemoryOutOfBoundsOffset();
+
+
+function testGrowMemoryOutOfBoundsOffset2() {
+  var builder = new WasmModuleBuilder();
+  builder.addMemory(16, 128, false);
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      kExprI32Const, 20,
+      kExprI32Const, 29,
+      kExprGrowMemory,
+      kExprI32StoreMem, 0, 0xFF, 0xFF, 0xFF, 0x3a
+    ])
+    .exportAs("main");
+
+  var module = builder.instantiate();
+  try {
+    module.exports.main();
+    assertFalse(true);
+  } catch (e) {
+    // should throw OOB
+  }
+}
+
+testGrowMemoryOutOfBoundsOffset2();
