@@ -52,6 +52,13 @@ class TemplateHashMapImpl {
   Entry* LookupOrInsert(const Key& key, uint32_t hash,
                         AllocationPolicy allocator = AllocationPolicy());
 
+  // If an entry with matching key is found, returns that entry.
+  // If no matching entry is found, a new entry is inserted with
+  // corresponding key, key hash, and value created by func.
+  template <typename Func>
+  Entry* LookupOrInsert(const Key& key, uint32_t hash, const Func& value_func,
+                        AllocationPolicy allocator = AllocationPolicy());
+
   Entry* InsertNew(const Key& key, uint32_t hash,
                    AllocationPolicy allocator = AllocationPolicy());
 
@@ -126,13 +133,23 @@ template <typename Key, typename Value, typename MatchFun,
 typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::LookupOrInsert(
     const Key& key, uint32_t hash, AllocationPolicy allocator) {
+  return LookupOrInsert(key, hash, []() { return Value(); }, allocator);
+}
+
+template <typename Key, typename Value, typename MatchFun,
+          class AllocationPolicy>
+template <typename Func>
+typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
+TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::LookupOrInsert(
+    const Key& key, uint32_t hash, const Func& value_func,
+    AllocationPolicy allocator) {
   // Find a matching entry.
   Entry* entry = Probe(key, hash);
   if (entry->exists()) {
     return entry;
   }
 
-  return FillEmptyEntry(entry, key, Value(), hash, allocator);
+  return FillEmptyEntry(entry, key, value_func(), hash, allocator);
 }
 
 template <typename Key, typename Value, typename MatchFun,
