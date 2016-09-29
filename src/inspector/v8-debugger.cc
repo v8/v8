@@ -791,16 +791,30 @@ v8::Local<v8::Value> V8Debugger::collectionEntries(
   v8::Local<v8::Value> argv[] = {object};
   v8::Local<v8::Value> entriesValue =
       callDebuggerMethod("getCollectionEntries", 1, argv).ToLocalChecked();
-  v8::Local<v8::Value> copied;
-  if (!copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
-                                    entriesValue)
-           .ToLocal(&copied) ||
-      !copied->IsArray())
+  if (!entriesValue->IsArray()) return v8::Undefined(m_isolate);
+
+  v8::Local<v8::Array> entries = entriesValue.As<v8::Array>();
+  v8::Local<v8::Array> copiedArray =
+      v8::Array::New(m_isolate, entries->Length());
+  if (!copiedArray->SetPrototype(context, v8::Null(m_isolate)).FromMaybe(false))
     return v8::Undefined(m_isolate);
-  if (!markArrayEntriesAsInternal(context, v8::Local<v8::Array>::Cast(copied),
+  for (uint32_t i = 0; i < entries->Length(); ++i) {
+    v8::Local<v8::Value> item;
+    if (!entries->Get(debuggerContext(), i).ToLocal(&item))
+      return v8::Undefined(m_isolate);
+    v8::Local<v8::Value> copied;
+    if (!copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
+                                      item)
+             .ToLocal(&copied))
+      return v8::Undefined(m_isolate);
+    if (!createDataProperty(context, copiedArray, i, copied).FromMaybe(false))
+      return v8::Undefined(m_isolate);
+  }
+  if (!markArrayEntriesAsInternal(context,
+                                  v8::Local<v8::Array>::Cast(copiedArray),
                                   V8InternalValueType::kEntry))
     return v8::Undefined(m_isolate);
-  return copied;
+  return copiedArray;
 }
 
 v8::Local<v8::Value> V8Debugger::generatorObjectLocation(
