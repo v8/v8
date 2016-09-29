@@ -132,6 +132,3 @@ void ExecuteStringTask::Run(v8::Isolate* isolate,
   v8::MaybeLocal<v8::Value> result;
   result = script->Run(local_context);
 }
-
-// main to make compiler happy before other patch will be landed.
-int main(int argc, char* argv[]) { return 0; }
