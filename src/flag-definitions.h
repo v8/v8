@@ -571,9 +571,6 @@ DEFINE_BOOL(enable_popcnt, true,
 DEFINE_STRING(arm_arch, ARM_ARCH_DEFAULT,
               "generate instructions for the selected ARM architecture if "
               "available: armv6, armv7, armv7+sudiv or armv8")
-DEFINE_BOOL(enable_movw_movt, false,
-            "prefer to load 32-bit constants using movw/movt instruction pairs "
-            "(ARM only)")
 DEFINE_BOOL(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
 DEFINE_BOOL(force_long_branches, false,

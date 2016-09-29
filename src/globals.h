@@ -771,8 +771,6 @@ enum CpuFeature {
   ARMv7,        // ARMv7-A + VFPv3-D32 + NEON
   ARMv7_SUDIV,  // ARMv7-A + VFPv4-D32 + NEON + SUDIV
   ARMv8,        // ARMv8-A (+ all of the above)
-  // - Additional tuning flags.
-  MOVW_MOVT_IMMEDIATE_LOADS,
   // MIPS, MIPS64
   FPU,
   FP64FPU,
