@@ -19,12 +19,6 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-enum class UnicodeEncoding {
-  // Different unicode encodings in a |word32|:
-  UTF16,  // hi 16bits -> trailing surrogate or 0, low 16bits -> lead surrogate
-  UTF32,  // full UTF32 code unit / Unicode codepoint
-};
-
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"
@@ -477,9 +471,6 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // [from,to[ of string.  |from| and |to| are expected to be tagged.
   compiler::Node* SubString(compiler::Node* context, compiler::Node* string,
                             compiler::Node* from, compiler::Node* to);
-
-  compiler::Node* StringFromCodePoint(compiler::Node* codepoint,
-                                      UnicodeEncoding encoding);
 
   // Type conversion helpers.
   // Convert a String to a Number.
