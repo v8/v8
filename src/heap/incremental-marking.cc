@@ -1105,7 +1105,7 @@ void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
     bytes_to_process = Min(bytes_to_process, max_step_size);
 
-    intptr_t bytes_processed = 0;
+    size_t bytes_processed = 0;
     if (bytes_marked_ahead_of_schedule_ >= bytes_to_process) {
       // Steps performed in tasks have put us ahead of schedule.
       // We skip processing of marking dequeue here and thus
@@ -1116,7 +1116,7 @@ void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
       bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
                              FORCE_COMPLETION, StepOrigin::kV8);
     }
-    bytes_allocated_ -= Min(bytes_allocated_, bytes_to_process);
+    bytes_allocated_ -= Min(bytes_allocated_, bytes_processed);
   }
 }
 
