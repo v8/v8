@@ -1297,6 +1297,12 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
             UNREACHABLE();
         }
       }
+      Handle<HeapNumber> size_as_object = factory->NewHeapNumber(
+          static_cast<double>(
+              compiled_module->GetValueChecked<HeapNumber>(isolate, kMemSize)
+                  ->value()),
+          MUTABLE, TENURED);
+      compiled_module->set(kMemSize, *size_as_object);
       RecordStats(isolate, code_table);
     } else {
       // There was no owner, so we can reuse the original.
