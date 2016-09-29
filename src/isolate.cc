@@ -1149,8 +1149,8 @@ Object* Isolate::UnwindAndFindHandler() {
   Address handler_sp = nullptr;
   Address handler_fp = nullptr;
 
-  // Special handling of termination exceptions, uncatchable by JavaScript code,
-  // we unwind the handlers until the top ENTRY handler is found.
+  // Special handling of termination exceptions, uncatchable by JavaScript and
+  // Wasm code, we unwind the handlers until the top ENTRY handler is found.
   bool catchable_by_js = is_catchable_by_javascript(exception);
 
   // Compute handler and stack unwinding information by performing a full walk
@@ -1170,6 +1170,28 @@ Object* Isolate::UnwindAndFindHandler() {
       handler_sp = handler->address() + StackHandlerConstants::kSize;
       offset = Smi::cast(code->handler_table()->get(0))->value();
       break;
+    }
+
+    if (FLAG_wasm_eh_prototype) {
+      if (frame->is_wasm() && is_catchable_by_wasm(exception)) {
+        int stack_slots = 0;  // Will contain stack slot count of frame.
+        WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
+        offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
+        if (offset >= 0) {
+          // Compute the stack pointer from the frame pointer. This ensures that
+          // argument slots on the stack are dropped as returning would.
+          Address return_sp = frame->fp() +
+                              StandardFrameConstants::kFixedFrameSizeAboveFp -
+                              stack_slots * kPointerSize;
+
+          // Gather information from the frame.
+          code = frame->LookupCode();
+
+          handler_sp = return_sp;
+          handler_fp = frame->fp();
+          break;
+        }
+      }
     }
 
     // For optimized frames we perform a lookup in the handler table.

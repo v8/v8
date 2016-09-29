@@ -1477,6 +1477,15 @@ Script* WasmFrame::script() const {
   return wasm::WasmDebugInfo::GetFunctionScript(debug_info, function_index());
 }
 
+int WasmFrame::LookupExceptionHandlerInTable(int* stack_slots) {
+  DCHECK_NOT_NULL(stack_slots);
+  Code* code = LookupCode();
+  HandlerTable* table = HandlerTable::cast(code->handler_table());
+  int pc_offset = static_cast<int>(pc() - code->entry());
+  *stack_slots = code->stack_slots();
+  return table->LookupReturn(pc_offset);
+}
+
 namespace {
 
 
