@@ -7111,20 +7111,5 @@ TEST(RememberedSetRemoveRange) {
   });
 }
 
-TEST(EmptyIntermediateGeneration) {
-  CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  heap::GcAndSweep(heap, OLD_SPACE);
-  v8::HandleScope scope(CcTest::isolate());
-  {
-    v8::HandleScope temp_scope(CcTest::isolate());
-    heap::SimulateFullSpace(heap->new_space());
-  }
-  heap::GcAndSweep(heap, OLD_SPACE);
-  for (Page* p : *heap->new_space()) {
-    CHECK(!p->InIntermediateGeneration());
-  }
-}
-
 }  // namespace internal
 }  // namespace v8

@@ -3147,13 +3147,15 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
   if (FLAG_trace_evacuation) {
     PrintIsolate(heap->isolate(),
                  "evacuation[%p]: page=%p new_space=%d "
-                 "page_evacuation=%d executable=%d live_bytes=%d time=%f\n",
+                 "page_evacuation=%d executable=%d contains_age_mark=%d "
+                 "live_bytes=%d time=%f\n",
                  static_cast<void*>(this), static_cast<void*>(page),
                  page->InNewSpace(),
                  page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
                      page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
-                 page->IsFlagSet(MemoryChunk::IS_EXECUTABLE), saved_live_bytes,
-                 evacuation_time);
+                 page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
+                 page->Contains(heap->new_space()->age_mark()),
+                 saved_live_bytes, evacuation_time);
   }
   return success;
 }
@@ -3264,11 +3266,13 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   const bool reduce_memory = heap()->ShouldReduceMemory();
+  const Address age_mark = heap()->new_space()->age_mark();
   for (Page* page : newspace_evacuation_candidates_) {
     live_bytes += page->LiveBytes();
     if (!reduce_memory && !page->NeverEvacuate() &&
-        (page->LiveBytes() > Evacuator::PageEvacuationThreshold())) {
-      if (page->InIntermediateGeneration()) {
+        (page->LiveBytes() > Evacuator::PageEvacuationThreshold()) &&
+        !page->Contains(age_mark)) {
+      if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
         EvacuateNewSpacePageVisitor::MoveToOldSpace(page, heap()->old_space());
       } else {
         EvacuateNewSpacePageVisitor::MoveToToSpace(page);
@@ -3514,7 +3518,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
     EvacuateNewSpacePrologue();
     EvacuatePagesInParallel();
-    heap()->new_space()->SealIntermediateGeneration();
+    heap()->new_space()->set_age_mark(heap()->new_space()->top());
   }
 
   UpdatePointersAfterEvacuation();

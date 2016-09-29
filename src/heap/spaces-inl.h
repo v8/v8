@@ -165,22 +165,6 @@ bool NewSpace::FromSpaceContainsSlow(Address a) {
 bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
-size_t NewSpace::AllocatedSinceLastGC() {
-  Page* top_page = Page::FromAllocationAreaAddress(top());
-  size_t allocated = 0;
-  // If top gets reset to be in the range of pages that are below the age
-  // mark, this loop will not trigger and we return 0 (invalid).
-  for (Page* current_page = top_page;
-       !current_page->InIntermediateGeneration() &&
-       current_page != to_space_.anchor();
-       current_page = current_page->prev_page()) {
-    allocated += (top_page == current_page)
-                     ? static_cast<size_t>(top() - current_page->area_start())
-                     : Page::kAllocatableMemory;
-  }
-  return allocated;
-}
-
 // --------------------------------------------------------------------------
 // AllocationResult
 

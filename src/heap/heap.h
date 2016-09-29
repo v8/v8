@@ -1364,6 +1364,7 @@ class Heap {
   }
 
   inline void UpdateNewSpaceAllocationCounter();
+
   inline size_t NewSpaceAllocationCounter();
 
   // This should be used only for testing.

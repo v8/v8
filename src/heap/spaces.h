@@ -234,14 +234,10 @@ class MemoryChunk {
     IS_EXECUTABLE = 1u << 0,
     POINTERS_TO_HERE_ARE_INTERESTING = 1u << 1,
     POINTERS_FROM_HERE_ARE_INTERESTING = 1u << 2,
-
     // A page in new space has one of the next to flags set.
     IN_FROM_SPACE = 1u << 3,
     IN_TO_SPACE = 1u << 4,
-    // |IN_INTERMEDIATE_GENERATION|: Flag indicates whether this page contains
-    // objects that have already been copied once.
-    IN_INTERMEDIATE_GENERATION = 1u << 5,
-
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 5,
     EVACUATION_CANDIDATE = 1u << 6,
     NEVER_EVACUATE = 1u << 7,
 
@@ -562,10 +558,6 @@ class MemoryChunk {
   bool InToSpace() { return IsFlagSet(IN_TO_SPACE); }
 
   bool InFromSpace() { return IsFlagSet(IN_FROM_SPACE); }
-
-  bool InIntermediateGeneration() {
-    return IsFlagSet(IN_INTERMEDIATE_GENERATION);
-  }
 
   MemoryChunk* next_chunk() { return next_chunk_.Value(); }
 
@@ -2235,6 +2227,7 @@ class SemiSpace : public Space {
         current_capacity_(0),
         maximum_capacity_(0),
         minimum_capacity_(0),
+        age_mark_(nullptr),
         committed_(false),
         id_(semispace),
         anchor_(this),
@@ -2302,6 +2295,10 @@ class SemiSpace : public Space {
 
   void RemovePage(Page* page);
   void PrependPage(Page* page);
+
+  // Age mark accessors.
+  Address age_mark() { return age_mark_; }
+  void set_age_mark(Address mark);
 
   // Returns the current capacity of the semispace.
   int current_capacity() { return current_capacity_; }
@@ -2371,6 +2368,9 @@ class SemiSpace : public Space {
   // The minimum capacity for the space. A space cannot shrink below this size.
   int minimum_capacity_;
 
+  // Used to govern object promotion during mark-compact collection.
+  Address age_mark_;
+
   bool committed_;
   SemiSpaceId id_;
 
@@ -2421,8 +2421,7 @@ class NewSpace : public Space {
         reservation_(),
         top_on_previous_step_(0),
         allocated_histogram_(nullptr),
-        promoted_histogram_(nullptr),
-        fragmentation_in_intermediate_generation_(0) {}
+        promoted_histogram_(nullptr) {}
 
   inline bool Contains(HeapObject* o);
   inline bool ContainsSlow(Address a);
@@ -2455,10 +2454,7 @@ class NewSpace : public Space {
            static_cast<int>(top() - to_space_.page_low());
   }
 
-  intptr_t SizeOfObjects() override {
-    return Size() -
-           static_cast<intptr_t>(fragmentation_in_intermediate_generation_);
-  }
+  intptr_t SizeOfObjects() override { return Size(); }
 
   // Return the allocatable capacity of a semispace.
   intptr_t Capacity() {
@@ -2491,7 +2487,42 @@ class NewSpace : public Space {
   // Return the available bytes without growing.
   intptr_t Available() override { return Capacity() - Size(); }
 
-  inline size_t AllocatedSinceLastGC();
+  size_t AllocatedSinceLastGC() {
+    bool seen_age_mark = false;
+    Address age_mark = to_space_.age_mark();
+    Page* current_page = to_space_.first_page();
+    Page* age_mark_page = Page::FromAddress(age_mark);
+    Page* last_page = Page::FromAddress(top() - kPointerSize);
+    if (age_mark_page == last_page) {
+      if (top() - age_mark >= 0) {
+        return top() - age_mark;
+      }
+      // Top was reset at some point, invalidating this metric.
+      return 0;
+    }
+    while (current_page != last_page) {
+      if (current_page == age_mark_page) {
+        seen_age_mark = true;
+        break;
+      }
+      current_page = current_page->next_page();
+    }
+    if (!seen_age_mark) {
+      // Top was reset at some point, invalidating this metric.
+      return 0;
+    }
+    intptr_t allocated = age_mark_page->area_end() - age_mark;
+    DCHECK_EQ(current_page, age_mark_page);
+    current_page = age_mark_page->next_page();
+    while (current_page != last_page) {
+      allocated += Page::kAllocatableMemory;
+      current_page = current_page->next_page();
+    }
+    allocated += top() - current_page->area_start();
+    DCHECK_LE(0, allocated);
+    DCHECK_LE(allocated, Size());
+    return static_cast<size_t>(allocated);
+  }
 
   void MovePageFromSpaceToSpace(Page* page) {
     DCHECK(page->InFromSpace());
@@ -2530,8 +2561,10 @@ class NewSpace : public Space {
   // Return the address of the first object in the active semispace.
   Address bottom() { return to_space_.space_start(); }
 
-  // Seal the intermediate generation of the active semispace.
-  void SealIntermediateGeneration();
+  // Get the age mark of the inactive semispace.
+  Address age_mark() { return from_space_.age_mark(); }
+  // Set the age mark in the active semispace.
+  void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
   // The allocation top and limit address.
   Address* allocation_top_address() { return allocation_info_.top_address(); }
@@ -2555,10 +2588,6 @@ class NewSpace : public Space {
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetAllocationInfo();
-
-  void SetAllocationInfo(Address top, Address limit) {
-    allocation_info_.Reset(top, limit);
-  }
 
   // When inline allocation stepping is active, either because of incremental
   // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
@@ -2669,8 +2698,6 @@ class NewSpace : public Space {
 
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
-
-  size_t fragmentation_in_intermediate_generation_;
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
 

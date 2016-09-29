@@ -482,6 +482,9 @@ bool Heap::InOldSpaceSlow(Address address) {
 
 template <PromotionMode promotion_mode>
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
+  Page* page = Page::FromAddress(old_address);
+  Address age_mark = new_space_->age_mark();
+
   if (promotion_mode == PROMOTE_MARKED) {
     MarkBit mark_bit = ObjectMarking::MarkBitFrom(old_address);
     if (!Marking::IsWhite(mark_bit)) {
@@ -489,7 +492,8 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
     }
   }
 
-  return Page::FromAddress(old_address)->InIntermediateGeneration();
+  return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
+         (!page->ContainsLimit(age_mark) || old_address < age_mark);
 }
 
 PromotionMode Heap::CurrentPromotionMode() {
@@ -590,8 +594,16 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   // Bail out if the memento is below the age mark, which can happen when
   // mementos survived because a page got moved within new space.
   Page* object_page = Page::FromAddress(object_address);
-  if (object_page->InIntermediateGeneration()) {
-    return nullptr;
+  if (object_page->IsFlagSet(Page::NEW_SPACE_BELOW_AGE_MARK)) {
+    Address age_mark =
+        reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
+    if (!object_page->Contains(age_mark)) {
+      return nullptr;
+    }
+    // Do an exact check in the case where the age mark is on the same page.
+    if (object_address < age_mark) {
+      return nullptr;
+    }
   }
 
   AllocationMemento* memento_candidate = AllocationMemento::cast(candidate);
