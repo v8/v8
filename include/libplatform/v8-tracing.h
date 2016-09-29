@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "include/v8-platform.h"
+#include "v8-platform.h"  // NOLINT(build/include)
 
 namespace v8 {
 
