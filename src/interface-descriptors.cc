@@ -424,5 +424,44 @@ void InterpreterDispatchDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
+void InterpreterPushArgsAndCallDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kNumberOfArguments, kFirstArgument, kFunction
+  MachineType machine_types[] = {MachineType::Int32(), MachineType::Pointer(),
+                                 MachineType::AnyTagged()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void InterpreterPushArgsAndConstructDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kNumberOfArguments, kNewTarget, kConstructor, kFeedbackElement,
+  // kFirstArgument
+  MachineType machine_types[] = {
+      MachineType::Int32(), MachineType::AnyTagged(), MachineType::AnyTagged(),
+      MachineType::AnyTagged(), MachineType::Pointer()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void InterpreterPushArgsAndConstructArrayDescriptor::
+    InitializePlatformIndependent(CallInterfaceDescriptorData* data) {
+  // kNumberOfArguments, kFunction, kFeedbackElement, kFirstArgument
+  MachineType machine_types[] = {MachineType::Int32(), MachineType::AnyTagged(),
+                                 MachineType::AnyTagged(),
+                                 MachineType::Pointer()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void InterpreterCEntryDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kNumberOfArguments, kFirstArgument, kFunctionEntry
+  MachineType machine_types[] = {MachineType::Int32(), MachineType::Pointer(),
+                                 MachineType::Pointer()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
 }  // namespace internal
 }  // namespace v8
