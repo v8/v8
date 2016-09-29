@@ -7,7 +7,7 @@
 #include "src/v8.h"
 
 #include "src/wasm/ast-decoder.h"
-#include "src/wasm/encoder.h"
+#include "src/wasm/wasm-module-builder.h"
 
 #include "test/cctest/wasm/test-signatures.h"
 
@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-class EncoderTest : public TestWithZone {
+class WasmModuleBuilderTest : public TestWithZone {
  protected:
   void AddLocal(WasmFunctionBuilder* f, LocalType type) {
     uint16_t index = f->AddLocal(type);
@@ -23,7 +23,7 @@ class EncoderTest : public TestWithZone {
   }
 };
 
-TEST_F(EncoderTest, Regression_647329) {
+TEST_F(WasmModuleBuilderTest, Regression_647329) {
   // Test crashed with asan.
   ZoneBuffer buffer(zone());
   const size_t kSize = ZoneBuffer::kInitialSize * 3 + 4096 + 100;
