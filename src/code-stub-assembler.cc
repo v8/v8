@@ -2336,14 +2336,14 @@ Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index) {
         Bind(&if_stringisexternal);
         {
           // Check if the {string} is a short external string.
-          Label if_stringisshort(this),
-              if_stringisnotshort(this, Label::kDeferred);
+          Label if_stringisnotshort(this),
+              if_stringisshort(this, Label::kDeferred);
           Branch(Word32Equal(Word32And(string_instance_type,
                                        Int32Constant(kShortExternalStringMask)),
                              Int32Constant(0)),
-                 &if_stringisshort, &if_stringisnotshort);
+                 &if_stringisnotshort, &if_stringisshort);
 
-          Bind(&if_stringisshort);
+          Bind(&if_stringisnotshort);
           {
             // Load the actual resource data from the {string}.
             Node* string_resource_data =
@@ -2373,7 +2373,7 @@ Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index) {
             }
           }
 
-          Bind(&if_stringisnotshort);
+          Bind(&if_stringisshort);
           {
             // The {string} might be compressed, call the runtime.
             var_result.Bind(SmiToWord32(
