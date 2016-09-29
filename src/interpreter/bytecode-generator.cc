@@ -932,12 +932,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       break;
     }
     case VariableLocation::MODULE:
-      if (variable->IsExport() && variable->binding_needs_init()) {
-        builder()->LoadTheHole();
-        VisitVariableAssignment(variable, Token::INIT,
-                                FeedbackVectorSlot::Invalid());
-      }
-      // Nothing to do for imports.
+      // Nothing to do here.
       break;
   }
 }
@@ -977,8 +972,7 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       break;
     }
     case VariableLocation::MODULE:
-      DCHECK_EQ(variable->mode(), LET);
-      DCHECK(variable->IsExport());
+      DCHECK(variable->mode() == LET);
       VisitForAccumulatorValue(decl->fun());
       VisitVariableAssignment(variable, Token::INIT,
                               FeedbackVectorSlot::Invalid());
@@ -2024,7 +2018,6 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
             .StoreAccumulatorInRegister(module_request)
             .CallRuntime(Runtime::kLoadModuleImport, import_name, 2);
       }
-      BuildHoleCheckForVariableLoad(variable);
       break;
     }
   }

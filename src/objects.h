@@ -4542,7 +4542,7 @@ class ScopeInfo : public FixedArray {
   class HasSimpleParametersField
       : public BitField<bool, AsmFunctionField::kNext, 1> {};
   class FunctionKindField
-      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 10> {};
+      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 9> {};
   class HasOuterScopeInfoField
       : public BitField<bool, FunctionKindField::kNext, 1> {};
   class IsDebugEvaluateScopeField
@@ -7730,7 +7730,7 @@ class SharedFunctionInfo: public HeapObject {
   ASSERT_FUNCTION_KIND_ORDER(kSetterFunction, kIsSetterFunction);
 #undef ASSERT_FUNCTION_KIND_ORDER
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 10> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 9> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};

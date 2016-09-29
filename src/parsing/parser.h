@@ -216,8 +216,6 @@ class Parser : public ParserBase<Parser> {
     return scope()->NewTemporary(name);
   }
 
-  void PrepareGeneratorVariables(FunctionState* function_state);
-
   // Limit the allowed number of local variables in a function. The hard limit
   // is that offsets computed by FullCodeGenerator::StackOperand and similar
   // functions are ints, and they should not overflow. In addition, accessing
@@ -577,7 +575,6 @@ class Parser : public ParserBase<Parser> {
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr, Scope* scope);
 
-  Expression* BuildInitialYield(int pos, FunctionKind kind);
   Expression* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
   Expression* BuildResolvePromise(Expression* value, int pos);
   Expression* BuildRejectPromise(Expression* value, int pos);
