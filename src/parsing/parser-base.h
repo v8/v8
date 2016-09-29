@@ -725,7 +725,6 @@ class ParserBase {
         new (zone()) DeclarationScope(zone(), scope(), FUNCTION_SCOPE, kind);
     // TODO(verwaest): Move into the DeclarationScope constructor.
     if (!IsArrowFunction(kind)) {
-      result->DeclareThis(ast_value_factory());
       result->DeclareDefaultFunctionVariables(ast_value_factory());
     }
     return result;
@@ -3932,8 +3931,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         LazyParsingResult result = impl()->SkipLazyFunctionBody(
             &materialized_literal_count, &expected_property_count, false, true,
             CHECK_OK);
-        formal_parameters.scope->ResetAfterPreparsing(result ==
-                                                      kLazyParsingAborted);
+        formal_parameters.scope->ResetAfterPreparsing(
+            ast_value_factory_, result == kLazyParsingAborted);
 
         if (formal_parameters.materialized_literals_count > 0) {
           materialized_literal_count +=

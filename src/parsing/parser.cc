@@ -2725,7 +2725,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         // used once.
         eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
         should_be_used_once_hint = true;
-        scope->ResetAfterPreparsing(true);
+        scope->ResetAfterPreparsing(ast_value_factory(), true);
         zone_scope.Reset();
         use_temp_zone = false;
       }

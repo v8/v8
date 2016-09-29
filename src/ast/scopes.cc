@@ -606,6 +606,7 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
   DCHECK(is_function_scope());
   DCHECK(!is_arrow_scope());
 
+  DeclareThis(ast_value_factory);
   new_target_ = Declare(zone(), this, ast_value_factory->new_target_string(),
                         CONST, NORMAL_VARIABLE, kCreatedInitialized);
 
@@ -1188,7 +1189,10 @@ Handle<StringSet> DeclarationScope::CollectNonLocals(
   return non_locals;
 }
 
-void DeclarationScope::ResetAfterPreparsing(bool aborted) {
+void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
+                                            bool aborted) {
+  DCHECK(is_function_scope());
+
   // Reset all non-trivial members.
   decls_.Clear();
   locals_.Clear();
@@ -1201,6 +1205,9 @@ void DeclarationScope::ResetAfterPreparsing(bool aborted) {
   // TODO(verwaest): We should properly preparse the parameters (no declarations
   // should be created), and reparse on abort.
   if (aborted) {
+    if (!IsArrowFunction(function_kind_)) {
+      DeclareDefaultFunctionVariables(ast_value_factory);
+    }
     // Recreate declarations for parameters.
     for (int i = 0; i < params_.length(); i++) {
       Variable* var = params_[i];
@@ -1246,7 +1253,7 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
     }
   }
 
-  ResetAfterPreparsing(false);
+  ResetAfterPreparsing(ast_node_factory->ast_value_factory(), false);
 
   unresolved_ = unresolved;
 }

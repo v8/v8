@@ -810,7 +810,7 @@ class DeclarationScope : public Scope {
   void AllocateParameterLocals();
   void AllocateReceiver();
 
-  void ResetAfterPreparsing(bool aborted);
+  void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
  private:
   void AllocateParameter(Variable* var, int index);
