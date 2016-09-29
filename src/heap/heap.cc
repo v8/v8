@@ -962,7 +962,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
       !incremental_marking()->should_hurry() && FLAG_incremental_marking &&
       OldGenerationSpaceAvailable() <= 0) {
     if (!incremental_marking()->IsComplete() &&
-        !mark_compact_collector()->marking_deque_.IsEmpty() &&
+        !mark_compact_collector()->marking_deque()->IsEmpty() &&
         !FLAG_gc_global) {
       if (FLAG_trace_incremental_marking) {
         isolate()->PrintWithTimestamp(
