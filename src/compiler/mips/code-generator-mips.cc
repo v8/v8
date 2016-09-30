@@ -2063,9 +2063,14 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
-        __ li(at, Operand(bit_cast<int32_t>(src.ToFloat32())));
-        __ sw(at, dst);
+        if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
+          __ sw(zero_reg, dst);
+        } else {
+          __ li(at, Operand(bit_cast<int32_t>(src.ToFloat32())));
+          __ sw(at, dst);
+        }
       } else {
+        DCHECK(destination->IsFPRegister());
         FloatRegister dst = g.ToSingleRegister(destination);
         __ Move(dst, src.ToFloat32());
       }
