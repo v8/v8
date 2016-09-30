@@ -1029,108 +1029,31 @@ void Builtins::Generate_StringPrototypeValueOf(CodeStubAssembler* assembler) {
 }
 
 void Builtins::Generate_StringPrototypeIterator(CodeStubAssembler* assembler) {
-  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
-
-  Variable var_string(assembler, MachineRepresentation::kTagged);
-  Variable var_index(assembler, MachineRepresentation::kTagged);
-
-  Variable* loop_inputs[] = {&var_string, &var_index};
-  Label loop(assembler, 2, loop_inputs);
-  Label allocate_iterator(assembler);
 
   Node* receiver = assembler->Parameter(0);
   Node* context = assembler->Parameter(3);
 
-  var_string.Bind(assembler->ToThisString(context, receiver,
-                                          "String.prototype[Symbol.iterator]"));
-  var_index.Bind(assembler->SmiConstant(Smi::FromInt(0)));
+  Node* string = assembler->ToThisString(context, receiver,
+                                         "String.prototype[Symbol.iterator]");
 
-  assembler->Goto(&loop);
-  assembler->Bind(&loop);
-  {
-    Node* string = var_string.value();
-    // Load the instance type of the {string}.
-    Node* string_instance_type = assembler->LoadInstanceType(string);
-
-    // Check if the {string} is a SeqString.
-    Label if_stringisnotsequential(assembler);
-    assembler->Branch(assembler->Word32Equal(
-                          assembler->Word32And(string_instance_type,
-                                               assembler->Int32Constant(
-                                                   kStringRepresentationMask)),
-                          assembler->Int32Constant(kSeqStringTag)),
-                      &allocate_iterator, &if_stringisnotsequential);
-
-    assembler->Bind(&if_stringisnotsequential);
-    {
-      // Check if the {string} is a ConsString.
-      Label if_stringiscons(assembler), if_stringisnotcons(assembler);
-      assembler->Branch(
-          assembler->Word32Equal(
-              assembler->Word32And(
-                  string_instance_type,
-                  assembler->Int32Constant(kStringRepresentationMask)),
-              assembler->Int32Constant(kConsStringTag)),
-          &if_stringiscons, &if_stringisnotcons);
-
-      assembler->Bind(&if_stringiscons);
-      {
-        // Flatten cons-string and finish.
-        var_string.Bind(assembler->CallRuntime(
-            Runtime::kFlattenString, assembler->NoContextConstant(), string));
-        assembler->Goto(&allocate_iterator);
-      }
-
-      assembler->Bind(&if_stringisnotcons);
-      {
-        // Check if the {string} is an ExternalString.
-        Label if_stringisnotexternal(assembler);
-        assembler->Branch(
-            assembler->Word32Equal(
-                assembler->Word32And(
-                    string_instance_type,
-                    assembler->Int32Constant(kStringRepresentationMask)),
-                assembler->Int32Constant(kExternalStringTag)),
-            &allocate_iterator, &if_stringisnotexternal);
-
-        assembler->Bind(&if_stringisnotexternal);
-        {
-          // The {string} is a SlicedString, continue with its parent.
-          Node* index = var_index.value();
-          Node* string_offset =
-              assembler->LoadObjectField(string, SlicedString::kOffsetOffset);
-          Node* string_parent =
-              assembler->LoadObjectField(string, SlicedString::kParentOffset);
-          var_index.Bind(assembler->SmiAdd(index, string_offset));
-          var_string.Bind(string_parent);
-          assembler->Goto(&loop);
-        }
-      }
-    }
-  }
-
-  assembler->Bind(&allocate_iterator);
-  {
-    Node* native_context = assembler->LoadNativeContext(context);
-    Node* map = assembler->LoadFixedArrayElement(
-        native_context,
-        assembler->IntPtrConstant(Context::STRING_ITERATOR_MAP_INDEX), 0,
-        CodeStubAssembler::INTPTR_PARAMETERS);
-    Node* iterator = assembler->Allocate(JSStringIterator::kSize);
-    assembler->StoreMapNoWriteBarrier(iterator, map);
-    assembler->StoreObjectFieldRoot(iterator, JSValue::kPropertiesOffset,
-                                    Heap::kEmptyFixedArrayRootIndex);
-    assembler->StoreObjectFieldRoot(iterator, JSObject::kElementsOffset,
-                                    Heap::kEmptyFixedArrayRootIndex);
-    assembler->StoreObjectFieldNoWriteBarrier(
-        iterator, JSStringIterator::kStringOffset, var_string.value());
-
-    assembler->StoreObjectFieldNoWriteBarrier(
-        iterator, JSStringIterator::kNextIndexOffset, var_index.value());
-    assembler->Return(iterator);
-  }
+  Node* native_context = assembler->LoadNativeContext(context);
+  Node* map = assembler->LoadFixedArrayElement(
+      native_context,
+      assembler->IntPtrConstant(Context::STRING_ITERATOR_MAP_INDEX), 0,
+      CodeStubAssembler::INTPTR_PARAMETERS);
+  Node* iterator = assembler->Allocate(JSStringIterator::kSize);
+  assembler->StoreMapNoWriteBarrier(iterator, map);
+  assembler->StoreObjectFieldRoot(iterator, JSValue::kPropertiesOffset,
+                                  Heap::kEmptyFixedArrayRootIndex);
+  assembler->StoreObjectFieldRoot(iterator, JSObject::kElementsOffset,
+                                  Heap::kEmptyFixedArrayRootIndex);
+  assembler->StoreObjectFieldNoWriteBarrier(
+      iterator, JSStringIterator::kStringOffset, string);
+  Node* index = assembler->SmiConstant(Smi::FromInt(0));
+  assembler->StoreObjectFieldNoWriteBarrier(
+      iterator, JSStringIterator::kNextIndexOffset, index);
+  assembler->Return(iterator);
 }
 
 namespace {
@@ -1148,192 +1071,25 @@ compiler::Node* LoadSurrogatePairInternal(CodeStubAssembler* assembler,
   Label handle_surrogate_pair(assembler), return_result(assembler);
   Variable var_result(assembler, MachineRepresentation::kWord32);
   Variable var_trail(assembler, MachineRepresentation::kWord16);
-  var_result.Bind(assembler->Int32Constant(0));
+  var_result.Bind(assembler->StringCharCodeAt(string, index));
   var_trail.Bind(assembler->Int32Constant(0));
 
-  Node* string_instance_type = assembler->LoadInstanceType(string);
+  assembler->GotoIf(assembler->Word32NotEqual(
+                        assembler->Word32And(var_result.value(),
+                                             assembler->Int32Constant(0xFC00)),
+                        assembler->Int32Constant(0xD800)),
+                    &return_result);
+  Node* next_index =
+      assembler->SmiAdd(index, assembler->SmiConstant(Smi::FromInt(1)));
 
-  Label if_stringissequential(assembler), if_stringisexternal(assembler);
+  assembler->GotoUnless(assembler->SmiLessThan(next_index, length),
+                        &return_result);
+  var_trail.Bind(assembler->StringCharCodeAt(string, next_index));
   assembler->Branch(assembler->Word32Equal(
-                        assembler->Word32And(string_instance_type,
-                                             assembler->Int32Constant(
-                                                 kStringRepresentationMask)),
-                        assembler->Int32Constant(kSeqStringTag)),
-                    &if_stringissequential, &if_stringisexternal);
-
-  assembler->Bind(&if_stringissequential);
-  {
-    Label if_stringisonebyte(assembler), if_stringistwobyte(assembler);
-    assembler->Branch(
-        assembler->Word32Equal(
-            assembler->Word32And(string_instance_type,
-                                 assembler->Int32Constant(kStringEncodingMask)),
-            assembler->Int32Constant(kOneByteStringTag)),
-        &if_stringisonebyte, &if_stringistwobyte);
-
-    assembler->Bind(&if_stringisonebyte);
-    {
-      var_result.Bind(assembler->Load(
-          MachineType::Uint8(), string,
-          assembler->IntPtrAdd(
-              index, assembler->IntPtrConstant(SeqOneByteString::kHeaderSize -
-                                               kHeapObjectTag))));
-      assembler->Goto(&return_result);
-    }
-
-    assembler->Bind(&if_stringistwobyte);
-    {
-      Node* lead = assembler->Load(
-          MachineType::Uint16(), string,
-          assembler->IntPtrAdd(
-              assembler->WordShl(index, assembler->IntPtrConstant(1)),
-              assembler->IntPtrConstant(SeqTwoByteString::kHeaderSize -
-                                        kHeapObjectTag)));
-      var_result.Bind(lead);
-      Node* next_pos = assembler->Int32Add(index, assembler->Int32Constant(1));
-
-      Label if_isdoublecodeunit(assembler);
-      assembler->GotoIf(assembler->Int32GreaterThanOrEqual(next_pos, length),
-                        &return_result);
-      assembler->GotoIf(
-          assembler->Uint32LessThan(lead, assembler->Int32Constant(0xD800)),
-          &return_result);
-      assembler->Branch(
-          assembler->Uint32LessThan(lead, assembler->Int32Constant(0xDC00)),
-          &if_isdoublecodeunit, &return_result);
-
-      assembler->Bind(&if_isdoublecodeunit);
-      {
-        Node* trail = assembler->Load(
-            MachineType::Uint16(), string,
-            assembler->IntPtrAdd(
-                assembler->WordShl(next_pos, assembler->IntPtrConstant(1)),
-                assembler->IntPtrConstant(SeqTwoByteString::kHeaderSize -
-                                          kHeapObjectTag)));
-        assembler->GotoIf(
-            assembler->Uint32LessThan(trail, assembler->Int32Constant(0xDC00)),
-            &return_result);
-        assembler->GotoIf(assembler->Uint32GreaterThanOrEqual(
-                              trail, assembler->Int32Constant(0xE000)),
-                          &return_result);
-
-        var_trail.Bind(trail);
-        assembler->Goto(&handle_surrogate_pair);
-      }
-    }
-  }
-
-  assembler->Bind(&if_stringisexternal);
-  {
-    assembler->Assert(assembler->Word32Equal(
-        assembler->Word32And(
-            string_instance_type,
-            assembler->Int32Constant(kStringRepresentationMask)),
-        assembler->Int32Constant(kExternalStringTag)));
-    Label if_stringisshort(assembler), if_stringisnotshort(assembler);
-
-    assembler->Branch(assembler->Word32Equal(
-                          assembler->Word32And(string_instance_type,
-                                               assembler->Int32Constant(
-                                                   kShortExternalStringMask)),
-                          assembler->Int32Constant(0)),
-                      &if_stringisshort, &if_stringisnotshort);
-
-    assembler->Bind(&if_stringisshort);
-    {
-      // Load the actual resource data from the {string}.
-      Node* string_resource_data = assembler->LoadObjectField(
-          string, ExternalString::kResourceDataOffset, MachineType::Pointer());
-
-      Label if_stringistwobyte(assembler), if_stringisonebyte(assembler);
-      assembler->Branch(assembler->Word32Equal(
-                            assembler->Word32And(
-                                string_instance_type,
-                                assembler->Int32Constant(kStringEncodingMask)),
-                            assembler->Int32Constant(kTwoByteStringTag)),
-                        &if_stringistwobyte, &if_stringisonebyte);
-
-      assembler->Bind(&if_stringisonebyte);
-      {
-        var_result.Bind(
-            assembler->Load(MachineType::Uint8(), string_resource_data, index));
-        assembler->Goto(&return_result);
-      }
-
-      assembler->Bind(&if_stringistwobyte);
-      {
-        Label if_isdoublecodeunit(assembler);
-        Node* lead = assembler->Load(
-            MachineType::Uint16(), string_resource_data,
-            assembler->WordShl(index, assembler->IntPtrConstant(1)));
-        var_result.Bind(lead);
-        Node* next_pos =
-            assembler->Int32Add(index, assembler->Int32Constant(1));
-
-        assembler->GotoIf(assembler->Int32GreaterThanOrEqual(next_pos, length),
-                          &return_result);
-        assembler->GotoIf(
-            assembler->Uint32LessThan(lead, assembler->Int32Constant(0xD800)),
-            &return_result);
-        assembler->Branch(
-            assembler->Uint32LessThan(lead, assembler->Int32Constant(0xDC00)),
-            &if_isdoublecodeunit, &return_result);
-
-        assembler->Bind(&if_isdoublecodeunit);
-        {
-          Node* trail = assembler->Load(
-              MachineType::Uint16(), string,
-              assembler->IntPtrAdd(
-                  assembler->WordShl(next_pos, assembler->IntPtrConstant(1)),
-                  assembler->IntPtrConstant(SeqTwoByteString::kHeaderSize -
-                                            kHeapObjectTag)));
-          assembler->GotoIf(assembler->Uint32LessThan(
-                                trail, assembler->Int32Constant(0xDC00)),
-                            &return_result);
-          assembler->GotoIf(assembler->Uint32GreaterThanOrEqual(
-                                trail, assembler->Int32Constant(0xE000)),
-                            &return_result);
-
-          var_trail.Bind(trail);
-          assembler->Goto(&handle_surrogate_pair);
-        }
-      }
-    }
-
-    assembler->Bind(&if_stringisnotshort);
-    {
-      Label if_isdoublecodeunit(assembler);
-      Node* lead = assembler->SmiToWord32(assembler->CallRuntime(
-          Runtime::kExternalStringGetChar, assembler->NoContextConstant(),
-          string, assembler->SmiTag(index)));
-      var_result.Bind(lead);
-      Node* next_pos = assembler->Int32Add(index, assembler->Int32Constant(1));
-
-      assembler->GotoIf(assembler->Int32GreaterThanOrEqual(next_pos, length),
-                        &return_result);
-      assembler->GotoIf(
-          assembler->Uint32LessThan(lead, assembler->Int32Constant(0xD800)),
-          &return_result);
-      assembler->Branch(assembler->Uint32GreaterThanOrEqual(
-                            lead, assembler->Int32Constant(0xDC00)),
-                        &return_result, &if_isdoublecodeunit);
-
-      assembler->Bind(&if_isdoublecodeunit);
-      {
-        Node* trail = assembler->SmiToWord32(assembler->CallRuntime(
-            Runtime::kExternalStringGetChar, assembler->NoContextConstant(),
-            string, assembler->SmiTag(next_pos)));
-        assembler->GotoIf(
-            assembler->Uint32LessThan(trail, assembler->Int32Constant(0xDC00)),
-            &return_result);
-        assembler->GotoIf(assembler->Uint32GreaterThanOrEqual(
-                              trail, assembler->Int32Constant(0xE000)),
-                          &return_result);
-        var_trail.Bind(trail);
-        assembler->Goto(&handle_surrogate_pair);
-      }
-    }
-  }
+                        assembler->Word32And(var_trail.value(),
+                                             assembler->Int32Constant(0xFC00)),
+                        assembler->Int32Constant(0xDC00)),
+                    &handle_surrogate_pair, &return_result);
 
   assembler->Bind(&handle_surrogate_pair);
   {
@@ -1422,9 +1178,7 @@ void Builtins::Generate_StringIteratorPrototypeNext(
 
   assembler->Bind(&next_codepoint);
   {
-    Node* ch =
-        LoadSurrogatePairAt(assembler, string, assembler->SmiUntag(length),
-                            assembler->SmiUntag(position));
+    Node* ch = LoadSurrogatePairAt(assembler, string, length, position);
     Node* value = assembler->StringFromCodePoint(ch, UnicodeEncoding::UTF16);
     var_value.Bind(value);
     Node* length = assembler->LoadObjectField(value, String::kLengthOffset);
