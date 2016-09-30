@@ -3656,8 +3656,7 @@ static uint32_t Hash(RegisteredExtension* extension) {
   return v8::internal::ComputePointerHash(extension);
 }
 
-Genesis::ExtensionStates::ExtensionStates()
-    : map_(base::HashMap::PointersMatch, 8) {}
+Genesis::ExtensionStates::ExtensionStates() : map_(8) {}
 
 Genesis::ExtensionTraversalState Genesis::ExtensionStates::get_state(
     RegisteredExtension* extension) {

@@ -78,14 +78,14 @@ class CounterMap {
     const char* CurrentKey() { return static_cast<const char*>(entry_->key); }
     Counter* CurrentValue() { return static_cast<Counter*>(entry_->value); }
    private:
-    base::HashMap* map_;
-    base::HashMap::Entry* entry_;
+    base::CustomMatcherHashMap* map_;
+    base::CustomMatcherHashMap::Entry* entry_;
   };
 
  private:
   static int Hash(const char* name);
   static bool Match(void* key1, void* key2);
-  base::HashMap hash_map_;
+  base::CustomMatcherHashMap hash_map_;
 };
 
 

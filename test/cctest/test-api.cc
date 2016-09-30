@@ -14293,11 +14293,6 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
 }
 
 
-static bool MatchPointers(void* key1, void* key2) {
-  return key1 == key2;
-}
-
-
 struct SymbolInfo {
   size_t id;
   size_t size;
@@ -14808,10 +14803,10 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
 
   {
     v8::HandleScope scope(isolate);
-    v8::base::HashMap code(MatchPointers);
+    v8::base::HashMap code;
     code_map = &code;
 
-    v8::base::HashMap lineinfo(MatchPointers);
+    v8::base::HashMap lineinfo;
     jitcode_line_info = &lineinfo;
 
     saw_bar = 0;
@@ -14874,10 +14869,10 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     CompileRun(script);
 
     // Now get code through initial iteration.
-    v8::base::HashMap code(MatchPointers);
+    v8::base::HashMap code;
     code_map = &code;
 
-    v8::base::HashMap lineinfo(MatchPointers);
+    v8::base::HashMap lineinfo;
     jitcode_line_info = &lineinfo;
 
     isolate->SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting,

@@ -3045,8 +3045,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
   explicit Evacuator(MarkCompactCollector* collector)
       : collector_(collector),
         compaction_spaces_(collector->heap()),
-        local_pretenuring_feedback_(base::HashMap::PointersMatch,
-                                    kInitialLocalPretenuringFeedbackCapacity),
+        local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(collector->heap(), &compaction_spaces_,
                            &local_pretenuring_feedback_),
         new_space_page_visitor(collector->heap()),

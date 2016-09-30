@@ -73,7 +73,7 @@ STATIC_CONST_MEMBER_DEFINITION const size_t
 
 ConstantArrayBuilder::ConstantArrayBuilder(Zone* zone,
                                            Handle<Object> the_hole_value)
-    : constants_map_(std::equal_to<Address>(), 16, ZoneAllocationPolicy(zone)),
+    : constants_map_(16, std::equal_to<Address>(), ZoneAllocationPolicy(zone)),
       smi_map_(zone),
       smi_pairs_(zone),
       zone_(zone),

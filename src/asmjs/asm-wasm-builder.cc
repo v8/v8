@@ -44,14 +44,11 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
  public:
   AsmWasmBuilderImpl(Isolate* isolate, Zone* zone, FunctionLiteral* literal,
                      AsmTyper* typer)
-      : local_variables_(base::HashMap::PointersMatch,
-                         ZoneHashMap::kDefaultHashMapCapacity,
+      : local_variables_(ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
-        functions_(base::HashMap::PointersMatch,
-                   ZoneHashMap::kDefaultHashMapCapacity,
+        functions_(ZoneHashMap::kDefaultHashMapCapacity,
                    ZoneAllocationPolicy(zone)),
-        global_variables_(base::HashMap::PointersMatch,
-                          ZoneHashMap::kDefaultHashMapCapacity,
+        global_variables_(ZoneHashMap::kDefaultHashMapCapacity,
                           ZoneAllocationPolicy(zone)),
         scope_(kModuleScope),
         builder_(new (zone) WasmModuleBuilder(zone)),
@@ -65,8 +62,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         init_function_(nullptr),
         foreign_init_function_(nullptr),
         next_table_index_(0),
-        function_tables_(base::HashMap::PointersMatch,
-                         ZoneHashMap::kDefaultHashMapCapacity,
+        function_tables_(ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
         imported_function_table_(this) {
     InitializeAstVisitor(isolate);
@@ -748,8 +744,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
    public:
     explicit ImportedFunctionTable(AsmWasmBuilderImpl* builder)
-        : table_(base::HashMap::PointersMatch,
-                 ZoneHashMap::kDefaultHashMapCapacity,
+        : table_(ZoneHashMap::kDefaultHashMapCapacity,
                  ZoneAllocationPolicy(builder->zone())),
           builder_(builder) {}
 

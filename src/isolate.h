@@ -361,9 +361,9 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #if USE_SIMULATOR
 
-#define ISOLATE_INIT_SIMULATOR_LIST(V)       \
-  V(bool, simulator_initialized, false)      \
-  V(base::HashMap*, simulator_i_cache, NULL) \
+#define ISOLATE_INIT_SIMULATOR_LIST(V)                    \
+  V(bool, simulator_initialized, false)                   \
+  V(base::CustomMatcherHashMap*, simulator_i_cache, NULL) \
   V(Redirection*, simulator_redirection, NULL)
 #else
 

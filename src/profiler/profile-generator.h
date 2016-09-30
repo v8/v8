@@ -221,10 +221,10 @@ class ProfileNode {
   CodeEntry* entry_;
   unsigned self_ticks_;
   // Mapping from CodeEntry* to ProfileNode*
-  base::HashMap children_;
+  base::CustomMatcherHashMap children_;
   List<ProfileNode*> children_list_;
   unsigned id_;
-  base::HashMap line_ticks_;
+  base::CustomMatcherHashMap line_ticks_;
 
   std::vector<CpuProfileDeoptInfo> deopt_infos_;
 
@@ -261,7 +261,7 @@ class ProfileTree {
   Isolate* isolate_;
 
   unsigned next_function_id_;
-  base::HashMap function_ids_;
+  base::CustomMatcherHashMap function_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileTree);
 };

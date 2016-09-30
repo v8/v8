@@ -403,7 +403,7 @@ class AstValueFactory {
   static bool AstRawStringCompare(void* a, void* b);
 
   // All strings are copied here, one after another (no NULLs inbetween).
-  base::HashMap string_table_;
+  base::CustomMatcherHashMap string_table_;
   // For keeping track of all AstValues and AstRawStrings we've created (so that
   // they can be internalized later).
   AstValue* values_;

@@ -458,8 +458,8 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
 
   ZoneAllocationPolicy allocator(zone);
 
-  ZoneHashMap table(Literal::Match, ZoneHashMap::kDefaultHashMapCapacity,
-                    allocator);
+  CustomMatcherZoneHashMap table(
+      Literal::Match, ZoneHashMap::kDefaultHashMapCapacity, allocator);
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->is_computed_name()) continue;

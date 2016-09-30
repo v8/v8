@@ -510,8 +510,8 @@ void Heap::MergeAllocationSitePretenuringFeedback(
 class Heap::PretenuringScope {
  public:
   explicit PretenuringScope(Heap* heap) : heap_(heap) {
-    heap_->global_pretenuring_feedback_ = new base::HashMap(
-        base::HashMap::PointersMatch, kInitialFeedbackCapacity);
+    heap_->global_pretenuring_feedback_ =
+        new base::HashMap(kInitialFeedbackCapacity);
   }
 
   ~PretenuringScope() {

@@ -2943,7 +2943,7 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
       size_(0),
       page_count_(0),
       objects_size_(0),
-      chunk_map_(base::HashMap::PointersMatch, 1024) {}
+      chunk_map_(1024) {}
 
 LargeObjectSpace::~LargeObjectSpace() {}
 

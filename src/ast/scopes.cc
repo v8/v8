@@ -25,7 +25,7 @@ namespace internal {
 //       this is ensured.
 
 VariableMap::VariableMap(Zone* zone)
-    : ZoneHashMap(ZoneHashMap::PointersMatch, 8, ZoneAllocationPolicy(zone)) {}
+    : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
 
 Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                const AstRawString* name, VariableMode mode,
@@ -75,7 +75,7 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 }
 
 SloppyBlockFunctionMap::SloppyBlockFunctionMap(Zone* zone)
-    : ZoneHashMap(ZoneHashMap::PointersMatch, 8, ZoneAllocationPolicy(zone)) {}
+    : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
 
 void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
                                      SloppyBlockFunctionStatement* stmt) {

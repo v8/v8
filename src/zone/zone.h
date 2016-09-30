@@ -234,6 +234,9 @@ class ZoneSplayTree final : public SplayTree<Config, ZoneAllocationPolicy> {
 
 typedef base::PointerTemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;
 
+typedef base::CustomMatcherTemplateHashMapImpl<ZoneAllocationPolicy>
+    CustomMatcherZoneHashMap;
+
 }  // namespace internal
 }  // namespace v8
 
