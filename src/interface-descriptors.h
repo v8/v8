@@ -764,28 +764,35 @@ class InterpreterDispatchDescriptor : public CallInterfaceDescriptor {
 
 class InterpreterPushArgsAndCallDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(InterpreterPushArgsAndCallDescriptor,
-                     CallInterfaceDescriptor)
+  DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kFunction)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      InterpreterPushArgsAndCallDescriptor, CallInterfaceDescriptor)
 };
 
 
 class InterpreterPushArgsAndConstructDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(InterpreterPushArgsAndConstructDescriptor,
-                     CallInterfaceDescriptor)
+  DEFINE_PARAMETERS(kNumberOfArguments, kNewTarget, kConstructor,
+                    kFeedbackElement, kFirstArgument)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      InterpreterPushArgsAndConstructDescriptor, CallInterfaceDescriptor)
 };
 
 class InterpreterPushArgsAndConstructArrayDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(InterpreterPushArgsAndConstructArrayDescriptor,
-                     CallInterfaceDescriptor)
+  DEFINE_PARAMETERS(kNumberOfArguments, kFunction, kFeedbackElement,
+                    kFirstArgument)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      InterpreterPushArgsAndConstructArrayDescriptor, CallInterfaceDescriptor)
 };
 
 class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(InterpreterCEntryDescriptor, CallInterfaceDescriptor)
+  DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kFunctionEntry)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(InterpreterCEntryDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {

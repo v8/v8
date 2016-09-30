@@ -1977,7 +1977,7 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   MarkStringTable(visitor);
 
   // There may be overflowed objects in the heap.  Visit them now.
-  while (marking_deque_.overflowed()) {
+  while (marking_deque()->overflowed()) {
     RefillMarkingDeque();
     EmptyMarkingDeque();
   }
@@ -2020,8 +2020,8 @@ void MarkCompactCollector::MarkImplicitRefGroups(
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
 void MarkCompactCollector::EmptyMarkingDeque() {
-  while (!marking_deque_.IsEmpty()) {
-    HeapObject* object = marking_deque_.Pop();
+  while (!marking_deque()->IsEmpty()) {
+    HeapObject* object = marking_deque()->Pop();
 
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
@@ -2044,25 +2044,25 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 // is cleared.
 void MarkCompactCollector::RefillMarkingDeque() {
   isolate()->CountUsage(v8::Isolate::UseCounterFeature::kMarkDequeOverflow);
-  DCHECK(marking_deque_.overflowed());
+  DCHECK(marking_deque()->overflowed());
 
   DiscoverGreyObjectsInNewSpace();
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
   DiscoverGreyObjectsInSpace(heap()->old_space());
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
   DiscoverGreyObjectsInSpace(heap()->code_space());
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
   DiscoverGreyObjectsInSpace(heap()->map_space());
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
   LargeObjectIterator lo_it(heap()->lo_space());
   DiscoverGreyObjectsWithIterator(&lo_it);
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
-  marking_deque_.ClearOverflowed();
+  marking_deque()->ClearOverflowed();
 }
 
 
@@ -2072,7 +2072,7 @@ void MarkCompactCollector::RefillMarkingDeque() {
 // objects in the heap.
 void MarkCompactCollector::ProcessMarkingDeque() {
   EmptyMarkingDeque();
-  while (marking_deque_.overflowed()) {
+  while (marking_deque()->overflowed()) {
     RefillMarkingDeque();
     EmptyMarkingDeque();
   }
@@ -2082,7 +2082,7 @@ void MarkCompactCollector::ProcessMarkingDeque() {
 // stack including references only considered in the atomic marking pause.
 void MarkCompactCollector::ProcessEphemeralMarking(
     ObjectVisitor* visitor, bool only_process_harmony_weak_collections) {
-  DCHECK(marking_deque_.IsEmpty() && !marking_deque_.overflowed());
+  DCHECK(marking_deque()->IsEmpty() && !marking_deque()->overflowed());
   bool work_to_do = true;
   while (work_to_do) {
     if (heap_->UsingEmbedderHeapTracer()) {
@@ -2099,7 +2099,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
       MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
     }
     ProcessWeakCollections();
-    work_to_do = !marking_deque_.IsEmpty();
+    work_to_do = !marking_deque()->IsEmpty();
     ProcessMarkingDeque();
   }
 }
@@ -2123,7 +2123,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 
 
 void MarkCompactCollector::EnsureMarkingDequeIsReserved() {
-  DCHECK(!marking_deque_.in_use());
+  DCHECK(!marking_deque()->in_use());
   if (marking_deque_memory_ == NULL) {
     marking_deque_memory_ = new base::VirtualMemory(kMaxMarkingDequeSize);
     marking_deque_memory_committed_ = 0;
@@ -2137,7 +2137,7 @@ void MarkCompactCollector::EnsureMarkingDequeIsReserved() {
 void MarkCompactCollector::EnsureMarkingDequeIsCommitted(size_t max_size) {
   // If the marking deque is too small, we try to allocate a bigger one.
   // If that fails, make do with a smaller one.
-  CHECK(!marking_deque_.in_use());
+  CHECK(!marking_deque()->in_use());
   for (size_t size = max_size; size >= kMinMarkingDequeSize; size >>= 1) {
     base::VirtualMemory* memory = marking_deque_memory_;
     size_t currently_committed = marking_deque_memory_committed_;
@@ -2169,12 +2169,12 @@ void MarkCompactCollector::EnsureMarkingDequeIsCommitted(size_t max_size) {
 
 
 void MarkCompactCollector::InitializeMarkingDeque() {
-  DCHECK(!marking_deque_.in_use());
+  DCHECK(!marking_deque()->in_use());
   DCHECK(marking_deque_memory_committed_ > 0);
   Address addr = static_cast<Address>(marking_deque_memory_->address());
   size_t size = marking_deque_memory_committed_;
   if (FLAG_force_marking_deque_overflows) size = 64 * kPointerSize;
-  marking_deque_.Initialize(addr, addr + size);
+  marking_deque()->Initialize(addr, addr + size);
 }
 
 
@@ -2270,8 +2270,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     } else {
       // Abort any pending incremental activities e.g. incremental sweeping.
       incremental_marking->Stop();
-      if (marking_deque_.in_use()) {
-        marking_deque_.Uninitialize(true);
+      if (marking_deque()->in_use()) {
+        marking_deque()->Uninitialize(true);
       }
     }
   }
@@ -3147,13 +3147,15 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
   if (FLAG_trace_evacuation) {
     PrintIsolate(heap->isolate(),
                  "evacuation[%p]: page=%p new_space=%d "
-                 "page_evacuation=%d executable=%d live_bytes=%d time=%f\n",
+                 "page_evacuation=%d executable=%d contains_age_mark=%d "
+                 "live_bytes=%d time=%f\n",
                  static_cast<void*>(this), static_cast<void*>(page),
                  page->InNewSpace(),
                  page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
                      page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
-                 page->IsFlagSet(MemoryChunk::IS_EXECUTABLE), saved_live_bytes,
-                 evacuation_time);
+                 page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
+                 page->Contains(heap->new_space()->age_mark()),
+                 saved_live_bytes, evacuation_time);
   }
   return success;
 }
@@ -3264,11 +3266,13 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   const bool reduce_memory = heap()->ShouldReduceMemory();
+  const Address age_mark = heap()->new_space()->age_mark();
   for (Page* page : newspace_evacuation_candidates_) {
     live_bytes += page->LiveBytes();
     if (!reduce_memory && !page->NeverEvacuate() &&
-        (page->LiveBytes() > Evacuator::PageEvacuationThreshold())) {
-      if (page->InIntermediateGeneration()) {
+        (page->LiveBytes() > Evacuator::PageEvacuationThreshold()) &&
+        !page->Contains(age_mark)) {
+      if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
         EvacuateNewSpacePageVisitor::MoveToOldSpace(page, heap()->old_space());
       } else {
         EvacuateNewSpacePageVisitor::MoveToToSpace(page);
@@ -3514,7 +3518,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
     EvacuateNewSpacePrologue();
     EvacuatePagesInParallel();
-    heap()->new_space()->SealIntermediateGeneration();
+    heap()->new_space()->set_age_mark(heap()->new_space()->top());
   }
 
   UpdatePointersAfterEvacuation();

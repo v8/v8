@@ -191,8 +191,8 @@ Callable CodeFactory::StringToNumber(Isolate* isolate) {
 
 // static
 Callable CodeFactory::ToString(Isolate* isolate) {
-  ToStringStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->ToString(),
+                  TypeConversionDescriptor(isolate));
 }
 
 // static

@@ -704,7 +704,7 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
          GetMemoryUsedByList(entries_) + GetMemoryUsedByList(time_intervals_);
 }
 
-HeapEntriesMap::HeapEntriesMap() : entries_(base::HashMap::PointersMatch) {}
+HeapEntriesMap::HeapEntriesMap() : entries_() {}
 
 int HeapEntriesMap::Map(HeapThing thing) {
   base::HashMap::Entry* cache_entry = entries_.Lookup(thing, Hash(thing));
@@ -720,7 +720,7 @@ void HeapEntriesMap::Pair(HeapThing thing, int entry) {
   cache_entry->value = reinterpret_cast<void*>(static_cast<intptr_t>(entry));
 }
 
-HeapObjectsSet::HeapObjectsSet() : entries_(base::HashMap::PointersMatch) {}
+HeapObjectsSet::HeapObjectsSet() : entries_() {}
 
 void HeapObjectsSet::Clear() {
   entries_.Clear();

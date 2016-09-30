@@ -649,18 +649,6 @@ struct Tests {
     CheckUnordered(T.UninitializedConstant, T.Undefined);
   }
 
-  void Contains() {
-    // T->Contains(V) iff Constant(V)->Is(T)
-    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
-      for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
-        Type* type = *it;
-        Handle<i::Object> value = *vt;
-        Type* const_type = T.Constant(value);
-        CHECK(type->Contains(value) == const_type->Is(type));
-      }
-    }
-  }
-
   void Maybe() {
     // T->Maybe(Any) iff T inhabited
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
@@ -1104,8 +1092,6 @@ TEST(BitsetLub) { Tests().BitsetLub(); }
 TEST(Is1) { Tests().Is1(); }
 
 TEST(Is2) { Tests().Is2(); }
-
-TEST(Contains) { Tests().Contains(); }
 
 TEST(Maybe) { Tests().Maybe(); }
 

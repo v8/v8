@@ -33,6 +33,7 @@
  * @param {!InjectedScriptHostClass} InjectedScriptHost
  * @param {!Window|!WorkerGlobalScope} inspectedGlobalObject
  * @param {number} injectedScriptId
+ * @suppress {uselessCode}
  */
 (function (InjectedScriptHost, inspectedGlobalObject, injectedScriptId) {
 
@@ -799,7 +800,6 @@ InjectedScript.RemoteObject.prototype = {
         }
 
         /**
-         * @suppressReceiverCheck
          * @param {*} object
          * @param {*=} customObjectConfig
          * @return {*}

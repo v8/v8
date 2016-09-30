@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/bailout-reason.h"
+#include "src/code-factory.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/crankshaft/lithium.h"
 #include "src/field-index.h"
@@ -1042,10 +1043,10 @@ HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
       }
       if_inputisprimitive.End();
       // Convert the primitive to a string value.
-      ToStringStub stub(isolate());
       HValue* values[] = {context(), Pop()};
-      Push(AddUncasted<HCallWithDescriptor>(Add<HConstant>(stub.GetCode()), 0,
-                                            stub.GetCallInterfaceDescriptor(),
+      Callable toString = CodeFactory::ToString(isolate());
+      Push(AddUncasted<HCallWithDescriptor>(Add<HConstant>(toString.code()), 0,
+                                            toString.descriptor(),
                                             ArrayVector(values)));
     }
     if_inputisstring.End();

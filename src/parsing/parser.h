@@ -229,6 +229,8 @@ class Parser : public ParserBase<Parser> {
     return scope()->NewTemporary(name);
   }
 
+  void PrepareGeneratorVariables(FunctionState* function_state);
+
   // Limit the allowed number of local variables in a function. The hard limit
   // is that offsets computed by FullCodeGenerator::StackOperand and similar
   // functions are ints, and they should not overflow. In addition, accessing
@@ -282,7 +284,6 @@ class Parser : public ParserBase<Parser> {
           location(location) {}
   };
   ZoneList<const NamedImport*>* ParseNamedImports(int pos, bool* ok);
-  Statement* ParseFunctionDeclaration(bool ambient, bool* ok);
   Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                                   ZoneList<const AstRawString*>* names,
                                   bool* ok);
@@ -323,8 +324,6 @@ class Parser : public ParserBase<Parser> {
                                             bool* ok);
   V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
                                      bool* ok);
-
-  Expression* ParseYieldStarExpression(bool* ok);
 
   class PatternRewriter final : public AstVisitor<PatternRewriter> {
    public:
@@ -589,6 +588,7 @@ class Parser : public ParserBase<Parser> {
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr, Scope* scope);
 
+  Expression* BuildInitialYield(int pos, FunctionKind kind);
   Expression* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
   Expression* BuildResolvePromise(Expression* value, int pos);
   Expression* BuildRejectPromise(Expression* value, int pos);

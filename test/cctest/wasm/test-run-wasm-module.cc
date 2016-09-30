@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/wasm/encoder.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-macro-gen.h"
+#include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -32,6 +32,20 @@ void TestModule(Zone* zone, WasmModuleBuilder* builder,
   int32_t result = testing::CompileAndRunWasmModule(
       isolate, buffer.begin(), buffer.end(), ModuleOrigin::kWasmOrigin);
   CHECK_EQ(expected_result, result);
+}
+
+void TestModuleException(Zone* zone, WasmModuleBuilder* builder) {
+  ZoneBuffer buffer(zone);
+  builder->WriteTo(buffer);
+
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  testing::SetupIsolateForWasmModule(isolate);
+  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  testing::CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end(),
+                                   ModuleOrigin::kWasmOrigin);
+  CHECK(try_catch.HasCaught());
+  isolate->clear_pending_exception();
 }
 
 void ExportAs(WasmFunctionBuilder* f, const char* name) {
@@ -96,8 +110,7 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
       WASM_LOAD_MEM(MachineType::Int32(), WASM_I8(kDataSegmentDest0))};
   f->EmitCode(code, sizeof(code));
   byte data[] = {0xaa, 0xbb, 0xcc, 0xdd};
-  builder->AddDataSegment(new (&zone) WasmDataSegmentEncoder(
-      &zone, data, sizeof(data), kDataSegmentDest0));
+  builder->AddDataSegment(data, sizeof(data), kDataSegmentDest0);
   TestModule(&zone, builder, 0xddccbbaa);
 }
 
@@ -266,4 +279,123 @@ TEST(Run_WasmModule_GrowMemoryInIf) {
                                 WASM_I32V(12))};
   f->EmitCode(code, sizeof(code));
   TestModule(&zone, builder, 12);
+}
+
+TEST(Run_WasmModule_GrowMemOobOffset) {
+  static const int kPageSize = 0x10000;
+  // Initial memory size = 16 + GrowMemory(10)
+  static const int index = kPageSize * 17 + 4;
+  int value = 0xaced;
+  TestSignatures sigs;
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator);
+
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+  ExportAsMain(f);
+  byte code[] = {
+      WASM_GROW_MEMORY(WASM_I8(1)),
+      WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index), WASM_I32V(value))};
+  f->EmitCode(code, sizeof(code));
+  TestModuleException(&zone, builder);
+}
+
+TEST(Run_WasmModule_GrowMemOobFixedIndex) {
+  static const int kPageSize = 0x10000;
+  // Initial memory size = 16 + GrowMemory(10)
+  static const int index = kPageSize * 26 + 4;
+  int value = 0xaced;
+  TestSignatures sigs;
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  Zone zone(isolate->allocator());
+
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+  ExportAsMain(f);
+  byte code[] = {
+      WASM_GROW_MEMORY(WASM_GET_LOCAL(0)), WASM_DROP,
+      WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index), WASM_I32V(value)),
+      WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V(index))};
+  f->EmitCode(code, sizeof(code));
+
+  HandleScope scope(isolate);
+  ZoneBuffer buffer(&zone);
+  builder->WriteTo(buffer);
+  testing::SetupIsolateForWasmModule(isolate);
+
+  Handle<JSObject> instance = testing::CompileInstantiateWasmModuleForTesting(
+      isolate, &zone, buffer.begin(), buffer.end(), ModuleOrigin::kWasmOrigin);
+  CHECK(!instance.is_null());
+
+  // Initial memory size is 16 pages, should trap till index > MemSize on
+  // consecutive GrowMem calls
+  for (uint32_t i = 1; i < 5; i++) {
+    Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(i), isolate)};
+    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+    testing::RunWasmModuleForTesting(isolate, instance, 1, params,
+                                     ModuleOrigin::kWasmOrigin);
+    CHECK(try_catch.HasCaught());
+    isolate->clear_pending_exception();
+  }
+
+  Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(1), isolate)};
+  int32_t result = testing::RunWasmModuleForTesting(
+      isolate, instance, 1, params, ModuleOrigin::kWasmOrigin);
+  CHECK(result == 0xaced);
+}
+
+TEST(Run_WasmModule_GrowMemOobVariableIndex) {
+  static const int kPageSize = 0x10000;
+  int value = 0xaced;
+  TestSignatures sigs;
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator);
+
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+  ExportAsMain(f);
+  byte code[] = {
+      WASM_GROW_MEMORY(WASM_I8(1)), WASM_DROP,
+      WASM_STORE_MEM(MachineType::Int32(), WASM_GET_LOCAL(0), WASM_I32V(value)),
+      WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0))};
+  f->EmitCode(code, sizeof(code));
+
+  HandleScope scope(isolate);
+  ZoneBuffer buffer(&zone);
+  builder->WriteTo(buffer);
+  testing::SetupIsolateForWasmModule(isolate);
+
+  Handle<JSObject> instance = testing::CompileInstantiateWasmModuleForTesting(
+      isolate, &zone, buffer.begin(), buffer.end(), ModuleOrigin::kWasmOrigin);
+
+  CHECK(!instance.is_null());
+
+  // Initial memory size is 16 pages, should trap till index > MemSize on
+  // consecutive GrowMem calls
+  for (int i = 1; i < 5; i++) {
+    Handle<Object> params[1] = {
+        Handle<Object>(Smi::FromInt((16 + i) * kPageSize - 3), isolate)};
+    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+    testing::RunWasmModuleForTesting(isolate, instance, 1, params,
+                                     ModuleOrigin::kWasmOrigin);
+    CHECK(try_catch.HasCaught());
+    isolate->clear_pending_exception();
+  }
+
+  for (int i = 1; i < 5; i++) {
+    Handle<Object> params[1] = {
+        Handle<Object>(Smi::FromInt((20 + i) * kPageSize - 4), isolate)};
+    int32_t result = testing::RunWasmModuleForTesting(
+        isolate, instance, 1, params, ModuleOrigin::kWasmOrigin);
+    CHECK(result == 0xaced);
+  }
+
+  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  Handle<Object> params[1] = {
+      Handle<Object>(Smi::FromInt(25 * kPageSize), isolate)};
+  testing::RunWasmModuleForTesting(isolate, instance, 1, params,
+                                   ModuleOrigin::kWasmOrigin);
+  CHECK(try_catch.HasCaught());
+  isolate->clear_pending_exception();
 }

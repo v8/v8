@@ -12902,7 +12902,8 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
 
 
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
-  DCHECK(function->IsConstructor() || function->shared()->is_resumable());
+  DCHECK(function->IsConstructor() ||
+         IsResumableFunction(function->shared()->kind()));
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
 
@@ -12913,7 +12914,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   // First create a new map with the size and number of in-object properties
   // suggested by the function.
   InstanceType instance_type;
-  if (function->shared()->is_resumable()) {
+  if (IsResumableFunction(function->shared()->kind())) {
     instance_type = JS_GENERATOR_OBJECT_TYPE;
   } else {
     instance_type = JS_OBJECT_TYPE;
@@ -13144,17 +13145,18 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   }
 
   IncrementalStringBuilder builder(isolate);
-  if (!shared_info->is_arrow()) {
-    if (shared_info->is_concise_method()) {
-      if (shared_info->is_generator()) {
+  FunctionKind kind = shared_info->kind();
+  if (!IsArrowFunction(kind)) {
+    if (IsConciseMethod(kind)) {
+      if (IsGeneratorFunction(kind)) {
         builder.AppendCharacter('*');
-      } else if (shared_info->is_async()) {
+      } else if (IsAsyncFunction(kind)) {
         builder.AppendCString("async ");
       }
     } else {
-      if (shared_info->is_generator()) {
+      if (IsGeneratorFunction(kind)) {
         builder.AppendCString("function* ");
-      } else if (shared_info->is_async()) {
+      } else if (IsAsyncFunction(kind)) {
         builder.AppendCString("async function ");
       } else {
         builder.AppendCString("function ");
@@ -19905,7 +19907,7 @@ bool Module::Instantiate(Handle<Module> module, v8::Local<v8::Context> context,
 }
 
 MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
-  DCHECK(module->code()->IsJSFunction());
+  DCHECK(module->code()->IsJSFunction());  // Instantiated.
 
   Isolate* isolate = module->GetIsolate();
 
@@ -19913,17 +19915,28 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
   if (module->evaluated()) return isolate->factory()->undefined_value();
   module->set_evaluated(true);
 
+  // Initialization.
+  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
+  DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
+  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<Object> argv[] = {module};
+  Handle<Object> generator;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, generator,
+      Execution::Call(isolate, function, receiver, arraysize(argv), argv),
+      Object);
+
+  // Recursion.
   Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
     Handle<Module> import(Module::cast(requested_modules->get(i)), isolate);
     RETURN_ON_EXCEPTION(isolate, Evaluate(import), Object);
   }
 
-  Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
-  DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
-  Handle<Object> receiver = isolate->factory()->undefined_value();
-  Handle<Object> argv[] = {module};
-  return Execution::Call(isolate, function, receiver, arraysize(argv), argv);
+  // Evaluation of module body.
+  Handle<JSFunction> resume(
+      isolate->native_context()->generator_next_internal(), isolate);
+  return Execution::Call(isolate, resume, generator, 0, nullptr);
 }
 
 }  // namespace internal

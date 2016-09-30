@@ -25,6 +25,19 @@ enum class UnicodeEncoding {
   UTF32,  // full UTF32 code unit / Unicode codepoint
 };
 
+#define HEAP_CONSTANT_LIST(V)                 \
+  V(BooleanMap, BooleanMap)                   \
+  V(empty_string, EmptyString)                \
+  V(FixedArrayMap, FixedArrayMap)             \
+  V(FixedCOWArrayMap, FixedCOWArrayMap)       \
+  V(FixedDoubleArrayMap, FixedDoubleArrayMap) \
+  V(HeapNumberMap, HeapNumberMap)             \
+  V(MinusZeroValue, MinusZero)                \
+  V(NanValue, Nan)                            \
+  V(NullValue, Null)                          \
+  V(TheHoleValue, TheHole)                    \
+  V(UndefinedValue, Undefined)
+
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"
@@ -76,18 +89,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
     return value;
   }
 
-  compiler::Node* BooleanMapConstant();
-  compiler::Node* EmptyStringConstant();
-  compiler::Node* FixedArrayMapConstant();
-  compiler::Node* FixedCowArrayMapConstant();
-  compiler::Node* FixedDoubleArrayMapConstant();
-  compiler::Node* HeapNumberMapConstant();
   compiler::Node* NoContextConstant();
-  compiler::Node* NanConstant();
-  compiler::Node* NullConstant();
-  compiler::Node* MinusZeroConstant();
-  compiler::Node* UndefinedConstant();
-  compiler::Node* TheHoleConstant();
+#define HEAP_CONSTANT_ACCESSOR(rootName, name) compiler::Node* name##Constant();
+  HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR)
+#undef HEAP_CONSTANT_ACCESSOR
+
+#define HEAP_CONSTANT_TEST(rootName, name) \
+  compiler::Node* Is##name(compiler::Node* value);
+  HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST)
+#undef HEAP_CONSTANT_TEST
+
   compiler::Node* HashSeed();
   compiler::Node* StaleRegisterConstant();
 
@@ -117,7 +128,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* SmiSub(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiSubWithOverflow(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiEqual(compiler::Node* a, compiler::Node* b);
+  compiler::Node* SmiAbove(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiAboveOrEqual(compiler::Node* a, compiler::Node* b);
+  compiler::Node* SmiBelow(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThan(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThanOrEqual(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiMax(compiler::Node* a, compiler::Node* b);
@@ -141,7 +154,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Check a value for smi-ness
   compiler::Node* WordIsSmi(compiler::Node* a);
-  // Check that the value is a positive smi.
+  // Check that the value is a non-negative smi.
   compiler::Node* WordIsPositiveSmi(compiler::Node* a);
 
   void BranchIfSmiEqual(compiler::Node* a, compiler::Node* b, Label* if_true,
@@ -328,6 +341,18 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateSeqTwoByteString(int length);
   compiler::Node* AllocateSeqTwoByteString(compiler::Node* context,
                                            compiler::Node* length);
+
+  // Allocate a SlicedOneByteString with the given length, parent and offset.
+  // |length| and |offset| are expected to be tagged.
+  compiler::Node* AllocateSlicedOneByteString(compiler::Node* length,
+                                              compiler::Node* parent,
+                                              compiler::Node* offset);
+  // Allocate a SlicedTwoByteString with the given length, parent and offset.
+  // |length| and |offset| are expected to be tagged.
+  compiler::Node* AllocateSlicedTwoByteString(compiler::Node* length,
+                                              compiler::Node* parent,
+                                              compiler::Node* offset);
+
   // Allocate a JSArray without elements and initialize the header fields.
   compiler::Node* AllocateUninitializedJSArrayWithoutElements(
       ElementsKind kind, compiler::Node* array_map, compiler::Node* length,
@@ -377,6 +402,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       compiler::Node* capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTEGER_PARAMETERS);
+
+  // Copies |character_count| elements from |from_string| to |to_string|
+  // starting at the |from_index|'th character. |from_index| and
+  // |character_count| must be Smis s.t.
+  // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
+  void CopyStringCharacters(compiler::Node* from_string,
+                            compiler::Node* to_string,
+                            compiler::Node* from_index,
+                            compiler::Node* character_count,
+                            String::Encoding encoding);
 
   // Loads an element from |array| of |from_kind| elements by given |offset|
   // (NOTE: not index!), does a hole check if |if_hole| is provided and
@@ -443,12 +478,23 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                               PrimitiveType primitive_type,
                               char const* method_name);
 
+  // Throws a TypeError for {method_name} if {value} is not of the given
+  // instance type. Returns {value}'s map.
+  compiler::Node* ThrowIfNotInstanceType(compiler::Node* context,
+                                         compiler::Node* value,
+                                         InstanceType instance_type,
+                                         char const* method_name);
+
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
   compiler::Node* StringCharCodeAt(compiler::Node* string,
                                    compiler::Node* smi_index);
   // Return the single character string with only {code}.
   compiler::Node* StringFromCharCode(compiler::Node* code);
+  // Return a new string object which holds a substring containing the range
+  // [from,to[ of string.  |from| and |to| are expected to be tagged.
+  compiler::Node* SubString(compiler::Node* context, compiler::Node* string,
+                            compiler::Node* from, compiler::Node* to);
 
   compiler::Node* StringFromCodePoint(compiler::Node* codepoint,
                                       UnicodeEncoding encoding);

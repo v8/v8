@@ -36,6 +36,7 @@ enum ContextLookupFlags {
 
 #define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                           \
   V(IS_ARRAYLIKE, JSFunction, is_arraylike)                             \
+  V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)       \
   V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)   \
   V(MAKE_ERROR_INDEX, JSFunction, make_error)                           \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)               \
@@ -96,6 +97,7 @@ enum ContextLookupFlags {
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                   \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                         \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)         \
+  V(REGEXP_LAST_MATCH_INFO_INDEX, JSObject, regexp_last_match_info)       \
   V(REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, JSFunction,                      \
     reject_promise_no_debug_event)                                        \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function) \

@@ -13,7 +13,6 @@
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -57,7 +56,6 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
   if (module->export_table.size() == 0) {
     thrower->Error("Not supported: module has no exports.");
   }
-
   if (thrower->error()) return Handle<JSObject>::null();
 
   // Although we decoded the module for some pre-validation, run the bytes
@@ -65,7 +63,10 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
   MaybeHandle<JSObject> module_object = CreateModuleObjectFromBytes(
       isolate, module->module_start, module->module_end, thrower,
       ModuleOrigin::kWasmOrigin);
-  if (module_object.is_null()) return Handle<JSObject>::null();
+  if (module_object.is_null()) {
+    thrower->Error("Module pre-validation failed.");
+    return Handle<JSObject>::null();
+  }
   MaybeHandle<JSObject> maybe_instance = WasmModule::Instantiate(
       isolate, thrower, module_object.ToHandleChecked(),
       Handle<JSReceiver>::null(), Handle<JSArrayBuffer>::null());
@@ -76,26 +77,40 @@ const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
   return instance;
 }
 
+const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
+    Isolate* isolate, Zone* zone, const byte* module_start,
+    const byte* module_end, ModuleOrigin origin) {
+  ErrorThrower thrower(isolate, "CompileInstantiateWasmModule");
+  std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
+      isolate, zone, &thrower, module_start, module_end, origin));
+
+  if (module == nullptr) {
+    thrower.Error("Wasm module decode failed");
+    return Handle<JSObject>::null();
+  }
+  return InstantiateModuleForTesting(isolate, &thrower, module.get());
+}
+
+int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
+                                int argc, Handle<Object> argv[],
+                                ModuleOrigin origin) {
+  ErrorThrower thrower(isolate, "RunWasmModule");
+  const char* f_name = origin == ModuleOrigin::kAsmJsOrigin ? "caller" : "main";
+  return CallWasmFunctionForTesting(isolate, instance, &thrower, f_name, argc,
+                                    argv, origin);
+}
+
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, ModuleOrigin origin) {
   HandleScope scope(isolate);
   Zone zone(isolate->allocator());
 
-  ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-  std::unique_ptr<const WasmModule> module(DecodeWasmModuleForTesting(
-      isolate, &zone, &thrower, module_start, module_end, origin));
-
-  if (module == nullptr) {
-    return -1;
-  }
-  Handle<JSObject> instance =
-      InstantiateModuleForTesting(isolate, &thrower, module.get());
+  Handle<JSObject> instance = CompileInstantiateWasmModuleForTesting(
+      isolate, &zone, module_start, module_end, origin);
   if (instance.is_null()) {
     return -1;
   }
-  const char* f_name = origin == ModuleOrigin::kAsmJsOrigin ? "caller" : "main";
-  return CallWasmFunctionForTesting(isolate, instance, &thrower, f_name, 0,
-                                    nullptr, origin);
+  return RunWasmModuleForTesting(isolate, instance, 0, nullptr, origin);
 }
 
 int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,

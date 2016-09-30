@@ -1513,7 +1513,7 @@ AsmType* AsmTyper::ValidateCompareOperation(CompareOperation* cmp) {
 }
 
 namespace {
-bool IsNegate(BinaryOperation* binop) {
+bool IsInvert(BinaryOperation* binop) {
   if (binop->op() != Token::BIT_XOR) {
     return false;
   }
@@ -1528,7 +1528,7 @@ bool IsNegate(BinaryOperation* binop) {
 }
 
 bool IsUnaryMinus(BinaryOperation* binop) {
-  // *VIOLATION* The parser replaces uses of +x with x*1.0.
+  // *VIOLATION* The parser replaces uses of -x with x*-1.
   if (binop->op() != Token::MUL) {
     return false;
   }
@@ -1574,7 +1574,7 @@ AsmType* AsmTyper::ValidateBinaryOperation(BinaryOperation* expr) {
       }
 
       if (IsUnaryMinus(expr)) {
-        // *VIOLATION* the parser converts -x to x * -1.0.
+        // *VIOLATION* the parser converts -x to x * -1.
         AsmType* left_type;
         RECURSE(left_type = ValidateExpression(expr->left()));
         SetTypeOf(expr->right(), left_type);
@@ -1599,11 +1599,11 @@ AsmType* AsmTyper::ValidateBinaryOperation(BinaryOperation* expr) {
     case Token::BIT_AND:
       return ValidateBitwiseANDExpression(expr);
     case Token::BIT_XOR:
-      if (IsNegate(expr)) {
+      if (IsInvert(expr)) {
         auto* left = expr->left();
         auto* left_as_binop = left->AsBinaryOperation();
 
-        if (left_as_binop != nullptr && IsNegate(left_as_binop)) {
+        if (left_as_binop != nullptr && IsInvert(left_as_binop)) {
           // This is the special ~~ operator.
           AsmType* left_type;
           RECURSE(left_type = ValidateExpression(left_as_binop->left()));

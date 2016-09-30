@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/asmjs/asm-typer.h"
 #include "src/objects.h"
-#include "src/wasm/encoder.h"
+#include "src/wasm/wasm-module-builder.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

@@ -63,6 +63,9 @@
     'gypfiles': {
       'filepath': 'gypfiles/',
     },
+    'inspector': {
+      'filepath': 'inspector',
+    },
   },
 
   'WATCHLISTS': {
@@ -95,6 +98,9 @@
     ],
     'gypfiles': [
       'machenbach@chromium.org',
+    ],
+    'inspector': [
+      'devtools-reviews@chromium.org',
     ],
   },
 }

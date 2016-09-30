@@ -771,8 +771,6 @@ enum CpuFeature {
   ARMv7,        // ARMv7-A + VFPv3-D32 + NEON
   ARMv7_SUDIV,  // ARMv7-A + VFPv4-D32 + NEON + SUDIV
   ARMv8,        // ARMv8-A (+ all of the above)
-  // - Additional tuning flags.
-  MOVW_MOVT_IMMEDIATE_LOADS,
   // MIPS, MIPS64
   FPU,
   FP64FPU,
@@ -1080,6 +1078,7 @@ enum FunctionKind : uint16_t {
   kGetterFunction = 1 << 6,
   kSetterFunction = 1 << 7,
   kAsyncFunction = 1 << 8,
+  kModule = 1 << 9,
   kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
@@ -1093,6 +1092,7 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
   return kind == FunctionKind::kNormalFunction ||
          kind == FunctionKind::kArrowFunction ||
          kind == FunctionKind::kGeneratorFunction ||
+         kind == FunctionKind::kModule ||
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
          kind == FunctionKind::kGetterFunction ||
@@ -1119,13 +1119,18 @@ inline bool IsGeneratorFunction(FunctionKind kind) {
   return kind & FunctionKind::kGeneratorFunction;
 }
 
+inline bool IsModule(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kModule;
+}
+
 inline bool IsAsyncFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kAsyncFunction;
 }
 
 inline bool IsResumableFunction(FunctionKind kind) {
-  return IsGeneratorFunction(kind) || IsAsyncFunction(kind);
+  return IsGeneratorFunction(kind) || IsAsyncFunction(kind) || IsModule(kind);
 }
 
 inline bool IsConciseMethod(FunctionKind kind) {

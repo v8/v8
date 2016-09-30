@@ -2016,7 +2016,7 @@ static uint32_t HashCodeAddress(Address addr) {
 static base::HashMap* GetLineMap() {
   static base::HashMap* line_map = NULL;
   if (line_map == NULL) {
-    line_map = new base::HashMap(&base::HashMap::PointersMatch);
+    line_map = new base::HashMap();
   }
   return line_map;
 }

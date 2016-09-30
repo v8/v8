@@ -34,11 +34,12 @@
 var DebuggerScript = {};
 
 /** @enum */
-DebuggerScript.PauseOnExceptionsState = {
+const PauseOnExceptionsState = {
     DontPauseOnExceptions: 0,
     PauseOnAllExceptions: 1,
     PauseOnUncaughtExceptions: 2
 };
+DebuggerScript.PauseOnExceptionsState = PauseOnExceptionsState;
 
 DebuggerScript._pauseOnExceptionsState = DebuggerScript.PauseOnExceptionsState.DontPauseOnExceptions;
 Debug.clearBreakOnException();
@@ -422,7 +423,7 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     var returnValue = isAtReturn ? frameDetails.returnValue() : undefined;
 
     var scopeMirrors = frameMirror.allScopes(false);
-    /** @type {!Array<ScopeType>} */
+    /** @type {!Array<number>} */
     var scopeTypes = new Array(scopeMirrors.length);
     /** @type {?Array<!Object>} */
     var scopeObjects = new Array(scopeMirrors.length);

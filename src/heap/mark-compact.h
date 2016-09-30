@@ -467,7 +467,7 @@ class MarkCompactCollector {
   static const size_t kMinMarkingDequeSize = 256 * KB;
 
   void EnsureMarkingDequeIsCommittedAndInitialize(size_t max_size) {
-    if (!marking_deque_.in_use()) {
+    if (!marking_deque()->in_use()) {
       EnsureMarkingDequeIsCommitted(max_size);
       InitializeMarkingDeque();
     }

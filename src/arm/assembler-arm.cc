@@ -207,10 +207,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // For the simulator build, use whatever the flags specify.
   supported_ |= command_line;
 
-  if (FLAG_enable_movw_movt && ((supported_ & kArmv7) == kArmv7)) {
-    supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
-  }
-
 #else  // __arm__
   // Probe for additional features at runtime.
   base::CPU cpu;
@@ -237,12 +233,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   // Additional tuning options.
 
-  // Prefer to use movw/movt for QUALCOMM ARMv7 cores.
-  if (FLAG_enable_movw_movt && ((supported_ & kArmv7) == kArmv7) &&
-      (cpu.implementer() == base::CPU::QUALCOMM)) {
-    supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
-  }
-
   // ARM Cortex-A9 and Cortex-A5 have 32 byte cachelines.
   if (cpu.implementer() == base::CPU::ARM &&
       (cpu.part() == base::CPU::ARM_CORTEX_A5 ||
@@ -253,7 +243,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   DCHECK_IMPLIES(IsSupported(ARMv7_SUDIV), IsSupported(ARMv7));
   DCHECK_IMPLIES(IsSupported(ARMv8), IsSupported(ARMv7_SUDIV));
-  DCHECK_IMPLIES(IsSupported(MOVW_MOVT_IMMEDIATE_LOADS), IsSupported(ARMv7));
 }
 
 
@@ -312,13 +301,10 @@ void CpuFeatures::PrintTarget() {
 
 
 void CpuFeatures::PrintFeatures() {
-  printf(
-      "ARMv8=%d ARMv7=%d VFPv3=%d VFP32DREGS=%d NEON=%d SUDIV=%d "
-      "MOVW_MOVT_IMMEDIATE_LOADS=%d",
-      CpuFeatures::IsSupported(ARMv8), CpuFeatures::IsSupported(ARMv7),
-      CpuFeatures::IsSupported(VFPv3), CpuFeatures::IsSupported(VFP32DREGS),
-      CpuFeatures::IsSupported(NEON), CpuFeatures::IsSupported(SUDIV),
-      CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS));
+  printf("ARMv8=%d ARMv7=%d VFPv3=%d VFP32DREGS=%d NEON=%d SUDIV=%d",
+         CpuFeatures::IsSupported(ARMv8), CpuFeatures::IsSupported(ARMv7),
+         CpuFeatures::IsSupported(VFPv3), CpuFeatures::IsSupported(VFP32DREGS),
+         CpuFeatures::IsSupported(NEON), CpuFeatures::IsSupported(SUDIV));
 #ifdef __arm__
   bool eabi_hardfloat = base::OS::ArmUsingHardFloat();
 #elif USE_EABI_HARDFLOAT
@@ -1200,12 +1186,9 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 
 static bool use_mov_immediate_load(const Operand& x,
                                    const Assembler* assembler) {
-  if (FLAG_enable_embedded_constant_pool && assembler != NULL &&
+  DCHECK(assembler != nullptr);
+  if (FLAG_enable_embedded_constant_pool &&
       !assembler->is_constant_pool_available()) {
-    return true;
-  } else if (CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
-             (assembler == NULL || !assembler->predictable_code_size())) {
-    // Prefer movw / movt to constant pool if it is more efficient on the CPU.
     return true;
   } else if (x.must_output_reloc_info(assembler)) {
     // Prefer constant pool if data is likely to be patched.
@@ -1219,6 +1202,7 @@ static bool use_mov_immediate_load(const Operand& x,
 
 int Operand::instructions_required(const Assembler* assembler,
                                    Instr instr) const {
+  DCHECK(assembler != nullptr);
   if (rm_.is_valid()) return 1;
   uint32_t dummy1, dummy2;
   if (must_output_reloc_info(assembler) ||
@@ -1230,8 +1214,7 @@ int Operand::instructions_required(const Assembler* assembler,
     if (use_mov_immediate_load(*this, assembler)) {
       // A movw / movt or mov / orr immediate load.
       instructions = CpuFeatures::IsSupported(ARMv7) ? 2 : 4;
-    } else if (assembler != NULL &&
-               assembler->ConstantPoolAccessIsInOverflow()) {
+    } else if (assembler->ConstantPoolAccessIsInOverflow()) {
       // An overflowed constant pool load.
       instructions = CpuFeatures::IsSupported(ARMv7) ? 3 : 5;
     } else {

@@ -348,6 +348,8 @@ class CodeAssembler {
                  Node* arg2, size_t result_size = 1);
   Node* CallStub(Callable const& callable, Node* context, Node* arg1,
                  Node* arg2, Node* arg3, size_t result_size = 1);
+  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
+                 Node* arg2, Node* arg3, Node* arg4, size_t result_size = 1);
   Node* CallStubN(Callable const& callable, Node** args,
                   size_t result_size = 1);
 

@@ -885,9 +885,23 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     Type* const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
         access_info.field_representation();
-    if (access_mode == AccessMode::kLoad &&
-        access_info.holder().ToHandle(&holder)) {
-      receiver = jsgraph()->Constant(holder);
+    if (access_mode == AccessMode::kLoad) {
+      if (access_info.holder().ToHandle(&holder)) {
+        receiver = jsgraph()->Constant(holder);
+      }
+      // Optimize immutable property loads.
+      HeapObjectMatcher m(receiver);
+      if (m.HasValue() && m.Value()->IsJSObject()) {
+        // TODO(turbofan): Given that we already have the field_index here, we
+        // might be smarter in the future and not rely on the LookupIterator,
+        // but for now let's just do what Crankshaft does.
+        LookupIterator it(m.Value(), name,
+                          LookupIterator::OWN_SKIP_INTERCEPTOR);
+        if (it.IsFound() && it.IsReadOnly() && !it.IsConfigurable()) {
+          Node* value = jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
+          return ValueEffectControl(value, effect, control);
+        }
+      }
     }
     Node* storage = receiver;
     if (!field_index.is_inobject()) {

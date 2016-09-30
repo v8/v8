@@ -247,6 +247,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     var selectedPage;
     var baselineVersion;
     var selectedEntry;
+    
+    // Marker to programatically replace the defaultData.
+    var defaultData = /*default-data-start*/undefined/*default-data-end*/;
 
     function initialize() {
       // Initialize the stats table and toggle lists.
@@ -1008,15 +1011,21 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     // EventHandlers
     function handleBodyLoad() {
       $('uploadInput').focus();
-      if (window.location.protocol !== 'file:') tryLoadDefaultResults();
+      if (defaultData) {
+        handleLoadJSON(defaultData);
+      } else if (window.location.protocol !== 'file:') {
+        tryLoadDefaultResults();
+      }
     }
 
     function tryLoadDefaultResults() {
-      // Try to load a results.json file adjacent to this day.
+     // Try to load a results.json file adjacent to this day.
      var xhr = new XMLHttpRequest();
-     xhr.open('GET', 'results.json', true);
+     // The markers on the following line can be used to replace the url easily
+     // with scripts.
+     xhr.open('GET', /*results-url-start*/'results.json'/*results-url-end*/, true);
      xhr.onreadystatechange = function(e) {
-       if (this.readyState != 4 || this.status != 200) return;
+       if(this.readyState !== XMLHttpRequest.DONE || this.status !== 200) return;
        handleLoadText(this.responseText);
      };
      xhr.send();
@@ -1035,7 +1044,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function handleLoadText(text) {
       pages = new Pages();
-      versions = Versions.fromJSON(JSON.parse(text));
+      handleLoadJSON(JSON.parse(text));
+    }
+
+    function handleLoadJSON(json) {
+      versions = Versions.fromJSON(json);
       initialize()
       showPage(versions.versions[0].pages[0]);
       selectEntry(selectedPage.total);

@@ -46,6 +46,20 @@ template class V8_EXPORT std::vector<v8::CpuProfileDeoptInfo>;
 
 namespace v8 {
 
+/**
+ * TracingCpuProfiler monitors tracing being enabled/disabled
+ * and emits CpuProfile trace events once v8.cpu_profile2 tracing category
+ * is enabled. It has no overhead unless the category is enabled.
+ */
+class V8_EXPORT TracingCpuProfiler {
+ public:
+  static std::unique_ptr<TracingCpuProfiler> Create(Isolate*);
+  virtual ~TracingCpuProfiler() = default;
+
+ protected:
+  TracingCpuProfiler() = default;
+};
+
 // TickSample captures the information collected for each sample.
 struct TickSample {
   // Internal profiling (with --prof + tools/$OS-tick-processor) wants to

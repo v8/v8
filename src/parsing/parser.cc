@@ -127,13 +127,15 @@ class DiscardableZoneScope {
       }
     }
   }
-  ~DiscardableZoneScope() {
+  void Reset() {
     parser_->fni_ = prev_fni_;
     parser_->zone_ = prev_zone_;
     if (parser_->reusable_preparser_ != nullptr) {
       parser_->reusable_preparser_->zone_ = prev_zone_;
     }
+    ast_node_factory_scope_.Reset();
   }
+  ~DiscardableZoneScope() { Reset(); }
 
  private:
   AstNodeFactory::BodyScope ast_node_factory_scope_;
@@ -767,12 +769,13 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   {
     Scope* outer = original_scope_;
     DCHECK_NOT_NULL(outer);
+    parsing_module_ = info->is_module();
     if (info->is_eval()) {
       if (!outer->is_script_scope() || is_strict(info->language_mode())) {
         parsing_mode = PARSE_EAGERLY;
       }
       outer = NewEvalScope(outer);
-    } else if (info->is_module()) {
+    } else if (parsing_module_) {
       DCHECK_EQ(outer, info->script_scope());
       outer = NewModuleScope(info->script_scope());
       // Never do lazy parsing in modules.  If we want to support this in the
@@ -792,7 +795,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
-    parsing_module_ = info->is_module();
     if (parsing_module_) {
       // Declare the special module parameter.
       auto name = ast_value_factory()->empty_string();
@@ -803,6 +805,13 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
                                          &is_duplicate, ast_value_factory());
       DCHECK(!is_duplicate);
       var->AllocateTo(VariableLocation::PARAMETER, 0);
+
+      PrepareGeneratorVariables(&function_state);
+      Expression* initial_yield =
+          BuildInitialYield(kNoSourcePosition, kGeneratorFunction);
+      body->Add(
+          factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
+          zone());
 
       ParseModuleItemList(body, &ok);
       ok = ok &&
@@ -942,11 +951,11 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
     DCHECK(is_sloppy(outer->language_mode()) ||
            is_strict(info->language_mode()));
     FunctionLiteral::FunctionType function_type = ComputeFunctionType(info);
+    FunctionKind kind = info->function_kind();
     bool ok = true;
 
-    if (info->is_arrow()) {
-      bool is_async = allow_harmony_async_await() && info->is_async();
-      if (is_async) {
+    if (IsArrowFunction(kind)) {
+      if (allow_harmony_async_await() && IsAsyncFunction(kind)) {
         DCHECK(!scanner()->HasAnyLineTerminatorAfterNext());
         if (!Check(Token::ASYNC)) {
           CHECK(stack_overflow());
@@ -959,8 +968,7 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
       }
 
       // TODO(adamk): We should construct this scope from the ScopeInfo.
-      FunctionKind arrow_kind = is_async ? kAsyncArrowFunction : kArrowFunction;
-      DeclarationScope* scope = NewFunctionScope(arrow_kind);
+      DeclarationScope* scope = NewFunctionScope(kind);
 
       // These two bits only need to be explicitly set because we're
       // not passing the ScopeInfo to the Scope constructor.
@@ -1018,10 +1026,9 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
           }
         }
       }
-    } else if (info->is_default_constructor()) {
+    } else if (IsDefaultConstructor(kind)) {
       DCHECK_EQ(scope(), outer);
-      bool is_subclass_constructor =
-          IsSubclassConstructor(info->function_kind());
+      bool is_subclass_constructor = IsSubclassConstructor(kind);
       result = DefaultConstructor(
           raw_name, is_subclass_constructor, info->requires_class_field_init(),
           info->start_position(), info->end_position(), info->language_mode());
@@ -1039,10 +1046,9 @@ FunctionLiteral* Parser::DoParseLazy(ParseInfo* info,
       }
     } else {
       result = ParseFunctionLiteral(
-          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck,
-          info->function_kind(), kNoSourcePosition, function_type,
-          info->language_mode(), info->is_typed(), typesystem::kNormalTypes,
-          &ok);
+          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
+          kNoSourcePosition, function_type, info->language_mode(),
+          info->is_typed(), typesystem::kNormalTypes, &ok);
       if (info->requires_class_field_init()) {
         result = InsertClassFieldInitializer(result);
       }
@@ -1784,24 +1790,6 @@ Expression* Parser::RewriteDoExpression(Block* body, int pos, bool* ok) {
     return nullptr;
   }
   return expr;
-}
-
-Statement* Parser::ParseFunctionDeclaration(bool ambient, bool* ok) {
-  Consume(Token::FUNCTION);
-  int pos = position();
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
-  if (Check(Token::MUL)) {
-    flags |= ParseFunctionFlags::kIsGenerator;
-    if (allow_harmony_restrictive_declarations()) {
-      ReportMessageAt(scanner()->location(),
-                      MessageTemplate::kGeneratorInLegacyContext);
-      *ok = false;
-      return nullptr;
-    }
-  }
-
-  return ParseHoistableDeclaration(pos, flags, nullptr, false, ambient,
-                                   CHECK_OK);
 }
 
 Statement* Parser::RewriteSwitchStatement(Expression* tag,
@@ -2604,6 +2592,20 @@ void Parser::ReindexLiterals(const ParserFormalParameters& parameters) {
   }
 }
 
+void Parser::PrepareGeneratorVariables(FunctionState* function_state) {
+  // For generators, allocating variables in contexts is currently a win
+  // because it minimizes the work needed to suspend and resume an
+  // activation.  The machine code produced for generators (by full-codegen)
+  // relies on this forced context allocation, but not in an essential way.
+  scope()->ForceContextAllocation();
+
+  // Calling a generator returns a generator object.  That object is stored
+  // in a temporary variable, a definition that is used by "yield"
+  // expressions.
+  Variable* temp =
+      NewTemporary(ast_value_factory()->dot_generator_object_string());
+  function_state->set_generator_object_variable(temp);
+}
 
 // This function may return a nullptr with *ok==true in typed mode,
 // if (type_flags & kAllowSignature) and a function signature is parsed.
@@ -2703,11 +2705,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // will migrate unresolved variable into a Scope in the main Zone.
   // TODO(marja): Refactor parsing modes: simplify this.
   bool use_temp_zone =
-      !is_lazy_top_level_function && allow_lazy() &&
-      function_type == FunctionLiteral::kDeclaration &&
+      allow_lazy() && function_type == FunctionLiteral::kDeclaration &&
       eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
       !(FLAG_validate_asm && scope()->IsAsmModule());
-  bool is_lazy_inner_function = use_temp_zone && FLAG_lazy_inner_functions;
+  bool is_lazy_inner_function =
+      use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
 
   // This Scope lives in the main zone. We'll migrate data into that zone later.
   DeclarationScope* scope = NewFunctionScope(kind);
@@ -2722,6 +2724,60 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool should_be_used_once_hint = false;
   bool has_duplicate_parameters;
 
+  FunctionState function_state(&function_state_, &scope_state_, scope);
+#ifdef DEBUG
+  scope->SetScopeName(function_name);
+#endif
+
+  ExpressionClassifier formals_classifier(this, &duplicate_finder);
+
+  if (is_generator) PrepareGeneratorVariables(&function_state);
+
+  // Parse optional type parameters.
+  typename TypeSystem::TypeParameters type_parameters = NullTypeParameters();
+  if (typed() && !(type_flags & typesystem::kDisallowTypeParameters) &&
+      peek() == Token::LT) {  // Braces required here.
+    type_parameters = ParseTypeParameters(CHECK_OK);
+  }
+  USE(type_parameters);  // TODO(nikolaos): really use them!
+
+  Expect(Token::LPAREN, CHECK_OK);
+  int start_position = scanner()->location().beg_pos;
+  this->scope()->set_start_position(start_position);
+  ParserFormalParameters formals(scope);
+  ParseFormalParameterList(&formals, kind != FunctionKind::kSetterFunction,
+                           CHECK_OK);
+  arity = formals.Arity();
+  Expect(Token::RPAREN, CHECK_OK);
+  int formals_end_position = scanner()->location().end_pos;
+
+  CheckArityRestrictions(arity, kind, formals.has_rest, start_position,
+                         formals_end_position, CHECK_OK);
+
+  // Parse optional type annotation.
+  typename TypeSystem::Type result_type = EmptyType();
+  if (typed() && !(type_flags & typesystem::kDisallowTypeAnnotation) &&
+      Check(Token::COLON)) {  // Braces required here.
+    result_type = ParseValidType(CHECK_OK);
+  }
+  USE(result_type);  // TODO(nikolaos): really use it!
+
+  // Allow or even enforce a function signature (i.e., literal without body),
+  // In that case, return a nullptr instead of a function literal.
+  if ((type_flags & typesystem::kDisallowBody) ||
+      (peek() != Token::LBRACE && typed() &&
+       (type_flags & typesystem::kAllowSignature))) {
+    ExpectSemicolon(CHECK_OK);
+    this->scope()->DiscardScope();
+    return nullptr;
+  }
+
+  Expect(Token::LBRACE, CHECK_OK);
+  // Don't include the rest parameter into the function's formal parameter
+  // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
+  // which says whether we need to create an arguments adaptor frame).
+  if (formals.has_rest) arity--;
+
   {
     // Temporary zones can nest. When we migrate free variables (see below), we
     // need to recreate them in the previous Zone.
@@ -2735,74 +2791,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // information when the function is parsed.
     Zone temp_zone(zone()->allocator());
     DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
-
-    FunctionState function_state(&function_state_, &scope_state_, scope);
 #ifdef DEBUG
-    scope->SetScopeName(function_name);
     if (use_temp_zone) scope->set_needs_migration();
 #endif
-    ExpressionClassifier formals_classifier(this, &duplicate_finder);
-
-    if (is_generator) {
-      // For generators, allocating variables in contexts is currently a win
-      // because it minimizes the work needed to suspend and resume an
-      // activation.  The machine code produced for generators (by full-codegen)
-      // relies on this forced context allocation, but not in an essential way.
-      this->scope()->ForceContextAllocation();
-
-      // Calling a generator returns a generator object.  That object is stored
-      // in a temporary variable, a definition that is used by "yield"
-      // expressions. This also marks the FunctionState as a generator.
-      Variable* temp =
-          NewTemporary(ast_value_factory()->dot_generator_object_string());
-      function_state.set_generator_object_variable(temp);
-    }
-
-    // Parse optional type parameters.
-    typename TypeSystem::TypeParameters type_parameters = NullTypeParameters();
-    if (typed() && !(type_flags & typesystem::kDisallowTypeParameters) &&
-        peek() == Token::LT) {  // Braces required here.
-      type_parameters = ParseTypeParameters(CHECK_OK);
-    }
-    USE(type_parameters);  // TODO(nikolaos): really use them!
-
-    Expect(Token::LPAREN, CHECK_OK);
-    int start_position = scanner()->location().beg_pos;
-    this->scope()->set_start_position(start_position);
-    ParserFormalParameters formals(scope);
-    ParseFormalParameterList(&formals, kind != FunctionKind::kSetterFunction,
-                             CHECK_OK);
-    arity = formals.Arity();
-    Expect(Token::RPAREN, CHECK_OK);
-    int formals_end_position = scanner()->location().end_pos;
-
-    CheckArityRestrictions(arity, kind, formals.has_rest, start_position,
-                           formals_end_position, CHECK_OK);
-
-    // Parse optional type annotation.
-    typename TypeSystem::Type result_type = EmptyType();
-    if (typed() && !(type_flags & typesystem::kDisallowTypeAnnotation) &&
-        Check(Token::COLON)) {  // Braces required here.
-      result_type = ParseValidType(CHECK_OK);
-    }
-    USE(result_type);  // TODO(nikolaos): really use it!
-
-    // Allow or even enforce a function signature (i.e., literal without body),
-    // In that case, return a nullptr instead of a function literal.
-    if ((type_flags & typesystem::kDisallowBody) ||
-        (peek() != Token::LBRACE && typed() &&
-         (type_flags & typesystem::kAllowSignature))) {
-      ExpectSemicolon(CHECK_OK);
-      this->scope()->DiscardScope();
-      return nullptr;
-    }
-
-    Expect(Token::LBRACE, CHECK_OK);
-
-    // Don't include the rest parameter into the function's formal parameter
-    // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
-    // which says whether we need to create an arguments adaptor frame).
-    if (formals.has_rest) arity--;
 
     // Eager or lazy parse? If is_lazy_top_level_function, we'll parse
     // lazily. We'll call SkipLazyFunctionBody, which may decide to abort lazy
@@ -2830,7 +2821,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         // used once.
         eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
         should_be_used_once_hint = true;
-        scope->ResetAfterPreparsing(true);
+        scope->ResetAfterPreparsing(ast_value_factory(), true);
+        zone_scope.Reset();
+        use_temp_zone = false;
       }
     }
 
@@ -3227,6 +3220,21 @@ Variable* Parser::PromiseVariable() {
   return promise;
 }
 
+Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
+  Expression* allocation = BuildCreateJSGeneratorObject(pos, kind);
+  VariableProxy* init_proxy =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  Assignment* assignment = factory()->NewAssignment(
+      Token::INIT, init_proxy, allocation, kNoSourcePosition);
+  VariableProxy* get_proxy =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  // The position of the yield is important for reporting the exception
+  // caused by calling the .throw method on a generator suspended at the
+  // initial yield (i.e. right after generator instantiation).
+  return factory()->NewYield(get_proxy, assignment, scope()->start_position(),
+                             Yield::kOnExceptionThrow);
+}
+
 ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
     const ParserFormalParameters& parameters, FunctionKind kind,
@@ -3279,26 +3287,10 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
       Block* try_block =
           factory()->NewBlock(nullptr, 3, false, kNoSourcePosition);
-
-      {
-        Expression* allocation = BuildCreateJSGeneratorObject(pos, kind);
-        VariableProxy* init_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        Assignment* assignment = factory()->NewAssignment(
-            Token::INIT, init_proxy, allocation, kNoSourcePosition);
-        VariableProxy* get_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        // The position of the yield is important for reporting the exception
-        // caused by calling the .throw method on a generator suspended at the
-        // initial yield (i.e. right after generator instantiation).
-        Yield* yield = factory()->NewYield(get_proxy, assignment,
-                                           scope()->start_position(),
-                                           Yield::kOnExceptionThrow);
-        try_block->statements()->Add(
-            factory()->NewExpressionStatement(yield, kNoSourcePosition),
-            zone());
-      }
-
+      Expression* initial_yield = BuildInitialYield(pos, kind);
+      try_block->statements()->Add(
+          factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
+          zone());
       ParseStatementList(try_block->statements(), Token::RBRACE, CHECK_OK);
 
       Statement* final_return = factory()->NewReturnStatement(

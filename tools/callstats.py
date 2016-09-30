@@ -46,7 +46,7 @@ def print_command(cmd_args):
   print " ".join(map(fix_for_printing, cmd_args))
 
 
-def start_replay_server(args, sites):
+def start_replay_server(args, sites, discard_output=True):
   with tempfile.NamedTemporaryFile(prefix='callstats-inject-', suffix='.js',
                                    mode='wt', delete=False) as f:
     injection = f.name
@@ -65,8 +65,11 @@ def start_replay_server(args, sites):
   ]
   print "=" * 80
   print_command(cmd_args)
-  with open(os.devnull, 'w') as null:
-    server = subprocess.Popen(cmd_args, stdout=null, stderr=null)
+  if discard_output:
+    with open(os.devnull, 'w') as null:
+      server = subprocess.Popen(cmd_args, stdout=null, stderr=null)
+  else:
+      server = subprocess.Popen(cmd_args)
   print "RUNNING REPLAY SERVER: %s with PID=%s" % (args.replay_bin, server.pid)
   print "=" * 80
   return {'process': server, 'injection': injection}
@@ -292,12 +295,12 @@ def do_run_replay_server(args):
     print("    "+site['url'])
   print("- " * 40)
   print("Launch chromium with the following commands for debugging:")
-  flags = get_chrome_flags("'--runtime-calls-stats --allow-natives-syntax'",
+  flags = get_chrome_flags("'--runtime-call-stats --allow-natives-syntax'",
                            "/var/tmp/`date +%s`")
   flags += get_chrome_replay_flags(args)
   print("    $CHROMIUM_DIR/out/Release/chomium " + (" ".join(flags)) + " <URL>")
   print("- " * 40)
-  replay_server = start_replay_server(args, sites)
+  replay_server = start_replay_server(args, sites, discard_output=False)
   try:
     replay_server['process'].wait()
   finally:

@@ -974,9 +974,9 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   os << "\n - name = " << Brief(shared()->name());
   os << "\n - formal_parameter_count = "
      << shared()->internal_formal_parameter_count();
-  if (shared()->is_generator()) {
+  if (IsGeneratorFunction(shared()->kind())) {
     os << "\n   - generator";
-  } else if (shared()->is_async()) {
+  } else if (IsAsyncFunction(shared()->kind())) {
     os << "\n   - async";
   }
   os << "\n - context = " << Brief(context());

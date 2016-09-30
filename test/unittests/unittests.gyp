@@ -120,12 +120,12 @@
       'wasm/ast-decoder-unittest.cc',
       'wasm/control-transfer-unittest.cc',
       'wasm/decoder-unittest.cc',
-      'wasm/encoder-unittest.cc',
       'wasm/leb-helper-unittest.cc',
       'wasm/loop-assignment-analysis-unittest.cc',
       'wasm/module-decoder-unittest.cc',
       'wasm/switch-logic-unittest.cc',
       'wasm/wasm-macro-gen-unittest.cc',
+      'wasm/wasm-module-builder-unittest.cc',
     ],
     'unittests_sources_arm': [  ### gcmole(arch:arm) ###
       'compiler/arm/instruction-selector-arm-unittest.cc',

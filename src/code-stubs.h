@@ -43,7 +43,6 @@ class ObjectLiteral;
   V(StoreBufferOverflow)                      \
   V(StoreElement)                             \
   V(SubString)                                \
-  V(ToString)                                 \
   V(StoreIC)                                  \
   V(KeyedStoreIC)                             \
   V(KeyedLoadIC)                              \
@@ -3094,21 +3093,24 @@ class StoreBufferOverflowStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(StoreBufferOverflow, PlatformCodeStub);
 };
 
-
-class SubStringStub : public PlatformCodeStub {
+class SubStringStub : public TurboFanCodeStub {
  public:
-  explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+  explicit SubStringStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  static compiler::Node* Generate(CodeStubAssembler* assembler,
+                                  compiler::Node* string, compiler::Node* from,
+                                  compiler::Node* to, compiler::Node* context);
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override {
+    assembler->Return(Generate(assembler,
+                               assembler->Parameter(Descriptor::kString),
+                               assembler->Parameter(Descriptor::kFrom),
+                               assembler->Parameter(Descriptor::kTo),
+                               assembler->Parameter(Descriptor::kContext)));
+  }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(SubString);
-  DEFINE_PLATFORM_CODE_STUB(SubString, PlatformCodeStub);
-};
-
-class ToStringStub final : public PlatformCodeStub {
- public:
-  explicit ToStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_PLATFORM_CODE_STUB(ToString, PlatformCodeStub);
+  DEFINE_CODE_STUB(SubString, TurboFanCodeStub);
 };
 
 class ToObjectStub final : public TurboFanCodeStub {

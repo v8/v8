@@ -1,0 +1,14 @@
+// Copyright 2016 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+print("Tests that DevTools doesn't crash on Runtime.evaluate with contextId equals 0.");
+
+InspectorTest.sendCommand("Runtime.evaluate", { "contextId": 0, "expression": "" }, evaluateCallback);
+
+function evaluateCallback(result)
+{
+  result.id = 0;
+  InspectorTest.logObject(result);
+  InspectorTest.completeTest();
+}

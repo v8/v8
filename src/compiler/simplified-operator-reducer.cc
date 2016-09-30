@@ -126,6 +126,14 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kCheckedTaggedSignedToInt32: {
+      NodeMatcher m(node->InputAt(0));
+      if (m.IsConvertTaggedHoleToUndefined()) {
+        node->ReplaceInput(0, m.InputAt(0));
+        return Changed(node);
+      }
+      break;
+    }
     case IrOpcode::kCheckIf: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.Is(factory()->true_value())) {

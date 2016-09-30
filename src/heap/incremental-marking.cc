@@ -400,22 +400,6 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
 }
 
 
-bool IncrementalMarking::ShouldActivateEvenWithoutIdleNotification() {
-#ifndef DEBUG
-  static const intptr_t kActivationThreshold = 8 * MB;
-#else
-  // TODO(gc) consider setting this to some low level so that some
-  // debug tests run with incremental marking and some without.
-  static const intptr_t kActivationThreshold = 0;
-#endif
-  // Don't switch on for very small heaps.
-  return CanBeActivated() &&
-         heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold &&
-         heap_->HeapIsFullEnoughToStartIncrementalMarking(
-             heap_->old_generation_allocation_limit());
-}
-
-
 bool IncrementalMarking::WasActivated() { return was_activated_; }
 
 
@@ -1121,7 +1105,7 @@ void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
     bytes_to_process = Min(bytes_to_process, max_step_size);
 
-    intptr_t bytes_processed = 0;
+    size_t bytes_processed = 0;
     if (bytes_marked_ahead_of_schedule_ >= bytes_to_process) {
       // Steps performed in tasks have put us ahead of schedule.
       // We skip processing of marking dequeue here and thus
@@ -1132,7 +1116,7 @@ void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
       bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
                              FORCE_COMPLETION, StepOrigin::kV8);
     }
-    bytes_allocated_ -= Min(bytes_allocated_, bytes_to_process);
+    bytes_allocated_ -= Min(bytes_allocated_, bytes_processed);
   }
 }
 

@@ -513,10 +513,6 @@ class Type {
   bool Maybe(Type* that);
   bool Equals(Type* that) { return this->Is(that) && that->Is(this); }
 
-  // Equivalent to Constant(val)->Is(this), but avoiding allocation.
-  bool Contains(i::Object* val);
-  bool Contains(i::Handle<i::Object> val) { return this->Contains(*val); }
-
   // Inspection.
   bool IsRange() { return IsKind(TypeBase::kRange); }
   bool IsConstant() { return IsKind(TypeBase::kConstant); }
@@ -543,31 +539,6 @@ class Type {
   }
 
   int NumConstants();
-
-  template <class T>
-  class Iterator {
-   public:
-    bool Done() const { return index_ < 0; }
-    i::Handle<T> Current();
-    void Advance();
-
-   private:
-    friend class Type;
-
-    Iterator() : index_(-1) {}
-    explicit Iterator(Type* type) : type_(type), index_(-1) { Advance(); }
-
-    inline bool matches(Type* type);
-    inline Type* get_type();
-
-    Type* type_;
-    int index_;
-  };
-
-  Iterator<i::Object> Constants() {
-    if (this->IsBitset()) return Iterator<i::Object>();
-    return Iterator<i::Object>(this);
-  }
 
   // Printing.
 

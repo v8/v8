@@ -4545,7 +4545,7 @@ class ScopeInfo : public FixedArray {
   class HasSimpleParametersField
       : public BitField<bool, AsmFunctionField::kNext, 1> {};
   class FunctionKindField
-      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 9> {};
+      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 10> {};
   class HasOuterScopeInfoField
       : public BitField<bool, FunctionKindField::kNext, 1> {};
   class IsDebugEvaluateScopeField
@@ -7423,31 +7423,6 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that code for this function cannot be flushed.
   DECL_BOOLEAN_ACCESSORS(dont_flush)
 
-  // Indicates that this function is a generator.
-  DECL_BOOLEAN_ACCESSORS(is_generator)
-
-  // Indicates that this function is an async function.
-  DECL_BOOLEAN_ACCESSORS(is_async)
-
-  // Indicates that this function can be suspended, either via YieldExpressions
-  // or AwaitExpressions.
-  inline bool is_resumable() const;
-
-  // Indicates that this function is an arrow function.
-  DECL_BOOLEAN_ACCESSORS(is_arrow)
-
-  // Indicates that this function is a concise method.
-  DECL_BOOLEAN_ACCESSORS(is_concise_method)
-
-  // Indicates that this function is a getter.
-  DECL_BOOLEAN_ACCESSORS(is_getter_function)
-
-  // Indicates that this function is a setter.
-  DECL_BOOLEAN_ACCESSORS(is_setter_function)
-
-  // Indicates that this function is a default constructor.
-  DECL_BOOLEAN_ACCESSORS(is_default_constructor)
-
   // Indicates that this is a constructor for a base class with instance fields.
   DECL_BOOLEAN_ACCESSORS(requires_class_field_init)
   // Indicates that this is a synthesized function to set up class instance
@@ -7469,7 +7444,7 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that asm->wasm conversion failed and should not be re-attempted.
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
 
-  inline FunctionKind kind();
+  inline FunctionKind kind() const;
   inline void set_kind(FunctionKind kind);
 
   // Indicates whether or not the code in the shared function support
@@ -7740,6 +7715,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsSetterFunction,
     // byte 3
     kIsAsyncFunction,
+    kIsModule,
     kDeserialized,
     kIsDeclaration,
     kIsAsmWasmBroken,
@@ -7762,9 +7738,11 @@ class SharedFunctionInfo: public HeapObject {
   ASSERT_FUNCTION_KIND_ORDER(kBaseConstructor, kIsBaseConstructor);
   ASSERT_FUNCTION_KIND_ORDER(kGetterFunction, kIsGetterFunction);
   ASSERT_FUNCTION_KIND_ORDER(kSetterFunction, kIsSetterFunction);
+  ASSERT_FUNCTION_KIND_ORDER(kAsyncFunction, kIsAsyncFunction);
+  ASSERT_FUNCTION_KIND_ORDER(kModule, kIsModule);
 #undef ASSERT_FUNCTION_KIND_ORDER
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 9> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 10> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};

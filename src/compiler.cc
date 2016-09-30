@@ -916,7 +916,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   // baseline code because there might be suspended activations stored in
   // generator objects on the heap. We could eventually go directly to
   // TurboFan in this case.
-  if (function->shared()->is_resumable()) {
+  if (IsResumableFunction(function->shared()->kind())) {
     return MaybeHandle<Code>();
   }
 
@@ -1385,7 +1385,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     // baseline code because there might be suspended activations stored in
     // generator objects on the heap. We could eventually go directly to
     // TurboFan in this case.
-    if (shared->is_resumable()) return false;
+    if (IsResumableFunction(shared->kind())) return false;
 
     // TODO(4280): For now we disable switching to baseline code in the presence
     // of interpreter activations of the given function. The reasons is that the

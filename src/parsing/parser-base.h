@@ -436,16 +436,12 @@ class ParserBase {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
-    bool is_generator() const { return IsGeneratorFunction(kind()); }
-    bool is_async_function() const { return IsAsyncFunction(kind()); }
-    bool is_resumable() const { return is_generator() || is_async_function(); }
-
     FunctionKind kind() const { return scope()->function_kind(); }
     FunctionState* outer() const { return outer_function_state_; }
 
     void set_generator_object_variable(typename Types::Variable* variable) {
       DCHECK(variable != NULL);
-      DCHECK(is_resumable());
+      DCHECK(IsResumableFunction(kind()));
       generator_object_variable_ = variable;
     }
     typename Types::Variable* generator_object_variable() const {
@@ -454,7 +450,7 @@ class ParserBase {
 
     void set_promise_variable(typename Types::Variable* variable) {
       DCHECK(variable != NULL);
-      DCHECK(is_async_function());
+      DCHECK(IsAsyncFunction(kind()));
       promise_variable_ = variable;
     }
     typename Types::Variable* promise_variable() const {
@@ -767,7 +763,6 @@ class ParserBase {
         new (zone()) DeclarationScope(zone(), scope(), FUNCTION_SCOPE, kind);
     // TODO(verwaest): Move into the DeclarationScope constructor.
     if (!IsArrowFunction(kind)) {
-      result->DeclareThis(ast_value_factory());
       result->DeclareDefaultFunctionVariables(ast_value_factory());
     }
     return result;
@@ -982,11 +977,15 @@ class ParserBase {
     impl()->SetLanguageMode(scope(), old > mode ? old : mode);
   }
   bool typed() { return scope()->typed(); }
-  bool is_generator() const { return function_state_->is_generator(); }
-  bool is_async_function() const {
-    return function_state_->is_async_function();
+  bool is_generator() const {
+    return IsGeneratorFunction(function_state_->kind());
   }
-  bool is_resumable() const { return function_state_->is_resumable(); }
+  bool is_async_function() const {
+    return IsAsyncFunction(function_state_->kind());
+  }
+  bool is_resumable() const {
+    return IsResumableFunction(function_state_->kind());
+  }
 
   // Report syntax errors.
   void ReportMessage(MessageTemplate::Template message) {
@@ -1263,6 +1262,7 @@ class ParserBase {
   StatementT ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
                                            bool default_export, bool ambient,
                                            bool* ok);
+  StatementT ParseFunctionDeclaration(bool ambient, bool* ok);
   StatementT ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
                                        bool default_export, bool ambient,
                                        bool* ok);
@@ -4032,6 +4032,24 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT
+ParserBase<Impl>::ParseFunctionDeclaration(bool ambient, bool* ok) {
+  Consume(Token::FUNCTION);
+  int pos = position();
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  if (Check(Token::MUL)) {
+    flags |= ParseFunctionFlags::kIsGenerator;
+    if (allow_harmony_restrictive_declarations()) {
+      impl()->ReportMessageAt(scanner()->location(),
+                              MessageTemplate::kGeneratorInLegacyContext);
+      *ok = false;
+      return impl()->NullStatement();
+    }
+  }
+  return ParseHoistableDeclaration(pos, flags, nullptr, false, ambient, ok);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseHoistableDeclaration(
     ZoneList<const AstRawString*>* names, bool default_export, bool ambient,
     bool* ok) {
@@ -4313,8 +4331,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         LazyParsingResult result = impl()->SkipLazyFunctionBody(
             &materialized_literal_count, &expected_property_count, false, true,
             CHECK_OK);
-        formal_parameters.scope->ResetAfterPreparsing(result ==
-                                                      kLazyParsingAborted);
+        formal_parameters.scope->ResetAfterPreparsing(
+            ast_value_factory_, result == kLazyParsingAborted);
 
         if (formal_parameters.materialized_literals_count > 0) {
           materialized_literal_count +=
@@ -5079,7 +5097,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
     BlockState block_state(zone(), &scope_state_);
     block_state.set_start_position(scanner()->location().beg_pos);
     BlockT block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
-    StatementT body = impl()->ParseFunctionDeclaration(false, CHECK_OK);
+    StatementT body = ParseFunctionDeclaration(false, CHECK_OK);
     block->statements()->Add(body, zone());
     block_state.set_end_position(scanner()->location().end_pos);
     block->set_scope(block_state.FinalizedBlockScope());
@@ -5166,7 +5184,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
     // ES#sec-labelled-function-declarations Labelled Function Declarations
     if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
       if (allow_function == kAllowLabelledFunctionStatement) {
-        return impl()->ParseFunctionDeclaration(false, ok);
+        return ParseFunctionDeclaration(false, ok);
       } else {
         return ParseScopedStatement(labels, true, ok);
       }

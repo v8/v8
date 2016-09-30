@@ -372,10 +372,23 @@ TEST(TracingObservers) {
   CHECK_EQ(1, observer.enabled_count);
   CHECK_EQ(0, observer.disabled_count);
 
+  TraceStateObserverImpl observer2;
+  default_platform->AddTraceStateObserver(&observer2);
+
+  CHECK_EQ(1, observer2.enabled_count);
+  CHECK_EQ(0, observer2.disabled_count);
+
+  default_platform->RemoveTraceStateObserver(&observer2);
+
+  CHECK_EQ(1, observer2.enabled_count);
+  CHECK_EQ(0, observer2.disabled_count);
+
   tracing_controller.StopTracing();
 
   CHECK_EQ(1, observer.enabled_count);
   CHECK_EQ(1, observer.disabled_count);
+  CHECK_EQ(1, observer2.enabled_count);
+  CHECK_EQ(0, observer2.disabled_count);
 
   default_platform->RemoveTraceStateObserver(&observer);
 

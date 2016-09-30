@@ -203,7 +203,7 @@ class CppLintProcessor(SourceFileProcessor):
 
   def GetPathsToSearch(self):
     return ['src', 'include', 'samples', join('test', 'cctest'),
-            join('test', 'unittests')]
+            join('test', 'unittests'), join('test', 'inspector')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
@@ -295,6 +295,7 @@ class SourceProcessor(SourceFileProcessor):
 
   IGNORE_COPYRIGHTS = ['box2d.js',
                        'cpplint.py',
+                       'check_injected_script_source.py',
                        'copy.js',
                        'corrections.js',
                        'crypto.js',
@@ -303,6 +304,7 @@ class SourceProcessor(SourceFileProcessor):
                        'earley-boyer.js',
                        'fannkuch.js',
                        'fasta.js',
+                       'generate_protocol_externs.py',
                        'injected-script.cc',
                        'injected-script.h',
                        'injected-script-source.js',
