@@ -1078,7 +1078,6 @@ enum FunctionKind : uint16_t {
   kGetterFunction = 1 << 6,
   kSetterFunction = 1 << 7,
   kAsyncFunction = 1 << 8,
-  kModule = 1 << 9,
   kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
@@ -1092,7 +1091,6 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
   return kind == FunctionKind::kNormalFunction ||
          kind == FunctionKind::kArrowFunction ||
          kind == FunctionKind::kGeneratorFunction ||
-         kind == FunctionKind::kModule ||
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
          kind == FunctionKind::kGetterFunction ||
@@ -1119,18 +1117,13 @@ inline bool IsGeneratorFunction(FunctionKind kind) {
   return kind & FunctionKind::kGeneratorFunction;
 }
 
-inline bool IsModule(FunctionKind kind) {
-  DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kModule;
-}
-
 inline bool IsAsyncFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kAsyncFunction;
 }
 
 inline bool IsResumableFunction(FunctionKind kind) {
-  return IsGeneratorFunction(kind) || IsAsyncFunction(kind) || IsModule(kind);
+  return IsGeneratorFunction(kind) || IsAsyncFunction(kind);
 }
 
 inline bool IsConciseMethod(FunctionKind kind) {
