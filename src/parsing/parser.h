@@ -271,7 +271,6 @@ class Parser : public ParserBase<Parser> {
           location(location) {}
   };
   ZoneList<const NamedImport*>* ParseNamedImports(int pos, bool* ok);
-  Statement* ParseFunctionDeclaration(bool* ok);
   Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                                   ZoneList<const AstRawString*>* names,
                                   bool* ok);
@@ -312,8 +311,6 @@ class Parser : public ParserBase<Parser> {
                                             bool* ok);
   V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
                                      bool* ok);
-
-  Expression* ParseYieldStarExpression(bool* ok);
 
   class PatternRewriter final : public AstVisitor<PatternRewriter> {
    public:

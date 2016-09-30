@@ -1212,6 +1212,7 @@ class ParserBase {
                                    bool* ok);
   StatementT ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
                                            bool default_export, bool* ok);
+  StatementT ParseFunctionDeclaration(bool* ok);
   StatementT ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
                                        bool default_export, bool* ok);
   StatementT ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
@@ -3665,6 +3666,24 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT
+ParserBase<Impl>::ParseFunctionDeclaration(bool* ok) {
+  Consume(Token::FUNCTION);
+  int pos = position();
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  if (Check(Token::MUL)) {
+    flags |= ParseFunctionFlags::kIsGenerator;
+    if (allow_harmony_restrictive_declarations()) {
+      impl()->ReportMessageAt(scanner()->location(),
+                              MessageTemplate::kGeneratorInLegacyContext);
+      *ok = false;
+      return impl()->NullStatement();
+    }
+  }
+  return ParseHoistableDeclaration(pos, flags, nullptr, false, ok);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseHoistableDeclaration(
     ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
   Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
@@ -4615,7 +4634,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
     BlockState block_state(zone(), &scope_state_);
     block_state.set_start_position(scanner()->location().beg_pos);
     BlockT block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
-    StatementT body = impl()->ParseFunctionDeclaration(CHECK_OK);
+    StatementT body = ParseFunctionDeclaration(CHECK_OK);
     block->statements()->Add(body, zone());
     block_state.set_end_position(scanner()->location().end_pos);
     block->set_scope(block_state.FinalizedBlockScope());
@@ -4702,7 +4721,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
     // ES#sec-labelled-function-declarations Labelled Function Declarations
     if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
       if (allow_function == kAllowLabelledFunctionStatement) {
-        return impl()->ParseFunctionDeclaration(ok);
+        return ParseFunctionDeclaration(ok);
       } else {
         return ParseScopedStatement(labels, true, ok);
       }

@@ -1719,23 +1719,6 @@ Expression* Parser::RewriteDoExpression(Block* body, int pos, bool* ok) {
   return expr;
 }
 
-Statement* Parser::ParseFunctionDeclaration(bool* ok) {
-  Consume(Token::FUNCTION);
-  int pos = position();
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
-  if (Check(Token::MUL)) {
-    flags |= ParseFunctionFlags::kIsGenerator;
-    if (allow_harmony_restrictive_declarations()) {
-      ReportMessageAt(scanner()->location(),
-                      MessageTemplate::kGeneratorInLegacyContext);
-      *ok = false;
-      return nullptr;
-    }
-  }
-
-  return ParseHoistableDeclaration(pos, flags, nullptr, false, CHECK_OK);
-}
-
 Statement* Parser::RewriteSwitchStatement(Expression* tag,
                                           SwitchStatement* switch_statement,
                                           ZoneList<CaseClause*>* cases,

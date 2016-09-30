@@ -35,7 +35,7 @@ namespace internal {
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-#define CHECK_OK CHECK_OK_VALUE(Statement::Default())
+#define CHECK_OK CHECK_OK_VALUE(Expression::Default())
 #define CHECK_OK_VOID CHECK_OK_VALUE(this->Void())
 
 namespace {
@@ -134,29 +134,6 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
 // rather it is to speed up properly written and correct programs.
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
-
-PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
-  Consume(Token::FUNCTION);
-  int pos = position();
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
-  if (Check(Token::MUL)) {
-    flags |= ParseFunctionFlags::kIsGenerator;
-    if (allow_harmony_restrictive_declarations()) {
-      ReportMessageAt(scanner()->location(),
-                      MessageTemplate::kGeneratorInLegacyContext);
-      *ok = false;
-      return Statement::Default();
-    }
-  }
-  // PreParser is not able to parse "export default" yet (since PreParser is
-  // at the moment only used for functions, and it cannot occur
-  // there). TODO(marja): update this when it is.
-  return ParseHoistableDeclaration(pos, flags, nullptr, false, ok);
-}
-
-// Redefinition of CHECK_OK for parsing expressions.
-#undef CHECK_OK
-#define CHECK_OK CHECK_OK_VALUE(Expression::Default())
 
 PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,

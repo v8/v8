@@ -837,9 +837,6 @@ class PreParser : public ParserBase<PreParser> {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  Statement ParseFunctionDeclaration(bool* ok);
-  Expression ParseConditionalExpression(bool accept_IN, bool* ok);
-  Expression ParseObjectLiteral(bool* ok);
 
   V8_INLINE PreParserStatementList ParseEagerFunctionBody(
       PreParserIdentifier function_name, int pos,
