@@ -354,7 +354,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     table_.GetVisitor(map)(map, obj);
   }
 
-  INLINE(static void VisitPropertyCell(Map* map, HeapObject* object));
   INLINE(static void VisitWeakCell(Map* map, HeapObject* object));
   INLINE(static void VisitTransitionArray(Map* map, HeapObject* object));
   INLINE(static void VisitCodeEntry(Heap* heap, HeapObject* object,
@@ -374,12 +373,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitMap(Map* map, HeapObject* object));
   INLINE(static void VisitCode(Map* map, HeapObject* object));
   INLINE(static void VisitSharedFunctionInfo(Map* map, HeapObject* object));
-  INLINE(static void VisitAllocationSite(Map* map, HeapObject* object));
   INLINE(static void VisitWeakCollection(Map* map, HeapObject* object));
   INLINE(static void VisitJSFunction(Map* map, HeapObject* object));
-  INLINE(static void VisitJSRegExp(Map* map, HeapObject* object));
   INLINE(static void VisitNativeContext(Map* map, HeapObject* object));
-  INLINE(static void VisitBytecodeArray(Map* map, HeapObject* object));
 
   // Mark pointers in a Map treating some elements of the descriptor array weak.
   static void MarkMapContents(Heap* heap, Map* map);

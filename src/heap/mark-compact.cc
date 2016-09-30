@@ -1246,7 +1246,7 @@ class MarkCompactMarkingVisitor
     Heap* heap = map->GetHeap();
     MarkCompactCollector* collector = heap->mark_compact_collector();
     if (!collector->is_code_flushing_enabled()) {
-      VisitJSRegExp(map, object);
+      JSObjectVisitor::Visit(map, object);
       return;
     }
     JSRegExp* re = reinterpret_cast<JSRegExp*>(object);
@@ -1254,7 +1254,7 @@ class MarkCompactMarkingVisitor
     UpdateRegExpCodeAgeAndFlush(heap, re, true);
     UpdateRegExpCodeAgeAndFlush(heap, re, false);
     // Visit the fields of the RegExp, including the updated FixedArray.
-    VisitJSRegExp(map, object);
+    JSObjectVisitor::Visit(map, object);
   }
 };
 

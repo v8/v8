@@ -147,11 +147,17 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitNativeContext, &VisitNativeContext);
 
-  table_.Register(kVisitAllocationSite, &VisitAllocationSite);
+  table_.Register(
+      kVisitAllocationSite,
+      &FixedBodyVisitor<StaticVisitor, AllocationSite::MarkingBodyDescriptor,
+                        void>::Visit);
 
   table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
 
-  table_.Register(kVisitBytecodeArray, &VisitBytecodeArray);
+  table_.Register(
+      kVisitBytecodeArray,
+      &FixedBodyVisitor<StaticVisitor, BytecodeArray::MarkingBodyDescriptor,
+                        void>::Visit);
 
   table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
 
@@ -178,13 +184,15 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
       &FlexibleBodyVisitor<StaticVisitor, JSArrayBuffer::BodyDescriptor,
                            void>::Visit);
 
-  // Registration for kVisitJSRegExp is done by StaticVisitor.
+  table_.Register(kVisitJSRegExp, &JSObjectVisitor::Visit);
 
   table_.Register(
       kVisitCell,
       &FixedBodyVisitor<StaticVisitor, Cell::BodyDescriptor, void>::Visit);
 
-  table_.Register(kVisitPropertyCell, &VisitPropertyCell);
+  table_.Register(kVisitPropertyCell,
+                  &FixedBodyVisitor<StaticVisitor, PropertyCell::BodyDescriptor,
+                                    void>::Visit);
 
   table_.Register(kVisitWeakCell, &VisitWeakCell);
 
@@ -319,19 +327,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitMap(Map* map,
   }
 }
 
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitPropertyCell(
-    Map* map, HeapObject* object) {
-  Heap* heap = map->GetHeap();
-
-  StaticVisitor::VisitPointers(
-      heap, object,
-      HeapObject::RawField(object, PropertyCell::kPointerFieldsBeginOffset),
-      HeapObject::RawField(object, PropertyCell::kPointerFieldsEndOffset));
-}
-
-
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
                                                         HeapObject* object) {
@@ -383,19 +378,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitTransitionArray(
     heap->set_encountered_transition_arrays(array);
   }
 }
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitAllocationSite(
-    Map* map, HeapObject* object) {
-  Heap* heap = map->GetHeap();
-
-  StaticVisitor::VisitPointers(
-      heap, object,
-      HeapObject::RawField(object, AllocationSite::kPointerFieldsBeginOffset),
-      HeapObject::RawField(object, AllocationSite::kPointerFieldsEndOffset));
-}
-
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitWeakCollection(
@@ -503,23 +485,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
   }
   VisitJSFunctionStrongCode(map, object);
 }
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitJSRegExp(Map* map,
-                                                        HeapObject* object) {
-  JSObjectVisitor::Visit(map, object);
-}
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitBytecodeArray(
-    Map* map, HeapObject* object) {
-  StaticVisitor::VisitPointers(
-      map->GetHeap(), object,
-      HeapObject::RawField(object, BytecodeArray::kConstantPoolOffset),
-      HeapObject::RawField(object, BytecodeArray::kFrameSizeOffset));
-}
-
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(Heap* heap,

@@ -4858,6 +4858,13 @@ class BytecodeArray : public FixedArrayBase {
   // Maximal length of a single BytecodeArray.
   static const int kMaxLength = kMaxSize - kHeaderSize;
 
+  static const int kPointerFieldsBeginOffset = kConstantPoolOffset;
+  static const int kPointerFieldsEndOffset = kFrameSizeOffset;
+
+  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
+                              kPointerFieldsEndOffset, kHeaderSize>
+      MarkingBodyDescriptor;
+
   class BodyDescriptor;
 
  private:
@@ -8920,6 +8927,10 @@ class AllocationSite: public Struct {
   static const int kPointerFieldsBeginOffset = kTransitionInfoOffset;
   static const int kPointerFieldsEndOffset = kWeakNextOffset;
 
+  typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
+                              kPointerFieldsEndOffset, kSize>
+      MarkingBodyDescriptor;
+
   // For other visitors, use the fixed body descriptor below.
   typedef FixedBodyDescriptor<HeapObject::kHeaderSize, kSize, kSize>
       BodyDescriptor;
@@ -10169,9 +10180,6 @@ class PropertyCell : public HeapObject {
   static const int kValueOffset = kDetailsOffset + kPointerSize;
   static const int kDependentCodeOffset = kValueOffset + kPointerSize;
   static const int kSize = kDependentCodeOffset + kPointerSize;
-
-  static const int kPointerFieldsBeginOffset = kValueOffset;
-  static const int kPointerFieldsEndOffset = kSize;
 
   typedef FixedBodyDescriptor<kValueOffset,
                               kSize,
