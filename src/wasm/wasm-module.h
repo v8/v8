@@ -442,13 +442,14 @@ class WasmCompiledModule : public FixedArray {
     return handle(WasmCompiledModule::cast(*ret));
   }
 
-  Handle<WasmCompiledModule> Clone(Isolate* isolate) {
-    Handle<WasmCompiledModule> ret = handle(WasmCompiledModule::cast(
-        *isolate->factory()->CopyFixedArray(handle(this))));
+  static Handle<WasmCompiledModule> Clone(Isolate* isolate,
+                                          Handle<WasmCompiledModule> module) {
+    Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
+        isolate->factory()->CopyFixedArray(module));
     Handle<HeapNumber> number =
         isolate->factory()->NewHeapNumber(0.0, MUTABLE, TENURED);
     ret->set(kID_mem_size, *number);
-    ret->set_mem_size(mem_size());
+    ret->set_mem_size(module->mem_size());
     return ret;
   }
 

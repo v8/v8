@@ -1220,7 +1220,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       // There is already an owner, clone everything.
       owner = Handle<JSObject>(JSObject::cast(tmp->value()), isolate);
       // Insert the latest clone in front.
-      compiled_module = original->Clone(isolate);
+      compiled_module = WasmCompiledModule::Clone(isolate, original);
       // Replace the strong reference to point to the new instance here.
       // This allows any of the other instances, including the original,
       // to be collected.
