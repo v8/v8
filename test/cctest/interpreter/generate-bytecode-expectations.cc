@@ -127,15 +127,14 @@ bool CollectGoldenFiles(std::vector<std::string>* golden_file_list,
   DIR* directory = opendir(directory_path);
   if (!directory) return false;
 
-  dirent entry_buffer;
-  dirent* entry;
-
-  while (readdir_r(directory, &entry_buffer, &entry) == 0 && entry) {
+  dirent* entry = readdir(directory);
+  while (entry) {
     if (StrEndsWith(entry->d_name, ".golden")) {
       std::string golden_filename(kGoldenFilesPath);
       golden_filename += entry->d_name;
       golden_file_list->push_back(golden_filename);
     }
+    entry = readdir(directory);
   }
 
   closedir(directory);
