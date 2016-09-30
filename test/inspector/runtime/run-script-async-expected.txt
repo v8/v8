@@ -1,0 +1,157 @@
+Tests that Runtime.compileScript and Runtime.runScript work with awaitPromise flag.
+
+Running test: testRunAndCompileWithoutAgentEnable
+{
+    code : 0
+    message : Runtime agent is not enabled
+}
+{
+    code : 0
+    message : Runtime agent is not enabled
+}
+
+Running test: testSyntaxErrorInScript
+{
+    exceptionDetails : {
+        columnNumber : 1
+        exception : {
+            className : SyntaxError
+            description : SyntaxError: Unexpected token }
+            objectId : 0
+            subtype : error
+            type : object
+        }
+        exceptionId : 0
+        lineNumber : 1
+        scriptId : 0
+        text : Uncaught
+    }
+}
+
+Running test: testSyntaxErrorInEvalInScript
+{
+    exceptionDetails : {
+        columnNumber : 0
+        exception : {
+            className : SyntaxError
+            description : SyntaxError: Unexpected token }     at boo.js:2:2
+            objectId : 0
+            subtype : error
+            type : object
+        }
+        exceptionId : 0
+        lineNumber : 0
+        scriptId : 0
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 1
+                    functionName : 
+                    lineNumber : 1
+                    scriptId : 0
+                    url : boo.js
+                }
+            ]
+        }
+        text : Uncaught
+    }
+    result : {
+        className : SyntaxError
+        description : SyntaxError: Unexpected token }     at boo.js:2:2
+        objectId : [ObjectId]
+        subtype : error
+        type : object
+    }
+}
+
+Running test: testRunNotCompiledScript
+{
+    code : 0
+    message : No script with given id
+}
+
+Running test: testRunCompiledScriptAfterAgentWasReenabled
+{
+    code : 0
+    message : Runtime agent is not enabled
+}
+{
+    code : 0
+    message : No script with given id
+}
+
+Running test: testRunScriptWithPreview
+{
+    result : {
+        className : Object
+        description : Object
+        objectId : [ObjectId]
+        preview : {
+            description : Object
+            overflow : false
+            properties : [
+                [0] : {
+                    name : a
+                    type : number
+                    value : 1
+                }
+            ]
+            type : object
+        }
+        type : object
+    }
+}
+
+Running test: testRunScriptReturnByValue
+{
+    result : {
+        type : object
+        value : {
+            a : 1
+        }
+    }
+}
+
+Running test: testAwaitNotPromise
+{
+    code : 0
+    message : Result of the script execution is not a promise
+}
+
+Running test: testAwaitResolvedPromise
+{
+    result : {
+        type : object
+        value : {
+            a : 1
+        }
+    }
+}
+
+Running test: testAwaitRejectedPromise
+{
+    exceptionDetails : {
+        columnNumber : 0
+        exception : {
+            objectId : 0
+            type : object
+            value : {
+                a : 1
+            }
+        }
+        exceptionId : 0
+        lineNumber : 0
+        stackTrace : {
+            callFrames : [
+            ]
+        }
+        text : Uncaught (in promise)
+    }
+    result : {
+        type : object
+        value : {
+            a : 1
+        }
+    }
+}
+
