@@ -731,9 +731,8 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
         // Check if the {rhs} is a HeapNumber.
         Label if_rhsisnumber(assembler),
             if_rhsisnotnumber(assembler, Label::kDeferred);
-        Node* number_map = assembler->HeapNumberMapConstant();
-        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
-                          &if_rhsisnumber, &if_rhsisnotnumber);
+        assembler->Branch(assembler->IsHeapNumberMap(rhs_map), &if_rhsisnumber,
+                          &if_rhsisnotnumber);
 
         assembler->Bind(&if_rhsisnumber);
         {
@@ -1097,9 +1096,8 @@ compiler::Node* AddWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      assembler->GotoUnless(
-          assembler->WordEqual(rhs_map, assembler->HeapNumberMapConstant()),
-          &call_add_stub);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
+                            &call_add_stub);
 
       var_fadd_lhs.Bind(assembler->SmiToFloat64(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
@@ -1114,9 +1112,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
     // Check if {lhs} is a HeapNumber.
     Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
-    assembler->GotoUnless(
-        assembler->WordEqual(lhs_map, assembler->HeapNumberMapConstant()),
-        &call_add_stub);
+    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map), &call_add_stub);
 
     // Check if the {rhs} is Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
@@ -1135,8 +1131,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      Node* number_map = assembler->HeapNumberMapConstant();
-      assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
                             &call_add_stub);
 
       var_fadd_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
@@ -1243,9 +1238,8 @@ compiler::Node* SubtractStub::Generate(CodeStubAssembler* assembler,
         // Check if {rhs} is a HeapNumber.
         Label if_rhsisnumber(assembler),
             if_rhsisnotnumber(assembler, Label::kDeferred);
-        Node* number_map = assembler->HeapNumberMapConstant();
-        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
-                          &if_rhsisnumber, &if_rhsisnotnumber);
+        assembler->Branch(assembler->IsHeapNumberMap(rhs_map), &if_rhsisnumber,
+                          &if_rhsisnotnumber);
 
         assembler->Bind(&if_rhsisnumber);
         {
@@ -1406,9 +1400,8 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if {rhs} is a HeapNumber.
-      assembler->GotoUnless(
-          assembler->WordEqual(rhs_map, assembler->HeapNumberMapConstant()),
-          &call_subtract_stub);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
+                            &call_subtract_stub);
 
       // Perform a floating point subtraction.
       var_fsub_lhs.Bind(assembler->SmiToFloat64(lhs));
@@ -1423,9 +1416,8 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
     Node* lhs_map = assembler->LoadMap(lhs);
 
     // Check if the {lhs} is a HeapNumber.
-    assembler->GotoUnless(
-        assembler->WordEqual(lhs_map, assembler->HeapNumberMapConstant()),
-        &call_subtract_stub);
+    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map),
+                          &call_subtract_stub);
 
     // Check if the {rhs} is a Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
@@ -1445,9 +1437,8 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      assembler->GotoUnless(
-          assembler->WordEqual(rhs_map, assembler->HeapNumberMapConstant()),
-          &call_subtract_stub);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
+                            &call_subtract_stub);
 
       // Perform a floating point subtraction.
       var_fsub_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
@@ -2573,8 +2564,7 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
       Label if_valueisnumber(assembler),
           if_valuenotnumber(assembler, Label::kDeferred);
       Node* value_map = assembler->LoadMap(value);
-      Node* number_map = assembler->HeapNumberMapConstant();
-      assembler->Branch(assembler->WordEqual(value_map, number_map),
+      assembler->Branch(assembler->IsHeapNumberMap(value_map),
                         &if_valueisnumber, &if_valuenotnumber);
 
       assembler->Bind(&if_valueisnumber);
@@ -2677,8 +2667,7 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
       Label if_valueisnumber(assembler),
           if_valuenotnumber(assembler, Label::kDeferred);
       Node* value_map = assembler->LoadMap(value);
-      Node* number_map = assembler->HeapNumberMapConstant();
-      assembler->Branch(assembler->WordEqual(value_map, number_map),
+      assembler->Branch(assembler->IsHeapNumberMap(value_map),
                         &if_valueisnumber, &if_valuenotnumber);
 
       assembler->Bind(&if_valueisnumber);
@@ -2749,9 +2738,7 @@ void ToObjectStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->Bind(&if_notsmi);
   Node* map = assembler->LoadMap(object);
 
-  assembler->GotoIf(
-      assembler->WordEqual(map, assembler->HeapNumberMapConstant()),
-      &if_number);
+  assembler->GotoIf(assembler->IsHeapNumberMap(map), &if_number);
 
   Node* instance_type = assembler->LoadMapInstanceType(map);
   assembler->GotoIf(
@@ -2819,9 +2806,7 @@ compiler::Node* TypeofStub::Generate(CodeStubAssembler* assembler,
 
   Node* map = assembler->LoadMap(value);
 
-  assembler->GotoIf(
-      assembler->WordEqual(map, assembler->HeapNumberMapConstant()),
-      &return_number);
+  assembler->GotoIf(assembler->IsHeapNumberMap(map), &return_number);
 
   Node* instance_type = assembler->LoadMapInstanceType(map);
 
@@ -3048,11 +3033,10 @@ compiler::Node* GenerateAbstractRelationalComparison(
         Node* rhs_map = assembler->LoadMap(rhs);
 
         // Check if the {rhs} is a HeapNumber.
-        Node* number_map = assembler->HeapNumberMapConstant();
         Label if_rhsisnumber(assembler),
             if_rhsisnotnumber(assembler, Label::kDeferred);
-        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
-                          &if_rhsisnumber, &if_rhsisnotnumber);
+        assembler->Branch(assembler->IsHeapNumberMap(rhs_map), &if_rhsisnumber,
+                          &if_rhsisnotnumber);
 
         assembler->Bind(&if_rhsisnumber);
         {
@@ -3358,10 +3342,9 @@ void GenerateEqual_Same(CodeStubAssembler* assembler, compiler::Node* value,
     Node* value_map = assembler->LoadMap(value);
 
     // Check if {value} (and therefore {rhs}) is a HeapNumber.
-    Node* number_map = assembler->HeapNumberMapConstant();
     Label if_valueisnumber(assembler), if_valueisnotnumber(assembler);
-    assembler->Branch(assembler->WordEqual(value_map, number_map),
-                      &if_valueisnumber, &if_valueisnotnumber);
+    assembler->Branch(assembler->IsHeapNumberMap(value_map), &if_valueisnumber,
+                      &if_valueisnotnumber);
 
     assembler->Bind(&if_valueisnumber);
     {
@@ -3498,9 +3481,8 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             assembler->Bind(&if_rhsisnotstring);
             {
               // Check if the {rhs} is a Boolean.
-              Node* boolean_map = assembler->BooleanMapConstant();
               Label if_rhsisboolean(assembler), if_rhsisnotboolean(assembler);
-              assembler->Branch(assembler->WordEqual(rhs_map, boolean_map),
+              assembler->Branch(assembler->IsBooleanMap(rhs_map),
                                 &if_rhsisboolean, &if_rhsisnotboolean);
 
               assembler->Bind(&if_rhsisboolean);
@@ -3696,8 +3678,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
                   // Check if {rhs} is a Boolean.
                   Label if_rhsisboolean(assembler),
                       if_rhsisnotboolean(assembler);
-                  Node* boolean_map = assembler->BooleanMapConstant();
-                  assembler->Branch(assembler->WordEqual(rhs_map, boolean_map),
+                  assembler->Branch(assembler->IsBooleanMap(rhs_map),
                                     &if_rhsisboolean, &if_rhsisnotboolean);
 
                   assembler->Bind(&if_rhsisboolean);
@@ -4302,9 +4283,7 @@ void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     // This is always valid for all states a cell can be in.
     assembler->GotoIf(assembler->WordNotEqual(cell_contents, value), &miss);
   } else {
-    assembler->GotoIf(
-        assembler->WordEqual(cell_contents, assembler->TheHoleConstant()),
-        &miss);
+    assembler->GotoIf(assembler->IsTheHole(cell_contents), &miss);
 
     // When dealing with constant types, the type may be allowed to change, as
     // long as optimized code remains valid.
@@ -4526,8 +4505,7 @@ void ToLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     // Check if {len} is a HeapNumber.
     Label if_lenisheapnumber(assembler),
         if_lenisnotheapnumber(assembler, Label::kDeferred);
-    assembler->Branch(assembler->WordEqual(assembler->LoadMap(len),
-                                           assembler->HeapNumberMapConstant()),
+    assembler->Branch(assembler->IsHeapNumberMap(assembler->LoadMap(len)),
                       &if_lenisheapnumber, &if_lenisnotheapnumber);
 
     assembler->Bind(&if_lenisheapnumber);
@@ -4650,9 +4628,7 @@ compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
       literals_array, literals_index,
       LiteralsArray::kFirstLiteralIndex * kPointerSize,
       CodeStubAssembler::SMI_PARAMETERS);
-  Node* undefined = assembler->UndefinedConstant();
-  assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
-                    call_runtime);
+  assembler->GotoIf(assembler->IsUndefined(allocation_site), call_runtime);
 
   // Calculate the object and allocation size based on the properties count.
   Node* object_size = assembler->IntPtrAdd(
@@ -5291,15 +5267,13 @@ compiler::Node* FastCloneRegExpStub::Generate(CodeStubAssembler* assembler,
 
   Variable result(assembler, MachineRepresentation::kTagged);
 
-  Node* undefined = assembler->UndefinedConstant();
   Node* literals_array =
       assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* boilerplate = assembler->LoadFixedArrayElement(
       literals_array, literal_index,
       LiteralsArray::kFirstLiteralIndex * kPointerSize,
       CodeStubAssembler::SMI_PARAMETERS);
-  assembler->GotoIf(assembler->WordEqual(boilerplate, undefined),
-                    &call_runtime);
+  assembler->GotoIf(assembler->IsUndefined(boilerplate), &call_runtime);
 
   {
     int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
@@ -5404,9 +5378,7 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
       LiteralsArray::kFirstLiteralIndex * kPointerSize,
       CodeStubAssembler::SMI_PARAMETERS);
 
-  Node* undefined = assembler->UndefinedConstant();
-  assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
-                    call_runtime);
+  assembler->GotoIf(assembler->IsUndefined(allocation_site), call_runtime);
   allocation_site = assembler->LoadFixedArrayElement(
       literals_array, literal_index,
       LiteralsArray::kFirstLiteralIndex * kPointerSize,
@@ -5424,21 +5396,15 @@ compiler::Node* FastCloneShallowArrayStub::Generate(
   assembler->GotoIf(assembler->SmiEqual(capacity, zero), &zero_capacity);
 
   Node* elements_map = assembler->LoadMap(boilerplate_elements);
-  assembler->GotoIf(
-      assembler->WordEqual(elements_map, assembler->FixedCowArrayMapConstant()),
-      &cow_elements);
+  assembler->GotoIf(assembler->IsFixedCOWArrayMap(elements_map), &cow_elements);
 
-  assembler->GotoIf(
-      assembler->WordEqual(elements_map, assembler->FixedArrayMapConstant()),
-      &fast_elements);
+  assembler->GotoIf(assembler->IsFixedArrayMap(elements_map), &fast_elements);
   {
     assembler->Comment("fast double elements path");
     if (FLAG_debug_code) {
       Label correct_elements_map(assembler), abort(assembler, Label::kDeferred);
-      assembler->BranchIf(
-          assembler->WordEqual(elements_map,
-                               assembler->FixedDoubleArrayMapConstant()),
-          &correct_elements_map, &abort);
+      assembler->BranchIf(assembler->IsFixedDoubleArrayMap(elements_map),
+                          &correct_elements_map, &abort);
 
       assembler->Bind(&abort);
       {

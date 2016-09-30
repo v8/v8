@@ -38,53 +38,23 @@ void CodeStubAssembler::Assert(Node* condition) {
 #endif
 }
 
-Node* CodeStubAssembler::BooleanMapConstant() {
-  return HeapConstant(isolate()->factory()->boolean_map());
-}
-
-Node* CodeStubAssembler::EmptyStringConstant() {
-  return LoadRoot(Heap::kempty_stringRootIndex);
-}
-
-Node* CodeStubAssembler::FixedArrayMapConstant() {
-  return LoadRoot(Heap::kFixedArrayMapRootIndex);
-}
-
-Node* CodeStubAssembler::FixedCowArrayMapConstant() {
-  return LoadRoot(Heap::kFixedCOWArrayMapRootIndex);
-}
-
-Node* CodeStubAssembler::FixedDoubleArrayMapConstant() {
-  return LoadRoot(Heap::kFixedDoubleArrayMapRootIndex);
-}
-
-Node* CodeStubAssembler::HeapNumberMapConstant() {
-  return LoadRoot(Heap::kHeapNumberMapRootIndex);
-}
-
 Node* CodeStubAssembler::NoContextConstant() {
   return SmiConstant(Smi::FromInt(0));
 }
 
-Node* CodeStubAssembler::MinusZeroConstant() {
-  return LoadRoot(Heap::kMinusZeroValueRootIndex);
-}
+#define HEAP_CONSTANT_ACCESSOR(rootName, name)     \
+  Node* CodeStubAssembler::name##Constant() {      \
+    return LoadRoot(Heap::k##rootName##RootIndex); \
+  }
+HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR);
+#undef HEAP_CONSTANT_ACCESSOR
 
-Node* CodeStubAssembler::NanConstant() {
-  return LoadRoot(Heap::kNanValueRootIndex);
-}
-
-Node* CodeStubAssembler::NullConstant() {
-  return LoadRoot(Heap::kNullValueRootIndex);
-}
-
-Node* CodeStubAssembler::UndefinedConstant() {
-  return LoadRoot(Heap::kUndefinedValueRootIndex);
-}
-
-Node* CodeStubAssembler::TheHoleConstant() {
-  return LoadRoot(Heap::kTheHoleValueRootIndex);
-}
+#define HEAP_CONSTANT_TEST(rootName, name)         \
+  Node* CodeStubAssembler::Is##name(Node* value) { \
+    return WordEqual(value, name##Constant());     \
+  }
+HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST);
+#undef HEAP_CONSTANT_TEST
 
 Node* CodeStubAssembler::HashSeed() {
   return LoadAndUntagToWord32Root(Heap::kHashSeedRootIndex);

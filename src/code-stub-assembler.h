@@ -25,6 +25,19 @@ enum class UnicodeEncoding {
   UTF32,  // full UTF32 code unit / Unicode codepoint
 };
 
+#define HEAP_CONSTANT_LIST(V)                 \
+  V(BooleanMap, BooleanMap)                   \
+  V(empty_string, EmptyString)                \
+  V(FixedArrayMap, FixedArrayMap)             \
+  V(FixedCOWArrayMap, FixedCOWArrayMap)       \
+  V(FixedDoubleArrayMap, FixedDoubleArrayMap) \
+  V(HeapNumberMap, HeapNumberMap)             \
+  V(MinusZeroValue, MinusZero)                \
+  V(NanValue, Nan)                            \
+  V(NullValue, Null)                          \
+  V(TheHoleValue, TheHole)                    \
+  V(UndefinedValue, Undefined)
+
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"
@@ -76,18 +89,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
     return value;
   }
 
-  compiler::Node* BooleanMapConstant();
-  compiler::Node* EmptyStringConstant();
-  compiler::Node* FixedArrayMapConstant();
-  compiler::Node* FixedCowArrayMapConstant();
-  compiler::Node* FixedDoubleArrayMapConstant();
-  compiler::Node* HeapNumberMapConstant();
   compiler::Node* NoContextConstant();
-  compiler::Node* NanConstant();
-  compiler::Node* NullConstant();
-  compiler::Node* MinusZeroConstant();
-  compiler::Node* UndefinedConstant();
-  compiler::Node* TheHoleConstant();
+#define HEAP_CONSTANT_ACCESSOR(rootName, name) compiler::Node* name##Constant();
+  HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR)
+#undef HEAP_CONSTANT_ACCESSOR
+
+#define HEAP_CONSTANT_TEST(rootName, name) \
+  compiler::Node* Is##name(compiler::Node* value);
+  HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST)
+#undef HEAP_CONSTANT_TEST
+
   compiler::Node* HashSeed();
   compiler::Node* StaleRegisterConstant();
 
