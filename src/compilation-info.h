@@ -92,8 +92,6 @@ class CompilationInfo final {
   bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
-  bool is_tracking_positions() const { return track_positions_; }
-
   bool is_calling() const {
     return GetFlag(kDeferredCalling) || GetFlag(kNonDeferredCalling);
   }
@@ -378,8 +376,6 @@ class CompilationInfo final {
   BailoutReason bailout_reason_;
 
   int prologue_offset_;
-
-  bool track_positions_;
 
   InlinedFunctionList inlined_functions_;
 

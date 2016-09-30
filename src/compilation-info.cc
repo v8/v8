@@ -75,8 +75,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
       dependencies_(isolate, zone),
       bailout_reason_(kNoReason),
       prologue_offset_(Code::kPrologueOffsetNotSet),
-      track_positions_(FLAG_hydrogen_track_positions ||
-                       isolate->is_profiling()),
       parameter_count_(0),
       optimization_id_(-1),
       osr_expr_stack_height_(-1),

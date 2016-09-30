@@ -38,7 +38,7 @@ static LChunk* OptimizeGraph(HGraph* graph) {
 class CodeStubGraphBuilderBase : public HGraphBuilder {
  public:
   explicit CodeStubGraphBuilderBase(CompilationInfo* info, CodeStub* code_stub)
-      : HGraphBuilder(info, code_stub->GetCallInterfaceDescriptor()),
+      : HGraphBuilder(info, code_stub->GetCallInterfaceDescriptor(), false),
         arguments_length_(NULL),
         info_(info),
         code_stub_(code_stub),
