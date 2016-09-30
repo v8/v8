@@ -1458,6 +1458,7 @@ void Scope::CheckZones() {
   DCHECK(!needs_migration_);
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     CHECK_EQ(scope->zone(), zone());
+    scope->CheckZones();
   }
 }
 #endif  // DEBUG
