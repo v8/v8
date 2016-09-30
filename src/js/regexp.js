@@ -14,11 +14,12 @@
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
-var GlobalRegExpPrototype;
+var GlobalRegExpPrototype = GlobalRegExp.prototype;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MaxSimple;
 var MinSimple;
+var RegExpExecJS = GlobalRegExp.prototype.exec;
 var matchSymbol = utils.ImportNow("match_symbol");
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
@@ -162,55 +163,6 @@ macro RETURN_NEW_RESULT_FROM_MATCH_INFO(MATCHINFO, STRING)
   return result;
 endmacro
 
-
-// ES#sec-regexp.prototype.exec
-// RegExp.prototype.exec ( string )
-function RegExpExecJS(string) {
-  if (!IS_REGEXP(this)) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.exec', this);
-  }
-
-  string = TO_STRING(string);
-
-  var lastIndex;
-  var global = TO_BOOLEAN(REGEXP_GLOBAL(this));
-  var sticky = TO_BOOLEAN(REGEXP_STICKY(this));
-  var updateLastIndex = global || sticky;
-  if (updateLastIndex) {
-    // TODO(jgruber): This is actually ToLength in the spec, but we bailout
-    // to the runtime in %_RegExpExec if lastIndex is not a Smi, so we are
-    // smart here and trick both TurboFan and Crankshaft to produce a Smi.
-    // This is a terrible hack, and correct for subtle reasons; it's a clear
-    // indicator that we need a predictable RegExp implementation where we
-    // don't need to add specific work-arounds for certain compiler issues.
-    lastIndex = +this.lastIndex;
-    if (lastIndex > string.length) {
-      this.lastIndex = 0;
-      return null;
-    } else if (lastIndex <= 0) {
-      lastIndex = 0;
-    }
-    lastIndex = lastIndex|0;
-  } else {
-    lastIndex = 0;
-  }
-
-  // matchIndices is either null or the RegExpLastMatchInfo array.
-  var matchIndices = %_RegExpExec(this, string, lastIndex, RegExpLastMatchInfo);
-
-  if (IS_NULL(matchIndices)) {
-    if (updateLastIndex) this.lastIndex = 0;
-    return null;
-  }
-
-  // Successful match.
-  if (updateLastIndex) {
-    this.lastIndex = RegExpLastMatchInfo[CAPTURE1];
-  }
-  RETURN_NEW_RESULT_FROM_MATCH_INFO(matchIndices, string);
-}
-%FunctionRemovePrototype(RegExpExecJS);
 
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
@@ -1022,16 +974,11 @@ function RegExpSpecies() {
 // -------------------------------------------------------------------
 
 %FunctionSetInstanceClassName(GlobalRegExp, 'RegExp');
-GlobalRegExpPrototype = new GlobalObject();
-%FunctionSetPrototype(GlobalRegExp, GlobalRegExpPrototype);
-%AddNamedProperty(
-    GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
 %SetCode(GlobalRegExp, RegExpConstructor);
 
 utils.InstallGetter(GlobalRegExp, speciesSymbol, RegExpSpecies);
 
 utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
-  "exec", RegExpExecJS,
   "test", RegExpSubclassTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS,
@@ -1102,6 +1049,8 @@ for (var i = 1; i < 10; ++i) {
                             NoOpSetter, DONT_ENUM);
 }
 %ToFastProperties(GlobalRegExp);
+
+%InstallToContext(["regexp_last_match_info", RegExpLastMatchInfo]);
 
 // -------------------------------------------------------------------
 // Internal

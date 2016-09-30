@@ -537,6 +537,9 @@ namespace internal {
   TFJ(AtomicsLoad, 3)                                                         \
   TFJ(AtomicsStore, 4)                                                        \
                                                                               \
+  /* RegExp */                                                                \
+  TFJ(RegExpPrototypeExec, 2)                                                 \
+                                                                              \
   /* String */                                                                \
   ASM(StringConstructor)                                                      \
   ASM(StringConstructor_ConstructStub)                                        \

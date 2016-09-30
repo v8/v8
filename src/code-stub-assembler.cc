@@ -2229,6 +2229,34 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
   return var_value.value();
 }
 
+Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
+                                                InstanceType instance_type,
+                                                char const* method_name) {
+  Label out(this), throw_exception(this, Label::kDeferred);
+  Variable var_value_map(this, MachineRepresentation::kTagged);
+
+  GotoIf(WordIsSmi(value), &throw_exception);
+
+  // Load the instance type of the {value}.
+  var_value_map.Bind(LoadMap(value));
+  Node* const value_instance_type = LoadMapInstanceType(var_value_map.value());
+
+  Branch(Word32Equal(value_instance_type, Int32Constant(instance_type)), &out,
+         &throw_exception);
+
+  // The {value} is not a compatible receiver for this method.
+  Bind(&throw_exception);
+  CallRuntime(
+      Runtime::kThrowIncompatibleMethodReceiver, context,
+      HeapConstant(factory()->NewStringFromAsciiChecked(method_name, TENURED)),
+      value);
+  var_value_map.Bind(UndefinedConstant());
+  Goto(&out);  // Never reached.
+
+  Bind(&out);
+  return var_value_map.value();
+}
+
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index) {
   // Translate the {index} into a Word.
   index = SmiToWord(index);

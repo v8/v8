@@ -502,6 +502,7 @@
         'builtins/builtins-object.cc',
         'builtins/builtins-proxy.cc',
         'builtins/builtins-reflect.cc',
+        'builtins/builtins-regexp.cc',
         'builtins/builtins-sharedarraybuffer.cc',
         'builtins/builtins-string.cc',
         'builtins/builtins-symbol.cc',

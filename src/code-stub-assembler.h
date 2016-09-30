@@ -467,6 +467,13 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                               PrimitiveType primitive_type,
                               char const* method_name);
 
+  // Throws a TypeError for {method_name} if {value} is not of the given
+  // instance type. Returns {value}'s map.
+  compiler::Node* ThrowIfNotInstanceType(compiler::Node* context,
+                                         compiler::Node* value,
+                                         InstanceType instance_type,
+                                         char const* method_name);
+
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
   compiler::Node* StringCharCodeAt(compiler::Node* string,

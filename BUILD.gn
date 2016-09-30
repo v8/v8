@@ -932,6 +932,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-object.cc",
     "src/builtins/builtins-proxy.cc",
     "src/builtins/builtins-reflect.cc",
+    "src/builtins/builtins-regexp.cc",
     "src/builtins/builtins-sharedarraybuffer.cc",
     "src/builtins/builtins-string.cc",
     "src/builtins/builtins-symbol.cc",
