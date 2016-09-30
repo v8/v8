@@ -203,7 +203,7 @@ class CppLintProcessor(SourceFileProcessor):
 
   def GetPathsToSearch(self):
     return ['src', 'include', 'samples', join('test', 'cctest'),
-            join('test', 'unittests'), join('test', 'inspector')]
+            join('test', 'unittests')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
