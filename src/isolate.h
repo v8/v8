@@ -621,6 +621,7 @@ class Isolate {
   bool IsExternalHandlerOnTop(Object* exception);
 
   inline bool is_catchable_by_javascript(Object* exception);
+  inline bool is_catchable_by_wasm(Object* exception);
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {

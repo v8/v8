@@ -70,7 +70,12 @@ struct Value {
   LocalType type;
 };
 
-struct Control;
+struct TryInfo : public ZoneObject {
+  SsaEnv* catch_env;
+  TFNode* exception;
+
+  explicit TryInfo(SsaEnv* c) : catch_env(c), exception(nullptr) {}
+};
 
 struct MergeValues {
   uint32_t arity;
@@ -85,13 +90,6 @@ struct MergeValues {
   }
 };
 
-// IncomingBranch is used by exception handling code for managing finally's.
-struct IncomingBranch {
-  int32_t token_value;
-  Control* target;
-  MergeValues merge;
-};
-
 static Value* NO_VALUE = nullptr;
 
 enum ControlKind { kControlIf, kControlBlock, kControlLoop, kControlTry };
@@ -103,7 +101,8 @@ struct Control {
   int stack_depth;    // stack height at the beginning of the construct.
   SsaEnv* end_env;    // end environment for the construct.
   SsaEnv* false_env;  // false environment (only for if).
-  SsaEnv* catch_env;  // catch environment (only for try).
+  TryInfo* try_info;  // Information used for compiling try statements.
+  int32_t previous_catch;  // The previous Control (on the stack) with a catch.
 
   // Values merged into the end of this control construct.
   MergeValues merge;
@@ -114,34 +113,39 @@ struct Control {
   inline bool is_try() const { return kind == kControlTry; }
 
   // Named constructors.
-  static Control Block(const byte* pc, int stack_depth, SsaEnv* end_env) {
+  static Control Block(const byte* pc, int stack_depth, SsaEnv* end_env,
+                       int32_t previous_catch) {
     return {pc,      kControlBlock, stack_depth,    end_env,
-            nullptr, nullptr,       {0, {NO_VALUE}}};
+            nullptr, nullptr,       previous_catch, {0, {NO_VALUE}}};
   }
 
   static Control If(const byte* pc, int stack_depth, SsaEnv* end_env,
-                    SsaEnv* false_env) {
+                    SsaEnv* false_env, int32_t previous_catch) {
     return {pc,        kControlIf, stack_depth,    end_env,
-            false_env, nullptr,    {0, {NO_VALUE}}};
+            false_env, nullptr,    previous_catch, {0, {NO_VALUE}}};
   }
 
-  static Control Loop(const byte* pc, int stack_depth, SsaEnv* end_env) {
+  static Control Loop(const byte* pc, int stack_depth, SsaEnv* end_env,
+                      int32_t previous_catch) {
     return {pc,      kControlLoop, stack_depth,    end_env,
-            nullptr, nullptr,      {0, {NO_VALUE}}};
+            nullptr, nullptr,      previous_catch, {0, {NO_VALUE}}};
   }
 
   static Control Try(const byte* pc, int stack_depth, SsaEnv* end_env,
-                     SsaEnv* catch_env) {
+                     Zone* zone, SsaEnv* catch_env, int32_t previous_catch) {
+    DCHECK_NOT_NULL(catch_env);
+    TryInfo* try_info = new (zone) TryInfo(catch_env);
     return {pc,      kControlTry, stack_depth,    end_env,
-            nullptr, catch_env,   {0, {NO_VALUE}}};
+            nullptr, try_info,    previous_catch, {0, {NO_VALUE}}};
   }
 };
 
 // Macros that build nodes only if there is a graph and the current SSA
 // environment is reachable from start. This avoids problems with malformed
 // TF graphs when decoding inputs that have unreachable code.
-#define BUILD(func, ...) (build() ? builder_->func(__VA_ARGS__) : nullptr)
-#define BUILD0(func) (build() ? builder_->func() : nullptr)
+#define BUILD(func, ...) \
+  (build() ? CheckForException(builder_->func(__VA_ARGS__)) : nullptr)
+#define BUILD0(func) (build() ? CheckForException(builder_->func()) : nullptr)
 
 // Generic Wasm bytecode decoder with utilities for decoding operands,
 // lengths, etc.
@@ -303,6 +307,8 @@ class WasmDecoder : public Decoder {
   }
 };
 
+static const int32_t kNullCatch = -1;
+
 // The full WASM decoder for bytecode. Both verifies bytecode and generates
 // a TurboFan IR graph.
 class WasmFullDecoder : public WasmDecoder {
@@ -315,7 +321,8 @@ class WasmFullDecoder : public WasmDecoder {
         local_type_vec_(zone),
         stack_(zone),
         control_(zone),
-        last_end_found_(false) {
+        last_end_found_(false),
+        current_catch_(kNullCatch) {
     local_types_ = &local_type_vec_;
   }
 
@@ -440,6 +447,10 @@ class WasmFullDecoder : public WasmDecoder {
   ZoneVector<Value> stack_;               // stack of values.
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
   bool last_end_found_;
+
+  int32_t current_catch_;
+
+  TryInfo* current_try_info() { return control_[current_catch_].try_info; }
 
   inline bool build() { return builder_ && ssa_env_->go(); }
 
@@ -617,7 +628,7 @@ class WasmFullDecoder : public WasmDecoder {
             BlockTypeOperand operand(this, pc_);
             SsaEnv* outer_env = ssa_env_;
             SsaEnv* try_env = Steal(outer_env);
-            SsaEnv* catch_env = Split(try_env);
+            SsaEnv* catch_env = UnreachableEnv();
             PushTry(outer_env, catch_env);
             SetEnv("try_catch:start", try_env);
             SetBlockType(&control_.back(), operand);
@@ -640,26 +651,30 @@ class WasmFullDecoder : public WasmDecoder {
               break;
             }
 
-            if (c->catch_env == nullptr) {
-              error("catch already present for try with catch");
+            if (c->try_info->catch_env == nullptr) {
+              error(pc_, "catch already present for try with catch");
               break;
             }
 
-            Goto(ssa_env_, c->end_env);
+            if (ssa_env_->go()) {
+              MergeValuesInto(c);
+            }
+            stack_.resize(c->stack_depth);
 
-            SsaEnv* catch_env = c->catch_env;
-            c->catch_env = nullptr;
+            DCHECK_NOT_NULL(c->try_info);
+            SsaEnv* catch_env = c->try_info->catch_env;
+            c->try_info->catch_env = nullptr;
             SetEnv("catch:begin", catch_env);
+            current_catch_ = c->previous_catch;
 
             if (Validate(pc_, operand)) {
-              // TODO(jpp): figure out how thrown value is propagated. It is
-              // unlikely to be a value on the stack.
               if (ssa_env_->locals) {
-                ssa_env_->locals[operand.index] = nullptr;
+                TFNode* exception_as_i32 =
+                    BUILD(Catch, c->try_info->exception, position());
+                ssa_env_->locals[operand.index] = exception_as_i32;
               }
             }
 
-            PopUpTo(c->stack_depth);
             break;
           }
           case kExprLoop: {
@@ -747,8 +762,8 @@ class WasmFullDecoder : public WasmDecoder {
               name = "try:end";
 
               // validate that catch was seen.
-              if (c->catch_env != nullptr) {
-                error("missing catch in try");
+              if (c->try_info->catch_env != nullptr) {
+                error(pc_, "missing catch in try");
                 break;
               }
             }
@@ -1057,8 +1072,8 @@ class WasmFullDecoder : public WasmDecoder {
             CallFunctionOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
               TFNode** buffer = PopArgs(operand.sig);
-              TFNode** rets =
-                  BUILD(CallDirect, operand.index, buffer, position());
+              TFNode** rets = nullptr;
+              BUILD(CallDirect, operand.index, buffer, &rets, position());
               PushReturns(operand.sig, rets);
             }
             len = 1 + operand.length;
@@ -1070,8 +1085,8 @@ class WasmFullDecoder : public WasmDecoder {
               Value index = Pop(0, kAstI32);
               TFNode** buffer = PopArgs(operand.sig);
               if (buffer) buffer[0] = index.node;
-              TFNode** rets =
-                  BUILD(CallIndirect, operand.index, buffer, position());
+              TFNode** rets = nullptr;
+              BUILD(CallIndirect, operand.index, buffer, &rets, position());
               PushReturns(operand.sig, rets);
             }
             len = 1 + operand.length;
@@ -1184,22 +1199,27 @@ class WasmFullDecoder : public WasmDecoder {
 
   void PushBlock(SsaEnv* end_env) {
     const int stack_depth = static_cast<int>(stack_.size());
-    control_.emplace_back(Control::Block(pc_, stack_depth, end_env));
+    control_.emplace_back(
+        Control::Block(pc_, stack_depth, end_env, current_catch_));
   }
 
   void PushLoop(SsaEnv* end_env) {
     const int stack_depth = static_cast<int>(stack_.size());
-    control_.emplace_back(Control::Loop(pc_, stack_depth, end_env));
+    control_.emplace_back(
+        Control::Loop(pc_, stack_depth, end_env, current_catch_));
   }
 
   void PushIf(SsaEnv* end_env, SsaEnv* false_env) {
     const int stack_depth = static_cast<int>(stack_.size());
-    control_.emplace_back(Control::If(pc_, stack_depth, end_env, false_env));
+    control_.emplace_back(
+        Control::If(pc_, stack_depth, end_env, false_env, current_catch_));
   }
 
   void PushTry(SsaEnv* end_env, SsaEnv* catch_env) {
     const int stack_depth = static_cast<int>(stack_.size());
-    control_.emplace_back(Control::Try(pc_, stack_depth, end_env, catch_env));
+    control_.emplace_back(Control::Try(pc_, stack_depth, end_env, zone_,
+                                       catch_env, current_catch_));
+    current_catch_ = static_cast<int32_t>(control_.size() - 1);
   }
 
   void PopControl() { control_.pop_back(); }
@@ -1457,6 +1477,45 @@ class WasmFullDecoder : public WasmDecoder {
       builder_->set_control_ptr(&env->control);
       builder_->set_effect_ptr(&env->effect);
     }
+  }
+
+  TFNode* CheckForException(TFNode* node) {
+    if (node == nullptr) {
+      return nullptr;
+    }
+
+    const bool inside_try_scope = current_catch_ != kNullCatch;
+
+    if (!inside_try_scope) {
+      return node;
+    }
+
+    TFNode* if_success = nullptr;
+    TFNode* if_exception = nullptr;
+    if (!builder_->ThrowsException(node, &if_success, &if_exception)) {
+      return node;
+    }
+
+    SsaEnv* success_env = Steal(ssa_env_);
+    success_env->control = if_success;
+
+    SsaEnv* exception_env = Split(success_env);
+    exception_env->control = if_exception;
+    TryInfo* try_info = current_try_info();
+    Goto(exception_env, try_info->catch_env);
+    TFNode* exception = try_info->exception;
+    if (exception == nullptr) {
+      DCHECK_EQ(SsaEnv::kReached, try_info->catch_env->state);
+      try_info->exception = if_exception;
+    } else {
+      DCHECK_EQ(SsaEnv::kMerged, try_info->catch_env->state);
+      try_info->exception =
+          CreateOrMergeIntoPhi(kAstI32, try_info->catch_env->control,
+                               try_info->exception, if_exception);
+    }
+
+    SetEnv("if_success", success_env);
+    return node;
   }
 
   void Goto(SsaEnv* from, SsaEnv* to) {

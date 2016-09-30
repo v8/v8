@@ -1056,6 +1056,10 @@ class WasmFrame : public StandardFrame {
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
+  // Lookup exception handler for current {pc}, returns -1 if none found. Also
+  // returns the stack slot count of the entire frame.
+  int LookupExceptionHandlerInTable(int* data);
+
   // Determine the code for the frame.
   Code* unchecked_code() const override;
 

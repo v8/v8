@@ -1707,13 +1707,17 @@ void InstructionSelector::VisitParameter(Node* node) {
   Emit(kArchNop, op);
 }
 
+namespace {
+LinkageLocation ExceptionLocation() {
+  return LinkageLocation::ForRegister(kReturnRegister0.code(),
+                                      MachineType::IntPtr());
+}
+}
 
 void InstructionSelector::VisitIfException(Node* node) {
   OperandGenerator g(this);
-  Node* call = node->InputAt(1);
-  DCHECK_EQ(IrOpcode::kCall, call->opcode());
-  const CallDescriptor* descriptor = CallDescriptorOf(call->op());
-  Emit(kArchNop, g.DefineAsLocation(node, descriptor->GetReturnLocation(0)));
+  DCHECK_EQ(IrOpcode::kCall, node->InputAt(1)->opcode());
+  Emit(kArchNop, g.DefineAsLocation(node, ExceptionLocation()));
 }
 
 

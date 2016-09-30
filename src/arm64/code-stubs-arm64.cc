@@ -1089,6 +1089,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Ldr(cp, MemOperand(cp));
   __ Mov(jssp, Operand(pending_handler_sp_address));
   __ Ldr(jssp, MemOperand(jssp));
+  __ Mov(csp, jssp);
   __ Mov(fp, Operand(pending_handler_fp_address));
   __ Ldr(fp, MemOperand(fp));
 
