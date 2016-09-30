@@ -265,9 +265,11 @@
     'gn_release_arm': [
       'gn', 'release_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
     'gn_release_android_arm': [
-      'gn', 'release_bot', 'arm', 'android', 'crosscompile', 'swarming'],
+      'gn', 'release_bot', 'arm', 'android', 'crosscompile',
+      'minimal_symbols', 'swarming'],
     'gn_release_android_arm64': [
-      'gn', 'release_bot', 'arm64', 'android', 'crosscompile', 'swarming'],
+      'gn', 'release_bot', 'arm64', 'android', 'crosscompile',
+      'minimal_symbols', 'swarming'],
 
     # GN release configs for x64.
     'gn_release_x64': [
