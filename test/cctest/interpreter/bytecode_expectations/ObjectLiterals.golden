@@ -157,7 +157,7 @@ bytecodes: [
                 B(Star), R(5),
                 B(Mov), R(0), R(1),
                 B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked), R(1), U8(5),
-                B(Ldar), R(0),
+                B(Ldar), R(1),
   /*   68 S> */ B(Return),
 ]
 constant pool: [
@@ -188,7 +188,7 @@ bytecodes: [
                 B(Star), R(5),
                 B(Mov), R(0), R(1),
                 B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked), R(1), U8(5),
-                B(Ldar), R(0),
+                B(Ldar), R(1),
   /*  102 S> */ B(Return),
 ]
 constant pool: [
@@ -220,7 +220,7 @@ bytecodes: [
                 B(Star), R(5),
                 B(Mov), R(0), R(1),
                 B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked), R(1), U8(5),
-                B(Ldar), R(0),
+                B(Ldar), R(1),
   /*   74 S> */ B(Return),
 ]
 constant pool: [
@@ -250,7 +250,7 @@ bytecodes: [
                 B(Mov), R(1), R(2),
                 B(Mov), R(0), R(4),
   /*   57 E> */ B(CallRuntime), U16(Runtime::kSetProperty), R(2), U8(4),
-                B(Ldar), R(1),
+                B(Ldar), R(2),
   /*   62 S> */ B(Return),
 ]
 constant pool: [
@@ -273,7 +273,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(Mov), R(0), R(1),
                 B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(1), U8(2),
-                B(Ldar), R(0),
+                B(Ldar), R(1),
   /*   62 S> */ B(Return),
 ]
 constant pool: [
@@ -303,7 +303,7 @@ bytecodes: [
                 B(Star), R(6),
                 B(Mov), R(1), R(2),
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2), U8(5),
-                B(Ldar), R(1),
+                B(Ldar), R(2),
   /*   69 S> */ B(Return),
 ]
 constant pool: [
@@ -335,7 +335,7 @@ bytecodes: [
                 B(Star), R(6),
                 B(Mov), R(1), R(2),
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2), U8(5),
-                B(Ldar), R(1),
+                B(Ldar), R(2),
   /*   77 S> */ B(Return),
 ]
 constant pool: [
@@ -352,7 +352,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 49
+bytecode array length: 46
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -368,10 +368,9 @@ bytecodes: [
                 B(Mov), R(1), R(2),
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2), U8(5),
                 B(CreateObjectLiteral), U8(1), U8(0), U8(35), R(4),
-                B(Mov), R(1), R(2),
                 B(Mov), R(4), R(3),
                 B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(2), U8(2),
-                B(Ldar), R(1),
+                B(Ldar), R(2),
   /*   84 S> */ B(Return),
 ]
 constant pool: [
@@ -387,7 +386,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 73
+bytecode array length: 67
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -408,7 +407,6 @@ bytecodes: [
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(5),
-                B(Mov), R(1), R(2),
                 B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked), R(2), U8(4),
                 B(LdaConstant), U8(3),
                 B(ToName), R(3),
@@ -416,9 +414,8 @@ bytecodes: [
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(5),
-                B(Mov), R(1), R(2),
                 B(CallRuntime), U16(Runtime::kDefineSetterPropertyUnchecked), R(2), U8(4),
-                B(Ldar), R(1),
+                B(Ldar), R(2),
   /*   99 S> */ B(Return),
 ]
 constant pool: [

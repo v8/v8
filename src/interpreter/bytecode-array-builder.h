@@ -61,22 +61,13 @@ class BytecodeArrayBuilder final : public ZoneObject {
   int fixed_register_count() const { return context_count() + locals_count(); }
 
   // Returns the number of fixed and temporary registers.
-  int fixed_and_temporary_register_count() const {
-    return fixed_register_count() + temporary_register_count();
-  }
-
-  int temporary_register_count() const {
-    return temporary_register_allocator()->allocation_count();
+  int total_register_count() const {
+    DCHECK_LE(fixed_register_count(),
+              register_allocator()->maximum_register_count());
+    return register_allocator()->maximum_register_count();
   }
 
   Register Parameter(int parameter_index) const;
-
-  // Return true if the register |reg| represents a parameter or a
-  // local.
-  bool RegisterIsParameterOrLocal(Register reg) const;
-
-  // Returns true if the register |reg| is a live temporary register.
-  bool TemporaryRegisterIsLive(Register reg) const;
 
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadConstantPoolEntry(size_t entry);
@@ -191,46 +182,39 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& PopContext(Register context);
 
   // Call a JS function. The JSFunction or Callable to be called should be in
-  // |callable|, the receiver should be in |receiver_args| and all subsequent
-  // arguments should be in registers <receiver_args + 1> to
-  // <receiver_args + receiver_arg_count - 1>. Type feedback is recorded in
-  // the |feedback_slot| in the type feedback vector.
+  // |callable|. The arguments should be in |args|, with the receiver in
+  // |args[0]|. Type feedback is recorded in the |feedback_slot| in the type
+  // feedback vector.
   BytecodeArrayBuilder& Call(
-      Register callable, Register receiver_args, size_t receiver_arg_count,
-      int feedback_slot, TailCallMode tail_call_mode = TailCallMode::kDisallow);
-
-  BytecodeArrayBuilder& TailCall(Register callable, Register receiver_args,
-                                 size_t receiver_arg_count, int feedback_slot) {
-    return Call(callable, receiver_args, receiver_arg_count, feedback_slot,
-                TailCallMode::kAllow);
-  }
+      Register callable, RegisterList args, int feedback_slot,
+      TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
   // Call the new operator. The accumulator holds the |new_target|.
-  // The |constructor| is in a register followed by |arg_count|
-  // consecutive arguments starting at |first_arg| for the constuctor
-  // invocation.
-  BytecodeArrayBuilder& New(Register constructor, Register first_arg,
-                            size_t arg_count, int feedback_slot);
+  // The |constructor| is in a register and arguments are in |args|.
+  BytecodeArrayBuilder& New(Register constructor, RegisterList args,
+                            int feedback_slot);
 
-  // Call the runtime function with |function_id|. The first argument should be
-  // in |first_arg| and all subsequent arguments should be in registers
-  // <first_arg + 1> to <first_arg + arg_count - 1>.
+  // Call the runtime function with |function_id| and arguments |args|.
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
-                                    Register first_arg, size_t arg_count);
+                                    RegisterList args);
+  // Call the runtime function with |function_id| with single argument |arg|.
+  BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
+                                    Register arg);
+  // Call the runtime function with |function_id| with no arguments.
+  BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id);
 
-  // Call the runtime function with |function_id| that returns a pair of values.
-  // The first argument should be in |first_arg| and all subsequent arguments
-  // should be in registers <first_arg + 1> to <first_arg + arg_count - 1>. The
-  // return values will be returned in <first_return> and <first_return + 1>.
+  // Call the runtime function with |function_id| and arguments |args|, that
+  // returns a pair of values. The return values will be returned in
+  // <first_return> and <first_return + 1>.
   BytecodeArrayBuilder& CallRuntimeForPair(Runtime::FunctionId function_id,
-                                           Register first_arg, size_t arg_count,
+                                           RegisterList args,
                                            Register first_return);
+  // Call the runtime function with |function_id| with single argument |arg|.
+  BytecodeArrayBuilder& CallRuntimeForPair(Runtime::FunctionId function_id,
+                                           Register arg, Register first_return);
 
-  // Call the JS runtime function with |context_index|. The the receiver should
-  // be in |receiver_args| and all subsequent arguments should be in registers
-  // <receiver + 1> to <receiver + receiver_args_count - 1>.
-  BytecodeArrayBuilder& CallJSRuntime(int context_index, Register receiver_args,
-                                      size_t receiver_args_count);
+  // Call the JS runtime function with |context_index| and arguments |args|.
+  BytecodeArrayBuilder& CallJSRuntime(int context_index, RegisterList args);
 
   // Operators (register holds the lhs value, accumulator holds the rhs value).
   // Type feedback will be recorded in the |feedback_slot|
@@ -328,34 +312,16 @@ class BytecodeArrayBuilder final : public ZoneObject {
     latest_source_info_.MakeStatementPosition(expr->position());
   }
 
-  // Accessors
-  TemporaryRegisterAllocator* temporary_register_allocator() {
-    return &temporary_allocator_;
-  }
-  const TemporaryRegisterAllocator* temporary_register_allocator() const {
-    return &temporary_allocator_;
-  }
-  Zone* zone() const { return zone_; }
-
   void EnsureReturn();
 
-  static uint32_t RegisterOperand(Register reg) {
-    return static_cast<uint32_t>(reg.ToOperand());
+  // Accessors
+  BytecodeRegisterAllocator* register_allocator() {
+    return &register_allocator_;
   }
-
-  static uint32_t SignedOperand(int value) {
-    return static_cast<uint32_t>(value);
+  const BytecodeRegisterAllocator* register_allocator() const {
+    return &register_allocator_;
   }
-
-  static uint32_t UnsignedOperand(int value) {
-    DCHECK_GE(value, 0);
-    return static_cast<uint32_t>(value);
-  }
-
-  static uint32_t UnsignedOperand(size_t value) {
-    DCHECK_LE(value, kMaxUInt32);
-    return static_cast<uint32_t>(value);
-  }
+  Zone* zone() const { return zone_; }
 
  private:
   friend class BytecodeRegisterAllocator;
@@ -376,6 +342,24 @@ class BytecodeArrayBuilder final : public ZoneObject {
   bool OperandsAreValid(Bytecode bytecode, int operand_count,
                         uint32_t operand0 = 0, uint32_t operand1 = 0,
                         uint32_t operand2 = 0, uint32_t operand3 = 0) const;
+
+  static uint32_t RegisterOperand(Register reg) {
+    return static_cast<uint32_t>(reg.ToOperand());
+  }
+
+  static uint32_t SignedOperand(int value) {
+    return static_cast<uint32_t>(value);
+  }
+
+  static uint32_t UnsignedOperand(int value) {
+    DCHECK_GE(value, 0);
+    return static_cast<uint32_t>(value);
+  }
+
+  static uint32_t UnsignedOperand(size_t value) {
+    DCHECK_LE(value, kMaxUInt32);
+    return static_cast<uint32_t>(value);
+  }
 
   // Set position for return.
   void SetReturnPosition();
@@ -413,7 +397,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   int local_register_count_;
   int context_register_count_;
   int return_position_;
-  TemporaryRegisterAllocator temporary_allocator_;
+  BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;
   BytecodePipelineStage* pipeline_;
   BytecodeSourceInfo latest_source_info_;

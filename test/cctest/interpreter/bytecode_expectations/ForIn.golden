@@ -146,7 +146,7 @@ snippet: "
     if (x['a'] == 20) break;
   }
 "
-frame size: 8
+frame size: 7
 parameter count: 1
 bytecode array length: 83
 bytecodes: [
@@ -168,15 +168,15 @@ bytecodes: [
   /*   67 E> */ B(StaNamedPropertySloppy), R(0), U8(2), U8(10),
   /*   62 E> */ B(StackCheck),
   /*   95 S> */ B(Nop),
-  /*  100 E> */ B(LdrNamedProperty), R(0), U8(2), U8(4), R(7),
+  /*  100 E> */ B(LdrNamedProperty), R(0), U8(2), U8(4), R(6),
                 B(LdaSmi), U8(10),
-  /*  106 E> */ B(TestEqual), R(7), U8(6),
+  /*  106 E> */ B(TestEqual), R(6), U8(6),
                 B(JumpIfFalse), U8(4),
   /*  113 S> */ B(Jump), U8(17),
   /*  125 S> */ B(Nop),
-  /*  130 E> */ B(LdrNamedProperty), R(0), U8(2), U8(7), R(7),
+  /*  130 E> */ B(LdrNamedProperty), R(0), U8(2), U8(7), R(6),
                 B(LdaSmi), U8(20),
-  /*  136 E> */ B(TestEqual), R(7), U8(9),
+  /*  136 E> */ B(TestEqual), R(6), U8(9),
                 B(JumpIfFalse), U8(4),
   /*  143 S> */ B(Jump), U8(9),
                 B(ForInStep), R(5),

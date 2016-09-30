@@ -47,7 +47,7 @@ snippet: "
   }
   return sum;
 "
-frame size: 5
+frame size: 4
 parameter count: 1
 bytecode array length: 69
 bytecodes: [
@@ -71,9 +71,9 @@ bytecodes: [
                 B(Star), R(0),
   /*  142 S> */ B(Ldar), R(2),
   /*  150 E> */ B(Add), R(1), U8(7),
-                B(Star), R(4),
+                B(Star), R(3),
                 B(LdaSmi), U8(12),
-  /*  152 E> */ B(TestEqual), R(4), U8(8),
+  /*  152 E> */ B(TestEqual), R(3), U8(8),
                 B(JumpIfFalse), U8(4),
   /*  161 S> */ B(Jump), U8(20),
   /*  118 S> */ B(Ldar), R(2),

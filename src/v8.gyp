@@ -993,7 +993,6 @@
         'interpreter/bytecode-pipeline.h',
         'interpreter/bytecode-register.cc',
         'interpreter/bytecode-register.h',
-        'interpreter/bytecode-register-allocator.cc',
         'interpreter/bytecode-register-allocator.h',
         'interpreter/bytecode-register-optimizer.cc',
         'interpreter/bytecode-register-optimizer.h',

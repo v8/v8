@@ -35,8 +35,8 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kLoadFromSuper), R(3), U8(3),
                 B(Star), R(1),
   /*  117 E> */ B(Call), R(1), R(this), U8(1), U8(2),
-                B(Star), R(3),
-                B(AddSmi), U8(1), R(3), U8(8),
+                B(Star), R(1),
+                B(AddSmi), U8(1), R(1), U8(8),
   /*  131 S> */ B(Return),
 ]
 constant pool: [

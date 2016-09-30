@@ -1421,7 +1421,6 @@ v8_source_set("v8_base") {
     "src/interpreter/bytecode-peephole-table.h",
     "src/interpreter/bytecode-pipeline.cc",
     "src/interpreter/bytecode-pipeline.h",
-    "src/interpreter/bytecode-register-allocator.cc",
     "src/interpreter/bytecode-register-allocator.h",
     "src/interpreter/bytecode-register-optimizer.cc",
     "src/interpreter/bytecode-register-optimizer.h",

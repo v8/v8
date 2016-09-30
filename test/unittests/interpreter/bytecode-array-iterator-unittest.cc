@@ -54,9 +54,9 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadNamedProperty(reg_1, name, feedback_slot)
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
-      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, 1, reg_0)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, reg_0)
       .ForInPrepare(reg_0, reg_0)
-      .CallRuntime(Runtime::kLoadIC_Miss, reg_0, 1)
+      .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
       .LoadGlobal(0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
       .Return();

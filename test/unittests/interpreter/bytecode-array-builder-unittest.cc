@@ -33,6 +33,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Register reg(0);
   Register other(reg.index() + 1);
   Register wide(128);
+  RegisterList reg_list;
 
   // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
@@ -123,16 +124,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0, reg);
 
   // Call operations.
-  builder.Call(reg, other, 0, 1)
-      .Call(reg, wide, 0, 1)
-      .TailCall(reg, other, 0, 1)
-      .TailCall(reg, wide, 0, 1)
-      .CallRuntime(Runtime::kIsArray, reg, 1)
-      .CallRuntime(Runtime::kIsArray, wide, 1)
-      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg, 1, other)
-      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, wide, 1, other)
-      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg, 1)
-      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, wide, 1);
+  builder.Call(reg, reg_list, 1)
+      .Call(reg, reg_list, 1, TailCallMode::kAllow)
+      .CallRuntime(Runtime::kIsArray, reg)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, other)
+      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list);
 
   // Emit binary operator invocations.
   builder.BinaryOperation(Token::Value::ADD, reg, 1)
@@ -179,8 +175,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Delete(reg, LanguageMode::SLOPPY).Delete(reg, LanguageMode::STRICT);
 
   // Emit new.
-  builder.New(reg, reg, 0, 1);
-  builder.New(wide, wide, 0, 1);
+  builder.New(reg, reg_list, 1);
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)
@@ -337,8 +332,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .ResumeGenerator(reg);
 
   // Intrinsics handled by the interpreter.
-  builder.CallRuntime(Runtime::kInlineIsArray, reg, 1)
-      .CallRuntime(Runtime::kInlineIsArray, wide, 1);
+  builder.CallRuntime(Runtime::kInlineIsArray, reg_list);
 
   // Emit debugger bytecode.
   builder.Debugger();
@@ -359,7 +353,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Generate BytecodeArray.
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),
-           builder.fixed_and_temporary_register_count() * kPointerSize);
+           builder.total_register_count() * kPointerSize);
 
   // Build scorecard of bytecodes encountered in the BytecodeArray.
   std::vector<int> scorecard(Bytecodes::ToByte(Bytecode::kLast) + 1);
@@ -428,21 +422,18 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
     for (int contexts = 0; contexts < 4; contexts++) {
       for (int temps = 0; temps < 3; temps++) {
         BytecodeArrayBuilder builder(isolate(), zone(), 0, contexts, locals);
-        BytecodeRegisterAllocator temporaries(
-            zone(), builder.temporary_register_allocator());
+        BytecodeRegisterAllocator* allocator(builder.register_allocator());
         for (int i = 0; i < locals + contexts; i++) {
           builder.LoadLiteral(Smi::FromInt(0));
           builder.StoreAccumulatorInRegister(Register(i));
         }
         for (int i = 0; i < temps; i++) {
+          Register temp = allocator->NewRegister();
           builder.LoadLiteral(Smi::FromInt(0));
-          builder.StoreAccumulatorInRegister(temporaries.NewRegister());
-        }
-        if (temps > 0) {
+          builder.StoreAccumulatorInRegister(temp);
           // Ensure temporaries are used so not optimized away by the
           // register optimizer.
-          builder.New(Register(locals + contexts), Register(locals + contexts),
-                      static_cast<size_t>(temps), 0);
+          builder.ConvertAccumulatorToName(temp);
         }
         builder.Return();
 
@@ -475,30 +466,6 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
   Register param0(builder.Parameter(0));
   Register param9(builder.Parameter(9));
   CHECK_EQ(param9.index() - param0.index(), 9);
-}
-
-
-TEST_F(BytecodeArrayBuilderTest, RegisterType) {
-  CanonicalHandleScope canonical(isolate());
-  BytecodeArrayBuilder builder(isolate(), zone(), 10, 0, 3);
-  BytecodeRegisterAllocator register_allocator(
-      zone(), builder.temporary_register_allocator());
-  Register temp0 = register_allocator.NewRegister();
-  Register param0(builder.Parameter(0));
-  Register param9(builder.Parameter(9));
-  Register temp1 = register_allocator.NewRegister();
-  Register reg0(0);
-  Register reg1(1);
-  Register reg2(2);
-  Register temp2 = register_allocator.NewRegister();
-  CHECK_EQ(builder.RegisterIsParameterOrLocal(temp0), false);
-  CHECK_EQ(builder.RegisterIsParameterOrLocal(temp1), false);
-  CHECK_EQ(builder.RegisterIsParameterOrLocal(temp2), false);
-  CHECK_EQ(builder.RegisterIsParameterOrLocal(param0), true);
-  CHECK_EQ(builder.RegisterIsParameterOrLocal(param9), true);
-  CHECK_EQ(builder.RegisterIsParameterOrLocal(reg0), true);
-  CHECK_EQ(builder.RegisterIsParameterOrLocal(reg1), true);
-  CHECK_EQ(builder.RegisterIsParameterOrLocal(reg2), true);
 }
 
 

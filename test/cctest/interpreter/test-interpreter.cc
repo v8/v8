@@ -1236,12 +1236,13 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   // Check with no args.
   {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
-
+    Register reg = builder.register_allocator()->NewRegister();
+    RegisterList args = builder.register_allocator()->NewRegisterList(1);
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0));
+        .StoreAccumulatorInRegister(reg)
+        .MoveRegister(builder.Parameter(0), args[0]);
 
-    builder.Call(Register(0), builder.Parameter(0), 1, call_slot_index,
-                 tail_call_mode);
+    builder.Call(reg, args, call_slot_index, tail_call_mode);
 
     builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1258,11 +1259,12 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   // Check that receiver is passed properly.
   {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
-
+    Register reg = builder.register_allocator()->NewRegister();
+    RegisterList args = builder.register_allocator()->NewRegisterList(1);
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0));
-    builder.Call(Register(0), builder.Parameter(0), 1, call_slot_index,
-                 tail_call_mode);
+        .StoreAccumulatorInRegister(reg)
+        .MoveRegister(builder.Parameter(0), args[0]);
+    builder.Call(reg, args, call_slot_index, tail_call_mode);
     builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -1281,17 +1283,19 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   // Check with two parameters (+ receiver).
   {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 4);
+    Register reg = builder.register_allocator()->NewRegister();
+    RegisterList args = builder.register_allocator()->NewRegisterList(3);
 
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0))
+        .StoreAccumulatorInRegister(reg)
         .LoadAccumulatorWithRegister(builder.Parameter(0))
-        .StoreAccumulatorInRegister(Register(1))
+        .StoreAccumulatorInRegister(args[0])
         .LoadLiteral(Smi::FromInt(51))
-        .StoreAccumulatorInRegister(Register(2))
+        .StoreAccumulatorInRegister(args[1])
         .LoadLiteral(Smi::FromInt(11))
-        .StoreAccumulatorInRegister(Register(3));
+        .StoreAccumulatorInRegister(args[2]);
 
-    builder.Call(Register(0), Register(1), 3, call_slot_index, tail_call_mode);
+    builder.Call(reg, args, call_slot_index, tail_call_mode);
 
     builder.Return();
 
@@ -1311,33 +1315,35 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   // Check with 10 parameters (+ receiver).
   {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 12);
+    Register reg = builder.register_allocator()->NewRegister();
+    RegisterList args = builder.register_allocator()->NewRegisterList(11);
 
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0))
+        .StoreAccumulatorInRegister(reg)
         .LoadAccumulatorWithRegister(builder.Parameter(0))
-        .StoreAccumulatorInRegister(Register(1))
+        .StoreAccumulatorInRegister(args[0])
         .LoadLiteral(factory->NewStringFromAsciiChecked("a"))
-        .StoreAccumulatorInRegister(Register(2))
+        .StoreAccumulatorInRegister(args[1])
         .LoadLiteral(factory->NewStringFromAsciiChecked("b"))
-        .StoreAccumulatorInRegister(Register(3))
+        .StoreAccumulatorInRegister(args[2])
         .LoadLiteral(factory->NewStringFromAsciiChecked("c"))
-        .StoreAccumulatorInRegister(Register(4))
+        .StoreAccumulatorInRegister(args[3])
         .LoadLiteral(factory->NewStringFromAsciiChecked("d"))
-        .StoreAccumulatorInRegister(Register(5))
+        .StoreAccumulatorInRegister(args[4])
         .LoadLiteral(factory->NewStringFromAsciiChecked("e"))
-        .StoreAccumulatorInRegister(Register(6))
+        .StoreAccumulatorInRegister(args[5])
         .LoadLiteral(factory->NewStringFromAsciiChecked("f"))
-        .StoreAccumulatorInRegister(Register(7))
+        .StoreAccumulatorInRegister(args[6])
         .LoadLiteral(factory->NewStringFromAsciiChecked("g"))
-        .StoreAccumulatorInRegister(Register(8))
+        .StoreAccumulatorInRegister(args[7])
         .LoadLiteral(factory->NewStringFromAsciiChecked("h"))
-        .StoreAccumulatorInRegister(Register(9))
+        .StoreAccumulatorInRegister(args[8])
         .LoadLiteral(factory->NewStringFromAsciiChecked("i"))
-        .StoreAccumulatorInRegister(Register(10))
+        .StoreAccumulatorInRegister(args[9])
         .LoadLiteral(factory->NewStringFromAsciiChecked("j"))
-        .StoreAccumulatorInRegister(Register(11));
+        .StoreAccumulatorInRegister(args[10]);
 
-    builder.Call(Register(0), Register(1), 11, call_slot_index, tail_call_mode);
+    builder.Call(reg, args, call_slot_index, tail_call_mode);
 
     builder.Return();
 
@@ -2112,12 +2118,13 @@ TEST(InterpreterCallRuntime) {
   Isolate* isolate = handles.main_isolate();
 
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 2);
+  RegisterList args = builder.register_allocator()->NewRegisterList(2);
 
   builder.LoadLiteral(Smi::FromInt(15))
-      .StoreAccumulatorInRegister(Register(0))
+      .StoreAccumulatorInRegister(args[0])
       .LoadLiteral(Smi::FromInt(40))
-      .StoreAccumulatorInRegister(Register(1))
-      .CallRuntime(Runtime::kAdd, Register(0), 2)
+      .StoreAccumulatorInRegister(args[1])
+      .CallRuntime(Runtime::kAdd, args)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -2136,7 +2143,7 @@ TEST(InterpreterInvokeIntrinsic) {
 
   builder.LoadLiteral(Smi::FromInt(15))
       .StoreAccumulatorInRegister(Register(0))
-      .CallRuntime(Runtime::kInlineIsArray, Register(0), 1)
+      .CallRuntime(Runtime::kInlineIsArray, Register(0))
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
