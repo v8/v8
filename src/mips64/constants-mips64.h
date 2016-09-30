@@ -932,8 +932,6 @@ class InstructionBase {
     return (InstructionBits() >> lo) & ((2U << (hi - lo)) - 1);
   }
 
-  enum TypeChecks { NORMAL, EXTRA };
-
   static constexpr uint64_t kOpcodeImmediateTypeMask =
       OpcodeToBitNumber(REGIMM) | OpcodeToBitNumber(BEQ) |
       OpcodeToBitNumber(BNE) | OpcodeToBitNumber(BLEZ) |
@@ -1014,7 +1012,7 @@ class InstructionBase {
   inline int SaFieldRaw() const { return InstructionBits() & kSaFieldMask; }
 
   // Get the encoding type of the instruction.
-  inline Type InstructionType(TypeChecks checks = NORMAL) const;
+  inline Type InstructionType() const;
 
  protected:
   InstructionBase() {}
@@ -1226,26 +1224,14 @@ const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize * 2;
 const int kInvalidStackOffset = -1;
 const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
 
-InstructionBase::Type InstructionBase::InstructionType(
-    TypeChecks checks) const {
-  if (checks == EXTRA) {
-    if (OpcodeToBitNumber(OpcodeFieldRaw()) & kOpcodeImmediateTypeMask) {
-      return kImmediateType;
-    }
-  }
+InstructionBase::Type InstructionBase::InstructionType() const {
   switch (OpcodeFieldRaw()) {
     case SPECIAL:
-      if (checks == EXTRA) {
-        if (FunctionFieldToBitNumber(FunctionFieldRaw()) &
-            kFunctionFieldRegisterTypeMask) {
-          return kRegisterType;
-        } else {
-          return kUnsupported;
-        }
-      } else {
+      if (FunctionFieldToBitNumber(FunctionFieldRaw()) &
+          kFunctionFieldRegisterTypeMask) {
         return kRegisterType;
       }
-      break;
+      return kUnsupported;
     case SPECIAL2:
       switch (FunctionFieldRaw()) {
         case MUL:
@@ -1322,11 +1308,7 @@ InstructionBase::Type InstructionBase::InstructionType(
       return kJumpType;
 
     default:
-      if (checks == NORMAL) {
-        return kImmediateType;
-      } else {
-        return kUnsupported;
-      }
+      return kImmediateType;
   }
   return kUnsupported;
 }

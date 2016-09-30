@@ -149,7 +149,7 @@ class SimInstruction : public InstructionGetters<SimInstructionBase> {
   SimInstruction& operator=(Instruction* instr) {
     operand_ = *reinterpret_cast<const int32_t*>(instr);
     instr_ = instr;
-    type_ = InstructionBase::InstructionType(EXTRA);
+    type_ = InstructionBase::InstructionType();
     DCHECK(reinterpret_cast<void*>(&operand_) == this);
     return *this;
   }
