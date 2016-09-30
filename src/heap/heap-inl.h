@@ -25,6 +25,16 @@
 namespace v8 {
 namespace internal {
 
+AllocationSpace AllocationResult::RetrySpace() {
+  DCHECK(IsRetry());
+  return static_cast<AllocationSpace>(Smi::cast(object_)->value());
+}
+
+HeapObject* AllocationResult::ToObjectChecked() {
+  CHECK(!IsRetry());
+  return HeapObject::cast(object_);
+}
+
 void PromotionQueue::insert(HeapObject* target, int32_t size,
                             bool was_marked_black) {
   if (emergency_stack_ != NULL) {

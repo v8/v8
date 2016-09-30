@@ -498,7 +498,6 @@ class MemoryChunk {
   void ResetProgressBar() {
     if (IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
       set_progress_bar(0);
-      ClearFlag(MemoryChunk::HAS_PROGRESS_BAR);
     }
   }
 

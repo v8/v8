@@ -368,9 +368,9 @@ TEST(NewSpace) {
   CHECK(new_space.HasBeenSetUp());
 
   while (new_space.Available() >= kMaxRegularHeapObjectSize) {
-    Object* obj = new_space.AllocateRawUnaligned(kMaxRegularHeapObjectSize)
-                      .ToObjectChecked();
-    CHECK(new_space.Contains(HeapObject::cast(obj)));
+    CHECK(new_space.Contains(
+        new_space.AllocateRawUnaligned(kMaxRegularHeapObjectSize)
+            .ToObjectChecked()));
   }
 
   new_space.TearDown();

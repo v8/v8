@@ -2230,9 +2230,8 @@ TEST(TestAlignedOverAllocation) {
   AllocationResult dummy =
       heap->old_space()->AllocateRawUnaligned(kPointerSize);
   CHECK(!dummy.IsRetry());
-  heap->CreateFillerObjectAt(
-      HeapObject::cast(dummy.ToObjectChecked())->address(), kPointerSize,
-      ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(dummy.ToObjectChecked()->address(), kPointerSize,
+                             ClearRecordedSlots::kNo);
 
   // Double misalignment is 4 on 32-bit platforms, 0 on 64-bit ones.
   const intptr_t double_misalignment = kDoubleSize - kPointerSize;

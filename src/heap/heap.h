@@ -437,6 +437,10 @@ class PromotionQueue {
 
 class AllocationResult {
  public:
+  static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
+    return AllocationResult(space);
+  }
+
   // Implicit constructor from Object*.
   AllocationResult(Object* object)  // NOLINT
       : object_(object) {
@@ -447,11 +451,9 @@ class AllocationResult {
 
   AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
 
-  static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
-    return AllocationResult(space);
-  }
-
   inline bool IsRetry() { return object_->IsSmi(); }
+  inline HeapObject* ToObjectChecked();
+  inline AllocationSpace RetrySpace();
 
   template <typename T>
   bool To(T** obj) {
@@ -459,13 +461,6 @@ class AllocationResult {
     *obj = T::cast(object_);
     return true;
   }
-
-  Object* ToObjectChecked() {
-    CHECK(!IsRetry());
-    return object_;
-  }
-
-  inline AllocationSpace RetrySpace();
 
  private:
   explicit AllocationResult(AllocationSpace space)
