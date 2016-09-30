@@ -32,14 +32,6 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
   DISALLOW_COPY_AND_ASSIGN(ChannelImpl);
 };
 
-InspectorClientImpl* InspectorClientFromContext(
-    v8::Local<v8::Context> context) {
-  InspectorClientImpl* inspector_client = static_cast<InspectorClientImpl*>(
-      context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex));
-  CHECK(inspector_client);
-  return inspector_client;
-}
-
 }  //  namespace
 
 class ConnectTask : public TaskRunner::Task {
@@ -104,14 +96,12 @@ void InspectorClientImpl::quitMessageLoopOnPause() {
   task_runner_->QuitMessageLoop();
 }
 
-v8_inspector::V8Inspector* InspectorClientImpl::InspectorFromContext(
-    v8::Local<v8::Context> context) {
-  return InspectorClientFromContext(context)->inspector_.get();
-}
-
 v8_inspector::V8InspectorSession* InspectorClientImpl::SessionFromContext(
     v8::Local<v8::Context> context) {
-  return InspectorClientFromContext(context)->session_.get();
+  InspectorClientImpl* inspector_client = static_cast<InspectorClientImpl*>(
+      context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex));
+  CHECK(inspector_client);
+  return inspector_client->session_.get();
 }
 
 class SendMessageToBackendTask : public TaskRunner::Task {
