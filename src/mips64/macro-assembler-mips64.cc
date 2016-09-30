@@ -1258,8 +1258,13 @@ void MacroAssembler::Sltu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     sltu(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
+    const uint64_t int16_min = std::numeric_limits<int16_t>::min();
+    if (is_uint15(rt.imm64_) && !MustUseReg(rt.rmode_)) {
+      // Imm range is: [0, 32767].
       sltiu(rd, rs, static_cast<int32_t>(rt.imm64_));
+    } else if (is_uint15(rt.imm64_ - int16_min) && !MustUseReg(rt.rmode_)) {
+      // Imm range is: [max_unsigned-32767,max_unsigned].
+      sltiu(rd, rs, static_cast<uint16_t>(rt.imm64_));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
