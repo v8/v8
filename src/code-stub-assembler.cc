@@ -937,6 +937,11 @@ Node* CodeStubAssembler::LoadMapInstanceType(Node* map) {
   return LoadObjectField(map, Map::kInstanceTypeOffset, MachineType::Uint8());
 }
 
+Node* CodeStubAssembler::LoadMapElementsKind(Node* map) {
+  Node* bit_field2 = LoadMapBitField2(map);
+  return BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+}
+
 Node* CodeStubAssembler::LoadMapDescriptors(Node* map) {
   return LoadObjectField(map, Map::kDescriptorsOffset);
 }
@@ -3678,8 +3683,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
                               Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
          if_bailout);
 
-  Node* bit_field2 = LoadMapBitField2(map);
-  Node* elements_kind = BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+  Node* elements_kind = LoadMapElementsKind(map);
 
   // TODO(verwaest): Support other elements kinds as well.
   Label if_isobjectorsmi(this), if_isdouble(this), if_isdictionary(this),
@@ -4789,8 +4793,7 @@ void CodeStubAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     Comment("integer index");
     Node* index = var_index.value();
     Node* elements = LoadElements(receiver);
-    Node* bitfield2 = LoadMapBitField2(receiver_map);
-    Node* elements_kind = BitFieldDecode<Map::ElementsKindBits>(bitfield2);
+    Node* elements_kind = LoadMapElementsKind(receiver_map);
     Node* is_jsarray_condition =
         Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE));
     Variable var_double_value(this, MachineRepresentation::kFloat64);

@@ -1381,9 +1381,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
                                     &if_packed_doubles, &if_holey_doubles};
 
   Node* map = assembler->LoadMap(array);
-  Node* bit_field2 = assembler->LoadMapBitField2(map);
-  Node* elements_kind =
-      assembler->BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+  Node* elements_kind = assembler->LoadMapElementsKind(map);
   Node* elements = assembler->LoadElements(array);
   assembler->Switch(elements_kind, &return_false, kElementsKind,
                     element_kind_handlers, arraysize(kElementsKind));
@@ -1828,9 +1826,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
                                     &if_packed_doubles, &if_holey_doubles};
 
   Node* map = assembler->LoadMap(array);
-  Node* bit_field2 = assembler->LoadMapBitField2(map);
-  Node* elements_kind =
-      assembler->BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+  Node* elements_kind = assembler->LoadMapElementsKind(map);
   Node* elements = assembler->LoadElements(array);
   assembler->Switch(elements_kind, &return_not_found, kElementsKind,
                     element_kind_handlers, arraysize(kElementsKind));

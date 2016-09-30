@@ -246,6 +246,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapBitField3(compiler::Node* map);
   // Load the instance type of a map.
   compiler::Node* LoadMapInstanceType(compiler::Node* map);
+  // Load the ElementsKind of a map.
+  compiler::Node* LoadMapElementsKind(compiler::Node* map);
   // Load the instance descriptors of a map.
   compiler::Node* LoadMapDescriptors(compiler::Node* map);
   // Load the prototype of a map.
