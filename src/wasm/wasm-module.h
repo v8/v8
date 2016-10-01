@@ -374,6 +374,19 @@ class WasmCompiledModule : public FixedArray {
 #define WCM_SMALL_NUMBER(TYPE, NAME)                               \
   TYPE NAME() const {                                              \
     return static_cast<TYPE>(Smi::cast(get(kID_##NAME))->value()); \
+  }                                                                \
+                                                                   \
+  void set_##NAME(TYPE value) {                                    \
+    set(kID_##NAME, Smi::FromInt(static_cast<int>(value)));        \
+  }
+
+#define WCM_LARGE_NUMBER(TYPE, NAME)                                          \
+  TYPE NAME() const {                                                         \
+    return static_cast<TYPE>(HeapNumber::cast(get(kID_##NAME))->value());     \
+  }                                                                           \
+                                                                              \
+  void set_##NAME(TYPE value) {                                               \
+    HeapNumber::cast(get(kID_##NAME))->set_value(static_cast<double>(value)); \
   }
 
 #define WCM_WEAK_LINK(TYPE, NAME)                        \
@@ -391,11 +404,12 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, FixedArray, indirect_function_tables) \
   MACRO(OBJECT, String, module_bytes)                 \
   MACRO(OBJECT, ByteArray, function_names)            \
-  MACRO(SMALL_NUMBER, uint32_t, min_memory_pages)     \
+  MACRO(LARGE_NUMBER, uint32_t, min_required_memory)  \
   MACRO(OBJECT, FixedArray, data_segments_info)       \
   MACRO(OBJECT, ByteArray, data_segments)             \
-  MACRO(SMALL_NUMBER, uint32_t, globals_size)         \
-  MACRO(OBJECT, JSArrayBuffer, heap)                  \
+  MACRO(LARGE_NUMBER, uint32_t, globals_size)         \
+  MACRO(LARGE_NUMBER, uint32_t, mem_size)             \
+  MACRO(OBJECT, JSArrayBuffer, mem_start)             \
   MACRO(SMALL_NUMBER, bool, export_memory)            \
   MACRO(SMALL_NUMBER, ModuleOrigin, origin)           \
   MACRO(WEAK_LINK, WasmCompiledModule, next_instance) \
@@ -411,26 +425,32 @@ class WasmCompiledModule : public FixedArray {
   };
 
  public:
-  static Handle<WasmCompiledModule> New(Isolate* isolate,
-                                        uint32_t min_memory_pages,
-                                        uint32_t globals_size,
-                                        bool export_memory,
-                                        ModuleOrigin origin);
+  static Handle<WasmCompiledModule> New(Isolate* isolate) {
+    Handle<FixedArray> ret =
+        isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
+    Handle<HeapNumber> number;
+#define WCM_INIT_OBJECT(IGNORE1, IGNORE2)
+#define WCM_INIT_WEAK_LINK(IGNORE1, IGNORE2)
+#define WCM_INIT_SMALL_NUMBER(IGNORE1, IGNORE2)
+#define WCM_INIT_LARGE_NUMBER(IGNORE, NAME)                          \
+  number = isolate->factory()->NewHeapNumber(0.0, MUTABLE, TENURED); \
+  ret->set(kID_##NAME, *number);
+
+#define INITIALIZER(KIND, TYPE, NAME) WCM_INIT_##KIND(TYPE, NAME)
+    WCM_PROPERTY_TABLE(INITIALIZER)
+#undef INITIALIZER
+    return handle(WasmCompiledModule::cast(*ret));
+  }
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module) {
     Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
         isolate->factory()->CopyFixedArray(module));
+    Handle<HeapNumber> number =
+        isolate->factory()->NewHeapNumber(0.0, MUTABLE, TENURED);
+    ret->set(kID_mem_size, *number);
+    ret->set_mem_size(module->mem_size());
     return ret;
-  }
-
-  uint32_t mem_size() const {
-    DCHECK(has_heap());
-    return heap()->byte_length()->Number();
-  }
-
-  uint32_t default_mem_size() const {
-    return min_memory_pages() * WasmModule::kPageSize;
   }
 
 #define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)

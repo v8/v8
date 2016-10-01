@@ -852,8 +852,7 @@ static void ResetCompiledModule(Isolate* isolate, JSObject* owner,
                                 WasmCompiledModule* compiled_module) {
   Object* undefined = *isolate->factory()->undefined_value();
   uint32_t old_mem_size = compiled_module->mem_size();
-  uint32_t default_mem_size = compiled_module->default_mem_size();
-  Object* mem_start = compiled_module->ptr_to_heap();
+  Object* mem_start = compiled_module->ptr_to_mem_start();
   Address old_mem_address = nullptr;
   Address globals_start =
       GetGlobalStartAddressFromCodeTemplate(undefined, owner);
@@ -878,8 +877,8 @@ static void ResetCompiledModule(Isolate* isolate, JSObject* owner,
         RelocInfo::Mode mode = it.rinfo()->rmode();
         if (RelocInfo::IsWasmMemoryReference(mode) ||
             RelocInfo::IsWasmMemorySizeReference(mode)) {
-          it.rinfo()->update_wasm_memory_reference(
-              old_mem_address, nullptr, old_mem_size, default_mem_size);
+          it.rinfo()->update_wasm_memory_reference(old_mem_address, nullptr,
+                                                   old_mem_size, old_mem_size);
           changed = true;
         } else {
           CHECK(RelocInfo::IsWasmGlobalReference(mode));
@@ -894,7 +893,7 @@ static void ResetCompiledModule(Isolate* isolate, JSObject* owner,
     }
   }
   compiled_module->reset_weak_owning_instance();
-  compiled_module->reset_heap();
+  compiled_module->reset_mem_start();
 }
 
 static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
@@ -1051,8 +1050,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  Handle<WasmCompiledModule> ret = WasmCompiledModule::New(
-      isolate, min_mem_pages, globals_size, mem_export, origin);
+  Handle<WasmCompiledModule> ret = WasmCompiledModule::New(isolate);
   ret->set_code_table(code_table);
   if (!indirect_table.is_null()) {
     ret->set_indirect_function_tables(indirect_table.ToHandleChecked());
@@ -1126,8 +1124,12 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   Handle<ByteArray> function_name_table =
       BuildFunctionNamesTable(isolate, module_env.module);
   ret->set_function_names(function_name_table);
+  ret->set_min_required_memory(min_mem_pages);
   if (data_segments.size() > 0) SaveDataSegmentInfo(factory, this, ret);
-  DCHECK_EQ(ret->default_mem_size(), temp_instance.mem_size);
+  ret->set_globals_size(globals_size);
+  ret->set_export_memory(mem_export);
+  ret->set_origin(origin);
+  ret->set_mem_size(temp_instance.mem_size);
   return ret;
 }
 
@@ -1247,6 +1249,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
             UNREACHABLE();
         }
       }
+      compiled_module->set_mem_size(original->mem_size());
       RecordStats(isolate, code_table);
     } else {
       // There was no owner, so we can reuse the original.
@@ -1270,7 +1273,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   MaybeHandle<JSArrayBuffer> old_memory;
   // TODO(titzer): handle imported memory properly.
 
-  uint32_t min_mem_pages = compiled_module->min_memory_pages();
+  uint32_t min_mem_pages = compiled_module->min_required_memory();
   isolate->counters()->wasm_min_mem_pages_count()->AddSample(min_mem_pages);
   // TODO(wasm): re-enable counter for max_mem_pages when we use that field.
 
@@ -1285,16 +1288,16 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     uint32_t mem_size = static_cast<uint32_t>(memory->byte_length()->Number());
     LoadDataSegments(compiled_module, mem_start, mem_size);
 
-    uint32_t old_mem_size = compiled_module->has_heap()
-                                ? compiled_module->mem_size()
-                                : compiled_module->default_mem_size();
+    uint32_t old_mem_size = compiled_module->mem_size();
     Address old_mem_start =
-        compiled_module->has_heap()
-            ? static_cast<Address>(compiled_module->heap()->backing_store())
+        compiled_module->has_mem_start()
+            ? static_cast<Address>(
+                  compiled_module->mem_start()->backing_store())
             : nullptr;
     RelocateInstanceCode(instance, old_mem_start, mem_start, old_mem_size,
                          mem_size);
-    compiled_module->set_heap(memory);
+    compiled_module->set_mem_size(mem_size);
+    compiled_module->set_mem_start(memory);
   }
 
   //--------------------------------------------------------------------------
@@ -1534,26 +1537,6 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   return instance;
 }
 
-Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
-                                                   uint32_t min_memory_pages,
-                                                   uint32_t globals_size,
-                                                   bool export_memory,
-                                                   ModuleOrigin origin) {
-  Handle<FixedArray> ret =
-      isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
-  // Globals size is expected to fit into an int without overflow. This is not
-  // supported by the spec at the moment, however, we don't support array
-  // buffer sizes over 1g, so, for now, we avoid alocating a HeapNumber for
-  // the globals size. The CHECK guards this assumption.
-  CHECK_GE(static_cast<int>(globals_size), 0);
-  ret->set(kID_min_memory_pages,
-           Smi::FromInt(static_cast<int>(min_memory_pages)));
-  ret->set(kID_globals_size, Smi::FromInt(static_cast<int>(globals_size)));
-  ret->set(kID_export_memory, Smi::FromInt(static_cast<int>(export_memory)));
-  ret->set(kID_origin, Smi::FromInt(static_cast<int>(origin)));
-  return handle(WasmCompiledModule::cast(*ret));
-}
-
 compiler::CallDescriptor* ModuleEnv::GetCallDescriptor(Zone* zone,
                                                        uint32_t index) {
   DCHECK(IsValidFunction(index));
@@ -1778,9 +1761,11 @@ void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer) {
   DisallowHeapAllocation no_gc;
   DCHECK(IsWasmObject(*instance));
   instance->SetInternalField(kWasmMemArrayBuffer, buffer);
-  WasmCompiledModule* module =
-      WasmCompiledModule::cast(instance->GetInternalField(kWasmCompiledModule));
-  module->set_ptr_to_heap(buffer);
+  Object* module = instance->GetInternalField(kWasmCompiledModule);
+  if (module->IsFixedArray()) {
+    WasmCompiledModule::cast(module)->set_mem_size(
+        buffer->byte_length()->Number());
+  }
 }
 
 namespace testing {
