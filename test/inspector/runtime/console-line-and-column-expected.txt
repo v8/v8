@@ -1,0 +1,29 @@
+{
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 8
+                functionName : (anonymous)
+                lineNumber : 0
+                scriptId : 0
+                url : (empty)
+            }
+        ]
+    }
+    type : log
+}
+{
+    stackTrace : {
+        callFrames : [
+            [0] : {
+                columnNumber : 2
+                functionName : (anonymous)
+                lineNumber : 1
+                scriptId : 0
+                url : (empty)
+            }
+        ]
+    }
+    type : log
+}
+

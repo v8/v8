@@ -1,0 +1,127 @@
+Tests that CommandLineAPI is presented only while evaluation.
+
+{
+    result : {
+        description : 15
+        type : number
+        value : 15
+    }
+}
+{
+    result : {
+        description : 0
+        type : number
+        value : 0
+    }
+}
+setPropertyForMethod()
+{
+    result : {
+        description : 14
+        type : number
+        value : 14
+    }
+}
+{
+    result : {
+        description : 0
+        type : number
+        value : 0
+    }
+}
+{
+    result : {
+        description : 42
+        type : number
+        value : 42
+    }
+}
+defineValuePropertyForMethod()
+{
+    result : {
+        description : 14
+        type : number
+        value : 14
+    }
+}
+{
+    result : {
+        description : 0
+        type : number
+        value : 0
+    }
+}
+{
+    result : {
+        description : 42
+        type : number
+        value : 42
+    }
+}
+definePropertiesForMethod()
+{
+    result : {
+        description : 14
+        type : number
+        value : 14
+    }
+}
+{
+    result : {
+        description : 0
+        type : number
+        value : 0
+    }
+}
+{
+    result : {
+        description : 42
+        type : number
+        value : 42
+    }
+}
+defineAccessorPropertyForMethod()
+{
+    result : {
+        description : 14
+        type : number
+        value : 14
+    }
+}
+{
+    result : {
+        description : 0
+        type : number
+        value : 0
+    }
+}
+{
+    result : {
+        description : 42
+        type : number
+        value : 42
+    }
+}
+redefineGetOwnPropertyDescriptors()
+{
+    result : {
+        description : 14
+        type : number
+        value : 14
+    }
+}
+{
+    result : {
+        description : 0
+        type : number
+        value : 0
+    }
+}
+{
+    result : {
+        description : 42
+        type : number
+        value : 42
+    }
+}
+
