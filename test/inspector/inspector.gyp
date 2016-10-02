@@ -6,6 +6,8 @@
   'variables': {
     'v8_code': 1,
     'inspector_protocol_sources': [
+      'inspector-impl.cc',
+      'inspector-impl.h',
       'task-runner.cc',
       'task-runner.h',
     ],

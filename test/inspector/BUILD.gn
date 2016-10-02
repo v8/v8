@@ -8,6 +8,8 @@ v8_executable("inspector-test") {
   testonly = true
 
   sources = [
+    "inspector-impl.cc",
+    "inspector-impl.h",
     "task-runner.cc",
     "task-runner.h",
   ]
