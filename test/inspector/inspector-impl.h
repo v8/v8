@@ -25,6 +25,9 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
                       v8::base::Semaphore* ready_semaphore);
   virtual ~InspectorClientImpl();
 
+  static v8_inspector::V8Inspector* InspectorFromContext(
+      v8::Local<v8::Context> context);
+
  private:
   // V8InspectorClient implementation.
   v8::Local<v8::Context> ensureDefaultContextInGroup(

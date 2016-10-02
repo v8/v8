@@ -10,6 +10,7 @@ v8_executable("inspector-test") {
   sources = [
     "inspector-impl.cc",
     "inspector-impl.h",
+    "inspector-test.cc",
     "task-runner.cc",
     "task-runner.h",
   ]

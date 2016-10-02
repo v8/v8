@@ -8,6 +8,7 @@
     'inspector_protocol_sources': [
       'inspector-impl.cc',
       'inspector-impl.h',
+      'inspector-test.cc',
       'task-runner.cc',
       'task-runner.h',
     ],
