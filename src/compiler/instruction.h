@@ -33,7 +33,17 @@ class InstructionOperand {
 
   // TODO(dcarney): recover bit. INVALID can be represented as UNALLOCATED with
   // kInvalidVirtualRegister and some DCHECKS.
-  enum Kind { INVALID, UNALLOCATED, CONSTANT, IMMEDIATE, EXPLICIT, ALLOCATED };
+  enum Kind {
+    INVALID,
+    UNALLOCATED,
+    CONSTANT,
+    IMMEDIATE,
+    // Location operand kinds.
+    EXPLICIT,
+    ALLOCATED,
+    FIRST_LOCATION_OPERAND_KIND = EXPLICIT
+    // Location operand kinds must be last.
+  };
 
   InstructionOperand() : InstructionOperand(INVALID) {}
 
@@ -64,12 +74,16 @@ class InstructionOperand {
   INSTRUCTION_OPERAND_PREDICATE(Allocated, ALLOCATED)
 #undef INSTRUCTION_OPERAND_PREDICATE
 
+  inline bool IsAnyLocationOperand() const;
+  inline bool IsLocationOperand() const;
+  inline bool IsFPLocationOperand() const;
   inline bool IsAnyRegister() const;
   inline bool IsRegister() const;
   inline bool IsFPRegister() const;
   inline bool IsFloatRegister() const;
   inline bool IsDoubleRegister() const;
   inline bool IsSimd128Register() const;
+  inline bool IsAnyStackSlot() const;
   inline bool IsStackSlot() const;
   inline bool IsFPStackSlot() const;
   inline bool IsFloatStackSlot() const;
@@ -482,17 +496,17 @@ class LocationOperand : public InstructionOperand {
   }
 
   static LocationOperand* cast(InstructionOperand* op) {
-    DCHECK(ALLOCATED == op->kind() || EXPLICIT == op->kind());
+    DCHECK(op->IsAnyLocationOperand());
     return static_cast<LocationOperand*>(op);
   }
 
   static const LocationOperand* cast(const InstructionOperand* op) {
-    DCHECK(ALLOCATED == op->kind() || EXPLICIT == op->kind());
+    DCHECK(op->IsAnyLocationOperand());
     return static_cast<const LocationOperand*>(op);
   }
 
   static LocationOperand cast(const InstructionOperand& op) {
-    DCHECK(ALLOCATED == op.kind() || EXPLICIT == op.kind());
+    DCHECK(op.IsAnyLocationOperand());
     return *static_cast<const LocationOperand*>(&op);
   }
 
@@ -532,9 +546,22 @@ class AllocatedOperand : public LocationOperand {
 
 #undef INSTRUCTION_OPERAND_CASTS
 
+bool InstructionOperand::IsAnyLocationOperand() const {
+  return this->kind() >= FIRST_LOCATION_OPERAND_KIND;
+}
+
+bool InstructionOperand::IsLocationOperand() const {
+  return IsAnyLocationOperand() &&
+         !IsFloatingPoint(LocationOperand::cast(this)->representation());
+}
+
+bool InstructionOperand::IsFPLocationOperand() const {
+  return IsAnyLocationOperand() &&
+         IsFloatingPoint(LocationOperand::cast(this)->representation());
+}
 
 bool InstructionOperand::IsAnyRegister() const {
-  return (IsAllocated() || IsExplicit()) &&
+  return IsAnyLocationOperand() &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::REGISTER;
 }
@@ -568,22 +595,24 @@ bool InstructionOperand::IsSimd128Register() const {
              MachineRepresentation::kSimd128;
 }
 
-bool InstructionOperand::IsStackSlot() const {
-  return (IsAllocated() || IsExplicit()) &&
+bool InstructionOperand::IsAnyStackSlot() const {
+  return IsAnyLocationOperand() &&
          LocationOperand::cast(this)->location_kind() ==
-             LocationOperand::STACK_SLOT &&
+             LocationOperand::STACK_SLOT;
+}
+
+bool InstructionOperand::IsStackSlot() const {
+  return IsAnyStackSlot() &&
          !IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
 bool InstructionOperand::IsFPStackSlot() const {
-  return (IsAllocated() || IsExplicit()) &&
-         LocationOperand::cast(this)->location_kind() ==
-             LocationOperand::STACK_SLOT &&
+  return IsAnyStackSlot() &&
          IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
 bool InstructionOperand::IsFloatStackSlot() const {
-  return (IsAllocated() || IsExplicit()) &&
+  return IsAnyLocationOperand() &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::STACK_SLOT &&
          LocationOperand::cast(this)->representation() ==
@@ -591,7 +620,7 @@ bool InstructionOperand::IsFloatStackSlot() const {
 }
 
 bool InstructionOperand::IsDoubleStackSlot() const {
-  return (IsAllocated() || IsExplicit()) &&
+  return IsAnyLocationOperand() &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::STACK_SLOT &&
          LocationOperand::cast(this)->representation() ==
@@ -599,7 +628,7 @@ bool InstructionOperand::IsDoubleStackSlot() const {
 }
 
 bool InstructionOperand::IsSimd128StackSlot() const {
-  return (IsAllocated() || IsExplicit()) &&
+  return IsAnyLocationOperand() &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::STACK_SLOT &&
          LocationOperand::cast(this)->representation() ==
@@ -607,7 +636,7 @@ bool InstructionOperand::IsSimd128StackSlot() const {
 }
 
 uint64_t InstructionOperand::GetCanonicalizedValue() const {
-  if (IsAllocated() || IsExplicit()) {
+  if (IsAnyLocationOperand()) {
     MachineRepresentation canonical = MachineRepresentation::kNone;
     if (IsFPRegister()) {
       // We treat all FP register operands the same for simple aliasing.
