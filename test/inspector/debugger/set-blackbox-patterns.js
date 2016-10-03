@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function bar()
 {
     return 42;
 }`);
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function foo()
 {
     var a = bar();
@@ -16,7 +16,7 @@ InspectorTest.evaluateInPage(
 }
 //# sourceURL=foo.js`);
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function qwe()
 {
     var a = foo();
@@ -24,7 +24,7 @@ InspectorTest.evaluateInPage(
 }
 //# sourceURL=qwe.js`);
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function baz()
 {
     var a = qwe();
@@ -32,15 +32,15 @@ InspectorTest.evaluateInPage(
 }
 //# sourceURL=baz.js`);
 
-InspectorTest.sendCommand("Debugger.enable", {});
-InspectorTest.sendCommand("Debugger.setBlackboxPatterns", { patterns: [ "foo([" ] }, dumpError);
+Protocol.Debugger.enable();
+Protocol.Debugger.setBlackboxPatterns({ patterns: [ "foo([" ] }).then(dumpError);
 
 function dumpError(message)
 {
   InspectorTest.log(message.error.message);
-  InspectorTest.eventHandler["Debugger.paused"] = dumpStackAndRunNextCommand;
-  InspectorTest.sendCommandOrDie("Debugger.setBlackboxPatterns", { patterns: [ "baz\.js", "foo\.js" ] });
-  InspectorTest.sendCommandOrDie("Runtime.evaluate", { "expression": "debugger;baz()" });
+  Protocol.Debugger.onPaused(dumpStackAndRunNextCommand);
+  Protocol.Debugger.setBlackboxPatterns({ patterns: [ "baz\.js", "foo\.js" ] });
+  Protocol.Runtime.evaluate({ "expression": "debugger;baz()" });
 }
 
 var commands = [ "stepInto", "stepInto", "stepInto", "stepOut", "stepInto", "stepInto" ];
@@ -55,5 +55,5 @@ function dumpStackAndRunNextCommand(message)
     InspectorTest.completeTest();
     return;
   }
-  InspectorTest.sendCommandOrDie("Debugger." + command, {});
+  Protocol.Debugger[command]();
 }

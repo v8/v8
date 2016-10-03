@@ -4,7 +4,7 @@
 
 print("Tests that console.profile/profileEnd will record CPU profile when inspector front-end is connected.");
 
-InspectorTest.evaluateInPage(`
+InspectorTest.addScript(`
 function collectProfiles()
 {
   console.profile("outer");
@@ -19,17 +19,17 @@ InspectorTest.fail = function(message)
   InspectorTest.completeTest();
 }
 
-InspectorTest.sendCommand("Profiler.enable", {});
-InspectorTest.sendCommand("Runtime.evaluate", { expression: "collectProfiles()"}, didCollectProfiles);
+Protocol.Profiler.enable();
+Protocol.Runtime.evaluate({ expression: "collectProfiles()"}).then(didCollectProfiles);
 
 var headers = [];
-InspectorTest.eventHandler["Profiler.consoleProfileFinished"] = function(messageObject)
+Protocol.Profiler.onConsoleProfileFinished(function(messageObject)
 {
   headers.push({
     profile: messageObject["params"]["profile"],
     title: messageObject["params"]["title"]
   });
-}
+});
 
 function didCollectProfiles(messageObject)
 {

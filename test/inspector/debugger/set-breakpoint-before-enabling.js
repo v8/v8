@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.sendCommand("Debugger.setBreakpointByUrl", { url: "http://example.com", lineNumber: 10  }, didSetBreakpointByUrlBeforeEnable);
+Protocol.Debugger.setBreakpointByUrl({ url: "http://example.com", lineNumber: 10  }).then(didSetBreakpointByUrlBeforeEnable);
 
 function didSetBreakpointByUrlBeforeEnable(message)
 {
   InspectorTest.log("setBreakpointByUrl error: " + JSON.stringify(message.error, null, 2));
-  InspectorTest.sendCommand("Debugger.setBreakpoint", {}, didSetBreakpointBeforeEnable);
+  Protocol.Debugger.setBreakpoint().then(didSetBreakpointBeforeEnable);
 }
 
 function didSetBreakpointBeforeEnable(message)

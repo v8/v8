@@ -18,7 +18,6 @@ function messageAdded(data)
     InspectorTest.completeTest();
 }
 
-InspectorTest.eventHandler["Runtime.consoleAPICalled"] = messageAdded;
-InspectorTest.sendCommand("Runtime.enable", {});
-
-InspectorTest.sendCommand("Runtime.evaluate", { expression: "console.log('testUnique'); for (var i = 0; i < 2; ++i) console.log('testDouble');" });
+Protocol.Runtime.onConsoleAPICalled(messageAdded);
+Protocol.Runtime.enable();
+Protocol.Runtime.evaluate({ expression: "console.log('testUnique'); for (var i = 0; i < 2; ++i) console.log('testDouble');" });

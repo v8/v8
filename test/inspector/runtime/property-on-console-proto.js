@@ -4,7 +4,7 @@
 
 print("Tests that property defined on console.__proto__ doesn't observable on other Objects.");
 
-InspectorTest.evaluateInPage(`
+InspectorTest.addScript(`
 function testFunction()
 {
     var amountOfProperties = 0;
@@ -16,11 +16,10 @@ function testFunction()
     return amountOfProperties;
 }`);
 
-InspectorTest.sendCommand("Runtime.evaluate", { "expression": "testFunction()" }, dumpResult);
+Protocol.Runtime.evaluate({ "expression": "testFunction()" }).then(dumpResult);
 
 function dumpResult(result)
 {
-  result.id = 0;
-  InspectorTest.logObject(result);
+  InspectorTest.logMessage(result);
   InspectorTest.completeTest();
 }

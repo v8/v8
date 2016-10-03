@@ -4,7 +4,7 @@
 
 print("Tests that \"console.profileEnd()\" does not cause crash. (webkit:105759)");
 
-InspectorTest.evaluateInPage(`
+InspectorTest.addScript(`
 function collectProfiles()
 {
   console.profile();
@@ -19,16 +19,16 @@ InspectorTest.fail = function(message)
   InspectorTest.completeTest();
 }
 
-InspectorTest.sendCommand("Profiler.enable", {});
-InspectorTest.sendCommand("Runtime.evaluate", { expression: "collectProfiles()"}, didCollectProfiles);
+Protocol.Profiler.enable();
+Protocol.Runtime.evaluate({ expression: "collectProfiles()"}).then(didCollectProfiles);
 
 var headers = [];
-InspectorTest.eventHandler["Profiler.consoleProfileFinished"] = function(messageObject)
+Protocol.Profiler.onConsoleProfileFinished(function(messageObject)
 {
   headers.push({
     title: messageObject["params"]["title"]
   });
-}
+});
 
 function didCollectProfiles(messageObject)
 {

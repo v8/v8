@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.sendCommand("Runtime.evaluate", { "expression": "({p1: {a:1}, p2: {b:'foo', bb:'bar'}})" }, callbackEvaluate);
+Protocol.Runtime.evaluate({ "expression": "({p1: {a:1}, p2: {b:'foo', bb:'bar'}})" }).then(callbackEvaluate);
 
 function callbackEvaluate(result)
 {
-  InspectorTest.sendCommand("Runtime.getProperties", { "objectId": result.result.result.objectId, "ownProperties": true }, callbackGetProperties.bind(null, false));
-  InspectorTest.sendCommand("Runtime.getProperties", { "objectId": result.result.result.objectId, "ownProperties": true, "generatePreview": true }, callbackGetProperties.bind(null, true));
+  Protocol.Runtime.getProperties({ "objectId": result.result.result.objectId, "ownProperties": true }).then(callbackGetProperties.bind(null, false));
+  Protocol.Runtime.getProperties({ "objectId": result.result.result.objectId, "ownProperties": true, "generatePreview": true }).then(callbackGetProperties.bind(null, true));
 }
 
 function callbackGetProperties(completeTest, result)

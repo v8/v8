@@ -4,7 +4,7 @@
 
 print("Test that Runtime.getProperties doesn't truncate set and map entries in internalProperties.")
 
-InspectorTest.evaluateInPage(`
+InspectorTest.addScript(`
   function createSet(size) {
     var s = new Set();
     var a = {};
@@ -22,8 +22,8 @@ InspectorTest.evaluateInPage(`
   }
 `);
 
-InspectorTest.sendCommand("Debugger.enable");
-InspectorTest.sendCommand("Runtime.enable");
+Protocol.Debugger.enable();
+Protocol.Runtime.enable();
 
 testExpression("createSet(10)")
   .then(() => testExpression("createSet(1000)"))
@@ -33,8 +33,8 @@ testExpression("createSet(10)")
 
 function testExpression(expression)
 {
-  return InspectorTest.sendCommandPromise("Runtime.evaluate", { "expression": expression})
-           .then(result => InspectorTest.sendCommandPromise("Runtime.getProperties", { ownProperties: true, objectId: result.result.result.objectId }))
+  return Protocol.Runtime.evaluate({ "expression": expression})
+           .then(result => Protocol.Runtime.getProperties({ ownProperties: true, objectId: result.result.result.objectId }))
            .then(message => dumpEntriesDescription(expression, message));
 }
 

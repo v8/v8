@@ -4,11 +4,6 @@
 
 print("Tests that DevTools doesn't crash on Runtime.evaluate with contextId equals 0.");
 
-InspectorTest.sendCommand("Runtime.evaluate", { "contextId": 0, "expression": "" }, evaluateCallback);
-
-function evaluateCallback(result)
-{
-  result.id = 0;
-  InspectorTest.logObject(result);
-  InspectorTest.completeTest();
-}
+Protocol.Runtime.evaluate({ "contextId": 0, "expression": "" })
+  .then(message => InspectorTest.logMessage(message))
+  .then(() => InspectorTest.completeTest());

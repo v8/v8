@@ -4,5 +4,5 @@ Test that Runtime.evaluate correctly process errors during wrapping async result
         code : -32000
         message : Object couldn't be returned by value
     }
-    id : 0
+    id : <messageId>
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function TestFunction()
 {
     var a = 2;
@@ -12,34 +12,33 @@ InspectorTest.evaluateInPage(
 
 var newVariableValue = 55;
 
-InspectorTest.sendCommand("Debugger.enable", {});
+Protocol.Debugger.enable();
 
-InspectorTest.eventHandler["Debugger.paused"] = handleDebuggerPaused;
+Protocol.Debugger.oncePaused().then(handleDebuggerPaused);
 
-InspectorTest.sendCommand("Runtime.evaluate", { "expression": "setTimeout(TestFunction, 0)" });
+Protocol.Runtime.evaluate({ "expression": "setTimeout(TestFunction, 0)" });
 
 function handleDebuggerPaused(messageObject)
 {
   InspectorTest.log("Paused on 'debugger;'");
-  InspectorTest.eventHandler["Debugger.paused"] = undefined;
 
   var topFrame = messageObject.params.callFrames[0];
   var topFrameId = topFrame.callFrameId;
-  InspectorTest.sendCommand("Debugger.evaluateOnCallFrame", { "callFrameId": topFrameId, "expression": "a = " + newVariableValue }, callbackChangeValue);
+  Protocol.Debugger.evaluateOnCallFrame({ "callFrameId": topFrameId, "expression": "a = " + newVariableValue }).then(callbackChangeValue);
 }
 
 function callbackChangeValue(response)
 {
   InspectorTest.log("Variable value changed");
-  InspectorTest.eventHandler["Debugger.paused"] = callbackGetBacktrace;
-  InspectorTest.sendCommand("Debugger.resume", { });
+  Protocol.Debugger.oncePaused().then(callbackGetBacktrace);
+  Protocol.Debugger.resume();
 }
 
 function callbackGetBacktrace(response)
 {
   InspectorTest.log("Stacktrace re-read again");
   var localScope = response.params.callFrames[0].scopeChain[0];
-  InspectorTest.sendCommand("Runtime.getProperties", { "objectId": localScope.object.objectId }, callbackGetProperties);
+  Protocol.Runtime.getProperties({ "objectId": localScope.object.objectId }).then(callbackGetProperties);
 }
 
 function callbackGetProperties(response)

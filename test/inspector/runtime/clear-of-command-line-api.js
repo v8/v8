@@ -4,7 +4,7 @@
 
 print("Tests that CommandLineAPI is presented only while evaluation.");
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `
 var methods = ["dir","dirxml","profile","profileEnd","clear","table","keys","values","debug","undebug","monitor","unmonitor","inspect","copy"];
 var window = this;
@@ -85,10 +85,7 @@ runExpressionAndDumpPresentedMethods("")
 
 function evaluate(expression, includeCommandLineAPI)
 {
-  var cb;
-  var p = new Promise(resolver => cb = resolver);
-  InspectorTest.sendCommandOrDie("Runtime.evaluate", { expression: expression, objectGroup: "console", includeCommandLineAPI: includeCommandLineAPI }, cb);
-  return p;
+  return Protocol.Runtime.evaluate({ expression: expression, objectGroup: "console", includeCommandLineAPI: includeCommandLineAPI });
 }
 
 function setLastEvaluationResultTo239()
@@ -101,7 +98,7 @@ function runExpressionAndDumpPresentedMethods(expression)
   InspectorTest.log(expression);
   return setLastEvaluationResultTo239()
     .then(() => evaluate(expression + "; var a = presentedAPIMethods(); a", true))
-    .then((result) => InspectorTest.logObject(result));
+    .then((result) => InspectorTest.logMessage(result));
 }
 
 function dumpLeftMethods()
@@ -109,12 +106,12 @@ function dumpLeftMethods()
   // Should always be zero.
   return setLastEvaluationResultTo239()
     .then(() => evaluate("presentedAPIMethods()", false))
-    .then((result) => InspectorTest.logObject(result));
+    .then((result) => InspectorTest.logMessage(result));
 }
 
 function dumpDir()
 {
   // Should always be presented.
   return evaluate("dir", false)
-    .then((result) => InspectorTest.logObject(result));
+    .then((result) => InspectorTest.logMessage(result));
 }

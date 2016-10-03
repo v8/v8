@@ -4,7 +4,7 @@
 
 print("setTimeout(console.count, 0) doesn't crash with enabled async stacks.")
 
-InspectorTest.sendCommand("Debugger.enable", {});
-InspectorTest.sendCommand("Debugger.setAsyncCallStackDepth", { maxDepth: 1 });
-InspectorTest.sendCommand("Runtime.evaluate", { expression: "setTimeout(console.count, 0)" });
+Protocol.Debugger.enable();
+Protocol.Debugger.setAsyncCallStackDepth({ maxDepth: 1 });
+Protocol.Runtime.evaluate({ expression: "setTimeout(console.count, 0)" });
 InspectorTest.completeTestAfterPendingTimeouts();

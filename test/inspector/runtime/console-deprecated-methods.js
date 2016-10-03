@@ -4,8 +4,8 @@
 
 print("Tests checks that deprecation messages for console.")
 
-InspectorTest.eventHandler["Runtime.consoleAPICalled"] = messageAdded;
-InspectorTest.sendCommand("Runtime.enable", {});
+Protocol.Runtime.onConsoleAPICalled(messageAdded);
+Protocol.Runtime.enable();
 
 var deprecatedMethods = [
   "console.timeline(\"42\")",
@@ -14,7 +14,7 @@ var deprecatedMethods = [
   "console.timelineEnd(\"42\")",
   "console.markTimeline(\"42\")",
 ];
-InspectorTest.sendCommand("Runtime.evaluate", { expression: deprecatedMethods.join(";") });
+Protocol.Runtime.evaluate({ expression: deprecatedMethods.join(";") });
 
 var messagesLeft = 3;
 function messageAdded(data)

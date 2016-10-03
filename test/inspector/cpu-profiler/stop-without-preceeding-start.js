@@ -4,7 +4,7 @@
 
 print("Test that profiler doesn't crash when we call stop without preceeding start.");
 
-InspectorTest.sendCommand("Profiler.stop", {}, didStopProfile);
+Protocol.Profiler.stop().then(didStopProfile);
 function didStopProfile(messageObject)
 {
   InspectorTest.expectedError("ProfileAgent.stop", messageObject);

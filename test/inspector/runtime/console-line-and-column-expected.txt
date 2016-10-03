@@ -1,29 +1,52 @@
 {
-    stackTrace : {
-        callFrames : [
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
             [0] : {
-                columnNumber : 8
-                functionName : (anonymous)
-                lineNumber : 0
-                scriptId : 0
-                url : (empty)
+                description : 239
+                type : number
+                value : 239
             }
         ]
+        executionContextId : 1
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 8
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
     }
-    type : log
 }
 {
-    stackTrace : {
-        callFrames : [
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
             [0] : {
-                columnNumber : 2
-                functionName : (anonymous)
-                lineNumber : 1
-                scriptId : 0
-                url : (empty)
+                description : 239
+                type : number
+                value : 239
             }
         ]
+        executionContextId : 1
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 2
+                    functionName : 
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
     }
-    type : log
 }
-

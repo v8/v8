@@ -4,41 +4,41 @@
 
 print("Test that profiler is able to record a profile. Also it tests that profiler returns an error when it unable to find the profile.");
 
-InspectorTest.sendCommand("Profiler.enable", {});
-InspectorTest.sendCommand("Profiler.start", {}, didStartFrontendProfile);
+Protocol.Profiler.enable();
+Protocol.Profiler.start().then(didStartFrontendProfile);
 function didStartFrontendProfile(messageObject)
 {
   if (!InspectorTest.expectedSuccess("startFrontendProfile", messageObject))
     return;
-  InspectorTest.sendCommand("Runtime.evaluate", {expression: "console.profile('Profile 1');"}, didStartConsoleProfile);
+  Protocol.Runtime.evaluate({expression: "console.profile('Profile 1');"}).then(didStartConsoleProfile);
 }
 
 function didStartConsoleProfile(messageObject)
 {
   if (!InspectorTest.expectedSuccess("startConsoleProfile", messageObject))
     return;
-  InspectorTest.sendCommand("Runtime.evaluate", {expression: "console.profileEnd('Profile 1');"}, didStopConsoleProfile);
+  Protocol.Runtime.evaluate({expression: "console.profileEnd('Profile 1');"}).then(didStopConsoleProfile);
 }
 
 function didStopConsoleProfile(messageObject)
 {
   if (!InspectorTest.expectedSuccess("stopConsoleProfile", messageObject))
     return;
-  InspectorTest.sendCommand("Profiler.stop", {}, didStopFrontendProfile);
+  Protocol.Profiler.stop().then(didStopFrontendProfile);
 }
 
 function didStopFrontendProfile(messageObject)
 {
   if (!InspectorTest.expectedSuccess("stoppedFrontendProfile", messageObject))
     return;
-  InspectorTest.sendCommand("Profiler.start", {}, didStartFrontendProfile2);
+  Protocol.Profiler.start().then(didStartFrontendProfile2);
 }
 
 function didStartFrontendProfile2(messageObject)
 {
   if (!InspectorTest.expectedSuccess("startFrontendProfileSecondTime", messageObject))
     return;
-  InspectorTest.sendCommand("Profiler.stop", {}, didStopFrontendProfile2);
+  Protocol.Profiler.stop().then(didStopFrontendProfile2);
 }
 
 function didStopFrontendProfile2(messageObject)

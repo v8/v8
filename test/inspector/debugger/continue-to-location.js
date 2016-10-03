@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.evaluateInPage(
+InspectorTest.addScript(
 `function statementsExample()
 {
   var self = arguments.callee;
@@ -33,14 +33,14 @@ var scenario = [
   [ 17, 6, 17 ],
 ];
 
-InspectorTest.sendCommand("Debugger.enable", {});
+Protocol.Debugger.enable();
 
-InspectorTest.sendCommand("Runtime.evaluate", { "expression": "statementsExample" }, callbackEvalFunctionObject);
+Protocol.Runtime.evaluate({ "expression": "statementsExample" }).then(callbackEvalFunctionObject);
 
 function callbackEvalFunctionObject(response)
 {
   var functionObjectId = response.result.result.objectId;
-  InspectorTest.sendCommand("Runtime.getProperties", { objectId: functionObjectId }, callbackFunctionDetails);
+  Protocol.Runtime.getProperties({ objectId: functionObjectId }).then(callbackFunctionDetails);
 }
 
 function callbackFunctionDetails(response)
@@ -65,17 +65,17 @@ function callbackFunctionDetails(response)
 
 function gotoSinglePassChain(scriptId, lineNumber, expectedResult, expectedLineNumber, next)
 {
-  InspectorTest.eventHandler["Debugger.paused"] = handleDebuggerPausedOne;
+  Protocol.Debugger.oncePaused().then(handleDebuggerPausedOne);
 
-  InspectorTest.sendCommand("Runtime.evaluate", { "expression": "setTimeout(statementsExample, 0)" });
+  Protocol.Runtime.evaluate({ "expression": "setTimeout(statementsExample, 0)" });
 
   function handleDebuggerPausedOne(messageObject)
   {
     InspectorTest.log("Paused on debugger statement");
 
-    InspectorTest.eventHandler["Debugger.paused"] = handleDebuggerPausedTwo;
+    Protocol.Debugger.oncePaused().then(handleDebuggerPausedTwo);
 
-    InspectorTest.sendCommand("Debugger.continueToLocation", { location: { scriptId: scriptId, lineNumber: lineNumber, columnNumber: 0} }, logContinueToLocation);
+    Protocol.Debugger.continueToLocation({ location: { scriptId: scriptId, lineNumber: lineNumber, columnNumber: 0} }).then(logContinueToLocation);
 
     function logContinueToLocation(response)
     {
@@ -92,9 +92,9 @@ function gotoSinglePassChain(scriptId, lineNumber, expectedResult, expectedLineN
 
     InspectorTest.log("Stopped on line " + actualLineNumber + ", expected " + expectedLineNumber + ", requested " + lineNumber + ", (0-based numbers).");
 
-    InspectorTest.eventHandler["Debugger.paused"] = handleDebuggerPausedUnexpected;
+    Protocol.Debugger.oncePaused(handleDebuggerPausedUnexpected);
 
-    InspectorTest.sendCommand("Runtime.evaluate", { "expression": "statementsExample.step" }, callbackStepEvaluate);
+    Protocol.Runtime.evaluate({ "expression": "statementsExample.step" }).then(callbackStepEvaluate);
   }
 
   function callbackStepEvaluate(response)
@@ -102,7 +102,7 @@ function gotoSinglePassChain(scriptId, lineNumber, expectedResult, expectedLineN
     var resultValue = response.result.result.value;
     InspectorTest.log("Control parameter 'step' calculation result: " + resultValue + ", expected: " + expectedResult);
     InspectorTest.log(resultValue === expectedResult ? "SUCCESS" : "FAIL");
-    InspectorTest.sendCommand("Debugger.resume", { });
+    Protocol.Debugger.resume();
     next();
   }
 

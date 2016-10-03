@@ -4,7 +4,7 @@
 
 print("Check that while Runtime.getProperties call on proxy object no user defined trap will be executed.");
 
-InspectorTest.evaluateInPage(`
+InspectorTest.addScript(`
 var self = this;
 function testFunction()
 {
@@ -82,20 +82,20 @@ function testFunction()
     return new Proxy({ a : 1}, handler);
 }`);
 
-InspectorTest.sendCommandOrDie("Runtime.evaluate", { expression: "testFunction()"}, requestProperties);
+Protocol.Runtime.evaluate({ expression: "testFunction()"}).then(requestProperties);
 
 function requestProperties(result)
 {
-  InspectorTest.sendCommandOrDie("Runtime.getProperties", { objectId: result.result.objectId, generatePreview: true }, checkCounter);
+  Protocol.Runtime.getProperties({ objectId: result.result.objectId, generatePreview: true }).then(checkCounter);
 }
 
 function checkCounter(result)
 {
-  InspectorTest.sendCommandOrDie("Runtime.evaluate", { expression: "self.counter" }, dumpCounter);
+  Protocol.Runtime.evaluate({ expression: "self.counter" }).then(dumpCounter);
 }
 
 function dumpCounter(result)
 {
-  InspectorTest.logObject(result);
+  InspectorTest.logMessage(result);
   InspectorTest.completeTest();
 }

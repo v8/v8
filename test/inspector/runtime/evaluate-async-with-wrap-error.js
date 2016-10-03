@@ -10,6 +10,6 @@ var evaluateArguments = {
   returnByValue: true,
   awaitPromise: true
 };
-InspectorTest.sendCommandPromise("Runtime.evaluate", evaluateArguments)
+Protocol.Runtime.evaluate(evaluateArguments)
   .then(message => InspectorTest.logMessage(message))
-  .then(_ => InspectorTest.completeTest());
+  .then(() => InspectorTest.completeTest());

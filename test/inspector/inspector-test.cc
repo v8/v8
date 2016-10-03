@@ -157,7 +157,7 @@ class FrontendChannelImpl : public InspectorClientImpl::FrontendChannel {
 
   void SendMessageToFrontend(const v8_inspector::StringView& message) final {
     v8_inspector::String16Builder script;
-    script.append("InspectorTest.dispatchMessage(");
+    script.append("InspectorTest._dispatchMessage(");
     script.append(ToString16(message));
     script.append(")");
     frontend_task_runner_->Append(new ExecuteStringTask(script.toString()));
