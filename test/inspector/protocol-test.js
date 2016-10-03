@@ -156,6 +156,13 @@ InspectorTest.logMessage = function(message)
 
 InspectorTest.completeTest = quit.bind(null);
 
+InspectorTest.completeTestAfterPendingTimeouts = function()
+{
+  InspectorTest.sendCommand("Runtime.evaluate", {
+    expression: "new Promise(resolve => setTimeout(resolve, 0))",
+    awaitPromise: true }, InspectorTest.completeTest);
+}
+
 InspectorTest.evaluateInPage = function(string, callback)
 {
   InspectorTest.sendCommand("Runtime.evaluate", { "expression": string }, function(message) {
