@@ -51,14 +51,14 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       locals_(builder->zone()),
       signature_index_(0),
       exported_(0),
-      func_index_(static_cast<uint32_t>(builder->imports_.size() +
-                                        builder->functions_.size())),
+      func_index_(static_cast<uint32_t>(builder->functions_.size())),
       body_(builder->zone()),
       name_(builder->zone()),
       i32_temps_(builder->zone()),
       i64_temps_(builder->zone()),
       f32_temps_(builder->zone()),
-      f64_temps_(builder->zone()) {}
+      f64_temps_(builder->zone()),
+      direct_calls_(builder->zone()) {}
 
 void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
   byte buffer[8];
@@ -130,6 +130,15 @@ void WasmFunctionBuilder::EmitI32Const(int32_t value) {
   }
 }
 
+void WasmFunctionBuilder::EmitDirectCallIndex(uint32_t index) {
+  DirectCallIndex call;
+  call.offset = body_.size();
+  call.direct_index = index;
+  direct_calls_.push_back(call);
+  byte code[] = {U32V_5(0)};
+  EmitCode(code, sizeof(code));
+}
+
 void WasmFunctionBuilder::SetExported() { exported_ = true; }
 
 void WasmFunctionBuilder::SetName(const char* name, int name_length) {
@@ -152,7 +161,8 @@ void WasmFunctionBuilder::WriteExport(ZoneBuffer& buffer) const {
       buffer.write(reinterpret_cast<const byte*>(&name_[0]), name_.size());
     }
     buffer.write_u8(kExternalFunction);
-    buffer.write_u32v(func_index_);
+    buffer.write_u32v(func_index_ +
+                      static_cast<uint32_t>(builder_->imports_.size()));
   }
 }
 
@@ -164,7 +174,13 @@ void WasmFunctionBuilder::WriteBody(ZoneBuffer& buffer) const {
   locals_.Emit(*ptr);
   (*ptr) += locals_size;  // UGLY: manual bump of position pointer
   if (body_.size() > 0) {
+    size_t base = buffer.offset();
     buffer.write(&body_[0], body_.size());
+    for (DirectCallIndex call : direct_calls_) {
+      buffer.patch_u32v(
+          base + call.offset,
+          call.direct_index + static_cast<uint32_t>(builder_->imports_.size()));
+    }
   }
 }
 
@@ -230,7 +246,6 @@ void WasmModuleBuilder::AddIndirectFunction(uint32_t index) {
 
 uint32_t WasmModuleBuilder::AddImport(const char* name, int name_length,
                                       FunctionSig* sig) {
-  DCHECK_EQ(0, functions_.size());  // imports must be added before functions!
   imports_.push_back({AddSignature(sig), name, name_length});
   return static_cast<uint32_t>(imports_.size() - 1);
 }
@@ -369,7 +384,8 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   // == emit start function index ==============================================
   if (start_function_index_ >= 0) {
     size_t start = EmitSection(kStartSectionCode, buffer);
-    buffer.write_u32v(start_function_index_);
+    buffer.write_u32v(start_function_index_ +
+                      static_cast<uint32_t>(imports_.size()));
     FixupSection(buffer, start);
   }
 
@@ -384,7 +400,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(indirect_functions_.size());  // element count
 
     for (auto index : indirect_functions_) {
-      buffer.write_u32v(index);
+      buffer.write_u32v(index + static_cast<uint32_t>(imports_.size()));
     }
 
     FixupSection(buffer, start);

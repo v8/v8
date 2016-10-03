@@ -108,20 +108,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     return ret;
   }
 
-  void BuildImports() {
-    for (const AsmTyper::FFIUseSignature& ffi : typer_->FFIUseSignatures()) {
-      size_t ret_count = ffi.return_type_ == AsmType::Void() ? 0 : 1;
-      FunctionSig::Builder b(zone_, ret_count, ffi.arg_types_.size());
-      for (AsmType* arg : ffi.arg_types_) b.AddParam(TypeFrom(arg));
-      if (ffi.return_type_ != AsmType::Void()) {
-        b.AddReturn(TypeFrom(ffi.return_type_));
-      }
-      imported_function_table_.AddFunction(ffi.var, b.Build());
-    }
-  }
-
   void Build() {
-    BuildImports();
     InitializeInitFunction();
     RECURSE(VisitFunctionLiteral(literal_));
     BuildForeignInitFunction();
@@ -733,11 +720,12 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
    private:
     class ImportedFunctionIndices : public ZoneObject {
      public:
-      bool has_name_;
+      const char* name_;
+      int name_length_;
       WasmModuleBuilder::SignatureMap signature_to_index_;
 
-      explicit ImportedFunctionIndices(Zone* zone)
-          : has_name_(false), signature_to_index_(zone) {}
+      ImportedFunctionIndices(const char* name, int name_length, Zone* zone)
+          : name_(name), name_length_(name_length), signature_to_index_(zone) {}
     };
     ZoneHashMap table_;
     AsmWasmBuilderImpl* builder_;
@@ -748,50 +736,30 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
                  ZoneAllocationPolicy(builder->zone())),
           builder_(builder) {}
 
-    // Set the imported name of a variable. Must happen after all signatures
-    // (and thus import indices) are added for a given variable.
-    void SetImportName(Variable* v, const char* name, int name_length) {
-      auto indices = GetEntry(v);
-      if (indices) {
-        for (auto entry : indices->signature_to_index_) {
-          uint32_t index = entry.second;
-          builder_->builder_->SetImportName(index, name, name_length);
-        }
-        indices->has_name_ = true;
-      }
-    }
-
-    // Get a function's index. Does not insert new entries.
-    uint32_t GetFunctionIndex(Variable* v, FunctionSig* sig) {
-      auto indices = GetEntry(v);
-      DCHECK_NOT_NULL(indices);
-      auto pos = indices->signature_to_index_.find(sig);
-      DCHECK(pos != indices->signature_to_index_.end());
-      return pos->second;
-    }
-
-    // Add a function and register it as an import with the builder.
-    void AddFunction(Variable* v, FunctionSig* sig) {
-      auto entry = table_.LookupOrInsert(
+    void AddImport(Variable* v, const char* name, int name_length) {
+      ImportedFunctionIndices* indices = new (builder_->zone())
+          ImportedFunctionIndices(name, name_length, builder_->zone());
+      auto* entry = table_.LookupOrInsert(
           v, ComputePointerHash(v), ZoneAllocationPolicy(builder_->zone()));
-      if (entry->value == nullptr) {
-        entry->value =
-            new (builder_->zone()) ImportedFunctionIndices(builder_->zone());
-      }
-      auto indices = reinterpret_cast<ImportedFunctionIndices*>(entry->value);
-      DCHECK(!indices->has_name_);
-      auto pos = indices->signature_to_index_.find(sig);
-      if (pos == indices->signature_to_index_.end()) {
-        // A new import. Name is not known up front.
-        uint32_t index = builder_->builder_->AddImport(nullptr, 0, sig);
-        indices->signature_to_index_[sig] = index;
-      }
+      entry->value = indices;
     }
 
-    ImportedFunctionIndices* GetEntry(Variable* v) {
-      auto entry = table_.Lookup(v, ComputePointerHash(v));
-      if (entry == nullptr) return nullptr;
-      return reinterpret_cast<ImportedFunctionIndices*>(entry->value);
+    // Get a function's index (or allocate if new).
+    uint32_t LookupOrInsertImport(Variable* v, FunctionSig* sig) {
+      ZoneHashMap::Entry* entry = table_.Lookup(v, ComputePointerHash(v));
+      DCHECK_NOT_NULL(entry);
+      ImportedFunctionIndices* indices =
+          reinterpret_cast<ImportedFunctionIndices*>(entry->value);
+      WasmModuleBuilder::SignatureMap::iterator pos =
+          indices->signature_to_index_.find(sig);
+      if (pos != indices->signature_to_index_.end()) {
+        return pos->second;
+      } else {
+        uint32_t index = builder_->builder_->AddImport(
+            indices->name_, indices->name_length_, sig);
+        indices->signature_to_index_[sig] = index;
+        return index;
+      }
     }
   };
 
@@ -942,7 +910,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           if (typer_->TypeOf(target)->AsFFIType() != nullptr) {
             const AstRawString* name =
                 prop->key()->AsLiteral()->AsRawPropertyName();
-            imported_function_table_.SetImportName(
+            imported_function_table_.AddImport(
                 target->var(), reinterpret_cast<const char*>(name->raw_data()),
                 name->length());
           }
@@ -1393,8 +1361,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           for (int i = 0; i < args->length(); ++i) {
             sig.AddParam(TypeOf(args->at(i)));
           }
-          uint32_t index =
-              imported_function_table_.GetFunctionIndex(vp->var(), sig.Build());
+          uint32_t index = imported_function_table_.LookupOrInsertImport(
+              vp->var(), sig.Build());
           VisitCallArgs(expr);
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitVarInt(index);
@@ -1402,7 +1370,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           WasmFunctionBuilder* function = LookupOrInsertFunction(vp->var());
           VisitCallArgs(expr);
           current_function_builder_->Emit(kExprCallFunction);
-          current_function_builder_->EmitVarInt(function->func_index());
+          current_function_builder_->EmitDirectCallIndex(
+              function->func_index());
           returns_value = function->signature()->return_count() > 0;
         }
         break;

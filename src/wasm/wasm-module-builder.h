@@ -126,6 +126,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitWithU8(WasmOpcode opcode, const byte immediate);
   void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
   void EmitWithVarInt(WasmOpcode opcode, uint32_t immediate);
+  void EmitDirectCallIndex(uint32_t index);
   void SetExported();
   void SetName(const char* name, int name_length);
 
@@ -141,6 +142,12 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
   friend class WasmModuleBuilder;
   friend class WasmTemporary;
+
+  struct DirectCallIndex {
+    size_t offset;
+    uint32_t direct_index;
+  };
+
   WasmModuleBuilder* builder_;
   LocalDeclEncoder locals_;
   uint32_t signature_index_;
@@ -152,6 +159,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   ZoneVector<uint32_t> i64_temps_;
   ZoneVector<uint32_t> f32_temps_;
   ZoneVector<uint32_t> f64_temps_;
+  ZoneVector<DirectCallIndex> direct_calls_;
 };
 
 class WasmTemporary {
