@@ -133,6 +133,27 @@ InspectorTest.logObject = function(object, title)
   InspectorTest.log(lines.join("\n"));
 }
 
+InspectorTest.logMessage = function(message)
+{
+  if (message.id)
+    message.id = 0;
+
+  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId"]);
+  var objects = [ message ];
+  while (objects.length) {
+    var object = objects.shift();
+    for (var key in object) {
+      if (nonStableFields.has(key))
+        object[key] = `<${key}>`;
+      else if (typeof object[key] === "object")
+        objects.push(object[key]);
+    }
+  }
+
+  InspectorTest.logObject(message);
+  return message;
+}
+
 InspectorTest.completeTest = quit.bind(null);
 
 InspectorTest.evaluateInPage = function(string, callback)
