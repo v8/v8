@@ -321,7 +321,6 @@ struct ModuleEnv {
                                                          FunctionSig* sig);
   static compiler::CallDescriptor* GetI32WasmCallDescriptor(
       Zone* zone, compiler::CallDescriptor* descriptor);
-  compiler::CallDescriptor* GetCallDescriptor(Zone* zone, uint32_t index);
 };
 
 // A helper for printing out the names of functions.
@@ -510,10 +509,8 @@ uint32_t GetNumImportedFunctions(Handle<JSObject> wasm_object);
 
 // Assumed to be called with a code object associated to a wasm module instance.
 // Intended to be called from runtime functions.
-// Returns undefined if the runtime support was not setup, nullptr if the
-// instance
-// was collected, or the instance object owning the Code object
-Object* GetOwningWasmInstance(Object* undefined, Code* code);
+// Returns nullptr on failing to get owning instance.
+Object* GetOwningWasmInstance(Code* code);
 
 MaybeHandle<JSArrayBuffer> GetInstanceMemory(Isolate* isolate,
                                              Handle<JSObject> instance);

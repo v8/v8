@@ -28,38 +28,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-const char* SectionName(WasmSectionCode code) {
-  switch (code) {
-    case kUnknownSectionCode:
-      return "Unknown";
-    case kTypeSectionCode:
-      return "Type";
-    case kImportSectionCode:
-      return "Import";
-    case kFunctionSectionCode:
-      return "Function";
-    case kTableSectionCode:
-      return "Table";
-    case kMemorySectionCode:
-      return "Memory";
-    case kGlobalSectionCode:
-      return "Global";
-    case kExportSectionCode:
-      return "Export";
-    case kStartSectionCode:
-      return "Start";
-    case kCodeSectionCode:
-      return "Code";
-    case kElementSectionCode:
-      return "Element";
-    case kDataSectionCode:
-      return "Data";
-    case kNameSectionCode:
-      return "Name";
-    default:
-      return "<unknown>";
-  }
-}
+namespace {
+
+static const int kPlaceholderMarker = 1000000000;
 
 enum JSFunctionExportInternalField {
   kInternalModuleInstance,
@@ -67,77 +38,6 @@ enum JSFunctionExportInternalField {
   kInternalSignature
 };
 
-static const int kPlaceholderMarker = 1000000000;
-
-std::ostream& operator<<(std::ostream& os, const WasmModule& module) {
-  os << "WASM module with ";
-  os << (module.min_mem_pages * module.kPageSize) << " min mem";
-  os << (module.max_mem_pages * module.kPageSize) << " max mem";
-  os << module.functions.size() << " functions";
-  os << module.functions.size() << " globals";
-  os << module.functions.size() << " data segments";
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const WasmFunction& function) {
-  os << "WASM function with signature " << *function.sig;
-
-  os << " code bytes: "
-     << (function.code_end_offset - function.code_start_offset);
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const WasmFunctionName& pair) {
-  os << "#" << pair.function_->func_index << ":";
-  if (pair.function_->name_offset > 0) {
-    if (pair.module_) {
-      WasmName name = pair.module_->GetName(pair.function_->name_offset,
-                                            pair.function_->name_length);
-      os.write(name.start(), name.length());
-    } else {
-      os << "+" << pair.function_->func_index;
-    }
-  } else {
-    os << "?";
-  }
-  return os;
-}
-
-Handle<JSFunction> WrapExportCodeAsJSFunction(
-    Isolate* isolate, Handle<Code> export_code, Handle<String> name, int arity,
-    MaybeHandle<ByteArray> maybe_signature, Handle<JSObject> module_instance) {
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfo(name, export_code, false);
-  shared->set_length(arity);
-  shared->set_internal_formal_parameter_count(arity);
-  Handle<JSFunction> function = isolate->factory()->NewFunction(
-      isolate->wasm_function_map(), name, export_code);
-  function->set_shared(*shared);
-
-  function->SetInternalField(kInternalModuleInstance, *module_instance);
-  // add another Internal Field as the function arity
-  function->SetInternalField(kInternalArity, Smi::FromInt(arity));
-  // add another Internal Field as the signature of the foreign function
-  Handle<ByteArray> signature;
-  if (maybe_signature.ToHandle(&signature)) {
-    function->SetInternalField(kInternalSignature, *signature);
-  }
-  return function;
-}
-
-Object* GetOwningWasmInstance(Object* undefined, Code* code) {
-  DCHECK(code->kind() == Code::WASM_FUNCTION);
-  DisallowHeapAllocation no_gc;
-  FixedArray* deopt_data = code->deoptimization_data();
-  DCHECK_NOT_NULL(deopt_data);
-  DCHECK(deopt_data->length() == 2);
-  Object* weak_link = deopt_data->get(0);
-  if (weak_link == undefined) return undefined;
-  WeakCell* cell = WeakCell::cast(weak_link);
-  return cell->value();
-}
-
-namespace {
 // Internal constants for the layout of the module object.
 enum WasmInstanceObjectFields {
   kWasmCompiledModule = 0,
@@ -381,93 +281,7 @@ void FlushICache(Isolate* isolate, Handle<FixedArray> functions) {
                            code->instruction_size());
   }
 }
-}  // namespace
 
-uint32_t GetNumImportedFunctions(Handle<JSObject> wasm_object) {
-  return static_cast<uint32_t>(
-      Smi::cast(wasm_object->GetInternalField(kWasmNumImportedFunctions))
-          ->value());
-}
-
-WasmModule::WasmModule(byte* module_start)
-    : module_start(module_start),
-      module_end(nullptr),
-      min_mem_pages(0),
-      max_mem_pages(0),
-      mem_export(false),
-      start_function_index(-1),
-      origin(kWasmOrigin),
-      globals_size(0),
-      num_imported_functions(0),
-      num_declared_functions(0),
-      num_exported_functions(0),
-      pending_tasks(new base::Semaphore(0)) {}
-
-static MaybeHandle<JSFunction> ReportFFIError(
-    ErrorThrower* thrower, const char* error, uint32_t index,
-    Handle<String> module_name, MaybeHandle<String> function_name) {
-  Handle<String> function_name_handle;
-  if (function_name.ToHandle(&function_name_handle)) {
-    thrower->Error("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",
-                   index, module_name->length(), module_name->ToCString().get(),
-                   function_name_handle->length(),
-                   function_name_handle->ToCString().get(), error);
-  } else {
-    thrower->Error("Import #%d module=\"%.*s\" error: %s", index,
-                   module_name->length(), module_name->ToCString().get(),
-                   error);
-  }
-  thrower->Error("Import ");
-  return MaybeHandle<JSFunction>();
-}
-
-static MaybeHandle<JSReceiver> LookupFunction(
-    ErrorThrower* thrower, Factory* factory, Handle<JSReceiver> ffi,
-    uint32_t index, Handle<String> module_name,
-    MaybeHandle<String> function_name) {
-  if (ffi.is_null()) {
-    return ReportFFIError(thrower, "FFI is not an object", index, module_name,
-                          function_name);
-  }
-
-  // Look up the module first.
-  MaybeHandle<Object> result = Object::GetProperty(ffi, module_name);
-  if (result.is_null()) {
-    return ReportFFIError(thrower, "module not found", index, module_name,
-                          function_name);
-  }
-
-  Handle<Object> module = result.ToHandleChecked();
-
-  if (!module->IsJSReceiver()) {
-    return ReportFFIError(thrower, "module is not an object or function", index,
-                          module_name, function_name);
-  }
-
-  Handle<Object> function;
-  if (!function_name.is_null()) {
-    // Look up the function in the module.
-    MaybeHandle<Object> result =
-        Object::GetProperty(module, function_name.ToHandleChecked());
-    if (result.is_null()) {
-      return ReportFFIError(thrower, "function not found", index, module_name,
-                            function_name);
-    }
-    function = result.ToHandleChecked();
-  } else {
-    // No function specified. Use the "default export".
-    function = module;
-  }
-
-  if (!function->IsCallable()) {
-    return ReportFFIError(thrower, "not a callable", index, module_name,
-                          function_name);
-  }
-
-  return Handle<JSReceiver>::cast(function);
-}
-
-namespace {
 // Fetches the compilation unit of a wasm function and executes its parallel
 // phase.
 bool FetchAndExecuteCompilationUnit(
@@ -586,6 +400,70 @@ Handle<FixedArray> GetImportsData(Factory* factory, const WasmModule* module) {
     ret->set(static_cast<int>(i), *encoded_import);
   }
   return ret;
+}
+
+static MaybeHandle<JSFunction> ReportFFIError(
+    ErrorThrower* thrower, const char* error, uint32_t index,
+    Handle<String> module_name, MaybeHandle<String> function_name) {
+  Handle<String> function_name_handle;
+  if (function_name.ToHandle(&function_name_handle)) {
+    thrower->Error("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",
+                   index, module_name->length(), module_name->ToCString().get(),
+                   function_name_handle->length(),
+                   function_name_handle->ToCString().get(), error);
+  } else {
+    thrower->Error("Import #%d module=\"%.*s\" error: %s", index,
+                   module_name->length(), module_name->ToCString().get(),
+                   error);
+  }
+  thrower->Error("Import ");
+  return MaybeHandle<JSFunction>();
+}
+
+static MaybeHandle<JSReceiver> LookupFunction(
+    ErrorThrower* thrower, Factory* factory, Handle<JSReceiver> ffi,
+    uint32_t index, Handle<String> module_name,
+    MaybeHandle<String> function_name) {
+  if (ffi.is_null()) {
+    return ReportFFIError(thrower, "FFI is not an object", index, module_name,
+                          function_name);
+  }
+
+  // Look up the module first.
+  MaybeHandle<Object> result = Object::GetProperty(ffi, module_name);
+  if (result.is_null()) {
+    return ReportFFIError(thrower, "module not found", index, module_name,
+                          function_name);
+  }
+
+  Handle<Object> module = result.ToHandleChecked();
+
+  if (!module->IsJSReceiver()) {
+    return ReportFFIError(thrower, "module is not an object or function", index,
+                          module_name, function_name);
+  }
+
+  Handle<Object> function;
+  if (!function_name.is_null()) {
+    // Look up the function in the module.
+    MaybeHandle<Object> result =
+        Object::GetProperty(module, function_name.ToHandleChecked());
+    if (result.is_null()) {
+      return ReportFFIError(thrower, "function not found", index, module_name,
+                            function_name);
+    }
+    function = result.ToHandleChecked();
+  } else {
+    // No function specified. Use the "default export".
+    function = module;
+  }
+
+  if (!function->IsCallable()) {
+    return ReportFFIError(thrower, "not a callable", index, module_name,
+                          function_name);
+  }
+
+  return Handle<JSReceiver>::cast(function);
 }
 
 Handle<Code> CompileImportWrapper(Isolate* isolate,
@@ -956,7 +834,158 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
 }
 
+Handle<FixedArray> SetupIndirectFunctionTable(
+    Isolate* isolate, Handle<FixedArray> wasm_functions,
+    Handle<FixedArray> indirect_table_template,
+    Handle<FixedArray> tables_to_replace) {
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> cloned_indirect_tables =
+      factory->CopyFixedArray(indirect_table_template);
+  for (int i = 0; i < cloned_indirect_tables->length(); ++i) {
+    Handle<FixedArray> orig_metadata =
+        cloned_indirect_tables->GetValueChecked<FixedArray>(isolate, i);
+    Handle<FixedArray> cloned_metadata = factory->CopyFixedArray(orig_metadata);
+    cloned_indirect_tables->set(i, *cloned_metadata);
+
+    Handle<FixedArray> orig_table =
+        cloned_metadata->GetValueChecked<FixedArray>(isolate, kTable);
+    Handle<FixedArray> cloned_table = factory->CopyFixedArray(orig_table);
+    cloned_metadata->set(kTable, *cloned_table);
+    // Patch the cloned code to refer to the cloned kTable.
+    Handle<FixedArray> table_to_replace =
+        tables_to_replace->GetValueChecked<FixedArray>(isolate, i)
+            ->GetValueChecked<FixedArray>(isolate, kTable);
+    for (int fct_index = 0; fct_index < wasm_functions->length(); ++fct_index) {
+      Handle<Code> wasm_function =
+          wasm_functions->GetValueChecked<Code>(isolate, fct_index);
+      PatchFunctionTable(wasm_function, table_to_replace, cloned_table);
+    }
+  }
+  return cloned_indirect_tables;
+}
+
 }  // namespace
+
+const char* SectionName(WasmSectionCode code) {
+  switch (code) {
+    case kUnknownSectionCode:
+      return "Unknown";
+    case kTypeSectionCode:
+      return "Type";
+    case kImportSectionCode:
+      return "Import";
+    case kFunctionSectionCode:
+      return "Function";
+    case kTableSectionCode:
+      return "Table";
+    case kMemorySectionCode:
+      return "Memory";
+    case kGlobalSectionCode:
+      return "Global";
+    case kExportSectionCode:
+      return "Export";
+    case kStartSectionCode:
+      return "Start";
+    case kCodeSectionCode:
+      return "Code";
+    case kElementSectionCode:
+      return "Element";
+    case kDataSectionCode:
+      return "Data";
+    case kNameSectionCode:
+      return "Name";
+    default:
+      return "<unknown>";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, const WasmModule& module) {
+  os << "WASM module with ";
+  os << (module.min_mem_pages * module.kPageSize) << " min mem";
+  os << (module.max_mem_pages * module.kPageSize) << " max mem";
+  os << module.functions.size() << " functions";
+  os << module.functions.size() << " globals";
+  os << module.functions.size() << " data segments";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const WasmFunction& function) {
+  os << "WASM function with signature " << *function.sig;
+
+  os << " code bytes: "
+     << (function.code_end_offset - function.code_start_offset);
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const WasmFunctionName& pair) {
+  os << "#" << pair.function_->func_index << ":";
+  if (pair.function_->name_offset > 0) {
+    if (pair.module_) {
+      WasmName name = pair.module_->GetName(pair.function_->name_offset,
+                                            pair.function_->name_length);
+      os.write(name.start(), name.length());
+    } else {
+      os << "+" << pair.function_->func_index;
+    }
+  } else {
+    os << "?";
+  }
+  return os;
+}
+
+Handle<JSFunction> WrapExportCodeAsJSFunction(
+    Isolate* isolate, Handle<Code> export_code, Handle<String> name, int arity,
+    MaybeHandle<ByteArray> maybe_signature, Handle<JSObject> module_instance) {
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfo(name, export_code, false);
+  shared->set_length(arity);
+  shared->set_internal_formal_parameter_count(arity);
+  Handle<JSFunction> function = isolate->factory()->NewFunction(
+      isolate->wasm_function_map(), name, export_code);
+  function->set_shared(*shared);
+
+  function->SetInternalField(kInternalModuleInstance, *module_instance);
+  // add another Internal Field as the function arity
+  function->SetInternalField(kInternalArity, Smi::FromInt(arity));
+  // add another Internal Field as the signature of the foreign function
+  Handle<ByteArray> signature;
+  if (maybe_signature.ToHandle(&signature)) {
+    function->SetInternalField(kInternalSignature, *signature);
+  }
+  return function;
+}
+
+Object* GetOwningWasmInstance(Code* code) {
+  DCHECK(code->kind() == Code::WASM_FUNCTION);
+  DisallowHeapAllocation no_gc;
+  FixedArray* deopt_data = code->deoptimization_data();
+  DCHECK_NOT_NULL(deopt_data);
+  DCHECK(deopt_data->length() == 2);
+  Object* weak_link = deopt_data->get(0);
+  if (!weak_link->IsWeakCell()) return nullptr;
+  WeakCell* cell = WeakCell::cast(weak_link);
+  return cell->value();
+}
+
+uint32_t GetNumImportedFunctions(Handle<JSObject> wasm_object) {
+  return static_cast<uint32_t>(
+      Smi::cast(wasm_object->GetInternalField(kWasmNumImportedFunctions))
+          ->value());
+}
+
+WasmModule::WasmModule(byte* module_start)
+    : module_start(module_start),
+      module_end(nullptr),
+      min_mem_pages(0),
+      max_mem_pages(0),
+      mem_export(false),
+      start_function_index(-1),
+      origin(kWasmOrigin),
+      globals_size(0),
+      num_imported_functions(0),
+      num_declared_functions(0),
+      num_exported_functions(0),
+      pending_tasks(new base::Semaphore(0)) {}
 
 MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
     Isolate* isolate, ErrorThrower* thrower) const {
@@ -1131,55 +1160,6 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   if (data_segments.size() > 0) SaveDataSegmentInfo(factory, this, ret);
   DCHECK_EQ(ret->default_mem_size(), temp_instance.mem_size);
   return ret;
-}
-
-void PatchJSWrapper(Isolate* isolate, Handle<Code> wrapper,
-                    Handle<Code> new_target) {
-  AllowDeferredHandleDereference embedding_raw_address;
-  bool seen = false;
-  for (RelocIterator it(*wrapper, 1 << RelocInfo::CODE_TARGET); !it.done();
-       it.next()) {
-    Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-    if (target->kind() == Code::WASM_FUNCTION) {
-      DCHECK(!seen);
-      seen = true;
-      it.rinfo()->set_target_address(new_target->instruction_start(),
-                                     UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-    }
-  }
-  CHECK(seen);
-  Assembler::FlushICache(isolate, wrapper->instruction_start(),
-                         wrapper->instruction_size());
-}
-
-Handle<FixedArray> SetupIndirectFunctionTable(
-    Isolate* isolate, Handle<FixedArray> wasm_functions,
-    Handle<FixedArray> indirect_table_template,
-    Handle<FixedArray> tables_to_replace) {
-  Factory* factory = isolate->factory();
-  Handle<FixedArray> cloned_indirect_tables =
-      factory->CopyFixedArray(indirect_table_template);
-  for (int i = 0; i < cloned_indirect_tables->length(); ++i) {
-    Handle<FixedArray> orig_metadata =
-        cloned_indirect_tables->GetValueChecked<FixedArray>(isolate, i);
-    Handle<FixedArray> cloned_metadata = factory->CopyFixedArray(orig_metadata);
-    cloned_indirect_tables->set(i, *cloned_metadata);
-
-    Handle<FixedArray> orig_table =
-        cloned_metadata->GetValueChecked<FixedArray>(isolate, kTable);
-    Handle<FixedArray> cloned_table = factory->CopyFixedArray(orig_table);
-    cloned_metadata->set(kTable, *cloned_table);
-    // Patch the cloned code to refer to the cloned kTable.
-    Handle<FixedArray> table_to_replace =
-        tables_to_replace->GetValueChecked<FixedArray>(isolate, i)
-            ->GetValueChecked<FixedArray>(isolate, kTable);
-    for (int fct_index = 0; fct_index < wasm_functions->length(); ++fct_index) {
-      Handle<Code> wasm_function =
-          wasm_functions->GetValueChecked<Code>(isolate, fct_index);
-      PatchFunctionTable(wasm_function, table_to_replace, cloned_table);
-    }
-  }
-  return cloned_indirect_tables;
 }
 
 // Instantiates a WASM module, creating a WebAssembly.Instance from a
@@ -1554,15 +1534,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
   ret->set(kID_export_memory, Smi::FromInt(static_cast<int>(export_memory)));
   ret->set(kID_origin, Smi::FromInt(static_cast<int>(origin)));
   return handle(WasmCompiledModule::cast(*ret));
-}
-
-compiler::CallDescriptor* ModuleEnv::GetCallDescriptor(Zone* zone,
-                                                       uint32_t index) {
-  DCHECK(IsValidFunction(index));
-  // Always make a direct call to whatever is in the table at that location.
-  // A wrapper will be generated for FFI calls.
-  const WasmFunction* function = &module->functions[index];
-  return GetWasmCallDescriptor(zone, function->sig);
 }
 
 Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
