@@ -107,7 +107,7 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   Handle<Object> the_hole_value() const { return the_hole_value_; }
 
   ConstantArraySlice* idx_slice_[3];
-  base::TemplateHashMapImpl<Address, index_t, std::equal_to<Address>,
+  base::TemplateHashMapImpl<Address, index_t, base::KeyEqualityMatcher<Address>,
                             ZoneAllocationPolicy>
       constants_map_;
   ZoneMap<Smi*, index_t> smi_map_;
