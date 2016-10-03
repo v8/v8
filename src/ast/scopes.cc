@@ -1743,6 +1743,7 @@ void DeclarationScope::AllocateParameterLocals() {
     DCHECK(!has_rest_ || var != rest_parameter());
     DCHECK_EQ(this, var->scope());
     if (uses_sloppy_arguments) {
+      var->set_is_used();
       var->ForceContextAllocation();
     }
     AllocateParameter(var, i);
