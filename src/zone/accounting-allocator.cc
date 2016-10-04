@@ -29,6 +29,7 @@ Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
 void AccountingAllocator::FreeSegment(Segment* memory) {
   base::NoBarrier_AtomicIncrement(
       &current_memory_usage_, -static_cast<base::AtomicWord>(memory->size()));
+  memory->ZapHeader();
   free(memory);
 }
 

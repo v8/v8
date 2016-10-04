@@ -92,11 +92,6 @@ void* Zone::New(size_t size) {
 }
 
 void Zone::DeleteAll() {
-#ifdef DEBUG
-  // Constant byte value used for zapping dead memory in debug mode.
-  static const unsigned char kZapDeadByte = 0xcd;
-#endif
-
   // Find a segment with a suitable size to keep around.
   Segment* keep = nullptr;
   // Traverse the chained list of segments, zapping (in debug mode)
@@ -112,9 +107,8 @@ void Zone::DeleteAll() {
 #ifdef DEBUG
       // Un-poison first so the zapping doesn't trigger ASan complaints.
       ASAN_UNPOISON_MEMORY_REGION(current, size);
-      // Zap the entire current segment (including the header).
-      memset(current, kZapDeadByte, size);
 #endif
+      current->ZapContents();
       segment_bytes_allocated_ -= size;
       allocator_->FreeSegment(current);
     }
@@ -131,10 +125,7 @@ void Zone::DeleteAll() {
     limit_ = keep->end();
     // Un-poison so we can re-use the segment later.
     ASAN_UNPOISON_MEMORY_REGION(start, keep->capacity());
-#ifdef DEBUG
-    // Zap the contents of the kept segment (but not the header).
-    memset(start, kZapDeadByte, keep->capacity());
-#endif
+    keep->ZapContents();
   } else {
     position_ = limit_ = 0;
   }
@@ -145,20 +136,14 @@ void Zone::DeleteAll() {
 }
 
 void Zone::DeleteKeptSegment() {
-#ifdef DEBUG
-  // Constant byte value used for zapping dead memory in debug mode.
-  static const unsigned char kZapDeadByte = 0xcd;
-#endif
-
   DCHECK(segment_head_ == nullptr || segment_head_->next() == nullptr);
   if (segment_head_ != nullptr) {
     size_t size = segment_head_->size();
 #ifdef DEBUG
     // Un-poison first so the zapping doesn't trigger ASan complaints.
     ASAN_UNPOISON_MEMORY_REGION(segment_head_, size);
-    // Zap the entire kept segment (including the header).
-    memset(segment_head_, kZapDeadByte, size);
 #endif
+    segment_head_->ZapContents();
     segment_bytes_allocated_ -= size;
     allocator_->FreeSegment(segment_head_);
     segment_head_ = nullptr;

@@ -1273,6 +1273,7 @@
         'wasm/wasm-result.h',
         'zone/accounting-allocator.cc',
         'zone/accounting-allocator.h',
+        'zone/zone-segment.cc',
         'zone/zone-segment.h',
         'zone/zone.cc',
         'zone/zone.h',
