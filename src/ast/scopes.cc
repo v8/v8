@@ -1214,8 +1214,8 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   DCHECK(is_function_scope());
 
   // Reset all non-trivial members.
-  decls_.Clear();
-  locals_.Clear();
+  decls_.Rewind(0);
+  locals_.Rewind(0);
   sloppy_block_function_map_.Clear();
   variables_.Clear();
   // Make sure we won't walk the scope tree from here on.
@@ -1239,7 +1239,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
       }
     }
   } else {
-    params_.Clear();
+    params_.Rewind(0);
   }
 
 #ifdef DEBUG
