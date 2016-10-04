@@ -3,7 +3,6 @@
 #
 
 ---
-execute: yes
 wrap: no
 test function name: test
 

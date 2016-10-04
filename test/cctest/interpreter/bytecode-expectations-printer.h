@@ -28,16 +28,12 @@ class BytecodeExpectationsPrinter final {
  public:
   explicit BytecodeExpectationsPrinter(v8::Isolate* i)
       : isolate_(i),
-        execute_(true),
         wrap_(true),
         top_level_(false),
         test_function_name_(kDefaultTopFunctionName) {}
 
   void PrintExpectation(std::ostream& stream,  // NOLINT
                         const std::string& snippet) const;
-
-  void set_execute(bool execute) { execute_ = execute; }
-  bool execute() const { return execute_; }
 
   void set_wrap(bool wrap) { wrap_ = wrap; }
   bool wrap() const { return wrap_; }
@@ -96,7 +92,6 @@ class BytecodeExpectationsPrinter final {
   }
 
   v8::Isolate* isolate_;
-  bool execute_;
   bool wrap_;
   bool top_level_;
   std::string test_function_name_;

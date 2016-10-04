@@ -709,7 +709,6 @@ TEST(DeclareGlobals) {
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
   printer.set_test_function_name("f");
-  printer.set_execute(false);
   printer.set_top_level(true);
 
   const char* snippets[] = {
@@ -1203,7 +1202,6 @@ TEST(TopLevelObjectLiterals) {
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
   printer.set_test_function_name("f");
-  printer.set_execute(false);
   printer.set_top_level(true);
 
   const char* snippets[] = {

@@ -328,11 +328,13 @@ void BytecodeExpectationsPrinter::PrintExpectation(
 
   v8::Local<v8::Script> script = Compile(source_code.c_str());
 
-  if (execute_) Run(script);
-
-  i::Handle<i::BytecodeArray> bytecode_array =
-      top_level_ ? GetBytecodeArrayForScript(script)
-                 : GetBytecodeArrayForGlobal(test_function_name_.c_str());
+  i::Handle<i::BytecodeArray> bytecode_array;
+  if (top_level_) {
+    bytecode_array = GetBytecodeArrayForScript(script);
+  } else {
+    Run(script);
+    bytecode_array = GetBytecodeArrayForGlobal(test_function_name_.c_str());
+  }
 
   stream << "---\n";
   PrintCodeSnippet(stream, snippet);
