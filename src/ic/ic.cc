@@ -734,7 +734,6 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code) {
 
   number_of_valid_maps++;
   if (number_of_valid_maps > 1 && is_keyed()) return false;
-  Handle<Code> ic;
   if (number_of_valid_maps == 1) {
     ConfigureVectorState(name, receiver_map(), code);
   } else {
