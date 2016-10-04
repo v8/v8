@@ -91,7 +91,6 @@ class IC {
   // Get the code object of the caller.
   Code* GetCode() const;
 
-  bool AddressIsOptimizedCode() const;
   inline bool AddressIsDeoptimizedCode() const;
   inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
                                               Address address);

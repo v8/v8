@@ -244,13 +244,6 @@ Code* IC::GetCode() const {
   return code;
 }
 
-
-bool IC::AddressIsOptimizedCode() const {
-  Code* host =
-      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(address())->code;
-  return host->kind() == Code::OPTIMIZED_FUNCTION;
-}
-
 static void LookupForRead(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
