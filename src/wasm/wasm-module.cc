@@ -773,7 +773,6 @@ static void ResetCompiledModule(Isolate* isolate, JSObject* owner,
       }
     }
   }
-  compiled_module->reset_weak_owning_instance();
   compiled_module->reset_heap();
 }
 
@@ -831,6 +830,7 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
       }
     }
   }
+  compiled_module->reset_weak_owning_instance();
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
 }
 
