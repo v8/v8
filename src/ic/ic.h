@@ -171,7 +171,7 @@ class IC {
            kind_ == Code::KEYED_STORE_IC);
     return kind_;
   }
-  bool ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name);
+  bool ShouldRecomputeHandler(Handle<String> name);
 
   ExtraICState extra_ic_state() const { return extra_ic_state_; }
 

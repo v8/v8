@@ -276,7 +276,7 @@ static void LookupForRead(LookupIterator* it) {
   }
 }
 
-bool IC::ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name) {
+bool IC::ShouldRecomputeHandler(Handle<String> name) {
   if (!RecomputeHandlerForName(name)) return false;
 
   DCHECK(UseVector());
@@ -326,7 +326,7 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
   // again.
-  if (ShouldRecomputeHandler(receiver, Handle<String>::cast(name))) {
+  if (ShouldRecomputeHandler(Handle<String>::cast(name))) {
     MarkRecomputeHandler(name);
   }
 }
