@@ -251,3 +251,112 @@
     assertEquals(3, c);
   }
 })();
+
+// A cluster of similar tests where the inner function only declares a variable
+// whose name clashes with an outer function variable name, but doesn't use it.
+(function TestRegress650969_1() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      var a;
+    }
+  }
+})();
+
+(function TestRegress650969_2() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      var a = 6;
+    }
+  }
+})();
+
+(function TestRegress650969_3() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      var a, b;
+    }
+  }
+})();
+
+(function TestRegress650969_4() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      var a = 6, b;
+    }
+  }
+})();
+
+(function TestRegress650969_5() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      let a;
+    }
+  }
+})();
+
+(function TestRegress650969_6() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      let a = 6;
+    }
+  }
+})();
+
+(function TestRegress650969_7() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      let a, b;
+    }
+  }
+})();
+
+(function TestRegress650969_8() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      let a = 6, b;
+    }
+  }
+})();
+
+(function TestRegress650969_9() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner(a) {
+    }
+  }
+})();

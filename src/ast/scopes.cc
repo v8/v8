@@ -997,6 +997,25 @@ bool Scope::RemoveUnresolved(VariableProxy* var) {
   return false;
 }
 
+bool Scope::RemoveUnresolved(const AstRawString* name) {
+  if (unresolved_->raw_name() == name) {
+    VariableProxy* removed = unresolved_;
+    unresolved_ = unresolved_->next_unresolved();
+    removed->set_next_unresolved(nullptr);
+    return true;
+  }
+  VariableProxy* current = unresolved_;
+  while (current != nullptr) {
+    VariableProxy* next = current->next_unresolved();
+    if (next->raw_name() == name) {
+      current->set_next_unresolved(next->next_unresolved());
+      next->set_next_unresolved(nullptr);
+      return true;
+    }
+    current = next;
+  }
+  return false;
+}
 
 Variable* Scope::NewTemporary(const AstRawString* name) {
   DeclarationScope* scope = GetClosureScope();

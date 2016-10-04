@@ -137,7 +137,8 @@ class PreParserExpression {
 
   static PreParserExpression FromIdentifier(PreParserIdentifier id) {
     return PreParserExpression(TypeField::encode(kIdentifierExpression) |
-                               IdentifierTypeField::encode(id.type_));
+                                   IdentifierTypeField::encode(id.type_),
+                               id.string_);
   }
 
   static PreParserExpression BinaryOperation(PreParserExpression left,
@@ -343,8 +344,9 @@ class PreParserExpression {
     kAssignment
   };
 
-  explicit PreParserExpression(uint32_t expression_code)
-      : code_(expression_code) {}
+  explicit PreParserExpression(uint32_t expression_code,
+                               const AstRawString* string = nullptr)
+      : code_(expression_code), string_(string) {}
 
   // The first three bits are for the Type.
   typedef BitField<Type, 0, 3> TypeField;
@@ -366,6 +368,10 @@ class PreParserExpression {
   typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
 
   uint32_t code_;
+  // Non-nullptr if the expression is one identifier.
+  const AstRawString* string_;
+
+  friend class PreParser;
 };
 
 
@@ -922,11 +928,12 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void RewriteNonPattern(bool* ok) { ValidateExpression(ok); }
 
-  V8_INLINE void DeclareAndInitializeVariables(
+  void DeclareAndInitializeVariables(
       PreParserStatement block,
       const DeclarationDescriptor* declaration_descriptor,
       const DeclarationParsingResult::Declaration* declaration,
-      ZoneList<const AstRawString*>* names, bool* ok) {}
+      ZoneList<const AstRawString*>* names, bool* ok);
+
   V8_INLINE ZoneList<const AstRawString*>* DeclareLabel(
       ZoneList<const AstRawString*>* labels, PreParserExpression expr,
       bool* ok) {

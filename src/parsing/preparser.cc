@@ -231,6 +231,29 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
   return PreParserExpression::FromIdentifier(name);
 }
 
+void PreParser::DeclareAndInitializeVariables(
+    PreParserStatement block,
+    const DeclarationDescriptor* declaration_descriptor,
+    const DeclarationParsingResult::Declaration* declaration,
+    ZoneList<const AstRawString*>* names, bool* ok) {
+  if (declaration->pattern.string_) {
+    /* Mimic what Parser does when declaring variables (see
+       Parser::PatternRewriter::VisitVariableProxy).
+
+       var + no initializer -> RemoveUnresolved
+       let + no initializer -> RemoveUnresolved
+       var + initializer -> RemoveUnresolved followed by NewUnresolved
+       let + initializer -> RemoveUnresolved
+    */
+
+    if (declaration->initializer.IsEmpty() ||
+        declaration_descriptor->mode == VariableMode::LET) {
+      declaration_descriptor->scope->RemoveUnresolved(
+          declaration->pattern.string_);
+    }
+  }
+}
+
 #undef CHECK_OK
 #undef CHECK_OK_CUSTOM
 
