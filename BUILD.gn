@@ -130,17 +130,6 @@ config("libplatform_config") {
   include_dirs = [ "include" ]
 }
 
-# This config should be applied to code using the libbase.
-config("libbase_config") {
-  if (is_component_build) {
-    defines = [ "USING_V8_BASE_SHARED" ]
-  }
-  libs = []
-  if (is_android && current_toolchain != host_toolchain) {
-    libs += [ "log" ]
-  }
-}
-
 # This config should be applied to code using the libsampler.
 config("libsampler_config") {
   include_dirs = [ "include" ]
@@ -155,6 +144,10 @@ config("external_config") {
   include_dirs = [ "include" ]
   if (v8_enable_inspector_override) {
     include_dirs += [ "$target_gen_dir/include" ]
+  }
+  libs = []
+  if (is_android && current_toolchain != host_toolchain) {
+    libs += [ "log" ]
   }
 }
 
@@ -2157,7 +2150,9 @@ v8_source_set("v8_base") {
   }
 }
 
-v8_component("v8_libbase") {
+v8_source_set("v8_libbase") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
   sources = [
     "src/base/adapters.h",
     "src/base/atomic-utils.h",
@@ -2173,7 +2168,6 @@ v8_component("v8_libbase") {
     "src/base/atomicops_internals_x86_gcc.cc",
     "src/base/atomicops_internals_x86_gcc.h",
     "src/base/atomicops_internals_x86_msvc.h",
-    "src/base/base-export.h",
     "src/base/bits.cc",
     "src/base/bits.h",
     "src/base/build_config.h",
@@ -2224,13 +2218,7 @@ v8_component("v8_libbase") {
 
   configs = [ ":internal_config_base" ]
 
-  public_configs = [ ":libbase_config" ]
-
   defines = []
-
-  if (is_component_build) {
-    defines = [ "BUILDING_V8_BASE_SHARED" ]
-  }
 
   if (is_posix) {
     sources += [ "src/base/platform/platform-posix.cc" ]
@@ -2375,7 +2363,6 @@ v8_source_set("fuzzer_support_nocomponent") {
   ]
 
   public_deps = [
-    ":v8_libbase",
     ":v8_libplatform",
   ]
 }
@@ -2404,7 +2391,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
 
     deps = [
       ":v8_base",
-      ":v8_libbase",
       ":v8_libplatform",
       ":v8_nosnapshot",
       "//build/config/sanitizers:deps",
@@ -2527,7 +2513,6 @@ v8_executable("d8") {
   deps = [
     ":d8_js2c",
     ":v8",
-    ":v8_libbase",
     ":v8_libplatform",
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
@@ -2568,7 +2553,6 @@ v8_executable("v8_hello_world") {
 
   deps = [
     ":v8",
-    ":v8_libbase",
     ":v8_libplatform",
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
@@ -2593,7 +2577,6 @@ v8_executable("v8_sample_process") {
 
   deps = [
     ":v8",
-    ":v8_libbase",
     ":v8_libplatform",
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
@@ -2616,7 +2599,6 @@ v8_executable("v8_parser_shell") {
   ]
 
   deps = [
-    ":v8_libbase",
     ":v8_libplatform",
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
@@ -2660,7 +2642,6 @@ if (want_v8_shell) {
 
     deps = [
       ":v8",
-      ":v8_libbase",
       ":v8_libplatform",
       "//build/config/sanitizers:deps",
       "//build/win:default_exe_manifest",

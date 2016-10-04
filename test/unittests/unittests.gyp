@@ -163,7 +163,6 @@
       'dependencies': [
         '../../testing/gmock.gyp:gmock',
         '../../testing/gtest.gyp:gtest',
-        '../../src/v8.gyp:v8_libbase',
         '../../src/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [

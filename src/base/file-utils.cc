@@ -10,13 +10,13 @@
 #include "src/base/platform/platform.h"
 
 namespace v8 {
-namespace base {
+namespace internal {
 
 char* RelativePath(char** buffer, const char* exec_path, const char* name) {
   DCHECK(exec_path);
   int path_separator = static_cast<int>(strlen(exec_path)) - 1;
   while (path_separator >= 0 &&
-         !OS::isDirectorySeparator(exec_path[path_separator])) {
+         !base::OS::isDirectorySeparator(exec_path[path_separator])) {
     path_separator--;
   }
   if (path_separator >= 0) {
@@ -32,5 +32,5 @@ char* RelativePath(char** buffer, const char* exec_path, const char* name) {
   return *buffer;
 }
 
-}  // namespace base
+}  // namespace internal
 }  // namespace v8

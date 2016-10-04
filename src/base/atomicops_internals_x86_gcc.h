@@ -7,8 +7,6 @@
 #ifndef V8_BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
 #define V8_BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
 
-#include "src/base/base-export.h"
-
 namespace v8 {
 namespace base {
 
@@ -23,8 +21,7 @@ struct AtomicOps_x86CPUFeatureStruct {
   bool has_sse2;             // Processor has SSE2.
 #endif
 };
-V8_BASE_EXPORT extern struct AtomicOps_x86CPUFeatureStruct
-    AtomicOps_Internalx86CPUFeatures;
+extern struct AtomicOps_x86CPUFeatureStruct AtomicOps_Internalx86CPUFeatures;
 
 #define ATOMICOPS_COMPILER_BARRIER() __asm__ __volatile__("" : : : "memory")
 
