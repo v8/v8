@@ -382,7 +382,7 @@ class WasmCompiledModule : public FixedArray {
     return handle(TYPE::cast(weak_##NAME()->value()));   \
   }
 
-#define WCM_PROPERTY_TABLE(MACRO)                     \
+#define CORE_WCM_PROPERTY_TABLE(MACRO)                \
   MACRO(OBJECT, FixedArray, code_table)               \
   MACRO(OBJECT, FixedArray, import_data)              \
   MACRO(OBJECT, FixedArray, exports)                  \
@@ -402,6 +402,17 @@ class WasmCompiledModule : public FixedArray {
   MACRO(WEAK_LINK, JSObject, owning_instance)         \
   MACRO(WEAK_LINK, JSObject, module_object)
 
+#if DEBUG
+#define DEBUG_ONLY_TABLE(MACRO) MACRO(SMALL_NUMBER, uint32_t, instance_id)
+#else
+#define DEBUG_ONLY_TABLE(IGNORE)
+  uint32_t instance_id() const { return -1; }
+#endif
+
+#define WCM_PROPERTY_TABLE(MACRO) \
+  CORE_WCM_PROPERTY_TABLE(MACRO)  \
+  DEBUG_ONLY_TABLE(MACRO)
+
  private:
   enum PropertyIndices {
 #define INDICES(IGNORE1, IGNORE2, NAME) kID_##NAME,
@@ -420,6 +431,10 @@ class WasmCompiledModule : public FixedArray {
                                           Handle<WasmCompiledModule> module) {
     Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
         isolate->factory()->CopyFixedArray(module));
+    ret->Init();
+    ret->reset_weak_owning_instance();
+    ret->reset_weak_next_instance();
+    ret->reset_weak_prev_instance();
     return ret;
   }
 
@@ -436,7 +451,14 @@ class WasmCompiledModule : public FixedArray {
   WCM_PROPERTY_TABLE(DECLARATION)
 #undef DECLARATION
 
+  void PrintInstancesChain();
+
  private:
+#if DEBUG
+  static uint32_t instance_id_counter_;
+#endif
+  void Init();
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
 };
 

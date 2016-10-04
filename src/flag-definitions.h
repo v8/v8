@@ -1035,6 +1035,10 @@ DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 // Debugger
 DEFINE_BOOL(print_break_location, false, "print source location on debug break")
 
+// wasm instance management
+DEFINE_BOOL(trace_wasm_instances, false,
+            "trace creation and collection of wasm instances")
+
 //
 // Logging and profiling flags
 //

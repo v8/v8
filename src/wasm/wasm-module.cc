@@ -28,6 +28,16 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+#define TRACE(...)                                      \
+  do {                                                  \
+    if (FLAG_trace_wasm_instances) PrintF(__VA_ARGS__); \
+  } while (false)
+
+#define TRACE_CHAIN(instance)        \
+  do {                               \
+    instance->PrintInstancesChain(); \
+  } while (false)
+
 namespace {
 
 static const int kPlaceholderMarker = 1000000000;
@@ -728,6 +738,7 @@ void PatchDirectCalls(Handle<FixedArray> old_functions,
 
 static void ResetCompiledModule(Isolate* isolate, JSObject* owner,
                                 WasmCompiledModule* compiled_module) {
+  TRACE("Resetting %d\n", compiled_module->instance_id());
   Object* undefined = *isolate->factory()->undefined_value();
   uint32_t old_mem_size = compiled_module->has_heap()
                               ? compiled_module->mem_size()
@@ -781,6 +792,7 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   JSObject* owner = *p;
   WasmCompiledModule* compiled_module =
       WasmCompiledModule::cast(owner->GetInternalField(kWasmCompiledModule));
+  TRACE("Finalizing %d {\n", compiled_module->instance_id());
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   DCHECK(compiled_module->has_weak_module_object());
   WeakCell* weak_module_obj = compiled_module->ptr_to_weak_module_object();
@@ -792,6 +804,11 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
     JSObject* module_obj = JSObject::cast(weak_module_obj->value());
     WasmCompiledModule* current_template =
         WasmCompiledModule::cast(module_obj->GetInternalField(0));
+
+    TRACE("chain before {\n");
+    TRACE_CHAIN(current_template);
+    TRACE("}\n");
+
     DCHECK(!current_template->has_weak_prev_instance());
     WeakCell* next = compiled_module->ptr_to_weak_next_instance();
     WeakCell* prev = compiled_module->ptr_to_weak_prev_instance();
@@ -829,9 +846,13 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
         }
       }
     }
+    TRACE("chain after {\n");
+    TRACE_CHAIN(WasmCompiledModule::cast(module_obj->GetInternalField(0)));
+    TRACE("}\n");
   }
   compiled_module->reset_weak_owning_instance();
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
+  TRACE("}\n");
 }
 
 Handle<FixedArray> SetupIndirectFunctionTable(
@@ -1186,6 +1207,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   // this will be a cleared. We'll link the instances chain last.
   MaybeHandle<WeakCell> link_to_original;
 
+  TRACE("Starting new module instantiation\n");
   {
     Handle<WasmCompiledModule> original(
         WasmCompiledModule::cast(module_object->GetInternalField(0)), isolate);
@@ -1200,6 +1222,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       // There is already an owner, clone everything.
       owner = Handle<JSObject>(JSObject::cast(tmp->value()), isolate);
       // Insert the latest clone in front.
+      TRACE("Cloning from %d\n", original->instance_id());
       compiled_module = WasmCompiledModule::Clone(isolate, original);
       // Replace the strong reference to point to the new instance here.
       // This allows any of the other instances, including the original,
@@ -1233,6 +1256,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     } else {
       // There was no owner, so we can reuse the original.
       compiled_module = original;
+      TRACE("Reusing existing instance %d\n", compiled_module->instance_id());
     }
     compiled_module->set_code_table(code_table);
   }
@@ -1490,8 +1514,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
 
   DCHECK(wasm::IsWasmObject(*instance));
 
-  if (compiled_module->has_weak_module_object()) {
-    instance->SetInternalField(kWasmCompiledModule, *compiled_module);
+  {
     Handle<WeakCell> link_to_owner = factory->NewWeakCell(instance);
 
     Handle<Object> global_handle = isolate->global_handles()->Create(*instance);
@@ -1507,14 +1530,22 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
         compiled_module->set_weak_next_instance(next);
         original->set_weak_prev_instance(link_to_clone);
       }
+
+      compiled_module->set_weak_owning_instance(link_to_owner);
+      instance->SetInternalField(kWasmCompiledModule, *compiled_module);
       GlobalHandles::MakeWeak(global_handle.location(),
                               global_handle.location(), &InstanceFinalizer,
                               v8::WeakCallbackType::kFinalizer);
     }
   }
-
+  TRACE("Finishing instance %d\n", compiled_module->instance_id());
+  TRACE_CHAIN(WasmCompiledModule::cast(module_object->GetInternalField(0)));
   return instance;
 }
+
+#if DEBUG
+uint32_t WasmCompiledModule::instance_id_counter_ = 0;
+#endif
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
                                                    uint32_t min_memory_pages,
@@ -1533,7 +1564,29 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(Isolate* isolate,
   ret->set(kID_globals_size, Smi::FromInt(static_cast<int>(globals_size)));
   ret->set(kID_export_memory, Smi::FromInt(static_cast<int>(export_memory)));
   ret->set(kID_origin, Smi::FromInt(static_cast<int>(origin)));
+  WasmCompiledModule::cast(*ret)->Init();
   return handle(WasmCompiledModule::cast(*ret));
+}
+
+void WasmCompiledModule::Init() {
+#if DEBUG
+  set(kID_instance_id, Smi::FromInt(instance_id_counter_++));
+  TRACE("New compiled module id: %d\n", instance_id());
+#endif
+}
+
+void WasmCompiledModule::PrintInstancesChain() {
+#if DEBUG
+  if (!FLAG_trace_wasm_instances) return;
+  for (WasmCompiledModule* current = this; current != nullptr;) {
+    PrintF("->%d", current->instance_id());
+    if (current->ptr_to_weak_next_instance() == nullptr) break;
+    CHECK(!current->ptr_to_weak_next_instance()->cleared());
+    current =
+        WasmCompiledModule::cast(current->ptr_to_weak_next_instance()->value());
+  }
+  PrintF("\n");
+#endif
 }
 
 Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
