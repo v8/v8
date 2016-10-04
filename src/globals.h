@@ -187,10 +187,6 @@ const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #if V8_OS_WIN
 const size_t kMinimumCodeRangeSize = 4 * MB;
 const size_t kReservedCodeRangePages = 1;
-// On PPC Linux PageSize is 4MB
-#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
-const size_t kMinimumCodeRangeSize = 12 * MB;
-const size_t kReservedCodeRangePages = 0;
 #else
 const size_t kMinimumCodeRangeSize = 3 * MB;
 const size_t kReservedCodeRangePages = 0;
