@@ -2,20 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BASE_FILE_UTILS_H_
-#define V8_BASE_FILE_UTILS_H_
-
-#include "src/base/base-export.h"
+#ifndef V8_FILE_UTILS_H_
+#define V8_FILE_UTILS_H_
 
 namespace v8 {
-namespace base {
+namespace internal {
 
 // Helper functions to manipulate file paths.
 
-V8_BASE_EXPORT char* RelativePath(char** buffer, const char* exec_path,
-                                  const char* name);
+char* RelativePath(char** buffer, const char* exec_path, const char* name);
 
-}  // namespace base
+}  // namespace internal
 }  // namespace v8
 
 #endif  // V8_FILE_UTILS_H_

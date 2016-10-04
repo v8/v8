@@ -13,7 +13,6 @@
 #include <functional>
 #include <utility>
 
-#include "src/base/base-export.h"
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -68,7 +67,7 @@ struct hash;
 
 V8_INLINE size_t hash_combine() { return 0u; }
 V8_INLINE size_t hash_combine(size_t seed) { return seed; }
-V8_BASE_EXPORT size_t hash_combine(size_t seed, size_t value);
+size_t hash_combine(size_t seed, size_t value);
 template <typename T, typename... Ts>
 V8_INLINE size_t hash_combine(T const& v, Ts const&... vs) {
   return hash_combine(hash_combine(vs...), hash<T>()(v));
@@ -92,9 +91,9 @@ V8_BASE_HASH_VALUE_TRIVIAL(unsigned char)
 V8_BASE_HASH_VALUE_TRIVIAL(unsigned short)  // NOLINT(runtime/int)
 #undef V8_BASE_HASH_VALUE_TRIVIAL
 
-V8_BASE_EXPORT size_t hash_value(unsigned int);
-V8_BASE_EXPORT size_t hash_value(unsigned long);       // NOLINT(runtime/int)
-V8_BASE_EXPORT size_t hash_value(unsigned long long);  // NOLINT(runtime/int)
+size_t hash_value(unsigned int);
+size_t hash_value(unsigned long);       // NOLINT(runtime/int)
+size_t hash_value(unsigned long long);  // NOLINT(runtime/int)
 
 #define V8_BASE_HASH_VALUE_SIGNED(type)            \
   V8_INLINE size_t hash_value(signed type v) {     \

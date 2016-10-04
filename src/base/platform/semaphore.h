@@ -5,7 +5,6 @@
 #ifndef V8_BASE_PLATFORM_SEMAPHORE_H_
 #define V8_BASE_PLATFORM_SEMAPHORE_H_
 
-#include "src/base/base-export.h"
 #include "src/base/lazy-instance.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
@@ -32,7 +31,7 @@ class TimeDelta;
 // count reaches zero,  threads waiting for the semaphore blocks until the
 // count becomes non-zero.
 
-class V8_BASE_EXPORT Semaphore final {
+class Semaphore final {
  public:
   explicit Semaphore(int count);
   ~Semaphore();
