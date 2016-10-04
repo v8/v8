@@ -95,14 +95,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     i_isolate->clear_pending_exception();
   } else {
     if (result_interpreted != result_compiled) {
-      V8_Fatal(
-          __FILE__, __LINE__,
-          "Interpreter result (%d) != compiled module result (%d). Hash: %u",
-          result_interpreted, result_compiled,
-          v8::internal::StringHasher::HashSequentialString(
-              data, static_cast<int>(size), WASM_CODE_FUZZER_HASH_SEED));
+      V8_Fatal(__FILE__, __LINE__, "WasmCodeFuzzerHash=%x",
+               v8::internal::StringHasher::HashSequentialString(
+                   data, static_cast<int>(size), WASM_CODE_FUZZER_HASH_SEED));
     }
-    CHECK_EQ(result_interpreted, result_compiled);
   }
   return 0;
 }
