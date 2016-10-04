@@ -46,11 +46,17 @@ std::string BytecodeExpectationsPrinter::WrapCodeInFunction(
   return program_stream.str();
 }
 
-v8::Local<v8::Script> BytecodeExpectationsPrinter::Compile(
+v8::Local<v8::Script> BytecodeExpectationsPrinter::CompileScript(
     const char* program) const {
   v8::Local<v8::String> source = V8StringFromUTF8(program);
   return v8::Script::Compile(isolate_->GetCurrentContext(), source)
       .ToLocalChecked();
+}
+
+v8::Local<v8::Module> BytecodeExpectationsPrinter::CompileModule(
+    const char* program) const {
+  v8::ScriptCompiler::Source source(V8StringFromUTF8(program));
+  return v8::ScriptCompiler::CompileModule(isolate_, &source).ToLocalChecked();
 }
 
 void BytecodeExpectationsPrinter::Run(v8::Local<v8::Script> script) const {
@@ -71,6 +77,13 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForGlobal(
       i::handle(js_function->shared()->bytecode_array(), i_isolate());
 
   return bytecodes;
+}
+
+i::Handle<i::BytecodeArray>
+BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
+    v8::Local<v8::Module> module) const {
+  i::Handle<i::Module> i_module = v8::Utils::OpenHandle(*module);
+  return i::handle(i_module->shared()->bytecode_array(), i_isolate());
 }
 
 i::Handle<i::BytecodeArray>
@@ -326,14 +339,19 @@ void BytecodeExpectationsPrinter::PrintExpectation(
       wrap_ ? WrapCodeInFunction(test_function_name_.c_str(), snippet)
             : snippet;
 
-  v8::Local<v8::Script> script = Compile(source_code.c_str());
-
   i::Handle<i::BytecodeArray> bytecode_array;
-  if (top_level_) {
-    bytecode_array = GetBytecodeArrayForScript(script);
+  if (module_) {
+    CHECK(top_level_ && !wrap_);
+    v8::Local<v8::Module> module = CompileModule(source_code.c_str());
+    bytecode_array = GetBytecodeArrayForModule(module);
   } else {
-    Run(script);
-    bytecode_array = GetBytecodeArrayForGlobal(test_function_name_.c_str());
+    v8::Local<v8::Script> script = CompileScript(source_code.c_str());
+    if (top_level_) {
+      bytecode_array = GetBytecodeArrayForScript(script);
+    } else {
+      Run(script);
+      bytecode_array = GetBytecodeArrayForGlobal(test_function_name_.c_str());
+    }
   }
 
   stream << "---\n";
