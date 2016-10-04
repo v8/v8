@@ -237,21 +237,6 @@ function StringSplitJS(separator, limit) {
   return %StringSplit(subject, separator_string, limit);
 }
 
-// ecma262/#sec-string.prototype.substr
-function StringSubstr(start, length) {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.substr");
-  var s = TO_STRING(this);
-  var size = s.length;
-  start = TO_INTEGER(start);
-  length = IS_UNDEFINED(length) ? size : TO_INTEGER(length);
-
-  if (start < 0) start = MaxSimple(size + start, 0);
-  length = MinSimple(MaxSimple(length, 0), size - start);
-
-  if (length <= 0) return '';
-  return %_SubString(s, start, start + length);
-}
-
 
 // ECMA-262, 15.5.4.16
 function StringToLowerCaseJS() {
@@ -557,7 +542,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "search", StringSearch,
   "slice", StringSlice,
   "split", StringSplitJS,
-  "substr", StringSubstr,
   "startsWith", StringStartsWith,
   "toLowerCase", StringToLowerCaseJS,
   "toLocaleLowerCase", StringToLocaleLowerCase,
@@ -588,7 +572,6 @@ utils.Export(function(to) {
   to.StringReplace = StringReplace;
   to.StringSlice = StringSlice;
   to.StringSplit = StringSplitJS;
-  to.StringSubstr = StringSubstr;
 });
 
 })

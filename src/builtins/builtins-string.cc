@@ -873,6 +873,129 @@ BUILTIN(StringPrototypeNormalize) {
   return *string;
 }
 
+// ES6 section B.2.3.1 String.prototype.substr ( start, length )
+void Builtins::Generate_StringPrototypeSubstr(CodeStubAssembler* a) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label out(a), handle_length(a);
+
+  Variable var_start(a, MachineRepresentation::kTagged);
+  Variable var_length(a, MachineRepresentation::kTagged);
+
+  Node* const receiver = a->Parameter(0);
+  Node* const start = a->Parameter(1);
+  Node* const length = a->Parameter(2);
+  Node* const context = a->Parameter(5);
+
+  Node* const zero = a->SmiConstant(Smi::FromInt(0));
+
+  // Check that {receiver} is coercible to Object and convert it to a String.
+  Node* const string =
+      a->ToThisString(context, receiver, "String.prototype.substr");
+
+  Node* const string_length = a->LoadStringLength(string);
+
+  // Conversions and bounds-checks for {start}.
+  {
+    Node* const start_int =
+        a->ToInteger(context, start, CodeStubAssembler::kTruncateMinusZero);
+
+    Label if_issmi(a), if_isheapnumber(a, Label::kDeferred);
+    a->Branch(a->WordIsSmi(start_int), &if_issmi, &if_isheapnumber);
+
+    a->Bind(&if_issmi);
+    {
+      Node* const length_plus_start = a->SmiAdd(string_length, start_int);
+      var_start.Bind(a->Select(a->SmiLessThan(start_int, zero),
+                               a->SmiMax(length_plus_start, zero), start_int));
+      a->Goto(&handle_length);
+    }
+
+    a->Bind(&if_isheapnumber);
+    {
+      // If {start} is a heap number, it is definitely out of bounds. If it is
+      // negative, {start} = max({string_length} + {start}),0) = 0'. If it is
+      // positive, set {start} to {string_length} which ultimately results in
+      // returning an empty string.
+      Node* const float_zero = a->Float64Constant(0.);
+      Node* const start_float = a->LoadHeapNumberValue(start_int);
+      var_start.Bind(a->Select(a->Float64LessThan(start_float, float_zero),
+                               zero, string_length));
+      a->Goto(&handle_length);
+    }
+  }
+
+  // Conversions and bounds-checks for {length}.
+  a->Bind(&handle_length);
+  {
+    Label if_issmi(a), if_isheapnumber(a, Label::kDeferred);
+
+    // Default to {string_length} if {length} is undefined.
+    {
+      Label if_isundefined(a, Label::kDeferred), if_isnotundefined(a);
+      a->Branch(a->WordEqual(length, a->UndefinedConstant()), &if_isundefined,
+                &if_isnotundefined);
+
+      a->Bind(&if_isundefined);
+      var_length.Bind(string_length);
+      a->Goto(&if_issmi);
+
+      a->Bind(&if_isnotundefined);
+      var_length.Bind(
+          a->ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero));
+    }
+
+    a->Branch(a->WordIsSmi(var_length.value()), &if_issmi, &if_isheapnumber);
+
+    // Set {length} to min(max({length}, 0), {string_length} - {start}
+    a->Bind(&if_issmi);
+    {
+      Node* const positive_length = a->SmiMax(var_length.value(), zero);
+
+      Node* const minimal_length = a->SmiSub(string_length, var_start.value());
+      var_length.Bind(a->SmiMin(positive_length, minimal_length));
+
+      a->GotoUnless(a->SmiLessThanOrEqual(var_length.value(), zero), &out);
+      a->Return(a->EmptyStringConstant());
+    }
+
+    a->Bind(&if_isheapnumber);
+    {
+      // If {length} is a heap number, it is definitely out of bounds. There are
+      // two cases according to the spec: if it is negative, "" is returned; if
+      // it is positive, then length is set to {string_length} - {start}.
+
+      a->Assert(a->WordEqual(a->LoadMap(var_length.value()),
+                             a->HeapNumberMapConstant()));
+
+      Label if_isnegative(a), if_ispositive(a);
+      Node* const float_zero = a->Float64Constant(0.);
+      Node* const length_float = a->LoadHeapNumberValue(var_length.value());
+      a->Branch(a->Float64LessThan(length_float, float_zero), &if_isnegative,
+                &if_ispositive);
+
+      a->Bind(&if_isnegative);
+      a->Return(a->EmptyStringConstant());
+
+      a->Bind(&if_ispositive);
+      {
+        var_length.Bind(a->SmiSub(string_length, var_start.value()));
+        a->GotoUnless(a->SmiLessThanOrEqual(var_length.value(), zero), &out);
+        a->Return(a->EmptyStringConstant());
+      }
+    }
+  }
+
+  a->Bind(&out);
+  {
+    Node* const end = a->SmiAdd(var_start.value(), var_length.value());
+    Node* const result = a->SubString(context, string, var_start.value(), end);
+    a->Return(result);
+  }
+}
+
 namespace {
 
 compiler::Node* ToSmiBetweenZeroAnd(CodeStubAssembler* a,
