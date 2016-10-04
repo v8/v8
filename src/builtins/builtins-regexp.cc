@@ -92,9 +92,6 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
 
   Label out(a);
 
-  Callable constructresult_callable =
-      CodeFactory::RegExpConstructResult(isolate);
-
   CodeStubAssembler::ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
   Node* const num_indices = a->SmiUntag(a->LoadFixedArrayElement(
       match_elements, a->IntPtrConstant(RegExpImpl::kLastCaptureCount), 0,
@@ -110,8 +107,8 @@ compiler::Node* ConstructNewResultFromMatchInfo(Isolate* isolate,
   // to avoid an unnecessary write barrier storing the first result.
   Node* const first = a->SubString(context, string, start, end);
 
-  Node* const result = a->CallStub(constructresult_callable, context,
-                                   num_results, start, string);
+  Node* const result =
+      a->AllocateRegExpResult(context, num_results, start, string);
   Node* const result_elements = a->LoadElements(result);
 
   a->StoreFixedArrayElement(result_elements, a->IntPtrConstant(0), first,

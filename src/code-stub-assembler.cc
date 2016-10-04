@@ -1318,6 +1318,50 @@ Node* CodeStubAssembler::AllocateSlicedTwoByteString(Node* length, Node* parent,
   return result;
 }
 
+Node* CodeStubAssembler::AllocateRegExpResult(Node* context, Node* length,
+                                              Node* index, Node* input) {
+  Node* const max_length =
+      SmiConstant(Smi::FromInt(JSArray::kInitialMaxFastElementArray));
+  Assert(SmiLessThanOrEqual(length, max_length));
+
+  // Allocate the JSRegExpResult.
+  // TODO(jgruber): Fold JSArray and FixedArray allocations, then remove
+  // unneeded store of elements.
+  Node* const result = Allocate(JSRegExpResult::kSize);
+
+  // TODO(jgruber): Store map as Heap constant?
+  Node* const native_context = LoadNativeContext(context);
+  Node* const map =
+      LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
+  StoreMapNoWriteBarrier(result, map);
+
+  // Initialize the header before allocating the elements.
+  Node* const empty_array = EmptyFixedArrayConstant();
+  DCHECK(Heap::RootIsImmortalImmovable(Heap::kEmptyFixedArrayRootIndex));
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOffset,
+                                 empty_array);
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, empty_array);
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
+
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
+  StoreObjectField(result, JSRegExpResult::kInputOffset, input);
+
+  Node* const zero = IntPtrConstant(0);
+  Node* const length_intptr = SmiUntag(length);
+  const ElementsKind elements_kind = FAST_ELEMENTS;
+  const ParameterMode parameter_mode = INTPTR_PARAMETERS;
+
+  Node* const elements =
+      AllocateFixedArray(elements_kind, length_intptr, parameter_mode);
+  StoreObjectField(result, JSArray::kElementsOffset, elements);
+
+  // Fill in the elements with undefined.
+  FillFixedArrayWithValue(elements_kind, elements, zero, length_intptr,
+                          Heap::kUndefinedValueRootIndex, parameter_mode);
+
+  return result;
+}
+
 Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
     ElementsKind kind, Node* array_map, Node* length, Node* allocation_site) {
   Comment("begin allocation of JSArray without elements");
@@ -1408,7 +1452,7 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
                                             Node* capacity_node,
                                             ParameterMode mode,
                                             AllocationFlags flags) {
-  Node* total_size = GetFixedAarrayAllocationSize(capacity_node, kind, mode);
+  Node* total_size = GetFixedArrayAllocationSize(capacity_node, kind, mode);
 
   // Allocate both array and elements object, and initialize the JSArray.
   Node* array = Allocate(total_size, flags);

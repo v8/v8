@@ -28,6 +28,7 @@ enum class UnicodeEncoding {
 #define HEAP_CONSTANT_LIST(V)                 \
   V(BooleanMap, BooleanMap)                   \
   V(empty_string, EmptyString)                \
+  V(EmptyFixedArray, EmptyFixedArray)         \
   V(FixedArrayMap, FixedArrayMap)             \
   V(FixedCOWArrayMap, FixedCOWArrayMap)       \
   V(FixedDoubleArrayMap, FixedDoubleArrayMap) \
@@ -354,6 +355,15 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateSlicedTwoByteString(compiler::Node* length,
                                               compiler::Node* parent,
                                               compiler::Node* offset);
+
+  // Allocate a RegExpResult with the given length (the number of captures,
+  // including the match itself), index (the index where the match starts),
+  // and input string. |length| and |index| are expected to be tagged, and
+  // |input| must be a string.
+  compiler::Node* AllocateRegExpResult(compiler::Node* context,
+                                       compiler::Node* length,
+                                       compiler::Node* index,
+                                       compiler::Node* input);
 
   // Allocate a JSArray without elements and initialize the header fields.
   compiler::Node* AllocateUninitializedJSArrayWithoutElements(
@@ -814,9 +824,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* CreateAllocationSiteInFeedbackVector(
       compiler::Node* feedback_vector, compiler::Node* slot);
 
-  compiler::Node* GetFixedAarrayAllocationSize(compiler::Node* element_count,
-                                               ElementsKind kind,
-                                               ParameterMode mode) {
+  compiler::Node* GetFixedArrayAllocationSize(compiler::Node* element_count,
+                                              ElementsKind kind,
+                                              ParameterMode mode) {
     return ElementOffsetFromIndex(element_count, kind, mode,
                                   FixedArray::kHeaderSize);
   }

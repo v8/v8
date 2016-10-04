@@ -2067,7 +2067,7 @@ class RegExpExecStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(RegExpExec, PlatformCodeStub);
 };
 
-
+// TODO(jgruber): Remove this once all uses in regexp.js have been removed.
 class RegExpConstructResultStub final : public HydrogenCodeStub {
  public:
   explicit RegExpConstructResultStub(Isolate* isolate)
