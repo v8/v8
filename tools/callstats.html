@@ -1043,11 +1043,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function handleLoadText(text) {
-      pages = new Pages();
       handleLoadJSON(JSON.parse(text));
     }
 
     function handleLoadJSON(json) {
+      pages = new Pages();
       versions = Versions.fromJSON(json);
       initialize()
       showPage(versions.versions[0].pages[0]);
