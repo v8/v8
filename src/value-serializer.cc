@@ -903,6 +903,10 @@ bool ValueDeserializer::ReadUint64(uint64_t* value) {
   return ReadVarint<uint64_t>().To(value);
 }
 
+bool ValueDeserializer::ReadDouble(double* value) {
+  return ReadDouble().To(value);
+}
+
 bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
   if (length > static_cast<size_t>(end_ - position_)) return false;
   *data = position_;

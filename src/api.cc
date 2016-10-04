@@ -2975,6 +2975,10 @@ void ValueSerializer::WriteUint64(uint64_t value) {
   private_->serializer.WriteUint64(value);
 }
 
+void ValueSerializer::WriteDouble(double value) {
+  private_->serializer.WriteDouble(value);
+}
+
 void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
   private_->serializer.WriteRawBytes(source, length);
 }
@@ -3097,6 +3101,10 @@ bool ValueDeserializer::ReadUint32(uint32_t* value) {
 
 bool ValueDeserializer::ReadUint64(uint64_t* value) {
   return private_->deserializer.ReadUint64(value);
+}
+
+bool ValueDeserializer::ReadDouble(double* value) {
+  return private_->deserializer.ReadDouble(value);
 }
 
 bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {

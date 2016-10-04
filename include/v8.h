@@ -1789,6 +1789,7 @@ class V8_EXPORT ValueSerializer {
    */
   void WriteUint32(uint32_t value);
   void WriteUint64(uint64_t value);
+  void WriteDouble(double value);
   void WriteRawBytes(const void* source, size_t length);
 
  private:
@@ -1875,6 +1876,7 @@ class V8_EXPORT ValueDeserializer {
    */
   V8_WARN_UNUSED_RESULT bool ReadUint32(uint32_t* value);
   V8_WARN_UNUSED_RESULT bool ReadUint64(uint64_t* value);
+  V8_WARN_UNUSED_RESULT bool ReadDouble(double* value);
   V8_WARN_UNUSED_RESULT bool ReadRawBytes(size_t length, const void** data);
 
  private:

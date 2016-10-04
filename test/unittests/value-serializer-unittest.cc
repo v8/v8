@@ -2264,6 +2264,44 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripUint64) {
       });
 }
 
+TEST_F(ValueSerializerTestWithHostObject, RoundTripDouble) {
+  // The host can serialize data as double.
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillRepeatedly(Invoke([this](Isolate*, Local<Object> object) {
+        double value = 0;
+        EXPECT_TRUE(object->GetInternalField(0)
+                        ->NumberValue(serialization_context())
+                        .To(&value));
+        WriteExampleHostObjectTag();
+        serializer_->WriteDouble(value);
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillRepeatedly(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        double value = 0;
+        EXPECT_TRUE(deserializer_->ReadDouble(&value));
+        Local<Value> argv[] = {Number::New(isolate(), value)};
+        return NewHostObject(deserialization_context(), arraysize(argv), argv);
+      }));
+  RoundTripTest("new ExampleHostObject(-3.5)", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsObject());
+    ASSERT_TRUE(Object::Cast(*value)->InternalFieldCount());
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === ExampleHostObject.prototype"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.value === -3.5"));
+  });
+  RoundTripTest("new ExampleHostObject(NaN)", [this](Local<Value> value) {
+    EXPECT_TRUE(EvaluateScriptForResultBool("Number.isNaN(result.value)"));
+  });
+  RoundTripTest("new ExampleHostObject(Infinity)", [this](Local<Value> value) {
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.value === Infinity"));
+  });
+  RoundTripTest("new ExampleHostObject(-0)", [this](Local<Value> value) {
+    EXPECT_TRUE(EvaluateScriptForResultBool("1/result.value === -Infinity"));
+  });
+}
+
 TEST_F(ValueSerializerTestWithHostObject, RoundTripRawBytes) {
   // The host can serialize arbitrary raw bytes.
   const struct {
