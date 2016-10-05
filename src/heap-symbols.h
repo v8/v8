@@ -64,6 +64,7 @@
   V(eval_string, "eval")                                           \
   V(EvalError_string, "EvalError")                                 \
   V(false_string, "false")                                         \
+  V(flags_string, "flags")                                         \
   V(float32x4_string, "float32x4")                                 \
   V(Float32x4_string, "Float32x4")                                 \
   V(for_api_string, "for_api")                                     \

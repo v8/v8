@@ -1649,11 +1649,24 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewJSObject(isolate->object_function(), TENURED);
     Handle<JSFunction> regexp_fun =
         InstallFunction(global, "RegExp", JS_REGEXP_TYPE, JSRegExp::kSize,
-                        prototype, Builtins::kIllegal);
+                        prototype, Builtins::kRegExpConstructor);
     InstallWithIntrinsicDefaultProto(isolate, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
-    regexp_fun->shared()->SetConstructStub(
-        *isolate->builtins()->JSBuiltinsConstructStub());
+
+    Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate);
+    shared->SetConstructStub(*isolate->builtins()->RegExpConstructor());
+    shared->set_instance_class_name(isolate->heap()->RegExp_string());
+    shared->DontAdaptArguments();
+    shared->set_length(2);
+
+    // RegExp.prototype setup.
+
+    // Install the "constructor" property on the {prototype}.
+    JSObject::AddProperty(prototype, factory->constructor_string(), regexp_fun,
+                          DONT_ENUM);
+
+    SimpleInstallFunction(prototype, "exec", Builtins::kRegExpPrototypeExec, 1,
+                          true, DONT_ENUM);
 
     DCHECK(regexp_fun->has_initial_map());
     Handle<Map> initial_map(regexp_fun->initial_map());
@@ -1675,15 +1688,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     initial_map->set_unused_property_fields(0);
     initial_map->set_instance_size(initial_map->instance_size() +
                                    num_fields * kPointerSize);
-
-    // RegExp.prototype setup.
-
-    // Install the "constructor" property on the {prototype}.
-    JSObject::AddProperty(prototype, factory->constructor_string(), regexp_fun,
-                          DONT_ENUM);
-
-    SimpleInstallFunction(prototype, "exec", Builtins::kRegExpPrototypeExec, 1,
-                          true, DONT_ENUM);
   }
 
   {  // -- E r r o r

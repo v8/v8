@@ -81,37 +81,6 @@ function PatternFlags(pattern) {
 }
 
 
-// ES#sec-regexp-pattern-flags
-// RegExp ( pattern, flags )
-function RegExpConstructor(pattern, flags) {
-  var newtarget = new.target;
-  var pattern_is_regexp = IsRegExp(pattern);
-
-  if (IS_UNDEFINED(newtarget)) {
-    newtarget = GlobalRegExp;
-
-    // ES6 section 21.2.3.1 step 3.b
-    if (pattern_is_regexp && IS_UNDEFINED(flags) &&
-        pattern.constructor === newtarget) {
-      return pattern;
-    }
-  }
-
-  if (IS_REGEXP(pattern)) {
-    if (IS_UNDEFINED(flags)) flags = PatternFlags(pattern);
-    pattern = REGEXP_SOURCE(pattern);
-
-  } else if (pattern_is_regexp) {
-    var input_pattern = pattern;
-    pattern = pattern.source;
-    if (IS_UNDEFINED(flags)) flags = input_pattern.flags;
-  }
-
-  var object = %_NewObject(GlobalRegExp, newtarget);
-  return RegExpInitialize(object, pattern, flags);
-}
-
-
 // ES#sec-regexp.prototype.compile RegExp.prototype.compile (pattern, flags)
 function RegExpCompileJS(pattern, flags) {
   if (!IS_REGEXP(this)) {
@@ -972,9 +941,6 @@ function RegExpSpecies() {
 
 
 // -------------------------------------------------------------------
-
-%FunctionSetInstanceClassName(GlobalRegExp, 'RegExp');
-%SetCode(GlobalRegExp, RegExpConstructor);
 
 utils.InstallGetter(GlobalRegExp, speciesSymbol, RegExpSpecies);
 

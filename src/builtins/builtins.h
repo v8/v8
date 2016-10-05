@@ -532,13 +532,14 @@ namespace internal {
   CPP(ReflectSet)                                                             \
   CPP(ReflectSetPrototypeOf)                                                  \
                                                                               \
+  /* RegExp */                                                                \
+  CPP(RegExpConstructor)                                                      \
+  TFJ(RegExpPrototypeExec, 2)                                                 \
+                                                                              \
   /* SharedArrayBuffer */                                                     \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                \
   TFJ(AtomicsLoad, 3)                                                         \
   TFJ(AtomicsStore, 4)                                                        \
-                                                                              \
-  /* RegExp */                                                                \
-  TFJ(RegExpPrototypeExec, 2)                                                 \
                                                                               \
   /* String */                                                                \
   ASM(StringConstructor)                                                      \
