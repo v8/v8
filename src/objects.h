@@ -7106,6 +7106,7 @@ enum BuiltinFunctionId {
   kTypedArrayByteOffset,
   kTypedArrayLength,
   kSharedArrayBufferByteLength,
+  kStringIteratorNext,
 };
 
 

@@ -142,6 +142,8 @@ class EffectControlLinearizer {
                                            Node* control);
   ValueEffectControl LowerStringFromCharCode(Node* node, Node* effect,
                                              Node* control);
+  ValueEffectControl LowerStringFromCodePoint(Node* node, Node* effect,
+                                              Node* control);
   ValueEffectControl LowerStringEqual(Node* node, Node* effect, Node* control);
   ValueEffectControl LowerStringLessThan(Node* node, Node* effect,
                                          Node* control);

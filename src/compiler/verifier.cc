@@ -846,6 +846,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::String());
       break;
+    case IrOpcode::kStringFromCodePoint:
+      // (Unsigned32) -> String
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckTypeIs(node, Type::String());
+      break;
     case IrOpcode::kReferenceEqual: {
       // (Unique, Any) -> Boolean  and
       // (Any, Unique) -> Boolean
