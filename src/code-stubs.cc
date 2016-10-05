@@ -5011,33 +5011,38 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
       load_map(assembler);
   Variable map_index(assembler, MachineType::PointerRepresentation());
 
+  STATIC_ASSERT(FunctionKind::kNormalFunction == 0);
   Node* is_not_normal = assembler->Word32And(
       compiler_hints,
-      assembler->Int32Constant(SharedFunctionInfo::kFunctionKindMaskBits));
+      assembler->Int32Constant(SharedFunctionInfo::kAllFunctionKindBitsMask));
   assembler->GotoUnless(is_not_normal, &if_normal);
 
   Node* is_generator = assembler->Word32And(
       compiler_hints,
-      assembler->Int32Constant(1 << SharedFunctionInfo::kIsGeneratorBit));
+      assembler->Int32Constant(FunctionKind::kGeneratorFunction
+                               << SharedFunctionInfo::kFunctionKindShift));
   assembler->GotoIf(is_generator, &if_generator);
 
   Node* is_async = assembler->Word32And(
       compiler_hints,
-      assembler->Int32Constant(1 << SharedFunctionInfo::kIsAsyncFunctionBit));
+      assembler->Int32Constant(FunctionKind::kAsyncFunction
+                               << SharedFunctionInfo::kFunctionKindShift));
   assembler->GotoIf(is_async, &if_async);
 
   Node* is_class_constructor = assembler->Word32And(
       compiler_hints,
-      assembler->Int32Constant(SharedFunctionInfo::kClassConstructorBits));
+      assembler->Int32Constant(FunctionKind::kClassConstructor
+                               << SharedFunctionInfo::kFunctionKindShift));
   assembler->GotoIf(is_class_constructor, &if_class_constructor);
 
   if (FLAG_debug_code) {
     // Function must be a function without a prototype.
     assembler->Assert(assembler->Word32And(
-        compiler_hints, assembler->Int32Constant(
-                            SharedFunctionInfo::kAccessorFunctionBits |
-                            (1 << SharedFunctionInfo::kIsArrowBit) |
-                            (1 << SharedFunctionInfo::kIsConciseMethodBit))));
+        compiler_hints,
+        assembler->Int32Constant((FunctionKind::kAccessorFunction |
+                                  FunctionKind::kArrowFunction |
+                                  FunctionKind::kConciseMethod)
+                                 << SharedFunctionInfo::kFunctionKindShift)));
   }
   assembler->Goto(&if_function_without_prototype);
 
