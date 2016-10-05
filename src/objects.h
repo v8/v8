@@ -7543,9 +7543,9 @@ class SharedFunctionInfo: public HeapObject {
 
   // Layout description.
   // Pointer fields.
-  static const int kCodeOffset = HeapObject::kHeaderSize;
-  static const int kNameOffset = kCodeOffset + kPointerSize;
-  static const int kOptimizedCodeMapOffset = kNameOffset + kPointerSize;
+  static const int kNameOffset = HeapObject::kHeaderSize;
+  static const int kCodeOffset = kNameOffset + kPointerSize;
+  static const int kOptimizedCodeMapOffset = kCodeOffset + kPointerSize;
   static const int kScopeInfoOffset = kOptimizedCodeMapOffset + kPointerSize;
   static const int kOuterScopeInfoOffset = kScopeInfoOffset + kPointerSize;
   static const int kConstructStubOffset = kOuterScopeInfoOffset + kPointerSize;
@@ -7670,12 +7670,9 @@ class SharedFunctionInfo: public HeapObject {
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
-  typedef FixedBodyDescriptor<kCodeOffset,
-                              kLastPointerFieldOffset + kPointerSize, kSize>
-      BodyDescriptor;
   typedef FixedBodyDescriptor<kNameOffset,
-                              kLastPointerFieldOffset + kPointerSize, kSize>
-      BodyDescriptorWeakCode;
+                              kLastPointerFieldOffset + kPointerSize,
+                              kSize> BodyDescriptor;
 
   // Bit positions in start_position_and_type.
   // The source code start position is in the 30 most significant bits of

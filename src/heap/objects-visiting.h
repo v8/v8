@@ -386,8 +386,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   // Helpers used by code flushing support that visit pointer fields and treat
   // references to code objects either strongly or weakly.
-  static void VisitSharedFunctionInfoStrongCode(Map* map, HeapObject* object);
-  static void VisitSharedFunctionInfoWeakCode(Map* map, HeapObject* object);
+  static void VisitSharedFunctionInfoStrongCode(Heap* heap, HeapObject* object);
+  static void VisitSharedFunctionInfoWeakCode(Heap* heap, HeapObject* object);
   static void VisitJSFunctionStrongCode(Map* map, HeapObject* object);
   static void VisitJSFunctionWeakCode(Map* map, HeapObject* object);
 

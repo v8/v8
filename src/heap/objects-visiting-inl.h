@@ -449,11 +449,11 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
       // optimized code.
       collector->code_flusher()->AddCandidate(shared);
       // Treat the reference to the code object weakly.
-      VisitSharedFunctionInfoWeakCode(map, object);
+      VisitSharedFunctionInfoWeakCode(heap, object);
       return;
     }
   }
-  VisitSharedFunctionInfoStrongCode(map, object);
+  VisitSharedFunctionInfoStrongCode(heap, object);
 }
 
 
@@ -621,22 +621,38 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   return true;
 }
 
+
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfoStrongCode(
-    Map* map, HeapObject* object) {
-  FixedBodyVisitor<StaticVisitor, SharedFunctionInfo::BodyDescriptor,
-                   void>::Visit(map, object);
+    Heap* heap, HeapObject* object) {
+  Object** start_slot = HeapObject::RawField(
+      object, SharedFunctionInfo::BodyDescriptor::kStartOffset);
+  Object** end_slot = HeapObject::RawField(
+      object, SharedFunctionInfo::BodyDescriptor::kEndOffset);
+  StaticVisitor::VisitPointers(heap, object, start_slot, end_slot);
 }
+
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfoWeakCode(
-    Map* map, HeapObject* object) {
+    Heap* heap, HeapObject* object) {
+  Object** name_slot =
+      HeapObject::RawField(object, SharedFunctionInfo::kNameOffset);
+  StaticVisitor::VisitPointer(heap, object, name_slot);
+
   // Skip visiting kCodeOffset as it is treated weakly here.
-  STATIC_ASSERT(SharedFunctionInfo::kCodeOffset <
-                SharedFunctionInfo::BodyDescriptorWeakCode::kStartOffset);
-  FixedBodyVisitor<StaticVisitor, SharedFunctionInfo::BodyDescriptorWeakCode,
-                   void>::Visit(map, object);
+  STATIC_ASSERT(SharedFunctionInfo::kNameOffset + kPointerSize ==
+                SharedFunctionInfo::kCodeOffset);
+  STATIC_ASSERT(SharedFunctionInfo::kCodeOffset + kPointerSize ==
+                SharedFunctionInfo::kOptimizedCodeMapOffset);
+
+  Object** start_slot =
+      HeapObject::RawField(object, SharedFunctionInfo::kOptimizedCodeMapOffset);
+  Object** end_slot = HeapObject::RawField(
+      object, SharedFunctionInfo::BodyDescriptor::kEndOffset);
+  StaticVisitor::VisitPointers(heap, object, start_slot, end_slot);
 }
+
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitJSFunctionStrongCode(
