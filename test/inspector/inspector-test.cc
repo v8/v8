@@ -127,7 +127,6 @@ class SetTimeoutExtension : public v8::Extension {
 
  private:
   static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    v8::Isolate* isolate = args.GetIsolate();
     if (args.Length() != 2 || !args[1]->IsNumber() ||
         (!args[0]->IsFunction() && !args[0]->IsString()) ||
         args[1].As<v8::Number>()->Value() != 0.0) {

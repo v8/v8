@@ -132,7 +132,7 @@ void ExecuteStringTask::Run(v8::Isolate* isolate,
   v8::Local<v8::String> source =
       v8::String::NewFromTwoByte(isolate, expression_.characters16(),
                                  v8::NewStringType::kNormal,
-                                 expression_.length())
+                                 static_cast<int>(expression_.length()))
           .ToLocalChecked();
 
   v8::ScriptCompiler::Source scriptSource(source, origin);
