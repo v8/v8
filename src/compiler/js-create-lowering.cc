@@ -722,16 +722,25 @@ Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateIterResultObject, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* done = NodeProperties::GetValueInput(node, 1);
-  Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  // Load the JSIteratorResult map for the {context}.
-  Node* native_context = effect = graph()->NewNode(
-      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-      context, context, effect);
-  Node* iterator_result_map = effect = graph()->NewNode(
-      javascript()->LoadContext(0, Context::ITERATOR_RESULT_MAP_INDEX, true),
-      native_context, native_context, effect);
+  Node* iterator_result_map;
+  Handle<Context> native_context;
+  if (GetSpecializationNativeContext(node).ToHandle(&native_context)) {
+    // Specialize to the constant JSIteratorResult map to enable map check
+    // elimination to eliminate subsequent checks in case of inlining.
+    iterator_result_map = jsgraph()->HeapConstant(
+        handle(native_context->iterator_result_map(), isolate()));
+  } else {
+    // Load the JSIteratorResult map for the {context}.
+    Node* context = NodeProperties::GetContextInput(node);
+    Node* native_context = effect = graph()->NewNode(
+        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+        context, context, effect);
+    iterator_result_map = effect = graph()->NewNode(
+        javascript()->LoadContext(0, Context::ITERATOR_RESULT_MAP_INDEX, true),
+        native_context, native_context, effect);
+  }
 
   // Emit code to allocate the JSIteratorResult instance.
   AllocationBuilder a(jsgraph(), effect, graph()->start());
@@ -1269,6 +1278,13 @@ MaybeHandle<LiteralsArray> JSCreateLowering::GetSpecializationLiterals(
       break;
   }
   return MaybeHandle<LiteralsArray>();
+}
+
+MaybeHandle<Context> JSCreateLowering::GetSpecializationNativeContext(
+    Node* node) {
+  Node* const context = NodeProperties::GetContextInput(node);
+  return NodeProperties::GetSpecializationNativeContext(context,
+                                                        native_context_);
 }
 
 Factory* JSCreateLowering::factory() const { return isolate()->factory(); }
