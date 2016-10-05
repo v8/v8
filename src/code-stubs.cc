@@ -1032,7 +1032,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
   // Shared entry for floating point addition.
   Label do_fadd(assembler), end(assembler),
-      call_add_stub(assembler, Label::kDeferred);
+      do_add_any(assembler, Label::kDeferred), call_add_stub(assembler);
   Variable var_fadd_lhs(assembler, MachineRepresentation::kFloat64),
       var_fadd_rhs(assembler, MachineRepresentation::kFloat64),
       var_type_feedback(assembler, MachineRepresentation::kWord32),
@@ -1080,8 +1080,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
-                            &call_add_stub);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map), &do_add_any);
 
       var_fadd_lhs.Bind(assembler->SmiToFloat64(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
@@ -1091,12 +1090,14 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
   assembler->Bind(&if_lhsisnotsmi);
   {
+    Label check_string(assembler);
+
     // Load the map of {lhs}.
     Node* lhs_map = assembler->LoadMap(lhs);
 
     // Check if {lhs} is a HeapNumber.
     Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
-    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map), &call_add_stub);
+    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map), &check_string);
 
     // Check if the {rhs} is Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
@@ -1115,12 +1116,33 @@ compiler::Node* AddWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
-                            &call_add_stub);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map), &do_add_any);
 
       var_fadd_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
       assembler->Goto(&do_fadd);
+    }
+
+    assembler->Bind(&check_string);
+    {
+      // Check if the {rhs} is a smi, and exit the string check early if it is.
+      assembler->GotoIf(assembler->WordIsSmi(rhs), &do_add_any);
+
+      Node* lhs_instance_type = assembler->LoadMapInstanceType(lhs_map);
+
+      // Exit unless {lhs} is a string
+      assembler->GotoUnless(assembler->IsStringInstanceType(lhs_instance_type),
+                            &do_add_any);
+
+      Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+
+      // Exit unless {rhs} is a string
+      assembler->GotoUnless(assembler->IsStringInstanceType(rhs_instance_type),
+                            &do_add_any);
+
+      var_type_feedback.Bind(
+          assembler->Int32Constant(BinaryOperationFeedback::kString));
+      assembler->Goto(&call_add_stub);
     }
   }
 
@@ -1135,10 +1157,15 @@ compiler::Node* AddWithFeedbackStub::Generate(
     assembler->Goto(&end);
   }
 
-  assembler->Bind(&call_add_stub);
+  assembler->Bind(&do_add_any);
   {
     var_type_feedback.Bind(
         assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_add_stub);
+  }
+
+  assembler->Bind(&call_add_stub);
+  {
     Callable callable = CodeFactory::Add(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
     assembler->Goto(&end);
