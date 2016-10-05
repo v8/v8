@@ -500,6 +500,8 @@ TEST(SizeOfInitialHeap) {
            ->IsUndefined()) {
     return;
   }
+  // Initial size of LO_SPACE
+  size_t initial_lo_space = isolate->heap()->lo_space()->Size();
 
   // The limit for each space for an empty isolate containing just the
   // snapshot.
@@ -528,7 +530,7 @@ TEST(SizeOfInitialHeap) {
   }
 
   // No large objects required to perform the above steps.
-  CHECK(isolate->heap()->lo_space()->IsEmpty());
+  CHECK_EQ(initial_lo_space, isolate->heap()->lo_space()->Size());
 }
 
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
