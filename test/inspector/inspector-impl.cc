@@ -55,7 +55,8 @@ void MessageHandler(v8::Local<v8::Message> message,
       InspectorClientImpl::InspectorFromContext(context);
 
   v8::Local<v8::StackTrace> stack = message->GetStackTrace();
-  int script_id = message->GetScriptOrigin().ScriptID()->Value();
+  int script_id =
+      static_cast<int>(message->GetScriptOrigin().ScriptID()->Value());
   if (!stack.IsEmpty() && stack->GetFrameCount() > 0) {
     int top_script_id = stack->GetFrame(0)->GetScriptId();
     if (top_script_id == script_id) script_id = 0;
