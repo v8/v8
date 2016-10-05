@@ -25,7 +25,6 @@
 #include <string>
 #include <vector>
 
-#include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/mutex.h"
@@ -70,7 +69,7 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-extern V8_BASE_EXPORT intptr_t kMacTlsBaseOffset;
+extern intptr_t kMacTlsBaseOffset;
 
 INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
 
@@ -103,7 +102,7 @@ class TimezoneCache;
 // functions. Add methods here to cope with differences between the
 // supported platforms.
 
-class V8_BASE_EXPORT OS {
+class OS {
  public:
   // Initialize the OS class.
   // - random_seed: Used for the GetRandomMmapAddress() if non-zero.
@@ -212,7 +211,7 @@ class V8_BASE_EXPORT OS {
     char text[kStackWalkMaxTextLen];
   };
 
-  class V8_BASE_EXPORT MemoryMappedFile {
+  class MemoryMappedFile {
    public:
     virtual ~MemoryMappedFile() {}
     virtual void* memory() const = 0;
@@ -287,7 +286,7 @@ class V8_BASE_EXPORT OS {
 // Control of the reserved memory can be assigned to another VirtualMemory
 // object by assignment or copy-contructing. This removes the reserved memory
 // from the original object.
-class V8_BASE_EXPORT VirtualMemory {
+class VirtualMemory {
  public:
   // Empty VirtualMemory object, controlling no reserved memory.
   VirtualMemory();
@@ -419,7 +418,7 @@ class V8_BASE_EXPORT VirtualMemory {
 // thread. The Thread object should not be deallocated before the thread has
 // terminated.
 
-class V8_BASE_EXPORT Thread {
+class Thread {
  public:
   // Opaque data type for thread-local storage keys.
   typedef int32_t LocalStorageKey;

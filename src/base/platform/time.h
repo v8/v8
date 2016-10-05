@@ -9,7 +9,6 @@
 #include <iosfwd>
 #include <limits>
 
-#include "src/base/base-export.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/base/safe_math.h"
@@ -43,7 +42,7 @@ class TimeBase;
 // This class represents a duration of time, internally represented in
 // microseonds.
 
-class V8_BASE_EXPORT TimeDelta final {
+class TimeDelta final {
  public:
   TimeDelta() : delta_(0) {}
 
@@ -278,7 +277,7 @@ class TimeBase {
 // This class represents an absolute point in time, internally represented as
 // microseconds (s/1,000,000) since 00:00:00 UTC, January 1, 1970.
 
-class V8_BASE_EXPORT Time final : public time_internal::TimeBase<Time> {
+class Time final : public time_internal::TimeBase<Time> {
  public:
   // Contains the NULL time. Use Time::Now() to get the current time.
   Time() : TimeBase(0) {}
@@ -323,7 +322,7 @@ class V8_BASE_EXPORT Time final : public time_internal::TimeBase<Time> {
   explicit Time(int64_t us) : TimeBase(us) {}
 };
 
-V8_BASE_EXPORT std::ostream& operator<<(std::ostream&, const Time&);
+std::ostream& operator<<(std::ostream&, const Time&);
 
 inline Time operator+(const TimeDelta& delta, const Time& time) {
   return time + delta;
@@ -340,8 +339,7 @@ inline Time operator+(const TimeDelta& delta, const Time& time) {
 // Time::Now() may actually decrease or jump).  But note that TimeTicks may
 // "stand still", for example if the computer suspended.
 
-class V8_BASE_EXPORT TimeTicks final
-    : public time_internal::TimeBase<TimeTicks> {
+class TimeTicks final : public time_internal::TimeBase<TimeTicks> {
  public:
   TimeTicks() : TimeBase(0) {}
 
@@ -378,8 +376,7 @@ inline TimeTicks operator+(const TimeDelta& delta, const TimeTicks& ticks) {
 
 // Represents a clock, specific to a particular thread, than runs only while the
 // thread is running.
-class V8_BASE_EXPORT ThreadTicks final
-    : public time_internal::TimeBase<ThreadTicks> {
+class ThreadTicks final : public time_internal::TimeBase<ThreadTicks> {
  public:
   ThreadTicks() : TimeBase(0) {}
 
@@ -411,9 +408,6 @@ class V8_BASE_EXPORT ThreadTicks final
 #endif
 
  private:
-  template <class TimeClass>
-  friend class time_internal::TimeBase;
-
   // Please use Now() or GetForThread() to create a new object. This is for
   // internal use and testing. Ticks are in microseconds.
   explicit ThreadTicks(int64_t ticks) : TimeBase(ticks) {}
