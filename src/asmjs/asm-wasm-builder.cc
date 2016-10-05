@@ -1339,13 +1339,16 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     bool returns_value = true;
     switch (call_type) {
       case Call::OTHER_CALL: {
-        DCHECK_EQ(kFuncScope, scope_);
         VariableProxy* proxy = expr->expression()->AsVariableProxy();
         if (proxy != nullptr) {
+          DCHECK(kFuncScope == scope_ ||
+                 typer_->VariableAsStandardMember(proxy->var()) ==
+                     AsmTyper::kMathFround);
           if (VisitStdlibFunction(expr, proxy)) {
             return true;
           }
         }
+        DCHECK(kFuncScope == scope_);
         VariableProxy* vp = expr->expression()->AsVariableProxy();
         DCHECK_NOT_NULL(vp);
         if (typer_->TypeOf(vp)->AsFFIType() != nullptr) {

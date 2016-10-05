@@ -515,7 +515,6 @@ TEST(ErrorsInGlobalVariableDefinition) {
       {"var v = __fround__(1.0);", "expected call fround(literal)"},
       {"var v = fround(1.0, 1.0);", "expected call fround(literal)"},
       {"var v = fround(not_fround);", "literal argument for call to fround"},
-      {"var v = fround(1);", "literal argument to be a floating point"},
       {"var v = stdlib.nan", "Invalid import"},
       {"var v = stdlib.Math.nan", "Invalid import"},
       {"var v = stdlib.Mathh.E", "Invalid import"},

@@ -762,7 +762,7 @@ AsmType* AsmTyper::ValidateGlobalDeclaration(Assignment* assign) {
   bool global_variable = false;
   if (value->IsLiteral() || value->IsCall()) {
     AsmType* type = nullptr;
-    RECURSE(type = VariableTypeAnnotations(value));
+    RECURSE(type = VariableTypeAnnotations(value, true));
     target_info = new (zone_) VariableInfo(type);
     target_info->set_mutability(VariableInfo::kMutableGlobal);
     global_variable = true;
@@ -2681,7 +2681,8 @@ AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
 
 // 5.4 VariableTypeAnnotations
 // Also used for 5.5 GlobalVariableTypeAnnotations
-AsmType* AsmTyper::VariableTypeAnnotations(Expression* initializer) {
+AsmType* AsmTyper::VariableTypeAnnotations(Expression* initializer,
+                                           bool global) {
   if (auto* literal = initializer->AsLiteral()) {
     if (literal->raw_value()->ContainsDot()) {
       SetTypeOf(initializer, AsmType::Double());
@@ -2722,10 +2723,13 @@ AsmType* AsmTyper::VariableTypeAnnotations(Expression* initializer) {
          "to fround.");
   }
 
-  if (!src_expr->raw_value()->ContainsDot()) {
-    FAIL(initializer,
-         "Invalid float type annotation - expected literal argument to be a "
-         "floating point literal.");
+  // Float constants must contain dots in local, but not in globals.
+  if (!global) {
+    if (!src_expr->raw_value()->ContainsDot()) {
+      FAIL(initializer,
+           "Invalid float type annotation - expected literal argument to be a "
+           "floating point literal.");
+    }
   }
 
   return AsmType::Float();
