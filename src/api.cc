@@ -2215,6 +2215,9 @@ Local<Function> ScriptCompiler::CompileFunctionInContext(
 
 ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
     Isolate* v8_isolate, StreamedSource* source, CompileOptions options) {
+  if (!i::FLAG_script_streaming) {
+    return nullptr;
+  }
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   return new i::BackgroundParsingTask(source->impl(), options,
                                       i::FLAG_stack_size, isolate);
