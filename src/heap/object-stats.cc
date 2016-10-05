@@ -509,9 +509,11 @@ void ObjectStatsCollector::RecordCodeDetails(Code* code) {
   if (code->kind() == Code::Kind::OPTIMIZED_FUNCTION) {
     DeoptimizationInputData* input_data =
         DeoptimizationInputData::cast(code->deoptimization_data());
-    RecordFixedArrayHelper(code->deoptimization_data(),
-                           input_data->LiteralArray(),
-                           OPTIMIZED_CODE_LITERALS_SUB_TYPE, 0);
+    if (input_data->length() > 0) {
+      RecordFixedArrayHelper(code->deoptimization_data(),
+                             input_data->LiteralArray(),
+                             OPTIMIZED_CODE_LITERALS_SUB_TYPE, 0);
+    }
   }
   RecordFixedArrayHelper(code, code->handler_table(), HANDLER_TABLE_SUB_TYPE,
                          0);
