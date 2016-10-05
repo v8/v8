@@ -662,15 +662,6 @@
   'regress/regress-embedded-cons-string': [FAIL],
   'regress/regress-prepare-break-while-recompile': [FAIL],
 
-  # Modules for which execution must fail (e.g. because of unresolved imports).
-  # Eventually we should test for the precise error message, but for now we only
-  # ensure that there is an error.
-  'modules-fail*': [FAIL],
-
-  # Modules which are only meant to be imported from by other tests, not to be
-  # tested standalone.
-  'modules-skip*': [SKIP],
-
   # BUG(v8:5451): Flaky crashes.
   'wasm/asm-wasm': [PASS, ['gc_stress', SKIP]],
 }],  # variant == ignition
@@ -784,11 +775,23 @@
   'es6/tail-call-megatest*': [SKIP],
 }],  # variant == ignition_turbofan and msan
 
-['variant != ignition', {
+##############################################################################
+['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
+  # Modules for which execution must fail (e.g. because of unresolved imports).
+  # Eventually we should test for the precise error message, but for now we only
+  # ensure that there is an error.
+  'modules-fail*': [FAIL],
+
+  # Modules which are only meant to be imported from by other tests, not to be
+  # tested standalone.
+  'modules-skip*': [SKIP],
+}],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
+
+['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
   # Ongoing implementation of modules.
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569
   'modules-*': [SKIP],
-}],  # variants != ignition
+}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
 
 ##############################################################################
 ['gcov_coverage', {

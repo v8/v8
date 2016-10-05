@@ -630,18 +630,18 @@
 
 # Module-related tests
 # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-['variant != ignition', {
+['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
   'language/eval-code/direct/export': [SKIP],
   'language/eval-code/direct/import': [SKIP],
   'language/eval-code/indirect/export': [SKIP],
   'language/eval-code/indirect/import': [SKIP],
   'language/module-code/*': [SKIP],
-}],  # 'variant != ignition'
-['variant == ignition', {
+}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
+['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
   'language/module-code/comment-*': [SKIP],
   'language/module-code/eval-*': [SKIP],
   'language/module-code/instn-*': [SKIP],
   'language/module-code/namespace/*': [SKIP],
-}],  # 'variant == ignition'
+}],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
 
 ]
