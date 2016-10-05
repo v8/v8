@@ -20,10 +20,12 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
   for (MemoryChunk* chunk : *heap->old_space()) {
     SlotSet* slots = GetSlotSet(chunk);
     if (slots != nullptr) {
-      slots->Iterate([heap, chunk](Address addr) {
-        Object** slot = reinterpret_cast<Object**>(addr);
-        return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
-      });
+      slots->Iterate(
+          [heap, chunk](Address addr) {
+            Object** slot = reinterpret_cast<Object**>(addr);
+            return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
+          },
+          SlotSet::PREFREE_EMPTY_BUCKETS);
     }
   }
   for (MemoryChunk* chunk : *heap->code_space()) {
@@ -43,14 +45,17 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
   for (MemoryChunk* chunk : *heap->map_space()) {
     SlotSet* slots = GetSlotSet(chunk);
     if (slots != nullptr) {
-      slots->Iterate([heap, chunk](Address addr) {
-        Object** slot = reinterpret_cast<Object**>(addr);
-        // TODO(mlippautz): In map space all allocations would ideally be map
-        // aligned. After establishing this invariant IsValidSlot could just
-        // refer to the containing object using alignment and check the mark
-        // bits.
-        return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
-      });
+      slots->Iterate(
+          [heap, chunk](Address addr) {
+            Object** slot = reinterpret_cast<Object**>(addr);
+            // TODO(mlippautz): In map space all allocations would ideally be
+            // map
+            // aligned. After establishing this invariant IsValidSlot could just
+            // refer to the containing object using alignment and check the mark
+            // bits.
+            return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
+          },
+          SlotSet::PREFREE_EMPTY_BUCKETS);
     }
   }
 }

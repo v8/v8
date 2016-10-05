@@ -508,7 +508,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->flags_ = Flags(NO_FLAGS);
   chunk->set_owner(owner);
   chunk->InitializeReservedMemory();
-  chunk->old_to_new_slots_ = nullptr;
+  chunk->old_to_new_slots_.SetValue(nullptr);
   chunk->old_to_old_slots_ = nullptr;
   chunk->typed_old_to_new_slots_.SetValue(nullptr);
   chunk->typed_old_to_old_slots_ = nullptr;
@@ -1075,7 +1075,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
     delete mutex_;
     mutex_ = nullptr;
   }
-  if (old_to_new_slots_ != nullptr) ReleaseOldToNewSlots();
+  if (old_to_new_slots_.Value() != nullptr) ReleaseOldToNewSlots();
   if (old_to_old_slots_ != nullptr) ReleaseOldToOldSlots();
   if (typed_old_to_new_slots_.Value() != nullptr) ReleaseTypedOldToNewSlots();
   if (typed_old_to_old_slots_ != nullptr) ReleaseTypedOldToOldSlots();
@@ -1093,13 +1093,14 @@ static SlotSet* AllocateSlotSet(size_t size, Address page_start) {
 }
 
 void MemoryChunk::AllocateOldToNewSlots() {
-  DCHECK(nullptr == old_to_new_slots_);
-  old_to_new_slots_ = AllocateSlotSet(size_, address());
+  DCHECK(nullptr == old_to_new_slots_.Value());
+  old_to_new_slots_.SetValue(AllocateSlotSet(size_, address()));
 }
 
 void MemoryChunk::ReleaseOldToNewSlots() {
-  delete[] old_to_new_slots_;
-  old_to_new_slots_ = nullptr;
+  SlotSet* old_to_new_slots = old_to_new_slots_.Value();
+  delete[] old_to_new_slots;
+  old_to_new_slots_.SetValue(nullptr);
 }
 
 void MemoryChunk::AllocateOldToOldSlots() {

@@ -52,14 +52,16 @@ TEST(SlotSet, Iterate) {
     }
   }
 
-  set.Iterate([](Address slot_address) {
-    uintptr_t intaddr = reinterpret_cast<uintptr_t>(slot_address);
-    if (intaddr % 3 == 0) {
-      return KEEP_SLOT;
-    } else {
-      return REMOVE_SLOT;
-    }
-  });
+  set.Iterate(
+      [](Address slot_address) {
+        uintptr_t intaddr = reinterpret_cast<uintptr_t>(slot_address);
+        if (intaddr % 3 == 0) {
+          return KEEP_SLOT;
+        } else {
+          return REMOVE_SLOT;
+        }
+      },
+      SlotSet::KEEP_EMPTY_BUCKETS);
 
   for (int i = 0; i < Page::kPageSize; i += kPointerSize) {
     if (i % 21 == 0) {

@@ -116,10 +116,13 @@ class RememberedSet {
       size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
       int new_count = 0;
       for (size_t page = 0; page < pages; page++) {
-        new_count += slots[page].Iterate(callback);
+        new_count +=
+            slots[page].Iterate(callback, SlotSet::PREFREE_EMPTY_BUCKETS);
       }
-      if (new_count == 0) {
-        ReleaseSlotSet(chunk);
+      // Only old-to-old slot sets are released eagerly. Old-new-slot sets are
+      // released by the sweeper threads.
+      if (direction == OLD_TO_OLD && new_count == 0) {
+        chunk->ReleaseOldToOldSlots();
       }
     }
   }
@@ -216,14 +219,6 @@ class RememberedSet {
       return chunk->typed_old_to_old_slots();
     } else {
       return chunk->typed_old_to_new_slots();
-    }
-  }
-
-  static void ReleaseSlotSet(MemoryChunk* chunk) {
-    if (direction == OLD_TO_OLD) {
-      chunk->ReleaseOldToOldSlots();
-    } else {
-      chunk->ReleaseOldToNewSlots();
     }
   }
 

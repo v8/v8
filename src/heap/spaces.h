@@ -453,7 +453,7 @@ class MemoryChunk {
 
   inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
 
-  inline SlotSet* old_to_new_slots() { return old_to_new_slots_; }
+  inline SlotSet* old_to_new_slots() { return old_to_new_slots_.Value(); }
   inline SlotSet* old_to_old_slots() { return old_to_old_slots_; }
   inline TypedSlotSet* typed_old_to_new_slots() {
     return typed_old_to_new_slots_.Value();
@@ -653,7 +653,7 @@ class MemoryChunk {
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
-  SlotSet* old_to_new_slots_;
+  base::AtomicValue<SlotSet*> old_to_new_slots_;
   SlotSet* old_to_old_slots_;
   base::AtomicValue<TypedSlotSet*> typed_old_to_new_slots_;
   TypedSlotSet* typed_old_to_old_slots_;

@@ -25,6 +25,8 @@ enum SlotCallbackResult { KEEP_SLOT, REMOVE_SLOT };
 // Each bucket is a bitmap with a bit corresponding to a single slot offset.
 class SlotSet : public Malloced {
  public:
+  enum IterationMode { PREFREE_EMPTY_BUCKETS, KEEP_EMPTY_BUCKETS };
+
   SlotSet() {
     for (int i = 0; i < kBuckets; i++) {
       bucket[i].SetValue(nullptr);
@@ -35,6 +37,7 @@ class SlotSet : public Malloced {
     for (int i = 0; i < kBuckets; i++) {
       ReleaseBucket(i);
     }
+    FreeToBeFreedBuckets();
   }
 
   void SetPageStart(Address page_start) { page_start_ = page_start; }
@@ -145,7 +148,7 @@ class SlotSet : public Malloced {
   //    else return REMOVE_SLOT;
   // });
   template <typename Callback>
-  int Iterate(Callback callback) {
+  int Iterate(Callback callback, IterationMode mode) {
     int new_count = 0;
     for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
       if (bucket[bucket_index].Value() != nullptr) {
@@ -182,13 +185,26 @@ class SlotSet : public Malloced {
             }
           }
         }
-        if (in_bucket_count == 0) {
-          ReleaseBucket(bucket_index);
+        if (mode == PREFREE_EMPTY_BUCKETS && in_bucket_count == 0) {
+          base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
+          base::AtomicValue<uint32_t>* bucket_ptr =
+              bucket[bucket_index].Value();
+          to_be_freed_buckets_.push(bucket_ptr);
+          bucket[bucket_index].SetValue(nullptr);
         }
         new_count += in_bucket_count;
       }
     }
     return new_count;
+  }
+
+  void FreeToBeFreedBuckets() {
+    base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
+    while (!to_be_freed_buckets_.empty()) {
+      base::AtomicValue<uint32_t>* top = to_be_freed_buckets_.top();
+      to_be_freed_buckets_.pop();
+      DeleteArray<base::AtomicValue<uint32_t>>(top);
+    }
   }
 
  private:
@@ -242,6 +258,8 @@ class SlotSet : public Malloced {
 
   base::AtomicValue<base::AtomicValue<uint32_t>*> bucket[kBuckets];
   Address page_start_;
+  base::Mutex to_be_freed_buckets_mutex_;
+  std::stack<base::AtomicValue<uint32_t>*> to_be_freed_buckets_;
 };
 
 enum SlotType {

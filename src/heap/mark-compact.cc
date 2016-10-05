@@ -3836,6 +3836,9 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     if (page->typed_old_to_new_slots()) {
       page->typed_old_to_new_slots()->FreeToBeFreedChunks();
     }
+    if (page->old_to_new_slots()) {
+      page->old_to_new_slots()->FreeToBeFreedBuckets();
+    }
 
     {
       base::LockGuard<base::Mutex> guard(&mutex_);
