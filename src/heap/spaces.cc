@@ -446,7 +446,7 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
   base::VirtualMemory reservation(size, alignment);
 
   if (!reservation.IsReserved()) return NULL;
-  size_.Increment(static_cast<intptr_t>(reservation.size()));
+  size_.Increment(reservation.size());
   Address base =
       RoundUp(static_cast<Address>(reservation.address()), alignment);
   controller->TakeControl(&reservation);
@@ -681,8 +681,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
                  CodePageGuardSize();
 
     // Check executable memory limit.
-    if ((size_executable_.Value() + static_cast<intptr_t>(chunk_size)) >
-        capacity_executable_) {
+    if ((size_executable_.Value() + chunk_size) > capacity_executable_) {
       LOG(isolate_, StringEvent("MemoryAllocator::AllocateRawMemory",
                                 "V8 Executable Allocation capacity exceeded"));
       return NULL;
@@ -705,16 +704,16 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
       DCHECK(
           IsAligned(reinterpret_cast<intptr_t>(base), MemoryChunk::kAlignment));
       if (base == NULL) return NULL;
-      size_.Increment(static_cast<intptr_t>(chunk_size));
+      size_.Increment(chunk_size);
       // Update executable memory size.
-      size_executable_.Increment(static_cast<intptr_t>(chunk_size));
+      size_executable_.Increment(chunk_size);
     } else {
       base = AllocateAlignedMemory(chunk_size, commit_size,
                                    MemoryChunk::kAlignment, executable,
                                    &reservation);
       if (base == NULL) return NULL;
       // Update executable memory size.
-      size_executable_.Increment(static_cast<intptr_t>(reservation.size()));
+      size_executable_.Increment(reservation.size());
     }
 
     if (Heap::ShouldZapGarbage()) {
@@ -759,9 +758,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
     last_chunk_.TakeControl(&reservation);
     UncommitBlock(reinterpret_cast<Address>(last_chunk_.address()),
                   last_chunk_.size());
-    size_.Increment(-static_cast<intptr_t>(chunk_size));
+    size_.Decrement(chunk_size);
     if (executable == EXECUTABLE) {
-      size_executable_.Increment(-static_cast<intptr_t>(chunk_size));
+      size_executable_.Decrement(chunk_size);
     }
     CHECK(last_chunk_.IsReserved());
     return AllocateChunk(reserve_area_size, commit_area_size, executable,
@@ -837,8 +836,8 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
 
   size_t to_free_size = size - (start_free - chunk->address());
 
-  DCHECK(size_.Value() >= static_cast<intptr_t>(to_free_size));
-  size_.Increment(-static_cast<intptr_t>(to_free_size));
+  DCHECK(size_.Value() >= to_free_size);
+  size_.Decrement(to_free_size);
   isolate_->counters()->memory_allocated()->Decrement(
       static_cast<int>(to_free_size));
   chunk->set_size(size - to_free_size);
@@ -853,20 +852,15 @@ void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
   isolate_->heap()->RememberUnmappedPage(reinterpret_cast<Address>(chunk),
                                          chunk->IsEvacuationCandidate());
 
-  intptr_t size;
   base::VirtualMemory* reservation = chunk->reserved_memory();
-  if (reservation->IsReserved()) {
-    size = static_cast<intptr_t>(reservation->size());
-  } else {
-    size = static_cast<intptr_t>(chunk->size());
-  }
-  DCHECK(size_.Value() >= size);
-  size_.Increment(-size);
+  const size_t size =
+      reservation->IsReserved() ? reservation->size() : chunk->size();
+  DCHECK_GE(size_.Value(), static_cast<size_t>(size));
+  size_.Decrement(size);
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
-
   if (chunk->executable() == EXECUTABLE) {
-    DCHECK(size_executable_.Value() >= size);
-    size_executable_.Increment(-size);
+    DCHECK_GE(size_executable_.Value(), size);
+    size_executable_.Decrement(size);
   }
 
   chunk->SetFlag(MemoryChunk::PRE_FREED);
@@ -999,10 +993,9 @@ void MemoryAllocator::ZapBlock(Address start, size_t size) {
 
 #ifdef DEBUG
 void MemoryAllocator::ReportStatistics() {
-  intptr_t size = Size();
+  size_t size = Size();
   float pct = static_cast<float>(capacity_ - size) / capacity_;
-  PrintF("  capacity: %" V8PRIdPTR ", used: %" V8PRIdPTR
-         ", available: %%%d\n\n",
+  PrintF("  capacity: %zu , used: %" V8PRIdPTR ", available: %%%d\n\n",
          capacity_, size, static_cast<int>(pct * 100));
 }
 #endif

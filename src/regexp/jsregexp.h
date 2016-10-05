@@ -200,7 +200,7 @@ class RegExpImpl {
   // is not tracked, however.  As a conservative approximation we track the
   // total regexp code compiled including code that has subsequently been freed
   // and the total executable memory at any point.
-  static const int kRegExpExecutableMemoryLimit = 16 * MB;
+  static const size_t kRegExpExecutableMemoryLimit = 16 * MB;
   static const int kRegExpCompiledLimit = 1 * MB;
   static const int kRegExpTooLargeToOptimize = 20 * KB;
 

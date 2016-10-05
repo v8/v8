@@ -275,7 +275,8 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   // and does not count available bytes already in the old space or code
   // space.  Undercounting is safe---we may get an unrequested full GC when
   // a scavenge would have succeeded.
-  if (memory_allocator()->MaxAvailable() <= new_space_->Size()) {
+  if (static_cast<intptr_t>(memory_allocator()->MaxAvailable()) <=
+      new_space_->Size()) {
     isolate_->counters()
         ->gc_compactor_caused_by_oldspace_exhaustion()
         ->Increment();
@@ -315,8 +316,9 @@ void Heap::ReportStatisticsBeforeGC() {
 
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
-  PrintIsolate(isolate_, "Memory allocator,   used: %6" V8PRIdPTR
-                         " KB, available: %6" V8PRIdPTR " KB\n",
+  PrintIsolate(isolate_,
+               "Memory allocator,   used: %6zu KB,"
+               " available: %6zu KB\n",
                memory_allocator()->Size() / KB,
                memory_allocator()->Available() / KB);
   PrintIsolate(isolate_, "New space,          used: %6" V8PRIdPTR

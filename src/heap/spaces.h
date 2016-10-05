@@ -1230,11 +1230,30 @@ class MemoryAllocator {
     kRegular,
     kPooled,
   };
+
   enum FreeMode {
     kFull,
     kPreFreeAndQueue,
     kPooledAndQueue,
   };
+
+  static int CodePageGuardStartOffset();
+
+  static int CodePageGuardSize();
+
+  static int CodePageAreaStartOffset();
+
+  static int CodePageAreaEndOffset();
+
+  static int CodePageAreaSize() {
+    return CodePageAreaEndOffset() - CodePageAreaStartOffset();
+  }
+
+  static int PageAreaSize(AllocationSpace space) {
+    DCHECK_NE(LO_SPACE, space);
+    return (space == CODE_SPACE) ? CodePageAreaSize()
+                                 : Page::kAllocatableMemory;
+  }
 
   explicit MemoryAllocator(Isolate* isolate);
 
@@ -1261,26 +1280,26 @@ class MemoryAllocator {
   bool CanFreeMemoryChunk(MemoryChunk* chunk);
 
   // Returns allocated spaces in bytes.
-  intptr_t Size() { return size_.Value(); }
+  size_t Size() { return size_.Value(); }
 
   // Returns allocated executable spaces in bytes.
-  intptr_t SizeExecutable() { return size_executable_.Value(); }
+  size_t SizeExecutable() { return size_executable_.Value(); }
 
   // Returns the maximum available bytes of heaps.
-  intptr_t Available() {
-    intptr_t size = Size();
+  size_t Available() {
+    const size_t size = Size();
     return capacity_ < size ? 0 : capacity_ - size;
   }
 
   // Returns the maximum available executable bytes of heaps.
-  intptr_t AvailableExecutable() {
-    intptr_t executable_size = SizeExecutable();
+  size_t AvailableExecutable() {
+    const size_t executable_size = SizeExecutable();
     if (capacity_executable_ < executable_size) return 0;
     return capacity_executable_ - executable_size;
   }
 
   // Returns maximum available bytes that the old space can have.
-  intptr_t MaxAvailable() {
+  size_t MaxAvailable() {
     return (Available() / Page::kPageSize) * Page::kAllocatableMemory;
   }
 
@@ -1290,11 +1309,6 @@ class MemoryAllocator {
     return address < lowest_ever_allocated_.Value() ||
            address >= highest_ever_allocated_.Value();
   }
-
-#ifdef DEBUG
-  // Reports statistic info of the space.
-  void ReportStatistics();
-#endif
 
   // Returns a MemoryChunk in which the memory region from commit_area_size to
   // reserve_area_size of the chunk area is reserved but not committed, it
@@ -1333,30 +1347,17 @@ class MemoryAllocator {
   // filling it up with a recognizable non-NULL bit pattern.
   void ZapBlock(Address start, size_t size);
 
-  static int CodePageGuardStartOffset();
-
-  static int CodePageGuardSize();
-
-  static int CodePageAreaStartOffset();
-
-  static int CodePageAreaEndOffset();
-
-  static int CodePageAreaSize() {
-    return CodePageAreaEndOffset() - CodePageAreaStartOffset();
-  }
-
-  static int PageAreaSize(AllocationSpace space) {
-    DCHECK_NE(LO_SPACE, space);
-    return (space == CODE_SPACE) ? CodePageAreaSize()
-                                 : Page::kAllocatableMemory;
-  }
-
   MUST_USE_RESULT bool CommitExecutableMemory(base::VirtualMemory* vm,
                                               Address start, size_t commit_size,
                                               size_t reserved_size);
 
   CodeRange* code_range() { return code_range_; }
   Unmapper* unmapper() { return &unmapper_; }
+
+#ifdef DEBUG
+  // Reports statistic info of the space.
+  void ReportStatistics();
+#endif
 
  private:
   // PreFree logically frees the object, i.e., it takes care of the size
@@ -1370,28 +1371,6 @@ class MemoryAllocator {
   // pools for NOT_EXECUTABLE pages of size MemoryChunk::kPageSize.
   template <typename SpaceType>
   MemoryChunk* AllocatePagePooled(SpaceType* owner);
-
-  Isolate* isolate_;
-
-  CodeRange* code_range_;
-
-  // Maximum space size in bytes.
-  intptr_t capacity_;
-  // Maximum subset of capacity_ that can be executable
-  intptr_t capacity_executable_;
-
-  // Allocated space size in bytes.
-  base::AtomicNumber<intptr_t> size_;
-  // Allocated executable space size in bytes.
-  base::AtomicNumber<intptr_t> size_executable_;
-
-  // We keep the lowest and highest addresses allocated as a quick way
-  // of determining that pointers are outside the heap. The estimate is
-  // conservative, i.e. not all addrsses in 'allocated' space are allocated
-  // to our heap. The range is [lowest, highest[, inclusive on the low end
-  // and exclusive on the high end.
-  base::AtomicValue<void*> lowest_ever_allocated_;
-  base::AtomicValue<void*> highest_ever_allocated_;
 
   // Initializes pages in a chunk. Returns the first page address.
   // This function and GetChunkId() are provided for the mark-compact
@@ -1412,6 +1391,27 @@ class MemoryAllocator {
       ptr = highest_ever_allocated_.Value();
     } while ((high > ptr) && !highest_ever_allocated_.TrySetValue(ptr, high));
   }
+
+  Isolate* isolate_;
+  CodeRange* code_range_;
+
+  // Maximum space size in bytes.
+  size_t capacity_;
+  // Maximum subset of capacity_ that can be executable
+  size_t capacity_executable_;
+
+  // Allocated space size in bytes.
+  base::AtomicNumber<size_t> size_;
+  // Allocated executable space size in bytes.
+  base::AtomicNumber<size_t> size_executable_;
+
+  // We keep the lowest and highest addresses allocated as a quick way
+  // of determining that pointers are outside the heap. The estimate is
+  // conservative, i.e. not all addresses in 'allocated' space are allocated
+  // to our heap. The range is [lowest, highest[, inclusive on the low end
+  // and exclusive on the high end.
+  base::AtomicValue<void*> lowest_ever_allocated_;
+  base::AtomicValue<void*> highest_ever_allocated_;
 
   base::VirtualMemory last_chunk_;
   Unmapper unmapper_;

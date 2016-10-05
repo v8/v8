@@ -221,10 +221,10 @@ class GCTracer {
     intptr_t end_object_size;
 
     // Size of memory allocated from OS set in constructor.
-    intptr_t start_memory_size;
+    size_t start_memory_size;
 
     // Size of memory allocated from OS set in destructor.
-    intptr_t end_memory_size;
+    size_t end_memory_size;
 
     // Total amount of space either wasted or contained in one of free lists
     // before the current GC.
