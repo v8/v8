@@ -102,9 +102,7 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
 
   Handle<UnseededNumberDictionary> names;
   if (name_count) {
-    names = UnseededNumberDictionary::New(
-        isolate, base::bits::RoundUpToPowerOfTwo32(name_count), TENURED,
-        USE_CUSTOM_MINIMUM_CAPACITY);
+    names = UnseededNumberDictionary::New(isolate, name_count, TENURED);
   }
 
   int name_index = 0;
@@ -114,7 +112,10 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
     if (SlotRequiresName(kind)) {
       Handle<String> name = spec->GetName(name_index);
       DCHECK(!name.is_null());
-      names = UnseededNumberDictionary::AtNumberPut(names, i, name);
+      Handle<UnseededNumberDictionary> new_names =
+          UnseededNumberDictionary::AtNumberPut(names, i, name);
+      DCHECK_EQ(*new_names, *names);
+      names = new_names;
       name_index++;
     }
   }
