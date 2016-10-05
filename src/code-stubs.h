@@ -159,6 +159,7 @@ class ObjectLiteral;
   V(StoreGlobal)                              \
   V(StoreICTF)                                \
   V(StoreInterceptor)                         \
+  V(StoreMap)                                 \
   V(StoreTransition)                          \
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
@@ -1610,24 +1611,29 @@ class StoreFieldStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(StoreField, TurboFanCodeStub);
 };
 
+class StoreMapStub : public TurboFanCodeStub {
+ public:
+  explicit StoreMapStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
+  DEFINE_TURBOFAN_CODE_STUB(StoreMap, TurboFanCodeStub);
+};
+
 class StoreTransitionStub : public TurboFanCodeStub {
  public:
   enum StoreMode {
-    StoreMapOnly,
     StoreMapAndValue,
     ExtendStorageAndStoreMapAndValue
   };
 
-  explicit StoreTransitionStub(Isolate* isolate) : TurboFanCodeStub(isolate) {
-    minor_key_ = StoreModeBits::encode(StoreMapOnly);
-  }
-
-  StoreTransitionStub(Isolate* isolate, FieldIndex index,
+  StoreTransitionStub(Isolate* isolate, bool is_inobject,
                       Representation representation, StoreMode store_mode)
       : TurboFanCodeStub(isolate) {
-    DCHECK(store_mode != StoreMapOnly);
-    int property_index_key = index.GetFieldAccessStubKey();
-    minor_key_ = StoreFieldByIndexBits::encode(property_index_key) |
+    minor_key_ = IsInobjectBits::encode(is_inobject) |
                  RepresentationBits::encode(representation.kind()) |
                  StoreModeBits::encode(store_mode);
   }
@@ -1635,27 +1641,24 @@ class StoreTransitionStub : public TurboFanCodeStub {
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
-  FieldIndex index() const {
-    DCHECK(store_mode() != StoreMapOnly);
-    int property_index_key = StoreFieldByIndexBits::decode(minor_key_);
-    return FieldIndex::FromFieldAccessStubKey(property_index_key);
-  }
+  bool is_inobject() const { return IsInobjectBits::decode(minor_key_); }
 
   Representation representation() const {
-    DCHECK(store_mode() != StoreMapOnly);
     return Representation::FromKind(RepresentationBits::decode(minor_key_));
   }
 
   StoreMode store_mode() const { return StoreModeBits::decode(minor_key_); }
 
  private:
-  class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
-  class RepresentationBits : public BitField<Representation::Kind, 13, 4> {};
+  class IsInobjectBits : public BitField<bool, 0, 1> {};
+  class RepresentationBits
+      : public BitField<Representation::Kind, IsInobjectBits::kNext, 4> {};
   STATIC_ASSERT(Representation::kNumRepresentations - 1 <
                 RepresentationBits::kMax);
-  class StoreModeBits : public BitField<StoreMode, 17, 2> {};
+  class StoreModeBits
+      : public BitField<StoreMode, RepresentationBits::kNext, 1> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreNamedTransition);
   DEFINE_TURBOFAN_CODE_STUB(StoreTransition, TurboFanCodeStub);
 };
 

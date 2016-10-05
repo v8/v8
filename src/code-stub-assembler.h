@@ -313,8 +313,14 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Store a field to an object on the heap.
   compiler::Node* StoreObjectField(
       compiler::Node* object, int offset, compiler::Node* value);
+  compiler::Node* StoreObjectField(compiler::Node* object,
+                                   compiler::Node* offset,
+                                   compiler::Node* value);
   compiler::Node* StoreObjectFieldNoWriteBarrier(
       compiler::Node* object, int offset, compiler::Node* value,
+      MachineRepresentation rep = MachineRepresentation::kTagged);
+  compiler::Node* StoreObjectFieldNoWriteBarrier(
+      compiler::Node* object, compiler::Node* offset, compiler::Node* value,
       MachineRepresentation rep = MachineRepresentation::kTagged);
   // Store the Map of an HeapObject.
   compiler::Node* StoreMapNoWriteBarrier(compiler::Node* object,
@@ -753,6 +759,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void StoreNamedField(compiler::Node* object, FieldIndex index,
                        Representation representation, compiler::Node* value,
                        bool transition_to_field);
+
+  void StoreNamedField(compiler::Node* object, compiler::Node* offset,
+                       bool is_inobject, Representation representation,
+                       compiler::Node* value, bool transition_to_field);
 
   // Emits keyed sloppy arguments load. Returns either the loaded value.
   compiler::Node* LoadKeyedSloppyArguments(compiler::Node* receiver,

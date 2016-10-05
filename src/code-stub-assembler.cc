@@ -1115,10 +1115,30 @@ Node* CodeStubAssembler::StoreObjectField(
                IntPtrConstant(offset - kHeapObjectTag), value);
 }
 
+Node* CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
+                                          Node* value) {
+  int const_offset;
+  if (ToInt32Constant(offset, const_offset)) {
+    return StoreObjectField(object, const_offset, value);
+  }
+  return Store(MachineRepresentation::kTagged, object,
+               IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
+}
+
 Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
     Node* object, int offset, Node* value, MachineRepresentation rep) {
   return StoreNoWriteBarrier(rep, object,
                              IntPtrConstant(offset - kHeapObjectTag), value);
+}
+
+Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
+    Node* object, Node* offset, Node* value, MachineRepresentation rep) {
+  int const_offset;
+  if (ToInt32Constant(offset, const_offset)) {
+    return StoreObjectFieldNoWriteBarrier(object, const_offset, value, rep);
+  }
+  return StoreNoWriteBarrier(
+      rep, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
 }
 
 Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
@@ -5121,15 +5141,22 @@ void CodeStubAssembler::StoreNamedField(Node* object, FieldIndex index,
                                         Node* value, bool transition_to_field) {
   DCHECK_EQ(index.is_double(), representation.IsDouble());
 
+  StoreNamedField(object, IntPtrConstant(index.offset()), index.is_inobject(),
+                  representation, value, transition_to_field);
+}
+
+void CodeStubAssembler::StoreNamedField(Node* object, Node* offset,
+                                        bool is_inobject,
+                                        Representation representation,
+                                        Node* value, bool transition_to_field) {
   bool store_value_as_double = representation.IsDouble();
-  int offset = index.offset();
   Node* property_storage = object;
-  if (!index.is_inobject()) {
+  if (!is_inobject) {
     property_storage = LoadProperties(object);
   }
 
   if (representation.IsDouble()) {
-    if (!FLAG_unbox_double_fields || !index.is_inobject()) {
+    if (!FLAG_unbox_double_fields || !is_inobject) {
       if (transition_to_field) {
         Node* heap_number = AllocateHeapNumberWithValue(value, MUTABLE);
         // Store the new mutable heap number into the object.
@@ -5139,7 +5166,7 @@ void CodeStubAssembler::StoreNamedField(Node* object, FieldIndex index,
         // Load the heap number.
         property_storage = LoadObjectField(property_storage, offset);
         // Store the double value into it.
-        offset = HeapNumber::kValueOffset;
+        offset = IntPtrConstant(HeapNumber::kValueOffset);
       }
     }
   }

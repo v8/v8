@@ -529,57 +529,59 @@ void StoreICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->StoreIC(&p);
 }
 
+void StoreMapStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* map = assembler->Parameter(Descriptor::kMap);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+
+  assembler->StoreObjectField(receiver, JSObject::kMapOffset, map);
+  assembler->Return(value);
+}
+
 void StoreTransitionStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
 
   Node* receiver = assembler->Parameter(Descriptor::kReceiver);
   Node* name = assembler->Parameter(Descriptor::kName);
+  Node* offset =
+      assembler->SmiUntag(assembler->Parameter(Descriptor::kFieldOffset));
   Node* value = assembler->Parameter(Descriptor::kValue);
   Node* map = assembler->Parameter(Descriptor::kMap);
   Node* slot = assembler->Parameter(Descriptor::kSlot);
   Node* vector = assembler->Parameter(Descriptor::kVector);
   Node* context = assembler->Parameter(Descriptor::kContext);
 
-  StoreMode store_mode = this->store_mode();
-  Node* prepared_value = value;
-
   Label miss(assembler);
-  bool needs_miss_case = false;
 
-  if (store_mode != StoreTransitionStub::StoreMapOnly) {
-    Representation representation = this->representation();
-    FieldIndex index = this->index();
-    assembler->Comment(
-        "Prepare value for write: representation: %s, index.is_inobject: %d, "
-        "index.offset: %d",
-        representation.Mnemonic(), index.is_inobject(), index.offset());
-    prepared_value =
-        assembler->PrepareValueForWrite(prepared_value, representation, &miss);
-    // Only store to tagged field never bails out.
-    needs_miss_case |= !representation.IsTagged();
+  Representation representation = this->representation();
+  assembler->Comment("StoreTransitionStub: is_inobject: %d: representation: %s",
+                     is_inobject(), representation.Mnemonic());
+
+  Node* prepared_value =
+      assembler->PrepareValueForWrite(value, representation, &miss);
+
+  if (store_mode() == StoreTransitionStub::ExtendStorageAndStoreMapAndValue) {
+    assembler->Comment("Extend storage");
+    assembler->ExtendPropertiesBackingStore(receiver);
+  } else {
+    DCHECK(store_mode() == StoreTransitionStub::StoreMapAndValue);
   }
 
-  switch (store_mode) {
-    case StoreTransitionStub::ExtendStorageAndStoreMapAndValue:
-      assembler->Comment("Extend storage");
-      assembler->ExtendPropertiesBackingStore(receiver);
-    // Fall through.
-    case StoreTransitionStub::StoreMapAndValue:
-      assembler->Comment("Store value");
-      // Store the new value into the "extended" object.
-      assembler->StoreNamedField(receiver, index(), representation(),
-                                 prepared_value, true);
-    // Fall through.
-    case StoreTransitionStub::StoreMapOnly:
-      assembler->Comment("Store map");
-      // And finally update the map.
-      assembler->StoreObjectField(receiver, JSObject::kMapOffset, map);
-      break;
-  }
+  // Store the new value into the "extended" object.
+  assembler->Comment("Store value");
+  assembler->StoreNamedField(receiver, offset, is_inobject(), representation,
+                             prepared_value, true);
+
+  // And finally update the map.
+  assembler->Comment("Store map");
+  assembler->StoreObjectField(receiver, JSObject::kMapOffset, map);
   assembler->Return(value);
 
-  if (needs_miss_case) {
+  // Only store to tagged field never bails out.
+  if (!representation.IsTagged()) {
     assembler->Bind(&miss);
     {
       assembler->Comment("Miss");

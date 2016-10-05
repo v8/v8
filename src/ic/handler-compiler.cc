@@ -504,7 +504,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
       PopVectorAndSlot();
     }
     GenerateRestoreName(name);
-    StoreTransitionStub stub(isolate());
+    StoreMapStub stub(isolate());
     GenerateTailCall(masm(), stub.GetCode());
 
   } else {
@@ -520,10 +520,17 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     if (need_save_restore) {
       PopVectorAndSlot();
     }
-    GenerateRestoreName(name);
-    StoreTransitionStub stub(isolate(),
-                             FieldIndex::ForDescriptor(*transition, descriptor),
-                             representation, store_mode);
+    // We need to pass name on the stack.
+    PopReturnAddress(this->name());
+    __ Push(name);
+    PushReturnAddress(this->name());
+
+    FieldIndex index = FieldIndex::ForDescriptor(*transition, descriptor);
+    __ Move(StoreNamedTransitionDescriptor::FieldOffsetRegister(),
+            Smi::FromInt(index.index() << kPointerSizeLog2));
+
+    StoreTransitionStub stub(isolate(), index.is_inobject(), representation,
+                             store_mode);
     GenerateTailCall(masm(), stub.GetCode());
   }
 

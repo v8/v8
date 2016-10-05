@@ -160,6 +160,29 @@ void StoreTransitionDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
+void StoreNamedTransitionDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kReceiver, kFieldOffset, kMap, kValue, kSlot, kVector, kName
+  MachineType machine_types[] = {
+      MachineType::AnyTagged(),    MachineType::TaggedSigned(),
+      MachineType::AnyTagged(),    MachineType::AnyTagged(),
+      MachineType::TaggedSigned(), MachineType::AnyTagged(),
+      MachineType::AnyTagged()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void StoreNamedTransitionDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      ReceiverRegister(), FieldOffsetRegister(), MapRegister(),
+      ValueRegister(),    SlotRegister(),        VectorRegister(),
+      NameRegister(),
+  };
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
+}
+
 void StoreGlobalViaContextDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kSlot, kValue
