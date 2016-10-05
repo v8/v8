@@ -139,7 +139,10 @@ class ConsoleHelper {
   v8::MaybeLocal<v8::Function> firstArgAsFunction() {
     if (m_info.Length() < 1 || !m_info[0]->IsFunction())
       return v8::MaybeLocal<v8::Function>();
-    return m_info[0].As<v8::Function>();
+    v8::Local<v8::Function> func = m_info[0].As<v8::Function>();
+    while (func->GetBoundFunction()->IsFunction())
+      func = func->GetBoundFunction().As<v8::Function>();
+    return func;
   }
 
   v8::MaybeLocal<v8::Map> privateMap(const char* name) {
