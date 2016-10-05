@@ -8,7 +8,7 @@
                 value : 239
             }
         ]
-        executionContextId : 1
+        executionContextId : <executionContextId>
         stackTrace : {
             callFrames : [
                 [0] : {
@@ -34,7 +34,7 @@
                 value : 239
             }
         ]
-        executionContextId : 1
+        executionContextId : <executionContextId>
         stackTrace : {
             callFrames : [
                 [0] : {

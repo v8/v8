@@ -128,15 +128,25 @@ class SetTimeoutExtension : public v8::Extension {
  private:
   static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Isolate* isolate = args.GetIsolate();
-    if (args.Length() != 2 || !args[1]->IsNumber() || !args[0]->IsFunction() ||
+    if (args.Length() != 2 || !args[1]->IsNumber() ||
+        (!args[0]->IsFunction() && !args[0]->IsString()) ||
         args[1].As<v8::Number>()->Value() != 0.0) {
       fprintf(stderr,
               "Internal error: only setTimeout(function, 0) is supported.");
       Exit();
     }
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-    TaskRunner::FromContext(context)->Append(new SetTimeoutTask(
-        args.GetIsolate(), v8::Local<v8::Function>::Cast(args[0])));
+    if (args[0]->IsFunction()) {
+      TaskRunner::FromContext(context)->Append(new SetTimeoutTask(
+          args.GetIsolate(), v8::Local<v8::Function>::Cast(args[0])));
+    } else {
+      v8::Local<v8::String> data = args[0].As<v8::String>();
+      std::unique_ptr<uint16_t[]> buffer(new uint16_t[data->Length()]);
+      data->Write(reinterpret_cast<uint16_t*>(buffer.get()), 0, data->Length());
+      v8_inspector::String16 source =
+          v8_inspector::String16(buffer.get(), data->Length());
+      TaskRunner::FromContext(context)->Append(new ExecuteStringTask(source));
+    }
   }
 };
 
@@ -189,7 +199,7 @@ int main(int argc, char* argv[]) {
   const char* backend_extensions[] = {"v8_inspector/setTimeout"};
   v8::ExtensionConfiguration backend_configuration(
       arraysize(backend_extensions), backend_extensions);
-  TaskRunner backend_runner(&backend_configuration, &ready_semaphore);
+  TaskRunner backend_runner(&backend_configuration, false, &ready_semaphore);
   ready_semaphore.Wait();
   SendMessageToBackendExtension::set_backend_task_runner(&backend_runner);
 
@@ -197,7 +207,7 @@ int main(int argc, char* argv[]) {
                                        "v8_inspector/frontend"};
   v8::ExtensionConfiguration frontend_configuration(
       arraysize(frontend_extensions), frontend_extensions);
-  TaskRunner frontend_runner(&frontend_configuration, &ready_semaphore);
+  TaskRunner frontend_runner(&frontend_configuration, true, &ready_semaphore);
   ready_semaphore.Wait();
 
   FrontendChannelImpl frontend_channel(&frontend_runner);

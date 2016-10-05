@@ -23,9 +23,11 @@ void ReportUncaughtException(v8::Isolate* isolate,
 }  //  namespace
 
 TaskRunner::TaskRunner(v8::ExtensionConfiguration* extensions,
+                       bool catch_exceptions,
                        v8::base::Semaphore* ready_semaphore)
     : Thread(Options("Task Runner")),
       extensions_(extensions),
+      catch_exceptions_(catch_exceptions),
       ready_semaphore_(ready_semaphore),
       isolate_(nullptr),
       process_queue_semaphore_(0),
@@ -64,14 +66,19 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
   while (nested_loop_count_ == loop_number) {
     TaskRunner::Task* task = GetNext(only_protocol);
     v8::Isolate::Scope isolate_scope(isolate_);
-    v8::TryCatch try_catch(isolate_);
-    task->Run(isolate_, context_);
-    delete task;
-    if (try_catch.HasCaught()) {
-      ReportUncaughtException(isolate_, try_catch);
-      fflush(stdout);
-      fflush(stderr);
-      _exit(0);
+    if (catch_exceptions_) {
+      v8::TryCatch try_catch(isolate_);
+      task->Run(isolate_, context_);
+      delete task;
+      if (try_catch.HasCaught()) {
+        ReportUncaughtException(isolate_, try_catch);
+        fflush(stdout);
+        fflush(stderr);
+        _exit(0);
+      }
+    } else {
+      task->Run(isolate_, context_);
+      delete task;
     }
   }
 }

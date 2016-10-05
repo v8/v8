@@ -23,8 +23,8 @@ class TaskRunner : public v8::base::Thread {
                      const v8::Global<v8::Context>& context) = 0;
   };
 
-  explicit TaskRunner(v8::ExtensionConfiguration* extensions,
-                      v8::base::Semaphore* ready_semaphore);
+  TaskRunner(v8::ExtensionConfiguration* extensions, bool catch_exceptions,
+             v8::base::Semaphore* ready_semaphore);
   virtual ~TaskRunner();
 
   // Thread implementation.
@@ -44,6 +44,7 @@ class TaskRunner : public v8::base::Thread {
   Task* GetNext(bool only_protocol);
 
   v8::ExtensionConfiguration* extensions_;
+  bool catch_exceptions_;
   v8::base::Semaphore* ready_semaphore_;
 
   v8::Isolate* isolate_;

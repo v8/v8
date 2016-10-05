@@ -36,7 +36,7 @@ InspectorTest.logMessage = function(message)
   if (message.id)
     message.id = "<messageId>";
 
-  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp"]);
+  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp", "executionContextId"]);
   var objects = [ message ];
   while (objects.length) {
     var object = objects.shift();
@@ -104,9 +104,9 @@ InspectorTest.completeTest = quit.bind(null);
 
 InspectorTest.completeTestAfterPendingTimeouts = function()
 {
-  InspectorTest.sendCommand("Runtime.evaluate", {
+  Protocol.Runtime.evaluate({
     expression: "new Promise(resolve => setTimeout(resolve, 0))",
-    awaitPromise: true }, InspectorTest.completeTest);
+    awaitPromise: true }).then(InspectorTest.completeTest);
 }
 
 InspectorTest.addScript = function(string)
