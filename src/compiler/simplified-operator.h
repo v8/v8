@@ -185,8 +185,6 @@ NumberOperationHint NumberOperationHintOf(const Operator* op)
 
 PretenureFlag PretenureFlagOf(const Operator* op) WARN_UNUSED_RESULT;
 
-UnicodeEncoding UnicodeEncodingOf(const Operator*) WARN_UNUSED_RESULT;
-
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.
@@ -291,7 +289,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* StringLessThanOrEqual();
   const Operator* StringCharCodeAt();
   const Operator* StringFromCharCode();
-  const Operator* StringFromCodePoint(UnicodeEncoding encoding);
 
   const Operator* PlainPrimitiveToNumber();
   const Operator* PlainPrimitiveToWord32();

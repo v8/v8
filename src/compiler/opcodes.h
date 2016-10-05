@@ -284,7 +284,6 @@
   V(BooleanNot)                     \
   V(StringCharCodeAt)               \
   V(StringFromCharCode)             \
-  V(StringFromCodePoint)            \
   V(CheckBounds)                    \
   V(CheckIf)                        \
   V(CheckMaps)                      \

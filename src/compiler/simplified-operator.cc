@@ -336,11 +336,6 @@ PretenureFlag PretenureFlagOf(const Operator* op) {
   return OpParameter<PretenureFlag>(op);
 }
 
-UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kStringFromCodePoint);
-  return OpParameter<UnicodeEncoding>(op);
-}
-
 #define PURE_OP_LIST(V)                                          \
   V(BooleanNot, Operator::kNoProperties, 1, 0)                   \
   V(NumberEqual, Operator::kCommutative, 2, 0)                   \
@@ -472,17 +467,6 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
-
-  template <UnicodeEncoding kEncoding>
-  struct StringFromCodePointOperator final : public Operator {
-    StringFromCodePointOperator()
-        : Operator(IrOpcode::kStringFromCodePoint, Operator::kPure,
-                   "StringFromCodePoint", 1, 0, 0, 1, 0, 0) {}
-  };
-  StringFromCodePointOperator<UnicodeEncoding::UTF16>
-      kStringFromCodePointOperatorUTF16;
-  StringFromCodePointOperator<UnicodeEncoding::UTF32>
-      kStringFromCodePointOperatorUTF32;
 
   struct ArrayBufferWasNeuteredOperator final : public Operator {
     ArrayBufferWasNeuteredOperator()
@@ -765,18 +749,6 @@ const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
     return &cache_.kStoreBuffer##Type;
     TYPED_ARRAYS(STORE_BUFFER)
 #undef STORE_BUFFER
-  }
-  UNREACHABLE();
-  return nullptr;
-}
-
-const Operator* SimplifiedOperatorBuilder::StringFromCodePoint(
-    UnicodeEncoding encoding) {
-  switch (encoding) {
-    case UnicodeEncoding::UTF16:
-      return &cache_.kStringFromCodePointOperatorUTF16;
-    case UnicodeEncoding::UTF32:
-      return &cache_.kStringFromCodePointOperatorUTF32;
   }
   UNREACHABLE();
   return nullptr;

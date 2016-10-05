@@ -1450,7 +1450,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         InstallFunction(string_iterator_prototype, "next", JS_OBJECT_TYPE,
                         JSObject::kHeaderSize, MaybeHandle<JSObject>(),
                         Builtins::kStringIteratorPrototypeNext);
-    next->shared()->set_builtin_function_id(kStringIteratorNext);
 
     // Set the expected parameters for %StringIteratorPrototype%.next to 0 (not
     // including the receiver), as required by the builtin.

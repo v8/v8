@@ -21,7 +21,6 @@ namespace compiler {
 class CommonOperatorBuilder;
 struct FieldAccess;
 class JSGraph;
-class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
 class TypeCache;
 
@@ -87,7 +86,6 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
   Reduction ReduceStringFromCharCode(Node* node);
-  Reduction ReduceStringIteratorNext(Node* node);
   Reduction ReduceArrayBufferViewAccessor(Node* node,
                                           InstanceType instance_type,
                                           FieldAccess const& access);
@@ -102,7 +100,6 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
-  JSOperatorBuilder* javascript() const;
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   CompilationDependencies* const dependencies_;

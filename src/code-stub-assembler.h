@@ -19,6 +19,12 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
+enum class UnicodeEncoding {
+  // Different unicode encodings in a |word32|:
+  UTF16,  // hi 16bits -> trailing surrogate or 0, low 16bits -> lead surrogate
+  UTF32,  // full UTF32 code unit / Unicode codepoint
+};
+
 #define HEAP_CONSTANT_LIST(V)                 \
   V(BooleanMap, BooleanMap)                   \
   V(empty_string, EmptyString)                \

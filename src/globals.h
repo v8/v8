@@ -1234,27 +1234,6 @@ enum LiveEditFrameDropMode {
   LIVE_EDIT_CURRENTLY_SET_MODE
 };
 
-enum class UnicodeEncoding : uint8_t {
-  // Different unicode encodings in a |word32|:
-  UTF16,  // hi 16bits -> trailing surrogate or 0, low 16bits -> lead surrogate
-  UTF32,  // full UTF32 code unit / Unicode codepoint
-};
-
-inline size_t hash_value(UnicodeEncoding encoding) {
-  return static_cast<uint8_t>(encoding);
-}
-
-inline std::ostream& operator<<(std::ostream& os, UnicodeEncoding encoding) {
-  switch (encoding) {
-    case UnicodeEncoding::UTF16:
-      return os << "UTF16";
-    case UnicodeEncoding::UTF32:
-      return os << "UTF32";
-  }
-  UNREACHABLE();
-  return os;
-}
-
 }  // namespace internal
 }  // namespace v8
 

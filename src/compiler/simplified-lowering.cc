@@ -2056,11 +2056,6 @@ class RepresentationSelector {
                   MachineRepresentation::kTagged);
         return;
       }
-      case IrOpcode::kStringFromCodePoint: {
-        VisitUnop(node, UseInfo::TruncatingWord32(),
-                  MachineRepresentation::kTagged);
-        return;
-      }
 
       case IrOpcode::kCheckBounds: {
         Type* index_type = TypeOf(node->InputAt(0));
