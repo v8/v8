@@ -2461,7 +2461,9 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   Label class_constructor;
   __ LoadP(r4, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
   __ LoadlW(r5, FieldMemOperand(r4, SharedFunctionInfo::kCompilerHintsOffset));
-  __ TestBitMask(r5, SharedFunctionInfo::kClassConstructorBits, r0);
+  __ TestBitMask(r5, FunctionKind::kClassConstructor
+                         << SharedFunctionInfo::kFunctionKindShift,
+                 r0);
   __ bne(&class_constructor);
 
   // Enter the context of the function; ToObject has to run in the function
