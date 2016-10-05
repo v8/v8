@@ -857,19 +857,6 @@ bool BytecodeArrayBuilder::OperandsAreValid(
     switch (operand_types[i]) {
       case OperandType::kNone:
         return false;
-      case OperandType::kRegCount: {
-        CHECK_NE(i, 0);
-        CHECK(operand_types[i - 1] == OperandType::kMaybeReg ||
-              operand_types[i - 1] == OperandType::kReg);
-        if (i > 0 && operands[i] > 0) {
-          Register start = Register::FromOperand(operands[i - 1]);
-          Register end(start.index() + static_cast<int>(operands[i]) - 1);
-          if (!RegisterIsValid(start) || !RegisterIsValid(end) || start > end) {
-            return false;
-          }
-        }
-        break;
-      }
       case OperandType::kFlag8:
       case OperandType::kIntrinsicId:
         if (Bytecodes::SizeForUnsignedOperand(operands[i]) >
@@ -890,11 +877,22 @@ bool BytecodeArrayBuilder::OperandsAreValid(
       case OperandType::kUImm:
       case OperandType::kImm:
         break;
-      case OperandType::kMaybeReg:
-        if (Register::FromOperand(operands[i]) == Register(0)) {
-          break;
+      case OperandType::kRegList: {
+        CHECK_LT(i, operand_count - 1);
+        CHECK(operand_types[i + 1] == OperandType::kRegCount);
+        int reg_count = static_cast<int>(operands[i + 1]);
+        if (reg_count == 0) {
+          return Register::FromOperand(operands[i]) == Register(0);
+        } else {
+          Register start = Register::FromOperand(operands[i]);
+          Register end(start.index() + reg_count - 1);
+          if (!RegisterIsValid(start) || !RegisterIsValid(end) || start > end) {
+            return false;
+          }
         }
-      // Fall-through to kReg case.
+        i++;  // Skip past kRegCount operand.
+        break;
+      }
       case OperandType::kReg:
       case OperandType::kRegOut: {
         Register reg = Register::FromOperand(operands[i]);
@@ -922,6 +920,8 @@ bool BytecodeArrayBuilder::OperandsAreValid(
         }
         break;
       }
+      case OperandType::kRegCount:
+        UNREACHABLE();  // Dealt with in kRegList above.
     }
   }
 

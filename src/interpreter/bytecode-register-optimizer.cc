@@ -533,9 +533,9 @@ void BytecodeRegisterOptimizer::PrepareRegisterOperands(
       Bytecodes::GetOperandTypes(node->bytecode());
   for (int i = 0; i < operand_count; ++i) {
     int count;
-    // operand_types is terminated by OperandType::kNone so this does not
-    // go out of bounds.
-    if (operand_types[i + 1] == OperandType::kRegCount) {
+    if (operand_types[i] == OperandType::kRegList) {
+      DCHECK_LT(i, operand_count - 1);
+      DCHECK(operand_types[i + 1] == OperandType::kRegCount);
       count = static_cast<int>(operands[i + 1]);
     } else {
       count = Bytecodes::GetNumberOfRegistersRepresentedBy(operand_types[i]);

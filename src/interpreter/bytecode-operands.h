@@ -13,9 +13,9 @@ namespace interpreter {
 
 #define INVALID_OPERAND_TYPE_LIST(V) V(None, OperandTypeInfo::kNone)
 
-#define REGISTER_INPUT_OPERAND_TYPE_LIST(V)         \
-  V(MaybeReg, OperandTypeInfo::kScalableSignedByte) \
-  V(Reg, OperandTypeInfo::kScalableSignedByte)      \
+#define REGISTER_INPUT_OPERAND_TYPE_LIST(V)        \
+  V(RegList, OperandTypeInfo::kScalableSignedByte) \
+  V(Reg, OperandTypeInfo::kScalableSignedByte)     \
   V(RegPair, OperandTypeInfo::kScalableSignedByte)
 
 #define REGISTER_OUTPUT_OPERAND_TYPE_LIST(V)          \

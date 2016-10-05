@@ -143,24 +143,24 @@ namespace interpreter {
   V(DeletePropertySloppy, AccumulatorUse::kReadWrite, OperandType::kReg)       \
                                                                                \
   /* Call operations */                                                        \
-  V(Call, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,        \
+  V(Call, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kRegList,    \
     OperandType::kRegCount, OperandType::kIdx)                                 \
-  V(TailCall, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,    \
-    OperandType::kRegCount, OperandType::kIdx)                                 \
+  V(TailCall, AccumulatorUse::kWrite, OperandType::kReg,                       \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(CallRuntime, AccumulatorUse::kWrite, OperandType::kRuntimeId,              \
-    OperandType::kMaybeReg, OperandType::kRegCount)                            \
+    OperandType::kRegList, OperandType::kRegCount)                             \
   V(CallRuntimeForPair, AccumulatorUse::kNone, OperandType::kRuntimeId,        \
-    OperandType::kMaybeReg, OperandType::kRegCount, OperandType::kRegOutPair)  \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kRegOutPair)   \
   V(CallJSRuntime, AccumulatorUse::kWrite, OperandType::kIdx,                  \
-    OperandType::kReg, OperandType::kRegCount)                                 \
+    OperandType::kRegList, OperandType::kRegCount)                             \
                                                                                \
   /* Intrinsics */                                                             \
   V(InvokeIntrinsic, AccumulatorUse::kWrite, OperandType::kIntrinsicId,        \
-    OperandType::kMaybeReg, OperandType::kRegCount)                            \
+    OperandType::kRegList, OperandType::kRegCount)                             \
                                                                                \
   /* New operator */                                                           \
-  V(New, AccumulatorUse::kReadWrite, OperandType::kReg,                        \
-    OperandType::kMaybeReg, OperandType::kRegCount, OperandType::kIdx)         \
+  V(New, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kRegList, \
+    OperandType::kRegCount, OperandType::kIdx)                                 \
                                                                                \
   /* Test Operators */                                                         \
   V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
@@ -648,10 +648,11 @@ class Bytecodes final {
   static bool IsStarLookahead(Bytecode bytecode, OperandScale operand_scale);
 
   // Returns the number of registers represented by a register operand. For
-  // instance, a RegPair represents two registers.
+  // instance, a RegPair represents two registers. Should not be called for
+  // kRegList which has a variable number of registers based on the following
+  // kRegCount operand.
   static int GetNumberOfRegistersRepresentedBy(OperandType operand_type) {
     switch (operand_type) {
-      case OperandType::kMaybeReg:
       case OperandType::kReg:
       case OperandType::kRegOut:
         return 1;
@@ -660,6 +661,9 @@ class Bytecodes final {
         return 2;
       case OperandType::kRegOutTriple:
         return 3;
+      case OperandType::kRegList:
+        UNREACHABLE();
+        return 0;
       default:
         return 0;
     }

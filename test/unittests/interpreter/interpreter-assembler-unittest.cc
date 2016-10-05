@@ -430,7 +430,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
                         m.IsSignedOperand(offset, operand_size));
             break;
           }
-          case interpreter::OperandType::kMaybeReg:
+          case interpreter::OperandType::kRegList:
           case interpreter::OperandType::kReg:
           case interpreter::OperandType::kRegOut:
           case interpreter::OperandType::kRegOutPair:
