@@ -370,7 +370,7 @@ function DoRejectPromise(promise, reason) {
 function NewPromiseCapability(C, debugEvent) {
   if (C === GlobalPromise) {
     // Optimized case, avoid extra closure.
-    var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+    var promise = PromiseCreate();
     var callbacks = CreateResolvingFunctions(promise, debugEvent);
     return {
       promise: promise,
@@ -476,7 +476,7 @@ function PromiseResolve(x) {
 
   // Avoid creating resolving functions.
   if (this === GlobalPromise) {
-    var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+    var promise = PromiseCreate();
     var resolveResult = ResolvePromise(promise, x);
     return promise;
   }
