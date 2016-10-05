@@ -49,6 +49,7 @@ class InstructionSelector final {
 
   enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
   enum EnableScheduling { kDisableScheduling, kEnableScheduling };
+  enum EnableSerialization { kDisableSerialization, kEnableSerialization };
 
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
@@ -58,7 +59,8 @@ class InstructionSelector final {
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
                                                ? kEnableScheduling
-                                               : kDisableScheduling);
+                                               : kDisableScheduling,
+      EnableSerialization enable_serialization = kDisableSerialization);
 
   // Visit code for the entire graph with the included schedule.
   bool SelectInstructions();
@@ -197,6 +199,11 @@ class InstructionSelector final {
 
   int GetVirtualRegister(const Node* node);
   const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
+
+  // Check if we can generate loads and stores of ExternalConstants relative
+  // to the roots register, i.e. if both a root register is available for this
+  // compilation unit and the serializer is disabled.
+  bool CanAddressRelativeToRootsRegister() const;
 
   Isolate* isolate() const { return sequence()->isolate(); }
 
@@ -355,6 +362,7 @@ class InstructionSelector final {
   IntVector virtual_register_rename_;
   InstructionScheduler* scheduler_;
   EnableScheduling enable_scheduling_;
+  EnableSerialization enable_serialization_;
   Frame* frame_;
   bool instruction_selection_failed_;
 };

@@ -1233,7 +1233,14 @@ struct InstructionSelectionPhase {
         data->schedule(), data->source_positions(), data->frame(),
         data->info()->is_source_positions_enabled()
             ? InstructionSelector::kAllSourcePositions
-            : InstructionSelector::kCallSourcePositions);
+            : InstructionSelector::kCallSourcePositions,
+        InstructionSelector::SupportedFeatures(),
+        FLAG_turbo_instruction_scheduling
+            ? InstructionSelector::kEnableScheduling
+            : InstructionSelector::kDisableScheduling,
+        data->info()->will_serialize()
+            ? InstructionSelector::kEnableSerialization
+            : InstructionSelector::kDisableSerialization);
     if (!selector.SelectInstructions()) {
       data->set_compilation_failed();
     }
@@ -1635,6 +1642,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
                                                Code::Flags flags,
                                                const char* debug_name) {
   CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), flags);
+  if (isolate->serializer_enabled()) info.PrepareForSerializing();
 
   // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool(isolate->allocator());

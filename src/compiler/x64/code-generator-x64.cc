@@ -133,6 +133,11 @@ class X64OperandConverter : public InstructionOperandConverter {
         int32_t disp = InputInt32(NextOffset(offset));
         return Operand(index, scale, disp);
       }
+      case kMode_Root: {
+        Register base = kRootRegister;
+        int32_t disp = InputInt32(NextOffset(offset));
+        return Operand(base, disp);
+      }
       case kMode_None:
         UNREACHABLE();
         return Operand(no_reg, 0);

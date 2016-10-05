@@ -23,7 +23,8 @@ InstructionSelector::InstructionSelector(
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
     SourcePositionMode source_position_mode, Features features,
-    EnableScheduling enable_scheduling)
+    EnableScheduling enable_scheduling,
+    EnableSerialization enable_serialization)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -41,6 +42,7 @@ InstructionSelector::InstructionSelector(
       virtual_register_rename_(zone),
       scheduler_(nullptr),
       enable_scheduling_(enable_scheduling),
+      enable_serialization_(enable_serialization),
       frame_(frame),
       instruction_selection_failed_(false) {
   instructions_.reserve(node_count);
@@ -387,6 +389,12 @@ void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
   size_t const id = node->id();
   DCHECK_LT(id, effect_level_.size());
   effect_level_[id] = effect_level;
+}
+
+bool InstructionSelector::CanAddressRelativeToRootsRegister() const {
+  return (enable_serialization_ == kDisableSerialization &&
+          (linkage()->GetIncomingDescriptor()->flags() &
+           CallDescriptor::kCanUseRoots));
 }
 
 void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,

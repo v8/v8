@@ -136,6 +136,22 @@ class X64OperandGenerator final : public OperandGenerator {
   AddressingMode GetEffectiveAddressMemoryOperand(Node* operand,
                                                   InstructionOperand inputs[],
                                                   size_t* input_count) {
+    if (selector()->CanAddressRelativeToRootsRegister()) {
+      LoadMatcher<ExternalReferenceMatcher> m(operand);
+      if (m.index().HasValue() && m.object().HasValue()) {
+        Address const kRootsRegisterValue =
+            kRootRegisterBias +
+            reinterpret_cast<Address>(
+                selector()->isolate()->heap()->roots_array_start());
+        ptrdiff_t const delta =
+            m.index().Value() +
+            (m.object().Value().address() - kRootsRegisterValue);
+        if (is_int32(delta)) {
+          inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
+          return kMode_Root;
+        }
+      }
+    }
     BaseWithIndexAndDisplacement64Matcher m(operand, AddressOption::kAllowAll);
     DCHECK(m.matches());
     if ((m.displacement() == nullptr || CanBeImmediate(m.displacement()))) {
@@ -155,6 +171,7 @@ class X64OperandGenerator final : public OperandGenerator {
 };
 
 namespace {
+
 ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
@@ -187,6 +204,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   }
   return opcode;
 }
+
 }  // namespace
 
 void InstructionSelector::VisitLoad(Node* node) {
@@ -723,6 +741,7 @@ bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
           case kMode_M2I:
           case kMode_M4I:
           case kMode_M8I:
+          case kMode_Root:
             UNREACHABLE();
         }
         inputs[input_count++] = ImmediateOperand(ImmediateOperand::INLINE, 4);
