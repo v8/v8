@@ -168,10 +168,8 @@ void Builtins::Generate_ToString(CodeStubAssembler* assembler) {
   Node* input_instance_type = assembler->LoadMapInstanceType(input_map);
 
   Label not_string(assembler);
-  assembler->GotoIf(
-      assembler->Int32GreaterThanOrEqual(
-          input_instance_type, assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-      &not_string);
+  assembler->GotoUnless(assembler->IsStringInstanceType(input_instance_type),
+                        &not_string);
   assembler->Return(input);
 
   Label not_heap_number(assembler);

@@ -497,6 +497,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                          InstanceType instance_type,
                                          char const* method_name);
 
+  // Type checks.
+  compiler::Node* IsStringInstanceType(compiler::Node* instance_type);
+  compiler::Node* IsJSReceiverInstanceType(compiler::Node* instance_type);
+
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
   compiler::Node* StringCharCodeAt(compiler::Node* string,

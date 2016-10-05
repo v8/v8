@@ -2371,9 +2371,8 @@ void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
   if (FLAG_debug_code) {
     Label already_receiver(assembler), abort(assembler);
     Node* instance_type = __ LoadInstanceType(receiver);
-    Node* first_receiver_type = __ Int32Constant(FIRST_JS_RECEIVER_TYPE);
-    __ BranchIfInt32GreaterThanOrEqual(instance_type, first_receiver_type,
-                                       &already_receiver, &abort);
+    __ Branch(__ IsJSReceiverInstanceType(instance_type), &already_receiver,
+              &abort);
     __ Bind(&abort);
     {
       __ Abort(kExpectedJSReceiver);

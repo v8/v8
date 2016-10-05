@@ -749,9 +749,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
           // Check if the {rhs} is a String.
           Label if_rhsisstring(assembler, Label::kDeferred),
               if_rhsisnotstring(assembler, Label::kDeferred);
-          assembler->Branch(assembler->Int32LessThan(
-                                rhs_instance_type,
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+          assembler->Branch(assembler->IsStringInstanceType(rhs_instance_type),
                             &if_rhsisstring, &if_rhsisnotstring);
 
           assembler->Bind(&if_rhsisstring);
@@ -767,9 +765,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
             Label if_rhsisreceiver(assembler, Label::kDeferred),
                 if_rhsisnotreceiver(assembler, Label::kDeferred);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    rhs_instance_type),
+                assembler->IsJSReceiverInstanceType(rhs_instance_type),
                 &if_rhsisreceiver, &if_rhsisnotreceiver);
 
             assembler->Bind(&if_rhsisreceiver);
@@ -801,9 +797,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
 
       // Check if {lhs} is a String.
       Label if_lhsisstring(assembler), if_lhsisnotstring(assembler);
-      assembler->Branch(assembler->Int32LessThan(
-                            lhs_instance_type,
-                            assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+      assembler->Branch(assembler->IsStringInstanceType(lhs_instance_type),
                         &if_lhsisstring, &if_lhsisnotstring);
 
       assembler->Bind(&if_lhsisstring);
@@ -845,9 +839,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
             Label if_lhsisreceiver(assembler, Label::kDeferred),
                 if_lhsisnotreceiver(assembler, Label::kDeferred);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    lhs_instance_type),
+                assembler->IsJSReceiverInstanceType(lhs_instance_type),
                 &if_lhsisreceiver, &if_lhsisnotreceiver);
 
             assembler->Bind(&if_lhsisreceiver);
@@ -877,9 +869,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
 
           // Check if {rhs} is a String.
           Label if_rhsisstring(assembler), if_rhsisnotstring(assembler);
-          assembler->Branch(assembler->Int32LessThan(
-                                rhs_instance_type,
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+          assembler->Branch(assembler->IsStringInstanceType(rhs_instance_type),
                             &if_rhsisstring, &if_rhsisnotstring);
 
           assembler->Bind(&if_rhsisstring);
@@ -922,9 +912,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
                 Label if_rhsisreceiver(assembler, Label::kDeferred),
                     if_rhsisnotreceiver(assembler, Label::kDeferred);
                 assembler->Branch(
-                    assembler->Int32LessThanOrEqual(
-                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                        rhs_instance_type),
+                    assembler->IsJSReceiverInstanceType(rhs_instance_type),
                     &if_rhsisreceiver, &if_rhsisnotreceiver);
 
                 assembler->Bind(&if_rhsisreceiver);
@@ -953,9 +941,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
               Label if_lhsisreceiver(assembler, Label::kDeferred),
                   if_lhsisnotreceiver(assembler);
               assembler->Branch(
-                  assembler->Int32LessThanOrEqual(
-                      assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                      lhs_instance_type),
+                  assembler->IsJSReceiverInstanceType(lhs_instance_type),
                   &if_lhsisreceiver, &if_lhsisnotreceiver);
 
               assembler->Bind(&if_lhsisreceiver);
@@ -973,9 +959,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
                 Label if_rhsisreceiver(assembler, Label::kDeferred),
                     if_rhsisnotreceiver(assembler, Label::kDeferred);
                 assembler->Branch(
-                    assembler->Int32LessThanOrEqual(
-                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                        rhs_instance_type),
+                    assembler->IsJSReceiverInstanceType(rhs_instance_type),
                     &if_rhsisreceiver, &if_rhsisnotreceiver);
 
                 assembler->Bind(&if_rhsisreceiver);
@@ -2741,10 +2725,8 @@ void ToObjectStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->GotoIf(assembler->IsHeapNumberMap(map), &if_number);
 
   Node* instance_type = assembler->LoadMapInstanceType(map);
-  assembler->GotoIf(
-      assembler->Int32GreaterThanOrEqual(
-          instance_type, assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-      &if_jsreceiver);
+  assembler->GotoIf(assembler->IsJSReceiverInstanceType(instance_type),
+                    &if_jsreceiver);
 
   Node* constructor_function_index =
       assembler->LoadMapConstructorFunctionIndex(map);
@@ -2828,15 +2810,11 @@ compiler::Node* TypeofStub::Generate(CodeStubAssembler* assembler,
                                                assembler->Int32Constant(0)),
                         &return_undefined);
 
-  assembler->GotoIf(
-      assembler->Int32GreaterThanOrEqual(
-          instance_type, assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-      &return_object);
+  assembler->GotoIf(assembler->IsJSReceiverInstanceType(instance_type),
+                    &return_object);
 
-  assembler->GotoIf(
-      assembler->Int32LessThan(instance_type,
-                               assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-      &return_string);
+  assembler->GotoIf(assembler->IsStringInstanceType(instance_type),
+                    &return_string);
 
 #define SIMD128_BRANCH(TYPE, Type, type, lane_count, lane_type)    \
   Label return_##type(assembler);                                  \
@@ -3152,9 +3130,7 @@ compiler::Node* GenerateAbstractRelationalComparison(
           // Check if {lhs} is a String.
           Label if_lhsisstring(assembler),
               if_lhsisnotstring(assembler, Label::kDeferred);
-          assembler->Branch(assembler->Int32LessThan(
-                                lhs_instance_type,
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+          assembler->Branch(assembler->IsStringInstanceType(lhs_instance_type),
                             &if_lhsisstring, &if_lhsisnotstring);
 
           assembler->Bind(&if_lhsisstring);
@@ -3165,10 +3141,9 @@ compiler::Node* GenerateAbstractRelationalComparison(
             // Check if {rhs} is also a String.
             Label if_rhsisstring(assembler, Label::kDeferred),
                 if_rhsisnotstring(assembler, Label::kDeferred);
-            assembler->Branch(assembler->Int32LessThan(
-                                  rhs_instance_type, assembler->Int32Constant(
-                                                         FIRST_NONSTRING_TYPE)),
-                              &if_rhsisstring, &if_rhsisnotstring);
+            assembler->Branch(
+                assembler->IsStringInstanceType(rhs_instance_type),
+                &if_rhsisstring, &if_rhsisnotstring);
 
             assembler->Bind(&if_rhsisstring);
             {
@@ -3212,9 +3187,7 @@ compiler::Node* GenerateAbstractRelationalComparison(
               Label if_rhsisreceiver(assembler, Label::kDeferred),
                   if_rhsisnotreceiver(assembler, Label::kDeferred);
               assembler->Branch(
-                  assembler->Int32LessThanOrEqual(
-                      assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                      rhs_instance_type),
+                  assembler->IsJSReceiverInstanceType(rhs_instance_type),
                   &if_rhsisreceiver, &if_rhsisnotreceiver);
 
               assembler->Bind(&if_rhsisreceiver);
@@ -3246,9 +3219,7 @@ compiler::Node* GenerateAbstractRelationalComparison(
             Label if_lhsisreceiver(assembler, Label::kDeferred),
                 if_lhsisnotreceiver(assembler, Label::kDeferred);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    lhs_instance_type),
+                assembler->IsJSReceiverInstanceType(lhs_instance_type),
                 &if_lhsisreceiver, &if_lhsisnotreceiver);
 
             assembler->Bind(&if_lhsisreceiver);
@@ -3465,10 +3436,9 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             // Check if the {rhs} is a String.
             Label if_rhsisstring(assembler, Label::kDeferred),
                 if_rhsisnotstring(assembler);
-            assembler->Branch(assembler->Int32LessThan(
-                                  rhs_instance_type, assembler->Int32Constant(
-                                                         FIRST_NONSTRING_TYPE)),
-                              &if_rhsisstring, &if_rhsisnotstring);
+            assembler->Branch(
+                assembler->IsStringInstanceType(rhs_instance_type),
+                &if_rhsisstring, &if_rhsisnotstring);
 
             assembler->Bind(&if_rhsisstring);
             {
@@ -3500,9 +3470,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
                 Label if_rhsisreceiver(assembler, Label::kDeferred),
                     if_rhsisnotreceiver(assembler);
                 assembler->Branch(
-                    assembler->Int32LessThanOrEqual(
-                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                        rhs_instance_type),
+                    assembler->IsJSReceiverInstanceType(rhs_instance_type),
                     &if_rhsisreceiver, &if_rhsisnotreceiver);
 
                 assembler->Bind(&if_rhsisreceiver);
@@ -3584,10 +3552,9 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             // Check if {rhs} is also a String.
             Label if_rhsisstring(assembler, Label::kDeferred),
                 if_rhsisnotstring(assembler);
-            assembler->Branch(assembler->Int32LessThan(
-                                  rhs_instance_type, assembler->Int32Constant(
-                                                         FIRST_NONSTRING_TYPE)),
-                              &if_rhsisstring, &if_rhsisnotstring);
+            assembler->Branch(
+                assembler->IsStringInstanceType(rhs_instance_type),
+                &if_rhsisstring, &if_rhsisnotstring);
 
             assembler->Bind(&if_rhsisstring);
             {
@@ -3636,9 +3603,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
               Label if_rhsisstring(assembler, Label::kDeferred),
                   if_rhsisnotstring(assembler);
               assembler->Branch(
-                  assembler->Int32LessThan(
-                      rhs_instance_type,
-                      assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+                  assembler->IsStringInstanceType(rhs_instance_type),
                   &if_rhsisstring, &if_rhsisnotstring);
 
               assembler->Bind(&if_rhsisstring);
@@ -3656,9 +3621,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
                     if_rhsisnotreceiver(assembler);
                 STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
                 assembler->Branch(
-                    assembler->Int32LessThanOrEqual(
-                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                        rhs_instance_type),
+                    assembler->IsJSReceiverInstanceType(rhs_instance_type),
                     &if_rhsisreceiver, &if_rhsisnotreceiver);
 
                 assembler->Bind(&if_rhsisreceiver);
@@ -3746,9 +3709,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             Label if_rhsisreceiver(assembler), if_rhsisnotreceiver(assembler);
             STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    rhs_instance_type),
+                assembler->IsJSReceiverInstanceType(rhs_instance_type),
                 &if_rhsisreceiver, &if_rhsisnotreceiver);
 
             assembler->Bind(&if_rhsisreceiver);
@@ -3793,9 +3754,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
               Label if_rhsisreceiver(assembler), if_rhsisnotreceiver(assembler);
               STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
               assembler->Branch(
-                  assembler->Int32LessThanOrEqual(
-                      assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                      rhs_instance_type),
+                  assembler->IsJSReceiverInstanceType(rhs_instance_type),
                   &if_rhsisreceiver, &if_rhsisnotreceiver);
 
               assembler->Bind(&if_rhsisreceiver);
@@ -3823,9 +3782,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             Label if_rhsisreceiver(assembler), if_rhsisnotreceiver(assembler);
             STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    rhs_instance_type),
+                assembler->IsJSReceiverInstanceType(rhs_instance_type),
                 &if_rhsisreceiver, &if_rhsisnotreceiver);
 
             assembler->Bind(&if_rhsisreceiver);
@@ -4061,9 +4018,7 @@ compiler::Node* GenerateStrictEqual(CodeStubAssembler* assembler,
 
           // Check if {lhs} is a String.
           Label if_lhsisstring(assembler), if_lhsisnotstring(assembler);
-          assembler->Branch(assembler->Int32LessThan(
-                                lhs_instance_type,
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+          assembler->Branch(assembler->IsStringInstanceType(lhs_instance_type),
                             &if_lhsisstring, &if_lhsisnotstring);
 
           assembler->Bind(&if_lhsisstring);
@@ -4074,10 +4029,9 @@ compiler::Node* GenerateStrictEqual(CodeStubAssembler* assembler,
             // Check if {rhs} is also a String.
             Label if_rhsisstring(assembler, Label::kDeferred),
                 if_rhsisnotstring(assembler);
-            assembler->Branch(assembler->Int32LessThan(
-                                  rhs_instance_type, assembler->Int32Constant(
-                                                         FIRST_NONSTRING_TYPE)),
-                              &if_rhsisstring, &if_rhsisnotstring);
+            assembler->Branch(
+                assembler->IsStringInstanceType(rhs_instance_type),
+                &if_rhsisstring, &if_rhsisnotstring);
 
             assembler->Bind(&if_rhsisstring);
             {

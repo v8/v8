@@ -760,9 +760,8 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
     // types, the HeapNumber type and everything else.
     GotoIf(Word32Equal(value_instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
            &if_valueisheapnumber);
-    Branch(
-        Int32LessThan(value_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-        &if_valueisstring, &if_valueisother);
+    Branch(IsStringInstanceType(value_instance_type), &if_valueisstring,
+           &if_valueisother);
 
     Bind(&if_valueisstring);
     {
@@ -2127,9 +2126,8 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
 
     // Check if the {value} is already String.
     Label if_valueisnotstring(this, Label::kDeferred);
-    Branch(
-        Int32LessThan(value_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-        &if_valueisstring, &if_valueisnotstring);
+    Branch(IsStringInstanceType(value_instance_type), &if_valueisstring,
+           &if_valueisnotstring);
     Bind(&if_valueisnotstring);
     {
       // Check if the {value} is null.
@@ -2222,9 +2220,7 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
               &done_loop);
           break;
         case PrimitiveType::kString:
-          GotoIf(Int32LessThan(value_instance_type,
-                               Int32Constant(FIRST_NONSTRING_TYPE)),
-                 &done_loop);
+          GotoIf(IsStringInstanceType(value_instance_type), &done_loop);
           break;
         case PrimitiveType::kSymbol:
           GotoIf(Word32Equal(value_instance_type, Int32Constant(SYMBOL_TYPE)),
@@ -2274,6 +2270,17 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
 
   Bind(&out);
   return var_value_map.value();
+}
+
+Node* CodeStubAssembler::IsStringInstanceType(Node* instance_type) {
+  STATIC_ASSERT(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
+  return Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE));
+}
+
+Node* CodeStubAssembler::IsJSReceiverInstanceType(Node* instance_type) {
+  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  return Int32GreaterThanOrEqual(instance_type,
+                                 Int32Constant(FIRST_JS_RECEIVER_TYPE));
 }
 
 Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index) {
@@ -2581,9 +2588,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   var_instance_type.Bind(instance_type);
 
   // Check if {string} is a String.
-  GotoIf(Int32GreaterThanOrEqual(instance_type,
-                                 Int32Constant(FIRST_NONSTRING_TYPE)),
-         &runtime);
+  GotoUnless(IsStringInstanceType(instance_type), &runtime);
 
   // Make sure that both from and to are non-negative smis.
 
@@ -2929,15 +2934,11 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
     Label if_inputisstring(this), if_inputisoddball(this),
         if_inputisreceiver(this, Label::kDeferred),
         if_inputisother(this, Label::kDeferred);
-    GotoIf(
-        Int32LessThan(input_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-        &if_inputisstring);
+    GotoIf(IsStringInstanceType(input_instance_type), &if_inputisstring);
     GotoIf(Word32Equal(input_instance_type, Int32Constant(ODDBALL_TYPE)),
            &if_inputisoddball);
-    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-    Branch(Int32GreaterThanOrEqual(input_instance_type,
-                                   Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-           &if_inputisreceiver, &if_inputisother);
+    Branch(IsJSReceiverInstanceType(input_instance_type), &if_inputisreceiver,
+           &if_inputisother);
 
     Bind(&if_inputisstring);
     {
@@ -3147,9 +3148,7 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
          if_keyisunique);
   // Miss if |key| is not a String.
   STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  GotoIf(
-      Int32GreaterThan(key_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
-      if_bailout);
+  GotoUnless(IsStringInstanceType(key_instance_type), if_bailout);
   // |key| is a String. Check if it has a cached array index.
   Node* hash = LoadNameHashField(key);
   Node* contains_index =
@@ -3796,8 +3795,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   {
     AssertInstanceType(object, JS_VALUE_TYPE);
     Node* string = LoadJSValueValue(object);
-    Assert(Int32LessThan(LoadInstanceType(string),
-                         Int32Constant(FIRST_NONSTRING_TYPE)));
+    Assert(IsStringInstanceType(LoadInstanceType(string)));
     Node* length = LoadStringLength(string);
     GotoIf(UintPtrLessThan(intptr_index, SmiUntag(length)), if_found);
     Goto(&if_isobjectorsmi);
@@ -3806,8 +3804,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   {
     AssertInstanceType(object, JS_VALUE_TYPE);
     Node* string = LoadJSValueValue(object);
-    Assert(Int32LessThan(LoadInstanceType(string),
-                         Int32Constant(FIRST_NONSTRING_TYPE)));
+    Assert(IsStringInstanceType(LoadInstanceType(string)));
     Node* length = LoadStringLength(string);
     GotoIf(UintPtrLessThan(intptr_index, SmiUntag(length)), if_found);
     Goto(&if_isdictionary);
