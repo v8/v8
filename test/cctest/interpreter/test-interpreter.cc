@@ -386,36 +386,28 @@ TEST(InterpreterStringAdd) {
     Handle<Object> lhs;
     Handle<Object> rhs;
     Handle<Object> expected_value;
-    int32_t expected_feedback;
   } test_cases[] = {
       {factory->NewStringFromStaticChars("a"),
        factory->NewStringFromStaticChars("b"),
-       factory->NewStringFromStaticChars("ab"),
-       BinaryOperationFeedback::kString},
+       factory->NewStringFromStaticChars("ab")},
       {factory->NewStringFromStaticChars("aaaaaa"),
        factory->NewStringFromStaticChars("b"),
-       factory->NewStringFromStaticChars("aaaaaab"),
-       BinaryOperationFeedback::kString},
+       factory->NewStringFromStaticChars("aaaaaab")},
       {factory->NewStringFromStaticChars("aaa"),
        factory->NewStringFromStaticChars("bbbbb"),
-       factory->NewStringFromStaticChars("aaabbbbb"),
-       BinaryOperationFeedback::kString},
+       factory->NewStringFromStaticChars("aaabbbbb")},
       {factory->NewStringFromStaticChars(""),
        factory->NewStringFromStaticChars("b"),
-       factory->NewStringFromStaticChars("b"),
-       BinaryOperationFeedback::kString},
+       factory->NewStringFromStaticChars("b")},
       {factory->NewStringFromStaticChars("a"),
        factory->NewStringFromStaticChars(""),
-       factory->NewStringFromStaticChars("a"),
-       BinaryOperationFeedback::kString},
+       factory->NewStringFromStaticChars("a")},
       {factory->NewStringFromStaticChars("1.11"), factory->NewHeapNumber(2.5),
-       factory->NewStringFromStaticChars("1.112.5"),
-       BinaryOperationFeedback::kAny},
+       factory->NewStringFromStaticChars("1.112.5")},
       {factory->NewStringFromStaticChars("-1.11"), factory->NewHeapNumber(2.56),
-       factory->NewStringFromStaticChars("-1.112.56"),
-       BinaryOperationFeedback::kAny},
+       factory->NewStringFromStaticChars("-1.112.56")},
       {factory->NewStringFromStaticChars(""), factory->NewHeapNumber(2.5),
-       factory->NewStringFromStaticChars("2.5"), BinaryOperationFeedback::kAny},
+       factory->NewStringFromStaticChars("2.5")},
   };
 
   for (size_t i = 0; i < arraysize(test_cases); i++) {
@@ -437,11 +429,6 @@ TEST(InterpreterStringAdd) {
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*test_cases[i].expected_value));
-
-    Object* feedback = vector->Get(slot);
-    CHECK(feedback->IsSmi());
-    CHECK_EQ(test_cases[i].expected_feedback,
-             static_cast<Smi*>(feedback)->value());
   }
 }
 
@@ -1716,7 +1703,7 @@ TEST(InterpreterSmiComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         Object* feedback = vector->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kSignedSmall,
+        CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
                  static_cast<Smi*>(feedback)->value());
       }
     }
@@ -1763,7 +1750,7 @@ TEST(InterpreterHeapNumberComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         Object* feedback = vector->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kNumber,
+        CHECK_EQ(BinaryOperationFeedback::kNumber,
                  static_cast<Smi*>(feedback)->value());
       }
     }
@@ -1809,7 +1796,7 @@ TEST(InterpreterStringComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         Object* feedback = vector->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kAny,
+        CHECK_EQ(BinaryOperationFeedback::kAny,
                  static_cast<Smi*>(feedback)->value());
       }
     }
@@ -1875,7 +1862,7 @@ TEST(InterpreterMixedComparisons) {
                    CompareC(comparison, lhs, rhs, true));
           Object* feedback = vector->Get(slot);
           CHECK(feedback->IsSmi());
-          CHECK_EQ(CompareOperationFeedback::kAny,
+          CHECK_EQ(BinaryOperationFeedback::kAny,
                    static_cast<Smi*>(feedback)->value());
         }
       }
