@@ -534,9 +534,8 @@ uint32_t GetNumImportedFunctions(Handle<JSObject> wasm_object);
 // Returns nullptr on failing to get owning instance.
 Object* GetOwningWasmInstance(Code* code);
 
-MaybeHandle<JSArrayBuffer> GetInstanceMemory(Isolate* isolate,
-                                             Handle<JSObject> instance);
-void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer);
+int32_t GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
+                           uint32_t pages);
 
 namespace testing {
 

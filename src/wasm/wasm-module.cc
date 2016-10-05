@@ -1405,7 +1405,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
         uint32_t size = Smi::cast(metadata->get(kSize))->value();
         Handle<FixedArray> table =
             metadata->GetValueChecked<FixedArray>(isolate, kTable);
-        wasm::PopulateFunctionTable(table, size, &functions);
+        PopulateFunctionTable(table, size, &functions);
       }
       instance->SetInternalField(kWasmModuleFunctionTable, *indirect_tables);
     }
@@ -1807,6 +1807,52 @@ void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer) {
   WasmCompiledModule* module =
       WasmCompiledModule::cast(instance->GetInternalField(kWasmCompiledModule));
   module->set_ptr_to_heap(buffer);
+}
+
+int32_t GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
+                           uint32_t pages) {
+  Address old_mem_start = nullptr;
+  uint32_t old_size = 0, new_size = 0;
+
+  MaybeHandle<JSArrayBuffer> maybe_mem_buffer =
+      GetInstanceMemory(isolate, instance);
+  Handle<JSArrayBuffer> old_buffer;
+  if (!maybe_mem_buffer.ToHandle(&old_buffer)) {
+    // If module object does not have linear memory associated with it,
+    // Allocate new array buffer of given size.
+    // TODO(gdeepti): Fix bounds check to take into account size of memtype.
+    new_size = pages * WasmModule::kPageSize;
+    // The code generated in the wasm compiler guarantees this precondition.
+    DCHECK(pages <= WasmModule::kMaxMemPages);
+  } else {
+    old_mem_start = static_cast<Address>(old_buffer->backing_store());
+    old_size = old_buffer->byte_length()->Number();
+    // If the old memory was zero-sized, we should have been in the
+    // "undefined" case above.
+    DCHECK_NOT_NULL(old_mem_start);
+    DCHECK_NE(0, old_size);
+    DCHECK(old_size + pages * WasmModule::kPageSize <=
+           std::numeric_limits<uint32_t>::max());
+    new_size = old_size + pages * WasmModule::kPageSize;
+  }
+
+  if (new_size <= old_size ||
+      WasmModule::kMaxMemPages * WasmModule::kPageSize <= new_size) {
+    return -1;
+  }
+  Handle<JSArrayBuffer> buffer = NewArrayBuffer(isolate, new_size);
+  if (buffer.is_null()) return -1;
+  Address new_mem_start = static_cast<Address>(buffer->backing_store());
+  if (old_size != 0) {
+    memcpy(new_mem_start, old_mem_start, old_size);
+  }
+  SetInstanceMemory(instance, *buffer);
+  if (!UpdateWasmModuleMemory(instance, old_mem_start, new_mem_start, old_size,
+                              new_size)) {
+    return -1;
+  }
+  DCHECK(old_size % WasmModule::kPageSize == 0);
+  return (old_size / WasmModule::kPageSize);
 }
 
 namespace testing {
