@@ -652,6 +652,8 @@
         'compiler/machine-operator-reducer.h',
         'compiler/machine-operator.cc',
         'compiler/machine-operator.h',
+        'compiler/machine-graph-verifier.cc',
+        'compiler/machine-graph-verifier.h',
         'compiler/memory-optimizer.cc',
         'compiler/memory-optimizer.h',
         'compiler/move-optimizer.cc',

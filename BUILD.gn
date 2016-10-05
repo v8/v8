@@ -1101,6 +1101,8 @@ v8_source_set("v8_base") {
     "src/compiler/loop-peeling.h",
     "src/compiler/loop-variable-optimizer.cc",
     "src/compiler/loop-variable-optimizer.h",
+    "src/compiler/machine-graph-verifier.cc",
+    "src/compiler/machine-graph-verifier.h",
     "src/compiler/machine-operator-reducer.cc",
     "src/compiler/machine-operator-reducer.h",
     "src/compiler/machine-operator.cc",

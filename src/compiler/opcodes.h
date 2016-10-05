@@ -343,58 +343,128 @@
   V(Float64LessThan)                  \
   V(Float64LessThanOrEqual)
 
+#define MACHINE_UNOP_32_LIST(V) \
+  V(Word32Clz)                  \
+  V(Word32Ctz)                  \
+  V(Word32ReverseBits)          \
+  V(Word32ReverseBytes)
+
+#define MACHINE_BINOP_32_LIST(V) \
+  V(Word32And)                   \
+  V(Word32Or)                    \
+  V(Word32Xor)                   \
+  V(Word32Shl)                   \
+  V(Word32Shr)                   \
+  V(Word32Sar)                   \
+  V(Word32Ror)                   \
+  V(Int32Add)                    \
+  V(Int32AddWithOverflow)        \
+  V(Int32Sub)                    \
+  V(Int32SubWithOverflow)        \
+  V(Int32Mul)                    \
+  V(Int32MulWithOverflow)        \
+  V(Int32MulHigh)                \
+  V(Int32Div)                    \
+  V(Int32Mod)                    \
+  V(Uint32Div)                   \
+  V(Uint32Mod)                   \
+  V(Uint32MulHigh)
+
+#define MACHINE_BINOP_64_LIST(V) \
+  V(Word64And)                   \
+  V(Word64Or)                    \
+  V(Word64Xor)                   \
+  V(Word64Shl)                   \
+  V(Word64Shr)                   \
+  V(Word64Sar)                   \
+  V(Word64Ror)                   \
+  V(Int64Add)                    \
+  V(Int64AddWithOverflow)        \
+  V(Int64Sub)                    \
+  V(Int64SubWithOverflow)        \
+  V(Int64Mul)                    \
+  V(Int64Div)                    \
+  V(Int64Mod)                    \
+  V(Uint64Div)                   \
+  V(Uint64Mod)
+
+#define MACHINE_FLOAT32_UNOP_LIST(V) \
+  V(Float32Abs)                      \
+  V(Float32Neg)                      \
+  V(Float32RoundDown)                \
+  V(Float32RoundTiesEven)            \
+  V(Float32RoundTruncate)            \
+  V(Float32RoundUp)                  \
+  V(Float32Sqrt)
+
+#define MACHINE_FLOAT32_BINOP_LIST(V) \
+  V(Float32Add)                       \
+  V(Float32Sub)                       \
+  V(Float32Mul)                       \
+  V(Float32Div)                       \
+  V(Float32Max)                       \
+  V(Float32Min)
+
+#define MACHINE_FLOAT64_UNOP_LIST(V) \
+  V(Float64Abs)                      \
+  V(Float64Acos)                     \
+  V(Float64Acosh)                    \
+  V(Float64Asin)                     \
+  V(Float64Asinh)                    \
+  V(Float64Atan)                     \
+  V(Float64Atanh)                    \
+  V(Float64Cbrt)                     \
+  V(Float64Cos)                      \
+  V(Float64Cosh)                     \
+  V(Float64Exp)                      \
+  V(Float64Expm1)                    \
+  V(Float64Log)                      \
+  V(Float64Log1p)                    \
+  V(Float64Log10)                    \
+  V(Float64Log2)                     \
+  V(Float64Neg)                      \
+  V(Float64RoundDown)                \
+  V(Float64RoundTiesAway)            \
+  V(Float64RoundTiesEven)            \
+  V(Float64RoundTruncate)            \
+  V(Float64RoundUp)                  \
+  V(Float64Sin)                      \
+  V(Float64Sinh)                     \
+  V(Float64Sqrt)                     \
+  V(Float64Tan)                      \
+  V(Float64Tanh)
+
+#define MACHINE_FLOAT64_BINOP_LIST(V) \
+  V(Float64Atan2)                     \
+  V(Float64Max)                       \
+  V(Float64Min)                       \
+  V(Float64Add)                       \
+  V(Float64Sub)                       \
+  V(Float64Mul)                       \
+  V(Float64Div)                       \
+  V(Float64Mod)                       \
+  V(Float64Pow)
+
 #define MACHINE_OP_LIST(V)      \
+  MACHINE_UNOP_32_LIST(V)       \
+  MACHINE_BINOP_32_LIST(V)      \
+  MACHINE_BINOP_64_LIST(V)      \
   MACHINE_COMPARE_BINOP_LIST(V) \
+  MACHINE_FLOAT32_BINOP_LIST(V) \
+  MACHINE_FLOAT32_UNOP_LIST(V)  \
+  MACHINE_FLOAT64_BINOP_LIST(V) \
+  MACHINE_FLOAT64_UNOP_LIST(V)  \
   V(DebugBreak)                 \
   V(Comment)                    \
   V(Load)                       \
   V(Store)                      \
   V(StackSlot)                  \
-  V(Word32And)                  \
-  V(Word32Or)                   \
-  V(Word32Xor)                  \
-  V(Word32Shl)                  \
-  V(Word32Shr)                  \
-  V(Word32Sar)                  \
-  V(Word32Ror)                  \
-  V(Word32Clz)                  \
-  V(Word32Ctz)                  \
-  V(Word32ReverseBits)          \
-  V(Word32ReverseBytes)         \
   V(Word32Popcnt)               \
   V(Word64Popcnt)               \
-  V(Word64And)                  \
-  V(Word64Or)                   \
-  V(Word64Xor)                  \
-  V(Word64Shl)                  \
-  V(Word64Shr)                  \
-  V(Word64Sar)                  \
-  V(Word64Ror)                  \
   V(Word64Clz)                  \
   V(Word64Ctz)                  \
   V(Word64ReverseBits)          \
   V(Word64ReverseBytes)         \
-  V(Int32Add)                   \
-  V(Int32AddWithOverflow)       \
-  V(Int32Sub)                   \
-  V(Int32SubWithOverflow)       \
-  V(Int32Mul)                   \
-  V(Int32MulWithOverflow)       \
-  V(Int32MulHigh)               \
-  V(Int32Div)                   \
-  V(Int32Mod)                   \
-  V(Uint32Div)                  \
-  V(Uint32Mod)                  \
-  V(Uint32MulHigh)              \
-  V(Int64Add)                   \
-  V(Int64AddWithOverflow)       \
-  V(Int64Sub)                   \
-  V(Int64SubWithOverflow)       \
-  V(Int64Mul)                   \
-  V(Int64Div)                   \
-  V(Int64Mod)                   \
-  V(Uint64Div)                  \
-  V(Uint64Mod)                  \
   V(BitcastTaggedToWord)        \
   V(BitcastWordToTagged)        \
   V(BitcastWordToTaggedSigned)  \
@@ -427,55 +497,6 @@
   V(BitcastFloat64ToInt64)      \
   V(BitcastInt32ToFloat32)      \
   V(BitcastInt64ToFloat64)      \
-  V(Float32Add)                 \
-  V(Float32Sub)                 \
-  V(Float32Neg)                 \
-  V(Float32Mul)                 \
-  V(Float32Div)                 \
-  V(Float32Abs)                 \
-  V(Float32Sqrt)                \
-  V(Float32RoundDown)           \
-  V(Float32Max)                 \
-  V(Float32Min)                 \
-  V(Float64Add)                 \
-  V(Float64Sub)                 \
-  V(Float64Neg)                 \
-  V(Float64Mul)                 \
-  V(Float64Div)                 \
-  V(Float64Mod)                 \
-  V(Float64Max)                 \
-  V(Float64Min)                 \
-  V(Float64Abs)                 \
-  V(Float64Acos)                \
-  V(Float64Acosh)               \
-  V(Float64Asin)                \
-  V(Float64Asinh)               \
-  V(Float64Atan)                \
-  V(Float64Atanh)               \
-  V(Float64Atan2)               \
-  V(Float64Cbrt)                \
-  V(Float64Cos)                 \
-  V(Float64Cosh)                \
-  V(Float64Exp)                 \
-  V(Float64Expm1)               \
-  V(Float64Log)                 \
-  V(Float64Log1p)               \
-  V(Float64Log10)               \
-  V(Float64Log2)                \
-  V(Float64Pow)                 \
-  V(Float64Sin)                 \
-  V(Float64Sinh)                \
-  V(Float64Sqrt)                \
-  V(Float64Tan)                 \
-  V(Float64Tanh)                \
-  V(Float64RoundDown)           \
-  V(Float32RoundUp)             \
-  V(Float64RoundUp)             \
-  V(Float32RoundTruncate)       \
-  V(Float64RoundTruncate)       \
-  V(Float64RoundTiesAway)       \
-  V(Float32RoundTiesEven)       \
-  V(Float64RoundTiesEven)       \
   V(Float64ExtractLowWord32)    \
   V(Float64ExtractHighWord32)   \
   V(Float64InsertLowWord32)     \

@@ -48,6 +48,7 @@
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/loop-peeling.h"
 #include "src/compiler/loop-variable-optimizer.h"
+#include "src/compiler/machine-graph-verifier.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/memory-optimizer.h"
 #include "src/compiler/move-optimizer.h"
@@ -1775,6 +1776,12 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage) {
   if (FLAG_turbo_profiling) {
     data->set_profiler_data(BasicBlockInstrumentor::Instrument(
         info(), data->graph(), data->schedule()));
+  }
+
+  if (FLAG_turbo_verify_machine_graph) {
+    Zone temp_zone(data->isolate()->allocator());
+    MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage,
+                              &temp_zone);
   }
 
   data->InitializeInstructionSequence(call_descriptor);
