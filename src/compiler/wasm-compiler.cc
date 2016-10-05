@@ -2759,8 +2759,27 @@ Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
 }
 
 Node* WasmGraphBuilder::CurrentMemoryPages() {
-  return graph()->NewNode(jsgraph()->machine()->Word32Shr(), MemSize(0),
-                          jsgraph()->Int32Constant(16));
+  Runtime::FunctionId function_id = Runtime::kWasmMemorySize;
+  const Runtime::Function* function = Runtime::FunctionForId(function_id);
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      jsgraph()->zone(), function_id, function->nargs, Operator::kNoThrow,
+      CallDescriptor::kNoFlags);
+  wasm::ModuleEnv* module = module_;
+  Node* inputs[] = {
+      jsgraph()->CEntryStubConstant(function->result_size),  // C entry
+      jsgraph()->ExternalConstant(
+          ExternalReference(function_id, jsgraph()->isolate())),  // ref
+      jsgraph()->Int32Constant(function->nargs),                  // arity
+      jsgraph()->HeapConstant(module->instance->context),         // context
+      *effect_,
+      *control_};
+  Node* call = graph()->NewNode(jsgraph()->common()->Call(desc),
+                                static_cast<int>(arraysize(inputs)), inputs);
+
+  Node* result = BuildChangeSmiToInt32(call);
+
+  *effect_ = call;
+  return result;
 }
 
 Node* WasmGraphBuilder::MemSize(uint32_t offset) {

@@ -18,6 +18,37 @@
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_WasmMemorySize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  Handle<JSObject> module_instance;
+  {
+    // Get the module JSObject
+    DisallowHeapAllocation no_allocation;
+    const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
+    Address pc =
+        Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
+    Code* code =
+        isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
+    Object* owning_instance = wasm::GetOwningWasmInstance(code);
+    CHECK_NOT_NULL(owning_instance);
+    module_instance = handle(JSObject::cast(owning_instance), isolate);
+  }
+
+  // Get mem buffer associated with module object
+  MaybeHandle<JSArrayBuffer> maybe_mem_buffer =
+      wasm::GetInstanceMemory(isolate, module_instance);
+  Handle<JSArrayBuffer> old_buffer;
+  if (!maybe_mem_buffer.ToHandle(&old_buffer)) {
+    return *isolate->factory()->NewNumberFromInt(0);
+  } else {
+    uint32_t old_size = old_buffer->byte_length()->Number();
+    return *isolate->factory()->NewNumberFromInt(old_size /
+                                                 wasm::WasmModule::kPageSize);
+  }
+}
+
 RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
