@@ -217,10 +217,10 @@ class BytecodeGenerator::ControlScopeForTopLevel final
       case CMD_CONTINUE:
         UNREACHABLE();
       case CMD_RETURN:
-        generator()->builder()->Return();
+        generator()->BuildReturn();
         return true;
       case CMD_RETHROW:
-        generator()->builder()->ReThrow();
+        generator()->BuildReThrow();
         return true;
     }
     return false;
@@ -311,7 +311,7 @@ class BytecodeGenerator::ControlScopeForTryCatch final
       case CMD_RETURN:
         break;
       case CMD_RETHROW:
-        generator()->builder()->ReThrow();
+        generator()->BuildReThrow();
         return true;
     }
     return false;
@@ -649,7 +649,13 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
     if (!label.is_bound()) builder()->Bind(&label);
   }
 
-  builder()->EnsureReturn();
+  // Emit an implicit return instruction in case control flow can fall off the
+  // end of the function without an explicit return being present on all paths.
+  if (builder()->RequiresImplicitReturn()) {
+    builder()->LoadUndefined();
+    BuildReturn();
+  }
+  DCHECK(!builder()->RequiresImplicitReturn());
 }
 
 void BytecodeGenerator::GenerateBytecodeBody() {
@@ -666,10 +672,8 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // Build assignment to {new.target} variable if it is used.
   VisitNewTargetVariable(scope()->new_target_var());
 
-  // TODO(rmcilroy): Emit tracing call if requested to do so.
-  if (FLAG_trace) {
-    UNIMPLEMENTED();
-  }
+  // Emit tracing call if requested to do so.
+  if (FLAG_trace) builder()->CallRuntime(Runtime::kTraceEnter);
 
   // Visit declarations within the function scope.
   VisitDeclarations(scope()->declarations());
@@ -1854,6 +1858,19 @@ void BytecodeGenerator::VisitVariableLoadForAccumulatorValue(
   ValueResultScope accumulator_result(this);
   VisitVariableLoad(variable, slot, typeof_mode);
 }
+
+void BytecodeGenerator::BuildReturn() {
+  if (FLAG_trace) {
+    RegisterAllocationScope register_scope(this);
+    Register result = register_allocator()->NewRegister();
+    // Runtime returns {result} value, preserving accumulator.
+    builder()->StoreAccumulatorInRegister(result).CallRuntime(
+        Runtime::kTraceExit, result);
+  }
+  builder()->Return();
+}
+
+void BytecodeGenerator::BuildReThrow() { builder()->ReThrow(); }
 
 void BytecodeGenerator::BuildAbort(BailoutReason bailout_reason) {
   RegisterAllocationScope register_scope(this);

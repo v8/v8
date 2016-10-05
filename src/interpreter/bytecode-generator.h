@@ -105,6 +105,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitVariableAssignment(Variable* variable, Token::Value op,
                                FeedbackVectorSlot slot);
 
+  void BuildReturn();
+  void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);

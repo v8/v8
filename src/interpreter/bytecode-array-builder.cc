@@ -716,14 +716,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
   return *this;
 }
 
-void BytecodeArrayBuilder::EnsureReturn() {
-  if (!return_seen_in_block_) {
-    LoadUndefined();
-    Return();
-  }
-  DCHECK(return_seen_in_block_);
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
                                                  RegisterList args,
                                                  int feedback_slot,

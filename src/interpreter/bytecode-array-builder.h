@@ -312,7 +312,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
     latest_source_info_.MakeStatementPosition(expr->position());
   }
 
-  void EnsureReturn();
+  bool RequiresImplicitReturn() const { return !return_seen_in_block_; }
 
   // Accessors
   BytecodeRegisterAllocator* register_allocator() {
