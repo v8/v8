@@ -1233,7 +1233,9 @@ struct InstructionSelectionPhase {
         data->info()->is_source_positions_enabled()
             ? InstructionSelector::kAllSourcePositions
             : InstructionSelector::kCallSourcePositions);
-    selector.SelectInstructions();
+    if (!selector.SelectInstructions()) {
+      data->set_compilation_failed();
+    }
   }
 };
 
@@ -1754,6 +1756,11 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage) {
   data->InitializeFrameData(call_descriptor);
   // Select and schedule instructions covering the scheduled graph.
   Run<InstructionSelectionPhase>(linkage);
+  if (data->compilation_failed()) {
+    info()->AbortOptimization(kCodeGenerationFailed);
+    data->EndPhaseKind();
+    return false;
+  }
 
   if (FLAG_trace_turbo && !data->MayHaveUnverifiableGraph()) {
     AllowHandleDereference allow_deref;

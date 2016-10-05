@@ -61,7 +61,7 @@ class InstructionSelector final {
                                                : kDisableScheduling);
 
   // Visit code for the entire graph with the included schedule.
-  void SelectInstructions();
+  bool SelectInstructions();
 
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
@@ -332,6 +332,11 @@ class InstructionSelector final {
   Zone* instruction_zone() const { return sequence()->zone(); }
   Zone* zone() const { return zone_; }
 
+  void set_instruction_selection_failed() {
+    instruction_selection_failed_ = true;
+  }
+  bool instruction_selection_failed() { return instruction_selection_failed_; }
+
   // ===========================================================================
 
   Zone* const zone_;
@@ -351,6 +356,7 @@ class InstructionSelector final {
   InstructionScheduler* scheduler_;
   EnableScheduling enable_scheduling_;
   Frame* frame_;
+  bool instruction_selection_failed_;
 };
 
 }  // namespace compiler

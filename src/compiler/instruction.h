@@ -947,6 +947,14 @@ class Instruction final {
   void Print(const RegisterConfiguration* config) const;
   void Print() const;
 
+  typedef BitField<size_t, 0, 8> OutputCountField;
+  typedef BitField<size_t, 8, 16> InputCountField;
+  typedef BitField<size_t, 24, 6> TempCountField;
+
+  static const size_t kMaxOutputCount = OutputCountField::kMax;
+  static const size_t kMaxInputCount = InputCountField::kMax;
+  static const size_t kMaxTempCount = TempCountField::kMax;
+
  private:
   explicit Instruction(InstructionCode opcode);
 
@@ -955,9 +963,6 @@ class Instruction final {
               InstructionOperand* inputs, size_t temp_count,
               InstructionOperand* temps);
 
-  typedef BitField<size_t, 0, 8> OutputCountField;
-  typedef BitField<size_t, 8, 16> InputCountField;
-  typedef BitField<size_t, 24, 6> TempCountField;
   typedef BitField<bool, 30, 1> IsCallField;
 
   InstructionCode opcode_;
