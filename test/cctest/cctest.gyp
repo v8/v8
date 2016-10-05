@@ -60,6 +60,7 @@
       'compiler/test-multiple-return.cc',
       'compiler/test-node.cc',
       'compiler/test-operator.cc',
+      'compiler/test-osr.cc',
       'compiler/test-representation-change.cc',
       'compiler/test-run-bytecode-graph-builder.cc',
       'compiler/test-run-calls-to-external-references.cc',

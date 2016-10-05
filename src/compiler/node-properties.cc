@@ -369,7 +369,7 @@ MaybeHandle<Context> NodeProperties::GetSpecializationNativeContext(
         return handle(context->native_context());
       }
       case IrOpcode::kOsrValue: {
-        int const index = OsrValueIndexOf(node->op());
+        int const index = OpParameter<int>(node);
         if (index == Linkage::kOsrContextSpillSlotIndex) {
           return native_context;
         }

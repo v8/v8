@@ -860,20 +860,7 @@ struct TyperPhase {
   }
 };
 
-struct OsrTyperPhase {
-  static const char* phase_name() { return "osr typer"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    // Dummy induction variable optimizer: at the moment, we do not try
-    // to compute loop variable bounds on OSR.
-    LoopVariableOptimizer induction_vars(data->jsgraph()->graph(),
-                                         data->common(), temp_zone);
-    Typer typer(data->isolate(), data->graph());
-    typer.Run(roots, &induction_vars);
-  }
-};
+#ifdef DEBUG
 
 struct UntyperPhase {
   static const char* phase_name() { return "untyper"; }
@@ -890,12 +877,6 @@ struct UntyperPhase {
       }
     };
 
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    for (Node* node : roots) {
-      NodeProperties::RemoveType(node);
-    }
-
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     RemoveTypeReducer remove_type_reducer;
     AddReducer(data, &graph_reducer, &remove_type_reducer);
@@ -903,15 +884,12 @@ struct UntyperPhase {
   }
 };
 
+#endif  // DEBUG
+
 struct OsrDeconstructionPhase {
   static const char* phase_name() { return "OSR deconstruction"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphTrimmer trimmer(temp_zone, data->graph());
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    trimmer.TrimGraph(roots.begin(), roots.end());
-
     OsrHelper osr_helper(data->info());
     osr_helper.Deconstruct(data->jsgraph(), data->common(), temp_zone);
   }
@@ -1518,11 +1496,7 @@ bool PipelineImpl::CreateGraph() {
 
   // Perform OSR deconstruction.
   if (info()->is_osr()) {
-    Run<OsrTyperPhase>();
-
     Run<OsrDeconstructionPhase>();
-
-    Run<UntyperPhase>();
     RunPrintAndVerify("OSR deconstruction", true);
   }
 

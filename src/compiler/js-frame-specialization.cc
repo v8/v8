@@ -28,7 +28,7 @@ Reduction JSFrameSpecialization::Reduce(Node* node) {
 Reduction JSFrameSpecialization::ReduceOsrValue(Node* node) {
   DCHECK_EQ(IrOpcode::kOsrValue, node->opcode());
   Handle<Object> value;
-  int index = OsrValueIndexOf(node->op());
+  int const index = OpParameter<int>(node);
   int const parameters_count = frame()->ComputeParametersCount() + 1;
   if (index == Linkage::kOsrContextSpillSlotIndex) {
     value = handle(frame()->context(), isolate());
