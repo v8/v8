@@ -917,7 +917,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_WASM(F) \
   F(WasmGrowMemory, 1, 1)          \
-  F(WasmMemorySize, 0, 1)          \
   F(WasmThrowTypeError, 0, 1)      \
   F(WasmThrow, 2, 1)               \
   F(WasmGetCaughtExceptionValue, 1, 1)

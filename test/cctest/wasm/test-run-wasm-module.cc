@@ -253,21 +253,6 @@ TEST(Run_WasmModule_Serialization) {
   }
 }
 
-TEST(MemorySize) {
-  // Initial memory size is 16, see wasm-module-builder.cc
-  static const int kExpectedValue = 16;
-  TestSignatures sigs;
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
-
-  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
-  ExportAsMain(f);
-  byte code[] = {WASM_MEMORY_SIZE};
-  f->EmitCode(code, sizeof(code));
-  TestModule(&zone, builder, kExpectedValue);
-}
-
 TEST(Run_WasmModule_MemSize_GrowMem) {
   // Initial memory size = 16 + GrowMemory(10)
   static const int kExpectedValue = 26;

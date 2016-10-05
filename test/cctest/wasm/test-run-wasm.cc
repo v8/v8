@@ -79,6 +79,22 @@ WASM_EXEC_TEST(Int32Const_many) {
   }
 }
 
+WASM_EXEC_TEST(MemorySize1) {
+  TestingModule module(execution_mode);
+  WasmRunner<int32_t> r(&module);
+  module.AddMemory(WasmModule::kPageSize * 1);
+  BUILD(r, kExprMemorySize);
+  CHECK_EQ(1, r.Call());
+}
+
+WASM_EXEC_TEST(MemorySize2) {
+  TestingModule module(execution_mode);
+  WasmRunner<int32_t> r(&module);
+  module.AddMemory(WasmModule::kPageSize * 3);
+  BUILD(r, kExprMemorySize);
+  CHECK_EQ(3, r.Call());
+}
+
 WASM_EXEC_TEST(Int32Param0) {
   WasmRunner<int32_t> r(execution_mode, MachineType::Int32());
   // return(local[0])
