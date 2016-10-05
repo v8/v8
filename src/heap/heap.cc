@@ -5651,17 +5651,16 @@ void Heap::TearDown() {
 
   if (FLAG_print_max_heap_committed) {
     PrintF("\n");
-    PrintF("maximum_committed_by_heap=%" V8PRIdPTR " ",
-           MaximumCommittedMemory());
-    PrintF("maximum_committed_by_new_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_heap=%" PRIuS " ", MaximumCommittedMemory());
+    PrintF("maximum_committed_by_new_space=%" PRIuS " ",
            new_space_->MaximumCommittedMemory());
-    PrintF("maximum_committed_by_old_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_old_space=%" PRIuS " ",
            old_space_->MaximumCommittedMemory());
-    PrintF("maximum_committed_by_code_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_code_space=%" PRIuS " ",
            code_space_->MaximumCommittedMemory());
-    PrintF("maximum_committed_by_map_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_map_space=%" PRIuS " ",
            map_space_->MaximumCommittedMemory());
-    PrintF("maximum_committed_by_lo_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_lo_space=%" PRIuS " ",
            lo_space_->MaximumCommittedMemory());
     PrintF("\n\n");
   }
