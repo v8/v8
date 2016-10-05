@@ -161,7 +161,8 @@ void ReplaceEffectControlUses(Node* node, Node* effect, Node* control) {
     } else if (NodeProperties::IsEffectEdge(edge)) {
       edge.UpdateTo(effect);
     } else {
-      DCHECK(NodeProperties::IsValueEdge(edge));
+      DCHECK(NodeProperties::IsValueEdge(edge) ||
+             NodeProperties::IsContextEdge(edge));
     }
   }
 }
@@ -1264,6 +1265,30 @@ class RepresentationSelector {
                MachineRepresentation::kFloat64, Type::Number());
     if (lower()) ChangeToPureOp(node, Float64Op(node));
     return;
+  }
+
+  void VisitOsrGuard(Node* node) {
+    VisitInputs(node);
+
+    // Insert a dynamic check for the OSR value type if necessary.
+    switch (OsrGuardTypeOf(node->op())) {
+      case OsrGuardType::kUninitialized:
+        // At this point, we should always have a type for the OsrValue.
+        UNREACHABLE();
+        break;
+      case OsrGuardType::kSignedSmall:
+        if (lower()) {
+          NodeProperties::ChangeOp(node,
+                                   simplified()->CheckedTaggedToTaggedSigned());
+        }
+        return SetOutput(node, MachineRepresentation::kTaggedSigned);
+      case OsrGuardType::kAny:  // Nothing to check.
+        if (lower()) {
+          DeferReplacement(node, node->InputAt(0));
+        }
+        return SetOutput(node, MachineRepresentation::kTagged);
+    }
+    UNREACHABLE();
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -2409,6 +2434,9 @@ class RepresentationSelector {
         return;
       }
 
+      case IrOpcode::kOsrGuard:
+        return VisitOsrGuard(node);
+
       // Operators with all inputs tagged and no or tagged output have uniform
       // handling.
       case IrOpcode::kEnd:
@@ -2427,9 +2455,9 @@ class RepresentationSelector {
       case IrOpcode::kThrow:
       case IrOpcode::kBeginRegion:
       case IrOpcode::kFinishRegion:
-      case IrOpcode::kOsrValue:
       case IrOpcode::kProjection:
       case IrOpcode::kObjectState:
+      case IrOpcode::kOsrValue:
 // All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name) case IrOpcode::k##name:
         JS_SIMPLE_BINOP_LIST(OPCODE_CASE)

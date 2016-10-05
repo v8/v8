@@ -375,6 +375,23 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is merged from other values in the graph and could be any.
       CheckTypeIs(node, Type::Any());
       break;
+    case IrOpcode::kOsrGuard:
+      // OSR values have a value and a control input.
+      CHECK_EQ(1, value_count);
+      CHECK_EQ(1, effect_count);
+      CHECK_EQ(1, control_count);
+      switch (OsrGuardTypeOf(node->op())) {
+        case OsrGuardType::kUninitialized:
+          CheckTypeIs(node, Type::None());
+          break;
+        case OsrGuardType::kSignedSmall:
+          CheckTypeIs(node, Type::SignedSmall());
+          break;
+        case OsrGuardType::kAny:
+          CheckTypeIs(node, Type::Any());
+          break;
+      }
+      break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.
       int index = static_cast<int>(ProjectionIndexOf(node->op()));
