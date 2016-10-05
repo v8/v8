@@ -333,25 +333,54 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
       *buffer = 0;
       return kBadChar;
     }
-  } else {
-    // We're inside of a character, as described by buffer.
-    if (IsContinuationCharacter(next)) {
-      // How many bytes (excluding this one) do we still expect?
-      uint8_t count = (*buffer >> 24) - 1;
-      // Update the value.
-      uint32_t value = ((*buffer & 0xffffff) << 6) | (next & 0x3F);
-      if (count) {
-        *buffer = count << 24 | value;
-        return kIncomplete;
-      } else {
-        *buffer = 0;
-        return value;
-      }
+  } else if (*buffer <= 0xff) {
+    // We have one unprocessed byte left (from the last else case in this if
+    // statement).
+    uchar previous = *buffer;
+    *buffer = 0;
+    uchar t = ValueOfIncremental(previous, buffer);
+    if (t == kIncomplete) {
+      // If we have an incomplete character, process both the previous and the
+      // next byte at once.
+      return ValueOfIncremental(next, buffer);
     } else {
-      // Within a character, but not a continuation character? Bad char.
-      *buffer = 0;
-      return kBadChar;
+      // Otherwise, process the previous byte and save the next byte for next
+      // time.
+      DCHECK_EQ(0, *buffer);
+      *buffer = next;
+      return t;
     }
+  } else if (IsContinuationCharacter(next)) {
+    // We're inside of a character, as described by buffer.
+
+    // How many bytes (excluding this one) do we still expect?
+    uint8_t count = (*buffer >> 24) - 1;
+    // Update the value.
+    uint32_t value = ((*buffer & 0xffffff) << 6) | (next & 0x3F);
+    if (count) {
+      *buffer = count << 24 | value;
+      return kIncomplete;
+    } else {
+      *buffer = 0;
+      return value;
+    }
+  } else {
+    // Within a character, but not a continuation character? Then the
+    // previous char was a bad char. But we need to save the current
+    // one.
+    *buffer = next;
+    return kBadChar;
+  }
+}
+
+uchar Utf8::ValueOfIncrementalFinish(Utf8IncrementalBuffer* buffer) {
+  DCHECK_NOT_NULL(buffer);
+  if (*buffer == 0) {
+    return kBufferEmpty;
+  } else {
+    // Process left-over chars. An incomplete char at the end maps to kBadChar.
+    uchar t = ValueOfIncremental(0, buffer);
+    return (t == kIncomplete) ? kBadChar : t;
   }
 }
 

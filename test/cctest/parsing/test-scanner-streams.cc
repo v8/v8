@@ -423,3 +423,26 @@ TEST(CharacterStreams) {
   TestCharacterStreams(buffer, arraysize(buffer) - 1);
   TestCharacterStreams(buffer, arraysize(buffer) - 1, 576, 3298);
 }
+
+// Regression test for crbug.com/651333. Read invalid utf-8.
+TEST(Regress651333) {
+  const uint8_t bytes[] =
+      "A\xf1"
+      "ad";  // Anad, with n == n-with-tilde.
+  const uint16_t unicode[] = {65, 65533, 97, 100};
+
+  // Run the test for all sub-strings 0..N of bytes, to make sure we hit the
+  // error condition in and at chunk boundaries.
+  for (size_t len = 0; len < arraysize(bytes); len++) {
+    // Read len bytes from bytes, and compare against the expected unicode
+    // characters. Expect kBadChar ( == Unicode replacement char == code point
+    // 65533) instead of the incorrectly coded Latin1 char.
+    ChunkSource chunks(bytes, len, false);
+    std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+        &chunks, v8::ScriptCompiler::StreamedSource::UTF8));
+    for (size_t i = 0; i < len; i++) {
+      CHECK_EQ(unicode[i], stream->Advance());
+    }
+    CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
+  }
+}
