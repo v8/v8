@@ -670,6 +670,9 @@
   # Modules which are only meant to be imported from by other tests, not to be
   # tested standalone.
   'modules-skip*': [SKIP],
+
+  # BUG(v8:5451): Flaky crashes.
+  'wasm/asm-wasm': [PASS, ['gc_stress', SKIP]],
 }],  # variant == ignition
 
 ['variant == ignition and arch == arm64', {
@@ -722,6 +725,8 @@
   # Might trigger stack overflow.
   'unicode-test': [SKIP],
 
+  # BUG(v8:5451): Flaky crashes.
+  'wasm/asm-wasm': [PASS, ['gc_stress', SKIP]],
 }],  # variant == ignition_staging
 
 ##############################################################################
