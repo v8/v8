@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "ba2b708589ed58fca9ae19168f2870bed77a923f",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "475d5b37ded6589c9f8a0d19ced54ddf2e6d14a0",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -20,7 +20,7 @@ deps = {
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "e0fa02a02f61430dae2bddfd89a334ea4389f495",
   "v8/third_party/WebKit/Source/platform/inspector_protocol":
-    Var("chromium_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "5258fd5cfb62ec917c9258ce9089c62e17aee5dc",
+    Var("chromium_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "3280c57c4c575ce82ccd13e4a403492fb4ca624b",
   "v8/third_party/jinja2":
     Var("chromium_url") + "/chromium/src/third_party/jinja2.git" + "@" + "b61a2c009a579593a259c1b300e0ad02bf48fd78",
   "v8/third_party/markupsafe":
