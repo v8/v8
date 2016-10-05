@@ -169,9 +169,21 @@ function PromiseHandle(value, handler, deferred) {
   try {
     if (debug_is_active) %DebugPushPromise(deferred.promise);
     var result = handler(value);
-    deferred.resolve(result);
+    if (IS_UNDEFINED(deferred.resolve)) {
+      ResolvePromise(deferred.promise, result);
+    } else {
+      deferred.resolve(result);
+    }
   } %catch (exception) {  // Natives syntax to mark this catch block.
-    try { deferred.reject(exception); } catch (e) { }
+    try {
+      if (IS_UNDEFINED(deferred.reject)) {
+        // Pass false for debugEvent so .then chaining does not trigger
+        // redundant ExceptionEvents.
+        RejectPromise(deferred.promise, exception, false);
+      } else {
+        deferred.reject(exception);
+      }
+    } catch (e) { }
   } finally {
     if (debug_is_active) %DebugPopPromise();
   }
@@ -452,9 +464,23 @@ function PromiseThen(onResolve, onReject) {
   }
 
   var constructor = SpeciesConstructor(this, GlobalPromise);
-  // Pass false for debugEvent so .then chaining does not trigger
-  // redundant ExceptionEvents.
-  var resultCapability = NewPromiseCapability(constructor, false);
+  var resultCapability;
+
+  // The resultCapability.promise is only ever fulfilled internally,
+  // so we don't need the closures to protect against accidentally
+  // calling them multiple times.
+  if (constructor === GlobalPromise) {
+    // TODO(gsathya): Combine this into NewPromiseCapability.
+    resultCapability = {
+      promise: PromiseCreate(),
+      resolve: UNDEFINED,
+      reject: UNDEFINED
+    };
+  } else {
+    // Pass false for debugEvent so .then chaining does not trigger
+    // redundant ExceptionEvents.
+    resultCapability = NewPromiseCapability(constructor, false);
+  }
   return PerformPromiseThen(this, onResolve, onReject, resultCapability);
 }
 
