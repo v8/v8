@@ -166,6 +166,7 @@
       ],
       'sources': [  ### gcmole(all) ###
         'wasm-code.cc',
+        '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
       ],

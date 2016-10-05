@@ -11,8 +11,8 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
-#include "test/cctest/wasm/test-signatures.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
 
 // If the target architecture is 64-bit, enable all tests.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64

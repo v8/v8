@@ -210,7 +210,6 @@
       'wasm/test-run-wasm-js.cc',
       'wasm/test-run-wasm-module.cc',
       'wasm/test-run-wasm-relocation.cc',
-      'wasm/test-signatures.h',
       'wasm/test-wasm-function-name-table.cc',
       'wasm/test-wasm-stack.cc',
       'wasm/test-wasm-trap-position.cc',
@@ -328,6 +327,7 @@
         '../..',
       ],
       'sources': [
+        '../common/wasm/test-signatures.h',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
         '<@(cctest_sources)',

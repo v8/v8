@@ -2754,6 +2754,17 @@ v8_source_set("wasm_module_runner") {
   ]
 }
 
+v8_source_set("wasm_test_signatures") {
+  sources = [
+    "test/common/wasm/test-signatures.h",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+}
+
 v8_source_set("wasm_fuzzer") {
   sources = [
     "test/fuzzer/wasm.cc",
@@ -2800,6 +2811,7 @@ v8_source_set("wasm_code_fuzzer") {
   deps = [
     ":fuzzer_support",
     ":wasm_module_runner",
+    ":wasm_test_signatures",
   ]
 
   configs = [

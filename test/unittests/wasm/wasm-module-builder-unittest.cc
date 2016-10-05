@@ -9,7 +9,7 @@
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 
-#include "test/cctest/wasm/test-signatures.h"
+#include "test/common/wasm/test-signatures.h"
 
 namespace v8 {
 namespace internal {

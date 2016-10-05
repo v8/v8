@@ -12,7 +12,7 @@
 #include "src/wasm/wasm-opcodes.h"
 
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/test-signatures.h"
+#include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-module-runner.h"
 
 using namespace v8::base;

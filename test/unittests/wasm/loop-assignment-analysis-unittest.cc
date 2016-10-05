@@ -6,7 +6,7 @@
 
 #include "src/v8.h"
 
-#include "test/cctest/wasm/test-signatures.h"
+#include "test/common/wasm/test-signatures.h"
 
 #include "src/bit-vector.h"
 #include "src/objects.h"

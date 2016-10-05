@@ -11,7 +11,7 @@
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
-#include "test/cctest/wasm/test-signatures.h"
+#include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
