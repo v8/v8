@@ -534,6 +534,8 @@ uint32_t GetNumImportedFunctions(Handle<JSObject> wasm_object);
 // Returns nullptr on failing to get owning instance.
 Object* GetOwningWasmInstance(Code* code);
 
+int32_t GetInstanceMemorySize(Isolate* isolate, Handle<JSObject> instance);
+
 int32_t GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
                            uint32_t pages);
 

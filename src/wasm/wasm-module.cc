@@ -1809,6 +1809,17 @@ void SetInstanceMemory(Handle<JSObject> instance, JSArrayBuffer* buffer) {
   module->set_ptr_to_heap(buffer);
 }
 
+int32_t GetInstanceMemorySize(Isolate* isolate, Handle<JSObject> instance) {
+  MaybeHandle<JSArrayBuffer> maybe_mem_buffer =
+      GetInstanceMemory(isolate, instance);
+  Handle<JSArrayBuffer> buffer;
+  if (!maybe_mem_buffer.ToHandle(&buffer)) {
+    return 0;
+  } else {
+    return buffer->byte_length()->Number() / WasmModule::kPageSize;
+  }
+}
+
 int32_t GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
                            uint32_t pages) {
   Address old_mem_start = nullptr;
