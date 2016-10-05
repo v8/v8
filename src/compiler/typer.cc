@@ -295,6 +295,7 @@ class Typer::Visitor : public Reducer {
 
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
   static Type* StringFromCharCodeTyper(Type*, Typer*);
+  static Type* StringFromCodePointTyper(Type*, Typer*);
 
   Reduction UpdateType(Node* node, Type* current) {
     if (NodeProperties::IsTyped(node)) {
@@ -1365,6 +1366,10 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kStringToLowerCase:
         case kStringToUpperCase:
           return Type::String();
+
+        case kStringIteratorNext:
+          return Type::OtherObject();
+
         // Array functions.
         case kArrayIndexOf:
         case kArrayLastIndexOf:
@@ -1551,6 +1556,19 @@ Type* Typer::Visitor::StringFromCharCodeTyper(Type* type, Typer* t) {
   return Type::String();
 }
 
+Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
+  type = NumberToUint32(ToNumber(type, t), t);
+  Factory* f = t->isolate()->factory();
+  double min = type->Min();
+  double max = type->Max();
+  if (min == max) {
+    uint32_t code = static_cast<uint32_t>(min) & String::kMaxUtf16CodeUnitU;
+    Handle<String> string = f->LookupSingleCharacterStringFromCode(code);
+    return Type::Constant(string, t->zone());
+  }
+  return Type::String();
+}
+
 Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
   // TODO(bmeurer): We could do better here based on inputs.
   return Type::Range(0, kMaxUInt16, zone());
@@ -1558,6 +1576,10 @@ Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
 
 Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
   return TypeUnaryOp(node, StringFromCharCodeTyper);
+}
+
+Type* Typer::Visitor::TypeStringFromCodePoint(Node* node) {
+  return TypeUnaryOp(node, StringFromCodePointTyper);
 }
 
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {

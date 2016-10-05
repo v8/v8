@@ -1026,6 +1026,139 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
   return NoChange();
 }
 
+Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  if (HasInstanceTypeWitness(receiver, effect, JS_STRING_ITERATOR_TYPE)) {
+    Node* string = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSStringIteratorString()),
+        receiver, effect, control);
+    Node* index = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSStringIteratorIndex()),
+        receiver, effect, control);
+    Node* length = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForStringLength()), string,
+        effect, control);
+
+    // branch0: if (index < length)
+    Node* check0 =
+        graph()->NewNode(simplified()->NumberLessThan(), index, length);
+    Node* branch0 =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+    Node* etrue0 = effect;
+    Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+    Node* done_true;
+    Node* vtrue0;
+    {
+      done_true = jsgraph()->FalseConstant();
+      Node* lead = graph()->NewNode(simplified()->StringCharCodeAt(), string,
+                                    index, if_true0);
+
+      // branch1: if ((lead & 0xFC00) === 0xD800)
+      Node* check1 = graph()->NewNode(
+          simplified()->NumberEqual(),
+          graph()->NewNode(simplified()->NumberBitwiseAnd(), lead,
+                           jsgraph()->Int32Constant(0xFC00)),
+          jsgraph()->Int32Constant(0xD800));
+      Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check1, if_true0);
+      Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+      Node* vtrue1;
+      {
+        Node* next_index = graph()->NewNode(simplified()->NumberAdd(), index,
+                                            jsgraph()->OneConstant());
+        // branch2: if ((index + 1) < length)
+        Node* check2 = graph()->NewNode(simplified()->NumberLessThan(),
+                                        next_index, length);
+        Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                         check2, if_true1);
+        Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+        Node* vtrue2;
+        {
+          Node* trail = graph()->NewNode(simplified()->StringCharCodeAt(),
+                                         string, next_index, if_true2);
+          // branch3: if ((trail & 0xFC00) === 0xDC00)
+          Node* check3 = graph()->NewNode(
+              simplified()->NumberEqual(),
+              graph()->NewNode(simplified()->NumberBitwiseAnd(), trail,
+                               jsgraph()->Int32Constant(0xFC00)),
+              jsgraph()->Int32Constant(0xDC00));
+          Node* branch3 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                           check3, if_true2);
+          Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
+          Node* vtrue3;
+          {
+            vtrue3 = graph()->NewNode(
+                simplified()->NumberBitwiseOr(),
+                graph()->NewNode(simplified()->NumberShiftLeft(), trail,
+                                 jsgraph()->Int32Constant(16)),
+                lead);
+          }
+
+          Node* if_false3 = graph()->NewNode(common()->IfFalse(), branch3);
+          Node* vfalse3 = lead;
+          if_true2 = graph()->NewNode(common()->Merge(2), if_true3, if_false3);
+          vtrue2 =
+              graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                               vtrue3, vfalse3, if_true2);
+        }
+
+        Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+        Node* vfalse2 = lead;
+        if_true1 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
+        vtrue1 =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                             vtrue2, vfalse2, if_true1);
+      }
+
+      Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+      Node* vfalse1 = lead;
+      if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+      vtrue0 =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                           vtrue1, vfalse1, if_true0);
+      vtrue0 = graph()->NewNode(
+          simplified()->StringFromCodePoint(UnicodeEncoding::UTF16), vtrue0);
+
+      // Update iterator.[[NextIndex]]
+      Node* char_length = etrue0 = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForStringLength()), vtrue0,
+          etrue0, if_true0);
+      index = graph()->NewNode(simplified()->NumberAdd(), index, char_length);
+      etrue0 = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
+          receiver, index, etrue0, if_true0);
+    }
+
+    Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+    Node* done_false;
+    Node* vfalse0;
+    {
+      vfalse0 = jsgraph()->UndefinedConstant();
+      done_false = jsgraph()->TrueConstant();
+    }
+
+    control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+    effect = graph()->NewNode(common()->EffectPhi(2), etrue0, effect, control);
+    Node* value =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         vtrue0, vfalse0, control);
+    Node* done =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         done_true, done_false, control);
+
+    value = effect = graph()->NewNode(javascript()->CreateIterResultObject(),
+                                      value, done, context, effect);
+
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::ReduceArrayBufferViewAccessor(
     Node* node, InstanceType instance_type, FieldAccess const& access) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -1195,6 +1328,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringIteratorNext:
+      return ReduceStringIteratorNext(node);
     case kDataViewByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_DATA_VIEW_TYPE,
@@ -1252,6 +1387,10 @@ CommonOperatorBuilder* JSBuiltinReducer::common() const {
 
 SimplifiedOperatorBuilder* JSBuiltinReducer::simplified() const {
   return jsgraph()->simplified();
+}
+
+JSOperatorBuilder* JSBuiltinReducer::javascript() const {
+  return jsgraph()->javascript();
 }
 
 }  // namespace compiler

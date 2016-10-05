@@ -548,6 +548,24 @@ FieldAccess AccessBuilder::ForJSGlobalObjectNativeContext() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForJSStringIteratorString() {
+  FieldAccess access = {
+      kTaggedBase,    JSStringIterator::kStringOffset, Handle<Name>(),
+      Type::String(), MachineType::TaggedPointer(),    kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSStringIteratorIndex() {
+  FieldAccess access = {kTaggedBase,
+                        JSStringIterator::kNextIndexOffset,
+                        Handle<Name>(),
+                        TypeCache::Get().kStringLengthType,
+                        MachineType::TaggedSigned(),
+                        kNoWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForValue() {

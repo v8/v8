@@ -182,6 +182,12 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSGlobalObject::native_context() field.
   static FieldAccess ForJSGlobalObjectNativeContext();
 
+  // Provides access to JSStringIterator::string() field.
+  static FieldAccess ForJSStringIteratorString();
+
+  // Provides access to JSStringIterator::index() field.
+  static FieldAccess ForJSStringIteratorIndex();
+
   // Provides access to JSValue::value() field.
   static FieldAccess ForValue();
 
