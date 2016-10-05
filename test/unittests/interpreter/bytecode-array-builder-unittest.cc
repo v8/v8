@@ -34,6 +34,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Register other(reg.index() + 1);
   Register wide(128);
   RegisterList reg_list;
+  RegisterList pair(0, 2), triple(0, 3);
 
   // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
@@ -127,7 +128,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Call(reg, reg_list, 1)
       .Call(reg, reg_list, 1, TailCallMode::kAllow)
       .CallRuntime(Runtime::kIsArray, reg)
-      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, other)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list);
 
   // Emit binary operator invocations.
@@ -261,13 +262,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeLabel after_rethrow;
   builder.ReThrow().Bind(&after_rethrow);
 
-  builder.ForInPrepare(reg, reg)
+  builder.ForInPrepare(reg, triple)
       .ForInContinue(reg, reg)
-      .ForInNext(reg, reg, reg, 1)
-      .ForInStep(reg);
-  builder.ForInPrepare(reg, wide)
-      .ForInContinue(reg, other)
-      .ForInNext(wide, wide, wide, 1024)
+      .ForInNext(reg, reg, pair, 1)
       .ForInStep(reg);
 
   // Wide constant pool loads

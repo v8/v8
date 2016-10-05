@@ -205,13 +205,16 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   // Call the runtime function with |function_id| and arguments |args|, that
   // returns a pair of values. The return values will be returned in
-  // <first_return> and <first_return + 1>.
+  // |return_pair|.
   BytecodeArrayBuilder& CallRuntimeForPair(Runtime::FunctionId function_id,
                                            RegisterList args,
-                                           Register first_return);
-  // Call the runtime function with |function_id| with single argument |arg|.
+                                           RegisterList return_pair);
+  // Call the runtime function with |function_id| with single argument |arg|
+  // that returns a pair of values. The return values will be returned in
+  // |return_pair|.
   BytecodeArrayBuilder& CallRuntimeForPair(Runtime::FunctionId function_id,
-                                           Register arg, Register first_return);
+                                           Register arg,
+                                           RegisterList return_pair);
 
   // Call the JS runtime function with |context_index| and arguments |args|.
   BytecodeArrayBuilder& CallJSRuntime(int context_index, RegisterList args);
@@ -265,10 +268,10 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   // Complex flow control.
   BytecodeArrayBuilder& ForInPrepare(Register receiver,
-                                     Register cache_info_triple);
+                                     RegisterList cache_info_triple);
   BytecodeArrayBuilder& ForInContinue(Register index, Register cache_length);
   BytecodeArrayBuilder& ForInNext(Register receiver, Register index,
-                                  Register cache_type_array_pair,
+                                  RegisterList cache_type_array_pair,
                                   int feedback_slot);
   BytecodeArrayBuilder& ForInStep(Register index);
 

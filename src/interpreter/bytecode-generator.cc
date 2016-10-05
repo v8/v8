@@ -1202,7 +1202,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Used as kRegTriple and kRegPair in ForInPrepare and ForInNext.
   RegisterList triple = register_allocator()->NewRegisterList(3);
   Register cache_length = triple[2];
-  builder()->ForInPrepare(receiver, triple.first_register());
+  builder()->ForInPrepare(receiver, triple);
 
   // Set up loop counter
   Register index = register_allocator()->NewRegister();
@@ -1215,7 +1215,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   builder()->ForInContinue(index, cache_length);
   loop_builder.BreakIfFalse();
   FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
-  builder()->ForInNext(receiver, index, triple.first_register(),
+  builder()->ForInNext(receiver, index, triple.Truncate(2),
                        feedback_index(slot));
   loop_builder.ContinueIfUndefined();
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
@@ -2378,11 +2378,13 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
         // Call %LoadLookupSlotForCall to get the callee and receiver.
         DCHECK(Register::AreContiguous(callee, receiver));
+        RegisterList result_pair(callee.index(), 2);
         Variable* variable = callee_expr->AsVariableProxy()->var();
         builder()
             ->LoadLiteral(variable->name())
             .StoreAccumulatorInRegister(name)
-            .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, name, callee);
+            .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, name,
+                                result_pair);
         break;
       }
       // Fall through.

@@ -652,9 +652,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Debugger() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
-    Register receiver, Register cache_info_triple) {
+    Register receiver, RegisterList cache_info_triple) {
+  DCHECK_EQ(3, cache_info_triple.register_count());
   Output(Bytecode::kForInPrepare, RegisterOperand(receiver),
-         RegisterOperand(cache_info_triple));
+         RegisterOperand(cache_info_triple.first_register()));
   return *this;
 }
 
@@ -666,10 +667,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInContinue(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(
-    Register receiver, Register index, Register cache_type_array_pair,
+    Register receiver, Register index, RegisterList cache_type_array_pair,
     int feedback_slot) {
+  DCHECK_EQ(2, cache_type_array_pair.register_count());
   Output(Bytecode::kForInNext, RegisterOperand(receiver),
-         RegisterOperand(index), RegisterOperand(cache_type_array_pair),
+         RegisterOperand(index),
+         RegisterOperand(cache_type_array_pair.first_register()),
          UnsignedOperand(feedback_slot));
   return *this;
 }
@@ -774,19 +777,22 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
-    Runtime::FunctionId function_id, RegisterList args, Register first_return) {
+    Runtime::FunctionId function_id, RegisterList args,
+    RegisterList return_pair) {
   DCHECK_EQ(2, Runtime::FunctionForId(function_id)->result_size);
   DCHECK(Bytecodes::SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
+  DCHECK_EQ(2, return_pair.register_count());
   Output(Bytecode::kCallRuntimeForPair, static_cast<uint16_t>(function_id),
          RegisterOperand(args.first_register()),
-         UnsignedOperand(args.register_count()), RegisterOperand(first_return));
+         UnsignedOperand(args.register_count()),
+         RegisterOperand(return_pair.first_register()));
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
-    Runtime::FunctionId function_id, Register arg, Register first_return) {
+    Runtime::FunctionId function_id, Register arg, RegisterList return_pair) {
   return CallRuntimeForPair(function_id, RegisterList(arg.index(), 1),
-                            first_return);
+                            return_pair);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
