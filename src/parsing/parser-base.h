@@ -2722,8 +2722,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   if (is_destructuring_assignment) {
     // This is definitely not an expression so don't accumulate
     // expression-related errors.
-    productions &= ~(ExpressionClassifier::ExpressionProduction |
-                     ExpressionClassifier::TailCallExpressionProduction);
+    productions &= ~ExpressionClassifier::ExpressionProduction;
   }
 
   if (!Token::IsAssignmentOp(peek())) {
