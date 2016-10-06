@@ -553,9 +553,23 @@ std::string DirName(const std::string& path) {
   return path.substr(0, last_slash);
 }
 
-std::string EnsureAbsolutePath(const std::string& path,
-                               const std::string& dir_name) {
-  return IsAbsolutePath(path) ? path : dir_name + '/' + path;
+// Resolves path to an absolute path if necessary, and does some
+// normalization (eliding references to the current directory
+// and replacing backslashes with slashes).
+std::string NormalizePath(const std::string& path,
+                          const std::string& dir_name) {
+  std::string result;
+  if (IsAbsolutePath(path)) {
+    result = path;
+  } else {
+    result = dir_name + '/' + path;
+  }
+  std::replace(result.begin(), result.end(), '\\', '/');
+  size_t i;
+  while ((i = result.find("/./")) != std::string::npos) {
+    result.erase(i, 2);
+  }
+  return result;
 }
 
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
@@ -567,7 +581,7 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
       External::Cast(*data)->Value());
   Local<String> dir_name = Local<String>::Cast(referrer->GetEmbedderData());
   std::string absolute_path =
-      EnsureAbsolutePath(ToSTLString(specifier), ToSTLString(dir_name));
+      NormalizePath(ToSTLString(specifier), ToSTLString(dir_name));
   auto it = module_map->find(absolute_path);
   if (it != module_map->end()) {
     return it->second.Get(isolate);
@@ -607,7 +621,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(
 
   for (int i = 0, length = module->GetModuleRequestsLength(); i < length; ++i) {
     Local<String> name = module->GetModuleRequest(i);
-    std::string absolute_path = EnsureAbsolutePath(ToSTLString(name), dir_name);
+    std::string absolute_path = NormalizePath(ToSTLString(name), dir_name);
     if (!module_map->count(absolute_path)) {
       if (FetchModuleTree(isolate, absolute_path, module_map).IsEmpty()) {
         return MaybeLocal<Module>();
@@ -621,9 +635,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   HandleScope handle_scope(isolate);
 
-  std::string absolute_path =
-      EnsureAbsolutePath(file_name, GetWorkingDirectory());
-  std::replace(absolute_path.begin(), absolute_path.end(), '\\', '/');
+  std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
 
   Local<Module> root_module;
   std::map<std::string, Global<Module>> module_map;
