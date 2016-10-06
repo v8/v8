@@ -302,6 +302,24 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
   return compacting_;
 }
 
+void MarkCompactCollector::ClearInvalidRememberedSetSlots() {
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_STORE_BUFFER);
+    RememberedSet<OLD_TO_NEW>::ClearInvalidSlots(heap());
+  }
+// There is not need to filter the old to old set because
+// it is completely cleared after the mark-compact GC.
+// The slots that become invalid due to runtime transitions are
+// cleared eagerly immediately after the transition.
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    RememberedSet<OLD_TO_NEW>::VerifyValidSlots(heap());
+    RememberedSet<OLD_TO_OLD>::VerifyValidSlots(heap());
+  }
+#endif
+}
+
 void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
@@ -2392,6 +2410,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   MarkDependentCodeForDeoptimization(dependent_code_list);
 
   ClearWeakCollections();
+
+  ClearInvalidRememberedSetSlots();
 }
 
 
@@ -3804,12 +3824,11 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
         Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
     if (identity == NEW_SPACE) {
       RawSweep(page, IGNORE_FREE_LIST, free_space_mode);
+    } else if (identity == OLD_SPACE) {
+      max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
+    } else if (identity == CODE_SPACE) {
+      max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     } else {
-      if (identity == OLD_SPACE || identity == MAP_SPACE) {
-        RememberedSet<OLD_TO_NEW>::ClearInvalidSlots(heap_, page);
-      } else {
-        RememberedSet<OLD_TO_NEW>::ClearInvalidTypedSlots(heap_, page);
-      }
       max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     }
 

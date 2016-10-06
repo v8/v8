@@ -203,9 +203,6 @@ class RememberedSet {
   // must be called before sweeping when mark bits are still intact.
   static void ClearInvalidSlots(Heap* heap);
 
-  static void ClearInvalidSlots(Heap* heap, MemoryChunk* chunk);
-  static void ClearInvalidTypedSlots(Heap* heap, MemoryChunk* chunk);
-
   static void VerifyValidSlots(Heap* heap);
 
  private:

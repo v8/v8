@@ -160,7 +160,7 @@ class SlotSet : public Malloced {
           if (current_bucket[i].Value()) {
             uint32_t cell = current_bucket[i].Value();
             uint32_t old_cell = cell;
-            uint32_t mask = 0;
+            uint32_t new_cell = cell;
             while (cell) {
               int bit_offset = base::bits::CountTrailingZeros32(cell);
               uint32_t bit_mask = 1u << bit_offset;
@@ -168,11 +168,10 @@ class SlotSet : public Malloced {
               if (callback(page_start_ + slot) == KEEP_SLOT) {
                 ++in_bucket_count;
               } else {
-                mask |= bit_mask;
+                new_cell ^= bit_mask;
               }
               cell ^= bit_mask;
             }
-            uint32_t new_cell = old_cell & ~mask;
             if (old_cell != new_cell) {
               while (!current_bucket[i].TrySetValue(old_cell, new_cell)) {
                 // If TrySetValue fails, the cell must have changed. We just
@@ -181,7 +180,7 @@ class SlotSet : public Malloced {
                 // method will only be called on the main thread and filtering
                 // threads will only remove slots.
                 old_cell = current_bucket[i].Value();
-                new_cell = old_cell & ~mask;
+                new_cell &= old_cell;
               }
             }
           }
