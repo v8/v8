@@ -79,7 +79,7 @@
       'compiler/typed-optimization-unittest.cc',
       'compiler/typer-unittest.cc',
       'compiler/value-numbering-reducer-unittest.cc',
-      'compiler/zone-pool-unittest.cc',
+      'compiler/zone-stats-unittest.cc',
       'compiler-dispatcher/compiler-dispatcher-job-unittest.cc',
       'counters-unittest.cc',
       'eh-frame-iterator-unittest.cc',

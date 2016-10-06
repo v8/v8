@@ -44,9 +44,6 @@ class V8_EXPORT_PRIVATE Zone final {
     return static_cast<T*>(New(length * sizeof(T)));
   }
 
-  // Deletes all objects and free all memory allocated in the Zone.
-  void DeleteAll();
-
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
   bool excess_allocation() const {
@@ -77,6 +74,9 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
+
+  // Deletes all objects and free all memory allocated in the Zone.
+  void DeleteAll();
 
   // The number of bytes allocated in this zone so far.
   size_t allocation_size_;
@@ -124,19 +124,6 @@ class ZoneObject {
   // Zone::DeleteAll() to delete all zone objects in one go.
   void operator delete(void*, size_t) { UNREACHABLE(); }
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
-};
-
-// The ZoneScope is used to automatically call DeleteAll() on a
-// Zone when the ZoneScope is destroyed (i.e. goes out of scope)
-class ZoneScope final {
- public:
-  explicit ZoneScope(Zone* zone) : zone_(zone) {}
-  ~ZoneScope() { zone_->DeleteAll(); }
-
-  Zone* zone() const { return zone_; }
-
- private:
-  Zone* zone_;
 };
 
 // The ZoneAllocationPolicy is used to specialize generic data
