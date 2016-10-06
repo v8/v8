@@ -381,15 +381,15 @@ void FindStringIndicesDispatch(Isolate* isolate, String* subject,
 }
 
 namespace {
-static List<int>* GetRewindedRegexpIndicesList(Isolate* isolate) {
+List<int>* GetRewindedRegexpIndicesList(Isolate* isolate) {
   List<int>* list = isolate->regexp_indices();
   list->Rewind(0);
   return list;
 }
 
-static void TruncateRegexpIndicesList(Isolate* isolate) {
-  // Same size as smallest zone segment, preserving behavior from the runtime
-  // zone.
+void TruncateRegexpIndicesList(Isolate* isolate) {
+  // Same size as smallest zone segment, preserving behavior from the
+  // runtime zone.
   static const size_t kMaxRegexpIndicesListCapacity = 8 * KB;
   if (isolate->regexp_indices()->capacity() > kMaxRegexpIndicesListCapacity) {
     isolate->regexp_indices()->Clear();  //  Throw away backing storage
