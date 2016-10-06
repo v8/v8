@@ -1034,7 +1034,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
   // Shared entry for floating point addition.
   Label do_fadd(assembler), end(assembler),
-      do_add_any(assembler, Label::kDeferred), call_add_stub(assembler);
+      call_add_stub(assembler, Label::kDeferred);
   Variable var_fadd_lhs(assembler, MachineRepresentation::kFloat64),
       var_fadd_rhs(assembler, MachineRepresentation::kFloat64),
       var_type_feedback(assembler, MachineRepresentation::kWord32),
@@ -1082,7 +1082,8 @@ compiler::Node* AddWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map), &do_add_any);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
+                            &call_add_stub);
 
       var_fadd_lhs.Bind(assembler->SmiToFloat64(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
@@ -1118,7 +1119,8 @@ compiler::Node* AddWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map), &do_add_any);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
+                            &call_add_stub);
 
       var_fadd_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
@@ -1128,23 +1130,27 @@ compiler::Node* AddWithFeedbackStub::Generate(
     assembler->Bind(&check_string);
     {
       // Check if the {rhs} is a smi, and exit the string check early if it is.
-      assembler->GotoIf(assembler->WordIsSmi(rhs), &do_add_any);
+      assembler->GotoIf(assembler->WordIsSmi(rhs), &call_add_stub);
 
       Node* lhs_instance_type = assembler->LoadMapInstanceType(lhs_map);
 
       // Exit unless {lhs} is a string
       assembler->GotoUnless(assembler->IsStringInstanceType(lhs_instance_type),
-                            &do_add_any);
+                            &call_add_stub);
 
       Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
 
       // Exit unless {rhs} is a string
       assembler->GotoUnless(assembler->IsStringInstanceType(rhs_instance_type),
-                            &do_add_any);
+                            &call_add_stub);
 
       var_type_feedback.Bind(
           assembler->Int32Constant(BinaryOperationFeedback::kString));
-      assembler->Goto(&call_add_stub);
+      Callable callable = CodeFactory::StringAdd(
+          assembler->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+      var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
+
+      assembler->Goto(&end);
     }
   }
 
@@ -1159,15 +1165,10 @@ compiler::Node* AddWithFeedbackStub::Generate(
     assembler->Goto(&end);
   }
 
-  assembler->Bind(&do_add_any);
+  assembler->Bind(&call_add_stub);
   {
     var_type_feedback.Bind(
         assembler->Int32Constant(BinaryOperationFeedback::kAny));
-    assembler->Goto(&call_add_stub);
-  }
-
-  assembler->Bind(&call_add_stub);
-  {
     Callable callable = CodeFactory::Add(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
     assembler->Goto(&end);
