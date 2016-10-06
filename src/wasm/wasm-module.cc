@@ -1892,13 +1892,6 @@ bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
   WCM_PROPERTY_TABLE(WCM_CHECK)
 #undef WCM_CHECK
 
-  WasmCompiledModule* compiled_module =
-      reinterpret_cast<WasmCompiledModule*>(obj);
-  if (!compiled_module->has_module_bytes()) return false;
-  SeqOneByteString* module_bytes = compiled_module->ptr_to_module_bytes();
-  if (module_bytes->length() < 4) return false;
-  if (memcmp(module_bytes->GetChars(), "\0asm", 4)) return false;
-
   // All checks passed.
   return true;
 }

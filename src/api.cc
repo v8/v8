@@ -7189,7 +7189,8 @@ Local<String> WasmCompiledModule::GetUncompiledBytes() {
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::wasm::WasmCompiledModule> compiled_part =
       i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
-  return Local<String>::Cast(Utils::ToLocal(compiled_part->module_bytes()));
+  i::Handle<i::String> module_bytes = compiled_part->module_bytes();
+  return Local<String>::Cast(Utils::ToLocal(module_bytes));
 }
 
 WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
@@ -7198,7 +7199,8 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   i::Handle<i::wasm::WasmCompiledModule> compiled_part =
       i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
 
-  i::Handle<i::String> uncompiled_bytes = compiled_part->module_bytes();
+  i::Handle<i::SeqOneByteString> uncompiled_bytes =
+      compiled_part->module_bytes();
   compiled_part->reset_module_bytes();
   std::unique_ptr<i::ScriptData> script_data =
       i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
