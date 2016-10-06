@@ -30,19 +30,21 @@ CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
       line_info_(line_info),
       instruction_start_(instruction_start) {}
 
-ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
+ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry,
+                         ProfileNode* parent)
     : tree_(tree),
       entry_(entry),
       self_ticks_(0),
       children_(CodeEntriesMatch),
+      parent_(parent),
       id_(tree->next_node_id()),
-      line_ticks_(LineTickMatch) {}
-
+      line_ticks_(LineTickMatch) {
+  tree_->EnqueueNode(this);
+}
 
 inline unsigned ProfileNode::function_id() const {
   return tree_->GetFunctionId(this);
 }
-
 
 inline Isolate* ProfileNode::isolate() const { return tree_->isolate(); }
 

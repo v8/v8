@@ -183,7 +183,7 @@ class ProfileTree;
 
 class ProfileNode {
  public:
-  inline ProfileNode(ProfileTree* tree, CodeEntry* entry);
+  inline ProfileNode(ProfileTree* tree, CodeEntry* entry, ProfileNode* parent);
 
   ProfileNode* FindChild(CodeEntry* entry);
   ProfileNode* FindOrAddChild(CodeEntry* entry);
@@ -196,6 +196,7 @@ class ProfileNode {
   const List<ProfileNode*>* children() const { return &children_list_; }
   unsigned id() const { return id_; }
   unsigned function_id() const;
+  ProfileNode* parent() const { return parent_; }
   unsigned int GetHitLineCount() const { return line_ticks_.occupancy(); }
   bool GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                     unsigned int length) const;
@@ -223,6 +224,7 @@ class ProfileNode {
   // Mapping from CodeEntry* to ProfileNode*
   base::CustomMatcherHashMap children_;
   List<ProfileNode*> children_list_;
+  ProfileNode* parent_;
   unsigned id_;
   base::CustomMatcherHashMap line_ticks_;
 
@@ -251,9 +253,17 @@ class ProfileTree {
 
   Isolate* isolate() const { return isolate_; }
 
+  void EnqueueNode(const ProfileNode* node) { pending_nodes_.push_back(node); }
+  size_t pending_nodes_count() const { return pending_nodes_.size(); }
+  std::vector<const ProfileNode*> TakePendingNodes() {
+    return std::move(pending_nodes_);
+  }
+
  private:
   template <typename Callback>
   void TraverseDepthFirst(Callback* callback);
+
+  std::vector<const ProfileNode*> pending_nodes_;
 
   CodeEntry root_entry_;
   unsigned next_node_id_;
@@ -274,7 +284,7 @@ class CpuProfile {
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(base::TimeTicks timestamp, const std::vector<CodeEntry*>& path,
                int src_line, bool update_stats);
-  void CalculateTotalTicksAndSamplingRate();
+  void FinishProfile();
 
   const char* title() const { return title_; }
   const ProfileTree* top_down() const { return &top_down_; }
@@ -294,6 +304,8 @@ class CpuProfile {
   void Print();
 
  private:
+  void StreamPendingTraceEvents();
+
   const char* title_;
   bool record_samples_;
   base::TimeTicks start_time_;
@@ -302,6 +314,7 @@ class CpuProfile {
   List<base::TimeTicks> timestamps_;
   ProfileTree top_down_;
   CpuProfiler* const profiler_;
+  int streaming_next_sample_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
 };
