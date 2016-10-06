@@ -832,6 +832,27 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* CreateAllocationSiteInFeedbackVector(
       compiler::Node* feedback_vector, compiler::Node* slot);
 
+  enum class IndexAdvanceMode { kPre, kPost };
+
+  void BuildFastLoop(
+      MachineRepresentation index_rep, compiler::Node* start_index,
+      compiler::Node* end_index,
+      std::function<void(CodeStubAssembler* assembler, compiler::Node* index)>
+          body,
+      int increment, IndexAdvanceMode mode = IndexAdvanceMode::kPre);
+
+  enum class ForEachDirection { kForward, kReverse };
+
+  void BuildFastFixedArrayForEach(
+      compiler::Node* fixed_array, ElementsKind kind,
+      compiler::Node* first_element_inclusive,
+      compiler::Node* last_element_exclusive,
+      std::function<void(CodeStubAssembler* assembler,
+                         compiler::Node* fixed_array, compiler::Node* offset)>
+          body,
+      ParameterMode mode = INTPTR_PARAMETERS,
+      ForEachDirection direction = ForEachDirection::kReverse);
+
   compiler::Node* GetFixedArrayAllocationSize(compiler::Node* element_count,
                                               ElementsKind kind,
                                               ParameterMode mode) {

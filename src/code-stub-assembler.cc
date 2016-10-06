@@ -1501,86 +1501,37 @@ void CodeStubAssembler::FillFixedArrayWithValue(
       Is64() ? Int64Constant(kHoleNanInt64) : Int32Constant(kHoleNanLower32);
   Node* value = LoadRoot(value_root_index);
 
-  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
-  int32_t to;
-  bool constant_to = ToInt32Constant(to_node, to);
-  int32_t from;
-  bool constant_from = ToInt32Constant(from_node, from);
-  if (constant_to && constant_from &&
-      (to - from) <= kElementLoopUnrollThreshold) {
-    for (int i = from; i < to; ++i) {
-      Node* index = IntPtrConstant(i);
-      if (is_double) {
-        Node* offset = ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
-                                              first_element_offset);
-        // Don't use doubles to store the hole double, since manipulating the
-        // signaling NaN used for the hole in C++, e.g. with bit_cast, will
-        // change its value on ia32 (the x87 stack is used to return values
-        // and stores to the stack silently clear the signalling bit).
-        //
-        // TODO(danno): When we have a Float32/Float64 wrapper class that
-        // preserves double bits during manipulation, remove this code/change
-        // this to an indexed Float64 store.
-        if (Is64()) {
-          StoreNoWriteBarrier(MachineRepresentation::kWord64, array, offset,
-                              double_hole);
+  BuildFastFixedArrayForEach(
+      array, kind, from_node, to_node,
+      [value, is_double, double_hole](CodeStubAssembler* assembler, Node* array,
+                                      Node* offset) {
+        if (is_double) {
+          // Don't use doubles to store the hole double, since manipulating the
+          // signaling NaN used for the hole in C++, e.g. with bit_cast, will
+          // change its value on ia32 (the x87 stack is used to return values
+          // and stores to the stack silently clear the signalling bit).
+          //
+          // TODO(danno): When we have a Float32/Float64 wrapper class that
+          // preserves double bits during manipulation, remove this code/change
+          // this to an indexed Float64 store.
+          if (assembler->Is64()) {
+            assembler->StoreNoWriteBarrier(MachineRepresentation::kWord64,
+                                           array, offset, double_hole);
+          } else {
+            assembler->StoreNoWriteBarrier(MachineRepresentation::kWord32,
+                                           array, offset, double_hole);
+            assembler->StoreNoWriteBarrier(
+                MachineRepresentation::kWord32, array,
+                assembler->IntPtrAdd(offset,
+                                     assembler->IntPtrConstant(kPointerSize)),
+                double_hole);
+          }
         } else {
-          StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
-                              double_hole);
-          offset = ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
-                                          first_element_offset + kPointerSize);
-          StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
-                              double_hole);
+          assembler->StoreNoWriteBarrier(MachineRepresentation::kTagged, array,
+                                         offset, value);
         }
-      } else {
-        StoreFixedArrayElement(array, index, value, SKIP_WRITE_BARRIER,
-                               INTPTR_PARAMETERS);
-      }
-    }
-  } else {
-    Variable current(this, MachineRepresentation::kTagged);
-    Label test(this);
-    Label decrement(this, &current);
-    Label done(this);
-    Node* limit =
-        IntPtrAdd(array, ElementOffsetFromIndex(from_node, kind, mode));
-    current.Bind(IntPtrAdd(array, ElementOffsetFromIndex(to_node, kind, mode)));
-
-    Branch(WordEqual(current.value(), limit), &done, &decrement);
-
-    Bind(&decrement);
-    current.Bind(IntPtrSub(
-        current.value(),
-        IntPtrConstant(IsFastDoubleElementsKind(kind) ? kDoubleSize
-                                                      : kPointerSize)));
-    if (is_double) {
-      // Don't use doubles to store the hole double, since manipulating the
-      // signaling NaN used for the hole in C++, e.g. with bit_cast, will
-      // change its value on ia32 (the x87 stack is used to return values
-      // and stores to the stack silently clear the signalling bit).
-      //
-      // TODO(danno): When we have a Float32/Float64 wrapper class that
-      // preserves double bits during manipulation, remove this code/change
-      // this to an indexed Float64 store.
-      if (Is64()) {
-        StoreNoWriteBarrier(MachineRepresentation::kWord64, current.value(),
-                            Int64Constant(first_element_offset), double_hole);
-      } else {
-        StoreNoWriteBarrier(MachineRepresentation::kWord32, current.value(),
-                            Int32Constant(first_element_offset), double_hole);
-        StoreNoWriteBarrier(MachineRepresentation::kWord32, current.value(),
-                            Int32Constant(kPointerSize + first_element_offset),
-                            double_hole);
-      }
-    } else {
-      StoreNoWriteBarrier(MachineType::PointerRepresentation(), current.value(),
-                          IntPtrConstant(first_element_offset), value);
-    }
-    Node* compare = WordNotEqual(current.value(), limit);
-    Branch(compare, &decrement, &done);
-
-    Bind(&done);
-  }
+      },
+      mode);
 }
 
 void CodeStubAssembler::CopyFixedArrayElements(
@@ -3362,25 +3313,22 @@ void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
                                                Label* if_found,
                                                Variable* var_name_index,
                                                Label* if_not_found) {
-  Variable var_descriptor(this, MachineType::PointerRepresentation());
-  Label loop(this, &var_descriptor);
-  var_descriptor.Bind(IntPtrConstant(0));
-  Goto(&loop);
+  Node* first_inclusive = IntPtrConstant(DescriptorArray::ToKeyIndex(0));
+  Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
+  Node* last_exclusive = IntPtrAdd(first_inclusive, IntPtrMul(nof, factor));
 
-  Bind(&loop);
-  {
-    Node* index = var_descriptor.value();
-    Node* name_offset = IntPtrConstant(DescriptorArray::ToKeyIndex(0));
-    Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
-    GotoIf(WordEqual(index, nof), if_not_found);
-    Node* name_index = IntPtrAdd(name_offset, IntPtrMul(index, factor));
-    Node* candidate_name =
-        LoadFixedArrayElement(descriptors, name_index, 0, INTPTR_PARAMETERS);
-    var_name_index->Bind(name_index);
-    GotoIf(WordEqual(candidate_name, unique_name), if_found);
-    var_descriptor.Bind(IntPtrAdd(index, IntPtrConstant(1)));
-    Goto(&loop);
-  }
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), last_exclusive, first_inclusive,
+      [descriptors, unique_name, if_found, var_name_index](
+          CodeStubAssembler* assembler, Node* name_index) {
+        Node* candidate_name = assembler->LoadFixedArrayElement(
+            descriptors, name_index, 0, INTPTR_PARAMETERS);
+        var_name_index->Bind(name_index);
+        assembler->GotoIf(assembler->WordEqual(candidate_name, unique_name),
+                          if_found);
+      },
+      -DescriptorArray::kDescriptorSize, IndexAdvanceMode::kPre);
+  Goto(if_not_found);
 }
 
 void CodeStubAssembler::TryLookupProperty(
@@ -5766,6 +5714,93 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
   StoreFixedArrayElement(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER,
                          CodeStubAssembler::SMI_PARAMETERS);
   return cell;
+}
+
+void CodeStubAssembler::BuildFastLoop(
+    MachineRepresentation index_rep, Node* start_index, Node* end_index,
+    std::function<void(CodeStubAssembler* assembler, Node* index)> body,
+    int increment, IndexAdvanceMode mode) {
+  Variable var(this, index_rep);
+  var.Bind(start_index);
+  Label loop(this, &var);
+  Label after_loop(this);
+  // Introduce an explicit second check of the termination condition before the
+  // loop that helps turbofan generate better code. If there's only a single
+  // check, then the CodeStubAssembler forces it to be at the beginning of the
+  // loop requiring a backwards branch at the end of the loop (it's not possible
+  // to force the loop header check at the end of the loop and branch forward to
+  // it from the pre-header). The extra branch is slower in the case that the
+  // loop actually iterates.
+  BranchIf(WordEqual(var.value(), end_index), &after_loop, &loop);
+  Bind(&loop);
+  {
+    if (mode == IndexAdvanceMode::kPre) {
+      var.Bind(IntPtrAdd(var.value(), IntPtrConstant(increment)));
+    }
+    body(this, var.value());
+    if (mode == IndexAdvanceMode::kPost) {
+      var.Bind(IntPtrAdd(var.value(), IntPtrConstant(increment)));
+    }
+    BranchIf(WordNotEqual(var.value(), end_index), &loop, &after_loop);
+  }
+  Bind(&after_loop);
+}
+
+void CodeStubAssembler::BuildFastFixedArrayForEach(
+    compiler::Node* fixed_array, ElementsKind kind,
+    compiler::Node* first_element_inclusive,
+    compiler::Node* last_element_exclusive,
+    std::function<void(CodeStubAssembler* assembler,
+                       compiler::Node* fixed_array, compiler::Node* offset)>
+        body,
+    ParameterMode mode, ForEachDirection direction) {
+  STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  int32_t first_val;
+  bool constant_first = ToInt32Constant(first_element_inclusive, first_val);
+  int32_t last_val;
+  bool constent_last = ToInt32Constant(last_element_exclusive, last_val);
+  if (constant_first && constent_last) {
+    int delta = last_val - first_val;
+    DCHECK(delta >= 0);
+    if (delta <= kElementLoopUnrollThreshold) {
+      if (direction == ForEachDirection::kForward) {
+        for (int i = first_val; i < last_val; ++i) {
+          Node* index = IntPtrConstant(i);
+          Node* offset =
+              ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
+                                     FixedArray::kHeaderSize - kHeapObjectTag);
+          body(this, fixed_array, offset);
+        }
+      } else {
+        for (int i = last_val - 1; i >= first_val; --i) {
+          Node* index = IntPtrConstant(i);
+          Node* offset =
+              ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
+                                     FixedArray::kHeaderSize - kHeapObjectTag);
+          body(this, fixed_array, offset);
+        }
+      }
+      return;
+    }
+  }
+
+  Node* start =
+      ElementOffsetFromIndex(first_element_inclusive, kind, mode,
+                             FixedArray::kHeaderSize - kHeapObjectTag);
+  Node* limit =
+      ElementOffsetFromIndex(last_element_exclusive, kind, mode,
+                             FixedArray::kHeaderSize - kHeapObjectTag);
+  if (direction == ForEachDirection::kReverse) std::swap(start, limit);
+
+  int increment = IsFastDoubleElementsKind(kind) ? kDoubleSize : kPointerSize;
+  BuildFastLoop(
+      MachineType::PointerRepresentation(), start, limit,
+      [fixed_array, body](CodeStubAssembler* assembler, Node* offset) {
+        body(assembler, fixed_array, offset);
+      },
+      direction == ForEachDirection::kReverse ? -increment : increment,
+      direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
+                                              : IndexAdvanceMode::kPost);
 }
 
 }  // namespace internal

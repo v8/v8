@@ -5167,9 +5167,7 @@ void FastNewClosureStub::GenerateAssembly(CodeStubAssembler* assembler) const {
 compiler::Node* FastNewFunctionContextStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* function,
     compiler::Node* slots, compiler::Node* context) {
-  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
 
   Node* min_context_slots =
       assembler->Int32Constant(Context::MIN_CONTEXT_SLOTS);
@@ -5208,24 +5206,12 @@ compiler::Node* FastNewFunctionContextStub::Generate(
 
   // Initialize the rest of the slots to undefined.
   Node* undefined = assembler->UndefinedConstant();
-  Variable var_slot_index(assembler, MachineRepresentation::kWord32);
-  var_slot_index.Bind(min_context_slots);
-  Label loop(assembler, &var_slot_index), after_loop(assembler);
-  assembler->Goto(&loop);
-
-  assembler->Bind(&loop);
-  {
-    Node* slot_index = var_slot_index.value();
-    assembler->GotoUnless(assembler->Int32LessThan(slot_index, length),
-                          &after_loop);
-    assembler->StoreFixedArrayElement(function_context, slot_index, undefined,
-                                      SKIP_WRITE_BARRIER);
-    Node* one = assembler->Int32Constant(1);
-    Node* next_index = assembler->Int32Add(slot_index, one);
-    var_slot_index.Bind(next_index);
-    assembler->Goto(&loop);
-  }
-  assembler->Bind(&after_loop);
+  assembler->BuildFastFixedArrayForEach(
+      function_context, FAST_ELEMENTS, min_context_slots, length,
+      [undefined](CodeStubAssembler* assembler, Node* context, Node* offset) {
+        assembler->StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                                       context, offset, undefined);
+      });
 
   return function_context;
 }
