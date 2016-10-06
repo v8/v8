@@ -32,11 +32,7 @@ ParseInfo::ParseInfo(Zone* zone)
       literal_(nullptr) {}
 
 ParseInfo::ParseInfo(Zone* zone, Handle<JSFunction> function)
-    : ParseInfo(zone, Handle<SharedFunctionInfo>(function->shared())) {
-  if (!function->context()->IsNativeContext()) {
-    set_outer_scope_info(handle(function->context()->scope_info()));
-  }
-}
+    : ParseInfo(zone, Handle<SharedFunctionInfo>(function->shared())) {}
 
 ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
     : ParseInfo(zone) {
@@ -58,6 +54,12 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
   set_script(script);
   if (!script.is_null() && script->type() == Script::TYPE_NATIVE) {
     set_native();
+  }
+
+  Handle<HeapObject> scope_info(shared->outer_scope_info());
+  if (!scope_info->IsTheHole(isolate()) &&
+      Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
+    set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));
   }
 }
 
