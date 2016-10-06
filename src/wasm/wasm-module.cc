@@ -1822,6 +1822,9 @@ int32_t GetInstanceMemorySize(Isolate* isolate, Handle<JSObject> instance) {
 
 int32_t GrowInstanceMemory(Isolate* isolate, Handle<JSObject> instance,
                            uint32_t pages) {
+  if (pages == 0) {
+    return GetInstanceMemorySize(isolate, instance);
+  }
   Address old_mem_start = nullptr;
   uint32_t old_size = 0, new_size = 0;
 
