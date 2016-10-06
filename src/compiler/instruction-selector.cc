@@ -1741,7 +1741,7 @@ void InstructionSelector::VisitIfException(Node* node) {
 
 void InstructionSelector::VisitOsrValue(Node* node) {
   OperandGenerator g(this);
-  int index = OpParameter<int>(node);
+  int index = OsrValueIndexOf(node->op());
   Emit(kArchNop,
        g.DefineAsLocation(node, linkage()->GetOsrValueLocation(index)));
 }

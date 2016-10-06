@@ -438,6 +438,24 @@ void BytecodeGraphBuilder::Environment::PrepareForOsrEntry() {
     if (i >= accumulator_base()) idx = Linkage::kOsrAccumulatorRegisterIndex;
     values()->at(i) = graph()->NewNode(common()->OsrValue(idx), entry);
   }
+
+  BailoutId loop_id(builder_->bytecode_iterator().current_offset());
+  Node* frame_state =
+      Checkpoint(loop_id, OutputFrameStateCombine::Ignore(), false);
+  Node* checkpoint =
+      graph()->NewNode(common()->Checkpoint(), frame_state, entry, entry);
+  UpdateEffectDependency(checkpoint);
+
+  // Create the OSR guard nodes.
+  const Operator* guard_op = common()->OsrGuard(OsrGuardType::kUninitialized);
+  Node* effect = checkpoint;
+  for (int i = 0; i < size; i++) {
+    values()->at(i) = effect =
+        graph()->NewNode(guard_op, values()->at(i), effect, entry);
+  }
+  Node* context = effect = graph()->NewNode(guard_op, Context(), effect, entry);
+  SetContext(context);
+  UpdateEffectDependency(effect);
 }
 
 bool BytecodeGraphBuilder::Environment::StateValuesRequireUpdate(
