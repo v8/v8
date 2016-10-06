@@ -1639,7 +1639,6 @@ void Heap::Scavenge() {
   Address new_space_front = new_space_->ToSpaceStart();
   promotion_queue_.Initialize();
 
-  PromotionMode promotion_mode = CurrentPromotionMode();
   ScavengeVisitor scavenge_visitor(this);
 
   if (FLAG_scavenge_reclaim_unmodified_objects) {
@@ -1692,8 +1691,7 @@ void Heap::Scavenge() {
 
   {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
-    new_space_front =
-        DoScavenge(&scavenge_visitor, new_space_front, promotion_mode);
+    new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
 
   if (FLAG_scavenge_reclaim_unmodified_objects) {
@@ -1702,14 +1700,12 @@ void Heap::Scavenge() {
 
     isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
         &scavenge_visitor);
-    new_space_front =
-        DoScavenge(&scavenge_visitor, new_space_front, promotion_mode);
+    new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   } else {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OBJECT_GROUPS);
     while (isolate()->global_handles()->IterateObjectGroups(
         &scavenge_visitor, &IsUnscavengedHeapObject)) {
-      new_space_front =
-          DoScavenge(&scavenge_visitor, new_space_front, promotion_mode);
+      new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
     }
     isolate()->global_handles()->RemoveObjectGroups();
     isolate()->global_handles()->RemoveImplicitRefGroups();
@@ -1719,8 +1715,7 @@ void Heap::Scavenge() {
 
     isolate()->global_handles()->IterateNewSpaceWeakIndependentRoots(
         &scavenge_visitor);
-    new_space_front =
-        DoScavenge(&scavenge_visitor, new_space_front, promotion_mode);
+    new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
 
   UpdateNewSpaceReferencesInExternalStringTable(
@@ -1904,8 +1899,7 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
 }
 
 Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
-                         Address new_space_front,
-                         PromotionMode promotion_mode) {
+                         Address new_space_front) {
   do {
     SemiSpace::AssertValidRange(new_space_front, new_space_->top());
     // The addresses new_space_front and new_space_.top() define a
@@ -1914,14 +1908,8 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     while (new_space_front != new_space_->top()) {
       if (!Page::IsAlignedToPageSize(new_space_front)) {
         HeapObject* object = HeapObject::FromAddress(new_space_front);
-        if (promotion_mode == PROMOTE_MARKED) {
-          new_space_front += StaticScavengeVisitor<PROMOTE_MARKED>::IterateBody(
-              object->map(), object);
-        } else {
-          new_space_front +=
-              StaticScavengeVisitor<DEFAULT_PROMOTION>::IterateBody(
-                  object->map(), object);
-        }
+        new_space_front +=
+            StaticScavengeVisitor::IterateBody(object->map(), object);
       } else {
         new_space_front = Page::FromAllocationAreaAddress(new_space_front)
                               ->next_page()
@@ -5433,8 +5421,7 @@ V8_DECLARE_ONCE(initialize_gc_once);
 
 static void InitializeGCOnce() {
   Scavenger::Initialize();
-  StaticScavengeVisitor<DEFAULT_PROMOTION>::Initialize();
-  StaticScavengeVisitor<PROMOTE_MARKED>::Initialize();
+  StaticScavengeVisitor::Initialize();
   MarkCompactCollector::Initialize();
 }
 

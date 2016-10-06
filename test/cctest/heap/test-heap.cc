@@ -749,46 +749,6 @@ TEST(DeleteWeakGlobalHandle) {
   CHECK(WeakPointerCleared);
 }
 
-TEST(DoNotPromoteWhiteObjectsOnScavenge) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  Factory* factory = isolate->factory();
-
-  HandleScope scope(isolate);
-  Handle<Object> white = factory->NewStringFromStaticChars("white");
-
-  CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(HeapObject::cast(*white))));
-
-  CcTest::CollectGarbage(NEW_SPACE);
-
-  CHECK(heap->InNewSpace(*white));
-}
-
-TEST(PromoteGreyOrBlackObjectsOnScavenge) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  Factory* factory = isolate->factory();
-
-  HandleScope scope(isolate);
-  Handle<Object> marked = factory->NewStringFromStaticChars("marked");
-
-  IncrementalMarking* marking = heap->incremental_marking();
-  marking->Stop();
-  heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
-                                i::GarbageCollectionReason::kTesting);
-  while (
-      Marking::IsWhite(ObjectMarking::MarkBitFrom(HeapObject::cast(*marked)))) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  IncrementalMarking::DO_NOT_FORCE_COMPLETION, StepOrigin::kV8);
-  }
-
-  CcTest::CollectGarbage(NEW_SPACE);
-
-  CHECK(!heap->InNewSpace(*marked));
-}
-
 TEST(BytecodeArray) {
   static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
   static const int kRawBytesSize = sizeof(kRawBytes);

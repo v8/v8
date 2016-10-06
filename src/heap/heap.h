@@ -342,8 +342,6 @@ class WeakObjectRetainer;
 
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
-enum PromotionMode { PROMOTE_MARKED, DEFAULT_PROMOTION };
-
 enum ArrayStorageAllocationMode {
   DONT_INITIALIZE_ARRAY_ELEMENTS,
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
@@ -835,10 +833,7 @@ class Heap {
 
   // An object should be promoted if the object has survived a
   // scavenge operation.
-  template <PromotionMode promotion_mode>
   inline bool ShouldBePromoted(Address old_address, int object_size);
-
-  inline PromotionMode CurrentPromotionMode();
 
   void ClearNormalizedMapCaches();
 
@@ -1786,8 +1781,7 @@ class Heap {
   // Performs a minor collection in new generation.
   void Scavenge();
 
-  Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front,
-                     PromotionMode promotion_mode);
+  Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front);
 
   void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
