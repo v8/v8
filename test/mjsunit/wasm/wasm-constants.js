@@ -89,6 +89,8 @@ var kExternalMemory = 2;
 var kExternalGlobal = 3;
 
 // Useful signatures
+var kSig_i = makeSig([], [kAstI32]);
+var kSig_d = makeSig([], [kAstF64]);
 var kSig_i_i = makeSig([kAstI32], [kAstI32]);
 var kSig_i_l = makeSig([kAstI64], [kAstI32]);
 var kSig_i_ii = makeSig([kAstI32, kAstI32], [kAstI32]);
@@ -98,8 +100,6 @@ var kSig_l_ll = makeSig([kAstI64, kAstI64], [kAstI64]);
 var kSig_i_dd = makeSig([kAstF64, kAstF64], [kAstI32]);
 var kSig_v_v = makeSig([], []);
 var kSig_i_v = makeSig([], [kAstI32]);
-var kSig_f_v = makeSig([], [kAstF64]);
-var kSig_d_v = makeSig([], [kAstF64]);
 var kSig_v_i = makeSig([kAstI32], []);
 var kSig_v_ii = makeSig([kAstI32, kAstI32], []);
 var kSig_v_iii = makeSig([kAstI32, kAstI32, kAstI32], []);

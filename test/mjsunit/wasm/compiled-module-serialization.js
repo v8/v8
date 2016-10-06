@@ -12,7 +12,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addMemory(1,1, true);
   var kSig_v_i = makeSig([kAstI32], []);
   var signature = builder.addType(kSig_v_i);
-  builder.addImport("some_value", kSig_i_v);
+  builder.addImport("some_value", kSig_i);
   builder.addImport("writer", signature);
 
   builder.addFunction("main", kSig_i_i)
@@ -65,7 +65,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function RelationBetweenModuleAndClone() {
   let builder = new WasmModuleBuilder();
-  builder.addFunction("main", kSig_i_v)
+  builder.addFunction("main", kSig_i)
     .addBody([kExprI8Const, 42])
     .exportFunc();
 
@@ -81,7 +81,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function SerializeAfterInstantiation() {
   let builder = new WasmModuleBuilder();
-  builder.addFunction("main", kSig_i_v)
+  builder.addFunction("main", kSig_i)
     .addBody([kExprI8Const, 42])
     .exportFunc();
 

@@ -12,7 +12,7 @@ var debug = true;
 (function BasicTest() {
     var module = new WasmModuleBuilder();
     module.addMemory(1, 2, false);
-    module.addFunction("foo", kSig_i_v)
+    module.addFunction("foo", kSig_i)
         .addBody([kExprI8Const, 11])
         .exportAs("blarg");
 
@@ -116,7 +116,7 @@ var debug = true;
 (function BasicTestWithUint8Array() {
     var module = new WasmModuleBuilder();
     module.addMemory(1, 2, false);
-    module.addFunction("foo", kSig_i_v)
+    module.addFunction("foo", kSig_i)
         .addBody([kExprI8Const, 17])
         .exportAs("blarg");
 

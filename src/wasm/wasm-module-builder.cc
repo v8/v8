@@ -255,9 +255,8 @@ void WasmModuleBuilder::MarkStartFunction(WasmFunctionBuilder* function) {
 }
 
 uint32_t WasmModuleBuilder::AddGlobal(LocalType type, bool exported,
-                                      bool mutability,
-                                      const WasmInitExpr& init) {
-  globals_.push_back({type, exported, mutability, init});
+                                      bool mutability) {
+  globals_.push_back({type, exported, mutability});
   return static_cast<uint32_t>(globals_.size() - 1);
 }
 
@@ -345,64 +344,29 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     for (auto global : globals_) {
       buffer.write_u8(WasmOpcodes::LocalTypeCodeFor(global.type));
       buffer.write_u8(global.mutability ? 1 : 0);
-      switch (global.init.kind) {
-        case WasmInitExpr::kI32Const: {
-          DCHECK_EQ(kAstI32, global.type);
-          const byte code[] = {WASM_I32V_5(global.init.val.i32_const)};
+      switch (global.type) {
+        case kAstI32: {
+          static const byte code[] = {WASM_I32V_1(0)};
           buffer.write(code, sizeof(code));
           break;
         }
-        case WasmInitExpr::kI64Const: {
-          DCHECK_EQ(kAstI64, global.type);
-          const byte code[] = {WASM_I64V_10(global.init.val.i64_const)};
+        case kAstF32: {
+          static const byte code[] = {WASM_F32(0)};
           buffer.write(code, sizeof(code));
           break;
         }
-        case WasmInitExpr::kF32Const: {
-          DCHECK_EQ(kAstF32, global.type);
-          const byte code[] = {WASM_F32(global.init.val.f32_const)};
+        case kAstI64: {
+          static const byte code[] = {WASM_I64V_1(0)};
           buffer.write(code, sizeof(code));
           break;
         }
-        case WasmInitExpr::kF64Const: {
-          DCHECK_EQ(kAstF64, global.type);
-          const byte code[] = {WASM_F64(global.init.val.f64_const)};
+        case kAstF64: {
+          static const byte code[] = {WASM_F64(0.0)};
           buffer.write(code, sizeof(code));
           break;
         }
-        case WasmInitExpr::kGlobalIndex: {
-          const byte code[] = {kExprGetGlobal,
-                               U32V_5(global.init.val.global_index)};
-          buffer.write(code, sizeof(code));
-          break;
-        }
-        default: {
-          // No initializer, emit a default value.
-          switch (global.type) {
-            case kAstI32: {
-              const byte code[] = {WASM_I32V_1(0)};
-              buffer.write(code, sizeof(code));
-              break;
-            }
-            case kAstI64: {
-              const byte code[] = {WASM_I64V_1(0)};
-              buffer.write(code, sizeof(code));
-              break;
-            }
-            case kAstF32: {
-              const byte code[] = {WASM_F32(0.0)};
-              buffer.write(code, sizeof(code));
-              break;
-            }
-            case kAstF64: {
-              const byte code[] = {WASM_F64(0.0)};
-              buffer.write(code, sizeof(code));
-              break;
-            }
-            default:
-              UNREACHABLE();
-          }
-        }
+        default:
+          UNREACHABLE();
       }
       buffer.write_u8(kExprEnd);
     }

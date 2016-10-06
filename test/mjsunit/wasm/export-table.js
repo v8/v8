@@ -11,7 +11,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var kReturnValue = 88;
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", kSig_i_v)
+  builder.addFunction("main", kSig_i)
     .addBody([
       kExprI8Const,
       kReturnValue,
@@ -32,7 +32,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", kSig_i_v)
+  builder.addFunction("main", kSig_i)
     .addBody([
       kExprI8Const,
       kReturnValue,
@@ -57,7 +57,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", kSig_i_v)
+  builder.addFunction("main", kSig_i)
     .addBody([
       kExprI8Const,
       kReturnValue,

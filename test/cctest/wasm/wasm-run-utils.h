@@ -268,7 +268,7 @@ class TestingModule : public ModuleEnv {
     byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
     module_.globals.push_back(
-        {type, true, WasmInitExpr(), global_offset, false, false});
+        {type, true, NO_INIT, global_offset, false, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
