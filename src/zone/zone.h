@@ -65,8 +65,9 @@ class V8_EXPORT_PRIVATE Zone final {
  private:
 // All pointers returned from New() have this alignment.  In addition, if the
 // object being allocated has a size that is divisible by 8 then its alignment
-// will be 8. ASan requires 8-byte alignment.
-#ifdef V8_USE_ADDRESS_SANITIZER
+// will be 8. ASan requires 8-byte alignment. MIPS also requires 8-byte
+// alignment.
+#if defined(V8_USE_ADDRESS_SANITIZER) || defined(V8_TARGET_ARCH_MIPS)
   static const size_t kAlignment = 8;
   STATIC_ASSERT(kPointerSize <= 8);
 #else
