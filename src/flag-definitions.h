@@ -209,10 +209,9 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_class_fields, "harmony public fields in class literals")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)                                               \
-  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")                  \
-  V(harmony_tailcalls, "harmony tail calls")                                 \
-  V(harmony_string_padding, "harmony String-padding methods")
+#define HARMONY_STAGED_BASE(V)                              \
+  V(harmony_regexp_lookbehind, "harmony regexp lookbehind") \
+  V(harmony_tailcalls, "harmony tail calls")
 
 #ifdef V8_I18N_SUPPORT
 #define HARMONY_STAGED(V)                                          \
@@ -230,7 +229,8 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
     "harmony limitations on sloppy mode function declarations")              \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
-    "harmony Object.getOwnPropertyDescriptors()")
+    "harmony Object.getOwnPropertyDescriptors()")                            \
+  V(harmony_string_padding, "harmony String-padding methods")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
