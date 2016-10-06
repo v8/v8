@@ -4059,10 +4059,6 @@ byte ByteArray::get(int index) {
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
 }
 
-const byte* ByteArray::data() const {
-  return reinterpret_cast<const byte*>(FIELD_ADDR_CONST(this, kHeaderSize));
-}
-
 void ByteArray::set(int index, byte value) {
   DCHECK(index >= 0 && index < this->length());
   WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize, value);

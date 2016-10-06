@@ -514,8 +514,8 @@ Handle<Code> CompileImportWrapper(Isolate* isolate,
           ByteArray::cast(func->GetInternalField(kInternalSignature)));
       if (exported_param_count == param_count &&
           exportedSig->length() == sig_data->length() &&
-          memcmp(exportedSig->data(), sig_data->data(),
-                 exportedSig->length()) == 0) {
+          memcmp(exportedSig->GetDataStartAddress(),
+                 sig_data->GetDataStartAddress(), exportedSig->length()) == 0) {
         isMatch = true;
       }
     }
@@ -540,7 +540,7 @@ Handle<Code> CompileImportWrapper(Isolate* isolate,
     Zone zone(isolate->allocator());
     MachineRepresentation* reps =
         zone.NewArray<MachineRepresentation>(sig_data_size);
-    memcpy(reps, sig_data->data(),
+    memcpy(reps, sig_data->GetDataStartAddress(),
            sizeof(MachineRepresentation) * sig_data_size);
     FunctionSig sig(ret_count, param_count, reps);
 
