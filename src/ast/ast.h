@@ -2599,7 +2599,6 @@ class FunctionLiteral final : public Expression {
   int parameter_count() { return parameter_count_; }
 
   bool AllowsLazyCompilation();
-  bool AllowsLazyCompilationWithoutContext();
 
   Handle<String> debug_name() const {
     if (raw_name_ != NULL && !raw_name_->IsEmpty()) {

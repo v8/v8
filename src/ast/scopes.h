@@ -791,9 +791,6 @@ class DeclarationScope : public Scope {
   // Determine if we can use lazy compilation for this scope.
   bool AllowsLazyCompilation() const;
 
-  // Determine if we can use lazy compilation for this scope without a context.
-  bool AllowsLazyCompilationWithoutContext() const;
-
   // Make sure this closure and all outer closures are eagerly compiled.
   void ForceEagerCompilation() {
     DCHECK_EQ(this, GetClosureScope());

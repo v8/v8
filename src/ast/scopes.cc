@@ -1110,17 +1110,6 @@ bool DeclarationScope::AllowsLazyCompilation() const {
   return !force_eager_compilation_;
 }
 
-bool DeclarationScope::AllowsLazyCompilationWithoutContext() const {
-  if (force_eager_compilation_) return false;
-  // Disallow lazy compilation without context if any outer scope needs a
-  // context.
-  for (const Scope* scope = outer_scope_; scope != nullptr;
-       scope = scope->outer_scope_) {
-    if (scope->NeedsContext()) return false;
-  }
-  return true;
-}
-
 int Scope::ContextChainLength(Scope* scope) const {
   int n = 0;
   for (const Scope* s = this; s != scope; s = s->outer_scope_) {

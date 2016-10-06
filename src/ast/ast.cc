@@ -294,11 +294,6 @@ bool FunctionLiteral::AllowsLazyCompilation() {
 }
 
 
-bool FunctionLiteral::AllowsLazyCompilationWithoutContext() {
-  return scope()->AllowsLazyCompilationWithoutContext();
-}
-
-
 int FunctionLiteral::start_position() const {
   return scope()->start_position();
 }
