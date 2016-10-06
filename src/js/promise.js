@@ -172,7 +172,7 @@ function PromiseHandle(value, handler, deferred) {
     if (IS_UNDEFINED(deferred.resolve)) {
       ResolvePromise(deferred.promise, result);
     } else {
-      deferred.resolve(result);
+      %_Call(deferred.resolve, UNDEFINED, result);
     }
   } %catch (exception) {  // Natives syntax to mark this catch block.
     try {
@@ -181,7 +181,7 @@ function PromiseHandle(value, handler, deferred) {
         // redundant ExceptionEvents.
         RejectPromise(deferred.promise, exception, false);
       } else {
-        deferred.reject(exception);
+        %_Call(deferred.reject, UNDEFINED, exception);
       }
     } catch (e) { }
   } finally {
@@ -606,7 +606,7 @@ function PromiseRace(iterable) {
       }
     }
   } catch (e) {
-    deferred.reject(e)
+    %_Call(deferred.reject, UNDEFINED, e);
   }
   return deferred.promise;
 }
