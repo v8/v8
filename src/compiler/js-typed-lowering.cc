@@ -82,16 +82,16 @@ class JSBinopReduction final {
     if (BothInputsAre(Type::String()) ||
         ((lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) &&
          BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString)) {
-      if (left_type()->IsConstant() &&
-          left_type()->AsConstant()->Value()->IsString()) {
+      if (left_type()->IsHeapConstant() &&
+          left_type()->AsHeapConstant()->Value()->IsString()) {
         Handle<String> left_string =
-            Handle<String>::cast(left_type()->AsConstant()->Value());
+            Handle<String>::cast(left_type()->AsHeapConstant()->Value());
         if (left_string->length() >= ConsString::kMinLength) return true;
       }
-      if (right_type()->IsConstant() &&
-          right_type()->AsConstant()->Value()->IsString()) {
+      if (right_type()->IsHeapConstant() &&
+          right_type()->AsHeapConstant()->Value()->IsString()) {
         Handle<String> right_string =
-            Handle<String>::cast(right_type()->AsConstant()->Value());
+            Handle<String>::cast(right_type()->AsHeapConstant()->Value());
         if (right_string->length() >= ConsString::kMinLength) return true;
       }
     }
@@ -447,7 +447,6 @@ class JSBinopReduction final {
 // - immediately put in type bounds for all new nodes
 // - relax effects from generic but not-side-effecting operations
 
-
 JSTypedLowering::JSTypedLowering(Editor* editor,
                                  CompilationDependencies* dependencies,
                                  Flags flags, JSGraph* jsgraph, Zone* zone)
@@ -456,7 +455,7 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       flags_(flags),
       jsgraph_(jsgraph),
       the_hole_type_(
-          Type::Constant(factory()->the_hole_value(), graph()->zone())),
+          Type::HeapConstant(factory()->the_hole_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -598,9 +597,9 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
 
   // Determine the {first} length.
   Node* first_length =
-      first_type->IsConstant()
+      first_type->IsHeapConstant()
           ? jsgraph()->Constant(
-                Handle<String>::cast(first_type->AsConstant()->Value())
+                Handle<String>::cast(first_type->AsHeapConstant()->Value())
                     ->length())
           : effect = graph()->NewNode(
                 simplified()->LoadField(AccessBuilder::ForStringLength()),
@@ -608,9 +607,9 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
 
   // Determine the {second} length.
   Node* second_length =
-      second_type->IsConstant()
+      second_type->IsHeapConstant()
           ? jsgraph()->Constant(
-                Handle<String>::cast(second_type->AsConstant()->Value())
+                Handle<String>::cast(second_type->AsHeapConstant()->Value())
                     ->length())
           : effect = graph()->NewNode(
                 simplified()->LoadField(AccessBuilder::ForStringLength()),
@@ -980,8 +979,8 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
 Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   // Try constant-folding of JSToNumber with constant inputs.
   Type* input_type = NodeProperties::GetType(input);
-  if (input_type->IsConstant()) {
-    Handle<Object> input_value = input_type->AsConstant()->Value();
+  if (input_type->IsHeapConstant()) {
+    Handle<Object> input_value = input_type->AsHeapConstant()->Value();
     if (input_value->IsString()) {
       return Replace(jsgraph()->Constant(
           String::ToNumber(Handle<String>::cast(input_value))));
@@ -1280,13 +1279,13 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   Node* effect = r.effect();
   Node* control = r.control();
 
-  if (!r.right_type()->IsConstant() ||
-      !r.right_type()->AsConstant()->Value()->IsJSFunction()) {
+  if (!r.right_type()->IsHeapConstant() ||
+      !r.right_type()->AsHeapConstant()->Value()->IsJSFunction()) {
     return NoChange();
   }
 
   Handle<JSFunction> function =
-      Handle<JSFunction>::cast(r.right_type()->AsConstant()->Value());
+      Handle<JSFunction>::cast(r.right_type()->AsHeapConstant()->Value());
   Handle<SharedFunctionInfo> shared(function->shared(), isolate());
 
   // Make sure the prototype of {function} is the %FunctionPrototype%, and it
@@ -1485,9 +1484,9 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   // with the global proxy unconditionally.
   if (receiver_type->Is(Type::NullOrUndefined()) ||
       mode == ConvertReceiverMode::kNullOrUndefined) {
-    if (context_type->IsConstant()) {
+    if (context_type->IsHeapConstant()) {
       Handle<JSObject> global_proxy(
-          Handle<Context>::cast(context_type->AsConstant()->Value())
+          Handle<Context>::cast(context_type->AsHeapConstant()->Value())
               ->global_proxy(),
           isolate());
       receiver = jsgraph()->Constant(global_proxy);
@@ -1590,9 +1589,9 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   Node* eglobal = effect;
   Node* rglobal;
   {
-    if (context_type->IsConstant()) {
+    if (context_type->IsHeapConstant()) {
       Handle<JSObject> global_proxy(
-          Handle<Context>::cast(context_type->AsConstant()->Value())
+          Handle<Context>::cast(context_type->AsHeapConstant()->Value())
               ->global_proxy(),
           isolate());
       rglobal = jsgraph()->Constant(global_proxy);
@@ -1715,10 +1714,10 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Check if {target} is a known JSFunction.
-  if (target_type->IsConstant() &&
-      target_type->AsConstant()->Value()->IsJSFunction()) {
+  if (target_type->IsHeapConstant() &&
+      target_type->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type->AsConstant()->Value());
+        Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
     const int builtin_index = shared->construct_stub()->builtin_index();
     const bool is_builtin = (builtin_index != -1);
@@ -1800,10 +1799,10 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   }
 
   // Check if {target} is a known JSFunction.
-  if (target_type->IsConstant() &&
-      target_type->AsConstant()->Value()->IsJSFunction()) {
+  if (target_type->IsHeapConstant() &&
+      target_type->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type->AsConstant()->Value());
+        Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
     const int builtin_index = shared->code()->builtin_index();
     const bool is_builtin = (builtin_index != -1);

@@ -41,9 +41,9 @@ Typer::Typer(Isolate* isolate, Graph* graph)
   Zone* zone = this->zone();
   Factory* const factory = isolate->factory();
 
-  singleton_false_ = Type::Constant(factory->false_value(), zone);
-  singleton_true_ = Type::Constant(factory->true_value(), zone);
-  singleton_the_hole_ = Type::Constant(factory->the_hole_value(), zone);
+  singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
+  singleton_true_ = Type::HeapConstant(factory->true_value(), zone);
+  singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
   falsish_ = Type::Union(
       Type::Undetectable(),
       Type::Union(Type::Union(singleton_false_, cache_.kZeroish, zone),
@@ -604,14 +604,9 @@ Type* Typer::Visitor::TypeFloat64Constant(Node* node) {
 
 
 Type* Typer::Visitor::TypeNumberConstant(Node* node) {
-  Factory* f = isolate()->factory();
   double number = OpParameter<double>(node);
-  if (Type::IsInteger(number)) {
-    return Type::Range(number, number, zone());
-  }
-  return Type::Constant(f->NewNumber(number), zone());
+  return Type::NewConstant(number, zone());
 }
-
 
 Type* Typer::Visitor::TypeHeapConstant(Node* node) {
   return TypeConstant(OpParameter<Handle<HeapObject>>(node));
@@ -836,7 +831,7 @@ Type* Typer::Visitor::JSEqualTyper(Type* lhs, Type* rhs, Typer* t) {
       (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
     return t->singleton_false_;
   }
-  if (lhs->IsConstant() && rhs->Is(lhs)) {
+  if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
     return t->singleton_true_;
@@ -873,7 +868,7 @@ Type* Typer::Visitor::JSStrictEqualTyper(Type* lhs, Type* rhs, Typer* t) {
       !lhs->Maybe(rhs)) {
     return t->singleton_false_;
   }
-  if (lhs->IsConstant() && rhs->Is(lhs)) {
+  if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
     return t->singleton_true_;
@@ -907,7 +902,7 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::JSCompareTyper(Type* lhs,
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return kComparisonUndefined;
 
   ComparisonOutcome result;
-  if (lhs->IsConstant() && rhs->Is(lhs)) {
+  if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value.
     result = kComparisonFalse;
   } else if (lhs->Min() >= rhs->Max()) {
@@ -1021,23 +1016,26 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
 Type* Typer::Visitor::JSTypeOfTyper(Type* type, Typer* t) {
   Factory* const f = t->isolate()->factory();
   if (type->Is(Type::Boolean())) {
-    return Type::Constant(f->boolean_string(), t->zone());
+    return Type::HeapConstant(f->boolean_string(), t->zone());
   } else if (type->Is(Type::Number())) {
-    return Type::Constant(f->number_string(), t->zone());
+    return Type::HeapConstant(f->number_string(), t->zone());
   } else if (type->Is(Type::String())) {
-    return Type::Constant(f->string_string(), t->zone());
+    return Type::HeapConstant(f->string_string(), t->zone());
   } else if (type->Is(Type::Symbol())) {
-    return Type::Constant(f->symbol_string(), t->zone());
+    return Type::HeapConstant(f->symbol_string(), t->zone());
   } else if (type->Is(Type::Union(Type::Undefined(), Type::OtherUndetectable(),
                                   t->zone()))) {
-    return Type::Constant(f->undefined_string(), t->zone());
+    return Type::HeapConstant(f->undefined_string(), t->zone());
   } else if (type->Is(Type::Null())) {
-    return Type::Constant(f->object_string(), t->zone());
+    return Type::HeapConstant(f->object_string(), t->zone());
   } else if (type->Is(Type::Function())) {
-    return Type::Constant(f->function_string(), t->zone());
-  } else if (type->IsConstant()) {
-    return Type::Constant(
-        Object::TypeOf(t->isolate(), type->AsConstant()->Value()), t->zone());
+    return Type::HeapConstant(f->function_string(), t->zone());
+  } else if (type->IsHeapConstant()) {
+    return Type::HeapConstant(
+        Object::TypeOf(t->isolate(), type->AsHeapConstant()->Value()),
+        t->zone());
+  } else if (type->IsOtherNumberConstant()) {
+    return Type::HeapConstant(f->number_string(), t->zone());
   }
   return Type::InternalizedString();
 }
@@ -1292,9 +1290,9 @@ Type* Typer::Visitor::TypeJSCallConstruct(Node* node) {
 
 
 Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
-  if (fun->IsConstant() && fun->AsConstant()->Value()->IsJSFunction()) {
+  if (fun->IsHeapConstant() && fun->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(fun->AsConstant()->Value());
+        Handle<JSFunction>::cast(fun->AsHeapConstant()->Value());
     if (function->shared()->HasBuiltinFunctionId()) {
       switch (function->shared()->builtin_function_id()) {
         case kMathRandom:
@@ -1537,7 +1535,7 @@ Type* Typer::Visitor::TypePlainPrimitiveToFloat64(Node* node) {
 
 // static
 Type* Typer::Visitor::ReferenceEqualTyper(Type* lhs, Type* rhs, Typer* t) {
-  if (lhs->IsConstant() && rhs->Is(lhs)) {
+  if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
     return t->singleton_true_;
   }
   return Type::Boolean();
@@ -1564,7 +1562,7 @@ Type* Typer::Visitor::StringFromCharCodeTyper(Type* type, Typer* t) {
   if (min == max) {
     uint32_t code = static_cast<uint32_t>(min) & String::kMaxUtf16CodeUnitU;
     Handle<String> string = f->LookupSingleCharacterStringFromCode(code);
-    return Type::Constant(string, t->zone());
+    return Type::HeapConstant(string, t->zone());
   }
   return Type::String();
 }
@@ -1577,7 +1575,7 @@ Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
   if (min == max) {
     uint32_t code = static_cast<uint32_t>(min) & String::kMaxUtf16CodeUnitU;
     Handle<String> string = f->LookupSingleCharacterStringFromCode(code);
-    return Type::Constant(string, t->zone());
+    return Type::HeapConstant(string, t->zone());
   }
   return Type::String();
 }
@@ -1752,7 +1750,7 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
   if (Type::IsInteger(*value)) {
     return Type::Range(value->Number(), value->Number(), zone());
   }
-  return Type::Constant(value, zone());
+  return Type::NewConstant(value, zone());
 }
 
 }  // namespace compiler

@@ -1031,10 +1031,10 @@ class RepresentationSelector {
         // undefined, because these special oddballs are always in the root set.
         return kNoWriteBarrier;
       }
-      if (value_type->IsConstant() &&
-          value_type->AsConstant()->Value()->IsHeapObject()) {
+      if (value_type->IsHeapConstant() &&
+          value_type->AsHeapConstant()->Value()->IsHeapObject()) {
         Handle<HeapObject> value_object =
-            Handle<HeapObject>::cast(value_type->AsConstant()->Value());
+            Handle<HeapObject>::cast(value_type->AsHeapConstant()->Value());
         RootIndexMap root_index_map(jsgraph_->isolate());
         int root_index = root_index_map.Lookup(*value_object);
         if (root_index != RootIndexMap::kInvalidRootIndex &&

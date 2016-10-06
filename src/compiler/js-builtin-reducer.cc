@@ -330,9 +330,9 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
       for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
         Node* const map = NodeProperties::GetValueInput(dominator, i);
         Type* const map_type = NodeProperties::GetType(map);
-        if (!map_type->IsConstant()) return false;
+        if (!map_type->IsHeapConstant()) return false;
         Handle<Map> const map_value =
-            Handle<Map>::cast(map_type->AsConstant()->Value());
+            Handle<Map>::cast(map_type->AsHeapConstant()->Value());
         if (map_value->instance_type() != instance_type) return false;
       }
       return true;

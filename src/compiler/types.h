@@ -263,7 +263,7 @@ class TypeBase {
  protected:
   friend class Type;
 
-  enum Kind { kConstant, kTuple, kUnion, kRange };
+  enum Kind { kHeapConstant, kOtherNumberConstant, kTuple, kUnion, kRange };
 
   Kind kind() const { return kind_; }
   explicit TypeBase(Kind kind) : kind_(kind) {}
@@ -287,7 +287,38 @@ class TypeBase {
 // -----------------------------------------------------------------------------
 // Constant types.
 
-class ConstantType : public TypeBase {
+class OtherNumberConstantType : public TypeBase {
+ public:
+  double Value() { return value_; }
+
+  static bool IsOtherNumberConstant(double value);
+  static bool IsOtherNumberConstant(Object* value);
+
+ private:
+  friend class Type;
+  friend class BitsetType;
+
+  static Type* New(double value, Zone* zone) {
+    return AsType(new (zone->New(sizeof(OtherNumberConstantType)))
+                      OtherNumberConstantType(value));  // NOLINT
+  }
+
+  static OtherNumberConstantType* cast(Type* type) {
+    DCHECK(IsKind(type, kOtherNumberConstant));
+    return static_cast<OtherNumberConstantType*>(FromType(type));
+  }
+
+  explicit OtherNumberConstantType(double value)
+      : TypeBase(kOtherNumberConstant), value_(value) {
+    CHECK(IsOtherNumberConstant(value));
+  }
+
+  BitsetType::bitset Lub() { return BitsetType::kOtherNumber; }
+
+  double value_;
+};
+
+class HeapConstantType : public TypeBase {
  public:
   i::Handle<i::Object> Value() { return object_; }
 
@@ -297,24 +328,22 @@ class ConstantType : public TypeBase {
 
   static Type* New(i::Handle<i::Object> value, Zone* zone) {
     BitsetType::bitset bitset = BitsetType::Lub(*value);
-    return AsType(new (zone->New(sizeof(ConstantType)))
-                      ConstantType(bitset, value));
+    return AsType(new (zone->New(sizeof(HeapConstantType)))
+                      HeapConstantType(bitset, value));
   }
 
-  static ConstantType* cast(Type* type) {
-    DCHECK(IsKind(type, kConstant));
-    return static_cast<ConstantType*>(FromType(type));
+  static HeapConstantType* cast(Type* type) {
+    DCHECK(IsKind(type, kHeapConstant));
+    return static_cast<HeapConstantType*>(FromType(type));
   }
 
-  ConstantType(BitsetType::bitset bitset, i::Handle<i::Object> object)
-      : TypeBase(kConstant), bitset_(bitset), object_(object) {}
+  HeapConstantType(BitsetType::bitset bitset, i::Handle<i::Object> object);
 
   BitsetType::bitset Lub() { return bitset_; }
 
   BitsetType::bitset bitset_;
   Handle<i::Object> object_;
 };
-// TODO(neis): Also cache value if numerical.
 
 // -----------------------------------------------------------------------------
 // Range types.
@@ -474,8 +503,11 @@ class Type {
     return BitsetType::New(BitsetType::UnsignedSmall());
   }
 
-  static Type* Constant(i::Handle<i::Object> value, Zone* zone) {
-    return ConstantType::New(value, zone);
+  static Type* OtherNumberConstant(double value, Zone* zone) {
+    return OtherNumberConstantType::New(value, zone);
+  }
+  static Type* HeapConstant(i::Handle<i::Object> value, Zone* zone) {
+    return HeapConstantType::New(value, zone);
   }
   static Type* Range(double min, double max, Zone* zone) {
     return RangeType::New(min, max, zone);
@@ -487,6 +519,10 @@ class Type {
     tuple->AsTuple()->InitElement(2, third);
     return tuple;
   }
+
+  // NewConstant is a factory that returns Constant, Range or Number.
+  static Type* NewConstant(i::Handle<i::Object> value, Zone* zone);
+  static Type* NewConstant(double value, Zone* zone);
 
   static Type* Union(Type* type1, Type* type2, Zone* zone);
   static Type* Intersect(Type* type1, Type* type2, Zone* zone);
@@ -515,10 +551,16 @@ class Type {
 
   // Inspection.
   bool IsRange() { return IsKind(TypeBase::kRange); }
-  bool IsConstant() { return IsKind(TypeBase::kConstant); }
+  bool IsHeapConstant() { return IsKind(TypeBase::kHeapConstant); }
+  bool IsOtherNumberConstant() {
+    return IsKind(TypeBase::kOtherNumberConstant);
+  }
   bool IsTuple() { return IsKind(TypeBase::kTuple); }
 
-  ConstantType* AsConstant() { return ConstantType::cast(this); }
+  HeapConstantType* AsHeapConstant() { return HeapConstantType::cast(this); }
+  OtherNumberConstantType* AsOtherNumberConstant() {
+    return OtherNumberConstantType::cast(this);
+  }
   RangeType* AsRange() { return RangeType::cast(this); }
   TupleType* AsTuple() { return TupleType::cast(this); }
 
@@ -582,7 +624,6 @@ class Type {
 
   static bool Overlap(RangeType* lhs, RangeType* rhs);
   static bool Contains(RangeType* lhs, RangeType* rhs);
-  static bool Contains(RangeType* range, ConstantType* constant);
   static bool Contains(RangeType* range, i::Object* val);
 
   static int UpdateRange(Type* type, UnionType* result, int size, Zone* zone);

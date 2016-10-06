@@ -231,13 +231,12 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   Type* const new_target_type = NodeProperties::GetType(new_target);
   Node* const effect = NodeProperties::GetEffectInput(node);
   // Extract constructor and original constructor function.
-  if (target_type->IsConstant() &&
-      new_target_type->IsConstant() &&
-      new_target_type->AsConstant()->Value()->IsJSFunction()) {
+  if (target_type->IsHeapConstant() && new_target_type->IsHeapConstant() &&
+      new_target_type->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> constructor =
-        Handle<JSFunction>::cast(target_type->AsConstant()->Value());
+        Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
     Handle<JSFunction> original_constructor =
-        Handle<JSFunction>::cast(new_target_type->AsConstant()->Value());
+        Handle<JSFunction>::cast(new_target_type->AsHeapConstant()->Value());
     DCHECK(constructor->IsConstructor());
     DCHECK(original_constructor->IsConstructor());
 
