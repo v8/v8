@@ -95,7 +95,6 @@ class LCodeGen;
   V(LoadKeyed)                               \
   V(LoadKeyedGeneric)                        \
   V(LoadNamedField)                          \
-  V(LoadNamedGeneric)                        \
   V(LoadRoot)                                \
   V(MathAbs)                                 \
   V(MathClz32)                               \
@@ -1489,25 +1488,6 @@ class LLoadNamedField final : public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField, "load-named-field")
   DECLARE_HYDROGEN_ACCESSOR(LoadNamedField)
-};
-
-
-class LLoadNamedGeneric final : public LTemplateInstruction<1, 2, 1> {
- public:
-  LLoadNamedGeneric(LOperand* context, LOperand* object, LOperand* vector) {
-    inputs_[0] = context;
-    inputs_[1] = object;
-    temps_[0] = vector;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-  LOperand* temp_vector() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric, "load-named-generic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadNamedGeneric)
-
-  Handle<Object> name() const { return hydrogen()->name(); }
 };
 
 

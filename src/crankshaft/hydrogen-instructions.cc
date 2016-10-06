@@ -803,7 +803,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kLeaveInlined:
     case HValue::kLoadFieldByIndex:
     case HValue::kLoadNamedField:
-    case HValue::kLoadNamedGeneric:
     case HValue::kLoadRoot:
     case HValue::kMathMinMax:
     case HValue::kParameter:
@@ -2879,13 +2878,6 @@ std::ostream& HLoadNamedField::PrintDataTo(std::ostream& os) const {  // NOLINT
 
   if (HasDependency()) os << " " << NameOf(dependency());
   return os;
-}
-
-
-std::ostream& HLoadNamedGeneric::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  Handle<String> n = Handle<String>::cast(name());
-  return os << NameOf(object()) << "." << n->ToCString().get();
 }
 
 

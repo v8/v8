@@ -108,7 +108,6 @@ class SmallMapList;
   V(LoadKeyed)                                \
   V(LoadKeyedGeneric)                         \
   V(LoadNamedField)                           \
-  V(LoadNamedGeneric)                         \
   V(LoadRoot)                                 \
   V(MathFloorOfDiv)                           \
   V(MathMinMax)                               \
@@ -5805,46 +5804,6 @@ class HLoadNamedField final : public HTemplateInstruction<2> {
 
   HObjectAccess access_;
   const UniqueSet<Map>* maps_;
-};
-
-
-class HLoadNamedGeneric final : public HTemplateInstruction<2> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HLoadNamedGeneric, HValue*,
-                                              Handle<Name>,
-                                              Handle<TypeFeedbackVector>,
-                                              FeedbackVectorSlot);
-
-  HValue* context() const { return OperandAt(0); }
-  HValue* object() const { return OperandAt(1); }
-  Handle<Name> name() const { return name_; }
-
-  FeedbackVectorSlot slot() const { return slot_; }
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric)
-
- private:
-  HLoadNamedGeneric(HValue* context, HValue* object, Handle<Name> name,
-                    Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
-      : name_(name), feedback_vector_(vector), slot_(slot) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, object);
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
-
-  Handle<Name> name_;
-  Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorSlot slot_;
 };
 
 

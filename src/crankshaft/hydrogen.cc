@@ -7097,36 +7097,35 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess,
         Deoptimizer::SOFT);
   }
-  if (access_type == LOAD) {
-    Handle<TypeFeedbackVector> vector =
-        handle(current_feedback_vector(), isolate());
+  Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
 
+  HValue* key = Add<HConstant>(name);
+  HValue* vector_value = Add<HConstant>(vector);
+  HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
+
+  if (access_type == LOAD) {
+    HValue* values[] = {context(), object, key, slot_value, vector_value};
     if (!expr->AsProperty()->key()->IsPropertyName()) {
       // It's possible that a keyed load of a constant string was converted
       // to a named load. Here, at the last minute, we need to make sure to
       // use a generic Keyed Load if we are using the type vector, because
       // it has to share information with full code.
-      HConstant* key = Add<HConstant>(name);
       HLoadKeyedGeneric* result =
           New<HLoadKeyedGeneric>(object, key, vector, slot);
       return result;
     }
 
-    HLoadNamedGeneric* result =
-        New<HLoadNamedGeneric>(object, name, vector, slot);
+    Callable callable = CodeFactory::LoadICInOptimizedCode(isolate());
+    HValue* stub = Add<HConstant>(callable.code());
+    HCallWithDescriptor* result = New<HCallWithDescriptor>(
+        stub, 0, callable.descriptor(), ArrayVector(values));
     return result;
-  } else {
-    Handle<TypeFeedbackVector> vector =
-        handle(current_feedback_vector(), isolate());
 
-    HValue* key = Add<HConstant>(name);
-    HValue* vector_value = Add<HConstant>(vector);
-    HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
+  } else {
     HValue* values[] = {context(), object,     key,
                         value,     slot_value, vector_value};
 
-    if (current_feedback_vector()->GetKind(slot) ==
-        FeedbackVectorSlotKind::KEYED_STORE_IC) {
+    if (vector->GetKind(slot) == FeedbackVectorSlotKind::KEYED_STORE_IC) {
       // It's possible that a keyed store of a constant string was converted
       // to a named store. Here, at the last minute, we need to make sure to
       // use a generic Keyed Store if we are using the type vector, because
