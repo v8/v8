@@ -7184,15 +7184,28 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
   RETURN_ESCAPED(result);
 }
 
+Local<String> WasmCompiledModule::GetUncompiledBytes() {
+  i::Handle<i::JSObject> obj =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::wasm::WasmCompiledModule> compiled_part =
+      i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
+  return Local<String>::Cast(Utils::ToLocal(compiled_part->module_bytes()));
+}
+
 WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::FixedArray> compiled_part =
-      i::handle(i::FixedArray::cast(obj->GetInternalField(0)));
+  i::Handle<i::wasm::WasmCompiledModule> compiled_part =
+      i::handle(i::wasm::WasmCompiledModule::cast(obj->GetInternalField(0)));
+
+  i::Handle<i::String> uncompiled_bytes = compiled_part->module_bytes();
+  compiled_part->reset_module_bytes();
   std::unique_ptr<i::ScriptData> script_data =
       i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
                                                            compiled_part);
+  compiled_part->set_module_bytes(uncompiled_bytes);
   script_data->ReleaseDataOwnership();
+
   size_t size = static_cast<size_t>(script_data->length());
   return {std::unique_ptr<const uint8_t[]>(script_data->data()), size};
 }
@@ -7209,9 +7222,35 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
   if (!maybe_compiled_part.ToHandle(&compiled_part)) {
     return MaybeLocal<WasmCompiledModule>();
   }
+  i::Handle<i::wasm::WasmCompiledModule> compiled_module =
+      handle(i::wasm::WasmCompiledModule::cast(*compiled_part));
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(i::wasm::CreateCompiledModuleObject(
-          i_isolate, compiled_part, i::wasm::ModuleOrigin::kWasmOrigin)));
+          i_isolate, compiled_module, i::wasm::ModuleOrigin::kWasmOrigin)));
+}
+
+MaybeLocal<WasmCompiledModule> WasmCompiledModule::DeserializeOrCompile(
+    Isolate* isolate,
+    const WasmCompiledModule::SerializedModule& serialized_data,
+    Local<String> uncompiled_bytes) {
+  MaybeLocal<WasmCompiledModule> ret = Deserialize(isolate, serialized_data);
+  if (!ret.IsEmpty()) return ret;
+  return Compile(isolate, uncompiled_bytes);
+}
+
+MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(
+    Isolate* isolate, Local<String> bytes) {
+  i::Handle<i::String> module_bytes = Utils::OpenHandle(*bytes);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::wasm::ErrorThrower thrower(i_isolate, "WasmCompiledModule::Deserialize()");
+  i::SeqOneByteString* data = i::SeqOneByteString::cast(*module_bytes);
+  i::MaybeHandle<i::JSObject> maybe_compiled =
+      i::wasm::CreateModuleObjectFromBytes(
+          i_isolate, data->GetChars(), data->GetChars() + data->length(),
+          &thrower, i::wasm::ModuleOrigin::kWasmOrigin);
+  if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
+  return Local<WasmCompiledModule>::Cast(
+      Utils::ToLocal(maybe_compiled.ToHandleChecked()));
 }
 
 // static

@@ -3902,13 +3902,27 @@ class V8_EXPORT Proxy : public Object {
 class V8_EXPORT WasmCompiledModule : public Object {
  public:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
+  // Get the uncompiled bytes that were used to compile this module.
+  Local<String> GetUncompiledBytes();
 
+  // Serialize the compiled module. The serialized data does not include the
+  // uncompiled bytes.
   SerializedModule Serialize();
+
+  // TODO(mtrofin): Back-compat. Move to private once change lands in Chrome.
+  // The resulting wasm setup won't have its uncompiled bytes available.
   static MaybeLocal<WasmCompiledModule> Deserialize(
       Isolate* isolate, const SerializedModule& serialized_data);
+  // If possible, deserialize the module, otherwise compile it from the provided
+  // uncompiled bytes.
+  static MaybeLocal<WasmCompiledModule> DeserializeOrCompile(
+      Isolate* isolate, const SerializedModule& serialized_data,
+      Local<String> uncompiled_bytes);
   V8_INLINE static WasmCompiledModule* Cast(Value* obj);
 
  private:
+  static MaybeLocal<WasmCompiledModule> Compile(Isolate* isolate,
+                                                Local<String> bytes);
   WasmCompiledModule();
   static void CheckCast(Value* obj);
 };
