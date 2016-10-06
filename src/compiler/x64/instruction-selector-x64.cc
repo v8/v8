@@ -1775,6 +1775,29 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 void VisitWord64Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
+  if (selector->CanUseRootsRegister()) {
+    Heap* const heap = selector->isolate()->heap();
+    Heap::RootListIndex root_index;
+    HeapObjectBinopMatcher m(node);
+    if (m.right().HasValue() &&
+        heap->IsRootHandle(m.right().Value(), &root_index)) {
+      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+      InstructionCode opcode =
+          kX64Cmp | AddressingModeField::encode(kMode_Root);
+      return VisitCompare(
+          selector, opcode,
+          g.TempImmediate((root_index * kPointerSize) - kRootRegisterBias),
+          g.UseRegister(m.left().node()), cont);
+    } else if (m.left().HasValue() &&
+               heap->IsRootHandle(m.left().Value(), &root_index)) {
+      InstructionCode opcode =
+          kX64Cmp | AddressingModeField::encode(kMode_Root);
+      return VisitCompare(
+          selector, opcode,
+          g.TempImmediate((root_index * kPointerSize) - kRootRegisterBias),
+          g.UseRegister(m.right().node()), cont);
+    }
+  }
   Int64BinopMatcher m(node);
   if (m.left().IsLoad() && m.right().IsLoadStackPointer()) {
     LoadMatcher<ExternalReferenceMatcher> mleft(m.left().node());

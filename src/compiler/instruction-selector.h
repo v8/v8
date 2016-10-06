@@ -204,6 +204,8 @@ class InstructionSelector final {
   // to the roots register, i.e. if both a root register is available for this
   // compilation unit and the serializer is disabled.
   bool CanAddressRelativeToRootsRegister() const;
+  // Check if we can use the roots register to access GC roots.
+  bool CanUseRootsRegister() const;
 
   Isolate* isolate() const { return sequence()->isolate(); }
 

@@ -1023,6 +1023,14 @@ class Heap {
   Handle<Object> root_handle(RootListIndex index) {
     return Handle<Object>(&roots_[index]);
   }
+  template <typename T>
+  bool IsRootHandle(Handle<T> handle, RootListIndex* index) const {
+    Object** const handle_location = bit_cast<Object**>(handle.address());
+    if (handle_location >= &roots_[kRootListLength]) return false;
+    if (handle_location < &roots_[0]) return false;
+    *index = static_cast<RootListIndex>(handle_location - &roots_[0]);
+    return true;
+  }
 
   // Generated code can embed this address to get access to the roots.
   Object** roots_array_start() { return roots_; }
