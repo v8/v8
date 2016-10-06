@@ -86,12 +86,16 @@ struct WasmInitExpr {
     double f64_const;
     uint32_t global_index;
   } val;
-};
 
-#define NO_INIT                 \
-  {                             \
-    WasmInitExpr::kNone, { 0u } \
+  WasmInitExpr() : kind(kNone) {}
+  explicit WasmInitExpr(int32_t v) : kind(kI32Const) { val.i32_const = v; }
+  explicit WasmInitExpr(int64_t v) : kind(kI64Const) { val.i64_const = v; }
+  explicit WasmInitExpr(float v) : kind(kF32Const) { val.f32_const = v; }
+  explicit WasmInitExpr(double v) : kind(kF64Const) { val.f64_const = v; }
+  WasmInitExpr(WasmInitKind kind, uint32_t global_index) : kind(kGlobalIndex) {
+    val.global_index = global_index;
   }
+};
 
 // Static representation of a WASM function.
 struct WasmFunction {
@@ -384,8 +388,9 @@ class WasmCompiledModule : public FixedArray {
 
 #define CORE_WCM_PROPERTY_TABLE(MACRO)                \
   MACRO(OBJECT, FixedArray, code_table)               \
-  MACRO(OBJECT, FixedArray, import_data)              \
+  MACRO(OBJECT, FixedArray, imports)                  \
   MACRO(OBJECT, FixedArray, exports)                  \
+  MACRO(OBJECT, FixedArray, inits)                    \
   MACRO(OBJECT, FixedArray, startup_function)         \
   MACRO(OBJECT, FixedArray, indirect_function_tables) \
   MACRO(OBJECT, String, module_bytes)                 \
@@ -395,7 +400,6 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, ByteArray, data_segments)             \
   MACRO(SMALL_NUMBER, uint32_t, globals_size)         \
   MACRO(OBJECT, JSArrayBuffer, heap)                  \
-  MACRO(SMALL_NUMBER, bool, export_memory)            \
   MACRO(SMALL_NUMBER, ModuleOrigin, origin)           \
   MACRO(WEAK_LINK, WasmCompiledModule, next_instance) \
   MACRO(WEAK_LINK, WasmCompiledModule, prev_instance) \
@@ -424,7 +428,6 @@ class WasmCompiledModule : public FixedArray {
   static Handle<WasmCompiledModule> New(Isolate* isolate,
                                         uint32_t min_memory_pages,
                                         uint32_t globals_size,
-                                        bool export_memory,
                                         ModuleOrigin origin);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
@@ -454,9 +457,6 @@ class WasmCompiledModule : public FixedArray {
   void PrintInstancesChain();
 
  private:
-#if DEBUG
-  static uint32_t instance_id_counter_;
-#endif
   void Init();
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
